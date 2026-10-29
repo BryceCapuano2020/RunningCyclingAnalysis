@@ -625,8 +625,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   within 20% of the middle one's duration. Recoveries between reps are left out only where they alternate with
   the reps: where the sorted outputs part by 15% or more and the hard laps all sit at places of one parity, the
   laps at those places are the reps, so a rep that fell to the recoveries' pace stays in. With any other
-  pattern every lap is a rep, so a rep that blew up is the fade shown. Laps that run straight into each other
-  are splits of one effort, not reps, so they get no table. Every rep needs the measure it is read in, and none
+  pattern every lap is a rep, so a rep that blew up is the fade shown. The table is for structured intervals
+  only: every rep after the first must follow a recovery, which is the laps between it and the rep before
+  being all clearly slower (15% or more below the reps' middle output) or shorter (20% or more below their
+  middle length), or, with no lap between, a rest of 10 s or more that no lap covers (`recoversBetween`).
+  Equal laps run one into the next at a steady effort, such as a watch's mile auto-laps, are splits, not
+  reps, so they get no table. Every rep needs the measure it is read in, and none
   is dropped for want of one. A run is read as flat pace where its altitude gives a grade for each rep, so a hill
   does not pass for a fade, and as recorded pace otherwise. A ride is read by its power; without power, by speed
   on a trainer only, and an outdoor ride without power gets no table. One sentence leads, naming the rep that

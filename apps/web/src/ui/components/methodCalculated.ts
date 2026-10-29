@@ -111,7 +111,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'How your reps held up',
     state: 'calculated',
-    line: 'For laps of about one length, how the output of each rep moved from the first to the last, with the recoveries between them left out.',
+    line: 'For intervals with a slower or shorter recovery between laps of one length, how each rep moved from the first to the last.',
   },
   {
     name: 'Weekly hours by sport',

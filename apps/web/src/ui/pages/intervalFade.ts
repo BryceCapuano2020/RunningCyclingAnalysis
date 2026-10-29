@@ -10,12 +10,17 @@ import type { Selection } from './workbenchTime'
  * athlete's and not the interval's. minReps is how many it takes to speak of a fade. lengthTolerance is
  * how far a rep's duration may be from the middle one's. A fall of levelPct percent or less reads as
  * level. A split of splitGap or more between the hard laps and the easy ones means the easy ones are
- * the recoveries between, which are left out.
+ * the recoveries between, which are left out. A recovery between two reps is a lap that is clearly slower
+ * (splitGap or more below the reps' middle output) or clearly shorter (lengthTolerance or more below their
+ * middle length), or, with no lap between, a rest of restS or more that no lap covers.
  */
-export const REP_FADE = { minReps: 3, lengthTolerance: 0.2, levelPct: 2, splitGap: 0.15 } as const
-
-/** A seconds gap smaller than this between two laps means they run into each other. */
-const BACK_TO_BACK_S = 1
+export const REP_FADE = {
+  minReps: 3,
+  lengthTolerance: 0.2,
+  levelPct: 2,
+  splitGap: 0.15,
+  restS: 10,
+} as const
 
 /**
  * The measures a rep's output is read from, best first, and whether a speed stands in only on a trainer:
@@ -119,6 +124,31 @@ export function hardLaps(
   return [...indices]
 }
 
+/**
+ * Whether every rep after the first follows a recovery: the laps between it and the rep before it are all
+ * clearly slower or shorter than the reps, or, with none between, a rest that no lap covers. Equal laps run
+ * one into the next at one effort, such as a run's auto-laps, are splits of a steady run and not reps.
+ */
+function recoversBetween(
+  chosen: readonly number[],
+  usable: readonly Usable[],
+  outputs: readonly number[],
+  lengths: readonly number[],
+): boolean {
+  const repOutput = median(chosen.map((i) => outputs[i]!))
+  const repLength = median(chosen.map((i) => lengths[i]!))
+  const isRecovery = (lap: number) =>
+    outputs[lap]! <= repOutput * (1 - REP_FADE.splitGap) ||
+    lengths[lap]! <= repLength * (1 - REP_FADE.lengthTolerance)
+  return chosen.every((lap, k) => {
+    if (k === 0) return true
+    const before = chosen[k - 1]!
+    const between = Array.from({ length: lap - before - 1 }, (_, n) => before + 1 + n)
+    if (between.length > 0) return between.every(isRecovery)
+    return usable[lap]!.bounds.startS - usable[before]!.bounds.endS >= REP_FADE.restS
+  })
+}
+
 /** The laps the device recorded, or the intervals found in the readings when it recorded none. */
 function lapsOf(trace: ActivityTrace): { laps: ActivityLap[]; recorded: boolean } {
   const recorded = trace.laps.length > 0
@@ -165,6 +195,7 @@ function repsIn(trace: ActivityTrace, metric: RepMetric, usable: Usable[]): Rep[
   if (similar.some((i) => !Number.isFinite(outputs[i]!))) return null
   const chosen = hardLaps(similar, score)
   if (chosen.length < REP_FADE.minReps) return null
+  if (!recoversBetween(chosen, usable, outputs, lengths)) return null
   return chosen.map((i, k) => {
     const { lapNumber, bounds } = usable[i]!
     const { startS, endS } = bounds
@@ -181,9 +212,9 @@ function repsIn(trace: ActivityTrace, metric: RepMetric, usable: Usable[]): Rep[
 
 /**
  * How a run of reps held up, or null when the activity has none: at least minReps laps of one length,
- * set apart from the recoveries between them, all read in one measure. A run is read as flat pace where
- * its altitude allows, else as recorded; a ride by its power, or by its speed on a trainer only. Laps that
- * run straight into each other are splits of one effort, which the splits already show.
+ * set apart from the recoveries between them (see recoversBetween), all read in one measure. A run is read
+ * as flat pace where its altitude allows, else as recorded; a ride by its power, or by its speed on a
+ * trainer only. Laps with no recovery between them are splits of one steady effort, which the splits show.
  */
 export function repFadeOf(trace: ActivityTrace, { indoor }: { indoor: boolean }): RepFade | null {
   const max = Math.floor(trace.durationS)
@@ -198,11 +229,6 @@ export function repFadeOf(trace: ActivityTrace, { indoor }: { indoor: boolean })
     if (metric === 'speed' && speedNeedsTrainer && !indoor) continue
     const reps = repsIn(trace, metric, usable)
     if (reps === null) continue
-    const joined = reps.every(
-      (rep, k) =>
-        k === 0 || Math.abs(rep.bounds.startS - reps[k - 1]!.bounds.endS) < BACK_TO_BACK_S,
-    )
-    if (joined) return null
     return {
       metric,
       recorded,
