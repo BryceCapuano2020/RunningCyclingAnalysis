@@ -29,6 +29,13 @@ describe('ActivityDelete', () => {
     expect(screen.getByRole('button', { name: 'Delete Morning run' })).toBeTruthy()
   })
 
+  it('carries both the word and an overflow mark, which the stylesheet swaps on a phone, under one name', () => {
+    renderDelete()
+    const button = screen.getByRole('button', { name: 'Delete Morning run' })
+    expect(button.querySelector('.activity-delete__word')).toHaveTextContent('Delete')
+    expect(button.querySelector('svg.activity-delete__more')).toHaveAttribute('aria-hidden', 'true')
+  })
+
   it('says the removal is from the library when signed in, where the saved copy is kept', async () => {
     const user = userEvent.setup()
     renderDelete({ signedIn: true })

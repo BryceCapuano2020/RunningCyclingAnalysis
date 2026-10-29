@@ -13,6 +13,7 @@ const segmented = await readStylesheet(import.meta.url, './SegmentedControl.css'
 const activityList = await readStylesheet(import.meta.url, './ActivityList.css')
 const pager = await readStylesheet(import.meta.url, './Pager.css')
 const activitiesPage = await readStylesheet(import.meta.url, '../pages/ActivitiesPage.css')
+const activityDelete = await readStylesheet(import.meta.url, './ActivityDelete.css')
 
 /** The declarations of every rule whose selector list names `selector` exactly, in source order. */
 function rulesWith(css: string, selector: string): string {
@@ -116,6 +117,24 @@ describe('the activity list', () => {
     expect(rulesWith(mediaOf(activityList, PHONE_760), '.activity-list__label')).toMatch(
       /clip-path:\s*inset\(50%\)/,
     )
+  })
+
+  it('drops the Delete word for an overflow mark below 560 px, keeping the button a full target', () => {
+    const phone = mediaOf(activityDelete, NARROW_PHONE)
+    expect(rulesWith(phone, '.activity-delete__word')).toMatch(/display:\s*none/)
+    expect(rulesWith(phone, '.activity-delete__more')).toMatch(/display:\s*inline-block/)
+    expect(rulesWith(activityDelete, '.activity-delete__more')).toMatch(/display:\s*none/)
+    expect(rulesWith(phone, '.activity-list__item .activity-delete__open')).toMatch(
+      /min-width:\s*var\(--control-height\)/,
+    )
+  })
+
+  it('sets the period, then the sport with the sort beside it, below 560 px, with their labels kept for readers', () => {
+    const phone = mediaOf(activitiesPage, NARROW_PHONE)
+    expect(rulesWith(phone, '.activities__filters')).toMatch(
+      /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 9rem\)/,
+    )
+    expect(rulesWith(phone, '.activities__sort > span')).toMatch(/clip-path:\s*inset\(50%\)/)
   })
 
   it('keeps each figure value on one line', () => {

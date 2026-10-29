@@ -62,3 +62,39 @@
 .activities__outcome {
   margin: 0;
 }
+
+/*
+ * On a phone, below 560 px (COMPACT_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts), the controls are two rows: the
+ * period, then the sport with the sort beside it. Their legends and the sort's label stay for screen readers;
+ * a period, a sport and "Newest first" read as what they are. The first list row comes up the screen.
+ */
+@media (max-width: 560px) {
+  .activities__controls {
+    gap: var(--space-2);
+  }
+
+  .activities__controls .segmented-control__legend,
+  .activities__sort > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .activities__filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 9rem);
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .activities__sort {
+    justify-self: stretch;
+  }
+
+  .activities__sort select {
+    width: 100%;
+    min-width: 0;
+  }
+}

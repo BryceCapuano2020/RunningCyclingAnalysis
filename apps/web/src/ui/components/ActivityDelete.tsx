@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { ConfirmActions } from './ConfirmActions'
+import { MoreIcon } from './icons'
 import './ActivityDelete.css'
 
 export interface ActivityDeleteProps {
@@ -70,7 +71,8 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
           if (!busy) setAsking(true)
         }}
       >
-        Delete
+        <span className="activity-delete__word">Delete</span>
+        <MoreIcon className="activity-delete__more" />
       </button>
     )
   }
