@@ -20,6 +20,8 @@ export interface CurveRow {
   /** NaN where the period before has none. */
   previous: number
   activityId: string | null
+  /** Whether the value is a longer effort's, carried down the curve, so the file has no effort of this length. */
+  carried?: boolean
 }
 
 /** What the tooltips and the table need, bundled so that they are passed together. */

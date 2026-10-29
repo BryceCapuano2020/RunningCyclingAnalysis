@@ -131,6 +131,8 @@ export function nativeCurve(sport: Sport, curves: SportCurves): Curve {
     value: metabolicToFlatSpeed(point.value, PRIORS.runEconomyScale.mean),
     activityId: point.activityId,
     startIndex: point.startIndex,
+    // Kept so the chart can tell a longer effort's value, carried down by the envelope, from a measured one.
+    windowS: point.windowS,
   }))
 }
 

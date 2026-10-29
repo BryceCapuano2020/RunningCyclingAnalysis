@@ -10,6 +10,7 @@ import { activityNames } from '../records'
 import { hrefFor } from '../route'
 import { formLine } from '../sportForm'
 import { SPORT_PLURAL } from '../sports'
+import { thresholdLine } from '../thresholdLine'
 import { bestEffortRows, curvesOf } from './bestEffortRows'
 import { StandOutCaption } from './StandOutCaption'
 import type { SectionContext } from './sportPageProps'
@@ -71,6 +72,7 @@ export function BestEffortsSection(context: SectionContext) {
         units={units}
         activityNames={activityNames(result.activities)}
         activityMasses={activityMasses(result.activities)}
+        threshold={thresholdLine(result, sport, massKg, units)}
       />
       <StandOutCaption sport={sport} result={result} />
       <a className="link-arrow" href={`#/activities?${queryFromView({ ...DEFAULT_VIEW, sport })}`}>
