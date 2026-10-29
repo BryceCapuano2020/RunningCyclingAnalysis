@@ -19,7 +19,7 @@ describe('WeightNote', () => {
     expect(container.querySelector('p')).toHaveTextContent(
       `${WEIGHT_PROMPT_PARTS.lead} Profile ${WEIGHT_FIGURES_PURPOSE}`,
     )
-    expect(WEIGHT_FIGURES_PURPOSE).toBe('to see ride figures.')
+    expect(WEIGHT_FIGURES_PURPOSE).toBe('to grade your rides and see their figures.')
   })
 
   it('gives the Profile link its own class, so a phone can give it a finger-sized target', () => {

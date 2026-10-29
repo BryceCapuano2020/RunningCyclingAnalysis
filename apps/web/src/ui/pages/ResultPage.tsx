@@ -17,7 +17,7 @@ import { latestActivityText, sportEmptyText } from '../periodCopy'
 import type { SavedActivity } from '../../worker/protocol'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
-import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
+import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthlete'
 import { ActivitiesPage } from './ActivitiesPage'
 import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
@@ -77,7 +77,11 @@ export function ResultPage({
   const setRange = analysis.setRange
   // Each effort is graded at its own date, so the profile carries the year of birth, not an age.
   // The sample athlete has its own age, sex and masses, whatever the visitor has entered.
-  const profile = isSample ? SAMPLE_PROFILE : ageProfileOf(birthYear, sex)
+  const profile = isSample
+    ? library[0]
+      ? sampleProfileAt(library[0].startMs)
+      : SAMPLE_PROFILE
+    : ageProfileOf(birthYear, sex)
   // The prompt for a missing field names only that field; the sample has all of them.
   const missingAge = isSample ? null : missingAgeOf(birthYear, sex)
   const athleteSettings = isSample ? SAMPLE_SETTINGS : settings

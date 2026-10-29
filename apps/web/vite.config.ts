@@ -1,8 +1,11 @@
+import { appendFileSync, readFileSync, readdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { configDefaults } from 'vitest/config'
 import type { Connect, Plugin } from 'vite'
+import { RULES_MARKER, immutableAssetRules } from './scripts/assetHeaders.ts'
 import { e2eApiPort } from './e2e/ports.ts'
 
 /** Workers Assets serves /privacy.html at /privacy; the Vite servers do the same for parity. */
@@ -20,9 +23,41 @@ function cleanUrls(): Plugin {
   }
 }
 
+/** Appends one cache rule for each built asset to dist/_headers; see scripts/assetHeaders.ts for why not a pattern. */
+function immutableAssets(): Plugin {
+  let outDir = ''
+  return {
+    name: 'rca-immutable-assets',
+    apply: 'build',
+    configResolved: (config) => {
+      outDir = resolve(config.root, config.build.outDir)
+    },
+    closeBundle: () => {
+      const headers = join(outDir, '_headers')
+      const existing = readFileSync(headers, 'utf8')
+      if (existing.includes(RULES_MARKER)) return
+      const entries = readdirSync(join(outDir, 'assets'), { withFileTypes: true })
+      // A rule is an exact path, so a file in a subfolder would need its own path: fail rather than miss it.
+      const nested = entries.filter((entry) => entry.isDirectory())
+      if (nested.length > 0) {
+        throw new Error(
+          `dist/assets has a subfolder (${nested.map((entry) => entry.name).join(', ')}); assetHeaders.ts writes one rule for each file directly in it.`,
+        )
+      }
+      appendFileSync(
+        headers,
+        immutableAssetRules(
+          entries.map((entry) => entry.name),
+          existing,
+        ),
+      )
+    },
+  }
+}
+
 export default defineConfig({
   base: './',
-  plugins: [react(), cleanUrls()],
+  plugins: [react(), cleanUrls(), immutableAssets()],
   worker: { format: 'es' },
   build: {
     rollupOptions: {

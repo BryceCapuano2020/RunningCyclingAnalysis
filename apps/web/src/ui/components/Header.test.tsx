@@ -77,13 +77,20 @@ describe('Header on a phone', () => {
     expect(headerCss).toMatch(/\.header \{[^}]*position:\s*sticky;[^}]*top:\s*0/)
   })
 
-  it('keeps sign-in one tap away as a compact G, with its name kept for screen readers', () => {
+  it('keeps sign-in one tap away as the mark and a visible "Sign in", with "with Google" kept for screen readers', () => {
     const phone = phoneBlock(headerCss)
     expect(phone).not.toMatch(/google-sign-in \{\s*display:\s*none/)
-    expect(phone).toMatch(
-      /\.header__account \.google-sign-in \{[^}]*width:\s*var\(--control-height\)/,
-    )
-    expect(phone).toMatch(/\.header__account \.google-sign-in__label \{[^}]*position:\s*absolute/)
+    // The label itself stays visible; only its tail is taken out of sight.
+    expect(phone).not.toMatch(/\.google-sign-in__label \{[^}]*position:\s*absolute/)
+    expect(phone).toMatch(/\.header__account \.google-sign-in__rest \{[^}]*position:\s*absolute/)
+  })
+
+  it('shows "Sign in" as the visible label and keeps the full name on the button', () => {
+    render(<GoogleSignInButton onClick={() => undefined} />)
+    const button = screen.getByRole('button', { name: 'Sign in with Google' })
+    expect(button.querySelector('.google-sign-in__label')).toHaveTextContent('Sign in with Google')
+    expect(button.querySelector('.google-sign-in__rest')).toHaveTextContent('with Google')
+    expect(button.querySelector('.google-sign-in__label')?.firstChild?.textContent).toBe('Sign in ')
   })
 
   it('names the compact sign-in button for screen readers, so it is found by role and name', () => {

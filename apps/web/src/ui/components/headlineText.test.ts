@@ -10,6 +10,7 @@ import {
   headlineBasis,
   headlineText,
   leadSentence,
+  levelsTitle,
   rangeText,
   referenceText,
 } from './headlineText'
@@ -90,12 +91,21 @@ describe('headlineBasis', () => {
     )
   })
 
-  it('says the range was adjusted when the heart-rate comparison is used', () => {
+  it('names the levels a held comparison can still show, and nothing when there are none', () => {
+    expect(levelsTitle({ run: 'Local', ride: 'Recreational' })).toBe(
+      'Running is at Local level, cycling at Recreational',
+    )
+    expect(levelsTitle({ run: 'Regional', ride: null })).toBe('Your running is at Regional level')
+    expect(levelsTitle({ ride: 'Local' })).toBe('Your cycling is at Local level')
+    expect(levelsTitle({ run: null, ride: null })).toBeNull()
+  })
+
+  it('says the range was informed when the heart-rate comparison is used', () => {
     const accepted = comparison({
       calibration: { effectiveSamples: 900, draws: 4000, accepted: true },
     })
     expect(headlineBasis(accepted, true)).toBe(
-      'Model range adjusted using the heart-rate data across all your activities.',
+      'Model range informed by the heart-rate data across all your activities.',
     )
   })
 

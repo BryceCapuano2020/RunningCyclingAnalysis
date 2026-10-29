@@ -96,7 +96,10 @@ describe('restoring kept results on a reload', () => {
   it('shows the landing page once the library has loaded with nothing in it', () => {
     render(<App />)
     expect(
-      screen.getByRole('heading', { level: 1, name: 'How balanced are you as an athlete?' }),
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Are you a better runner or a better cyclist?',
+      }),
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('heading', { name: 'Restoring your results' }),

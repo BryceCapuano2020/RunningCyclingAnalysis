@@ -6,13 +6,14 @@ import { encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
 import { parseActivityFile } from '@rca/core/import'
 import { AnalysisSession } from '@rca/core/session'
-import { sampleDataset } from '@rca/core/synthetic'
+import { SAMPLE_REFERENCE_NOW_MS, sampleDataset } from '@rca/core/synthetic'
 import type { Activity, ActivityDigest } from '@rca/core/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as client from '../api/client'
 import { ApiRequestError } from '../api/client'
 import { buildAccountExport } from '../export/accountExport'
 import { workoutKeyOf } from './device'
+import { deviceClock, sampleActivityById } from './sampleClock'
 import type { DeviceLibrary } from './deviceLibrary'
 import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
 import * as importSummary from './importSummary'
@@ -22,6 +23,8 @@ import type { WorkerRequest, WorkerResponse } from './protocol'
 const WAIT_FOR_MS = 10_000
 
 const limits = vi.hoisted(() => ({ maxFileBytes: 50 * 1024 * 1024 }))
+/** How many of the sample's newest activities the worker draws in these tests: both sports, a few weeks. */
+const SAMPLE_PLAN_TAIL = vi.hoisted(() => 8)
 
 vi.mock('@rca/contract', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@rca/contract')>()
@@ -30,6 +33,21 @@ vi.mock('@rca/contract', async (importOriginal) => {
     get MAX_FILE_BYTES() {
       return limits.maxFileBytes
     },
+  }
+})
+
+/**
+ * The sample is drawn second by second, and the worker draws it afresh on each load: these tests need a sample
+ * on screen, not a season, so its plan is its last few activities. The worker's own clock and the plan are
+ * still the real ones, so a recording drawn later is of the same activity (sampleClock.test.ts draws the
+ * full season's plan, and sampleSections.test.ts its figures).
+ */
+vi.mock('@rca/core/synthetic', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@rca/core/synthetic')>()
+  return {
+    ...actual,
+    samplePlan: (...args: Parameters<typeof actual.samplePlan>) =>
+      actual.samplePlan(...args).slice(-SAMPLE_PLAN_TAIL),
   }
 })
 
@@ -851,10 +869,14 @@ describe('analysis worker', () => {
   })
 
   it('answers a splits request from the held digest, and keeps splits out of the library state', async () => {
+    // The sample is drawn relative to the day it is loaded, so the day is held still to draw it again.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(SAMPLE_REFERENCE_NOW_MS)
     const { send } = await startWorker()
     const [sample] = await send({ type: 'loadSample', settings: SETTINGS })
     if (sample?.type !== 'state') throw new Error('expected a state')
-    const run = sampleDataset().activities.find((activity) => activity.sport === 'run')
+    const listed = sample.state.library.find((activity) => activity.sport === 'run')
+    const run = listed && sampleActivityById(deviceClock(), listed.id)
     if (!run) throw new Error('The sample has no run')
     const digest = digestActivity(run)
     expect(sample.state.result?.activities.find((a) => a.id === digest.id)).not.toHaveProperty(

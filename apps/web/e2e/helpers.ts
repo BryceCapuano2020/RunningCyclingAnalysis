@@ -8,7 +8,7 @@ import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
 import { lbToKg } from '@rca/core/units'
 
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
-export const LANDING_TITLE = 'How balanced are you as an athlete?'
+export const LANDING_TITLE = 'Are you a better runner or a better cyclist?'
 
 /** The sample banner, the line that says once that the sample is not kept. Two lines on a 320 px phone. */
 export const SAMPLE_BANNER =
@@ -44,6 +44,9 @@ export async function goTo(page: Page, destination: Destination): Promise<void> 
   await link.click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(HEADINGS[destination])
 }
+
+/** The rows of the activity list's first page (PAGE_SIZE in src/ui/components/usePagination.ts). */
+export const LIST_PAGE_SIZE = 20
 
 /** The rows of the Activities list. Opens the Activities page first, so callers need no setup. */
 export async function activitiesRows(page: Page): Promise<Locator> {

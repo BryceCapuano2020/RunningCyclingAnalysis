@@ -496,7 +496,7 @@ describe('MethodPage energy view', () => {
 
     expect(
       within(factsOf()).getByText(
-        'Model range adjusted using the heart-rate data across all your activities.',
+        'Model range informed by the heart-rate data across all your activities.',
       ),
     ).toBeInTheDocument()
   })
@@ -699,7 +699,7 @@ describe('MethodPage heart-rate check', () => {
     const section = screen.getByRole('region', { name: 'Heart-rate check' })
     expect(
       within(section).getByText(
-        'Heart rate is used to check the model, not to measure fitness. If the data support an adjustment, the range is adjusted to match; if they do not, the population range is kept.',
+        'Heart rate is used to check the model, not to measure fitness. If the data are consistent enough to inform the range, it is shifted to match; if not, the population range is kept. The step is a consistency check on your own data, not a validated correction.',
       ),
     ).toBeInTheDocument()
   })
@@ -863,7 +863,7 @@ describe('MethodPage without a weight', () => {
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveAttribute('href', '#/profile')
     expect(links[0]?.closest('p')).toHaveTextContent(
-      'Add your weight on Profile to compare a ride with a run.',
+      'Add your weight on Profile to grade your rides and compare them with your runs.',
     )
     expect(container.textContent?.match(/Add your weight on Profile/g)).toHaveLength(1)
     expect(

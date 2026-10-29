@@ -40,7 +40,7 @@ function reachesHeadline(curve: Curve): boolean {
  * threshold. A sport known only from shorter efforts, such as one estimated 5 minute ride, says too little
  * about its level to be set against the other.
  */
-function hasEvidence(result: AnalysisResult, sport: Sport): boolean {
+export function hasEvidence(result: AnalysisResult, sport: Sport): boolean {
   const { curve, threshold } = EVIDENCE_OF[sport](result)
   return threshold !== null || reachesHeadline(curve)
 }

@@ -17,7 +17,7 @@ import './BalanceMeter.css'
 export interface BalanceMeterProps {
   /** The balance to draw: the age-grade gap in points, or the energy ratio in percent. */
   reading: BalanceReading
-  /** True when the heart-rate check adjusted the range, which the key then says. */
+  /** True when the heart-rate check informed the range, which the key then says. */
   adjusted?: boolean
 }
 
@@ -36,10 +36,10 @@ const SCALE_KEY: Record<BalanceReading['unit'], string> = {
   points: 'Scale: age\u2011grade points.',
   percent: 'Scale: energy per kilogram.',
 }
-/** Said in the key when the heart-rate check adjusted the range. On a grade gap it takes the scale's place. */
-const ADJUSTED_KEY = 'Adjusted by heart rate.'
+/** Said in the key when the heart-rate check informed the range. On a grade gap it takes the scale's place. */
+const ADJUSTED_KEY = 'Range informed by heart rate.'
 
-/** What the key says after the range: the scale, with the heart-rate note added when it adjusted the range. */
+/** What the key says after the range: the scale, with the heart-rate note added when it informed the range. */
 function scaleKey(unit: BalanceReading['unit'], adjusted: boolean): string {
   if (!adjusted) return SCALE_KEY[unit]
   return unit === 'points' ? ADJUSTED_KEY : `${SCALE_KEY[unit]} ${ADJUSTED_KEY}`

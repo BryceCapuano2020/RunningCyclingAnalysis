@@ -1,3 +1,4 @@
+import './test/warmSample'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DAY_MS } from './constants'
 import { combine as combineDigests, digestActivity } from './digest'

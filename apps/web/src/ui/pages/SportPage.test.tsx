@@ -232,7 +232,7 @@ describe('SportPage', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(within(section).getByText('Range 22:58 to 23:49 /km')).toBeInTheDocument()
+    expect(within(section).getByText('Fit spread 22:58 to 23:49 /km')).toBeInTheDocument()
   })
 
   it('shows the cycling threshold’s range in watts under its figure', () => {
@@ -240,7 +240,7 @@ describe('SportPage', () => {
     renderPage('ride', makeResult({ activities: [ride] }))
 
     const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    expect(within(section).getByText('Range 48 to 49 W')).toBeInTheDocument()
+    expect(within(section).getByText('Fit spread 48 to 49 W')).toBeInTheDocument()
   })
 
   it('says under the range that the best 15 and 20 min were uneven, when the threshold has an uneven fit', () => {

@@ -1,3 +1,4 @@
+import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import type { Measurement } from '../athlete/measurements'
 import { PRIORS } from '../constants'

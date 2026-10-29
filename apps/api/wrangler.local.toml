@@ -59,11 +59,11 @@ ENVIRONMENT = "production"
 APP_URL = "https://example.invalid"
 
 # Requests under /api run the Worker; everything else is served from the built web app. The web app
-# has no client-side routes, so an unknown path (including a missing /assets/ file) is a plain 404
-# from the asset platform, not index.html, and it never reaches the Worker or its request quota.
-# The directory is relative to this file. `npm run build` must have run first.
+# has hash routes, so nothing falls back to index.html: an unknown path is answered with the built
+# 404.html and a 404 status. A browser navigation to it skips the Worker; other requests still reach it
+# (see wrangler.toml). The directory is relative to this file. `npm run build` must have run first.
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
-not_found_handling = "none"
+not_found_handling = "404-page"
 run_worker_first = ["/api", "/api/*"]

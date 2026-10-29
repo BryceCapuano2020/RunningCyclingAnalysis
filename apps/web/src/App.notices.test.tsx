@@ -74,7 +74,10 @@ describe('saved activities that need updating', () => {
       ),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { level: 1, name: 'How balanced are you as an athlete?' }),
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Are you a better runner or a better cyclist?',
+      }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
   })

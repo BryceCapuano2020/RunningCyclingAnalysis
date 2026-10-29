@@ -6,6 +6,7 @@ import type { BalanceGap } from '../balanceGap'
 import type { HeadlinePick } from '../components'
 import { balanceOfPick } from '../components/balanceScale'
 import { BalanceMeter } from '../components/BalanceMeter'
+import { levelsTitle } from '../components/headlineText'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
 import { eyebrowText, gapFigure, titleParts } from './balanceCopy'
@@ -73,7 +74,7 @@ export function BalanceHero({
   ) {
     return (
       <section className="balance-hero">
-        {head('Your balance waits for your weight')}
+        {head(levelsTitle({ run: runLevel }) ?? 'Your balance waits for your weight')}
         <p className="lede secondary">
           <WeightPrompt />
         </p>

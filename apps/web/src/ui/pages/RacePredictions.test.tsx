@@ -26,7 +26,7 @@ function renderPredictions(result: AnalysisResult, allTime = false) {
 describe('RacePredictions', () => {
   afterEach(cleanup)
 
-  it('shows each race with its time, pace and range', () => {
+  it('shows each race with its time, pace and assumed spread', () => {
     const result = makeResult({
       activities: [withBests],
       runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 },
@@ -40,7 +40,7 @@ describe('RacePredictions', () => {
       'Half marathon',
       'Marathon',
     ])
-    expect(within(rows[0]!).getByText(/^range \d+:\d\d to \d+:\d\d$/)).toBeInTheDocument()
+    expect(within(rows[0]!).getByText(/^assumed spread \d+:\d\d to \d+:\d\d$/)).toBeInTheDocument()
     expect(within(rows[0]!).getByText(/^runs \d+:\d\d · heart rate \d+:\d\d$/)).toBeInTheDocument()
     const details = screen.getByText(/Show the evidence/).closest('details')!
     details.open = true

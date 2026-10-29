@@ -1,6 +1,6 @@
 import type { Sport } from '../types'
 
-export type Effort = 'easy' | 'tempo' | 'intervals' | 'test'
+export type Effort = 'easy' | 'tempo' | 'intervals' | 'test' | 'race'
 export type Terrain = 'flat' | 'rolling' | 'climb'
 
 export interface ActivitySpec {

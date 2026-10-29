@@ -244,11 +244,15 @@ before launch, and plan for Workers Paid if usage grows.
   which doubles Class A operations. Bodies are still buffered, with at most 2 uploads per user.
   Nothing caps uploads across the whole isolate, and two 50 MiB buffers per user could pressure a
   128 MB isolate. A global upload cap is a decision for the owner.
-- **Unknown paths outside `/api`.** The web app has no client-side routes, so `not_found_handling`
-  is `none` and nothing falls back to `index.html`. A path that matches no asset falls through to the
-  Worker, which returns a JSON 404 (plain text under `/assets/`). Those requests count toward the
-  Worker's daily request quota. They are not counted by the per-minute API limiter, which applies
-  only under `/api/*`.
+- **Unknown paths outside `/api`.** The web app uses hash routes, so `not_found_handling` is
+  `404-page` and nothing falls back to `index.html`. A browser navigation to a path that matches no
+  asset is answered with the built `404.html` and does not invoke the Worker (Cloudflare skips the
+  Worker for navigation requests at compatibility date 2025-04-01 or later). Any other request to such
+  a path (curl, a script, a bot) still reaches the Worker, which returns a JSON 404 (plain text under
+  `/assets/`); those requests count toward the Worker's daily request quota and not toward the
+  per-minute API limiter, which applies only under `/api/*`. Cloudflare offers no setting that
+  keeps those out of the Worker. The local `wrangler dev` answers them with the 404 page too, so the
+  deployed behaviour alone decides whether they cost a Worker request.
 
 ## Session cookies
 

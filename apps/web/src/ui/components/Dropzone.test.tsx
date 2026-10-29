@@ -4,13 +4,30 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HISTORY_ADVICE } from '../exportGuides'
 import { STRIP_DELAY_MS } from './ImportStatus'
+import { noMatchMedia } from '../../test/viewport'
+import { TOUCH_QUERY } from '../useMediaQuery'
 import { Dropzone } from './Dropzone'
 import type { DropzoneProps } from './Dropzone'
 
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  noMatchMedia()
 })
+
+/** A touch screen: the touch query matches, and no other does. */
+function touchScreen() {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: query === TOUCH_QUERY,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }),
+  })
+}
 
 function baseProps(): DropzoneProps {
   return {
@@ -257,5 +274,39 @@ describe('Dropzone', () => {
     const { choose } = renderDropzone()
     const dataTransfer = { types: ['text/uri-list'], files: [] }
     expect(fireEvent.dragOver(choose, { dataTransfer })).toBe(false)
+  })
+})
+
+describe('Dropzone on a touch screen', () => {
+  it('puts the sample first and makes it the primary button, with Add files after it', () => {
+    touchScreen()
+    renderDropzone()
+    const sample = screen.getByRole('button', { name: 'See a sample athlete' })
+    const add = screen.getByRole('button', { name: 'Add files' })
+    expect(sample).toHaveClass('btn', 'btn-primary')
+    expect(add).not.toHaveClass('btn-primary')
+    expect(sample.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const buttons = screen.getAllByRole('button')
+    expect(buttons[0]).toBe(sample)
+  })
+
+  it('says nothing about dragging, since a finger cannot drop a file', () => {
+    touchScreen()
+    renderDropzone()
+    expect(screen.queryByText(/Drag/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the sample secondary and after Add files, with the drag text, on a mouse', () => {
+    renderDropzone()
+    const buttons = screen.getAllByRole('button')
+    expect(buttons[0]).toBe(screen.getByRole('button', { name: 'Add files' }))
+    expect(screen.getByText('Drag them onto this box, or')).toBeInTheDocument()
+  })
+
+  it('offers no sample to a signed-in visitor, touch or not', () => {
+    touchScreen()
+    renderDropzone({ signedIn: true })
+    expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add files' })).toHaveClass('btn-primary')
   })
 })

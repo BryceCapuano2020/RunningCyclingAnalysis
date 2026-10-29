@@ -90,7 +90,8 @@ function effortFigure(
   return text === null ? null : text.replace(', estimated', ' (estimated)')
 }
 
-function laneOf(sport: Sport, grade: SportGrade, effort: string | null): ScaleLane {
+/** One sport's lane from its grade and the figure of the best effort it rests on, or null without one. */
+export function laneOf(sport: Sport, grade: SportGrade, effort: string | null): ScaleLane {
   const { centre, range } = grade
   const level = gradeLevelText(grade)
   const pct = `${wholeGrade(centre.grade)}%`
@@ -175,6 +176,19 @@ export function scaleModel(input: {
       ? [laneOf(sport, outcome.grade, effortFigure(result, sport, massKg, units))]
       : []
   })
+  return modelOf(lanes, reading, target)
+}
+
+/**
+ * The model from lanes already made: with a reading it needs both sports' lanes, and without one a lone lane
+ * stands on its own. Exported for the landing example, which has its lanes from the sample athlete's own
+ * figures and no analysis to work them from.
+ */
+export function modelOf(
+  lanes: ScaleLane[],
+  reading: BalanceReading | null,
+  target: LevelTarget | null,
+): ScaleModel | null {
   const intro = `Age-grade level of your best ${HEADLINE_LABEL}.`
   if (reading === null) {
     if (lanes.length !== 1) return null

@@ -48,7 +48,7 @@ describe('DriftChart', () => {
     'describes %s drift in grammatical sentences, with the reference in lower case mid-sentence',
     (sport) => {
       expect(driftDescription(sport)).toBe(
-        `One dot for each steady ${sport} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks a fall of 5%: under this is usually read as well-built endurance.`,
+        `One dot for each steady ${sport} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks a fall of 5%: a common coaching reference line.`,
       )
     },
   )

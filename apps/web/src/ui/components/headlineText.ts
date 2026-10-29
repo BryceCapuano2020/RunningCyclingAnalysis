@@ -12,6 +12,18 @@ import { energyReading, type BalanceReading } from './balanceScale'
 /** The title when both sports are on file but no efforts of the same length can be compared yet. */
 export const HARDER_EFFORTS_TITLE = 'Not enough to compare yet'
 
+/**
+ * The title when a level is known but the sports cannot be compared yet: it names what the files do show, so
+ * a held comparison is never the headline over a page of grades. Null when no sport has a level.
+ */
+export function levelsTitle(levels: Partial<Record<Sport, string | null>>): string | null {
+  const { run, ride } = levels
+  if (run && ride) return `${SPORT_TITLE.run} is at ${run} level, ${SPORT_NOUN.ride} at ${ride}`
+  if (run) return `Your ${SPORT_NOUN.run} is at ${run} level`
+  if (ride) return `Your ${SPORT_NOUN.ride} is at ${ride} level`
+  return null
+}
+
 const TITLE: Record<Lean, string> = {
   run: 'Your balance leans toward running',
   ride: 'Your balance leans toward cycling',
@@ -175,7 +187,7 @@ export function headlineBasis(comparison: Comparison, calibrated: boolean): stri
     return 'The heart-rate check could not support a reliable adjustment; showing the population-based model range.'
   }
   return calibrated
-    ? 'Model range adjusted using the heart-rate data across all your activities.'
+    ? 'Model range informed by the heart-rate data across all your activities.'
     : 'Model range based on population assumptions.'
 }
 

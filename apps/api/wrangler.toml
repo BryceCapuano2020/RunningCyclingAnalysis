@@ -62,14 +62,16 @@ ENVIRONMENT = "production"
 APP_URL = "https://rca-api.nutritioncoachapp.workers.dev"
 
 # Requests under /api always run the Worker. Other requests are served from the built web app when a
-# file matches. The web app has no client-side routes and not_found_handling is "none", so nothing
-# falls back to index.html. A path that matches no file (including a missing /assets/ file) falls
-# through to the Worker, which returns a 404: JSON for other paths, plain text under /assets/ (see
-# apps/api/src/app.ts). Those requests run the Worker, so they count toward the daily request quota.
-# They are not counted by API_RATE_LIMITER, which is applied only to /api/* (app.ts, rateLimit.ts).
+# file matches. The web app has hash routes, so nothing falls back to index.html; not_found_handling is
+# "404-page", which serves the nearest 404.html (apps/web/public/404.html) with a 404 status. Per
+# Cloudflare's docs, a browser navigation to an unknown path (compatibility date 2025-04-01 or later)
+# is answered by the asset service without invoking the Worker, so it costs no Worker request. A
+# non-navigation request to an unknown path (curl, a script, a bot) still reaches the Worker, which
+# returns a JSON 404, or a plain-text one under /assets/ (apps/api/src/app.ts); it counts toward the daily
+# request quota and not toward API_RATE_LIMITER, which is applied only to /api/* (app.ts, rateLimit.ts).
 # The directory is relative to this file. `npm run build` must have run first.
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
-not_found_handling = "none"
+not_found_handling = "404-page"
 run_worker_first = ["/api", "/api/*"]

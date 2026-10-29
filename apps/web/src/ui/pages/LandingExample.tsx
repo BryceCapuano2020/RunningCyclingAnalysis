@@ -1,56 +1,38 @@
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace } from '@rca/core/units'
-import { BalanceMeter } from '../components/BalanceMeter'
 import { gapReading } from '../components/balanceScale'
 import { balanceTitle } from '../components/headlineText'
-import { LevelLadder } from '../components/LevelLadder'
-import { SportIcon } from '../components/icons'
-import { formatGrade } from '../gradeFormat'
 import { LANDING_EXAMPLE } from '../landingExample'
 import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
-import { SPORT_LABEL, SPORT_ORDER } from '../sports'
+import { SPORT_ORDER } from '../sports'
+import { BalanceScale } from './BalanceScale'
+import { laneOf, modelOf } from './balanceScaleModel'
 import './LandingExample.css'
 
-/** A sport's measure in the example: its pace in the units the reader uses, or its power in watts. */
-const MEASURE: Record<Sport, (units: UnitSystem) => string> = {
-  run: (units) => `Pace ${formatPace(LANDING_EXAMPLE.runSpeedMs, units)}`,
-  ride: () => `Power ${LANDING_EXAMPLE.rideWatts} W`,
-}
-
-/** One sport in the example: its level and grade, its level band, and its pace or power in plain words. */
-function SportLine({ sport, units }: { sport: Sport; units: UnitSystem }) {
-  const grade = LANDING_EXAMPLE.grades[sport]
-  const measure = MEASURE[sport](units)
-  return (
-    <div className="landing-example__sport">
-      <p className="landing-example__sport-name">
-        <SportIcon sport={sport} />
-        {`${SPORT_LABEL[sport]} · ${grade.centre.level} · ${formatGrade(grade.centre.grade)}`}
-      </p>
-      <LevelLadder sport={sport} grade={grade} showKey={false} />
-      <p className="secondary">{measure}</p>
-    </div>
-  )
+/** The figure of each sport's best 20 minutes as its lane prints it: a pace in the reader's units, or watts. */
+const EFFORT: Record<Sport, (units: UnitSystem) => string> = {
+  run: (units) => formatPace(LANDING_EXAMPLE.best20.runSpeedMs, units),
+  ride: () => `${LANDING_EXAMPLE.best20.rideWatts} W`,
 }
 
 /**
- * A small example of the Balance screen, drawn from the sample athlete: the balance meter, and each
- * sport's level and grade with its band. It is labelled illustrative and names the sample.
+ * An example of the Balance screen, drawn from the sample athlete: the answer's headline over the real level
+ * scale, made from the sample's own figures with the same model and drawing Balance uses, so the example cannot
+ * drift from the screen it stands for. It is the landing page's hero visual, labelled illustrative, and names
+ * the sample.
  */
 export function LandingExample({ units }: { units: UnitSystem }) {
   const reading = gapReading(LANDING_EXAMPLE.gap)
+  const lanes = SPORT_ORDER.map((sport) =>
+    laneOf(sport, LANDING_EXAMPLE.grades[sport], EFFORT[sport](units)),
+  )
+  const model = modelOf(lanes, reading, null)
   return (
     <figure className="landing-example">
-      <figcaption className="eyebrow">Illustrative: the sample athlete</figcaption>
+      <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`}</figcaption>
       <p className="landing-example__title">{balanceTitle(reading)}</p>
-      <BalanceMeter reading={reading} />
-      <div className="landing-example__stats">
-        {SPORT_ORDER.map((sport) => (
-          <SportLine key={sport} sport={sport} units={units} />
-        ))}
-      </div>
-      <p className="secondary landing-example__sample">{`The sample is ${SAMPLE_DESCRIPTION}.`}</p>
+      {model === null ? null : <BalanceScale model={model} />}
     </figure>
   )
 }

@@ -166,6 +166,22 @@
   .landing__hero {
     gap: var(--space-4);
   }
+
+  /* The drop zone comes before the example here, so its buttons are on the first screen. The example holds
+     nothing to focus, so the order of the keyboard does not change. */
+  .landing__start > .dropzone {
+    order: -1;
+  }
+
+  /* The pitch is a step tighter, so Add files stays on the first screen under the longer question. */
+  .landing__hero .app__pitch {
+    gap: var(--space-2);
+    padding-top: 0;
+  }
+
+  .landing__hero .app__pitch p {
+    font-size: var(--text-md);
+  }
 }
 
 @media (orientation: landscape) and (max-height: 700px) and (pointer: coarse),
@@ -180,41 +196,38 @@
   display: grid;
   gap: var(--space-5);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-landing)), 1fr));
-  align-items: stretch;
+  /* Each is as tall as its own content, and the pair is centred, so neither is a tall box with little in it. */
+  align-items: center;
 }
 
-/* A solid frame: the dashed outline is for the drop area beside it, so the two are not confused. */
+/* On a touch screen the actions come first and the example below them, in one column at every width, close under the pitch. */
+.landing__start--touch {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.landing__hero:has(.landing__start--touch) {
+  gap: var(--space-4);
+}
+
+/*
+ * From a tablet's width the example, the hero visual, takes the wider column and the drop zone sits
+ * beside it. Below it they stack, the example first.
+ */
+@media (min-width: 900px) {
+  .landing__start {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 4fr);
+  }
+}
+
+/*
+ * The example is a caption and a headline over Balance's level scale, which is a framed card of its own, so the
+ * example adds no second frame. The frame stays solid, where the drop area beside it is dashed.
+ */
 .landing-example {
   display: grid;
   gap: var(--space-3);
+  min-width: 0;
   margin: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
-}
-
-.landing-example__title {
-  font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.5rem;
-  font-weight: 800;
-  line-height: 1.05;
-  text-transform: uppercase;
-}
-
-.landing-example__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-example)), 1fr));
-  gap: var(--space-4);
-  margin: 0;
-}
-
-/* Two ladders side by side at a phone width run their scale labels into each other, so they stack. */
-@media (max-width: 560px) {
-  .landing-example__stats {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* The method's three sentences, with the link to the full page below them. */

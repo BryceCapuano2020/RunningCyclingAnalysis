@@ -1,7 +1,8 @@
 import { useId, useState } from 'react'
-import type { DragEvent as ReactDragEvent } from 'react'
+import type { DragEvent as ReactDragEvent, ReactNode } from 'react'
 import { HISTORY_ADVICE } from '../exportGuides'
 import { useDelayedFlag } from '../useDelayedFlag'
+import { useTouchFirst } from '../useMediaQuery'
 import { UploadIcon } from './icons'
 import { STRIP_DELAY_MS } from './ImportStatus'
 import { SampleButton } from './SampleButton'
@@ -24,15 +25,25 @@ interface SampleActionsProps {
   /** The id of the reason line, which the sample button describes itself by while it shows. */
   hintId: string
   hintShown: boolean
+  /** The sample leads, so it is the primary button. */
+  primary: boolean
+  /** Another action in the same row, after the sample button. */
+  after?: ReactNode
 }
 
 /** The sample button, and beside it the reason it is off while an import runs. */
-function SampleActions({ busy, onSample, hintId, hintShown }: SampleActionsProps) {
+function SampleActions({ busy, onSample, hintId, hintShown, primary, after }: SampleActionsProps) {
   return (
     <div className="dropzone__actions">
-      <SampleButton busy={busy} onSample={onSample} describedBy={hintShown ? hintId : undefined}>
+      <SampleButton
+        busy={busy}
+        onSample={onSample}
+        describedBy={hintShown ? hintId : undefined}
+        primary={primary}
+      >
         See a sample athlete
       </SampleButton>
+      {after}
       {hintShown && (
         <p id={hintId} className="dropzone__busy muted">
           Available when the current import finishes.
@@ -49,6 +60,10 @@ function SampleActions({ busy, onSample, hintId, hintShown }: SampleActionsProps
  */
 export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: DropzoneProps) {
   const picker = useFilePicker(onFiles)
+  // On a touch screen the actions sit directly under the pitch as a compact row, the sample leading, and
+  // nothing says to drag: a finger cannot drop a file here.
+  const touch = useTouchFirst()
+  const touchFirst = touch && !signedIn
   const [dragging, setDragging] = useState(false)
   const busyHintId = useId()
   // The reason the sample is off waits for the busy strip's delay, so a quick import shows nothing.
@@ -66,6 +81,42 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
     setDragging(false)
   }
 
+  const addFiles = (primary: boolean) => (
+    <button type="button" className={primary ? 'btn btn-primary' : 'btn'} onClick={picker.open}>
+      <UploadIcon />
+      Add files
+    </button>
+  )
+
+  if (touch) {
+    return (
+      <div className="dropzone dropzone--touch">
+        {touchFirst ? (
+          <SampleActions
+            busy={busy}
+            onSample={onSample}
+            hintId={busyHintId}
+            hintShown={hintShown}
+            primary
+            after={addFiles(false)}
+          />
+        ) : (
+          <div className="dropzone__actions">{addFiles(true)}</div>
+        )}
+        <p className="dropzone__hint">
+          {`Add FIT, GPX or TCX files, or a Strava export zip. ${HISTORY_ADVICE}`}
+        </p>
+        <p className="dropzone__guides">
+          <span className="dropzone__touch">Exports usually come from a computer. </span>
+          <button type="button" className="dropzone__link" onClick={onShowGuides}>
+            No files yet? How to get them
+          </button>
+        </p>
+        {picker.input}
+      </div>
+    )
+  }
+
   return (
     <div
       className={dragging ? 'dropzone dropzone--over' : 'dropzone'}
@@ -79,10 +130,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
         <p className="dropzone__title">Add FIT, GPX or TCX files, or a Strava export zip</p>
         <p className="dropzone__hint">{HISTORY_ADVICE}</p>
         <p className="dropzone__drag">Drag them onto this box, or</p>
-        <button type="button" className="btn btn-primary" onClick={picker.open}>
-          <UploadIcon />
-          Add files
-        </button>
+        {addFiles(true)}
       </div>
       <p className="dropzone__guides">
         <span className="dropzone__touch">Exports usually come from a computer. </span>
@@ -91,7 +139,13 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
         </button>
       </p>
       {signedIn ? null : (
-        <SampleActions busy={busy} onSample={onSample} hintId={busyHintId} hintShown={hintShown} />
+        <SampleActions
+          busy={busy}
+          onSample={onSample}
+          hintId={busyHintId}
+          hintShown={hintShown}
+          primary={false}
+        />
       )}
       {picker.input}
     </div>

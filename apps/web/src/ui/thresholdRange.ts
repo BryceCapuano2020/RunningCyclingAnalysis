@@ -17,8 +17,17 @@ export function fitRestsOnEstimate(result: AnalysisResult): boolean {
 }
 
 /**
- * The range between two critical powers as a line, in the sport's own unit, read from its faster end for a run.
- * When both ends print the same, "Range A to A" would say nothing, so it is "About A".
+ * What the line calls its two ends. One fit's standard error is that fit's own spread: it says how loosely the
+ * fit was pinned down, not where the athlete's capability lies, so it is not called a range. The uneven case
+ * differs in kind: its ends are two thresholds, the main one (or, with that refused, the floor the held bests
+ * set) and a second fitted without the uneven bests, and the threshold is taken to lie between them.
+ */
+const FIT_SPREAD = 'Fit spread'
+const BETWEEN_FITS = 'Range'
+
+/**
+ * The span between two critical powers as a line, in the sport's own unit, read from its faster end for a run.
+ * When both ends print the same, "Fit spread A to A" would say nothing, so it is "About A".
  */
 function rangeOf(
   sport: Sport,
@@ -26,6 +35,7 @@ function rangeOf(
   highCp: number,
   massKg: number,
   units: UnitSystem,
+  label: string,
 ): string {
   const figureOf: Record<Sport, (cp: number) => Figure> = {
     run: (cp) => paceFigure(cp, units),
@@ -40,7 +50,7 @@ function rangeOf(
   }
   if (low.number === high.number) return `About ${low.value}`
   const [from, to] = ends[sport]
-  return `Range ${from} to ${to}`
+  return `${label} ${from} to ${to}`
 }
 
 /** A threshold's range as numbers: the critical power at each end and at the centre, for a drawing. */
@@ -75,9 +85,9 @@ function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
 }
 
 /**
- * The threshold's range as a line, in the sport's own unit, such as "Range 22:58 to 23:49 /km" or
- * "Range 48 to 49 W", or "About 48 W" when both ends print the same. What the range is, and when it is
- * left out, is `rangeCps`.
+ * The threshold's range as a line, in the sport's own unit, such as "Fit spread 22:58 to 23:49 /km" or
+ * "Fit spread 48 to 49 W", or "About 48 W" when both ends print the same. The fit's own spread is called a fit
+ * spread; an uneven pair of thresholds is a "Range". What the range is, and when it is left out, is `rangeCps`.
  */
 export function thresholdRange(
   result: AnalysisResult,
@@ -86,7 +96,9 @@ export function thresholdRange(
   units: UnitSystem,
 ): string | null {
   const cps = rangeCps(result, sport)
-  return cps === null ? null : rangeOf(sport, cps.low, cps.high, massKg, units)
+  return cps === null
+    ? null
+    : rangeOf(sport, cps.low, cps.high, massKg, units, cps.spread ? FIT_SPREAD : BETWEEN_FITS)
 }
 
 /**

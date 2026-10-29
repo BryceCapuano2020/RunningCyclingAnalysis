@@ -6,7 +6,9 @@ import type { ExtractLimits } from './fit'
 import { countImportFiles } from './import/activitiesCsv'
 import type { Considered, ImportProgress, ReadFile, Refused } from './sessionSource'
 import { importSource, sortRead } from './sessionSource'
-import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
+import { DEFAULT_ATHLETE, SAMPLE_CLOCK } from './synthetic'
+import { seasonDigests } from './sessionSample'
+import type { SampleClock } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
@@ -169,12 +171,11 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
-  loadSample(settings: AthleteSettings): SessionState {
+  /** Loads the sample athlete's season as it stands on `clock`'s day; without one, the fixed reference season. */
+  loadSample(settings: AthleteSettings, clock: SampleClock = SAMPLE_CLOCK): SessionState {
     this.reset()
     this.isSample = true
-    for (const activity of sampleDataset().activities) {
-      this.digests.set(activity.id, digestActivity(activity))
-    }
+    for (const digest of seasonDigests(clock)) this.digests.set(digest.id, digest)
     return this.state(settings)
   }
 

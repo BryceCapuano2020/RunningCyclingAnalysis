@@ -656,9 +656,15 @@ describe('sign-in button', () => {
     expect(rulesWith(googleSignIn, '.google-sign-in')).toMatch(/justify-content:\s*center/)
   })
 
-  it('lets the compact phone sign-in shrink to the control height, past that minimum', () => {
+  it('lets the phone sign-in shrink to the width of its mark and its two words, past that minimum', () => {
     expect(rulesWith(mediaOf(header, PHONE), '.header__account .google-sign-in')).toMatch(
-      /min-width:\s*0/,
+      /min-width:\s*6rem/,
+    )
+  })
+
+  it('holds the same width for the pending status on a phone, so the header does not move', () => {
+    expect(rulesWith(mediaOf(header, PHONE), '.header__account .account-menu__pending')).toMatch(
+      /width:\s*6\.05rem/,
     )
   })
 })

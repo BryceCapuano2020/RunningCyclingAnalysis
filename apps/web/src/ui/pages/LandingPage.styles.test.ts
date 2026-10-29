@@ -5,22 +5,24 @@ import { PHONE_MAX_WIDTH_PX, SHORT_PHONE_MAX_HEIGHT_PX } from '../layoutBreakpoi
 const app = await readStylesheet(import.meta.url, '../../App.css')
 const example = await readStylesheet(import.meta.url, './LandingExample.css')
 const design = await readStylesheet(import.meta.url, '../../../../../docs/DESIGN.md')
-const tokens = await readStylesheet(import.meta.url, '../../styles/tokens.css')
 
 /** The short-phone query as App.css writes it: short, and a finger or a phone-width window. */
 const SHORT_PHONE = `(max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (pointer: coarse), (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
 /** The same, held sideways. */
 const SHORT_LANDSCAPE = `(orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (pointer: coarse), (orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
 
-/** The text of the phone-and-narrow media query with this width, braces included, or '' when none. */
-function narrowBody(maxWidth: string): string {
-  const escaped = maxWidth.replace(/[()]/g, '\\$&')
-  return new RegExp(`@media \\(max-width: ${escaped}\\) \\{([\\s\\S]*?)\\n\\}`).exec(app)?.[1] ?? ''
-}
-
 describe('landing start', () => {
-  it('stretches the drop zone to the height of the example beside it', () => {
-    expect(ruleBody(app, '.landing__start')).toMatch(/align-items:\s*stretch/)
+  it('sizes the drop zone and the example to their own content and centres the pair, so neither is a tall empty box', () => {
+    expect(ruleBody(app, '.landing__start')).toMatch(/align-items:\s*center/)
+  })
+
+  it('stacks the actions and the example in one column on a touch screen, with the pitch close above them', () => {
+    expect(ruleBody(app, '.landing__start--touch')).toMatch(
+      /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+    )
+    expect(ruleBody(app, '.landing__hero:has(.landing__start--touch)')).toMatch(
+      /gap:\s*var\(--space-4\)/,
+    )
   })
 })
 
@@ -48,34 +50,19 @@ describe('landing steps', () => {
 })
 
 describe('landing example', () => {
-  it('sets its figures at the body size, which DESIGN.md names, not at the 48 px hero size', () => {
-    expect(design).toMatch(/its figures at the body size/)
-    expect(design).not.toMatch(/48 px hero size/)
-    expect(ruleBody(example, '.landing-example__sport-name')).not.toMatch(/font-size/)
+  it('is a solid frame that lets the scale shrink, and has none of the old ladder rows', () => {
+    expect(ruleBody(app, '.landing-example')).toMatch(/min-width:\s*0/)
+    for (const old of [
+      '.landing-example__stats',
+      '.landing-example__figure',
+      '.landing-example__number',
+    ]) {
+      expect(ruleBody(app, old)).toBe('')
+    }
+    expect(ruleBody(example, '.landing-example__sport')).toBe('')
   })
 
-  it('has no rules for the dt, dd and stat-number markup it does not use', () => {
-    expect(ruleBody(app, '.landing-example__stats dt')).toBe('')
-    expect(ruleBody(app, '.landing-example__stats dd')).toBe('')
-    expect(ruleBody(app, '.landing-example__stats .stat-number')).toBe('')
-  })
-
-  it('needs 12rem for each sport before it sits beside the other, so their scale labels never collide', () => {
-    expect(ruleBody(app, '.landing-example__stats')).toMatch(
-      /minmax\(min\(100%, var\(--column-example\)\), 1fr\)/,
-    )
-    expect(tokens).toMatch(/--column-example:\s*12rem/)
-  })
-
-  it('stacks the two sports in one column below 560 px, where their scale labels would collide', () => {
-    expect(narrowBody('560px')).toMatch(
-      /\.landing-example__stats \{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
-    )
-  })
-
-  it('aligns the sports row by row, through subgrid, so their names, ladders and measures line up', () => {
-    const sport = ruleBody(example, '.landing-example__sport')
-    expect(sport).toMatch(/grid-row:\s*span 3;/)
-    expect(sport).toMatch(/grid-template-rows:\s*subgrid;/)
+  it('names the level scale it draws, in DESIGN.md', () => {
+    expect(design).toMatch(/landing example is drawn from the same sample[^.]*level scale/)
   })
 })

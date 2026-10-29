@@ -113,6 +113,33 @@ describe('ThresholdTile', () => {
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toBeInTheDocument()
   })
 
+  it('says what a ride held for the weight can say without it: its count, time and latest date, then the ask', () => {
+    const rides = [
+      makeActivity({ id: 'ride-1', sport: 'ride', durationS: 3600 }),
+      makeActivity({ id: 'ride-2', sport: 'ride', durationS: 5400 }),
+    ]
+    const { container } = renderTile('ride', makeResult({ activities: rides }), null, false)
+    const tile = screen.getByRole('article', { name: 'Ride threshold' })
+    expect(tile).toHaveTextContent(/2 rides, 2 h 30 min riding\. Latest .+\./)
+    expect(tile).toHaveTextContent(
+      'Add your weight on Profile to grade your rides and see their figures.',
+    )
+    // Nothing is estimated, so the tile has no chip and no figure.
+    expect(container.querySelector('.stat-tile__figure')).toBeNull()
+  })
+
+  it('leaves the facts out of a held tile for a sport with no activities, keeping the ask', () => {
+    renderTile(
+      'ride',
+      makeResult({ activities: [makeActivity({ id: 'run-1', sport: 'run' })] }),
+      null,
+      false,
+    )
+    const tile = screen.getByRole('article', { name: 'Ride threshold' })
+    expect(tile).not.toHaveTextContent(/riding/)
+    expect(tile).toHaveTextContent('Add your weight on Profile')
+  })
+
   it('still offers the definition where the threshold is held or waiting', () => {
     renderTile('ride', makeResult(), null, false)
     expect(screen.getByRole('button', { name: 'threshold' })).toBeInTheDocument()

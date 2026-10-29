@@ -1,3 +1,4 @@
+import './test/warmSample'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as trend from './digest/trend'
 import { AnalysisSession } from './session'
@@ -90,7 +91,7 @@ describe('AnalysisSession trend', () => {
 
   it('computes the trend of a period from windows that stay inside it', () => {
     const session = new AnalysisSession()
-    session.loadSample(SETTINGS)
+    session.loadDigests(sampleDigests(), SETTINGS)
     session.setGradeTrend(true, SETTINGS)
     const state = session.setRange(42, SETTINGS)
     const digests = sampleDigests()
@@ -129,7 +130,7 @@ describe('AnalysisSession trend', () => {
 
   it('gives the trend of each effort length over the period, with the 20-minute one as trend', () => {
     const session = new AnalysisSession()
-    session.loadSample(SETTINGS)
+    session.loadDigests(sampleDigests(), SETTINGS)
     session.setGradeTrend(true, SETTINGS)
     const state = session.setRange(42, SETTINGS)
     const digests = sampleDigests()
@@ -276,9 +277,9 @@ describe('AnalysisSession previous period', () => {
 
   it('gives no previous period for all time, or when the period before has no activities', () => {
     const session = new AnalysisSession()
-    session.loadSample(SETTINGS)
+    session.loadDigests(sampleDigests(), SETTINGS)
     expect(session.setRange('all', SETTINGS).previous).toBeNull()
-    // The sample's last activity is 3 June; nothing lies in the three days before 31 May.
+    // The fixed fixture's last activity is 3 June; nothing lies in the three days before 31 May.
     expect(session.setRange(3, SETTINGS).previous).toBeNull()
   })
 })

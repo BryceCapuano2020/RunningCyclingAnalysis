@@ -10,9 +10,12 @@ import './RacePredictions.css'
 /** VO2max figures differ by more than this share before the note says the two estimates disagree. */
 const DISAGREE_SHARE = 0.1
 
-/** The range under a prediction, from its 10th to 90th percentile. */
+/**
+ * The spread under a prediction, from its 10th to 90th percentile of an assumed error. The marathon's error is a published
+ * validation figure and the shorter races' are a judgement, so it is called a spread, not a range the time falls in.
+ */
 function rangeText(prediction: RacePrediction): string {
-  return `range ${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
+  return `assumed spread ${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
 }
 
 /** Each estimate in a few words, such as "runs 20:25 · heart rate 16:54"; null for one estimate. */
@@ -40,7 +43,7 @@ function disagreement(runsVdot: number | null, vo2max: number): string {
     vo2max > runsVdot
       ? 'Your heart rate points to more than your best runs show'
       : 'Your best runs show more than your heart rate suggests'
-  return ` ${which} (about ${Math.round(high)} against ${Math.round(low)} in VO2max terms), so the range is wide. Best runs that were not all-out, and hills, both widen it; an all-out 5 km on the flat would show which is nearer.`
+  return ` ${which} (about ${Math.round(high)} against ${Math.round(low)} in VO2max terms), so the spread is wide. Best runs that were not all-out, and hills, both widen it; an all-out 5 km on the flat would show which is nearer.`
 }
 
 /** What All time's predictions are of: the best period in the files, which a shorter period would not be. */
@@ -63,7 +66,7 @@ function methodNote({ races, runsVdot, vo2max }: RunPredictions, allTime: boolea
   return `Each sits in the middle of two estimates: ${times}, carried to the distance, and the times a VO2max of ${Math.round(vo2max.vo2max)} would run, from your heart rate against pace on ${plural(vo2max.runs, 'hard run')}. Both allow for your weekly distance in the marathon, ${flat}.${capped}${disagreement(runsVdot, vo2max.vo2max)}${when}`
 }
 
-/** One race: its name and pace, then the predicted time, its range and the two estimates. */
+/** One race: its name and pace, then the predicted time, its assumed spread and the two estimates. */
 function RaceRow({ prediction, units }: { prediction: RacePrediction; units: UnitSystem }) {
   const estimates = estimatesText(prediction)
   return (
@@ -85,7 +88,7 @@ function RaceRow({ prediction, units }: { prediction: RacePrediction; units: Uni
 
 /**
  * A sport's race predictions, as racePredictionsOf found them: each race's predicted time and pace, its
- * range and the two estimates it sits between, and how they were reached.
+ * assumed spread and the two estimates it sits between, and how they were reached.
  */
 export function RacePredictions({
   sport,

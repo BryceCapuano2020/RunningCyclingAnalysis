@@ -3,10 +3,10 @@
  * can link to Profile, a note in a dialog that cannot, and a field hint on Profile itself. The
  * purpose, and the request, are written here and nowhere else.
  */
-export const WEIGHT_PURPOSE = 'to compare a ride with a run.'
+export const WEIGHT_PURPOSE = 'to grade your rides and compare them with your runs.'
 
 /** The purpose on a card's note, where a ride's figures wait for the weight. */
-export const WEIGHT_FIGURES_PURPOSE = 'to see ride figures.'
+export const WEIGHT_FIGURES_PURPOSE = 'to grade your rides and see their figures.'
 
 /** The request with its link target as words, so the link and the plain text read the same. */
 export const WEIGHT_PROMPT_PARTS = {
