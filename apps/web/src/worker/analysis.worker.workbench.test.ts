@@ -192,6 +192,34 @@ describe('where an import keeps recordings', () => {
     })
   })
 
+  it('writes nothing to the device when the provisional files go to the account', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    mocked.createActivity.mockImplementation(async (digest) => ({
+      record: {
+        id: `rec-${digest.id}`,
+        digest,
+        fileName: 'run.fit',
+        hasFile: false,
+        fileSize: null,
+        createdAt: 1,
+      },
+      created: true,
+    }))
+    const { send } = await startWorker()
+    const file = fitFile()
+    const provisional = { type: 'addFiles', files: [file], settings: SETTINGS, sync: null }
+    await send({ ...provisional, provisional: true } as WorkerRequest)
+
+    // The account loads, and the same files are sent to it.
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ ...provisional, sync: { keepFiles: false, userId: USER_ID } } as WorkerRequest)
+    await send({ type: 'keepProvisional', settings: SETTINGS })
+
+    const writes = vi.mocked(spy.store.put).mock.calls.map(([scope]) => scope.kind)
+    expect(writes).toEqual(['account'])
+    expect(await kept.library!.all()).toEqual([])
+  })
+
   it('stores no recording of a provisional import that is carried to the account instead', async () => {
     const { send } = await startWorker()
     await send({
