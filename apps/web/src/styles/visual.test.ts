@@ -496,6 +496,12 @@ describe('balance hero, meter and evidence', () => {
     }
   })
 
+  it('gives "range" a little room, since it sits against the figures, and prose terms none', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__range .definition__term')).toMatch(
+      /margin:\s*0 2px/,
+    )
+  })
+
   it('sets the value in the display face, tabular, with its unit quieter beside it', () => {
     expect(rulesWith(balanceMeter, '.balance-meter__value')).toMatch(
       /font-family:\s*var\(--font-display\)/,

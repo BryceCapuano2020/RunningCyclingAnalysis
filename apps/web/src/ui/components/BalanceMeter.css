@@ -217,6 +217,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Where "range" sits right against the figures, the term keeps a little room, so its focus ring touches no letter. */
+.balance-meter__range .definition__term {
+  margin: 0 2px;
+  padding: 0 1px;
+}
+
 .balance-meter__basis {
   color: var(--text-muted);
   font-size: var(--text-xs);

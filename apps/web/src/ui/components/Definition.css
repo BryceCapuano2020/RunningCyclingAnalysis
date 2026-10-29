@@ -6,9 +6,8 @@
 
 .definition__term {
   position: relative;
-  /* A little room either side, so the focus ring is clear of the term's own letters and of the next glyph. */
-  margin: 0 2px;
-  padding: 0 1px;
+  margin: 0;
+  padding: 0;
   border: 0;
   border-bottom: 1px dotted currentColor;
   background: none;
@@ -67,7 +66,7 @@
   bottom: calc(100% + var(--space-1));
 }
 
-/* The focus ring sits in the room either side of the term, so it touches no letter, its own or the next. */
+/* The focus ring hugs the term, so in prose it stays inside the spaces beside it. */
 .definition__term:focus-visible {
   outline-offset: 0;
 }

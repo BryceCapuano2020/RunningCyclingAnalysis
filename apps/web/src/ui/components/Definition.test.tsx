@@ -151,8 +151,9 @@ describe('Definition', () => {
 
     it('keeps the focus ring in the space beside the term, so it never touches the next glyph', () => {
       expect(ruleBody(css, '.definition__term:focus-visible')).toMatch(/outline-offset:\s*0/)
-      expect(ruleBody(css, '.definition__term')).toMatch(/margin:\s*0 2px/)
-      expect(ruleBody(css, '.definition__term')).toMatch(/padding:\s*0 1px/)
+      // Prose terms add no room of their own, so the gaps around them are ordinary word spaces.
+      expect(ruleBody(css, '.definition__term')).toMatch(/margin:\s*0;/)
+      expect(ruleBody(css, '.definition__term')).toMatch(/padding:\s*0;/)
     })
 
     it('wraps its words whatever it sits in, so a term inside a no-wrap line does not make a one-line note', () => {
