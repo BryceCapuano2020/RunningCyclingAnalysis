@@ -15,7 +15,6 @@ const LINE_BUDGET = 400
  * one; split the file instead.
  */
 const OVER_BUDGET = {
-  'packages/core/src/fit/archive.ts': 541,
   'packages/core/src/xml/parse.ts': 438,
 }
 

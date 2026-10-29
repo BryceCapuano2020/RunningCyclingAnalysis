@@ -100,18 +100,18 @@ decoding, archive extraction, or account/network latency.
 
 The current default import ceilings are:
 
-| Limit                                                                      |         Ceiling |
-| -------------------------------------------------------------------------- | --------------: |
-| Source bytes                                                               |           2 GiB |
-| One ZIP entry or final decompressed activity                               |          64 MiB |
-| Total bytes emitted by decompressors for one source, including nested ZIPs |           2 GiB |
-| Activity entries (FIT, GPX or TCX) per source                              |          10,000 |
-| ZIP headers per source, including ignored/non-FIT entries                  |         100,000 |
-| Retained ZIP output while streaming                                        |         128 MiB |
-| FIT bytes passed to the parser                                             |          64 MiB |
-| Record messages per FIT file                                               |       2,000,000 |
-| One activity's 1 Hz grid (48 hours)                                        | 172,800 samples |
-| Grid samples per file, summed over its activities                          | 172,800 samples |
+| Limit                                                                                |         Ceiling |
+| ------------------------------------------------------------------------------------ | --------------: |
+| Source bytes                                                                         |           2 GiB |
+| One activity entry, or its final decompressed bytes (a nested ZIP is not held whole) |          64 MiB |
+| Total bytes emitted by decompressors for one source, including nested ZIPs           |           2 GiB |
+| Activity entries (FIT, GPX or TCX) per source                                        |          10,000 |
+| ZIP headers per source, including ignored/non-FIT entries                            |         100,000 |
+| Retained ZIP output while streaming                                                  |         128 MiB |
+| FIT bytes passed to the parser                                                       |          64 MiB |
+| Record messages per FIT file                                                         |       2,000,000 |
+| One activity's 1 Hz grid (48 hours)                                                  | 172,800 samples |
+| Grid samples per file, summed over its activities                                    | 172,800 samples |
 
 Archive processing slices input to decompressors into 16 KiB chunks and delivers completed FIT
 activities before continuing. The source and aggregate ceilings bound total import work; entry,

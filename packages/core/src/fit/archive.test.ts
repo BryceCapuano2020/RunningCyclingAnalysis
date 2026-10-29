@@ -605,14 +605,31 @@ describe('extractFitFiles on zip archives', () => {
     ])
   })
 
-  it('does not read a zip inside an archive that has already stopped, so it adds no error', async () => {
+  it('counts the entries of a nested zip as the archive streams them, in the order they come', async () => {
     const outer = zipSync({
       'inner.zip': zipSync({ 'b.fit': FIT_B }),
       'c.fit': FIT_C,
       'd.fit': FIT_A,
     })
-    const { errors } = await collect(new File([outer], 'outer.zip'), { maxArchiveEntries: 2 })
-    expect(errors).toEqual([{ fileName: 'd.fit', reason: 'Archive exceeds the 2-entry limit' }])
+    const { files, errors } = await collect(new File([outer], 'outer.zip'), {
+      maxArchiveEntries: 2,
+    })
+    // inner.zip is the first entry and its b.fit the second, so c.fit is the one past the limit.
+    expect(namesOf(files)).toEqual(['inner.zip/b.fit'])
+    expect(errors).toEqual([{ fileName: 'c.fit', reason: 'Archive exceeds the 2-entry limit' }])
+  })
+
+  it('does not read a zip inside an archive that has already stopped, so it adds no error', async () => {
+    const outer = zipSync({
+      'c.fit': FIT_C,
+      'd.fit': FIT_A,
+      'inner.zip': zipSync({ 'b.fit': FIT_B, 'e.fit': FIT_A }),
+    })
+    const { files, errors } = await collect(new File([outer], 'outer.zip'), {
+      maxArchiveEntries: 1,
+    })
+    expect(namesOf(files)).toEqual(['c.fit'])
+    expect(errors).toEqual([{ fileName: 'd.fit', reason: 'Archive exceeds the 1-entry limit' }])
   })
 
   it('counts bytes inside a nested zip against the same total limit', async () => {

@@ -1,5 +1,4 @@
-import { Gunzip, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
-import type { UnzipFile } from 'fflate'
+import { Gunzip } from 'fflate'
 import { concat } from '../bytes'
 import type { Rejection } from '../import/result'
 export { DEFAULT_EXTRACT_LIMITS } from './extractLimits'
@@ -7,37 +6,24 @@ export type { ExtractLimits } from './extractLimits'
 import { DEFAULT_EXTRACT_LIMITS } from './extractLimits'
 import type { ExtractLimits } from './extractLimits'
 import {
-  activityCountTooLarge,
-  ARCHIVE_FAILED,
   bufferedTooLarge,
   corrupt,
-  DAMAGED_DIRECTORY,
-  decompressedTooLarge,
   DECOMPRESS_FAILED,
-  entryCountTooLarge,
-  entryTooLarge,
+  decompressedTooLarge,
   expandsTooLarge,
   fileTooLarge,
-  INCOMPLETE,
   notActivity,
   READ_FAILED,
   sourceTooLarge,
-  TOO_DEEP,
-  unreadable,
-  UNSUPPORTED_COMPRESSION,
   UNSUPPORTED_FORMAT,
 } from './archiveReasons'
-import { bytesSource, readSource } from './archiveSource'
-import {
-  ACTIVITY,
-  DIRECTORY_TAIL_BYTES,
-  isEmptyZip,
-  isIgnored,
-  listedEntries,
-  OTHER_ACTIVITY,
-  ZIP,
-} from './zipDirectory'
+import { readSource } from './archiveSource'
+import { ACTIVITY, OTHER_ACTIVITY, ZIP } from './zipDirectory'
 import type { EntryFilter } from './zipDirectory'
+import { ZipReader } from './zipReader'
+import { DECOMPRESS_INPUT_CHUNK_BYTES, deliver, newBudget, ZipRun } from './zipRun'
+import type { Sink, ZipBudget } from './zipRun'
+export { DECOMPRESS_INPUT_CHUNK_BYTES } from './zipRun'
 
 export interface FitFile {
   fileName: string
@@ -66,45 +52,6 @@ export type FitFileHandler = (file: FitFile) => void | Promise<void>
 /** Called with the name of an entry that could not be read, as it appears in the source. */
 export type FitErrorHandler = (fileName: string, rejection: Rejection) => void
 
-/** Compressed input is fed to the decompressors this many bytes at a time, so their output stays bounded. */
-export const DECOMPRESS_INPUT_CHUNK_BYTES = 16 * 1024
-/** A zip may hold zips this many levels down. A zip inside the deepest level is rejected. */
-const MAX_NESTED_ARCHIVE_DEPTH = 2
-
-interface PendingEntry {
-  name: string
-  state: 'open' | 'done' | 'failed'
-  chunks: Uint8Array[]
-  bytes: number
-  terminate?: () => void
-}
-
-interface ReadyEntry {
-  name: string
-  bytes: Uint8Array<ArrayBuffer>
-  /** A zip to extract, rather than an activity file to deliver. */
-  nested: boolean
-}
-
-interface Sink {
-  summary: ExtractSummary
-  onFile: FitFileHandler
-  onError: FitErrorHandler
-  limits: ExtractLimits
-  /** Which entries of the top-level zip may be activities. Absent when every activity file may. */
-  listed: EntryFilter | undefined
-}
-
-/** Counters shared by a top-level zip and every zip nested inside it. */
-interface ZipBudget {
-  decompressedBytes: number
-  bufferedBytes: number
-  fitEntries: number
-  archiveEntries: number
-  /** Why the whole archive stopped at a shared limit. The entry that hit it reports the reason. */
-  abort: Rejection | null
-}
-
 /**
  * Calls onFile for each FIT, GPX or TCX file in a source, gunzipped and named without its .gz.
  * Content is streamed and bounded; completed files are handed to onFile one at a time. Zips nested
@@ -132,13 +79,7 @@ export async function extractFitFiles(
   } else if (ACTIVITY.test(name)) {
     await extractSingle(source, sink)
   } else if (ZIP.test(name)) {
-    await streamZip(source, sink, 0, {
-      decompressedBytes: 0,
-      bufferedBytes: 0,
-      fitEntries: 0,
-      archiveEntries: 0,
-      abort: null,
-    })
+    await streamZip(source, sink, newBudget())
   } else {
     onError(name, notActivity(UNSUPPORTED_FORMAT))
   }
@@ -213,320 +154,29 @@ async function extractSingle(source: FitSource, sink: Sink): Promise<void> {
   await deliver(fileName, bytes, sink)
 }
 
-async function streamZip(
-  source: FitSource,
-  sink: Sink,
-  depth: number,
-  budget: ZipBudget,
-): Promise<void> {
-  // Entries of a nested zip are named after the zip that holds them, e.g. "rides.zip/a.fit".
-  const prefix = depth === 0 ? '' : `${source.name}/`
-  const ready: ReadyEntry[] = []
-  const started: PendingEntry[] = []
-  let archivePrefix = new Uint8Array(0)
-  let sawEntry = false
-  let streamFailure: Rejection | null = null
-  let interruption: Rejection | null = null
-  let handlerFailed = false
-  let handlerError: unknown
-  let seenEntries = 0
-  // The last bytes streamed, to read the central directory after the last entry.
-  const tailChunks: Uint8Array[] = []
-  let tailLength = 0
-  let streamedBytes = 0
-
-  const reportEntryError = (name: string, rejection: Rejection) => {
-    try {
-      sink.onError(name, rejection)
-    } catch (error) {
-      handlerFailed = true
-      handlerError = error
-      throw error
-    }
-  }
-
-  const failEntry = (pending: PendingEntry, rejection: Rejection) => {
-    if (pending.state !== 'open') return
-    pending.state = 'failed'
-    pending.terminate?.()
-    budget.bufferedBytes -= pending.bytes
-    pending.chunks = []
-    pending.bytes = 0
-    reportEntryError(pending.name, rejection)
-  }
-
-  // A shared total limit fails the entry being read and stops the whole archive.
-  const expandLimit = (pending: PendingEntry) => {
-    const rejection = expandsTooLarge(sink.limits.maxTotalDecompressedBytes)
-    budget.abort ??= rejection
-    failEntry(pending, rejection)
-  }
-
-  // fflate keeps the compressed input of an entry that is never started, so a skipped entry is
-  // started with its output discarded. Otherwise a large skipped file (a photo, say) stays in memory.
-  const drain = (file: UnzipFile) => {
-    file.ondata = () => undefined
-    try {
-      file.start()
-    } catch {
-      // Nothing is retained for an entry that cannot start.
-    }
-  }
-
-  const unzip = new Unzip((file) => {
-    sawEntry = true
-    seenEntries++
-    // Once the archive has stopped, its remaining entries are covered by the archive-wide reason.
-    if (budget.abort !== null) return drain(file)
-    budget.archiveEntries++
-    const entry = file.name
-    const name = prefix + entry
-    if (budget.archiveEntries > sink.limits.maxArchiveEntries) {
-      // The entry is rejected and the archive stops. Later entries in this push return early.
-      const rejection = entryCountTooLarge(sink.limits.maxArchiveEntries)
-      reportEntryError(name, rejection)
-      budget.abort ??= rejection
-      return drain(file)
-    }
-    if (isIgnored(entry)) return drain(file)
-    // A file of the zip that its list leaves out is not an activity, in a format the app reads or not.
-    const unlisted = depth === 0 && sink.listed?.(entry) === false
-    if (OTHER_ACTIVITY.test(entry)) {
-      sink.summary[unlisted ? 'notActivities' : 'otherActivityFiles']++
-      return drain(file)
-    }
-    const nested = ZIP.test(entry)
-    if (!nested && !ACTIVITY.test(entry)) return drain(file)
-    if (unlisted && !nested) {
-      sink.summary.notActivities++
-      return drain(file)
-    }
-    if (nested && depth >= MAX_NESTED_ARCHIVE_DEPTH) {
-      reportEntryError(name, unreadable(TOO_DEEP))
-      return drain(file)
-    }
-    if (!nested) {
-      budget.fitEntries++
-      if (budget.fitEntries > sink.limits.maxFitFiles) {
-        reportEntryError(name, activityCountTooLarge(sink.limits.maxFitFiles))
-        return drain(file)
-      }
-    }
-    if (file.originalSize !== undefined && file.originalSize > sink.limits.maxEntryBytes) {
-      reportEntryError(name, entryTooLarge(sink.limits.maxEntryBytes))
-      return drain(file)
-    }
-
-    const pending: PendingEntry = { name, state: 'open', chunks: [], bytes: 0 }
-    pending.terminate = () => {
-      file.terminate()
-    }
-    started.push(pending)
-    if (file.compression !== 0 && file.compression !== 8) {
-      failEntry(pending, unreadable(UNSUPPORTED_COMPRESSION))
-      return
-    }
-    const isGzip = /\.gz$/i.test(entry)
-    let entryBytes = 0
-    let gunzip: Gunzip | null = null
-    if (isGzip) {
-      gunzip = new Gunzip((data) => {
-        if (pending.state !== 'open') return
-        if (data.length > sink.limits.maxEntryBytes - pending.bytes) {
-          failEntry(pending, decompressedTooLarge(sink.limits.maxEntryBytes))
-          return
-        }
-        if (data.length > sink.limits.maxTotalDecompressedBytes - budget.decompressedBytes) {
-          expandLimit(pending)
-          return
-        }
-        if (data.length > sink.limits.maxBufferedBytes - budget.bufferedBytes) {
-          failEntry(pending, bufferedTooLarge(sink.limits.maxBufferedBytes))
-          return
-        }
-        pending.chunks.push(data.slice())
-        pending.bytes += data.length
-        budget.bufferedBytes += data.length
-        budget.decompressedBytes += data.length
-      })
-    }
-
-    file.ondata = (error, data, final) => {
-      if (pending.state !== 'open') return
-      if (error) {
-        failEntry(pending, corrupt(DECOMPRESS_FAILED))
-        return
-      }
-      entryBytes += data.length
-      if (entryBytes > sink.limits.maxEntryBytes) {
-        failEntry(pending, entryTooLarge(sink.limits.maxEntryBytes))
-        return
-      }
-      if (data.length > sink.limits.maxTotalDecompressedBytes - budget.decompressedBytes) {
-        expandLimit(pending)
-        return
-      }
-      budget.decompressedBytes += data.length
-      if (gunzip !== null) {
-        try {
-          // ZIP Inflate can emit a much larger callback chunk than the 16 KiB source slice.
-          // Re-slice before feeding the nested gzip decoder so both decompressor layers have
-          // the same bounded input quantum.
-          if (data.length === 0) gunzip.push(data, final)
-          else {
-            for (let offset = 0; offset < data.length; offset += DECOMPRESS_INPUT_CHUNK_BYTES) {
-              const end = Math.min(offset + DECOMPRESS_INPUT_CHUNK_BYTES, data.length)
-              gunzip.push(data.subarray(offset, end), final && end === data.length)
-            }
-          }
-        } catch {
-          failEntry(pending, corrupt(DECOMPRESS_FAILED))
-          return
-        }
-      } else {
-        if (data.length > sink.limits.maxBufferedBytes - budget.bufferedBytes) {
-          failEntry(pending, bufferedTooLarge(sink.limits.maxBufferedBytes))
-          return
-        }
-        pending.chunks.push(data.slice())
-        pending.bytes += data.length
-        budget.bufferedBytes += data.length
-      }
-      if (final && pending.state === 'open') {
-        // The concatenated copy is made while the chunks are still held, so both must fit.
-        if (pending.bytes > sink.limits.maxBufferedBytes - budget.bufferedBytes) {
-          failEntry(pending, bufferedTooLarge(sink.limits.maxBufferedBytes))
-          return
-        }
-        budget.bufferedBytes += pending.bytes // Bound the temporary concat copy as well as retained chunks.
-        pending.state = 'done'
-        ready.push({ name, bytes: concat(pending.chunks, pending.bytes), nested })
-        budget.bufferedBytes -= pending.bytes
-        pending.chunks = []
-      }
-    }
-    try {
-      file.start()
-    } catch {
-      failEntry(pending, unreadable(UNSUPPORTED_COMPRESSION))
-    }
-  })
-  unzip.register(UnzipPassThrough)
-  unzip.register(UnzipInflate)
-
-  // Completed entries leave the buffer here: activity files go to onFile, nested zips are read in turn.
-  const dispatch = async (entry: ReadyEntry): Promise<void> => {
-    try {
-      if (entry.nested) {
-        try {
-          await streamZip(bytesSource(entry.name, entry.bytes), sink, depth + 1, budget)
-        } finally {
-          budget.bufferedBytes -= entry.bytes.length
-        }
-      } else {
-        budget.bufferedBytes -= entry.bytes.length
-        await deliver(entry.name, entry.bytes, sink)
-      }
-    } catch (error) {
-      handlerFailed = true
-      handlerError = error
-      throw error
-    }
-  }
-  // Once the archive has stopped, a zip inside it is not read: the abort reason covers it.
-  const dispatchReady = async () => {
-    for (const entry of ready.splice(0)) {
-      if (budget.abort === null || !entry.nested) await dispatch(entry)
-    }
-  }
-
+async function streamZip(source: FitSource, sink: Sink, budget: ZipBudget): Promise<void> {
+  const run = new ZipRun(sink, budget)
+  const reader = new ZipReader(source.name, 0, run, true)
   try {
     const readFailure = await readSource(source, sink.limits.maxSourceBytes, async (chunk) => {
-      streamedBytes += chunk.length
-      keepTail(chunk)
-      if (archivePrefix.length < 4) {
-        const take = Math.min(4 - archivePrefix.length, chunk.length)
-        const grown = new Uint8Array(archivePrefix.length + take)
-        grown.set(archivePrefix)
-        grown.set(chunk.subarray(0, take), archivePrefix.length)
-        archivePrefix = grown
-      }
       for (let offset = 0; offset < chunk.length; offset += DECOMPRESS_INPUT_CHUNK_BYTES) {
         if (budget.abort !== null) return false
-        try {
-          unzip.push(chunk.subarray(offset, offset + DECOMPRESS_INPUT_CHUNK_BYTES), false)
-        } catch {
-          streamFailure ??= corrupt(ARCHIVE_FAILED)
+        if (!reader.push(chunk.subarray(offset, offset + DECOMPRESS_INPUT_CHUNK_BYTES))) {
           return false
         }
-        await dispatchReady()
+        await run.drain()
       }
       return budget.abort === null
     })
-    interruption = readFailure
-    if (readFailure !== null) {
-      if (budget.abort === null) streamFailure ??= readFailure
-    } else {
-      try {
-        unzip.push(new Uint8Array(0), true)
-      } catch {
-        streamFailure ??= corrupt(ARCHIVE_FAILED)
-      }
-    }
+    reader.finishRead(readFailure)
   } catch {
-    streamFailure ??= corrupt(ARCHIVE_FAILED)
+    reader.failed()
   }
   // A handler error may have been swallowed by the unzip callbacks; it always wins.
-  if (handlerFailed) throw handlerError
-
-  // Entries still open when extraction stops are reported, with the reason it stopped.
-  for (const pending of started) {
-    if (pending.state === 'open') {
-      failEntry(pending, budget.abort ?? interruption ?? corrupt(INCOMPLETE))
-    }
-  }
-  await dispatchReady()
-  if (streamFailure !== null) {
-    sink.onError(source.name, streamFailure)
-  } else if (!sawEntry && !isEmptyZip(archivePrefix)) {
-    sink.onError(source.name, corrupt(ARCHIVE_FAILED))
-  }
-  // A corrupt local header ends fflate's scan silently, so compare with the central directory.
-  if (budget.abort === null && interruption === null && (sawEntry || isEmptyZip(archivePrefix))) {
-    const tail = tailBytes()
-    const listed = await listedEntries(tail, streamedBytes - tail.length)
-    if (listed === null) {
-      sink.onError(source.name, corrupt(DAMAGED_DIRECTORY))
-    } else if (listed > seenEntries) {
-      const lost = listed - seenEntries
-      sink.onError(
-        source.name,
-        corrupt(`${lost} entries could not be read because the archive is damaged`, lost),
-      )
-    }
-  }
-
-  function keepTail(chunk: Uint8Array): void {
-    tailChunks.push(chunk)
-    tailLength += chunk.length
-    while (tailChunks.length > 1) {
-      const oldest = tailChunks[0]
-      if (oldest === undefined || tailLength - oldest.length < DIRECTORY_TAIL_BYTES) break
-      tailChunks.shift()
-      tailLength -= oldest.length
-    }
-  }
-
-  function tailBytes(): Uint8Array {
-    const all = concat(tailChunks, tailLength)
-    return all.subarray(Math.max(0, all.length - DIRECTORY_TAIL_BYTES))
-  }
-}
-
-async function deliver(name: string, bytes: Uint8Array, sink: Sink): Promise<void> {
-  const fileName = name.replace(/\.gz$/i, '')
-  sink.summary.fitFiles++
-  await sink.onFile({ fileName, bytes })
+  if (run.handlerFailed) throw run.handlerError
+  reader.closeOpen()
+  await run.drain()
+  await reader.verify()
 }
 
 function appendChunk(
