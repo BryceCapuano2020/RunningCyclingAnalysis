@@ -2,6 +2,7 @@ import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS } from '../fit/archive'
 import { streamedZip, toZip64 } from '../fit/zipTestFiles'
+import { realisticSummary, SUMMARY_START_MS, SUMMARY_STEP_MS } from './garminTestFiles'
 import { MAX_TITLE_CHARS } from './names'
 import {
   garminList,
@@ -101,38 +102,20 @@ describe('parseGarminSummaries', () => {
     expect(parseGarminSummaries(quoted)?.map((a) => a.startMs)).toEqual([START])
   })
 
-  it('still parses a realistic summary of 16 MiB: about 5,000 activities with nested objects', async () => {
-    const activity = (i: number) => ({
-      activityId: 1_000_000 + i,
-      name: `Activity number ${i}`,
-      activityType: 'running',
-      startTimeGmt: START + i * 3_600_000,
-      beginTimestamp: START + i * 3_600_000,
-      ...Object.fromEntries(Array.from({ length: 100 }, (_, f) => [`metric${f}`, i * 1.5 + f])),
-      summarizedDiveInfo: { surfaceCondition: null, waterType: null },
-      splitSummaries: Array.from({ length: 8 }, (_, s) => ({
-        splitType: 'RWD_RUN',
-        distance: s,
-        noOfSplits: 1,
-      })),
-      note: 'x'.repeat(800),
-    })
-    const text = JSON.stringify([
-      { summarizedActivitiesExport: Array.from({ length: 5000 }, (_, i) => activity(i)) },
-    ])
-    expect(text.length).toBeGreaterThan(MAX_GARMIN_SUMMARY_BYTES * 0.9)
-    expect(text.length).toBeLessThan(MAX_GARMIN_SUMMARY_BYTES)
-    expect(text.split('{').length - 1).toBeLessThan(MAX_GARMIN_SUMMARY_OBJECTS / 5)
+  it('still parses a realistic summary of a few hundred activities with nested objects', async () => {
+    const text = realisticSummary(300)
+    // The size at the cap is the perf test's; here it is the checks, which look at objects and depth.
+    expect(text.split('{').length - 1).toBeLessThan(MAX_GARMIN_SUMMARY_OBJECTS / 100)
 
     const parsed = parseGarminSummaries(text)
-    expect(parsed).toHaveLength(5000)
-    expect(parsed?.[4999]).toEqual({
-      startMs: START + 4999 * 3_600_000,
-      name: 'Activity number 4999',
+    expect(parsed).toHaveLength(300)
+    expect(parsed?.[299]).toEqual({
+      startMs: SUMMARY_START_MS + 299 * SUMMARY_STEP_MS,
+      name: 'Activity number 299',
       sport: 'run',
     })
     const list = await readGarminList(zip({ [`${FOLDER}a_0_summarizedActivities.json`]: text }))
-    expect(list?.activities).toHaveLength(5000)
+    expect(list?.activities).toHaveLength(300)
   })
 
   it('is null for text that is not JSON, and empty for JSON of another shape', () => {

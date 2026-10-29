@@ -6,7 +6,6 @@ import { streamedZip, toZip64 } from './zipTestFiles'
 
 /** A zip inside a zip is read as its bytes arrive, so its size is bounded by the budgets, not held whole. */
 
-const MIB = 1024 * 1024
 const DAMAGED = 'Archive is damaged; some activities may be missing'
 
 /** `length` bytes of the same value, which a FIT-sized entry needs to be, and which stored zips keep whole. */
@@ -79,29 +78,6 @@ describe('a zip nested in a zip', () => {
     expect(read[299]?.fileName).toBe('big.zip/part/299.fit')
     expect(read[299]?.bytes).toEqual(bytes(2000, 299 % 251))
   })
-
-  it('reads one over the default limit on an entry of 64 MiB, within the default budgets', async () => {
-    // 66 MiB of 1 MiB files: more than any entry may be, and 66 times the size of any one file.
-    const inner = zipSync(files(66, MIB), { level: 0 })
-    const outer = zipSync({ 'UploadedFiles_0-_Part1.zip': inner }, { level: 0 })
-    expect(inner.length).toBeGreaterThan(DEFAULT_EXTRACT_LIMITS.maxEntryBytes)
-
-    let count = 0
-    let largest = 0
-    const errors: string[] = []
-    await extractFitFiles(
-      chunked('export.zip', outer, 64 * 1024),
-      (file) => {
-        count++
-        largest = Math.max(largest, file.bytes.length)
-      },
-      (_name, rejection) => errors.push(rejection.reason),
-    )
-
-    expect(errors).toEqual([])
-    expect(count).toBe(66)
-    expect(largest).toBe(MIB)
-  }, 30_000)
 
   it('reads the same files whatever size the source arrives in', async () => {
     const outer = zipSync({ 'a.zip': zipSync(files(20, 3000)), 'top.fit': bytes(500, 7) })

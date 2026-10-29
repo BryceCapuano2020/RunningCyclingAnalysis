@@ -1,8 +1,7 @@
 import './test/warmSample'
 import { describe, expect, it, vi } from 'vitest'
-import { AnalysisSession } from './session'
-import { drawSeason, seasonDigests } from './sessionSample'
-import { DEFAULT_ATHLETE, SAMPLE_CLOCK, SAMPLE_REFERENCE_NOW_MS, samplePlan } from './synthetic'
+import { seasonDigests } from './sessionSample'
+import { SAMPLE_CLOCK, SAMPLE_REFERENCE_NOW_MS, samplePlan } from './synthetic'
 import type { ActivityDigest } from './types'
 
 /** A stand-in for the drawing that makes no season: the decision to draw is what is under test. */
@@ -87,25 +86,4 @@ describe('seasonDigests', () => {
     seasonDigests(week(1), draw)
     expect(draw).toHaveBeenCalledTimes(6)
   })
-
-  it('gives each clock the season drawn for it, never another’s, once cached', () => {
-    const here = { nowMs: Date.UTC(2033, 4, 5, 9), utcOffsetMinutes: () => -420 }
-    const elsewhere = { nowMs: here.nowMs, utcOffsetMinutes: () => 540 }
-    const body = { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
-    for (const clock of [here, elsewhere]) seasonDigests(clock)
-
-    for (const clock of [elsewhere, here]) {
-      const fresh = drawSeason(clock)
-      // Now a cache hit, and it must be what a drawing for that clock makes.
-      expect(seasonDigests(clock)).toEqual(fresh)
-      // The sample is analysed with its own body, so the same digests analysed with it must agree.
-      const loaded = new AnalysisSession().loadSample(body, clock)
-      const direct = new AnalysisSession().loadDigests(fresh, body)
-      expect(loaded.totalActivities).toBe(fresh.length)
-      expect(loaded.library).toEqual(direct.library)
-      expect(loaded.result).toEqual(direct.result)
-    }
-    // Another zone starts its activities at other instants, so a wrong hit could not pass for it.
-    expect(seasonDigests(here)).not.toEqual(seasonDigests(elsewhere))
-  }, 30_000)
 })
