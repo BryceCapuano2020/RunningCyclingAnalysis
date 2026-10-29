@@ -24,16 +24,23 @@ const MAX_RECOVERY_S = 600
 const MAX_RECOVERY_BOUTS = 3
 
 /**
- * The repeats of one session are about as long as each other: at least this share of a set is within this
- * range of its middle length, and only those are kept. A set of two such efforts is a set. Efforts of any
- * length are accepted only when the levels are far apart (BIG_GAP_SHARE) and there are three or more, as in a
- * test of 3, 6, 12 and 20 minute efforts.
+ * The repeats of one session are about as long as each other: efforts no longer than this many times the shortest of
+ * their group make a group, a group of two or more is kept, and the groups must cover this share of a run of efforts.
+ * A session can have several groups (6 x 800 m then 6 x 400 m), and all of them are returned. Efforts of any
+ * length make a set in two other cases: the recovery between them is about the same every time (a pyramid or
+ * a ladder, four efforts or more), or the levels are far apart (BIG_GAP_SHARE) and there are three or more, as
+ * in a test of 3, 6, 12 and 20 minute efforts.
  */
 const SAME_LENGTH_LOW = 0.8
 const SAME_LENGTH_HIGH = 1.25
+const SAME_LENGTH_SPREAD = 1.4
 const SAME_LENGTH_SHARE = 0.6
 const MIN_SET = 2
+const MIN_BLOCK = 3
+const REJECTED_SHARE = 0.2
 const MIN_SET_ANY_LENGTH = 3
+const MIN_SET_REGULAR = 5
+const REGULAR_ANY_SPREAD = 0.1
 const BIG_GAP_SHARE = 1
 
 /**
@@ -42,9 +49,14 @@ const BIG_GAP_SHARE = 1
  * the same recovery between them. Ordinary variation in a steady run is a smaller share than any of these.
  */
 const MIN_GAP_SHARE = 0.3
-const MIN_GAP_SHARE_REGULAR = 0.15
+const MIN_GAP_SHARE_REGULAR = 0.17
 const REGULAR_RECOVERY_SPREAD = 0.3
 const MIN_GAP: Partial<Record<TraceMetric, number>> = { speed: 0.5, power: 40 }
+
+/** Walking pace, m/s, and the pace of a slow jog and the length of a running stretch that rules out a session of intervals. */
+const WALK_SPEED = 1.8
+const SLOW_RUN_SPEED = 2.2
+const LONG_RUN_S = 240
 
 /** A speed under this is a stop or a walk to the line, not a pace; it is no reading, as the activity page reads it. */
 const MIN_SPEED = 0.5
@@ -75,9 +87,15 @@ const length = (bout: Bout): number => bout.endS - bout.startS
  * stretch above the threshold is an effort when it is long enough, is not most of the activity, and does not
  * touch the first or last reading, where a warm-up and a cool-down sit.
  *
- * Efforts count only as a set: at least two, about the same length, with a recovery of a few minutes at most
- * between neighbours. One sustained change is not a set. A progressive run, a negative split, a tempo finish,
- * a block between a warm-up and a cool-down, and the walk breaks of a long run give nothing.
+ * Efforts count only as a set: at least two, with a recovery of a few minutes at most between neighbours, and
+ * either about the same length (the blocks of a session each count: 6 x 800 m then 6 x 400 m), or with the
+ * same recovery every time (a pyramid, a ladder), or three or more of any length when the levels are far
+ * apart. One sustained change is not a set. A progressive run, a negative split, a tempo finish, a block
+ * between a warm-up and a cool-down, and the walking breaks of a trail run or a run/walk plan give nothing.
+ *
+ * Known limits: a speed-only reading cannot tell hills or a rolling road from repeats, nor a foot hill repeat
+ * (slow up, quick jog down) from its recoveries, as the work is always the faster level; an effort that touches
+ * the start or the end of the recording is dropped. See DESIGN.md.
  */
 export function detectIntervals(trace: ActivityTrace): ActivityLap[] {
   const metric = INTERVAL_STREAMS[trace.sport].find((each) => trace.streams[each] !== undefined)
@@ -95,14 +113,18 @@ function repeatedBouts(level: Float64Array, metric: TraceMetric, durationS: numb
   if (first === null) return []
   const best = setsAbove(level, sorted, first, metric, durationS)
   // Work can sit on a third level, above a warm-up that is itself above the recovery. The readings above the
-  // first split are split again, and that split is used when it finds more efforts.
+  // first split are split again, and that split is used when it finds more efforts. It is not used when the
+  // first split found efforts of too many lengths to be a set: the faster ones would be the half of a pyramid.
   const upper = splitOf(
     sorted,
     sorted.findIndex((value) => value > first),
   )
-  if (upper === null) return best
+  if (upper === null) return best.sets
   const again = setsAbove(level, sorted, upper, metric, durationS)
-  return again.length > best.length ? again : best
+  // A first split that found runs of efforts of every length, and no set, is a pyramid or a ladder, and the
+  // upper split finds some of its longest efforts: only a split that finds most of the efforts is used then.
+  const enough = again.sets.length >= best.varied * REJECTED_SHARE
+  return again.sets.length > best.sets.length && enough ? again.sets : best.sets
 }
 
 /**
@@ -135,16 +157,24 @@ function splitOf(sorted: Float64Array, from: number): number | null {
   return at < 0 ? null : (values[at - 1]! + values[at]!) / 2
 }
 
-/** The sets of efforts above `threshold`, or none when the two levels are not far enough apart. */
+/** The sets of efforts above `threshold` (none when the two levels are not far enough apart), and whether
+ * there were runs of efforts that were left out only because their lengths and recoveries were all different. */
+interface Found {
+  sets: Bout[]
+  /** The efforts in runs that were left out because no two were alike and their recoveries differed. */
+  varied: number
+}
+
 function setsAbove(
   level: Float64Array,
   sorted: Float64Array,
   threshold: number,
   metric: TraceMetric,
   durationS: number,
-): Bout[] {
+): Found {
+  const none: Found = { sets: [], varied: 0 }
   const cut = sorted.findIndex((value) => value > threshold)
-  if (cut <= 0) return []
+  if (cut <= 0) return none
   let sumLow = 0
   for (let i = 0; i < cut; i++) sumLow += sorted[i]!
   let sumHigh = 0
@@ -152,11 +182,31 @@ function setsAbove(
   const meanLow = sumLow / cut
   const gap = sumHigh / (sorted.length - cut) - meanLow
   const floor = MIN_GAP[metric] ?? 0
-  if (gap < Math.max(floor, MIN_GAP_SHARE_REGULAR * meanLow)) return []
+  if (gap < Math.max(floor, MIN_GAP_SHARE_REGULAR * meanLow)) return none
   const efforts = effortsAbove(level, threshold, threshold + PEAK_SHARE * gap, durationS)
-  const sets = setsOf(efforts, gap >= BIG_GAP_SHARE * meanLow)
+  const found = setsOf(efforts, gap >= BIG_GAP_SHARE * meanLow)
+  if (isRunWalk(metric, sorted, cut, meanLow + gap, found.sets)) return none
   const clear = gap >= Math.max(floor, MIN_GAP_SHARE * meanLow)
-  return clear || isRegular(sets) ? sets : []
+  return clear || isRegular(found.sets) ? found : { sets: [], varied: found.varied }
+}
+
+/**
+ * Whether the efforts are running between walking breaks, which is how a trail run or a run/walk plan is
+ * done and not a session of intervals: the recoveries are at walking pace (the readings below the threshold
+ * are mostly under WALK_SPEED) and the efforts are long running stretches of 4 minutes or more, or are
+ * themselves a slow jog. A jog between 10-minute cruise efforts is faster than a walk, and a walk between
+ * short fast repeats has short efforts, so neither is caught.
+ */
+function isRunWalk(
+  metric: TraceMetric,
+  sorted: Float64Array,
+  cut: number,
+  highMean: number,
+  sets: Bout[],
+): boolean {
+  if (metric !== 'speed' || sets.length === 0 || sorted[Math.floor(cut / 2)]! >= WALK_SPEED)
+    return false
+  return highMean < SLOW_RUN_SPEED || sets.every((each) => length(each) >= LONG_RUN_S)
 }
 
 /**
@@ -199,12 +249,13 @@ function effortsAbove(
 }
 
 /**
- * The efforts that make a set: runs of efforts with a recovery of a few minutes at most between neighbours,
- * at least two of them and most about the same length, and only those of about that length. A run that has
- * only the few stretches of whatever length the terrain or the traffic left is not a set. With `anyLength`,
- * efforts of any length make a set of three or more.
+ * The efforts that make a set. Runs of efforts have a recovery of a few minutes at most between neighbours. A
+ * run is a set when two or more of its efforts are about as long as each other (every such group is kept, and
+ * together they are most of the run), or when its recoveries are all about the same (four efforts or more), or,
+ * with `far` apart levels, when it has three efforts or more of any length. A run that has only the few stretches
+ * of whatever length the terrain or the traffic left is not a set, and is reported as varied.
  */
-function setsOf(efforts: Bout[], anyLength: boolean): Bout[] {
+function setsOf(efforts: Bout[], far: boolean): Found {
   const near = (a: Bout, b: Bout) =>
     b.startS - a.endS <=
     Math.max(MAX_RECOVERY_S, MAX_RECOVERY_BOUTS * Math.max(length(a), length(b)))
@@ -214,26 +265,71 @@ function setsOf(efforts: Bout[], anyLength: boolean): Bout[] {
     if (last !== undefined && near(last.at(-1)!, effort)) last.push(effort)
     else runs.push([effort])
   }
-  return runs.flatMap((run) => {
-    if (anyLength) return run.length >= MIN_SET_ANY_LENGTH ? run : []
-    const middle = run.map(length).sort((x, y) => x - y)[Math.floor(run.length / 2)]!
-    const alike = run.filter(
-      (each) =>
-        length(each) >= middle * SAME_LENGTH_LOW && length(each) <= middle * SAME_LENGTH_HIGH,
-    )
-    return alike.length >= MIN_SET && alike.length >= run.length * SAME_LENGTH_SHARE ? alike : []
+  let varied = 0
+  const sets = runs.flatMap((run) => {
+    if (run.length < MIN_SET) return []
+    const alike = alikeEfforts(run)
+    if (alike.length > 0) return alike
+    if (far && run.length >= MIN_SET_ANY_LENGTH) return run
+    if (run.length >= MIN_SET_REGULAR && isRegular(run, REGULAR_ANY_SPREAD)) return run
+    varied += run.length
+    return []
   })
+  return { sets, varied }
+}
+
+/**
+ * The efforts of a run that are about as long as others, or none when they are not most of it. Efforts within
+ * a quarter of the middle length of the run, if they are two or more and most of it, are the set (2 x 20 min,
+ * 8 x 4 min). Failing that, the blocks of one session are the stretches of three or more efforts in a row of
+ * about one length (6 x 800 m and then 6 x 400 m), if together they are most of the run. A pair of a kind among
+ * others, or lengths that match only out of order, are a coincidence of the terrain.
+ */
+function alikeEfforts(run: Bout[]): Bout[] {
+  const middle = run.map(length).sort((x, y) => x - y)[Math.floor(run.length / 2)]!
+  const main = run.filter(
+    (each) => length(each) >= middle * SAME_LENGTH_LOW && length(each) <= middle * SAME_LENGTH_HIGH,
+  )
+  const most = run.length * SAME_LENGTH_SHARE
+  const blocks = blocksOf(run)
+  if (main.length >= MIN_SET && main.length >= most) {
+    return run.filter((each) => main.includes(each) || blocks.includes(each))
+  }
+  return blocks.length >= most ? blocks : []
+}
+
+/** The efforts in stretches of three or more in a row, each about as long as the one before and all about one length. */
+function blocksOf(run: Bout[]): Bout[] {
+  const kept: Bout[] = []
+  let from = 0
+  for (let i = 1; i <= run.length; i++) {
+    const block = run.slice(from, i)
+    const shortest = Math.min(...block.map(length))
+    const longest = Math.max(...block.map(length))
+    const ends = i === run.length
+    const breaks =
+      !ends &&
+      (Math.max(length(run[i]!), longest) >
+        Math.min(length(run[i]!), shortest) * SAME_LENGTH_SPREAD ||
+        length(run[i]!) > length(run[i - 1]!) * SAME_LENGTH_HIGH ||
+        length(run[i]!) < length(run[i - 1]!) * SAME_LENGTH_LOW)
+    if (ends || breaks) {
+      if (block.length >= MIN_BLOCK) kept.push(...block)
+      from = i
+    }
+  }
+  return kept
 }
 
 /** Whether there are three efforts or more with about the same recovery between neighbours. */
-function isRegular(efforts: Bout[]): boolean {
+function isRegular(efforts: Bout[], spread = REGULAR_RECOVERY_SPREAD): boolean {
   if (efforts.length < 3) return false
   const gaps = efforts.slice(1).map((each, i) => each.startS - efforts[i]!.endS)
   const middle = gaps.slice().sort((x, y) => x - y)[Math.floor(gaps.length / 2)]!
-  const spread = gaps.map((each) => Math.abs(each - middle)).sort((x, y) => x - y)[
+  const off = gaps.map((each) => Math.abs(each - middle)).sort((x, y) => x - y)[
     Math.floor(gaps.length / 2)
   ]!
-  return spread <= REGULAR_RECOVERY_SPREAD * middle
+  return off <= spread * middle
 }
 
 /**
