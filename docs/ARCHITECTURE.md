@@ -331,7 +331,7 @@ the server stores only that. A digest holds:
   slow run, carries `walkingPace`; it stays in the library, marked, and is left out of run analysis.
 - **Evidence for zones, durability and drift** (all optional, absent on older digests; see
   `docs/research/durability.md`): moving-time distributions of heart rate, measured power (rides with a
-  power meter only) and run speed, as sparse offset and counts in 1 bpm, 5 W and 0.05 m/s bins; the best
+  power meter only) and run speed, as sparse offset and counts in 1 bpm, 1 W and 0.05 m/s bins; the best
   5 and 20 minute output in windows that start after 1, 1.5 and 2 hours of moving time (runs and measured
   rides); and the output per heart rate of the two halves of a steady effort of an hour or more, or null.
   Zones are applied to the distributions when digests are combined, never stored.

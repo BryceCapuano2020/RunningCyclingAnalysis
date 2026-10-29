@@ -7,7 +7,7 @@ import type { ZoneMeasure } from './schemes'
 import type { Zone, ZoneSet, ZoneSource } from './zones'
 
 /*
- * Time in zones for one activity. A digest keeps its seconds in bins of one heart-rate beat, five watts
+ * Time in zones for one activity. A digest keeps its seconds in bins of one heart-rate beat, one watt
  * or 0.05 m/s (DISTRIBUTION_BINS), and the zones in effect on its date cut those bins. The period view
  * (periodTime.ts) adds these per-activity answers up.
  */
@@ -24,12 +24,9 @@ export const DISTRIBUTION_OF: Record<ZoneMeasure, DistributionMeasure> = {
  * kept: the zones add up to the distribution's total.
  *
  * A reading is in the zone it is at or above the floor of and below the ceiling of, as `traceTimeInZones`
- * places a recorded second. Heart rate and power zones are cut on whole-number edges (`zonesFor`) and their
- * bins hold whole numbers (one beat, or five watts), so a bin never straddles an edge by a fraction: a bin of
- * 110 to 114 W cut at 111 W has one of its five watts below the edge, and a fifth of its seconds go to the
- * zone below, shared evenly over its watts. Speed is not a whole number, so a bin of it that straddles an
- * edge is split in proportion to the width each side, as if its seconds were spread evenly across it, which
- * is under 0.05 m/s of error at each edge.
+ * places a recorded second. `zonesFor` cuts every zone on the edges of the measure's bins (whole beats and
+ * watts, steps of 0.05 m/s), so a bin sits wholly in one zone, the one its floor is in, and its seconds go
+ * there. Zones not cut that way would have a bin's seconds credited to its lower end.
  */
 export function secondsByZone(
   zones: readonly Zone[],
@@ -41,21 +38,10 @@ export function secondsByZone(
   let k = 0
   distribution.counts.forEach((seconds, i) => {
     if (seconds <= 0) return
-    const lower = (distribution.offset + i) * width
-    const upper = lower + width
+    const floor = (distribution.offset + i) * width
     // Bins rise, so the first zone that can hold this bin never falls behind the last one's.
-    while (k < zones.length - 1 && zones[k]!.high! <= lower + EDGE_EPSILON) k++
-    let from = lower
-    for (let j = k; j < zones.length; j++) {
-      const high = zones[j]!.high
-      if (high === null || upper <= high + EDGE_EPSILON) {
-        // A whole bin is added as it is, so rounding in the widths never takes a second from it.
-        out[j]! += from === lower ? seconds : seconds * ((upper - from) / width)
-        break
-      }
-      out[j]! += seconds * ((high - from) / width)
-      from = high
-    }
+    while (k < zones.length - 1 && zones[k]!.high! <= floor + EDGE_EPSILON) k++
+    out[k]! += seconds
   })
   return out
 }

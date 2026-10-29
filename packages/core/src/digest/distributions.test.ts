@@ -13,8 +13,10 @@ describe('binOf', () => {
     // 0.3 / 0.05 is 5.999999999999999 in floating point.
     expect(binOf('speed', 0.3)).toBe(6)
     expect(binOf('speed', 0.349)).toBe(6)
-    expect(binOf('power', 5)).toBe(1)
-    expect(binOf('power', 4.99)).toBe(0)
+    expect(binOf('power', 5)).toBe(5)
+    expect(binOf('power', 4.99)).toBe(4)
+    expect(binOf('power', 200)).toBe(200)
+    expect(binOf('power', 200.9)).toBe(200)
     expect(binOf('heartRate', 150.9)).toBe(150)
   })
 
@@ -55,7 +57,7 @@ describe('distributionOf', () => {
 
   it('does not count a power below zero', () => {
     const d = distributionOf('power', Float64Array.from([-5, 0, 7]), ones(3), ones(3))
-    expect(d).toEqual({ offset: 0, counts: [1, 1] })
+    expect(d).toEqual({ offset: 0, counts: [1, 0, 0, 0, 0, 0, 0, 1] })
   })
 })
 
@@ -78,7 +80,7 @@ describe('activityDistributions', () => {
     const d = distributionsOf({ n, sport: 'ride', power, paused }, true)
     expect(Object.keys(d).sort()).toEqual(['heartRate', 'power'])
     expect(total(d.power!.counts)).toBe(n - 100)
-    expect(d.power!.offset).toBe(42)
+    expect(d.power!.offset).toBe(210)
     expect(d.heartRate).toEqual({ offset: 150, counts: [n - 100] })
   })
 

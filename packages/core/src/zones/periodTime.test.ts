@@ -178,13 +178,13 @@ describe('periodTimeInZones', () => {
         sport: 'ride',
         startMs: noon(2026, 1, 10),
         heartRate: [150, 200],
-        power: [40, 300],
+        power: [200, 300],
       }),
     ]
     const time = periodTimeInZones(digests, withEntries(measurements), null)
     expect(heartRate(time, 'run').totalSeconds).toBe(100)
     expect(heartRate(time, 'ride').totalSeconds).toBe(200)
-    // 200 W bins of 5 W: bin 40 is 200-205 W, 100-102% of 200 W, zone 4.
+    // Bin 200 is 200 W, 100% of 200 W, zone 4 (180 W up to 210 W).
     expect(time.ride.find((row) => row.measure === 'power')!.seconds).toEqual([
       0, 0, 0, 300, 0, 0, 0,
     ])

@@ -27,23 +27,21 @@ describe('secondsByZone', () => {
     ])
   })
 
-  it('shares a power bin by its whole watts: those below the edge go to the zone below', () => {
-    // Threshold 201 W: the first cut is 0.55 * 201 = 110.55 W, so the zone above starts at 111 W, inside the
-    // bin 110 to 114 W. Only 110 W is below it, so one of the bin's five watts, a fifth of its seconds, is in
-    // the lower zone.
+  it('puts a watt below the edge in the zone below and the edge itself in the zone above', () => {
+    // Threshold 201 W: the first cut is 0.55 * 201 = 110.55 W, so the zone above starts at 111 W.
     const zones = zonesFor('power', 201)
-    const seconds = secondsByZone(zones, 'power', { offset: 22, counts: [100] })
-    expect(seconds[0]).toBeCloseTo(20, 9)
-    expect(seconds[1]).toBeCloseTo(80, 9)
+    expect(
+      secondsByZone(zones, 'power', { offset: 109, counts: [10, 20, 30, 40] }).slice(0, 2),
+    ).toEqual([30, 70])
   })
 
   it('holds a whole-watt edge in the zone it opens, so a bin starting on it is wholly above', () => {
-    // Threshold 200 W: the edge is 110 W exactly, and the bin 110 to 114 W is the zone above's.
+    // Threshold 200 W: the edge is 110 W exactly.
     const zones = zonesFor('power', 200)
-    expect(secondsByZone(zones, 'power', { offset: 22, counts: [100] }).slice(0, 2)).toEqual([
+    expect(secondsByZone(zones, 'power', { offset: 110, counts: [100] }).slice(0, 2)).toEqual([
       0, 100,
     ])
-    expect(secondsByZone(zones, 'power', { offset: 21, counts: [100] }).slice(0, 2)).toEqual([
+    expect(secondsByZone(zones, 'power', { offset: 109, counts: [100] }).slice(0, 2)).toEqual([
       100, 0,
     ])
   })
@@ -73,24 +71,11 @@ describe('secondsByZone', () => {
     }
   })
 
-  it('shares one bin over three zones when the zones are narrower than the bin', () => {
-    // Zones 100 to 102 and 102 to 103 W inside a bin of 100 to 104 W: two, one and two whole watts.
-    const zones = [
-      { level: 1, name: 'a', low: 0, high: 102 },
-      { level: 2, name: 'b', low: 102, high: 103 },
-      { level: 3, name: 'c', low: 103, high: null },
-    ]
-    const seconds = secondsByZone(zones, 'power', { offset: 20, counts: [50] })
-    expect(seconds[0]).toBeCloseTo(20, 9)
-    expect(seconds[1]).toBeCloseTo(10, 9)
-    expect(seconds[2]).toBeCloseTo(20, 9)
-  })
-
   it('keeps every second whatever the edges: the zones add up to the distribution', () => {
     const counts = Array.from({ length: 60 }, (_, i) => 1 + ((i * 7) % 13))
     for (const reference of [137, 201.3, 250.7, 311]) {
       const seconds = secondsByZone(zonesFor('power', reference), 'power', { offset: 10, counts })
-      expect(sum(seconds)).toBeCloseTo(sum(counts), 6)
+      expect(sum(seconds)).toBe(sum(counts))
     }
   })
 
@@ -111,7 +96,7 @@ describe('secondsByZone', () => {
 
   it('reads each measure from the distribution of its own bin width', () => {
     expect(DISTRIBUTION_BINS[DISTRIBUTION_OF.pace].width).toBe(0.05)
-    expect(DISTRIBUTION_BINS[DISTRIBUTION_OF.power].width).toBe(5)
+    expect(DISTRIBUTION_BINS[DISTRIBUTION_OF.power].width).toBe(1)
     expect(DISTRIBUTION_BINS[DISTRIBUTION_OF.heartRate].width).toBe(1)
   })
 })

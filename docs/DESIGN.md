@@ -1466,12 +1466,11 @@ and not from its own best efforts. Adding files can move
 the library's thresholds, and with them the zones of older periods. The time in zones is the time spent
 against the peak-based zones, the same in every period.
 
-**Period maths.** Each activity's digest distribution (seconds per 1 bpm, 5 W or 0.05 m/s bin) is cut by that
+**Period maths.** Each activity's digest distribution (seconds per 1 bpm, 1 W or 0.05 m/s bin) is cut by that
 activity's own zones, so a period can hold activities with different zones (a threshold entered during it, or a
 body weight that changed an estimated ride threshold). A heart rate or a power is a whole number, so
 the reference is rounded to the number Profile shows (`zonesAt`: 187.6 bpm is 188 bpm) and its zones are cut on whole-number edges (`zonesFor`: the first whole number at or above the cut, so 0.6 of 219 bpm is 131.4 and
-the zone above starts at 132), and a bin of it is shared by its whole numbers: 110 to 114 W with an edge at 111 W has one watt
-below it, a fifth of its seconds, and a bin of one beat is never split. A reading is in the zone it is at or above the floor of
+the zone above starts at 132), and its bins are one beat or one watt wide, so a bin is never split. A reading is in the zone it is at or above the floor of
 and below the ceiling of, as on the activity page, and the Profile ranges are written from the same edges, so they agree. A pace cut is moved to the nearest 0.05 m/s, the step of the speed bins, so no speed bin straddles an edge either. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
 digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms
 (`periodTime.perf.test.ts`).

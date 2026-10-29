@@ -331,13 +331,15 @@ export const SAME_HEART_RATE = {
 
 /**
  * The moving-time distributions a digest keeps, one per measure: bin width in the measure's unit
- * (bpm, W, m/s), and the highest bin index a sample can fall in. A sample past it is not counted.
+ * (bpm, W, m/s), and the highest bin index a sample can fall in. A sample past it is not counted. Heart rate
+ * and power bins are whole beats and watts, and the speed bin is the step pace zones are cut on (`zonesFor`),
+ * so no bin straddles a zone edge.
  * The quality masks cap each measure: a heart-rate spike is above 230 bpm, a power spike above
  * 2,000 W and a running speed spike above 12.5 m/s, so no valid sample reaches the limits below.
  */
 export const DISTRIBUTION_BINS = {
   heartRate: { width: 1, maxBin: 255 },
-  power: { width: 5, maxBin: 400 },
+  power: { width: 1, maxBin: 2000 },
   speed: { width: 0.05, maxBin: 250 },
 } as const
 export type DistributionMeasure = keyof typeof DISTRIBUTION_BINS

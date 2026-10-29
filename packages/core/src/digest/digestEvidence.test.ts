@@ -23,8 +23,8 @@ describe('digest evidence', () => {
     expect(total(run.distributions!.speed?.counts)).toBe(run.movingS)
   })
 
-  it('keeps measured power for a ride with a power meter, as 5 W bins', () => {
-    expect(ride.distributions!.power).toEqual({ offset: 44, counts: [N] })
+  it('keeps measured power for a ride with a power meter, as 1 W bins', () => {
+    expect(ride.distributions!.power).toEqual({ offset: 220, counts: [N] })
     expect(ride.distributions!.speed).toBeUndefined()
   })
 

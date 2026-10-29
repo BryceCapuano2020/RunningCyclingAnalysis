@@ -78,15 +78,15 @@ _The Triathlete's Training Bible_, 4th ed., VeloPress, 2016.
 ## 5. Time in zones
 
 Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `traceZones.ts`, `periodTime.ts`,
-`zoneShares.ts`). Nothing here enters a digest, so the model revision is unchanged. The page copy is in
+`zoneShares.ts`). The digest's power distribution is in 1 W bins so that a bin never straddles an edge. The page copy is in
 `docs/DESIGN.md` under Time in zones.
 
-- **From a digest.** A digest keeps moving seconds in bins (`DISTRIBUTION_BINS`: 1 bpm, 5 W, 0.05 m/s). The zones in effect
+- **From a digest.** A digest keeps moving seconds in bins (`DISTRIBUTION_BINS`: 1 bpm, 1 W, 0.05 m/s). The zones in effect
   on the activity's local date cut those bins. A reading is in the zone it is at or above the floor of and below the ceiling of.
   Heart rate and measured power are whole numbers, so `zonesFor` cuts their zones on whole-number edges, the first whole number
-  at or above the cut (0.6 of 219 bpm is 131.4, so the zone above starts at 132; 0.55 of 201 W is 110.55, so 111 W). A bin of them
-  holds whole numbers (one beat, or five watts) and is shared by them: 110 to 114 W with an edge at 111 W has one watt below
-  and four above, so a fifth and four fifths of its seconds, and a one-beat bin is never split. This agrees with the trace
+  at or above the cut (0.6 of 219 bpm is 131.4, so the zone above starts at 132; 0.55 of 201 W is 110.55, so 111 W). Their bins are
+  one beat and one watt wide, so a bin is never split. (Power was kept in 5 W bins, and the digest shared a
+  bin across an edge it straddled: an hour at 200 W with an edge at 201 W was 20% in the zone below and 80% above.) This agrees with the trace
   below and with the Profile ranges, which are written from the same edges. Speed is not a whole
   number, so `zonesFor` moves each pace cut to the nearest 0.05 m/s, the step of the speed bins (at most 0.025 m/s, about 2 to
   4 s/km at running speeds). No speed bin then straddles an edge, and the digest places a second in the pace zone the trace does.

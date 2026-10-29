@@ -32,7 +32,7 @@ Constants are in `packages/core/src/constants.ts` (`DISTRIBUTION_BINS`, `DURABIL
   A sample counts only when it is also valid by the quality masks.
 - **Distributions.** Seconds per bin over moving, valid samples, stored sparsely as an offset and the
   counts from the first to the last used bin. Heart rate in 1 bpm bins; measured power of rides with a
-  power meter in 5 W bins; run speed in 0.05 m/s bins. A ride without a power meter keeps no power
+  power meter in 1 W bins; run speed in 0.05 m/s bins. A ride without a power meter keeps no power
   distribution, because its watts are an estimate and an estimate is never counted as a reading. Zones
   are applied when the digests are combined, so they can change without re-digesting.
 - **Durability.** For each start time of 1, 1.5 and 2 hours of moving time, the best output over 5 and
