@@ -61,8 +61,14 @@ export function fitTicks(
   const scale = rootScale()
   while (kept.length > 1 && collides(kept, axis, fontPx, scale)) {
     const next = every(kept, 2, keep)
-    // Two ticks that both must stay can only be thinned by dropping the one that is not kept.
-    kept = next.length < kept.length ? next : kept.filter(keep)
+    if (next.length < kept.length) {
+      kept = next
+      continue
+    }
+    // Thinning made no progress: drop the ticks that are not kept, and if the kept ones still collide
+    // drop the earliest, so the latest stays and every pass shortens the list.
+    const must = kept.filter(keep)
+    kept = must.length < kept.length ? must : kept.slice(1)
   }
   return kept
 }

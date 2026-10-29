@@ -5,7 +5,7 @@ import { metabolicToFlatSpeed } from '../metabolic'
 import type { ActivityDigest, DigestHrBlock, Sport } from '../types'
 import { orderedCurrent } from './combine'
 import { outputAtHeartRate } from './theilSen'
-import type { FitBlocks } from './theilSen'
+import type { FitBlocks, OutputAtHeartRate } from './theilSen'
 import { NO_SAME_HEART_RATE } from './sameHeartRateTypes'
 import type {
   Lack,
@@ -170,7 +170,14 @@ function referenceOf(library: readonly Block[]): number | null {
   return Math.round(quantile(rates, 0.5) / step) * step
 }
 
-function changeOf(reported: readonly SameHeartRateWeek[]): SameHeartRateChange | null {
+/** An interval narrower than this share of its output is float noise, not a measured range. */
+const MIN_INTERVAL_SHARE = 1e-6
+
+function measured(fit: OutputAtHeartRate): boolean {
+  return fit.high - fit.low >= MIN_INTERVAL_SHARE * Math.abs(fit.output)
+}
+
+export function changeOf(reported: readonly SameHeartRateWeek[]): SameHeartRateChange | null {
   const first = reported[0]
   const last = reported.at(-1)
   if (first?.fit == null || last?.fit == null || first === last) return null
@@ -181,7 +188,10 @@ function changeOf(reported: readonly SameHeartRateWeek[]): SameHeartRateChange |
     to: last.fit.output,
     weeksApart: Math.round((last.endMs - first.endMs) / WEEK_MS),
     relative: last.fit.output / first.fit.output - 1,
-    real: last.fit.low > first.fit.high || last.fit.high < first.fit.low,
+    real:
+      measured(first.fit) &&
+      measured(last.fit) &&
+      (last.fit.low > first.fit.high || last.fit.high < first.fit.low),
   }
 }
 

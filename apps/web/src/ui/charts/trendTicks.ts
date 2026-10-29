@@ -30,15 +30,20 @@ export function shortDateWithYear(ms: number): string {
   return `${shortDate(ms)} ${new Date(ms).getUTCFullYear()}`
 }
 
+/** The most month starts one axis lists: 500 years, far past any trend, so a bad bound cannot run the loop away. */
+const MAX_MONTH_STARTS = 6000
+
 /** First instants of the calendar months, in UTC, that fall after fromMs and up to toMs. */
-function monthStartsBetween(fromMs: number, toMs: number): number[] {
-  const from = new Date(fromMs)
+export function monthStartsBetween(fromMs: number, toMs: number): number[] {
   const starts: number[] = []
-  for (let month = from.getUTCMonth() + 1; ; month++) {
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) return starts
+  const from = new Date(fromMs)
+  for (let month = from.getUTCMonth() + 1; starts.length < MAX_MONTH_STARTS; month++) {
     const start = Date.UTC(from.getUTCFullYear(), month, 1)
-    if (start > toMs) return starts
+    if (!(start <= toMs)) break
     starts.push(start)
   }
+  return starts
 }
 
 /**
@@ -99,7 +104,8 @@ export function labelExtent(
 function apart(ticks: AxisTick[], plot: PlotBox, fontPx: number): AxisTick[] {
   const scale = rootScale()
   let kept = ticks
-  for (;;) {
+  // Each pass drops a tick, so the loop ends at one; the bound is only a guard.
+  for (let pass = 0; pass <= ticks.length; pass++) {
     const extents = kept.map((tick) => labelExtent(tick, plot, fontPx, scale))
     const meets = extents.findIndex(
       (extent, i) => i + 1 < extents.length && extent[1] + TICK_LABEL_GAP_PX > extents[i + 1]![0],
@@ -109,6 +115,7 @@ function apart(ticks: AxisTick[], plot: PlotBox, fontPx: number): AxisTick[] {
     const drop = meets + 1 === kept.length - 1 && meets > 0 ? meets : meets + 1
     kept = kept.filter((_, i) => i !== drop)
   }
+  return kept
 }
 
 /**

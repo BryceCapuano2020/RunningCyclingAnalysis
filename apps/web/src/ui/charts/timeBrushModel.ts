@@ -49,7 +49,7 @@ export function draggedRange(
     const startS = clamp(Math.round(origin.startS + secondS - anchorS), 0, max - length)
     return { startS, endS: startS + length }
   }
-  const [from, to] = [clamp(anchorS, 0, max), clamp(at, 0, max)].sort((a, b) => a - b)
+  const [from, to] = [clamp(Math.round(anchorS), 0, max), clamp(at, 0, max)].sort((a, b) => a - b)
   const startS = Math.min(from!, max - 1)
   return { startS, endS: Math.max(to!, startS + 1) }
 }

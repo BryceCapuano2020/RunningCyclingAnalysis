@@ -7,6 +7,26 @@ function ticksAt(positions: number[], label: string): AxisTick[] {
   return positions.map((position) => ({ position, label }))
 }
 
+describe('fitTicks that cannot be thinned', () => {
+  it('ends when the kept ends still collide, and keeps the latest', () => {
+    document.documentElement.style.fontSize = '64px'
+    try {
+      const ticks = ticksAt([10, 20, 30, 100], 'Jan 2025')
+      const ends = new Set([ticks[0], ticks[3]])
+      const kept = fitTicks(ticks, { axis: 'x', width: 320, keep: (tick) => ends.has(tick) })
+      expect(kept).toEqual([ticks[3]])
+    } finally {
+      document.documentElement.style.fontSize = ''
+    }
+  })
+
+  it('ends for ticks all at one position', () => {
+    const ticks = ticksAt([50, 50, 50], '1 h')
+    const kept = fitTicks(ticks, { axis: 'x', width: 600, keep: () => true })
+    expect(kept).toHaveLength(1)
+  })
+})
+
 describe('fitTicks', () => {
   it('drops every other tick while neighbouring labels would overlap', () => {
     const ticks = ticksAt([0, 20, 40, 60, 80, 100], '20 min')

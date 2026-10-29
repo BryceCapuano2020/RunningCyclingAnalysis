@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS, SAME_HEART_RATE } from '../constants'
 import { mulberry32 } from '../math'
-import { sameHeartRate } from './sameHeartRate'
+import { changeOf, sameHeartRate } from './sameHeartRate'
+import type { SameHeartRateWeek } from './sameHeartRateTypes'
 import {
   BASE,
   MONDAY,
@@ -52,6 +53,15 @@ describe('output at the same heart rate', () => {
     expect(change).not.toBeNull()
     expect(change!.real).toBe(false)
     expect(Math.abs(change!.relative)).toBeLessThan(0.05)
+  })
+
+  it('does not claim a change from intervals of float-noise width', () => {
+    const week = (endMs: number, output: number, half: number) =>
+      ({ endMs, fit: { output, low: output - half, high: output + half } }) as SameHeartRateWeek
+    const noise = [week(WEEK_MS, 200, 1e-12), week(5 * WEEK_MS, 210, 1e-12)]
+    expect(changeOf(noise)!.real).toBe(false)
+    const measured = [week(WEEK_MS, 200, 2), week(5 * WEEK_MS, 210, 2)]
+    expect(changeOf(measured)!.real).toBe(true)
   })
 
   it('reports each week at the one reference heart rate, with an interval around it', () => {
