@@ -288,7 +288,10 @@ export class AnalysisSession {
     if (adding) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
-    await noteKept(activity, digest, held, listeners)
+    // A copy that replaces the held one is swapped in for good only once the sink has answered: the
+    // server may refuse it (activity-conflict) and keep the copy it has, which the session then keeps.
+    const swapAfterSink = replaces && sink !== undefined && batch.halt === null
+    if (!swapAfterSink) await noteKept(activity, digest, held, listeners)
     const considered = (saved: boolean): Considered => {
       if (retry && saved) batch.added.set(key, digest)
       return adding || (retry && saved) || held === undefined
@@ -318,8 +321,16 @@ export class AnalysisSession {
       const answered = error instanceof SyncFailure && error.digestSaved
       batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
       if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
+      if (swapAfterSink && code === 'activity-conflict') {
+        // The server keeps the copy it holds, so the screen keeps it too, as a reload would show it.
+        this.digests.set(key, held)
+        if (adding) batch.added.set(key, held)
+        return adding ? { added: held } : { held: fileNameOf(held.id) }
+      }
+      if (swapAfterSink) await noteKept(activity, digest, held, listeners)
       return considered(false)
     }
+    if (swapAfterSink) await noteKept(activity, digest, held, listeners)
     return considered(true)
   }
 
