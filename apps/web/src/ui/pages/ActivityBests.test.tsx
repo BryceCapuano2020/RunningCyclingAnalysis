@@ -7,7 +7,7 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { DURATIONS_S } from '@rca/core/constants'
 import { curveOf, curvePoint } from '../charts/fixtures'
 import { makeActivity, makeResult } from '../components/fixtures'
-import type { SplitsLoad } from '../components/splitRows'
+import type { SplitsLoad, SplitsViewName } from '../components/splitRows'
 import { ActivityBests } from './ActivityBests'
 
 afterEach(() => {
@@ -298,7 +298,11 @@ describe('the note on how distance times and splits are timed', () => {
     mile: [],
   }
 
-  function renderWith(splitsLoad: SplitsLoad, activity: ActivitySummary = run) {
+  function renderWith(
+    splitsLoad: SplitsLoad,
+    activity: ActivitySummary = run,
+    splitsView: SplitsViewName = 'units',
+  ) {
     return render(
       <ActivityBests
         activity={activity}
@@ -311,10 +315,16 @@ describe('the note on how distance times and splits are timed', () => {
         period={ALL_TIME}
         earned={[]}
         splitsLoad={splitsLoad}
-        splitsView="units"
+        splitsView={splitsView}
       />,
     )
   }
+
+  it('claims only the stops of the distance times while the recorded laps are shown', () => {
+    renderWith({ status: 'loaded', splits: SPLITS }, run, 'laps')
+    expect(screen.getByText('Distance times include stops.')).toBeInTheDocument()
+    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
+  })
 
   it('sits under the distance times when the run lists splits', () => {
     renderWith({ status: 'loaded', splits: SPLITS })
