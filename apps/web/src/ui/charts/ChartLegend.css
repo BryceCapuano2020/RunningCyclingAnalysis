@@ -142,8 +142,27 @@
   border-top-color: var(--series-ride);
 }
 
-/* In forced colours a line key's tint is dropped, so the key is drawn as a system-coloured rule. */
+/*
+ * In forced colours a fill's tint is dropped and its box would vanish, so each key takes the system colour
+ * the chart's own marks take: running the text colour and the other sports the highlight (see
+ * WeeklyVolumeChart.css). A line key's tint is dropped too, so it is drawn as a system-coloured rule.
+ */
 @media (forced-colors: active) {
+  .swatch-run,
+  .chart-legend__key--run {
+    background: CanvasText;
+  }
+
+  .swatch-ride,
+  .chart-legend__key--ride {
+    background: Highlight;
+  }
+
+  .chart-legend__swatch--neutral,
+  .chart-legend__key--neutral {
+    background: GrayText;
+  }
+
   .chart-legend__key--line {
     height: 0;
     background: none;
