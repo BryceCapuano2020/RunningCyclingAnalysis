@@ -791,7 +791,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   table caption, with "Energy rate (metabolic W/kg)" on its axis. The shared energy trend and the heart-rate chart name their unit the same way, in their axes and column headings.
 - **Effort checks state the measured share and the action.** A best effort below 90% of your reference heart
   rate says the share it reached, then "A hard 20 min effort would raise this.", with no "probably" or
-  "could be higher" (the cards are titled "Your best run was at an easy heart rate", and the like), never
+  "could be higher" (the cards are titled "Your best run did not reach a hard heart rate", and the like), never
   "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate
   in one sentence, where it explains the heart-rate check. Each line that names it glosses it once, as "(set from your highest
   heart rates on file)", which holds for both sports: cycling's is derived from running's, so a ride is never

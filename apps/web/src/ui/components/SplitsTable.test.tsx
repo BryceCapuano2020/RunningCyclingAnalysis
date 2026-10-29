@@ -155,6 +155,13 @@ describe('SplitsTable', () => {
     expect(rows[2]!.querySelector<HTMLElement>('.splits-table__bar')!.style.width).toBe('100%')
   })
 
+  it('draws a lone partial split, on a run shorter than one unit, at the full width and not as Fastest', () => {
+    renderSplits(loaded({ km: [split({ distanceM: 420, seconds: 135 })], mile: [] }))
+    const row = bodyRows()[0]!
+    expect(row.querySelector<HTMLElement>('.splits-table__bar')!.style.width).toBe('100%')
+    expect(within(row).queryByText('Fastest')).not.toBeInTheDocument()
+  })
+
   it('labels a partial last mile as 0.97 mi, so it never reads as a whole mile', () => {
     renderSplits(
       loaded({

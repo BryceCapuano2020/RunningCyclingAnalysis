@@ -22,7 +22,9 @@ describe('EvidenceCard evidence gap', () => {
   it('names a low cycling effort as the gap and says what would close it', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
 
-    const card = screen.getByRole('region', { name: 'Your best ride was at an easy heart rate' })
+    const card = screen.getByRole('region', {
+      name: 'Your best ride did not reach a hard heart rate',
+    })
     expect(within(card).getByText('Not a hard effort')).toBeInTheDocument()
     expect(
       within(card).getByText(
@@ -34,7 +36,9 @@ describe('EvidenceCard evidence gap', () => {
   it('names a low running effort when that one was the low one', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 })
 
-    const card = screen.getByRole('region', { name: 'Your best run was at an easy heart rate' })
+    const card = screen.getByRole('region', {
+      name: 'Your best run did not reach a hard heart rate',
+    })
     expect(
       within(card).getByText(
         'Your best 20 min running reached 70% of your running reference heart rate (set from your highest heart rates on file). A hard 20 min effort would raise this.',
@@ -46,7 +50,7 @@ describe('EvidenceCard evidence gap', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
 
     const card = screen.getByRole('region', {
-      name: 'Both best efforts were at an easy heart rate',
+      name: 'Neither best effort reached a hard heart rate',
     })
     expect(
       within(card).getByText(
@@ -113,7 +117,7 @@ describe('EvidenceCard detail link', () => {
     [
       'an evidence gap',
       { durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 },
-      'Your best ride was at an easy heart rate',
+      'Your best ride did not reach a hard heart rate',
     ],
     [
       'hard efforts on file',
@@ -137,7 +141,9 @@ describe('EvidenceCard says how to record what is missing, on the card', () => {
   it('tells a gap how to record a hard 20-minute effort, in plain words', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
 
-    const card = screen.getByRole('region', { name: 'Your best ride was at an easy heart rate' })
+    const card = screen.getByRole('region', {
+      name: 'Your best ride did not reach a hard heart rate',
+    })
     expect(
       within(card).getByText(
         'To record one: after a warm-up, run or ride your hardest steady 20 min with heart rate on, then add the file.',
@@ -149,7 +155,7 @@ describe('EvidenceCard says how to record what is missing, on the card', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
 
     const card = screen.getByRole('region', {
-      name: 'Both best efforts were at an easy heart rate',
+      name: 'Neither best effort reached a hard heart rate',
     })
     expect(within(card).getByText(/^To record one: after a warm-up/)).toBeInTheDocument()
   })
@@ -226,7 +232,9 @@ describe('EvidenceCard links the gap to the 20 minute effort', () => {
   it('links the how-to to the 20 minute effort, on How sure is this?', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
 
-    const card = screen.getByRole('region', { name: 'Your best ride was at an easy heart rate' })
+    const card = screen.getByRole('region', {
+      name: 'Your best ride did not reach a hard heart rate',
+    })
     expect(
       within(card).getByRole('link', { name: 'How the 20 min effort is checked' }),
     ).toHaveAttribute('href', '#/method')
@@ -235,7 +243,9 @@ describe('EvidenceCard links the gap to the 20 minute effort', () => {
   it('asks How sure is this? to open that section when the link is followed', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
 
-    const card = screen.getByRole('region', { name: 'Your best ride was at an easy heart rate' })
+    const card = screen.getByRole('region', {
+      name: 'Your best ride did not reach a hard heart rate',
+    })
     fireEvent.click(within(card).getByRole('link', { name: 'How the 20 min effort is checked' }))
     expect(requestedMethodSection()).toBe(TWENTY_MINUTE_ID)
     clearRequestedMethodSection()

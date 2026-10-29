@@ -6,6 +6,8 @@ import { SettingsOverTime } from './SettingsOverTime'
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 function renderForm() {
@@ -88,8 +90,6 @@ describe('the dated settings table', () => {
       'tabindex',
       '0',
     )
-    vi.unstubAllGlobals()
-    vi.restoreAllMocks()
   })
 })
 

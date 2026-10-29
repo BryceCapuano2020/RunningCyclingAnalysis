@@ -43,8 +43,9 @@ export function ChartTooltip({ content, bounds, id }: ChartTooltipProps) {
     // A narrow chart with a plot top puts the tooltip there, so it does not cover the point it names.
     const plotTop = bounds.plotTop
     const top = plotTop !== undefined && bounds.width < NARROW_WIDTH ? plotTop : content.y - h / 2
-    // Never above the plot: the margin over it holds the y-axis caption, which the box would hide.
-    el.style.top = `${Math.max(plotTop ?? 0, Math.min(top, bounds.height - h))}px`
+    // Never above the plot, where the margin holds the y-axis caption; then never past the bottom; and never off the top.
+    const floored = Math.max(plotTop ?? 0, top)
+    el.style.top = `${Math.max(0, Math.min(floored, bounds.height - h))}px`
   })
 
   return (

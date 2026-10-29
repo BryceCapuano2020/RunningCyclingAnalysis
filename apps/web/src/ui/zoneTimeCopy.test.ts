@@ -117,6 +117,11 @@ describe('activityLede', () => {
     expect(activityLede('run', 'pace', time)).toBe('All of this run was in pace zone 2 (100%).')
   })
 
+  it('says most, not all, of an activity that rounds to 100% but is not all in one zone', () => {
+    const time = measureTime('run', 'pace', [0, 99.6, 0.4, 0, 0])
+    expect(activityLede('run', 'pace', time)).toBe('Most of this run was in pace zone 2 (100%).')
+  })
+
   it('says where the most time was when no zone held half', () => {
     const time = measureTime('ride', 'power', [0, 10, 38, 30, 22, 0, 0])
     expect(activityLede('ride', 'power', time)).toBe(

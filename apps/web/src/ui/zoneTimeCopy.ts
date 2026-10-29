@@ -56,6 +56,9 @@ const READING: Record<ZoneMeasure, string> = {
   pace: 'pace',
 }
 
+/** The share at which one zone holds the whole activity: rounding to 100% is not enough, 99.6% is not all of it. */
+const ALL_OF_SHARE = 0.9995
+
 /** A share as a whole percent. A share too small to round up reads "<1%", so it is not shown as none. */
 export function percentText(share: number): string {
   if (share <= 0) return '0%'
@@ -126,8 +129,8 @@ export function activityLede(
   if (main === null) return null
   const percent = percentText(main.share)
   const at = `${IN_SENTENCE[measure]} zone ${main.level} (${percent})`
-  // "Most of this run was in pace zone 1 (100%)" would undersell it: a share that shows as 100% is all of it.
-  if (percent === '100%') return `All of this ${sport} was in ${at}.`
+  // "Most of this run was in pace zone 1 (100%)" would undersell it, but only a share that is all of it says so.
+  if (main.share >= ALL_OF_SHARE) return `All of this ${sport} was in ${at}.`
   return main.share > 0.5
     ? `Most of this ${sport} was in ${at}.`
     : `This ${sport} spent the most time in ${at}.`

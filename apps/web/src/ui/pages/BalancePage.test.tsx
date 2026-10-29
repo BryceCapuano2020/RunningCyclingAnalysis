@@ -237,7 +237,7 @@ describe('BalancePage', () => {
       makeResult({ effort: [{ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 }] }),
     )
     expect(
-      screen.getByRole('region', { name: 'Your best ride was at an easy heart rate' }),
+      screen.getByRole('region', { name: 'Your best ride did not reach a hard heart rate' }),
     ).toBeInTheDocument()
   })
 

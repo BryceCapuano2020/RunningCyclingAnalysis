@@ -59,26 +59,26 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   const duration = formatDuration(durationS)
   if (run !== null && !isHard(run) && ride !== null && !isHard(ride)) {
     return {
-      title: 'Both best efforts were at an easy heart rate',
+      title: 'Neither best effort reached a hard heart rate',
       text:
         `Your best ${duration} reached ${percentOf(run)}% of your running reference heart rate ` +
         `and ${percentOf(ride)}% of your cycling one (both ${REFERENCE_SOURCE}). ` +
         `A hard ${duration} effort in each sport would raise these.`,
-      short: `Best efforts over ${duration} were at an easy heart rate.`,
+      short: `Best efforts over ${duration} did not reach a hard heart rate.`,
     }
   }
   if (ride !== null && !isHard(ride)) {
     return {
-      title: 'Your best ride was at an easy heart rate',
+      title: 'Your best ride did not reach a hard heart rate',
       text: `${reachedText('ride', duration, ride)}${VERDICT.notHard(duration)}`,
-      short: `Best cycling effort over ${duration} was at an easy heart rate.`,
+      short: `Best cycling effort over ${duration} did not reach a hard heart rate.`,
     }
   }
   if (run !== null && !isHard(run)) {
     return {
-      title: 'Your best run was at an easy heart rate',
+      title: 'Your best run did not reach a hard heart rate',
       text: `${reachedText('run', duration, run)}${VERDICT.notHard(duration)}`,
-      short: `Best running effort over ${duration} was at an easy heart rate.`,
+      short: `Best running effort over ${duration} did not reach a hard heart rate.`,
     }
   }
   return null
