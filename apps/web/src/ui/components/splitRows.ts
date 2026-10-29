@@ -83,15 +83,19 @@ export function fastestOf(speeds: (number | null)[]): {
 
 /**
  * The rows in display form. A split whose time is unknown has no pace, so it is not marked fastest
- * and does not set the bar scale; nor is a lone split, which has nothing to be fastest among. Whether
- * a column shows is columnsOf's decision, not this one's.
+ * and does not set the bar scale; nor is a lone split, which has nothing to be fastest among. Nor is the
+ * partial last split, which is shorter than a unit: a few metres' pace is too noisy to be the best, and
+ * it lands there in a quarter of runs. Its bar is capped at the full width. Whether a column shows is
+ * columnsOf's decision, not this one's.
  */
 export function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
   const unitMetres = units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM
   const speeds = rows.map((split) =>
     split.seconds === null ? null : split.distanceM / split.seconds,
   )
-  const { fastest, fastestIndex } = fastestOf(speeds)
+  const { fastest, fastestIndex } = fastestOf(
+    speeds.map((speed, index) => (rows[index]!.distanceM < unitMetres ? null : speed)),
+  )
   return rows.map((split, index) => {
     const speed = speeds[index]!
     const withheld = flatWithheldFor(split)
@@ -103,7 +107,8 @@ export function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
           : `${index + 1}`,
       fastest: index === fastestIndex,
       pace: speed === null ? null : formatPace(speed, units),
-      barPercent: speed === null || fastest === null ? null : (speed / fastest) * 100,
+      barPercent:
+        speed === null || fastest === null ? null : Math.min(100, (speed / fastest) * 100),
       gradeAdjustedPace:
         gradeAdjusted === null ? null : formatPace(split.distanceM / gradeAdjusted, units),
       flatWithheld: withheld,

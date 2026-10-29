@@ -142,6 +142,19 @@ describe('SplitsTable', () => {
     expect(within(rows[2]!).getByText('5:21 /km')).toBeInTheDocument()
   })
 
+  it('never marks the partial last split Fastest, even when it is the quickest, and caps its bar', () => {
+    renderSplits(
+      loaded({
+        km: [split(), split({ seconds: 310 }), split({ distanceM: 420, seconds: 100 })],
+        mile: [],
+      }),
+    )
+    const rows = bodyRows()
+    expect(within(rows[0]!).getByText('Fastest')).toBeInTheDocument()
+    expect(within(rows[2]!).queryByText('Fastest')).not.toBeInTheDocument()
+    expect(rows[2]!.querySelector<HTMLElement>('.splits-table__bar')!.style.width).toBe('100%')
+  })
+
   it('labels a partial last mile as 0.97 mi, so it never reads as a whole mile', () => {
     renderSplits(
       loaded({
