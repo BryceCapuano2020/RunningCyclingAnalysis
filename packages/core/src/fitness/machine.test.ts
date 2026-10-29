@@ -114,6 +114,82 @@ describe('the weekly monitor on a hand-built library', () => {
   })
 })
 
+describe('the branches of an open episode', () => {
+  const sequence = (records: readonly WeekRecord[]) =>
+    records
+      .filter((r, i) => r.fresh || r.state !== records[i - 1]?.state)
+      .map((r) => `${r.state}${r.fresh ? '*' : ''}`)
+
+  it('falls back to slipping from holding below when the level drops again', () => {
+    const level = (w: number) => (w >= 60 ? -0.08 : 0) + (w >= 100 ? -0.1 : 0)
+    const states = sequence(monitor(library(170, level), 0, 169))
+    expect(states).toEqual([
+      'nodata',
+      'holding',
+      'slipping*',
+      'holding-below',
+      'slipping*',
+      'holding-below',
+    ])
+    const fell = monitor(library(170, level), 0, 169).find((r) => r.w > 90 && r.fresh)!
+    expect(fell.state).toBe('slipping')
+    expect(fell.w).toBeGreaterThanOrEqual(100)
+    expect(fell.w).toBeLessThanOrEqual(108)
+    expect(fell.z).toBeLessThan(-2.5)
+  })
+
+  it('falls back to slipping from recovering when the level drops again before it is back', () => {
+    const level = (w: number) =>
+      (w >= 60 ? -0.08 : 0) + (w >= 100 ? 0.06 : 0) + (w >= 121 ? -0.12 : 0)
+    const records = monitor(library(200, level), 0, 199)
+    const recovering = records.find((r) => r.state === 'recovering' && r.fresh)!
+    const fell = records.find((r) => r.w > recovering.w && r.state === 'slipping' && r.fresh)!
+    expect(recovering.w).toBeLessThan(115)
+    expect(fell.w).toBeGreaterThan(121)
+    expect(fell.w).toBeLessThan(135)
+    expect(records.some((r) => r.state === 'back')).toBe(false)
+  })
+
+  it('falls back to slipping from back when the level drops again inside the back period', () => {
+    const level = (w: number) =>
+      (w >= 60 ? -0.08 : 0) + (w >= 100 ? 0.08 : 0) + (w >= 112 ? -0.12 : 0)
+    const records = monitor(library(190, level), 0, 189)
+    const back = records.find((r) => r.state === 'back' && r.fresh)!
+    const fell = records.find((r) => r.w > back.w && r.state === 'slipping' && r.fresh)!
+    expect(fell.w - back.w).toBeLessThan(12)
+    expect(fell.z).toBeLessThan(0)
+  })
+
+  /** One run every third week, then a drop: never 12 runs in the 32 weeks before any split, so no onset can be dated. */
+  const sparse = library(
+    160,
+    (w) => (w >= 100 ? -0.2 : 0),
+    () => false,
+  ).filter((p) => Math.floor(p.t / 7) % 3 === 0 && p.id.endsWith('-0'))
+
+  it('follows an episode whose onset cannot be dated, against the baseline of the scale that fired', () => {
+    const records = monitor(sparse, 0, 159)
+    const slip = records.find((r) => r.fresh)!
+    expect(slip.state).toBe('slipping')
+    expect(slip.delta).toBeLessThan(-0.04)
+    const followed = records.find((r) => r.episode !== null)!.episode!
+    expect(followed.onsetDay).toBeNull()
+    expect(Math.abs(followed.reference)).toBeLessThan(0.02)
+  })
+
+  it('goes thin when the runs are too few to follow the episode, and resumes it when they return', () => {
+    const records = monitor(sparse, 0, 159)
+    const thin = records.filter((r) => r.state === 'thin')
+    expect(thin.length).toBeGreaterThan(3)
+    // It is one episode throughout: the reference is frozen and only the first week is fresh.
+    expect(records.filter((r) => r.fresh)).toHaveLength(1)
+    const references = new Set(records.flatMap((r) => (r.episode ? [r.episode.reference] : [])))
+    expect(references.size).toBe(1)
+    const first = records.findIndex((r) => r.state === 'thin')
+    expect(records.slice(first).some((r) => r.state === 'slipping' && !r.fresh)).toBe(true)
+  })
+})
+
 describe('the display hold', () => {
   const rec = (w: number, state: MachineState, fresh = false): WeekRecord => ({
     w,

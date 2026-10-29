@@ -58,6 +58,58 @@ describe('fitnessStatuses', () => {
     expect(later.asOfMs).toBe(last + 6 * WEEK)
   })
 
+  it('evaluates completed weeks only: runs in the week still going wait for its end', () => {
+    const digests = library({
+      weeks: 70,
+      effects: [{ type: 'efficiency-shift', atWeek: 60, size: -0.2 }],
+    }).digests
+    const sunday = digests.filter((d) => d.startMs <= digests[0]!.startMs + 65 * WEEK - 1)
+    const midweek = digests.filter((d) => d.startMs <= digests[0]!.startMs + 65 * WEEK + 3 * DAY_MS)
+    expect(midweek.length).toBeGreaterThan(sunday.length)
+    const done = fitnessStatuses(sunday, NONE).run
+    const going = fitnessStatuses(midweek, NONE).run
+    // The runs of the partial week are in the library but not yet in the monitor's weeks.
+    expect(going.state).toBe(done.state)
+    expect(going.entered).toEqual(done.entered)
+    // The reference heart rate and the fit read every run held, so the figures move a little; the weeks do not.
+    expect(Math.abs(going.change!.value - done.change!.value)).toBeLessThan(0.03)
+    expect(going.steady).toBeGreaterThan(done.steady)
+  })
+
+  it('says a clear rise plainly, as improving, and never for an athlete whose level does not move', () => {
+    const states = (effects: PlantedSpec['effects']) => {
+      const planted = library({ weeks: 110, noise: 0.01, effects })
+      return Array.from({ length: 70 }, (_, i) => {
+        const asOfMs = planted.firstMs + (40 + i) * WEEK
+        return fitnessStatuses(
+          planted.digests.filter((d) => d.startMs <= asOfMs),
+          NONE,
+          { asOfMs },
+        ).run
+      })
+    }
+    const up = states([{ type: 'efficiency-shift', atWeek: 70, size: 0.1 }])
+    const improving = up.filter((s) => s.state === 'improving')
+    expect(improving.length).toBeGreaterThan(3)
+    for (const s of improving) {
+      expect(s.change!.low).toBeGreaterThan(0)
+      expect(s.entered).toBeNull()
+      expect(s.shortfall).toBeNull()
+    }
+    expect(states([]).some((s) => s.state === 'improving')).toBe(false)
+  })
+
+  it('reports the runs behind the earlier level by count and span, not by id', () => {
+    const status = fitnessStatuses(
+      library({ weeks: 100, effects: [{ type: 'efficiency-shift', atWeek: 60, size: -0.12 }] })
+        .digests,
+      NONE,
+    ).run
+    expect(status.evidence!.baseline!.runs).toBeGreaterThan(10)
+    expect('ids' in status.evidence!.baseline!).toBe(false)
+    expect(status.evidence!.recent.ids.length).toBe(status.evidence!.recent.runs)
+  })
+
   it('withholds "holding" when the level is not known to within 6%', () => {
     const status = fitnessStatuses(library().digests, NONE).run
     expect(status.shortfall).toMatchObject({ kind: 'imprecise' })
@@ -157,7 +209,9 @@ describe('a dip and a return, week by week', () => {
       expect(status.evidence!.recent.runs).toBeGreaterThanOrEqual(4)
       expect(status.change!.low).toBeLessThan(status.change!.value)
       expect(status.change!.high).toBeGreaterThan(status.change!.value)
-      expect(status.entered === null).toBe(status.state === 'holding')
+      expect(status.entered === null).toBe(
+        status.state === 'holding' || status.state === 'improving',
+      )
     }
     const recovering = weekly[first('recovering')]!
     expect(recovering.gain!.value).toBeGreaterThan(0.03)
@@ -178,9 +232,16 @@ describe('a dip and a return, week by week', () => {
 describe('the session', () => {
   const settings = { massKg: 75, bikeMassKg: 9 }
   const planted = library({ effects: [{ type: 'efficiency-shift', atWeek: 60, size: -0.12 }] })
+  const last = planted.digests.at(-1)!.startMs
+  /** A session whose today is the library's last day, unless a test says otherwise. */
+  const sessionOn = (nowMs = last) => {
+    const session = new AnalysisSession()
+    session.clock = () => nowMs
+    return session
+  }
 
   it('holds the status of the whole library, the same under every period', () => {
-    const session = new AnalysisSession()
+    const session = sessionOn()
     session.choosePeriod('all')
     const all = session.loadDigests(planted.digests, settings)
     expect(all.fitness.run.state).toBe('slipping')
@@ -190,16 +251,49 @@ describe('the session', () => {
   })
 
   it("reads the library's own set-aside judgement, not a period's", () => {
-    const session = new AnalysisSession()
-    const state = session.loadDigests(planted.digests, settings)
-    const direct = fitnessStatuses(planted.digests, new Set(state.heartRateJudgement.setAside))
+    const state = sessionOn().loadDigests(planted.digests, settings)
+    const direct = fitnessStatuses(planted.digests, new Set(state.heartRateJudgement.setAside), {
+      nowMs: Math.floor(last / DAY_MS) * DAY_MS,
+    })
     expect(state.fitness).toEqual(direct)
   })
 
   it('is empty before anything is loaded and after a clear', () => {
-    const session = new AnalysisSession()
+    const session = sessionOn()
     expect(session.setRange('all', settings).fitness).toEqual(NO_FITNESS)
     session.loadDigests(planted.digests, settings)
     expect(session.clear().fitness).toEqual(NO_FITNESS)
+  })
+
+  it('takes today from the clock, not from the newest activity: a runner who stopped is told so', () => {
+    const stopped = sessionOn(last + 6 * WEEK).loadDigests(planted.digests, settings)
+    expect(stopped.fitness.run.state).toBe('not-enough-evidence')
+    // Today is cut to the day, so the six weeks read as five or six.
+    expect(stopped.fitness.run.shortfall).toMatchObject({ kind: 'break' })
+    expect(
+      (stopped.fitness.run.shortfall as { weeksSince: number }).weeksSince,
+    ).toBeGreaterThanOrEqual(5)
+    // A clock before the newest activity, or the same day, changes nothing.
+    expect(
+      sessionOn(last - 30 * DAY_MS).loadDigests(planted.digests, settings).fitness.run.state,
+    ).toBe('slipping')
+  })
+
+  it('keeps the work when the clock moves within a day, and redoes it on the next day', () => {
+    const session = sessionOn()
+    session.choosePeriod('all')
+    session.clock = () => last + 3 * WEEK + 1_000
+    const first = session.loadDigests(planted.digests, settings).fitness
+    session.clock = () => last + 3 * WEEK + 3_000_000
+    expect(session.setRange(42, settings).fitness).toBe(first)
+    session.clock = () => last + 3 * WEEK + 2 * DAY_MS
+    expect(session.setRange('all', settings).fitness).not.toBe(first)
+  })
+
+  it("gives the sample athlete the sample season's own day, whatever the clock says", () => {
+    const session = sessionOn(Date.UTC(2040, 0, 1))
+    const sample = session.loadSample(settings)
+    expect(sample.fitness.run.shortfall?.kind).not.toBe('break')
+    expect(sample.fitness.run.asOfMs).toBeLessThan(Date.UTC(2030, 0, 1))
   })
 })

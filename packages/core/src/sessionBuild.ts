@@ -1,4 +1,4 @@
-import { HEADLINE_DURATION_S } from './constants'
+import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { activitySummaries } from './digest'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
@@ -31,6 +31,8 @@ export interface StateInputs {
   outdatedActivities: number
   incompatibleActivities: number
   syncIssues: SyncIssue[]
+  /** The wall clock (or the sample season's day), which the fitness status reads for how long ago the last run was. */
+  nowMs: number
 }
 
 /**
@@ -90,7 +92,9 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     lateEvidence: late,
     heartRateJudgement: judgement,
     // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
-    fitness: fitnessStatuses(analysed, new Set(setAside)),
+    fitness: fitnessStatuses(analysed, new Set(setAside), {
+      nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
+    }),
     zoneEstimates,
     timeInZones:
       athlete === null || analysis === null

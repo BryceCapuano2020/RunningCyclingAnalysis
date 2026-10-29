@@ -158,6 +158,24 @@ describe('the value of a run', () => {
   })
 })
 
+describe('the reference heart rate', () => {
+  it('falls back to all the loose kilometres when no kilometre is steady in heart rate', () => {
+    // Heart rate swings 12 bpm between kilometres, so no kilometre is steady and flat, but the pace holds.
+    const swinging = Array.from({ length: 60 }, (_, i) =>
+      runDigest({
+        id: `s${i}`,
+        startMs: START + i * 2 * DAY_MS,
+        km: Array.from({ length: 8 }, (_, k) => km({ avgHeartRate: k % 2 === 0 ? 144 : 156 })),
+      }),
+    )
+    expect(swinging.every((d) => runReadings(d, 'run')!.strict.length === 0)).toBe(true)
+    const result = series(swinging)
+    // Four of the seven kilometres read 156 bpm, so the median is 156, to the nearest 5 bpm.
+    expect(result.referenceHr).toBe(155)
+    expect(result.points.length).toBeGreaterThan(50)
+  })
+})
+
 describe('the grade fit', () => {
   const hilly = steadyLibrary(80, { hilly: true, passThrough: 0.3, seed: 3 })
 

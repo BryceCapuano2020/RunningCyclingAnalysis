@@ -1,4 +1,4 @@
-import { madSd, median } from '../findings/stats'
+import { medianInPlace } from '../math'
 import { FITNESS } from './params'
 
 const M = FITNESS.monitor
@@ -38,8 +38,29 @@ export function slice(runs: readonly RunPoint[], lo: number, hi: number): RunPoi
   return runs.slice(start, a)
 }
 
+/** Distinct calendar weeks the runs fall in; the runs are in time order, so it counts the changes of week. */
 export function distinctWeeks(runs: readonly RunPoint[]): number {
-  return new Set(runs.map((r) => Math.floor(r.t / 7))).size
+  let weeks = 0
+  let last = Number.NaN
+  for (const r of runs) {
+    const week = Math.floor(r.t / 7)
+    if (week !== last) weeks++
+    last = week
+  }
+  return weeks
+}
+
+/** The median of the runs' values (selection, not a sort: every test takes several medians a week). */
+export function medianOf(runs: readonly RunPoint[]): number {
+  const values = new Float64Array(runs.length)
+  for (let i = 0; i < runs.length; i++) values[i] = runs[i]!.x
+  return medianInPlace(values)
+}
+
+/** A normal-consistent spread that a few outliers cannot move: 1.4826 times the median absolute deviation. */
+function robustSd(values: number[]): number {
+  const centre = medianInPlace(Float64Array.from(values))
+  return 1.4826 * medianInPlace(Float64Array.from(values, (v) => Math.abs(v - centre)))
 }
 
 const clip = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
@@ -56,7 +77,7 @@ export function sigmaAt(runs: readonly RunPoint[], day: number): number {
       changes.push(recent[i]!.x - recent[i - 1]!.x)
   }
   if (changes.length < M.sigmaMinSteps) return M.sigmaPrior
-  return Math.max(M.sigmaFloor, madSd(changes) / Math.SQRT2)
+  return Math.max(M.sigmaFloor, robustSd(changes) / Math.SQRT2)
 }
 
 /** The earlier level: the median of the runs from 44 to 8 weeks before `day`, or null without 12 runs over 8 weeks. */
@@ -66,13 +87,13 @@ export function referenceOf(
 ): { mu: number; n: number } | null {
   const rs = slice(runs, day - M.refStartWeeks * 7, day - M.refEndWeeks * 7)
   if (rs.length < M.minRefRuns || distinctWeeks(rs) < M.minRefWeeks) return null
-  return { mu: median(rs.map((r) => r.x)), n: rs.length }
+  return { mu: medianOf(rs), n: rs.length }
 }
 
 /** The level of a stretch of runs. `fallback` centres the clip when there are too few runs to have a median of their own. */
 export function levelOf(rs: readonly RunPoint[], fallback: number, sigma: number): Level | null {
   if (rs.length === 0) return null
-  const centre = rs.length >= 3 ? median(rs.map((r) => r.x)) : fallback
+  const centre = rs.length >= 3 ? medianOf(rs) : fallback
   let sum = 0
   for (const r of rs) sum += clip(r.x, centre - M.clip * sigma, centre + M.clip * sigma)
   return { m: sum / rs.length, se: sigma / Math.sqrt(rs.length), n: rs.length }
@@ -88,34 +109,51 @@ export interface Slip {
   weeks: number
 }
 
-/**
- * The slip test of one week: at each scale (recent weeks against the weeks before them) the contrast of
- * levels in standard errors. The scale with the lowest z is the one judged, and it fires when z is at
- * most -3.3 and the loss at least 4%.
- */
-export function slipAt(runs: readonly RunPoint[], day: number, sigma: number): Slip | null {
-  let best: Slip | null = null
+/** The contrast of each scale (recent weeks against the weeks before them) in standard errors, for the scales that have the runs. */
+function contrasts(runs: readonly RunPoint[], day: number, sigma: number) {
+  const out: { delta: number; z: number; weeks: number; reference: number }[] = []
   for (const [recentWeeks, baseWeeks] of M.scales) {
     const recent = slice(runs, day - recentWeeks * 7, day)
     if (recent.length < M.minRecentRuns) continue
     const base = slice(runs, day - (recentWeeks + baseWeeks) * 7, day - recentWeeks * 7)
     if (base.length < M.minRefRuns || distinctWeeks(base) < M.minRefWeeks) continue
-    const mu = median(base.map((r) => r.x))
+    const mu = medianOf(base)
     const a = levelOf(recent, mu, sigma)!
     const b = levelOf(base, mu, sigma)!
     const delta = a.m - b.m
-    const z = delta / Math.sqrt(a.se ** 2 + b.se ** 2 + M.tau ** 2)
-    if (best === null || z < best.z) {
-      best = {
-        delta,
-        z,
-        weeks: recentWeeks,
-        reference: mu,
-        fire: z <= -M.zSlip && delta <= -M.delta,
-      }
+    out.push({
+      delta,
+      z: delta / Math.sqrt(a.se ** 2 + b.se ** 2 + M.tau ** 2),
+      weeks: recentWeeks,
+      reference: mu,
+    })
+  }
+  return out
+}
+
+/**
+ * The slip test of one week. The scale with the lowest z is the one judged, and it fires when z is at
+ * most -3.3 and the loss at least 4%.
+ */
+export function slipAt(runs: readonly RunPoint[], day: number, sigma: number): Slip | null {
+  let best: Slip | null = null
+  for (const c of contrasts(runs, day, sigma)) {
+    if (best === null || c.z < best.z) {
+      best = { ...c, fire: c.z <= -M.zSlip && c.delta <= -M.delta }
     }
   }
   return best
+}
+
+/**
+ * Whether the level is clearly up on a week: the mirror of the slip test, at the same scales, z of at
+ * least 3.3 and a gain of at least 4%. The status line asks it on two weeks running before it says
+ * "improving"; there is no episode and no finding.
+ */
+export function risenAt(runs: readonly RunPoint[], day: number, sigma: number): boolean {
+  let best: { delta: number; z: number } | null = null
+  for (const c of contrasts(runs, day, sigma)) if (best === null || c.z > best.z) best = c
+  return best !== null && best.z >= M.zSlip && best.delta >= M.delta
 }
 
 export interface Onset {
@@ -134,7 +172,7 @@ export function locateOnset(runs: readonly RunPoint[], day: number, sigma: numbe
     const after = slice(runs, split, day)
     const before = slice(runs, split - M.onsetBaseWeeks * 7, split)
     if (after.length < M.onsetMinAfter || before.length < M.minRefRuns) continue
-    const mu = median(before.map((r) => r.x))
+    const mu = medianOf(before)
     const a = levelOf(after, mu, sigma)!
     const b = levelOf(before, mu, sigma)!
     const z = (a.m - b.m) / Math.sqrt(a.se ** 2 + b.se ** 2 + M.tau ** 2)
@@ -157,7 +195,7 @@ export function trendOver(
   const lo = Math.max(day - weeks * 7, fromDay)
   const rs = slice(runs, lo, day)
   if (rs.length < minRuns || distinctWeeks(rs) < minWeeks) return null
-  const centre = median(rs.map((r) => r.x))
+  const centre = medianOf(rs)
   const t = rs.map((r) => (r.t - lo) / (day - lo))
   const y = rs.map((r) => clip(r.x, centre - M.clip * sigma, centre + M.clip * sigma))
   const mt = t.reduce((a, b) => a + b, 0) / t.length

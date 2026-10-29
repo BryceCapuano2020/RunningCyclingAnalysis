@@ -45,7 +45,7 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * are as they were.
  *
  * Added the `fitness` field (fitness at the same effort, per sport, library-wide): a new key under every period, the same under all
- * four, and no existing hash moves.
+ * four, and no existing hash moves. The status reads the session clock, which the hashes set to the library's last day.
  *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one
  * body mass in UTC, then three dated masses (each ride priced at its own weight) in UTC, in Los Angeles
@@ -91,7 +91,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/sameHeartRate': '784622306d69066e',
     '"default"/lateEvidence': '89f961a046bc4693',
     '"default"/heartRateJudgement': 'cccb0c544c966651',
-    '"default"/fitness': 'f616cc120d54640d',
+    '"default"/fitness': '74053ccf249baa83',
     '"default"/zoneEstimates': '086f31b292c6f4cc',
     '"default"/timeInZones': '59697a3d728ee189',
     '"default"/previous': 'ac192f8588859cf6',
@@ -104,7 +104,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/sameHeartRate': '93dc5c7e232d0afe',
     '"all"/lateEvidence': '498e9e34783fbaa8',
     '"all"/heartRateJudgement': 'cccb0c544c966651',
-    '"all"/fitness': 'f616cc120d54640d',
+    '"all"/fitness': '74053ccf249baa83',
     '"all"/zoneEstimates': '086f31b292c6f4cc',
     '"all"/timeInZones': 'dcce5e1c4e71dcc6',
     '"all"/previous': '74234e98afe7498f',
@@ -117,7 +117,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/sameHeartRate': 'd9735a4225952df0',
     '42/lateEvidence': '38d3d958b4687a74',
     '42/heartRateJudgement': 'cccb0c544c966651',
-    '42/fitness': 'f616cc120d54640d',
+    '42/fitness': '74053ccf249baa83',
     '42/zoneEstimates': '086f31b292c6f4cc',
     '42/timeInZones': '03c82d2938110039',
     '42/previous': '0a3e752caa4636ef',
@@ -130,7 +130,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': '929495a9e564b189',
     '{"from":"2021-03-10","to":"2021-03-20"}/lateEvidence': '1f59cbfa6c8715e8',
     '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': 'cccb0c544c966651',
-    '{"from":"2021-03-10","to":"2021-03-20"}/fitness': 'f616cc120d54640d',
+    '{"from":"2021-03-10","to":"2021-03-20"}/fitness': '74053ccf249baa83',
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '086f31b292c6f4cc',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': 'af64405932696e7a',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '8c614377a488ac4c',
@@ -145,7 +145,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/sameHeartRate': '784622306d69066e',
     '"default"/lateEvidence': '89f961a046bc4693',
     '"default"/heartRateJudgement': 'e2def2051fd727ec',
-    '"default"/fitness': 'f616cc120d54640d',
+    '"default"/fitness': '74053ccf249baa83',
     '"default"/zoneEstimates': 'b12cbb48c249e528',
     '"default"/timeInZones': '15a4f3763c158373',
     '"default"/previous': '1be58eca2e1552ff',
@@ -158,7 +158,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/sameHeartRate': '93dc5c7e232d0afe',
     '"all"/lateEvidence': '498e9e34783fbaa8',
     '"all"/heartRateJudgement': 'e2def2051fd727ec',
-    '"all"/fitness': 'f616cc120d54640d',
+    '"all"/fitness': '74053ccf249baa83',
     '"all"/zoneEstimates': 'b12cbb48c249e528',
     '"all"/timeInZones': '04ee6e1fa6802641',
     '"all"/previous': '74234e98afe7498f',
@@ -171,7 +171,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/sameHeartRate': 'd9735a4225952df0',
     '42/lateEvidence': '38d3d958b4687a74',
     '42/heartRateJudgement': 'e2def2051fd727ec',
-    '42/fitness': 'f616cc120d54640d',
+    '42/fitness': '74053ccf249baa83',
     '42/zoneEstimates': 'b12cbb48c249e528',
     '42/timeInZones': '5e8dae8cdf84bc2c',
     '42/previous': 'ca6444cc39509126',
@@ -184,7 +184,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': '929495a9e564b189',
     '{"from":"2021-03-10","to":"2021-03-20"}/lateEvidence': '1f59cbfa6c8715e8',
     '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': 'e2def2051fd727ec',
-    '{"from":"2021-03-10","to":"2021-03-20"}/fitness': 'f616cc120d54640d',
+    '{"from":"2021-03-10","to":"2021-03-20"}/fitness': '74053ccf249baa83',
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': 'b12cbb48c249e528',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '5b4738c2812da777',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': 'ab29bf01608c7daf',
@@ -199,7 +199,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/sameHeartRate': '784622306d69066e',
     '"default"/lateEvidence': '89f961a046bc4693',
     '"default"/heartRateJudgement': 'e2def2051fd727ec',
-    '"default"/fitness': 'f616cc120d54640d',
+    '"default"/fitness': '74053ccf249baa83',
     '"default"/zoneEstimates': 'b12cbb48c249e528',
     '"default"/timeInZones': '15a4f3763c158373',
     '"default"/previous': '1be58eca2e1552ff',
@@ -212,7 +212,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/sameHeartRate': '93dc5c7e232d0afe',
     '"all"/lateEvidence': '498e9e34783fbaa8',
     '"all"/heartRateJudgement': 'e2def2051fd727ec',
-    '"all"/fitness': 'f616cc120d54640d',
+    '"all"/fitness': '74053ccf249baa83',
     '"all"/zoneEstimates': 'b12cbb48c249e528',
     '"all"/timeInZones': '04ee6e1fa6802641',
     '"all"/previous': '74234e98afe7498f',
@@ -225,7 +225,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/sameHeartRate': 'd9735a4225952df0',
     '42/lateEvidence': '38d3d958b4687a74',
     '42/heartRateJudgement': 'e2def2051fd727ec',
-    '42/fitness': 'f616cc120d54640d',
+    '42/fitness': '74053ccf249baa83',
     '42/zoneEstimates': 'b12cbb48c249e528',
     '42/timeInZones': '5e8dae8cdf84bc2c',
     '42/previous': 'ca6444cc39509126',
@@ -238,7 +238,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': '929495a9e564b189',
     '{"from":"2021-03-10","to":"2021-03-20"}/lateEvidence': '52ba56c96d62fc7e',
     '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': 'e2def2051fd727ec',
-    '{"from":"2021-03-10","to":"2021-03-20"}/fitness': 'f616cc120d54640d',
+    '{"from":"2021-03-10","to":"2021-03-20"}/fitness': '74053ccf249baa83',
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': 'b12cbb48c249e528',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': 'cea5a20355a91099',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '16901b6823f7417d',
@@ -253,7 +253,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/sameHeartRate': '4ff82c0d7332e7c3',
     '"default"/lateEvidence': '89f961a046bc4693',
     '"default"/heartRateJudgement': 'e2def2051fd727ec',
-    '"default"/fitness': 'f616cc120d54640d',
+    '"default"/fitness': '74053ccf249baa83',
     '"default"/zoneEstimates': 'b12cbb48c249e528',
     '"default"/timeInZones': '15a4f3763c158373',
     '"default"/previous': '1be58eca2e1552ff',
@@ -266,7 +266,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/sameHeartRate': '93dc5c7e232d0afe',
     '"all"/lateEvidence': '498e9e34783fbaa8',
     '"all"/heartRateJudgement': 'e2def2051fd727ec',
-    '"all"/fitness': 'f616cc120d54640d',
+    '"all"/fitness': '74053ccf249baa83',
     '"all"/zoneEstimates': 'b12cbb48c249e528',
     '"all"/timeInZones': '79a736a876ded8c6',
     '"all"/previous': '74234e98afe7498f',
@@ -279,7 +279,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/sameHeartRate': '530d52d0e56eaf4d',
     '42/lateEvidence': '38d3d958b4687a74',
     '42/heartRateJudgement': 'e2def2051fd727ec',
-    '42/fitness': 'f616cc120d54640d',
+    '42/fitness': '74053ccf249baa83',
     '42/zoneEstimates': 'b12cbb48c249e528',
     '42/timeInZones': '5e8dae8cdf84bc2c',
     '42/previous': 'ca6444cc39509126',
@@ -292,7 +292,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': '929495a9e564b189',
     '{"from":"2021-03-10","to":"2021-03-20"}/lateEvidence': '642c86fde2c24962',
     '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': 'e2def2051fd727ec',
-    '{"from":"2021-03-10","to":"2021-03-20"}/fitness': 'f616cc120d54640d',
+    '{"from":"2021-03-10","to":"2021-03-20"}/fitness': '74053ccf249baa83',
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': 'b12cbb48c249e528',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': 'c609d5f14ab74c63',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '0917cd4c2e1db277',
@@ -577,6 +577,7 @@ describe('session state', () => {
 
   it('has something in every field the hashes pin, so a field cannot be pinned empty', () => {
     const session = new AnalysisSession()
+    session.clock = () => Math.max(...library.map((digest) => digest.startMs))
     session.choosePeriod('all')
     const state = session.loadDigests(library, DATED)
     expect(state.trend.some((point) => point.runWkg !== null && point.rideWkg !== null)).toBe(true)

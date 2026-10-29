@@ -1,6 +1,6 @@
 import { DAY_MS } from '../constants'
 import { FITNESS } from './params'
-import { dayOfWeekEnd, WEEK_MS, WEEK_ORIGIN_MS, weekEndOf } from './machine'
+import { dayOfWeekEnd, WEEK_MS, WEEK_ORIGIN_MS, weekEndOf, weekOfMs } from './machine'
 import type { MachineState, WeekRecord } from './machine'
 import type { UnitSeries } from './unit'
 import type {
@@ -11,7 +11,7 @@ import type {
   Ranged,
   Shortfall,
 } from './types'
-import { levelOf, referenceOf, sigmaAt, slice } from './windows'
+import { levelOf, referenceOf, risenAt, sigmaAt, slice } from './windows'
 import type { RunPoint } from './windows'
 import type { Sport } from '../types'
 
@@ -32,6 +32,8 @@ function spanOf(rs: readonly RunPoint[]): FitnessSpan {
   }
 }
 
+const withoutIds = ({ ids: _ids, ...span }: FitnessSpan): Omit<FitnessSpan, 'ids'> => span
+
 /** A change in log units with its half-width as a fractional change with its 90% range. */
 function ranged(delta: number, half: number): Ranged {
   return { value: exp(delta) - 1, low: exp(delta - half) - 1, high: exp(delta + half) - 1 }
@@ -45,8 +47,12 @@ function lacking(base: FitnessStatus, shortfall: Shortfall): FitnessStatus {
   return { ...base, state: 'not-enough-evidence', shortfall }
 }
 
-/** The week-end at which the shown state began (walking back over weeks of `thin`), and the statistic that began it. */
-function enteredAt(records: readonly WeekRecord[]): FitnessEntry | null {
+/**
+ * The week-end at which the shown state began and the statistic that began it. Weeks of `thin` in the middle
+ * of a state do not end it, and weeks of `thin` before it are not part of it. Null for holding and for a
+ * state that was there from the first week.
+ */
+export function enteredAt(records: readonly WeekRecord[]): FitnessEntry | null {
   const last = records.length - 1
   const state = records[last]!.shown
   let first = last
@@ -56,6 +62,7 @@ function enteredAt(records: readonly WeekRecord[]): FitnessEntry | null {
   ) {
     first--
   }
+  while (records[first]!.shown !== state) first++
   if (first === 0 || state === 'holding') return null
   for (let j = first; j >= Math.max(0, first - 3); j--) {
     const r = records[j]!
@@ -125,13 +132,16 @@ function episodic(
     evidence: {
       ...base.evidence!,
       recent: spanOf(recent),
-      baseline: baseline === null ? null : spanOf(baseline),
+      baseline: baseline === null ? null : withoutIds(spanOf(baseline)),
     },
     shortfall: null,
   }
 }
 
-/** Holding with no episode open: the last 8 weeks against the reference window, said only when the level is known to within 6%. */
+/**
+ * No episode open: the last 8 weeks against the reference window. Holding when the level is known to within
+ * 6%; improving when it is clearly up; otherwise too uncertain to say.
+ */
 function calm(base: FitnessStatus, runs: readonly RunPoint[], day: number): FitnessStatus {
   const recent = slice(runs, day - D.recentWeeks * 7, day)
   const before = slice(runs, day - M.refStartWeeks * 7, day - M.refEndWeeks * 7)
@@ -150,15 +160,24 @@ function calm(base: FitnessStatus, runs: readonly RunPoint[], day: number): Fitn
   const delta = a.m - b.m
   const half = halfWidth(a.se, b.se)
   const within = Math.abs(delta) + half
-  if (within > D.maxWithin) return lacking(base, { kind: 'imprecise', within })
+  const change = ranged(delta, half)
+  // A clear rise is said plainly rather than as too little evidence: the mirror of the slip test on two weeks
+  // running, with the range clear of zero. There is no episode and no finding.
+  const rising =
+    change.low > 0 && risenAt(runs, day, sigma) && risenAt(runs, day - 7, sigmaAt(runs, day - 7))
+  if (!rising && within > D.maxWithin) return lacking(base, { kind: 'imprecise', within })
   return {
     ...base,
-    state: 'holding',
+    state: rising ? 'improving' : 'holding',
     now: exp(a.m),
     before: exp(b.m),
-    change: ranged(delta, half),
+    change,
     within,
-    evidence: { ...base.evidence!, recent: spanOf(recent), baseline: spanOf(before) },
+    evidence: {
+      ...base.evidence!,
+      recent: spanOf(recent),
+      baseline: withoutIds(spanOf(before)),
+    },
     shortfall: null,
   }
 }
@@ -175,7 +194,8 @@ export function describe(
   asOfMs: number,
 ): FitnessStatus {
   const last = records.at(-1)
-  const day = last === undefined ? 0 : dayOfWeekEnd(last.w)
+  // The status is of the last completed week; the runs of the week still going join it at its end.
+  const day = dayOfWeekEnd(weekOfMs(asOfMs + 1) - 1)
   const base: FitnessStatus = {
     sport,
     state: 'not-enough-evidence',
@@ -197,6 +217,13 @@ export function describe(
     steady: runs.length,
     asOfMs,
   }
+  const newest = runs.at(-1)
+  const weeksSince =
+    newest === undefined ? Infinity : Math.floor((asOfMs - msOfDay(newest.t)) / WEEK_MS)
+  // Nothing recent beats every other reason: a runner who stopped is told so, whatever the older runs say.
+  if (newest !== undefined && weeksSince >= D.breakWeeks) {
+    return lacking(base, { kind: 'break', weeksSince })
+  }
   if (last === undefined || last.shown === 'nodata') {
     const earlier = slice(runs, day - M.refStartWeeks * 7, day - M.refEndWeeks * 7)
     return lacking(base, {
@@ -208,9 +235,6 @@ export function describe(
     })
   }
   const lately = slice(runs, day - D.recentWeeks * 7, day)
-  const newest = runs.at(-1)
-  const weeksSince =
-    newest === undefined ? Infinity : Math.floor((asOfMs - msOfDay(newest.t)) / WEEK_MS)
   if (last.shown === 'thin') {
     const wide = slice(runs, day - E.levelWeeks.at(-1)! * 7, day)
     return lacking(base, {
@@ -220,7 +244,6 @@ export function describe(
       weeks: E.levelWeeks.at(-1)!,
     })
   }
-  if (weeksSince >= D.breakWeeks) return lacking(base, { kind: 'break', weeksSince })
   if (lately.length < D.minRecentRuns) {
     return lacking(base, {
       kind: 'recent',

@@ -6,9 +6,12 @@ separate task. Written from a research study whose method, tables and tuning are
 ## What it says
 
 For each sport, one of: **slipping**, **holding** (level with the weeks before), **holding below** the
-old level, **recovering**, **back**, or **not enough evidence yet** with the counts that are missing.
-Each carries the output at the library's reference heart rate now and before, the change with a 90%
-range, the month the change began, and the runs behind it (ids, spans, counts). Mixed libraries get two
+old level, **recovering**, **back** (or **back and faster**, when the whole range is above the old level),
+**improving** (a clear rise with no slip before it; a status line only), or **not enough evidence yet** with
+the counts that are missing. Each carries the output at the library's reference heart rate now and before,
+the change with a 90% range, the day the change began, and the runs behind it (ids for the recent runs,
+spans and counts for the earlier ones). A run's change is said in pace terms, as the page shows paces: 5:00
+to 5:30 /km is 10% slower though speed fell 9.1%. Mixed libraries get two
 independent statuses and no combined score.
 
 What it promises, and says so: a change of about 5% or more, seen within a few weeks to a few months.
@@ -42,7 +45,13 @@ recovering (the contrast against the episode's own low and the 26-week trend bot
 trough on its own at z of 6.5, two weeks running) and back (a 12-week level within 1% of the reference with a lower bound above -2%, three weeks
 running), which closes after 12 weeks. A new state is shown after it has held two weekly evaluations, unless
 it begins when the athlete was calm. All numbers are in one table, `fitness/params.ts`. The state machine
-agrees record for record with the research prototype on simulated series.
+matched the research prototype on a one-off check of 25,200 simulated weeks (no differences); that check is
+not kept as a test.
+
+Improving mirrors the slip test with no episode: at the same scales a contrast of z of 3.3 and a gain of 4%
+on two weeks running, with the range of the change clear of zero. It freezes no reference; once the earlier
+36 weeks catch up with the new level the status reads holding. A fuller state, with a reference and a
+holding at the new level, is not built.
 
 ## Findings
 
@@ -51,17 +60,22 @@ the last 6 weeks, so the ledger shows each once; holding and not enough evidence
 headline carries sizes and dates but no pace or power, because a finding outlives the unit setting. The
 engine's surprise is the monitor's own z against the usual spread of a z-score, 1
 (`FITNESS.finding.quietSpread`), since the monitor has already held the change to a false-alarm budget of
-about a quarter of an alarm per athlete-year.
+about a quarter of an alarm per athlete-year. A back is judged by its own statistic: how far the 12-week level
+stands above the lower tolerance, in standard errors, which is at least 1.28 whenever a back is shown, so every
+shown back, including one after a shallow dip, can be spoken.
 
 ## Decisions
 
 1. Library-wide, not per period; replayed from the first steady run to the newest activity and remembered
    for the same digests (`memoByDigests`), so a period switch costs nothing. 2,000 activities: about 85 ms the
-   first time, 0.2 ms again.
+   first time, 0.2 ms again; the findings engine's replay of 210 weekly marks (a new set of digests each) takes
+   about 2 s, 9 ms a mark.
 2. The fit and the reference heart rate are read on the whole history to the date, so a past week's reading
    can move a little as the library grows.
-3. A break of four weeks or more, or fewer than four steady runs in eight weeks, makes the status line "not
-   enough recent evidence" without changing the monitor's state.
+3. Today is the wall clock, not the newest activity: the session passes it cut to the day (so the memory still
+   hits; the sample athlete keeps the sample season's own day), and a break of four weeks or more, or fewer than
+   four steady runs in eight weeks, makes the status line "not enough recent evidence" without changing the
+   monitor's state. The monitor is evaluated at completed week ends only, so a week still going joins at its end.
 4. Known gaps, measured: a seasonal swing of 3% amplitude gives 0.7 alarms an athlete-year (budget 0.4); every
    nuisance at once about 0.55; a watch or strap change of 3 to 5% reads as a real slip, since the data cannot
    tell them apart.

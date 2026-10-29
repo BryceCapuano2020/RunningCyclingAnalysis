@@ -47,36 +47,36 @@ describe('fitness status: early warning', () => {
       seeds: 40,
       lagWeeks: 10,
       sign: -1,
-      minRate: 0.7,
+      minRate: 0.75,
       size: SIZE,
     })
   })
 
-  it('finds a drop of about 6% within 26 weeks, in 45%', () => {
+  it('finds a drop of about 6% within 26 weeks, in 50%', () => {
     expectFinds(detector, planted(-0.075), {
       seeds: 40,
       lagWeeks: 26,
       sign: -1,
-      minRate: 0.45,
+      minRate: 0.5,
       size: SIZE,
     })
   })
 
-  it('finds a drop of about 10% within 20 weeks at one activity a week, in 55%', () => {
+  it('finds a drop of about 10% within 20 weeks at one activity a week, in 60%', () => {
     expectFinds(detector, planted(-0.12, 1), {
       seeds: 40,
       lagWeeks: 20,
       sign: -1,
-      minRate: 0.55,
+      minRate: 0.6,
       size: SIZE,
     })
   })
 
-  it('finds a slide of 0.4% a week within 30 weeks, in 40%', () => {
+  it('finds a slide of 0.4% a week within 30 weeks, in 45%', () => {
     expectFinds(
       detector,
       { ...planted(0), effects: [{ type: 'efficiency-ramp', atWeek: 60, size: -0.004 }] },
-      { seeds: 40, lagWeeks: 30, sign: -1, minRate: 0.4, size: { relativeTolerance: 0.8 } },
+      { seeds: 40, lagWeeks: 30, sign: -1, minRate: 0.45, size: { relativeTolerance: 0.8 } },
     )
   })
 })
@@ -92,21 +92,21 @@ describe('fitness status: silence', () => {
   const grid = (nuisances: NullGridOptions['nuisances'] = []) =>
     nullLibraries({ perCell: 20, nuisances, ...NOISE })
 
-  it('speaks under 0.4 findings an athlete-year when nothing changes', () => {
-    expectSilence(detector, grid(), { perAthleteYear: 0.4, minAthleteYears: 200 })
+  it('speaks under 0.2 findings an athlete-year when nothing changes', () => {
+    expectSilence(detector, grid(), { perAthleteYear: 0.2, minAthleteYears: 200 })
   })
 
   it('tolerates heart-rate spikes and missing heart rate', () => {
-    expectToleratesNuisance(detector, grid(['hr-spikes']), { perAthleteYear: 0.4, ...BUDGET })
-    expectToleratesNuisance(detector, grid(['missing-hr']), { perAthleteYear: 0.4, ...BUDGET })
+    expectToleratesNuisance(detector, grid(['hr-spikes']), { perAthleteYear: 0.2, ...BUDGET })
+    expectToleratesNuisance(detector, grid(['missing-hr']), { perAthleteYear: 0.2, ...BUDGET })
   })
 
-  it('stays under 0.6 through a strap change', () => {
-    expectToleratesNuisance(detector, grid(['strap-change']), { perAthleteYear: 0.6, ...BUDGET })
+  it('stays under 0.5 through a strap change', () => {
+    expectToleratesNuisance(detector, grid(['strap-change']), { perAthleteYear: 0.5, ...BUDGET })
   })
 
-  it('stays under 0.8, over the 0.4 budget and documented, through a season of 3% swing', () => {
-    expectToleratesNuisance(detector, grid(['seasonal']), { perAthleteYear: 0.8, ...BUDGET })
+  it('stays under 0.65, over the 0.4 budget and documented, through a season of 3% swing', () => {
+    expectToleratesNuisance(detector, grid(['seasonal']), { perAthleteYear: 0.65, ...BUDGET })
   })
 })
 
@@ -155,12 +155,12 @@ describe('fitness status: recovery', () => {
     })
   })
 
-  it('says back within 40 weeks of the return, in 65%', () => {
+  it('says back within 40 weeks of the return, in 70%', () => {
     expectFinds(only('back'), dip, {
       seeds: 40,
       lagWeeks: 40,
       sign: 1,
-      minRate: 0.65,
+      minRate: 0.7,
       truth: 1,
       size: ANY_SIZE,
     })
@@ -189,9 +189,62 @@ describe('fitness status: recovery', () => {
         if (seen.all.has(kind)) overall[kind]++
       }
     }
+    // Observed over 40 libraries: back 1 in a year and 1 over 2.5 years; recovering 5 in a year (12.5%), 9 over 2.5 years (22.5%).
     expect(inYear.back / seeds).toBeLessThanOrEqual(0.05)
     expect(overall.back / seeds).toBeLessThanOrEqual(0.1)
     expect(inYear.recovering / seeds).toBeLessThanOrEqual(0.15)
     expect(overall.recovering / seeds).toBeLessThanOrEqual(0.25)
+  })
+})
+
+describe('fitness status: improving', () => {
+  const rise = (size: number, seed: number) =>
+    plantedLibrary({
+      seed,
+      weeks: 120,
+      perWeek: 3,
+      ...NOISE,
+      effects: [{ type: 'efficiency-shift', atWeek: 70, size }],
+    })
+
+  /** The status week by week from `from` to `to` weeks after the library began. */
+  const states = (library: ReturnType<typeof rise>, from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => {
+      const asOfMs = library.firstMs + (from + i) * WEEK + 6 * DAY_MS
+      return fitnessStatuses(
+        library.digests.filter((d) => d.startMs <= asOfMs),
+        new Set(),
+        { asOfMs },
+      ).run.state
+    })
+
+  it('is said falsely less than once in four athlete-years (observed 8 in 83 years, 0.10)', () => {
+    let episodes = 0
+    let years = 0
+    for (const library of nullLibraries({ perCell: 8, ...NOISE })) {
+      const weeks = Math.round((library.lastMs - library.firstMs) / WEEK)
+      years += weeks / 52
+      let before = ''
+      for (const state of states(library, 10, weeks)) {
+        if (state === 'improving' && before !== 'improving') episodes++
+        before = state
+      }
+    }
+    expect(years).toBeGreaterThan(70)
+    expect(episodes / years).toBeLessThanOrEqual(0.25)
+  })
+
+  it('is said within 10 weeks of a real rise of 12% in 75% of libraries (observed 25 of 30), without a slip', () => {
+    let said = 0
+    const seeds = 30
+    let slipped = 0
+    for (let seed = 1; seed <= seeds; seed++) {
+      const library = rise(0.12, seed)
+      const after = states(library, 70, 80)
+      if (after.includes('improving')) said++
+      if (after.includes('slipping')) slipped++
+    }
+    expect(said / seeds).toBeGreaterThanOrEqual(0.75)
+    expect(slipped).toBeLessThanOrEqual(2)
   })
 })

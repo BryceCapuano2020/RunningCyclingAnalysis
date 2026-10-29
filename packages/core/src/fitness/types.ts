@@ -6,9 +6,18 @@ import { FITNESS } from './params'
  * own earlier level. Types only, so the page can import them without loading the analysis.
  */
 
-/** What the athlete sees. `holding-below` is a plateau under the old level; `not-enough-evidence` has a `shortfall`. */
+/**
+ * What the athlete sees. `holding-below` is a plateau under the old level; `improving` is a clear rise
+ * with no slip before it (a status line only, never a finding); `not-enough-evidence` has a `shortfall`.
+ */
 export type FitnessState =
-  'slipping' | 'holding' | 'holding-below' | 'recovering' | 'back' | 'not-enough-evidence'
+  | 'slipping'
+  | 'holding'
+  | 'holding-below'
+  | 'recovering'
+  | 'back'
+  | 'improving'
+  | 'not-enough-evidence'
 
 /** The states a library can be in once it has enough evidence. */
 export type SpokenState = Exclude<FitnessState, 'not-enough-evidence'>
@@ -57,8 +66,8 @@ export interface FitnessMethod {
 export interface FitnessEvidence {
   /** The runs behind the level now. */
   recent: FitnessSpan
-  /** The runs behind the earlier level it is compared with; null when there is none. */
-  baseline: FitnessSpan | null
+  /** The runs behind the earlier level it is compared with (counts and span, not ids); null when there is none. */
+  baseline: Omit<FitnessSpan, 'ids'> | null
   method: FitnessMethod
 }
 

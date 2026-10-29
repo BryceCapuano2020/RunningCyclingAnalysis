@@ -12,8 +12,16 @@ import type { UnitSeries } from './unit'
 import type { RunPoint } from './windows'
 
 export interface FitnessOptions {
-  /** The date the status is as of, in the library's own time; the newest activity's when not given. */
+  /**
+   * The date the status is as of, in the library's own time (a findings mark, for one). When not given it is the
+   * newest activity's, or `nowMs` if that is later.
+   */
   asOfMs?: number
+  /**
+   * The wall clock, which the session passes already cut to the day so the memory still hits. The newest
+   * activity is not "now": a runner who stopped is told so after four weeks.
+   */
+  nowMs?: number
   /** Which sports are compared, over the default (RIDE_FITNESS_ENABLED for rides): for tests and for the day rides are calibrated. */
   enabled?: Partial<Record<Sport, boolean>>
 }
@@ -37,8 +45,10 @@ export function fitnessOfSport(
   const series = SERIES[sport](digests, sport, setAside)
   const runs: RunPoint[] = series.points.map((p) => ({ id: p.id, t: dayOfMs(p.startMs), x: p.x }))
   const first = series.points[0]
+  // The monitor is evaluated at completed week ends only: a week still going has not finished its runs, and
+  // evaluating it would count a part of a week as a whole one in the streak and the display hold.
   const records =
-    first === undefined ? [] : monitor(runs, weekOfMs(first.startMs), weekOfMs(asOfMs))
+    first === undefined ? [] : monitor(runs, weekOfMs(first.startMs), weekOfMs(asOfMs + 1) - 1)
   return describe(sport, series, runs, records, asOfMs)
 }
 
@@ -49,7 +59,8 @@ interface Input {
 
 function compute(digests: ActivityDigest[], input: Input): FitnessBySport {
   const current = orderedCurrent(digests)
-  const asOfMs = input.options.asOfMs ?? current.at(-1)?.startMs ?? 0
+  const newest = current.at(-1)?.startMs ?? 0
+  const asOfMs = input.options.asOfMs ?? Math.max(newest, input.options.nowMs ?? 0)
   const upTo = current.filter((d) => d.startMs <= asOfMs)
   const status = (sport: Sport): FitnessStatus => {
     if (upTo.length === 0) return noFitness(sport)
@@ -68,6 +79,7 @@ const remembered = memoByDigests<Input, FitnessBySport>(
   (a, b) =>
     sameSet(a.setAside, b.setAside) &&
     a.options.asOfMs === b.options.asOfMs &&
+    a.options.nowMs === b.options.nowMs &&
     a.options.enabled?.run === b.options.enabled?.run &&
     a.options.enabled?.ride === b.options.enabled?.ride,
 )

@@ -21,6 +21,18 @@ const EXCLUSIONS: Record<Sport, string[]> = {
   ride: ['rides without a power meter', 'rides with heart rate set aside'],
 }
 
+/**
+ * The spread each state's statistic is judged against. A slip or a rise is a z-score, usual spread 1. A back
+ * is spoken exactly when its own test passes (the level's lower bound at 1.28 standard errors clears the
+ * tolerance), so its statistic, which is at least 1.28 when shown, is given the spread at which that clears
+ * the engine's bar of 2.5 spreads.
+ */
+const SPREAD: Record<string, number> = {
+  slipping: F.quietSpread,
+  recovering: F.quietSpread,
+  back: FITNESS.episode.boundZ / FINDINGS.minSurpriseZ,
+}
+
 /** The states that are findings. Holding, holding below and not enough evidence are status lines, never findings. */
 const SPOKEN = new Set(['slipping', 'recovering', 'back'])
 
@@ -69,7 +81,7 @@ function candidateOf(status: FitnessStatus, sport: Sport, asOfMs: number): Candi
       nNeeded: FITNESS.episode.minRuns,
       robust: true,
     },
-    surprise: { effect: entered.z, noise: zero, past: zero, minSd: F.quietSpread },
+    surprise: { effect: entered.z, noise: zero, past: zero, minSd: SPREAD[status.state]! },
     method: {
       test: 'window contrast of steady runs',
       n: evidence.recent.runs + (evidence.baseline?.runs ?? 0),

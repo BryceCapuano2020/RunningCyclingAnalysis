@@ -1,6 +1,5 @@
-import { median } from '../findings/stats'
 import { FITNESS } from './params'
-import { distinctWeeks, levelOf, slice, trendOver } from './windows'
+import { distinctWeeks, levelOf, medianOf, slice, trendOver } from './windows'
 import type { Level, RunPoint } from './windows'
 
 const M = FITNESS.monitor
@@ -151,7 +150,7 @@ function riseOf(
     if (recent.length < M.minRecentRuns + 2) continue
     const base = slice(runs, Math.max(since, day - (weeks + E.riseBaseWeeks) * 7), day - weeks * 7)
     if (base.length < 8 || distinctWeeks(base) < 5) continue
-    const mu = median(base.map((r) => r.x))
+    const mu = medianOf(base)
     const a = levelOf(recent, mu, ep.sigma)!
     const b = levelOf(base, mu, ep.sigma)!
     const delta = a.m - b.m
@@ -203,7 +202,7 @@ export function episodeStep(runs: readonly RunPoint[], day: number, w: number, e
     const d = longer.m - ep.reference
     backSe = refSe(longer.se)
     backNow =
-      d >= -E.backPoint && d - 1.28 * backSe >= -E.backTol && w - ep.declared >= E.backMinWeeks
+      d >= -E.backPoint && d - E.boundZ * backSe >= -E.backTol && w - ep.declared >= E.backMinWeeks
   }
   ep.backRun = backNow ? ep.backRun + 1 : 0
   const reslip = (z: number) => {
@@ -222,11 +221,8 @@ export function episodeStep(runs: readonly RunPoint[], day: number, w: number, e
   if (ep.backRun >= E.backConsecutive) {
     ep.phase = 'back'
     ep.backAt = w
-    const low = troughOf(ep)
-    const z =
-      low === null || longer === null
-        ? Number.NaN
-        : (longer.m - low.m) / Math.sqrt(longer.se ** 2 + low.se ** 2 + M.tau ** 2)
+    // The statistic of the back test itself: how far the level stands above the lower tolerance, in standard errors.
+    const z = longer === null ? Number.NaN : (longer.m - ep.reference + E.backTol) / backSe
     return step('back', base, { fresh: true, z })
   }
   // Rising: against the runs since the onset, which carry the episode's low.
@@ -252,7 +248,7 @@ export function episodeStep(runs: readonly RunPoint[], day: number, w: number, e
       w - ep.declared >= E.stableWeeks &&
       w - (ep.phaseAt ?? ep.declared) >= E.dwell &&
       flat !== null &&
-      Math.abs(flat.change) + 1.28 * flat.se <= E.plateauTol
+      Math.abs(flat.change) + E.boundZ * flat.se <= E.plateauTol
     if (!settled) return step('slipping', base)
     ep.phase = 'low'
     ep.phaseAt = w

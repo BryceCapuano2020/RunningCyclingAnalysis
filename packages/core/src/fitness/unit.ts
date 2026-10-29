@@ -69,9 +69,12 @@ export function runSeries(
   // Sums are taken in time order, so the digests may arrive in any order and give the same bits.
   readings.sort(byTime)
   const newest = Math.max(...readings.map((r) => r.startMs))
-  const heartRates = readings
-    .filter((r) => r.startMs > newest - U.referenceWeeks * 7 * DAY_MS)
-    .flatMap((r) => r.strict.map((k) => k.hr))
+  const newestYear = readings.filter((r) => r.startMs > newest - U.referenceWeeks * 7 * DAY_MS)
+  // The steady flat kilometres name the reference; a library with none in the newest year falls back to all
+  // the kilometres that pass the loose tests, so a hilly library still has a reference.
+  const strictHr = newestYear.flatMap((r) => r.strict.map((k) => k.hr))
+  const heartRates =
+    strictHr.length > 0 ? strictHr : newestYear.flatMap((r) => r.loose.map((k) => k.hr))
   const ref = pinnedReferenceHr ?? referenceOf(heartRates)
   if (ref === null) return emptySeries('steady-pace')
   const inBand = (k: KmReading) => Math.abs(k.hr - ref) <= U.hrHalfBand

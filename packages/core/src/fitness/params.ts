@@ -130,6 +130,8 @@ export const FITNESS = {
     backWeeks: [12, 16],
     backMinRuns: 8,
     backPoint: 0.01,
+    /** The one-sided bound (z of 1.28, 90%) the plateau and back tests hold their tolerances to. */
+    boundZ: 1.28,
     backTol: 0.02,
     backConsecutive: 3,
     backMinWeeks: 4,

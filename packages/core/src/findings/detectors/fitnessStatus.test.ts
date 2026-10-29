@@ -3,13 +3,14 @@ import { DAY_MS } from '../../constants'
 import { REGISTRY } from '../registry'
 import { episodesOf, replayDetector } from '../test/harness'
 import { plantedLibrary } from '../test/plantedLibrary'
+import { fitnessStatuses } from '../../fitness/compute'
 import { fitnessStatusDetector } from './fitnessStatus'
 
 const WEEK = 7 * DAY_MS
 const NOISE = { noise: 0.03, noiseModel: { autocorrelation: 0.9, heavyTails: true } }
 
 describe('the fitness-status detector', () => {
-  it('is in the registry for both sports, and speaks for runs only while rides are off', () => {
+  it('is registered for both sports', () => {
     expect(REGISTRY.run.map((d) => d.id)).toContain('fitness-status')
     expect(REGISTRY.ride.map((d) => d.id)).toContain('fitness-status')
   })
@@ -56,26 +57,60 @@ describe('the fitness-status detector', () => {
     expect(finding.evidence.filter((r) => r.type === 'span')).toHaveLength(2)
   })
 
-  it('makes no finding of holding, and none for a library that does not change', () => {
-    const quiet = plantedLibrary({ seed: 4, weeks: 80, perWeek: 3, noise: 0.01, effects: [] })
+  it('makes no finding for a library that does not change', () => {
+    const quiet = plantedLibrary({ seed: 4, weeks: 80, perWeek: 3, noise: 0.002, effects: [] })
+    const status = fitnessStatuses(quiet.digests, new Set()).run
+    // It is a real "holding" the detector stays silent on, not a library with too little to judge.
+    expect(status.state).toBe('holding')
     const result = replayDetector(fitnessStatusDetector, quiet, {
       fromMs: quiet.firstMs + 15 * WEEK,
     })
+    expect(result.marks.length).toBeGreaterThan(50)
     expect(result.marks.every((m) => m.spoken.length === 0)).toBe(true)
   })
 
-  it('has nothing to say for rides while they are off', () => {
+  it('has nothing to say for rides while they are off, even through a collapse in power', () => {
     const rides = plantedLibrary({
       seed: 4,
       weeks: 80,
       perWeek: 3,
       sports: ['ride'],
       noise: 0.01,
-      effects: [],
+      effects: [{ type: 'efficiency-shift', atWeek: 50, size: -0.3 }],
     })
+    // With rides on, the same library is a loss (slipping, then holding below): the silence below is the flag, not an absence of signal.
+    const on = fitnessStatuses(rides.digests, new Set(), { enabled: { ride: true } }).ride
+    expect(['slipping', 'holding-below']).toContain(on.state)
     const result = replayDetector(fitnessStatusDetector, rides, {
       fromMs: rides.firstMs + 15 * WEEK,
     })
+    expect(result.marks.length).toBeGreaterThan(50)
     expect(result.marks.every((m) => m.spoken.length === 0)).toBe(true)
+  })
+
+  it("speaks a back once, from the back test's own statistic, and a recovering before it", () => {
+    const dip = plantedLibrary({
+      seed: 2,
+      weeks: 190,
+      perWeek: 3,
+      noise: 0.02,
+      noiseModel: { autocorrelation: 0.9, heavyTails: true },
+      effects: [
+        { type: 'efficiency-shift', atWeek: 70, size: -0.12 },
+        { type: 'efficiency-shift', atWeek: 110, size: 0.12 / 0.88 },
+      ],
+    })
+    const returnMs = dip.truths[1]!.onsetMs
+    const result = replayDetector(fitnessStatusDetector, dip, {
+      fromMs: returnMs - 6 * WEEK,
+      toMs: returnMs + 40 * WEEK,
+    })
+    const ids = episodesOf(result.marks).map((e) => e.finding.id)
+    expect(ids).toContain('fitness-status:run:recovering')
+    expect(ids).toContain('fitness-status:run:back')
+    const back = episodesOf(result.marks).find((e) => e.finding.id.endsWith(':back'))!.finding
+    expect(back.direction).toBe('better')
+    expect(back.headline).toMatch(/^At \d+ bpm you are back/)
+    expect(back.confidence).toBeGreaterThanOrEqual(0.8)
   })
 })
