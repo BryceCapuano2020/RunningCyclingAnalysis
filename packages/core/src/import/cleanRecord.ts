@@ -4,14 +4,17 @@ const MIN_HEART_RATE = 25
 const MAX_HEART_RATE = 250
 const MAX_POWER_W = 3000
 
+/** Below the Dead Sea shore and above Everest by margins that leave only absurd values out. */
+const MIN_ALTITUDE_M = -1000
+const MAX_ALTITUDE_M = 10_000
 const MAX_CADENCE = 300
 const MIN_TEMPERATURE_C = -80
 const MAX_TEMPERATURE_C = 80
 
 /**
  * Drops impossible sensor values, counting the speed, heart rate and power ones for the import
- * report. Cadence and temperature are kept for the workbench only, so a bad one is dropped without
- * being counted: the report's figures stay what they were before those streams were read.
+ * report. Altitude, cadence and temperature are dropped without being counted: the report's
+ * figures stay what they were before those streams were read.
  */
 export function cleanRecord(
   record: RawRecord,
@@ -23,7 +26,7 @@ export function cleanRecord(
     tMs: record.tMs,
     distance: record.distance,
     speed: keepWithin(record.speed, 0, maxSpeed, counts),
-    altitude: record.altitude,
+    altitude: keepWithin(record.altitude, MIN_ALTITUDE_M, MAX_ALTITUDE_M),
     heartRate: keepWithin(record.heartRate, MIN_HEART_RATE, MAX_HEART_RATE, counts),
     power: keepWithin(record.power, 0, MAX_POWER_W, counts),
     cadence: keepWithin(record.cadence, 0, MAX_CADENCE),

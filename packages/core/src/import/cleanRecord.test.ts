@@ -23,4 +23,15 @@ describe('cleanRecord', () => {
     const kept = cleanRecord({ tMs: 1, cadence: 85, temperature: 20 }, 30, drops)
     expect(kept).toMatchObject({ cadence: 85, temperature: 20 })
   })
+
+  it('drops an impossible altitude without counting it', () => {
+    const drops = new Map<RawRecord, number>()
+    for (const altitude of [1e39, -1e39, 25_000, -5000, Infinity, NaN]) {
+      expect(cleanRecord({ tMs: 0, altitude }, 30, drops).altitude).toBeUndefined()
+    }
+    for (const altitude of [-400, 0, 3500, 8849]) {
+      expect(cleanRecord({ tMs: 0, altitude }, 30, drops).altitude).toBe(altitude)
+    }
+    expect(drops.size).toBe(0)
+  })
 })

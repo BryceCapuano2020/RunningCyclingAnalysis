@@ -18,10 +18,10 @@ export function activityTraceOf(activity: Activity): ActivityTrace {
   const n = activity.n
   const streams: Partial<Record<TraceMetric, Float32Array>> = {
     // With neither speed nor distance recorded the speed is a synthesized zero, which is not data.
-    ...(activity.hasMotion === false ? {} : { speed: Float32Array.from(activity.speed) }),
-    ...(activity.hasHeartRate ? { heartRate: Float32Array.from(activity.heartRate) } : {}),
-    ...(activity.hasAltitude ? { altitude: Float32Array.from(activity.altitude) } : {}),
-    ...(activity.hasPower ? { power: Float32Array.from(activity.power) } : {}),
+    ...(activity.hasMotion === false ? {} : { speed: float32Of(activity.speed) }),
+    ...(activity.hasHeartRate ? { heartRate: float32Of(activity.heartRate) } : {}),
+    ...(activity.hasAltitude ? { altitude: float32Of(activity.altitude) } : {}),
+    ...(activity.hasPower ? { power: float32Of(activity.power) } : {}),
     ...(activity.cadence === undefined ? {} : { cadence: activity.cadence.slice() }),
     ...(activity.temperature === undefined ? {} : { temperature: activity.temperature.slice() }),
   }
@@ -40,6 +40,13 @@ export function activityTraceOf(activity: Activity): ActivityTrace {
     streams,
     laps: normalizeLaps(activity.laps ?? [], n),
   }
+}
+
+/** The stream as Float32, with a value too large for Float32 (which would cast to Infinity) missing. */
+function float32Of(values: Float64Array): Float32Array {
+  const out = Float32Array.from(values)
+  for (let i = 0; i < out.length; i++) if (!Number.isFinite(out[i]!)) out[i] = NaN
+  return out
 }
 
 /** Validates a worker/storage value before it is used as activity evidence. */
