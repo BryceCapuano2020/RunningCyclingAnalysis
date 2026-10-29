@@ -279,7 +279,8 @@ test('the sample on Profile shows its own settings read-only, and nothing is sav
     page.getByText("These are the sample athlete's settings. Add your files to use your own."),
   ).toBeVisible()
   const list = page.getByRole('region', { name: 'Sample athlete' })
-  await expect(list.getByText('1988')).toBeVisible()
+  // The sample is 37 on its newest effort, which is this year's.
+  await expect(list.getByText(String(new Date().getFullYear() - 37))).toBeVisible()
   await expect(list.getByText('Man', { exact: true })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Year of birth' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Settings over time' })).toHaveCount(0)

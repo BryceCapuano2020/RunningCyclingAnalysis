@@ -20,6 +20,7 @@ import { WAITING_FOR_ACCOUNT } from '../analysis/copy'
 import type { AnalysisController } from '../useAnalysis'
 import type { ProfilePatch } from '../profilePatch'
 import { hrefFor } from '../route'
+import { SAMPLE_PROFILE, sampleProfileAt } from '../sampleAthlete'
 import { SAMPLE_ZONE_ATHLETE } from '../sampleSettingsCopy'
 import type { MeasurementsController } from '../useMeasurements'
 import { useSaveStatus } from '../useSaveStatus'
@@ -107,6 +108,8 @@ export function ProfilePage({
   const hasResult = analysis.state.result !== null
   // The sample athlete's own settings show in place of the forms, read-only.
   const sample = analysis.state.isSample && hasResult
+  const newest = analysis.state.library[0]
+  const sampleProfile = newest ? sampleProfileAt(newest.startMs) : SAMPLE_PROFILE
   const canRemoveAll = !signedIn && (hasResult || analysis.savedActivities.length > 0)
 
   // A question belongs to the section it was asked from. When that section goes, the question goes
@@ -193,7 +196,11 @@ export function ProfilePage({
 
       {/* The sample's settings are read-only and never saved, so the forms and dated settings wait for the visitor's own files. */}
       {sample ? (
-        <SampleSettings units={shownUnits} onUnitsChange={(next) => void changeUnits(next)} />
+        <SampleSettings
+          profile={sampleProfile}
+          units={shownUnits}
+          onUnitsChange={(next) => void changeUnits(next)}
+        />
       ) : (
         <>
           {/* The pair and its one status line are one grid item, so the line adds a line, not a page gap. */}

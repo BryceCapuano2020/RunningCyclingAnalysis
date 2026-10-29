@@ -11,6 +11,7 @@ import type { SavedActivity } from '../../worker/protocol'
 import type { ProfilePageProps } from './ProfilePage'
 import type { ProfilePatch } from '../profilePatch'
 import { hrefFor } from '../route'
+import { SAMPLE_PROFILE } from '../sampleAthlete'
 import { ProfilePage } from './ProfilePage'
 
 afterEach(() => {
@@ -1100,7 +1101,9 @@ describe('ProfilePage zones and dated settings', () => {
         ),
       ).toBeInTheDocument()
       const list = screen.getByRole('heading', { name: 'Sample athlete' }).closest('section')!
-      expect(within(list).getByText('Year of birth').nextElementSibling).toHaveTextContent('1988')
+      expect(within(list).getByText('Year of birth').nextElementSibling).toHaveTextContent(
+        String(SAMPLE_PROFILE.birthYear),
+      )
       expect(within(list).getByText('Sex').nextElementSibling).toHaveTextContent('Man')
       expect(within(list).getByText('Body weight').nextElementSibling).toHaveTextContent('75 kg')
       expect(screen.queryByRole('textbox', { name: 'Year of birth' })).not.toBeInTheDocument()

@@ -1,7 +1,8 @@
 import type { UnitSystem } from '@rca/core/units'
 import { UNIT_OPTIONS, displayWeight, weightUnit } from '../athlete'
 import { SEX_NOUN } from '../grades'
-import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
+import type { AgeProfile } from '../grades'
+import { SAMPLE_SETTINGS } from '../sampleAthlete'
 import { SAMPLE_SETTINGS_NOTE } from '../sampleSettingsCopy'
 import { SegmentedControl } from './SegmentedControl'
 import './SampleSettings.css'
@@ -17,16 +18,19 @@ function shown(kg: number | null, units: UnitSystem): string {
  * Only the units, which are how the visitor reads every figure, can be changed.
  */
 export function SampleSettings({
+  profile,
   units,
   onUnitsChange,
 }: {
+  /** The sample's year of birth and sex, as the results grade it: the year depends on the day the sample was drawn. */
+  profile: AgeProfile
   units: UnitSystem
   /** The units are the visitor's own display choice, not the sample's, so they stay editable. */
   onUnitsChange: (units: UnitSystem) => void
 }) {
   const rows: [label: string, value: string][] = [
-    ['Year of birth', String(SAMPLE_PROFILE.birthYear)],
-    ['Sex', SEX_NOUN[SAMPLE_PROFILE.sex].replace(/^./, (c) => c.toUpperCase())],
+    ['Year of birth', String(profile.birthYear)],
+    ['Sex', SEX_NOUN[profile.sex].replace(/^./, (c) => c.toUpperCase())],
     ['Body weight', shown(SAMPLE_SETTINGS.massKg, units)],
     ['Bike and gear weight', shown(SAMPLE_SETTINGS.bikeMassKg, units)],
   ]
