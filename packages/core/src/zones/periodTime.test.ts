@@ -264,6 +264,16 @@ describe('ZoneTimeCache', () => {
     expect(cache.get(periods[2]!, [], settings, analysis, aside)).not.toBe(first[2])
   })
 
+  it('lets go of its results when cleared', () => {
+    const cache = new ZoneTimeCache()
+    const aside = analysis.heartRateSetAside
+    const first = cache.get(digests, [], settings, analysis, aside)
+    cache.clear()
+    const again = cache.get(digests, [], settings, analysis, aside)
+    expect(again).not.toBe(first)
+    expect(again).toEqual(first)
+  })
+
   it('does not answer one period from another, or from other settings or set-aside', () => {
     const cache = new ZoneTimeCache()
     const aside = analysis.heartRateSetAside

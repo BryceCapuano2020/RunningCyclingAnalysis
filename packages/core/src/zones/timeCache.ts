@@ -48,6 +48,11 @@ const ZONE_TIMES_KEPT = 4
 export class ZoneTimeCache {
   private entries: Entry[] = []
 
+  /** Lets go of every kept result, with the digests they hold, when the library is cleared or the athlete signs out. */
+  clear(): void {
+    this.entries = []
+  }
+
   get(
     selected: ActivityDigest[],
     previous: ActivityDigest[],

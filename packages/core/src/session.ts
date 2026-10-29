@@ -311,6 +311,7 @@ export class AnalysisSession {
 
   private resetLibrary(): void {
     this.digests.clear()
+    this.zoneTimes.clear()
     this.outdatedKeys.clear()
     this.incompatibleKeys.clear()
     this.rejected.length = 0
