@@ -3,6 +3,7 @@ import { entryAt } from '../athlete/measurements'
 import type { AthleteSettings } from '../athlete/settings'
 import { PRIORS } from '../constants'
 import type { AnalysisResult } from '../digest/combine'
+import type { HeartRateJudgement } from '../digest/setAsideTypes'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
 import type { Sport } from '../types'
 import { WHOLE_NUMBER_MEASURES, ZONE_MEASURES, ZONE_OVERRIDE, ZONE_SCHEMES } from './schemes'
@@ -77,6 +78,29 @@ export type ZoneEstimates = Pick<
   | 'runObservedMaxHeartRate'
   | 'rideObservedMaxHeartRate'
 >
+
+const estimatesOfJudgement = new WeakMap<HeartRateJudgement, ZoneEstimates>()
+
+/**
+ * The references of a whole library's judgement as zone estimates: its thresholds, as an analysis of it reports
+ * them, and the reference heart rates it was judged against. The same judgement gives the same object, so
+ * what is cached by the estimates is found again.
+ */
+export function zoneEstimatesOf(judgement: HeartRateJudgement): ZoneEstimates {
+  let found = estimatesOfJudgement.get(judgement)
+  if (found === undefined) {
+    found = {
+      runCp: judgement.fit.run,
+      rideCp: judgement.fit.ride,
+      runMaxHeartRate: judgement.referenceHr.run,
+      rideMaxHeartRate: judgement.referenceHr.ride,
+      runObservedMaxHeartRate: judgement.observedMaxHr.run,
+      rideObservedMaxHeartRate: judgement.observedMaxHr.ride,
+    }
+    estimatesOfJudgement.set(judgement, found)
+  }
+  return found
+}
 
 interface Estimated {
   reference: number

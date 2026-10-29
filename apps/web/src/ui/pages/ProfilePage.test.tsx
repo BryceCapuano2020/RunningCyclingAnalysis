@@ -992,7 +992,7 @@ describe('ProfilePage zones and dated settings', () => {
 
   it('shows a table for each sport and measure the analysis has a reference for', () => {
     const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
-    renderProfile({}, { state: { result } })
+    renderProfile({}, { state: { result, zoneEstimates: result } })
     for (const name of [
       /^Run heart rate zones\./,
       /^Run pace zones\./,
@@ -1009,6 +1009,18 @@ describe('ProfilePage zones and dated settings', () => {
     )
   })
 
+  it('cuts estimated zones from the library’s references, not from the period’s result', () => {
+    const period = makeResult({ runMaxHeartRate: 187, rideMaxHeartRate: 181 })
+    const library = makeResult({ runMaxHeartRate: 192, rideMaxHeartRate: 186 })
+    renderProfile({}, { state: { result: period, zoneEstimates: library } })
+    expect(screen.getByRole('table', { name: /^Run heart rate zones\./ })).toHaveAccessibleName(
+      /max heart rate 192 bpm/,
+    )
+    expect(screen.getByRole('table', { name: /^Ride heart rate zones\./ })).toHaveAccessibleName(
+      /max heart rate 186 bpm/,
+    )
+  })
+
   it('shows a dated threshold as entered, and cuts its zones from it', () => {
     const entries: Measurement[] = [
       { kind: 'thresholdPower', sport: 'ride', value: 250, from: '2020-01-01' },
@@ -1018,7 +1030,7 @@ describe('ProfilePage zones and dated settings', () => {
         athlete: { ...SETTINGS, measurements: entries },
         dated: { entries, state: 'ready', elsewhere: 0, retry: vi.fn() },
       },
-      { state: { result: makeResult() } },
+      { state: { result: makeResult(), zoneEstimates: makeResult() } },
     )
     const table = screen.getByRole('table', { name: /^Ride power zones\./ })
     expect(table).toHaveAccessibleName(/You entered: threshold power 250 W/)
@@ -1028,7 +1040,15 @@ describe('ProfilePage zones and dated settings', () => {
   })
 
   it('names the published scheme under each zone table', () => {
-    renderProfile({}, { state: { result: makeResult({ rideMaxHeartRate: 180 }) } })
+    renderProfile(
+      {},
+      {
+        state: {
+          result: makeResult({ rideMaxHeartRate: 180 }),
+          zoneEstimates: makeResult({ rideMaxHeartRate: 180 }),
+        },
+      },
+    )
     expect(
       screen.getByText(/Allen and Coggan, Training and Racing with a Power Meter/),
     ).toBeVisible()
@@ -1038,7 +1058,10 @@ describe('ProfilePage zones and dated settings', () => {
 
   it('shows no estimated ride power zones, and says a weight is needed, when none is entered', () => {
     const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
-    renderProfile({ settings: { massKg: null, bikeMassKg: 9 } }, { state: { result } })
+    renderProfile(
+      { settings: { massKg: null, bikeMassKg: 9 } },
+      { state: { result, zoneEstimates: result } },
+    )
     expect(screen.queryByRole('table', { name: /^Ride power zones\./ })).not.toBeInTheDocument()
     expect(screen.getByText(/Add your body weight to see ride power zones/)).toBeInTheDocument()
     // The zones that do not need a weight are still there.
@@ -1054,7 +1077,7 @@ describe('ProfilePage zones and dated settings', () => {
         settings: { massKg: null, bikeMassKg: 9 },
         athlete: { ...SETTINGS, measurements: entries },
       },
-      { state: { result: makeResult() } },
+      { state: { result: makeResult(), zoneEstimates: makeResult() } },
     )
     expect(screen.getByRole('table', { name: /^Ride power zones\./ })).toHaveAccessibleName(
       /You entered/,

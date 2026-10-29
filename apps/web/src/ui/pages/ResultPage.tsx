@@ -207,6 +207,7 @@ export function ResultPage({
           activity={activity}
           library={library}
           result={result}
+          zoneEstimates={analysis.state.zoneEstimates}
           units={units}
           massKg={athleteSettings.massKg}
           settings={athleteSettings}

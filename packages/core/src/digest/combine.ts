@@ -39,6 +39,7 @@ import {
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { trustedHeartRate, withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
+import type { HeartRateJudgement } from './setAsideTypes'
 
 export interface Equivalence {
   durationS: number
@@ -196,6 +197,12 @@ export interface CombineOptions {
    * these digests, which is the library's when they are it. Null reads no calibration.
    */
   calibration?: HrCalibration | null
+  /**
+   * The reference heart rates of the whole library (`HeartRateJudgement`). Given, this period's efforts are judged
+   * against them and the result reports them, so the athlete's reference heart rate is one number whichever
+   * period is on screen. Absent, they are taken from these digests alone.
+   */
+  references?: Pick<HeartRateJudgement, 'referenceHr' | 'observedMaxHr'>
 }
 
 /**
@@ -288,10 +295,12 @@ export function combine(
     }
   }
 
+  const reference = opts.references?.referenceHr ?? heart.reference
+  const observedMax = opts.references?.observedMaxHr ?? heart.observedMax
   const effort = checkEfforts(
     withoutSetAside(runBest, heart.setAside),
     withoutSetAside(rideBest, heart.setAside),
-    heart.reference,
+    reference,
     comparison.prior.map((p) => p.durationS),
   )
 
@@ -311,12 +320,12 @@ export function combine(
     comparison,
     equivalents,
     maxHeartRate: heart.maxHr,
-    runMaxHeartRate: heart.reference.run,
-    rideMaxHeartRate: heart.reference.ride,
-    runObservedMaxHeartRate: heart.observedMax.run,
-    rideObservedMaxHeartRate: heart.observedMax.ride,
+    runMaxHeartRate: reference.run,
+    rideMaxHeartRate: reference.ride,
+    runObservedMaxHeartRate: observedMax.run,
+    rideObservedMaxHeartRate: observedMax.ride,
     heartRateSetAside: [...heart.setAside].sort(),
-    runVo2max: vo2maxFromHeartRate(heart.trusted, heart.reference.run, runCentralWkg),
+    runVo2max: vo2maxFromHeartRate(heart.trusted, reference.run, runCentralWkg),
     effort,
     bikeModel,
     bikeModelSource: fittedBike.source,

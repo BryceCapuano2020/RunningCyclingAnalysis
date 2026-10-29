@@ -40,6 +40,7 @@ function show(
       activity={activity}
       library={[activity]}
       result={{ ...result, activities: [activity] }}
+      zoneEstimates={result}
       units="metric"
       massKg={70}
       settings={athlete}
@@ -123,6 +124,7 @@ describe('the activity page zones', () => {
           activity={ride}
           library={[ride]}
           result={{ ...makeResult({ rideMaxHeartRate: null }), activities: [ride] }}
+          zoneEstimates={makeResult({ rideMaxHeartRate: null })}
           units="metric"
           massKg={70}
           settings={settings()}

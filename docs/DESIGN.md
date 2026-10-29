@@ -1175,6 +1175,17 @@ both sports, pinned by `zoneTint.test.ts`) for the lowest zone to 100% for the h
 numbers and the table say which zone is which, so the tint is not the only cue. In forced colours every segment is the
 highlight colour. The figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%").
 
+**Zones do not depend on the period.** The references that estimated zones are cut from (the run threshold pace, the
+ride threshold power, and the reference heart rates) are the whole library's, whatever period is picked: the
+library's judgement, taken over every visible activity once (`SessionState.zoneEstimates`, from `HeartRateJudgement`). A dated setting the
+athlete entered still wins on the date it is in force, so each activity is cut by the value in force on its own
+day, and the library's estimate stands where nothing was entered. Profile, the activity page and the sport page's time
+in zones all read it, so one activity has the same zones, and the same shares, under every period. The reference
+heart rate is one number too: the library judges heart rate against it (`HeartRateJudgement.referenceHr`), and every
+period's analysis reports and judges its efforts against it (`CombineOptions.references`), so Profile, How sure is
+this? and the set-aside note all say the same running and cycling figure. A period's own threshold, the sport page's
+figure for recent form, is still the period's.
+
 **Period maths.** Each activity's digest distribution (seconds per 1 bpm, 5 W or 0.05 m/s bin) is cut by that
 activity's own zones, so a period can hold activities with different zones (a threshold entered during it, or a
 body weight that changed an estimated ride threshold). A heart rate or a power is a whole number, so
