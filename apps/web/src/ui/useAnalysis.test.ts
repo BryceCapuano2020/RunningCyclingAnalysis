@@ -921,6 +921,28 @@ describe('useAnalysis account handling', () => {
         expect(result.current.state.totalActivities).toBe(0)
       })
 
+      it('sends the files again, as a signed-out import, when giving up lands with a restart', () => {
+        const { rerender } = importWhileUnreachable()
+        const crashed = worker()
+
+        act(() => {
+          crashed.onerror?.(new ErrorEvent('error', { message: 'boom' }))
+          rerender({ account: UNAVAILABLE, current: SETTINGS })
+        })
+        const restarted = worker()
+        expect(restarted).not.toBe(crashed)
+        finishDeviceLoad()
+
+        expect(restarted.posted.some((request) => request.type === 'keepProvisional')).toBe(false)
+        expect(restarted.posted.at(-1)).toEqual({
+          type: 'addFiles',
+          files: [FILE],
+          settings: SETTINGS,
+          sync: null,
+          saveToDevice: true,
+        })
+      })
+
       it('sends nothing to keep when no file was analysed meanwhile', () => {
         const { rerender } = setup(UNREACHABLE)
         finishDeviceLoad()
@@ -957,6 +979,31 @@ describe('useAnalysis account handling', () => {
 
       settle()
       expect(worker().posted.at(-1)).toEqual({
+        type: 'addFiles',
+        files: [FILE],
+        settings: SETTINGS,
+        sync: null,
+        saveToDevice: true,
+      })
+    })
+
+    it('sends the files again after a worker restart while the account loads, and keeps them if nobody is signed in', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      settle()
+      const crashed = worker()
+
+      act(() => crashed.onerror?.(new ErrorEvent('error', { message: 'boom' })))
+      const restarted = worker()
+      expect(restarted).not.toBe(crashed)
+      expect(restarted.posted).toEqual([])
+
+      rerender({ account: SIGNED_OUT, current: SETTINGS })
+      expect(restarted.posted).toEqual([DEVICE_LOAD])
+      settle()
+
+      expect(restarted.posted.some((request) => request.type === 'keepProvisional')).toBe(false)
+      expect(restarted.posted.at(-1)).toEqual({
         type: 'addFiles',
         files: [FILE],
         settings: SETTINGS,

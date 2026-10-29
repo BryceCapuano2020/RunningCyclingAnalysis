@@ -96,13 +96,13 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
     current.previousUserIdRef.current = userId
     // The kept library is shown at once, so a visitor with no API is not left waiting for it. What
     // the account turns out to be decides what happens to the files analysed meanwhile. A worker that
-    // restarted has lost them whatever it loaded, so they are sent to it again, as provisional.
-    if (unreachable && (restarted || !current.deviceLoaded())) {
+    // restarted while the account was still unknown has lost them, so they wait to be sent to it again.
+    if ((restarted && accountStatus === 'loading') || (unreachable && !current.deviceLoaded())) {
       current.library.libraryWaitRef.current.push(
         ...drainBatches(current.imports.provisionalImportsRef),
       )
-      current.loadDeviceOnce()
     }
+    if (unreachable) current.loadDeviceOnce()
     const accountChanged =
       before === 'signed-in' && (accountStatus !== 'signed-in' || userId !== previousUserId)
     if (accountChanged && accountStatus === 'signed-out' && sessionExpired) {
@@ -120,9 +120,10 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
       // library has loaded, so each is compared with it. The reply to that load adds them. The
       // analysis queued ahead of the load is repeated, since a worker restart would re-enter here.
       const batches = drainBatches(current.imports.provisionalImportsRef)
-      if (current.deviceLoaded()) {
+      if (current.deviceLoaded() && !restarted) {
         // The kept library was loaded while the account was out of reach, and the files were analysed
-        // with it. They are kept as they are: no second read, no second analysis.
+        // with it. They are kept as they are: no second read, no second analysis. A worker that
+        // restarted in this pass has none of them, so they go to it again like any others.
         if (batches.length > 0) current.keepProvisional()
       } else {
         current.library.libraryWaitRef.current.push(...batches)
