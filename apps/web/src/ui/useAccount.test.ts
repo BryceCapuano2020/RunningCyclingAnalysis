@@ -10,7 +10,7 @@ import { forgetAccountDetails } from '../worker/forgetAccountDetails'
 
 vi.mock('../worker/deleteAccountDetails', () => ({ deleteAccountDetails: vi.fn(async () => null) }))
 vi.mock('../worker/forgetAccountDetails', () => ({
-  forgetAccountDetails: vi.fn(async () => undefined),
+  forgetAccountDetails: vi.fn(async () => null),
 }))
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -157,6 +157,17 @@ describe('useAccount', () => {
     expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
     expect(result.current.status).toBe('signed-out')
     expect(result.current.me).toBeNull()
+  })
+
+  it('signOut reports a refused local recording cleanup once the session has ended', async () => {
+    mocked.logout.mockResolvedValue(undefined)
+    vi.mocked(forgetAccountDetails).mockResolvedValueOnce('Recordings could not be cleared')
+    const { result } = await renderSignedIn()
+    await act(async () => {
+      await result.current.signOut()
+    })
+    expect(result.current.status).toBe('signed-out')
+    expect(result.current.error).toBe('Recordings could not be cleared')
   })
 
   it('signOut keeps the account, reports the error and rethrows it when the server refuses', async () => {

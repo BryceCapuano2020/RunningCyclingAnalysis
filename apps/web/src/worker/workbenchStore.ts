@@ -38,12 +38,29 @@ export interface WorkbenchStore {
    * nothing, so removing from it succeeds.
    */
   remove(scope: TraceScope, activityId: string): Promise<boolean>
-  /** As remove, for every trace of the scope. */
+  /**
+   * As remove, for every trace of the scope. An account scope also refuses later writes, so a capture
+   * in flight at sign-out cannot write back, until `reopenScope` at the account's next sign-in.
+   */
   clearScope(scope: TraceScope): Promise<boolean>
-  /** Rejects when storage cannot say, so a caller can tell an unknown scope from a deleted one. */
+  /**
+   * Whether the scope refuses writes: deleted for good, or cleared at sign-out and not reopened.
+   * Rejects when storage cannot say, so a caller can tell an unknown scope from a closed one.
+   */
   isDeleted(scope: TraceScope): Promise<boolean>
   /** Clears one account scope and permanently blocks writes from a stale worker. */
   deleteScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean>
+  /** Lets a signed-in account's scope be written again. A deleted account stays blocked. */
+  reopenScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean>
+}
+
+/** What closed an account scope. Deletion is for good; a sign-out ends at the next sign-in. */
+type Closing = 'signed-out' | 'deleted'
+
+interface OwnerRow {
+  scopeKey: string
+  deletedAt?: number
+  signedOutAt?: number
 }
 
 /** A database that cannot be opened at all never held a trace, so removing from it has nothing to do. */
@@ -51,9 +68,25 @@ function nothingCached(error: unknown): boolean {
   return error instanceof WorkbenchOpenError && error.nothingCached
 }
 
+/** Records that an account scope refuses writes. A sign-out never replaces the mark of a deletion. */
+async function closeScope(
+  owners: IDBObjectStore,
+  scope: Extract<TraceScope, { kind: 'account' }>,
+  closing: Closing,
+): Promise<void> {
+  const key = scopeKey(scope)
+  if (closing === 'deleted') {
+    owners.put({ scopeKey: key, deletedAt: Date.now() } satisfies OwnerRow)
+    return
+  }
+  const row = (await requestResult(owners.get(key))) as OwnerRow | undefined
+  if (row?.deletedAt === undefined)
+    owners.put({ scopeKey: key, signedOutAt: Date.now() } satisfies OwnerRow)
+}
+
 /** A separate database keeps this schema independent of the long-lived digest library. */
 export function openWorkbenchStore(): WorkbenchStore {
-  async function clear(scope: TraceScope, tombstone = false): Promise<boolean> {
+  async function clear(scope: TraceScope, closing: Closing): Promise<boolean> {
     try {
       const db = await workbenchDatabase(true)
       const transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
@@ -73,8 +106,8 @@ export function openWorkbenchStore(): WorkbenchStore {
         }
       })
       await rebuildLedger(transaction)
-      if (tombstone && scope.kind === 'account')
-        transaction.objectStore(OWNERS).put({ scopeKey: scopeKey(scope), deletedAt: Date.now() })
+      if (scope.kind === 'account')
+        await closeScope(transaction.objectStore(OWNERS), scope, closing)
       await done
       return true
     } catch (error) {
@@ -193,8 +226,24 @@ export function openWorkbenchStore(): WorkbenchStore {
       }
     },
 
-    clearScope: (scope) => clear(scope),
-    deleteScope: (scope) => clear(scope, true),
+    async reopenScope(scope) {
+      try {
+        const db = await workbenchDatabase(true)
+        const transaction = db.transaction(OWNERS, 'readwrite')
+        const done = transactionDone(transaction)
+        const owners = transaction.objectStore(OWNERS)
+        const row = (await requestResult(owners.get(scopeKey(scope)))) as OwnerRow | undefined
+        if (row !== undefined && row.deletedAt === undefined) owners.delete(scopeKey(scope))
+        await done
+        return true
+      } catch (error) {
+        resetWorkbenchDatabase()
+        return nothingCached(error)
+      }
+    },
+
+    clearScope: (scope) => clear(scope, 'signed-out'),
+    deleteScope: (scope) => clear(scope, 'deleted'),
   }
 }
 

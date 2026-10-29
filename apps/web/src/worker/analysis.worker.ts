@@ -79,6 +79,8 @@ async function addFiles(
         ? { kind: 'device' }
         : null
   activeScope = traceScope ?? { kind: 'device' }
+  // Signing in again lifts the block that signing out put on the account's recordings.
+  if (traceScope?.kind === 'account') await workbench.reopenScope(traceScope)
   let stoppedBy: SyncIssueCode | null = null
   // Activities the import already held and gave a recording back, which the summary says.
   const restored = new Set<string>()
@@ -182,6 +184,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'loadServer':
       workbench.clearMemory()
       activeScope = { kind: 'account', userId: request.userId }
+      await workbench.reopenScope(activeScope)
       showingSample = false
       return loadServer(
         libraryContext,
@@ -192,6 +195,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'rebuildStale':
       workbench.clearMemory()
       activeScope = { kind: 'account', userId: request.userId }
+      await workbench.reopenScope(activeScope)
       return (await rebuildStale(libraryContext, request.settings, request.userId)).state
     case 'setSettings':
       return session.setSettings(request.settings)

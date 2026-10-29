@@ -156,7 +156,7 @@ export function useAccount(): AccountController {
       setSessionExpired(false)
       setError(null)
       // A shared browser must not keep the signed-out account's detail recordings.
-      await forgetAccountDetails(userId)
+      setError(await forgetAccountDetails(userId))
     } catch (failure) {
       endingSessionRef.current = false
       setError(messageOf(failure))

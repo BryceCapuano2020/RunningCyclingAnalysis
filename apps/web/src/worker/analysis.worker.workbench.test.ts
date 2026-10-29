@@ -89,6 +89,7 @@ function spyStore() {
     }),
     clearScope: vi.fn(async () => true),
     deleteScope: vi.fn(async () => true),
+    reopenScope: vi.fn(async () => true),
     isDeleted: vi.fn(async () => false),
   } satisfies WorkbenchStore
   return { rows, store }
@@ -287,6 +288,18 @@ describe('where an import keeps recordings', () => {
     expect(spy.store.remove).toHaveBeenCalledWith({ kind: 'device' }, gpxId)
     expect(spy.rows.has(scopeKey({ kind: 'device' }, gpxId))).toBe(false)
     expect(spy.rows.size).toBe(1)
+  })
+})
+
+describe('signing in again after a sign-out', () => {
+  it('lets the account take recordings again when its library is loaded', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    expect(spy.store.reopenScope).toHaveBeenCalledExactlyOnceWith({
+      kind: 'account',
+      userId: USER_ID,
+    })
   })
 })
 

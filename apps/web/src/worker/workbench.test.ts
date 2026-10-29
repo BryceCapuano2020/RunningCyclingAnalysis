@@ -26,6 +26,7 @@ function memoryStore(overrides: Partial<WorkbenchStore> = {}) {
     remove: vi.fn(async (scope, id) => rows.delete(scopeKey(scope, id)) || true),
     clearScope: vi.fn(async () => true),
     deleteScope: vi.fn(async () => true),
+    reopenScope: vi.fn(async () => true),
     isDeleted: vi.fn(async (scope) => scope.kind === 'account' && deleted.has(scope.userId)),
     ...overrides,
   }

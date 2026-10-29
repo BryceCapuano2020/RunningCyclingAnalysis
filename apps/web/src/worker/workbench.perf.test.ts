@@ -23,6 +23,7 @@ const NOWHERE: WorkbenchStore = {
   remove: async () => true,
   clearScope: async () => true,
   deleteScope: async () => true,
+  reopenScope: async () => true,
   isDeleted: async () => false,
 }
 

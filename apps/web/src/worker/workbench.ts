@@ -242,6 +242,11 @@ export class Workbench {
     return await this.store.deleteScope(scope).catch(() => false)
   }
 
+  /** Lets the account's scope take recordings again once it is signed in. */
+  async reopenScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean> {
+    return await this.store.reopenScope(scope).catch(() => false)
+  }
+
   private remember(
     scope: TraceScope,
     trace: ActivityTrace,
