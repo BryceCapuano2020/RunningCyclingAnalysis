@@ -2,8 +2,8 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { driftPoints } from '../lateFixtures'
-import { DECOUPLING_REFERENCE } from '../lateInEffort'
-import { DriftChart, driftDescription } from './DriftChart'
+import { DECOUPLING_REFERENCE, driftDescription } from '../lateInEffort'
+import { DriftChart } from './DriftChart'
 
 const NOTE = 'How a dot is made.'
 const POINTS = driftPoints([1, 2, 3, 6, 4])

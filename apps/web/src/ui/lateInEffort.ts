@@ -190,6 +190,12 @@ function driftReading(sport: Sport, points: readonly DriftPoint[]): DriftReading
 /** The line a drift chart draws at the common reference, in words. */
 export const DECOUPLING_REFERENCE = `A fall of ${referenceDecouplingPct}%: under this is usually read as well-built endurance`
 
+/** What a screen reader hears for the drawing. The reference is the key's sentence, set mid-sentence. */
+export function driftDescription(sport: Sport): string {
+  const reference = `${DECOUPLING_REFERENCE.charAt(0).toLowerCase()}${DECOUPLING_REFERENCE.slice(1)}`
+  return `One dot for each steady ${SPORT_ACTIVITY[sport]} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks ${reference}.`
+}
+
 /** What drift needs of a file besides its length: a heart rate, and for a ride a power meter. Keyed by Sport. */
 const DRIFT_NEEDS_DEVICE: Record<Sport, string> = {
   run: 'heart rate',

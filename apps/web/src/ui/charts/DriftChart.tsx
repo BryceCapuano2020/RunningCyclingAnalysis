@@ -4,8 +4,8 @@ import type { DriftPoint } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 import { formatDay, formatDayMonth } from '../format/date'
-import { DECOUPLING_REFERENCE, driftChange } from '../lateInEffort'
-import { SPORT_ACTIVITY, SPORT_PLURAL } from '../sports'
+import { DECOUPLING_REFERENCE, driftChange, driftDescription } from '../lateInEffort'
+import { SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
@@ -87,12 +87,6 @@ function layout(points: readonly DriftPoint[], size: ChartSize): Layout | null {
 function changeCell(point: DriftPoint): string {
   const text = driftChange(point.decouplingPct)
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`
-}
-
-/** What a screen reader hears for the drawing. The reference is the key's sentence, set mid-sentence. */
-export function driftDescription(sport: Sport): string {
-  const reference = `${DECOUPLING_REFERENCE.charAt(0).toLowerCase()}${DECOUPLING_REFERENCE.slice(1)}`
-  return `One dot for each steady ${SPORT_ACTIVITY[sport]} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks ${reference}.`
 }
 
 /**
