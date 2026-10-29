@@ -88,9 +88,9 @@ function monthOf(endMs: number, againstEndMs: number): string {
 }
 
 /**
- * The finding the section is titled by, and the line its closed row says. A change is named only when two things
- * hold: the first and last reporting weeks' intervals do not overlap, and the fitted line through every reporting
- * week has a slope its own band excludes zero from. Then it is said by how much the line moved across the reporting
+ * The finding the section is titled by, and the line its closed row says. A change is named only when the fitted line
+ * through every reporting week has a slope whose 90% band, scaled for scatter and widened for the overlap of the weekly
+ * windows, excludes zero: one test, so the sentence and the line cannot contradict each other. Then it is said by how much the line moved across the reporting
  * weeks and against which month: "At the same heart rate you run 6 s/km faster than in March". One that ends before
  * the period's last week says by which week, since "now" would be wrong. Without a change, "no clear change" with the
  * month it is held since, or "too few weeks" with fewer than minReportedWeeks to compare. With nothing to give, a
@@ -107,7 +107,7 @@ export function sameHeartRateCopy(
   }
   const since = monthOf(change.fromEndMs, change.toEndMs)
   const trend = weeksTrend(data.weeks, sport, units)
-  if (change.real && trend !== null && trend.clear) {
+  if (trend !== null && trend.clear) {
     const delta = trend.at(trend.to) - trend.at(trend.from)
     const { better, faster, slower } = CHANGE[sport]
     const n = String(Math.max(1, Math.round(Math.abs(delta))))

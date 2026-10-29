@@ -83,7 +83,7 @@ function tooltipFor(
  * One sport's output at one heart rate: a light dot for each week that reports, a straight line fitted
  * through them with a band for how well the line is pinned down, and the finding as the chart's title. The
  * line is the trend and the dots are the evidence; a week with too little data has no dot and a mark on the
- * date axis. The finding names a change only when the first and last weeks' ranges do not overlap, so a line
+ * date axis. The finding names a change only when the trend's 90% band is clear of zero, so a line
  * that slopes within its band is drawn but not claimed. Rides are diamonds.
  */
 export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateChartProps) {

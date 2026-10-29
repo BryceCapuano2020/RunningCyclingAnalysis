@@ -50,8 +50,8 @@ function medianOf(values: readonly number[]): number {
  * beyond what the weeks' own intervals say: the windows overlap, by OVERLAP; and the weeks may scatter about the line
  * more than their intervals allow, by the root of the weighted chi-square per degree of freedom, never below 1. The
  * slope's band is the same widening, and the trend is clear when it excludes zero. Null with too few weeks, or weeks
- * all at one time. The sentence over the chart names a change only when this is clear and the first and last
- * weeks' intervals do not overlap, so a line the band cannot tell from flat is never claimed.
+ * all at one time. The sentence over the chart names a change only when this is clear, so a line the band cannot
+ * tell from flat is never claimed.
  */
 export function trendOf(points: readonly TrendInput[]): TrendFit | null {
   if (points.length < MIN_POINTS) return null

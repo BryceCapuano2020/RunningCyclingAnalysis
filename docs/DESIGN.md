@@ -566,10 +566,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   the last week's or nine or more months before it. A change that ends before the
   period's last week names the week: "At the same heart rate, by the week ending Sun 6 Apr 2025, you put out 16
   W more than in March". Without a real change, "At the same heart rate: no clear change since March", and with
-  fewer than 4 reporting weeks only "Too few weeks to show a change yet." A change is named only when two things
-  hold: the first and last reporting weeks' 90% ranges do not overlap, and the fitted line's slope is clear of zero
-  (its own band, widened for the overlap of the weekly windows and for scatter about the line, excludes it), so the
-  sentence and the line cannot contradict each other; the note under the chart says so. With too little data to draw, the section has no row, and
+  fewer than 4 reporting weeks only "Too few weeks to show a change yet." A change is named only when the fitted line's slope is clear of zero: its 90% band, scaled for scatter about the line
+  and widened for the overlap of the weekly windows, excludes it. That is the one test, so the sentence and the line
+  cannot contradict each other; the note under the chart says so. With too little data to draw, the section has no row, and
   a line of the "Not enough yet" list names what is missing, one of: too few steady 5-minute stretches, too few
   activities, activities in too few weeks, heart rate that hardly varies, no effort near the reference heart
   rate in the latest weeks, or less than 4 weeks of steady efforts in the period ("Needs 4 weeks of steady

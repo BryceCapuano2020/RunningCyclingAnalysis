@@ -144,7 +144,7 @@ describe('the sentence', () => {
     expect(copy.text).toContain('1 W more')
   })
 
-  it('says no clear change when the end weeks’ ranges do not overlap but the line is not clear of flat', () => {
+  it('says no clear change when the end weeks differ but the line is not clear of flat', () => {
     // The end weeks differ (200 and 214), but the weeks between wander about a flat line.
     const copy = sameHeartRateCopy('ride', data([200, 211, 196, 209, 197, 210, 199, 214]), 'metric')
     expect(copy).toEqual({
@@ -153,13 +153,19 @@ describe('the sentence', () => {
     })
   })
 
-  it('says no clear change when the line is clear of flat but the end weeks’ ranges overlap', () => {
+  it('names a change from the line when it is clear of flat, whatever the digest’s end-week test says', () => {
+    // One test only: the end weeks' ranges overlapping does not hold back a trend the band excludes flat from.
     const copy = sameHeartRateCopy('ride', data(watts(198, 214), { real: false }), 'metric')
+    expect(copy.kind).toBe('change')
+  })
+
+  it('says no clear change when the line is not clear of flat, even where the end weeks’ ranges do not overlap', () => {
+    const copy = sameHeartRateCopy('ride', data(watts(204, 207), { real: true }), 'metric')
     expect(copy.kind).toBe('held')
   })
 
-  it('says no clear change, and since when, when the ranges overlap', () => {
-    const copy = sameHeartRateCopy('ride', data(watts(204, 207), { real: false }), 'metric')
+  it('says no clear change, and since when, when the line is flat to within its band', () => {
+    const copy = sameHeartRateCopy('ride', data(watts(204, 207)), 'metric')
     expect(copy).toEqual({
       kind: 'held',
       text: 'At the same heart rate: no clear change since April',

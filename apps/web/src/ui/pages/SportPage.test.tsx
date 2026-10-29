@@ -1509,10 +1509,10 @@ describe('SportPage depth', () => {
         'At the same heart rateAt the same heart rate you put out 16 W more than in December (145 bpm)',
       )
       const section = openSection('At the same heart rate')
-      // The note says the rule: both the end weeks' ranges and the trend must say so.
+      // The note says the rule: the trend's 90% band must be clear of zero.
       expect(
         within(section).getByText(
-          /A change is named only when the first and last weeks’ 90% ranges don’t overlap and the trend is clear of zero\./,
+          /A change is named only when the trend’s 90% band is clear of zero\./,
         ),
       ).toBeInTheDocument()
       const figure = within(section).getByRole('figure', { name: /Your output at 145 bpm/ })
