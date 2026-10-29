@@ -43,11 +43,63 @@ export function mean(xs: ArrayLike<number>): number {
 /** Linear-interpolated quantile, q in [0, 1]. Ignores nothing: caller removes NaN. */
 export function quantile(xs: ArrayLike<number>, q: number): number {
   if (xs.length === 0) return NaN
-  const sorted = Float64Array.from(xs).sort()
+  return quantileSorted(Float64Array.from(xs).sort(), q)
+}
+
+/** `quantile` of values already sorted ascending, so several quantiles of one set sort it once. */
+export function quantileSorted(sorted: ArrayLike<number>, q: number): number {
+  if (sorted.length === 0) return NaN
   const pos = (sorted.length - 1) * Math.min(1, Math.max(0, q))
   const lo = Math.floor(pos)
   const hi = Math.ceil(pos)
   return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (pos - lo)
+}
+
+/**
+ * The median, equal to `quantile(values, 0.5)` but found by selection in place rather than by sorting a
+ * copy, so the order of `values` is lost. Quickselect runs in linear time on average. Values must not be NaN.
+ */
+export function medianInPlace(values: Float64Array): number {
+  const n = values.length
+  if (n === 0) return NaN
+  const lo = (n - 1) >> 1
+  const below = selectInPlace(values, lo)
+  if (n % 2 === 1) return below
+  // The next rank up is the smallest value right of the selected one.
+  let above = values[lo + 1]!
+  for (let i = lo + 2; i < n; i++) if (values[i]! < above) above = values[i]!
+  return below + (above - below) * 0.5
+}
+
+/** Rearranges `values` so index k holds its k-th smallest, smaller ones before it and larger after. */
+function selectInPlace(values: Float64Array, k: number): number {
+  let left = 0
+  let right = values.length - 1
+  while (left < right) {
+    // Median of three keeps sorted and reverse-sorted input linear.
+    const mid = (left + right) >> 1
+    const a = values[left]!
+    const b = values[mid]!
+    const c = values[right]!
+    const pivot = a < b ? (b < c ? b : a < c ? c : a) : a < c ? a : b < c ? c : b
+    let i = left
+    let j = right
+    while (i <= j) {
+      while (values[i]! < pivot) i++
+      while (values[j]! > pivot) j--
+      if (i <= j) {
+        const swap = values[i]!
+        values[i] = values[j]!
+        values[j] = swap
+        i++
+        j--
+      }
+    }
+    if (k <= j) right = j
+    else if (k >= i) left = i
+    else break
+  }
+  return values[k]!
 }
 
 /** Ordinary least squares y = intercept + slope * x. Needs at least 3 points. */
