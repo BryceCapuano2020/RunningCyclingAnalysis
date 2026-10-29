@@ -127,8 +127,15 @@ export const TimeSeriesRows = memo(function TimeSeriesRows({
                 />
               ) : null,
             )}
-            <text className="ts-stack__label" x={plot.left + 6} y={row.top + 12}>
-              {channel.short} <tspan className="ts-stack__unit">{channel.unit}</tspan>
+            <text
+              className="ts-stack__label"
+              x={layout.labelAbove ? plot.left : plot.left + 6}
+              y={layout.labelAbove ? row.top - 5 : row.top + 12}
+            >
+              {channel.short}{' '}
+              <tspan className="ts-stack__unit" dx="2">
+                {channel.unit}
+              </tspan>
             </text>
           </g>
         )

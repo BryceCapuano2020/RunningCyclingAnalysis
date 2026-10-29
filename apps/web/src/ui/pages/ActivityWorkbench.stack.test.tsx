@@ -230,4 +230,13 @@ describe('the stack’s layout', () => {
     expect(rows[1]!.bottom - rows[1]!.top).toBe(58)
     expect(rows[1]!.top - rows[0]!.bottom).toBe(10)
   })
+
+  it('puts a phone’s row names in the gap above each row, clear of its line, and a wide stack’s over the row', () => {
+    const phone = layoutOf(390, [1, 0.6].map(channel))
+    expect(phone.labelAbove).toBe(true)
+    // Room for a 12 px name above the first row and above the second.
+    expect(phone.rows[0]!.top).toBeGreaterThanOrEqual(14)
+    expect(phone.rows[1]!.top - phone.rows[0]!.bottom).toBeGreaterThanOrEqual(18)
+    expect(layoutOf(1200, [1].map(channel)).labelAbove).toBe(false)
+  })
 })
