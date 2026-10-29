@@ -320,3 +320,39 @@ export function deleteWorkbenchScope(
 ): Promise<boolean> {
   return openWorkbenchStore().deleteScope(scope)
 }
+
+/**
+ * The ids of the accounts that have recordings stored in this browser. Rejects when storage cannot
+ * say. Never lists the device scope.
+ */
+export async function accountsWithRecordings(): Promise<string[]> {
+  try {
+    const db = await workbenchDatabase()
+    const transaction = db.transaction(ENTRIES, 'readonly')
+    const request = transaction
+      .objectStore(ENTRIES)
+      .index('scopeKey')
+      .openKeyCursor(null, 'nextunique')
+    const prefix = 'account:'
+    const found: string[] = []
+    await new Promise<void>((resolve, reject) => {
+      request.onerror = () => reject(request.error ?? new Error('Workbench storage failed'))
+      request.onsuccess = () => {
+        try {
+          const cursor = request.result
+          if (!cursor) return resolve()
+          if (typeof cursor.key === 'string' && cursor.key.startsWith(prefix))
+            found.push(cursor.key.slice(prefix.length))
+          cursor.continue()
+        } catch (error) {
+          reject(error)
+        }
+      }
+    })
+    await transactionDone(transaction)
+    return found
+  } catch (error) {
+    resetWorkbenchDatabase()
+    throw error
+  }
+}

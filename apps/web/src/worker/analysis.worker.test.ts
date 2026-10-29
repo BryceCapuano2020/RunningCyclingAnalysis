@@ -643,6 +643,39 @@ describe('analysis worker', () => {
     ])
   })
 
+  it('answers with an error, not an empty library, when the kept library cannot be read', async () => {
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      all: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+    }
+    const { send } = await startWorker()
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(messages).toEqual([
+      { type: 'error', message: expect.stringMatching(/kept results could not be read/) },
+    ])
+  })
+
+  it('tells a signed-out import to add its files again when the kept library cannot be read', async () => {
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      all: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+    }
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(messages.at(-1)).toEqual({
+      type: 'error',
+      message: expect.stringMatching(/these files were not added\. Add them again\./),
+    })
+  })
+
   it('leaves the sample on its period when the kept library loads after it', async () => {
     const { send } = await startWorker()
     await send({ type: 'loadSample', settings: SETTINGS })
@@ -702,6 +735,24 @@ describe('analysis worker', () => {
       missing: 0,
       failed: 0,
     })
+  })
+
+  it('keeps the saved name when it rebuilds from a file that carries no title', async () => {
+    // A Strava export names the activity in activities.csv, so the FIT file alone would give a generated name.
+    const named = { ...SAMPLE_DIGEST, name: 'Lunch with Sam', modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([recordFor(named, true)])
+      .mockResolvedValueOnce([recordFor({ ...SAMPLE_DIGEST, name: 'Lunch with Sam' }, true)])
+    const { send } = await startWorker()
+    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(mocked.createActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Lunch with Sam', modelRevision: MODEL_REVISION }),
+      'run.fit',
+      expect.any(String),
+      USER_ID,
+      `rec-${named.id}`,
+    )
   })
 
   it('counts a rebuild whose activity was deleted in another tab as missing, and does not re-create it', async () => {
@@ -1486,7 +1537,6 @@ function refusingLibrary(): DeviceLibrary {
   const refused = () => Promise.reject(new Error('Device storage is unavailable'))
   return {
     all: async () => [],
-    allStrict: async () => [],
     get: async () => null,
     lookup: async () => null,
     route: async () => null,

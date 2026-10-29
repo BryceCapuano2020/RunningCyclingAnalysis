@@ -147,9 +147,17 @@ export class AnalysisSession {
     return this.outdatedKeys.has(dedupeKey(sport, startMs))
   }
 
-  /** Replaces the whole library with digests that were stored elsewhere (the server). */
-  loadDigests(digests: ActivityDigest[], settings: AthleteSettings): SessionState {
-    // Sync issues stay: those activities are still unsaved, whatever the library now holds.
+  /**
+   * Replaces the library with digests stored elsewhere. With `keepUnsaved`, for a server library, an
+   * activity whose save failed stays and stays unsaved, so adding its file again retries it, unless
+   * the server holds that workout. A library read from this browser leaves them out.
+   */
+  loadDigests(
+    digests: ActivityDigest[],
+    settings: AthleteSettings,
+    { keepUnsaved = false }: { keepUnsaved?: boolean } = {},
+  ): SessionState {
+    const before = new Map(this.digests)
     this.resetLibrary()
     const outdatedKeys = new Set<string>()
     const incompatibleKeys = new Set<string>()
@@ -161,6 +169,15 @@ export class AnalysisSession {
         continue
       }
       this.digests.set(key, digest)
+    }
+    for (const key of keepUnsaved ? this.unsynced.keys() : []) {
+      const digest = before.get(key)
+      if (digest === undefined) continue
+      if (!this.digests.has(key)) this.digests.set(key, digest)
+      else {
+        this.unsynced.delete(key)
+        this.latestUnsynced.delete(key)
+      }
     }
     for (const key of outdatedKeys) {
       if (!this.digests.has(key)) this.outdatedKeys.add(key)
@@ -276,7 +293,9 @@ export class AnalysisSession {
     if (adding) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
-    await noteKept(activity, digest, held, listeners)
+    // A replacing copy is swapped in only once the sink answers: the server may refuse it (409) and keep its own.
+    const swapAfterSink = replaces && sink !== undefined && batch.halt === null
+    if (!swapAfterSink) await noteKept(activity, digest, held, listeners)
     const considered = (saved: boolean): Considered => {
       if (retry && saved) batch.added.set(key, digest)
       return adding || (retry && saved) || held === undefined
@@ -306,8 +325,16 @@ export class AnalysisSession {
       const answered = error instanceof SyncFailure && error.digestSaved
       batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
       if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
+      if (swapAfterSink && code === 'activity-conflict') {
+        // The server keeps the copy it holds, so the screen keeps it too, as a reload would show it.
+        this.digests.set(key, held)
+        if (adding) batch.added.set(key, held)
+        return adding ? { added: held } : { held: fileNameOf(held.id) }
+      }
+      if (swapAfterSink) await noteKept(activity, digest, held, listeners)
       return considered(false)
     }
+    if (swapAfterSink) await noteKept(activity, digest, held, listeners)
     return considered(true)
   }
 

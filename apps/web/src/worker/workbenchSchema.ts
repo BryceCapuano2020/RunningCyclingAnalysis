@@ -8,7 +8,7 @@ export const WORKBENCH_TOTAL_BYTES = 64 * 1024 * 1024
 export const WORKBENCH_ENTRY_BYTES = 12 * 1024 * 1024
 export const WORKBENCH_MAX_ENTRIES = 10_000
 
-const DB_NAME = 'rca-workbench-evidence'
+export const DB_NAME = 'rca-workbench-evidence'
 const DB_VERSION = 3
 export const TRACES = 'traces'
 export const ENTRIES = 'entries'

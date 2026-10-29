@@ -60,6 +60,59 @@ describe('device library actions', () => {
     expect(state.totalActivities).toBe(2)
   })
 
+  describe('when the kept library cannot be read', () => {
+    /** A library whose reads fail on an open database. */
+    function unreadable(): DeviceLibrary {
+      const library = memoryDeviceLibrary()
+      return {
+        ...library,
+        all: async () => {
+          throw new Error('Connection to Indexed Database server lost')
+        },
+        lookup: async () => {
+          throw new Error('Connection to Indexed Database server lost')
+        },
+      }
+    }
+
+    it('load rejects instead of loading an empty library, and does not post an empty list', async () => {
+      const { actions, posted } = setup(unreadable())
+
+      await expect(actions.load(SETTINGS)).rejects.toThrow(/could not be read/)
+
+      expect(posted).toEqual([])
+      expect(actions.inSession()).toBe(false)
+    })
+
+    it('load reads again once, so a connection the browser dropped does not fail it', async () => {
+      const library = memoryDeviceLibrary()
+      await library.put(workoutKeyOf(FIRST), FIRST)
+      let reads = 0
+      const flaky: DeviceLibrary = {
+        ...library,
+        all: () => (++reads === 1 ? Promise.reject(new Error('Connection lost')) : library.all()),
+      }
+      const { actions } = setup(flaky)
+
+      const state = await actions.load(SETTINGS)
+
+      expect(reads).toBe(2)
+      expect(state.totalActivities).toBe(1)
+    })
+
+    it('load says what the caller gave it when the second read fails too', async () => {
+      const { actions } = setup(unreadable())
+      await expect(actions.load(SETTINGS, 'Add them again.')).rejects.toThrow('Add them again.')
+    })
+
+    it('save is refused rather than written over a copy that could not be looked up', async () => {
+      const put = vi.fn()
+      const { actions } = setup({ ...unreadable(), put })
+      expect(await actions.save(itemFor(FIRST, 'a'))).toBe('refused')
+      expect(put).not.toHaveBeenCalled()
+    })
+  })
+
   it('save keeps the digest for a later load', async () => {
     const { actions, posted } = setup()
 
@@ -211,7 +264,7 @@ describe('device library actions', () => {
     const unreadable: DeviceLibrary = {
       ...memoryDeviceLibrary(),
       clear: () => Promise.reject(new Error('Device storage failed')),
-      allStrict: () => Promise.reject(new Error('Device storage failed')),
+      all: () => Promise.reject(new Error('Device storage failed')),
     }
     const { actions, posted } = setup(unreadable)
 

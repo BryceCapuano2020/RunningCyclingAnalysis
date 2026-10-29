@@ -1433,6 +1433,16 @@ describe('useAnalysis requests', () => {
     expect(worker().posted.at(-1)).toEqual({ type: 'setGradeTrend', on: false, settings: SETTINGS })
   })
 
+  it('asks the worker that replaces a stopped one to grade the trend too', () => {
+    const { result } = renderHook(() => useAnalysis(SETTINGS, SIGNED_OUT, true))
+    const first = worker()
+    expect(first.posted).toContainEqual({ type: 'setGradeTrend', on: true, settings: SETTINGS })
+    act(() => result.current.stop())
+
+    expect(worker()).not.toBe(first)
+    expect(worker().posted).toContainEqual({ type: 'setGradeTrend', on: true, settings: SETTINGS })
+  })
+
   it('posts new settings only when the body or bike mass changes', () => {
     const { rerender } = setup(SIGNED_OUT, SETTINGS)
     rerender({ account: SIGNED_OUT, current: SETTINGS })

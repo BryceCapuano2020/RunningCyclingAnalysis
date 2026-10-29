@@ -332,7 +332,7 @@ export function useAnalysis(
     if (changed) send({ type: 'setSettings', settings })
   }, [settings, send])
 
-  useGradeTrendRequest(gradeTrend, settingsRef, send)
+  useGradeTrendRequest(gradeTrend, settingsRef, send, transport.workerGeneration)
   useAccountTransitions({
     account,
     accountEpochRef,

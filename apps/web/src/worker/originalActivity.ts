@@ -29,7 +29,9 @@ export function matchOriginalActivity(
 
 /**
  * A saved activity's original file, downloaded and read again, with the activity in it that the
- * record's digest was made from. The activity is undefined when the file no longer reads or holds no
+ * record's digest was made from, under the name the record already has: an export's title (Strava's
+ * activities.csv) is not in the file, so the name the file alone would give must not replace it. The
+ * activity is undefined when the file no longer reads or holds no
  * matching activity. The file's hash is its upload's, which the legs of the upload share as their
  * session key, so it is computed once here and returned for the rebuild to store the file under.
  */
@@ -46,5 +48,5 @@ export async function originalActivity(
   })
   if (!parsed.ok) return { fileHash, activity: undefined }
   const activity = matchOriginalActivity(parsed.activities, record.digest, expectedActivityId)
-  return { fileHash, activity }
+  return { fileHash, activity: activity && { ...activity, name: record.digest.name } }
 }

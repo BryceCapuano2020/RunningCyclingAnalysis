@@ -7,8 +7,10 @@ import { ApiRequestError } from '../api/client'
 import { useAccount } from './useAccount'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
 import { forgetAccountDetails } from '../worker/forgetAccountDetails'
+import { sweepAccountDetails } from '../worker/sweepAccountDetails'
 
 vi.mock('../worker/deleteAccountDetails', () => ({ deleteAccountDetails: vi.fn(async () => null) }))
+vi.mock('../worker/sweepAccountDetails', () => ({ sweepAccountDetails: vi.fn(async () => {}) }))
 vi.mock('../worker/forgetAccountDetails', () => ({
   forgetAccountDetails: vi.fn(async () => null),
 }))
@@ -589,6 +591,94 @@ describe('useAccount', () => {
     })
     expect(result.current.status).toBe('signed-out')
     expect(result.current.sessionExpired).toBe(true)
+  })
+
+  describe('an account that ends without a sign-out here', () => {
+    it('clears its detail recordings when the session is marked expired', async () => {
+      const { result } = await renderSignedIn()
+      expect(forgetAccountDetails).not.toHaveBeenCalled()
+      act(() => result.current.markExpired())
+
+      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
+    })
+
+    it('clears them when the server no longer knows the user', async () => {
+      const { result } = await renderSignedIn()
+      mocked.getMe.mockResolvedValue(null)
+      await act(async () => {
+        await result.current.refresh()
+      })
+
+      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
+    })
+
+    it('clears the earlier account when a different one signs in', async () => {
+      const { result } = await renderSignedIn()
+      mocked.getMe.mockResolvedValue({ ...ME, user: { ...ME.user, id: 'u2' } })
+      await act(async () => {
+        await result.current.refresh()
+      })
+
+      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
+    })
+
+    it('clears nothing while the same account stays signed in, or for a visitor who was signed out', async () => {
+      mocked.getMe.mockResolvedValue(null)
+      const signedOut = renderHook(() => useAccount())
+      await waitFor(() => expect(signedOut.result.current.status).toBe('signed-out'))
+      await act(async () => {
+        await signedOut.result.current.refresh()
+      })
+      const { result } = await renderSignedIn()
+      await act(async () => {
+        await result.current.refresh()
+      })
+
+      expect(forgetAccountDetails).not.toHaveBeenCalled()
+    })
+
+    it('sweeps the other accounts on a definite answer from the server, keeping the signed-in one', async () => {
+      const { result } = await renderSignedIn()
+      expect(sweepAccountDetails).toHaveBeenLastCalledWith('u1')
+      mocked.getMe.mockResolvedValue(null)
+      await act(async () => {
+        await result.current.refresh()
+      })
+
+      expect(sweepAccountDetails).toHaveBeenLastCalledWith(null)
+    })
+
+    it('sweeps on a load that finds nobody signed in, as when the session ended with the tab closed', async () => {
+      mocked.getMe.mockResolvedValue(null)
+      renderHook(() => useAccount())
+
+      await waitFor(() => expect(sweepAccountDetails).toHaveBeenCalledExactlyOnceWith(null))
+    })
+
+    it('sweeps every account when the session is marked expired', async () => {
+      const { result } = await renderSignedIn()
+      act(() => result.current.markExpired())
+
+      expect(sweepAccountDetails).toHaveBeenLastCalledWith(null)
+    })
+
+    it('does not sweep, or clear anything, when the lookup fails on the network', async () => {
+      mocked.getMe.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+      const { result } = renderHook(() => useAccount())
+
+      await waitFor(() => expect(result.current.status).toBe('unavailable'))
+      expect(sweepAccountDetails).not.toHaveBeenCalled()
+      expect(forgetAccountDetails).not.toHaveBeenCalled()
+    })
+
+    it('reports a refused cleanup after the session ended notice', async () => {
+      vi.mocked(forgetAccountDetails).mockResolvedValueOnce('Recordings could not be cleared')
+      const { result } = await renderSignedIn()
+      act(() => result.current.markExpired())
+
+      await waitFor(() => expect(result.current.error).toMatch(/Recordings could not be cleared/))
+      expect(result.current.error).toMatch(/session ended/i)
+    })
   })
 
   it('retries a failed account lookup with backoff, and signs in when a retry succeeds', async () => {
