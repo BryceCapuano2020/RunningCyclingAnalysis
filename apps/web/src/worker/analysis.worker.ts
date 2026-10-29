@@ -9,7 +9,7 @@ import type { Activity } from '@rca/core/types'
 import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { accountSaver } from './accountSave'
-import { deviceActions, workoutKeyOf as activityKey } from './device'
+import { deviceActions, KEPT_NOT_READ_FOR_IMPORT, workoutKeyOf as activityKey } from './device'
 import { deviceKeeper } from './deviceKeeper'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
@@ -135,7 +135,7 @@ async function addFiles(
 
   // Files saved here join the library kept in this browser, unless the session already holds it.
   if (sync === null && request.saveToDevice && !device.inSession())
-    await device.load(request.settings)
+    await device.load(request.settings, KEPT_NOT_READ_FOR_IMPORT)
   showingSample = false
   const keeper = deviceKeeper(device, post)
   // While the account is unknown, the activities are held for the device without their files, to be

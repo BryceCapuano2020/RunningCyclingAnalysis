@@ -84,6 +84,27 @@ describe('device library actions', () => {
       expect(actions.inSession()).toBe(false)
     })
 
+    it('load reads again once, so a connection the browser dropped does not fail it', async () => {
+      const library = memoryDeviceLibrary()
+      await library.put(workoutKeyOf(FIRST), FIRST)
+      let reads = 0
+      const flaky: DeviceLibrary = {
+        ...library,
+        all: () => (++reads === 1 ? Promise.reject(new Error('Connection lost')) : library.all()),
+      }
+      const { actions } = setup(flaky)
+
+      const state = await actions.load(SETTINGS)
+
+      expect(reads).toBe(2)
+      expect(state.totalActivities).toBe(1)
+    })
+
+    it('load says what the caller gave it when the second read fails too', async () => {
+      const { actions } = setup(unreadable())
+      await expect(actions.load(SETTINGS, 'Add them again.')).rejects.toThrow('Add them again.')
+    })
+
     it('save is refused rather than written over a copy that could not be looked up', async () => {
       const put = vi.fn()
       const { actions } = setup({ ...unreadable(), put })

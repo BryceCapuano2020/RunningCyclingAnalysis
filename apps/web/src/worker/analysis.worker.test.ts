@@ -656,6 +656,26 @@ describe('analysis worker', () => {
     ])
   })
 
+  it('tells a signed-out import to add its files again when the kept library cannot be read', async () => {
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      all: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+    }
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(messages.at(-1)).toEqual({
+      type: 'error',
+      message: expect.stringMatching(/these files were not added\. Add them again\./),
+    })
+  })
+
   it('leaves the sample on its period when the kept library loads after it', async () => {
     const { send } = await startWorker()
     await send({ type: 'loadSample', settings: SETTINGS })

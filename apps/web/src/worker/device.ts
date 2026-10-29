@@ -7,15 +7,23 @@ import type { DeviceEntry, DeviceLibrary } from './deviceLibrary'
 import type { WorkerResponse } from './protocol'
 import { savedActivityOf } from './savedActivity'
 
-const KEPT_NOT_READ =
+/** Said when the page's own load of the kept results fails: nothing else will load them again. */
+export const KEPT_NOT_READ =
   'Your kept results could not be read from this browser just now. Reload the page to try again.'
+/** Said when an import needs them: adding the files again reads them again. */
+export const KEPT_NOT_READ_FOR_IMPORT =
+  'Your kept results could not be read from this browser just now, so these files were not added. Add them again.'
+
+/** How long the second try at reading the kept results waits: a lost connection reopens by then. */
+const READ_RETRY_MS = 250
 
 export interface DeviceActions {
   /**
    * Replaces the session's library with the one kept in this browser. Rejects when the library
-   * cannot be read, rather than loading it as empty: an empty library would be taken for the real one.
+   * cannot be read, after one more try, rather than loading it as empty: an empty library would be
+   * taken for the real one. `unreadable` is the message of that rejection.
    */
-  load(settings: AthleteSettings): Promise<SessionState>
+  load(settings: AthleteSettings, unreadable?: string): Promise<SessionState>
   /** Whether the session holds that library already, so loading it again would drop imports. */
   inSession(): boolean
   /** The session's library was replaced or emptied, so the kept one must be loaded again. */
@@ -87,9 +95,13 @@ export function deviceActions(
     }
   }
   return {
-    async load(settings) {
-      const entries = await device.all().catch(() => {
-        throw new Error(KEPT_NOT_READ)
+    async load(settings, unreadable = KEPT_NOT_READ) {
+      // One failed read can be a connection the browser dropped, which the next call opens again.
+      const entries = await device.all().catch(async () => {
+        await new Promise((resolve) => setTimeout(resolve, READ_RETRY_MS))
+        return device.all().catch(() => {
+          throw new Error(unreadable)
+        })
       })
       post({ type: 'libraryActivities', activities: newestFirst(entries) })
       const state = session.loadDigests(
