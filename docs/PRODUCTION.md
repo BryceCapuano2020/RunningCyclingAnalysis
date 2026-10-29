@@ -303,7 +303,7 @@ activities at a time with accessible paging.
   splits are over moving time less rests; a first session whose device distance starts far from zero
   counts from its own first sample; altitude outside -1000 to 10,000 m is dropped on import;
   the activity page's time in zones leaves out the seconds the quality assessment flagged, as the sport
-  page does; `walkingPace` marks a run at walking pace; `race` marks an activity the Strava export's Competition column tags as a race (set when the file is imported from the export, so a held activity gains it only when its digest is rebuilt); and the
+  page does; `walkingPace` marks a run at walking pace; and the
   `hr-implausible-for-power` flag compares a stretch with the same activity's heart rate at similar
   power instead of a fixed floor. (The whole-activity check against the library is applied when the
   library is judged, not stored in the digest.) Missing revision means
@@ -311,6 +311,14 @@ activities at a time with accessible paging.
   missing originals need re-importing. Newer revisions are excluded with a separate compatibility
   notice, so rolling the Worker back to a revision 5 build makes every library already upgraded to
   revision 6 show as incompatible until the revision 6 Worker is deployed again.
+- The digest's `race` field is additive and belongs to no revision. It is `true` only when the Strava
+  export's Competition column tagged the activity at the moment it was imported, and the library list
+  carries it too. The tag is in the export's list, not in the activity file, so it is read once, at
+  import. Activities already in the library do not gain it, and importing the same export again keeps
+  the held digest, so it does not add it either; they gain it only by being deleted and imported
+  again. A rebuild of a stale digest keeps the tag its saved digest has (`originalActivity.ts`), and a
+  digest without the field has no tag. Older servers reject a digest that carries it, so deploy the API
+  before the web app.
 - Upgrades require the same sport/start dedupe identity and SHA-256 of the exact original bytes.
   They retain the activity id and stored-file metadata. Different file contents conflict rather
   than silently replacing an activity, and older clients cannot downgrade newer stored summaries.

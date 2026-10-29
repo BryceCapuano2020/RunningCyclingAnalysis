@@ -2,7 +2,7 @@ import './test/warmSample'
 import { describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from './session'
 import { drawSeason, seasonDigests } from './sessionSample'
-import { SAMPLE_CLOCK, SAMPLE_REFERENCE_NOW_MS, samplePlan } from './synthetic'
+import { DEFAULT_ATHLETE, SAMPLE_CLOCK, SAMPLE_REFERENCE_NOW_MS, samplePlan } from './synthetic'
 import type { ActivityDigest } from './types'
 
 /** A stand-in for the drawing that makes no season: the decision to draw is what is under test. */
@@ -71,35 +71,41 @@ describe('seasonDigests', () => {
     expect(new Set([seattle, tokyo, shifting, nextWeek]).size).toBe(4)
   })
 
-  it('keeps only the latest few seasons', () => {
+  it('keeps only the few seasons used most lately: a hit keeps a season, the one unused longest goes', () => {
     const draw = fakeDraw()
-    const weeks = Array.from({ length: 6 }, (_, week) => ({
-      nowMs: Date.UTC(2032, 0, 4, 8) + week * 7 * DAY_MS,
+    const week = (n: number) => ({
+      nowMs: Date.UTC(2032, 0, 4, 8) + n * 7 * DAY_MS,
       utcOffsetMinutes: () => -300,
-    }))
-    for (const clock of weeks) seasonDigests(clock, draw)
+    })
+    for (let n = 0; n < 4; n++) seasonDigests(week(n), draw)
+    // Week 0 is used again, so week 1 is now the one used longest ago.
+    seasonDigests(week(0), draw)
+    seasonDigests(week(4), draw)
+    expect(draw).toHaveBeenCalledTimes(5)
+    seasonDigests(week(0), draw)
+    expect(draw).toHaveBeenCalledTimes(5)
+    seasonDigests(week(1), draw)
     expect(draw).toHaveBeenCalledTimes(6)
-    seasonDigests(weeks[5]!, draw)
-    expect(draw).toHaveBeenCalledTimes(6)
-    seasonDigests(weeks[0]!, draw)
-    expect(draw).toHaveBeenCalledTimes(7)
   })
 
-  it('serves exactly the digests a fresh drawing makes, so no figure moves', () => {
-    const clock = { nowMs: Date.UTC(2032, 4, 5, 9), utcOffsetMinutes: () => -420 }
-    const fresh = drawSeason(clock)
-    const cached = seasonDigests(clock)
-    expect(cached).toEqual(fresh)
-    // And a session that loads it reaches the same state as one handed the fresh digests.
-    const settings = { massKg: 75, bikeMassKg: 9 }
-    const fromCache = new AnalysisSession().loadSample(settings, clock)
-    const again = new AnalysisSession().loadSample(settings, clock)
-    const direct = new AnalysisSession()
-    direct.loadDigests(fresh, settings)
-    expect(again).toEqual(fromCache)
-    expect(fromCache.totalActivities).toBe(fresh.length)
-    expect(fromCache.library.map((row) => row.id)).toEqual(
-      direct.loadDigests(fresh, settings).library.map((row) => row.id),
-    )
-  })
+  it('gives each clock the season drawn for it, never another’s, once cached', () => {
+    const here = { nowMs: Date.UTC(2033, 4, 5, 9), utcOffsetMinutes: () => -420 }
+    const elsewhere = { nowMs: here.nowMs, utcOffsetMinutes: () => 540 }
+    const body = { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
+    for (const clock of [here, elsewhere]) seasonDigests(clock)
+
+    for (const clock of [elsewhere, here]) {
+      const fresh = drawSeason(clock)
+      // Now a cache hit, and it must be what a drawing for that clock makes.
+      expect(seasonDigests(clock)).toEqual(fresh)
+      // The sample is analysed with its own body, so the same digests analysed with it must agree.
+      const loaded = new AnalysisSession().loadSample(body, clock)
+      const direct = new AnalysisSession().loadDigests(fresh, body)
+      expect(loaded.totalActivities).toBe(fresh.length)
+      expect(loaded.library).toEqual(direct.library)
+      expect(loaded.result).toEqual(direct.result)
+    }
+    // Another zone starts its activities at other instants, so a wrong hit could not pass for it.
+    expect(seasonDigests(here)).not.toEqual(seasonDigests(elsewhere))
+  }, 30_000)
 })

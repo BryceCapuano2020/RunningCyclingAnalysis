@@ -1,5 +1,5 @@
 /** How much history to bring. Shown in the dropzone and in step 1 of the landing page. */
-export const HISTORY_ADVICE = 'A Strava or Garmin export brings in the most history at once.'
+export const HISTORY_ADVICE = 'A Strava export brings in the most history at once.'
 
 /** The day the guides' steps were read against their sources, as the page says it. */
 export const GUIDES_CHECKED_ON = '27 October 2026'

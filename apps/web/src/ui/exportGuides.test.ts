@@ -114,7 +114,7 @@ describe('EXPORT_GUIDES', () => {
 })
 
 describe('HISTORY_ADVICE', () => {
-  it('says that a Strava or Garmin export brings the most history at once', () => {
-    expect(HISTORY_ADVICE).toBe('A Strava or Garmin export brings in the most history at once.')
+  it('says that a Strava export brings the most history at once', () => {
+    expect(HISTORY_ADVICE).toBe('A Strava export brings in the most history at once.')
   })
 })

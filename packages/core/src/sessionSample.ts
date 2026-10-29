@@ -11,7 +11,7 @@ import type { ActivityDigest } from './types'
  * What a season holds depends on the Sunday it ends on and on the zone's offset at each start, nothing else,
  * so it is kept under its planned starts. Planning draws no samples, and it takes the zone's changes of
  * offset (daylight saving) into account, which a single offset would not. A new week, or another zone,
- * plans other starts and draws its own season. A few seasons are kept, the oldest dropped first, since a
+ * plans other starts and draws its own season. A few seasons are kept, the one used longest ago dropped first, since a
  * visitor's device has one zone and one week.
  */
 const SEASONS = new Map<string, ActivityDigest[]>()
@@ -34,7 +34,12 @@ export function seasonDigests(
     .map((entry) => entry.spec.startMs)
     .join(',')
   const held = SEASONS.get(key)
-  if (held !== undefined) return held
+  if (held !== undefined) {
+    // Used now: moved to the end, so the season dropped when the cache is full is the one used longest ago.
+    SEASONS.delete(key)
+    SEASONS.set(key, held)
+    return held
+  }
   const season = draw(clock)
   SEASONS.set(key, season)
   if (SEASONS.size > SEASONS_KEPT) SEASONS.delete(SEASONS.keys().next().value!)

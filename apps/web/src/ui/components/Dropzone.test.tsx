@@ -53,7 +53,7 @@ function fitFile(name: string): File {
 }
 
 describe('Dropzone', () => {
-  it('asks for FIT, GPX or TCX files or a Strava zip, without saying drop them here', () => {
+  it('asks for FIT, GPX or TCX files or a Strava or Garmin zip, without saying drop them here', () => {
     renderDropzone()
     expect(
       screen.getByText('Add FIT, GPX or TCX files, or a Strava or Garmin export zip'),
