@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readStylesheet } from '../ui/components/stylesheet'
+import { DEFICIENCIES, deltaE, simulate } from './colourDifference'
 import { contrast } from './contrastMath'
-import { CVD_KINDS, deltaE2000, simulateCvd } from './colourDistance'
 import { colour, declared, resolved } from './tokenSheet'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
@@ -41,7 +41,7 @@ describe('activity channel colours', () => {
           // Only pairs with a channel in them: the sport hues are checked against each other elsewhere.
           if (SPORTS.some((sport) => sport === first) && SPORTS.some((sport) => sport === second))
             continue
-          expect(deltaE2000(a, b), `${first} and ${second}`).toBeGreaterThanOrEqual(DISTINCT)
+          expect(deltaE(a, b), `${first} and ${second}`).toBeGreaterThanOrEqual(DISTINCT)
         }
       }
     },
@@ -65,7 +65,7 @@ describe('the route tile’s pace ramp', () => {
       const fast = colour(tokens, 'ch-pace')
       expect(contrast(slow, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
       expect(contrast(fast, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
-      expect(deltaE2000(slow, fast)).toBeGreaterThanOrEqual(DISTINCT)
+      expect(deltaE(slow, fast)).toBeGreaterThanOrEqual(DISTINCT)
     },
   )
 
@@ -74,10 +74,10 @@ describe('the route tile’s pace ramp', () => {
     (_theme, tokens) => {
       const slow = colour(tokens, 'text-secondary')
       const fast = colour(tokens, 'ch-pace')
-      for (const kind of CVD_KINDS) {
+      for (const deficiency of DEFICIENCIES) {
         expect(
-          deltaE2000(simulateCvd(slow, kind), simulateCvd(fast, kind)),
-          kind,
+          deltaE(simulate(slow, deficiency), simulate(fast, deficiency)),
+          deficiency,
         ).toBeGreaterThanOrEqual(DISTINCT)
       }
     },
@@ -86,9 +86,9 @@ describe('the route tile’s pace ramp', () => {
   it('is not the stone of elevation, which deutan vision cannot tell from the pace green', () => {
     const [, light] = THEMES[0]
     expect(
-      deltaE2000(
-        simulateCvd(colour(light, 'ch-elevation'), 'deutan'),
-        simulateCvd(colour(light, 'ch-pace'), 'deutan'),
+      deltaE(
+        simulate(colour(light, 'ch-elevation'), 'deuteranopia'),
+        simulate(colour(light, 'ch-pace'), 'deuteranopia'),
       ),
     ).toBeLessThan(DISTINCT)
   })

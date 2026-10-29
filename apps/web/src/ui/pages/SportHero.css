@@ -146,6 +146,19 @@
   margin: 0;
 }
 
+/* The link to the road standards is an inline source link at the body size. A finger needs a control's height to tap it. */
+.age-grade__standards {
+  font-size: var(--text-md);
+}
+
+@media (pointer: coarse) {
+  .age-grade__standards {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
+  }
+}
+
 @media (min-width: 761px) {
   .sport-hero__panel {
     padding: var(--space-6) var(--space-6) var(--space-5);

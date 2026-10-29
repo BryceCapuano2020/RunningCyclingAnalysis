@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { MONTHLY_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
 import { makeActivity } from './components/fixtures'
 import {
-  WEEKLY_MAX_WEEKS,
   bucketInPhrase,
   bucketLabel,
   bucketSpan,
@@ -61,10 +61,10 @@ describe('volumeBuckets', () => {
 
   it('draws a set of up to 26 weeks by the week', () => {
     const first = at(2025, 0, 6)
-    const last = first + (WEEKLY_MAX_WEEKS - 1) * 7 * 86_400_000
+    const last = first + (MONTHLY_AFTER_WEEKS - 1) * 7 * 86_400_000
     const buckets = volumeBuckets([run(first), run(last)])
     expect(buckets.every((bucket) => bucket.kind === 'week')).toBe(true)
-    expect(buckets).toHaveLength(WEEKLY_MAX_WEEKS)
+    expect(buckets).toHaveLength(MONTHLY_AFTER_WEEKS)
   })
 
   it('draws a set longer than 26 weeks by the month, from the first month to the last', () => {

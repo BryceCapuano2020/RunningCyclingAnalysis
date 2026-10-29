@@ -147,8 +147,8 @@ interface EndLabel {
 }
 
 /**
- * Labels just right of each line's last point. Two labels that would sit closer than the
- * minimum gap are pushed apart, symmetrically about their midpoint.
+ * Labels just right of each line's last point. Of two labels that would sit closer than the
+ * minimum gap, the lower is moved down until the gap is kept; the upper stays at its line.
  */
 function endLabels(m: Layout): EndLabel[] {
   const ends: EndLabel[] = []

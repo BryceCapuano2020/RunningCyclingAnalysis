@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { ChartTooltip } from './ChartTooltip'
-import type { ChartSize, Point, TooltipContent } from './chartTypes'
+import type { ChartSize, TooltipContent } from './chartTypes'
 import { nearestByX, stepActive } from './hover'
 import type { PositionPick } from './hover'
 import { PlotSurface } from './PlotSurface'
@@ -61,11 +61,6 @@ export function tooltipOverlay(size: ChartSize, content: TooltipContent | null):
   )
 }
 
-/** How far a label's text sits left of, or right of, its point. */
-export const LABEL_GAP_X = 8
-const LABEL_DROP = 18
-const LABEL_RISE = 10
-
 /**
  * Moves values down, in order, so that each sits at least gap below the one above it. Returns the
  * values in their input order; a value already far enough from the one above does not move.
@@ -80,45 +75,6 @@ export function spreadApart(ys: readonly number[], gap: number): number[] {
     last = at
   }
   return placed
-}
-
-/**
- * Spreads baselines apart, in order of y, so that each sits at least `gap` below the one above it and all
- * lie within [lo, hi]. A run that would pass the bottom is packed back up from it. Where the span cannot
- * hold them all, the packed baselines are clamped into it, so they stay inside the plot though they may
- * then overlap, and a span too short to hold even one centres them. Returned in the input's order.
- */
-export function spreadWithin(ys: readonly number[], gap: number, lo: number, hi: number): number[] {
-  const placed = ys.map((y, index) => ({ y, index }))
-  const order = [...placed].sort((a, b) => a.y - b.y)
-  let floor = lo
-  for (const item of order) {
-    item.y = Math.max(item.y, floor)
-    floor = item.y + gap
-  }
-  let ceiling = hi
-  for (const item of [...order].reverse()) {
-    item.y = Math.min(item.y, ceiling)
-    ceiling = item.y - gap
-  }
-  return placed.map(({ y }) => (hi < lo ? (lo + hi) / 2 : Math.min(Math.max(y, lo), hi)))
-}
-
-/** How far a label's baseline keeps above the plot's bottom edge, so it clears the x tick labels. */
-const FLOOR_GAP = 12
-
-/**
- * Where the label of an end point sits: left of the point, and below it, unless the line arrives
- * from below. Then it sits above, so the line that reaches the point runs clear of it. A label below
- * that would run onto the plot's bottom edge, given as floor, also sits above.
- */
-export function endLabelAt(point: Point, from: Point | null, floor?: number): Point {
-  const fromBelow = from !== null && from.y > point.y
-  const onTicks = floor !== undefined && point.y + LABEL_DROP > floor - FLOOR_GAP
-  return {
-    x: point.x - LABEL_GAP_X,
-    y: point.y + (fromBelow || onTicks ? -LABEL_RISE : LABEL_DROP),
-  }
 }
 
 /**
@@ -150,11 +106,6 @@ export function sizedOnce<T>(compute: (size: ChartSize) => T): (size: ChartSize)
     if (last === null || last.size !== size) last = { size, value: compute(size) }
     return last.value
   }
-}
-
-/** The point before index that has a value, or null: the sample a stepped line is at, before a gap. */
-export function pointBefore(points: readonly (Point | null)[], index: number): Point | null {
-  return points.slice(0, Math.max(index, 0)).findLast((point) => point !== null) ?? null
 }
 
 /** A diamond of half-width r centred on (x, y), as a closed path: the shape of a ride's point. */

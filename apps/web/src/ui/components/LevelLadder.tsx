@@ -14,8 +14,6 @@ export interface LevelLadderProps {
    * The grade is always the headline effort's, so the drawing names that effort's duration.
    */
   grade: SportGrade
-  /** The key under the drawing, in words. The landing example leaves it out, since it is illustrative. */
-  showKey?: boolean
 }
 
 /** The scale runs from 30% to 100%, the span the level bands cover. */
@@ -180,7 +178,7 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
  * A ride is estimated: a ring over a band for its model range. The band the grade falls in is filled
  * and its name is bold, and the names, percentages and key are visible text beside the drawing.
  */
-export function LevelLadder({ sport, grade, showKey = true }: LevelLadderProps) {
+export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const current = currentBands(grade)
   return (
     <figure className={`scale-figure level-ladder level-ladder--${sport}`} data-sport={sport}>
@@ -207,7 +205,7 @@ export function LevelLadder({ sport, grade, showKey = true }: LevelLadderProps) 
           </span>
         ))}
       </div>
-      {showKey && <p className="level-ladder__key">{keyText(sport, grade)}</p>}
+      <p className="level-ladder__key">{keyText(sport, grade)}</p>
     </figure>
   )
 }

@@ -285,8 +285,8 @@ describe('VolumeStrip', () => {
       expect(onSelect).toHaveBeenLastCalledWith('q:2024-2')
       expect(screen.getByText('Showing Jul to Sep 2024: 1 activity')).toBeInTheDocument()
     } finally {
-      // @ts-expect-error jsdom has no matchMedia; the strip reads it as absent.
-      delete window.matchMedia
+      // jsdom has no matchMedia; the strip reads it as absent.
+      delete (window as { matchMedia?: unknown }).matchMedia
     }
   })
 

@@ -81,12 +81,6 @@ export const SPORT_DOING: Record<Sport, string> = { run: 'running', ride: 'ridin
 /** One activity of the sport as the noun in a sentence, lower case: "this run", "this ride". */
 export const SPORT_ACTIVITY: Record<Sport, string> = { run: 'run', ride: 'ride' }
 
-/** A sport's threshold as the noun in a sentence, lower case: the card's "Running threshold pace". */
-export const THRESHOLD_NOUN: Record<Sport, string> = {
-  run: 'threshold pace',
-  ride: 'threshold power',
-}
-
 /** The label over a sport's estimated threshold, on its card and its page. */
 export const THRESHOLD_LABEL: Record<Sport, string> = {
   run: 'Threshold pace, estimated',
