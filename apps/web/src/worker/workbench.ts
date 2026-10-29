@@ -330,6 +330,7 @@ export class Workbench {
   /** Drops per-tab references when a session or account identity changes. */
   clearMemory(): void {
     this.traces.clear()
+    this.outranked = null
     this.deferred.clear()
     this.deferredBytes = 0
   }

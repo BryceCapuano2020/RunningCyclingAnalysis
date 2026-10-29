@@ -343,6 +343,7 @@ describe('workbench evidence cache', () => {
       ['a removal', (workbench: Workbench) => workbench.remove(scope, 'other')],
       ['clearing a scope', (workbench: Workbench) => workbench.clearScope(scope)],
       ['a new import', (workbench: Workbench) => workbench.forgetOutranked()],
+      ['clearing the memory', (workbench: Workbench) => workbench.clearMemory()],
     ])('asks storage again after %s, since room may have opened up', async (_name, free) => {
       const { store, workbench } = fullOfNewer()
       await workbench.capture(startingAt('a', 5_000), scope)
