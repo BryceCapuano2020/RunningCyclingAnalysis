@@ -68,13 +68,19 @@ function EmptySport({
  * refusal is not said.
  */
 export function SportAnswer(props: SportAnswerProps) {
-  const { sport, result, massKg, units, profile, missingAge, count, held } = props
+  const { sport, result, massKg, units, profile, missingAge, count, held, rangeDays } = props
   if (count === 0) return <EmptySport {...props} />
   if (held) return <WeightNote />
   const headline = profile === null ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
   return (
     <div className="sport-hero" data-sport={sport}>
-      <ThresholdPanel sport={sport} result={result} massKg={massKg} units={units} />
+      <ThresholdPanel
+        sport={sport}
+        result={result}
+        massKg={massKg}
+        units={units}
+        rangeDays={rangeDays}
+      />
       <LevelPanel
         sport={sport}
         outcome={headline}

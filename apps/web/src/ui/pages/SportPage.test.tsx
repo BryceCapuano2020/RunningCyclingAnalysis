@@ -1341,14 +1341,19 @@ describe('SportPage depth', () => {
     )
 
     const threshold = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    // 80% is not a hard effort, so the line is a plain note and not the check a hard effort gets.
+    // 80% is not a hard effort: a warning chip with the share, and the sentence one press away in its definition.
+    const chip = within(threshold).getByRole('button', {
+      name: 'Not a hard effort · 80% of reference heart rate',
+    })
+    expect(chip.closest('.chip')).toHaveClass('chip--warning')
+    expect(chip.closest('.chip')?.querySelector('svg')).not.toBeNull()
     expect(
-      within(threshold)
-        .getByText(
-          'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). A hard 20 min effort would raise this.',
-        )
-        .closest('p'),
-    ).toHaveClass('sport-hero__check--soft')
+      within(threshold).getByRole('note', {
+        name: '',
+      }),
+    ).toHaveTextContent(
+      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). A hard 20 min effort would raise this.',
+    )
     expect(
       screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
     ).toBeInTheDocument()
@@ -1363,13 +1368,14 @@ describe('SportPage depth', () => {
       }),
     )
 
-    const line = screen
-      .getByText(
-        'Your best 20 min running reached 70% of your running reference heart rate (set from your highest heart rates on file). A hard 20 min effort would raise this.',
-      )
-      .closest('p')!
-    expect(line).toHaveClass('sport-hero__check--soft')
-    expect(line.previousElementSibling).toHaveTextContent(THRESHOLD_MEANING.run)
+    // One chip beside the threshold, in the heading's row, and no card or line after the meaning.
+    const threshold = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    const chip = within(threshold).getByRole('button', {
+      name: 'Not a hard effort · 70% of reference heart rate',
+    })
+    expect(chip.closest('.sport-hero__head')).not.toBeNull()
+    expect(threshold.querySelector('.sport-hero__meaning')?.nextElementSibling).toBeNull()
+    expect(screen.getAllByText(/reached 70% of your running reference heart rate/)).toHaveLength(1)
   })
 
   it('shows no heart-rate line when heart rate is not on file for the sport', () => {

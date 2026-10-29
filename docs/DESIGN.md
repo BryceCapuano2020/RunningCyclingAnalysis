@@ -317,7 +317,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   comparison and the best skip carried rows and take the longest measured effort. The chart's name stays as the small caption above the finding.
   Where the curve's points are a longer effort's value copied down by the envelope (`windowS` longer than `durationS`), the
   line there is that longer effort's value, not a measured one at its own length: the stretch is drawn lighter, from the measured
-  point before it to the one after, and described by its shape under a bracket, "Between 20 and 60 min the line carries your 60 min best." (the effort named is the one the carried points say they came from)
+  point before it to the one after, and described by its shape under a bracket, "No separate 20–60 min effort: this stretch uses your 60 min best" (the effort named is the one the carried points say they came from)
   (the widest such stretch, which the table's caption repeats). It never says an effort is missing from the file, which a longer window always
   contains. A carried point is a hollow ring, not a solid dot, is not called out as a best, and its tooltip and table row say "from your 60 min effort". On a phone,
   annotations that would overlap another mark are left out (`optional`), keeping the 20 minute callout and the threshold. Every chart has a visible title, which names
@@ -351,11 +351,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
 - A sport page reads top to bottom, on about 1,200 px of a desktop and in one column on a phone. The answer is one
-  card: the **threshold** on the left (60%) at display size with a chip that says Estimated (a ring) or At least
-  (a floor, a held best), its fit drawn as a slim track with the two ends printed and the word "fit spread"
-  between them (a range between two fits, as with uneven bests, is "range"), what it means, and a check chip
-  ("Your best 20 min … reached 97% of your running reference heart rate … so it was hard.") that is green with
-  a tick at 90% or more and a plain grey note below it; and on the right (40%) the **level of the best 20
+  card: the **threshold** on the left (60%) at display size, named with its period ("Threshold pace · 12 weeks", so it
+  is not read against Profile's all-time figure) and a chip that says Estimated (a ring) or At least (a floor, a held
+  best), its fit drawn as a slim track with the two ends printed and the word "fit spread" between them (a range
+  between two fits, as with uneven bests, is "range"), what it means, and the heart-rate check said once, as a chip
+  beside the name: "Hard efforts on file · 97% of reference heart rate" with a tick, or "Not a hard effort · 80% of
+  reference heart rate" with a warning, the Balance evidence card's two labels; the full sentence (where the
+  reference comes from, what would raise it) is the chip's definition, one press away. On the right (40%) the **level of the best 20
   minutes** at display size with its percent, one line of what it grades, and the level ladder on the neutral
   level bands, a dot for a recorded effort and a ring with its range for an estimated one. Then the period
   control, then "On this page", then the sport's sections as the rows its list gives (`SPORT_ROWS` in

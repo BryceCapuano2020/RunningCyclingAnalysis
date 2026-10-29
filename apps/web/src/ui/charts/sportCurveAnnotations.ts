@@ -9,6 +9,7 @@ import type { Box } from './chartBoxes'
 import type { ChartSize } from './chartTypes'
 import { wkgOf } from './curveTable'
 import type { CurveRow, View } from './curveTable'
+import { citedDurationS } from './sportCurveTakeaway'
 import { isRecordDuration } from './sportCurveModel'
 import type { Layout, ThresholdLine } from './sportCurveModel'
 import { formatNative, nativeLabel } from './sportAxis'
@@ -23,6 +24,11 @@ const MIN_SPAN_LABEL_PX = 60
 const BRACKET_LIFT = 10
 /** A best this close to the threshold line, px, goes above it without a caption, clear of the threshold's label. */
 export const NEAR_THRESHOLD_PX = 20
+/**
+ * How thick, px, the curve's own line is as an obstacle to text: wider than its 3 px stroke, so a callout's value sits
+ * clear of the line it labels and does not crowd it where the line runs past the text's edge.
+ */
+export const LINE_CLEARANCE_PX = 16
 /** The radius, px, of the boxes that keep text off a marker. */
 const MARKER_OBSTACLE_R = 7
 
@@ -44,7 +50,19 @@ export function curveMarks(
   const annotations: Annotation[] = []
   const caption = (row: CurveRow) =>
     SPORT_FORMAT[sport].showsWkg ? formatWkg(wkgOf(row, view)) : nativeLabel(sport).toLowerCase()
-  const calloutIndexes = CALLOUT_DURATIONS_S.flatMap((durationS) => {
+  // The effort the title cites is marked too, when it is not one the curve calls out anyway: a 15 minute move in
+  // the title needs the 15 minute point on the plot.
+  const cited = citedDurationS({
+    sport,
+    units,
+    rows,
+    previousLabel: view.previous?.label ?? null,
+  })
+  const calloutDurations =
+    cited === null || CALLOUT_DURATIONS_S.includes(cited)
+      ? CALLOUT_DURATIONS_S
+      : [...CALLOUT_DURATIONS_S, cited].sort((a, b) => a - b)
+  const calloutIndexes = calloutDurations.flatMap((durationS) => {
     const index = rows.findIndex((row) => row.durationS === durationS)
     const row = rows[index]
     // A carried value is a longer effort's, so it is not this length's best and is not called out as one.
@@ -60,8 +78,8 @@ export function curveMarks(
       kind: 'callout',
       id: `best-${row.durationS}`,
       tone: sport,
-      // The headline 20 minutes is always drawn; the others give way where a phone's plot has no room.
-      optional: row.durationS !== HEADLINE_DURATION_S,
+      // The headline 20 minutes and the effort the title cites are always drawn; the others give way where a phone's plot has no room.
+      optional: row.durationS !== HEADLINE_DURATION_S && row.durationS !== cited,
       at,
       value: formatNative(sport, row.value, units),
       label: effortLabel(row.durationS),
@@ -128,12 +146,16 @@ export function curveMarks(
   )
   return {
     annotations,
-    obstacles: [...lineObstacles(m.points), ...lineObstacles(m.earlier, 3), ...markers],
+    obstacles: [
+      ...lineObstacles(m.points, LINE_CLEARANCE_PX),
+      ...lineObstacles(m.earlier, 3),
+      ...markers,
+    ],
   }
 }
 
 /**
- * The one label for the widest carried stretch ("Between 20 and 60 min the line carries your 60 min best."), or an
+ * The one label for the widest carried stretch ("No separate 20–60 min effort: this stretch uses your 60 min best"), or an
  * empty string with none. The effort named is the one the carried points say they came from.
  */
 export function noEffortLabel(rows: readonly CurveRow[], spans: Layout['spans']): string {

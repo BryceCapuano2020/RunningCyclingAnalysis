@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { layoutAnnotations, lineObstacles, markerObstacle, splitValue } from './annotations'
 import type { Annotation, AnnotationSpace } from './annotations'
 import { meetsBoxes } from './chartBoxes'
+import type { Box } from './chartBoxes'
+import { LINE_CLEARANCE_PX } from './sportCurveAnnotations'
 
 const PLOT = { left: 56, right: 884, top: 28, bottom: 290 }
 const SPACE: AnnotationSpace = { plot: PLOT, width: 1048, rootPx: 16 }
@@ -280,7 +282,7 @@ describe('layoutAnnotations on the marks of a real curve', () => {
         x1: 300,
         x2: 520,
         y: 280,
-        label: 'Between 20 and 45 min the line carries your 45 min best.',
+        label: 'No separate 20–45 min effort: this stretch uses your 45 min best',
       },
     ]
     const placed = layoutAnnotations(list, { ...SPACE, obstacles })
@@ -391,5 +393,40 @@ describe('an end label with a leading mark', () => {
     expect(plain?.texts[0]?.glyph).toBeUndefined()
     const width = (box: { left: number; right: number }) => box.right - box.left
     expect(width(marked!.box)).toBeGreaterThan(width(plain!.box))
+  })
+})
+
+describe('a callout beside the curve’s own line', () => {
+  /** The distance, px, from a point to a box: 0 inside it. */
+  const distanceTo = (point: { x: number; y: number }, box: Box) =>
+    Math.hypot(
+      Math.max(box.left - point.x, 0, point.x - box.right),
+      Math.max(box.top - point.y, 0, point.y - box.bottom),
+    )
+
+  /**
+   * A steep line falling from the left of the plot to the right, as a curve does past its knee, sampled every pixel: the
+   * text's first places lie close beside it.
+   */
+  const falling = Array.from({ length: 800 }, (_, i) => ({ x: 80 + i, y: 120 + i * 0.4 }))
+
+  /** How close the callout at the middle of the line comes to the line. */
+  function gapFor(thickness: number): number {
+    const at = falling[400]!
+    const placed = layoutAnnotations([callout('best', at.x, at.y)], {
+      ...SPACE,
+      obstacles: lineObstacles(falling, thickness),
+    })
+    const box = boxOf(placed, 'best').box
+    return Math.min(...falling.map((point) => distanceTo(point, box)))
+  }
+
+  it('keeps its text clear of the line by more than the stroke, so the 20 and 60 minute values do not crowd it', () => {
+    // The line is a 3 px stroke; its obstacle is wider, and the text keeps half that wide, and the layout's gap, from the line.
+    expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThanOrEqual(LINE_CLEARANCE_PX / 2)
+  })
+
+  it('has more room than a thin obstacle gave', () => {
+    expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThan(gapFor(5))
   })
 })

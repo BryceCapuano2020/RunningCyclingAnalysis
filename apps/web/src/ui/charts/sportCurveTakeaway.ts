@@ -82,33 +82,62 @@ function bestRow(rows: readonly CurveRow[]): CurveRow | undefined {
   return measured.find((row) => row.durationS === HEADLINE_DURATION_S) ?? measured.at(-1)
 }
 
+/** The comparison a curve's finding makes: the sentence, and the effort length it cites. */
+interface Comparison {
+  text: string
+  /** The effort the sentence is about, in seconds: it must be marked on the curve, or the title cites a length the plot does not show. */
+  durationS: number
+}
+
+/**
+ * What a curve with a period before says: how far the 20 minute effort (or the longest effort both periods have
+ * measured) moved, when the move clears the floor above, and then which effort that was; or that there is no clear
+ * change, which cites no effort. Null with no period before, or nothing both periods have measured.
+ */
+function comparison({
+  sport,
+  units,
+  rows,
+  previousLabel,
+}: TakeawayInput): Comparison | { text: string; durationS: null } | null {
+  const compared = previousLabel === null ? undefined : comparedRow(rows)
+  if (previousLabel === null || compared === undefined) return null
+  const wording = WORDING[sport]
+  const change =
+    plottedValue(sport, compared.value, units) - plottedValue(sport, compared.previous, units)
+  const before = plottedValue(sport, compared.previous, units)
+  const amount = Math.round(Math.abs(change))
+  const floor = Math.max(wording.floor(units), Math.abs(before) * MIN_RELATIVE_CHANGE)
+  const against = `the ${lowerFirst(previousLabel)}`
+  if (!(Math.abs(change) > floor) || amount < 1) {
+    return { text: `No clear change against ${against}`, durationS: null }
+  }
+  const better = wording.lowerIsBetter ? change < 0 : change > 0
+  const { unit } = splitValue(formatNative(sport, compared.value, units))
+  return {
+    text: `${effortLabel(compared.durationS)} is ${wording.size(amount, unit)} ${better ? wording.better : wording.worse} than ${against}`,
+    durationS: compared.durationS,
+  }
+}
+
+/**
+ * The effort length the curve's finding cites, when it cites one: the curve then marks it, so the title never
+ * names a length the plot leaves unlabelled. Null for a finding about the best 20 minutes only, or about no effort.
+ */
+export function citedDurationS(input: TakeawayInput): number | null {
+  return comparison(input)?.durationS ?? null
+}
+
 /**
  * The curve's finding, as the sentence its title carries. With a period before, it says how far the 20 minute
  * effort (or the longest effort both periods have measured) moved, when the move clears the floor above, or that
  * there is no clear change. Without one, it names the best, with its level. A carried value is never read
  * as a finding. Null when the curve has no measured effort to name.
  */
-export function curveTakeaway({
-  sport,
-  units,
-  rows,
-  previousLabel,
-  level,
-}: TakeawayInput): string | null {
-  const wording = WORDING[sport]
-  const compared = previousLabel === null ? undefined : comparedRow(rows)
-  if (previousLabel !== null && compared !== undefined) {
-    const change =
-      plottedValue(sport, compared.value, units) - plottedValue(sport, compared.previous, units)
-    const before = plottedValue(sport, compared.previous, units)
-    const amount = Math.round(Math.abs(change))
-    const floor = Math.max(wording.floor(units), Math.abs(before) * MIN_RELATIVE_CHANGE)
-    const against = `the ${lowerFirst(previousLabel)}`
-    if (!(Math.abs(change) > floor) || amount < 1) return `No clear change against ${against}`
-    const better = wording.lowerIsBetter ? change < 0 : change > 0
-    const { unit } = splitValue(formatNative(sport, compared.value, units))
-    return `${effortLabel(compared.durationS)} is ${wording.size(amount, unit)} ${better ? wording.better : wording.worse} than ${against}`
-  }
+export function curveTakeaway(input: TakeawayInput): string | null {
+  const { sport, units, rows, level } = input
+  const compared = comparison(input)
+  if (compared !== null) return compared.text
   const best = bestRow(rows)
   if (best === undefined) return null
   const graded = best.durationS === HEADLINE_DURATION_S && level !== undefined ? `, ${level}` : ''

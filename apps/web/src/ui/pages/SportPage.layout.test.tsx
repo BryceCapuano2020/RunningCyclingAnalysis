@@ -126,10 +126,19 @@ describe('the answer: threshold and level in one card', () => {
         effort: [{ durationS: HEADLINE_DURATION_S, runHrFraction: 0.97, rideHrFraction: null }],
       }),
     )
-    const check = screen.getByText(/reached 97% of your running reference heart rate/).closest('p')!
-    expect(check).toHaveClass('sport-hero__check--hard')
-    expect(check.querySelector('svg')).not.toBeNull()
-    expect(check).toHaveTextContent('so it was hard.')
+    const chip = screen.getByRole('button', {
+      name: 'Hard efforts on file · 97% of reference heart rate',
+    })
+    expect(chip.closest('.chip')).toHaveClass('chip--good')
+    expect(chip.closest('.chip')?.querySelector('svg')).not.toBeNull()
+    expect(screen.getByRole('note')).toHaveTextContent('so it was hard.')
+  })
+
+  it('names the period the threshold is for beside its name, so it is not read against another period’s', () => {
+    renderPage('run', makeResult({ activities: [run()] }))
+    const threshold = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    // renderPage's period is 42 days, the six weeks.
+    expect(threshold.querySelector('.sport-hero__period')).toHaveTextContent('· 6 weeks')
   })
 
   it('shows a recorded run’s level as a dot, with its percent at display size', () => {
