@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { racePredictionsOf } from '../racePredictions'
+import { distanceRecords } from '../records'
 import { RacePredictions } from './RacePredictions'
+import { ranBests } from './raceRan'
 
 const withBests = makeActivity({
   id: 'r1',
@@ -20,8 +22,16 @@ const withBests = makeActivity({
 function renderPredictions(result: AnalysisResult, allTime = false) {
   const found = racePredictionsOf('run', result)
   if (found === null) throw new Error('the result gives no predictions')
-  return render(<RacePredictions sport="run" found={found} units="metric" allTime={allTime} />)
+  // The page hands the section the recorded bests that beat its predictions.
+  const ran = ranBests(found, distanceRecords(result.activities, 'metric').records, RAN_OPENED_AT)
+  return render(
+    <RacePredictions sport="run" found={found} units="metric" allTime={allTime} ran={ran} />,
+  )
 }
+
+/** The day the page opened, and a run the day before it. */
+const RAN_OPENED_AT = new Date(2026, 10, 30, 12).getTime()
+const RAN_AT = new Date(2026, 10, 27, 8).getTime()
 
 /** Opens "About these predictions", as a press on its summary does: the notes mount once it has been opened. */
 function openAbout() {
@@ -252,5 +262,64 @@ describe('RacePredictions', () => {
     renderPredictions(result)
     openAbout()
     expect(screen.getByText(/3 hilly runs left out of the heart-rate side/)).toBeInTheDocument()
+  })
+
+  describe('a recorded best faster than the prediction', () => {
+    // A slow heart-rate estimate pulls the prediction for the 10 km above a 10 km already run in 40:07.
+    const quick = makeActivity({
+      id: 'r3',
+      sport: 'run',
+      startMs: RAN_AT,
+      distanceM: 10_000,
+      distanceBests: [
+        { distanceM: 5000, seconds: 19 * 60 },
+        { distanceM: 10000, seconds: 40 * 60 + 7 },
+      ],
+    })
+    const slowHeartRate = makeResult({
+      activities: [quick],
+      runVo2max: { vo2max: 38, runs: 4, hillCapped: 0 },
+    })
+
+    it('says what was run and when on the row, and marks it as a dot labelled Run on the bar', () => {
+      const found = racePredictionsOf('run', slowHeartRate)!
+      expect(found.races.find((r) => r.distanceM === 10_000)!.seconds).toBeGreaterThan(40 * 60 + 7)
+      const view = renderPredictions(slowHeartRate)
+      const row = Array.from(view.container.querySelectorAll('.race-row')).find(
+        (el) => el.querySelector('.race-row__race')?.textContent === '10 km',
+      )!
+      expect(row.querySelector('.race-row__ran')?.textContent).toBe('You ran 40:07 on 27 Nov')
+      expect(row.querySelector('.race-bar__ran-label')?.textContent).toBe('Run')
+      expect(row.querySelectorAll('.race-bar__ran')).toHaveLength(1)
+      expect(row.querySelector('.race-bar')?.getAttribute('aria-label')).toMatch(
+        /You ran 40:07 on 27 Nov\.$/,
+      )
+      // Placed quicker than the prediction on the bar: left of the prediction's dot.
+      const at = (cls: string) =>
+        Number.parseFloat((row.querySelector(cls) as HTMLElement).style.left)
+      expect(at('.race-bar__ran')).toBeLessThan(at('.race-bar__dot'))
+    })
+
+    it('keys the dot and repeats the run in the table', () => {
+      renderPredictions(slowHeartRate)
+      expect(
+        within(screen.getByRole('list', { name: 'Key' })).getByText(/^Run:/),
+      ).toBeInTheDocument()
+      openAbout()
+      const table = screen.getByRole('table')
+      expect(
+        within(table).getByRole('columnheader', { name: 'Recorded run, faster' }),
+      ).toBeInTheDocument()
+      expect(within(table).getByText('40:07 on 27 Nov')).toBeInTheDocument()
+    })
+
+    it('shows nothing of a run that is not faster than its prediction', () => {
+      const view = renderPredictions(makeResult({ activities: [withBests] }))
+      expect(view.container.querySelector('.race-row__ran')).toBeNull()
+      expect(view.container.querySelector('.race-bar__ran')).toBeNull()
+      expect(screen.queryByText(/^Run:/)).not.toBeInTheDocument()
+      openAbout()
+      expect(screen.queryByRole('columnheader', { name: /Recorded run/ })).not.toBeInTheDocument()
+    })
   })
 })

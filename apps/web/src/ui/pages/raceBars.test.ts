@@ -63,4 +63,14 @@ describe('raceBar', () => {
     const bar = raceBar({ distanceM: 5000, seconds: 1200, low: 1200, high: 1200, methods: [] })
     expect([bar.low, bar.high, bar.prediction].every(Number.isFinite)).toBe(true)
   })
+
+  it('draws a recorded best where it is, quicker than the prediction, and widens the scale for it', () => {
+    const without = raceBar(FIVE_K)
+    expect(without.ran).toBeNull()
+    // 18:00 is quicker than the spread's low end of 19:00, so it sets the left of the scale.
+    const bar = raceBar(FIVE_K, 1080)
+    expect(bar.ran).toBeCloseTo(0.04, 10)
+    expect(bar.ran!).toBeLessThan(bar.low)
+    expect(bar.ran!).toBeLessThan(bar.prediction)
+  })
 })

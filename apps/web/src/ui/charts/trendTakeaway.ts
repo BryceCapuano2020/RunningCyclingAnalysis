@@ -1,7 +1,6 @@
 import type { Sport } from '@rca/core/types'
 import { plural } from '../components/plural'
 import { DAY_MS } from '@rca/core/constants'
-import { MONTHLY_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
 import { formatMonth } from '../format/date'
 import { wholeGrade } from '../gradeFormat'
 import { SPORT_ORDER, SPORT_TITLE } from '../sports'
@@ -27,10 +26,10 @@ const READ: Record<Sport, (row: Row) => Reading | null> = {
       : { endMs: row.endMs, raw: row.ride, low: row.rideLow, high: row.rideHigh },
 }
 
-/** A move that reaches back further than this is dated by its month, a shorter one by its day: 26 weeks. */
-const MONTH_DATED_AFTER_MS = MONTHLY_AFTER_WEEKS * 7 * DAY_MS
+/** A move that reaches back further than this is dated by its month, a shorter one by its day: 52 weeks. */
+const MONTH_DATED_AFTER_MS = 52 * 7 * DAY_MS
 
-/** The day a move is measured from: its month, with the year when it is not the latest one's, or the day on a short span. */
+/** The day a move is measured from: its day within a year ("since 28 Dec"), else its month, with the year when it is not the latest one's. */
 export function sinceLabel(ms: number, latestMs: number): string {
   if (latestMs - ms <= MONTH_DATED_AFTER_MS) return `since ${shortDate(ms)}`
   return `since ${formatMonth(utcDayLocal(ms), utcYear(ms) !== utcYear(latestMs))}`
