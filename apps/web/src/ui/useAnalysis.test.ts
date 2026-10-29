@@ -855,6 +855,28 @@ describe('useAnalysis account handling', () => {
         expect(restarted.posted.at(-1)).toEqual({ type: 'keepProvisional', settings: SETTINGS })
       })
 
+      it('says what was kept once the retries give up, which the wait did not show', () => {
+        const { result, rerender } = setup(UNREACHABLE)
+        finishDeviceLoad()
+        const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 1, rides: 1 }
+        act(() => result.current.addFiles([FILE]))
+        act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+        act(() => result.current.addFiles([FILE]))
+        act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+        expect(result.current.importOutcome).toBeNull()
+
+        rerender({ account: UNAVAILABLE, current: SETTINGS })
+        settle()
+
+        expect(result.current.importOutcome).toEqual({
+          activities: 4,
+          rejected: 0,
+          duplicates: [],
+          runs: 2,
+          rides: 2,
+        })
+      })
+
       it('ignores the kept library’s late replies once a sign-in is found, even if the account fails to load', () => {
         const { result, rerender } = setup(UNREACHABLE)
         act(() => result.current.addFiles([FILE]))

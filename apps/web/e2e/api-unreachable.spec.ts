@@ -44,6 +44,8 @@ test.describe('with the API unreachable', () => {
     await uploadFixtures(page, ['one-run.tcx', 'one-ride.gpx'])
     // Analysed at once, in this session only, while the lookup is still being retried.
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
+    // Nothing is kept in this browser while the lookup may still find a sign-in.
+    expect(await deviceLibraryCount(page)).toBe(0)
     await goTo(page, 'Run')
 
     // Sign-in is reported unavailable at the first failed lookup, so nothing waits on the retries.

@@ -225,6 +225,7 @@ function loadSignedInLibrary(deps: AccountTransitionDeps, userId: string): void 
     deps.transport.sessionEpochRef.current += 1
     deps.library.savedActivitiesRef.current = []
     deps.library.setSavedActivities([])
+    deps.imports.provisionalOutcomeRef.current = null
   }
   if (batches.length > 0 || keptShown) {
     deps.clearSession()

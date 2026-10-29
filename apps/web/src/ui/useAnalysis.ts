@@ -174,6 +174,7 @@ export function useAnalysis(
       const keepsError =
         request.type === 'loadServer' ||
         request.type === 'loadDevice' ||
+        request.type === 'keepProvisional' ||
         request.type === 'exportData' ||
         request.type === 'activitySplits' ||
         request.type === 'activityTrace' ||

@@ -47,6 +47,8 @@ export function useImportState() {
   // Files analysed while the account loads, in this session only. Once the account is known they are
   // sent again, to the account when signed in, or through the signed-out import otherwise.
   const provisionalImportsRef = useRef<File[][]>([])
+  // What those imports reported, added up, for the summary when they are kept as they are.
+  const provisionalOutcomeRef = useRef<ImportOutcome | null>(null)
 
   return {
     state,
@@ -70,6 +72,7 @@ export function useImportState() {
     setRebuildNotice,
     pendingAsyncImportsRef,
     provisionalImportsRef,
+    provisionalOutcomeRef,
   }
 }
 
