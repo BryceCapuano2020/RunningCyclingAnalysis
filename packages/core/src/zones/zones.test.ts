@@ -83,6 +83,41 @@ describe('zonesFor', () => {
     expect(zonesFor('pace', 4)[2]?.low).toBeCloseTo(3.5, 12)
   })
 
+  it('keeps the top pace edge above the threshold speed, at slow thresholds too', () => {
+    const cuts = ZONE_SCHEMES.pace.cuts
+    // 7:34, 7:45, 8:19 and 9:00 /km failed when the edge was moved to the nearest step.
+    for (const seconds of [454, 465, 499, 540]) {
+      const threshold = 1000 / seconds
+      const zones = zonesFor('pace', threshold)
+      expect(zones.at(-1)!.low).toBeGreaterThan(threshold)
+    }
+    for (let seconds = 133; seconds <= 667; seconds++) {
+      const threshold = 1000 / seconds
+      const zones = zonesFor('pace', threshold)
+      const edges = zones.slice(0, -1).map((zone) => zone.high!)
+      expect(edges.at(-1)!).toBeGreaterThan(threshold)
+      edges.forEach((edge, i) => {
+        const cut = threshold * cuts[i]!
+        // Every edge is on the 0.05 m/s grid and the cuts are in order, without a zone of no width.
+        expect(Math.abs(edge / 0.05 - Math.round(edge / 0.05))).toBeLessThan(1e-9)
+        if (i < edges.length - 1) expect(Math.abs(edge - cut)).toBeLessThanOrEqual(0.025 + 1e-9)
+        else expect(edge - cut).toBeLessThan(0.05)
+        if (i > 0) expect(edge).toBeGreaterThan(edges[i - 1]!)
+      })
+    }
+  })
+
+  it('moves power edges by at most 2.5 W', () => {
+    const cuts = ZONE_SCHEMES.power.cuts
+    for (let reference = 80; reference <= 520; reference++) {
+      const zones = zonesFor('power', reference)
+      zones.slice(0, -1).forEach((zone, i) => {
+        expect(zone.high! % 5).toBe(0)
+        expect(Math.abs(zone.high! - reference * cuts[i]!)).toBeLessThanOrEqual(2.5 + 1e-9)
+      })
+    }
+  })
+
   it('leaves no gap or overlap between zones, so every reading is in one zone', () => {
     for (const measure of ['power', 'heartRate', 'pace'] as const) {
       const zones = zonesFor(measure, 123)

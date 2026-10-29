@@ -86,8 +86,10 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
   Heart rate is a whole number, so `zonesFor` cuts its zones on the first whole number at or above the cut (0.6 of 219 bpm is
   131.4, so the zone above starts at 132) and a one-beat bin is never split. Power and pace are moved to the nearest step of their
   bins: power to the nearest 5 W (0.55 of 201 W is 110.55, so 110 W; a threshold of 267 W gives edges at 145, 200, 240, 280, 320 and
-  400 W where whole-watt edges would be 147, 201, 241, 281, 321 and 401), at most 2 W from the cut, and pace to the nearest 0.05 m/s
-  (at most 0.025 m/s, about 2 to 4 s/km at running speeds). An entered threshold is cut the same way. No bin then straddles an
+  400 W where whole-watt edges would be 147, 201, 241, 281, 321 and 401), at most 2.5 W from the cut, and pace to the nearest 0.05 m/s
+  (at most 0.025 m/s: about 3 s/km at a 5:00 /km threshold and up to about 10 s/km at 9:00 /km). The highest pace edge, a hair above the
+  threshold speed, always moves up (by less than 0.05 m/s, up to about 15 s/km at slow thresholds), so the zone above threshold never
+  starts at or below the threshold. An entered threshold is cut the same way. No bin then straddles an
   edge, so the digest places a second in the zone the trace does, and the Profile ranges are written from the same edges.
   (A 5 W bin shared across a whole-watt edge put an hour at 200 W, with an edge at 201 W, 20% in the zone below and 80% above.)
   Every second is kept.

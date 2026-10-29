@@ -48,8 +48,8 @@ describe('zoneRange', () => {
   it('writes run zones as paces, the fast edge first', () => {
     const pace = zonesFor('pace', 1000 / 300)
     expect(zoneRange('pace', pace[0]!, 'metric')).toBe('Slower than 6:25 /km')
-    expect(zoneRange('pace', pace[3]!, 'metric')).toBe('5:00–5:17 /km')
-    expect(zoneRange('pace', pace[4]!, 'metric')).toBe('4:59 /km or faster')
+    expect(zoneRange('pace', pace[3]!, 'metric')).toBe('4:55–5:17 /km')
+    expect(zoneRange('pace', pace[4]!, 'metric')).toBe('4:54 /km or faster')
   })
 
   it('writes paces per mile in imperial units', () => {
@@ -79,8 +79,8 @@ describe('zone ranges do not repeat a shared edge', () => {
       'Slower than 6:25 /km',
       '5:46–6:25 /km',
       '5:18–5:45 /km',
-      '5:00–5:17 /km',
-      '4:59 /km or faster',
+      '4:55–5:17 /km',
+      '4:54 /km or faster',
     ])
   })
 })

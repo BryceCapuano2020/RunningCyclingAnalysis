@@ -1470,7 +1470,7 @@ against the peak-based zones, the same in every period.
 activity's own zones, so a period can hold activities with different zones (a threshold entered during it, or a
 body weight that changed an estimated ride threshold). A heart rate or a power is a whole number, so
 the reference is rounded to the number Profile shows (`zonesAt`: 187.6 bpm is 188 bpm). Heart-rate zones are cut on whole-number edges (`zonesFor`: the first whole number at or above the cut, so 0.6 of 219 bpm is 131.4 and
-the zone above starts at 132), and a bin of one beat is never split. Power edges are moved to the nearest 5 W, the step of the power bins (at most 2 W from the cut; 0.55 of 201 W is 110.55, so 110 W), so no bin straddles an edge. A reading is in the zone it is at or above the floor of
+the zone above starts at 132), and a bin of one beat is never split. Power edges are moved to the nearest 5 W, the step of the power bins (at most 2.5 W from the cut; 0.55 of 201 W is 110.55, so 110 W), so no bin straddles an edge. A reading is in the zone it is at or above the floor of
 and below the ceiling of, as on the activity page, and the Profile ranges are written from the same edges, so they agree. A pace cut is moved to the nearest 0.05 m/s, the step of the speed bins, so no speed bin straddles an edge either. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
 digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms
 (`periodTime.perf.test.ts`).
