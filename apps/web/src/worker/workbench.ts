@@ -1,4 +1,5 @@
 import type { ActivityTrace } from '@rca/core/workbench'
+import { traceQualityOf } from '@rca/core/quality'
 import { activityTraceOf } from '@rca/core/workbench'
 import type { Activity } from '@rca/core/types'
 import { openWorkbenchStore } from './workbenchStore'
@@ -12,6 +13,15 @@ export type ActivityTraceReply =
   | { kind: 'failed' }
 
 const MEMORY_ENTRIES = 4
+
+/**
+ * The trace of an activity with the seconds its quality assessment leaves out, so the zones on its page
+ * count what the sport page's do. An import has digested the activity just before, so the assessment is
+ * already made and a capture stays cheap.
+ */
+function traceOf(activity: Activity): ActivityTrace {
+  return activityTraceOf(activity, traceQualityOf(activity))
+}
 
 /** Estimates output size before activityTraceOf clones any of the source streams. */
 function activityFitsEntry(activity: Activity): boolean {
@@ -40,6 +50,7 @@ function activityFitsEntry(activity: Activity): boolean {
     activity.paused.byteLength +
     n +
     n * 4 * streamCount +
+    3 * n +
     (activity.cadenceUnit?.length ?? 0) * 2 +
     (activity.laps ?? []).reduce((sum, lap) => sum + 32 + (lap.label?.length ?? 0) * 2, 0)
   return bytes <= WORKBENCH_ENTRY_BYTES
@@ -89,7 +100,7 @@ export class Workbench {
   async capture(activity: Activity, scope: TraceScope): Promise<ActivityTrace | null> {
     try {
       if (!activityFitsEntry(activity)) return null
-      const trace = activityTraceOf(activity)
+      const trace = traceOf(activity)
       if (activityTraceBytes(trace) > WORKBENCH_ENTRY_BYTES) return null
       const before = await this.deleted(scope)
       if (before === true) return null
@@ -121,7 +132,7 @@ export class Workbench {
   captureMemory(activity: Activity, scope: TraceScope): void {
     try {
       if (!activityFitsEntry(activity)) return
-      const trace = activityTraceOf(activity)
+      const trace = traceOf(activity)
       if (activityTraceBytes(trace) <= WORKBENCH_ENTRY_BYTES)
         this.remember(scope, trace, 'memory', activity.startMs)
     } catch {

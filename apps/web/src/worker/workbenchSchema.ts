@@ -138,6 +138,7 @@ export function activityTraceBytes(trace: ActivityTrace): number {
     trace.distance.byteLength +
     trace.paused.byteLength +
     trace.unrecorded.byteLength +
+    Object.values(trace.unusable ?? {}).reduce((sum, mask) => sum + mask.byteLength, 0) +
     Object.values(trace.streams).reduce((sum, stream) => sum + (stream?.byteLength ?? 0), 0) +
     (trace.cadenceUnit?.length ?? 0) * 2 +
     trace.laps.reduce((sum, lap) => sum + 32 + (lap.label?.length ?? 0) * 2, 0)

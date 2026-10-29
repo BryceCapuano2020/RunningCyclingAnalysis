@@ -1111,7 +1111,7 @@ has readings for, a lede for the first of them in that order ("Most of this run 
 each zone's name, range, time and share. The zones are those in effect on the activity's day (`zonesAt`), so an
 entered setting that changed since is not applied backwards. Each recorded moving second counts once, in the zone
 of its reading, and a run's slow seconds count in the lowest pace zone, as in the digests behind the sport page, so a
-whole-activity interval matches it. A ride's estimated power zones wait for the body weight, as on Profile, and a heart rate the
+whole-activity interval matches it. A reading the quality assessment left out (a flagged heart-rate spike and its margin) is left out of both. A ride's estimated power zones wait for the body weight, as on Profile, and a heart rate the
 analysis of the whole library set aside is not read, and the block says so ("Heart rate is set aside for this activity, so it
 is left out of zones.") instead of asking for zones. With no zones the block says what they need and links to Profile.
 

@@ -47,6 +47,18 @@ describe('workbench evidence cache', () => {
     expect(await workbench.get({ kind: 'account', userId: 'alice' }, first.id)).toEqual(trace)
   })
 
+  it('keeps the seconds the quality assessment left out, for the zones on the activity page', async () => {
+    const heartRate = new Float64Array(first.n).fill(150)
+    heartRate[60] = 240
+    const { store } = memoryStore()
+    const workbench = new Workbench(store)
+    const trace = await workbench.capture(
+      { ...first, hasHeartRate: true, heartRate },
+      { kind: 'device' },
+    )
+    expect(trace?.unusable?.heartRate?.[60]).toBe(1)
+  })
+
   it('bounds each cached trace and drops the oldest memory entries', async () => {
     const { store } = memoryStore()
     const workbench = new Workbench(store)

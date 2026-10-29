@@ -1,3 +1,4 @@
+import { digestActivity } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { describe, expect, it } from 'vitest'
@@ -7,7 +8,7 @@ import type { WorkbenchStore } from './workbenchStore'
 /**
  * Every activity an import keeps is captured as a trace, one at a time, before the next is read. Apart
  * from storage, which a browser times, a capture of one of the sample's activities, about 77 minutes
- * each, takes about 25 microseconds locally, so 200 take about 5 ms. The budget is six times that, so a
+ * each, takes about 40 microseconds locally, so 200 take about 8 ms. The budget is nearly four times that, so a
  * check or copy added to each capture, or a read of the whole library to make room, fails it while a
  * loaded runner does not.
  */
@@ -29,6 +30,8 @@ describe('workbench capture performance', () => {
   const activities = sampleDataset().activities
 
   it(`captures ${CAPTURES} activities in under ${BUDGET_MS} ms`, async () => {
+    // An import digests an activity before it keeps its trace, and the trace takes the digest's quality masks.
+    for (const activity of activities) digestActivity(activity)
     const workbench = new Workbench(NOWHERE)
     let fastest = Infinity
     let captured = 0

@@ -1,6 +1,7 @@
+import type { TraceQuality } from '../quality/traceQuality'
 import type { Activity } from '../types'
 import { isSport } from './sportTrace'
-import type { ActivityLap, ActivityTrace, TraceMetric } from './types'
+import type { ActivityLap, ActivityTrace, MaskedMetric, TraceMetric } from './types'
 
 export const MAX_TRACE_DURATION_S = 48 * 60 * 60
 
@@ -13,8 +14,13 @@ const METRICS: readonly TraceMetric[] = [
   'temperature',
 ]
 
-/** A detail trace built from recorded activity streams, without derived virtual power. */
-export function activityTraceOf(activity: Activity): ActivityTrace {
+const MASKED_METRICS: readonly MaskedMetric[] = ['speed', 'heartRate', 'power']
+
+/**
+ * A detail trace built from recorded activity streams, without derived virtual power. Given the
+ * activity's quality assessment, it also carries the seconds the assessment left out.
+ */
+export function activityTraceOf(activity: Activity, quality?: TraceQuality): ActivityTrace {
   const n = activity.n
   const streams: Partial<Record<TraceMetric, Float32Array>> = {
     // With neither speed nor distance recorded the speed is a synthesized zero, which is not data.
@@ -25,6 +31,7 @@ export function activityTraceOf(activity: Activity): ActivityTrace {
     ...(activity.cadence === undefined ? {} : { cadence: activity.cadence.slice() }),
     ...(activity.temperature === undefined ? {} : { temperature: activity.temperature.slice() }),
   }
+  const unusable = quality === undefined ? {} : unusableOf(streams, quality, n)
   return {
     version: 1,
     activityId: activity.id,
@@ -38,14 +45,49 @@ export function activityTraceOf(activity: Activity): ActivityTrace {
     paused: activity.paused.slice(),
     unrecorded: activity.unrecorded?.slice() ?? new Uint8Array(n),
     streams,
+    ...(Object.keys(unusable).length === 0 ? {} : { unusable }),
     laps: normalizeLaps(activity.laps ?? [], n),
   }
+}
+
+/** The seconds with a reading that the assessment left out, per stream; streams without any are left out. */
+function unusableOf(
+  streams: Partial<Record<TraceMetric, Float32Array>>,
+  quality: TraceQuality,
+  n: number,
+): Partial<Record<MaskedMetric, Uint8Array>> {
+  const valid: Record<MaskedMetric, Uint8Array> = {
+    speed: quality.validMotion,
+    heartRate: quality.validHeartRate,
+    power: quality.validPower,
+  }
+  const out: Partial<Record<MaskedMetric, Uint8Array>> = {}
+  for (const metric of MASKED_METRICS) {
+    const stream = streams[metric]
+    if (stream === undefined) continue
+    // Most activities have no left-out second, and the native search finds that without a pass of our own.
+    const first = valid[metric].indexOf(0)
+    if (first < 0) continue
+    const mask = new Uint8Array(n)
+    let any = false
+    for (let i = first; i < n; i++) {
+      if (valid[metric][i] === 0 && Number.isFinite(stream[i]!)) {
+        mask[i] = 1
+        any = true
+      }
+    }
+    if (any) out[metric] = mask
+  }
+  return out
 }
 
 /** The stream as Float32, with a value too large for Float32 (which would cast to Infinity) missing. */
 function float32Of(values: Float64Array): Float32Array {
   const out = Float32Array.from(values)
-  for (let i = 0; i < out.length; i++) if (!Number.isFinite(out[i]!)) out[i] = NaN
+  // The native search finds that almost every stream has none, without a pass of our own.
+  if (out.includes(Infinity) || out.includes(-Infinity)) {
+    for (let i = 0; i < out.length; i++) if (!Number.isFinite(out[i]!)) out[i] = NaN
+  }
   return out
 }
 
@@ -105,6 +147,8 @@ export function parseActivityTrace(value: unknown): ActivityTrace | null {
     }
     cleanStreams[metric] = stream.slice()
   }
+  const unusable = parseUnusable(value.unusable, durationS as number)
+  if (unusable === null) return null
   const cleanLaps = parseLaps(laps, durationS as number)
   if (cleanLaps === null) return null
   return {
@@ -117,8 +161,26 @@ export function parseActivityTrace(value: unknown): ActivityTrace | null {
     paused: paused.slice(),
     unrecorded: unrecorded.slice(),
     streams: cleanStreams,
+    ...(Object.keys(unusable).length === 0 ? {} : { unusable }),
     laps: cleanLaps,
   }
+}
+
+/** The masks of a stored trace, or null when one is malformed. Absent means none. */
+function parseUnusable(
+  value: unknown,
+  durationS: number,
+): Partial<Record<MaskedMetric, Uint8Array>> | null {
+  if (value === undefined) return {}
+  if (!isObject(value)) return null
+  const out: Partial<Record<MaskedMetric, Uint8Array>> = {}
+  for (const key of Object.keys(value)) {
+    if (!MASKED_METRICS.includes(key as MaskedMetric)) return null
+    const mask = value[key]
+    if (!(mask instanceof Uint8Array) || mask.length !== durationS || !validMask(mask)) return null
+    out[key as MaskedMetric] = mask.slice()
+  }
+  return out
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

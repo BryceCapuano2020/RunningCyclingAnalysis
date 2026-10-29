@@ -13,7 +13,7 @@ import { mean } from '../math'
 import { MIN_RUN_SPEED_MS, runMetabolicPower, smoothGrade, travelledDistance } from '../metabolic'
 import { runSplits } from '../splits/splits'
 import { airDensityStream } from '../physics/air'
-import { assessQuality } from '../quality'
+import { assessQuality, rememberTraceQuality } from '../quality'
 import { agreedStreams } from '../quality/agreement'
 import type {
   Activity,
@@ -320,6 +320,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
     activity.paused,
     streams.speed,
   )
+  rememberTraceQuality(activity, quality)
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.
   const grade = rawGrade.map((g) => (Number.isNaN(g) ? 0 : g))
