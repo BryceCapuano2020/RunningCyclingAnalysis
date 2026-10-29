@@ -1,91 +1,171 @@
-import type { MethodTime, RacePrediction, RunPredictions } from '@rca/core/predict'
+import type { PredictionMethod, RacePrediction, RunPredictions } from '@rca/core/predict'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatRecordTime } from '@rca/core/units'
-import { plural } from '../components/plural'
 import { METHOD_NAME, METHOD_SHORT, RACE_PREDICTIONS_NAME, raceName } from '../racePredictions'
+import { Definition } from '../components/Definition'
+import { DEFINITIONS } from './balanceDefinitions'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
+import { methodNote, originText, predictionsLede, spreadText } from './racePredictionCopy'
+import { raceBar } from './raceBars'
 import './RacePredictions.css'
 
-/** VO2max figures differ by more than this share before the note says the two estimates disagree. */
-const DISAGREE_SHARE = 0.1
-
-/** The range under a prediction, from its 10th to 90th percentile. */
-function rangeText(prediction: RacePrediction): string {
-  return `range ${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
+/**
+ * Which side of the bar each method's triangle sits on: the athlete's runs point down from above, the heart
+ * rate points up from below, so two estimates that agree still show as two marks.
+ */
+const MARK_SIDE: Record<PredictionMethod, 'above' | 'below'> = {
+  performances: 'above',
+  heartRate: 'below',
 }
 
-/** Each estimate in a few words, such as "runs 20:25 · heart rate 16:54"; null for one estimate. */
-function estimatesText(prediction: RacePrediction): string | null {
-  if (prediction.methods.length < 2) return null
-  return prediction.methods
-    .map((m) => `${METHOD_SHORT[m.method]} ${formatRecordTime(m.seconds)}`)
-    .join(' · ')
+/** Each method's entry in the key, in the words a reader of the bars uses. */
+const KEY_NAME: Record<PredictionMethod, string> = {
+  performances: 'From your runs',
+  heartRate: METHOD_NAME.heartRate,
 }
 
-/** Where one estimate came from, such as "From your best runs: 20:25, carried from your best 10 km". */
-function originText(method: MethodTime, vo2max: number | null): string {
-  const time = formatRecordTime(method.seconds)
-  if (method.method === 'heartRate') {
-    return `${METHOD_NAME.heartRate}: ${time}, at a VO2max of ${Math.round(vo2max ?? 0)}`
-  }
-  return `${METHOD_NAME.performances}: ${time}, carried from your best ${raceName(method.fromM).toLowerCase()}`
+/** What a bar says to a screen reader: the time, its spread and each estimate. */
+function barLabel(prediction: RacePrediction): string {
+  const estimates = prediction.methods
+    .map((m) => `${METHOD_NAME[m.method].toLowerCase()} ${formatRecordTime(m.seconds)}`)
+    .join(', ')
+  return `${raceName(prediction.distanceM)} predicted ${formatRecordTime(prediction.seconds)}, assumed spread ${spreadText(prediction)}${estimates ? `. ${estimates}` : ''}.`
 }
 
-/** A sentence when the runs and the heart rate point to different fitness, or nothing. */
-function disagreement(runsVdot: number | null, vo2max: number): string {
-  if (runsVdot === null || Math.abs(vo2max / runsVdot - 1) <= DISAGREE_SHARE) return ''
-  const [high, low] = vo2max > runsVdot ? [vo2max, runsVdot] : [runsVdot, vo2max]
-  const which =
-    vo2max > runsVdot
-      ? 'Your heart rate points to more than your best runs show'
-      : 'Your best runs show more than your heart rate suggests'
-  return ` ${which} (about ${Math.round(high)} against ${Math.round(low)} in VO2max terms), so the range is wide. Best runs that were not all-out, and hills, both widen it; an all-out 5 km on the flat would show which is nearer.`
-}
-
-/** What All time's predictions are of: the best period in the files, which a shorter period would not be. */
-const ALL_TIME_NOTE =
-  ' In All time they reflect your best period. A shorter period shows your recent form.'
-
-/** How the predictions were reached, from the sources the result could use. */
-function methodNote({ races, runsVdot, vo2max }: RunPredictions, allTime: boolean): string {
-  const fromRuns = races.some((race) => race.methods.some((m) => m.method === 'performances'))
-  const flat = 'for a flat course on a good day'
-  const when = allTime ? ALL_TIME_NOTE : ''
-  const times = allTime ? 'your best times on file' : 'your best times in this period'
-  if (!fromRuns || vo2max === null) {
-    return `From ${fromRuns ? times : 'your heart rate against pace'} alone, ${flat}.${when}`
-  }
-  const capped =
-    vo2max.hillCapped > 0
-      ? ` ${plural(vo2max.hillCapped, 'hilly run')} left out of the heart-rate side, since ${vo2max.hillCapped === 1 ? 'its' : 'their'} flat-equivalent pace beat your fastest mile.`
-      : ''
-  return `Each sits in the middle of two estimates: ${times}, carried to the distance, and the times a VO2max of ${Math.round(vo2max.vo2max)} would run, from your heart rate against pace on ${plural(vo2max.runs, 'hard run')}. Both allow for your weekly distance in the marathon, ${flat}.${capped}${disagreement(runsVdot, vo2max.vo2max)}${when}`
-}
-
-/** One race: its name and pace, then the predicted time, its range and the two estimates. */
-function RaceRow({ prediction, units }: { prediction: RacePrediction; units: UnitSystem }) {
-  const estimates = estimatesText(prediction)
+/**
+ * One race as a bar: the assumed spread as a rounded band between two caps with its ends printed, the
+ * prediction as a ring on it, and each estimate as a triangle above or below. A dot and two triangles say
+ * what a column of digits would, at a glance, so the time at the right is the answer and the bar is its
+ * evidence. The drawing is one image with the words above as its name; the table in the disclosure repeats it.
+ */
+function RaceBar({ prediction }: { prediction: RacePrediction }) {
+  const bar = raceBar(prediction)
   return (
-    <tr>
-      <th scope="row">
-        <span className="race-table__name">{raceName(prediction.distanceM)}</span>
-        <span className="race-table__sub muted">
+    <div className="race-bar" role="img" aria-label={barLabel(prediction)}>
+      <span className="race-bar__end race-bar__end--low" style={{ left: `${bar.low * 100}%` }}>
+        {formatRecordTime(prediction.low)}
+      </span>
+      <span
+        className="race-bar__band"
+        style={{ left: `${bar.low * 100}%`, right: `${(1 - bar.high) * 100}%` }}
+      />
+      <span className="race-bar__cap" style={{ left: `${bar.low * 100}%` }} />
+      <span className="race-bar__cap" style={{ left: `${bar.high * 100}%` }} />
+      {bar.methods.map((mark) => (
+        <span
+          key={mark.method}
+          className={`race-bar__mark race-bar__mark--${MARK_SIDE[mark.method]}`}
+          style={{ left: `${mark.at * 100}%` }}
+        />
+      ))}
+      <span className="race-bar__dot" style={{ left: `${bar.prediction * 100}%` }} />
+      <span className="race-bar__end race-bar__end--high" style={{ left: `${bar.high * 100}%` }}>
+        {formatRecordTime(prediction.high)}
+      </span>
+    </div>
+  )
+}
+
+/** One race: its name and pace on the left, its bar between, its time at display size on the right. */
+function RaceRow({ prediction, units }: { prediction: RacePrediction; units: UnitSystem }) {
+  return (
+    <li className="race-row">
+      <p className="race-row__name">
+        <span className="race-row__race">{raceName(prediction.distanceM)}</span>
+        <span className="race-row__pace">
           {formatPace(prediction.distanceM / prediction.seconds, units)}
         </span>
-      </th>
-      <td className="num">
-        <span className="race-table__time">{formatRecordTime(prediction.seconds)}</span>
-        <span className="race-table__sub muted">{rangeText(prediction)}</span>
-        {estimates && <span className="race-table__sub muted">{estimates}</span>}
-      </td>
-    </tr>
+      </p>
+      <RaceBar prediction={prediction} />
+      <p className="race-row__time">{formatRecordTime(prediction.seconds)}</p>
+    </li>
+  )
+}
+
+/** The key above the bars, with each shape drawn as it is on a bar; the heart-rate entry names its VO2max. */
+function RaceKey({ found }: { found: RunPredictions }) {
+  const used = new Set(found.races.flatMap((race) => race.methods.map((m) => m.method)))
+  const heartRate = `${KEY_NAME.heartRate}${found.vo2max ? ` (VO2max ${Math.round(found.vo2max.vo2max)})` : ''}`
+  const entries: { shape: string; text: string }[] = [
+    { shape: 'dot', text: 'Prediction' },
+    ...(used.has('performances') ? [{ shape: 'above', text: KEY_NAME.performances }] : []),
+    ...(used.has('heartRate') ? [{ shape: 'below', text: heartRate }] : []),
+    { shape: 'band', text: 'Assumed spread' },
+  ]
+  return (
+    <ul className="race-key" aria-label="Key">
+      {entries.map(({ shape, text }) => (
+        <li key={shape} className="race-key__entry">
+          <span className={`race-key__shape race-key__shape--${shape}`} aria-hidden="true" />
+          {shape === 'band' ? (
+            <Definition meaning={DEFINITIONS.assumedSpread}>{text}</Definition>
+          ) : (
+            text
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** The same figures as a table, for a screen reader and for reading exact times: behind the disclosure. */
+function RaceTable({ found, units }: { found: RunPredictions; units: UnitSystem }) {
+  return (
+    <div className="table-scroll">
+      <table className="race-table">
+        <caption className="sr-only">
+          Race predictions with their assumed spread and each estimate
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Race</th>
+            <th scope="col" className="num">
+              Pace
+            </th>
+            <th scope="col" className="num">
+              Predicted
+            </th>
+            <th scope="col" className="num">
+              Assumed spread
+            </th>
+            {(['performances', 'heartRate'] as const).map((method) => (
+              <th key={method} scope="col" className="num">
+                {METHOD_NAME[method]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {found.races.map((prediction) => (
+            <tr key={prediction.distanceM}>
+              <th scope="row">{raceName(prediction.distanceM)}</th>
+              <td className="num">
+                {formatPace(prediction.distanceM / prediction.seconds, units)}
+              </td>
+              <td className="num">{formatRecordTime(prediction.seconds)}</td>
+              <td className="num">{spreadText(prediction)}</td>
+              {(['performances', 'heartRate'] as const).map((method) => {
+                const own = prediction.methods.find((m) => m.method === method)
+                return (
+                  <td key={method} className="num">
+                    {own ? formatRecordTime(own.seconds) : '—'}
+                    <span className="sr-only">{` ${METHOD_SHORT[method]}`}</span>
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
 /**
- * A sport's race predictions, as racePredictionsOf found them: each race's predicted time and pace, its
- * range and the two estimates it sits between, and how they were reached.
+ * A sport's race predictions, as racePredictionsOf found them: each race as a bar of its assumed spread with
+ * the prediction on it and the two estimates it sits between. How they were reached, where each estimate
+ * came from and the figures as a table are in "About these predictions".
  */
 export function RacePredictions({
   sport,
@@ -101,25 +181,20 @@ export function RacePredictions({
 }) {
   const headingId = `${sport}-races`
   return (
-    <section className="section" aria-labelledby={headingId}>
-      <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
-      <table className="race-table">
-        <thead>
-          <tr>
-            <th scope="col">Race and pace</th>
-            <th scope="col" className="num">
-              Predicted
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {found.races.map((prediction) => (
-            <RaceRow key={prediction.distanceM} prediction={prediction} units={units} />
-          ))}
-        </tbody>
-      </table>
-      <p className="muted">{methodNote(found, allTime)}</p>
-      <EvidenceDisclosure section="the race predictions">
+    <section className="section race-predictions" aria-labelledby={headingId}>
+      <div className="section-head">
+        <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
+        <p className="secondary">{predictionsLede(found, allTime)}</p>
+      </div>
+      <RaceKey found={found} />
+      <ul className="race-rows">
+        {found.races.map((prediction) => (
+          <RaceRow key={prediction.distanceM} prediction={prediction} units={units} />
+        ))}
+      </ul>
+      <EvidenceDisclosure section="the race predictions" label="About these predictions">
+        <p className="muted">{methodNote(found, allTime)}</p>
+        <RaceTable found={found} units={units} />
         <ul className="race-origins">
           {found.races.map((prediction) => (
             <li key={prediction.distanceM}>

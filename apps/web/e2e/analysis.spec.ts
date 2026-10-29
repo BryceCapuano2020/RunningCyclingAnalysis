@@ -328,7 +328,7 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
 
   await page
     .getByRole('region', { name: 'Best efforts' })
-    .locator('a.records__link')
+    .locator('a.record-tiles__link, .record-tiles__shared a')
     .first()
     .click()
 
@@ -339,6 +339,24 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
       .getByRole('link', { name: 'Run', exact: true }),
   ).toHaveClass(/header__tab--current/)
   await expect(page.getByRole('link', { name: 'Back to Run', exact: true })).toBeVisible()
+})
+
+test('the sport page opens a closed section from "On this page", and says what it found when closed', async ({
+  page,
+}) => {
+  await openSample(page)
+  await goTo(page, 'Run')
+  const nav = page.getByRole('navigation', { name: 'On this page' })
+  await expect(nav).toBeVisible()
+  // A closed section says its name and finding on its row, before it is opened.
+  const all = page.getByRole('region', { name: 'All best efforts' })
+  await expect(all.locator('summary')).toContainText(/\d+ best efforts with their levels/)
+  await expect(all.locator('details')).not.toHaveAttribute('open', '')
+  await nav.getByRole('button', { name: 'All best efforts' }).click()
+  await expect(all.locator('details')).toHaveAttribute('open', '')
+  await expect(all.locator('ul.records')).toBeVisible()
+  // The address is the page's own: pressing the row did not move the app's hash route.
+  await expect(page).toHaveURL(/#\/run$/)
 })
 
 /**

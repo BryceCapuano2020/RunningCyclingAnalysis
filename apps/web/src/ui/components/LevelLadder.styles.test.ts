@@ -8,8 +8,8 @@ const forced = css.slice(css.indexOf('@media (forced-colors: active)'))
 
 describe('Level ladder track and marker', () => {
   it('sets a track and a marker of fixed height, so the bar does not grow with the width', () => {
-    expect(ruleBody(css, '.level-ladder')).toMatch(/--level-track:\s*1rem/)
-    expect(ruleBody(css, '.level-ladder')).toMatch(/--level-marker:\s*1\.25rem/)
+    expect(ruleBody(css, '.level-ladder')).toMatch(/--level-track:\s*2rem/)
+    expect(ruleBody(css, '.level-ladder')).toMatch(/--level-marker:\s*1\.5rem/)
     expect(ruleBody(css, '.level-ladder__track')).toMatch(/height:\s*var\(--level-track\)/)
   })
 
@@ -22,6 +22,16 @@ describe('Level ladder track and marker', () => {
   it('clips the bands to the rounded track, so the squared band ends stay inside its curve', () => {
     expect(ruleBody(css, '.level-ladder__fill')).toMatch(/overflow:\s*hidden/)
     expect(ruleBody(css, '.level-ladder__fill')).toMatch(/border-radius:\s*inherit/)
+  })
+})
+
+describe('Level ladder bands', () => {
+  it('washes each band in its own neutral level step, so a level is never a sport colour', () => {
+    for (const step of [1, 2, 3, 4, 5]) {
+      expect(ruleBody(css, `.level-ladder__band--${step}`)).toMatch(
+        new RegExp(`background:\\s*var\\(--level-${step}\\)`),
+      )
+    }
   })
 })
 

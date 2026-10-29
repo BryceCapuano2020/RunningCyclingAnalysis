@@ -8,6 +8,7 @@ import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { Sport } from '@rca/core/types'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { lateEvidenceFor } from '../lateFixtures'
+import { closedRow, openSection } from '../test/openSection'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)
@@ -52,27 +53,49 @@ const notEnough = () => {
 
 describe('late in long sessions on a sport page', () => {
   it.each(['run', 'ride'] as const)(
-    'leads with both ledes and draws both charts on a %s page',
+    'is closed on a %s page, and its row says what it found: the stat and what drift did',
     (sport) => {
       renderPage(sport, lateEvidenceFor(sport))
-      const section = screen.getByRole('region', { name: 'Late in long sessions' })
+      const row = closedRow('Late in long sessions')
+      expect(row).toMatch(/^Late in long sessions/)
+      expect(row).toMatch(
+        /Held \d+% of output after 90 min; output per heartbeat fell 3% from the first half to the second/,
+      )
       expect(
-        within(section).getByText(
-          /^After 90 min your best 20 min is \d+% below your best 20 min overall\.$/,
+        screen.getByRole('region', { name: 'Late in long sessions' }).querySelector('details'),
+      ).not.toHaveAttribute('open')
+      // Nothing is drawn while it is closed.
+      expect(
+        within(screen.getByRole('region', { name: 'Late in long sessions' })).queryAllByRole(
+          'figure',
         ),
-      ).toBeInTheDocument()
-      expect(
-        within(section).getByText(/over an hour, your output per heartbeat fell 3%/),
-      ).toBeInTheDocument()
-      expect(within(section).getAllByRole('figure')).toHaveLength(2)
+      ).toHaveLength(0)
       expect(notEnough().filter((line) => line.startsWith('Late in long sessions'))).toEqual([])
     },
   )
 
-  it('keeps the activity count out of the lede', () => {
+  it.each(['run', 'ride'] as const)(
+    'draws both charts, each titled by its finding, once it is opened on a %s page',
+    (sport) => {
+      renderPage(sport, lateEvidenceFor(sport))
+      const section = openSection('Late in long sessions')
+      const figures = within(section).getAllByRole('figure')
+      expect(figures).toHaveLength(2)
+      expect(figures[0]).toHaveAccessibleDescription(/^Held \d+% of output after 90 min$/)
+      expect(figures[1]).toHaveAccessibleDescription(
+        /over an hour, your output per heartbeat fell 3%/,
+      )
+      expect(
+        within(section).getByText(
+          /After 90 min your best 20 min is \d+% below your best 20 min overall\./,
+        ),
+      ).toBeInTheDocument()
+    },
+  )
+
+  it('keeps the activity count out of the stat', () => {
     renderPage('ride', lateEvidenceFor('ride'))
-    const lede = screen.getByText(/^After 90 min your best 20 min/)
-    expect(lede.textContent).not.toMatch(/\d+ rides/)
+    expect(closedRow('Late in long sessions')).not.toMatch(/\d+ rides/)
   })
 
   it('shows the durability alone, and asks for steady efforts with heart rate, when drift is short', () => {
@@ -80,7 +103,9 @@ describe('late in long sessions on a sport page', () => {
       ...lateEvidenceFor('run'),
       drift: lateEvidenceFor('run').drift.slice(0, 2),
     })
-    const section = screen.getByRole('region', { name: 'Late in long sessions' })
+    expect(closedRow('Late in long sessions')).toMatch(/Held \d+% of output after 90 min$/)
+    expect(closedRow('Late in long sessions')).not.toMatch(/heartbeat/)
+    const section = openSection('Late in long sessions')
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(notEnough()).toContain(
       'Late in long sessions: needs 3 steady runs over an hour with heart rate to show how output per heartbeat changes.',
@@ -89,7 +114,10 @@ describe('late in long sessions on a sport page', () => {
 
   it('shows the drift alone when no late best has enough activities behind it', () => {
     renderPage('ride', { ...lateEvidenceFor('ride'), durability: NO_LATE_EVIDENCE.ride.durability })
-    const section = screen.getByRole('region', { name: 'Late in long sessions' })
+    expect(closedRow('Late in long sessions')).toMatch(
+      /^Late in long sessions\s*Output per heartbeat fell 3%/,
+    )
+    const section = openSection('Late in long sessions')
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(within(section).queryByText(/overall/)).toBeNull()
     expect(notEnough()).toContain(
@@ -97,20 +125,21 @@ describe('late in long sessions on a sport page', () => {
     )
   })
 
-  it('has no heading, and says what it needs in the list, with nothing to show', () => {
+  it('has no row, and says what it needs in the list, with nothing to show', () => {
     renderPage('ride', NO_LATE_EVIDENCE.ride)
-    expect(screen.queryByRole('heading', { name: 'Late in long sessions' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Late in long sessions' })).toBeNull()
     expect(notEnough()).toContain(
       'Late in long sessions: add 3 rides longer than an hour with a power meter. Needs 3 steady rides over an hour with a power meter and heart rate to show how output per heartbeat changes.',
     )
   })
 
-  it('is the last section, after the same heart rate', () => {
+  it('is closed, after the same heart rate in the page’s order', () => {
     renderPage('run', lateEvidenceFor('run'))
     const names = screen
-      .getAllByRole('heading', { level: 2 })
-      .map((h) => h.textContent)
-      .filter((name) => name !== 'Not enough yet')
-    expect(names.at(-1)).toBe('Late in long sessions')
+      .getAllByRole('region')
+      .map((region) => region.getAttribute('aria-label'))
+      .filter((name) => name !== null)
+    expect(names.indexOf('Late in long sessions')).toBeGreaterThan(-1)
+    expect(names.indexOf('Late in long sessions')).toBeLessThan(names.indexOf('All best efforts'))
   })
 })

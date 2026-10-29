@@ -1,11 +1,13 @@
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { SportIcon } from '../components/icons'
 import { countSport } from '../records'
+import { formLine } from '../sportForm'
 import { SPORT_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
+import { SectionNav } from './SectionNav'
 import { SportAnswer } from './SportAnswer'
 import type { SportPageProps } from './sportPageProps'
-import { sectionsOf } from './sportSections'
+import { layoutOf } from './sportSections'
 import './SportPage.css'
 
 export type { SportPageProps } from './sportPageProps'
@@ -28,34 +30,46 @@ function NotEnoughYet({ lacks }: { lacks: readonly string[] }) {
 }
 
 /**
- * One sport's page: the answer, the period control under it, then the sport's sections in the order its
- * list in sportSections gives. A section with nothing to show leaves no heading; its reason is in the list
- * at the end.
+ * One sport's page: the answer, the period control under it, a row that jumps to each section, then the sections
+ * as the rows of its list in sportSections give: the open ones, then the closed ones, each of which says its
+ * finding on its closed row. A section with nothing to show leaves no card; its reason is in the list at the end.
  */
 export function SportPage(props: SportPageProps) {
-  const { sport, result, weighted, controls, footnote = null, inLibrary } = props
+  const { sport, result, weighted, controls, footnote = null, inLibrary, units } = props
   const count = countSport(result.activities, sport)
   // The time the page was opened at, read once so a later render does not move a record's age.
   const [openedAt] = useState(() => Date.now())
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
-  const sections = held || count === 0 ? [] : sectionsOf(sport, { ...props, count, openedAt })
+  const { rows, nav, lacks } =
+    held || count === 0
+      ? { rows: [], nav: [], lacks: [] }
+      : layoutOf(sport, { ...props, count, openedAt })
+  const form = count === 0 ? null : formLine(result.activities, sport, units, openedAt)
   return (
-    <div className="page-stack">
+    <div className="page-stack sport-page" data-sport={sport}>
       <div className="page-head">
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="sport-page__title">
           <SportIcon sport={sport} />
           {SPORT_LABEL[sport]}
         </h1>
+        {form && !held && <p className="muted sport-page__form">{form}</p>}
       </div>
       {/* The answer is one slot, and the period control the next child in every state, so the control keeps
           its parent and place, and its focus, when a pick takes the sport to or from zero activities. */}
       <SportAnswer {...props} count={count} held={held} />
       {inLibrary > 0 ? controls : null}
-      {sections.map(({ id, content }) => (
-        <Fragment key={id}>{content}</Fragment>
+      <SectionNav items={nav} />
+      {rows.map(({ key, cells }) => (
+        <div key={key} className={cells.length > 1 ? 'sport-row sport-row--pair' : 'sport-row'}>
+          {cells.map(({ id, node }) => (
+            <div key={id} className="sport-row__cell">
+              {node}
+            </div>
+          ))}
+        </div>
       ))}
-      <NotEnoughYet lacks={sections.flatMap(({ lack }) => (lack === null ? [] : [lack]))} />
+      <NotEnoughYet lacks={lacks} />
       {footnote}
     </div>
   )

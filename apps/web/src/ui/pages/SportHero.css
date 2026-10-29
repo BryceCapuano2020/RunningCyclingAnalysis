@@ -1,0 +1,189 @@
+/*
+ * The sport page's answer: the threshold at display size on the left, the level of the best 20 minutes on
+ * the right, in one card. Below 1080 px the two stack, the threshold first, so it keeps the first screen.
+ */
+.sport-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface-1);
+  background-image: radial-gradient(
+    56rem 20rem at 0% 0%,
+    var(--sport-colour-soft),
+    transparent 70%
+  );
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.sport-hero__panel {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5) var(--space-4);
+}
+
+.sport-hero__levelpanel {
+  border-top: 1px solid var(--border);
+}
+
+.sport-hero__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sport-hero__eyebrow {
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* The chip is the Balance tile's, so a threshold says what it is the same way on both pages; it sits beside its name, not at the far edge. */
+.sport-hero__head .stat-tile__basis {
+  margin-left: 0;
+}
+
+/* The figure: the display face, with its unit and any second reading smaller beside it. */
+.sport-hero__figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.sport-hero__number {
+  color: var(--text-primary);
+  /* A display size with no type token; see DESIGN.md, Type. */
+  font-family: var(--font-display);
+  font-size: clamp(5.5rem, 26vw, 7rem);
+  font-weight: 800;
+  line-height: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+.sport-hero__unit,
+.sport-hero__side {
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 8vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sport-hero__side {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.sport-hero__track {
+  max-width: 29rem;
+  padding-top: var(--space-2);
+}
+
+.sport-hero__meaning,
+.sport-hero__grades {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+}
+
+/* The hard-effort check: a status colour with its icon and its words, never colour alone. */
+.sport-hero__check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-label);
+  font-weight: 600;
+}
+
+.sport-hero__check svg {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+}
+
+.sport-hero__check--hard {
+  background: var(--status-good-bg);
+  color: var(--status-good);
+}
+
+.sport-hero__check--soft {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.sport-hero__level {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.sport-hero__level-name {
+  color: var(--text-primary);
+  font-size: clamp(2.75rem, 14vw, 4rem);
+}
+
+.sport-hero__level-name--long {
+  font-size: clamp(2rem, 10vw, 2.75rem);
+}
+
+.sport-hero__level-value {
+  color: var(--text-secondary);
+  font-size: clamp(1.75rem, 9vw, 2.5rem);
+}
+
+.sport-hero__level-basis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+@media (min-width: 761px) {
+  .sport-hero__panel {
+    padding: var(--space-6) var(--space-6) var(--space-5);
+  }
+
+  .sport-hero__number {
+    font-size: clamp(6.5rem, 13vw, 8.5rem);
+  }
+}
+
+@media (min-width: 1081px) {
+  .sport-hero {
+    /* 60/40: the threshold figure leads. */
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .sport-hero__levelpanel {
+    border-top: 0;
+    border-left: 1px solid var(--border);
+    align-content: center;
+  }
+}
+
+@media (forced-colors: active) {
+  .sport-hero__check--hard {
+    border: 1px solid CanvasText;
+  }
+}

@@ -93,11 +93,20 @@ export function effortShareLine(
   sport: Sport,
   effort: EffortCheck | null | undefined,
 ): string | null {
+  return effortShare(sport, effort)?.line ?? null
+}
+
+/** The same line, with whether the effort was hard, which a sport page shows as a check or a plain note. */
+export function effortShare(
+  sport: Sport,
+  effort: EffortCheck | null | undefined,
+): { line: string; hard: boolean } | null {
   if (!effort) return null
   const fraction = { run: effort.runHrFraction, ride: effort.rideHrFraction }[sport]
   if (fraction === null) return null
-  const verdict = isHard(fraction) ? VERDICT.hard : VERDICT.notHard(HEADLINE_LABEL)
-  return `${reachedText(sport, HEADLINE_LABEL, fraction)}${verdict}`
+  const hard = isHard(fraction)
+  const verdict = hard ? VERDICT.hard : VERDICT.notHard(HEADLINE_LABEL)
+  return { line: `${reachedText(sport, HEADLINE_LABEL, fraction)}${verdict}`, hard }
 }
 
 /** True when heart rate shows both best efforts were hard: 90% of each reference, as the percent shows. */

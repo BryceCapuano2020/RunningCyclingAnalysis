@@ -3,8 +3,9 @@ import type { Lack, SameHeartRate, SameHeartRateWeek } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { plural } from '../components/plural'
-import { LACK_TEXT, sameHeartRateTitle } from '../sameHeartRateCopy'
+import { LACK_TEXT, sameHeartRateCopy, sameHeartRateTitle } from '../sameHeartRateCopy'
 import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL } from '../sports'
+import { ChartAnnotations } from './ChartAnnotations'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
@@ -18,12 +19,12 @@ import {
   tooltipAt,
   tooltipOverlay,
 } from './chartInteraction'
-import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
+import type { ChartSize, TooltipContent } from './chartTypes'
+import { bandPath, linePath } from './paths'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
-import { linearScale } from './scale'
-import { axisTitle, formatNative, nativeLabel, plottedValue, sportYAxis } from './sportAxis'
-import { axisFontSize, fitTicks } from './ticks'
-import { trendDateTicks } from './trendTicks'
+import { sameHeartRateLayout } from './sameHeartRateLayout'
+import { axisTitle, formatNative, formatPlotted, nativeLabel, plottedValue } from './sportAxis'
+import { axisFontSize } from './ticks'
 import { weekDay } from './trendText'
 import './ChartSeries.css'
 
@@ -36,60 +37,11 @@ export interface SameHeartRateChartProps {
   note: string
 }
 
-interface Layout {
-  xs: number[]
-  /** Where each reported week's dot sits, and the ends of its interval; null for a week with none. */
-  dots: ({ at: Point; top: number; bottom: number } | null)[]
-  xTicks: AxisTick[]
-  yTicks: AxisTick[]
-}
-
-/** The axis spans at least this share of the middle reading either way: the size of change worth a look. */
-const AXIS_FLOOR = 0.05
+/** A chart at least this wide, px, keeps a right gutter for the line's end label. */
+const WIDE_CHART_PX = 640
+const GUTTER_PX = 96
 
 const weekHasFit = (week: SameHeartRateWeek): boolean => week.fit !== null
-
-function layout(
-  weeks: readonly SameHeartRateWeek[],
-  sport: Sport,
-  units: UnitSystem,
-  size: ChartSize,
-): Layout | null {
-  const first = weeks[0]
-  const last = weeks.at(-1)
-  if (weeks.length < 2 || first === undefined || last === undefined) return null
-  const { plot, width } = size
-  const x = linearScale([first.endMs, last.endMs], [plot.left, plot.right])
-  // Both ends of every interval set the axis, so no bar is cut off. Nothing is filled, so the axis is tight,
-  // but it always covers a 5% change either way of the middle reading, so that a steady output reads as steady.
-  const ends = weeks.flatMap((week) => (week.fit === null ? [] : [week.fit.low, week.fit.high]))
-  const middle = (Math.min(...ends) + Math.max(...ends)) / 2
-  const plotted = [...ends, middle * (1 - AXIS_FLOOR), middle * (1 + AXIS_FLOOR)].map((value) =>
-    plottedValue(sport, value, units),
-  )
-  const { y, ticks } = sportYAxis(sport, plotted, plot, true)
-  return {
-    xs: weeks.map((week) => x(week.endMs)),
-    dots: weeks.map((week) => {
-      if (week.fit === null) return null
-      const { output, low, high } = week.fit
-      const [a, b] = [low, high].map((value) => y(plottedValue(sport, value, units)))
-      return {
-        at: { x: x(week.endMs), y: y(plottedValue(sport, output, units)) },
-        top: Math.min(a!, b!),
-        bottom: Math.max(a!, b!),
-      }
-    }),
-    xTicks: fitTicks(
-      trendDateTicks(
-        weeks.map((week) => week.endMs),
-        x,
-      ),
-      { axis: 'x', width },
-    ),
-    yTicks: fitTicks(ticks, { axis: 'y', width }),
-  }
-}
 
 /** The 90% interval as text, the lower number first as the axis reads: "5:24 /km to 5:44 /km", "194 W to 206 W". */
 function rangeText(week: SameHeartRateWeek, sport: Sport, units: UnitSystem): string {
@@ -128,24 +80,29 @@ function tooltipFor(
 }
 
 /**
- * One sport's output at one heart rate, a dot for each week that reports with its 90% interval as a
- * thin bar, and no line between them: a line would claim the weeks in between, and the bars are
- * the point. A week with too little data has no dot and a mark on the date axis. Rides are diamonds.
+ * One sport's output at one heart rate: a light dot for each week that reports, a straight line fitted
+ * through them with a band for how well the line is pinned down, and the finding as the chart's title. The
+ * line is the trend and the dots are the evidence; a week with too little data has no dot and a mark on the
+ * date axis. The finding names a change only when the first and last weeks' ranges do not overlap, so a line
+ * that slopes within its band is drawn but not claimed. Rides are diamonds.
  */
 export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const { weeks, referenceHeartRate: reference } = data
   const hasData = reference !== null && weeks.filter(weekHasFit).length >= 2
-  const layoutOf = sizedOnce((size: ChartSize) => layout(weeks, sport, units, size))
+  const layoutOf = sizedOnce((size: ChartSize) => sameHeartRateLayout(weeks, sport, units, size))
   const diamond = SPORT_FORMAT[sport].glyph === 'diamond'
   const title = sameHeartRateTitle(sport, reference ?? 0, units)
+  const { text: takeaway } = sameHeartRateCopy(sport, data, units)
 
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={title}
-      description={`Output at ${reference} bpm in each week, fitted to the steady stretches of the 4 weeks to that Sunday, as ${SPORT_FORMAT[sport].titleUnit(units)}, with its 90% range.`}
+      takeaway={takeaway}
+      description={`Output at ${reference} bpm in each week, fitted to the steady stretches of the 4 weeks to that Sunday, as ${SPORT_FORMAT[sport].titleUnit(units)}, with a fitted line and its band.`}
       note={note}
+      plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}
       table={{
         columns: ['Week ending', nativeLabel(sport), '90% range', 'Stretches'],
         rows: weeks.map((week) => [
@@ -172,7 +129,7 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
                 ? tooltipFor(week, x, y, sport, units, reference)
                 : null
             },
-            layoutOf(size)?.dots.map((dot) => dot?.at.y ?? null),
+            layoutOf(size)?.dots.map((dot) => dot?.y ?? null),
           ),
         )
       }
@@ -184,7 +141,7 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
         const { marker: markerR, active: activeR } = markerRadii(size.width)
         const activeX = active === null ? undefined : m.xs[active]
         return (
-          <>
+          <g data-sport={sport}>
             <ChartXAxis ticks={m.xTicks} plot={plot} fontSize={axisFontSize(size.width)} />
             <ChartYAxis
               ticks={m.yTicks}
@@ -194,42 +151,63 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
             />
             <GapMarks xs={m.xs} gaps={weeks.map((week) => week.fit === null)} plot={plot} />
             {activeX !== undefined ? <Crosshair x={activeX} plot={plot} /> : null}
+            {m.trend ? (
+              <>
+                <path
+                  data-testid="same-hr-band"
+                  className="chart-series__area chart-series__area--trend"
+                  d={bandPath(m.trend.upper, m.trend.lower)}
+                />
+                <path
+                  data-testid="same-hr-trend"
+                  className={`chart-series__line chart-series__line--${sport}`}
+                  d={linePath(m.trend.line)}
+                />
+              </>
+            ) : null}
             {m.dots.map((dot, i) => {
               const week = weeks[i]
               if (dot === null || week === undefined) return null
               const r = i === active ? activeR : markerR
               return (
                 <g key={week.endMs} data-testid="same-hr-week">
-                  <line
-                    data-testid="same-hr-interval"
-                    data-sport={sport}
-                    className="chart-series__interval"
-                    x1={dot.at.x}
-                    x2={dot.at.x}
-                    y1={dot.top}
-                    y2={dot.bottom}
-                  />
                   {diamond ? (
                     <path
                       data-testid="same-hr-marker"
                       data-shape="diamond"
-                      className={`chart-series__marker chart-series__marker--${sport}`}
-                      d={diamondPath(dot.at.x, dot.at.y, r + 1)}
+                      className={`chart-series__marker chart-series__marker--${sport} chart-series__marker--light`}
+                      d={diamondPath(dot.x, dot.y, r + 1)}
                     />
                   ) : (
                     <circle
                       data-testid="same-hr-marker"
                       data-shape="circle"
-                      className={`chart-series__marker chart-series__marker--${sport}`}
-                      cx={dot.at.x}
-                      cy={dot.at.y}
+                      className={`chart-series__marker chart-series__marker--${sport} chart-series__marker--light`}
+                      cx={dot.x}
+                      cy={dot.y}
                       r={r}
                     />
                   )}
                 </g>
               )
             })}
-          </>
+            {m.trend ? (
+              <ChartAnnotations
+                size={size}
+                annotations={[
+                  {
+                    kind: 'end',
+                    id: 'trend-end',
+                    optional: true,
+                    tone: sport,
+                    at: m.trend.line[1],
+                    text: formatPlotted(sport, m.trend.endY, units),
+                    sub: `at ${reference} bpm`,
+                  },
+                ]}
+              />
+            ) : null}
+          </g>
         )
       }}
     </ChartFrame>

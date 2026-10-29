@@ -3,20 +3,16 @@ import type { Lack, SameHeartRate } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { plural } from './components/plural'
-import { formatNative } from './charts/sportAxis'
+import { plottedValue } from './charts/sportAxis'
 import { weekDay } from './charts/trendText'
+import { utcDayLocal } from './charts/trendTicks'
+import { formatMonthName } from './format/date'
+import { PACE_UNIT } from '@rca/core/units'
 import { SPORT_FORMAT, SPORT_PLURAL } from './sports'
-
-/** The verb of "you now run 5:52/km" and "you now ride 214 W", and in the past, "you ran 5:52/km in the week ending". */
-const VERB: Record<Sport, { now: string; then: string }> = {
-  run: { now: 'run', then: 'ran' },
-  ride: { now: 'ride', then: 'rode' },
-}
-/** What the sport's own number is called in "your pace went from". */
-const NOUN: Record<Sport, string> = { run: 'pace', ride: 'power' }
 
 const { windowDays, minBlocks, minActivities, minWeeks, minSpreadBpm, minReportedWeeks } =
   SAME_HEART_RATE
+const DAY_MS = 86_400_000
 const WINDOW = plural(windowDays / 7, 'week')
 
 /**
@@ -45,18 +41,45 @@ export function sameHeartRateTitle(sport: Sport, referenceHr: number, units: Uni
   return `Your output at ${referenceHr} bpm, ${SPORT_FORMAT[sport].titleUnit(units)}`
 }
 
-/** A value without its unit when the unit follows another value that has it, as "4:49" before "5:01 /km". */
-function withoutUnit(value: string, other: string): string {
-  const unit = other.slice(other.lastIndexOf(' '))
-  return value.endsWith(unit) ? value.slice(0, -unit.length) : value
+/**
+ * How a change is said, by sport. Output at one heart rate is higher when the athlete is better, so each says
+ * "more" in its own words: a run's pace is quicker by so many seconds, a ride's power higher by so many watts.
+ * The amount is in the unit the chart's axis reads in, and never rounds to nothing, since a change is only
+ * named when its ranges do not overlap.
+ */
+const CHANGE: Record<
+  Sport,
+  {
+    amount: (from: number, to: number, units: UnitSystem) => number
+    better: (n: string, units: UnitSystem) => string
+    worse: (n: string, units: UnitSystem) => string
+  }
+> = {
+  run: {
+    amount: (from, to, units) =>
+      Math.abs(plottedValue('run', from, units) - plottedValue('run', to, units)),
+    better: (n, units) => `you run ${n} s${PACE_UNIT[units]} faster`,
+    worse: (n, units) => `you run ${n} s${PACE_UNIT[units]} slower`,
+  },
+  ride: {
+    amount: (from, to) => Math.abs(to - from),
+    better: (n) => `you put out ${n} W more`,
+    worse: (n) => `you put out ${n} W less`,
+  },
+}
+
+/** The month a reporting week's output is dated to: its window is the weeks before its Sunday, so the middle of it. */
+function monthOf(endMs: number): string {
+  return formatMonthName(utcDayLocal(endMs - (windowDays / 2) * DAY_MS))
 }
 
 /**
- * The sentence above the chart. A change is named only when the first and last reporting weeks'
- * intervals do not overlap: "you now run" when the last is the period's last week, and by the week
- * otherwise, since "now" would be wrong. Without one, the first and last values are quoted as "no
- * clear change", or "too few weeks" with fewer than minReportedWeeks to compare. With no change to give,
- * a muted line says what is missing. A fall is told as plainly as a rise.
+ * The finding the section is titled by, and the line its closed row says. A change is named only when the first
+ * and last reporting weeks' intervals do not overlap, and then by how much and against which month: "At the same
+ * heart rate you run 6 s/km faster than in March". One that ends before the period's last week says by which week,
+ * since "now" would be wrong. Without a change, "no clear change" with the month it is held since, or "too few
+ * weeks" with fewer than minReportedWeeks to compare. With nothing to give, a muted line says what is missing. A
+ * fall is told as plainly as a rise.
  */
 export function sameHeartRateCopy(
   sport: Sport,
@@ -67,22 +90,19 @@ export function sameHeartRateCopy(
   if (reference === null || change === null) {
     return { kind: 'missing', text: LACK_TEXT[data.lacks ?? 'blocks'](sport, reference) }
   }
-  const at = (output: number) => formatNative(sport, output, units)
-  const ago = plural(change.weeksApart, 'week')
+  const since = monthOf(change.fromEndMs)
   if (change.real) {
+    const { amount, better, worse } = CHANGE[sport]
+    const n = String(Math.max(1, Math.round(amount(change.from, change.to, units))))
+    const said = (change.to > change.from ? better : worse)(n, units)
     const latest = change.toEndMs >= (data.latestWeekEndMs ?? Infinity)
     return {
       kind: 'change',
-      text: latest
-        ? `At ${reference} bpm you now ${VERB[sport].now} ${at(change.to)}, against ${at(change.from)} ${ago} ago.`
-        : `At ${reference} bpm in the week ending ${weekDay(change.toEndMs)} you ${VERB[sport].then} ${at(change.to)}, against ${at(change.from)} ${ago} earlier.`,
+      text: `At the same heart rate${latest ? '' : `, by the week ending ${weekDay(change.toEndMs)},`} ${said} than in ${since}`,
     }
   }
   if (data.weeks.filter((week) => week.fit !== null).length < minReportedWeeks) {
     return { kind: 'missing', text: TOO_FEW_WEEKS }
   }
-  return {
-    kind: 'held',
-    text: `At ${reference} bpm your ${NOUN[sport]} went from ${withoutUnit(at(change.from), at(change.to))} to ${at(change.to)}: no clear change, within the error.`,
-  }
+  return { kind: 'held', text: `At the same heart rate: no clear change since ${since}` }
 }

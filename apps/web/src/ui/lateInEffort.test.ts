@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { DRIFT, DURABILITY_AFTER_S, LATE_IN_EFFORT } from '@rca/core/constants'
 import {
   DECOUPLING_REFERENCE,
+  afterWords,
   driftChange,
+  durabilityStat,
+  lateFinding,
   driftLede,
   durabilityLede,
   fadePercent,
@@ -194,5 +197,69 @@ describe('what the section needs', () => {
     for (const text of texts.filter((t): t is string => t !== undefined && t !== null)) {
       expect(text).not.toMatch(/limiter|weak|strength|holding you back|ahead of/i)
     }
+  })
+})
+
+describe('the durability stat', () => {
+  it('says the share of output held after a time, in whole percent', () => {
+    expect(durabilityStat(3600, 0.99)).toBe('Held 99% of output after an hour')
+    expect(durabilityStat(5400, 0.941)).toBe('Held 94% of output after 90 min')
+    expect(durabilityStat(7200, 0.8149)).toBe('Held 81% of output after 2 hours')
+  })
+
+  it('rounds the share and not the fall, so a best that is above the overall reads as more than 100', () => {
+    expect(durabilityStat(3600, 1.004)).toBe('Held 100% of output after an hour')
+    expect(durabilityStat(3600, 1.02)).toBe('Held 102% of output after an hour')
+  })
+
+  it('names a time into an effort in the words a sentence uses', () => {
+    expect(afterWords(3600)).toBe('an hour')
+    expect(afterWords(7200)).toBe('2 hours')
+    expect(afterWords(5400)).toBe('90 min')
+    expect(afterWords(1800)).toBe('30 min')
+  })
+
+  it('is the stat the reading opens with, from the deepest level the lede quotes', () => {
+    const { durability } = lateInEffort('ride', lateEvidenceFor('ride'))
+    // 20 min after 90 min is 94% of the 20 min best.
+    expect(durability!.stat).toBe('Held 94% of output after 90 min')
+  })
+
+  it('reads a run’s share in the flat speed its metabolic cost buys, as its lede does', () => {
+    const { durability } = lateInEffort('run', lateEvidenceFor('run'))
+    expect(durability!.stat).toMatch(/^Held \d+% of output after 90 min$/)
+    expect(durability!.lede).toMatch(/After 90 min your best 20 min is \d+% below/)
+  })
+})
+
+describe('the finding a closed row says', () => {
+  it('joins the stat and what drift did', () => {
+    const reading = lateInEffort('ride', lateEvidenceFor('ride'))
+    expect(lateFinding(reading)).toBe(
+      'Held 94% of output after 90 min; output per heartbeat fell 3% from the first half to the second',
+    )
+  })
+
+  it('says one half alone when the other has too little behind it', () => {
+    const drift = lateInEffort('run', { ...lateEvidenceFor('run'), drift: [] })
+    expect(lateFinding(drift)).toMatch(/^Held \d+% of output after 90 min$/)
+    const durability = lateInEffort('run', { ...lateEvidenceFor('run'), durability: [] })
+    expect(lateFinding(durability)).toBe(
+      'Output per heartbeat fell 3% from the first half to the second',
+    )
+  })
+
+  it('says a rise as a rise and a level change as level', () => {
+    const rising = lateInEffort('run', {
+      durability: [],
+      drift: driftPoints([-2, -3, -4]),
+    })
+    expect(lateFinding(rising)).toBe(
+      'Output per heartbeat rose 3% from the first half to the second',
+    )
+  })
+
+  it('is none with neither half', () => {
+    expect(lateFinding(lateInEffort('ride', NONE))).toBeNull()
   })
 })

@@ -59,6 +59,8 @@ describe('What is calculated', () => {
       sameHeartRate: /same heart rate/,
       lateInEffort: /Late in long sessions/,
       timeInZones: /Time in zones/,
+      standOut: /stand out/i,
+      evidence: /Best efforts and curves/,
     }
     const calculated = namesIn('calculated')
     for (const id of Object.keys(entryFor) as SectionId[]) {

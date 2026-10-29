@@ -1,0 +1,65 @@
+/* A section behind a disclosure: a card whose closed row names the section and says what it found. */
+.sport-disclosure {
+  min-width: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sport-disclosure__details {
+  min-width: 0;
+}
+
+.sport-disclosure__summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+  /* The row is the control: a finger gets the control's height and the card's own padding. */
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius);
+}
+
+/* The disclosure triangle (base.css) is the row's first cell; the title and the finding follow it. */
+.sport-disclosure__summary::before {
+  grid-row: 1;
+  align-self: center;
+}
+
+.sport-disclosure__title {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.sport-disclosure__finding {
+  grid-column: 2;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  text-wrap: pretty;
+}
+
+.sport-disclosure__body {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+.sport-disclosure__body:empty {
+  display: none;
+}
+
+@media (min-width: 761px) {
+  .sport-disclosure__summary {
+    grid-template-columns: auto 15rem minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .sport-disclosure__finding {
+    grid-column: 3;
+  }
+}

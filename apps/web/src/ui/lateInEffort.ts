@@ -30,6 +30,8 @@ export interface LateGroup {
 
 export interface DurabilityReading {
   lede: string
+  /** The one figure the section opens with: "Held 99% of output after an hour". */
+  stat: string
   groups: LateGroup[]
   /** How the lede's figure is supported, and what it does not say. */
   note: string
@@ -37,6 +39,8 @@ export interface DurabilityReading {
 
 export interface DriftReading {
   lede: string
+  /** The middle steady effort's decoupling in percent: a fall is positive. */
+  medianPct: number
   points: DriftPoint[]
   note: string
 }
@@ -129,6 +133,18 @@ export function durabilityLede(afterS: number, durationS: number, retention: num
   return `${opening} is within 1% of your best ${effort} overall.`
 }
 
+/** A time into an effort in the words a sentence uses: "an hour" for 3,600 s, "2 hours", else "45 min". */
+export function afterWords(afterS: number): string {
+  const hours = afterS / 3600
+  if (!Number.isInteger(hours) || hours < 1) return afterLabel(afterS)
+  return hours === 1 ? 'an hour' : `${hours} hours`
+}
+
+/** The late best as a share of the best overall, in whole percent, as the stat says it: "Held 99% of output after an hour". */
+export function durabilityStat(afterS: number, retention: number): string {
+  return `Held ${Math.round(retention * 100)}% of output after ${afterWords(afterS)}`
+}
+
 /**
  * The deepest level that has support, at the longest duration it has support for: the figure the lede
  * quotes. A longer duration says more about staying power, a deeper level more about the late part.
@@ -150,6 +166,7 @@ function durabilityReading(
   const limit = `A lower figure late on can also mean the ${SPORT_ACTIVITY[sport]} never asked for more.`
   return {
     lede: durabilityLede(cell.afterS, group.durationS, cell.retention),
+    stat: durabilityStat(cell.afterS, cell.retention),
     groups,
     note: `${support} ${limit}${COUNTS[sport]}`,
   }
@@ -182,6 +199,7 @@ function driftReading(sport: Sport, points: readonly DriftPoint[]): DriftReading
   const warmup = DRIFT.warmupS / 60
   return {
     lede: driftLede(sport, median, points.length),
+    medianPct: median,
     points: [...points],
     note: `Each dot is one steady ${SPORT_ACTIVITY[sport]}: output per heartbeat in the first half of its moving time against the second, after a ${warmup}-minute warm-up. Only ${SPORT_PLURAL[sport]} that stayed even count. Heat, hydration and tiredness also move heart rate, so a change is not fitness.`,
   }
@@ -237,4 +255,18 @@ export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort
       ? null
       : needOf(sport, evidence, durability !== null, drift !== null)
   return { durability, drift, need }
+}
+
+/**
+ * What the closed row says of the section: the durability stat and what drift did, each only when it is there, so
+ * a section with one half still tells its finding. Null when neither half has evidence.
+ */
+export function lateFinding(reading: LateInEffort): string | null {
+  const parts = [
+    reading.durability?.stat ?? null,
+    reading.drift === null
+      ? null
+      : `output per heartbeat ${driftChange(reading.drift.medianPct)} from the first half to the second`,
+  ].filter((part) => part !== null)
+  return parts.length === 0 ? null : parts.join('; ').replace(/^./, (c) => c.toUpperCase())
 }

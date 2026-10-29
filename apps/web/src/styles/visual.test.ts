@@ -12,6 +12,11 @@ const dropzone = await read('../ui/components/Dropzone.css')
 const balanceMeter = await read('../ui/components/BalanceMeter.css')
 const ladder = await read('../ui/components/LevelLadder.css')
 const sportPage = await read('../ui/pages/SportPage.css')
+const sportHero = await read('../ui/pages/SportHero.css')
+const sectionNav = await read('../ui/pages/SectionNav.css')
+const sectionDisclosure = await read('../ui/pages/SectionDisclosure.css')
+const racePredictions = await read('../ui/pages/RacePredictions.css')
+const recordTiles = await read('../ui/pages/RecordTiles.css')
 const balancePage = await read('../ui/pages/BalancePage.css')
 const chartFrame = await read('../ui/charts/ChartFrame.css')
 const chartSeries = await read('../ui/charts/ChartSeries.css')
@@ -761,9 +766,55 @@ describe('sport records, on the card and the page', () => {
   })
 
   it('sets the threshold heading on the eyebrow’s line, and keeps the heading’s own display face', () => {
-    const threshold = rulesWith(sportPage, '.sport-page__threshold')
+    const threshold = rulesWith(sportHero, '.sport-hero__eyebrow')
     expect(threshold).not.toMatch(/font-family/)
     expect(threshold).toMatch(/line-height:\s*1\.5/)
+  })
+
+  it('sets the sport page’s threshold and level 60 and 40 on a desktop, and stacked below it', () => {
+    expect(rulesWith(sportHero, '.sport-hero')).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/)
+    const desktop = mediaOf(sportHero, '(min-width: 1081px)')
+    expect(rulesWith(desktop, '.sport-hero')).toMatch(
+      /grid-template-columns:\s*minmax\(0, 3fr\) minmax\(0, 2fr\)/,
+    )
+  })
+
+  it('pairs two sections 60 and 40 on a desktop only, and uses 1,200 px of it', () => {
+    expect(rulesWith(sportPage, '.sport-row')).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/)
+    expect(rulesWith(mediaOf(sportPage, '(min-width: 1081px)'), '.sport-row--pair')).toMatch(
+      /minmax\(0, 3fr\) minmax\(0, 2fr\)/,
+    )
+    expect(rulesWith(sportPage, '.page:has(.sport-page)')).toMatch(/max-width:\s*1200px/)
+  })
+
+  it('holds the “On this page” row under the header on a desktop, and lets it scroll sideways on a phone', () => {
+    expect(rulesWith(sectionNav, '.section-nav__list')).toMatch(/overflow-x:\s*auto/)
+    expect(rulesWith(mediaOf(sectionNav, '(min-width: 1081px)'), '.section-nav')).toMatch(
+      /position:\s*sticky;[^}]*top:\s*var\(--header-height\)/,
+    )
+  })
+
+  it('gives a closed section a row the height of a control, with the finding beside its name on a desktop', () => {
+    expect(rulesWith(sectionDisclosure, '.sport-disclosure__summary')).toMatch(
+      /padding:\s*var\(--space-3\) var\(--space-5\)/,
+    )
+    expect(
+      rulesWith(mediaOf(sectionDisclosure, '(min-width: 761px)'), '.sport-disclosure__finding'),
+    ).toMatch(/grid-column:\s*3/)
+  })
+
+  it('lets a record tile’s link shrink to its tile, so a long activity name is cut short and never widens a phone', () => {
+    const link = rulesWith(recordTiles, '.record-tiles__link')
+    expect(link).toMatch(/min-width:\s*0/)
+    expect(link).toMatch(/justify-self:\s*stretch/)
+    expect(rulesWith(recordTiles, '.record-tiles__name')).toMatch(/text-overflow:\s*ellipsis/)
+  })
+
+  it('draws a race bar in the sport’s colour, with its two estimates as triangles above and below', () => {
+    expect(rulesWith(racePredictions, '.race-bar__band')).toMatch(/var\(--sport-colour-soft\)/)
+    expect(rulesWith(racePredictions, '.race-bar__dot')).toMatch(/var\(--sport-colour\)/)
+    expect(rulesWith(racePredictions, '.race-bar__mark--above')).toMatch(/clip-path/)
+    expect(rulesWith(racePredictions, '.race-bar__mark--below')).toMatch(/clip-path/)
   })
 
   it('sets the empty sport page’s two actions side by side, wrapping on a narrow phone', () => {
