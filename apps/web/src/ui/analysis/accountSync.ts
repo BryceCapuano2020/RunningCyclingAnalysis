@@ -182,6 +182,7 @@ function switchAccount(deps: AccountTransitionDeps): void {
   library.setLibraryError(null)
   transport.setWorkerStopped(false)
   library.setMissingOriginals(0)
+  library.setOutdatedWithOriginal(0)
   library.setLibraryUnreadable(0)
   library.dropNotSaved()
   library.setSavedActivities([])

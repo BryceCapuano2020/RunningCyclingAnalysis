@@ -58,6 +58,8 @@ export interface AnalysisController {
   retryLibrary: () => void
   /** Saved activities whose original file is not in the library. */
   missingOriginals: number
+  /** Outdated saved activities whose original file is held, which Update now can rebuild. */
+  outdatedWithOriginal: number
   /** Stored activities that could not be read in the last library load, and so are hidden. */
   libraryUnreadable: number
   /** What this browser failed to keep or delete, until the next try; null when nothing failed. */
@@ -363,6 +365,7 @@ export function useAnalysis(
     restoring: library.restoring,
     retryLibrary: libraryActions.retryLibrary,
     missingOriginals: library.missingOriginals,
+    outdatedWithOriginal: library.outdatedWithOriginal,
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
     importOutcome: imports.importOutcome,

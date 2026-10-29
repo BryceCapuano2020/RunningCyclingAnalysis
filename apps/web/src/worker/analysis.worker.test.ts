@@ -534,7 +534,7 @@ describe('analysis worker', () => {
     expect(mocked.listActivities).toHaveBeenCalledWith(undefined, USER_ID, expect.any(Function))
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
-      { type: 'missingOriginals', count: 1 },
+      { type: 'missingOriginals', count: 1, outdatedWithOriginal: 0 },
       {
         type: 'state',
         state: expect.objectContaining({ totalActivities: 1, isSample: false }),
@@ -651,6 +651,7 @@ describe('analysis worker', () => {
     )
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
+      { type: 'missingOriginals', count: 0, outdatedWithOriginal: 0 },
       {
         type: 'rebuildComplete',
         rebuilt: 1,
@@ -721,6 +722,7 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).not.toHaveBeenCalled()
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
+      { type: 'missingOriginals', count: 0, outdatedWithOriginal: 0 },
       {
         type: 'rebuildComplete',
         rebuilt: 0,
@@ -1141,7 +1143,7 @@ describe('analysis worker', () => {
     const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
     expect(loaded).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
-      { type: 'missingOriginals', count: 1 },
+      { type: 'missingOriginals', count: 1, outdatedWithOriginal: 0 },
       { type: 'state', state: expect.objectContaining({ totalActivities: 1 }) },
     ])
 
@@ -1152,8 +1154,41 @@ describe('analysis worker', () => {
       sync: { keepFiles: true, userId: USER_ID },
     })
     expect(mocked.uploadFile).toHaveBeenCalledOnce()
-    expect(imported).toContainEqual({ type: 'missingOriginals', count: 0 })
+    expect(imported).toContainEqual({
+      type: 'missingOriginals',
+      count: 0,
+      outdatedWithOriginal: 0,
+    })
     expect(imported.at(-1)).toMatchObject({ type: 'state' })
+  })
+
+  it('counts the outdated saved activities that still have their original file', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const library = () => [
+      recordFor(stale, true),
+      recordFor({ ...stale, id: 'no-file', startMs: stale.startMs + 86_400_000 }, false),
+      recordFor({ ...stale, id: 'current', modelRevision: MODEL_REVISION, startMs: 9 }, true),
+      recordFor({ ...stale, id: 'no-file-current', modelRevision: MODEL_REVISION, startMs: 8 }),
+    ]
+    mocked.listActivities.mockImplementation(async () => library())
+    const { send } = await startWorker()
+    const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    expect(loaded).toContainEqual({ type: 'missingOriginals', count: 2, outdatedWithOriginal: 1 })
+
+    // The rebuild upgrades the one with its file; the listing it then shows is the upgraded library.
+    const upgraded = library()
+    upgraded[0] = recordFor(SAMPLE_DIGEST, true)
+    mocked.listActivities.mockResolvedValueOnce(library()).mockResolvedValueOnce(upgraded)
+    const rebuilt = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    expect(rebuilt).toContainEqual({ type: 'missingOriginals', count: 2, outdatedWithOriginal: 0 })
+  })
+
+  it('reports no outdated activity with an original when every one lacks its file', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities.mockResolvedValue([recordFor(stale, false)])
+    const { send } = await startWorker()
+    const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    expect(loaded).toContainEqual({ type: 'missingOriginals', count: 1, outdatedWithOriginal: 0 })
   })
 
   it('reports a sign-out while loading the library so the app can stop showing the account', async () => {

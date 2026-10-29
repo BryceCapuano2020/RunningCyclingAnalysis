@@ -7,6 +7,7 @@ import type { Activity } from '@rca/core/types'
 import { createActivity, listActivities } from '../api/client'
 import { workoutKeyOf, type DeviceActions } from './device'
 import { originalActivity } from './originalActivity'
+import { originalsReport } from './originalsReport'
 import type { WorkerResponse } from './protocol'
 import { RATE_LIMIT_WINDOW_MS } from './rateLimitRetry'
 import { syncIssueFor } from './syncIssue'
@@ -52,7 +53,7 @@ export async function loadServer(
   for (const record of records) {
     if (!record.hasFile) ctx.missingOriginals.add(workoutKeyOf(record.digest))
   }
-  ctx.post({ type: 'missingOriginals', count: ctx.missingOriginals.size })
+  ctx.post(originalsReport(ctx.missingOriginals, ctx.savedRecords))
   ctx.device.replaced()
   // The first analysis is of the period the page shows, so the page need not ask for it afterwards.
   ctx.session.choosePeriod(choice)
@@ -141,6 +142,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   for (const record of refreshed) ctx.savedRecords.set(record.id, record)
   ctx.reportLibrary()
   ctx.reportUnreadable(unreadable)
+  ctx.post(originalsReport(ctx.missingOriginals, ctx.savedRecords))
   // The 429 sends Retry-After: 60, the limiter's window, so a rate limit clears in that long.
   const limitResetsAtMs =
     limitKind === 'daily'

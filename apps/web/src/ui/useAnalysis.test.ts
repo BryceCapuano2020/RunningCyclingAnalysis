@@ -1606,10 +1606,12 @@ describe('useAnalysis state', () => {
 
   it('exposes how many saved activities are missing their original file', () => {
     const { result } = setup(SIGNED_IN_KEEP)
-    act(() => worker().reply({ type: 'missingOriginals', count: 2 }))
+    act(() => worker().reply({ type: 'missingOriginals', count: 2, outdatedWithOriginal: 1 }))
     expect(result.current.missingOriginals).toBe(2)
+    expect(result.current.outdatedWithOriginal).toBe(1)
     finishLibraryLoad()
     expect(result.current.missingOriginals).toBe(2)
+    expect(result.current.outdatedWithOriginal).toBe(1)
   })
 
   it('refuses a signed-out import made while the worker is stopped, and does not run it after a restart', () => {

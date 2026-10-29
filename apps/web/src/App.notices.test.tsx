@@ -54,6 +54,7 @@ beforeEach(() => {
 describe('saved activities that need updating', () => {
   it('shows the stale count, and Update now rebuilds the saved activities', () => {
     setSession({ outdatedActivities: 2 })
+    app.analysis.outdatedWithOriginal = 2
     render(<App />)
     expect(
       screen.getByText(
@@ -80,6 +81,7 @@ describe('saved activities that need updating', () => {
 
   it('shows Updating… and disables the button while a rebuild runs', () => {
     setSession({ outdatedActivities: 2 })
+    app.analysis.outdatedWithOriginal = 2
     app.analysis.busy = true
     render(<App />)
     expect(screen.getByRole('button', { name: 'Updating…' })).toHaveAttribute(
@@ -91,6 +93,7 @@ describe('saved activities that need updating', () => {
   it('disables Update now and says why when original file storage is unavailable', () => {
     setAccount('signed-in', { fileRetentionAvailable: false })
     setSession({ outdatedActivities: 2 })
+    app.analysis.outdatedWithOriginal = 2
     render(<App />)
     expect(screen.getByRole('button', { name: 'Update now' })).toBeDisabled()
     expect(screen.getByText(ORIGINALS_UNAVAILABLE)).toBeInTheDocument()
@@ -254,6 +257,7 @@ describe('status messages go into regions that are already mounted', () => {
     const view = render(<App />)
     const regions = mountedStatusRegions()
     setSession({ outdatedActivities: 2 })
+    app.analysis.outdatedWithOriginal = 2
     view.rerender(<App />)
     expectAnnouncedFromMountedRegion(regions, /2 saved activities need a quick update/)
   })

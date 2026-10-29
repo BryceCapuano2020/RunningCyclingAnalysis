@@ -140,8 +140,11 @@ export type WorkerResponse =
       uploaded?: number
       paused?: true
     }
-  /** Saved activities without an original file. Sent before the state that ends the request. */
-  | { type: 'missingOriginals'; count: number }
+  /**
+   * Saved activities without an original file, and how many outdated saved activities still have
+   * theirs (the ones a rebuild can update). Sent before the state that ends the request.
+   */
+  | { type: 'missingOriginals'; count: number; outdatedWithOriginal: number }
   /** The account's saved activities when signed in, or the ones kept in this browser when not. */
   | { type: 'libraryActivities'; activities: SavedActivity[] }
   /** The account's export, as the JSON file to save. */

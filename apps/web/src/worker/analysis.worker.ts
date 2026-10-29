@@ -14,6 +14,7 @@ import { deviceKeeper } from './deviceKeeper'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
+import { originalsReport } from './originalsReport'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import { ImportReporter } from './importReporter'
@@ -172,7 +173,7 @@ async function addFiles(
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }
   if (sync !== null) {
-    post({ type: 'missingOriginals', count: missingOriginals.size })
+    post(originalsReport(missingOriginals, savedRecords))
     reportLibrary()
   } else if (request.saveToDevice) {
     await device.report()
@@ -289,7 +290,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       if (!traceCleared || !deviceTraceCleared || !keptDropped)
         post({ type: 'deviceIssue', issue: 'notForgotten' })
       reportLibrary()
-      post({ type: 'missingOriginals', count: missingOriginals.size })
+      post(originalsReport(missingOriginals, savedRecords))
       return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)
     }
   }

@@ -93,6 +93,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       }
       if (message.type === 'missingOriginals') {
         current.library.setMissingOriginals(message.count)
+        current.library.setOutdatedWithOriginal(message.outdatedWithOriginal)
         return
       }
       if (message.type === 'libraryActivities') {
