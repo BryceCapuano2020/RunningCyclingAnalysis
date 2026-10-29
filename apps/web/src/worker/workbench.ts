@@ -50,7 +50,8 @@ function activityFitsEntry(activity: Activity): boolean {
     activity.paused.byteLength +
     n +
     n * 4 * streamCount +
-    3 * n +
+    // The left-out masks and the speed pace zones read, at most.
+    7 * n +
     (activity.cadenceUnit?.length ?? 0) * 2 +
     (activity.laps ?? []).reduce((sum, lap) => sum + 32 + (lap.label?.length ?? 0) * 2, 0)
   return bytes <= WORKBENCH_ENTRY_BYTES

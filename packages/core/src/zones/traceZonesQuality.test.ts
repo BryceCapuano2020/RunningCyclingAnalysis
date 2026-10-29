@@ -30,7 +30,7 @@ function bothWays(activity: Activity, measure: ZoneMeasure, reference: number) {
   const zones = zonesFor(measure, reference)
   const distribution = digestActivity(activity).distributions?.[DISTRIBUTION_OF[measure]]
   const fromDigest = secondsByZone(zones, measure, distribution!)
-  const quality = assessQuality(activity, [])
+  const quality = traceQualityOf(activity)
   const masked = traceTimeInZones(activityTraceOf(activity, quality), measure, zones, 0, N)
   const unmasked = traceTimeInZones(activityTraceOf(activity), measure, zones, 0, N)
   return { fromDigest, masked, unmasked }
@@ -84,5 +84,29 @@ describe('the activity page and the sport page count the same seconds in zones',
         expect(remembered[key]).toEqual(fresh[key])
       }
     }
+  })
+
+  it('counts pace the way the digest does over a stretch where speed and distance disagree', () => {
+    const activity = syntheticActivity({ n: N, sport: 'run', speed: new Float64Array(N).fill(4) })
+    // From second 60 to 160 the distance advances at 1.5 m/s while the speed says 4, so the digest lowers it.
+    for (let i = 1; i < N; i++) {
+      activity.distance[i] = activity.distance[i - 1]! + (i > 60 && i <= 160 ? 1.5 : 4)
+    }
+    // Before any digest the same lowering is found afresh.
+    const fresh = traceQualityOf(activity)
+    expect(Math.min(...fresh.agreedSpeed!)).toBeLessThan(2)
+    expect(activityTraceOf(activity, fresh).zoneSpeed).toBeDefined()
+    const { fromDigest, masked, unmasked } = bothWays(activity, 'pace', 3.5)
+    expect(masked.seconds).toEqual(fromDigest)
+    // From the recorded speed alone the lowered seconds would be counted in a zone they were not in.
+    expect(unmasked.seconds).not.toEqual(fromDigest)
+  })
+
+  it('has no lowered speed for an activity whose speed and distance agree, or a ride with a power meter', () => {
+    expect(traceQualityOf(spikedRun()).agreedSpeed).toBeUndefined()
+    const ride = spikedRide()
+    for (let i = 1; i < N; i++)
+      ride.distance[i] = ride.distance[i - 1]! + (i > 60 && i <= 160 ? 1 : 4)
+    expect(traceQualityOf(ride).agreedSpeed).toBeUndefined()
   })
 })

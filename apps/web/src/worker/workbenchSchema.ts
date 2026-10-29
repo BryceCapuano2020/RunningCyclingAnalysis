@@ -114,7 +114,16 @@ export function parseBoundedTrace(value: unknown): ActivityTrace | null {
   const streams = row.streams
   const laps = row.laps
   if (typeof streams !== 'object' || streams === null || !Array.isArray(laps)) return null
-  const arrays = [row.distance, row.paused, row.unrecorded, ...Object.values(streams)]
+  const unusable = row.unusable
+  if (unusable !== undefined && (typeof unusable !== 'object' || unusable === null)) return null
+  const arrays = [
+    row.distance,
+    row.paused,
+    row.unrecorded,
+    ...Object.values(streams),
+    ...Object.values(unusable ?? {}),
+    ...(row.zoneSpeed === undefined ? [] : [row.zoneSpeed]),
+  ]
   let bytes = 0
   for (const array of arrays) {
     if (array instanceof Float64Array) bytes += array.byteLength
@@ -139,6 +148,7 @@ export function activityTraceBytes(trace: ActivityTrace): number {
     trace.paused.byteLength +
     trace.unrecorded.byteLength +
     Object.values(trace.unusable ?? {}).reduce((sum, mask) => sum + mask.byteLength, 0) +
+    (trace.zoneSpeed?.byteLength ?? 0) +
     Object.values(trace.streams).reduce((sum, stream) => sum + (stream?.byteLength ?? 0), 0) +
     (trace.cadenceUnit?.length ?? 0) * 2 +
     trace.laps.reduce((sum, lap) => sum + 32 + (lap.label?.length ?? 0) * 2, 0)

@@ -24,7 +24,8 @@ export interface TraceZoneTime {
  * once, in the zone that holds its reading, so there is no bin to split. A reading counts the same way
  * as in `secondsByZone`: at or above a zone's floor and below its ceiling. A second the trace marks
  * unusable (a flagged heart-rate spike) is left out, as the digest's distributions leave it out, so an
- * interval of the whole activity matches the sport page. An interval is whole seconds from `startS` up
+ * interval of the whole activity matches the sport page. The same holds for pace over a stretch where speed
+ * and distance disagree: the digest lowers the speed there, and the trace carries the lowered speed (`zoneSpeed`). An interval is whole seconds from `startS` up
  * to, not including, `endS`.
  */
 export function traceTimeInZones(
@@ -35,7 +36,9 @@ export function traceTimeInZones(
   endS: number,
 ): TraceZoneTime {
   const metric = TRACE_METRIC_OF[measure]
-  const stream = trace.streams[metric]
+  // Pace is cut from the speed the digest reads, which differs from the recorded one over a stretch where the
+  // file's speed and distance disagree.
+  const stream = (metric === 'speed' ? trace.zoneSpeed : undefined) ?? trace.streams[metric]
   const seconds = new Array<number>(zones.length).fill(0)
   let total = 0
   if (stream === undefined) return { seconds, total }
@@ -44,6 +47,7 @@ export function traceTimeInZones(
   for (let i = startS; i < endS; i++) {
     if (unusable?.[i] === 1 || !isTraceObservation(trace, metric, i)) continue
     const value = stream[i]!
+    if (!Number.isFinite(value)) continue
     let zone = 0
     while (zone < last && value >= zones[zone]!.high! - EDGE_EPSILON) zone++
     seconds[zone]!++

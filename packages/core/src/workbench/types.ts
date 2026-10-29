@@ -35,6 +35,12 @@ export interface ActivityTrace {
    * trace built without the assessment, which reads every reading.
    */
   unusable?: Partial<Record<MaskedMetric, Uint8Array>>
+  /**
+   * The speed the digest cuts pace zones from, where it is not `streams.speed`: lowered over the stretches
+   * where the file's speed and distance disagree. Present only for such an activity; zones read it in
+   * place of the recorded speed so that both pages count the same pace.
+   */
+  zoneSpeed?: Float32Array
   laps: ActivityLap[]
 }
 

@@ -32,6 +32,10 @@ export function activityTraceOf(activity: Activity, quality?: TraceQuality): Act
     ...(activity.temperature === undefined ? {} : { temperature: activity.temperature.slice() }),
   }
   const unusable = quality === undefined ? {} : unusableOf(streams, quality, n)
+  const zoneSpeed =
+    quality?.agreedSpeed === undefined || streams.speed === undefined
+      ? undefined
+      : float32Of(quality.agreedSpeed)
   return {
     version: 1,
     activityId: activity.id,
@@ -46,6 +50,7 @@ export function activityTraceOf(activity: Activity, quality?: TraceQuality): Act
     unrecorded: activity.unrecorded?.slice() ?? new Uint8Array(n),
     streams,
     ...(Object.keys(unusable).length === 0 ? {} : { unusable }),
+    ...(zoneSpeed === undefined ? {} : { zoneSpeed }),
     laps: normalizeLaps(activity.laps ?? [], n),
   }
 }
@@ -149,6 +154,15 @@ export function parseActivityTrace(value: unknown): ActivityTrace | null {
   }
   const unusable = parseUnusable(value.unusable, durationS as number)
   if (unusable === null) return null
+  const zoneSpeed = value.zoneSpeed
+  if (
+    zoneSpeed !== undefined &&
+    (!(zoneSpeed instanceof Float32Array) ||
+      zoneSpeed.length !== durationS ||
+      !noInfinity(zoneSpeed))
+  ) {
+    return null
+  }
   const cleanLaps = parseLaps(laps, durationS as number)
   if (cleanLaps === null) return null
   return {
@@ -162,6 +176,7 @@ export function parseActivityTrace(value: unknown): ActivityTrace | null {
     unrecorded: unrecorded.slice(),
     streams: cleanStreams,
     ...(Object.keys(unusable).length === 0 ? {} : { unusable }),
+    ...(zoneSpeed === undefined ? {} : { zoneSpeed: zoneSpeed.slice() }),
     laps: cleanLaps,
   }
 }

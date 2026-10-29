@@ -1,8 +1,18 @@
 import type { Activity, QualityReport } from '../types'
+import { agreedStreams, keepsOwnSpeed } from './agreement'
 import { assessQuality } from './assess'
 
-/** The assessment's masks that a recorded trace carries: the streams a zone is cut from. */
-export type TraceQuality = Pick<QualityReport, 'validMotion' | 'validPower' | 'validHeartRate'>
+/**
+ * What a trace carries of an activity's assessment: the masks of the streams a zone is cut from, and the
+ * speed the digest cuts pace zones from when that is not the activity's own (lowered where speed and
+ * distance disagree).
+ */
+export interface TraceQuality extends Pick<
+  QualityReport,
+  'validMotion' | 'validPower' | 'validHeartRate'
+> {
+  agreedSpeed?: Float64Array
+}
 
 /*
  * An import digests an activity and then keeps its trace, so the assessment the digest already made is
@@ -11,20 +21,35 @@ export type TraceQuality = Pick<QualityReport, 'validMotion' | 'validPower' | 'v
  */
 const assessed = new WeakMap<Activity, TraceQuality>()
 
-/** Remembers an activity's assessment, as the digest made it. */
-export function rememberTraceQuality(activity: Activity, quality: QualityReport): void {
+/** Remembers an activity's assessment, as the digest made it, with the speed the digest read. */
+export function rememberTraceQuality(
+  activity: Activity,
+  quality: QualityReport,
+  digestSpeed: Float64Array,
+): void {
   assessed.set(activity, {
     validMotion: quality.validMotion,
     validPower: quality.validPower,
     validHeartRate: quality.validHeartRate,
+    ...(digestSpeed === activity.speed ? {} : { agreedSpeed: digestSpeed }),
   })
 }
 
 /**
- * The masks of an activity's assessment: the digest's own when it was made from this activity object, else a
- * fresh assessment. No stream is masked by a disagreement of speed and distance (see assessQuality), so
- * none is looked for.
+ * The assessment of an activity as the digest makes it: its own when it was made from this activity object,
+ * else a fresh one, with the same speed rule as the digest's.
  */
 export function traceQualityOf(activity: Activity): TraceQuality {
-  return assessed.get(activity) ?? assessQuality(activity, [])
+  const remembered = assessed.get(activity)
+  if (remembered !== undefined) return remembered
+  const agreed = agreedStreams(activity)
+  const quality = assessQuality(activity, agreed.stretches)
+  return {
+    validMotion: quality.validMotion,
+    validPower: quality.validPower,
+    validHeartRate: quality.validHeartRate,
+    ...(keepsOwnSpeed(activity) || agreed.speed === activity.speed
+      ? {}
+      : { agreedSpeed: agreed.speed }),
+  }
 }
