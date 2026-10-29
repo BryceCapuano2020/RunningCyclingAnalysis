@@ -42,7 +42,7 @@ function evidenceFor(effort: EffortCheck | null, noHeartRate: boolean): Evidence
   const caveat = effortCaveat(effort)
   if (caveat) {
     return {
-      chip: { className: 'chip chip--warning', icon: <WarningIcon />, label: 'Could be higher' },
+      chip: { className: 'chip chip--warning', icon: <WarningIcon />, label: 'Not a hard effort' },
       title: caveat.title,
       text: caveat.text,
       howTo: RECORD_HARD_EFFORT,

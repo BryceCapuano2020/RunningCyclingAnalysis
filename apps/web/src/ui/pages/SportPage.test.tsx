@@ -232,7 +232,7 @@ describe('SportPage', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(within(section).getByText('Likely 22:58 to 23:49 /km')).toBeInTheDocument()
+    expect(within(section).getByText('Range 22:58 to 23:49 /km')).toBeInTheDocument()
   })
 
   it('shows the cycling threshold’s range in watts under its figure', () => {
@@ -240,7 +240,7 @@ describe('SportPage', () => {
     renderPage('ride', makeResult({ activities: [ride] }))
 
     const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    expect(within(section).getByText('Likely 48 to 49 W')).toBeInTheDocument()
+    expect(within(section).getByText('Range 48 to 49 W')).toBeInTheDocument()
   })
 
   it('says under the range that the best 15 and 20 min were uneven, when the threshold has an uneven fit', () => {
@@ -253,7 +253,7 @@ describe('SportPage', () => {
     renderPage('ride', makeResult({ activities: [ride], rideCpUneven: uneven }))
 
     const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    expect(within(section).getByText('Likely 48 to 58 W')).toBeInTheDocument()
+    expect(within(section).getByText('Range 48 to 58 W')).toBeInTheDocument()
     expect(
       within(section).getByText(
         'Your best 15 min and 20 min were uneven: each held a hard burst inside easier riding, so the range stays wide. A steady all-out 20 min would narrow it.',
@@ -280,7 +280,7 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_FLOOR_LABEL.ride })
     expect(within(section).getByText('52 W')).toBeInTheDocument()
-    expect(within(section).getByText('Likely 52 to 58 W')).toBeInTheDocument()
+    expect(within(section).getByText('Range 52 to 58 W')).toBeInTheDocument()
     expect(within(section).queryByText(/Needs a harder effort/)).not.toBeInTheDocument()
     expect(within(section).getByText(/were uneven: each held a hard burst/)).toBeInTheDocument()
     // A floor is a held best, not an estimate, so the estimate's meaning is not said under it.
@@ -1326,7 +1326,7 @@ describe('SportPage depth', () => {
     const threshold = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
     expect(
       within(threshold).getByText(
-        'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file), so it was probably not your hardest.',
+        'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). A hard 20 min effort would raise this.',
       ),
     ).toHaveClass('muted')
     expect(
@@ -1344,7 +1344,7 @@ describe('SportPage depth', () => {
     )
 
     const line = screen.getByText(
-      'Your best 20 min running reached 70% of your running reference heart rate (set from your highest heart rates on file), so it was probably not your hardest.',
+      'Your best 20 min running reached 70% of your running reference heart rate (set from your highest heart rates on file). A hard 20 min effort would raise this.',
     )
     expect(line).toHaveClass('muted')
     expect(line.previousElementSibling).toHaveTextContent(THRESHOLD_MEANING.run)

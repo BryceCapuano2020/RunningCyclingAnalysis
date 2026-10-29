@@ -193,7 +193,7 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
       },
     ],
     period: 'Last 6 weeks',
-    caveat: `Best efforts over ${HEADLINE_LABEL} may not have been your hardest.`,
+    caveat: `Best efforts over ${HEADLINE_LABEL} did not reach a hard heart rate.`,
     footnote: 'Graded on the USATF road standards. A level, not a ranking.',
     origin: 'example.test',
     badge: null,
@@ -211,7 +211,7 @@ export const LONG_HEADLINE =
  * effortCaveat short line at every duration the app names (fixtures.test.ts), and it takes two lines on the
  * card.
  */
-export const LONG_CAVEAT = `Best cycling efforts over the full ${effortLabel(3600)} may not have been your hardest, so the figure may be low.`
+export const LONG_CAVEAT = `Best cycling efforts over the full ${effortLabel(3600)} did not reach a hard heart rate, so the figure is low.`
 
 /** A footnote long enough to wrap onto several lines of the card. */
 export const LONG_FOOTNOTE =

@@ -26,6 +26,8 @@ export interface AppNoticesProps {
   atBalance?: boolean
   /** On the Activities page, the library is named quietly with its count. */
   activitiesPage?: boolean
+  /** On Run and Activities, the count of saved runs at walking pace is said under the notices. */
+  walkingNote?: boolean
 }
 
 /**
@@ -44,6 +46,7 @@ export function AppNotices({
   moved = NO_MOVED,
   atBalance = false,
   activitiesPage = false,
+  walkingNote = false,
 }: AppNoticesProps) {
   const { result, isSample } = analysis.state
   const neutralStop = analysis.error !== null && analysis.errorNeutral
@@ -77,6 +80,7 @@ export function AppNotices({
         signedIn={signedIn}
         keepFiles={keepFiles}
         fileRetentionAvailable={fileRetentionAvailable}
+        walkingNote={walkingNote}
         onRetry={() => runThenFocus(analysis.retryLibrary)}
       />
       {activitiesPage && kept > 0 && <p className="secondary">{keptText}</p>}

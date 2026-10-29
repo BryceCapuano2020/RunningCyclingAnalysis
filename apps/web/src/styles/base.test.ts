@@ -14,6 +14,13 @@ describe('chart frames on a phone', () => {
   })
 })
 
+describe('scrolling tables', () => {
+  it('contain the visually hidden header cells they hold, so those cannot widen the page', () => {
+    expect(ruleBody(baseCss, '.sr-only')).toMatch(/position:\s*absolute/)
+    expect(ruleBody(componentsCss, '.table-scroll')).toMatch(/position:\s*relative/)
+  })
+})
+
 describe('focus on a page heading', () => {
   it('draws no outline when the app moves focus to the heading', () => {
     expect(ruleBody(baseCss, "h1[tabindex='-1']:focus")).toMatch(/outline:\s*none/)

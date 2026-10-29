@@ -20,8 +20,14 @@ describe('GradeSentence', () => {
   it('reads as the sentence the records and the grade line are written as', () => {
     const { container } = render(<GradeSentence sport="ride" grade={RIDE} where="record" />)
     expect(container.textContent).toBe(
-      'Estimated through its running equivalent · Local · 66% (63–69%)',
+      'Estimated through its running equivalent ·\u00A0Local · 66% (63–69%)',
     )
+  })
+
+  it('keeps the lead’s dot with the level, so a line cannot end on "Estimated ·"', () => {
+    const { container } = render(<GradeSentence sport="ride" grade={RIDE} />)
+    // A no-break space follows the dot, and a plain space before it is where the line may break.
+    expect(container.textContent?.startsWith('Estimated ·\u00A0Local')).toBe(true)
   })
 
   it('keeps each percent and its range in brackets on one line, and leaves the level free to wrap', () => {
@@ -30,6 +36,6 @@ describe('GradeSentence', () => {
       part.textContent?.trim(),
     )
     expect(unbroken).toEqual(['· 66%', '(63–69%)'])
-    expect(container.textContent).toBe('Estimated · Local · 66% (63–69%)')
+    expect(container.textContent).toBe('Estimated ·\u00A0Local · 66% (63–69%)')
   })
 })

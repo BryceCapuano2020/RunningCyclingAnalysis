@@ -72,7 +72,7 @@ describe('renderShareCard', () => {
       'W',
       '0.6 W/kg',
       'Last 6 weeks',
-      'Best efforts over 20 min may not have been your hardest.',
+      'Best efforts over 20 min did not reach a hard heart rate.',
       GRADED_FOOTNOTE,
       'example.test',
       MAGNITUDE,

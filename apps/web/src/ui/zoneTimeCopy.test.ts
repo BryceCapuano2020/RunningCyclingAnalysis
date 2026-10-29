@@ -22,6 +22,8 @@ describe('percentText', () => {
     expect(percentText(0.644)).toBe('64%')
     expect(percentText(0.002)).toBe('<1%')
     expect(percentText(0)).toBe('0%')
+    expect(percentText(0.996)).toBe('>99%')
+    expect(percentText(1)).toBe('100%')
     expect(percentText(1)).toBe('100%')
   })
 })
@@ -110,6 +112,16 @@ describe('activityLede', () => {
     expect(activityLede('run', 'heartRate', time)).toBe(
       'Most of this run was in heart rate zone 2 (64%).',
     )
+  })
+
+  it('says all of the activity when one zone shows 100%', () => {
+    const time = measureTime('run', 'pace', [0, 100, 0, 0, 0])
+    expect(activityLede('run', 'pace', time)).toBe('All of this run was in pace zone 2 (100%).')
+  })
+
+  it('says most, not all, of an activity that rounds to 100% but is not all in one zone', () => {
+    const time = measureTime('run', 'pace', [0, 99.6, 0.4, 0, 0])
+    expect(activityLede('run', 'pace', time)).toBe('Most of this run was in pace zone 2 (>99%).')
   })
 
   it('says where the most time was when no zone held half', () => {

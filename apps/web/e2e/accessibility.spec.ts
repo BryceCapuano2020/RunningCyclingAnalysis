@@ -167,6 +167,46 @@ test('the level ladder labels are at least 11 px, and the page does not scroll s
   expect(overflow).toBeLessThanOrEqual(0)
 })
 
+test('Profile with dated settings fits 320 px, and its table is a keyboard scroll region', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'narrow-320',
+    'Only the 320 px project measures the narrowest screen',
+  )
+  await openSample(page)
+  await goTo(page, 'Profile')
+  const dates = ['2026-08-15', '2025-08-15', '2026-05-01']
+  for (const [index, date] of dates.entries()) {
+    await page.getByLabel('Setting', { exact: true }).selectOption({ index: index === 2 ? 1 : 0 })
+    await page.getByLabel(/^Value/).fill(index === 2 ? '184' : `${70 + index}`)
+    await page.locator('.settings-over-time input[type="date"]').fill(date)
+    await page.getByRole('button', { name: 'Add', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: /^(Added|Updated)/ })).toBeVisible()
+  }
+  await expect(page.locator('.settings-over-time tbody tr')).toHaveCount(3)
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  )
+  expect(overflow).toBeLessThanOrEqual(0)
+  // A phone's viewport can stretch to fit what overflows it, so also check that the box that scrolls
+  // the table is what positions the header cells that are visually hidden, which it then clips.
+  const escapes = await page.evaluate(() => {
+    const box = document.querySelector('.settings-over-time .table-scroll')
+    const hidden = document.querySelectorAll('.settings-over-time .table-scroll .sr-only')
+    const containerOf = (el: Element) => {
+      let up = el.parentElement
+      while (up !== null && getComputedStyle(up).position === 'static') up = up.parentElement
+      return up
+    }
+    return [...hidden].filter((el) => containerOf(el) !== box).length
+  })
+  expect(escapes).toBe(0)
+  const region = page.getByRole('region', { name: 'Your dated settings' })
+  await expect(region).toHaveAttribute('tabindex', '0')
+  expect(await violationsOf(page)).toEqual([])
+})
+
 // The phone header keeps the brand and the actions on one row at the widths where the wordmark is
 // still shown, so the tabs' bar and the header do not wrap or widen the page.
 for (const width of [600, 760]) {

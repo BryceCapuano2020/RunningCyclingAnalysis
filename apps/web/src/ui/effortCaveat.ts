@@ -4,7 +4,7 @@ import { formatDuration } from '@rca/core/units'
 import { HEADLINE_LABEL } from './grades'
 
 /*
- * Why a best effort may not have been the hardest, from its heart rate. A domain rule rather than copy,
+ * What a best effort's heart rate says about how hard it was. A domain rule rather than copy,
  * so the share card and the Method page read the same check.
  */
 
@@ -17,10 +17,11 @@ export interface EffortCaveat {
   short: string
 }
 
-/** The two verdicts on a best effort's share, shared by the card's text and the sport page's line. */
+/** What follows a best effort's share, shared by the card's text and the sport page's line. */
 const VERDICT = {
-  notHardest: 'so it was probably not your hardest',
-  hard: 'so it was hard',
+  /** The measured fact is the share before it, so this says what would change it. */
+  notHard: (duration: string) => `. A hard ${duration} effort would raise this.`,
+  hard: ', so it was hard.',
 } as const
 
 /** A share as the percent the text shows. The verdict is judged on this same figure. */
@@ -58,26 +59,26 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   const duration = formatDuration(durationS)
   if (run !== null && !isHard(run) && ride !== null && !isHard(ride)) {
     return {
-      title: 'Both numbers could be higher',
+      title: 'Neither best effort reached a hard heart rate',
       text:
         `Your best ${duration} reached ${percentOf(run)}% of your running reference heart rate ` +
-        `and ${percentOf(ride)}% of your cycling one (both ${REFERENCE_SOURCE}), ` +
-        'so neither was probably your hardest.',
-      short: `Best efforts over ${duration} may not have been your hardest.`,
+        `and ${percentOf(ride)}% of your cycling one (both ${REFERENCE_SOURCE}). ` +
+        `A hard ${duration} effort in each sport would raise these.`,
+      short: `Best efforts over ${duration} did not reach a hard heart rate.`,
     }
   }
   if (ride !== null && !isHard(ride)) {
     return {
-      title: 'Your ride number could be higher',
-      text: `${reachedText('ride', duration, ride)}, ${VERDICT.notHardest}.`,
-      short: `Best cycling effort over ${duration} may not have been your hardest.`,
+      title: 'Your best ride did not reach a hard heart rate',
+      text: `${reachedText('ride', duration, ride)}${VERDICT.notHard(duration)}`,
+      short: `Best cycling effort over ${duration} did not reach a hard heart rate.`,
     }
   }
   if (run !== null && !isHard(run)) {
     return {
-      title: 'Your run number could be higher',
-      text: `${reachedText('run', duration, run)}, ${VERDICT.notHardest}.`,
-      short: `Best running effort over ${duration} may not have been your hardest.`,
+      title: 'Your best run did not reach a hard heart rate',
+      text: `${reachedText('run', duration, run)}${VERDICT.notHard(duration)}`,
+      short: `Best running effort over ${duration} did not reach a hard heart rate.`,
     }
   }
   return null
@@ -85,8 +86,8 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
 
 /**
  * One line on a sport's best effort at the headline duration, by heart rate, such as "Your best 20 min
- * running reached 70% of your running reference heart rate (set from your highest heart rates on file),
- * so it was probably not your hardest". Null when heart rate does not say, or the check is missing.
+ * running reached 70% of your running reference heart rate (set from your highest heart rates on file).
+ * A hard 20 min effort would raise this". Null when heart rate does not say, or the check is missing.
  */
 export function effortShareLine(
   sport: Sport,
@@ -95,8 +96,8 @@ export function effortShareLine(
   if (!effort) return null
   const fraction = { run: effort.runHrFraction, ride: effort.rideHrFraction }[sport]
   if (fraction === null) return null
-  const verdict = isHard(fraction) ? VERDICT.hard : VERDICT.notHardest
-  return `${reachedText(sport, HEADLINE_LABEL, fraction)}, ${verdict}.`
+  const verdict = isHard(fraction) ? VERDICT.hard : VERDICT.notHard(HEADLINE_LABEL)
+  return `${reachedText(sport, HEADLINE_LABEL, fraction)}${verdict}`
 }
 
 /** True when heart rate shows both best efforts were hard: 90% of each reference, as the percent shows. */

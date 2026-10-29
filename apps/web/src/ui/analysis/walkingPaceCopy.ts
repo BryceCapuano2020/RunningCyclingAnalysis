@@ -1,5 +1,6 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { plural } from '../components/plural'
+import type { Route } from '../route'
 
 /*
  * Runs at walking pace: hikes recorded as runs. The core keeps them in the library and leaves them out of every
@@ -8,6 +9,9 @@ import { plural } from '../components/plural'
 
 /** The mark on a list row and an activity's header. */
 export const WALKING_PACE_CHIP = 'Walking pace'
+
+/** The pages that carry the library line about runs at walking pace: where runs are listed or analysed. */
+export const WALKING_NOTE_PAGES: readonly Route['page'][] = ['run', 'activities']
 
 /** The line on an activity page, in the place of its best efforts. */
 export const WALKING_PACE_NOTE =

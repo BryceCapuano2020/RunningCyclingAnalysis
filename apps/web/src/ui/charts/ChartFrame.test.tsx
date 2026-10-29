@@ -284,7 +284,7 @@ describe('ChartFrame legend row', () => {
   })
 
   describe('ChartFrame naming', () => {
-    it('names the figure by the visible title only, and describes the plot surface by the arrow-key hint', () => {
+    it('names the figure and its plot surface by the visible title, and describes the plot surface by the arrow-key hint', () => {
       renderFrame({
         surface: (size) => (
           <PlotSurface
@@ -296,8 +296,8 @@ describe('ChartFrame legend row', () => {
         ),
       })
       const surface = screen.getByTestId('plot-surface')
-      expect(surface).not.toHaveAttribute('aria-labelledby')
       expect(screen.getByRole('figure', { name: 'Test chart' })).toBeInTheDocument()
+      expect(screen.getByRole('group', { name: 'Test chart' })).toBe(surface)
       const hint = document.querySelector('.chart-frame__hint')
       expect(hint?.id).toBeTruthy()
       expect(surface.getAttribute('aria-describedby')?.split(' ')).toContain(hint?.id)

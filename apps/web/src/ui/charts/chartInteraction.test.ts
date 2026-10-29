@@ -15,6 +15,7 @@ const SIZE: ChartSize = {
   plot: { left: 40, right: 380, top: 20, bottom: 260 },
   tooltipId: 'tip',
   hintId: 'chart-hint',
+  titleId: 'chart-title',
 }
 
 const CONTENT: TooltipContent = { x: 0, y: 0, title: 'x', rows: [] }

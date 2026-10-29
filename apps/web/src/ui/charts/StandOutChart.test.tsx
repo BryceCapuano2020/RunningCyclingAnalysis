@@ -64,7 +64,7 @@ describe('StandOutChart', () => {
     const key = screen.getByRole('list', { name: 'Legend' })
     expect(key).toHaveTextContent('Stands out')
     expect(key).toHaveTextContent('In line')
-    expect(key).toHaveTextContent('Likely range')
+    expect(key).toHaveTextContent('Range')
     // A run's hollow point is a ring, a ride's a hollow diamond, as its filled point is a dot or a diamond.
     expect(key.querySelector('.chart-legend__key--dot')).not.toBeNull()
     expect(key.querySelector('.chart-legend__key--ring')).not.toBeNull()
@@ -95,7 +95,7 @@ describe('StandOutChart', () => {
   it('lists every value in a table, saying which stand out', () => {
     const { container } = render(<StandOutChart sport="run" rows={ROWS} />)
     const { headers, rows } = tableOf(container)
-    expect(headers).toEqual(['Duration', 'Difference', 'Likely range'])
+    expect(headers).toEqual(['Duration', 'Difference', 'Range'])
     expect(rows[0]).toEqual(['5 s', '-1%', '-9% to +7%'])
     expect(rows[1]).toEqual(['1 min', '+14% above', '+6% to +22%'])
     expect(rows[2]).toEqual(['2 min', '-9% below', '-17% to -1%'])

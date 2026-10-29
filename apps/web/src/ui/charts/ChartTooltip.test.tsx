@@ -134,6 +134,25 @@ describe('ChartTooltip', () => {
     expect(wide.el.style.top).toBe('130px')
   })
 
+  it('keeps a high point’s tooltip below the plot top, clear of the y-axis caption above it', () => {
+    giveSize(100, 40)
+    const { el } = renderTooltip({
+      content: { ...content, y: 30 },
+      bounds: { width: 480, height: 300, plotTop: 28 },
+    })
+    expect(el.style.top).toBe('28px')
+  })
+
+  it('keeps a tall tooltip inside the bottom, even when that puts it over the caption', () => {
+    giveSize(100, 280)
+    const { el } = renderTooltip({
+      content: { ...content, y: 30 },
+      bounds: { width: 480, height: 300, plotTop: 28 },
+    })
+    // Only 272 px lie below the plot top, so the box rises to 20 px rather than run off the chart.
+    expect(el.style.top).toBe('20px')
+  })
+
   it('places the tooltip to the right of the point, offset from it', () => {
     giveSize(100, 40)
     const { el } = renderTooltip({ content })

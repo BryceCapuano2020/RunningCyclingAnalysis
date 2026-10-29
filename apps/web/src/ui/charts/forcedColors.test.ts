@@ -6,6 +6,8 @@ const ratioCss = await readStylesheet(import.meta.url, './RatioChart.css')
 const scatterCss = await readStylesheet(import.meta.url, './HrScatter.css')
 const legendCss = await readStylesheet(import.meta.url, './ChartLegend.css')
 const tooltipCss = await readStylesheet(import.meta.url, './ChartTooltip.css')
+const volumeCss = await readStylesheet(import.meta.url, './WeeklyVolumeChart.css')
+const splitsCss = await readStylesheet(import.meta.url, '../components/SplitsTable.css')
 
 /** The rules inside a stylesheet's forced-colours block, which the browser applies in place of the tints. */
 function forcedBody(css: string): string {
@@ -55,6 +57,21 @@ describe('forced colours keep the chart marks visible', () => {
   it('gives the heart-rate dots a system fill, so they read without their tints', () => {
     const forced = forcedBody(scatterCss)
     expect(forced).toMatch(/\.hr-scatter__dot \{[^}]*fill: CanvasText/)
+  })
+
+  it('gives the legend fills the colours the weekly volume bars take, so the key matches the bars', () => {
+    const key = forcedBody(legendCss)
+    const bars = forcedBody(volumeCss)
+    expect(key).toMatch(/\.swatch-run,\s*\.chart-legend__key--run \{[^}]*background: CanvasText/)
+    expect(key).toMatch(/\.swatch-ride,\s*\.chart-legend__key--ride \{[^}]*background: Highlight/)
+    expect(bars).toMatch(/\.volume-bar \{[^}]*fill: Highlight/)
+    expect(bars).toMatch(/\.volume-bar\[data-sport='run'\] \{[^}]*fill: CanvasText/)
+  })
+
+  it('outlines the splits pace track and fills the bar with the highlight, since both fills are dropped', () => {
+    const forced = forcedBody(splitsCss)
+    expect(forced).toMatch(/\.splits-table__track \{[^}]*border: 1px solid CanvasText/)
+    expect(forced).toMatch(/\.splits-table__bar \{[^}]*background: Highlight/)
   })
 
   describe('forced colours tell the two sports apart by their edges', () => {

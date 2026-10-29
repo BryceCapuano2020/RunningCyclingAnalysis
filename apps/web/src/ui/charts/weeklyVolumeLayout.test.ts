@@ -22,6 +22,7 @@ function sizeOf(width: number, height = 200): ChartSize {
     plot: plotBoxOf(width, height, undefined, PLOT_BOTTOM_WITHOUT_X_TITLE),
     tooltipId: 't',
     hintId: 'h',
+    titleId: 't',
   }
 }
 

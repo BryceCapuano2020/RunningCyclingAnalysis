@@ -56,9 +56,12 @@ const READING: Record<ZoneMeasure, string> = {
   pace: 'pace',
 }
 
-/** A share as a whole percent. A share too small to round up reads "<1%", so it is not shown as none. */
+/** A share as a whole percent. A share too small to round up reads "<1%", so it is not shown as none, and one
+ * too close to all of it to round down reads ">99%", so it is not shown as all. */
 export function percentText(share: number): string {
   if (share <= 0) return '0%'
+  if (share >= 1) return '100%'
+  if (share >= 0.995) return '>99%'
   return share < 0.005 ? '<1%' : `${Math.round(share * 100)}%`
 }
 
@@ -116,7 +119,7 @@ export function periodLede(
   return `${percentText(split.easy)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]} was easy (${easyZones(lead.measure)}), and ${percentText(split.hard)} was hard (zones ${HARD_FROM[lead.measure]} and up).`
 }
 
-/** The lede of one activity's measure: the zone that held most of the time. Null without time. */
+/** The lede of one activity's measure: the zone that held most of the time, or all of it. Null without time. */
 export function activityLede(
   sport: Sport,
   measure: ZoneMeasure,
@@ -124,7 +127,10 @@ export function activityLede(
 ): string | null {
   const main = mainZone(time)
   if (main === null) return null
-  const at = `${IN_SENTENCE[measure]} zone ${main.level} (${percentText(main.share)})`
+  const percent = percentText(main.share)
+  const at = `${IN_SENTENCE[measure]} zone ${main.level} (${percent})`
+  // Only a share that is all of the time says so; 99.6% reads "Most of … (>99%)".
+  if (main.share >= 1) return `All of this ${sport} was in ${at}.`
   return main.share > 0.5
     ? `Most of this ${sport} was in ${at}.`
     : `This ${sport} spent the most time in ${at}.`

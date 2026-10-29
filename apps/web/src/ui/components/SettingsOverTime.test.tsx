@@ -6,6 +6,8 @@ import { SettingsOverTime } from './SettingsOverTime'
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 function renderForm() {
@@ -43,6 +45,51 @@ describe('the From date', () => {
     renderForm()
     expect(screen.getByLabelText('From')).toHaveAttribute('min', '1970-01-01')
     expect(screen.getByLabelText('From')).toHaveAttribute('max', '2100-12-31')
+  })
+})
+
+describe('the dated settings table', () => {
+  const entries = [
+    { kind: 'massKg' as const, value: 78, from: '2026-08-15' },
+    { kind: 'massKg' as const, value: 75, from: '2025-08-15' },
+  ]
+
+  function renderTable() {
+    return render(
+      <SettingsOverTime
+        entries={entries}
+        state="ready"
+        units="metric"
+        onAdd={async () => undefined}
+        onRemove={async () => undefined}
+      />,
+    )
+  }
+
+  it('is a plain box while it fits, so it is not an extra tab stop', () => {
+    renderTable()
+    expect(screen.queryByRole('region', { name: 'Your dated settings' })).not.toBeInTheDocument()
+  })
+
+  it('is a named, focusable scroll region once it is wider than its box, so its Value and Delete columns can be reached', () => {
+    class MeasuringObserver {
+      private readonly callback: () => void
+      constructor(callback: () => void) {
+        this.callback = callback
+      }
+      observe() {
+        this.callback()
+      }
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', MeasuringObserver)
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(434)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(288)
+    renderTable()
+    expect(screen.getByRole('region', { name: 'Your dated settings' })).toHaveAttribute(
+      'tabindex',
+      '0',
+    )
   })
 })
 

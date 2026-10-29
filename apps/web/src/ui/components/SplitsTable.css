@@ -128,3 +128,16 @@
 .btn.splits-view__choice--active::before {
   content: '✓';
 }
+
+/* In forced colours the track and bar fills are dropped, so the track is outlined and the bar is the highlight. */
+@media (forced-colors: active) {
+  .splits-table__track {
+    box-sizing: border-box;
+    height: 8px;
+    border: 1px solid CanvasText;
+  }
+
+  .splits-table__bar {
+    background: Highlight;
+  }
+}

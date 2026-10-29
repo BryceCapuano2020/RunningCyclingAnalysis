@@ -4,7 +4,7 @@ import type { DriftPoint } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 import { formatDay, formatDayMonth } from '../format/date'
-import { DECOUPLING_REFERENCE, driftChange } from '../lateInEffort'
+import { DECOUPLING_REFERENCE, driftChange, driftDescription } from '../lateInEffort'
 import { SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
@@ -102,7 +102,7 @@ export function DriftChart({ sport, points, names, note }: DriftChartProps) {
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={`Change in output per heartbeat on steady ${SPORT_PLURAL[sport]}, first half to second`}
-      description={`One dot for each steady ${SPORT_PLURAL[sport]} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks ${DECOUPLING_REFERENCE}.`}
+      description={driftDescription(sport)}
       legend={[{ label: DECOUPLING_REFERENCE, kind: 'neutral', swatch: 'dashed' }]}
       note={note}
       table={{

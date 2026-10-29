@@ -1,6 +1,6 @@
 import type { ActivityTrace } from '@rca/core/workbench'
 
-/** A ten-second run with a pause, an unrecorded second, a missing pace and one recorded lap. */
+/** A ten-second run with a pause, an unrecorded second, a missing pace and two recorded laps. */
 export function runTrace(): ActivityTrace {
   return {
     version: 1,
@@ -15,7 +15,10 @@ export function runTrace(): ActivityTrace {
       heartRate: Float32Array.from([120, 121, 122, 123, 124, 125, 126, 127, 128, 129]),
       cadence: Float32Array.from([170, 171, 172, 173, 174, 175, 176, 177, 178, 179]),
     },
-    laps: [{ startS: 2, endS: 6 }],
+    laps: [
+      { startS: 2, endS: 6 },
+      { startS: 6, endS: 10 },
+    ],
   }
 }
 

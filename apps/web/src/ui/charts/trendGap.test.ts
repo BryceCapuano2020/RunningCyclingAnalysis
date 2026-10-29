@@ -33,20 +33,20 @@ describe('gapNote', () => {
   it('names the dates, and rides by their power', () => {
     const gap = { fromMs: Date.UTC(2024, 11, 3, 12), toMs: Date.UTC(2025, 7, 17, 23, 59) }
     expect(gapNote('ride', gap, 1200)).toBe(
-      'No rides of 20 min or longer with power from 3 Dec 2024 to 17 Aug 2025.',
+      'The line breaks from 3 Dec 2024 to 17 Aug 2025: no rides of 20 min or longer with power in that time.',
     )
     expect(gapNote('run', gap, 1200)).toBe(
-      'No runs of 20 min or longer from 3 Dec 2024 to 17 Aug 2025.',
+      'The line breaks from 3 Dec 2024 to 17 Aug 2025: no runs of 20 min or longer in that time.',
     )
   })
 
   it('names the effort length, since a gap in the 60 min trend is not a gap in training', () => {
     const gap = { fromMs: Date.UTC(2024, 11, 3, 12), toMs: Date.UTC(2025, 7, 17, 23, 59) }
     expect(gapNote('run', gap, 300)).toBe(
-      'No runs of 5 min or longer from 3 Dec 2024 to 17 Aug 2025.',
+      'The line breaks from 3 Dec 2024 to 17 Aug 2025: no runs of 5 min or longer in that time.',
     )
     expect(gapNote('run', gap, 3600)).toBe(
-      'No runs of 60 min or longer from 3 Dec 2024 to 17 Aug 2025.',
+      'The line breaks from 3 Dec 2024 to 17 Aug 2025: no runs of 60 min or longer in that time.',
     )
   })
 })

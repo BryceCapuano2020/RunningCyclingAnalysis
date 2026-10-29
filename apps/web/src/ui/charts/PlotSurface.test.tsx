@@ -19,6 +19,7 @@ const size: ChartSize = {
   plot: { left: 40, right: 380, top: 20, bottom: 150 },
   tooltipId: 'tip',
   hintId: 'chart-hint',
+  titleId: 'chart-title',
 }
 
 function renderSurface() {
@@ -40,6 +41,7 @@ describe('PlotSurface', () => {
     expect(surface).toHaveAttribute('role', 'group')
     expect(surface).toHaveAttribute('aria-describedby', 'tip chart-hint')
     expect(surface).toHaveAttribute('aria-roledescription', 'chart')
+    expect(surface).toHaveAttribute('aria-labelledby', 'chart-title')
   })
 
   it('covers the plot area with its hit rectangle', () => {
@@ -88,9 +90,9 @@ describe('PlotSurface', () => {
     expect(onBlur).toHaveBeenCalledTimes(1)
   })
 
-  it('leaves the name to the figure, so a screen reader hears the chart name once', () => {
+  it('is named by the figure title, so a focused plot is announced with a name', () => {
     const { surface } = renderSurface()
-    expect(surface).not.toHaveAttribute('aria-labelledby')
+    expect(surface).toHaveAttribute('aria-labelledby', 'chart-title')
     expect(surface).not.toHaveAttribute('aria-label')
     expect(surface).toHaveAttribute('aria-describedby', 'tip chart-hint')
   })

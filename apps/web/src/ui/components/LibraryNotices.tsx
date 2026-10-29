@@ -44,6 +44,8 @@ export interface LibraryNoticesProps {
   signedIn: boolean
   keepFiles: boolean
   fileRetentionAvailable: boolean
+  /** Whether this page says how many saved runs are at walking pace: Run and Activities, not every page. */
+  walkingNote?: boolean
   onRetry: () => void
 }
 
@@ -53,6 +55,7 @@ export function LibraryNotices({
   signedIn,
   keepFiles,
   fileRetentionAvailable,
+  walkingNote = false,
   onRetry,
 }: LibraryNoticesProps) {
   const originalsMissing = analysis.missingOriginals
@@ -156,7 +159,7 @@ export function LibraryNotices({
       {analysis.state.hiddenDuplicates > 0 && (
         <p className="secondary">{hiddenCopiesText(analysis.state.hiddenDuplicates)}</p>
       )}
-      {analysis.state.walkingPaceRuns > 0 && (
+      {walkingNote && analysis.state.walkingPaceRuns > 0 && (
         <p className="secondary">{walkingPaceText(analysis.state.walkingPaceRuns)}</p>
       )}
     </>
