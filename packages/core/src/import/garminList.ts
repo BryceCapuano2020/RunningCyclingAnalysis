@@ -8,16 +8,19 @@ import { cleanTitle } from './names'
 
 /**
  * The most one of a Garmin export's activity summaries may inflate to. A summary of a few thousand
- * activities is a few megabytes. The text is parsed whole, which takes several times its size, so this
- * is also what bounds that parse.
+ * activities is a few megabytes, and a large account's may pass eight. The text is parsed whole, which
+ * takes several times its size, so MAX_GARMIN_SUMMARY_OBJECTS and MAX_GARMIN_SUMMARY_DEPTH bound that
+ * parse too: it is these that keep a crafted file from costing more than a real one.
  */
-export const MAX_GARMIN_SUMMARY_BYTES = 8 * 1024 * 1024
+export const MAX_GARMIN_SUMMARY_BYTES = 16 * 1024 * 1024
 /**
  * The most objects one summary may hold, counted before it is parsed. A real summary has a few dozen for
  * each activity, but a crafted list of empty objects is a few bytes for each, and a parsed object takes
  * about a hundred.
  */
 export const MAX_GARMIN_SUMMARY_OBJECTS = 500_000
+/** The deepest a summary may nest its lists and objects, checked before it is parsed. A real one nests about five. */
+export const MAX_GARMIN_SUMMARY_DEPTH = 64
 /** The most all of an export's summaries may inflate to together. They are read one at a time. */
 export const MAX_GARMIN_SUMMARIES_BYTES = 64 * 1024 * 1024
 /** The most summary files read from one export. Garmin splits a large account's summaries into a few. */
@@ -69,7 +72,7 @@ export interface GarminList {
  * out. A name is cut to a title as any is (cleanTitle). Null when the text is not JSON.
  */
 export function parseGarminSummaries(text: string): GarminActivity[] | null {
-  if (objectsIn(text) > MAX_GARMIN_SUMMARY_OBJECTS) return []
+  if (objectsIn(text) > MAX_GARMIN_SUMMARY_OBJECTS || nestsTooDeep(text)) return []
   let root: unknown
   try {
     root = JSON.parse(text)
@@ -98,6 +101,27 @@ function objectsIn(text: string): number {
     if (++count > MAX_GARMIN_SUMMARY_OBJECTS) break
   }
   return count
+}
+
+/** Whether the text nests lists and objects deeper than the limit. It stops at the first that does. */
+function nestsTooDeep(text: string): boolean {
+  let depth = 0
+  let inString = false
+  for (let at = 0; at < text.length; at++) {
+    const code = text.charCodeAt(at)
+    if (inString) {
+      if (code === 92)
+        at++ // A backslash: the character after it is part of the string.
+      else if (code === 34) inString = false
+    } else if (code === 34) {
+      inString = true
+    } else if (code === 91 || code === 123) {
+      if (++depth > MAX_GARMIN_SUMMARY_DEPTH) return true
+    } else if (code === 93 || code === 125) {
+      depth--
+    }
+  }
+  return false
 }
 
 /** The objects that may be activities: those under `summarizedActivitiesExport`, else the list's own. */

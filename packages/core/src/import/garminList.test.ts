@@ -6,6 +6,7 @@ import { MAX_TITLE_CHARS } from './names'
 import {
   garminList,
   MAX_GARMIN_SUMMARIES_BYTES,
+  MAX_GARMIN_SUMMARY_DEPTH,
   MAX_GARMIN_SUMMARY_OBJECTS,
   MAX_GARMIN_SUMMARY_BYTES,
   parseGarminSummaries,
@@ -83,6 +84,55 @@ describe('parseGarminSummaries', () => {
     expect(parseGarminSummaries(many)).toEqual([])
     const fewer = `[{"summarizedActivitiesExport":[{"name":"A","startTimeGmt":${START}}]}]`
     expect(parseGarminSummaries(fewer)).toEqual([{ startMs: START, name: 'A' }])
+  })
+
+  it('reads none of a summary nested deeper than a summary can be, without parsing it', () => {
+    const deep = (levels: number) => `${'['.repeat(levels)}${']'.repeat(levels)}`
+    // 4 Mi of brackets would be a stack overflow in a parser, and is refused on the way past the 65th.
+    const started = performance.now()
+    expect(parseGarminSummaries('['.repeat(4 * 1024 * 1024))).toEqual([])
+    expect(performance.now() - started).toBeLessThan(500)
+    expect(parseGarminSummaries(deep(MAX_GARMIN_SUMMARY_DEPTH + 1))).toEqual([])
+    // At the limit it is parsed (and is JSON that lists no activity), and brackets in a name do not count.
+    expect(parseGarminSummaries(deep(MAX_GARMIN_SUMMARY_DEPTH))).toEqual([])
+    const quoted = JSON.stringify([
+      { name: `${'['.repeat(200)}\\"${']'.repeat(10)}`, startTimeGmt: START },
+    ])
+    expect(parseGarminSummaries(quoted)?.map((a) => a.startMs)).toEqual([START])
+  })
+
+  it('still parses a realistic summary of 16 MiB: about 5,000 activities with nested objects', async () => {
+    const activity = (i: number) => ({
+      activityId: 1_000_000 + i,
+      name: `Activity number ${i}`,
+      activityType: 'running',
+      startTimeGmt: START + i * 3_600_000,
+      beginTimestamp: START + i * 3_600_000,
+      ...Object.fromEntries(Array.from({ length: 100 }, (_, f) => [`metric${f}`, i * 1.5 + f])),
+      summarizedDiveInfo: { surfaceCondition: null, waterType: null },
+      splitSummaries: Array.from({ length: 8 }, (_, s) => ({
+        splitType: 'RWD_RUN',
+        distance: s,
+        noOfSplits: 1,
+      })),
+      note: 'x'.repeat(800),
+    })
+    const text = JSON.stringify([
+      { summarizedActivitiesExport: Array.from({ length: 5000 }, (_, i) => activity(i)) },
+    ])
+    expect(text.length).toBeGreaterThan(MAX_GARMIN_SUMMARY_BYTES * 0.9)
+    expect(text.length).toBeLessThan(MAX_GARMIN_SUMMARY_BYTES)
+    expect(text.split('{').length - 1).toBeLessThan(MAX_GARMIN_SUMMARY_OBJECTS / 5)
+
+    const parsed = parseGarminSummaries(text)
+    expect(parsed).toHaveLength(5000)
+    expect(parsed?.[4999]).toEqual({
+      startMs: START + 4999 * 3_600_000,
+      name: 'Activity number 4999',
+      sport: 'run',
+    })
+    const list = await readGarminList(zip({ [`${FOLDER}a_0_summarizedActivities.json`]: text }))
+    expect(list?.activities).toHaveLength(5000)
   })
 
   it('is null for text that is not JSON, and empty for JSON of another shape', () => {

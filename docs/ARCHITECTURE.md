@@ -256,7 +256,7 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    is read within the one shared budget of entries, activity files, buffered and decompressed bytes. A nested zip keeps only the end of its stream (to check its central directory) and lets go of it, and of the zip, when it is done; what it keeps counts against the buffer. Only
    a zip with no `activities.csv` is searched for summaries, by range, before any file is parsed. They are
    read one at a time (`visitZipEntries`), each parsed and let go before the next is inflated: at most 32
-   files, 8 MiB inflated each (and 500,000 objects) and 64 MiB together, and within what the buffer holds (the compressed bytes,
+   files, 16 MiB inflated each (checked before parsing: at most 500,000 objects and 64 levels of nesting) and 64 MiB together, and within what the buffer holds (the compressed bytes,
    the inflated bytes twice and the decoded text). A directory header that points at an entry already read
    is skipped, so a small zip cannot list one entry many times, and an entry past its share is left out
    but its share is still counted. The bytes count against the zip's decompressed-bytes budget. Each

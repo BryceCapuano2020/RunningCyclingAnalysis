@@ -30,9 +30,9 @@ import {
 import { ACTIVITY, isIgnored, OTHER_ACTIVITY, ZIP } from './zipDirectory'
 
 /**
- * One zip being read as a stream: the top-level source, or a zip inside it, whose bytes come from the
- * entry that holds it and are never held whole. Activity files are buffered one at a time, within the
- * budget the whole read shares, and handed to the run's queue when they are complete.
+ * One zip being read as a stream: the top-level source, or a zip inside it, fed by the entry that holds
+ * it and never held whole. Activity files are buffered within the budget the whole read shares, and
+ * queued on the run when complete.
  */
 export class ZipReader {
   private readonly name: string
@@ -41,7 +41,7 @@ export class ZipReader {
   private readonly owned: boolean
   private readonly unzip: Unzip
   private readonly prefix: string
-  /** The entries still being read. One that is done or failed is let go, with the zip it held. */
+  /** Entries still being read; one done or failed is let go, with the zip it held. */
   private readonly open = new Set<PendingEntry>()
   private archivePrefix = new Uint8Array(0)
   private sawEntry = false
@@ -78,9 +78,11 @@ export class ZipReader {
     } catch {
       this.streamFailure ??= corrupt(ARCHIVE_FAILED)
       this.dead = true
-      this.releaseTail()
-      // The top-level source learns it from the refusal its read callback gives; a nested zip is told here.
-      if (!this.owned) this.interruption = this.streamFailure
+      // Only a nested zip holds a counted copy of its tail, and is told here; a source learns from its read.
+      if (!this.owned) {
+        this.releaseTail()
+        this.interruption = this.streamFailure
+      }
       return false
     }
     return true
@@ -112,9 +114,8 @@ export class ZipReader {
   }
 
   /**
-   * Entries still open when extraction stops are reported, with the reason it stopped. A zip that was
-   * being read when a shared limit stopped the archive is not: the entry in it that hit the limit has
-   * reported itself, and the abort reason covers the rest.
+   * Entries still open when extraction stops are reported, with the reason it stopped. A zip being read
+   * when a shared limit stopped the archive is not: the entry that hit it has reported itself.
    */
   closeOpen(): void {
     const { budget } = this.run
@@ -326,9 +327,8 @@ export class ZipReader {
       }
       if (gunzip !== null) {
         try {
-          // ZIP Inflate can emit a much larger callback chunk than the 16 KiB source slice.
-          // Re-slice before feeding the nested gzip decoder so both decompressor layers have
-          // the same bounded input quantum.
+          // ZIP Inflate can emit a much larger callback chunk than the 16 KiB source slice, so re-slice
+          // it: both decompressor layers then have the same bounded input quantum.
           if (data.length === 0) gunzip.push(data, final)
           else {
             for (let offset = 0; offset < data.length; offset += DECOMPRESS_INPUT_CHUNK_BYTES) {
