@@ -167,9 +167,10 @@ describe('ActivityWorkbench', () => {
   })
 
   it('names suggested intervals by number and start instead of repeating one label', async () => {
-    const trace = steadyTrace(400)
-    trace.streams.power = Float32Array.from({ length: 400 }, (_, index) =>
-      Math.floor(index / 100) % 2 === 1 ? 300 : 100,
+    // Three efforts of 100 s with a rest of 100 s between them, inside a warm-up and a cool-down.
+    const trace = steadyTrace(900)
+    trace.streams.power = Float32Array.from({ length: 900 }, (_, index) =>
+      index >= 200 && index < 700 && Math.floor((index - 200) / 100) % 2 === 0 ? 300 : 100,
     )
     show(trace)
     expect(await screen.findByRole('heading', { name: 'Suggested intervals' })).toBeInTheDocument()
