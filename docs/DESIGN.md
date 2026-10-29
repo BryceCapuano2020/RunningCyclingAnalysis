@@ -693,8 +693,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   hills, so they can differ."; a ride's watts are marked
   Estimated unless a power meter measured them. A run held indoors (on a treadmill, an indoor track, or a virtual or GPS-off run) sets no
   record and holds no best: its belt or footpod pace is left out of the run curves, the records, the
-  distance bests, the thresholds, the race predictions and the Balance comparison
-  (`packages/core/src/digest/effortTrust.ts`, a table keyed by sport so a trainer ride's meter still
+  distance bests, the thresholds, the race predictions, the late-in-session bests and drift, and the
+  Balance comparison (`packages/core/src/digest/effortTrust.ts`, a table keyed by sport so a trainer ride's meter still
   counts). It stays in the activity list, the volume, the time and the heart-rate zones. Its page lists
   its own distance times under "Distance times", unmarked and ungraded, with one line: "Indoor pace
   is not used for bests." When
@@ -1197,6 +1197,12 @@ heart rate is one number too: the library judges heart rate against it (`HeartRa
 period's analysis reports and judges its efforts against it (`CombineOptions.references`), so Profile, How sure is
 this? and the set-aside note all say the same running and cycling figure. A period's own threshold, the sport page's
 figure for recent form, is still the period's.
+
+The thresholds and reference heart rates are the library's as a whole, so they sit at the library's best:
+a period far from the athlete's peak, an older one or a detrained one, is cut from the library's thresholds
+and not from its own best efforts. Adding files can move
+the library's thresholds, and with them the zones of older periods. The time in zones is the time spent
+against the peak-based zones, the same in every period.
 
 **Period maths.** Each activity's digest distribution (seconds per 1 bpm, 5 W or 0.05 m/s bin) is cut by that
 activity's own zones, so a period can hold activities with different zones (a threshold entered during it, or a
