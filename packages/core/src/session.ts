@@ -148,24 +148,16 @@ export class AnalysisSession {
   }
 
   /**
-   * Replaces the whole library with digests that were stored elsewhere. With `keepUnsaved`, for a
-   * library read from the server the session saves to, an activity whose save failed exists only
-   * here: it stays in the library, and still unsaved, so adding its file again retries it, and a copy
-   * already stored under its key replaces it (the stored copy is saved, so nothing waits on it; an
-   * original that failed to upload is still counted by the page as a missing original). A library
-   * read from this browser leaves them out: they belong to the account that is gone.
+   * Replaces the library with digests stored elsewhere. With `keepUnsaved`, for a server library, an
+   * activity whose save failed stays and stays unsaved, so adding its file again retries it, unless
+   * the server holds that workout. A library read from this browser leaves them out.
    */
   loadDigests(
     digests: ActivityDigest[],
     settings: AthleteSettings,
     { keepUnsaved = false }: { keepUnsaved?: boolean } = {},
   ): SessionState {
-    const unsaved = keepUnsaved
-      ? [...this.unsynced.keys()].flatMap((key) => {
-          const digest = this.digests.get(key)
-          return digest === undefined ? [] : [[key, digest] as const]
-        })
-      : []
+    const before = new Map(this.digests)
     this.resetLibrary()
     const outdatedKeys = new Set<string>()
     const incompatibleKeys = new Set<string>()
@@ -178,14 +170,13 @@ export class AnalysisSession {
       }
       this.digests.set(key, digest)
     }
-    for (const [key, digest] of unsaved) {
-      if (this.digests.has(key)) {
+    for (const key of keepUnsaved ? this.unsynced.keys() : []) {
+      const digest = before.get(key)
+      if (digest === undefined) continue
+      if (!this.digests.has(key)) this.digests.set(key, digest)
+      else {
         this.unsynced.delete(key)
         this.latestUnsynced.delete(key)
-      } else {
-        this.digests.set(key, digest)
-        outdatedKeys.delete(key)
-        incompatibleKeys.delete(key)
       }
     }
     for (const key of outdatedKeys) {
@@ -302,8 +293,7 @@ export class AnalysisSession {
     if (adding) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
-    // A copy that replaces the held one is swapped in for good only once the sink has answered: the
-    // server may refuse it (activity-conflict) and keep the copy it has, which the session then keeps.
+    // A replacing copy is swapped in only once the sink answers: the server may refuse it (409) and keep its own.
     const swapAfterSink = replaces && sink !== undefined && batch.halt === null
     if (!swapAfterSink) await noteKept(activity, digest, held, listeners)
     const considered = (saved: boolean): Considered => {
