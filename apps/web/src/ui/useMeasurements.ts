@@ -116,34 +116,45 @@ export function useMeasurements(
     setAttempt((tries) => tries + 1)
   }, [])
 
+  // Writes run one at a time, each building its list from the one before it stored, so two quick
+  // writes keep both changes, and a removal cannot bring back a row an earlier write replaced.
+  const queue = useRef<Promise<unknown>>(Promise.resolve())
   const commit = useCallback(
-    async (next: Measurement[], write: () => Promise<unknown>) => {
-      const sorted = sortedMeasurements(next)
-      if (signedIn) {
-        await write()
-        setAccount({ userId, entries: sorted })
-      } else {
-        if (!storeMeasurements(sorted)) throw new Error(NOT_KEPT)
-        setDevice(sorted)
+    (build: (current: readonly Measurement[]) => Measurement[], write: () => Promise<unknown>) => {
+      const run = async (): Promise<Measurement[]> => {
+        const sorted = sortedMeasurements(build(latest.current.entries))
+        if (signedIn) {
+          await write()
+          setAccount({ userId, entries: sorted })
+        } else {
+          if (!storeMeasurements(sorted)) throw new Error(NOT_KEPT)
+          setDevice(sorted)
+        }
+        latest.current = { ...latest.current, entries: sorted }
+        return sorted
       }
-      latest.current = { ...latest.current, entries: sorted }
-      return sorted
+      // A refused write rejects only its own caller; the writes behind it still go ahead.
+      const result = queue.current.then(run, run)
+      queue.current = result.catch(() => undefined)
+      return result
     },
     [signedIn, userId],
   )
 
   const add = useCallback(
     (entry: Measurement) =>
-      commit(withEntry(latest.current.entries, entry), () =>
-        putMeasurement({ ...entry }, userId ?? undefined),
+      commit(
+        (current) => withEntry(current, entry),
+        () => putMeasurement({ ...entry }, userId ?? undefined),
       ),
     [commit, userId],
   )
 
   const remove = useCallback(
     (entry: Measurement) =>
-      commit(withoutEntry(latest.current.entries, measurementKey(entry)), () =>
-        deleteMeasurement(entry, userId ?? undefined),
+      commit(
+        (current) => withoutEntry(current, measurementKey(entry)),
+        () => deleteMeasurement(entry, userId ?? undefined),
       ),
     [commit, userId],
   )

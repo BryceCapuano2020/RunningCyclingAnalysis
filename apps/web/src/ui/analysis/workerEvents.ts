@@ -13,6 +13,8 @@ import {
 import type { ErrorReply } from './copy'
 import { setKeptLibraryHinted } from './keptLibrary'
 import { baselineOf } from './importState'
+import { mergeOutcomes } from './mergeOutcomes'
+import { isOvertaken, isStaleDeviceList } from './staleReplies'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
@@ -94,6 +96,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         return
       }
       if (message.type === 'libraryActivities') {
+        if (isStaleDeviceList(current.transport, current.accountRef)) return
         // Also read at once by rememberKeptLibrary, ahead of the render that sets the state.
         current.library.savedActivitiesRef.current = message.activities
         current.library.setSavedActivities(message.activities)
@@ -106,7 +109,11 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       if (message.type === 'deviceIssue') {
         current.library.setDeviceIssue(
           message.issue === 'notSaved'
-            ? { issue: 'notSaved', count: message.count }
+            ? {
+                issue: 'notSaved',
+                count: message.count,
+                ...(message.newer === undefined ? {} : { newer: message.newer }),
+              }
             : { issue: 'notForgotten' },
         )
         return
@@ -166,6 +173,7 @@ function rememberKeptLibrary(
   else if (
     pending.kind === 'loadDevice' ||
     pending.kind === 'deleteDeviceActivity' ||
+    pending.kind === 'keepProvisional' ||
     (pending.kind === 'addFiles' && pending.saveToDevice === true)
   ) {
     setKeptLibraryHinted(kept)
@@ -181,17 +189,6 @@ function addWaiting(deps: WorkerEventDeps, state: SessionState): void {
   const { library, addFiles, refreshBusy } = deps
   for (const files of drainBatches(library.libraryWaitRef)) addFiles(files, baselineOf(state))
   refreshBusy()
-}
-
-/**
- * A library read sent before the last Start over. The clear that followed it empties the page, so
- * its state is not shown and it sets no hint.
- */
-function isOvertaken(transport: WorkerTransport, pending: Pending): boolean {
-  return (
-    (pending.kind === 'loadServer' || pending.kind === 'loadDevice') &&
-    pending.session !== transport.sessionEpochRef.current
-  )
 }
 
 /**
@@ -263,6 +260,7 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
   imports.setState(message.state)
   if (message.type === 'state') {
     imports.setSavedCount(message.saved ?? null)
+    noteProvisionalOutcome(imports, pending, message)
     // An analysis made while the account loads is shown, but only the import that is saved is summarised.
     if (message.outcome && !pending?.provisional) {
       imports.setImportOutcome(message.outcome)
@@ -283,6 +281,29 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
     return
   }
   imports.setRebuildNotice(rebuildNoticeText(message))
+}
+
+/**
+ * Adds up what provisional imports reported, which is not shown while the account is unknown, so the
+ * summary can say it once they are kept as they are. A library read or a clear starts the count again,
+ * since the files are analysed anew after it.
+ */
+function noteProvisionalOutcome(
+  imports: WorkerEventDeps['imports'],
+  pending: Pending | undefined,
+  message: Extract<ReplyResponse, { type: 'state' }>,
+): void {
+  const { provisionalOutcomeRef: held } = imports
+  if (pending?.provisional && message.outcome) {
+    held.current =
+      held.current === null ? message.outcome : mergeOutcomes(held.current, message.outcome)
+  } else if (pending?.kind === 'keepProvisional' && held.current !== null) {
+    imports.setImportOutcome(held.current)
+    imports.setImportChange({ outcome: held.current, before: null, after: message.state.result })
+    held.current = null
+  } else if (['loadDevice', 'loadServer', 'clear', 'loadSample'].includes(pending?.kind ?? '')) {
+    held.current = null
+  }
 }
 
 /** Says why a request failed, in the place the request's kind calls for. */

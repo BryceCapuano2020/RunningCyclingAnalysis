@@ -1,4 +1,4 @@
-import { parseDigest, serializeDigest } from '@rca/core/digest'
+import { DIGEST_VERSION, parseDigest, serializeDigest } from '@rca/core/digest'
 import { parseRouteShape } from '@rca/core/route/routeShape'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest } from '@rca/core/types'
@@ -21,6 +21,12 @@ export interface DeviceLibrary {
    */
   allStrict(): Promise<DeviceEntry[]>
   get(workoutKey: string): Promise<ActivityDigest | null>
+  /**
+   * As `get`, but says why a row does not read. 'newer' is a digest written in a format later than this
+   * version's (its own `version`), which an older build must leave alone; 'unreadable' is any other
+   * row that does not read, which is damaged or from an older format. Null is no row at all.
+   */
+  lookup(workoutKey: string): Promise<ActivityDigest | 'newer' | 'unreadable' | null>
   /** The route shape kept with the digest, or null when none was kept or it does not read. */
   route(workoutKey: string): Promise<RouteShape | null>
   /** Keeps a digest with its route, which goes with it. A replacement without a route keeps none. */
@@ -63,6 +69,29 @@ function readDigest(value: unknown): ActivityDigest | null {
     return parseDigest(value)
   } catch {
     return null
+  }
+}
+
+/** Whether a stored row holds a digest in a format later than this version reads. */
+function fromNewerVersion(value: unknown): boolean {
+  const json =
+    typeof value === 'string'
+      ? value
+      : typeof value === 'object' && value !== null && 'digest' in value
+        ? value.digest
+        : null
+  if (typeof json !== 'string') return false
+  try {
+    const parsed: unknown = JSON.parse(json)
+    return (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'version' in parsed &&
+      typeof parsed.version === 'number' &&
+      parsed.version > DIGEST_VERSION
+    )
+  } catch {
+    return false
   }
 }
 
@@ -171,6 +200,18 @@ export function openDeviceLibrary(): DeviceLibrary {
     all: () => entries(false),
     allStrict: () => entries(true),
     get: async (workoutKey) => (await readOne(workoutKey))?.digest ?? null,
+    lookup: (workoutKey) =>
+      withStore(
+        'readonly',
+        async (store) => {
+          const stored: unknown = await done(store.get(workoutKey))
+          if (stored === undefined) return null
+          const digest = readRow(stored)?.digest
+          if (digest !== undefined) return digest
+          return fromNewerVersion(stored) ? 'newer' : 'unreadable'
+        },
+        null,
+      ),
     route: async (workoutKey) => (await readOne(workoutKey))?.route ?? null,
     put: (workoutKey, digest, route = null) =>
       write((store) => store.put({ digest: serializeDigest(digest), route }, workoutKey)),

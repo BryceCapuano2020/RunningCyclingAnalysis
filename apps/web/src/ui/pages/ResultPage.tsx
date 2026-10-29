@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { Sex } from '@rca/core/grade'
 import { outranks } from '@rca/core/session'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
@@ -107,12 +107,22 @@ export function ResultPage({
   const [storedChoice, storeChoice] = usePeriodChoice()
   // Library and sample loads are told the period picked on this device. Files analysed while the
   // account loads are not, so for them it is sent once there is a result to show it on.
+  // The choice already sent and not yet answered, so a pick is sent once: storing it changes
+  // `storedChoice` before the analysis's period catches up, which the effect would send again.
+  const sent = useRef<{ choice: PeriodChoice; shownWas: PeriodChoice } | null>(null)
   useEffect(() => {
-    if (!sameChoice(period.choice, storedChoice)) setRange(storedChoice)
+    // The period on screen moved, so whatever was sent has been answered, or replaced by a load.
+    if (sent.current !== null && !sameChoice(sent.current.shownWas, period.choice))
+      sent.current = null
+    if (sameChoice(period.choice, storedChoice)) return
+    if (sent.current !== null && sameChoice(sent.current.choice, storedChoice)) return
+    sent.current = { choice: storedChoice, shownWas: period.choice }
+    setRange(storedChoice)
   }, [period.choice, storedChoice, setRange])
 
   const pickPeriod = (choice: PeriodChoice, answered?: (reply: unknown) => void) => {
     storeChoice(choice)
+    sent.current = { choice, shownWas: period.choice }
     setRange(choice, answered)
   }
   // The newest activity in the library dates the answer: a library last written to long ago says so.

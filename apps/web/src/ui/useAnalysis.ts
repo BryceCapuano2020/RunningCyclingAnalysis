@@ -13,7 +13,7 @@ import type {
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { SAVES_PAUSED, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
-import { isQuietRequest } from './analysis/quietRequests'
+import { isQuietRequest, keepsError } from './analysis/quietRequests'
 import type { ImportChange } from './analysis/importState'
 import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
@@ -169,17 +169,7 @@ export function useAnalysis(
   const onSend = useCallback(
     (request: WorkerRequest) => {
       refreshBusy()
-      // Library loads run when a worker starts, including after a crash, so they keep the message
-      // that says why; a download does not touch the import or library error either.
-      const keepsError =
-        request.type === 'loadServer' ||
-        request.type === 'loadDevice' ||
-        request.type === 'exportData' ||
-        request.type === 'activitySplits' ||
-        request.type === 'activityTrace' ||
-        request.type === 'routeShape' ||
-        request.type === 'forgetRoutes'
-      if (!keepsError) setError(null)
+      if (!keepsError(request)) setError(null)
       // A new import or rebuild replaces the outcome of the last library change, and so does the sample or a
       // clear, which leave nothing for that outcome to be about: the landing page would say it unprompted.
       if (
@@ -350,6 +340,8 @@ export function useAnalysis(
     addFiles: importActions.addFiles,
     loadLibrary: libraryActions.loadLibrary,
     loadDeviceOnce,
+    keepProvisional: () => sendToWorker({ type: 'keepProvisional', settings: settingsRef.current }),
+    deviceLoaded: () => deviceLoadedRef.current,
     clearQueues,
     clearSession,
   })

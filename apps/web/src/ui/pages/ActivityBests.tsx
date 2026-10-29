@@ -6,8 +6,20 @@ import { GradingLink } from '../components/GradingLink'
 import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
-import { splitsShowFlatNote, type SplitsLoad, type SplitsViewName } from '../components/splitRows'
-import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../grades'
+import {
+  splitsListed,
+  splitsShowFlatNote,
+  type SplitsLoad,
+  type SplitsViewName,
+} from '../components/splitRows'
+import {
+  TIMING_NOTE,
+  TIMING_NOTE_LAPS,
+  FLAT_PACE_NOTE,
+  distanceGrade,
+  listedGradeNotes,
+  sportGrade,
+} from '../grades'
 import type { AgeProfile } from '../grades'
 import { periodBestText } from '../periodCopy'
 import { FLAT_MARK, recordRow, treadmillMarks } from '../recordRow'
@@ -197,6 +209,9 @@ export function ActivityBests({
           {note}
         </p>
       ))}
+      {distances.length > 0 && splitsListed(splitsLoad, units) && (
+        <p className="muted">{splitsView === 'laps' ? TIMING_NOTE_LAPS : TIMING_NOTE}</p>
+      )}
       {flatNoteHere(sport, splitsLoad, splitsView, units, rows) && (
         <p className="muted">{FLAT_PACE_NOTE}</p>
       )}

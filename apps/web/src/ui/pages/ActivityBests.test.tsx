@@ -7,6 +7,7 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { DURATIONS_S } from '@rca/core/constants'
 import { curveOf, curvePoint } from '../charts/fixtures'
 import { makeActivity, makeResult } from '../components/fixtures'
+import type { SplitsLoad, SplitsViewName } from '../components/splitRows'
 import { ActivityBests } from './ActivityBests'
 
 afterEach(() => {
@@ -279,5 +280,74 @@ describe('a ride’s best efforts', () => {
     expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument()
     expect(screen.queryByText('All-time record')).not.toBeInTheDocument()
     expect(screen.queryByText('Best 5 min')).not.toBeInTheDocument()
+  })
+})
+
+describe('the note on how distance times and splits are timed', () => {
+  const NOTE = 'Distance times include stops. Splits are moving time.'
+  const SPLITS = {
+    km: [
+      {
+        distanceM: 1000,
+        seconds: 300,
+        gradeAdjustedSeconds: 290,
+        elevationGainM: 12,
+        avgHeartRate: 150,
+      },
+    ],
+    mile: [],
+  }
+
+  function renderWith(
+    splitsLoad: SplitsLoad,
+    activity: ActivitySummary = run,
+    splitsView: SplitsViewName = 'units',
+  ) {
+    return render(
+      <ActivityBests
+        activity={activity}
+        result={periodResult}
+        units="metric"
+        massKg={70}
+        weightKnown
+        profile={null}
+        inPeriod
+        period={ALL_TIME}
+        earned={[]}
+        splitsLoad={splitsLoad}
+        splitsView={splitsView}
+      />,
+    )
+  }
+
+  it('claims only the stops of the distance times while the recorded laps are shown', () => {
+    renderWith({ status: 'loaded', splits: SPLITS }, run, 'laps')
+    expect(screen.getByText('Distance times include stops.')).toBeInTheDocument()
+    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
+  })
+
+  it('sits under the distance times when the run lists splits', () => {
+    renderWith({ status: 'loaded', splits: SPLITS })
+    expect(screen.getByText(NOTE)).toBeInTheDocument()
+  })
+
+  it.each<[string, SplitsLoad]>([
+    ['are still loading', { status: 'loading' }],
+    ['could not be loaded', { status: 'failed' }],
+    ['were not kept', { status: 'loaded', splits: null }],
+    ['have no whole unit', { status: 'loaded', splits: { km: [], mile: [] } }],
+  ])('is left out when the splits %s', (_name, load) => {
+    renderWith(load)
+    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
+  })
+
+  it('is left out when the run has no distance time', () => {
+    const short = makeActivity({
+      id: 'activity-3',
+      sport: 'run',
+      distanceBests: [],
+    })
+    renderWith({ status: 'loaded', splits: SPLITS }, short)
+    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
   })
 })

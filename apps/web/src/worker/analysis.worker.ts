@@ -10,6 +10,7 @@ import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { accountSaver } from './accountSave'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
+import { deviceKeeper } from './deviceKeeper'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
@@ -30,6 +31,8 @@ const post = (message: WorkerResponse) => self.postMessage(message)
 const missingOriginals = new Set<string>()
 const savedRecords = new Map<string, ActivityRecord>()
 const workbench = new Workbench()
+/** The activities provisional imports analysed, by workout, with no file bytes. See keepProvisional. */
+const provisionalItems = new Map<string, SyncItem>()
 /** The exact library scope this worker is currently allowed to answer details for. */
 let activeScope: TraceScope | null = null
 
@@ -79,9 +82,15 @@ async function addFiles(
         ? { kind: 'device' }
         : null
   activeScope = traceScope ?? { kind: 'device' }
+  // What storage turned away in an earlier import says nothing about room now.
+  workbench.forgetOutranked()
+  // Signing in again lifts the block that signing out put on the account's recordings.
+  if (traceScope?.kind === 'account') await workbench.reopenScope(traceScope)
   let stoppedBy: SyncIssueCode | null = null
-  // Activities the import already held and gave a recording back, which the summary says.
+  // Activities the import already held and gave a recording back, which the summary says. A
+  // candidate is one whose recording was missing; it counts once it is in storage.
   const restored = new Set<string>()
+  const restoreCandidates = new Set<string>()
   const addedIds = new Set<string>()
   let outcome: ImportOutcome = {
     activities: 0,
@@ -113,45 +122,51 @@ async function addFiles(
   if (sync === null && request.saveToDevice && !device.inSession())
     await device.load(request.settings)
   showingSample = false
-  // Workouts this browser refused to keep, counted once however many copies of one were refused, and
-  // not at all when another copy of it was kept. The results still show; the page is told the count.
-  const refused = new Set<string>()
-  const keptKeys = new Set<string>()
-  const keepOnDevice = async (item: SyncItem) => {
-    const key = activityKey(item.digest)
-    if (await device.save(item)) keptKeys.add(key)
-    else refused.add(key)
+  const keeper = deviceKeeper(device, post)
+  // While the account is unknown, the activities are held for the device without their files, to be
+  // kept as they are if nobody turns out to be signed in.
+  const holdForDevice = async (item: SyncItem) => {
+    provisionalItems.set(activityKey(item.digest), { ...item, bytes: new Uint8Array() })
   }
-  const notKept = () => [...refused].filter((key) => !keptKeys.has(key)).length
   let state: SessionState
   try {
     state = await session.addFiles(
       request.files,
       request.settings,
       (count) => reporter.filesReadSoFar(count),
-      save ?? (request.saveToDevice ? keepOnDevice : undefined),
+      save ??
+        (request.provisional ? holdForDevice : request.saveToDevice ? keeper.keep : undefined),
       sync?.keepFiles === true,
       ({ added, ...completed }) => {
         for (const digest of added) addedIds.add(digest.id)
         outcome = { ...completed, ...summarizeAdded(added) }
       },
       async (activity, { held }) => {
-        if (traceScope === null) return workbench.captureMemory(activity, { kind: 'device' })
+        if (traceScope === null) {
+          // Held for the device if the account turns out to be nobody's (see keepProvisional).
+          if (request.provisional) workbench.captureDeferred(activity, { kind: 'device' })
+          else workbench.captureMemory(activity, { kind: 'device' })
+          return
+        }
         // Only a workout the library already held can have its recording restored.
         const had = held && (await workbench.holds(traceScope, activity.id))
-        const kept = await workbench.capture(activity, traceScope)
-        // Counted once it is in storage: a recording held in memory alone is gone after a reload.
-        if (held && !had && kept !== null && workbench.isStored(traceScope, activity.id))
-          restored.add(activity.id)
+        // Stored when the import ends, newest first, so the ones the cache cannot hold are not written.
+        const kept = workbench.captureDeferred(activity, traceScope)
+        if (held && !had && kept !== null) restoreCandidates.add(activity.id)
       },
       async (replacedId) => {
         restored.delete(replacedId)
+        restoreCandidates.delete(replacedId)
         if (traceScope === null) workbench.dropMemory({ kind: 'device' }, replacedId)
         else await workbench.remove(traceScope, replacedId)
       },
     )
   } finally {
-    // On a failure too: the page learns how many were saved before the error reply.
+    // On a failure too: what was read is stored, and the page learns how many were saved.
+    // A provisional import's recordings wait for keepProvisional, or for the account.
+    const stored = traceScope === null ? new Set<string>() : await workbench.storeDeferred()
+    // Counted once it is in storage: a recording held in memory alone is gone after a reload.
+    for (const id of restoreCandidates) if (stored.has(id)) restored.add(id)
     reporter.end()
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
@@ -161,8 +176,7 @@ async function addFiles(
     reportLibrary()
   } else if (request.saveToDevice) {
     await device.report()
-    const count = notKept()
-    if (count > 0) post({ type: 'deviceIssue', issue: 'notSaved', count })
+    keeper.report()
   }
   if (stoppedBy !== null) post({ type: 'accountIssue', issue: stoppedBy })
   return { state, outcome, ...(sync ? { saved: reporter.savedCount } : {}) }
@@ -172,7 +186,18 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
   switch (request.type) {
     case 'addFiles':
       return (await addFiles(request)).state
+    case 'keepProvisional': {
+      const keeper = deviceKeeper(device, post)
+      const held = [...provisionalItems.values()]
+      provisionalItems.clear()
+      for (const item of held) await keeper.keep(item)
+      await workbench.storeDeferred()
+      await device.report()
+      keeper.report()
+      return session.setSettings(request.settings)
+    }
     case 'loadSample':
+      provisionalItems.clear()
       workbench.clearMemory()
       activeScope = { kind: 'device' }
       showingSample = true
@@ -180,8 +205,10 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       session.choosePeriod(periodChoiceOf(request.choice))
       return session.loadSample(request.settings)
     case 'loadServer':
+      provisionalItems.clear()
       workbench.clearMemory()
       activeScope = { kind: 'account', userId: request.userId }
+      await workbench.reopenScope(activeScope)
       showingSample = false
       return loadServer(
         libraryContext,
@@ -190,9 +217,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         periodChoiceOf(request.choice),
       )
     case 'rebuildStale':
-      workbench.clearMemory()
-      activeScope = { kind: 'account', userId: request.userId }
-      return (await rebuildStale(libraryContext, request.settings, request.userId)).state
+      // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
+      throw new Error('A rebuild is not a session request')
     case 'setSettings':
       return session.setSettings(request.settings)
     case 'setGradeTrend':
@@ -206,11 +232,13 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await device.report()
         return session.setSettings(request.settings)
       }
+      provisionalItems.clear()
       workbench.clearMemory()
       activeScope = { kind: 'device' }
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
+      provisionalItems.clear()
       showingSample = false
       workbench.clearMemory()
       routes.clear()

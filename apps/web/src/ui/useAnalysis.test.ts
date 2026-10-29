@@ -98,6 +98,7 @@ interface Account {
   markExpired?: () => void
   refresh?: () => Promise<Me | null>
   sessionExpired?: boolean
+  lookupPending?: boolean
 }
 
 const LOADING: Account = { status: 'loading', me: null }
@@ -105,6 +106,8 @@ const SIGNED_OUT: Account = { status: 'signed-out', me: null }
 const SIGNED_IN_KEEP: Account = { status: 'signed-in', me: meWith(true) }
 const SIGNED_IN_NO_KEEP: Account = { status: 'signed-in', me: meWith(false) }
 const UNAVAILABLE: Account = { status: 'unavailable', me: null }
+/** The API could not be reached, but the lookup will be tried again, so who is signed in is unknown. */
+const UNREACHABLE: Account = { status: 'unavailable', me: null, lookupPending: true }
 
 function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS) {
   return renderHook(
@@ -343,6 +346,38 @@ describe('useAnalysis account handling', () => {
     const { rerender } = setup(LOADING)
     rerender({ account: SIGNED_OUT, current: SETTINGS })
     expect(worker().posted).toEqual([DEVICE_LOAD])
+  })
+
+  it('does not restart the worker or send anything when sign-in turns unavailable after the kept library loaded', () => {
+    const { rerender } = setup(UNAVAILABLE)
+    const kept = worker()
+    const posted = [...kept.posted]
+
+    // The background retries find nobody signed in, or fail again: nothing changes for the visitor.
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    rerender({ account: UNAVAILABLE, current: SETTINGS })
+
+    expect(worker()).toBe(kept)
+    expect(kept.terminated).toBe(false)
+    expect(kept.posted).toEqual(posted)
+  })
+
+  it('lists the account’s activities when a Start over overtakes the library load', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    const saved = {
+      id: 'run-1',
+      name: 'Run',
+      startMs: Date.UTC(2026, 9, 20),
+      sport: 'run' as const,
+      copy: SAVED_COPY,
+    }
+
+    act(() => result.current.clear())
+    // The load's own list and state arrive after the clear: the account's library still counts.
+    act(() => worker().reply({ type: 'libraryActivities', activities: [saved] }))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 1 } }))
+
+    expect(result.current.savedActivities).toEqual([saved])
   })
 
   it('does not clear the library when the account becomes unavailable', () => {
@@ -730,6 +765,210 @@ describe('useAnalysis account handling', () => {
       })
     })
 
+    it('does not repeat an import that ran while the account was unavailable when the retries end', () => {
+      const { result, rerender } = setup(UNAVAILABLE)
+      finishDeviceLoad()
+      act(() => result.current.addFiles([FILE]))
+      settle()
+      const sent = worker().posted.filter((message) => message.type === 'addFiles')
+      expect(sent).toHaveLength(1)
+
+      rerender({ account: SIGNED_OUT, current: SETTINGS })
+      rerender({ account: UNAVAILABLE, current: SETTINGS })
+
+      expect(worker().posted.filter((message) => message.type === 'addFiles')).toHaveLength(1)
+    })
+
+    describe('while the API cannot be reached but the lookup will be tried again', () => {
+      const addsOf = () => worker().posted.filter((request) => request.type === 'addFiles')
+
+      /** An import made after the first failed lookup, analysed and answered. */
+      function importWhileUnreachable() {
+        const hook = setup(UNREACHABLE)
+        finishDeviceLoad()
+        act(() => hook.result.current.addFiles([FILE]))
+        settle()
+        return hook
+      }
+
+      it('shows the kept library at once and analyses a drop in this session only', () => {
+        const { result } = setup(UNREACHABLE)
+        expect(worker().posted).toEqual([DEVICE_LOAD])
+        finishDeviceLoad()
+        act(() => result.current.addFiles([FILE]))
+        expect(worker().posted.at(-1)).toEqual({
+          type: 'addFiles',
+          files: [FILE],
+          settings: SETTINGS,
+          sync: null,
+          provisional: true,
+        })
+      })
+
+      it('hands the files to the account, never the device, when a retry finds a sign-in', () => {
+        const { rerender } = importWhileUnreachable()
+        const before = worker()
+
+        rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+
+        expect(worker()).toBe(before)
+        expect(before.terminated).toBe(false)
+        expect(before.posted.map((request) => request.type)).toEqual([
+          'loadDevice',
+          'addFiles',
+          'clear',
+          'loadServer',
+        ])
+        expect(before.posted.find((request) => request.type === 'clear')).toEqual({
+          type: 'clear',
+          forgetDevice: false,
+        })
+        // The clear that empties the kept library from the page, then the account's library.
+        settle()
+        settle()
+        const adds = addsOf()
+        expect(adds).toHaveLength(2)
+        expect(adds.at(-1)).toMatchObject({ files: [FILE], sync: { userId: USER_ID } })
+        expect(adds.some((request) => request.saveToDevice === true)).toBe(false)
+        expect(worker().posted.some((request) => request.type === 'keepProvisional')).toBe(false)
+      })
+
+      it.each([
+        ['the retries give up', UNAVAILABLE],
+        ['a retry finds nobody signed in', SIGNED_OUT],
+      ])('keeps what was analysed, as it is, when %s', (_name, account) => {
+        const { rerender } = importWhileUnreachable()
+        const before = worker()
+
+        rerender({ account, current: SETTINGS })
+
+        expect(worker()).toBe(before)
+        expect(before.posted.at(-1)).toEqual({ type: 'keepProvisional', settings: SETTINGS })
+        // One read and one analysis: nothing is sent again, and the kept library is not reloaded.
+        expect(addsOf()).toHaveLength(1)
+        expect(before.posted.filter((request) => request.type === 'loadDevice')).toHaveLength(1)
+      })
+
+      it('sends the files again to a worker that restarted, so giving up still keeps them', () => {
+        const { rerender } = importWhileUnreachable()
+        const crashed = worker()
+
+        act(() => crashed.onerror?.(new ErrorEvent('error', { message: 'boom' })))
+        const restarted = worker()
+        expect(restarted).not.toBe(crashed)
+        expect(restarted.posted).toEqual([DEVICE_LOAD])
+
+        // The restarted worker has none of the analysis: it loads the kept library, then gets the files.
+        finishDeviceLoad()
+        expect(restarted.posted.at(-1)).toEqual({
+          type: 'addFiles',
+          files: [FILE],
+          settings: SETTINGS,
+          sync: null,
+          provisional: true,
+        })
+        settle()
+
+        rerender({ account: UNAVAILABLE, current: SETTINGS })
+        expect(restarted.posted.at(-1)).toEqual({ type: 'keepProvisional', settings: SETTINGS })
+      })
+
+      it('says what was kept once the retries give up, which the wait did not show', () => {
+        const { result, rerender } = setup(UNREACHABLE)
+        finishDeviceLoad()
+        const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 1, rides: 1 }
+        act(() => result.current.addFiles([FILE]))
+        act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+        act(() => result.current.addFiles([FILE]))
+        act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+        expect(result.current.importOutcome).toBeNull()
+
+        rerender({ account: UNAVAILABLE, current: SETTINGS })
+        settle()
+
+        expect(result.current.importOutcome).toEqual({
+          activities: 4,
+          rejected: 0,
+          duplicates: [],
+          runs: 2,
+          rides: 2,
+        })
+      })
+
+      it('ignores the kept library’s late replies once a sign-in is found, even if the account fails to load', () => {
+        const { result, rerender } = setup(UNREACHABLE)
+        act(() => result.current.addFiles([FILE]))
+        rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+        const device = {
+          id: 'run-1',
+          name: 'Run',
+          startMs: Date.UTC(2026, 9, 20),
+          sport: 'run' as const,
+          copy: SAVED_COPY,
+        }
+
+        // The kept library's answer arrives late: its list, then its state.
+        act(() => worker().reply({ type: 'libraryActivities', activities: [device] }))
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 5 } }))
+        expect(result.current.savedActivities).toEqual([])
+        expect(result.current.state.totalActivities).toBe(0)
+
+        // Then the provisional analysis (dropped), the clear, and a library that fails to load.
+        settle({ ...STATE, totalActivities: 1 })
+        settle()
+        act(() => worker().reply({ type: 'error', message: 'Library down' }))
+        expect(result.current.savedActivities).toEqual([])
+        expect(result.current.state.totalActivities).toBe(0)
+      })
+
+      it('sends the files again, as a signed-out import, when giving up lands with a restart', () => {
+        const { rerender } = importWhileUnreachable()
+        const crashed = worker()
+
+        act(() => {
+          crashed.onerror?.(new ErrorEvent('error', { message: 'boom' }))
+          rerender({ account: UNAVAILABLE, current: SETTINGS })
+        })
+        const restarted = worker()
+        expect(restarted).not.toBe(crashed)
+        finishDeviceLoad()
+
+        expect(restarted.posted.some((request) => request.type === 'keepProvisional')).toBe(false)
+        expect(restarted.posted.at(-1)).toEqual({
+          type: 'addFiles',
+          files: [FILE],
+          settings: SETTINGS,
+          sync: null,
+          saveToDevice: true,
+        })
+      })
+
+      it('sends nothing to keep when no file was analysed meanwhile', () => {
+        const { rerender } = setup(UNREACHABLE)
+        finishDeviceLoad()
+        rerender({ account: UNAVAILABLE, current: SETTINGS })
+        expect(worker().posted).toEqual([DEVICE_LOAD])
+      })
+
+      it('carries a drop made before the first failure over the kept library, in this session only', () => {
+        const { result, rerender } = setup(LOADING)
+        act(() => result.current.addFiles([FILE]))
+        settle()
+
+        rerender({ account: UNREACHABLE, current: SETTINGS })
+        expect(worker().posted.at(-1)).toEqual(DEVICE_LOAD)
+        settle()
+
+        expect(worker().posted.at(-1)).toEqual({
+          type: 'addFiles',
+          files: [FILE],
+          settings: SETTINGS,
+          sync: null,
+          provisional: true,
+        })
+      })
+    })
+
     it('saves the files for a visitor whose account is unavailable, as for a signed-out one', () => {
       const { result, rerender } = setup(LOADING)
       act(() => result.current.addFiles([FILE]))
@@ -740,6 +979,31 @@ describe('useAnalysis account handling', () => {
 
       settle()
       expect(worker().posted.at(-1)).toEqual({
+        type: 'addFiles',
+        files: [FILE],
+        settings: SETTINGS,
+        sync: null,
+        saveToDevice: true,
+      })
+    })
+
+    it('sends the files again after a worker restart while the account loads, and keeps them if nobody is signed in', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      settle()
+      const crashed = worker()
+
+      act(() => crashed.onerror?.(new ErrorEvent('error', { message: 'boom' })))
+      const restarted = worker()
+      expect(restarted).not.toBe(crashed)
+      expect(restarted.posted).toEqual([])
+
+      rerender({ account: SIGNED_OUT, current: SETTINGS })
+      expect(restarted.posted).toEqual([DEVICE_LOAD])
+      settle()
+
+      expect(restarted.posted.some((request) => request.type === 'keepProvisional')).toBe(false)
+      expect(restarted.posted.at(-1)).toEqual({
         type: 'addFiles',
         files: [FILE],
         settings: SETTINGS,
@@ -865,6 +1129,13 @@ describe('useAnalysis account handling', () => {
 
       expect(localStorage.getItem(KEPT_KEY)).toBeNull()
       expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 2 })
+    })
+
+    it('keeps how many were left to a newer version of the app', () => {
+      const { result } = setup(SIGNED_OUT)
+      finishDeviceLoad(STATE)
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 0, newer: 2 }))
+      expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 0, newer: 2 })
     })
 
     it('clears the refusal when the next import is sent, and shows it again if that one fails too', () => {

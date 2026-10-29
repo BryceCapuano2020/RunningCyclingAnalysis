@@ -4,6 +4,7 @@ import {
   OWNERS,
   STATE,
   TRACES,
+  abortQuietly,
   activityTraceBytes,
   entryKey,
   parseBoundedTrace,
@@ -29,6 +30,7 @@ export interface WorkbenchStore {
    * Keeps the trace of an activity that started at `startMs`, dropping the recordings of the oldest
    * activities to make room. Never drops one of a newer activity: when the cache is full of those the
    * result is `outranked`. `refused` is storage that would not take it, or a trace over a cache limit.
+   * The trace is the app's own (from activityTraceOf), so it is not validated; `get` validates what it reads.
    */
   put(scope: TraceScope, trace: ActivityTrace, startMs: number): Promise<PutResult>
   /** Whether a trace is stored, without reading it. Null when storage cannot say. */
@@ -38,12 +40,29 @@ export interface WorkbenchStore {
    * nothing, so removing from it succeeds.
    */
   remove(scope: TraceScope, activityId: string): Promise<boolean>
-  /** As remove, for every trace of the scope. */
+  /**
+   * As remove, for every trace of the scope. An account scope also refuses later writes, so a capture
+   * in flight at sign-out cannot write back, until `reopenScope` at the account's next sign-in.
+   */
   clearScope(scope: TraceScope): Promise<boolean>
-  /** Rejects when storage cannot say, so a caller can tell an unknown scope from a deleted one. */
+  /**
+   * Whether the scope refuses writes: deleted for good, or cleared at sign-out and not reopened.
+   * Rejects when storage cannot say, so a caller can tell an unknown scope from a closed one.
+   */
   isDeleted(scope: TraceScope): Promise<boolean>
   /** Clears one account scope and permanently blocks writes from a stale worker. */
   deleteScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean>
+  /** Lets a signed-in account's scope be written again. A deleted account stays blocked. */
+  reopenScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean>
+}
+
+/** What closed an account scope. Deletion is for good; a sign-out ends at the next sign-in. */
+type Closing = 'signed-out' | 'deleted'
+
+interface OwnerRow {
+  scopeKey: string
+  deletedAt?: number
+  signedOutAt?: number
 }
 
 /** A database that cannot be opened at all never held a trace, so removing from it has nothing to do. */
@@ -51,13 +70,31 @@ function nothingCached(error: unknown): boolean {
   return error instanceof WorkbenchOpenError && error.nothingCached
 }
 
+/** Records that an account scope refuses writes. A sign-out never replaces the mark of a deletion. */
+async function closeScope(
+  owners: IDBObjectStore,
+  scope: Extract<TraceScope, { kind: 'account' }>,
+  closing: Closing,
+): Promise<void> {
+  const key = scopeKey(scope)
+  if (closing === 'deleted') {
+    owners.put({ scopeKey: key, deletedAt: Date.now() } satisfies OwnerRow)
+    return
+  }
+  const row = (await requestResult(owners.get(key))) as OwnerRow | undefined
+  if (row?.deletedAt === undefined)
+    owners.put({ scopeKey: key, signedOutAt: Date.now() } satisfies OwnerRow)
+}
+
 /** A separate database keeps this schema independent of the long-lived digest library. */
 export function openWorkbenchStore(): WorkbenchStore {
-  async function clear(scope: TraceScope, tombstone = false): Promise<boolean> {
+  async function clear(scope: TraceScope, closing: Closing): Promise<boolean> {
+    let transaction: IDBTransaction | null = null
     try {
       const db = await workbenchDatabase(true)
-      const transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
+      transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
       const done = transactionDone(transaction)
+      done.catch(() => undefined)
       const traces = transaction.objectStore(TRACES)
       const entries = transaction.objectStore(ENTRIES)
       const cursorRequest = entries.index('scopeKey').openCursor(IDBKeyRange.only(scopeKey(scope)))
@@ -65,19 +102,25 @@ export function openWorkbenchStore(): WorkbenchStore {
         cursorRequest.onerror = () =>
           reject(cursorRequest.error ?? new Error('Workbench storage failed'))
         cursorRequest.onsuccess = () => {
-          const cursor = cursorRequest.result
-          if (!cursor) return resolve()
-          if (typeof cursor.primaryKey === 'string') traces.delete(cursor.primaryKey)
-          cursor.delete()
-          cursor.continue()
+          // A throw here would leave the request unanswered, and the serial queue behind it stuck.
+          try {
+            const cursor = cursorRequest.result
+            if (!cursor) return resolve()
+            if (typeof cursor.primaryKey === 'string') traces.delete(cursor.primaryKey)
+            cursor.delete()
+            cursor.continue()
+          } catch (error) {
+            reject(error)
+          }
         }
       })
       await rebuildLedger(transaction)
-      if (tombstone && scope.kind === 'account')
-        transaction.objectStore(OWNERS).put({ scopeKey: scopeKey(scope), deletedAt: Date.now() })
+      if (scope.kind === 'account')
+        await closeScope(transaction.objectStore(OWNERS), scope, closing)
       await done
       return true
     } catch (error) {
+      abortQuietly(transaction)
       resetWorkbenchDatabase()
       return nothingCached(error)
     }
@@ -85,10 +128,12 @@ export function openWorkbenchStore(): WorkbenchStore {
 
   return {
     async get(scope, activityId) {
+      let transaction: IDBTransaction | null = null
       try {
         const db = await workbenchDatabase()
-        const transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
+        transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
         const done = transactionDone(transaction)
+        done.catch(() => undefined)
         const key = entryKey(scope, activityId)
         const entries = transaction.objectStore(ENTRIES)
         const traces = transaction.objectStore(TRACES)
@@ -130,6 +175,7 @@ export function openWorkbenchStore(): WorkbenchStore {
         await done
         return trace
       } catch {
+        abortQuietly(transaction)
         resetWorkbenchDatabase()
         return null
       }
@@ -167,10 +213,12 @@ export function openWorkbenchStore(): WorkbenchStore {
     },
 
     async remove(scope, activityId) {
+      let transaction: IDBTransaction | null = null
       try {
         const db = await workbenchDatabase(true)
-        const transaction = db.transaction([TRACES, ENTRIES, STATE], 'readwrite')
+        transaction = db.transaction([TRACES, ENTRIES, STATE], 'readwrite')
         const done = transactionDone(transaction)
+        done.catch(() => undefined)
         const key = entryKey(scope, activityId)
         const entries = transaction.objectStore(ENTRIES)
         const rawMetadata = (await requestResult(entries.get(key))) as unknown
@@ -188,13 +236,33 @@ export function openWorkbenchStore(): WorkbenchStore {
         await done
         return true
       } catch (error) {
+        abortQuietly(transaction)
         resetWorkbenchDatabase()
         return nothingCached(error)
       }
     },
 
-    clearScope: (scope) => clear(scope),
-    deleteScope: (scope) => clear(scope, true),
+    async reopenScope(scope) {
+      let transaction: IDBTransaction | null = null
+      try {
+        const db = await workbenchDatabase(true)
+        transaction = db.transaction(OWNERS, 'readwrite')
+        const done = transactionDone(transaction)
+        done.catch(() => undefined)
+        const owners = transaction.objectStore(OWNERS)
+        const row = (await requestResult(owners.get(scopeKey(scope)))) as OwnerRow | undefined
+        if (row !== undefined && row.deletedAt === undefined) owners.delete(scopeKey(scope))
+        await done
+        return true
+      } catch (error) {
+        abortQuietly(transaction)
+        resetWorkbenchDatabase()
+        return nothingCached(error)
+      }
+    },
+
+    clearScope: (scope) => clear(scope, 'signed-out'),
+    deleteScope: (scope) => clear(scope, 'deleted'),
   }
 }
 

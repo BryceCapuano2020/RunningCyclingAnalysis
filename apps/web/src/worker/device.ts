@@ -16,10 +16,11 @@ export interface DeviceActions {
   replaced(): void
   /**
    * Keeps one imported activity, with its route. Best effort: a refused write leaves the visit
-   * working. Resolves false when the write was refused, and true when the activity is kept or the
-   * kept copy is the one to keep.
+   * working. Resolves 'refused' when the write was refused, 'newer' when a row this version cannot
+   * read is kept under the workout (one a newer version of the app wrote), which is left as it is,
+   * and 'kept' when the activity is kept or the kept copy is the one to keep.
    */
-  save(item: SyncItem): Promise<boolean>
+  save(item: SyncItem): Promise<DeviceSave>
   /** The route kept with a workout, or null. Best effort. */
   route(id: string): Promise<RouteShape | null>
   /** Posts the activities kept in this browser, newest first. Best effort. */
@@ -38,6 +39,9 @@ export interface DeviceActions {
    */
   forget(): Promise<boolean>
 }
+
+/** What keeping an imported activity in this browser came to. See DeviceActions.save. */
+export type DeviceSave = 'kept' | 'refused' | 'newer'
 
 export function workoutKeyOf(digest: Pick<ActivityDigest, 'sport' | 'startMs'>): string {
   return dedupeKey(digest.sport, digest.startMs)
@@ -95,11 +99,16 @@ export function deviceActions(
     async save({ digest, route }) {
       try {
         const key = workoutKeyOf(digest)
-        if (replaces(digest, await device.get(key))) await device.put(key, digest, route)
-        return true
+        const kept = await device.lookup(key)
+        // A row a newer version wrote is left as it is: writing over it would destroy what that
+        // version made. One that is damaged or from an older format is written over, so it heals.
+        if (kept === 'newer') return 'newer'
+        if (replaces(digest, kept === 'unreadable' ? null : kept))
+          await device.put(key, digest, route)
+        return 'kept'
       } catch {
         // Storage can be refused (a private window, a full disk); the results still show.
-        return false
+        return 'refused'
       }
     },
     async route(id) {

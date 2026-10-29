@@ -12,27 +12,32 @@ afterEach(() => {
 describe('account recording cleanup after sign-out', () => {
   it('does not open a cache for an unknown account or a browser without IndexedDB', async () => {
     vi.stubGlobal('indexedDB', undefined)
-    await forgetAccountDetails('alice')
+    expect(await forgetAccountDetails('alice')).toBeNull()
     vi.stubGlobal('indexedDB', {})
-    await forgetAccountDetails(undefined)
+    expect(await forgetAccountDetails(undefined)).toBeNull()
     expect(clearWorkbenchScope).not.toHaveBeenCalled()
   })
 
-  it('clears only the signed-out account, leaving it free to be written again', async () => {
+  it('clears only the signed-out account and has nothing to report', async () => {
     vi.stubGlobal('indexedDB', {})
     vi.mocked(clearWorkbenchScope).mockResolvedValue(true)
-    await forgetAccountDetails('alice')
+    expect(await forgetAccountDetails('alice')).toBeNull()
     expect(clearWorkbenchScope).toHaveBeenCalledExactlyOnceWith({
       kind: 'account',
       userId: 'alice',
     })
   })
 
-  it('does not fail the sign-out when the cleanup is refused or throws', async () => {
-    vi.stubGlobal('indexedDB', {})
-    vi.mocked(clearWorkbenchScope).mockRejectedValue(new Error('closed'))
-    await expect(forgetAccountDetails('alice')).resolves.toBeUndefined()
-    vi.mocked(clearWorkbenchScope).mockResolvedValue(false)
-    await expect(forgetAccountDetails('alice')).resolves.toBeUndefined()
-  })
+  it.each(['refused', 'throws'])(
+    'reports a cleanup that %s, without failing the sign-out',
+    async (failure) => {
+      vi.stubGlobal('indexedDB', {})
+      if (failure === 'throws')
+        vi.mocked(clearWorkbenchScope).mockRejectedValue(new Error('closed'))
+      else vi.mocked(clearWorkbenchScope).mockResolvedValue(false)
+      expect(await forgetAccountDetails('alice')).toMatch(
+        /signed out.*could not be cleared from this browser.*Clear this site/s,
+      )
+    },
+  )
 })

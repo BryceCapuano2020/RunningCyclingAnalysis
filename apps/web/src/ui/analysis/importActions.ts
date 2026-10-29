@@ -14,7 +14,7 @@ import {
 import type { ImportState } from './importState'
 import type { LibraryActions } from './libraryActions'
 import type { LibraryState } from './libraryState'
-import { drainBatches, EMPTY_SESSION } from './model'
+import { accountPending, drainBatches, EMPTY_SESSION } from './model'
 import type { Account, Box, ErrorNotice, SetError, Setter } from './model'
 import type { WorkerTransport } from './workerTransport'
 import type { WorkerResponse } from '../../worker/protocol'
@@ -158,7 +158,7 @@ export function useImportActions({
       // File objects are cloned by reference, so the worker streams them without a copy here.
       if (files.length === 0) return
       const current = accountRef.current
-      if (current.status === 'loading') {
+      if (accountPending(current)) {
         // Analysed now, in this session only. Nothing is kept until the account is known, so a signed-in
         // visitor's files never reach this device. Once it is known, the files are sent again. A refused
         // request is not kept, since nothing would send it again.

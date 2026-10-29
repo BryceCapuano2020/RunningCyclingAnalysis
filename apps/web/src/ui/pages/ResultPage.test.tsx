@@ -485,7 +485,7 @@ describe('ResultPage period', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Show all time' }))
-    expect(setRange).toHaveBeenLastCalledWith('all')
+    expect(setRange).toHaveBeenCalledExactlyOnceWith('all', undefined)
     expect(JSON.parse(localStorage.getItem(PERIOD_KEY) ?? 'null')).toBe('all')
   })
 
@@ -494,8 +494,69 @@ describe('ResultPage period', () => {
     renderBalance(setRange)
     expect(screen.queryByRole('radio', { name: '3 months' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: '12 months' }))
-    expect(setRange).toHaveBeenCalledWith(365)
+    expect(setRange).toHaveBeenCalledTimes(1)
+    expect(setRange).toHaveBeenCalledWith(365, expect.any(Function))
     expect(JSON.parse(localStorage.getItem(PERIOD_KEY) ?? 'null')).toBe(365)
+  })
+
+  it('sends one request for one pick, however often the page renders before the period answers', () => {
+    const setRange = vi.fn()
+    const { rerender } = renderBalance(setRange)
+    fireEvent.click(screen.getByRole('radio', { name: '12 months' }))
+    expect(setRange).toHaveBeenCalledTimes(1)
+    // The analysis still shows the old period: rendering again must not send the pick a second time.
+    rerender(
+      <ResultPage
+        signedIn={false}
+        route={{ page: 'balance' }}
+        analysis={analysisStub({
+          state: {
+            result: makeResult(),
+            period: { choice: 'default', startMs: null, endMs: null, days: null, fellBack: false },
+          },
+          setRange,
+        })}
+        result={makeResult()}
+        settings={SETTINGS}
+        weightKnown
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />,
+    )
+    expect(setRange).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends the stored period again when a load brings the period back to the default', () => {
+    localStorage.setItem(PERIOD_KEY, JSON.stringify(365))
+    const setRange = vi.fn()
+    const page = (choice: PeriodChoice) => (
+      <ResultPage
+        signedIn={false}
+        route={{ page: 'balance' }}
+        analysis={analysisStub({
+          state: {
+            result: makeResult(),
+            period: { choice, startMs: null, endMs: null, days: null, fellBack: false },
+          },
+          setRange,
+        })}
+        result={makeResult()}
+        settings={SETTINGS}
+        weightKnown
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />
+    )
+    const { rerender } = render(page('default'))
+    expect(setRange).toHaveBeenCalledTimes(1)
+    // The worker answers with the stored period, then a library load resets it.
+    rerender(page(365))
+    expect(setRange).toHaveBeenCalledTimes(1)
+    rerender(page('default'))
+    expect(setRange).toHaveBeenCalledTimes(2)
+    expect(setRange).toHaveBeenLastCalledWith(365)
   })
 
   /** A balance page over one run from 3 June 2025, with the clock at 25 October 2026. */

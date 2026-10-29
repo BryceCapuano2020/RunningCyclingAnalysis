@@ -72,6 +72,7 @@ function makeAccount(): AccountController {
     status: 'signed-in',
     me: meFor(),
     sessionExpired: false,
+    lookupPending: false,
     flushProfileWrites: vi.fn(async () => null),
     signIn: vi.fn(),
     signOut: vi.fn(async () => undefined),

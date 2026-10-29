@@ -15,7 +15,10 @@ export type LibraryStatus = 'idle' | 'loading' | 'loaded' | 'failed'
 
 export type Account = Pick<AccountController, 'status' | 'me'> &
   Partial<
-    Pick<AccountController, 'flushProfileWrites' | 'markExpired' | 'refresh' | 'sessionExpired'>
+    Pick<
+      AccountController,
+      'flushProfileWrites' | 'markExpired' | 'refresh' | 'sessionExpired' | 'lookupPending'
+    >
   >
 
 /** A ref shared by the pieces of useAnalysis. The hook that creates it sets the first value. */
@@ -45,6 +48,17 @@ export interface ErrorNotice {
   issue: SyncIssueCode | null
   /** A message the visitor asked for, such as a stop: shown as news, never as a fault. */
   neutral?: boolean
+}
+
+/**
+ * Whether it is still unknown who is signed in: the account is loading, or it could not be reached
+ * and the lookup will be tried again. Files are analysed in this session only, and nothing is kept
+ * on this device, until it is known.
+ */
+export function accountPending(account: Pick<Account, 'status' | 'lookupPending'>): boolean {
+  return (
+    account.status === 'loading' || (account.status === 'unavailable' && !!account.lookupPending)
+  )
 }
 
 /** A deletion from the account library or from the library kept in this browser. */

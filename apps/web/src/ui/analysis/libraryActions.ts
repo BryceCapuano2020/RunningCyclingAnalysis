@@ -12,7 +12,7 @@ import {
 } from './copy'
 import type { LibraryState } from './libraryState'
 import { storedPeriodRequest } from '../periodPreference'
-import { drainBatches } from './model'
+import { accountPending, drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 
@@ -96,7 +96,7 @@ export function useLibraryActions({
       // Signed out, the library is the one kept in this browser; signed in, it must have loaded. Until
       // then the delete says why nothing happened, rather than closing without a word.
       if (
-        current.status === 'loading' ||
+        accountPending(current) ||
         (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
       ) {
         setLibraryError(LIBRARY_NOT_READY)

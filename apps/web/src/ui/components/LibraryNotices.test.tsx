@@ -222,6 +222,26 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
     ).toBeInTheDocument()
   })
 
+  it('says activities left to a newer version of the app are kept as they are', () => {
+    render(shown({ issue: 'notSaved', count: 0, newer: 1 }))
+
+    expect(
+      screen.getByText(
+        '1 activity shows here. This browser keeps a copy of it saved by a newer version of this app, and that copy was left as it is. Reload the page to update the app.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says both when some were refused and some left to a newer version', () => {
+    render(shown({ issue: 'notSaved', count: 1, newer: 2 }))
+
+    expect(
+      screen.getByText(
+        '1 activity shows here but could not be kept in this browser. It will not be here after a reload. 2 activities show here. This browser keeps copies of them saved by a newer version of this app, and those copies were left as they are. Reload the page to update the app.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('says a signed-out visitor can remove everything again', () => {
     render(shown({ issue: 'notForgotten' }))
 

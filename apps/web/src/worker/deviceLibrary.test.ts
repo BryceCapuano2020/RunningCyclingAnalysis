@@ -1,4 +1,4 @@
-import { digestActivity, serializeDigest } from '@rca/core/digest'
+import { DIGEST_VERSION, digestActivity, serializeDigest } from '@rca/core/digest'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import { sampleDataset } from '@rca/core/synthetic'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -207,6 +207,33 @@ describe('device library in IndexedDB', () => {
 
     expect(await library.all()).toEqual([{ workoutKey: 'run-1', digest: MEASURED }])
     expect([...fake.rows.keys()].sort()).toEqual(['ride-2', 'run-1'])
+  })
+
+  it('tells a newer version’s row, a damaged one and no row apart', async () => {
+    const fake = fakeIndexedDb()
+    vi.stubGlobal('indexedDB', fake.indexedDB)
+    const library = openDeviceLibrary()
+    await library.put('run-1', MEASURED)
+    fake.rows.set('ride-2', { not: 'a digest' })
+
+    expect(await library.lookup('run-1')).toEqual(MEASURED)
+    expect(await library.lookup('ride-2')).toBe('unreadable')
+    // Damaged, or from an older format: not a newer version's, so it may be written over.
+    fake.rows.set('ride-3', 'not json')
+    fake.rows.set('ride-4', { digest: JSON.stringify({ version: 0 }) })
+    expect(await library.lookup('ride-3')).toBe('unreadable')
+    expect(await library.lookup('ride-4')).toBe('unreadable')
+    // A digest in a later format, bare or in a row with its route, belongs to a newer build.
+    const later = JSON.stringify({
+      ...JSON.parse(serializeDigest(MEASURED)),
+      version: DIGEST_VERSION + 1,
+    })
+    fake.rows.set('ride-5', later)
+    fake.rows.set('ride-6', { digest: later, route: null })
+    expect(await library.lookup('ride-5')).toBe('newer')
+    expect(await library.lookup('ride-6')).toBe('newer')
+    expect(await library.get('ride-2')).toBeNull()
+    expect(await library.lookup('swim-3')).toBeNull()
   })
 
   it('reopens the database after the browser closes it', async () => {

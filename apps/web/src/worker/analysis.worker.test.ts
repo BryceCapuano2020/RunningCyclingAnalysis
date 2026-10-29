@@ -1288,6 +1288,7 @@ function refusingLibrary(): DeviceLibrary {
     all: async () => [],
     allStrict: async () => [],
     get: async () => null,
+    lookup: async () => null,
     route: async () => null,
     put: refused,
     remove: refused,
@@ -1556,6 +1557,28 @@ describe('device library', () => {
     expect(messages.at(-2)).toEqual({ type: 'deviceIssue', issue: 'notSaved', count: 2 })
     expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 2 } })
     expect(messages.some((message) => message.type === 'error')).toBe(false)
+  })
+
+  it('leaves a row a newer version wrote, and tells the page it did', async () => {
+    const put = vi.fn(() => Promise.resolve())
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      lookup: async () => 'newer',
+      put,
+    }
+    const { send } = await startWorker()
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(put).not.toHaveBeenCalled()
+    expect(messages.at(-2)).toEqual({ type: 'deviceIssue', issue: 'notSaved', count: 0, newer: 1 })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
   })
 
   it('counts a workout once when two refused copies of it were imported', async () => {
@@ -1838,6 +1861,72 @@ describe('a rejected file dropped while the account loads', () => {
         }),
       }),
     )
+  })
+})
+
+describe('keeping what was analysed while the account was unknown', () => {
+  const provisionalImport = (file: File = fitFile()): WorkerRequest => ({
+    type: 'addFiles',
+    files: [file],
+    settings: SETTINGS,
+    sync: null,
+    provisional: true,
+  })
+
+  it('writes nothing to this browser until asked to keep it', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const messages = await send(provisionalImport())
+
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+    expect(await keptDevice().all()).toEqual([])
+  })
+
+  it('keeps the analysed activities as they are, without reading or analysing them again', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    const analysed = await send(provisionalImport())
+    const digest = (analysed.at(-1) as Extract<WorkerResponse, { type: 'state' }>).state.library[0]!
+
+    const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
+
+    expect(await keptDevice().all()).toEqual([
+      { workoutKey: workoutKeyOf(digest), digest: expect.objectContaining({ id: digest.id }) },
+    ])
+    expect(messages).toContainEqual({
+      type: 'libraryActivities',
+      activities: [expect.objectContaining({ id: workoutKeyOf(digest) })],
+    })
+    // The session is as it was: one activity, and no progress from a second read.
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+    expect(messages.some((message) => message.type === 'progress')).toBe(false)
+  })
+
+  it('keeps nothing once the account library has loaded over them', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    await send(provisionalImport())
+    await send({ type: 'loadServer', settings: SETTINGS, userId: 'u1' })
+
+    await send({ type: 'keepProvisional', settings: SETTINGS })
+
+    expect(await keptDevice().all()).toEqual([])
+  })
+
+  it('says how many the browser would not keep', async () => {
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      put: () => Promise.reject(new Error('QuotaExceededError')),
+    }
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    await send(provisionalImport())
+
+    const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
+
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notSaved', count: 1 })
   })
 })
 

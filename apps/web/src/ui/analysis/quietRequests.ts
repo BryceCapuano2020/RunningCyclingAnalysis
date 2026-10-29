@@ -1,3 +1,4 @@
+import type { WorkerRequest } from '../../worker/protocol'
 import { isDeletion } from './model'
 import type { Pending } from './model'
 
@@ -14,9 +15,28 @@ export function isQuietRequest(kind: Pending['kind']): boolean {
     kind === 'activitySplits' ||
     kind === 'activityTrace' ||
     kind === 'loadDevice' ||
+    kind === 'keepProvisional' ||
     kind === 'routeShape' ||
     kind === 'forgetRoutes' ||
     kind === 'setRange' ||
     kind === 'setGradeTrend'
+  )
+}
+
+/**
+ * The requests that leave the last error standing as they are sent. Library loads run when a worker
+ * starts, including after a crash, so they keep the message that says why; a download or a read of a
+ * single activity does not touch the import or library error either.
+ */
+export function keepsError(request: WorkerRequest): boolean {
+  return (
+    request.type === 'loadServer' ||
+    request.type === 'loadDevice' ||
+    request.type === 'keepProvisional' ||
+    request.type === 'exportData' ||
+    request.type === 'activitySplits' ||
+    request.type === 'activityTrace' ||
+    request.type === 'routeShape' ||
+    request.type === 'forgetRoutes'
   )
 }

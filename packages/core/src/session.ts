@@ -12,7 +12,14 @@ import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } f
 import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
-import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
+import {
+  countIssues,
+  NETWORK_FAILURES_BEFORE_PROBE,
+  NETWORK_PROBE_DELAY_MS,
+  networkStreakAfter,
+  stopsSaving,
+  SyncFailure,
+} from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
@@ -95,7 +102,7 @@ export class AnalysisSession {
     this.rejected.length = 0
     this.unsupported.files = 0
     this.latestUnsynced.clear()
-    const batch: SaveBatch = { halt: null, added: new Map() }
+    const batch: SaveBatch = { halt: null, networkStreak: 0, added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
@@ -278,13 +285,21 @@ export class AnalysisSession {
       }
       return considered(false)
     }
+    // After a run of network failures the next save is a probe, sent once the outage has had a moment
+    // to pass. If it fails too the network is down and the saves stop; if not, the import carries on.
+    const probing = batch.networkStreak >= NETWORK_FAILURES_BEFORE_PROBE
+    if (probing) await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
     try {
       await sink({ digest, route: activity.route, ...file })
       this.unsynced.delete(key)
+      batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
     } catch (error) {
       const code = error instanceof SyncFailure ? error.code : 'server'
       this.leaveUnsynced(key, code)
-      if (stopsSaving(code)) batch.halt = code
+      // The server answered when only the original file failed to upload, so the network is up.
+      const answered = error instanceof SyncFailure && error.digestSaved
+      batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
+      if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
       return considered(false)
     }
     return considered(true)

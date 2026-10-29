@@ -19,9 +19,11 @@ export interface SavedActivity {
 
 /**
  * What this browser failed to do with the activities it keeps. `notSaved` counts activities of one
- * import that show but were not kept; `notForgotten` is a delete or removal that left a copy behind.
+ * import that show but were not kept, and `newer` those it left because a newer version of the app
+ * keeps a copy that this one cannot read; `notForgotten` is a delete or removal that left a copy behind.
  */
-export type DeviceIssue = { issue: 'notSaved'; count: number } | { issue: 'notForgotten' }
+export type DeviceIssue =
+  { issue: 'notSaved'; count: number; newer?: number } | { issue: 'notForgotten' }
 
 export interface ImportOutcome {
   /** The activities the import read, which a file may hold several of. */
@@ -98,6 +100,11 @@ export type WorkerRequest =
   /** `forgetDevice` also empties the library kept in this browser. */
   | { type: 'clear'; forgetDevice?: boolean }
   | { type: 'deleteActivity'; id: string; userId: string; settings: AthleteSettings }
+  /**
+   * Keeps in this browser the activities that provisional imports analysed, without reading their files
+   * again. Sent when the account turns out to be nobody's.
+   */
+  | { type: 'keepProvisional'; settings: AthleteSettings }
   /** Removes one workout from the library kept in this browser; `id` is a SavedActivity id. */
   | { type: 'deleteDeviceActivity'; id: string; settings: AthleteSettings }
   /** Builds the account's data export from its library. The account, profile and dated settings come from the page. */
