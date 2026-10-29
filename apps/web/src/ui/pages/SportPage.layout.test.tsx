@@ -291,6 +291,18 @@ describe('the records under the curve', () => {
     expect(items[0]!.querySelector('.record-tiles__sub')).toHaveTextContent('6.0 W/kg')
   })
 
+  it('says the full list has levels only when the page has a profile to grade them with', () => {
+    renderPage('run', makeResult({ activities: [withDistances] }), { profile: MAN_BORN_1986 })
+    const row = screen.getByRole('region', { name: 'All best efforts' }).querySelector('summary')!
+    expect(row.textContent).toMatch(
+      /\d+ best efforts with their levels, and the activity each was set in$/,
+    )
+    cleanup()
+    renderPage('run', makeResult({ activities: [withDistances] }), { missingAge: 'sex' })
+    const bare = screen.getByRole('region', { name: 'All best efforts' }).querySelector('summary')!
+    expect(bare.textContent).toMatch(/\d+ best efforts and the activity each was set in$/)
+  })
+
   it('has no strip, and no empty list, without a record', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] }))
     expect(screen.queryByRole('list', { name: 'Best efforts' })).toBeNull()

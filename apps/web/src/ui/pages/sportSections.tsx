@@ -42,7 +42,8 @@ export type SectionId =
  */
 export interface SectionOutcome {
   content: ReactNode | null
-  lack: string | null
+  /** Why part of the section or all of it is missing, a line for each part, in plain words. */
+  lacks: readonly string[]
   closed?: { title: string; finding: string }
 }
 
@@ -95,7 +96,7 @@ type Context = SectionContext & { list: ReturnType<typeof bestEffortRows> }
 
 /** How each section makes its outcome from what the page worked out. */
 const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
-  bestEfforts: (context) => ({ content: <BestEffortsSection {...context} />, lack: null }),
+  bestEfforts: (context) => ({ content: <BestEffortsSection {...context} />, lacks: [] }),
   racePredictions: ({ sport, result, units, rangeDays }) => {
     const found = racePredictionsOf(sport, result)
     const need = RACE_PREDICTION_NEED[sport]
@@ -104,12 +105,12 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
         content: (
           <RacePredictions sport={sport} found={found} units={units} allTime={rangeDays === null} />
         ),
-        lack: null,
+        lacks: [],
       }
     }
     return {
       content: null,
-      lack: need === undefined ? null : lackLine(RACE_PREDICTIONS_NAME, need),
+      lacks: need === undefined ? [] : [lackLine(RACE_PREDICTIONS_NAME, need)],
     }
   },
   timeInZones: ({ sport, zoneTimes = [], previousZoneTimes = null, previousLabel }) => {
@@ -124,9 +125,9 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
               previousLabel={previousLabel}
             />
           ),
-          lack: null,
+          lacks: [],
         }
-      : { content: null, lack }
+      : { content: null, lacks: [lack] }
   },
   weekByWeek: ({ sport, trends, windowDays, massKg, units }) => ({
     content: (
@@ -138,26 +139,27 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
         units={units}
       />
     ),
-    lack: null,
+    lacks: [],
   }),
   sameHeartRate: ({ sport, sameHeartRate, units }) => {
     const lack = sameHeartRateLack(sport, sameHeartRate, units)
     return lack === null
       ? {
           content: <SameHeartRateSection sport={sport} data={sameHeartRate} units={units} />,
-          lack: null,
+          lacks: [],
           closed: {
             title: SAME_HEART_RATE_NAME,
-            // The closed row says what the chart is titled by, so the two cannot differ.
-            finding: sameHeartRateCopy(sport, sameHeartRate, units).text,
+            // The closed row says what the chart is titled by, so the two cannot differ, and which heart rate "the
+            // same" is, so the finding stands alone.
+            finding: `${sameHeartRateCopy(sport, sameHeartRate, units).text.replace(/\.$/, '')} (${sameHeartRate.referenceHeartRate} bpm)`,
           },
         }
-      : { content: null, lack }
+      : { content: null, lacks: [lack] }
   },
   // The section holds two readings, each with its own need: the page lists what is missing even beside content.
   lateInEffort: ({ sport, result, lateEvidence, units }) => {
     const reading = lateInEffort(sport, lateEvidence)
-    const { need } = reading
+    const { needs } = reading
     const finding = lateFinding(reading)
     return {
       content:
@@ -169,23 +171,24 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
             units={units}
           />
         ),
-      lack: need === null ? null : lackLine(LATE_IN_EFFORT_NAME, need),
+      lacks: needs.map(({ name, need }) => lackLine(name, need)),
       closed: finding === null ? undefined : { title: LATE_IN_EFFORT_NAME, finding },
     }
   },
   standOut: ({ sport, result }) => {
     const profile = standOutOf(result, sport)
+    const lack = standOutLack(sport, result)
     return profile === null
-      ? { content: null, lack: standOutLack(sport, result) }
+      ? { content: null, lacks: lack === null ? [] : [lack] }
       : {
           content: <StandOutSection sport={sport} profile={profile} />,
-          lack: null,
+          lacks: [],
           closed: { title: 'Where your bests stand out', finding: standOutFinding(profile) },
         }
   },
   evidence: ({ list }) => ({
     content: <BestEffortsEvidence list={list} />,
-    lack: null,
+    lacks: [],
     closed: { title: 'All best efforts', finding: bestEffortsFinding(list) },
   }),
 }
@@ -220,6 +223,6 @@ export function layoutOf(
     nav: rows.flatMap((row) =>
       row.cells.map(({ id }) => ({ id: anchorOf(sport, id), label: NAV_LABEL[id] })),
     ),
-    lacks: [...outcomes.values()].flatMap(({ lack }) => (lack === null ? [] : [lack])),
+    lacks: [...outcomes.values()].flatMap(({ lacks }) => lacks),
   }
 }

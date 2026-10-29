@@ -59,7 +59,7 @@ describe('late in long sessions on a sport page', () => {
       const row = closedRow('Late in long sessions')
       expect(row).toMatch(/^Late in long sessions/)
       expect(row).toMatch(
-        /Held \d+% of output after 90 min; output per heartbeat fell 3% from the first half to the second/,
+        /Best 20 min held \d+% after 90 min; output per heartbeat fell 3% from the first half to the second/,
       )
       expect(
         screen.getByRole('region', { name: 'Late in long sessions' }).querySelector('details'),
@@ -81,7 +81,7 @@ describe('late in long sessions on a sport page', () => {
       const section = openSection('Late in long sessions')
       const figures = within(section).getAllByRole('figure')
       expect(figures).toHaveLength(2)
-      expect(figures[0]).toHaveAccessibleDescription(/^Held \d+% of output after 90 min$/)
+      expect(figures[0]).toHaveAccessibleDescription(/^Best 20 min held \d+% after 90 min$/)
       expect(figures[1]).toHaveAccessibleDescription(
         /over an hour, your output per heartbeat fell 3%/,
       )
@@ -103,12 +103,12 @@ describe('late in long sessions on a sport page', () => {
       ...lateEvidenceFor('run'),
       drift: lateEvidenceFor('run').drift.slice(0, 2),
     })
-    expect(closedRow('Late in long sessions')).toMatch(/Held \d+% of output after 90 min$/)
+    expect(closedRow('Late in long sessions')).toMatch(/Best 20 min held \d+% after 90 min$/)
     expect(closedRow('Late in long sessions')).not.toMatch(/heartbeat/)
     const section = openSection('Late in long sessions')
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(notEnough()).toContain(
-      'Late in long sessions: needs 3 steady runs over an hour with heart rate to show how output per heartbeat changes.',
+      'Output per heartbeat over an hour: needs 3 steady runs with heart rate.',
     )
   })
 
@@ -121,16 +121,20 @@ describe('late in long sessions on a sport page', () => {
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(within(section).queryByText(/overall/)).toBeNull()
     expect(notEnough()).toContain(
-      'Late in long sessions: add 3 rides longer than an hour with a power meter.',
+      'Best efforts late in long sessions: add 3 rides longer than an hour with a power meter.',
     )
   })
 
   it('has no row, and says what it needs in the list, with nothing to show', () => {
     renderPage('ride', NO_LATE_EVIDENCE.ride)
     expect(screen.queryByRole('region', { name: 'Late in long sessions' })).toBeNull()
-    expect(notEnough()).toContain(
-      'Late in long sessions: add 3 rides longer than an hour with a power meter. Needs 3 steady rides over an hour with a power meter and heart rate to show how output per heartbeat changes.',
-    )
+    // One line for each half, each naming the half that is missing and not the whole section.
+    expect(
+      notEnough().filter((line) => /^(Best efforts late|Output per heartbeat)/.test(line)),
+    ).toEqual([
+      'Best efforts late in long sessions: add 3 rides longer than an hour with a power meter.',
+      'Output per heartbeat over an hour: needs 3 steady rides with a power meter and heart rate.',
+    ])
   })
 
   it('is closed, after the same heart rate in the page’s order', () => {

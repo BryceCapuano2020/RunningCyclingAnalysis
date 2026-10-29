@@ -29,18 +29,19 @@ const week = (index: number, output: number): SameHeartRate['weeks'][number] => 
 /** A real change in the run's pace at one heart rate, so the section has something to say. */
 const RUN_SAME_HEART_RATE: SameHeartRate = {
   referenceHeartRate: 145,
-  weeks: [0, 1, 2, 3, 4].map((i) => week(i, 3.2 + i * 0.05)),
+  // Eight weeks, from 3.0 to 3.4 m/s: 5:33 to 4:54 a kilometre, a trend the weeks' own ranges leave no doubt of.
+  weeks: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => week(i, 3.0 + i * (0.4 / 7))),
   change: {
-    fromEndMs: week(0, 3.2).endMs,
-    toEndMs: week(4, 3.4).endMs,
-    from: 3.2,
+    fromEndMs: week(0, 3.0).endMs,
+    toEndMs: week(7, 3.4).endMs,
+    from: 3.0,
     to: 3.4,
-    weeksApart: 4,
-    relative: 0.0625,
+    weeksApart: 7,
+    relative: 0.133,
     real: true,
   },
   lacks: null,
-  latestWeekEndMs: week(4, 3.4).endMs,
+  latestWeekEndMs: week(7, 3.4).endMs,
 }
 
 /** Ten hours of a run's heart rate over eight runs, mostly in zone 2, so the section has something to say. */
@@ -148,16 +149,17 @@ describe('a sport page with everything to show', () => {
 
   it('says its finding on every closed row, so closed still tells the athlete something', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    // 3.2 to 3.4 m/s is 5:12 to 4:54 a km, 18 s faster; the first week's window is in December.
-    expect(closedRow('At the same heart rate')).toBe(
-      'At the same heart rateAt the same heart rate you run 18 s/km faster than in December',
+    // 3.0 to 3.4 m/s is 5:33 to 4:54 a km, about 39 s faster; the first week's window is in December. The closed
+    // row names the heart rate, so "the same" is a number.
+    expect(closedRow('At the same heart rate')).toMatch(
+      /^At the same heart rateAt the same heart rate you run (3[89]|40) s\/km faster than in December \(145 bpm\)$/,
     )
     expect(closedRow('Late in long sessions')).toMatch(
-      /Held \d+% of output after 90 min; output per heartbeat fell 3%/,
+      /Best 20 min held \d+% after 90 min; output per heartbeat fell 3%/,
     )
     expect(closedRow('Where your bests stand out')).toMatch(/Your 5 min best is [23]\d% above/)
     expect(closedRow('All best efforts')).toMatch(
-      /^All best efforts\d+ best efforts with their levels/,
+      /^All best efforts\d+ best efforts and the activity each was set in$/,
     )
   })
 
@@ -256,7 +258,8 @@ describe('a sport page with sections that have nothing to show', () => {
       expect.stringMatching(
         /^At the same heart rate: needs at least \d+ steady 5-minute stretches/,
       ),
-      'Late in long sessions: add 3 runs longer than an hour. Needs 3 steady runs over an hour with heart rate to show how output per heartbeat changes.',
+      'Best efforts late in long sessions: add 3 runs longer than an hour.',
+      'Output per heartbeat over an hour: needs 3 steady runs with heart rate.',
       expect.stringMatching(/^Where your bests stand out: needs bests at 5 or more durations/),
     ])
     expect(section.querySelector('ul')).toHaveClass('muted')

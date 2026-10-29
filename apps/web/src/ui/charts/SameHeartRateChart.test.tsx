@@ -98,6 +98,49 @@ describe('SameHeartRateChart', () => {
     expect(end).toBeLessThan(start!)
   })
 
+  it('runs the line and its band across the reporting weeks only, never out to a week that did not report', () => {
+    const { container } = render(
+      <SameHeartRateChart
+        sport="ride"
+        data={dataOf([null, 200, 204, 208, 212, null])}
+        units="metric"
+        note={NOTE}
+      />,
+    )
+    const xs = (selector: string, attribute: string) =>
+      (
+        container
+          .querySelector(selector)!
+          .getAttribute(attribute)!
+          .match(/-?[\d.]+(?= )/g) ?? []
+      ).map(Number)
+    const dots = Array.from(container.querySelectorAll('[data-testid="same-hr-marker"]')).map(
+      (dot) => Number(dot.getAttribute('d')!.match(/M([\d.]+)/)![1]),
+    )
+    const line = xs('[data-testid="same-hr-trend"]', 'd')
+    // A diamond's path starts at its left corner, so compare to within its radius.
+    expect(Math.min(...line)).toBeGreaterThanOrEqual(Math.min(...dots) - 8)
+    expect(Math.max(...line)).toBeLessThanOrEqual(Math.max(...dots) + 8)
+    const band = xs('[data-testid="same-hr-band"]', 'd')
+    expect(Math.min(...band)).toBeCloseTo(Math.min(...line), 0)
+    expect(Math.max(...band)).toBeCloseTo(Math.max(...line), 0)
+  })
+
+  it('labels the line’s own value at its end, not the last week’s', () => {
+    render(
+      <SameHeartRateChart
+        sport="ride"
+        data={dataOf([200, 206, 200, 210, 204, 214])}
+        units="metric"
+        note={NOTE}
+      />,
+    )
+    // The weeks end at 214 W, but the line through them ends below it.
+    const label = document.querySelector('[data-annotation="trend-end"]')
+    expect(label?.textContent).toMatch(/^2\d\d W/)
+    expect(label?.textContent).not.toMatch(/^214 W/)
+  })
+
   it('draws no line and no band with fewer than three reporting weeks, since a line through two would claim a trend', () => {
     const { container } = render(
       <SameHeartRateChart sport="run" data={dataOf([3.0, 3.1])} units="metric" note={NOTE} />,

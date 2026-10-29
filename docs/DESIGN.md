@@ -365,11 +365,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     it, and a strip of four record tiles under it), **Race predictions** beside **Time in zones** (60 and 40 on
     a desktop; a ride's zones take the whole row), and **Week by week**. Closed, each a card whose row names the
     section and says what it found, so a closed section still tells the athlete something: **At the same heart
-    rate** ("At the same heart rate you run 6 s/km faster than in March"), **Late in long sessions** ("Held 99% of
-    output after an hour; output per heartbeat fell 3% from the first half to the second"), **Where your bests
-    stand out**, and **All best efforts** (every record with its level and activity, and the notes on how the
-    figures were made). A closed section mounts its content when it first opens, so nothing is measured while
-    hidden.
+    rate** ("At the same heart rate you run 6 s/km faster than in March (145 bpm)", the row naming the heart rate
+    so "the same" is a number), **Late in long sessions** ("Best 20 min held 99% after an hour; output per
+    heartbeat fell 3% from the first half to the second"), **Where your bests stand out**, and **All best
+    efforts** (every record with its level, where there is a profile to grade it, and its activity, and the notes
+    on how the figures were made). A closed section mounts its content when it first opens, so nothing is
+    measured while hidden. For the same reason the browser's find-in-page does not search a closed section's
+    content: its row (name and finding) is searchable, and "On this page" opens a section in one press.
   - **"On this page"** is a row of buttons, one for each section the page has. On a desktop it holds its place
     under the header while the page scrolls, because the page is long and a section is then one press from
     anywhere; on a phone it is a row that scrolls sideways and does not hold. A button scrolls to the section,
@@ -388,7 +390,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     `packages/core/src/constants.ts`). The first compares the best 5 and 20 min overall, from any point in an
     effort, with the best that starts after 60, 90 and 120 min of moving time (`periodDurability`). Its title
     is one stat, the share of output held at the deepest level with 3 activities behind it at the longest
-    duration that has them: "Held 94% of output after 90 min". The note gives the sentence ("After 90 min your
+    duration that has them, with that duration: "Best 20 min held 94% after 90 min". The note gives the sentence ("After 90 min your
     best 20 min is 6% below your best 20 min overall.") and the count ("Your best 20 min after 90 min rests on 4
     rides."), says that a lower figure late on can also mean the run never asked for more, and for a ride that
     only a power meter counts. The chart is a dumbbell for each late best: a ring at no fall, a solid mark at
@@ -404,10 +406,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     (`docs/research/durability.md`), a light reference and not a verdict, and the note says that heat,
     hydration and tiredness also move heart rate, so a change is not fitness. An activity whose heart rate is
     set aside has no drift. A half with too few activities is left out and named in the "Not enough yet" list,
-    such as "Late in long sessions: add 3 runs longer than an hour." (a ride adds "with a power meter") or
-    "Late in long sessions: needs 3 steady runs over an hour with heart rate to show how output per heartbeat
-    changes." (a ride needs a power meter and heart rate). With neither, the section has no row and the line
-    names both needs. The copy never says limiter, weak, strength, "holding you back" or "ahead of".
+    one line for each missing half, each naming that half and not the section: "Best efforts late in long sessions:
+    add 3 runs longer than an hour." (a ride adds "with a power meter") or "Output per heartbeat over an hour:
+    needs 3 steady runs with heart rate." (a ride needs a power meter and heart rate). With neither, the section
+    has no row and both lines are in the list. The copy never says limiter, weak, strength, "holding you back" or "ahead of".
   - **A section with nothing to show has no heading.** Its reason is one line of a muted list at the end of the
     page, headed "Not enough yet", before the footnote: "Race predictions: needs a best of a mile or more, or
     runs with heart rate." Each section names its need in the plain words it would have used under its own
@@ -559,11 +561,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   signal built from easy and steady efforts (`docs/research/same-heart-rate.md`). The chart's title is the
   finding, and the closed row says the same sentence: with a real change, "At the same heart rate you run 6
   s/km faster than in March" (or "you put out 8 W more"; a fall says slower or less as plainly), the amount in
-  the unit the axis reads in and the month the first week's window is in. A change that ends before the
+  the unit the axis reads in (taken from the fitted line, from its start to its end across the reporting weeks, not
+  from the two end weeks) and the month the first week's window is in, with its year when that is the same month as
+  the last week's or nine or more months before it. A change that ends before the
   period's last week names the week: "At the same heart rate, by the week ending Sun 6 Apr 2025, you put out 16
   W more than in March". Without a real change, "At the same heart rate: no clear change since March", and with
-  fewer than 4 reporting weeks only "Too few weeks to show a change yet." A change is named only when the first
-  and last reporting weeks' 90% ranges do not overlap. With too little data to draw, the section has no row, and
+  fewer than 4 reporting weeks only "Too few weeks to show a change yet." A change is named only when two things
+  hold: the first and last reporting weeks' 90% ranges do not overlap, and the fitted line's slope is clear of zero
+  (its own band, widened for the overlap of the weekly windows and for scatter about the line, excludes it), so the
+  sentence and the line cannot contradict each other; the note under the chart says so. With too little data to draw, the section has no row, and
   a line of the "Not enough yet" list names what is missing, one of: too few steady 5-minute stretches, too few
   activities, activities in too few weeks, heart rate that hardly varies, no effort near the reference heart
   rate in the latest weeks, or less than 4 weeks of steady efforts in the period ("Needs 4 weeks of steady
@@ -572,10 +578,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   words are "output at the same heart rate", never "fitness", "limiter", "weak", "strength", "holding you back"
   or "ahead of". The chart is named with the heart rate and the sport's unit, "Your output at 145 bpm, flat pace
   per kilometre". It draws a light dot for each week that reports (a diamond for a ride, as in every chart), a
-  straight line fitted through them (each weighted by how tightly its own range pinned it) and a band for how
-  well the line is pinned down, widened for the overlap of the weekly windows, with the line's end value
-  labelled; with fewer than three weeks it draws no line, and a line that slopes within its band is drawn but
-  not claimed. A week that does not report has no dot and a mark on the date axis. The vertical axis is the
+  straight line fitted through them (each weighted by how tightly its own range pinned it, within four times the
+  median weight so that no one week is the line) and a band for how well the line is pinned down, widened for the
+  overlap of the weekly windows and for scatter about the line. The line runs across the reporting weeks only,
+  never past them, and its end value is labelled. With fewer than three weeks it draws no line, and a line that
+  slopes within its band is drawn but not claimed. A week that does not report has no dot and a mark on the date axis. The vertical axis is the
   sport's own number, pace with faster up or watts, and watts do not start at zero, since nothing is filled and
   a 5% change must show. The chart uses the shared frame: its tooltip and arrow-key reading say the week, the
   value, the 90% range and the stretches and activities behind it, and **View as table** lists every week. The

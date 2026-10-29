@@ -1446,18 +1446,19 @@ describe('SportPage depth', () => {
     })
     const reading = (from: number, to: number, real: boolean): SameHeartRate => ({
       referenceHeartRate: 145,
-      weeks: [0, 1, 2, 3, 4].map((i) => fitted(i, from + ((to - from) * i) / 4)),
+      // Eight weeks, so a steady rise is a trend the line's band can tell from flat.
+      weeks: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => fitted(i, from + ((to - from) * i) / 7)),
       change: {
         fromEndMs: fitted(0, from).endMs,
-        toEndMs: fitted(4, to).endMs,
+        toEndMs: fitted(7, to).endMs,
         from,
         to,
-        weeksApart: 4,
+        weeksApart: 7,
         relative: to / from - 1,
         real,
       },
       lacks: null,
-      latestWeekEndMs: fitted(4, to).endMs,
+      latestWeekEndMs: fitted(7, to).endMs,
     })
     const rideActivity = () =>
       makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] })
@@ -1505,9 +1506,15 @@ describe('SportPage depth', () => {
       )
       // The closed row says the finding: 16 W more than in the month the first week's window is in.
       expect(closedRow('At the same heart rate')).toBe(
-        'At the same heart rateAt the same heart rate you put out 16 W more than in December',
+        'At the same heart rateAt the same heart rate you put out 16 W more than in December (145 bpm)',
       )
       const section = openSection('At the same heart rate')
+      // The note says the rule: both the end weeks' ranges and the trend must say so.
+      expect(
+        within(section).getByText(
+          /A change is named only when the first and last weeks’ 90% ranges don’t overlap and the trend is clear of zero\./,
+        ),
+      ).toBeInTheDocument()
       const figure = within(section).getByRole('figure', { name: /Your output at 145 bpm/ })
       expect(figure).toHaveAccessibleDescription(
         'At the same heart rate you put out 16 W more than in December',
@@ -1531,7 +1538,7 @@ describe('SportPage depth', () => {
         reading(204, 207, false),
       )
       expect(closedRow('At the same heart rate')).toMatch(
-        /At the same heart rate: no clear change since December$/,
+        /At the same heart rate: no clear change since December \(145 bpm\)$/,
       )
       const figure = within(openSection('At the same heart rate')).getByRole('figure')
       expect(figure).toHaveAccessibleDescription(

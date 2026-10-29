@@ -17,7 +17,7 @@ const COUNTS: Record<Sport, string> = {
  */
 function noteFor(sport: Sport): string {
   const window = plural(SAME_HEART_RATE.windowDays / 7, 'week')
-  return `Each dot is fitted to the steady 5-minute stretches of the ${window} to that Sunday. The line is fitted through the dots, and its band is how well the line is pinned down. ${COUNTS[sport]} Fatigue can lower heart rate at a given effort, so a rise can come with fatigue as well as with training.`
+  return `Each dot is fitted to the steady 5-minute stretches of the ${window} to that Sunday. The line is fitted through the dots, and its band is how well the line is pinned down. A change is named only when the first and last weeks’ 90% ranges don’t overlap and the trend is clear of zero. ${COUNTS[sport]} Fatigue can lower heart rate at a given effort, so a rise can come with fatigue as well as with training.`
 }
 
 /**

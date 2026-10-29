@@ -9,6 +9,13 @@ import { SPORT_ACTIVITY, SPORT_PLURAL } from './sports'
 /** The section's name, in its heading and in the page's "Not enough yet" list. */
 export const LATE_IN_EFFORT_NAME = 'Late in long sessions'
 
+/**
+ * What each half of the section is called in the "Not enough yet" list, which names the half that is missing: the
+ * section's own name would say the whole section lacks what only one half does.
+ */
+export const LATE_BESTS_NAME = 'Best efforts late in long sessions'
+export const DRIFT_NAME = 'Output per heartbeat over an hour'
+
 const { minActivities, referenceDecouplingPct } = LATE_IN_EFFORT
 
 /** A late best in the sport's own number: speed in m/s for a run, watts for a ride. */
@@ -30,7 +37,7 @@ export interface LateGroup {
 
 export interface DurabilityReading {
   lede: string
-  /** The one figure the section opens with: "Held 99% of output after an hour". */
+  /** The one figure the section opens with: "Best 20 min held 99% after an hour". */
   stat: string
   groups: LateGroup[]
   /** How the lede's figure is supported, and what it does not say. */
@@ -45,12 +52,18 @@ export interface DriftReading {
   note: string
 }
 
+/** What one missing half needs, in a sentence that follows the half's name in the "Not enough yet" list. */
+export interface LateNeed {
+  name: string
+  need: string
+}
+
 /** What the section says: each half is null while its evidence is short of minActivities. */
 export interface LateInEffort {
   durability: DurabilityReading | null
   drift: DriftReading | null
   /** What is missing, in the plain words a "Not enough yet" line gives after the section's name; null when nothing is. */
-  need: string | null
+  needs: LateNeed[]
 }
 
 /**
@@ -140,9 +153,12 @@ export function afterWords(afterS: number): string {
   return hours === 1 ? 'an hour' : `${hours} hours`
 }
 
-/** The late best as a share of the best overall, in whole percent, as the stat says it: "Held 99% of output after an hour". */
-export function durabilityStat(afterS: number, retention: number): string {
-  return `Held ${Math.round(retention * 100)}% of output after ${afterWords(afterS)}`
+/**
+ * The late best as a share of the best overall, in whole percent, as the stat says it, with the duration it is the
+ * best at: "Best 20 min held 99% after an hour".
+ */
+export function durabilityStat(durationS: number, afterS: number, retention: number): string {
+  return `Best ${effortLabel(durationS)} held ${Math.round(retention * 100)}% after ${afterWords(afterS)}`
 }
 
 /**
@@ -166,7 +182,7 @@ function durabilityReading(
   const limit = `A lower figure late on can also mean the ${SPORT_ACTIVITY[sport]} never asked for more.`
   return {
     lede: durabilityLede(cell.afterS, group.durationS, cell.retention),
-    stat: durabilityStat(cell.afterS, cell.retention),
+    stat: durabilityStat(group.durationS, cell.afterS, cell.retention),
     groups,
     note: `${support} ${limit}${COUNTS[sport]}`,
   }
@@ -227,19 +243,22 @@ function durabilityNeed(sport: Sport, evidence: LateEvidence): string {
   return `Add ${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])} longer than an hour${NEEDS_DEVICE[sport]}.`
 }
 
-/** What drift needs: steady efforts over an hour with the readings it compares. */
+/** What drift needs: steady efforts, each over an hour, with the readings it compares. */
 function driftNeed(sport: Sport): string {
-  return `Needs ${minActivities} steady ${SPORT_PLURAL[sport]} over an hour with ${DRIFT_NEEDS_DEVICE[sport]} to show how output per heartbeat changes.`
+  return `Needs ${minActivities} steady ${SPORT_PLURAL[sport]} with ${DRIFT_NEEDS_DEVICE[sport]}.`
 }
 
-/** What the section needs, in the plain words of the "Not enough yet" list: each missing half's need. */
-function needOf(sport: Sport, evidence: LateEvidence, hasDurability: boolean, hasDrift: boolean) {
+/** What the section needs, a line for each missing half so that each says which half it is. */
+function needsOf(
+  sport: Sport,
+  evidence: LateEvidence,
+  hasDurability: boolean,
+  hasDrift: boolean,
+): LateNeed[] {
   return [
-    hasDurability ? null : durabilityNeed(sport, evidence),
-    hasDrift ? null : driftNeed(sport),
+    ...(hasDurability ? [] : [{ name: LATE_BESTS_NAME, need: durabilityNeed(sport, evidence) }]),
+    ...(hasDrift ? [] : [{ name: DRIFT_NAME, need: driftNeed(sport) }]),
   ]
-    .filter((need) => need !== null)
-    .join(' ')
 }
 
 /**
@@ -250,11 +269,7 @@ function needOf(sport: Sport, evidence: LateEvidence, hasDurability: boolean, ha
 export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort {
   const durability = durabilityReading(sport, evidence.durability)
   const drift = driftReading(sport, evidence.drift)
-  const need =
-    durability !== null && drift !== null
-      ? null
-      : needOf(sport, evidence, durability !== null, drift !== null)
-  return { durability, drift, need }
+  return { durability, drift, needs: needsOf(sport, evidence, durability !== null, drift !== null) }
 }
 
 /**
