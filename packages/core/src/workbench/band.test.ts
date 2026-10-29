@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { readingBand } from './band'
-import { distributionOf } from './selection'
 import type { ActivityTrace } from './types'
 
 /** A run of n seconds whose speed is the given function of the second. */
@@ -76,18 +75,5 @@ describe('readingBand at the edges of what a cut can remove', () => {
 
   it('cuts two percent slow and half a percent fast of a thousand readings', () => {
     expect(readingBand(distinct(1000), 'speed', 0, 1000)).toMatchObject({ below: 20, above: 5 })
-  })
-})
-
-describe('distributionOf within a band', () => {
-  it('spans only the band, so a stray reading leaves no empty bins', () => {
-    const item = runOf(500, (i) => (i < 3 ? 0.5 : 2.5 + (i - 3) / 494))
-    const whole = distributionOf(item, 'speed', 0, 500)
-    expect(whole[0]!.from).toBe(0.5)
-    const band = readingBand(item, 'speed', 0, 500)!
-    const trimmed = distributionOf(item, 'speed', 0, 500, band)
-    expect(trimmed[0]!.from).toBeCloseTo(band.low, 5)
-    expect(trimmed.every((bin) => bin.seconds > 0)).toBe(true)
-    expect(trimmed.reduce((sum, bin) => sum + bin.seconds, 0)).toBe(500 - band.below - band.above)
   })
 })

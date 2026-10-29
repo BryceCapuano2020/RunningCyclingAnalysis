@@ -98,7 +98,7 @@ test('an older activity added to a cache full of newer ones is not stored, and s
   await expect(rows).toHaveCount(2, SLOW)
   // The older run is the second row. Its recording lasts for this visit.
   await rows.nth(1).getByRole('link').click()
-  await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
+  await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible(SLOW)
 
   await page.goto('/privacy')
   const { entries, ledger } = await readCache(page)

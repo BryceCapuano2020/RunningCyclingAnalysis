@@ -21,6 +21,13 @@ function field(name: string) {
   return screen.findByRole('textbox', { name })
 }
 
+/** The measures the stack draws, in the order of its rows. */
+function rowsOf(figure: HTMLElement): (string | undefined)[] {
+  return [...figure.querySelectorAll<HTMLElement>('[data-channel]')].map(
+    (row) => row.dataset.channel,
+  )
+}
+
 describe('ActivityWorkbench', () => {
   it('shows pace, heart rate and power first and keeps the rest to choose', async () => {
     const user = userEvent.setup()
@@ -30,30 +37,47 @@ describe('ActivityWorkbench', () => {
     render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={loadTrace} />)
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading recorded details.')
-    expect(await screen.findByRole('figure', { name: /^Pace/ })).toBeInTheDocument()
+    const figure = await screen.findByRole('figure', { name: 'Pace and heart rate over time' })
     expect(screen.getByRole('heading', { name: 'In detail' })).toBeInTheDocument()
-    expect(screen.getByRole('figure', { name: /^Heart rate/ })).toBeInTheDocument()
-    expect(screen.queryByRole('figure', { name: /^Cadence/ })).not.toBeInTheDocument()
+    expect(rowsOf(figure)).toEqual(['speed', 'heartRate'])
     const cadence = screen.getByRole('checkbox', { name: /Cadence \(steps\/min\)/ })
     expect(cadence).not.toBeChecked()
 
     await user.click(cadence)
-    expect(screen.getByRole('figure', { name: /^Cadence/ })).toBeInTheDocument()
+    const three = screen.getByRole('figure', { name: 'Pace, heart rate and cadence over time' })
+    expect(rowsOf(three)).toEqual(['speed', 'heartRate', 'cadence'])
     // Choosing a measure back on keeps the list's order, not the order of the clicks.
     await user.click(screen.getByRole('checkbox', { name: /^Pace/ }))
+    expect(rowsOf(screen.getByRole('figure'))).toEqual(['heartRate', 'cadence'])
     await user.click(screen.getByRole('checkbox', { name: /^Pace/ }))
-    const names = screen.getAllByRole('figure').map((figure) => figure.textContent?.split(' (')[0])
-    expect(names).toEqual(['Pace', 'Heart rate', 'Cadence'])
+    expect(rowsOf(screen.getByRole('figure'))).toEqual(['speed', 'heartRate', 'cadence'])
   })
 
-  it('names each plot once and labels its value range', async () => {
+  it('draws one figure for all the measures, in real proportions and not stretched', async () => {
     show(runTrace())
-    const figure = await screen.findByRole('figure', { name: /^Pace/ })
-    const plot = within(figure).getByRole('img', { name: /^Pace from 0:00 to 0:10/ })
-    expect(plot).toHaveAccessibleName('Pace from 0:00 to 0:10, between 5:03 /km and 5:33 /km')
+    const figure = await screen.findByRole('figure')
+    expect(screen.getAllByRole('figure')).toHaveLength(1)
+    const svg = figure.querySelector('svg.chart-frame__svg')!
+    const [, , width, height] = svg.getAttribute('viewBox')!.split(' ').map(Number)
+    // One pixel of the drawing is one pixel of the page: the SVG's box is its viewBox.
+    expect(svg).toHaveAttribute('width', String(width))
+    expect(svg).toHaveAttribute('height', String(height))
+    expect(svg).not.toHaveAttribute('preserveAspectRatio')
+  })
+
+  it('names the drawing once and labels each measure’s value range', async () => {
+    show(runTrace())
+    const figure = await screen.findByRole('figure', { name: 'Pace and heart rate over time' })
+    const plot = within(figure).getByRole('img', { name: /^From 0:00 to 0:10: Pace between/ })
+    expect(plot).toHaveAccessibleName(
+      'From 0:00 to 0:10: Pace between 5:03 /km and 5:33 /km; Heart rate between 120 bpm and 128 bpm',
+    )
     expect(plot.querySelector('title')).toBeNull()
-    expect(figure).toHaveTextContent('5:03 /km')
-    expect(figure).toHaveTextContent('5:33 /km')
+    expect(
+      [...figure.querySelectorAll('[data-channel="heartRate"] .ts-stack__tick')].map(
+        (tick) => tick.textContent,
+      ),
+    ).toEqual(['120', '125'])
     expect(within(figure).getByText('View as table')).toBeInTheDocument()
   })
 
@@ -106,13 +130,14 @@ describe('ActivityWorkbench', () => {
     expect(screen.queryByRole('table', { name: /while moving/i })).not.toBeInTheDocument()
   })
 
-  it('titles each histogram by what it counts', async () => {
+  it('reads the selection’s averages with no cursor, in a row that always holds the same measures', async () => {
     show(runTrace())
-    const figure = await screen.findByRole('figure', { name: /^Heart rate/ })
-    expect(within(figure).getByText('Time at each heart rate')).toBeInTheDocument()
-    expect(
-      within(await screen.findByRole('figure', { name: /^Pace/ })).getByText('Time at each pace'),
-    ).toBeInTheDocument()
+    const readout = within(await screen.findByRole('figure')).getByRole('status')
+    expect(readout).toHaveTextContent('SelectionAverage')
+    expect(readout).toHaveTextContent('Pace5:21/km')
+    expect(readout).toHaveTextContent('Heart rate124bpm')
+    // The old histograms are gone: the time in zones says how time was spread, with its own table.
+    expect(screen.queryByText(/Time at each/)).not.toBeInTheDocument()
   })
 
   it('reads a lap as a named, marked selection and moves the interval to it', async () => {
@@ -167,9 +192,9 @@ describe('ActivityWorkbench', () => {
     expect(end).toHaveValue('90')
     await user.keyboard('{Enter}')
     expect(end).toHaveValue('1:30')
-    expect(screen.getByRole('slider', { name: 'End time slider' })).toHaveAttribute(
+    expect(screen.getByRole('slider', { name: 'Selection end' })).toHaveAttribute(
       'aria-valuetext',
-      '1 min 30 s',
+      'End 1 min 30 s',
     )
     expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('30 s')
   })
@@ -189,13 +214,38 @@ describe('ActivityWorkbench', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('moves an end with its slider and states the time in words', async () => {
+  it('moves an end of the brush by keyboard, with named values, and never past the other end', async () => {
     show(steadyTrace(610))
-    const slider = await screen.findByRole('slider', { name: 'Start time slider' })
-    fireEvent.change(slider, { target: { value: '700' } })
-    // The start stops one second short of the end, at 10:10.
-    expect(slider).toHaveAttribute('aria-valuetext', '10 min 9 s')
+    const start = await screen.findByRole('slider', { name: 'Selection start' })
+    fireEvent.keyDown(start, { key: 'ArrowRight' })
+    // An arrow moves it a two-hundredth of the activity: three seconds of ten minutes.
+    expect(start).toHaveAttribute('aria-valuetext', 'Start 3 s')
+    expect(await field('Start time')).toHaveValue('0:03')
+    // End jumps to one second short of the other end, at 10:10.
+    fireEvent.keyDown(start, { key: 'End' })
+    expect(start).toHaveAttribute('aria-valuetext', 'Start 10 min 9 s')
+    expect(start).toHaveAttribute('aria-valuenow', '609')
     expect(await field('Start time')).toHaveValue('10:09')
+    fireEvent.keyDown(start, { key: 'ArrowRight' })
+    expect(start).toHaveAttribute('aria-valuenow', '609')
+    const end = screen.getByRole('slider', { name: 'Selection end' })
+    expect(end).toHaveAttribute('aria-valuemin', '610')
+    fireEvent.keyDown(end, { key: 'Home' })
+    expect(end).toHaveAttribute('aria-valuenow', '610')
+  })
+
+  it('offers the whole activity back once the brush has moved', async () => {
+    const user = userEvent.setup()
+    show(steadyTrace(610))
+    const start = await screen.findByRole('slider', { name: 'Selection start' })
+    expect(screen.queryByRole('button', { name: 'Whole activity' })).not.toBeInTheDocument()
+    fireEvent.keyDown(start, { key: 'ArrowRight' })
+    await user.click(screen.getByRole('button', { name: 'Whole activity' }))
+    expect(start).toHaveAttribute('aria-valuenow', '0')
+    expect(screen.getByRole('slider', { name: 'Selection end' })).toHaveAttribute(
+      'aria-valuenow',
+      '610',
+    )
   })
 
   it('shows an empty recording as having no detailed measures instead of failing', async () => {
@@ -221,20 +271,27 @@ describe('ActivityWorkbench', () => {
     expect(
       await screen.findByText('Stopped or no reading for 12 s of moving time.'),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('img', { name: /^Time at each pace, from 5:03 \/km to 5:33 \/km/ }),
-    ).toBeInTheDocument()
+    // Those seconds are a break at the start of the line, not a reading: it begins after the 12th second.
+    const figure = screen.getByRole('figure', { name: 'Pace and heart rate over time' })
+    const first = /^M ([\d.]+) /.exec(
+      figure.querySelector('[data-channel="speed"] .ts-stack__line')?.getAttribute('d') ?? '',
+    )
+    // The plot is 584 px for 60 s from x = 44, so 12 s is 117 px in.
+    expect(Number(first?.[1])).toBeGreaterThan(44 + 100)
   })
 
-  it('orders a run’s pace bins from fastest to slowest and a ride’s speed from lowest to highest', async () => {
+  it('puts a run’s faster pace above its slower, and a ride’s higher speed above its lower', async () => {
+    /** The tick labels of the speed row, top to bottom, as numbers. */
+    const ticksOf = (figure: HTMLElement) =>
+      [...figure.querySelectorAll<SVGTextElement>('[data-channel="speed"] .ts-stack__tick')]
+        .sort((a, b) => Number(a.getAttribute('y')) - Number(b.getAttribute('y')))
+        .map((tick) => Number(tick.textContent?.replace(':', '.')))
     const run = steadyTrace(100, 3)
     run.streams.speed = Float32Array.from({ length: 100 }, (_, index) => 2.5 + index / 100)
     const view = show(run)
-    const histogram = await screen.findByRole('img', { name: /^Time at each pace/ })
-    const [fastest, slowest] = [/from (\d+:\d+)/, /to (\d+:\d+)/].map(
-      (pattern) => pattern.exec(histogram.getAttribute('aria-label') ?? '')?.[1],
-    )
-    expect(Number(fastest?.replace(':', ''))).toBeLessThan(Number(slowest?.replace(':', '')))
+    const pace = ticksOf(await screen.findByRole('figure'))
+    expect(pace.length).toBeGreaterThan(1)
+    expect([...pace].sort((a, b) => a - b)).toEqual(pace)
     view.unmount()
 
     const ride = steadyTrace(100, 8)
@@ -242,11 +299,9 @@ describe('ActivityWorkbench', () => {
     ride.sport = 'ride'
     ride.streams.speed = Float32Array.from({ length: 100 }, (_, index) => 5 + index / 20)
     show(ride)
-    expect(
-      await screen.findByRole('img', {
-        name: /^Time at each speed, from 18\.4 km\/h to 35\.8 km\/h/,
-      }),
-    ).toBeInTheDocument()
+    const speed = ticksOf(await screen.findByRole('figure'))
+    expect(speed.length).toBeGreaterThan(1)
+    expect([...speed].sort((a, b) => b - a)).toEqual(speed)
   })
 
   it('calls a ride’s missing speed no reading, since only a run has a stop floor', async () => {
@@ -261,19 +316,21 @@ describe('ActivityWorkbench', () => {
     expect(screen.queryByText(/Stopped or no reading/)).not.toBeInTheDocument()
   })
 
-  it('draws a distribution only for pace, heart rate, power and cadence', async () => {
+  it('draws elevation as an area and the other measures as lines with a band', async () => {
     const user = userEvent.setup()
     const trace = runTrace()
     trace.streams.altitude = Float32Array.from({ length: 10 }, (_, index) => 100 + index)
     show(trace)
-    await user.click(await screen.findByRole('checkbox', { name: /^Elevation/ }))
-    const figure = screen.getByRole('figure', { name: /^Elevation/ })
-    expect(within(figure).queryByRole('img', { name: /^Time at each/ })).not.toBeInTheDocument()
-    expect(
-      within(screen.getByRole('figure', { name: /^Heart rate/ })).getByRole('img', {
-        name: /^Time at each heart rate/,
-      }),
-    ).toBeInTheDocument()
+    const figure = await screen.findByRole('figure')
+    // Elevation is on by default where the file has it.
+    const elevation = figure.querySelector('[data-channel="altitude"]')!
+    expect(elevation.querySelector('.ts-stack__area')?.getAttribute('d')).toMatch(/^M /)
+    expect(elevation.querySelector('.ts-stack__band')).toBeNull()
+    const heart = figure.querySelector('[data-channel="heartRate"]')!
+    expect(heart.querySelector('.ts-stack__band')?.getAttribute('d')).toMatch(/^M /)
+    expect(heart.querySelector('.ts-stack__area')).toBeNull()
+    await user.click(screen.getByRole('checkbox', { name: /^Elevation/ }))
+    expect(rowsOf(screen.getByRole('figure'))).not.toContain('altitude')
   })
 
   it('says once that readings stay on this device, and keeps the hedging lines out', async () => {
@@ -296,7 +353,7 @@ describe('ActivityWorkbench', () => {
     expect(
       screen.getByText('This file does not say whether cadence counts steps or revolutions.'),
     ).toBeInTheDocument()
-    expect(await screen.findByRole('figure', { name: /^Cadence/ })).toBeInTheDocument()
+    expect(await screen.findByRole('figure', { name: /cadence over time$/ })).toBeInTheDocument()
   })
 
   it('offers an explicit original read only when the worker reports one is available', async () => {

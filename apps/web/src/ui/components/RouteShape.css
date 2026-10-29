@@ -1,7 +1,20 @@
-/* A route outline in its sport's colour. It is as wide as the page allows, up to 320 px. */
+/*
+ * A route outline, a tile about 160 px tall. Its width follows the track's proportions, so the shape is
+ * drawn at true aspect, and never wider than the page allows.
+ */
 .route-shape {
-  width: min(100%, 320px);
+  --route-height: 160px;
+  height: var(--route-height);
+  max-width: 100%;
   margin: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: var(--space-1);
+}
+
+/* The aspect ratio is set inline from the track; the box takes it from the tile's height, never past the page. */
+.route-shape:has(.route-shape__key) {
+  --route-height: 180px;
 }
 
 .route-shape:focus-visible {
@@ -13,6 +26,7 @@
   display: block;
   width: 100%;
   height: 100%;
+  min-height: 0;
 }
 
 .route-shape__line {
@@ -21,4 +35,71 @@
   stroke-width: 3px;
   stroke-linejoin: round;
   stroke-linecap: round;
+}
+
+.route-shape__segment {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Start is a ring and finish a dot, so they differ by shape, not colour; each has a page-coloured edge to read on the line. */
+.route-shape__start-ring,
+.route-shape__start-fill,
+.route-shape__finish-halo,
+.route-shape__finish {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.route-shape__start-ring {
+  stroke: var(--text-primary);
+  stroke-width: 14px;
+}
+
+.route-shape__start-fill {
+  stroke: var(--surface-1);
+  stroke-width: 8px;
+}
+
+.route-shape__finish-halo {
+  stroke: var(--surface-1);
+  stroke-width: 14px;
+}
+
+.route-shape__finish {
+  stroke: var(--text-primary);
+  stroke-width: 10px;
+}
+
+.route-shape__key {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.route-shape__ramp {
+  flex: 1 1 auto;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--text-secondary), var(--ch-pace));
+}
+
+@media (forced-colors: active) {
+  .route-shape__line,
+  .route-shape__segment {
+    stroke: CanvasText !important;
+  }
+
+  .route-shape__start-ring,
+  .route-shape__finish {
+    stroke: CanvasText;
+  }
+
+  .route-shape__start-fill,
+  .route-shape__finish-halo {
+    stroke: Canvas;
+  }
 }
