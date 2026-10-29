@@ -4,12 +4,12 @@ import type { Masses } from '../digest/masses'
 import { effortsCount } from '../digest/effortTrust'
 import { massesOf } from '../digest/masses'
 import { orderedCurrent } from '../digest/ordered'
-import { estimatedHolds, ownRideGate, pointAt } from '../digest/estimatedRide'
-import type { EstimatedHolds, EstimatedRideGate } from '../digest/estimatedRide'
+import { estimatedStanding, ownRideGate, pointAt } from '../digest/estimatedRide'
+import type { EstimatedRideGate, EstimatedStanding } from '../digest/estimatedRide'
 import {
   centralWkgFromWatts,
   fitBikeModelOver,
-  heldRideWatts,
+  ridePriced,
   runCentralWkg,
 } from '../digest/rideCurves'
 import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
@@ -28,9 +28,9 @@ function rideValueAt(
   digest: ActivityDigest,
   masses: Masses,
   bikeModel: BikeModel,
-  holds: EstimatedHolds,
+  standing: EstimatedStanding,
 ): number {
-  const watts = heldRideWatts(point, digest, masses, bikeModel, holds)
+  const { watts } = ridePriced(point, digest, masses, bikeModel, standing)
   return masses.dated ? centralWkgFromWatts(watts, masses.bodyKg(digest)) : watts
 }
 
@@ -52,7 +52,7 @@ export function recordHolders(
   const bikeModel = fitBikeModelOver(ordered, masses).model
   // A treadmill run holds no record (see effortsCount), though its own times still show on its page.
   const eligible = ordered.filter(effortsCount)
-  const holds = estimatedHolds(gate === undefined ? ownRideGate(ordered) : gate)
+  const standing = estimatedStanding(gate === undefined ? ownRideGate(ordered) : gate)
   const held = new Map<string, EarnedRecord[]>()
   const give = (id: string, record: EarnedRecord) => {
     const list = held.get(id)
@@ -70,7 +70,7 @@ export function recordHolders(
         const value =
           sport === 'run'
             ? runCentralWkg(point)
-            : rideValueAt(point, digest, masses, bikeModel, holds)
+            : rideValueAt(point, digest, masses, bikeModel, standing)
         if (Number.isFinite(value) && (best === null || value > best.value)) {
           best = { id: digest.id, value }
         }

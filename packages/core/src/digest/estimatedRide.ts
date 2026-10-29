@@ -49,11 +49,6 @@ export interface EstimatedRideGate {
    * longer effort's watts down to every shorter duration, so a measured point at 3 h makes every duration measured.
    */
   measuredDurations: ReadonlySet<number>
-  /**
-   * The best measured watts at the longest measured duration. An unbacked estimate at a longer duration is copied
-   * down by the envelope over every measured best, the lowest of which is this, so it may stand only at or under it.
-   */
-  measuredCeilingW: number
 }
 
 /** A digest's curve point at a duration; a digest holds one per DURATIONS_S entry in order, so it is at the index. */
@@ -96,20 +91,15 @@ function lineOver(levels: Level[]): DurationLine | null {
   return { ...line, from, to }
 }
 
-/** The durations at which a measured ride has a point, or at a longer one, and the best watts at the longest. */
-function measuredReach(measured: ActivityDigest[]): { durations: Set<number>; ceilingW: number } {
+/** The durations at which a measured ride has a point, or at a longer one. */
+function measuredDurationsOf(measured: ActivityDigest[]): Set<number> {
   let longest = 0
-  let ceilingW = 0
   for (const digest of measured) {
     for (const [index, durationS] of DURATIONS_S.entries()) {
-      const watts = measuredWatts(pointAt(digest, index))
-      if (!(watts > 0) || durationS < longest) continue
-      if (durationS > longest) ceilingW = 0
-      longest = durationS
-      ceilingW = Math.max(ceilingW, watts)
+      if (durationS > longest && measuredWatts(pointAt(digest, index)) > 0) longest = durationS
     }
   }
-  return { durations: new Set(DURATIONS_S.filter((durationS) => durationS <= longest)), ceilingW }
+  return new Set(DURATIONS_S.filter((durationS) => durationS <= longest))
 }
 
 /**
@@ -136,8 +126,7 @@ export function rideGateOf(
     const line = lineOver(levels)
     if (line !== null) lines.set(durationS, line)
   }
-  const reach = measuredReach(measured)
-  return { lines, measuredDurations: reach.durations, measuredCeilingW: reach.ceilingW }
+  return { lines, measuredDurations: measuredDurationsOf(measured) }
 }
 
 /**
@@ -153,26 +142,31 @@ function expectedHeartRate(line: DurationLine, watts: number): number {
   return line.intercept + line.slope * Math.min(line.to, Math.max(line.from, watts))
 }
 
-/** Whether a ride point priced at `watts` may be counted: see ESTIMATED_RIDE. */
-export type EstimatedHolds = (point: DigestCurvePoint, watts: number) => boolean
+/**
+ * How a ride point priced at `watts` stands: it holds (counts everywhere, through the monotone envelope too), stands
+ * (counts at its own duration only), or drops (does not count). See ESTIMATED_RIDE.
+ */
+export type Standing = 'holds' | 'stands' | 'drops'
+
+export type EstimatedStanding = (point: DigestCurvePoint, watts: number) => Standing
 
 /**
- * The test of ride points. A point with a power meter always holds. An estimated point (it has terms) holds if
- * its window's mean heart rate is at least minShare of the expected at its watts. A window with no heart rate, or
- * no line to judge it by, is unbacked: it never outranks a measurement, so it holds only at a duration longer than
- * any the library has measured, and then only at or under the measured ceiling, since the monotone envelope would
- * copy it down over the measured bests. Without a gate every point holds.
+ * The standing of ride points. A point with a power meter always holds. An estimated point (it has terms) is backed
+ * if its window's mean heart rate is at least minShare of the expected at its watts, and holds; below that it drops.
+ * A window with no heart rate, or no line to judge it by, is unbacked: it drops at a duration the library has
+ * measured, and elsewhere stands at its own duration only. It is never copied to a shorter duration, so it cannot
+ * outrank a measurement, in any unit and in any period. Without a gate every point holds.
  */
-export function estimatedHolds(gate: EstimatedRideGate | null): EstimatedHolds {
-  if (gate === null) return () => true
+export function estimatedStanding(gate: EstimatedRideGate | null): EstimatedStanding {
+  if (gate === null) return () => 'holds'
   return (point, watts) => {
-    if (point.terms === null || !(watts > 0)) return true
+    if (point.terms === null || !(watts > 0)) return 'holds'
     const heartRate = point.heartRate
     const line = gate.lines.get(point.durationS)
     if (heartRate === null || !(heartRate > 0) || line === undefined) {
-      return !gate.measuredDurations.has(point.durationS) && watts <= gate.measuredCeilingW
+      return gate.measuredDurations.has(point.durationS) ? 'drops' : 'stands'
     }
-    return heartRate >= ESTIMATED_RIDE.minShare * expectedHeartRate(line, watts)
+    return heartRate >= ESTIMATED_RIDE.minShare * expectedHeartRate(line, watts) ? 'holds' : 'drops'
   }
 }
 
@@ -183,5 +177,5 @@ export function estimatedHolds(gate: EstimatedRideGate | null): EstimatedHolds {
 export function rideGateKey(gate: EstimatedRideGate | null | undefined): string {
   if (gate === undefined) return 'own'
   if (gate === null) return 'none'
-  return JSON.stringify([[...gate.lines], [...gate.measuredDurations], gate.measuredCeilingW])
+  return JSON.stringify([[...gate.lines], [...gate.measuredDurations]])
 }

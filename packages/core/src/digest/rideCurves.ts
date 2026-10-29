@@ -15,8 +15,8 @@ import { fitBikeModel } from '../virtualPower'
 import { bestOf, bestOfEach, isMeasured, plainCurve } from './bestCurve'
 import { CalibrationPool, calibratedOf } from './calibration'
 import { effortsCount } from './effortTrust'
-import { estimatedHolds, ownRideGate } from './estimatedRide'
-import type { EstimatedHolds, EstimatedRideGate } from './estimatedRide'
+import { estimatedStanding, ownRideGate } from './estimatedRide'
+import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
@@ -54,16 +54,20 @@ export function fitBikeModelOver(ordered: ActivityDigest[], masses: Masses) {
   return fitBikeModel(pool.stats())
 }
 
-/** Mechanical watts of a ride point, or NaN when it is an estimate the athlete's heart rate does not back (see ESTIMATED_RIDE). */
-export function heldRideWatts(
+/**
+ * One ride point priced: its mechanical watts, NaN when it is an estimate the athlete's heart rate does not back
+ * (see ESTIMATED_RIDE), and whether it stands at its own duration only, as an unbacked estimate does.
+ */
+export function ridePriced(
   point: DigestCurvePoint,
   digest: ActivityDigest,
   masses: Masses,
   model: BikeModel,
-  holds: EstimatedHolds,
-): number {
+  standing: EstimatedStanding,
+): { watts: number; alone: boolean } {
   const watts = rideWattsAt(point, masses.totalKg(digest), model)
-  return holds(point, watts) ? watts : Number.NaN
+  const how = standing(point, watts)
+  return { watts: how === 'drops' ? Number.NaN : watts, alone: how === 'stands' }
 }
 
 /** The run and ride curves a combine works from, with the ride in each unit it needs. */
@@ -101,12 +105,20 @@ export function bestCurves(
 ): BestCurves {
   const ordered = all.filter(effortsCount)
   const runBest = bestOf(ordered, 'run', runCentralWkg)
-  const holds = estimatedHolds(gate)
+  const standing = estimatedStanding(gate)
+  // Without a gate every point holds, so none stands alone.
+  const aloneFor =
+    gate === null
+      ? undefined
+      : (digest: ActivityDigest) => (point: DigestCurvePoint) =>
+          ridePriced(point, digest, masses, bikeModel, standing).alone
   if (!masses.dated) {
     const rideBest = bestOfEach(
       ordered,
       'ride',
-      (digest) => (point) => heldRideWatts(point, digest, masses, bikeModel, holds),
+      (digest) => (point) => ridePriced(point, digest, masses, bikeModel, standing).watts,
+      undefined,
+      aloneFor,
     )
     const rideCurve = plainCurve(rideBest)
     const rideMetabolic = rideCurve.map((p) => ({
@@ -121,9 +133,11 @@ export function bestCurves(
     'ride',
     (digest) => (point) =>
       centralWkgFromWatts(
-        heldRideWatts(point, digest, masses, bikeModel, holds),
+        ridePriced(point, digest, masses, bikeModel, standing).watts,
         masses.bodyKg(digest),
       ),
+    undefined,
+    aloneFor,
   )
   const bodyKgById = new Map(ordered.map((digest) => [digest.id, masses.bodyKg(digest)]))
   const efficiency = PRIORS.grossEfficiency.mean

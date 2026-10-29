@@ -1184,10 +1184,11 @@ point counts at all is the library's call (`HeartRateJudgement.rideGate`, built 
 the tolerance, never read beyond the fitted watts) of the heart rate of the trusted power-meter rides on their
 watts, and an estimated window counts toward the bests, curves, thresholds, records and trends only if its mean
 heart rate is at least `ESTIMATED_RIDE.minShare` (90%) of the line at its watts. A window with no heart rate, or
-at a duration with no line, is unbacked: it never outranks a measurement, so it holds only at a duration longer
-than any the library has measured (a measured point makes every shorter duration measured, since the envelope
-copies it down), and then only at or under the best measured watts at the longest measured duration, which the
-envelope would otherwise copy down over the measured bests. Fewer than 6 power-meter rides with heart rate give no
+at a duration with no line, is unbacked: it drops at a duration the library has measured (a measured point makes
+every shorter duration measured, since the envelope copies it down), and elsewhere it stands at its own duration
+only. The monotone envelope is built from measured and backed points alone, and an unbacked one is placed on the
+finished curve where it beats what is there, so it never fills a shorter duration and cannot outrank a measurement,
+whatever the unit (W/kg with dated masses) or the period. The trend and the records read it the same way. Fewer than 6 power-meter rides with heart rate give no
 gate and nothing changes. The line is in absolute watts, so a change in mass moves a virtual ride's watts against
 it slightly. A virtual ride's own heart rate is taken as recorded: neither set-aside path judges a ride whose watts
 are the estimate in doubt. Only measured rides' set-aside heart rate is left out of the line. The judgement and

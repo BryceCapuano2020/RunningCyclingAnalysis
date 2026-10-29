@@ -14,9 +14,9 @@ import { effortsCount } from './effortTrust'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
-import { estimatedHolds, ownRideGate } from './estimatedRide'
-import type { EstimatedHolds, EstimatedRideGate } from './estimatedRide'
-import { centralWkgFromWatts, fitBikeModelOver, heldRideWatts, runCentralWkg } from './rideCurves'
+import { estimatedStanding, ownRideGate } from './estimatedRide'
+import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
+import { centralWkgFromWatts, fitBikeModelOver, ridePriced, runCentralWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
 import { DEFAULT_WINDOW_DAYS, weekEndMs } from './trendPoints'
 
@@ -97,12 +97,14 @@ function measureOf(
   point: DigestCurvePoint,
   masses: Masses,
   bikeModel: BikeModel,
-  holds: EstimatedHolds,
-): Best {
+  standing: EstimatedStanding,
+): Best & { alone: boolean } {
   const massKg = masses.bodyKg(digest)
-  if (digest.sport === 'run') return { wkg: runCentralWkg(point), watts: Number.NaN, massKg }
-  const watts = heldRideWatts(point, digest, masses, bikeModel, holds)
-  return { wkg: centralWkgFromWatts(watts, massKg), watts, massKg }
+  if (digest.sport === 'run') {
+    return { wkg: runCentralWkg(point), watts: Number.NaN, massKg, alone: false }
+  }
+  const { watts, alone } = ridePriced(point, digest, masses, bikeModel, standing)
+  return { wkg: centralWkgFromWatts(watts, massKg), watts, massKg, alone }
 }
 
 /**
@@ -116,12 +118,14 @@ function bestAtOrAbove(
   durationS: number,
   masses: Masses,
   bikeModel: BikeModel,
-  holds: EstimatedHolds,
+  standing: EstimatedStanding,
 ): Best | null {
   let best: Best | null = null
   for (const point of digest.curve) {
     if (point.durationS < durationS) continue
-    const candidate = measureOf(digest, point, masses, bikeModel, holds)
+    const candidate = measureOf(digest, point, masses, bikeModel, standing)
+    // An unbacked estimate counts at its own duration only: the envelope does not take it to a shorter one.
+    if (candidate.alone && point.durationS !== durationS) continue
     if (Number.isFinite(candidate.wkg) && (best === null || candidate.wkg > best.wkg)) {
       best = candidate
     }
@@ -153,12 +157,14 @@ export function fitnessTrend(
 
   const masses = massesOf(settings)
   const bikeModel = opts.bikeModel ?? fitBikeModelOver(ordered, masses).model
-  const holds = estimatedHolds(opts.rideGate === undefined ? ownRideGate(ordered) : opts.rideGate)
+  const standing = estimatedStanding(
+    opts.rideGate === undefined ? ownRideGate(ordered) : opts.rideGate,
+  )
   const readings: Reading[] = []
   for (const digest of ordered) {
     // A treadmill run's pace is not an effort the trend can show (see effortsCount).
     if (!effortsCount(digest)) continue
-    const best = bestAtOrAbove(digest, durationS, masses, bikeModel, holds)
+    const best = bestAtOrAbove(digest, durationS, masses, bikeModel, standing)
     if (best !== null) readings.push({ startMs: digest.startMs, sport: digest.sport, best })
   }
 

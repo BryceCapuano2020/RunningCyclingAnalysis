@@ -25,6 +25,18 @@ export function candidates(
   })
 }
 
+/** A point as candidates gives it when nothing is found there. */
+function unfound(point: EffortPoint): EffortPoint {
+  return {
+    durationS: point.durationS,
+    value: Number.NaN,
+    activityId: null,
+    startIndex: -1,
+    windowS: null,
+    heartRate: null,
+  }
+}
+
 function emptyCurve(): EffortPoint[] {
   return DURATIONS_S.map((durationS) => ({
     durationS,
@@ -48,15 +60,37 @@ export const isMeasured = (digest: ActivityDigest): boolean => digest.powerSourc
  * One sport's best curve, read in that sport's own number from the digests of that sport that `keep`
  * allows, which is all of them unless it says otherwise. `valueFor` gives the reading for one digest,
  * so a number that depends on the activity, such as its body mass, is looked up once per activity.
+ *
+ * `aloneFor` names the points of a digest that stand at their own duration only: they are left out of the
+ * monotone envelope, so they never fill a shorter duration, and are placed on the finished curve where they
+ * beat what is there. An estimated ride point with no heart rate to back it is one (see ESTIMATED_RIDE).
  */
 export function bestOfEach(
   ordered: ActivityDigest[],
   sport: Sport,
   valueFor: (digest: ActivityDigest) => (point: DigestCurvePoint) => number,
   keep: (digest: ActivityDigest) => boolean = () => true,
+  aloneFor?: (digest: ActivityDigest) => (point: DigestCurvePoint) => boolean,
 ): EffortPoint[] {
   const digests = ordered.filter((d) => d.sport === sport && keep(d))
-  return bestCurve(digests.map((d) => candidates(d, valueFor(d))))
+  if (aloneFor === undefined) return bestCurve(digests.map((d) => candidates(d, valueFor(d))))
+  const split = digests.map((d) => {
+    const found = candidates(d, valueFor(d))
+    const alone = aloneFor(d)
+    const flags = d.curve.map(alone)
+    return {
+      backed: found.map((p, i) => (flags[i] ? unfound(p) : p)),
+      standing: found.map((p, i) => (flags[i] ? p : unfound(p))),
+    }
+  })
+  const curve = bestCurve(split.map((d) => d.backed))
+  const standing = mergeCurves(split.map((d) => d.standing))
+  return curve.map((point, i) => {
+    const alone = standing[i]
+    return alone !== undefined && !Number.isNaN(alone.value) && !(alone.value <= point.value)
+      ? alone
+      : point
+  })
 }
 
 /** bestOf for a reading that is the same for every activity. */
