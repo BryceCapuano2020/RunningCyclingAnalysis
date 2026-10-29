@@ -1109,7 +1109,7 @@ the native range input with a track and thumb drawn from the tokens, a control t
 **Activity page, In detail.** Under the interval summary, a **Time in zones** block follows the interval the
 athlete selects: one stacked bar for each of power (rides with a power meter), pace (runs) and heart rate that the interval
 has readings for, a lede for the first of them in that order ("Most of this run was in pace zone 2 (64%).", or
-"This run spent the most time in heart rate zone 3 (38%)." when no zone held half), and **View as table** with
+"This run spent the most time in heart rate zone 3 (38%)." when no zone held half, or "All of this run was in pace zone 2 (100%)." when one holds it all), and **View as table** with
 each zone's name, range, time and share. The zones are those in effect on the activity's day (`zonesAt`), so an
 entered setting that changed since is not applied backwards. Each recorded moving second counts once, in the zone
 of its reading, and a run's slow seconds count in the lowest pace zone, as in the digests behind the sport page, so a

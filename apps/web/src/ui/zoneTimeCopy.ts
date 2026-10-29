@@ -116,7 +116,7 @@ export function periodLede(
   return `${percentText(split.easy)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]} was easy (${easyZones(lead.measure)}), and ${percentText(split.hard)} was hard (zones ${HARD_FROM[lead.measure]} and up).`
 }
 
-/** The lede of one activity's measure: the zone that held most of the time. Null without time. */
+/** The lede of one activity's measure: the zone that held most of the time, or all of it. Null without time. */
 export function activityLede(
   sport: Sport,
   measure: ZoneMeasure,
@@ -124,7 +124,10 @@ export function activityLede(
 ): string | null {
   const main = mainZone(time)
   if (main === null) return null
-  const at = `${IN_SENTENCE[measure]} zone ${main.level} (${percentText(main.share)})`
+  const percent = percentText(main.share)
+  const at = `${IN_SENTENCE[measure]} zone ${main.level} (${percent})`
+  // "Most of this run was in pace zone 1 (100%)" would undersell it: a share that shows as 100% is all of it.
+  if (percent === '100%') return `All of this ${sport} was in ${at}.`
   return main.share > 0.5
     ? `Most of this ${sport} was in ${at}.`
     : `This ${sport} spent the most time in ${at}.`

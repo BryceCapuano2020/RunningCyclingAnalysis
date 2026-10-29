@@ -55,7 +55,7 @@ function show(
 describe('ActivityZoneTime', () => {
   it('leads with pace, then heart rate, and says where most of the interval was', () => {
     show(steadyTrace(120), [heartRate200, pace35])
-    expect(screen.getByText('Most of this run was in pace zone 2 (100%).')).toBeInTheDocument()
+    expect(screen.getByText('All of this run was in pace zone 2 (100%).')).toBeInTheDocument()
     const bars = screen.getByRole('img')
     expect(bars).toHaveAccessibleName(/Pace: zone 2 100%\. Heart rate: zone 3 100%/)
   })
@@ -64,12 +64,12 @@ describe('ActivityZoneTime', () => {
     const trace = twoPartRun()
     const { unmount } = show(trace, [heartRate200], 0, 60)
     expect(
-      screen.getByText('Most of this run was in heart rate zone 1 (100%).'),
+      screen.getByText('All of this run was in heart rate zone 1 (100%).'),
     ).toBeInTheDocument()
     unmount()
     show(trace, [heartRate200], 60, 120)
     expect(
-      screen.getByText('Most of this run was in heart rate zone 3 (100%).'),
+      screen.getByText('All of this run was in heart rate zone 3 (100%).'),
     ).toBeInTheDocument()
   })
 
@@ -114,7 +114,7 @@ describe('ActivityZoneTime', () => {
       },
     }
     show(trace, [setOf('ride', 'power', 250), setOf('ride', 'heartRate', 190)])
-    expect(screen.getByText('Most of this ride was in power zone 3 (100%).')).toBeInTheDocument()
+    expect(screen.getByText('All of this ride was in power zone 3 (100%).')).toBeInTheDocument()
     expect(screen.getByRole('img')).toHaveAccessibleName(/Measured power: zone 3 100%/)
   })
 
@@ -174,7 +174,7 @@ describe('ActivityZoneTime, what it counts and what it says about heart rate', (
 
   it('says it beside the zones that remain', () => {
     show(steadyTrace(120), [pace35], 0, 120, true)
-    expect(screen.getByText('Most of this run was in pace zone 2 (100%).')).toBeInTheDocument()
+    expect(screen.getByText('All of this run was in pace zone 2 (100%).')).toBeInTheDocument()
     expect(screen.getByText(/Heart rate is set aside for this activity/)).toBeInTheDocument()
   })
 })
@@ -206,6 +206,6 @@ describe('ActivityWorkbench zones', () => {
     const heading = await screen.findByRole('heading', { name: 'Time in zones' })
     const summary = screen.getByRole('heading', { name: 'Interval summary' })
     expect(summary.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByText('Most of this run was in pace zone 2 (100%).')).toBeInTheDocument()
+    expect(screen.getByText('All of this run was in pace zone 2 (100%).')).toBeInTheDocument()
   })
 })

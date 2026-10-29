@@ -112,6 +112,11 @@ describe('activityLede', () => {
     )
   })
 
+  it('says all of the activity when one zone shows 100%', () => {
+    const time = measureTime('run', 'pace', [0, 100, 0, 0, 0])
+    expect(activityLede('run', 'pace', time)).toBe('All of this run was in pace zone 2 (100%).')
+  })
+
   it('says where the most time was when no zone held half', () => {
     const time = measureTime('ride', 'power', [0, 10, 38, 30, 22, 0, 0])
     expect(activityLede('ride', 'power', time)).toBe(
