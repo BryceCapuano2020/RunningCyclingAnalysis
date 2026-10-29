@@ -33,9 +33,6 @@ export function isStaleDeviceList(
   accountRef: Box<Account>,
 ): boolean {
   const front = transport.pendingRepliesRef.current[0]
-  if (front === undefined) return false
-  return (
-    isOvertaken(transport, front) ||
-    (DEVICE_LIST_KINDS.has(front.kind) && accountRef.current.status === 'signed-in')
-  )
+  if (front === undefined || !DEVICE_LIST_KINDS.has(front.kind)) return false
+  return isOvertaken(transport, front) || accountRef.current.status === 'signed-in'
 }

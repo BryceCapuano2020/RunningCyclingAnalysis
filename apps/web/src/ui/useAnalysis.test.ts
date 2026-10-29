@@ -362,6 +362,24 @@ describe('useAnalysis account handling', () => {
     expect(kept.posted).toEqual(posted)
   })
 
+  it('lists the account’s activities when a Start over overtakes the library load', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    const saved = {
+      id: 'run-1',
+      name: 'Run',
+      startMs: Date.UTC(2026, 9, 20),
+      sport: 'run' as const,
+      copy: SAVED_COPY,
+    }
+
+    act(() => result.current.clear())
+    // The load's own list and state arrive after the clear: the account's library still counts.
+    act(() => worker().reply({ type: 'libraryActivities', activities: [saved] }))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 1 } }))
+
+    expect(result.current.savedActivities).toEqual([saved])
+  })
+
   it('does not clear the library when the account becomes unavailable', () => {
     const { rerender, result } = setup(SIGNED_IN_KEEP)
     act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
