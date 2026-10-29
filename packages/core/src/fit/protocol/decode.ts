@@ -3,6 +3,7 @@ import type { FitMessage } from './reader'
 import { FIELD, MESG, eventTypeName, fitTimeToEpochMs, sportName, subSportName } from './profile'
 import type { FitEventType, FitSportName, FitSubSportName } from './profile'
 
+/** The record messages `decodeFit` reads when the caller sets no limit. The importer sets its own. */
 export const DEFAULT_MAX_RECORDS = 2_000_000
 
 export interface DecodedFileId {
@@ -82,6 +83,12 @@ export interface DecodedMessages {
 export interface DecodeOptions {
   /** Decoding stops with an error once more record messages than this have been seen. */
   maxRecords?: number
+  /**
+   * Decoding stops with an error once more data messages of any kind than this have been seen: a real file
+   * has records and a few other messages a record, and a file of small messages of no use is not decoded
+   * to its end. Twice `maxRecords` when not given.
+   */
+  maxMessages?: number
 }
 
 export interface DecodeResult {
@@ -93,6 +100,8 @@ export interface DecodeResult {
   crcValid: boolean
   /** Record messages seen, including any beyond the limit that stopped decoding. */
   recordCount: number
+  /** Data messages of every kind seen, including any beyond the limit that stopped decoding. */
+  messageCount: number
 }
 
 type Values = Map<number, number | string>
@@ -103,14 +112,18 @@ type Values = Map<number, number | string>
  */
 export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeResult {
   const maxRecords = opts.maxRecords ?? DEFAULT_MAX_RECORDS
+  const maxMessages = opts.maxMessages ?? 2 * maxRecords
   const messages: DecodedMessages = { sports: [], sessions: [], laps: [], records: [], events: [] }
   const errors: string[] = []
   const compressed = compressedReader()
   let recordCount = 0
+  let messageCount = 0
   let warnings: string[] = []
   let crcValid = false
   try {
     const scan = scanFit(bytes, (message) => {
+      messageCount++
+      if (messageCount > maxMessages) return false
       if (message.globalNum === MESG.record) {
         recordCount++
         if (recordCount > maxRecords) return false
@@ -127,10 +140,21 @@ export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeRe
     warnings = scan.warnings
     crcValid = scan.crcValid
     if (recordCount > maxRecords) errors.push(`Record count exceeds the ${maxRecords}-record limit`)
+    else if (messageCount > maxMessages) {
+      errors.push(`Message count exceeds the ${maxMessages}-message limit`)
+    }
   } catch {
     errors.push('Could not decode FIT data')
   }
-  return { ok: errors.length === 0, messages, errors, warnings, crcValid, recordCount }
+  return {
+    ok: errors.length === 0,
+    messages,
+    errors,
+    warnings,
+    crcValid,
+    recordCount,
+    messageCount,
+  }
 }
 
 function collect(messages: DecodedMessages, message: FitMessage): void {
@@ -166,13 +190,19 @@ function collect(messages: DecodedMessages, message: FitMessage): void {
         totalTimerTime: scaled(v, 8, 1000),
       })
       return
-    case MESG.event:
-      messages.events.push({
-        timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
-        event: numberOf(v, 0) === 0 ? 'timer' : undefined,
-        eventType: eventTypeName(numberOf(v, 1) ?? -1),
-      })
+    case MESG.event: {
+      // Only a timer event with a known type and a time shapes an activity (`timerEventsOf`); the others,
+      // battery and alerts and the rest, are not kept.
+      const eventType = eventTypeName(numberOf(v, 1) ?? -1)
+      if (numberOf(v, 0) === 0 && eventType !== undefined) {
+        messages.events.push({
+          timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
+          event: 'timer',
+          eventType,
+        })
+      }
       return
+    }
     default:
       return
   }

@@ -607,6 +607,7 @@ describe('parseTcx validation', () => {
     const limits: ParseLimits = {
       maxFileBytes: 100,
       maxRecordMessages: 2_000_000,
+      maxMessages: 1_000_000,
       maxActivitySeconds: 172_800,
     }
     expect(reasonOf(parseTcx(bytes, 'big.tcx', limits))).toContain('100-byte limit')
@@ -617,6 +618,7 @@ describe('parseTcx validation', () => {
     const limits: ParseLimits = {
       maxFileBytes: 1e9,
       maxRecordMessages: 10,
+      maxMessages: 1_000_000,
       maxActivitySeconds: 172_800,
     }
     expect(reasonOf(parseTcx(bytes, 'many.tcx', limits))).toContain('10-record limit')

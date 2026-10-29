@@ -64,11 +64,21 @@ function parseUnchecked(
   }
   if (!isFitFile(bytes)) return failure(fileName, NOT_FIT, 'corrupt')
 
-  const decoded = decodeFit(bytes, { maxRecords: limits.maxRecordMessages })
+  const decoded = decodeFit(bytes, {
+    maxRecords: limits.maxRecordMessages,
+    maxMessages: limits.maxMessages,
+  })
   if (decoded.recordCount > limits.maxRecordMessages) {
     return failure(
       fileName,
       `FIT file exceeds the ${limits.maxRecordMessages}-record limit`,
+      'too-much-data',
+    )
+  }
+  if (decoded.messageCount > limits.maxMessages) {
+    return failure(
+      fileName,
+      `FIT file exceeds the ${limits.maxMessages}-message limit`,
       'too-much-data',
     )
   }

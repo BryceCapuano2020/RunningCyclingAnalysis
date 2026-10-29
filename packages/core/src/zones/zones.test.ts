@@ -44,10 +44,13 @@ describe('zonesFor', () => {
 
   it("cuts run speed at Friel's percents of threshold pace, slower pace meaning lower speed", () => {
     const zones = zonesFor('pace', 4)
-    // Zone 1 is slower than 129% of threshold pace: under 4 / 1.29 m/s. Zone 5 is faster than 99%.
-    expect(zones[0]?.high).toBeCloseTo(4 / 1.29, 12)
-    expect(zones[3]?.low).toBeCloseTo(4 / 1.06, 12)
-    expect(zones[4]?.low).toBeCloseTo(4 / 0.99, 12)
+    // Zone 1 is slower than 129% of threshold pace: under 4 / 1.29 m/s. Zone 5 is faster than 99%. Each cut is
+    // moved to the nearest 0.05 m/s, the step of the digest's speed bins, so within 0.025 m/s of the cut.
+    expect(zones[0]?.high).toBeCloseTo(4 / 1.29, 1)
+    expect(Math.abs(zones[0]!.high! - 4 / 1.29)).toBeLessThanOrEqual(0.025 + 1e-9)
+    expect(Math.abs(zones[3]!.low - 4 / 1.06)).toBeLessThanOrEqual(0.025 + 1e-9)
+    expect(Math.abs(zones[4]!.low - 4 / 0.99)).toBeLessThanOrEqual(0.025 + 1e-9)
+    expect(zones.map((zone) => zone.low)).toEqual([0, 3.1, 3.5, 3.75, 4.05])
     expect(zones[4]?.high).toBeNull()
   })
 
@@ -56,8 +59,13 @@ describe('zonesFor', () => {
     expect(zonesFor('heartRate', 219).map((zone) => zone.low)).toEqual([0, 132, 154, 176, 198])
     // A cut that is exactly a whole number stays there, whatever the rounding of the product.
     expect(zonesFor('heartRate', 200).map((zone) => zone.low)).toEqual([0, 120, 140, 160, 180])
+    // Power is moved to the nearest 5 W instead, the step of the digest's bins: 110.55, 150.75, 180.9, 211.05,
+    // 241.2 and 301.5 W of 201 W are 110, 150, 180, 210, 240 and 300 W (301.5 is nearer 300 than 305).
     expect(zonesFor('power', 201).map((zone) => zone.low)).toEqual([
-      0, 111, 151, 181, 212, 242, 302,
+      0, 110, 150, 180, 210, 240, 300,
+    ])
+    expect(zonesFor('power', 267).map((zone) => zone.low)).toEqual([
+      0, 145, 200, 240, 280, 320, 400,
     ])
     for (const measure of ['power', 'heartRate'] as const) {
       for (const reference of [137.3, 188.6, 250.4]) {
@@ -69,8 +77,45 @@ describe('zonesFor', () => {
     }
   })
 
-  it('leaves the cuts of a pace as they are, since a speed is not a whole number', () => {
-    expect(zonesFor('pace', 4)[1]?.low).toBeCloseTo(4 / 1.29, 12)
+  it('moves the cuts of a pace to the nearest step of the speed bins, since a speed is not a whole number', () => {
+    // 4 / 1.29 = 3.1008 and 4 / 1.14 = 3.5088 are on the steps 3.10 and 3.50.
+    expect(zonesFor('pace', 4)[1]?.low).toBeCloseTo(3.1, 12)
+    expect(zonesFor('pace', 4)[2]?.low).toBeCloseTo(3.5, 12)
+  })
+
+  it('keeps the top pace edge above the threshold speed, at slow thresholds too', () => {
+    const cuts = ZONE_SCHEMES.pace.cuts
+    // 7:34, 7:45, 8:19 and 9:00 /km failed when the edge was moved to the nearest step.
+    for (const seconds of [454, 465, 499, 540]) {
+      const threshold = 1000 / seconds
+      const zones = zonesFor('pace', threshold)
+      expect(zones.at(-1)!.low).toBeGreaterThan(threshold)
+    }
+    for (let seconds = 133; seconds <= 667; seconds++) {
+      const threshold = 1000 / seconds
+      const zones = zonesFor('pace', threshold)
+      const edges = zones.slice(0, -1).map((zone) => zone.high!)
+      expect(edges.at(-1)!).toBeGreaterThan(threshold)
+      edges.forEach((edge, i) => {
+        const cut = threshold * cuts[i]!
+        // Every edge is on the 0.05 m/s grid and the cuts are in order, without a zone of no width.
+        expect(Math.abs(edge / 0.05 - Math.round(edge / 0.05))).toBeLessThan(1e-9)
+        if (i < edges.length - 1) expect(Math.abs(edge - cut)).toBeLessThanOrEqual(0.025 + 1e-9)
+        else expect(edge - cut).toBeLessThan(0.05)
+        if (i > 0) expect(edge).toBeGreaterThan(edges[i - 1]!)
+      })
+    }
+  })
+
+  it('moves power edges by at most 2.5 W', () => {
+    const cuts = ZONE_SCHEMES.power.cuts
+    for (let reference = 80; reference <= 520; reference++) {
+      const zones = zonesFor('power', reference)
+      zones.slice(0, -1).forEach((zone, i) => {
+        expect(zone.high! % 5).toBe(0)
+        expect(Math.abs(zone.high! - reference * cuts[i]!)).toBeLessThanOrEqual(2.5 + 1e-9)
+      })
+    }
   })
 
   it('leaves no gap or overlap between zones, so every reading is in one zone', () => {

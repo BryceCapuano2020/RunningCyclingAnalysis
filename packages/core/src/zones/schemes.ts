@@ -87,3 +87,18 @@ export const WHOLE_NUMBER_MEASURES: Record<ZoneMeasure, boolean> = {
   heartRate: true,
   pace: false,
 }
+
+/**
+ * How a measure's cuts become edges (`zonesFor`), in steps of the digest's bins (1 bpm, 5 W, 0.05 m/s). A heart
+ * rate reading is a whole number and a cut is the first whole number at or above it. Power and pace are moved to
+ * the nearest step, so no bin straddles an edge. The highest pace cut is a hair above the threshold speed
+ * itself, and it always moves up, so the zone above threshold never starts at or below the threshold.
+ */
+export const EDGE_ROUNDING: Record<
+  ZoneMeasure,
+  { edges: 'up' | 'nearest'; top: 'up' | 'nearest' }
+> = {
+  power: { edges: 'nearest', top: 'nearest' },
+  heartRate: { edges: 'up', top: 'up' },
+  pace: { edges: 'nearest', top: 'up' },
+}

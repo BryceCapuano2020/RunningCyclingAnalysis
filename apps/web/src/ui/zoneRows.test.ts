@@ -47,14 +47,14 @@ describe('zoneRange', () => {
 
   it('writes run zones as paces, the fast edge first', () => {
     const pace = zonesFor('pace', 1000 / 300)
-    expect(zoneRange('pace', pace[0]!, 'metric')).toBe('Slower than 6:27 /km')
-    expect(zoneRange('pace', pace[3]!, 'metric')).toBe('4:58–5:18 /km')
-    expect(zoneRange('pace', pace[4]!, 'metric')).toBe('4:57 /km or faster')
+    expect(zoneRange('pace', pace[0]!, 'metric')).toBe('Slower than 6:25 /km')
+    expect(zoneRange('pace', pace[3]!, 'metric')).toBe('4:55–5:17 /km')
+    expect(zoneRange('pace', pace[4]!, 'metric')).toBe('4:54 /km or faster')
   })
 
   it('writes paces per mile in imperial units', () => {
     const pace = zonesFor('pace', 1609.344 / 480)
-    expect(zoneRange('pace', pace[4]!, 'imperial')).toBe('7:55 /mi or faster')
+    expect(zoneRange('pace', pace[4]!, 'imperial')).toBe('7:53 /mi or faster')
   })
 })
 
@@ -76,11 +76,11 @@ describe('zone ranges do not repeat a shared edge', () => {
   it('ends a pace zone on a pace of its own, and gives the fast edge to the zone above', () => {
     const lines = zonesFor('pace', 1000 / 300).map((zone) => zoneRange('pace', zone, 'metric'))
     expect(lines).toEqual([
-      'Slower than 6:27 /km',
-      '5:43–6:27 /km',
-      '5:19–5:42 /km',
-      '4:58–5:18 /km',
-      '4:57 /km or faster',
+      'Slower than 6:25 /km',
+      '5:46–6:25 /km',
+      '5:18–5:45 /km',
+      '4:55–5:17 /km',
+      '4:54 /km or faster',
     ])
   })
 })
@@ -92,7 +92,7 @@ describe('zoneTable', () => {
     expect(table.detail).toBe('From your rides: threshold power 250 W')
     expect(table.columns).toEqual(['Zone', 'Name', 'Range'])
     expect(table.rows).toHaveLength(7)
-    expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 138 W'])
+    expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 140 W'])
   })
 
   it('says an entered reference was entered', () => {

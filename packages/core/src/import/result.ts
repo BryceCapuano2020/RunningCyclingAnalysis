@@ -45,6 +45,8 @@ export interface ParseLimits {
   maxFileBytes: number
   /** The most records one file may hold: FIT record messages, or GPX and TCX trackpoints. */
   maxRecordMessages: number
+  /** FIT only: the data messages of every kind, records included, that one file may hold. */
+  maxMessages: number
   /** The longest single activity, in seconds. */
   maxActivitySeconds: number
 }
@@ -76,9 +78,17 @@ export interface ParseOptions {
 /** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */
 export const MAX_FILE_SAMPLES = 172_800
 
+/**
+ * A file may hold more records than the grid has seconds, as when a device records more than once a second,
+ * so the cap is four times the grid and the grid limit (`maxActivitySeconds`, counted in distinct seconds)
+ * decides. A file with more records than that is refused as soon as it passes them, without decoding the rest.
+ */
+const MAX_FILE_RECORDS = 4 * MAX_FILE_SAMPLES
+
 export const DEFAULT_PARSE_LIMITS: Readonly<ParseLimits> = {
   maxFileBytes: 64 * MIB,
-  maxRecordMessages: 2_000_000,
+  maxRecordMessages: MAX_FILE_RECORDS,
+  maxMessages: 1_000_000,
   maxActivitySeconds: MAX_FILE_SAMPLES,
 }
 

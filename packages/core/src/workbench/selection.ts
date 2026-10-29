@@ -79,7 +79,12 @@ function distanceIn(trace: ActivityTrace, startS: number, endS: number): number 
   return last - first
 }
 
-/** Whether sample i is a usable observation for the selected activity metric. */
+/**
+ * Whether sample i is a usable observation for the selected activity metric: a moving second with a
+ * finite reading in the measure's range that the quality assessment kept (`trace.unusable`). Selection
+ * summaries, reading bands, interval detection and time in zones all read through this, so they agree
+ * with the digest about which seconds count.
+ */
 export function isTraceObservation(
   trace: ActivityTrace,
   metric: TraceMetric,
@@ -97,6 +102,8 @@ export function isTraceObservation(
   }
   const value = stream[index]!
   if (!Number.isFinite(value)) return false
+  const masks: Partial<Record<TraceMetric, Uint8Array>> | undefined = trace.unusable
+  if (masks?.[metric]?.[index] === 1) return false
   const range = rangeFor(trace, metric)
   return range === undefined || (value >= range[0] && value <= range[1])
 }

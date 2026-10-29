@@ -83,15 +83,18 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
 
 - **From a digest.** A digest keeps moving seconds in bins (`DISTRIBUTION_BINS`: 1 bpm, 5 W, 0.05 m/s). The zones in effect
   on the activity's local date cut those bins. A reading is in the zone it is at or above the floor of and below the ceiling of.
-  Heart rate and measured power are whole numbers, so `zonesFor` cuts their zones on whole-number edges, the first whole number
-  at or above the cut (0.6 of 219 bpm is 131.4, so the zone above starts at 132; 0.55 of 201 W is 110.55, so 111 W). A bin of them
-  holds whole numbers (one beat, or five watts) and is shared by them: 110 to 114 W with an edge at 111 W has one watt below
-  and four above, so a fifth and four fifths of its seconds, and a one-beat bin is never split. This agrees with the trace
-  below and with the Profile ranges, which are written from the same edges. Speed is not a whole
-  number, so a bin that straddles an edge is split in proportion to the width each side, as if its seconds were spread evenly
-  across it; the error is under 0.05 m/s of moving time at each edge. Every second is kept either way.
+  Heart rate is a whole number, so `zonesFor` cuts its zones on the first whole number at or above the cut (0.6 of 219 bpm is
+  131.4, so the zone above starts at 132) and a one-beat bin is never split. Power and pace are moved to the nearest step of their
+  bins: power to the nearest 5 W (0.55 of 201 W is 110.55, so 110 W; a threshold of 267 W gives edges at 145, 200, 240, 280, 320 and
+  400 W where whole-watt edges would be 147, 201, 241, 281, 321 and 401), at most 2.5 W from the cut, and pace to the nearest 0.05 m/s
+  (at most 0.025 m/s: about 3 s/km at a 5:00 /km threshold and up to about 10 s/km at 9:00 /km). The highest pace edge, a hair above the
+  threshold speed, always moves up (by less than 0.05 m/s, up to about 15 s/km at slow thresholds), so the zone above threshold never
+  starts at or below the threshold. An entered threshold is cut the same way. No bin then straddles an
+  edge, so the digest places a second in the zone the trace does, and the Profile ranges are written from the same edges.
+  (A 5 W bin shared across a whole-watt edge put an hour at 200 W, with an edge at 201 W, 20% in the zone below and 80% above.)
+  Every second is kept.
 - **From a trace.** The activity page reads the recorded stream second by second, so there is no bin to split. A reading
-  on an edge is in the zone the edge opens (`low <= reading < high`), as in the Profile ranges ("138-187 W", "375 W or more").
+  on an edge is in the zone the edge opens (`low <= reading < high`), as in the Profile ranges ("140-189 W", "375 W or more").
   It reads the trace as recorded, not as the plots read it: a run's seconds slower than 0.5 m/s have no pace in the plots, but
   the digests count them (they are moving, not paused), in the lowest pace zone, so the trace counts them there too and a
   whole-activity interval agrees with the sport page.

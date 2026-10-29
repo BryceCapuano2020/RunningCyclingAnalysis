@@ -111,6 +111,58 @@ describe('decodeFit records', () => {
     expect(DEFAULT_MAX_RECORDS).toBe(2_000_000)
   })
 
+  it('counts messages of every kind against their own limit', () => {
+    const data = [
+      ...definition(1, MESG.event, [
+        [0, 1, 0x00],
+        [1, 1, 0x00],
+      ]),
+    ]
+    for (let i = 0; i < 10; i++) data.push(0x01, 0, 0)
+    const result = decodeFit(fitFile(data), { maxMessages: 4 })
+    expect(result.ok).toBe(false)
+    expect(result.errors).toEqual(['Message count exceeds the 4-message limit'])
+    expect(result.messageCount).toBe(5)
+    expect(result.messages.events.length).toBe(4)
+  })
+
+  it('allows twice as many messages as records when no message limit is given', () => {
+    const data = [
+      ...definition(1, MESG.event, [
+        [0, 1, 0x00],
+        [1, 1, 0x00],
+      ]),
+    ]
+    for (let i = 0; i < 12; i++) data.push(0x01, 0, 0)
+    const result = decodeFit(fitFile(data), { maxRecords: 5 })
+    expect(result.errors).toEqual(['Message count exceeds the 10-message limit'])
+    expect(result.messageCount).toBe(11)
+  })
+
+  it('keeps only the timer events that have a type, as nothing else reads them', () => {
+    const data = [
+      ...definition(1, MESG.event, [
+        [0, 1, 0x00],
+        [1, 1, 0x00],
+      ]),
+    ]
+    data.push(0x01, 0, 0, 0x01, 0, 4, 0x01, 3, 0, 0x01, 0, 99)
+    const { events } = decodeFit(fitFile(data)).messages
+    expect(events.map((each) => each.eventType)).toEqual(['start', 'stopAll'])
+  })
+
+  it('reads a message whose definition has fields of no bytes as before', () => {
+    const data = [
+      ...definition(0, MESG.record, [[0, 0, 0x02], HEART_RATE, [9, 0, 0x02], POWER]),
+      0,
+      ...[110],
+      ...int(250, 2),
+    ]
+    const [r] = decodeFit(fitFile(data)).messages.records
+    expect(r?.heartRate).toBe(110)
+    expect(r?.power).toBe(250)
+  })
+
   it('reports a truncated file and an unchecked CRC', () => {
     const data = [...RECORD_DEF, ...recordBytes(RAW + 1, 100, 200, 3000)]
     const file = fitFile(data)

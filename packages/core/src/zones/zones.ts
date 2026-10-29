@@ -1,13 +1,20 @@
 import { massAtFor } from '../athlete/mass'
 import { entryAt } from '../athlete/measurements'
 import type { AthleteSettings } from '../athlete/settings'
-import { PRIORS } from '../constants'
+import { DISTRIBUTION_BINS, PRIORS } from '../constants'
 import { EDGE_EPSILON } from '../math'
 import type { AnalysisResult } from '../digest/combine'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
 import type { Sport } from '../types'
-import { WHOLE_NUMBER_MEASURES, ZONE_MEASURES, ZONE_OVERRIDE, ZONE_SCHEMES } from './schemes'
+import {
+  EDGE_ROUNDING,
+  WHOLE_NUMBER_MEASURES,
+  ZONE_MEASURES,
+  ZONE_OVERRIDE,
+  ZONE_SCHEMES,
+} from './schemes'
+import { DISTRIBUTION_OF } from './timeInZones'
 import type { ZoneMeasure } from './schemes'
 
 /**
@@ -47,22 +54,31 @@ export interface ZoneSet {
 }
 
 /**
- * The zones of a measure for a reference value, by the published scheme. A heart rate and a power are whole
- * numbers, so their edges are the first whole number at or above the cut (0.7 of 190 bpm is 133; 0.6 of 219
- * is 131.4, so 132): a reading of 131 bpm is below 131.4 and in the zone below, and 132 is the first in the
- * zone above. Every edge is then a whole number, so the ranges Profile writes ("132 to 153 bpm"), the zones a
- * recorded second is placed in and the zones a digest's bins are cut by agree. Pace is not a whole number,
- * so its edges are the cuts as they are.
+ * The zones of a measure for a reference value, by the published scheme. A heart rate is a whole number, so
+ * its edges are the first whole number at or above the cut (0.7 of 190 bpm is 133; 0.6 of 219 is 131.4, so
+ * 132): a reading of 131 bpm is below 131.4 and in the zone below, and 132 is the first in the zone above.
+ * Power and pace are moved to the nearest step of the digest's bins: power to 5 W, at most 2.5 W from the cut,
+ * and pace to 0.05 m/s, at most 0.025 m/s from the cut, which is about 3 s/km at a 5:00 /km threshold and up to
+ * about 10 s/km at 9:00 /km. The top pace edge, a hair above the threshold speed itself, moves up instead,
+ * by less than 0.05 m/s (up to about 15 s/km at slow thresholds), so it stays above the threshold. No bin
+ * of a digest then straddles an edge, so the seconds the period view places in a zone are the seconds the
+ * activity page does, and the ranges Profile writes are the zones a recorded second is placed in. An entered
+ * threshold is cut the same way.
  */
 export function zonesFor(measure: ZoneMeasure, reference: number): Zone[] {
   const { names, cuts } = ZONE_SCHEMES[measure]
-  const edge = (cut: number): number =>
-    WHOLE_NUMBER_MEASURES[measure] ? Math.ceil(reference * cut - EDGE_EPSILON) : reference * cut
+  const step = DISTRIBUTION_BINS[DISTRIBUTION_OF[measure]].width
+  const rounding = EDGE_ROUNDING[measure]
+  const edge = (index: number): number => {
+    const steps = (reference * cuts[index]!) / step
+    const how = index === cuts.length - 1 ? rounding.top : rounding.edges
+    return (how === 'up' ? Math.ceil(steps - EDGE_EPSILON) : Math.round(steps)) * step
+  }
   return names.map((name, i) => ({
     level: i + 1,
     name,
-    low: i === 0 ? 0 : edge(cuts[i - 1]!),
-    high: i === cuts.length ? null : edge(cuts[i]!),
+    low: i === 0 ? 0 : edge(i - 1),
+    high: i === cuts.length ? null : edge(i),
   }))
 }
 

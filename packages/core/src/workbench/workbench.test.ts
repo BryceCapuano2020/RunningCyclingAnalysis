@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from './types'
 import { activityTraceOf, parseActivityTrace } from './trace'
-import { detectIntervals } from './intervals'
+import { readingBand } from './band'
 import { isTraceObservation, summarizeSelection } from './selection'
 
 function trace(n: number): ActivityTrace {
@@ -199,42 +199,31 @@ describe('selection evidence', () => {
   })
 })
 
-describe('conservative interval suggestions', () => {
-  it('marks sustained speed changes as editable inferred intervals', () => {
-    const item = trace(240)
-    item.streams.speed = Float32Array.from({ length: 240 }, (_, i) => (i >= 60 && i < 150 ? 5 : 3))
-    const suggestions = detectIntervals(item)
-    expect(suggestions.length).toBeGreaterThan(0)
-    expect(suggestions.every((lap) => lap.label === 'Inferred interval')).toBe(true)
-    expect(suggestions.every((lap) => lap.endS - lap.startS >= 60)).toBe(true)
+describe('seconds the quality assessment left out', () => {
+  function spiked() {
+    const item = trace(600)
+    item.sport = 'ride'
+    item.streams.power = Float32Array.from({ length: 600 }, (_, i) => (i === 300 ? 2400 : 200))
+    item.unusable = { power: Uint8Array.from({ length: 600 }, (_, i) => (i === 300 ? 1 : 0)) }
+    return item
+  }
+
+  it('leaves a flagged spike out of the selection summary and the reading band', () => {
+    const item = spiked()
+    expect(summarizeSelection(item, 0, 600).metrics.power).toEqual({
+      mean: 200,
+      min: 200,
+      max: 200,
+      seconds: 599,
+    })
+    expect(isTraceObservation(item, 'power', 300)).toBe(false)
+    expect(isTraceObservation(item, 'power', 301)).toBe(true)
+    expect(readingBand(item, 'power', 0, 600)).toEqual({ low: 200, high: 200, below: 0, above: 0 })
   })
 
-  it('places a step at its window centre, not a window early', () => {
-    const item = trace(240)
-    item.streams.speed = Float32Array.from({ length: 240 }, (_, i) => (i >= 60 && i < 150 ? 5 : 3))
-    const [interval, ...rest] = detectIntervals(item)
-    expect(rest).toEqual([])
-    expect(Math.abs(interval!.startS - 60)).toBeLessThanOrEqual(10)
-    expect(Math.abs(interval!.endS - 150)).toBeLessThanOrEqual(10)
-  })
-
-  it('does not bridge a paused or unrecorded stretch inside an effort', () => {
-    const item = trace(400)
-    item.streams.speed = Float32Array.from({ length: 400 }, (_, i) => (i >= 60 && i < 350 ? 5 : 3))
-    for (let i = 200; i < 206; i++) item.paused[i] = 1
-    for (let i = 280; i < 283; i++) item.unrecorded[i] = 1
-    const suggestions = detectIntervals(item)
-    expect(suggestions.length).toBe(3)
-    for (const lap of suggestions) {
-      for (let i = lap.startS; i < lap.endS; i++) {
-        expect(item.paused[i] === 1 || item.unrecorded[i] === 1).toBe(false)
-      }
-    }
-  })
-
-  it('suggests nothing from a trace with neither power nor speed', () => {
-    const item = trace(240)
-    delete item.streams.speed
-    expect(detectIntervals(item)).toEqual([])
+  it('reads every reading of a trace built without the assessment', () => {
+    const item = spiked()
+    delete item.unusable
+    expect(summarizeSelection(item, 0, 600).metrics.power?.max).toBe(2400)
   })
 })

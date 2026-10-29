@@ -57,11 +57,15 @@ describe('lapChoicesOf', () => {
     const single = runTrace()
     single.laps = [{ startS: 0, endS: 10 }]
     expect(lapChoicesOf(single).laps).toEqual([])
+    // Three efforts with a rest between, inside a warm-up and a cool-down.
     const reps = repsTrace('ride', [
-      { seconds: 120, power: 100 },
+      { seconds: 300, power: 100 },
       { seconds: 120, power: 300 },
       { seconds: 120, power: 100 },
       { seconds: 120, power: 300 },
+      { seconds: 120, power: 100 },
+      { seconds: 120, power: 300 },
+      { seconds: 300, power: 100 },
     ])
     const suggested = lapChoicesOf(reps)
     expect(suggested.recorded).toBe(false)

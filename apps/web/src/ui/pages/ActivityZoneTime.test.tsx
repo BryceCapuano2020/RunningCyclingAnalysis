@@ -93,7 +93,7 @@ describe('ActivityZoneTime', () => {
   it('reads a pace range as paces, the fast edge first, in the unit system the page uses', () => {
     show(steadyTrace(120), [pace35])
     expect(
-      screen.getByRole('cell', { name: '4:43 /km or faster', hidden: true }),
+      screen.getByRole('cell', { name: '4:42 /km or faster', hidden: true }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('cell', { name: /^Slower than \d:\d\d \/km$/, hidden: true }),

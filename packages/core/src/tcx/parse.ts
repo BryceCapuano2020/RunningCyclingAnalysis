@@ -6,6 +6,7 @@ import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { parseIsoTime, ZONELESS } from '../import/time'
 import {
+  appendField,
   fixesOf,
   hasUsablePosition,
   readNonNegative,
@@ -170,7 +171,8 @@ class TcxScanner implements XmlHandler {
   }
 
   text(text: string, depth: number): void {
-    if (this.field !== undefined && this.field.depth === depth) this.field.text += text
+    if (this.field !== undefined && this.field.depth === depth)
+      this.field.text = appendField(this.field.text, text)
   }
 
   close(_local: string, _name: string, depth: number): void {
