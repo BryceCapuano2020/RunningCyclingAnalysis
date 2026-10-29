@@ -4,6 +4,8 @@ import { ACTIVITY } from './fit/zipDirectory'
 import { parseActivityFile } from './import'
 import { listedFor, listedOnly, readActivityList } from './import/activitiesCsv'
 import type { ListedActivity } from './import/activitiesCsv'
+import { readGarminList } from './import/garminList'
+import type { GarminList } from './import/garminList'
 import { fileNameOf, isSameWorkout } from './duplicates'
 import { sha256Hex } from './sha256'
 import type { Activity, ActivityDigest } from './types'
@@ -101,15 +103,21 @@ function countRead(progress: ImportProgress): void {
   progress.onProgress?.(progress.filesRead)
 }
 
-/** Parses one activity file of a source, given what the export's list says of it, and considers its activities. */
+/**
+ * Parses one activity file of a source, given what the export's list says of it, and considers its
+ * activities. A Garmin export's list names its activities by start time, so it names whatever the file holds.
+ */
 async function importFile(
   file: FitFile,
   listed: ListedActivity | undefined,
+  garmin: GarminList | null,
   ctx: SourceImport,
 ): Promise<void> {
   const sessionKey = await sessionHashOf(file.bytes)
   const parsed = parseActivityFile(file.bytes, file.fileName, undefined, {
     activityName: listed?.name,
+    nameAt: garmin?.nameAt,
+    race: listed?.race,
     activityType: listed?.type,
     sessionKey,
   })
@@ -161,7 +169,9 @@ export function sortRead(
  * Imports one source (a file, or a zip and every activity file in it) into the import's state. The
  * source's activity list is read before its files, and its inflated bytes count against the source's
  * decompressed-bytes budget. When the list names the export's activities, the other activity files of
- * the zip, such as saved routes, are left unread and counted as not activities.
+ * the zip, such as saved routes, are left unread and counted as not activities. A Garmin Connect export
+ * has no such list: its activity files sit in zips inside the zip, which are read as the zip is, and its
+ * summaries only give them names.
  */
 export async function importSource(source: RangedSource, ctx: SourceImport): Promise<void> {
   const { progress, outcome } = ctx
@@ -172,14 +182,18 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   // inflated bytes count against the source's decompressed-bytes budget, as the files' do.
   const list = await readActivityList(source, ctx.limits)
   const listed = await listedOnly(source, ctx.limits, list)
+  // A Garmin Connect export has no activities.csv, so only a zip without one is looked at for its summaries.
+  const garmin = list === null ? await readGarminList(source, ctx.limits) : null
   const extractLimits = {
     ...ctx.limits,
     maxTotalDecompressedBytes:
-      ctx.limits.maxTotalDecompressedBytes - (list?.decompressedBytes ?? 0),
+      ctx.limits.maxTotalDecompressedBytes -
+      (list?.decompressedBytes ?? 0) -
+      (garmin?.decompressedBytes ?? 0),
   }
   const summary = await extractFitFiles(
     source,
-    (file) => importFile(file, listedFor(list?.files, file.fileName), ctx),
+    (file) => importFile(file, listedFor(list?.files, file.fileName), garmin, ctx),
     (fileName, rejection) => {
       undecodable++
       reject(ctx, fileName, rejection)

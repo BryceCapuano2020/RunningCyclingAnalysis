@@ -54,7 +54,7 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
           <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
             Are you a better runner or a better cyclist?
           </h1>
-          <p className="lede secondary">{`Drop in your Strava export or watch files to see your level in each sport for your age, with honest ranges. ${privacyLine(signedIn)}`}</p>
+          <p className="lede secondary">{`Drop in your Strava or Garmin export or watch files to see your level in each sport for your age, with honest ranges. ${privacyLine(signedIn)}`}</p>
         </section>
         {/* A pointer sees the example first, with the drop zone beside it; a touch screen sees the actions first. */}
         <div className={touch ? 'landing__start landing__start--touch' : 'landing__start'}>
@@ -67,8 +67,8 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
         <li>
           <h2>1. Add your files</h2>
           <p className="secondary">
-            Export from Garmin, Wahoo, COROS or Zwift, or download the zip from Strava’s account
-            export.
+            Download your account export from Strava or Garmin and drop the zip as it is, or export
+            from Wahoo, COROS or Zwift.
           </p>
         </li>
         <li>

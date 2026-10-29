@@ -8,7 +8,7 @@ import type { ParseLimits, ParseOptions, ParseResult, RejectCode, Rejection } fr
 import { SPORT_TRACE } from '../workbench/sportTrace'
 import type { CadenceUnit } from '../workbench/types'
 import { failure, MAX_FILE_SAMPLES, refused } from './result'
-import { nameOfLeg, withStartTimesWhereShared } from './names'
+import { fileTitle, nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
 import { cleanRecord } from './cleanRecord'
 import { lapsForSegment } from './laps'
@@ -106,7 +106,9 @@ export function activitiesFromUnits(
     nowMs: opts.nowMs ?? Date.now(),
     usedSamples: 0,
     activityName: opts.activityName,
+    nameAt: opts.nameAt,
     sessionKey: opts.sessionKey,
+    race: opts.race === true,
   }
 
   const outcomes: Outcome[] = []
@@ -149,8 +151,12 @@ interface Context {
   usedSamples: number
   /** The name the file's export gives, which wins over a title in the file. */
   activityName?: string
+  /** The name the export gives an activity by its start, used when the file has no name of its own. */
+  nameAt?: (startMs: number, sport: Sport) => string | undefined
   /** The upload's id, which the legs of one upload share as their session key. */
   sessionKey?: string
+  /** The export tags the file's activities as races. */
+  race: boolean
 }
 
 /**
@@ -301,12 +307,16 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
 
   const idBase = `${resampled.startMs}-${fileName}`
   const id = multi ? `${idBase}#${index}` : idBase
+  // An export that names activities by their start names each leg of a multisport file on its own, so
+  // the name does not carry the sport as one name shared by the legs does.
+  const nameByStart =
+    context.activityName === undefined ? context.nameAt?.(resampled.startMs, sport) : undefined
   const name = nameOfLeg({
-    exportName: context.activityName,
+    exportName: context.activityName ?? nameByStart,
     title: unit.title,
     sport,
     startMs: resampled.startMs,
-    multi,
+    multi: multi && fileTitle(nameByStart) === undefined,
     part: parts > 1 ? part + 1 : undefined,
   })
   const first = segment[0]!.tMs
@@ -327,6 +337,7 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
       : { laps: lapsForSegment(unit.laps, resampled.startMs, resampled.n) }),
     ...(route ? { route } : {}),
     ...(sessioned ? { sessionKey: context.sessionKey } : {}),
+    ...(context.race ? { race: true as const } : {}),
   }
   return { ok: true, activity, dropped }
 }

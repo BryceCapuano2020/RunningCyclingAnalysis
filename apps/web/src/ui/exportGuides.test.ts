@@ -87,6 +87,7 @@ describe('EXPORT_GUIDES', () => {
     const also = guideFor('Garmin Connect').alsoAvailable ?? ''
     expect(also).toMatch(/“Export Your Data”, then “Request Data Export”/)
     expect(also).toMatch(/within 48 hours but can take up to 30 days/)
+    expect(also).toMatch(/Drop the zip here as it is\./)
   })
 
   it('names COROS’s Activity List tab and Export Data, as its help article does', () => {

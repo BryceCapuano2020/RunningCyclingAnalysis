@@ -53,6 +53,7 @@ const movingAverageFields = {
   avgPowerW: nullableNumber.optional(),
   sessionKey: text.optional(),
   walkingPace: z.literal(true).optional(),
+  race: z.literal(true).optional(),
 }
 
 const qualityKind = z.enum([

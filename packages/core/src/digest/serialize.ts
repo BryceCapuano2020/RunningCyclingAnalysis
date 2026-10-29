@@ -271,6 +271,7 @@ export function parseDigest(json: string): ActivityDigest {
       : { avgHeartRate: asFiniteOrNull(o.avgHeartRate, 'avgHeartRate') }),
     ...(o.avgPowerW === undefined ? {} : { avgPowerW: asFiniteOrNull(o.avgPowerW, 'avgPowerW') }),
     ...(o.sessionKey === undefined ? {} : { sessionKey: asString(o.sessionKey, 'sessionKey') }),
+    ...(o.race === true ? { race: true as const } : {}),
     ...(o.walkingPace === true ? { walkingPace: true as const } : {}),
     ...(o.distributions === undefined
       ? {}

@@ -1,5 +1,5 @@
 import { MIB } from '../constants'
-import type { Activity } from '../types'
+import type { Activity, Sport } from '../types'
 
 /** The result contract every activity parser (FIT, GPX, TCX) returns, and the limits they enforce. */
 
@@ -60,6 +60,12 @@ export interface ParseOptions {
    */
   activityName?: string
   /**
+   * The name the file's export gives the activity that started at an instant, for an export that names
+   * its activities by start time rather than by file, such as Garmin's. Asked with each activity's own
+   * start. The file's `activityName`, when it has one, wins.
+   */
+  nameAt?: (startMs: number, sport: Sport) => string | undefined
+  /**
    * The type the file's export gives the activity, such as Strava's "Trail Run" or "Virtual Ride". It
    * fills in a sport the file does not say: a GPX track with no type or only a number the app does not
    * know, or a TCX activity whose Sport is Other. A sport the file names is never overridden, and a FIT
@@ -73,6 +79,8 @@ export interface ParseOptions {
    * when the caller gives none, and then the legs share no session.
    */
   sessionKey?: string
+  /** The file's export tags it as a race, such as Strava's Competition column. Every activity of the file carries the tag. */
+  race?: boolean
 }
 
 /** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */

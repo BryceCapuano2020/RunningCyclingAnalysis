@@ -44,6 +44,8 @@ export async function originalActivity(
   const fileHash = await sha256Hex(bytes)
   const parsed = parseActivityFile(bytes, record.fileName, undefined, {
     activityType: savedType(record.digest),
+    // The tag came from the export's list, which the file does not carry, so the saved digest keeps it.
+    race: record.digest.race === true,
     sessionKey: fileHash,
   })
   if (!parsed.ok) return { fileHash, activity: undefined }

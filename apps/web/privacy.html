@@ -65,13 +65,15 @@
           shown: times, distances, elevation gain, the power source (measured, estimated or none),
           splits per km and mile (flat-pace times, climb and heart rate), moving time, heart-rate
           and power, average power, best efforts, climbs, power-meter calibration sums, the indoor
-          flag and data-quality flags, and the file name. Its name comes from the activity list in a
-          Strava export, else the title in the file, else the start time and sport. For an outdoor
-          activity with GPS it also holds an outline of the route with no coordinates or scale. The
-          outline is kept only in this browser and is never uploaded. The summary has no per-second
-          data or original file, and it does not expire. When one file yields several summaries,
-          including a split activity, each keeps a SHA-256 hash of that file, so they are shown
-          together.
+          flag and data-quality flags, a mark on a run at walking pace, a race mark when a Strava
+          export tags the activity as a race, and the file name. Its name comes from the activity
+          list in a Strava export or the activity summaries in a Garmin export, else the title in
+          the file, else the start time and sport. A name from an export is kept as the export
+          writes it, and can name a place. For an outdoor activity with GPS it also holds an outline
+          of the route with no coordinates or scale. The outline is kept only in this browser and is
+          never uploaded. The summary has no per-second data or original file, and it does not
+          expire. When one file yields several summaries, including a split activity, each keeps a
+          SHA-256 hash of that file, so they are shown together.
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,

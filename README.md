@@ -47,8 +47,10 @@ they state the uncertainty and the evidence still missing. The plan is in
   With grades, the energy comparison below is their cross-check; without an age and sex, the balance
   uses the energy comparison instead. A level is not a ranking.
 - **Reads FIT, GPX and TCX files** from Garmin, Wahoo, Strava and similar devices, singly, gzipped,
-  or inside a Strava account-export zip. GPX files never carry device speed, and TCX files only
-  sometimes do. Where a file has no speed, speed is worked out from distance or from GPS positions.
+  or inside a Strava or Garmin Connect account-export zip. A Garmin export is read by the layout
+  described in guides and forums, and has been tested on synthetic zips only. GPX files never carry
+  device speed, and TCX files only sometimes do. Where a file has no speed, speed is worked out
+  from distance or from GPS positions.
   Short best efforts from GPS-only files, under about 30 seconds, are less reliable than from FIT.
   FIT preference applies when duplicate files are imported together. A saved activity keeps its
   original file hash; to replace it with a different file, delete the saved activity and import the

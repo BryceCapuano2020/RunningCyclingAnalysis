@@ -100,6 +100,24 @@ describe('parseActivityList', () => {
     expect(files.get('a/2.fit')).toEqual({ name: 'B' })
   })
 
+  it('reads the Competition column as a race tag: set as 1, 1.0 or true, not as blank, 0 or false', () => {
+    const rows = ['A,1.0', 'B,1', 'C,true', 'D,TRUE', 'E,', 'F,0.0', 'G,0', 'H,false']
+    const files = filesOf(
+      `Activity Name,Competition,Filename\n${rows.map((r, i) => `${r.replace(',', ',')},a/${i}.fit`).join('\n')}\n`,
+    )
+    const tagged = [...files].filter(([, listed]) => listed.race === true).map(([, l]) => l.name)
+    expect(tagged).toEqual(['A', 'B', 'C', 'D'])
+    expect(files.get('a/4.fit')).toEqual({ name: 'E' })
+  })
+
+  it('has no race tag when the list has no Competition column, and reads its header in any case', () => {
+    expect(filesOf('Activity Name,Filename\nA,a/1.fit\n').get('a/1.fit')).toEqual({ name: 'A' })
+    expect(filesOf('Activity Name,COMPETITION,Filename\nA,1.0,a/1.fit\n').get('a/1.fit')).toEqual({
+      name: 'A',
+      race: true,
+    })
+  })
+
   it('keeps a row whose name is blank, because its type still says what the file is', () => {
     const files = filesOf('Activity Name,Activity Type,Filename\n   ,Run,activities/1.fit\n')
     expect(files.get('activities/1.fit')).toEqual({ type: 'Run' })

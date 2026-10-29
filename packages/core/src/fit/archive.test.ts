@@ -1,8 +1,9 @@
-import { gzipSync, Zip, ZipDeflate, zipSync } from 'fflate'
+import { gzipSync, zipSync } from 'fflate'
 import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
 import { expandsReason } from './archiveReasons'
 import type { FitFile, FitSource } from './archive'
+import { streamedZip, toZip64 } from './zipTestFiles'
 
 // Records the entries whose start() ran. start() is what drains an entry the archive skips.
 const unzipSpy = vi.hoisted(() => ({ started: [] as string[] }))
@@ -71,43 +72,6 @@ function localHeaderOffsets(zip: Uint8Array): number[] {
   return offsets
 }
 
-/** Rewrites a zipSync archive with a ZIP64 end record, locator and placeholder EOCD. */
-function toZip64(zip: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
-  const eocd = zip.length - 22
-  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength)
-  const entries = view.getUint16(eocd + 10, true)
-  const cdSize = view.getUint32(eocd + 12, true)
-  const cdOffset = view.getUint32(eocd + 16, true)
-  const record = new Uint8Array(56)
-  const rv = new DataView(record.buffer)
-  rv.setUint32(0, 0x06064b50, true)
-  rv.setBigUint64(4, BigInt(44), true)
-  rv.setUint16(12, 45, true)
-  rv.setUint16(14, 45, true)
-  rv.setBigUint64(24, BigInt(entries), true)
-  rv.setBigUint64(32, BigInt(entries), true)
-  rv.setBigUint64(40, BigInt(cdSize), true)
-  rv.setBigUint64(48, BigInt(cdOffset), true)
-  const locator = new Uint8Array(20)
-  const lv = new DataView(locator.buffer)
-  lv.setUint32(0, 0x07064b50, true)
-  lv.setUint32(16, 1, true)
-  lv.setBigUint64(8, BigInt(eocd), true)
-  const end = new Uint8Array(22)
-  const ev = new DataView(end.buffer)
-  ev.setUint32(0, 0x06054b50, true)
-  ev.setUint16(8, 0xffff, true)
-  ev.setUint16(10, 0xffff, true)
-  ev.setUint32(12, 0xffffffff, true)
-  ev.setUint32(16, 0xffffffff, true)
-  const out = new Uint8Array(eocd + record.length + locator.length + end.length)
-  out.set(zip.subarray(0, eocd), 0)
-  out.set(record, eocd)
-  out.set(locator, eocd + record.length)
-  out.set(end, eocd + record.length + locator.length)
-  return out
-}
-
 async function collect(source: FitSource, limits: Partial<typeof DEFAULT_EXTRACT_LIMITS> = {}) {
   const files: FitFile[] = []
   const errors: { fileName: string; reason: string }[] = []
@@ -122,28 +86,6 @@ async function collect(source: FitSource, limits: Partial<typeof DEFAULT_EXTRACT
     { ...DEFAULT_EXTRACT_LIMITS, ...limits },
   )
   return { files, summary, errors }
-}
-
-/** A zip written in streaming mode: sizes are only known after each entry, as in a data descriptor. */
-function streamedZip(entries: Record<string, Uint8Array>): Uint8Array<ArrayBuffer> {
-  const parts: Uint8Array[] = []
-  const zip = new Zip((error, chunk) => {
-    if (error) throw error
-    parts.push(chunk)
-  })
-  for (const [name, data] of Object.entries(entries)) {
-    const file = new ZipDeflate(name)
-    zip.add(file)
-    file.push(data, true)
-  }
-  zip.end()
-  const out = new Uint8Array(parts.reduce((total, part) => total + part.length, 0))
-  let offset = 0
-  for (const part of parts) {
-    out.set(part, offset)
-    offset += part.length
-  }
-  return out
 }
 
 function namesOf(files: FitFile[]): string[] {
@@ -605,14 +547,31 @@ describe('extractFitFiles on zip archives', () => {
     ])
   })
 
-  it('does not read a zip inside an archive that has already stopped, so it adds no error', async () => {
+  it('counts the entries of a nested zip as the archive streams them, in the order they come', async () => {
     const outer = zipSync({
       'inner.zip': zipSync({ 'b.fit': FIT_B }),
       'c.fit': FIT_C,
       'd.fit': FIT_A,
     })
-    const { errors } = await collect(new File([outer], 'outer.zip'), { maxArchiveEntries: 2 })
-    expect(errors).toEqual([{ fileName: 'd.fit', reason: 'Archive exceeds the 2-entry limit' }])
+    const { files, errors } = await collect(new File([outer], 'outer.zip'), {
+      maxArchiveEntries: 2,
+    })
+    // inner.zip is the first entry and its b.fit the second, so c.fit is the one past the limit.
+    expect(namesOf(files)).toEqual(['inner.zip/b.fit'])
+    expect(errors).toEqual([{ fileName: 'c.fit', reason: 'Archive exceeds the 2-entry limit' }])
+  })
+
+  it('does not read a zip inside an archive that has already stopped, so it adds no error', async () => {
+    const outer = zipSync({
+      'c.fit': FIT_C,
+      'd.fit': FIT_A,
+      'inner.zip': zipSync({ 'b.fit': FIT_B, 'e.fit': FIT_A }),
+    })
+    const { files, errors } = await collect(new File([outer], 'outer.zip'), {
+      maxArchiveEntries: 1,
+    })
+    expect(namesOf(files)).toEqual(['c.fit'])
+    expect(errors).toEqual([{ fileName: 'd.fit', reason: 'Archive exceeds the 1-entry limit' }])
   })
 
   it('counts bytes inside a nested zip against the same total limit', async () => {

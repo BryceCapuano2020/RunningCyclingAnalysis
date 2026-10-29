@@ -1,4 +1,8 @@
 import type { ActivityRecord, Profile } from '@rca/contract'
+import { encodeFit } from '@rca/core/fit'
+import { AnalysisSession } from '@rca/core/session'
+import { sampleDataset } from '@rca/core/synthetic'
+import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { buildAccountExport } from './export/accountExport'
 import { APP_WORDS } from './appName'
@@ -276,6 +280,9 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(contractDigest).toMatch(/calibration: calibrationSums\.nullable\(\)/)
     expect(contractDigest).toMatch(/movingS: z\.number\(\)\.int\(\)\.nonnegative\(\)\.optional\(\)/)
     expect(contractDigest).toMatch(/avgPowerW: nullableNumber\.optional\(\)/)
+    expect(contractDigest).toMatch(/walkingPace: z\.literal\(true\)\.optional\(\)/)
+    expect(contractDigest).toMatch(/race: z\.literal\(true\)\.optional\(\)/)
+    expect(sentenceWith('It holds the figures shown')).toMatch(/walking pace.*race mark/s)
   })
 
   it('names the view period key the app reads, among the settings kept in this browser', () => {
@@ -519,8 +526,12 @@ describe('privacy page says where activity names come from', () => {
   it('says so in the summary kept without an account', () => {
     const sentence = sentenceWith('Its name comes from')
     expect(sentence).toMatch(/activity list in a Strava export/)
+    expect(sentence).toMatch(/activity summaries in a Garmin export/)
     expect(sentence).toMatch(/title in the file/)
     expect(sentence).toMatch(/start time and sport/)
+    expect(sentenceWith('A name from an export')).toContain(
+      'kept as the export writes it, and can name a place',
+    )
   })
 
   it('says the account list names an activity as the summary kept in this browser does', () => {
@@ -532,6 +543,33 @@ describe('privacy page says where activity names come from', () => {
   it('names the list and its column as the importer reads them', () => {
     expect(activitiesCsvSource).toContain("const LIST_NAME = 'activities.csv'")
     expect(activitiesCsvSource).toContain("columns.indexOf('activity name')")
+  })
+
+  it('keeps the name a Garmin export gives as it is written, as the page says, place names included', async () => {
+    const run = sampleDataset().activities.find((activity) => activity.sport === 'run')!
+    const summaries = JSON.stringify([
+      {
+        summarizedActivitiesExport: [
+          { name: 'Green Lake Loop, Seattle', startTimeGmt: run.startMs, activityType: 'running' },
+        ],
+      },
+    ])
+    const zip = new File(
+      [
+        new Uint8Array(
+          zipSync({
+            'DI_CONNECT/DI-Connect-Fitness/a_0_summarizedActivities.json': strToU8(summaries),
+            'DI_CONNECT/DI-Connect-Uploaded-Files/UploadedFiles_0-_Part1.zip': zipSync({
+              'a_1.fit': encodeFit(run, { gps: true }),
+            }),
+          }),
+        ),
+      ],
+      'export.zip',
+    )
+    const state = await new AnalysisSession().addFiles([zip], { massKg: 75, bikeMassKg: 9 })
+
+    expect(state.library.map((activity) => activity.name)).toEqual(['Green Lake Loop, Seattle'])
   })
 })
 

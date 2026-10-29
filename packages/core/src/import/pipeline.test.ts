@@ -625,3 +625,48 @@ describe('route shapes', () => {
     expect(second?.route).toBeUndefined()
   })
 })
+
+describe('what the export says about an activity', () => {
+  const file = { ...unitOf(steadyRecords(60)), fileName: 'morning.gpx' }
+
+  it('tags every activity of the file as a race when the export says so, and no other', () => {
+    const tagged = succeeded(
+      activitiesFromRecords(file, DEFAULT_PARSE_LIMITS, { nowMs: NOW, race: true }),
+    )
+    expect(tagged.activities[0]?.race).toBe(true)
+    for (const opts of [{ nowMs: NOW }, { nowMs: NOW, race: false }]) {
+      const plain = succeeded(activitiesFromRecords(file, DEFAULT_PARSE_LIMITS, opts))
+      expect(plain.activities[0]).not.toHaveProperty('race')
+    }
+  })
+
+  it('names each activity by its own start with nameAt, without the sport a shared name carries', () => {
+    const second = START + 5 * HOUR_MS
+    const result = succeeded(
+      activitiesFromUnits(
+        {
+          fileName: 'two.fit',
+          units: [unitOf(steadyRecords(60)), unitOf(steadyRecords(60, second))],
+        },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW, nameAt: (startMs) => (startMs === START ? 'Warm up' : 'Main set') },
+      ),
+    )
+    expect(result.activities.map((a) => a.name)).toEqual(['Warm up', 'Main set'])
+  })
+
+  it('prefers the name the export gives the file to one given by start, and falls back without one', () => {
+    const named = succeeded(
+      activitiesFromRecords(file, DEFAULT_PARSE_LIMITS, {
+        nowMs: NOW,
+        activityName: 'From the list',
+        nameAt: () => 'By start',
+      }),
+    )
+    expect(named.activities[0]?.name).toBe('From the list')
+    const none = succeeded(
+      activitiesFromRecords(file, DEFAULT_PARSE_LIMITS, { nowMs: NOW, nameAt: () => undefined }),
+    )
+    expect(none.activities[0]?.name).toBe(generatedName(START, 'run'))
+  })
+})

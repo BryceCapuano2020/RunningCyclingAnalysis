@@ -160,11 +160,11 @@ cascades to `oauth_accounts`, `sessions`, `profiles`, `athlete_measurements` and
 ## Import
 
 Every activity file goes through the same path, whether it is dropped on the page or found inside a
-Strava export zip. The stages are in the browser Web Worker, and none of them need the network.
+Strava or Garmin export zip. The stages are in the browser Web Worker, and none of them need the network.
 
 1. **Archive extraction** (`extractFitFiles` in `packages/core/src/fit/archive.ts`). A source is
-   one file, optionally gzipped, or a zip. Zips are streamed, and zips nested inside them are read
-   up to two levels deep. Only `.fit`, `.gpx` and `.tcx` entries, each optionally `.gz`, are
+   one file, optionally gzipped, or a zip. Zips are streamed, and zips nested inside them are streamed
+   too, up to two levels deep, so a nested zip is held to the shared budgets and not to the size of one entry. Only `.fit`, `.gpx` and `.tcx` entries, each optionally `.gz`, are
    delivered. `.kml`, `.kmz`, `.pwx` and `.hrm` entries are counted and skipped. Skipped entries are
    drained, not buffered. Entry counts, entry sizes and total decompressed bytes are all capped, so
    an oversized archive stops with a reason instead of exhausting memory. When the export's activity
@@ -208,7 +208,8 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    `activities.csv` is read by range, from the top-level zip's central directory only, so it may sit
    anywhere in the zip. A zip nested inside the export is never searched for a list. Its `Filename`
    column names each activity file's path in the zip, without `.gz`, and its `Activity Name` and
-   `Activity Type` columns say what the activity is called and what sport it was. The headers match
+   `Activity Type` columns say what the activity is called and what sport it was, and its `Competition`
+   column, when set (1, 1.0 or true), tags it as a race: the digest and the library list carry `race: true`. The headers match
    in any case, and paths are compared lowercase, with forward slashes (a zip written with backslashes
    is read too) and no `.gz`, and with `.` and `..` segments and repeated slashes resolved. A row that
    climbs above the zip's root, or ends as a folder does (`.`, `..` or a closing slash), names no file.
@@ -245,6 +246,28 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    reported as that sport. An empty run or ride stays empty.
    The refusal says `listed: true` when that name is the list's, so a page can show it as written; a
    name the file gives, such as a FIT sport, is not marked.
+   **Garmin Connect export** (`readGarminList` in `packages/core/src/import/garminList.ts`). A Garmin
+   bulk export has no activity list of that kind. Its zip holds `DI_CONNECT/`; the activity originals
+   are zips under `DI-Connect-Uploaded-Files/` (`UploadedFiles_*.zip`, or `DI-Connect-Fitness-Uploaded-Files/`
+   in some exports) holding `.fit` files named by upload, and the names, types and start times are in
+   `DI-Connect-Fitness/*summarizedActivities*.json`. This layout is taken from forum posts and third-party
+   guides and has been tested on synthetic zips only. A zip nested in a zip is read as its bytes arrive
+   (`ZipReader` in `packages/core/src/fit/zipReader.ts`), never held whole, so a part of any size
+   is read within the one shared budget of entries, activity files, buffered and decompressed bytes. A nested zip keeps only the end of its stream (to check its central directory) and lets go of it, and of the zip, when it is done; what it keeps counts against the buffer. Only
+   a zip with no `activities.csv` is searched for summaries, by range, before any file is parsed. They are
+   read one at a time (`visitZipEntries`), each parsed and let go before the next is inflated: at most 32
+   files, 16 MiB inflated each (checked before parsing: at most 500,000 objects and 64 levels of nesting) and 64 MiB together, and within what the buffer holds (the compressed bytes,
+   the inflated bytes twice and the decoded text). A directory header that points at an entry already read
+   is skipped, so a small zip cannot list one entry many times, and an entry past its share is left out
+   but its share is still counted. The bytes count against the zip's decompressed-bytes budget. Each
+   summary lists `startTimeGmt` (else `beginTimestamp`) in epoch milliseconds, a `name` and an
+   `activityType`. A file's names are not known before it is parsed, so each parsed activity is named by
+   `ParseOptions.nameAt(startMs, sport)`: the summary that started within 5 seconds of it, the nearest first.
+   When summaries start within 1 second of each other, the one whose type is the file's sport is taken;
+   if that still leaves different names, none, whatever order the summaries came in. A name is cut to a
+   title as any is. An activity with no such summary, or an unnamed one, is named as any other (the title in
+   the file, else its start time and sport). A FIT file keeps its own sport. What the import skipped is
+   counted by the same tally as any import (other sports, files that need a look, copies).
    An import counts files, not activities. `filesAdded` is the files with an activity that is in the
    library afterwards and shown, which is a workout the library did not hold or a held one whose save
    had failed and now succeeds, and not one hidden as a copy of another. Every other file read is one

@@ -34,6 +34,8 @@ export interface ActivitySummary {
   sessionKey?: string
   /** Runs only: a run at walking pace, kept in the library and left out of the analysis. See ActivityDigest.walkingPace. */
   walkingPace?: true
+  /** The export the activity came from tags it as a race. See ActivityDigest.race. */
+  race?: true
   /** The body mass in effect on its date, kg. Present only when the athlete has dated body masses. */
   massKg?: number
 }
@@ -74,6 +76,7 @@ function summaryFrom(digest: ActivityDigest, massKg: number | undefined): Activi
     ...(digest.avgPowerW === undefined ? {} : { avgPowerW: digest.avgPowerW }),
     ...(digest.sessionKey === undefined ? {} : { sessionKey: digest.sessionKey }),
     ...(digest.walkingPace === undefined ? {} : { walkingPace: digest.walkingPace }),
+    ...(digest.race === undefined ? {} : { race: digest.race }),
     ...(massKg === undefined ? {} : { massKg }),
   }
 }
