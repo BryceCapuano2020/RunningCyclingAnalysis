@@ -154,7 +154,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'Watts from a meter are the meter’s own readings.',
   },
   {
-    name: 'Timelines and laps in In detail',
+    name: 'Timelines and laps',
     state: 'read',
     line: 'Speed, heart rate, power, cadence, altitude and temperature as recorded, and the laps your device marked.',
   },

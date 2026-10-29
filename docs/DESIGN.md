@@ -966,7 +966,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   weekly hours by sport, runs at walking pace, dated settings and estimated zones, the equivalence across
   sports, best effort week by week, and the heart-rate set-aside), _Read from your files_ (as the
   device recorded it: the sport, start time, distance and route, heart rate, power from a meter, and the
-  timelines and laps in In detail) and _Not available from activity files_ (readiness and recovery scores,
+  timelines and laps) and _Not available from activity files_ (readiness and recovery scores,
   vendor tests such as 4DP, and lab measures, which need inputs a file does not hold). Each has one plain line.
 - **How sure is this? says how Grade by duration is read**, in one sentence in the age grades section: each sport's best effort at each duration is graded, the ride with its range, and a sport is higher at a duration only where the run's grade leaves the ride's range; inside it the two are level.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
