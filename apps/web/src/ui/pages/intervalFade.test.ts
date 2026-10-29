@@ -192,6 +192,87 @@ describe('repFadeOf', () => {
     expect(repFadeOf(trace, OUTDOOR)).toBeNull()
   })
 
+  it('hides the auto-laps of a steady run, whose laps start a second after the last ended', () => {
+    // Six mile laps of 500 s at one effort, as a watch cuts them, the next starting a second on.
+    const stretches = Array.from({ length: 6 }, (_, i) => ({
+      seconds: 500,
+      speed: 3.2 - i * 0.01,
+      heartRate: 150,
+    }))
+    const laps = stretches.map((_, i) => [i * 501, i * 501 + 500] as const)
+    expect(repFadeOf(repsTrace('run', stretches, laps), OUTDOOR)).toBeNull()
+  })
+
+  it('hides equal laps that fade, which are splits of a steady run and not reps', () => {
+    const stretches = [3.4, 3.3, 3.2, 3.1, 3.0, 2.9].map((speed) => ({ seconds: 500, speed }))
+    const laps = stretches.map((_, i) => [i * 500, i * 500 + 500] as const)
+    expect(repFadeOf(repsTrace('run', stretches, laps), OUTDOOR)).toBeNull()
+  })
+
+  it('hides reps with only a few seconds between them, which is no recovery', () => {
+    const rep = [
+      { seconds: 300, speed: 3.6 },
+      { seconds: 5, speed: 3.6 },
+    ]
+    const trace = repsTrace(
+      'run',
+      [0, 1, 2, 3].flatMap(() => rep),
+      [0, 1, 2, 3].map((i) => [i * 305, i * 305 + 300] as const),
+    )
+    expect(repFadeOf(trace, OUTDOOR)).toBeNull()
+  })
+
+  it('shows 6 x 800 m with a jog between each, as laps of the work and the recoveries', () => {
+    // 800 m in 205 s (3.9 m/s), then a 90 s jog lap at 2.2 m/s, after a 10 min warm-up.
+    const stretches: Stretch[] = [{ seconds: 600, speed: 2.6, heartRate: 120 }]
+    const laps: [number, number][] = [[0, 600]]
+    let at = 600
+    for (let i = 0; i < 6; i++) {
+      stretches.push({ seconds: 205, speed: 3.9 - i * 0.02, heartRate: 165 })
+      laps.push([at, at + 205])
+      at += 205
+      stretches.push({ seconds: 90, speed: 2.2, heartRate: 140 })
+      laps.push([at, at + 90])
+      at += 90
+    }
+    const fade = repFadeOf(repsTrace('run', stretches, laps), OUTDOOR)!
+    expect(fade.reps).toHaveLength(6)
+    expect(fade.reps.map((r) => r.lapNumber)).toEqual([2, 4, 6, 8, 10, 12])
+  })
+
+  it('does not take a short fast surge between laps for a recovery', () => {
+    // Five 5 min laps at 3.6 m/s with a 60 s lap at 3.7 m/s between each: shorter, but not slower, so not a rest.
+    const stretches: Stretch[] = []
+    const laps: [number, number][] = []
+    let at = 0
+    for (let i = 0; i < 5; i++) {
+      stretches.push({ seconds: 300, speed: 3.6 })
+      laps.push([at, at + 300])
+      at += 300
+      if (i === 4) break
+      stretches.push({ seconds: 60, speed: 3.7 })
+      laps.push([at, at + 60])
+      at += 60
+    }
+    expect(repFadeOf(repsTrace('run', stretches, laps), OUTDOOR)).toBeNull()
+  })
+
+  it('shows reps whose recoveries are shorter laps at the same pace', () => {
+    // A 60 s lap between 5 min reps is shorter than them by more than a fifth, at their pace, and not faster.
+    const stretches: Stretch[] = []
+    const laps: [number, number][] = []
+    let at = 0
+    for (let i = 0; i < 4; i++) {
+      stretches.push({ seconds: 300, speed: 3.6 })
+      laps.push([at, at + 300])
+      at += 300
+      stretches.push({ seconds: 60, speed: 3.6 })
+      laps.push([at, at + 60])
+      at += 60
+    }
+    expect(repFadeOf(repsTrace('run', stretches, laps), OUTDOOR)?.reps).toHaveLength(4)
+  })
+
   it('reads a ride by its power when every rep has it', () => {
     const ride = repsTrace(
       'ride',

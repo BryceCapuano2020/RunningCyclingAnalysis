@@ -54,6 +54,7 @@ function pageElement(
       activity={activity}
       library={activities}
       result={{ ...result, activities }}
+      zoneEstimates={null}
       units={units}
       massKg={70}
       weightKnown
@@ -198,7 +199,7 @@ describe('ActivityPage', () => {
     renderPage(
       makeActivity({
         id: 'activity-1',
-        name: 'Treadmill run',
+        name: 'Indoor run',
         hasHeartRate: false,
         elevationGainM: 0,
       }),
@@ -455,6 +456,7 @@ describe('ActivityPage', () => {
         activity={morningRun}
         library={[morningRun]}
         result={resultWith()}
+        zoneEstimates={null}
         units="metric"
         massKg={70}
         weightKnown

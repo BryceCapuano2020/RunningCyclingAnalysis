@@ -72,6 +72,7 @@ describe('AnalysisSession records', () => {
       [
         'effortTrends',
         'heartRateJudgement',
+        'zoneEstimates',
         'hiddenDuplicates',
         'incompatibleActivities',
         'isSample',

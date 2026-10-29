@@ -12,7 +12,7 @@ import type { SyncIssue } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
 import type { RecordsCache } from './sessionRecords'
 import type { ActivityDigest, AthleteSettings } from './types'
-import { NO_ZONE_TIMES } from './zones'
+import { NO_ZONE_TIMES, zoneEstimatesOf } from './zones'
 import type { HeartRateJudge, ZoneTimeCache } from './zones'
 
 /** What a session holds that its state is made from: the library, the choices, the caches and the counts. */
@@ -51,10 +51,14 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : judge.of(analysed, athlete)
   const setAside = judgement.setAside
   // A period with no activities still has a result, so the page can say what is missing from it.
+  const references = { referenceHr: judgement.referenceHr, observedMaxHr: judgement.observedMaxHr }
   const analysis =
     athlete !== null && visible.length > 0
-      ? periods.analysis(selected, athlete, setAside, judgement.calibration)
+      ? periods.analysis(selected, athlete, setAside, judgement.calibration, references)
       : null
+  // The references that zones are cut from are the library's, not the period's: one activity has the same zones
+  // under every period, and Profile, the activity page and the time in zones all read them.
+  const zoneEstimates = athlete !== null && analysis !== null ? zoneEstimatesOf(judgement) : null
   // The selected period's bike model prices the trend and the previous period alike.
   const bikeModel = analysis?.bikeModel
   // All time is not clipped at a start, so its trend begins at the first activity.
@@ -77,10 +81,11 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     sameHeartRate,
     lateEvidence: late,
     heartRateJudgement: judgement,
+    zoneEstimates,
     timeInZones:
       athlete === null || analysis === null
         ? NO_ZONE_TIMES
-        : zoneTimes.get(selected, previous, athlete, analysis, setAside),
+        : zoneTimes.get(selected, previous, athlete, zoneEstimates, setAside),
     previous:
       athlete !== null && bikeModel !== undefined && previous.length > 0
         ? periods.previousCurves(selected, previous, athlete, bikeModel)

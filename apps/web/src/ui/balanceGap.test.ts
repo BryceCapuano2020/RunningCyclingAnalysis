@@ -71,17 +71,25 @@ describe('balanceGap', () => {
     }
   })
 
-  it('is even when its range touches zero, since the two grades cannot be told apart', () => {
-    // The gap is 6, its range is 0 to 12: zero is inside it.
-    expect(balanceGap(run(0.64), ride(0.58, 0.52, 0.64)).lean).toBe('even')
+  it('leans toward running on a 6 point estimate even when its range reaches zero', () => {
+    // The gap is 6, its range is 0 to 12: the estimate decides, and the range is stated beside it.
+    expect(balanceGap(run(0.64), ride(0.58, 0.52, 0.64)).lean).toBe('run')
   })
 
-  it('is even when its range spans zero on both sides', () => {
-    // The run grade is 60 and the ride grade 56 with a range of 50 to 62: the gap is 4, -2 to 10.
-    const gap = balanceGap(run(0.6), ride(0.56, 0.5, 0.62))
-    expect(gap.centre).toBe(4)
+  it('leans toward running on a 9 point estimate whose range spans zero', () => {
+    // The run grade is 69 and the ride grade 60 with a range of 51 to 73: the gap is 9, -4 to 18.
+    const gap = balanceGap(run(0.69), ride(0.6, 0.51, 0.73))
+    expect(gap.centre).toBe(9)
+    expect(gap.low).toBe(-4)
+    expect(gap.high).toBe(18)
+    expect(gap.lean).toBe('run')
+  })
+
+  it('is even when the estimate is within two points, however wide its range', () => {
+    // The run grade is 60 and the ride grade 58 with a range of 50 to 66: the gap is 2, -6 to 10.
+    const gap = balanceGap(run(0.6), ride(0.58, 0.5, 0.66))
+    expect(gap.centre).toBe(2)
     expect(gap.low).toBeLessThan(0)
-    expect(gap.high).toBeGreaterThan(0)
     expect(gap.lean).toBe('even')
   })
 

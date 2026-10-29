@@ -191,7 +191,9 @@ describe('GradeProfileSection', () => {
         calibration={null}
       />,
     )
-    const sentence = screen.getByText(/^No duration separates your running and cycling/)
+    const sentence = screen.getByText(
+      /^At every duration from .* the range of the gap reaches zero/,
+    )
     expect(sentence).toBeVisible()
     // The chart is not mounted while it is folded, and its lede is not said twice.
     expect(screen.queryByRole('figure')).toBeNull()
@@ -204,7 +206,7 @@ describe('GradeProfileSection', () => {
     await waitFor(() =>
       expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument(),
     )
-    expect(screen.getAllByText(/^No duration separates/)).toHaveLength(1)
+    expect(screen.getAllByText(/the range of the gap reaches zero/)).toHaveLength(1)
     expect(within(details).getByText('Hide by duration')).toBeInTheDocument()
   })
 })

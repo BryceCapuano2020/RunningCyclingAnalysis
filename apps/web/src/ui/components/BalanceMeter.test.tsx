@@ -104,6 +104,13 @@ describe('BalanceMeter with a grade gap', () => {
     expect(dotLeft(container)).toBeLessThanOrEqual(middle + half)
   })
 
+  it('flags a lead of one point as 1 pt, not 1 pts', () => {
+    const { container } = render(
+      <BalanceMeter reading={gapReading({ centre: 1, low: -1, high: 3, lean: 'even' })} />,
+    )
+    expect(container.querySelector('.balance-meter__flag')?.textContent).toBe('1 pt')
+  })
+
   it('flags the best estimate over the dot, in points', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
     const flag = container.querySelector<HTMLElement>('.balance-meter__flag')

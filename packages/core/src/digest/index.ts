@@ -8,6 +8,7 @@ export {
   sportCurves,
 } from './combine'
 export { fitnessTrend } from './trend'
+export { effortsCount } from './effortTrust'
 export { weeksWithValue } from './trendPoints'
 export type { TrendOptions, TrendPoint } from './trend'
 export type { AnalysisResult, BikeModelSource, Equivalence } from './combine'

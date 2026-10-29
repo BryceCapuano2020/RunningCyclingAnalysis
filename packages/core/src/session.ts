@@ -182,10 +182,10 @@ export class AnalysisSession {
 
   /**
    * The zones in effect on a date: the athlete's dated settings first, else the references of the
-   * analysis for the period on screen. A feature that needs zones for an activity asks with its start.
+   * analysis of the whole library, whatever the period on screen. A feature that needs zones for an activity asks with its start.
    */
   zonesAt(at: number, settings: AthleteSettings): ZoneSet[] {
-    return zonesAt(at, this.athleteFor(settings), this.state(settings).result)
+    return zonesAt(at, this.athleteFor(settings), this.state(settings).zoneEstimates)
   }
 
   /** Asks for the headline trend's running equivalents, which an age-graded Balance trend needs. */

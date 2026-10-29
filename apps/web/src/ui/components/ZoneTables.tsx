@@ -12,10 +12,10 @@ export interface ZoneTablesProps {
   /** The settings the analysis runs on, dated ones included. */
   athlete: AthleteSettings
   /**
-   * The analysis on screen, which supplies a reference the athlete has not entered. Null without one,
+   * The library's references, which supply any the athlete has not entered. Null without an analysis,
    * and while the sample is loaded, since the sample is not the athlete's own activities.
    */
-  result: ZoneEstimates | null
+  estimates: ZoneEstimates | null
   /** Whether a body weight is entered. Without one a ride's estimated power zones have no watts to show. */
   weightKnown: boolean
   units: UnitSystem
@@ -25,10 +25,10 @@ export interface ZoneTablesProps {
  * Today's training zones, a table for each sport and measure. Each says where its reference came from:
  * a setting the athlete entered, or the app's own estimate from their activities.
  */
-export function ZoneTables({ athlete, result, weightKnown, units }: ZoneTablesProps) {
+export function ZoneTables({ athlete, estimates, weightKnown, units }: ZoneTablesProps) {
   const titleId = useId()
   const now = useNow()
-  const all = useMemo(() => zonesAt(now, athlete, result), [now, athlete, result])
+  const all = useMemo(() => zonesAt(now, athlete, estimates), [now, athlete, estimates])
   const withheld = (set: ZoneSet) =>
     !weightKnown && set.source === 'estimated' && NEEDS_WEIGHT[set.measure]
   const sets = all.filter((set) => !withheld(set))

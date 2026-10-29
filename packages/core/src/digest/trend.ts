@@ -10,6 +10,7 @@ import type {
   Sport,
 } from '../types'
 import { equivalenceFor } from './combine'
+import { effortsCount } from './effortTrust'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
@@ -146,6 +147,8 @@ export function fitnessTrend(
   const bikeModel = opts.bikeModel ?? fitBikeModelOver(ordered, masses).model
   const readings: Reading[] = []
   for (const digest of ordered) {
+    // A treadmill run's pace is not an effort the trend can show (see effortsCount).
+    if (!effortsCount(digest)) continue
     const best = bestAtOrAbove(digest, durationS, masses, bikeModel)
     if (best !== null) readings.push({ startMs: digest.startMs, sport: digest.sport, best })
   }

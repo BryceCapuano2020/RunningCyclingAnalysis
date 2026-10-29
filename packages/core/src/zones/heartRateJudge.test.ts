@@ -49,7 +49,10 @@ describe('HeartRateJudge', () => {
 
   it('has nothing to judge in a library without heart rate', () => {
     const bare = digests.map((digest) => Object.assign({}, digest, { hasHeartRate: false }))
-    expect(new HeartRateJudge().of(bare, settings)).toBe(NO_HEART_RATE_JUDGEMENT)
+    const judgement = new HeartRateJudge().of(bare, settings)
+    expect(judgement).toEqual({ ...NO_HEART_RATE_JUDGEMENT, fit: judgement.fit })
+    // The thresholds are still the library's, for the zones.
+    expect(judgement.fit).toEqual(new HeartRateJudge().of(digests, settings).fit)
   })
 
   it.each([

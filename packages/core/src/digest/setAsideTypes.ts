@@ -1,4 +1,4 @@
-import type { HrCalibration, Sport } from '../types'
+import type { CriticalPowerFit, HrCalibration, Sport } from '../types'
 
 /**
  * Whose heart rate is set aside, judged over a whole library, with what it was judged against. A period's
@@ -10,6 +10,13 @@ export interface HeartRateJudgement {
   setAside: readonly string[]
   /** The reference heart rate each sport's efforts were judged against, bpm: the library's, not a period's. Null without one. */
   referenceHr: Record<Sport, number | null>
+  /** Each sport's own highest sustained heart rate in the kept activities, bpm: the library's. Null without one. */
+  observedMaxHr: Record<Sport, number | null>
+  /**
+   * Each sport's threshold fit over the whole library, as an analysis of it would report it: null when there are too
+   * few efforts or the fit is refused. The zones' threshold references are these, so they are the library's.
+   */
+  fit: Record<Sport, CriticalPowerFit | null>
   /** Each sport's threshold the efforts were judged against, in the unit of its fit (gross metabolic W/kg). Null without one. */
   threshold: Record<Sport, number | null>
   /**
@@ -24,6 +31,8 @@ export interface HeartRateJudgement {
 export const NO_HEART_RATE_JUDGEMENT: HeartRateJudgement = {
   setAside: [],
   referenceHr: { run: null, ride: null },
+  observedMaxHr: { run: null, ride: null },
   threshold: { run: null, ride: null },
+  fit: { run: null, ride: null },
   calibration: null,
 }

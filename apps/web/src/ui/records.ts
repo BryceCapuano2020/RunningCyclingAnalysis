@@ -9,6 +9,7 @@ export { CURVE_START_S } from '@rca/core/profile'
 export { calendarDaysBetween, latestStartOf } from './activityDates'
 import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
+import { effortsCount } from '@rca/core/digest'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { CriticalPowerRefusal, Curve, Sport } from '@rca/core/types'
@@ -236,15 +237,13 @@ export function sportRecords(
 
 /**
  * The headline effort's figure as the grade line names it, such as "6:37 /mi", with "estimated" when
- * a ride's watts did not come from a power meter, or "treadmill" when a run was held indoors. Null
- * when there is no headline effort.
+ * a ride's watts did not come from a power meter. Null when there is no headline effort.
  */
 export function headlineEffort(sport: Sport, records: readonly SportRecord[]): string | null {
   const headline = records.find((record) => record.durationS === HEADLINE_DURATION_S)
   if (headline === undefined) return null
-  if (isEstimatedRecord(sport, headline.activity)) return `${headline.value}, estimated`
-  return isTreadmillRecord(sport, headline.activity)
-    ? `${headline.value}, treadmill`
+  return isEstimatedRecord(sport, headline.activity)
+    ? `${headline.value}, estimated`
     : headline.value
 }
 
@@ -268,14 +267,6 @@ export function countEfforts(activities: ActivitySummary[], sport: Sport): numbe
  */
 export function isEstimatedRecord(sport: Sport, activity: ActivitySummary | null): boolean {
   return sport === 'ride' && activity?.powerSource !== 'measured'
-}
-
-/**
- * Whether a record was set by a run held indoors, on a treadmill: such a record is marked Treadmill
- * as a ride's estimated watts are marked Estimated. A record from an unknown activity is not marked.
- */
-export function isTreadmillRecord(sport: Sport, activity: ActivitySummary | null): boolean {
-  return sport === 'run' && activity?.indoor === true
 }
 
 /** The equivalence to feature: 20 minutes when there is one, else the longest effort below it. */
@@ -311,11 +302,11 @@ function startsBefore(a: ActivitySummary, b: ActivitySummary): boolean {
 
 /**
  * The fastest run at each record distance among the activities in scope. A tie goes to the earlier
- * activity. Runs with no distance bests are not counted as having none, so `partial` tells the page
- * the list may be incomplete.
+ * activity. A treadmill run holds no record (see effortsCount). Runs with no distance bests are not
+ * counted as having none, so `partial` tells the page the list may be incomplete.
  */
 export function distanceRecords(activities: ActivitySummary[], units: UnitSystem): DistanceRecords {
-  const runs = activities.filter((activity) => activity.sport === 'run')
+  const runs = activities.filter((activity) => activity.sport === 'run' && effortsCount(activity))
   const covered = runs.filter((activity) => activity.distanceBests !== undefined)
   const records: DistanceRecord[] = []
   for (const distanceM of RUN_RECORD_DISTANCES_M) {

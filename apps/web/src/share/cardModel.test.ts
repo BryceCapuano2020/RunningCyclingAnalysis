@@ -209,9 +209,23 @@ describe('buildShareCard', () => {
   it('carries the balance as a magnitude line in points, with its range', () => {
     const gap: BalanceGap = { centre: 6, low: 4, high: 8, lean: 'run' }
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
-    expect(card?.magnitude).toBe('Running grades 6 points higher than cycling')
+    expect(card?.magnitude).toBe('Running grades 6 points higher, within 4 to 8')
     // The page's meter reads its lead with the same helper, so the card and the page agree.
     expect(card?.magnitude).toBe(leadSentence(gapReading(gap)))
+  })
+
+  it('leans on a 9 point estimate whose range reaches below zero, and says the lead', () => {
+    const gap: BalanceGap = { centre: 9, low: -4, high: 18, lean: 'run' }
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
+    expect(card?.headline).toBe('Your balance leans toward running')
+    expect(card?.magnitude).toBe('Running grades 9 points higher, within −4 to +18')
+    expect(card?.meter).toEqual(gapReading(gap))
+  })
+
+  it('says in balance only for an estimate within two points', () => {
+    const gap: BalanceGap = { centre: 2, low: -6, high: 10, lean: 'even' }
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
+    expect(card?.headline).toBe('Your running and cycling are in balance')
   })
 
   it('has no magnitude line for a balance in range, where the headline already says so', () => {
@@ -247,12 +261,15 @@ describe('buildShareCard', () => {
       fellBack: false,
     }
     const result = makeResult({
-      activities: [makeActivity({ id: 'run-1' }), makeActivity({ id: 'ride-1', sport: 'ride' })],
+      activities: [1, 2, 3].flatMap((n) => [
+        makeActivity({ id: `run-${n}` }),
+        makeActivity({ id: `ride-${n}`, sport: 'ride' }),
+      ]),
     })
     expect(
       buildShareCard(result, SETTINGS, 'metric', period, false, null, true, null, NO_GRADES)
         ?.period,
-    ).toBe('Based on 12 May – 3 Aug 2025, 1 run, 1 ride')
+    ).toBe('Based on 12 May – 3 Aug 2025, 3 runs, 3 rides')
   })
 
   it('carries the name the card is given, and none when there is no name', () => {

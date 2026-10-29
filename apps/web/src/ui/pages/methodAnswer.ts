@@ -17,7 +17,8 @@ export function answerVerdict(
 ): string | null {
   if (waitsForWeight) return WAITS_FOR_WEIGHT
   if (balance === null) return null
-  const even = balance.lean === 'even' ? 'inside' : 'outside'
+  const { low, high } = balance.lead
+  const even = low <= 0 && high >= 0 ? 'inside' : 'outside'
   return `${balanceTitle(balance)}. Even is ${even} its range.`
 }
 

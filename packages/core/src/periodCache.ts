@@ -1,6 +1,7 @@
 import { HEADLINE_DURATION_S } from './constants'
 import { sameMasses } from './athlete/mass'
 import { combine, sportCurves } from './digest/combine'
+import type { CombineOptions } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
 import { lateEvidence } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
@@ -101,6 +102,7 @@ export class PeriodCache {
   private analysisEntries: (Inputs & {
     setAside: string
     calibration: string
+    references: string
     analysis: AnalysisResult
   })[] = []
 
@@ -110,21 +112,25 @@ export class PeriodCache {
    *
    * `setAside` is the library's judgement (`judgeHeartRate`), which the analysis takes as it is rather
    * than judging the period alone. Only the ids in this period's digests can change its analysis, so those
-   * are the key: an activity added outside the period does not redo it. The library's `calibration` is part of
-   * the key too, since it sets the equivalents, and is read by every period alike.
+   * are the key: an activity added outside the period does not redo it. The library's `calibration` and
+   * `references` (its reference heart rates) are part of the key too, since they set the equivalents and the
+   * effort checks, and are read by every period alike.
    */
   analysis(
     selected: ActivityDigest[],
     settings: AthleteSettings,
     setAside: readonly string[],
     calibration?: HrCalibration | null,
+    references?: CombineOptions['references'],
   ): AnalysisResult {
     const key = setAsideAmong(selected, setAside)
     const calibrationId = calibrationKey(calibration)
+    const referencesId = JSON.stringify(references ?? null)
     const hit = this.analysisEntries.findIndex(
       (entry) =>
         entry.setAside === key &&
         entry.calibration === calibrationId &&
+        entry.references === referencesId &&
         sameInputs(entry, selected, settings),
     )
     if (hit >= 0) {
@@ -135,12 +141,14 @@ export class PeriodCache {
     const analysis = combine(selected, settings, {
       heartRateSetAside: new Set(setAside),
       calibration,
+      references,
     })
     this.analysisEntries.unshift({
       selected,
       settings,
       setAside: key,
       calibration: calibrationId,
+      references: referencesId,
       analysis,
     })
     this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)

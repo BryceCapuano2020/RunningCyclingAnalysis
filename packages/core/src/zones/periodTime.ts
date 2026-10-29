@@ -82,8 +82,8 @@ function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) 
  * estimated ride threshold), so a period can hold activities with different zones. Zones are told
  * apart by level, which every date shares, so the seconds add up per level.
  *
- * `estimates` is the analysis the athlete is looking at and supplies every reference that was not
- * entered; it is the same for each activity, so an estimated zone is the same all period. A period
+ * `estimates` is the analysis of the whole library and supplies every reference that was not entered;
+ * it is the same for each activity, so an estimated zone is the same all period and under every period. A period
  * before this one is cut by the same estimates, so the two are compared in the same zones.
  * `heartRateSetAside` names the activities whose heart rate the analysis does not trust.
  */

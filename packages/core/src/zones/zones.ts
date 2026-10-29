@@ -3,6 +3,7 @@ import { entryAt } from '../athlete/measurements'
 import type { AthleteSettings } from '../athlete/settings'
 import { PRIORS } from '../constants'
 import type { AnalysisResult } from '../digest/combine'
+import type { HeartRateJudgement } from '../digest/setAsideTypes'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
 import type { Sport } from '../types'
 import { WHOLE_NUMBER_MEASURES, ZONE_MEASURES, ZONE_OVERRIDE, ZONE_SCHEMES } from './schemes'
@@ -67,7 +68,7 @@ export function zonesFor(measure: ZoneMeasure, reference: number): Zone[] {
   }))
 }
 
-/** What an analysis offers as references: the threshold fits and the reference heart rates. */
+/** What the zones take as references: the threshold fits and the reference heart rates. */
 export type ZoneEstimates = Pick<
   AnalysisResult,
   | 'runCp'
@@ -77,6 +78,29 @@ export type ZoneEstimates = Pick<
   | 'runObservedMaxHeartRate'
   | 'rideObservedMaxHeartRate'
 >
+
+const estimatesOfJudgement = new WeakMap<HeartRateJudgement, ZoneEstimates>()
+
+/**
+ * The references of a whole library's judgement as zone estimates: its thresholds, as an analysis of it reports
+ * them, and the reference heart rates it was judged against. The same judgement gives the same object, so
+ * what is cached by the estimates is found again.
+ */
+export function zoneEstimatesOf(judgement: HeartRateJudgement): ZoneEstimates {
+  let found = estimatesOfJudgement.get(judgement)
+  if (found === undefined) {
+    found = {
+      runCp: judgement.fit.run,
+      rideCp: judgement.fit.ride,
+      runMaxHeartRate: judgement.referenceHr.run,
+      rideMaxHeartRate: judgement.referenceHr.ride,
+      runObservedMaxHeartRate: judgement.observedMaxHr.run,
+      rideObservedMaxHeartRate: judgement.observedMaxHr.ride,
+    }
+    estimatesOfJudgement.set(judgement, found)
+  }
+  return found
+}
 
 interface Estimated {
   reference: number
@@ -127,8 +151,8 @@ const ESTIMATE: Record<Sport, Partial<Record<ZoneMeasure, Estimate>>> = {
  * any other feature that needs zones asks here with an activity's start.
  *
  * A dated setting the athlete entered (settings.measurements) wins: the entry in effect on the local
- * date, by the policy on Measurement. Otherwise the zones come from `estimates`, the analysis the
- * athlete is looking at, and are marked estimated. A sport and measure with neither are left out.
+ * date, by the policy on Measurement. Otherwise the zones come from `estimates`, the whole library's
+ * thresholds and reference heart rates (`zoneEstimatesOf`), the same under every period, and are marked estimated. A sport and measure with neither are left out.
  */
 export function zonesAt(
   at: number,

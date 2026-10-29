@@ -139,8 +139,8 @@ entered (a ride's figures wait for the weight, as the balance does), and it stat
 figures the Balance page shows: the lean, the centre and the range. A changed centre reads "Your balance
 now leans less toward running (7 → 6 points)", or "(12% → 8%)" for energy, where an edge under 1% reads
 "0.4%", never 0%. A changed range reads "Your balance's range was −5 to +16 points and is now −4 to +16 points", in the
-page's own "A to B" wording, and a changed even centre reads "Your balance's best estimate moved from +6 to +7
-points"; both read together when they change together ("..., and the range was ... and is now ..."). Only when every figure is the same does it say "Your balance did not
+page's own "A to B" wording, and a changed even centre names the sport it favours: "Your balance's best estimate moved from 2 points toward
+cycling to 1 point toward running"; both read together when they change together ("..., and the range was ... and is now ..."). Only when every figure is the same does it say "Your balance did not
 move.", adding ": this ride set no new best at 20 min" only when the activity set none there. An activity
 outside the period on screen reads "This ride is outside the period on screen, so the balance there is
 unchanged." A line that says a figure changed counts as a move; a line that says the balance held is listed
@@ -505,17 +505,19 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min, log scale)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
   The finding is the chart's lede, a sentence under its title, and the chart supports it. It is read from the
   grades the headline uses: the ride's heart-rate-adjusted equivalence, through the balance's own `balanceGap`,
-  so at 20 minutes its lean is the headline's, and the chart never says "within their range" where the headline
-  says it leans, or the reverse. A sport is higher at a duration only where its grade is outside the other's
-  range, in whole percents; a duration inside the range is level. When no duration is outside it: "No duration
-  separates your running and cycling: at every duration from 10 to 90 min the gap is within cycling's range."
+  so its gap at 20 minutes is the headline's. The headline leans by the estimate (`leanOfLead`) and states the
+  range beside it; the chart separates by the range alone (`leanOfRange`), so a duration can be inside the other
+  sport's range while the headline names the estimate's lead, with that range. A sport is higher at a duration only where its grade is outside the other's
+  range, in whole percents; a duration inside the range is level. The line speaks only of ranges, so it never
+  reads as contradicting the headline's estimate. When no duration is outside it: "At every duration from 10 to
+  90 min the range of the gap reaches zero."
   When one sport is outside the range at every shared duration it says by how much and how that changes:
   "Your running grades about 5 points higher than your cycling at every duration from 10 to 90 min, by a steady
   margin." The points are the median of the centre differences, in whole points. A shape clause is added when
   the gap changes by 4 points or more from the shortest shared duration to the longest: ", and the gap widens
   toward longer efforts" or ", and the gap narrows toward longer efforts"; below that it is ", by a steady
   margin". Otherwise it names only the stretches where a sport is higher, with the other durations said once:
-  "Your running grades higher from 15 to 45 min, apart from 30 min; elsewhere the two are within range." A
+  "Your running grades higher from 15 to 45 min, apart from 30 min; elsewhere the range of the gap reaches zero." A
   sport's leads that only level durations separate are one stretch, naming the level durations inside it, so a
   grade at the edge of a range does not break the sentence into pieces. When the higher sport changes: "Your
   cycling grades higher up to 7 min, your running from 10 min on."; with more than one change it walks through
@@ -625,8 +627,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   within 20% of the middle one's duration. Recoveries between reps are left out only where they alternate with
   the reps: where the sorted outputs part by 15% or more and the hard laps all sit at places of one parity, the
   laps at those places are the reps, so a rep that fell to the recoveries' pace stays in. With any other
-  pattern every lap is a rep, so a rep that blew up is the fade shown. Laps that run straight into each other
-  are splits of one effort, not reps, so they get no table. Every rep needs the measure it is read in, and none
+  pattern every lap is a rep, so a rep that blew up is the fade shown. The table is for structured intervals
+  only: every rep after the first must follow a recovery, which is the laps between it and the rep before
+  being all clearly slower (15% or more below the reps' middle output) or shorter (20% or more below their
+  middle length) and not faster than the reps, or, with no lap between, a rest of 10 s or more that no lap covers (`recoversBetween`).
+  Equal laps run one into the next at a steady effort, such as a watch's mile auto-laps, are splits, not
+  reps, so they get no table. Every rep needs the measure it is read in, and none
   is dropped for want of one. A run is read as flat pace where its altitude gives a grade for each rep, so a hill
   does not pass for a fade, and as recorded pace otherwise. A ride is read by its power; without power, by speed
   on a trainer only, and an outdoor ride without power gets no table. One sentence leads, naming the rep that
@@ -690,8 +696,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   this graded?. A run's pace is marked Flat, which the note spells out. Under a run's list a line says its distance
   times are as run, since the pace curve allows for hills: "Distance times are as run. The pace curve allows for
   hills, so they can differ."; a ride's watts are marked
-  Estimated unless a power meter measured them. A record set by a run held indoors is marked
-  Treadmill in the same chip, on its row, on a distance time and in the grade line's effort. When
+  Estimated unless a power meter measured them. A run held indoors (on a treadmill, an indoor track, or a virtual or GPS-off run) sets no
+  record and holds no best: its belt or footpod pace is left out of the run curves, the records, the
+  distance bests, the thresholds, the race predictions, the late-in-session bests and drift, and the
+  Balance comparison (`packages/core/src/digest/effortTrust.ts`, a table keyed by sport so a trainer ride's meter still
+  counts). It stays in the activity list, the volume, the time and the heart-rate zones. Its page lists
+  its own distance times under "Distance times", unmarked and ungraded, with one line: "Indoor pace
+  is not used for bests." When
   every record was set in one activity, that activity is named once under the list ("All set on Morning run,
   5 Jan · 5 months ago"), the link and its count on one line in the second column, the name wrapping
   so the date stays whole. Otherwise each record links to its own activity, with its own count on the
@@ -760,22 +771,28 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   dates are not grouped.
 - **Balance is neutral.** Say which way it leans ("Your balance leans toward running"), never
   that a sport is a limiter, a weakness or holding you back.
-- **The balance is stated as a grade gap.** With both grades: "Your running grades 6 points higher
-  than your cycling, on your best 20 min in each." When the gap's range spans zero, the best
-  estimate is named and the range is given, under the title "Your running and cycling are in balance":
-  "On your best 20 min in each, running's age grade is 4 points higher than cycling's, with a range of −2 to +10
-  points for that lead, so the two are level." The range is read from the leading sport's side, so a cycling lead reads "cycling's
-  age grade is 4 points higher than running's, with a range of −2 to +10 points for that lead". When the best estimate is level: "On your best 20 min in each, running and cycling have the same age grade, within −2 to +2 points, so the two are level." A lopsided range names its side: "within −1 to +3 points (running minus cycling)". Never "ahead of". Without an age and
-  sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
-  cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
-  levels. The energy ratio's 90% range names the sport that leads, with the same figures as the sentence
-  and the meter: "Ride against Run, 90% range: 11% to 33%." on How sure is this?, and "Run
-  against Ride, 90% range: -2% to +4%." only when the two are even. The lede names no dates: the period control's caption under the meter gives them when the period is
-  not All time, so the lede reads "Your running grades 2 to 10 points higher than your cycling, on your best
-  20 min in each." on its own. The lede says a lead as its likely range, so the gap is never read as one
-  exact number, and the meter's flag gives the best estimate; the energy ratio does the same: "Over 20 min,
-  your running is 5% to 20% higher than your cycling, as energy per kilogram." A range that rounds to a
-  single value is said as that value: "grades 6 points higher", "about 12% higher".
+- **The balance is stated as a grade gap, led by its best estimate.** With both grades: "Running's age grade
+  is 9 points higher than cycling's at 20 min, within −4 to +18 points." The estimate
+  decides the title and the lean (`leanOfLead`): a lead of more than 2 whole points leans toward the sport it
+  favours, "Your balance leans toward running", whether or not its range reaches zero. The range is stated
+  beside the estimate, from the side the estimate favours (running when it rounds to zero) on every surface: the lede, the meter's key, the spoken
+  name and the import summary. A level balance that favours cycling reads cycling's range too. A cycling lead reads "cycling's age grade is 9 points
+  higher than running's, within −4 to +18 points"; a range wholly on the leader's side is plain ("within 2 to
+  10 points"), and one that reaches zero or the other side is signed with true minus signs. A range that
+  rounds to a single value is left out: "Running's age grade is 6 points higher than cycling's at 20 min."
+  Only an estimate within 2 whole points (`LEVEL_BAND`), however wide its range, is called level, under the
+  title "Your running and cycling are in balance": "Running's age grade is 2 points higher than cycling's at
+  20 min, within −2 to +6 points, so the two are level." Exactly zero reads "Running and cycling have the same
+  age grade at 20 min, within −2 to +2 points, so the two are level.", and a lopsided range
+  names its side: "within −1 to +3 points (running minus cycling)". The page, the meter, its spoken name and the
+  share card all read the one `BalanceReading`, so they cannot disagree. The grade profile keeps its own rule,
+  by range alone (`leanOfRange`): a sport leads at a duration only where its grade is outside the other's range.
+  Never "ahead of". Without an age and sex, the energy ratio stands in, led the same way: "Over 20 min, your
+  running is 12% higher than your cycling, within 5% to 20%, as energy per kilogram." The prompt says that
+  adding them shows the balance in points and levels. The energy ratio's 90% range names the sport that leads,
+  with the same figures as the sentence and the meter: "Ride against Run, 90% range: 11% to 33%." on How sure
+  is this?, and "Run against Ride, 90% range: -2% to +4%." only when the two are level. The lede names no
+  dates: the period control's caption under the meter gives them when the period is not All time.
 - **The level target says what would level the balance.** When the balance leans, one muted line under the
   meter, below the grades, names what the lower sport's best effort at the headline length would need to grade
   level with the higher sport's whole-percent grade, in its own unit, rounded toward the side that levels (watts up to the next 5 W, a pace to the faster 5 s), and a ride's range is the watts at the 5th and 95th percentile of its equivalence, rounded outward to 5 W: "To grade level
@@ -865,7 +882,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **The share card speaks in one voice,** the reader's: "Your balance leans toward running", never
   "my". Its footnote names the standard and says what a level is, "Graded on the USATF road
   standards. A level, not a ranking.", or, with no grade on the card, "Estimated from your files. Not
-  a ranking."
+  a ranking." The card states a lead with the range it sits within on one line, in the lede's wording and
+  without the unit: "Running grades 9 points higher, within −4 to +18" (a level balance states no lead, since the
+  headline says it). It is short enough to leave the origin line in place at both shapes.
 - **Caveats become chips and shapes.** Draw a range instead of writing it; a caveat is a chip with
   an icon that links to the detail.
 - **Splits say what happened when they are missing**: "Splits were not kept when this run was added."
@@ -916,12 +935,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   as the secondary file chooser. The answer itself offers none, so there is one.
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
-  ride would let them be compared." beneath it.
+  ride would let them be compared." beneath it. When a sport has fewer than three analysed activities in the
+  period, it says what is missing instead: "From 1 run and 3 rides. Needs 2 more runs in this period."
+  (without "in this period" for All time), with **Show all time** when All time holds enough. The counts are
+  the ones the rule counts: where a treadmill run is on file the run count reads "outdoor runs" ("From 1
+  outdoor run and 3 rides. Needs 2 more outdoor runs."). One constant, `HEADLINE_MIN_ACTIVITIES`, sets the 3
+  here and in the line under the lede that counts each sport.
 - **The headline needs evidence on both sides.** Each sport needs a fitted threshold or an effort as long as
   the headline's (20 min). A sport known only from shorter efforts, such as one estimated 5 min ride, is not set
-  against the other: the answer reads "Not enough to compare yet" (`headlinePick`), on the page, the share card
-  and the import summary alike. How sure is this? holds its energy view the same way: "The comparison is held until there is an effort
-  of 20 min or more in each sport.", with no ratio chart and no energy-ratio copy.
+  against the other, and neither is a sport with fewer than three analysed activities in the period
+  (`HEADLINE_MIN_ACTIVITIES`): the answer reads "Not enough to compare yet" (`headlinePick`, which
+  `balanceOfPick` follows, so the grade gap is held with it), on the page, the share card
+  and the import summary alike. How sure is this? holds its energy view the same way and names the same reason (`heldReason`): "The
+  comparison is held. Needs 2 more runs in this period." or "The comparison is held. A hard 20 min run or ride
+  would let them be compared.", with no ratio chart and no energy-ratio copy.
 - **A run at walking pace is not a run.** A run whose moving pace is slower than 15:00 a mile for 10 min or more
   is a hike recorded as a run, unless its cadence is a runner's (130 steps a minute or more) or, without
   cadence, a tenth of its moving time was at a jog (`WALKING_PACE`, `digest/walkingPace.ts`). Either signal
@@ -1164,6 +1191,23 @@ with the page colour in equal steps from 80% (`MIN_ZONE_TINT`, the least that ke
 both sports, pinned by `zoneTint.test.ts`) for the lowest zone to 100% for the highest, edged in the page colour; the order, the
 numbers and the table say which zone is which, so the tint is not the only cue. In forced colours every segment is the
 highlight colour. The figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%").
+
+**Zones do not depend on the period.** The references that estimated zones are cut from (the run threshold pace, the
+ride threshold power, and the reference heart rates) are the whole library's, whatever period is picked: the
+library's judgement, taken over every visible activity once (`SessionState.zoneEstimates`, from `HeartRateJudgement`). A dated setting the
+athlete entered still wins on the date it is in force, so each activity is cut by the value in force on its own
+day, and the library's estimate stands where nothing was entered. Profile, the activity page and the sport page's time
+in zones all read it, so one activity has the same zones, and the same shares, under every period. The reference
+heart rate is one number too: the library judges heart rate against it (`HeartRateJudgement.referenceHr`), and every
+period's analysis reports and judges its efforts against it (`CombineOptions.references`), so Profile, How sure is
+this? and the set-aside note all say the same running and cycling figure. A period's own threshold, the sport page's
+figure for recent form, is still the period's.
+
+The thresholds and reference heart rates are the library's as a whole, so they sit at the library's best:
+a period far from the athlete's peak, an older one or a detrained one, is cut from the library's thresholds
+and not from its own best efforts. Adding files can move
+the library's thresholds, and with them the zones of older periods. The time in zones is the time spent
+against the peak-based zones, the same in every period.
 
 **Period maths.** Each activity's digest distribution (seconds per 1 bpm, 5 W or 0.05 m/s bin) is cut by that
 activity's own zones, so a period can hold activities with different zones (a threshold entered during it, or a

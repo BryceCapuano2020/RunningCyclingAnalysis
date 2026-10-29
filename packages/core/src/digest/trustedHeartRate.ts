@@ -42,6 +42,7 @@ function referencesOf(digests: ActivityDigest[]) {
  * With `given`, the set-aside was judged elsewhere, over a larger set of activities, and is used as it is
  * for those of `ordered` it names. The references reported are then these activities' own, taken from the
  * ones not named, and are not the references the set-aside was judged by (`HeartRateJudgement` has those).
+ * `combine` replaces them with the judgement's (`CombineOptions.references`), so a period reports the library's.
  */
 export function trustedHeartRate(
   ordered: ActivityDigest[],

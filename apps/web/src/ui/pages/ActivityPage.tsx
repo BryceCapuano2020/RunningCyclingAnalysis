@@ -9,6 +9,7 @@ import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { zonesAt } from '@rca/core/zones'
+import type { ZoneEstimates } from '@rca/core/zones'
 import type { ZoneSet } from '@rca/core/zones'
 import { ActivityDelete } from '../components/ActivityDelete'
 import { RouteOffer } from '../components/RouteOffer'
@@ -44,6 +45,8 @@ export interface ActivityPageProps {
   /** The whole library, newest first, so the activities either side of this one can be linked. */
   library: ActivitySummary[]
   result: AnalysisResult
+  /** The library's references that estimated zones are cut from, the same under every period. Null before an analysis. */
+  zoneEstimates: ZoneEstimates | null
   units: UnitSystem
   /** Body mass, kg, for the W/kg of cycling bests. Only used while weightKnown. */
   massKg: number
@@ -88,13 +91,13 @@ export interface ActivityPageProps {
 function zoneSetsOf(
   activity: ActivitySummary | null,
   settings: AthleteSettings,
-  result: AnalysisResult,
+  estimates: ZoneEstimates | null,
   weightKnown: boolean,
   setAsideIds: readonly string[],
 ): ZoneSet[] {
   if (activity === null) return []
   const setAside = setAsideIds.includes(activity.id)
-  return zonesAt(activity.startMs, settings, result).filter(
+  return zonesAt(activity.startMs, settings, estimates).filter(
     (set) =>
       set.sport === activity.sport &&
       !(setAside && set.measure === 'heartRate') &&
@@ -138,6 +141,7 @@ export function ActivityPage({
   activity,
   library,
   result,
+  zoneEstimates,
   units,
   massKg,
   settings,
@@ -163,8 +167,8 @@ export function ActivityPage({
     () =>
       settings === undefined
         ? undefined
-        : zoneSetsOf(activity, settings, result, weightKnown, setAsideIds),
-    [activity, settings, result, weightKnown, setAsideIds],
+        : zoneSetsOf(activity, settings, zoneEstimates, weightKnown, setAsideIds),
+    [activity, settings, zoneEstimates, weightKnown, setAsideIds],
   )
   // Only a run's splits are asked for; the page keeps the answer, so the bests can place the flat pace note.
   const runId = activity?.sport === 'run' ? activity.id : null

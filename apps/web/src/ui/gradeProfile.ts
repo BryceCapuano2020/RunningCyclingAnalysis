@@ -3,6 +3,7 @@ import { equivalenceFor } from '@rca/core/pipeline'
 import type { AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { HrCalibration, Sport } from '@rca/core/types'
 import { activityMasses } from './activityMasses'
+import { leanOfRange } from '../domain/lean'
 import { balanceGap } from './balanceGap'
 import { sportGrade } from './grades'
 import type { AgeProfile, SportGrade } from './grades'
@@ -74,7 +75,7 @@ export function gradeProfile(
   return Object.fromEntries(SPORT_ORDER.map((sport) => [sport, pointsOf(sport)])) as GradeProfile
 }
 
-/** A duration with both sports graded: the gap between their centre grades, and which way the balance reads it. */
+/** A duration with both sports graded: the gap between their centre grades, and which way the range alone reads it. */
 export interface Lean {
   durationS: number
   /** The first sport's centre grade less the second's, in whole points, as the balance takes it. */
@@ -85,7 +86,8 @@ export interface Lean {
 
 /**
  * The durations both sports are graded at, each with its gap and lean. They come from the grades the
- * headline uses, through the balance's own `balanceGap`, so the lean at 20 min is the headline's.
+ * headline uses, through the balance's own `balanceGap`, so the gap at 20 min is the headline's. The
+ * lean here is by the range alone (`leanOfRange`): a sport leads where its grade is outside the other's range.
  */
 export function profileLeans(profile: GradeProfile): Lean[] {
   const [first, second] = SPORT_ORDER
@@ -93,7 +95,7 @@ export function profileLeans(profile: GradeProfile): Lean[] {
     const other = profile[second].find((candidate) => candidate.durationS === point.durationS)
     if (other === undefined) return []
     const gap = balanceGap(point.grade, other.grade)
-    return [{ durationS: point.durationS, gap: gap.centre, lean: gap.lean }]
+    return [{ durationS: point.durationS, gap: gap.centre, lean: leanOfRange(gap) }]
   })
 }
 
@@ -193,7 +195,7 @@ function steadyText(sport: Sport, pairings: readonly Lean[]): string {
 }
 
 /** Said after the stretches that lead, so the durations they leave out are not left unsaid. */
-const ELSEWHERE_WITHIN = '; elsewhere the two are within range'
+const ELSEWHERE_WITHIN = '; elsewhere the range of the gap reaches zero'
 
 /**
  * The stretches where a sport leads, such as "Your cycling grades higher up to 7 min, your running from 10
@@ -216,25 +218,22 @@ function estimatedSport(profile: GradeProfile): Sport | null {
   )
 }
 
-/** The sentence for sports that no duration separates: every gap is within the estimate's range. */
+/** The sentence for sports that no duration separates: at every duration the range of the gap reaches zero. */
 function noneSeparate(profile: GradeProfile, firstS: number, lastS: number): string {
-  const [a, b] = [SPORT_NOUN[SPORT_ORDER[0]], SPORT_NOUN[SPORT_ORDER[1]]]
   const estimated = estimatedSport(profile)
   const span = `at every duration from ${firstS / 60} to ${effortLabel(lastS)}`
-  const reason =
-    estimated === null
-      ? 'the two grade the same'
-      : `the gap is within ${SPORT_NOUN[estimated]}'s range`
-  return `No duration separates your ${a} and ${b}: ${span} ${reason}.`
+  const reason = estimated === null ? 'the two grade the same' : 'the range of the gap reaches zero'
+  return `${span[0]!.toUpperCase()}${span.slice(1)} ${reason}.`
 }
 
 /**
  * One plain sentence on how the sports compare across durations, from the grades the headline uses at
  * the durations both have, or null when fewer than two are graded in both, which is too few to say
  * anything the balance at 20 min does not. A sport is higher at a duration only where its grade is
- * outside the other's range, the balance's rule; the rest are within range. When one sport is outside
+ * outside the other's range, by the range alone; at the rest the range of the gap reaches zero. The headline
+ * leads by its estimate and states its range, so this line speaks only of ranges. When one sport is outside
  * the range at every duration it says by how much and how the gap changes. Otherwise it names the
- * stretches where a sport is higher, and that the two are within range elsewhere.
+ * stretches where a sport is higher, and that the range of the gap reaches zero elsewhere.
  */
 export function profileFinding(profile: GradeProfile): string | null {
   const pairings = profileLeans(profile)

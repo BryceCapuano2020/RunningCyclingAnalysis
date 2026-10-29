@@ -10,6 +10,7 @@ import {
   meterFraction,
   type BalanceReading,
 } from './balanceScale'
+import { plural } from './plural'
 import { SportIcon } from './icons'
 import './BalanceMeter.css'
 
@@ -60,7 +61,8 @@ export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
   const bandRight = Math.max(...bandEdges)
   const capped = cappedEnds(lead)
   const suffix = unit === 'percent' ? '%' : ''
-  const flag = `${Math.round(Math.abs(lead.centre))}${unit === 'points' ? ' pts' : '%'}`
+  const flagCount = Math.round(Math.abs(lead.centre))
+  const flag = unit === 'points' ? plural(flagCount, 'pt') : `${flagCount}%`
   const ticks = SCALE_TICKS.flatMap((value) =>
     [value, -value].map((position) => {
       const atEnd = value === SCALE_SPAN && (position > 0 ? capped.running : capped.cycling)

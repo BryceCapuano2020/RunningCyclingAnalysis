@@ -1,6 +1,12 @@
-import { fitCriticalPowerUnchecked } from '../cp'
+import { criticalPowerOutcome, fitCriticalPowerUnchecked, wPrimeFloor } from '../cp'
 import { requirePositiveFinite } from '../math'
-import type { ActivityDigest, AthleteSettings, DigestCurvePoint, Sport } from '../types'
+import type {
+  ActivityDigest,
+  AthleteSettings,
+  CriticalPowerFit,
+  DigestCurvePoint,
+  Sport,
+} from '../types'
 import { plainCurve } from './bestCurve'
 import type { HeartRateJudgement } from './setAsideTypes'
 import { massesOf } from './masses'
@@ -14,6 +20,39 @@ import {
 } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { trustedHeartRate } from './trustedHeartRate'
+
+/** The library's best curves, priced as the analysis prices them, with the masses and bike model that priced them. */
+function libraryCurves(digests: ActivityDigest[], settings: AthleteSettings) {
+  requirePositiveFinite('massKg', settings.massKg)
+  requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
+  const ordered = orderedCurrent(digests)
+  const masses = massesOf(settings)
+  const bikeModel = fitBikeModelOver(ordered, masses).model
+  const { runBest, rideMetabolic } = bestCurves(ordered, masses, bikeModel, settings.massKg)
+  return { ordered, masses, bikeModel, runCurve: plainCurve(runBest), rideMetabolic }
+}
+
+/** Each sport's threshold fit of the library as the analysis reports it, null where it has none or refuses it. */
+function reportedFits(
+  { runCurve, rideMetabolic }: ReturnType<typeof libraryCurves>,
+  massKg: number,
+): Record<Sport, CriticalPowerFit | null> {
+  return {
+    run: criticalPowerOutcome(runCurve, { minWPrime: wPrimeFloor('run', massKg) }).fit,
+    ride: criticalPowerOutcome(rideMetabolic, { minWPrime: wPrimeFloor('ride', massKg) }).fit,
+  }
+}
+
+/**
+ * The threshold fits of a library with no heart rate to judge: nothing is set aside and nothing calibrated, but the
+ * zones still take their threshold references from the library.
+ */
+export function libraryFits(
+  digests: ActivityDigest[],
+  settings: AthleteSettings,
+): HeartRateJudgement['fit'] {
+  return reportedFits(libraryCurves(digests, settings), settings.massKg)
+}
 
 /**
  * Whose heart rate is set aside when these digests are judged together, and what they were judged against:
@@ -31,14 +70,10 @@ export function judgeHeartRate(
   digests: ActivityDigest[],
   settings: AthleteSettings,
 ): HeartRateJudgement {
-  requirePositiveFinite('massKg', settings.massKg)
-  requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
-  const ordered = orderedCurrent(digests)
-  const masses = massesOf(settings)
-  const bikeModel = fitBikeModelOver(ordered, masses).model
-  const { runBest, rideMetabolic } = bestCurves(ordered, masses, bikeModel, settings.massKg)
+  const curves = libraryCurves(digests, settings)
+  const { ordered, masses, bikeModel, runCurve, rideMetabolic } = curves
   const fits = {
-    run: fitCriticalPowerUnchecked(plainCurve(runBest)),
+    run: fitCriticalPowerUnchecked(runCurve),
     ride: fitCriticalPowerUnchecked(rideMetabolic),
   }
   const unit: Record<Sport, (digest: ActivityDigest, point: DigestCurvePoint) => number> = {
@@ -49,13 +84,17 @@ export function judgeHeartRate(
         masses.bodyKg(digest),
       ),
   }
-  const { setAside, reference, trusted } = trustedHeartRate(ordered, fits, (digest, point) =>
-    unit[digest.sport](digest, point),
+  const { setAside, reference, observedMax, trusted } = trustedHeartRate(
+    ordered,
+    fits,
+    (digest, point) => unit[digest.sport](digest, point),
   )
   const { kappa, lnKappaSe } = heartRateCrossCheck(trusted, masses, bikeModel, fits)
   return {
     setAside: [...setAside].sort(),
     referenceHr: { run: reference.run, ride: reference.ride },
+    observedMaxHr: { run: observedMax.run, ride: observedMax.ride },
+    fit: reportedFits(curves, settings.massKg),
     threshold: { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null },
     calibration: kappa === null ? null : { kappa, lnKappaSe },
   }

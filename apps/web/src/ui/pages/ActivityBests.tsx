@@ -1,7 +1,9 @@
+import { effortsCount } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { EarnedRecord } from '@rca/core/records'
 import type { UnitSystem } from '@rca/core/units'
+import { INDOOR_NOTE } from '../analysis/indoorCopy'
 import { GradingLink } from '../components/GradingLink'
 import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
@@ -22,7 +24,7 @@ import {
 } from '../grades'
 import type { AgeProfile } from '../grades'
 import { periodBestText } from '../periodCopy'
-import { FLAT_MARK, recordRow, treadmillMarks } from '../recordRow'
+import { FLAT_MARK, recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import {
   chipLabels,
@@ -90,7 +92,8 @@ const ALL_TIME_MARK = 'All-time record'
  * one that is the best of the period says which period; an activity outside the period has no period
  * bests, and its all-time records are named even though the period holds no figure for them. Each is
  * graded at its own date and linked to How is this graded?. The list says nothing when it has no best,
- * so an activity without one is not told it has none.
+ * so an activity without one is not told it has none. An indoor run holds no best: its own distance
+ * times show, ungraded and unmarked, under a line that says its pace is not used for bests.
  */
 export function ActivityBests({
   activity,
@@ -106,6 +109,8 @@ export function ActivityBests({
   splitsView,
 }: ActivityBestsProps) {
   const sport = activity.sport
+  // An indoor run's times are shown as run, but they are no best and carry no grade.
+  const counts = effortsCount(activity)
   const periodMark = period === undefined ? null : periodBestText(period)
   // A period of all time already holds every record, so the sport page has nothing to switch to.
   const allTimeShown = period !== undefined && period.days === null
@@ -125,6 +130,7 @@ export function ActivityBests({
     (label) => !bests.some((record) => `Best ${effortLabel(record.durationS)}` === label),
   )
   if (bests.length === 0 && distances.length === 0 && unfigured.length === 0) {
+    if (!counts) return <p className="secondary">{INDOOR_NOTE}</p>
     // A ride with no measured power has no power curve, and the page says why rather than leaving it out.
     const reason =
       sport === 'ride' && activity.powerSource !== 'measured'
@@ -148,7 +154,7 @@ export function ActivityBests({
   const distanceItems = distances.map((record) => ({
     record,
     outcome:
-      profile === null
+      profile === null || !counts
         ? null
         : distanceGrade(record.distanceM, record.seconds, activity.startMs, profile),
   }))
@@ -178,15 +184,12 @@ export function ActivityBests({
       )
       return {
         key: `distance-${record.distanceM}`,
-        label: `Best ${record.label}`,
+        label: counts ? `Best ${record.label}` : record.label,
         value: record.time,
         // In miles the mile, and in kilometres the kilometre, is its own time, so it has no pace to show.
         sub: paceIsTime(record.distanceM, units) ? null : record.pace,
         grade: recordGradeCell(sport, outcome, null, 'row'),
-        tags: [
-          ...treadmillMarks(sport, activity),
-          ...scopeMark(chipped.has(`Best ${record.label}`), ofPeriod),
-        ],
+        tags: scopeMark(chipped.has(`Best ${record.label}`), ofPeriod),
         change: null,
         setDays: null,
         activity: null,
@@ -195,7 +198,7 @@ export function ActivityBests({
   ]
   return (
     <section className="section" aria-labelledby="activity-bests">
-      <h2 id="activity-bests">Best efforts set here</h2>
+      <h2 id="activity-bests">{counts ? 'Best efforts set here' : 'Distance times'}</h2>
       {rows.length > 0 && <SportRecords rows={rows} />}
       {unfigured.length > 0 && (
         <p className="secondary">
@@ -215,6 +218,7 @@ export function ActivityBests({
       {flatNoteHere(sport, splitsLoad, splitsView, units, rows) && (
         <p className="muted">{FLAT_PACE_NOTE}</p>
       )}
+      {!counts && <p className="muted">{INDOOR_NOTE}</p>}
       {anyGraded && <GradingLink />}
     </section>
   )

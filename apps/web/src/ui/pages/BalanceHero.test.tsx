@@ -74,7 +74,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     )
     expect(
       screen.getByText(
-        'Over 20 min, your running is 5% to 20% higher than your cycling, as energy per kilogram.',
+        'Over 20 min, your running is 12% higher than your cycling, within 5% to 20%, as energy per kilogram.',
       ),
     ).toBeInTheDocument()
   })
@@ -112,7 +112,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Over 20 min, your cycling is 11% to 33% higher than your running, as energy per kilogram.',
+        'Over 20 min, your cycling is 25% higher than your running, within 11% to 33%, as energy per kilogram.',
       ),
     ).toBeInTheDocument()
   })
@@ -150,7 +150,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByRole('img', {
-        name: "Even within the model's range (running against cycling -5% to +5%)",
+        name: 'Level as energy per kilogram (running against cycling -5% to +5%)',
       }),
     ).toBeInTheDocument()
   })
@@ -229,7 +229,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s at 20 min, within 2 to 10 points.',
       ),
     ).toBeInTheDocument()
   })
@@ -248,12 +248,50 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toHaveAccessibleName(/range 2 to 10\u00a0points/)
   })
 
-  it('answers from the gap alone when there is no energy comparison yet', () => {
-    render(<BalanceHero {...ALL_TIME} result={makeResult()} pick={null} gap={gradedGap()} />)
+  it('answers from the gap, not the energy ratio, when both are there', () => {
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(0.75, 0.8, 0.9))}
+        gap={gradedGap()}
+      />,
+    )
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /Running grades 6 points/ })).toBeInTheDocument()
+  })
+
+  it('holds the answer, gap and all, while nothing picks a headline comparison', () => {
+    render(<BalanceHero {...ALL_TIME} result={makeResult()} pick={null} gap={gradedGap()} />)
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Not enough to compare yet' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /Running grades/ })).toBeNull()
+  })
+
+  it('leans on a 9 point estimate whose range reaches below zero, with the range stated and no word of balance', () => {
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap({ centre: 9, low: -4, high: 18, lean: 'run' })}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Running’s age grade is 9 points higher than cycling’s at 20 min, within −4 to +18 points.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/in balance|level/)).toBeNull()
+    expect(screen.getByRole('img', { name: /Running grades 9 points/ })).toHaveAccessibleName(
+      /range −4 to \+18\u00a0points/,
+    )
   })
 
   it('says the two are in balance in the title, and gives the best estimate and its range under it', () => {
@@ -261,8 +299,8 @@ describe('BalanceHero on the age-grade gap', () => {
       <BalanceHero
         {...ALL_TIME}
         result={makeResult()}
-        pick={null}
-        gap={gradedGap({ centre: 4, low: -2, high: 10, lean: 'even' })}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap({ centre: 2, low: -2, high: 6, lean: 'even' })}
       />,
     )
     expect(
@@ -270,7 +308,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'On your best 20 min in each, running’s age grade is 4 points higher than cycling’s, with a range of −2 to +10 points for that lead, so the two are level.',
+        'Running’s age grade is 2 points higher than cycling’s at 20 min, within −2 to +6 points, so the two are level.',
       ),
     ).toBeInTheDocument()
   })
@@ -280,7 +318,7 @@ describe('BalanceHero on the age-grade gap', () => {
       <BalanceHero
         {...ALL_TIME}
         result={makeResult()}
-        pick={null}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
         gap={gradedGap({ lean: 'ride', centre: -6, low: -10, high: -2 })}
       />,
     )
@@ -375,7 +413,7 @@ describe('BalanceHero without a comparison yet', () => {
     expect(screen.queryByRole('button', { name: 'Add runs' })).not.toBeInTheDocument()
   })
 
-  it('says there is not enough to compare yet, from the runs and rides on file', () => {
+  it('says there is not enough to compare yet, and what each sport needs, from the runs and rides on file', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const rides = [1, 2].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
     render(
@@ -393,23 +431,97 @@ describe('BalanceHero without a comparison yet', () => {
       screen.getByRole('heading', { level: 1, name: 'Not enough to compare yet' }),
     ).toBeInTheDocument()
     expect(
+      screen.getByText('From 1 run and 2 rides. Needs 2 more runs and 1 more ride.'),
+    ).toBeInTheDocument()
+  })
+
+  it('asks for the hard effort once each sport has enough activities', () => {
+    const activities = [1, 2, 3].flatMap((n) => [
+      makeActivity({ id: `run-${n}`, sport: 'run' }),
+      makeActivity({ id: `ride-${n}`, sport: 'ride' }),
+    ])
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult({ activities, comparison: { prior: [], calibrated: null } })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(
       screen.getByText(
-        'From 1 run and 2 rides. A hard 20 min run or ride would let them be compared.',
+        'From 3 runs and 3 rides. A hard 20 min run or ride would let them be compared.',
       ),
     ).toBeInTheDocument()
   })
 
-  it('counts each sport under the lede when either has few efforts, so the answer shows what it rests on', () => {
+  it('counts the outdoor runs the rule counts, and says so when treadmill runs are on file', () => {
+    const activities = [
+      ...[1, 2, 3].map((n) => makeActivity({ id: `tread-${n}`, sport: 'run', indoor: true })),
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      ...[1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
+    ]
     render(
       <BalanceHero
         {...ALL_TIME}
-        result={makeResult()}
+        result={makeResult({ activities, comparison: { prior: [], calibrated: null } })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(
+      screen.getByText('From 1 outdoor run and 3 rides. Needs 2 more outdoor runs.'),
+    ).toBeInTheDocument()
+  })
+
+  it('names the period in the need, and offers All time when it holds enough', () => {
+    const inPeriod = [
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      ...[1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
+    ]
+    const library = [
+      ...inPeriod,
+      makeActivity({ id: 'run-2', sport: 'run' }),
+      makeActivity({ id: 'run-3', sport: 'run' }),
+    ]
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        period={SIX_WEEKS}
+        library={library}
+        result={makeResult({ activities: inPeriod })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Not enough to compare yet' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('From 1 run and 3 rides. Needs 2 more runs in this period.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show all time' })).toBeInTheDocument()
+  })
+
+  it('counts each sport under the lede when either has few efforts, so the answer shows what it rests on', () => {
+    const activities = [
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      makeActivity({ id: 'run-2', sport: 'run', durationS: 600 }),
+      makeActivity({ id: 'run-3', sport: 'run', durationS: 600 }),
+      makeActivity({ id: 'ride-1', sport: 'ride' }),
+      makeActivity({ id: 'ride-2', sport: 'ride' }),
+      makeActivity({ id: 'ride-3', sport: 'ride', durationS: 600 }),
+    ]
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult({ activities })}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
         gap={gradedGap()}
       />,
     )
     expect(
-      screen.getByText('From 1 run and 1 ride. Add more runs or rides for a steadier answer.'),
+      screen.getByText('From 1 run and 2 rides. Add more runs or rides for a steadier answer.'),
     ).toBeInTheDocument()
   })
 
@@ -473,7 +585,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s at 20 min, within 2 to 10 points.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/12 May/)).not.toBeInTheDocument()
@@ -490,7 +602,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s at 20 min, within 2 to 10 points.',
       ),
     ).toBeInTheDocument()
   })

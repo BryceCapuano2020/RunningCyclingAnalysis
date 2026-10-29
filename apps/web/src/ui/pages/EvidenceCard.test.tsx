@@ -76,7 +76,7 @@ describe('EvidenceCard hard efforts', () => {
     expect(within(card).getByText('Hard efforts on file')).toBeInTheDocument()
     expect(
       within(card).getByText(
-        'Heart rate shows your best 20 min in both sports were hard, not easy. Still, that does not prove either was your hardest.',
+        'Heart rate shows your best 20 min in both sports were hard, not easy.',
       ),
     ).toBeInTheDocument()
   })
@@ -87,7 +87,7 @@ describe('EvidenceCard hard efforts', () => {
     const card = screen.getByRole('region', { name: 'Hard efforts on file' })
     expect(
       within(card).getByText(
-        'Heart rate shows your best 60 min in both sports were hard, not easy. Still, that does not prove either was your hardest.',
+        'Heart rate shows your best 60 min in both sports were hard, not easy.',
       ),
     ).toBeInTheDocument()
   })

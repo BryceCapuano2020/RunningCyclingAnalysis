@@ -4,6 +4,8 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../balanceGap'
 import type { HeadlinePick } from '../components'
+import { countedPhrase, heldReason, needLine } from '../components/headlineNeed'
+import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { BalanceMeter } from '../components/BalanceMeter'
 import { balanceOfPick } from '../components/balanceScale'
 import { HARDER_EFFORTS_TITLE, balanceSummary, balanceTitle } from '../components/headlineText'
@@ -11,7 +13,6 @@ import { WeightPrompt } from '../components/WeightPrompt'
 import { betweenClause } from '../periodCopy'
 import { plural } from '../components/plural'
 import { countEfforts, countSport } from '../records'
-import { HEADLINE_LABEL } from '../grades'
 import { PAGE_HEADING_ID } from './pageHeading'
 
 export interface BalanceHeroProps {
@@ -39,14 +40,16 @@ export interface BalanceHeroProps {
   levelLine?: string | null
 }
 
-/** Under this many activities in a sport, the answer rests on few of them, so the page counts each sport. */
-const FEW_EFFORTS = 3
-
 /** The count under the lede when either sport has few efforts; null when both have enough, or one is missing. */
 function fewEffortsText(result: AnalysisResult): string | null {
   const runs = countEfforts(result.activities, 'run')
   const rides = countEfforts(result.activities, 'ride')
-  if (runs === 0 || rides === 0 || (runs >= FEW_EFFORTS && rides >= FEW_EFFORTS)) return null
+  if (
+    runs === 0 ||
+    rides === 0 ||
+    (runs >= HEADLINE_MIN_ACTIVITIES && rides >= HEADLINE_MIN_ACTIVITIES)
+  )
+    return null
   return `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. Add more runs or rides for a steadier answer.`
 }
 
@@ -55,6 +58,22 @@ interface Missing {
   detail: string
   /** Whether All time would show something the period leaves out. */
   canShowAll: boolean
+}
+
+/** Neither sport is in the period on screen: what All time holds, or that the files hold neither. */
+function noneOnScreen(libraryRuns: number, libraryRides: number, when: string): Missing {
+  if (libraryRuns + libraryRides > 0) {
+    return {
+      title: `No runs or rides${when}`,
+      detail: `You have ${plural(libraryRuns, 'run')} and ${plural(libraryRides, 'ride')} in All time.`,
+      canShowAll: true,
+    }
+  }
+  return {
+    title: 'Add a run and a ride to see your balance',
+    detail: 'Your files have no running or cycling activities yet.',
+    canShowAll: false,
+  }
 }
 
 /** What is missing before the two sports can be compared, in the period on screen. */
@@ -70,7 +89,6 @@ function missingText(
   const libraryRides = countSport(library, 'ride')
   // All time names no period; a dated one says which dates it is missing a sport between.
   const when = period.days === null ? '' : ` ${betweenClause(period)}`
-  const anyInLibrary = libraryRuns + libraryRides > 0
   if (runs > 0 && rides === 0) {
     if (libraryRides > 0) {
       return {
@@ -103,24 +121,26 @@ function missingText(
       canShowAll: false,
     }
   }
-  if (runs === 0 && rides === 0) {
-    if (anyInLibrary) {
-      return {
-        title: `No runs or rides${when}`,
-        detail: `You have ${plural(libraryRuns, 'run')} and ${plural(libraryRides, 'ride')} in All time.`,
-        canShowAll: true,
-      }
-    }
-    return {
-      title: 'Add a run and a ride to see your balance',
-      detail: 'Your files have no running or cycling activities yet.',
-      canShowAll: false,
-    }
-  }
+  if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when)
+  return heldMissing(result, library, period)
+}
+
+/**
+ * The two sports are both on file but cannot be compared: the counts the headline's rule counts, then what is missing.
+ * A dated period short of activities may find enough in All time.
+ */
+function heldMissing(result: AnalysisResult, library: ActivitySummary[], period: Period): Missing {
+  const reason = heldReason(result, period)
+  const allTimeEnough =
+    needLine(headlineShortfall(result.activities), period, result.activities) !== null &&
+    period.days !== null &&
+    needLine(headlineShortfall(library), period, library) === null
+  const runs = countedPhrase(result.activities, 'run')
+  const rides = countedPhrase(result.activities, 'ride')
   return {
     title: HARDER_EFFORTS_TITLE,
-    detail: `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. A hard ${HEADLINE_LABEL} run or ride would let them be compared.`,
-    canShowAll: false,
+    detail: `From ${runs} and ${rides}. ${reason}`,
+    canShowAll: allTimeEnough,
   }
 }
 

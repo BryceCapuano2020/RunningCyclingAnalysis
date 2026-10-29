@@ -55,6 +55,22 @@ describe('RacePredictions', () => {
     ).toBeInTheDocument()
   })
 
+  it('carries a race from the outdoor run, not from a faster indoor run', () => {
+    const treadmill = makeActivity({
+      id: 'r2',
+      sport: 'run',
+      indoor: true,
+      distanceM: 10_000,
+      distanceBests: [{ distanceM: 10000, seconds: 38 * 60 }],
+    })
+    const both = racePredictionsOf('run', makeResult({ activities: [withBests, treadmill] }))
+    const outdoorOnly = racePredictionsOf('run', makeResult({ activities: [withBests] }))
+    // The treadmill's distance still counts as weekly volume, which only the marathon reads.
+    expect(both?.runsVdot).toBe(outdoorOnly?.runsVdot)
+    expect(both?.races.slice(0, 3)).toEqual(outdoorOnly?.races.slice(0, 3))
+    expect(racePredictionsOf('run', makeResult({ activities: [treadmill] }))).toBeNull()
+  })
+
   it('says it rests on the runs alone without heart rate', () => {
     const result = makeResult({ activities: [withBests] })
     renderPredictions(result)

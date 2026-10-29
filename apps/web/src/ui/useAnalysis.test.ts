@@ -170,6 +170,7 @@ const STATE = {
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
   heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
+  zoneEstimates: null,
   timeInZones: NO_ZONE_TIMES,
   records: new Map(),
 }

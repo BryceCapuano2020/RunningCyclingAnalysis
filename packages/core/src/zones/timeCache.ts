@@ -1,6 +1,6 @@
-import type { AnalysisResult } from '../digest/combine'
 import { sameDigests } from '../periodCache'
 import type { ActivityDigest, AthleteSettings } from '../types'
+import type { ZoneEstimates } from './zones'
 import { noTimeInZones, periodTimeInZones } from './periodTime'
 import type { TimeInZones } from './periodTime'
 
@@ -29,7 +29,7 @@ interface Entry {
   selected: ActivityDigest[]
   previous: ActivityDigest[]
   settings: string
-  analysis: AnalysisResult | null
+  analysis: ZoneEstimates | null
   heartRateSetAside: readonly string[]
   times: PeriodZoneTimes
 }
@@ -57,7 +57,7 @@ export class ZoneTimeCache {
     selected: ActivityDigest[],
     previous: ActivityDigest[],
     settings: AthleteSettings,
-    analysis: AnalysisResult | null,
+    analysis: ZoneEstimates | null,
     heartRateSetAside: readonly string[],
   ): PeriodZoneTimes {
     const key = settingsKey(settings)

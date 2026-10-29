@@ -74,6 +74,7 @@ function pageFor(activity: typeof run, loadTrace: LoadTrace) {
       activity={activity}
       library={[run, other]}
       result={{ ...result, activities: [run, other] }}
+      zoneEstimates={null}
       units="metric"
       massKg={70}
       weightKnown

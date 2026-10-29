@@ -1,3 +1,4 @@
+import { effortsCount } from '../digest/effortTrust'
 import { VO2MAX_MIN_HR_SHARE, VO2MAX_MIN_RUNS, VO2MAX_MIN_WINDOW_S } from '../constants'
 import { quantile } from '../math'
 import { metabolicToFlatSpeed } from '../metabolic'
@@ -59,10 +60,13 @@ function runEstimate(
   return chosen?.estimate ?? null
 }
 
-/** The speed of the fastest mile as run, m/s, in the digests; Infinity without one, so nothing is capped. */
+/**
+ * The speed of the fastest mile as run, m/s, in the digests; Infinity without one, so nothing is capped. An
+ * indoor run's mile is no best (see effortsCount), so it cannot lift the cap.
+ */
 export function fastestMileSpeed(digests: readonly ActivityDigest[]): number {
   let fastest = Infinity
-  for (const digest of digests) {
+  for (const digest of digests.filter(effortsCount)) {
     for (const best of digest.distanceBests ?? []) {
       if (best.distanceM === METRES_PER_MILE && best.seconds < fastest) fastest = best.seconds
     }
@@ -73,7 +77,7 @@ export function fastestMileSpeed(digests: readonly ActivityDigest[]): number {
 /**
  * VO2max from heart rate against pace, the way a watch estimates it: one estimate from each outdoor run
  * with trusted heart rate and a hard enough window, and their median. Null without a reference heart
- * rate or with fewer than VO2MAX_MIN_RUNS such runs. Treadmill pace is left out, since it can be wrong, and
+ * rate or with fewer than VO2MAX_MIN_RUNS such runs. Indoor pace is left out, since it can be wrong, and
  * so is a window faster on the flat than speedCap, the fastest mile as run in the digests by default.
  */
 export function vo2maxFromHeartRate(
@@ -84,7 +88,7 @@ export function vo2maxFromHeartRate(
 ): Vo2maxEstimate | null {
   if (referenceHr === null || !(referenceHr > 0)) return null
   const found = trusted
-    .filter((digest) => PACED[digest.sport] && digest.hasHeartRate && !digest.indoor)
+    .filter((digest) => PACED[digest.sport] && digest.hasHeartRate && effortsCount(digest))
     .map((digest) => runEstimate(digest, referenceHr, metabolicOf, speedCap))
     .filter((value): value is RunEstimate => value !== null)
   const estimates = found.flatMap((e) =>

@@ -72,9 +72,14 @@ export function makeRejectedFile(overrides: Partial<RejectedFile> = {}): Rejecte
 export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
   const comparison: Comparison = { prior: [comparisonPoint()], calibrated: null }
   return {
+    // Three of each, so the headline's rule of enough activities in the period is met.
     activities: [
       makeActivity({ id: 'run-1', sport: 'run' }),
+      makeActivity({ id: 'run-2', name: 'Second run', sport: 'run' }),
+      makeActivity({ id: 'run-3', name: 'Third run', sport: 'run' }),
       makeActivity({ id: 'ride-1', name: 'Hill ride', sport: 'ride', powerSource: 'virtual' }),
+      makeActivity({ id: 'ride-2', name: 'Second ride', sport: 'ride', powerSource: 'virtual' }),
+      makeActivity({ id: 'ride-3', name: 'Third ride', sport: 'ride', powerSource: 'virtual' }),
     ],
     runCurve: [],
     rideCurve: [],

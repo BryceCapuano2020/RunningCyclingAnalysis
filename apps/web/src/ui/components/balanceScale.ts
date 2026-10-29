@@ -77,12 +77,15 @@ export function balanceReading(
   return ratio === null ? null : energyReading(ratio)
 }
 
-/** The balance a page or a card states, from its grade gap and the headline's energy comparison. */
+/**
+ * The balance a page or a card states, from its grade gap and the headline's energy comparison. Without a
+ * pick the headline is held, so the gap is held with it: every surface that states the balance follows.
+ */
 export function balanceOfPick(
   gap: BalanceGap | null,
   pick: HeadlinePick | null,
 ): BalanceReading | null {
-  return balanceReading(gap, pick?.point.ratio ?? null)
+  return pick === null ? null : balanceReading(gap, pick.point.ratio)
 }
 
 /** Which ends of the scale a lead runs past, so that end is marked as capped. */
