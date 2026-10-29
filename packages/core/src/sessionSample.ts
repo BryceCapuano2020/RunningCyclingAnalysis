@@ -11,11 +11,22 @@ import type { ActivityDigest } from './types'
  */
 const SEASONS = new Map<number, ActivityDigest[]>()
 
-export function seasonDigests(clock: SampleClock): ActivityDigest[] {
-  const draw = () => samplePlan(clock).map((entry) => digestActivity(generateSampleActivity(entry)))
-  if (clock.utcOffsetMinutes !== undefined) return draw()
+/** Draws a season on a clock: every planned activity, second by second, then its digest. */
+export function drawSeason(clock: SampleClock): ActivityDigest[] {
+  return samplePlan(clock).map((entry) => digestActivity(generateSampleActivity(entry)))
+}
+
+/**
+ * The season's digests on a clock. `draw` is the drawing, a parameter so a test can see when it runs without
+ * drawing a season.
+ */
+export function seasonDigests(
+  clock: SampleClock,
+  draw: (clock: SampleClock) => ActivityDigest[] = drawSeason,
+): ActivityDigest[] {
+  if (clock.utcOffsetMinutes !== undefined) return draw(clock)
   const day = Math.floor(clock.nowMs / 86_400_000)
-  const held = SEASONS.get(day) ?? draw()
+  const held = SEASONS.get(day) ?? draw(clock)
   SEASONS.set(day, held)
   return held
 }
