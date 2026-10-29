@@ -704,6 +704,24 @@ describe('analysis worker', () => {
     })
   })
 
+  it('keeps the saved name when it rebuilds from a file that carries no title', async () => {
+    // A Strava export names the activity in activities.csv, so the FIT file alone would give a generated name.
+    const named = { ...SAMPLE_DIGEST, name: 'Lunch with Sam', modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([recordFor(named, true)])
+      .mockResolvedValueOnce([recordFor({ ...SAMPLE_DIGEST, name: 'Lunch with Sam' }, true)])
+    const { send } = await startWorker()
+    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(mocked.createActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Lunch with Sam', modelRevision: MODEL_REVISION }),
+      'run.fit',
+      expect.any(String),
+      USER_ID,
+      `rec-${named.id}`,
+    )
+  })
+
   it('counts a rebuild whose activity was deleted in another tab as missing, and does not re-create it', async () => {
     const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
     mocked.listActivities.mockResolvedValueOnce([recordFor(stale, true)]).mockResolvedValueOnce([])
