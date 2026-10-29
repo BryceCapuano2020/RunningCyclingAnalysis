@@ -381,6 +381,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
           ),
         }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
+    ...(activity.race === true ? { race: true as const } : {}),
     ...(atWalkingPace(activity, moving, movingS) ? { walkingPace: true as const } : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
   }

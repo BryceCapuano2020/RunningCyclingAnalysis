@@ -108,6 +108,7 @@ export function activitiesFromUnits(
     activityName: opts.activityName,
     nameAt: opts.nameAt,
     sessionKey: opts.sessionKey,
+    race: opts.race === true,
   }
 
   const outcomes: Outcome[] = []
@@ -154,6 +155,8 @@ interface Context {
   nameAt?: (startMs: number) => string | undefined
   /** The upload's id, which the legs of one upload share as their session key. */
   sessionKey?: string
+  /** The export tags the file's activities as races. */
+  race: boolean
 }
 
 /**
@@ -334,6 +337,7 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
       : { laps: lapsForSegment(unit.laps, resampled.startMs, resampled.n) }),
     ...(route ? { route } : {}),
     ...(sessioned ? { sessionKey: context.sessionKey } : {}),
+    ...(context.race ? { race: true as const } : {}),
   }
   return { ok: true, activity, dropped }
 }

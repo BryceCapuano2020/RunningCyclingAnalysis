@@ -208,7 +208,8 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    `activities.csv` is read by range, from the top-level zip's central directory only, so it may sit
    anywhere in the zip. A zip nested inside the export is never searched for a list. Its `Filename`
    column names each activity file's path in the zip, without `.gz`, and its `Activity Name` and
-   `Activity Type` columns say what the activity is called and what sport it was. The headers match
+   `Activity Type` columns say what the activity is called and what sport it was, and its `Competition`
+   column, when set (1, 1.0 or true), tags it as a race: the digest and the library list carry `race: true`. The headers match
    in any case, and paths are compared lowercase, with forward slashes (a zip written with backslashes
    is read too) and no `.gz`, and with `.` and `..` segments and repeated slashes resolved. A row that
    climbs above the zip's root, or ends as a folder does (`.`, `..` or a closing slash), names no file.

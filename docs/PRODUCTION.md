@@ -303,7 +303,7 @@ activities at a time with accessible paging.
   splits are over moving time less rests; a first session whose device distance starts far from zero
   counts from its own first sample; altitude outside -1000 to 10,000 m is dropped on import;
   the activity page's time in zones leaves out the seconds the quality assessment flagged, as the sport
-  page does; `walkingPace` marks a run at walking pace; and the
+  page does; `walkingPace` marks a run at walking pace; `race` marks an activity the Strava export's Competition column tags as a race (set when the file is imported from the export, so a held activity gains it only when its digest is rebuilt); and the
   `hr-implausible-for-power` flag compares a stretch with the same activity's heart rate at similar
   power instead of a fixed floor. (The whole-activity check against the library is applied when the
   library is judged, not stored in the digest.) Missing revision means

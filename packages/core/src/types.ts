@@ -10,10 +10,22 @@ import type {
   DigestDurabilityPoint,
 } from './digest/evidenceTypes'
 import type { RouteShape } from './route/routeShape'
+import type {
+  DigestClimbSection,
+  DigestCurvePoint,
+  DigestDistanceBest,
+  DigestHrBlock,
+} from './digest/partTypes'
 import type { DigestSplits } from './splits/types'
 import type { ActivityLap, CadenceUnit } from './workbench/types'
 
 export type { DigestSplit, DigestSplits } from './splits/types'
+export type {
+  DigestClimbSection,
+  DigestCurvePoint,
+  DigestDistanceBest,
+  DigestHrBlock,
+} from './digest/partTypes'
 export type {
   DigestDistribution,
   DigestDistributions,
@@ -74,6 +86,8 @@ export interface Activity {
    * multisport session, or the parts of one unit split by a long gap. Absent for a lone activity.
    */
   sessionKey?: string
+  /** True when the file's export tags the activity as a race, such as Strava's Competition column. Absent otherwise. */
+  race?: true
   /**
    * The outline of an outdoor GPS track, with its position removed. Kept on the device only, never
    * in a digest or sent to the server. See route/routeShape.ts.
@@ -285,43 +299,6 @@ export interface CalibrationSums {
   aG: number
 }
 
-export interface DigestCurvePoint {
-  durationS: number
-  /**
-   * Runs: best gross metabolic W/kg at the prior-mean economy. Rides with a power
-   * meter: best measured mechanical W. Rides without: NaN here, see `terms`.
-   */
-  value: number
-  startIndex: number
-  /** Length of the window this value really came from (>= durationS after the monotone envelope). */
-  windowS: number
-  /** Mean valid heart rate over that window, or null. */
-  heartRate: number | null
-  /** Virtual-power rides only: power terms of the chosen climb window. */
-  terms: PowerTerms | null
-}
-
-export interface DigestHrBlock {
-  heartRate: number
-  /** Runs: mean gross metabolic W/kg. Rides with power: mean measured W. Otherwise NaN. */
-  value: number
-  /** Virtual-power rides only. */
-  terms: PowerTerms | null
-}
-
-/** A run's fastest elapsed time over one record distance. Wall clock, so pauses inside it count. */
-export interface DigestDistanceBest {
-  distanceM: number
-  seconds: number
-}
-
-export interface DigestClimbSection {
-  start: number
-  end: number
-  measuredW: number
-  terms: PowerTerms
-}
-
 /**
  * Everything the cross-activity analysis needs from one activity, independent of
  * the athlete's settings, so it can be computed once at import, stored on the
@@ -373,6 +350,8 @@ export interface ActivityDigest {
   avgPowerW?: number | null
   /** The file this activity came from, when that file holds more than one activity. See Activity.sessionKey. */
   sessionKey?: string
+  /** True when the export the activity came from tags it as a race (Strava's Competition column). Absent otherwise and on older digests. */
+  race?: true
   /**
    * Runs only: true for a run at walking pace, a hike recorded as a run (see WALKING_PACE). It is kept in the
    * library and left out of the analysis. Absent otherwise and on older digests.

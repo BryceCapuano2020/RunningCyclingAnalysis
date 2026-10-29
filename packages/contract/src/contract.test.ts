@@ -673,6 +673,18 @@ describe('moving time and averages', () => {
     ).toThrow()
   })
 
+  it('keeps a race tag, of either sport, on a create and on a stored row, and rejects anything but true', () => {
+    for (const sport of ['run', 'ride'] as const) {
+      const wire = atRevision(MODEL_REVISION, { sport, race: true })
+      expect(ActivityDigestSchema.parse(wire).race).toBe(true)
+      expect(StoredActivityDigestSchema.parse(wire).race).toBe(true)
+    }
+    expect(StoredActivityDigestSchema.parse(digestWire)).not.toHaveProperty('race')
+    expect(() =>
+      ActivityDigestSchema.parse(atRevision(MODEL_REVISION, { sport: 'run', race: false })),
+    ).toThrow()
+  })
+
   it('allows walking pace on a run only', () => {
     const ride = atRevision(MODEL_REVISION, { sport: 'ride', walkingPace: true })
     expect(() => ActivityDigestSchema.parse(ride)).toThrow(/Only runs have a walking pace/)

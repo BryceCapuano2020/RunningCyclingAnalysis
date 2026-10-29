@@ -64,6 +64,8 @@ export interface ListedActivity {
   name?: string
   /** The Activity Type column as written, such as "Trail Run" or "Weight Training". */
   type?: string
+  /** True when the Competition column tags the activity as a race. */
+  race?: true
 }
 
 /** The activity files a list names, keyed by entryKey of each file's path in the zip. */
@@ -93,6 +95,7 @@ export function parseActivityList(
   let fileColumn = -1
   let nameColumn = -1
   let typeColumn = -1
+  let raceColumn = -1
   let header = true
   let rows = 0
   let complete = true
@@ -103,6 +106,7 @@ export function parseActivityList(
       fileColumn = columns.indexOf('filename')
       nameColumn = columns.indexOf('activity name')
       typeColumn = columns.indexOf('activity type')
+      raceColumn = columns.indexOf('competition')
       return fileColumn >= 0
     }
     if (rows >= maxRows) {
@@ -112,7 +116,14 @@ export function parseActivityList(
     rows++
     const key = fileKey(folder + cellAt(cells, fileColumn))
     if (key !== null && !files.has(key)) {
-      files.set(key, listedActivity(cellAt(cells, nameColumn), cellAt(cells, typeColumn)))
+      files.set(
+        key,
+        listedActivity(
+          cellAt(cells, nameColumn),
+          cellAt(cells, typeColumn),
+          isTagged(cellAt(cells, raceColumn)),
+        ),
+      )
     }
     return true
   })
@@ -124,8 +135,20 @@ function cellAt(cells: string[], column: number): string {
   return (cells[column] ?? '').trim()
 }
 
-function listedActivity(name: string, type: string): ListedActivity {
-  return { ...(name === '' ? {} : { name }), ...(type === '' ? {} : { type }) }
+/**
+ * Whether a tag column of the list is set. Strava writes its flags in the later columns as 1.0 or 0.0, and
+ * the early ones as true or false, so a set flag is any of those; blank and 0 are not set.
+ */
+function isTagged(cell: string): boolean {
+  return /^(1(\.0+)?|true|yes|y)$/i.test(cell)
+}
+
+function listedActivity(name: string, type: string, race: boolean): ListedActivity {
+  return {
+    ...(name === '' ? {} : { name }),
+    ...(type === '' ? {} : { type }),
+    ...(race ? { race: true as const } : {}),
+  }
 }
 
 /** What the list says about a file of the zip, by the path the zip gives it. */

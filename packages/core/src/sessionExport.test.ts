@@ -6,7 +6,7 @@ import { encodeGpx } from './gpx/encode'
 import { AnalysisSession } from './session'
 import type { RejectedFile } from './session'
 import { sampleDataset } from './synthetic'
-import type { Activity, AthleteSettings } from './types'
+import type { Activity, ActivityDigest, AthleteSettings } from './types'
 
 /** A Strava export zip read by the session: its activities.csv names the activities, and routes/ holds saved routes. */
 
@@ -509,5 +509,41 @@ describe('AnalysisSession reading the sport an export list gives', () => {
     expect(progress.at(-1)).toBe(4)
     // The total is counted by the same limits, so it is unknown rather than a count the import cannot reach.
     expect(total).toBeNull()
+  })
+})
+
+describe('AnalysisSession carrying the Strava race tag', () => {
+  it('puts the tag of the Competition column on the digest of the file it names, and on no other', async () => {
+    const csv = strToU8(
+      [
+        'Activity ID,Activity Name,Activity Type,Filename,Competition',
+        '1001,City 10K,Run,activities/1001.fit.gz,1.0',
+        '1002,Lunch Ride,Ride,activities/1002.fit.gz,',
+      ].join('\n') + '\n',
+    )
+    const saved: ActivityDigest[] = []
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [
+        zipFile({
+          'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+          'activities/1002.fit.gz': gzipSync(encodeFit(ride, { gps: true })),
+          'activities.csv': csv,
+        }),
+      ],
+      SETTINGS,
+      undefined,
+      async ({ digest }) => {
+        saved.push(digest)
+      },
+    )
+
+    const tagged = Object.fromEntries(state.library.map((summary) => [summary.name, summary.race]))
+    expect(tagged).toEqual({ 'City 10K': true, 'Lunch Ride': undefined })
+    expect(state.library.find((summary) => summary.name === 'Lunch Ride')).not.toHaveProperty(
+      'race',
+    )
+    expect(saved.find((digest) => digest.name === 'City 10K')?.race).toBe(true)
+    expect(saved.find((digest) => digest.name === 'Lunch Ride')).not.toHaveProperty('race')
   })
 })

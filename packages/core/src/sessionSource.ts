@@ -117,6 +117,7 @@ async function importFile(
   const parsed = parseActivityFile(file.bytes, file.fileName, undefined, {
     activityName: listed?.name,
     nameAt: garmin?.nameAt,
+    race: listed?.race,
     activityType: listed?.type,
     sessionKey,
   })

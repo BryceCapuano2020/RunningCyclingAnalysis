@@ -77,6 +77,8 @@ export interface ParseOptions {
    * when the caller gives none, and then the legs share no session.
    */
   sessionKey?: string
+  /** The file's export tags it as a race, such as Strava's Competition column. Every activity of the file carries the tag. */
+  race?: boolean
 }
 
 /** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */
