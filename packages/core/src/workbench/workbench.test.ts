@@ -230,31 +230,38 @@ describe('seconds the quality assessment left out', () => {
 })
 
 describe('conservative interval suggestions', () => {
-  it('marks sustained speed changes as editable inferred intervals', () => {
-    const item = trace(240)
-    item.streams.speed = Float32Array.from({ length: 240 }, (_, i) => (i >= 60 && i < 150 ? 5 : 3))
+  /** A run whose speed holds each level for its seconds, in order, with a little deterministic noise. */
+  function plan(...stretches: [seconds: number, speed: number][]): ActivityTrace {
+    const speeds = stretches.flatMap(([seconds, speed]) => new Array<number>(seconds).fill(speed))
+    const item = trace(speeds.length)
+    item.streams.speed = Float32Array.from(speeds, (value, i) =>
+      Number.isNaN(value) ? value : value + (((i * 7) % 5) - 2) * 0.02,
+    )
+    return item
+  }
+  const near = (found: number, wanted: number) => Math.abs(found - wanted) <= 10
+
+  it('marks repeated efforts as editable inferred intervals', () => {
+    const item = plan([200, 3], [90, 5], [120, 3], [90, 5], [200, 3])
     const suggestions = detectIntervals(item)
-    expect(suggestions.length).toBeGreaterThan(0)
+    expect(suggestions).toHaveLength(2)
     expect(suggestions.every((lap) => lap.label === 'Inferred interval')).toBe(true)
     expect(suggestions.every((lap) => lap.endS - lap.startS >= 60)).toBe(true)
   })
 
   it('places a step at its window centre, not a window early', () => {
-    const item = trace(240)
-    item.streams.speed = Float32Array.from({ length: 240 }, (_, i) => (i >= 60 && i < 150 ? 5 : 3))
-    const [interval, ...rest] = detectIntervals(item)
-    expect(rest).toEqual([])
-    expect(Math.abs(interval!.startS - 60)).toBeLessThanOrEqual(10)
-    expect(Math.abs(interval!.endS - 150)).toBeLessThanOrEqual(10)
+    const suggestions = detectIntervals(plan([200, 3], [90, 5], [120, 3], [90, 5], [200, 3]))
+    expect(suggestions).toHaveLength(2)
+    expect(near(suggestions[0]!.startS, 200) && near(suggestions[0]!.endS, 290)).toBe(true)
+    expect(near(suggestions[1]!.startS, 410) && near(suggestions[1]!.endS, 500)).toBe(true)
   })
 
   it('does not bridge a paused or unrecorded stretch inside an effort', () => {
-    const item = trace(700)
-    item.streams.speed = Float32Array.from({ length: 700 }, (_, i) => (i >= 60 && i < 350 ? 5 : 3))
-    for (let i = 200; i < 206; i++) item.paused[i] = 1
-    for (let i = 280; i < 283; i++) item.unrecorded[i] = 1
+    const item = plan([200, 3], [290, 5], [120, 3], [90, 5], [200, 3])
+    for (let i = 300; i < 306; i++) item.paused[i] = 1
+    for (let i = 380; i < 383; i++) item.unrecorded[i] = 1
     const suggestions = detectIntervals(item)
-    expect(suggestions.length).toBe(3)
+    expect(suggestions.length).toBe(4)
     for (const lap of suggestions) {
       for (let i = lap.startS; i < lap.endS; i++) {
         expect(item.paused[i] === 1 || item.unrecorded[i] === 1).toBe(false)
@@ -262,41 +269,105 @@ describe('conservative interval suggestions', () => {
     }
   })
 
-  it('finds no interval in a steady run that starts with a walk', () => {
-    const item = trace(3000)
-    item.streams.speed = Float32Array.from({ length: 3000 }, (_, i) => (i < 30 ? 1.5 : 3))
-    expect(detectIntervals(item)).toEqual([])
-  })
-
-  it('finds the repeats of a session that starts with a walk', () => {
-    const item = trace(30 + 5 * 300)
-    // Five efforts of 120 s at 4.5 m/s, each with 180 s at 3 m/s, after 30 s of walking.
-    item.streams.speed = Float32Array.from({ length: 30 + 5 * 300 }, (_, i) =>
-      i < 30 ? 1.5 : (i - 30) % 300 < 120 ? 4.5 : 3,
-    )
-    const found = detectIntervals(item)
-    expect(found).toHaveLength(5)
-    found.forEach((lap, k) => {
-      expect(Math.abs(lap.startS - (30 + k * 300))).toBeLessThanOrEqual(10)
-      expect(Math.abs(lap.endS - (150 + k * 300))).toBeLessThanOrEqual(10)
-    })
-  })
-
-  it('finds the efforts of a session whose first minute is stationary', () => {
-    const item = trace(900)
-    // Speed under 0.5 m/s is not a reading, so the stationary start has none.
-    item.streams.speed = Float32Array.from({ length: 900 }, (_, i) =>
-      i < 60 ? Number.NaN : i >= 400 && i < 520 ? 5 : 3,
-    )
-    const found = detectIntervals(item)
-    expect(found).toHaveLength(1)
-    expect(Math.abs(found[0]!.startS - 400)).toBeLessThanOrEqual(10)
-    expect(Math.abs(found[0]!.endS - 520)).toBeLessThanOrEqual(10)
-  })
-
   it('suggests nothing from a trace with neither power nor speed', () => {
     const item = trace(240)
     delete item.streams.speed
     expect(detectIntervals(item)).toEqual([])
+  })
+
+  describe('leaves one sustained change alone', () => {
+    it('a steady run that starts with a walk', () => {
+      expect(detectIntervals(plan([30, 1.5], [3000, 3]))).toEqual([])
+    })
+
+    it('a progressive run', () => {
+      const steps = Array.from({ length: 10 }, (_, k): [number, number] => [300, 2.6 + k * 0.1])
+      expect(detectIntervals(plan(...steps))).toEqual([])
+    })
+
+    it('a negative split', () => {
+      expect(detectIntervals(plan([1500, 3], [1500, 3.6]))).toEqual([])
+    })
+
+    it('a tempo finish after an easy start', () => {
+      expect(detectIntervals(plan([1800, 2.8], [900, 3.8]))).toEqual([])
+      expect(detectIntervals(plan([1200, 2.8], [1200, 2.8], [600, 3.8]))).toEqual([])
+    })
+
+    it('a tempo block that wobbles across the threshold for a few seconds', () => {
+      const item = plan([1800, 2.8], [900, 3.8], [900, 2.8])
+      const speed = item.streams.speed!
+      for (let i = 2000; i < 2012; i++) speed[i] = 2.8
+      expect(detectIntervals(item)).toEqual([])
+    })
+
+    it('a steady run that starts stationary', () => {
+      expect(detectIntervals(plan([60, Number.NaN], [3000, 3]))).toEqual([])
+    })
+  })
+
+  describe('finds the efforts of a session', () => {
+    it('that starts with a walk', () => {
+      const efforts: [number, number][] = [[30, 1.5]]
+      for (let k = 0; k < 5; k++) efforts.push([120, 4.5], [180, 3])
+      const found = detectIntervals(plan(...efforts))
+      expect(found).toHaveLength(5)
+      found.forEach((lap, k) => {
+        expect(near(lap.startS, 30 + k * 300)).toBe(true)
+        expect(near(lap.endS, 150 + k * 300)).toBe(true)
+      })
+    })
+
+    it('whose first minute is stationary', () => {
+      const found = detectIntervals(
+        plan([60, Number.NaN], [340, 3], [120, 5], [200, 3], [120, 5], [300, 3]),
+      )
+      expect(found).toHaveLength(2)
+      expect(near(found[0]!.startS, 400) && near(found[0]!.endS, 520)).toBe(true)
+    })
+
+    it('of track repeats, 6 x 800 m with a jog between', () => {
+      const session: [number, number][] = [[900, 2.6]]
+      for (let k = 0; k < 6; k++) session.push([190, 4.2], [150, 2.5])
+      session.push([600, 2.6])
+      const found = detectIntervals(plan(...session))
+      expect(found).toHaveLength(6)
+    })
+
+    it('of hill repeats, climbing slowly and jogging back down', () => {
+      const session: [number, number][] = [[600, 3]]
+      for (let k = 0; k < 5; k++) session.push([150, 2], [240, 3])
+      session.push([300, 3])
+      const found = detectIntervals(plan(...session))
+      expect(found).toHaveLength(5)
+      expect(found.every((lap) => lap.endS - lap.startS >= 100)).toBe(true)
+    })
+
+    it('of a fartlek with surges of different lengths', () => {
+      const found = detectIntervals(
+        plan([600, 3], [60, 4.5], [240, 3], [150, 4.5], [300, 3], [90, 4.5], [400, 3]),
+      )
+      expect(found).toHaveLength(3)
+    })
+
+    it('when the efforts and the rests are half the session each, taking the side that is not the warm-up', () => {
+      const item = trace(1200)
+      item.sport = 'ride'
+      item.streams.power = Float32Array.from({ length: 1200 }, (_, i) =>
+        i >= 120 && (i - 120) % 270 < 150 ? 300 : 100,
+      )
+      const found = detectIntervals(item)
+      expect(found).toHaveLength(4)
+      expect(found.every((lap) => lap.startS > 120)).toBe(true)
+    })
+
+    it('with the same power repeats for a ride', () => {
+      const item = trace(1500)
+      item.sport = 'ride'
+      item.streams.power = Float32Array.from({ length: 1500 }, (_, i) =>
+        i % 400 >= 100 && i % 400 < 220 ? 320 : 180,
+      )
+      expect(detectIntervals(item)).toHaveLength(4)
+    })
   })
 })
