@@ -22,3 +22,30 @@
 .activity-delete__question .confirm-actions {
   justify-content: flex-start;
 }
+
+/*
+ * On a phone, below 560 px (COMPACT_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts), the word gives way to an overflow
+ * mark, so the row keeps its two lines. The button keeps its name, "Delete" and the activity's, and the whole
+ * control height as its target; pressing it opens the same question.
+ */
+.activity-delete__more {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .activity-delete__word {
+    display: none;
+  }
+
+  .activity-delete__more {
+    display: inline-block;
+    --icon-size: 1.5rem;
+  }
+
+  .activity-list__item .activity-delete__open {
+    min-width: var(--control-height);
+    justify-content: center;
+    padding-inline: 0;
+    text-decoration: none;
+  }
+}

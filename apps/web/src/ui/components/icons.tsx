@@ -160,6 +160,17 @@ export function ArrowRightIcon({ className }: IconProps) {
   )
 }
 
+/** Three dots in a row, for a row's overflow button. */
+export function MoreIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </Icon>
+  )
+}
+
 /** A person, for the account and profile link. The sliders glyph read as a filter. */
 export function PersonIcon({ className }: IconProps) {
   return (
