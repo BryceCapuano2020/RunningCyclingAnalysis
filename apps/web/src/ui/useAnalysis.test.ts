@@ -1626,6 +1626,25 @@ describe('useAnalysis state', () => {
     expect(result.current.detail).toBeNull()
   })
 
+  it('forgets which activities hold detail when storage cannot say, and when the library changes', () => {
+    const { result } = setup()
+    act(() => worker().reply({ type: 'detailCoverage', ids: ['a'], oldestStartMs: 1 }))
+    expect(result.current.detail).not.toBeNull()
+    act(() => worker().reply({ type: 'detailCoverage', ids: null, oldestStartMs: null }))
+    expect(result.current.detail).toBeNull()
+
+    act(() => worker().reply({ type: 'detailCoverage', ids: ['a'], oldestStartMs: 1 }))
+    act(() => result.current.clear())
+    expect(result.current.detail).toBeNull()
+  })
+
+  it('forgets what was noted about the data when everything is cleared', () => {
+    window.localStorage.setItem('rca.aboutDataSeen', '{"walking":3}')
+    const { result } = setup()
+    act(() => result.current.clear())
+    expect(window.localStorage.getItem('rca.aboutDataSeen')).toBeNull()
+  })
+
   it('takes the outdated activities that have an original from the same reply as the state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     const outdated = { ...STATE, outdatedActivities: 3 }

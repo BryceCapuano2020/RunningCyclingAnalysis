@@ -298,3 +298,14 @@ describe('status messages go into regions that are already mounted', () => {
     expectAnnouncedFromMountedRegion(regions, /Saved 2 activities to your library/)
   })
 })
+
+describe('what the app noted about the data', () => {
+  it('is forgotten when the visitor signs out', () => {
+    window.localStorage.setItem('rca.aboutDataSeen', '{"walking":3}')
+    render(<App />)
+    fireEvent.click(document.querySelector('.account-menu__trigger')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(app.account.signOut).toHaveBeenCalledOnce()
+    expect(window.localStorage.getItem('rca.aboutDataSeen')).toBeNull()
+  })
+})

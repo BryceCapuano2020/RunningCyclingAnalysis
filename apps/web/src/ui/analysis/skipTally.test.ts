@@ -121,6 +121,13 @@ describe('tallySentence: a headline that adds up to the files read', () => {
     )
   })
 
+  it('says a single activity file in the singular', () => {
+    const outcome = { filesAdded: 1, rejected: 0, duplicates: [], notActivities: 2 }
+    expect(tallySentence(tallyOf(outcome, []))).toBe(
+      '3 files, 1 of them an activity file: 1 added, 2 not listed as activities.',
+    )
+  })
+
   it('leaves out a part with no files', () => {
     const outcome = { filesAdded: 4, rejected: 1, duplicates: [] }
     expect(tallySentence(tallyOf(outcome, [file('a.gpx', 'empty')]))).toBe(

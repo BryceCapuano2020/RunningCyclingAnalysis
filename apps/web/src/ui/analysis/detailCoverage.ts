@@ -3,16 +3,9 @@ import { formatMonth } from '../format/date'
 import type { DetailCoverage } from './model'
 
 /**
- * Whether this browser holds an activity's detailed readings: true or false once storage has said,
- * null before that or while a sample shows. An account's saved original file can give the detail back.
- */
-export function hasDetail(detail: DetailCoverage | null, activityId: string): boolean | null {
-  return detail === null ? null : detail.ids.has(activityId)
-}
-
-/**
- * The line a summary adds when the readings kept are the newest of more activities: how many, since
- * when, and what the older ones keep. Null when every activity has its readings, or nothing is known.
+ * The line a summary adds when readings are kept for only some activities: how many, how far back the
+ * newest go, and what the others keep. An oversized or outranked activity can be missing among the newest,
+ * so it does not say "the newest N". Null when every activity has its readings, or nothing is known.
  */
 export function detailCoverageLine(
   detail: DetailCoverage | null,
@@ -21,9 +14,9 @@ export function detailCoverageLine(
   if (detail === null || detail.oldestStartMs === null) return null
   const kept = detail.ids.size
   if (kept === 0 || kept >= activities) return null
-  const newest = kept === 1 ? 'your newest activity' : `your newest ${formatCount(kept)} activities`
+  const of = kept === 1 ? '1 of your activities' : `${formatCount(kept)} of your activities`
   return {
-    short: `Detail kept for the newest ${formatCount(kept)}`,
-    full: `Detailed readings kept for ${newest} (since ${formatMonth(detail.oldestStartMs, true)}). Older ones keep their summaries, bests and splits.`,
+    short: `Detail kept for ${formatCount(kept)} of ${formatCount(activities)}`,
+    full: `Detailed readings kept for ${of}, the newest back to ${formatMonth(detail.oldestStartMs, true)}. Others keep their summaries, bests and splits.`,
   }
 }

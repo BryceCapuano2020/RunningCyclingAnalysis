@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { currentMass } from '@rca/core/athlete'
 import './App.css'
+import { forgetSeenNotes } from './ui/aboutDataStore'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
 import { AppNotices } from './ui/components/AppNotices'
@@ -257,7 +258,11 @@ export function App() {
             status={account.status}
             me={account.me}
             onSignIn={account.signIn}
-            onSignOut={() => void account.signOut().catch(() => undefined)}
+            onSignOut={() => {
+              // What this browser noted about the visitor's data goes with their session.
+              forgetSeenNotes()
+              void account.signOut().catch(() => undefined)
+            }}
           />
         }
       />

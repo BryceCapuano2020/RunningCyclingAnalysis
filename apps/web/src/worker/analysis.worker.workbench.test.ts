@@ -310,11 +310,42 @@ describe('where an import keeps recordings', () => {
       messages.findIndex((message) => message.type === 'state'),
     )
 
+    // A request that cannot change what is stored says nothing more, and neither does one that leaves it as it was.
+    const same = await send({ type: 'keepProvisional', settings: SETTINGS })
+    expect(same.find((message) => message.type === 'detailCoverage')).toBeUndefined()
+    const settings = await send({ type: 'setSettings', settings: SETTINGS })
+    expect(settings.find((message) => message.type === 'detailCoverage')).toBeUndefined()
+
     spy.rows.clear()
-    const cleared = await send({ type: 'setSettings', settings: SETTINGS })
+    const cleared = await send({ type: 'keepProvisional', settings: SETTINGS })
     expect(cleared.find((message) => message.type === 'detailCoverage')).toMatchObject({
       ids: [],
       oldestStartMs: null,
+    })
+  })
+
+  it('counts recordings held in memory alone, as a provisional import leaves them', async () => {
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      provisional: true,
+    })
+    const coverage = messages.find((message) => message.type === 'detailCoverage')
+    expect(coverage).toMatchObject({ ids: [expect.any(String)], oldestStartMs: run.startMs })
+  })
+
+  it('tells the page storage cannot say only when it holds an answer from before', async () => {
+    const { send } = await startWorker()
+    const first = await send(signedOutImport(fitFile()))
+    expect(first.some((message) => message.type === 'detailCoverage')).toBe(true)
+
+    spy.store.list.mockResolvedValueOnce(null as never)
+    const unknown = await send({ type: 'keepProvisional', settings: SETTINGS })
+    expect(unknown.find((message) => message.type === 'detailCoverage')).toMatchObject({
+      ids: null,
     })
   })
 

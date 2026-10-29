@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import { WALKING_NOTE_PAGES } from '../analysis/walkingPaceCopy'
+import { forgetSeenNotes } from '../aboutDataStore'
 import { AppNotices } from './AppNotices'
 import type { AppNoticesProps } from './AppNotices'
 import { makeRejectedFile, makeResult } from './fixtures'
@@ -220,6 +221,16 @@ describe('AppNotices: the sample athlete across pages', () => {
     expect(pill).toHaveAttribute('aria-expanded', 'true')
   })
 
+  it('does not bring the banner back when the visitor returns to the first page', () => {
+    const props = sampleProps()
+    const view = render(<AppNotices {...props} />)
+    view.rerender(<AppNotices {...props} page="run" />)
+    view.rerender(<AppNotices {...props} page="balance" />)
+
+    expect(screen.queryByText(/Not kept: add files to replace it/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sample athlete' })).toBeInTheDocument()
+  })
+
   it('shows the banner again for a new sample, after the sample has gone', () => {
     const props = sampleProps()
     const view = render(<AppNotices {...props} />)
@@ -271,6 +282,24 @@ describe('AppNotices: About your data', () => {
     expect(screen.queryByText('About your data')).not.toBeInTheDocument()
   })
 
+  it('keeps a stable id and the count it said, not the sentence', () => {
+    render(
+      <AppNotices {...noticesProps({ state: { walkingPaceRuns: 38 } }, { walkingNote: true })} />,
+    )
+    expect(JSON.parse(window.localStorage.getItem('rca.aboutDataSeen') ?? '{}')).toEqual({
+      walking: 38,
+    })
+  })
+
+  it('shows the line again once what this browser noted has been forgotten', () => {
+    const analysis = { state: { walkingPaceRuns: 38 } }
+    render(<AppNotices {...noticesProps(analysis, { walkingNote: true })} />)
+    cleanup()
+    forgetSeenNotes()
+    render(<AppNotices {...noticesProps(analysis, { walkingNote: true })} />)
+    expect(screen.getByText('About your data')).toBeInTheDocument()
+  })
+
   it('shows the line again when what it says changes', () => {
     const first = render(
       <AppNotices {...noticesProps({ state: { walkingPaceRuns: 38 } }, { walkingNote: true })} />,
@@ -294,7 +323,7 @@ describe('AppNotices: About your data', () => {
 describe('AppNotices: where detailed readings stop', () => {
   const imported = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
 
-  it('says how many of the newest activities have detailed readings, and since when', () => {
+  it('says how many activities have detailed readings, and how far back the newest go', () => {
     render(
       <AppNotices
         {...noticesProps({
@@ -304,10 +333,10 @@ describe('AppNotices: where detailed readings stop', () => {
         })}
       />,
     )
-    expect(screen.getByText('Detail kept for the newest 2')).toBeInTheDocument()
+    expect(screen.getByText('Detail kept for 2 of 3')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Detailed readings kept for your newest 2 activities (since Mar 2024). Older ones keep their summaries, bests and splits.',
+        'Detailed readings kept for 2 of your activities, the newest back to Mar 2024. Others keep their summaries, bests and splits.',
       ),
     ).toBeInTheDocument()
   })

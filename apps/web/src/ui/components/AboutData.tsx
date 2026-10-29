@@ -1,30 +1,18 @@
 import { useEffect, useState } from 'react'
+import { readSeenNotes, writeSeenNotes } from '../aboutDataStore'
+import type { SeenNotes } from '../aboutDataStore'
 import './AboutData.css'
 
+/** A note about the visitor's data. Its id is stable and its count is what it says, so a new count is news. */
+export interface AboutNote {
+  id: string
+  count: number
+  text: string
+}
+
 export interface AboutDataProps {
-  /** The notes about the visitor's data that need no action, each a full sentence. */
-  notes: string[]
-}
-
-const STORAGE_KEY = 'rca.aboutDataSeen'
-/** The notes kept, newest last, so an old one is forgotten rather than the list growing for ever. */
-const KEPT = 20
-
-function readSeen(): string[] {
-  try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]')
-    return Array.isArray(parsed) ? parsed.filter((note) => typeof note === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-function writeSeen(notes: readonly string[]): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(notes.slice(-KEPT)))
-  } catch {
-    // The notes then show on every visit, which is the safe way to fail.
-  }
+  /** The notes about the visitor's data that need no action. */
+  notes: AboutNote[]
 }
 
 /**
@@ -36,15 +24,23 @@ function writeSeen(notes: readonly string[]): void {
  */
 export function AboutData({ notes }: AboutDataProps) {
   // What earlier visits showed, read once when the app opens.
-  const [before] = useState(readSeen)
-  const [thisVisit, setThisVisit] = useState<readonly string[]>([])
-  const fresh = notes.filter((note) => !before.includes(note) && !thisVisit.includes(note))
+  const [before] = useState(readSeenNotes)
+  const [thisVisit, setThisVisit] = useState<SeenNotes>({})
+  const fresh = notes.filter(
+    (note) => before[note.id] !== note.count && thisVisit[note.id] !== note.count,
+  )
   // Noted during render, so the first frame already shows the note.
-  if (fresh.length > 0) setThisVisit([...thisVisit, ...fresh])
-  const shown = notes.filter((note) => thisVisit.includes(note) || fresh.includes(note))
+  if (fresh.length > 0) {
+    setThisVisit({
+      ...thisVisit,
+      ...Object.fromEntries(fresh.map((note) => [note.id, note.count])),
+    })
+  }
+  const shown = notes.filter(
+    (note) => thisVisit[note.id] === note.count || fresh.some((f) => f.id === note.id),
+  )
   useEffect(() => {
-    if (thisVisit.length === 0) return
-    writeSeen([...before.filter((note) => !thisVisit.includes(note)), ...thisVisit])
+    if (Object.keys(thisVisit).length > 0) writeSeenNotes({ ...before, ...thisVisit })
   }, [before, thisVisit])
   if (shown.length === 0) return null
   return (
@@ -52,7 +48,7 @@ export function AboutData({ notes }: AboutDataProps) {
       <summary>About your data</summary>
       <ul>
         {shown.map((note) => (
-          <li key={note}>{note}</li>
+          <li key={note.id}>{note.text}</li>
         ))}
       </ul>
     </details>

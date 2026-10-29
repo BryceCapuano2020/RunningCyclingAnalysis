@@ -62,19 +62,17 @@ export function AppNotices({
   const bareLibraryNotice = result === null ? analysis.libraryNotice : null
   const bareLibraryError = result === null ? analysis.libraryError : null
   // Notes about the data that need no action. The walking-pace count is said where runs are listed or analysed.
+  const { hiddenDuplicates: copies, walkingPaceRuns: walking } = analysis.state
   const aboutNotes = [
-    ...(analysis.state.hiddenDuplicates > 0
-      ? [hiddenCopiesText(analysis.state.hiddenDuplicates)]
-      : []),
-    ...(walkingNote && analysis.state.walkingPaceRuns > 0
-      ? [walkingPaceText(analysis.state.walkingPaceRuns)]
+    ...(copies > 0 ? [{ id: 'copies', count: copies, text: hiddenCopiesText(copies) }] : []),
+    ...(walkingNote && walking > 0
+      ? [{ id: 'walking', count: walking, text: walkingPaceText(walking) }]
       : []),
   ]
-  // An account that keeps its files can read the older detail back from them, so the line is for the rest.
-  const detailLine =
-    signedIn && keepFiles && fileRetentionAvailable
-      ? null
-      : detailCoverageLine(analysis.detail, analysis.savedActivities.length)
+  // A signed-in library can read older detail back from a saved original, so the line, like the list's tag, is for this browser's own.
+  const detailLine = signedIn
+    ? null
+    : detailCoverageLine(analysis.detail, analysis.savedActivities.length)
   const sample = useSampleNotice({ page, shown: result !== null && isSample })
   return (
     <div className="app__notices">

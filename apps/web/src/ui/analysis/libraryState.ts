@@ -76,8 +76,14 @@ export function useLibraryState() {
   const resetNoticesFor = useCallback(
     (request: WorkerRequest) => {
       if (request.type === 'loadServer' || request.type === 'rebuildStale') setLibraryUnreadable(0)
-      // A sample keeps no recordings in storage, so what an earlier library held no longer stands.
-      if (request.type === 'loadSample') setDetail(null)
+      // A sample, another library or a clear is another scope, so what was held for the last no longer stands.
+      if (
+        request.type === 'loadSample' ||
+        request.type === 'loadServer' ||
+        request.type === 'loadDevice' ||
+        request.type === 'clear'
+      )
+        setDetail(null)
       if (request.type === 'loadSample' || request.type === 'loadDevice') dropNotSaved()
       if (retriesDevice(request)) setDeviceIssue(null)
     },

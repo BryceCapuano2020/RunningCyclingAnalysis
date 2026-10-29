@@ -4,6 +4,7 @@ import { activityTraceOf } from '@rca/core/workbench'
 import type { Activity } from '@rca/core/types'
 import { openWorkbenchStore } from './workbenchStore'
 import { activityFitsEntry } from './workbenchFit'
+import { scopeKey } from './workbenchSchema'
 import { activityTraceBytes, WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES } from './workbenchStore'
 import type { PutResult, TraceScope, WorkbenchStore } from './workbenchStore'
 
@@ -238,19 +239,30 @@ export class Workbench {
   }
 
   /**
-   * The ids of the activities whose recordings storage holds for the scope, and when the oldest of them
-   * started. Null when storage cannot say, which a page reads as unknown rather than as none.
+   * The ids of the activities whose recordings the scope holds, and when the oldest of them started: those
+   * in storage, those waiting for it and those in memory alone, as `holds` counts them. Null when storage
+   * cannot say, which a page reads as unknown rather than as none.
    */
   async coverage(
     scope: TraceScope,
   ): Promise<{ ids: string[]; oldestStartMs: number | null } | null> {
-    const entries = await this.store.list(scope).catch(() => null)
-    if (entries === null) return null
-    const oldestStartMs =
-      entries.length === 0
-        ? null
-        : entries.reduce((oldest, e) => Math.min(oldest, e.startMs), Infinity)
-    return { ids: entries.map((entry) => entry.activityId), oldestStartMs }
+    const stored = await this.store.list(scope).catch(() => null)
+    if (stored === null) return null
+    const found = new Map(stored.map((entry) => [entry.activityId, entry.startMs]))
+    const mine = scopeKey(scope)
+    // A recording read back from storage is stored, so the list above already has it, with its true start.
+    const held = [
+      ...this.deferred.values(),
+      ...[...this.traces.values()].filter((e) => e.home !== 'stored'),
+    ]
+    for (const { scope: other, trace, startMs } of held) {
+      if (scopeKey(other) === mine) found.set(trace.activityId, startMs)
+    }
+    const oldestStartMs = [...found.values()].reduce<number | null>(
+      (oldest, start) => (oldest === null ? start : Math.min(oldest, start)),
+      null,
+    )
+    return { ids: [...found.keys()], oldestStartMs }
   }
 
   /** Whether the activity's recording is in storage, as the last write or read left it, so it survives a reload. */

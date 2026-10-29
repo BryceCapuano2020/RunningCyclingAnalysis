@@ -97,10 +97,12 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         return
       }
       if (message.type === 'detailCoverage') {
-        current.library.setDetail({
-          ids: new Set(message.ids),
-          oldestStartMs: message.oldestStartMs,
-        })
+        // Unknown when storage could not say, so no activity is called detail-less on an old answer.
+        current.library.setDetail(
+          message.ids === null
+            ? null
+            : { ids: new Set(message.ids), oldestStartMs: message.oldestStartMs },
+        )
         return
       }
       if (message.type === 'libraryActivities') {

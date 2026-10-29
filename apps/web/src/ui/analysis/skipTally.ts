@@ -62,7 +62,10 @@ export function tallySentence(tally: SkipTally): string {
   const files = added + skippedTotal(tally)
   const shown = parts.filter(([count]) => count > 0).map(([, text]) => text)
   // The progress bar counts activity files, which the files the export does not list are not.
+  const activity = files - unlisted
   const activityFiles =
-    unlisted > 0 ? `, ${formatCount(files - unlisted)} of them activity files` : ''
+    unlisted > 0
+      ? `, ${formatCount(activity)} of them ${activity === 1 ? 'an activity file' : 'activity files'}`
+      : ''
   return `${plural(files, 'file')}${activityFiles}: ${shown.join(', ')}.`
 }
