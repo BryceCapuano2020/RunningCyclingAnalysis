@@ -286,11 +286,17 @@ describe('sport colour', () => {
     expect(declaring).toEqual(['styles/tokens.css'])
   })
 
-  it('fills the ride area with its sport colour, read from data-sport, not a series token', () => {
+  it('washes an area with its sport colour, read from data-sport, not a series token', () => {
     const chartSeries = sheets.find(({ path }) => path === 'ui/charts/ChartSeries.css')?.css ?? ''
-    expect(declarations(chartSeries, '.chart-series__area--ride').get('fill')).toBe(
-      'var(--sport-colour-soft)',
-    )
+    for (const sport of ['run', 'ride']) {
+      expect(declarations(chartSeries, `.chart-series__area--${sport}`).get('fill')).toBe(
+        'var(--sport-colour)',
+      )
+    }
+    // The wash is a tint of the line's colour, never louder than 15%, so the line and gridlines stay in front.
+    expect(
+      Number(declarations(chartSeries, '.chart-series__area').get('fill-opacity')),
+    ).toBeLessThanOrEqual(0.15)
   })
 })
 

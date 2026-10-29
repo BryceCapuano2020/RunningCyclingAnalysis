@@ -1,5 +1,7 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useContext, useLayoutEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import type { TooltipContent, TooltipRow } from './chartTypes'
+import { ReadoutContext } from './readoutContext'
 import { NARROW_WIDTH } from './ticks'
 import './ChartTooltip.css'
 
@@ -31,11 +33,13 @@ function keyClass({ kind, swatch }: TooltipRow): string {
  */
 export function ChartTooltip({ content, bounds, id }: ChartTooltipProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const readout = useContext(ReadoutContext)
 
   // Runs after every render: the box's own size is only known once it has content.
   useLayoutEffect(() => {
     const el = ref.current
-    if (el === null || content === null) return
+    // In a phone's readout row the box sits in the flow, so it has no position to set.
+    if (el === null || content === null || readout !== null) return
     const { offsetWidth: w, offsetHeight: h } = el
     let left = content.x + OFFSET
     if (left + w > bounds.width) left = content.x - OFFSET - w
@@ -48,7 +52,7 @@ export function ChartTooltip({ content, bounds, id }: ChartTooltipProps) {
     el.style.top = `${Math.max(0, Math.min(floored, bounds.height - h))}px`
   })
 
-  return (
+  const tooltip = (
     <div ref={ref} id={id} role="status" className="chart-tooltip">
       {content === null ? null : (
         <>
@@ -65,4 +69,6 @@ export function ChartTooltip({ content, bounds, id }: ChartTooltipProps) {
       )}
     </div>
   )
+  // On a phone the values are read in the fixed row above the plot, which a finger does not cover.
+  return readout === null ? tooltip : createPortal(tooltip, readout)
 }

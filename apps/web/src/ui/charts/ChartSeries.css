@@ -1,7 +1,7 @@
-/* Shared by the single-series charts: a 2.5 px line with round joins, an area under it and markers. */
+/* Shared by the single-series charts: a 3 px line with round caps and joins, an area under it and markers. */
 .chart-series__line {
   fill: none;
-  stroke-width: 2.5px;
+  stroke-width: 3px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -21,18 +21,22 @@
   stroke-dasharray: 5 4;
 }
 
-/* An area is filled, never outlined: its colour comes from the modifier that names its sport. */
+/*
+ * An area is a wash under its line, never outlined: its colour comes from the modifier that names its sport,
+ * at 12% so the line and the gridlines stay in front.
+ */
 .chart-series__area {
   stroke: none;
+  fill-opacity: 0.12;
 }
 
-/*
- * Only watts are filled. Pace has no zero to fill down to: its baseline is the slowest pace on the
- * axis, so a run's area would show the axis rather than the effort, and no run area is drawn. The
- * area names its sport on data-sport, so it reads that sport's soft colour.
- */
+/* The wash takes its sport's colour from data-sport, which sets --sport-colour on the area itself. */
+.chart-series__area--run {
+  fill: var(--sport-colour);
+}
+
 .chart-series__area--ride {
-  fill: var(--sport-colour-soft);
+  fill: var(--sport-colour);
 }
 
 /*
@@ -56,10 +60,10 @@
   stroke-width: 2px;
 }
 
-/* A marker ringed in the surface the chart sits on, so it stays legible where it crosses a line. */
+/* A marker is its fill ringed in the card colour, so it stays legible where it crosses a line or a gridline. */
 .chart-series__marker {
-  stroke: var(--surface-0);
-  stroke-width: 2;
+  stroke: var(--surface-1);
+  stroke-width: 2.5;
 }
 
 .chart-series__marker--run {
@@ -101,6 +105,11 @@
 /* In forced colours the sport strokes take the system's text and highlight colours, so the two
    lines stay apart without the tints. */
 @media (forced-colors: active) {
+  /* A wash is a tint, which forced colours drop: the line alone carries the series. */
+  .chart-series__area {
+    fill: none;
+  }
+
   .chart-series__line--run {
     stroke: CanvasText;
   }
@@ -149,4 +158,12 @@
     stroke: CanvasText;
     stroke-width: 2px;
   }
+}
+
+/*
+ * A stretch of the curve with no effort of its own length on file: the same line, lighter. It is drawn
+ * between its neighbours, not through data, and the chart labels it once.
+ */
+.chart-series__line--carried {
+  opacity: 0.4;
 }

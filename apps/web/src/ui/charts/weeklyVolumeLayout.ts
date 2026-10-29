@@ -13,10 +13,10 @@ export const MAX_BAR_PX = 16
 const BAR_FILL = 0.7
 /** The narrowest a bar is drawn, so that a long period still shows each week. */
 const MIN_BAR_PX = 1
-/** A bar narrower than this has no edge, since a 1 px edge on each side would leave no fill. */
-export const MIN_EDGED_BAR_PX = 4
+/** A bar narrower than this has no edge, since the 2 px gap takes 1 px of fill from each side. */
+export const MIN_EDGED_BAR_PX = 6
 /** A part shorter than this has no edge, since the edge would wipe it out. */
-export const MIN_EDGED_PART_PX = 2
+export const MIN_EDGED_PART_PX = 3
 
 /** One sport's piece of a week's bar, in px: the sport it is, where it starts and how tall it is. */
 export interface BarSegment {

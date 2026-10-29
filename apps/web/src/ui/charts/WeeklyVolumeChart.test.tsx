@@ -3,7 +3,10 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { DAY_MS } from '@rca/core/constants'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { VolumeWeek } from '../weeklyVolume'
+import { readStylesheet } from '../components/stylesheet'
 import { WeeklyVolumeChart } from './WeeklyVolumeChart'
+
+const css = await readStylesheet(import.meta.url, './WeeklyVolumeChart.css')
 
 const FIRST_END = Date.UTC(2025, 0, 12, 23, 59, 59, 999)
 const HOUR = 3600
@@ -72,6 +75,16 @@ describe('WeeklyVolumeChart', () => {
       'run',
       'ride',
     ])
+  })
+
+  it('rounds the data end of each bar, the top part only, and keeps a 2 px gap between stacked parts', () => {
+    chartWidth(900)
+    const { container } = renderChart(weeksOf([4, 0], [3.5, 1]))
+    const parts = [...container.querySelectorAll('[data-testid="volume-bar"]')]
+    // The first week is run alone, the second run under ride: the top part of each bar is the rounded one.
+    expect(parts.map((part) => part.getAttribute('rx'))).toEqual(['2', null, '2'])
+    expect(parts[0]).toHaveClass('volume-bar--edged')
+    expect(css).toMatch(/\.volume-bar--edged \{[^}]*stroke-width: 2;/)
   })
 
   it('leaves a week with no training as a gap, marked on the date axis', () => {

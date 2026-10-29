@@ -14,6 +14,65 @@
   text-wrap: balance;
 }
 
+/*
+ * With a takeaway, the title is the chart's name in small capitals above its finding: the data is the hero,
+ * and the sentence beneath says what was found.
+ */
+.chart-frame__title--eyebrow {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+/* The finding, and the one figure the chart is about beside it; the figure drops under the sentence where there is no room. */
+.chart-frame__headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+}
+
+.chart-frame__takeaway {
+  flex: 1 1 18rem;
+  max-width: 40ch;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.chart-frame__focal {
+  display: grid;
+  margin: 0;
+  line-height: 1;
+}
+
+.chart-frame__focal-label {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.chart-frame__focal-value {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-frame__focal-unit {
+  margin-left: 0.25em;
+  color: var(--text-secondary);
+  font-size: 0.45em;
+}
+
 /* The sentence the chart supports, on the page's reading measure, under the title. */
 .chart-frame__lede {
   max-width: 62ch;
@@ -114,4 +173,53 @@
 .chart-crosshair {
   stroke: var(--text-muted);
   stroke-width: 1;
+}
+
+/*
+ * A phone's scrub readout: a row of fixed height above the plot that the tooltip draws into, in place of a
+ * box floating over the plot where a finger is. With nothing active it says how to read values.
+ */
+.chart-frame__readout {
+  height: 3.5rem;
+  overflow: hidden;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.chart-frame__readout:not(:has(.chart-tooltip__title))::before {
+  content: 'Touch the chart to read a value';
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.chart-frame__readout .chart-tooltip {
+  position: static;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+}
+
+.chart-frame__readout .chart-tooltip__title {
+  margin: 0;
+}
+
+.chart-frame__readout .chart-tooltip__note {
+  padding-left: 0;
+}
+
+@media (max-width: 480px) {
+  .chart-frame__takeaway {
+    font-size: 1.5rem;
+  }
+
+  .chart-frame__focal-value {
+    font-size: 2.75rem;
+  }
 }

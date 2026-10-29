@@ -1,9 +1,10 @@
 import { formatDuration } from '@rca/core/units'
 import type { AxisTick } from './chartTypes'
+import { PHONE_CHART_WIDTH } from './plotBox'
 import { DEFAULT_ROOT_PX, GLYPH_EM, rootFontPx } from './rootFont'
 
 /** Below this width, x ticks are capped at four, and axis text is 12 px rather than 13. */
-export const NARROW_WIDTH = 480
+export const NARROW_WIDTH = PHONE_CHART_WIDTH
 
 const LABEL_GAP = 8
 /** Candidate duration ticks on a log x axis: 1, 5, 10, 20, 30, 60, 120 and 180 minutes. */

@@ -6,10 +6,13 @@
   fill: var(--sport-colour);
 }
 
-/* Edged in the page colour so that two stacked parts stay apart, when the part is wide and tall enough to keep its fill. */
+/*
+ * A 2 px gap in the page colour between two stacked parts, when the part is wide and tall enough to keep its
+ * fill. A bar's top part has a rounded data end (the rx is set on the element); the foot stays square.
+ */
 .volume-bar--edged {
   stroke: var(--surface-0);
-  stroke-width: 1;
+  stroke-width: 2;
 }
 
 /* In forced colours the sport tints go: running is the text colour and the other sports the highlight. */
