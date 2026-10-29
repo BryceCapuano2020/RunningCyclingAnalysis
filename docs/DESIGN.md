@@ -508,15 +508,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   so its gap at 20 minutes is the headline's. The headline leans by the estimate (`leanOfLead`) and states the
   range beside it; the chart separates by the range alone (`leanOfRange`), so a duration can be inside the other
   sport's range while the headline names the estimate's lead, with that range. A sport is higher at a duration only where its grade is outside the other's
-  range, in whole percents; a duration inside the range is level. When no duration is outside it: "No duration
-  separates your running and cycling: at every duration from 10 to 90 min the gap is within cycling's range."
+  range, in whole percents; a duration inside the range is level. The line speaks only of ranges, so it never
+  reads as contradicting the headline's estimate. When no duration is outside it: "At every duration from 10 to
+  90 min the range of the gap reaches zero."
   When one sport is outside the range at every shared duration it says by how much and how that changes:
   "Your running grades about 5 points higher than your cycling at every duration from 10 to 90 min, by a steady
   margin." The points are the median of the centre differences, in whole points. A shape clause is added when
   the gap changes by 4 points or more from the shortest shared duration to the longest: ", and the gap widens
   toward longer efforts" or ", and the gap narrows toward longer efforts"; below that it is ", by a steady
   margin". Otherwise it names only the stretches where a sport is higher, with the other durations said once:
-  "Your running grades higher from 15 to 45 min, apart from 30 min; elsewhere the two are within range." A
+  "Your running grades higher from 15 to 45 min, apart from 30 min; elsewhere the range of the gap reaches zero." A
   sport's leads that only level durations separate are one stretch, naming the level durations inside it, so a
   grade at the edge of a range does not break the sentence into pieces. When the higher sport changes: "Your
   cycling grades higher up to 7 min, your running from 10 min on."; with more than one change it walks through

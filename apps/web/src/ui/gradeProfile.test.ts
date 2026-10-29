@@ -263,7 +263,7 @@ describe('profileLeans and profileSeparated', () => {
   })
 })
 
-const WITHIN = 'elsewhere the two are within range'
+const WITHIN = 'elsewhere the range of the gap reaches zero'
 
 describe('profileFinding', () => {
   it('says no duration separates the sports when every gap is within the ride’s range', () => {
@@ -274,7 +274,7 @@ describe('profileFinding', () => {
       [60, 0.61, 0.6],
     ])
     expect(profileFinding(profile)).toBe(
-      "No duration separates your running and cycling: at every duration from 3 to 60 min the gap is within cycling's range.",
+      'At every duration from 3 to 60 min the range of the gap reaches zero.',
     )
   })
 
@@ -284,7 +284,7 @@ describe('profileFinding', () => {
       [5, 0.639, 0.6],
       [10, 0.639, 0.6],
     ])
-    expect(profileFinding(edge)).toContain('No duration separates')
+    expect(profileFinding(edge)).toContain('the range of the gap reaches zero')
     const past = profileOf([
       [5, 0.64, 0.6],
       [10, 0.64, 0.6],

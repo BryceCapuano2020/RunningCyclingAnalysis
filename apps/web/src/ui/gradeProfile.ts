@@ -195,7 +195,7 @@ function steadyText(sport: Sport, pairings: readonly Lean[]): string {
 }
 
 /** Said after the stretches that lead, so the durations they leave out are not left unsaid. */
-const ELSEWHERE_WITHIN = '; elsewhere the two are within range'
+const ELSEWHERE_WITHIN = '; elsewhere the range of the gap reaches zero'
 
 /**
  * The stretches where a sport leads, such as "Your cycling grades higher up to 7 min, your running from 10
@@ -218,25 +218,22 @@ function estimatedSport(profile: GradeProfile): Sport | null {
   )
 }
 
-/** The sentence for sports that no duration separates: every gap is within the estimate's range. */
+/** The sentence for sports that no duration separates: at every duration the range of the gap reaches zero. */
 function noneSeparate(profile: GradeProfile, firstS: number, lastS: number): string {
-  const [a, b] = [SPORT_NOUN[SPORT_ORDER[0]], SPORT_NOUN[SPORT_ORDER[1]]]
   const estimated = estimatedSport(profile)
   const span = `at every duration from ${firstS / 60} to ${effortLabel(lastS)}`
-  const reason =
-    estimated === null
-      ? 'the two grade the same'
-      : `the gap is within ${SPORT_NOUN[estimated]}'s range`
-  return `No duration separates your ${a} and ${b}: ${span} ${reason}.`
+  const reason = estimated === null ? 'the two grade the same' : 'the range of the gap reaches zero'
+  return `${span[0]!.toUpperCase()}${span.slice(1)} ${reason}.`
 }
 
 /**
  * One plain sentence on how the sports compare across durations, from the grades the headline uses at
  * the durations both have, or null when fewer than two are graded in both, which is too few to say
  * anything the balance at 20 min does not. A sport is higher at a duration only where its grade is
- * outside the other's range, the balance's rule; the rest are within range. When one sport is outside
+ * outside the other's range, by the range alone; at the rest the range of the gap reaches zero. The headline
+ * leads by its estimate and states its range, so this line speaks only of ranges. When one sport is outside
  * the range at every duration it says by how much and how the gap changes. Otherwise it names the
- * stretches where a sport is higher, and that the two are within range elsewhere.
+ * stretches where a sport is higher, and that the range of the gap reaches zero elsewhere.
  */
 export function profileFinding(profile: GradeProfile): string | null {
   const pairings = profileLeans(profile)
