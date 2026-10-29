@@ -147,7 +147,8 @@ const T_95 = [
   1.699, 1.697,
 ]
 
-function tQuantile(degrees: number): number {
+/** The 95th percentile of Student's t at `degrees` of freedom (1 or more), for a two-sided 90% interval. */
+export function tQuantile(degrees: number): number {
   return T_95[degrees - 1] ?? 1.66
 }
 
