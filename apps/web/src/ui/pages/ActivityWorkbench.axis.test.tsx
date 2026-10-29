@@ -44,57 +44,62 @@ function show(trace: ActivityTrace) {
   )
 }
 
-describe('ActivityWorkbench: a pace plot and its artifacts', () => {
+/** The y of each point of a path drawn as "M x y L x y …". */
+function yOf(path: string | null | undefined): number[] {
+  return [...(path ?? '').matchAll(/[ML] [\d.-]+ ([\d.-]+)/g)].map((match) => Number(match[1]))
+}
+
+/** The stack's row for a measure, which holds its axis, its band and its line. */
+function row(figure: HTMLElement, metric: string): Element {
+  const found = figure.querySelector(`[data-channel="${metric}"]`)
+  if (found === null) throw new Error(`no row for ${metric}`)
+  return found
+}
+
+describe('ActivityWorkbench: a pace row and its artifacts', () => {
   it('spans the axis over the pace the run held, and says what lay past each end', async () => {
     show(runWithArtifacts())
-    const figure = await screen.findByRole('figure', { name: /^Pace/ })
-    const plot = within(figure).getByRole('img', { name: /^Pace from 0:00 to 10:00/ })
-    expect(plot).toHaveAccessibleName('Pace from 0:00 to 10:00, between 4:10 /km and 5:33 /km')
-    // The fastest pace tops the axis and the slowest ends it; neither artifact is on it.
-    const axis = figure.querySelector('.activity-workbench__yaxis')
-    expect(axis).toHaveTextContent('4:10 /km5:33 /km')
-    expect(figure.querySelector('.activity-workbench__plot-body')).not.toHaveTextContent('27:47')
+    const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
+    const drawing = within(figure).getByRole('img', { name: /^From 0:00 to 10:00: Pace between/ })
+    expect(drawing).toHaveAccessibleName('From 0:00 to 10:00: Pace between 4:10 /km and 5:33 /km')
+    // Neither artifact is on the axis: its ticks name the pace the run held, not 27:47 or 2:02.
+    const ticks = [...row(figure, 'speed').querySelectorAll('.ts-stack__tick')].map(
+      (tick) => tick.textContent,
+    )
+    expect(ticks.length).toBeGreaterThan(1)
+    expect(ticks).not.toContain('27:47')
     expect(
       within(figure).getByText(
         'Past the axis, marked at its edge: 6 s slower than 5:33 /km, 3 s faster than 4:10 /km.',
       ),
     ).toBeInTheDocument()
-    // The clipped readings are dots on the plot's edges, and the line never leaves the plot.
-    const yOf = (path: string) =>
-      [...path.matchAll(/[ML] [\d.]+ ([\d.]+)/g)].map((match) => Number(match[1]))
-    const dots = yOf(figure.querySelector('.activity-workbench__clipped')?.getAttribute('d') ?? '')
-    expect(dots).toContain(0)
-    expect(dots).toContain(180)
-    expect(dots.every((y) => y === 0 || y === 180)).toBe(true)
-    const ys = yOf(figure.querySelector('.activity-workbench__line')?.getAttribute('d') ?? '')
-    expect(Math.min(...ys)).toBe(0)
-    expect(Math.max(...ys)).toBe(180)
+    // The clipped readings are arrowheads on the row's top and bottom edges, and the line never leaves the row.
+    const edge = row(figure, 'speed').querySelector('.ts-stack__edge')?.getAttribute('d') ?? ''
+    expect(edge).toMatch(/M [\d.-]+ 6 L/)
+    expect(edge).toMatch(/M [\d.-]+ 102 L/)
+    const ys = yOf(row(figure, 'speed').querySelector('.ts-stack__line')?.getAttribute('d'))
+    expect(Math.min(...ys)).toBe(6)
+    expect(Math.max(...ys)).toBe(102)
   })
 
-  it('draws the histogram over the same band, with every bar holding time', async () => {
+  it('draws the raw spread as a band wider than the smoothed line it surrounds', async () => {
     show(runWithArtifacts())
-    const figure = await screen.findByRole('figure', { name: /^Pace/ })
-    const histogram = within(figure).getByRole('img', { name: /^Time at each pace/ })
-    expect(histogram).toHaveAccessibleName(
-      'Time at each pace, from 4:10 /km to 5:33 /km. Most time at 5:23 /km–5:33 /km.',
-    )
+    const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
+    const speed = row(figure, 'speed')
+    const line = yOf(speed.querySelector('.ts-stack__line')?.getAttribute('d'))
+    const band = yOf(speed.querySelector('.ts-stack__band')?.getAttribute('d'))
+    // The readings alternate between two paces each second; the line is their average, so it moves less.
+    const middle = (values: number[]) => values.slice(40, 560)
+    const spread = (values: number[]) => Math.max(...values) - Math.min(...values)
+    expect(spread(middle(line))).toBeLessThan(spread(middle(band)) / 2)
   })
 
-  it('keeps the time past the axis in the table, so its rows add up to the moving time', async () => {
-    show(runWithArtifacts())
-    const figure = await screen.findByRole('figure', { name: /^Pace/ })
-    const table = within(figure).getByRole('table', { name: /pace while moving/i })
-    const rows = within(table).getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('Faster than 4:10 /km0:03')
-    expect(rows.at(-1)).toHaveTextContent('Slower than 5:33 /km0:06')
-  })
-
-  it('leaves a plot with no artifacts exactly as it was', async () => {
+  it('leaves a row with no artifacts exactly as it was', async () => {
     const trace = runWithArtifacts()
     trace.streams.speed = Float32Array.from({ length: 600 }, (_, i) => (i % 2 === 0 ? 3 : 4))
     show(trace)
-    const figure = await screen.findByRole('figure', { name: /^Pace/ })
-    expect(figure.querySelector('.activity-workbench__clipped')).toBeNull()
+    const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
+    expect(row(figure, 'speed').querySelector('.ts-stack__edge')?.getAttribute('d')).toBe('')
     expect(figure).not.toHaveTextContent('Past the axis')
   })
 })
@@ -115,7 +120,7 @@ describe('ActivityWorkbench: the interval summary of a run', () => {
 
   it('gives the average pace the activity header gives: the distance over the moving time', async () => {
     show(runWithArtifacts())
-    await screen.findByRole('figure', { name: /^Pace/ })
+    await screen.findByRole('figure', { name: /^Pace over time/ })
     // The distance up to the last sample, 2,087.7 m, over the 600 s: the activity header's own sum.
     expect(screen.getByText('Average pace').nextElementSibling).toHaveTextContent('4:47 /km')
   })
@@ -124,7 +129,7 @@ describe('ActivityWorkbench: the interval summary of a run', () => {
     const trace = runWithArtifacts()
     trace.streams.heartRate = new Float32Array(600).fill(150)
     show(trace)
-    await screen.findByRole('figure', { name: /^Heart rate/ })
+    await screen.findByRole('figure', { name: /heart rate/ })
     const others = screen.getByRole('table', { name: /while moving in the selected interval/i })
     expect(
       within(others)

@@ -1,0 +1,60 @@
+.lap-strip {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  /* Many laps keep their finger-wide segments and the strip scrolls, rather than crushing them. */
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.lap-strip__segment {
+  /* The width is the lap's seconds as flex-grow; the basis is nothing, so only the minimum holds it up. */
+  flex: 1 1 0;
+  min-width: 1.75rem;
+  min-height: 40px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.lap-strip__segment:hover {
+  background: var(--surface-2);
+}
+
+.lap-strip__segment:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The laps the selection covers: tinted, and still plainly pressable. */
+.lap-strip__segment--covered {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+/* The one lap the selection is exactly takes the selected colours and a tick, so it is not told apart by colour alone. */
+.lap-strip__segment.activity-workbench__lap--active {
+  border-color: var(--selected);
+  background: var(--selected);
+  color: var(--selected-contrast);
+  font-weight: 700;
+}
+
+.lap-strip__segment.activity-workbench__lap--active::before {
+  content: '✓';
+}
+
+@media (forced-colors: active) {
+  .lap-strip__segment.activity-workbench__lap--active {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+}

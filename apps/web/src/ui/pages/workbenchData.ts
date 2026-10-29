@@ -1,6 +1,6 @@
 import {
   detectIntervals,
-  distributionOf,
+  isTraceObservation,
   readingBand,
   summarizeSelection,
 } from '@rca/core/workbench'
@@ -11,11 +11,9 @@ import type {
   SelectionSummary,
   TraceMetric,
 } from '@rca/core/workbench'
-import { downsampleActivityTrace } from './workbenchDownsample'
-import type { PlotRun } from './workbenchDownsample'
-import { SPORT_READING, TRIMMED_METRICS, isPaceReading } from './workbenchFormat'
-
-export type DistributionBin = { from: number; to: number; seconds: number }
+import { reduceSeries, smoothedStream } from '../charts/timeSeriesModel'
+import type { SeriesColumns, SmoothedStream } from '../charts/timeSeriesModel'
+import { SPORT_READING, TRIMMED_METRICS } from './workbenchFormat'
 
 /** How many results of each trace are kept: a few selections and measures, then the oldest go. */
 const KEPT_RESULTS = 48
@@ -82,31 +80,47 @@ export function axisFor(
   })
 }
 
-/** The histogram bins in the order the page reads them: a pace from its fastest bin to its slowest. */
-export function distributionFor(
-  trace: ActivityTrace,
-  metric: TraceMetric,
-  startS: number,
-  endS: number,
-): DistributionBin[] {
-  return remembered(trace, `distribution:${metric}:${startS}:${endS}`, () => {
-    // A measure that never moved has no spread to show.
-    const axis = axisFor(trace, metric, startS, endS)
-    if (axis === null || axis.low === axis.high) return []
-    const bins = distributionOf(readableTrace(trace), metric, startS, endS, axis)
-    return isPaceReading(metric, trace.sport) ? bins.reverse() : bins
-  })
+/** The readings the page plots, per measure, with the running sums that smooth them. Made once per trace. */
+const streams = new WeakMap<ActivityTrace, Map<TraceMetric, SmoothedStream | null>>()
+
+/**
+ * A measure's readings as the page reads them: a second that is paused, unrecorded or out of range has
+ * none, so the line breaks there. Null for a measure the trace does not hold.
+ */
+export function plottedStream(trace: ActivityTrace, metric: TraceMetric): SmoothedStream | null {
+  let kept = streams.get(trace)
+  if (!kept) {
+    kept = new Map()
+    streams.set(trace, kept)
+  }
+  const known = kept.get(metric)
+  if (known !== undefined) return known
+  const read = readableTrace(trace)
+  const raw = read.streams[metric]
+  let made: SmoothedStream | null = null
+  if (raw !== undefined) {
+    const values = new Float32Array(raw.length)
+    for (let i = 0; i < raw.length; i += 1) {
+      values[i] = isTraceObservation(read, metric, i) ? raw[i]! : Number.NaN
+    }
+    made = smoothedStream(values)
+  }
+  kept.set(metric, made)
+  return made
 }
 
-export function plotRunsFor(
+/** A measure over the window as columns for drawing: a rolling mean sized to the zoom, and the lowest and highest reading. */
+export function seriesFor(
   trace: ActivityTrace,
   metric: TraceMetric,
   startS: number,
   endS: number,
-): PlotRun[] {
-  return remembered(trace, `plot:${metric}:${startS}:${endS}`, () =>
-    downsampleActivityTrace(readableTrace(trace), metric, startS, endS, 600),
-  )
+  columns: number,
+): SeriesColumns | null {
+  return remembered(trace, `series:${metric}:${startS}:${endS}:${columns}`, () => {
+    const stream = plottedStream(trace, metric)
+    return stream === null ? null : reduceSeries(stream, startS, endS, columns)
+  })
 }
 
 export function suggestedIntervals(trace: ActivityTrace): ActivityLap[] {

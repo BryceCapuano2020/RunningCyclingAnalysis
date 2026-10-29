@@ -1,31 +1,6 @@
 import type { ActivityTrace, ReadingBand, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
-import type { DistributionBin } from './workbenchData'
-import {
-  TRIMMED_METRICS,
-  displayValue,
-  metricLabel,
-  readingRange,
-  SPORT_READING,
-} from './workbenchFormat'
-
-/** A bin as the range it covers, from its lowest reading to its highest. */
-export function binRange(
-  bin: DistributionBin,
-  metric: TraceMetric,
-  trace: ActivityTrace,
-  units: UnitSystem,
-): string {
-  const { lowest, highest } = readingRange(metric, trace.sport, bin.from, bin.to)
-  const text = (value: number) => displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
-  return `${text(lowest)}–${text(highest)}`
-}
-
-/** The name of a measure's histogram, such as "Time at each pace". */
-export function distributionTitle(metric: TraceMetric, sport: ActivityTrace['sport']): string {
-  const name = metricLabel(metric, sport).toLowerCase()
-  return `Time at each ${metric === 'power' ? 'power' : name}`
-}
+import { TRIMMED_METRICS, displayValue, SPORT_READING } from './workbenchFormat'
 
 /** What a missing reading is called. Where speed has a floor, a missing one is mostly standing still. */
 export function noReadingLabel(metric: TraceMetric, sport: ActivityTrace['sport']): string {

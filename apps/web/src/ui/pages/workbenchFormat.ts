@@ -14,15 +14,7 @@ export const METRIC_ORDER: readonly TraceMetric[] = [
 ]
 
 /** The measures plotted when the activity opens. The rest can be chosen. */
-export const DEFAULT_METRICS: readonly TraceMetric[] = ['speed', 'power', 'heartRate']
-
-/** The measures whose spread across the interval is worth a histogram. */
-export const DISTRIBUTION_METRICS: readonly TraceMetric[] = [
-  'speed',
-  'heartRate',
-  'power',
-  'cadence',
-]
+export const DEFAULT_METRICS: readonly TraceMetric[] = ['speed', 'power', 'heartRate', 'altitude']
 
 /**
  * The measures whose plot axis and histogram leave out the few extreme readings at either end, and the
