@@ -159,11 +159,13 @@
   /* The room each side of the anchor: the number's half (a digit of the display face is about 0.62rem), with its unit on the right, or the range line's half. */
   --edge-left: max(
     calc(var(--number-chars, 3) * 0.62rem),
-    calc(var(--range-chars, 14) * 0.5ch + var(--space-1))
+    calc(var(--range-chars, 14) * 0.5ch + var(--space-1)),
+    calc(var(--basis-chars, 0) * 0.43ch + var(--space-1))
   );
   --edge-right: max(
     calc(var(--number-chars, 3) * 0.62rem + var(--space-2) + var(--unit-chars, 3) * 0.8rem),
-    calc(var(--range-chars, 14) * 0.5ch + var(--space-1))
+    calc(var(--range-chars, 14) * 0.5ch + var(--space-1)),
+    calc(var(--basis-chars, 0) * 0.43ch + var(--space-1))
   );
   position: absolute;
   top: 2.25rem;
@@ -220,7 +222,7 @@
   font-size: var(--text-xs);
 }
 
-/* A lead past the scale is drawn at its end; this mark beside the sport's name says it runs beyond. */
+/* A lead past the scale is drawn at its end; this mark, outside the sport's name and nearest the track's end, says it runs beyond. */
 .balance-meter__cap {
   color: var(--text-secondary);
 }

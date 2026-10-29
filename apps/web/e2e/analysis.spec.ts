@@ -455,42 +455,59 @@ for (const [width, height] of [
   })
 }
 
-test('no box around a defined term is transformed, filtered or contained, on Balance or a sport page', async ({
+/**
+ * Every defined term on the page, and every box around one that is transformed, filtered, contained or promoted:
+ * any of them would trap the phone's fixed note sheet.
+ */
+function definedTermAncestors(page: Page): Promise<{ terms: number; bad: string[] }> {
+  return page.evaluate(() => {
+    const bad: string[] = []
+    const terms = document.querySelectorAll('.definition')
+    for (const term of terms) {
+      for (let node = term.parentElement; node !== null; node = node.parentElement) {
+        const style = getComputedStyle(node)
+        const risky = [
+          ['transform', style.transform, 'none'],
+          ['filter', style.filter, 'none'],
+          ['backdrop-filter', style.backdropFilter, 'none'],
+          ['perspective', style.perspective, 'none'],
+          ['contain', style.contain, 'none'],
+          ['container-type', style.containerType, 'normal'],
+          [
+            'will-change',
+            /transform|filter|perspective/.test(style.willChange) ? style.willChange : 'auto',
+            'auto',
+          ],
+        ].filter(([, value, fine]) => value !== fine)
+        for (const [name, value] of risky) bad.push(`${node.className} ${name}: ${value}`)
+      }
+    }
+    return { terms: terms.length, bad }
+  })
+}
+
+test('no box around a defined term is transformed, filtered or contained, on the landing page, Method, Balance or a sport page', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
+  // The landing example defines the range and both levels; Method defines its own term.
+  await page.goto('/')
+  await expect(page.locator('.landing-example .definition')).toHaveCount(3)
+  const landing = await definedTermAncestors(page)
+  expect(landing.terms).toBeGreaterThanOrEqual(3)
+  expect(landing.bad).toEqual([])
+  await page.goto('/#/method')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  const method = await definedTermAncestors(page)
+  expect(method.terms).toBeGreaterThanOrEqual(1)
+  expect(method.bad).toEqual([])
   await openSample(page)
-  const guard = () =>
-    page.evaluate(() => {
-      const bad: string[] = []
-      const terms = document.querySelectorAll('.definition')
-      for (const term of terms) {
-        for (let node = term.parentElement; node !== null; node = node.parentElement) {
-          const style = getComputedStyle(node)
-          const risky = [
-            ['transform', style.transform, 'none'],
-            ['filter', style.filter, 'none'],
-            ['backdrop-filter', style.backdropFilter, 'none'],
-            ['perspective', style.perspective, 'none'],
-            ['contain', style.contain, 'none'],
-            ['container-type', style.containerType, 'normal'],
-            [
-              'will-change',
-              /transform|filter|perspective/.test(style.willChange) ? style.willChange : 'auto',
-              'auto',
-            ],
-          ].filter(([, value, fine]) => value !== fine)
-          for (const [name, value] of risky) bad.push(`${node.className} ${name}: ${value}`)
-        }
-      }
-      return { terms: terms.length, bad }
-    })
-  const balance = await guard()
+  const balance = await definedTermAncestors(page)
   expect(balance.terms).toBeGreaterThan(3)
   expect(balance.bad).toEqual([])
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
-    const found = await guard()
+    const found = await definedTermAncestors(page)
     expect(found.terms, sport).toBeGreaterThan(0)
     expect(found.bad, sport).toEqual([])
   }
@@ -502,7 +519,7 @@ test('no box around a defined term is transformed, filtered or contained, on Bal
  */
 async function setReading(
   page: Page,
-  reading: { at: string; number: string; unit: string; range: string },
+  reading: { at: string; number: string; unit: string; range: string; basis?: boolean },
 ): Promise<void> {
   await page.evaluate((r) => {
     const root = document.querySelector<HTMLElement>('.balance-meter__reading')
@@ -512,19 +529,31 @@ async function setReading(
     root.style.setProperty('--at', r.at)
     root.style.setProperty('--number-chars', String(r.number.length))
     root.style.setProperty('--unit-chars', String(r.unit.length))
-    root.style.setProperty('--range-chars', String(r.range.length))
-    const set = (selector: string, text: string) => {
+    root.style.setProperty('--range-chars', String(r.range === '' ? 0 : r.range.length + 6))
+    const text = 'informed by heart rate'
+    root.style.setProperty('--basis-chars', String(r.basis === true ? text.length : 0))
+    const set = (selector: string, value: string) => {
       const node = root.querySelector(selector)
-      if (node !== null) node.textContent = text
+      if (node !== null) node.textContent = value
     }
     set('.balance-meter__number', r.number)
     set('.balance-meter__unit', r.unit)
     set('.balance-meter__edges', r.range)
+    const range = root.querySelector<HTMLElement>('.balance-meter__range')
+    if (range !== null) range.style.display = r.range === '' ? 'none' : ''
+    let basis = root.querySelector<HTMLElement>('.balance-meter__basis')
+    if (basis === null) {
+      basis = document.createElement('p')
+      basis.className = 'balance-meter__basis'
+      basis.textContent = text
+      root.append(basis)
+    }
+    basis.style.display = r.basis === true ? '' : 'none'
   }, reading)
 }
 
-// The reading under the dot stays whole inside the window at either end of the scale, and with a long range, at
-// every width: its number, its hanging unit and its range line.
+// The reading under the dot stays whole inside the plot, and so inside the window, at either end of the scale, with a
+// long range, and with the heart-rate line alone: its number, its hanging unit, its range line and that line.
 for (const [width, height] of [
   [1440, 900],
   [390, 844],
@@ -541,19 +570,39 @@ for (const [width, height] of [
       { at: '2.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
       { at: '97.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
       { at: '50%', number: '+12', unit: '%', range: '-12.4% to +130.5%' },
+      // No range line, as when the range rounds to one value: the heart-rate line alone holds the clamp.
+      { at: '2.5%', number: '+12', unit: '%', range: '', basis: true },
+      { at: '97.5%', number: '+12', unit: '%', range: '', basis: true },
+      { at: '2.5%', number: '+12', unit: '%', range: '5% to 20%', basis: true },
     ]
     for (const reading of cases) {
       await setReading(page, reading)
-      const boxes = await page.evaluate(() => {
-        const rect = (selector: string) => {
-          const box = document.querySelector(selector)?.getBoundingClientRect()
-          return box === undefined ? null : { left: box.left, right: box.right }
+      const found = await page.evaluate(() => {
+        const rect = (node: Element | null) => {
+          const box = node?.getBoundingClientRect()
+          return box === undefined || box.width === 0 ? null : { left: box.left, right: box.right }
         }
-        return ['.balance-meter__number', '.balance-meter__unit', '.balance-meter__range'].map(rect)
+        const reading = document.querySelector('.balance-meter__reading')
+        return {
+          plot: rect(document.querySelector('.balance-meter__plot')),
+          parts: [
+            '.balance-meter__number',
+            '.balance-meter__unit',
+            '.balance-meter__range',
+            '.balance-meter__basis',
+          ].map((selector) => {
+            const node = reading?.querySelector(selector) ?? null
+            return node !== null && getComputedStyle(node).display === 'none' ? null : rect(node)
+          }),
+        }
       })
-      for (const box of boxes) {
-        if (box === null) throw new Error('a part of the reading is missing')
-        expect(box.left, JSON.stringify(reading)).toBeGreaterThanOrEqual(0)
+      if (found.plot === null) throw new Error('no plot')
+      // The plot runs from gutter to gutter: a part inside it is inside the window with the page's margin to spare.
+      expect(found.parts.filter((box) => box !== null).length).toBeGreaterThanOrEqual(2)
+      for (const box of found.parts) {
+        if (box === null) continue
+        expect(box.left, JSON.stringify(reading)).toBeGreaterThanOrEqual(found.plot.left - 0.5)
+        expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(found.plot.right + 0.5)
         expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(width)
       }
       // Each line stays one line: the range does not wrap into a column, and the page does not scroll sideways.

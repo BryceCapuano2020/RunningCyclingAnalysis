@@ -20,7 +20,7 @@
 /* A fixed name column and a fixed grade column, so the grades line up when the rows stack. */
 .balance-levels__row {
   display: grid;
-  grid-template-columns: 4.75rem 3rem minmax(0, auto);
+  grid-template-columns: 4.75rem auto minmax(0, auto);
   align-items: baseline;
   column-gap: var(--space-2);
   min-width: 0;
@@ -53,6 +53,8 @@
 }
 
 .balance-levels__grade {
+  /* The grade column is at least this wide, and grows for a grade of 100% or more, so it never meets the level. */
+  min-width: 3rem;
   font-family: var(--font-display);
   /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.5rem;

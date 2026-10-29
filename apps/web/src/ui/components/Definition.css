@@ -6,8 +6,9 @@
 
 .definition__term {
   position: relative;
-  margin: 0;
-  padding: 0;
+  /* A little room either side, so the focus ring is clear of the term's own letters and of the next glyph. */
+  margin: 0 2px;
+  padding: 0 1px;
   border: 0;
   border-bottom: 1px dotted currentColor;
   background: none;
@@ -64,6 +65,11 @@
 .definition[data-placement='above'] .definition__note {
   top: auto;
   bottom: calc(100% + var(--space-1));
+}
+
+/* The focus ring sits in the room either side of the term, so it touches no letter, its own or the next. */
+.definition__term:focus-visible {
+  outline-offset: 0;
 }
 
 /* The note touches the term's hover area, so a pointer crossing the gap to it never leaves. */

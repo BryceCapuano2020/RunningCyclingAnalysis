@@ -5,7 +5,14 @@ import { EVEN_LABEL, capText, cappedEnds, meterFraction, type BalanceReading } f
 import { DEFINITIONS } from '../pages/balanceDefinitions'
 import { Definition } from './Definition'
 import { SportIcon } from './icons'
-import { RANGE_WORD, meterRange, meterValue, rangeVerdictText, readingChars } from './meterReading'
+import {
+  BASIS_TEXT,
+  RANGE_WORD,
+  meterRange,
+  meterValue,
+  rangeVerdictText,
+  readingChars,
+} from './meterReading'
 import './BalanceMeter.css'
 
 export interface BalanceMeterProps {
@@ -35,13 +42,14 @@ function nameOf(reading: BalanceReading): string {
 }
 
 /** The reading's place and its size in characters, which the stylesheet keeps clear of the track's ends. */
-function readingStyle(reading: BalanceReading): CSSProperties {
-  const chars = readingChars(reading)
+function readingStyle(reading: BalanceReading, adjusted: boolean): CSSProperties {
+  const chars = readingChars(reading, adjusted)
   return {
     ...placedAt(reading.lead.centre),
     '--number-chars': chars.number,
     '--unit-chars': chars.unit,
     '--range-chars': chars.range,
+    '--basis-chars': chars.basis,
   } as CSSProperties
 }
 
@@ -65,15 +73,15 @@ export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
     <figure className={`scale-figure balance-meter balance-meter--${lean}`}>
       <div className="balance-meter__ends">
         <span className="balance-meter__end balance-meter__end--left" data-sport={LEFT}>
+          {cappedSport[LEFT] ? <span className="balance-meter__cap">{cap}</span> : null}
           <SportIcon sport={LEFT} className="balance-meter__glyph" />
           {SPORT_TITLE[LEFT]}
-          {cappedSport[LEFT] ? <span className="balance-meter__cap">{cap}</span> : null}
         </span>
         <span className="balance-meter__even-label">{EVEN_LABEL}</span>
         <span className="balance-meter__end balance-meter__end--right" data-sport={RIGHT}>
-          {cappedSport[RIGHT] ? <span className="balance-meter__cap">{cap}</span> : null}
           <SportIcon sport={RIGHT} className="balance-meter__glyph" />
           {SPORT_TITLE[RIGHT]}
+          {cappedSport[RIGHT] ? <span className="balance-meter__cap">{cap}</span> : null}
         </span>
       </div>
       <div className="balance-meter__plot">
@@ -85,7 +93,7 @@ export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
           <span className="balance-meter__even" />
           <span className="balance-meter__dot" style={placedAt(lead.centre)} />
         </div>
-        <div className="balance-meter__reading" style={readingStyle(reading)}>
+        <div className="balance-meter__reading" style={readingStyle(reading, adjusted)}>
           <p className="balance-meter__value">
             <span className="balance-meter__number">{value.number}</span>
             <span className="balance-meter__unit">{value.unit}</span>
@@ -97,7 +105,7 @@ export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
             </p>
           )}
           {adjusted && reading.unit === 'percent' ? (
-            <p className="balance-meter__basis">informed by heart rate</p>
+            <p className="balance-meter__basis">{BASIS_TEXT}</p>
           ) : null}
         </div>
       </div>

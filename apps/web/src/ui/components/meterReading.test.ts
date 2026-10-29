@@ -69,6 +69,7 @@ describe('readingChars', () => {
       number: 2,
       unit: 3,
       range: 'range 1 to 12'.length,
+      basis: 0,
     })
     expect(readingChars(gap(6, 6.2, 5.8)).range).toBe(0)
   })
@@ -81,6 +82,16 @@ describe('readingChars', () => {
     } as const
     expect(meterRange(long)).toBe('-12% to +31%')
     expect(readingChars(long).range).toBe('range -12% to +31%'.length)
+  })
+})
+
+describe('readingChars with the heart-rate line', () => {
+  const energy = energyReading(interval(1.05, 1.12, 1.2))
+
+  it('counts the heart-rate line only for an energy balance that heart rate informed', () => {
+    expect(readingChars(energy).basis).toBe(0)
+    expect(readingChars(energy, true).basis).toBe('informed by heart rate'.length)
+    expect(readingChars(gap(6, 1, 12), true).basis).toBe(0)
   })
 })
 

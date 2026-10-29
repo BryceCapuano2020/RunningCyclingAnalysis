@@ -38,14 +38,21 @@ export function meterRange(reading: BalanceReading): string | null {
 /** The word before the range's edges, and the space after it. */
 export const RANGE_WORD = 'range'
 
+/** The line under an energy balance's range when the heart-rate check informed it. */
+export const BASIS_TEXT = 'informed by heart rate'
+
 /**
  * How many characters each part of the reading takes, which the stylesheet turns into the room the reading keeps
- * from the track's ends: the number, its unit, and the range line with its word.
+ * from the track's ends: the number, its unit, the range line with its word, and the heart-rate line when shown.
  */
-export function readingChars(reading: BalanceReading): {
+export function readingChars(
+  reading: BalanceReading,
+  adjusted = false,
+): {
   number: number
   unit: number
   range: number
+  basis: number
 } {
   const value = meterValue(reading)
   const range = meterRange(reading)
@@ -53,6 +60,7 @@ export function readingChars(reading: BalanceReading): {
     number: value.number.length,
     unit: value.unit.length,
     range: range === null ? 0 : RANGE_WORD.length + 1 + range.length,
+    basis: adjusted && reading.unit === 'percent' ? BASIS_TEXT.length : 0,
   }
 }
 

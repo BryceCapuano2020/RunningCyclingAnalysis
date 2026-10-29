@@ -149,6 +149,12 @@ describe('Definition', () => {
       expect(root).toHaveAttribute('data-open', 'false')
     })
 
+    it('keeps the focus ring in the space beside the term, so it never touches the next glyph', () => {
+      expect(ruleBody(css, '.definition__term:focus-visible')).toMatch(/outline-offset:\s*0/)
+      expect(ruleBody(css, '.definition__term')).toMatch(/margin:\s*0 2px/)
+      expect(ruleBody(css, '.definition__term')).toMatch(/padding:\s*0 1px/)
+    })
+
     it('wraps its words whatever it sits in, so a term inside a no-wrap line does not make a one-line note', () => {
       expect(ruleBody(css, '.definition__note')).toMatch(/white-space:\s*normal/)
     })

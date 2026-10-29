@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mediaBlock, readStylesheet } from '../components/stylesheet'
+import { mediaBlock, readStylesheet, ruleBody } from '../components/stylesheet'
 import { BALANCE_PHONE_MAX_WIDTH_PX, HEADLINE_SMALL_MAX_WIDTH_PX } from '../layoutBreakpoints'
 
 const page = await readStylesheet(import.meta.url, './BalancePage.css')
@@ -34,6 +34,13 @@ describe('Balance page stylesheet', () => {
     const query = `(max-width: ${BALANCE_PHONE_MAX_WIDTH_PX}px)`
     expect(mediaBlock(meter, query)).toMatch(/\.balance-meter__number/)
     expect(mediaBlock(levels, query)).toMatch(/\.balance-levels__list/)
+  })
+
+  it('keeps the grade column at least 3rem and lets it grow, so a grade of 100% or more never meets the level', () => {
+    expect(ruleBody(levels, '.balance-levels__grade')).toMatch(/min-width:\s*3rem/)
+    expect(ruleBody(levels, '.balance-levels__row')).toMatch(
+      /grid-template-columns:\s*4\.75rem auto minmax\(0, auto\)/,
+    )
   })
 
   it('draws no underline under a keyboard-focused headline, since the sport it names carries the only one', () => {

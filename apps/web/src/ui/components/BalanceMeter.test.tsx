@@ -81,6 +81,7 @@ describe('BalanceMeter with a grade gap', () => {
     expect(reading?.style.getPropertyValue('--number-chars')).toBe('2')
     expect(reading?.style.getPropertyValue('--unit-chars')).toBe('3')
     expect(reading?.style.getPropertyValue('--range-chars')).toBe(String('range 2 to 10'.length))
+    expect(reading?.style.getPropertyValue('--basis-chars')).toBe('0')
   })
 
   it('names the cycling lead in the same words, with the sport that leads first', () => {
@@ -213,6 +214,12 @@ describe('BalanceMeter with the energy ratio', () => {
     expect(container.querySelector('.balance-meter__basis')?.textContent).toBe(
       'informed by heart rate',
     )
+    // The line is counted in the room the reading keeps from the track's ends.
+    expect(
+      container
+        .querySelector<HTMLElement>('.balance-meter__reading')
+        ?.style.getPropertyValue('--basis-chars'),
+    ).toBe(String('informed by heart rate'.length))
   })
 
   it('keeps a cycling lead past the scale at the cycling end of the track', () => {
