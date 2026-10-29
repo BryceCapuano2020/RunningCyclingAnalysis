@@ -88,8 +88,9 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
   holds whole numbers (one beat, or five watts) and is shared by them: 110 to 114 W with an edge at 111 W has one watt below
   and four above, so a fifth and four fifths of its seconds, and a one-beat bin is never split. This agrees with the trace
   below and with the Profile ranges, which are written from the same edges. Speed is not a whole
-  number, so a bin that straddles an edge is split in proportion to the width each side, as if its seconds were spread evenly
-  across it; the error is under 0.05 m/s of moving time at each edge. Every second is kept either way.
+  number, so `zonesFor` moves each pace cut to the nearest 0.05 m/s, the step of the speed bins (at most 0.025 m/s, about 2 to
+  4 s/km at running speeds). No speed bin then straddles an edge, and the digest places a second in the pace zone the trace does.
+  Every second is kept.
 - **From a trace.** The activity page reads the recorded stream second by second, so there is no bin to split. A reading
   on an edge is in the zone the edge opens (`low <= reading < high`), as in the Profile ranges ("138-187 W", "375 W or more").
   It reads the trace as recorded, not as the plots read it: a run's seconds slower than 0.5 m/s have no pace in the plots, but

@@ -44,10 +44,13 @@ describe('zonesFor', () => {
 
   it("cuts run speed at Friel's percents of threshold pace, slower pace meaning lower speed", () => {
     const zones = zonesFor('pace', 4)
-    // Zone 1 is slower than 129% of threshold pace: under 4 / 1.29 m/s. Zone 5 is faster than 99%.
-    expect(zones[0]?.high).toBeCloseTo(4 / 1.29, 12)
-    expect(zones[3]?.low).toBeCloseTo(4 / 1.06, 12)
-    expect(zones[4]?.low).toBeCloseTo(4 / 0.99, 12)
+    // Zone 1 is slower than 129% of threshold pace: under 4 / 1.29 m/s. Zone 5 is faster than 99%. Each cut is
+    // moved to the nearest 0.05 m/s, the step of the digest's speed bins, so within 0.025 m/s of the cut.
+    expect(zones[0]?.high).toBeCloseTo(4 / 1.29, 1)
+    expect(Math.abs(zones[0]!.high! - 4 / 1.29)).toBeLessThanOrEqual(0.025 + 1e-9)
+    expect(Math.abs(zones[3]!.low - 4 / 1.06)).toBeLessThanOrEqual(0.025 + 1e-9)
+    expect(Math.abs(zones[4]!.low - 4 / 0.99)).toBeLessThanOrEqual(0.025 + 1e-9)
+    expect(zones.map((zone) => zone.low)).toEqual([0, 3.1, 3.5, 3.75, 4.05])
     expect(zones[4]?.high).toBeNull()
   })
 
@@ -69,8 +72,10 @@ describe('zonesFor', () => {
     }
   })
 
-  it('leaves the cuts of a pace as they are, since a speed is not a whole number', () => {
-    expect(zonesFor('pace', 4)[1]?.low).toBeCloseTo(4 / 1.29, 12)
+  it('moves the cuts of a pace to the nearest step of the speed bins, since a speed is not a whole number', () => {
+    // 4 / 1.29 = 3.1008 and 4 / 1.14 = 3.5088 are on the steps 3.10 and 3.50.
+    expect(zonesFor('pace', 4)[1]?.low).toBeCloseTo(3.1, 12)
+    expect(zonesFor('pace', 4)[2]?.low).toBeCloseTo(3.5, 12)
   })
 
   it('leaves no gap or overlap between zones, so every reading is in one zone', () => {

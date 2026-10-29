@@ -42,14 +42,15 @@ export function traceTimeInZones(
   const seconds = new Array<number>(zones.length).fill(0)
   let total = 0
   if (stream === undefined) return { seconds, total }
-  const unusable = trace.unusable?.[metric]
   const last = zones.length - 1
   for (let i = startS; i < endS; i++) {
-    if (unusable?.[i] === 1 || !isTraceObservation(trace, metric, i)) continue
+    if (!isTraceObservation(trace, metric, i)) continue
     const value = stream[i]!
     if (!Number.isFinite(value)) continue
     let zone = 0
-    while (zone < last && value >= zones[zone]!.high! - EDGE_EPSILON) zone++
+    // A stream holds 32-bit floats, so an edge is compared as the 32-bit float it would be recorded as: a belt
+    // speed of exactly 3.30 m/s is the zone's floor, not a hair under it.
+    while (zone < last && value >= Math.fround(zones[zone]!.high!) - EDGE_EPSILON) zone++
     seconds[zone]!++
     total++
   }

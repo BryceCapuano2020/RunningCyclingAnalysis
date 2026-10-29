@@ -1472,7 +1472,7 @@ body weight that changed an estimated ride threshold). A heart rate or a power i
 the reference is rounded to the number Profile shows (`zonesAt`: 187.6 bpm is 188 bpm) and its zones are cut on whole-number edges (`zonesFor`: the first whole number at or above the cut, so 0.6 of 219 bpm is 131.4 and
 the zone above starts at 132), and a bin of it is shared by its whole numbers: 110 to 114 W with an edge at 111 W has one watt
 below it, a fifth of its seconds, and a bin of one beat is never split. A reading is in the zone it is at or above the floor of
-and below the ceiling of, as on the activity page, and the Profile ranges are written from the same edges, so they agree. A speed bin that straddles an edge is shared in proportion to the width each side. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
+and below the ceiling of, as on the activity page, and the Profile ranges are written from the same edges, so they agree. A pace cut is moved to the nearest 0.05 m/s, the step of the speed bins, so no speed bin straddles an edge either. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
 digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms
 (`periodTime.perf.test.ts`).
 

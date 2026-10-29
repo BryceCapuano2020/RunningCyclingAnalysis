@@ -1,7 +1,7 @@
 import { massAtFor } from '../athlete/mass'
 import { entryAt } from '../athlete/measurements'
 import type { AthleteSettings } from '../athlete/settings'
-import { PRIORS } from '../constants'
+import { DISTRIBUTION_BINS, PRIORS } from '../constants'
 import { EDGE_EPSILON } from '../math'
 import type { AnalysisResult } from '../digest/combine'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
@@ -51,13 +51,18 @@ export interface ZoneSet {
  * numbers, so their edges are the first whole number at or above the cut (0.7 of 190 bpm is 133; 0.6 of 219
  * is 131.4, so 132): a reading of 131 bpm is below 131.4 and in the zone below, and 132 is the first in the
  * zone above. Every edge is then a whole number, so the ranges Profile writes ("132 to 153 bpm"), the zones a
- * recorded second is placed in and the zones a digest's bins are cut by agree. Pace is not a whole number,
- * so its edges are the cuts as they are.
+ * recorded second is placed in and the zones a digest's bins are cut by agree. Pace is not a whole number, so
+ * its edges are the cuts moved to the nearest step of the digest's speed bins (0.05 m/s, a few seconds a
+ * kilometre at running speeds): a bin then sits wholly in one zone, as a bin of heart rate or power does, and
+ * the seconds a digest places in a pace zone are the seconds a trace places there.
  */
 export function zonesFor(measure: ZoneMeasure, reference: number): Zone[] {
   const { names, cuts } = ZONE_SCHEMES[measure]
+  const step = DISTRIBUTION_BINS.speed.width
   const edge = (cut: number): number =>
-    WHOLE_NUMBER_MEASURES[measure] ? Math.ceil(reference * cut - EDGE_EPSILON) : reference * cut
+    WHOLE_NUMBER_MEASURES[measure]
+      ? Math.ceil(reference * cut - EDGE_EPSILON)
+      : Math.round((reference * cut) / step) * step
   return names.map((name, i) => ({
     level: i + 1,
     name,

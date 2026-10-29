@@ -57,12 +57,20 @@ describe('secondsByZone', () => {
     ])
   })
 
-  it('splits a speed bin that straddles an edge by the share of its width each side', () => {
-    // Threshold 4 m/s: the first edge is 4 / 1.29 = 3.1008 m/s, in the bin 3.10 to 3.15 m/s.
+  it('never splits a speed bin, because the pace edges are on the bin grid', () => {
+    // Threshold 4 m/s: the first edge is 4 / 1.29 = 3.1008 m/s, moved to 3.10 m/s, the floor of bin 62.
     const zones = zonesFor('pace', 4)
-    const seconds = secondsByZone(zones, 'pace', { offset: 62, counts: [1000] })
-    expect(seconds[0]).toBeCloseTo(((4 / 1.29 - 3.1) / 0.05) * 1000, 6)
-    expect(seconds[0]! + seconds[1]!).toBeCloseTo(1000, 9)
+    expect(secondsByZone(zones, 'pace', { offset: 61, counts: [1000, 1000] })).toEqual([
+      1000, 1000, 0, 0, 0,
+    ])
+    for (const reference of [2.6, 3.17, 4, 4.4, 5.123]) {
+      for (const zone of zonesFor('pace', reference)) {
+        for (const edge of [zone.low, zone.high]) {
+          if (edge === null) continue
+          expect(edge / DISTRIBUTION_BINS.speed.width).toBeCloseTo(Math.round(edge / 0.05), 9)
+        }
+      }
+    }
   })
 
   it('shares one bin over three zones when the zones are narrower than the bin', () => {
