@@ -209,7 +209,7 @@ describe('buildShareCard', () => {
   it('carries the balance as a magnitude line in points, with its range', () => {
     const gap: BalanceGap = { centre: 6, low: 4, high: 8, lean: 'run' }
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
-    expect(card?.magnitude).toBe('Running grades 6 points higher than cycling')
+    expect(card?.magnitude).toBe('Running grades 6 points higher, within 4 to 8')
     // The page's meter reads its lead with the same helper, so the card and the page agree.
     expect(card?.magnitude).toBe(leadSentence(gapReading(gap)))
   })
@@ -218,7 +218,7 @@ describe('buildShareCard', () => {
     const gap: BalanceGap = { centre: 9, low: -4, high: 18, lean: 'run' }
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
     expect(card?.headline).toBe('Your balance leans toward running')
-    expect(card?.magnitude).toBe('Running grades 9 points higher than cycling')
+    expect(card?.magnitude).toBe('Running grades 9 points higher, within −4 to +18')
     expect(card?.meter).toEqual(gapReading(gap))
   })
 

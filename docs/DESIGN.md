@@ -876,7 +876,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **The share card speaks in one voice,** the reader's: "Your balance leans toward running", never
   "my". Its footnote names the standard and says what a level is, "Graded on the USATF road
   standards. A level, not a ranking.", or, with no grade on the card, "Estimated from your files. Not
-  a ranking."
+  a ranking." The card states a lead with the range it sits within on one line, in the lede's wording and
+  without the unit: "Running grades 9 points higher, within −4 to +18" (a level balance states no lead, since the
+  headline says it). It is short enough to leave the origin line in place at both shapes.
 - **Caveats become chips and shapes.** Draw a range instead of writing it; a caveat is a chip with
   an icon that links to the detail.
 - **Splits say what happened when they are missing**: "Splits were not kept when this run was added."

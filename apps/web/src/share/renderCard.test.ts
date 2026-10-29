@@ -309,6 +309,17 @@ describe('the card figures, levels and copy', () => {
     },
   )
 
+  it.each(FORMATS)(
+    'keeps the origin and the whole lead line, range and all, on the %s card',
+    (format) => {
+      // The longest lead and range the card writes: a ride's lead of 30 points with a wide range across zero.
+      const magnitude = 'Cycling grades 30 points higher, within −10 to +46'
+      const texts = draw(cardModel({ magnitude }), format).texts
+      expect(texts.find((text) => text.text === magnitude)).toBeDefined()
+      expect(texts.find((text) => text.text === 'example.test')?.size).toBeGreaterThanOrEqual(30)
+    },
+  )
+
   it.each(FORMATS)('sets the footnote and origin at 30 px or more on the %s card', (format) => {
     const texts = draw(cardModel(), format).texts
     expect(texts.find((text) => text.text.startsWith('Graded on'))?.size).toBeGreaterThanOrEqual(30)

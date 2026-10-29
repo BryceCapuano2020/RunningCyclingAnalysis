@@ -89,12 +89,21 @@ export function signedRange(reading: BalanceReading): boolean {
  * write it this way, so their signs agree.
  */
 export function rangeText(reading: BalanceReading): string {
-  const { unit } = reading
+  const edges = rangeEdges(reading)
+  if (reading.unit !== 'points') return edges
+  if (signedRange(reading)) return `${edges}${NO_BREAK}points`
+  const [low, high] = sideRange(reading)
+  return `${Math.round(low)} to ${pointsUnit(Math.round(high))}`
+}
+
+/** The range's two edges alone, "−4 to +18" or "5% to 20%", for a line with no room for the unit. */
+function rangeEdges(reading: BalanceReading): string {
   const [low, high] = sideRange(reading)
   const signed = signedRange(reading)
-  if (unit === 'points') {
-    if (signed) return `${signedCount(low)} to ${signedCount(high)}${NO_BREAK}points`
-    return `${Math.round(low)} to ${pointsUnit(Math.round(high))}`
+  if (reading.unit === 'points') {
+    return signed
+      ? `${signedCount(low)} to ${signedCount(high)}`
+      : `${Math.round(low)} to ${Math.round(high)}`
   }
   return `${percentEdge(low, signed)} to ${percentEdge(high, signed)}`
 }
@@ -224,11 +233,19 @@ function leadingSentence({
   return `${SPORT_TITLE[lean]} ${percent} higher, as energy per kilogram`
 }
 
-/** The lead in one line, or null for an even balance, which the headline already says. */
+/**
+ * The lead in one line with the range it sits within, short enough for one line of the share card, or null for
+ * an even balance, which the headline already says: "Running grades 9 points higher, within −4 to +18". A range
+ * that rounds to one value is left out.
+ */
 export function leadSentence(reading: BalanceReading): string | null {
-  const { lean } = reading
+  const { lean, lead, unit } = reading
   if (lean === 'even') return null
-  return leadingSentence({ ...reading, lean })
+  const within = isPoint(reading) ? '' : `, within ${rangeEdges(reading)}`
+  if (unit === 'points') {
+    return `${SPORT_TITLE[lean]} grades ${points(Math.abs(wholeCentre(lead)))} higher${within}`
+  }
+  return `${SPORT_TITLE[lean]} ${percentEdge(Math.abs(lead.centre), false)} higher in energy${within}`
 }
 
 /**

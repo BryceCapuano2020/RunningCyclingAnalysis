@@ -28,16 +28,19 @@ const FORBIDDEN = /ahead of|limiter|weak|strength|holding you back/i
 describe('leadSentence', () => {
   it('names the leading sport and its lead in points of grade, as the card and the page both state it', () => {
     expect(leadSentence(gapReading(gap({ centre: 6, low: 4, high: 8, lean: 'run' })))).toBe(
-      'Running grades 6 points higher than cycling',
+      'Running grades 6 points higher, within 4 to 8',
     )
     expect(leadSentence(gapReading(gap({ centre: -6, low: -8, high: -4, lean: 'ride' })))).toBe(
-      'Cycling grades 6 points higher than running',
+      'Cycling grades 6 points higher, within 4 to 8',
+    )
+    expect(leadSentence(gapReading(gap({ centre: 9, low: -4, high: 18, lean: 'run' })))).toBe(
+      'Running grades 9 points higher, within −4 to +18',
     )
   })
 
   it('names the lead in percent of energy when there is no grade gap', () => {
     expect(leadSentence(energyReading(interval(1.05, 1.12, 1.2)))).toBe(
-      'Running 12% higher, as energy per kilogram',
+      'Running 12% higher in energy, within 5% to 20%',
     )
   })
 
@@ -46,9 +49,10 @@ describe('leadSentence', () => {
     expect(leadSentence(energyReading(interval(0.9, 0.996, 0.999)))).toBeNull()
   })
 
-  it('is the balance sentence without its range, so the card and the page agree', () => {
+  it('is the balance sentence with its range in the lede’s wording, so the card and the page agree', () => {
     const reading = gapReading(gap({ centre: 6, low: 4, high: 8, lean: 'run' }))
-    expect(balanceSentence(reading)).toBe(`${leadSentence(reading)} (range ${rangeText(reading)})`)
+    expect(leadSentence(reading)).toContain('within 4 to 8')
+    expect(balanceSentence(reading)).toContain(`(range ${rangeText(reading)})`)
   })
 })
 
