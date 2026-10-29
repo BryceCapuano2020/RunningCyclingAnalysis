@@ -287,16 +287,18 @@ describe('ActivityList rows', () => {
     expect(screen.getByRole('link', { name: longName })).toHaveClass('activity-list__name')
 
     expect(ruleBody(listCss, '.activity-list__name')).toMatch(/overflow-wrap:\s*anywhere/)
-    expect(ruleBody(listCss, '.activity-list__body')).toMatch(
-      /grid-template-columns:\s*minmax\(\s*0\s*,\s*1fr\s*\)/,
+    expect(ruleBody(listCss, '.activity-list__main')).toMatch(
+      /grid-template-columns:[^;]*minmax\(\s*0\s*,\s*1fr\s*\)/,
     )
   })
 
-  it('shows the sport word beside its icon in each row', () => {
+  it("leads each row with the sport's glyph, and names the sport for a screen reader", () => {
     renderList([makeActivity({ name: 'Hill ride', sport: 'ride' })])
-    const sport = within(rowFor('Hill ride')).getByText('Ride')
-    expect(sport).toHaveClass('activity-list__sport')
-    expect(sport.querySelector('svg')).toHaveClass('activity-list__icon--ride')
+    const row = rowFor('Hill ride')
+    const glyph = row.querySelector('.activity-list__glyph')
+    expect(glyph?.querySelector('svg')).toHaveClass('activity-list__icon--ride')
+    expect(within(glyph as HTMLElement).getByText('Ride')).toHaveClass('sr-only')
+    expect(row).toHaveAttribute('data-sport', 'ride')
   })
 })
 

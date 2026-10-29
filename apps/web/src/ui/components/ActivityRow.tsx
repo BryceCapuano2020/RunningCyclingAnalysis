@@ -2,6 +2,7 @@ import type { Ref } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import { formatCount } from '../format/count'
+import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import {
   formatDistance,
@@ -55,17 +56,33 @@ interface Hero {
   estimated?: boolean
 }
 
+/** How a sport's distance becomes the row's headline figure: a run's pace, a ride's speed. */
+interface DistanceFigure {
+  label: string
+  format: (speedMs: number, units: UnitSystem) => string
+  /** Whether an indoor activity with a distance gets it too: a treadmill run has a pace, a trainer ride no speed. */
+  indoor: boolean
+}
+
+const DISTANCE_FIGURE: Record<Sport, DistanceFigure> = {
+  run: { label: 'Pace', format: formatPace, indoor: true },
+  ride: { label: 'Speed', format: formatSpeed, indoor: false },
+}
+
+/** A ride's record chips are the library's bests, which use the body mass, so they wait for the weight. */
+const NEEDS_WEIGHT: Record<Sport, boolean> = { run: false, ride: true }
+
 /**
  * The row's headline figure, at the right: a run's pace, a ride's speed, or the average power of an
  * indoor ride with a power meter. A figure with no distance or power has none.
  */
 function heroOf(activity: ActivitySummary, units: UnitSystem): Hero | null {
-  const moving = movingTimeOf(activity)
-  if (activity.distanceM > 0 && activity.sport === 'run') {
-    return { label: 'Pace', value: formatPace(activity.distanceM / moving, units) }
-  }
-  if (activity.distanceM > 0 && !activity.indoor) {
-    return { label: 'Speed', value: formatSpeed(activity.distanceM / moving, units) }
+  const figure = DISTANCE_FIGURE[activity.sport]
+  if (activity.distanceM > 0 && (figure.indoor || !activity.indoor)) {
+    return {
+      label: figure.label,
+      value: figure.format(activity.distanceM / movingTimeOf(activity), units),
+    }
   }
   if (typeof activity.avgPowerW === 'number') {
     return {
@@ -77,7 +94,10 @@ function heroOf(activity: ActivitySummary, units: UnitSystem): Hero | null {
   return null
 }
 
-/** One activity in the list: its name opens it, and its figures and chips sit beside the name. */
+/**
+ * One activity in the list: its name opens it. The sport's glyph leads; the name, when it started and the
+ * chips follow; the figures sit in columns at the right on a wide screen and in a line under the name on a phone.
+ */
 export function ActivityRow({
   activity,
   units,
@@ -93,67 +113,27 @@ export function ActivityRow({
 }: ActivityRowProps) {
   const skipped = materialSkippedCountOf(activity)
   const day = dateOrder ? formatRowDay(activity.startMs) : formatDay(activity.startMs)
-  // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
-  const chips = activity.sport === 'ride' && !weightKnown ? [] : chipLabels(records)
+  const chips = NEEDS_WEIGHT[activity.sport] && !weightKnown ? [] : chipLabels(records)
   const hero = heroOf(activity, units)
   return (
-    <li ref={rowRef} tabIndex={isFirst ? -1 : undefined} className="activity-list__item">
+    <li
+      ref={rowRef}
+      tabIndex={isFirst ? -1 : undefined}
+      className="activity-list__item"
+      data-sport={activity.sport}
+    >
       <div className="activity-list__main">
-        <div className="activity-list__body">
+        <span className="activity-list__glyph">
+          <SportIcon
+            sport={activity.sport}
+            className={`activity-list__icon activity-list__icon--${activity.sport}`}
+          />
+          <span className="sr-only">{SPORT_LABEL[activity.sport]}</span>
+        </span>
+        <div className="activity-list__head">
           <a className="activity-list__name" href={hrefFor({ page: 'activity', id: activity.id })}>
             {activity.name}
           </a>
-          <p className="activity-list__meta">
-            <span className="activity-list__sport">
-              <SportIcon
-                sport={activity.sport}
-                className={`activity-list__icon activity-list__icon--${activity.sport}`}
-              />
-              {SPORT_LABEL[activity.sport]}
-            </span>
-            <span>{`${day}, ${formatTimeOfDay(activity.startMs)}`}</span>
-            {activity.indoor && <span className="chip">Indoor</span>}
-            {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
-            {skipped > 0 && (
-              <span className="chip chip--warning">
-                <WarningIcon />
-                {skippedReadingsText(skipped)}
-              </span>
-            )}
-          </p>
-          <dl className="activity-list__stats">
-            <StatFigure
-              label={timeLabelOf(activity)}
-              value={formatTotalTime(movingTimeOf(activity))}
-              className="activity-list__stat"
-            />
-            {activity.distanceM > 0 && (
-              <StatFigure
-                label="Distance"
-                value={formatDistance(activity.distanceM, units)}
-                className="activity-list__stat"
-              />
-            )}
-            {activity.elevationGainM > 0 && (
-              <StatFigure
-                label="Climb"
-                value={formatElevation(activity.elevationGainM, units)}
-                className="activity-list__stat"
-              />
-            )}
-          </dl>
-          {chips.length > 0 && (
-            <div className="activity-list__records" role="group" aria-label="All-time records">
-              {chips.slice(0, CHIPS_PER_ROW).map((label) => (
-                <span key={label} className="chip" data-sport={activity.sport}>
-                  {label}
-                </span>
-              ))}
-              {chips.length > CHIPS_PER_ROW && (
-                <span className="activity-list__more">{`+${formatCount(chips.length - CHIPS_PER_ROW)} more records`}</span>
-              )}
-            </div>
-          )}
           {keptId !== null && onDelete && (
             <ActivityDelete
               savedId={keptId}
@@ -164,13 +144,68 @@ export function ActivityRow({
             />
           )}
         </div>
-        {hero && (
-          <p className="activity-list__hero">
-            <span className="eyebrow">{hero.label}</span>
-            <span className="stat-number">{hero.value}</span>
-            {hero.estimated && <span className="chip">Estimated</span>}
-          </p>
-        )}
+        <div className="activity-list__sub">
+          <span className="activity-list__when">{`${day}, ${formatTimeOfDay(activity.startMs)}`}</span>
+          <div className="activity-list__tags">
+            {hero?.estimated && <span className="chip">Estimated</span>}
+            {activity.indoor && <span className="chip">Indoor</span>}
+            {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
+            {skipped > 0 && (
+              <span className="chip chip--warning">
+                <WarningIcon />
+                {skippedReadingsText(skipped)}
+              </span>
+            )}
+            {chips.length > 0 && (
+              <span className="activity-list__records" role="group" aria-label="All-time records">
+                {chips.slice(0, CHIPS_PER_ROW).map((label) => (
+                  <span key={label} className="chip" data-sport={activity.sport}>
+                    {label}
+                  </span>
+                ))}
+                {chips.length > CHIPS_PER_ROW && (
+                  <span className="activity-list__more">{`+${formatCount(chips.length - CHIPS_PER_ROW)} more records`}</span>
+                )}
+              </span>
+            )}
+          </div>
+        </div>
+        <dl className="activity-list__stats">
+          <StatFigure
+            label={timeLabelOf(activity)}
+            value={formatTotalTime(movingTimeOf(activity))}
+            className="activity-list__stat activity-list__stat--time"
+            labelClassName="activity-list__label"
+            valueClassName="activity-list__value"
+          />
+          {activity.distanceM > 0 && (
+            <StatFigure
+              label="Distance"
+              value={formatDistance(activity.distanceM, units)}
+              className="activity-list__stat activity-list__stat--distance"
+              labelClassName="activity-list__label"
+              valueClassName="activity-list__value"
+            />
+          )}
+          {activity.elevationGainM > 0 && (
+            <StatFigure
+              label="Climb"
+              value={formatElevation(activity.elevationGainM, units)}
+              className="activity-list__stat activity-list__stat--climb"
+              labelClassName="activity-list__label"
+              valueClassName="activity-list__value"
+            />
+          )}
+          {hero && (
+            <StatFigure
+              label={hero.label}
+              value={hero.value}
+              className="activity-list__stat activity-list__stat--hero"
+              labelClassName="activity-list__label"
+              valueClassName="activity-list__value activity-list__value--hero"
+            />
+          )}
+        </dl>
         <ArrowRightIcon className="activity-list__chevron" />
       </div>
     </li>

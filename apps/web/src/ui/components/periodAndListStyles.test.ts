@@ -42,6 +42,7 @@ function mediaOf(css: string, query: string): string {
 const SMALL_PHONE = '(max-width: 359px)'
 const PHONE_480 = '(max-width: 479px)'
 const NARROW_PHONE = '(max-width: 560px)'
+const PHONE_760 = '(max-width: 760px)'
 const ABOVE_PHONE = '(min-width: 761px)'
 
 describe('the period control', () => {
@@ -102,21 +103,28 @@ describe('the Custom form', () => {
 })
 
 describe('the activity list', () => {
-  it('sets the hero beside the meta line below 560 px, and hides the chevron there', () => {
-    const phone = mediaOf(activityList, NARROW_PHONE)
+  it('sets a row as two lines up to 760 px: the name, then the date and figures, with no chevron', () => {
+    const phone = mediaOf(activityList, PHONE_760)
     expect(rulesWith(phone, '.activity-list__chevron')).toMatch(/display:\s*none/)
-    expect(rulesWith(phone, '.activity-list__body')).toMatch(/display:\s*contents/)
     expect(rulesWith(phone, '.activity-list__main')).toMatch(/display:\s*flex/)
     expect(rulesWith(phone, '.activity-list__main')).toMatch(/flex-wrap:\s*wrap/)
-    expect(rulesWith(phone, '.activity-list__body > .activity-list__meta')).toMatch(
-      /flex:\s*1 1 45%/,
+    expect(rulesWith(phone, '.activity-list__sub')).toMatch(/display:\s*contents/)
+    expect(rulesWith(phone, '.activity-list__head')).toMatch(/flex:\s*1 1 calc\(100% - 2.5rem\)/)
+  })
+
+  it('keeps the figure labels for screen readers when a phone row drops them', () => {
+    expect(rulesWith(mediaOf(activityList, PHONE_760), '.activity-list__label')).toMatch(
+      /clip-path:\s*inset\(50%\)/,
     )
-    expect(rulesWith(phone, '.activity-list__hero')).toMatch(/margin-left:\s*auto/)
-    expect(rulesWith(phone, '.activity-list__hero')).toMatch(/order:\s*1/)
   })
 
   it('keeps each figure value on one line', () => {
-    expect(rulesWith(activityList, '.activity-list__stat dd')).toMatch(/white-space:\s*nowrap/)
+    expect(rulesWith(activityList, '.activity-list__value')).toMatch(/white-space:\s*nowrap/)
+  })
+
+  it('sets each figure in its own column, so a row without distance or climb leaves a gap', () => {
+    expect(rulesWith(activityList, '.activity-list__stat--distance')).toMatch(/grid-column:\s*2/)
+    expect(rulesWith(activityList, '.activity-list__stat--hero')).toMatch(/grid-column:\s*4/)
   })
 
   it('draws an inset rule on the left of a row on hover', () => {
@@ -157,6 +165,7 @@ describe('breakpoints named in layoutBreakpoints.ts', () => {
   // made in the file and the query together. This fails when they disagree.
   it('gives each width its media query in the stylesheet that uses it', () => {
     expect(activityList).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
+    expect(activityList).toContain(`@media (max-width: ${PHONE_MAX_WIDTH_PX}px)`)
     expect(pager).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
     expect(activitiesPage).toContain(`@media (min-width: ${SPLIT_FILTERS_MIN_WIDTH_PX}px)`)
     expect(rangePicker).toContain(`@media (max-width: ${PERIOD_FULL_WIDTH_MAX_WIDTH_PX}px)`)

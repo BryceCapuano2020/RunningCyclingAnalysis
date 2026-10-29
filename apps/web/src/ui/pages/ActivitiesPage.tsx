@@ -5,13 +5,15 @@ import { startedWithin, windowEnding } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
 import { ACTIVITY_SORTS, SORT_LABELS, sortActivities } from '../activitySort'
+import { inBucket } from '../activitiesVolume'
 import { DEFAULT_VIEW, hasRemovedMark, queryFromView, viewFromQuery } from '../activitiesView'
 import type { ActivitiesView, SportFilter } from '../activitiesView'
 import { ActivityList } from '../components/ActivityList'
 import { plural } from '../components/plural'
-import { LIBRARY_RANGE_OPTIONS } from '../components/rangeOptions'
+import { LIBRARY_RANGE_OPTIONS, lengthOf } from '../components/rangeOptions'
 import { listEmptyText } from '../periodCopy'
 import { RangePicker } from '../components/RangePicker'
+import { VolumeStrip } from '../components/VolumeStrip'
 import { SegmentedControl } from '../components/SegmentedControl'
 import type { SegmentedControlOption } from '../components/SegmentedControl'
 import { countSport } from '../records'
@@ -81,7 +83,7 @@ export function ActivitiesPage({
   const [view, setView] = useState<ActivitiesView>(() =>
     viewFromQuery(hashQuery(window.location.hash)),
   )
-  const { sport, sort, period, page } = view
+  const { sport, sort, period, bucket, page } = view
 
   // The view follows the address, so a link to the list, which changes only the hash, resets it.
   useEffect(() => {
@@ -90,16 +92,18 @@ export function ActivitiesPage({
     return () => window.removeEventListener('hashchange', follow)
   }, [])
   const days = typeof period === 'number' ? period : null
+  // What the period and sport leave, before a week or month is picked: the volume strip draws this set.
+  const inPeriod = useMemo(
+    () =>
+      startedWithin(activities, days).filter(
+        (activity) => sport === 'all' || activity.sport === sport,
+      ),
+    [activities, days, sport],
+  )
   // Memoised, so a re-render with the same activities keeps the pager on the page it is on.
   const shown = useMemo(
-    () =>
-      sortActivities(
-        startedWithin(activities, days).filter(
-          (activity) => sport === 'all' || activity.sport === sport,
-        ),
-        sort,
-      ),
-    [activities, days, sport, sort],
+    () => sortActivities(inBucket(inPeriod, bucket), sort),
+    [inPeriod, bucket, sort],
   )
   // Written without a new history entry, so Back still leaves the page the visitor came from.
   useEffect(() => {
@@ -121,7 +125,8 @@ export function ActivitiesPage({
     removal.clear()
     setView((current) => ({ ...current, ...patch, page: 0 }))
   }
-  const showAll = () => narrow({ period: DEFAULT_VIEW.period, sport: DEFAULT_VIEW.sport })
+  const showAll = () =>
+    narrow({ period: DEFAULT_VIEW.period, sport: DEFAULT_VIEW.sport, bucket: DEFAULT_VIEW.bucket })
   return (
     <div className="page-stack">
       <div className="page-title">
@@ -134,6 +139,14 @@ export function ActivitiesPage({
             : `${plural(activities.length, 'activity', 'activities')}: ${plural(runs, 'run')}, ${plural(rides, 'ride')}`}
         </p>
       </div>
+      {inPeriod.length > 0 && (
+        <VolumeStrip
+          activities={inPeriod}
+          periodText={days === null ? 'across all time' : `in the last ${lengthOf(days)}`}
+          selected={bucket}
+          onSelect={(next) => narrow({ bucket: next })}
+        />
+      )}
       {activities.length > 0 && (
         <div className="activities__controls">
           <RangePicker
@@ -143,7 +156,7 @@ export function ActivitiesPage({
             total={counted}
             noun={sport === 'all' ? 'activity' : sport}
             onChange={(next, answered) => {
-              narrow({ period: periodFromChoice(next) })
+              narrow({ period: periodFromChoice(next), bucket: null })
               answered(null)
             }}
           />
@@ -152,7 +165,7 @@ export function ActivitiesPage({
               legend="Sport"
               options={SPORT_OPTIONS}
               selected={sport}
-              onSelect={(next) => narrow({ sport: next })}
+              onSelect={(next) => narrow({ sport: next, bucket: null })}
             />
             <label className="activities__sort">
               <span>Sort by</span>
@@ -189,6 +202,7 @@ export function ActivitiesPage({
           units={units}
           records={records}
           dateOrder={sort === 'newest' || sort === 'oldest'}
+          climbFirst={sort === 'climb'}
           initialPage={page}
           onPageChange={(next) => {
             removal.clear()
