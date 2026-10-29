@@ -21,6 +21,8 @@ const SECONDS_PER_HOUR = 3600
 const WEEK_PREFIX = 'w:'
 const MONTH_PREFIX = 'm:'
 const QUARTER_PREFIX = 'q:'
+/** No activity file predates this; Date also reads a year under 100 as 19xx, so a short year is never real. */
+const MIN_YEAR = 1970
 
 export type BucketKind = 'week' | 'month' | 'quarter'
 
@@ -178,9 +180,13 @@ function numbersOf(text: string, count: number): number[] | null {
 function spanOf(
   kind: BucketKind,
   startMs: number,
+  key: string,
 ): Pick<VolumeBucket, 'kind' | 'startMs' | 'endMs'> | null {
   const endMs = nextStart(kind, startMs)
-  return Number.isNaN(startMs) || Number.isNaN(endMs) ? null : { kind, startMs, endMs }
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return null
+  // A key that is not the one its own start would be named by was written by hand: `w:2025-5-2` is real
+  // but `w:2025-05-02`, `w:2025-5-32` (which Date rolls over) and a week that starts on a Tuesday are not.
+  return keyOf(kind, startMs) === key ? { kind, startMs, endMs } : null
 }
 
 /** The span a bucket key names, or null for a key that is not one. Anything the address holds may be wrong. */
@@ -188,18 +194,21 @@ export function bucketSpan(key: string): Pick<VolumeBucket, 'kind' | 'startMs' |
   if (key.startsWith(WEEK_PREFIX)) {
     const [year, month, day] = numbersOf(key.slice(WEEK_PREFIX.length), 3) ?? []
     if (year === undefined || month === undefined || day === undefined) return null
-    if (month > 11 || day < 1 || day > 31) return null
-    return spanOf('week', new Date(year, month, day).getTime())
+    if (year < MIN_YEAR || month > 11 || day < 1 || day > 31) return null
+    const start = new Date(year, month, day)
+    // A week starts on a Monday.
+    if (start.getDay() !== 1) return null
+    return spanOf('week', start.getTime(), key)
   }
   if (key.startsWith(MONTH_PREFIX)) {
     const [year, month] = numbersOf(key.slice(MONTH_PREFIX.length), 2) ?? []
-    if (year === undefined || month === undefined || month > 11) return null
-    return spanOf('month', new Date(year, month, 1).getTime())
+    if (year === undefined || month === undefined || year < MIN_YEAR || month > 11) return null
+    return spanOf('month', new Date(year, month, 1).getTime(), key)
   }
   if (key.startsWith(QUARTER_PREFIX)) {
     const [year, quarter] = numbersOf(key.slice(QUARTER_PREFIX.length), 2) ?? []
-    if (year === undefined || quarter === undefined || quarter > 3) return null
-    return spanOf('quarter', new Date(year, quarter * 3, 1).getTime())
+    if (year === undefined || quarter === undefined || year < MIN_YEAR || quarter > 3) return null
+    return spanOf('quarter', new Date(year, quarter * 3, 1).getTime(), key)
   }
   return null
 }

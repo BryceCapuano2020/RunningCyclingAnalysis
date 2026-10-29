@@ -22,7 +22,10 @@ export interface Selection {
 
 /** A selection pulled inside an activity of `max` whole seconds, at least a second long. */
 export function clampSelection(selection: Selection, max: number): Selection {
-  const startS = Math.max(0, Math.min(Math.round(selection.startS), max - 1))
-  const endS = Math.max(startS + 1, Math.min(Math.round(selection.endS), max))
+  // A value that is not a number (a bad address, a failed measure) falls back to the whole activity's end.
+  const from = Number.isFinite(selection.startS) ? Math.round(selection.startS) : 0
+  const to = Number.isFinite(selection.endS) ? Math.round(selection.endS) : max
+  const startS = Math.max(0, Math.min(from, max - 1))
+  const endS = Math.max(startS + 1, Math.min(to, max))
   return { startS, endS }
 }

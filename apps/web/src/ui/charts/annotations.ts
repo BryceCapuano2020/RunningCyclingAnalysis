@@ -147,6 +147,7 @@ export function lineObstacles(
   points.forEach((to, i) => {
     const from = points[i - 1]
     if (!to || !from) return
+    if (![to.x, to.y, from.x, from.y].every(Number.isFinite)) return
     const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / step))
     for (let k = 0; k <= steps; k += 1) {
       const x = from.x + ((to.x - from.x) * k) / steps

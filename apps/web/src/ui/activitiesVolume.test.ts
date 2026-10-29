@@ -121,6 +121,25 @@ describe('bucket keys', () => {
     }
   })
 
+  it('refuses a hand-edited key that is real but not the one the strip would make', () => {
+    for (const bad of [
+      'w:2025-5-3', // a Tuesday: a week starts on a Monday
+      'w:2025-05-2', // padded
+      'w:2025-5-32', // rolls over into July
+      'w:2025-4-31', // rolls over into June
+      'w:1969-11-29',
+      'w:99-0-4',
+      'm:1969-11',
+      'm:2025-07',
+      'm:0099-5',
+      'q:1969-0',
+      'q:2025-01',
+    ]) {
+      expect(bucketSpan(bad), bad).toBeNull()
+    }
+    expect(bucketSpan('w:1970-0-5')).not.toBeNull()
+  })
+
   it('names a quarter by its first month, and labels it with its months', () => {
     expect(bucketSpan('q:2025-1')).toEqual({
       kind: 'quarter',

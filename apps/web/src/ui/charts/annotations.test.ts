@@ -83,6 +83,16 @@ describe('a callout', () => {
     expect(placed?.preferred).toBe(false)
   })
 
+  it('breaks a line at a point that is not a finite number, with no boxes made from it', () => {
+    const boxes = lineObstacles([
+      { x: 0, y: 0 },
+      { x: Number.NaN, y: 10 },
+      { x: 20, y: Number.POSITIVE_INFINITY },
+      { x: 30, y: 30 },
+    ])
+    expect(boxes).toEqual([])
+  })
+
   it('says it is crowded, and takes the least bad place, where no place is free', () => {
     const everywhere = [{ left: 0, right: 2000, top: 0, bottom: 2000 }]
     const [placed] = layoutAnnotations([callout('best', 400, 200)], {
