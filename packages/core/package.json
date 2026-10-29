@@ -54,6 +54,7 @@
   "scripts": {
     "test": "vitest run",
     "test:perf": "vitest run --config vitest.perf.config.ts",
+    "test:sim": "vitest run --config vitest.sim.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.corpus.json --noEmit"
   },
   "dependencies": {
