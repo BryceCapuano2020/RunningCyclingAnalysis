@@ -4,13 +4,19 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { ThresholdLine } from './charts/sportCurveModel'
-import { thresholdRange } from './thresholdRange'
+import { fitRestsOnEstimate, thresholdRange } from './thresholdRange'
 
 /** A fit's metabolic W/kg as the sport's own number: flat speed in m/s for running, watts for cycling. */
 type Native = (metabolicWkg: number, massKg: number) => number
 const NATIVE: Record<Sport, Native> = {
   run: (cp) => metabolicToFlatSpeed(cp),
   ride: (cp, massKg) => metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean),
+}
+
+/** Whether a sport's fit rests on estimated values: a ride's, when it draws on virtual power; a run's never does. */
+const RESTS_ON_ESTIMATE: Record<Sport, (result: AnalysisResult) => boolean> = {
+  run: () => false,
+  ride: fitRestsOnEstimate,
 }
 
 /**
@@ -36,5 +42,6 @@ export function thresholdLine(
     low: banded ? native(fit.cp - fit.cpSe, massKg) : undefined,
     high: banded ? native(fit.cp + fit.cpSe, massKg) : undefined,
     detail,
+    estimated: RESTS_ON_ESTIMATE[sport](result),
   }
 }

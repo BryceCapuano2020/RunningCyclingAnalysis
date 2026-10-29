@@ -7,6 +7,7 @@ import {
   LEADER_LENGTHS,
   REFERENCE_VALUE_PX,
   scaleOf,
+  eyebrowWidth,
   smallWidth,
   splitValue,
   valuePx,
@@ -49,7 +50,7 @@ function calloutCandidates(c: Callout, space: AnnotationSpace): Candidate[] {
   const caption = c.caption === undefined ? 0 : LABEL_LINE * scaleOf(rootPx)
   const widths = [
     valueWidth(c.value, valuePx(space.phone === true), rootPx),
-    c.label === undefined ? 0 : smallWidth(c.label, rootPx),
+    c.label === undefined ? 0 : eyebrowWidth(c.label, rootPx),
     c.caption === undefined ? 0 : smallWidth(c.caption, rootPx),
   ]
   const w = Math.max(...widths)
@@ -129,7 +130,7 @@ function referenceCandidates(r: ReferenceLine, space: AnnotationSpace): Candidat
   const px = REFERENCE_VALUE_PX * scaleOf(rootPx)
   const line = LABEL_LINE * scaleOf(rootPx)
   const lines = [
-    smallWidth(r.label, rootPx),
+    eyebrowWidth(r.label, rootPx),
     r.value === undefined ? 0 : valueWidth(r.value, REFERENCE_VALUE_PX, rootPx),
     r.detail === undefined ? 0 : smallWidth(r.detail, rootPx),
   ]

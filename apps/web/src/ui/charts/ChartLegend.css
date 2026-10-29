@@ -124,7 +124,14 @@
   transform: rotate(45deg);
 }
 
-/* A comparison line drawn dashed, as the previous period is, or an estimate in its sport's colour. */
+/* The previous period's key: a solid grey line, thinner than a sport's. */
+.chart-legend__key--previous {
+  height: 0;
+  border-top: 2px solid var(--previous-mark);
+  background: none;
+}
+
+/* An estimate's key: a dashed line in its sport's colour, or a neutral reference line. */
 .chart-legend__key--dashed {
   height: 0;
   border-top: 1.5px dashed var(--previous-mark);

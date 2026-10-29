@@ -55,11 +55,17 @@
   background: var(--neutral-mark);
 }
 
-/* A dashed key is an estimate, in its series colour, or the previous period, in its own mark. */
+/* A dashed key is an estimate, in its series colour; the previous period's key is a solid line in its own mark. */
 .chart-tooltip__key--dashed {
   height: 0;
   background: none;
   border-top: 2px dashed var(--previous-mark);
+}
+
+.chart-tooltip__key--previous {
+  height: 0;
+  background: none;
+  border-top: 2px solid var(--previous-mark);
 }
 
 .chart-tooltip__key--dashed-run {

@@ -18,8 +18,9 @@ export interface ChartTooltipProps {
 
 const OFFSET = 12
 
-/** A dashed key is an estimate or the previous period, so it names its series only when it has one. */
+/** A dashed key is an estimate, so it names its series only when it has one; the previous period's is a grey line. */
 function keyClass({ kind, swatch }: TooltipRow): string {
+  if (swatch === 'previous') return 'chart-tooltip__key chart-tooltip__key--previous'
   if (swatch === 'dashed') {
     const series = kind === 'run' || kind === 'ride' ? ` chart-tooltip__key--dashed-${kind}` : ''
     return `chart-tooltip__key chart-tooltip__key--dashed${series}`

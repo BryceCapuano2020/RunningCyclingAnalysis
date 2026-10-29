@@ -5,7 +5,7 @@ import { formatDuration, formatWkg } from '@rca/core/units'
 import { CURVE_START_S, RECORD_DURATIONS_S, effortLabel } from '../records'
 import { SPORT_FORMAT, SPORT_LABEL } from '../sports'
 import { sourceNote } from './activityText'
-import { carriedSpans, isCarried } from './carriedStretches'
+import { carriedNote, carriedSpans, isCarried } from './carriedStretches'
 import type { CarriedSpan } from './carriedStretches'
 import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
 import { durationRows, MIN_DURATION_S } from './curveRows'
@@ -33,6 +33,8 @@ export function buildRows(sport: Sport, curve: Curve, before: Curve): CurveRow[]
       previous: usable(earlier?.value ?? NaN),
       activityId: current?.activityId ?? null,
       carried: current !== undefined && isCarried(current),
+      carriedFromS:
+        current !== undefined && isCarried(current) ? (current.windowS ?? undefined) : undefined,
     }))
     .filter((row) => Number.isFinite(row.value) || Number.isFinite(row.previous))
 }
@@ -80,6 +82,8 @@ export interface ThresholdLine {
   high?: number
   /** The range as the page words it, such as "Range 7:07 to 7:18 /mi". */
   detail?: string
+  /** The fit rests on estimated watts: the line is drawn and named as an estimate. */
+  estimated?: boolean
 }
 
 export function layout(
@@ -129,9 +133,17 @@ export function layout(
 /** Cycling tooltips and tables give the mechanical W/kg; running names only its activity. */
 function noteOf(row: CurveRow, view: View): string | undefined {
   const source = sourceNote(row.activityId, view.names)
-  if (!SPORT_FORMAT[view.sport].showsWkg) return source
-  const wkg = formatWkg(wkgOf(row, view))
-  return source === undefined ? wkg : `${wkg}, ${source}`
+  // A carried value says whose it is first: it is a longer effort's, copied down.
+  const carried =
+    row.carried === true && row.carriedFromS !== undefined
+      ? carriedNote(row.carriedFromS)
+      : undefined
+  const parts = [
+    ...(SPORT_FORMAT[view.sport].showsWkg ? [formatWkg(wkgOf(row, view))] : []),
+    ...(carried === undefined ? [] : [carried]),
+    ...(source === undefined ? [] : [source]),
+  ]
+  return parts.length === 0 ? undefined : parts.join(', ')
 }
 
 export function tooltipFor(row: CurveRow, x: number, y: number, view: View): TooltipContent {
@@ -149,7 +161,7 @@ export function tooltipFor(row: CurveRow, x: number, y: number, view: View): Too
       kind: 'neutral',
       label: view.previous.label,
       value: formatNative(view.sport, row.previous, view.units),
-      swatch: 'dashed',
+      swatch: 'previous',
     })
   }
   return { x, y, title: formatDuration(row.durationS), rows }

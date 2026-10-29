@@ -176,19 +176,19 @@
 }
 
 /*
- * A phone's scrub readout: a row of fixed height above the plot that the tooltip draws into, in place of a
- * box floating over the plot where a finger is. With nothing active it says how to read values.
+ * A phone's scrub readout: a row above the plot that the tooltip draws into, in place of a box floating over the
+ * plot where a finger is. It reserves the room of the fullest reading (a title, a value with its note, and the
+ * previous period's row), so reading a value never moves the plot. With nothing active it says how to read one.
  */
 .chart-frame__readout {
-  height: 3.5rem;
-  overflow: hidden;
+  min-height: 5.5rem;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 
 .chart-frame__readout:not(:has(.chart-tooltip__title))::before {
-  content: 'Touch the chart to read a value';
+  content: 'Select a point to read its value';
   color: var(--text-muted);
   font-size: var(--text-sm);
 }

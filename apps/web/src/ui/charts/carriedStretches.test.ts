@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { carriedSpans, isCarried, spanLabel, strokeSplit, widestSpan } from './carriedStretches'
+import {
+  carriedNote,
+  carriedSpans,
+  isCarried,
+  spanLabel,
+  strokeSplit,
+  widestSpan,
+} from './carriedStretches'
 import { linePath } from './paths'
 
 const at = (x: number, y = 10) => ({ x, y })
@@ -91,11 +98,22 @@ describe('strokeSplit', () => {
 })
 
 describe('spanLabel', () => {
-  it('says the unit once when both ends are whole minutes', () => {
-    expect(spanLabel(1200, 3600)).toBe('No effort of 20 to 60 min on file')
+  it('describes the shape of the line, with the unit said once when both ends are whole minutes', () => {
+    expect(spanLabel(1200, 3600)).toBe('Between 20 and 60 min the line carries your 60 min best.')
+  })
+
+  it('never says an effort is missing from the file, which a longer window always contains', () => {
+    expect(spanLabel(1200, 3600)).not.toMatch(/no effort|on file/i)
   })
 
   it('names each end in full when they are not both minutes', () => {
-    expect(spanLabel(30, 300)).toBe('No effort of 30 s to 5 min on file')
+    expect(spanLabel(30, 300)).toBe('Between 30 s and 5 min the line carries your 5 min best.')
+  })
+})
+
+describe('carriedNote', () => {
+  it('says whose effort a carried value is, in the length records are named by', () => {
+    expect(carriedNote(3600)).toBe('from your 60 min effort')
+    expect(carriedNote(5400)).toBe('from your 90 min effort')
   })
 })

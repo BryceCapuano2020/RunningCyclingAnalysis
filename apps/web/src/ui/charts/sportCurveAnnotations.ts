@@ -21,6 +21,8 @@ export const CALLOUT_DURATIONS_S = [300, HEADLINE_DURATION_S, 3600]
 const MIN_SPAN_LABEL_PX = 60
 /** How far above the plot's floor the bracket sits, px. */
 const BRACKET_LIFT = 10
+/** A best this close to the threshold line, px, goes above it without a caption, clear of the threshold's label. */
+export const NEAR_THRESHOLD_PX = 20
 /** The radius, px, of the boxes that keep text off a marker. */
 const MARKER_OBSTACLE_R = 7
 
@@ -48,10 +50,12 @@ export function curveMarks(
     // A carried value is a longer effort's, so it is not this length's best and is not called out as one.
     return row !== undefined && Number.isFinite(row.value) && row.carried !== true ? [index] : []
   })
+  const thresholdY = threshold === null ? null : m.yOf(threshold.value)
   for (const index of calloutIndexes) {
     const row = rows[index]
     const at = m.points[index]
     if (row === undefined || !at) continue
+    const nearThreshold = thresholdY !== null && Math.abs(at.y - thresholdY) < NEAR_THRESHOLD_PX
     annotations.push({
       kind: 'callout',
       id: `best-${row.durationS}`,
@@ -61,8 +65,10 @@ export function curveMarks(
       at,
       value: formatNative(sport, row.value, units),
       label: effortLabel(row.durationS),
-      // A phone's plot is too small for a second line under every value.
-      caption: size.width < NARROW_WIDTH ? undefined : caption(row),
+      // A phone's plot is too small for a second line under every value, and a best that sits on the threshold
+      // line would put its caption on the threshold's label.
+      caption: size.width < NARROW_WIDTH || nearThreshold ? undefined : caption(row),
+      prefer: 'above',
     })
   }
   const lastIndex = rows.findLastIndex((row) => Number.isFinite(row.value))
@@ -84,7 +90,8 @@ export function curveMarks(
       kind: 'reference',
       id: 'threshold',
       y: m.yOf(threshold.value),
-      label: 'Threshold',
+      label: threshold.estimated === true ? 'Threshold (estimated)' : 'Threshold',
+      estimated: threshold.estimated,
       value: formatNative(sport, threshold.value, units),
       detail: threshold.detail,
       band:

@@ -3,6 +3,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
 import { SPORT_FORMAT } from '../sports'
 import { activityCell, sourceNote } from './activityText'
+import { carriedNote } from './carriedStretches'
 import { nativeLabel, formatNative, paceUnitName } from './sportAxis'
 
 /** The table's caption for each sport: what its values are, in the sport's unit. */
@@ -20,8 +21,10 @@ export interface CurveRow {
   /** NaN where the period before has none. */
   previous: number
   activityId: string | null
-  /** Whether the value is a longer effort's, carried down the curve, so the file has no effort of this length. */
+  /** Whether the value is a longer effort's, carried down the curve by the envelope. */
   carried?: boolean
+  /** The length, s, of the effort a carried value belongs to. */
+  carriedFromS?: number
 }
 
 /** What the tooltips and the table need, bundled so that they are passed together. */
@@ -61,9 +64,17 @@ export function columnsOf(view: View): string[] {
   ]
 }
 
+/** A row's duration, with the effort a carried value belongs to: "30 min, from your 60 min effort". */
+function carriedCell(row: CurveRow): string {
+  const duration = formatDuration(row.durationS)
+  return row.carried === true && row.carriedFromS !== undefined
+    ? `${duration}, ${carriedNote(row.carriedFromS)}`
+    : duration
+}
+
 export function tableRow(row: CurveRow, view: View): string[] {
   return [
-    formatDuration(row.durationS),
+    carriedCell(row),
     formatNative(view.sport, row.value, view.units),
     ...(SPORT_FORMAT[view.sport].showsWkg ? [formatWkg(wkgOf(row, view))] : []),
     ...(view.previous ? [formatNative(view.sport, row.previous, view.units)] : []),

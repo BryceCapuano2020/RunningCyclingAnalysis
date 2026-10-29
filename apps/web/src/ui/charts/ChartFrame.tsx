@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ChartLegend } from './ChartLegend'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -116,14 +116,18 @@ export function ChartFrame({
   const phone = isPhoneWidth(width)
   const height = givenHeight ?? (phone ? PHONE_CHART_HEIGHT : DEFAULT_HEIGHT)
   const rightMargin = plotRightMargin?.(width)
-  const size: ChartSize = {
-    width,
-    height,
-    plot: plotBoxOf(width, height, rightMargin, plotBottomMargin, phone),
-    tooltipId: `${id}-tooltip`,
-    hintId,
-    titleId,
-  }
+  // One object for a given size, so what is computed from it stays valid while a point is read.
+  const size: ChartSize = useMemo(
+    () => ({
+      width,
+      height,
+      plot: plotBoxOf(width, height, rightMargin, plotBottomMargin, phone),
+      tooltipId: `${id}-tooltip`,
+      hintId,
+      titleId,
+    }),
+    [width, height, rightMargin, plotBottomMargin, phone, id, hintId, titleId],
+  )
 
   return (
     <figure

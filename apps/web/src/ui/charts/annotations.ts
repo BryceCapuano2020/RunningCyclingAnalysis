@@ -50,6 +50,8 @@ export function layoutAnnotations(
   annotations: readonly Annotation[],
   space: AnnotationSpace,
 ): PlacedAnnotation[] {
+  const ids = new Set(annotations.map((annotation) => annotation.id))
+  if (ids.size !== annotations.length) throw new Error('annotation ids must be unique')
   const taken: Box[] = [...(space.obstacles ?? [])]
   const placed = new Map<string, PlacedAnnotation>()
   // Within a kind, what must be drawn is placed before what may be left out.
@@ -99,6 +101,7 @@ export function layoutAnnotations(
             ? { x1: annotation.x1, x2: annotation.x2, y: annotation.y }
             : null,
       band: annotation.kind === 'reference' ? (annotation.band ?? null) : null,
+      estimated: annotation.kind === 'reference' && annotation.estimated === true,
       preferred: choice === 0,
       crowded: free < 0,
     })

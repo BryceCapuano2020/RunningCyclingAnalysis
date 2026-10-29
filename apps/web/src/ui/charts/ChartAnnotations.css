@@ -55,6 +55,17 @@
   stroke-width: 1px;
 }
 
+/* An estimate is lighter and ends in a hollow ring; it is never dashed. */
+.annot__rule--estimated {
+  stroke-opacity: 0.6;
+}
+
+.annot__ring {
+  fill: var(--surface-1);
+  stroke: var(--text-secondary);
+  stroke-width: 2px;
+}
+
 /* The threshold's range: a quiet band, so the rule and the curve stay in front. */
 .annot__band {
   fill: var(--text-secondary);
@@ -73,6 +84,11 @@
   .annot__leader,
   .annot__bracket,
   .annot__rule {
+    stroke: CanvasText;
+  }
+
+  .annot__ring {
+    fill: Canvas;
     stroke: CanvasText;
   }
 

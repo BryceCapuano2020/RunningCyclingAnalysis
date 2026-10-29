@@ -51,6 +51,8 @@ export interface ReferenceLine extends Mark {
   value?: string
   detail?: string
   band?: { top: number; bottom: number }
+  /** The line rests on an estimate: it is drawn lighter, with a hollow ring at its end, and named so. */
+  estimated?: boolean
 }
 
 /** A span of the x axis, drawn as a bracket at y with its label above it. */
@@ -89,6 +91,8 @@ export interface PlacedAnnotation {
   /** A reference line's rule and range, or a bracket's span. */
   rule: { x1: number; x2: number; y: number } | null
   band: { top: number; bottom: number } | null
+  /** A reference line that rests on an estimate. */
+  estimated: boolean
   /** Whether the first choice of place was taken: false when a collision moved the annotation. */
   preferred: boolean
   /** Whether the text overlaps something it could not avoid. */
@@ -130,6 +134,11 @@ export function scaleOf(rootPx: number): number {
 /** The width of a small label, from its length, as the axis labels are estimated. */
 export function smallWidth(text: string, rootPx: number): number {
   return (text.length * GLYPH_EM + LABEL_PAD_EM) * LABEL_REM * rootPx
+}
+
+/** An eyebrow is set in bold capitals with tracking, which run about a fifth wider than the same text in sentence case. */
+export function eyebrowWidth(text: string, rootPx: number): number {
+  return smallWidth(text, rootPx) * 1.2
 }
 
 /** A display value's width: its number at display size and its unit at a little over half of it. */

@@ -358,7 +358,26 @@ describe('nativeValue and nativeCurve', () => {
     expect(run?.activityId).toBe('run-1')
     expect(nativeCurve('ride', curves)).toBe(curves.rideCurve)
   })
+
+  it('keeps the window a running value came from, so the chart can tell a carried value from a measured one', () => {
+    const wkg = RESTS_ON_ONE
+    const curves = {
+      runCurve: [
+        { ...curvePoint(1200, wkg, 'run-1'), windowS: 1200 },
+        { ...curvePoint(1800, wkg, 'run-1'), windowS: 3600 },
+        curvePoint(3600, wkg, 'run-1'),
+      ],
+      rideCurve: [],
+    }
+    expect(nativeCurve('run', curves).map((point) => point.windowS)).toEqual([
+      1200,
+      3600,
+      undefined,
+    ])
+  })
 })
+
+const RESTS_ON_ONE = RESTING_W_PER_KG + FLAT_RUN_COST * 3
 
 describe('activityNames', () => {
   it('names each activity by its id', () => {

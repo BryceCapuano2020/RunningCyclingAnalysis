@@ -144,8 +144,20 @@ describe('ChartFrame on a phone', () => {
 })
 
 describe('the phone readout row’s stylesheet', () => {
-  it('is a fixed height, so reading a value never moves the plot', () => {
-    expect(css).toMatch(/\.chart-frame__readout \{[^}]*height: 3\.5rem/)
+  it('reserves the room of its fullest reading, as a minimum, so reading a value never moves the plot', () => {
+    const body = css.slice(
+      css.indexOf('.chart-frame__readout {'),
+      css.indexOf('}', css.indexOf('.chart-frame__readout {')),
+    )
+    // A title, a value with its note and the previous period's row: about 5.5 rem with its padding.
+    expect(body).toMatch(/min-height: 5\.5rem/)
+    // A fixed height with clipped overflow would cut a long note; the row only ever grows.
+    expect(body).not.toMatch(/(^|[\s;])height:/)
+    expect(body).not.toMatch(/overflow/)
+  })
+
+  it('says how to read a value while none is active', () => {
+    expect(css).toContain("content: 'Select a point to read its value'")
   })
 
   it('draws its tooltip in the flow, with no border or shadow of a floating box', () => {

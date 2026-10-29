@@ -4,7 +4,8 @@ import { ArrowRightIcon } from '../components/icons'
 import { plural } from '../components/plural'
 import { SportRecords } from '../components/SportRecords'
 import { formatCount } from '../format/count'
-import { DISTANCE_TIMES_NOTE, SPORT_NOTE } from '../grades'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { DISTANCE_TIMES_NOTE, SPORT_NOTE, gradeLevelText, sportGrade } from '../grades'
 import { activityMasses } from '../activityMasses'
 import { activityNames } from '../records'
 import { hrefFor } from '../route'
@@ -31,13 +32,15 @@ function AgeNote({ missing }: { missing: AgeGap }) {
  * and where the bests stand out from each other as the curve's caption.
  */
 export function BestEffortsSection(context: SectionContext) {
-  const { sport, result, previousLabel, massKg, units, missingAge, openedAt, count } = context
+  const { sport, result, previousLabel, massKg, units, missingAge, openedAt, count, profile } =
+    context
   const list = bestEffortRows(context)
   const { current, earlier } = curvesOf(context)
   const measuredRides = result.activities.filter(
     (activity) => activity.sport === 'ride' && activity.powerSource === 'measured',
   ).length
   // The time the page was opened at, so a year shows only when the last run is from an earlier year.
+  const headline = profile === null ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
   const form = formLine(result.activities, sport, units, openedAt)
   return (
     <section className="section" aria-labelledby={`${sport}-records`}>
@@ -73,6 +76,7 @@ export function BestEffortsSection(context: SectionContext) {
         activityNames={activityNames(result.activities)}
         activityMasses={activityMasses(result.activities)}
         threshold={thresholdLine(result, sport, massKg, units)}
+        bestLevel={headline?.kind === 'graded' ? gradeLevelText(headline.grade) : undefined}
       />
       <StandOutCaption sport={sport} result={result} />
       <a className="link-arrow" href={`#/activities?${queryFromView({ ...DEFAULT_VIEW, sport })}`}>

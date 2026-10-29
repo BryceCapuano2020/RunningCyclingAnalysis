@@ -248,7 +248,80 @@ describe('a bracket', () => {
   })
 })
 
+describe('layoutAnnotations on the marks of a real curve', () => {
+  // A pace curve's points, as a chart lays them out: the line falls from left to right.
+  const points = [
+    { x: 56, y: 60 },
+    { x: 180, y: 110 },
+    { x: 300, y: 150 },
+    { x: 520, y: 190 },
+    { x: 700, y: 210 },
+    { x: PLOT.right, y: 240 },
+  ]
+  const obstacles = [...lineObstacles(points), ...points.map((point) => markerObstacle(point, 7))]
+
+  it('puts every text clear of every other and of the line, and inside the plot', () => {
+    const list: Annotation[] = [
+      callout('best-1200', 300, 150, { caption: 'flat pace' }),
+      callout('best-300', 180, 110, { optional: true, caption: 'flat pace' }),
+      callout('best-3600', 520, 190, { optional: true, caption: 'flat pace' }),
+      { kind: 'reference', id: 'threshold', y: 196, label: 'Threshold', value: '7:12 /mi' },
+      {
+        kind: 'end',
+        id: 'end',
+        optional: true,
+        at: points[5]!,
+        text: '8:51 /mi',
+        sub: 'at 90 min',
+      },
+      {
+        kind: 'bracket',
+        id: 'span',
+        x1: 300,
+        x2: 520,
+        y: 280,
+        label: 'Between 20 and 45 min the line carries your 45 min best.',
+      },
+    ]
+    const placed = layoutAnnotations(list, { ...SPACE, obstacles })
+    expect(placed.length).toBeGreaterThanOrEqual(5)
+    for (const [i, each] of placed.entries()) {
+      expect(each.crowded, each.id).toBe(false)
+      // Callouts stay inside the plot; the margin labels sit beside it, not above or below.
+      expect(each.box.top, each.id).toBeGreaterThanOrEqual(PLOT.top - 6)
+      expect(each.box.bottom, each.id).toBeLessThanOrEqual(PLOT.bottom + 6)
+      if (each.kind === 'callout' || each.kind === 'bracket') {
+        expect(each.box.left, each.id).toBeGreaterThanOrEqual(PLOT.left - 6)
+        expect(each.box.right, each.id).toBeLessThanOrEqual(PLOT.right + 6)
+      }
+      if (each.kind !== 'reference') expect(meetsBoxes(each.box, obstacles, 0), each.id).toBe(false)
+      for (const other of placed.slice(i + 1)) {
+        expect(meetsBoxes(each.box, [other.box], 0), `${each.id} and ${other.id}`).toBe(false)
+      }
+    }
+  })
+
+  it('keeps a best off the threshold rule that runs through its point', () => {
+    const [placed, threshold] = layoutAnnotations(
+      [
+        callout('best', 300, 150),
+        { kind: 'reference', id: 'threshold', y: 150, label: 'Threshold', value: '7:12 /mi' },
+      ],
+      { ...SPACE, obstacles },
+    )
+    const rule = { left: PLOT.left, right: PLOT.right, top: 149, bottom: 151 }
+    expect(meetsBoxes(placed!.box, [rule], 0)).toBe(false)
+    expect(meetsBoxes(placed!.box, [threshold!.box], 0)).toBe(false)
+  })
+})
+
 describe('layoutAnnotations', () => {
+  it('refuses two annotations with one id, which would draw one and lose the other', () => {
+    expect(() =>
+      layoutAnnotations([callout('a', 300, 200), callout('a', 400, 200)], SPACE),
+    ).toThrow('annotation ids must be unique')
+  })
+
   it('returns the annotations in the order given, whatever order they were placed in', () => {
     const list: Annotation[] = [
       callout('a', 300, 200),

@@ -14,11 +14,10 @@
   stroke: var(--series-ride);
 }
 
-/* The previous period is a thin dashed mid grey line, under the current one, so it reads as context and never as a sport. */
+/* The previous period is a thinner solid mid grey line, under the current one, so it reads as context and never as a sport. Dashes are for estimates only. */
 .chart-series__line--previous {
   stroke: var(--previous-mark);
-  stroke-width: 1.5px;
-  stroke-dasharray: 5 4;
+  stroke-width: 2px;
 }
 
 /*
@@ -54,10 +53,20 @@
   stroke-dasharray: 6 4;
 }
 
+/*
+ * A hollow ring: a point that is not a measured best (an estimate, or a value carried down from a longer effort),
+ * in the sport's colour over the card.
+ */
 .chart-series__ring--ride {
-  fill: var(--surface-0);
+  fill: var(--surface-1);
   stroke: var(--series-ride);
-  stroke-width: 2px;
+  stroke-width: 2.5px;
+}
+
+.chart-series__ring--run {
+  fill: var(--surface-1);
+  stroke: var(--series-run);
+  stroke-width: 2.5px;
 }
 
 /* A marker is its fill ringed in the card colour, so it stays legible where it crosses a line or a gridline. */
@@ -140,6 +149,11 @@
   .chart-series__ring--ride {
     fill: Canvas;
     stroke: Highlight;
+  }
+
+  .chart-series__ring--run {
+    fill: Canvas;
+    stroke: CanvasText;
   }
 
   .chart-series__band--ride {

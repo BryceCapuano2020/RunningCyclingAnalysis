@@ -4,10 +4,11 @@ import type { Point } from './chartTypes'
 
 /**
  * Where a best-effort curve is carried rather than measured. The curve is a monotone envelope: a point
- * whose own length has no better effort takes the value of a longer one (`windowS` longer than its
- * `durationS`). Between two measured points, with only carried ones between them, the activity file
- * holds no effort of those lengths, so the line there is drawn between its neighbours, not through
- * data. A point without `windowS` (a curve made without digests) is taken as measured.
+ * whose own windows were all below a longer effort's (or were dropped, as by the ceiling, or re-priced
+ * as virtual power) takes the value of that longer window (`windowS` longer than its `durationS`). Between
+ * two measured points, with only carried ones between them, the line is that longer effort's value copied
+ * down, so it is drawn lighter and named for what it carries. A point without `windowS` (a curve made
+ * without digests) is taken as measured.
  */
 
 /** Whether the point's value is a longer effort's, copied down by the envelope. */
@@ -80,12 +81,20 @@ export function strokeSplit(
   return out
 }
 
-/** "No effort of 20 to 60 min on file": the stretch's ends named as every effort length is, with the unit said once. */
+/**
+ * What a carried stretch is, in words: "Between 20 and 60 min the line carries your 60 min best." The line
+ * there is a longer effort's value copied down, which a longer window always contains, so it is described by
+ * its shape and never as an effort missing from the file.
+ */
 export function spanLabel(fromS: number, toS: number): string {
   const [from, to] = [effortLabel(fromS), effortLabel(toS)]
   const minutes = /^(\d+) min$/
   const shared = minutes.exec(from)?.[1]
-  return shared !== undefined && minutes.test(to)
-    ? `No effort of ${shared} to ${to} on file`
-    : `No effort of ${from} to ${to} on file`
+  const between = shared !== undefined && minutes.test(to) ? shared : from
+  return `Between ${between} and ${to} the line carries your ${to} best.`
+}
+
+/** The short note on a carried row: "from your 60 min effort". */
+export function carriedNote(fromS: number): string {
+  return `from your ${effortLabel(fromS)} effort`
 }

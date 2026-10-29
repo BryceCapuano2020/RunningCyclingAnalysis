@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { layoutAnnotations, valuePx } from './annotations'
 import type { Annotation, AnnotationSpace, PlacedAnnotation, PlacedText } from './annotations'
 import type { ChartSize } from './chartTypes'
@@ -11,6 +12,9 @@ export interface ChartAnnotationsProps {
   /** The data's marks as boxes the text keeps off: see lineObstacles. */
   obstacles?: AnnotationSpace['obstacles']
 }
+
+/** The radius, px, of the hollow ring that ends an estimated line. */
+const RING_R = 5
 
 function textElement(placed: PlacedAnnotation, text: PlacedText, phone: boolean, index: number) {
   const display = text.role === 'value'
@@ -50,7 +54,16 @@ function Mark({ placed, phone }: { placed: PlacedAnnotation; phone: boolean }) {
         />
       ) : null}
       {rule !== null && !bracket ? (
-        <line className="annot__rule" x1={rule.x1} x2={rule.x2} y1={rule.y} y2={rule.y} />
+        <line
+          className={placed.estimated ? 'annot__rule annot__rule--estimated' : 'annot__rule'}
+          x1={rule.x1}
+          x2={rule.x2}
+          y1={rule.y}
+          y2={rule.y}
+        />
+      ) : null}
+      {rule !== null && placed.estimated ? (
+        <circle className="annot__ring" cx={rule.x2} cy={rule.y} r={RING_R} />
       ) : null}
       {bracket ? (
         <path
@@ -79,13 +92,18 @@ function Mark({ placed, phone }: { placed: PlacedAnnotation; phone: boolean }) {
  */
 export function ChartAnnotations({ annotations, size, obstacles }: ChartAnnotationsProps) {
   const phone = size.width < NARROW_WIDTH
-  const placed = layoutAnnotations(annotations, {
-    plot: size.plot,
-    width: size.width,
-    rootPx: rootFontPx(),
-    obstacles,
-    phone,
-  })
+  // The layout is kept while its inputs are: a chart's size object is stable between renders at one size.
+  const placed = useMemo(
+    () =>
+      layoutAnnotations(annotations, {
+        plot: size.plot,
+        width: size.width,
+        rootPx: rootFontPx(),
+        obstacles,
+        phone,
+      }),
+    [annotations, size.plot, size.width, obstacles, phone],
+  )
   return (
     <g className="annotations">
       {placed.map((each) => (

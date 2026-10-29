@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SPORT_FORMAT, SPORT_PLURAL } from '../sports'
@@ -18,6 +18,7 @@ import { areaPath, linePath } from './paths'
 import { axisTitle } from './sportAxis'
 import { curveMarks, noEffortLabel } from './sportCurveAnnotations'
 import { keyOf } from './sportCurveKey'
+import { curveTakeaway } from './sportCurveTakeaway'
 import {
   buildRows,
   emphasisIndex,
@@ -58,6 +59,8 @@ export interface SportCurveChartProps {
   activityMasses?: Record<string, number>
   /** The sport's threshold in its own number, drawn as a labelled line with its range as a band. */
   threshold?: ThresholdLine | null
+  /** The level the best 20 minutes grades to, such as "Local", for the finding when there is no period before. */
+  bestLevel?: string
 }
 
 /**
@@ -75,28 +78,43 @@ export function SportCurveChart({
   activityNames,
   activityMasses,
   threshold = null,
+  bestLevel,
 }: SportCurveChartProps) {
-  const rows = buildRows(sport, curve, previous?.curve ?? [])
+  // Each is kept while its inputs are, so reading a point (which re-renders the chart) does not rebuild the layout.
+  const rows = useMemo(
+    () => buildRows(sport, curve, previous?.curve ?? []),
+    [sport, curve, previous?.curve],
+  )
   // The previous period is drawn, listed and tabled only when it has a value to show.
   const shown =
     previous !== null && rows.some((row) => Number.isFinite(row.previous)) ? previous : null
-  const view: View = {
-    sport,
-    units,
-    massKg,
-    masses: activityMasses,
-    previous: shown,
-    names: activityNames,
-    shared: sharedSourceOf(rows.map((row) => row.activityId)),
-  }
+  const view: View = useMemo(
+    () => ({
+      sport,
+      units,
+      massKg,
+      masses: activityMasses,
+      previous: shown,
+      names: activityNames,
+      shared: sharedSourceOf(rows.map((row) => row.activityId)),
+    }),
+    [sport, units, massKg, activityMasses, shown, activityNames, rows],
+  )
   const hasData = rows.filter((row) => Number.isFinite(row.value)).length >= 2
   const [active, setActive] = useState<number | null>(null)
   const emphasis = emphasisIndex(rows)
-  const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size, threshold))
-  const marksOf = sizedOnce((size: ChartSize) => {
-    const m = layoutOf(size)
-    return m === null ? null : curveMarks(rows, m, view, size, threshold)
-  })
+  const layoutOf = useMemo(
+    () => sizedOnce((size: ChartSize) => layout(rows, view, size, threshold)),
+    [rows, view, threshold],
+  )
+  const marksOf = useMemo(
+    () =>
+      sizedOnce((size: ChartSize) => {
+        const m = layoutOf(size)
+        return m === null ? null : curveMarks(rows, m, view, size, threshold)
+      }),
+    [layoutOf, rows, view, threshold],
+  )
   const legend: ChartLegendEntry[] | undefined = hasData ? keyOf(sport, shown, previous) : undefined
   const noPrevious =
     previous && !shown && hasData
@@ -115,7 +133,19 @@ export function SportCurveChart({
   return (
     <ChartFrame
       title={titleOf(sport, units)}
-      description={`Best ${SPORT_FORMAT[sport].nativeLabel.toLowerCase()} for each duration. Duration is on a log scale.${shown ? ` Dashed line: ${shown.label}.` : ''}`}
+      takeaway={
+        hasData
+          ? (curveTakeaway({
+              sport,
+              units,
+              rows,
+              previousLabel: shown?.label ?? null,
+              threshold,
+              level: bestLevel,
+            }) ?? undefined)
+          : undefined
+      }
+      description={`Best ${SPORT_FORMAT[sport].nativeLabel.toLowerCase()} for each duration. Duration is on a log scale.${shown ? ` Grey line: ${shown.label}.` : ''}`}
       legend={legend}
       keyNote={noPrevious}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}
@@ -203,10 +233,15 @@ export function SportCurveChart({
               size={size}
               obstacles={marks.obstacles}
             />
+            {/* A measured point is a solid dot; a carried one is a hollow ring, since it is not this length's own best. */}
             {emphasised ? (
               <circle
                 data-testid="sport-curve-emphasis"
-                className={`chart-series__marker chart-series__marker--${sport}`}
+                className={
+                  m.carried[emphasis] === true
+                    ? `chart-series__ring--${sport}`
+                    : `chart-series__marker chart-series__marker--${sport}`
+                }
                 cx={emphasised.x}
                 cy={emphasised.y}
                 r={activeR}
@@ -219,7 +254,11 @@ export function SportCurveChart({
                 <circle
                   key={rows[index]?.durationS}
                   data-testid="sport-curve-record"
-                  className={`chart-series__marker chart-series__marker--${sport}`}
+                  className={
+                    m.carried[index] === true
+                      ? `chart-series__ring--${sport}`
+                      : `chart-series__marker chart-series__marker--${sport}`
+                  }
                   cx={point.x}
                   cy={point.y}
                   r={markerR}
@@ -228,7 +267,11 @@ export function SportCurveChart({
             )}
             {activePoint ? (
               <circle
-                className={`chart-series__marker chart-series__marker--${sport}`}
+                className={
+                  active !== null && m.carried[active] === true
+                    ? `chart-series__ring--${sport}`
+                    : `chart-series__marker chart-series__marker--${sport}`
+                }
                 cx={activePoint.x}
                 cy={activePoint.y}
                 r={activeR}

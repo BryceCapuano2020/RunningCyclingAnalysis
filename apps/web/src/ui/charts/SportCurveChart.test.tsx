@@ -230,7 +230,7 @@ describe('SportCurveChart', () => {
     expect(container.querySelector('[data-annotation="end"]')).toBeNull()
   })
 
-  it('draws the previous period dashed and names it in the legend, when given', () => {
+  it('draws the previous period as a thinner solid grey line and names it in the legend, when given', () => {
     const { container } = render(
       <SportCurveChart
         sport="run"
@@ -243,7 +243,7 @@ describe('SportCurveChart', () => {
     const previousLine = container.querySelector('[data-testid="sport-curve-previous"]')
     const currentLine = container.querySelector('[data-testid="sport-curve-line"]')
     expect(previousLine).not.toBeNull()
-    // The dashed line is its own path through the previous period's points, not a copy of the current one.
+    // The grey line is its own path through the previous period's points, not a copy of the current one.
     const previousD = previousLine?.getAttribute('d') ?? ''
     expect(previousD).not.toBe(currentLine?.getAttribute('d'))
     // Two points, one per duration the previous period has; the gap at five minutes lifts the pen.
@@ -251,7 +251,11 @@ describe('SportCurveChart', () => {
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Previous 6 weeks')).toBeInTheDocument()
     expect(within(legend).getByText('Run')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /Dashed line: Previous 6 weeks\./ })).toBeInTheDocument()
+    // The previous period is never dashed: dashes are for estimates. Its key is a solid grey rule.
+    expect(previousLine).not.toHaveAttribute('stroke-dasharray')
+    expect(legend.querySelector('.chart-legend__key--previous')).not.toBeNull()
+    expect(legend.querySelector('.chart-legend__key--dashed')).toBeNull()
+    expect(screen.getByRole('img', { name: /Grey line: Previous 6 weeks\./ })).toBeInTheDocument()
   })
 
   it('draws no previous line, and no legend, without a previous period', () => {
@@ -683,7 +687,7 @@ describe('the curve’s key row, table and labels', () => {
     expect(ticks).toContain('20 min')
   })
 
-  it('draws the previous period’s key in the tooltip dashed, in its own mark', () => {
+  it('draws the previous period’s key in the tooltip as a solid grey rule, in its own mark', () => {
     render(
       <SportCurveChart
         sport="run"
@@ -695,7 +699,8 @@ describe('the curve’s key row, table and labels', () => {
     )
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     const status = screen.getByRole('status')
-    expect(status.querySelector('.chart-tooltip__key--dashed')).not.toBeNull()
+    expect(status.querySelector('.chart-tooltip__key--previous')).not.toBeNull()
+    expect(status.querySelector('.chart-tooltip__key--dashed')).toBeNull()
     expect(status.querySelector('.chart-tooltip__key--neutral')).toBeNull()
   })
 
