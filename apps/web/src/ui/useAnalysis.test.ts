@@ -1612,6 +1612,34 @@ describe('useAnalysis state', () => {
     expect(result.current.missingOriginals).toBe(2)
   })
 
+  it('takes the outdated activities that have an original from the same reply as the state', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    const outdated = { ...STATE, outdatedActivities: 3 }
+    // The missing count arrives ahead of the state and does not move the outdated count.
+    act(() => worker().reply({ type: 'missingOriginals', count: 3 }))
+    expect(result.current.outdatedWithOriginal).toBe(0)
+    act(() => worker().reply({ type: 'state', state: outdated, outdatedWithOriginal: 2 }))
+    expect(result.current.state.outdatedActivities).toBe(3)
+    expect(result.current.outdatedWithOriginal).toBe(2)
+
+    act(() => result.current.rebuildSavedActivities())
+    act(() =>
+      worker().reply({
+        type: 'rebuildComplete',
+        state: { ...STATE, outdatedActivities: 1 },
+        outdatedWithOriginal: 0,
+        rebuilt: 2,
+        missing: 1,
+        failed: 0,
+        limited: 0,
+        limitKind: null,
+        limitResetsAtMs: null,
+      }),
+    )
+    expect(result.current.state.outdatedActivities).toBe(1)
+    expect(result.current.outdatedWithOriginal).toBe(0)
+  })
+
   it('refuses a signed-out import made while the worker is stopped, and does not run it after a restart', () => {
     const { result } = setup(SIGNED_OUT)
     act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))

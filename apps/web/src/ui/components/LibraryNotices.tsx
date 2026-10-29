@@ -20,23 +20,39 @@ function hiddenCopiesText(count: number): string {
   )
 }
 
-/**
- * Saved activities made by an older analysis model. Signed in, they are rebuilt from their files; a
- * visitor who is not signed in has them kept in this browser, and adds the files again.
- */
-function outdatedText(count: number, signedIn: boolean): string {
+/** Saved activities that are rebuilt from their stored original files. */
+function updateText(count: number): string {
   const one = count === 1
-  if (!signedIn) {
-    return (
-      `${plural(count, 'activity', 'activities')} kept in this browser ${one ? 'was' : 'were'} ` +
-      `analysed by an older version of the app. Add ${one ? 'its file' : 'their files'} again to ` +
-      `include ${one ? 'it' : 'them'}.`
-    )
-  }
   return (
     `${plural(count, 'saved activity', 'saved activities')} ${one ? 'needs' : 'need'} a quick ` +
     `update before ${one ? 'it counts' : 'they count'} in these results.`
   )
+}
+
+/** Outdated activities that have no original file to rebuild from, so their files are added again. */
+function addFilesText(count: number, signedIn: boolean): string {
+  const one = count === 1
+  const what = signedIn
+    ? plural(count, 'saved activity', 'saved activities')
+    : `${plural(count, 'activity', 'activities')} kept in this browser`
+  return (
+    `${what} ${one ? 'was' : 'were'} analysed by an older version of the app. Add ` +
+    `${one ? 'its file' : 'their files'} again to include ${one ? 'it' : 'them'}.`
+  )
+}
+
+/**
+ * Saved activities made by an older analysis model. Signed in, the ones with an original file are
+ * rebuilt from it and the others have their files added again; a visitor who is not signed in has
+ * them kept in this browser, and adds the files again.
+ */
+function outdatedText(rebuildable: number, needFiles: number): string {
+  return [
+    rebuildable > 0 && updateText(rebuildable),
+    needFiles > 0 && addFilesText(needFiles, true),
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 export interface LibraryNoticesProps {
@@ -67,6 +83,8 @@ export function LibraryNotices({
   const missingShown = signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0
   const outdatedCount = analysis.state.outdatedActivities
   const outdatedShown = outdatedCount > 0
+  // Update now rebuilds from stored originals, so it covers only the outdated activities that have one.
+  const rebuildable = signedIn ? Math.min(analysis.outdatedWithOriginal, outdatedCount) : 0
   const incompatibleCount = analysis.state.incompatibleActivities
   const incompatibleShown = incompatibleCount > 0
   const incompatibleText =
@@ -121,9 +139,15 @@ export function LibraryNotices({
         className={outdatedShown ? 'notice' : 'sr-only'}
         aria-label={outdatedShown ? 'Saved activity updates' : undefined}
       >
-        <p role="status">{outdatedShown ? outdatedText(outdatedCount, signedIn) : ''}</p>
-        {outdatedShown && signedIn && !fileRetentionAvailable && <p>{ORIGINALS_UNAVAILABLE}</p>}
-        {outdatedShown && signedIn && (
+        <p role="status">
+          {outdatedShown
+            ? signedIn
+              ? outdatedText(rebuildable, outdatedCount - rebuildable)
+              : addFilesText(outdatedCount, false)
+            : ''}
+        </p>
+        {rebuildable > 0 && !fileRetentionAvailable && <p>{ORIGINALS_UNAVAILABLE}</p>}
+        {rebuildable > 0 && (
           <button
             ref={updateRef}
             type="button"

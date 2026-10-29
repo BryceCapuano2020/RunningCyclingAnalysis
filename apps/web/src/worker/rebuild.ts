@@ -26,6 +26,8 @@ export interface LibraryContext {
   device: Pick<DeviceActions, 'replaced'>
   savedRecords: Map<string, ActivityRecord>
   missingOriginals: Set<string>
+  /** Ids of saved records whose stored original a rebuild could not match, so it cannot update them. */
+  unmatchedOriginals: Set<string>
   post: (message: WorkerResponse) => void
   reportLibrary: () => void
   reportUnreadable: (count: number) => void
@@ -49,6 +51,7 @@ export async function loadServer(
   ctx.reportLibrary()
   ctx.reportUnreadable(unreadable)
   ctx.missingOriginals.clear()
+  ctx.unmatchedOriginals.clear()
   for (const record of records) {
     if (!record.hasFile) ctx.missingOriginals.add(workoutKeyOf(record.digest))
   }
@@ -75,6 +78,8 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   let limited = 0
   let limitKind: 'daily' | 'rate' | null = null
   let limitReached = false
+  // Records whose stored original did not match them. They keep `hasFile`, but need the file again.
+  const unmatched: ActivityRecord[] = []
   for (const record of stale) {
     if (!record.hasFile) {
       missing++
@@ -89,6 +94,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
       const { fileHash, activity } = await originalActivity(record, userId)
       if (!activity) {
         missing++
+        unmatched.push(record)
         continue
       }
       // Replaces this exact activity, so a copy deleted in another tab is not written back.
@@ -107,10 +113,14 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
       const issue = syncIssueFor(error)
       // A sign-out or account change would fail every remaining activity the same way.
       if (haltsImport(issue)) throw error
-      if (error instanceof Error && 'status' in error && error.status === 404) missing++
-      // The stored original no longer matches a different saved copy, so it cannot be matched.
-      else if (issue === 'activity-conflict') missing++
-      else if (issue === 'daily-limit' || issue === 'rate-limited') {
+      if (error instanceof Error && 'status' in error && error.status === 404) {
+        missing++
+        unmatched.push(record)
+      } else if (issue === 'activity-conflict') {
+        // The stored original no longer matches a different saved copy, so it cannot be matched.
+        missing++
+        unmatched.push(record)
+      } else if (issue === 'daily-limit' || issue === 'rate-limited') {
         limitReached = true
         limited++
         // A daily limit outranks a rate limit if both are seen.
@@ -139,6 +149,11 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   )
   ctx.savedRecords.clear()
   for (const record of refreshed) ctx.savedRecords.set(record.id, record)
+  // Rebuilding them again would find the same mismatch, so Update now leaves them out; adding
+  // their files again still updates them. One deleted in another tab is no longer listed.
+  for (const record of unmatched) {
+    if (ctx.savedRecords.has(record.id)) ctx.unmatchedOriginals.add(record.id)
+  }
   ctx.reportLibrary()
   ctx.reportUnreadable(unreadable)
   // The 429 sends Retry-After: 60, the limiter's window, so a rate limit clears in that long.

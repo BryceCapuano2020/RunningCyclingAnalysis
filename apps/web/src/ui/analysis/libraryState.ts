@@ -34,6 +34,7 @@ export function useLibraryState() {
   const [libraryNotice, setLibraryNotice] = useState<string | null>(null)
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [missingOriginals, setMissingOriginals] = useState(0)
+  const [outdatedWithOriginal, setOutdatedWithOriginal] = useState(0)
   const [libraryUnreadable, setLibraryUnreadable] = useState(0)
   const [deviceIssue, setDeviceIssue] = useState<DeviceIssue | null>(null)
   const [savedActivities, setSavedActivities] = useState<SavedActivity[]>([])
@@ -95,6 +96,8 @@ export function useLibraryState() {
     setLibraryError,
     missingOriginals,
     setMissingOriginals,
+    outdatedWithOriginal,
+    setOutdatedWithOriginal,
     libraryUnreadable,
     setLibraryUnreadable,
     deviceIssue,

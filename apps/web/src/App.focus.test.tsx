@@ -211,6 +211,7 @@ describe('focus after an action completes', () => {
 
   it('moves focus to the rebuild notice when a rebuild ends and its button goes away', () => {
     setSession({ outdatedActivities: 2 })
+    app.analysis.outdatedWithOriginal = 2
     app.analysis.rebuildSavedActivities = vi.fn(() => {
       app.analysis.busy = true
     })

@@ -291,7 +291,9 @@ describe('analysis worker', () => {
         const messages = await send(importOf({ keepFiles: false, userId: USER_ID }))
 
         expect(messages.at(-1)).toEqual({ type: 'error', message: 'The summary failed' })
+        // The failed import still tells the page which originals are missing.
         expect(messages.at(-2)).toEqual({ type: 'progress', filesRead: FILES, uploaded: FILES })
+        expect(messages).toContainEqual({ type: 'missingOriginals', count: FILES })
 
         // The throttled message would have gone out one interval after the first.
         await new Promise((resolve) => setTimeout(resolve, 400))
@@ -1154,6 +1156,182 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).toHaveBeenCalledOnce()
     expect(imported).toContainEqual({ type: 'missingOriginals', count: 0 })
     expect(imported.at(-1)).toMatchObject({ type: 'state' })
+  })
+
+  describe('outdated saved activities that still have their original file', () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const DAY_MS = 86_400_000
+    const other = (id: string, days: number, modelRevision = 1) => ({
+      ...stale,
+      id,
+      startMs: stale.startMs + days * DAY_MS,
+      modelRevision,
+    })
+
+    /** The reply that ends a request, which carries the state and the count that goes with it. */
+    function ending(messages: WorkerResponse[]): WorkerResponse {
+      const last = messages.at(-1)
+      if (last === undefined) throw new Error('no reply')
+      return last
+    }
+
+    it('sends the count with the state it belongs to, and not before it', async () => {
+      mocked.listActivities.mockImplementation(async () => [
+        recordFor(stale, true),
+        recordFor(other('no-file', 1), false),
+        recordFor(other('current', 2, MODEL_REVISION), true),
+        recordFor(other('no-file-current', 3, MODEL_REVISION)),
+      ])
+      const { send } = await startWorker()
+      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+      expect(ending(loaded)).toMatchObject({
+        type: 'state',
+        outdatedWithOriginal: 1,
+        state: { outdatedActivities: 2 },
+      })
+      // The missing count goes ahead of the state, alone: the two outdated counts must land together.
+      expect(loaded).toContainEqual({ type: 'missingOriginals', count: 2 })
+      expect(loaded.slice(0, -1).some((message) => 'outdatedWithOriginal' in message)).toBe(false)
+    })
+
+    it('leaves the count off when none of the outdated activities has its file', async () => {
+      mocked.listActivities.mockResolvedValue([recordFor(stale, false)])
+      const { send } = await startWorker()
+      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+      expect(ending(loaded)).toMatchObject({ state: { outdatedActivities: 1 } })
+      expect(ending(loaded)).not.toHaveProperty('outdatedWithOriginal')
+    })
+
+    it('does not count a stale record whose workout the library holds from a current copy', async () => {
+      mocked.listActivities.mockResolvedValue([
+        recordFor(stale, true),
+        recordFor({ ...stale, id: 'same-start', modelRevision: MODEL_REVISION }, true),
+      ])
+      const { send } = await startWorker()
+      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+      expect(ending(loaded)).toMatchObject({ state: { outdatedActivities: 0 } })
+      expect(ending(loaded)).not.toHaveProperty('outdatedWithOriginal')
+    })
+
+    it('drops the count in the rebuild reply once its activities are updated', async () => {
+      const library = () => [recordFor(stale, true), recordFor(other('no-file', 1), false)]
+      mocked.listActivities.mockImplementation(async () => library())
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+      const updated = library()
+      updated[0] = recordFor(SAMPLE_DIGEST, true)
+      mocked.listActivities.mockResolvedValueOnce(library()).mockResolvedValueOnce(updated)
+      const rebuilt = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(ending(rebuilt)).toMatchObject({
+        type: 'rebuildComplete',
+        rebuilt: 1,
+        state: { outdatedActivities: 1 },
+      })
+      expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
+    })
+
+    it('counts an activity a rebuild cannot match as missing its original, and stops offering it', async () => {
+      // The second record's file holds no activity that starts when the record says it did.
+      const library = () => [recordFor(stale, true), recordFor(other('second', 1), true)]
+      mocked.listActivities.mockImplementation(async () => library())
+      const { send } = await startWorker()
+      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      expect(ending(loaded)).toMatchObject({ outdatedWithOriginal: 2 })
+
+      const updated = library()
+      updated[0] = recordFor(SAMPLE_DIGEST, true)
+      mocked.listActivities.mockResolvedValueOnce(library()).mockResolvedValueOnce(updated)
+      const rebuilt = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(ending(rebuilt)).toMatchObject({
+        type: 'rebuildComplete',
+        rebuilt: 1,
+        missing: 1,
+        state: { outdatedActivities: 1 },
+      })
+      // Update now would only report the same file missing again, so none is offered.
+      expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
+      // The file is still stored, so nothing is reported missing: adding it again updates the activity.
+      expect(rebuilt.some((message) => message.type === 'missingOriginals')).toBe(false)
+    })
+
+    it('offers a deleted activity again when a record with its id comes back', async () => {
+      const library = () => [recordFor(stale, true)]
+      mocked.listActivities.mockImplementation(async () => library())
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      mocked.createActivity.mockRejectedValueOnce(
+        new ApiRequestError(404, 'not_found', 'Activity not found'),
+      )
+      await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      await send({
+        type: 'deleteActivity',
+        id: `rec-${stale.id}`,
+        userId: USER_ID,
+        settings: SETTINGS,
+      })
+
+      // A rebuild that stops at a limit leaves the record neither updated nor unmatched.
+      mocked.downloadActivityFile.mockRejectedValueOnce(
+        new ApiRequestError(429, 'daily_limit', 'Daily download limit reached'),
+      )
+      const limited = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      expect(ending(limited)).toMatchObject({ limited: 1, outdatedWithOriginal: 1 })
+    })
+
+    it('forgets the unmatched activities when the library loads again', async () => {
+      mocked.listActivities.mockImplementation(async () => [recordFor(stale, true)])
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      mocked.createActivity.mockRejectedValueOnce(
+        new ApiRequestError(404, 'not_found', 'Activity not found'),
+      )
+      const rebuilt = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
+
+      const reloaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      expect(ending(reloaded)).toMatchObject({ outdatedWithOriginal: 1 })
+      expect(reloaded).toContainEqual({ type: 'missingOriginals', count: 0 })
+    })
+
+    it('refreshes the count when an import updates an outdated activity', async () => {
+      mocked.listActivities.mockImplementation(async () => [recordFor(stale, true)])
+      const { send } = await startWorker()
+      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      expect(ending(loaded)).toMatchObject({ outdatedWithOriginal: 1 })
+
+      const imported = await send({
+        type: 'addFiles',
+        files: [fitFile()],
+        settings: SETTINGS,
+        sync: { keepFiles: true, userId: USER_ID },
+      })
+      expect(ending(imported)).toMatchObject({ type: 'state', state: { outdatedActivities: 0 } })
+      expect(ending(imported)).not.toHaveProperty('outdatedWithOriginal')
+    })
+
+    it('tells the page which originals are missing when an import fails', async () => {
+      mocked.listActivities.mockResolvedValue([recordFor(stale, false)])
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      vi.mocked(importSummary.summarizeAdded).mockImplementationOnce(() => {
+        throw new Error('The summary failed')
+      })
+      const imported = await send({
+        type: 'addFiles',
+        files: [fitFile()],
+        settings: SETTINGS,
+        sync: { keepFiles: false, userId: USER_ID },
+      })
+
+      expect(imported.at(-1)).toMatchObject({ type: 'error' })
+      expect(imported).toContainEqual({ type: 'missingOriginals', count: 1 })
+    })
   })
 
   it('reports a sign-out while loading the library so the app can stop showing the account', async () => {

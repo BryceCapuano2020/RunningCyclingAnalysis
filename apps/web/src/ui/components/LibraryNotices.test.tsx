@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ORIGINALS_UNAVAILABLE } from '../analysis/copy'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisController } from '../useAnalysis'
 import { LibraryNotices } from './LibraryNotices'
@@ -20,6 +21,7 @@ function Library({ rebuildStarts = true }: { rebuildStarts?: boolean }) {
   const [rebuildNotice, setRebuildNotice] = useState<string | null>(null)
   const analysis = analysisStub({
     state: { outdatedActivities: 2 },
+    outdatedWithOriginal: 2,
     busy,
     rebuildNotice,
     rebuildSavedActivities: () => {
@@ -102,6 +104,7 @@ describe('LibraryNotices: focus after a rebuild', () => {
       <LibraryNotices
         analysis={analysisStub({
           state: { outdatedActivities: 2 },
+          outdatedWithOriginal: 2,
           busy: true,
           rebuildSavedActivities,
         })}
@@ -145,10 +148,13 @@ describe('LibraryNotices: counts', () => {
 })
 
 describe('LibraryNotices: outdated saved activities', () => {
-  function outdated(count: number, signedIn: boolean) {
+  function outdated(count: number, signedIn: boolean, withOriginal = count) {
     return (
       <LibraryNotices
-        analysis={analysisStub({ state: { outdatedActivities: count } })}
+        analysis={analysisStub({
+          state: { outdatedActivities: count },
+          outdatedWithOriginal: withOriginal,
+        })}
         signedIn={signedIn}
         keepFiles={signedIn}
         fileRetentionAvailable
@@ -179,13 +185,64 @@ describe('LibraryNotices: outdated saved activities', () => {
     expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
   })
 
-  it('keeps the signed-in wording and the Update now button', () => {
+  it('offers Update now when every outdated saved activity has its original file', () => {
     render(outdated(1, true))
 
     expect(
       screen.getByText('1 saved activity needs a quick update before it counts in these results.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Update now' })).toBeInTheDocument()
+  })
+
+  it('asks for the files again, with no Update now button, when none has its original file', () => {
+    render(outdated(2, true, 0))
+
+    expect(
+      screen.getByText(
+        '2 saved activities were analysed by an older version of the app. Add their files again to include them.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/quick update/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
+  })
+
+  it('updates only the ones with an original file and asks for the files of the rest', () => {
+    render(outdated(3, true, 2))
+
+    expect(
+      screen.getByText(
+        '2 saved activities need a quick update before they count in these results. 1 saved activity was analysed by an older version of the app. Add its file again to include it.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Update now' })).toBeInTheDocument()
+  })
+
+  it('does not count more updatable activities than are outdated', () => {
+    render(outdated(1, true, 4))
+
+    expect(
+      screen.getByText('1 saved activity needs a quick update before it counts in these results.'),
+    ).toBeInTheDocument()
+  })
+
+  it('explains a disabled Update now only when some activity can be updated', () => {
+    const unavailable = (withOriginal: number) => (
+      <LibraryNotices
+        analysis={analysisStub({
+          state: { outdatedActivities: 2 },
+          outdatedWithOriginal: withOriginal,
+        })}
+        signedIn
+        keepFiles
+        fileRetentionAvailable={false}
+        onRetry={vi.fn()}
+      />
+    )
+    const { rerender } = render(unavailable(0))
+    expect(screen.queryByText(ORIGINALS_UNAVAILABLE)).not.toBeInTheDocument()
+    rerender(unavailable(2))
+    expect(screen.getByText(ORIGINALS_UNAVAILABLE)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Update now' })).toBeDisabled()
   })
 })
 

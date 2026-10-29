@@ -166,11 +166,21 @@ export type WorkerResponse =
   /**
    * `saved` is the activities an import saved to the account, counted by the worker, so the page
    * ends on the right number however its progress messages were drawn. Absent when nothing is saved.
+   * `outdatedWithOriginal`, absent when zero, is how many of the outdated saved activities in `state` still have an
+   * original file to rebuild from, sent with the state so the two counts always agree.
    */
-  | { type: 'state'; state: SessionState; outcome?: ImportOutcome; saved?: number }
+  | {
+      type: 'state'
+      state: SessionState
+      outcome?: ImportOutcome
+      saved?: number
+      outdatedWithOriginal?: number
+    }
   | {
       type: 'rebuildComplete'
       state: SessionState
+      /** Absent when zero. As on `state`: the outdated activities in `state` that a rebuild can update. */
+      outdatedWithOriginal?: number
       rebuilt: number
       missing: number
       failed: number
