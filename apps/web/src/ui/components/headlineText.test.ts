@@ -307,7 +307,7 @@ describe('balanceSentence', () => {
 
   it('states the gap and its range in words when the grades are in balance', () => {
     expect(balanceSentence(gapReading(gap({ centre: 4, low: -2, high: 10, lean: 'even' })))).toBe(
-      'In balance: best estimate running +4 points against cycling, range −2 to +10\u00a0points',
+      'In balance: running 4 points higher, range −2 to +10\u00a0points',
     )
   })
 
@@ -325,7 +325,7 @@ describe('balanceSentence', () => {
 
   it('says the balance is even within the range when the range spans 1', () => {
     expect(balanceSentence(energyReading(interval(0.95, 1, 1.05)))).toBe(
-      "Even within the model's range (running against cycling -5% to +5%)",
+      'Level as energy per kilogram (running against cycling -5% to +5%)',
     )
   })
 })

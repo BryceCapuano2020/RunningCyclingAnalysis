@@ -1,6 +1,14 @@
 import type { Sport } from '@rca/core/types'
 import type { BalanceReading } from '../components/balanceScale'
-import { percentEdge, signedCount } from '../components/headlineText'
+import {
+  percentEdge,
+  readFrom,
+  sideRange,
+  signedCount,
+  signedRange,
+} from '../components/headlineText'
+import { plural } from '../components/plural'
+import { wholeCentre } from '../../domain/lean'
 import { HEADLINE_LABEL } from '../grades'
 import { SPORT_ACTIVITY, SPORT_NOUN } from '../sports'
 import type { MovedItem } from './whatMoved'
@@ -15,27 +23,33 @@ export interface AddedBalance {
 }
 
 /**
- * The centre as the Balance page states it: a whole count of points, signed for an even balance, or
- * a percent edge. Null where the page states no centre, which is an even energy balance.
+ * The centre as the Balance page states it. A lean gives its size alone, as a count of points or a percent edge.
+ * A level balance names the sport its estimate favours, since it has no lean to say so: "2 points toward cycling".
  */
-function centreShown({ unit, lean, lead }: BalanceReading): string | null {
-  if (unit === 'percent') return lean === 'even' ? null : percentEdge(Math.abs(lead.centre), false)
-  return lean === 'even' ? signedCount(lead.centre) : String(Math.abs(Math.round(lead.centre)))
+function centreShown(reading: BalanceReading): string {
+  const { unit, lean, lead } = reading
+  const size = Math.abs(wholeCentre(lead))
+  if (unit === 'percent') {
+    const percent = percentEdge(Math.abs(lead.centre), false)
+    return lean === 'even' ? `${percent} toward ${SPORT_NOUN[readFrom(reading)]}` : percent
+  }
+  if (lean !== 'even') return String(size)
+  return size === 0
+    ? '0 points'
+    : `${plural(size, 'point')} toward ${SPORT_NOUN[readFrom(reading)]}`
 }
 
 /**
- * The range as the Balance page states it, "A to B" as its own range text writes it. Its two edges are
- * shown as a range only when they round apart; otherwise the page states one value, which the centre
- * already says.
+ * The range as the Balance page states it, "A to B" as its own range text writes it, from the side the balance is
+ * read from, signed when it reaches zero. Its two edges are shown as a range only when they round apart; otherwise
+ * the page states one value, which the centre already says.
  */
-function rangeOf({ unit, lean, lead }: BalanceReading): { words: string; isRange: boolean } {
-  // A lean toward the second sport has a negative lead, so its edges are read the other way round.
-  const flip = lean !== 'even' && lead.centre < 0
-  const [low, high] = flip ? [-lead.high, -lead.low] : [lead.low, lead.high]
+function rangeOf(reading: BalanceReading): { words: string; isRange: boolean } {
+  const { unit } = reading
+  const [low, high] = sideRange(reading)
   const isRange = Math.round(low) !== Math.round(high)
   const middle = (low + high) / 2
-  // A range that reaches zero or the other side is signed, as the page writes it.
-  const signed = lean === 'even' || Math.round(low) < 0
+  const signed = signedRange(reading)
   if (unit === 'percent') {
     const edge = (value: number) => percentEdge(value, signed)
     const words = isRange ? `${edge(low)} to ${edge(high)}` : edge(middle)
@@ -63,7 +77,7 @@ function centreText(before: BalanceReading, after: BalanceReading): MovedItem {
   const to = centreShown(after) ?? ''
   const suffix = unitSuffix(after.unit)
   if (after.lean === 'even') {
-    return { text: `Your balance's best estimate moved from ${from} to ${to}${suffix}` }
+    return { text: `Your balance's best estimate moved from ${from} to ${to}` }
   }
   const direction = Math.abs(after.lead.centre) < Math.abs(before.lead.centre) ? 'less' : 'more'
   const sport = SPORT_NOUN[after.lean]

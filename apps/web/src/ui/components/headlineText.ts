@@ -3,7 +3,7 @@ import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Comparison, ComparisonPoint, Sport } from '@rca/core/types'
 import { formatDuration, formatPercent } from '@rca/core/units'
-import type { Lean } from '../../domain/lean'
+import { wholeCentre, type Lean } from '../../domain/lean'
 import { plural } from './plural'
 import { effortLabel } from '../records'
 import { SPORT_LABEL, SPORT_NOUN, SPORT_TITLE } from '../sports'
@@ -62,21 +62,36 @@ function leaderOf(lean: Exclude<Lean, 'even'>): { leader: string; other: string 
     : { leader: SPORT_NOUN.ride, other: SPORT_NOUN.run }
 }
 
-/** A lead's range from the leading sport's side: both ends positive when the range stays on its side. */
-function sideRange({ lean, lead }: BalanceReading): [number, number] {
-  return lean === 'ride' ? [-lead.high, -lead.low] : [lead.low, lead.high]
+/** The sport a balance reads from: the one its best estimate favours, running when the estimate rounds to zero. */
+export function readFrom(reading: BalanceReading): Sport {
+  return wholeCentre(reading.lead) < 0 ? 'ride' : 'run'
+}
+
+/** A lead's range from the side it is read from: both ends positive when the range stays on that sport's side. */
+export function sideRange(reading: BalanceReading): [number, number] {
+  const { low, high } = reading.lead
+  return readFrom(reading) === 'ride' ? [-high, -low] : [low, high]
 }
 
 /**
- * The range of a balance, in words, from the leading sport's side. A range that reaches zero or the
- * other sport's side is signed with true minus signs ("−4 to +18 points"), so it reads as a span
- * across zero; one wholly on the leader's side is plain ("2 to 10 points"). An even balance is
- * signed, running against cycling.
+ * Whether a range is written with signs: one that reaches zero or the other sport's side ("−4 to +18 points",
+ * "0 to +8 points"), so it reads as a span across zero. One wholly on the side it is read from is plain
+ * ("2 to 10 points").
+ */
+export function signedRange(reading: BalanceReading): boolean {
+  const [low] = sideRange(reading)
+  return reading.unit === 'points' ? Math.round(low) <= 0 : low <= 0
+}
+
+/**
+ * The range of a balance, in words, from the side the balance is read from: the sport its estimate favours,
+ * or running when it rounds to zero. The lede, the meter's key, the spoken sentence and the import summary all
+ * write it this way, so their signs agree.
  */
 export function rangeText(reading: BalanceReading): string {
-  const { unit, lean } = reading
+  const { unit } = reading
   const [low, high] = sideRange(reading)
-  const signed = lean === 'even' || Math.round(low) < 0
+  const signed = signedRange(reading)
   if (unit === 'points') {
     if (signed) return `${signedCount(low)} to ${signedCount(high)}${NO_BREAK}points`
     return `${Math.round(low)} to ${pointsUnit(Math.round(high))}`
@@ -89,14 +104,6 @@ function isPoint(reading: BalanceReading): boolean {
   return Math.round(reading.lead.low) === Math.round(reading.lead.high)
 }
 
-/** The leading sport's range in points, from its own side: "2 to 10 points", or "−4 to +18 points" across zero. */
-function leaderRange(reading: BalanceReading, leader: Sport): string {
-  const { low, high } = reading.lead
-  const [from, to] = leader === 'ride' ? [-high, -low] : [low, high]
-  if (Math.round(from) >= 0) return `${Math.round(from)} to ${pointsUnit(Math.round(to))}`
-  return `${signedCount(from)} to ${signedCount(to)}${NO_BREAK}points`
-}
-
 /**
  * A grade gap on the headline duration: the best estimate first, then the range it sits within, from
  * the leading sport's side so the signs agree with the sentence. "Running’s age grade is 9 points
@@ -105,19 +112,19 @@ function leaderRange(reading: BalanceReading, leader: Sport): string {
  * the two are level.
  */
 function gradeSummary(reading: BalanceReading): string {
-  const centre = Math.round(reading.lead.centre)
+  const centre = wholeCentre(reading.lead)
   const at = `at ${formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)}`
   const level = reading.lean === 'even' ? ', so the two are level' : ''
+  const within = isPoint(reading) ? '' : `, within ${rangeText(reading)}`
   if (centre === 0) {
     // A range that is not symmetric about zero has a side, so it names the one it is read from.
     const lopsided = Math.round(reading.lead.low) !== -Math.round(reading.lead.high)
-    const side = lopsided ? ' (running minus cycling)' : ''
-    return `Running and cycling have the same age grade ${at}, within ${rangeText(reading)}${side}${level}.`
+    const side = within !== '' && lopsided ? ' (running minus cycling)' : ''
+    return `Running and cycling have the same age grade ${at}${within}${side}${level}.`
   }
-  const leading: Sport = centre > 0 ? 'run' : 'ride'
+  const leading = readFrom(reading)
   const { other } = leaderOf(leading)
   const lead = `${SPORT_TITLE[leading]}’s age grade is ${points(Math.abs(centre))} higher than ${other}’s ${at}`
-  const within = isPoint(reading) ? '' : `, within ${leaderRange(reading, leading)}`
   return `${lead}${within}${level}.`
 }
 
@@ -210,7 +217,7 @@ function leadingSentence({
 }: BalanceReading & { lean: Exclude<Lean, 'even'> }): string {
   if (unit === 'points') {
     const { other } = leaderOf(lean)
-    return `${SPORT_TITLE[lean]} grades ${points(Math.abs(Math.round(lead.centre)))} higher than ${other}`
+    return `${SPORT_TITLE[lean]} grades ${points(Math.abs(wholeCentre(lead)))} higher than ${other}`
   }
   // The edge's rule, so a lead under half a percent reads as its value, never as 0%.
   const percent = percentEdge(Math.abs(lead.centre), false)
@@ -231,10 +238,16 @@ export function leadSentence(reading: BalanceReading): string | null {
 export function balanceSentence(reading: BalanceReading): string {
   const { unit, lean, lead } = reading
   if (lean === 'even') {
+    const centre = wholeCentre(lead)
+    const { leader } = leaderOf(readFrom(reading))
     if (unit === 'points') {
-      return `In balance: best estimate running ${signedCount(lead.centre)} points against cycling, range ${rangeText(reading)}`
+      if (centre === 0) {
+        return `In balance: running and cycling have the same age grade, range ${rangeText(reading)}`
+      }
+      return `In balance: ${leader} ${points(Math.abs(centre))} higher, range ${rangeText(reading)}`
     }
-    return `Even within the model's range (running against cycling ${rangeText(reading)})`
+    const { other } = leaderOf(readFrom(reading))
+    return `Level as energy per kilogram (${leader} against ${other} ${rangeText(reading)})`
   }
   return `${leadingSentence({ ...reading, lean })} (range ${rangeText(reading)})`
 }

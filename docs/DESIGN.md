@@ -139,8 +139,8 @@ entered (a ride's figures wait for the weight, as the balance does), and it stat
 figures the Balance page shows: the lean, the centre and the range. A changed centre reads "Your balance
 now leans less toward running (7 → 6 points)", or "(12% → 8%)" for energy, where an edge under 1% reads
 "0.4%", never 0%. A changed range reads "Your balance's range was −5 to +16 points and is now −4 to +16 points", in the
-page's own "A to B" wording, and a changed even centre reads "Your balance's best estimate moved from +6 to +7
-points"; both read together when they change together ("..., and the range was ... and is now ..."). Only when every figure is the same does it say "Your balance did not
+page's own "A to B" wording, and a changed even centre names the sport it favours: "Your balance's best estimate moved from 2 points toward
+cycling to 1 point toward running"; both read together when they change together ("..., and the range was ... and is now ..."). Only when every figure is the same does it say "Your balance did not
 move.", adding ": this ride set no new best at 20 min" only when the activity set none there. An activity
 outside the period on screen reads "This ride is outside the period on screen, so the balance there is
 unchanged." A line that says a figure changed counts as a move; a line that says the balance held is listed
@@ -769,7 +769,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   is 9 points higher than cycling's at 20 min, within −4 to +18 points." The estimate
   decides the title and the lean (`leanOfLead`): a lead of more than 2 whole points leans toward the sport it
   favours, "Your balance leans toward running", whether or not its range reaches zero. The range is stated
-  beside the estimate, from the leading sport's side so a cycling lead reads "cycling's age grade is 9 points
+  beside the estimate, from the side the estimate favours (running when it rounds to zero) on every surface: the lede, the meter's key, the spoken
+  name and the import summary. A level balance that favours cycling reads cycling's range too. A cycling lead reads "cycling's age grade is 9 points
   higher than running's, within −4 to +18 points"; a range wholly on the leader's side is plain ("within 2 to
   10 points"), and one that reaches zero or the other side is signed with true minus signs. A range that
   rounds to a single value is left out: "Running's age grade is 6 points higher than cycling's at 20 min."

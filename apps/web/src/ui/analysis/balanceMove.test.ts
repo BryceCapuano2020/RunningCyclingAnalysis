@@ -10,13 +10,15 @@ function evenPoints(centre: number, low: number, high: number): BalanceReading {
 describe('balanceMoveItem: an even balance', () => {
   it('names the balance as the subject of a moved best estimate, so no "Its" lacks an antecedent', () => {
     const item = balanceMoveItem(evenPoints(6, -5, 16), evenPoints(7, -5, 16), null)
-    expect(item?.text).toBe("Your balance's best estimate moved from +6 to +7 points")
+    expect(item?.text).toBe(
+      "Your balance's best estimate moved from 6 points toward running to 7 points toward running",
+    )
   })
 
   it('writes each range as the page does, "A to B", so the two never run together', () => {
     const item = balanceMoveItem(evenPoints(6, -5, 16), evenPoints(7, -4, 16), null)
     expect(item?.text).toBe(
-      "Your balance's best estimate moved from +6 to +7 points, and the range was −5 to +16 points and is now −4 to +16 points",
+      "Your balance's best estimate moved from 6 points toward running to 7 points toward running, and the range was −5 to +16 points and is now −4 to +16 points",
     )
   })
 

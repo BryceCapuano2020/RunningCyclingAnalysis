@@ -14,13 +14,18 @@ export interface Lead {
 /** A lead within this many whole points of grade, or whole percent of energy, is level. */
 export const LEVEL_BAND = 2
 
+/** A lead's centre in whole units, rounded by size so a lead of −2.5 and one of +2.5 are the same size. */
+export function wholeCentre(lead: Lead): number {
+  return Math.sign(lead.centre) * Math.round(Math.abs(lead.centre))
+}
+
 /**
  * The lean of a lead: toward the sport its best estimate favours, and even only when that estimate is
  * within LEVEL_BAND of zero. The range does not decide it. It is stated beside the estimate, so a
  * lead of 9 points reads as 9 points whether its range reaches zero or not.
  */
 export function leanOfLead(lead: Lead): Lean {
-  const centre = Math.round(lead.centre)
+  const centre = wholeCentre(lead)
   if (Math.abs(centre) <= LEVEL_BAND) return 'even'
   return centre > 0 ? 'run' : 'ride'
 }

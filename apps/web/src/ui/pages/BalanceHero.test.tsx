@@ -150,7 +150,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByRole('img', {
-        name: "Even within the model's range (running against cycling -5% to +5%)",
+        name: 'Level as energy per kilogram (running against cycling -5% to +5%)',
       }),
     ).toBeInTheDocument()
   })
