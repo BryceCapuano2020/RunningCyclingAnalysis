@@ -70,6 +70,21 @@ export function stopsSaving(code: SyncIssueCode): boolean {
 }
 
 /**
+ * How many network failures in a row end an import's saves. One lost request can be a blip, but
+ * with the network down every save costs a round trip (a second, or its whole timeout when the
+ * request hangs), which across thousands of activities is minutes of waiting for nothing.
+ */
+export const NETWORK_FAILURES_BEFORE_HALT = 3
+
+/**
+ * The count of consecutive network failures after a save: one more for a network failure, and none
+ * after a success (`null`) or any other failure.
+ */
+export function networkStreakAfter(streak: number, code: SyncIssueCode | null): number {
+  return code === 'network' ? streak + 1 : 0
+}
+
+/**
  * The unsaved activities by cause. `latest` holds the keys the most recent import left, so a count
  * that spans imports can be told from what one import left.
  */

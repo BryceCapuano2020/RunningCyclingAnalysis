@@ -12,7 +12,13 @@ import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } f
 import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
-import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
+import {
+  countIssues,
+  NETWORK_FAILURES_BEFORE_HALT,
+  networkStreakAfter,
+  stopsSaving,
+  SyncFailure,
+} from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
@@ -95,7 +101,7 @@ export class AnalysisSession {
     this.rejected.length = 0
     this.unsupported.files = 0
     this.latestUnsynced.clear()
-    const batch: SaveBatch = { halt: null, added: new Map() }
+    const batch: SaveBatch = { halt: null, networkStreak: 0, added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
@@ -281,10 +287,14 @@ export class AnalysisSession {
     try {
       await sink({ digest, route: activity.route, ...file })
       this.unsynced.delete(key)
+      batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
     } catch (error) {
       const code = error instanceof SyncFailure ? error.code : 'server'
       this.leaveUnsynced(key, code)
-      if (stopsSaving(code)) batch.halt = code
+      batch.networkStreak = networkStreakAfter(batch.networkStreak, code)
+      if (stopsSaving(code) || batch.networkStreak >= NETWORK_FAILURES_BEFORE_HALT) {
+        batch.halt = code
+      }
       return considered(false)
     }
     return considered(true)
