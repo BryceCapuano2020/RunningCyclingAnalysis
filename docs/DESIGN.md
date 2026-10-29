@@ -449,7 +449,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   with no value, and each Sunday has a marker. Past 13 months (400 days) a trend keeps the last week of each month, and its first and last
   week as its ends, so five years are sixty dots, not two hundred and sixty; its note says "Past 13 months, each point is the last week of its
   month." The first date of the axis carries its year, as the month ticks do. A sport's week-by-week chart also names its longest stretch
-  of eight weeks or more with no value inside the trend ("No rides of 20 min or longer with power from 30 Oct 2022 to 24 Sep 2023."), naming the trend's effort length, since a gap at 60 min is not a gap in training. On a wide chart the
+  of eight weeks or more with no value inside the trend ("The line breaks from 30 Oct 2022 to 24 Sep 2023: no rides of 20 min or longer with power in that time."), naming the trend's effort length, since a gap at 60 min is not a gap in training. On a wide chart the
   Balance trend's end labels sit in a gutter right of the plot, level with each line's last point, and the volume strip under it keeps the
   same margin so the two time axes line up; a narrow chart sets them over the plot, clear of both lines. The latest value is labelled with its value alone, and the
   title names its effort and window, so it can differ from a card's best, which covers the whole period.

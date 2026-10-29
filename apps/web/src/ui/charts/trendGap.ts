@@ -48,11 +48,13 @@ export function longestGap(
 }
 
 /**
- * The note under a trend for its longest gap: "No rides of 20 min or longer with power from 3 Dec 2024 to
- * 17 Aug 2025." A trend of one effort length has a value only where an activity was that long, so the note
- * names the length: a gap in the 60 min trend is not a gap in training.
+ * The note under a trend for its longest gap: "The line breaks from 3 Dec 2024 to 17 Aug 2025: no rides of
+ * 20 min or longer with power in that time." It says what the gap is, a stretch where the line has no value,
+ * since a card's best covers the whole period and can sit on a date outside it. A trend of one effort length
+ * has a value only where an activity was that long, so the note names the length: a gap in the 60 min trend
+ * is not a gap in training.
  */
 export function gapNote(sport: Sport, gap: Gap, effortS: number): string {
   const span = formatSpan(utcDayLocal(gap.fromMs), utcDayLocal(gap.toMs)).replace(' – ', ' to ')
-  return `No ${GAP_NOUN[sport]} of ${effortLabel(effortS)} or longer${GAP_NEEDS[sport]} from ${span}.`
+  return `The line breaks from ${span}: no ${GAP_NOUN[sport]} of ${effortLabel(effortS)} or longer${GAP_NEEDS[sport]} in that time.`
 }
