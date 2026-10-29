@@ -18,8 +18,6 @@ export interface BalanceReading {
 export const EVEN_LABEL = 'Even'
 /** A lead of this size, in points or in percent of energy, reaches the end of the meter. */
 export const SCALE_SPAN = 30
-/** The values printed on each side of the meter's centre. */
-export const SCALE_TICKS = [10, 20, 30] as const
 /**
  * A lead at the span sits this fraction of the full track inside each edge, so the dot and the band
  * never leave the track. The formula below spans half the track less this inset on each side.

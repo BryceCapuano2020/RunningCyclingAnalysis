@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from '../ui/components/stylesheet'
+import { readStylesheet, ruleBody } from '../ui/components/stylesheet'
 import { contrast } from './contrastMath'
 import { colour, declarations, declared, resolved, type Tokens } from './tokenSheet'
 
@@ -11,10 +11,10 @@ const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
 const light: Tokens = resolved(lightRaw)
 const dark: Tokens = resolved(new Map([...lightRaw, ...darkRaw]))
 
-/** The least contrast a graphic reaches: a mark, an edge or a fill, against what it sits on. */
+/** The least contrast a graphic reaches: a mark or a line, against what it sits on. */
 const GRAPHIC = 3
 
-/** The token a declaration names: `--surface-2` for `var(--surface-2)`. */
+/** The token a declaration names: `--control-border` for `var(--control-border)`. */
 function tokenOf(value: string | undefined): string {
   const match = /var\(--([a-z0-9-]+)\)/.exec(value ?? '')
   if (match?.[1] === undefined) throw new Error(`no token in “${value}”`)
@@ -22,18 +22,15 @@ function tokenOf(value: string | undefined): string {
 }
 
 /**
- * The balance meter's marks against what they sit on. The track's fill, its edge and the even line
- * are read from the stylesheet, so the test checks the colours the meter actually paints; the band
- * and dot take the sport colours.
+ * The balance meter's marks against the page they sit on. The line and the even mark are read from the
+ * stylesheet, so the test checks the colours the meter actually paints; the dot takes the sport colours. The band
+ * is a translucent tint behind the dot: the range it marks is also written under the dot, so it carries no
+ * contrast of its own.
  */
 function meterPairs(tokens: Tokens): [string, string, string][] {
-  const track = colour(
+  const line = colour(
     tokens,
-    tokenOf(declarations(meterCss, '.balance-meter__track').get('background')),
-  )
-  const edge = colour(
-    tokens,
-    tokenOf(declarations(meterCss, '.balance-meter__track').get('border')),
+    tokenOf(declarations(meterCss, '.balance-meter__track::before').get('background')),
   )
   const even = colour(
     tokens,
@@ -41,14 +38,11 @@ function meterPairs(tokens: Tokens): [string, string, string][] {
   )
   const page = colour(tokens, 'surface-0')
   return [
-    ['track edge on the page', edge, page],
-    ['even line on the track', even, track],
-    ['run band edge on the track', colour(tokens, 'series-run'), track],
-    ['ride band edge on the track', colour(tokens, 'series-ride'), track],
-    ['even band edge on the track', colour(tokens, 'neutral-mark'), track],
-    ['run dot on the track', colour(tokens, 'series-run'), track],
-    ['ride dot on the track', colour(tokens, 'series-ride'), track],
-    ['even dot on the track', colour(tokens, 'neutral-mark'), track],
+    ['line on the page', line, page],
+    ['even mark on the page', even, page],
+    ['run dot on the page', colour(tokens, 'series-run'), page],
+    ['ride dot on the page', colour(tokens, 'series-ride'), page],
+    ['even dot on the page', colour(tokens, 'neutral-mark'), page],
   ]
 }
 
@@ -57,7 +51,7 @@ describe('balance meter contrast', () => {
     ['light', light],
     ['dark', dark],
   ] as const)(
-    '%s: the track, band and dot reach 3:1 against what they sit on',
+    '%s: the line, the even mark and the dot reach 3:1 against the page',
     (_theme, tokens) => {
       for (const [label, fg, bg] of meterPairs(tokens)) {
         expect(contrast(fg, bg), label).toBeGreaterThanOrEqual(GRAPHIC)
@@ -67,21 +61,34 @@ describe('balance meter contrast', () => {
 })
 
 describe('balance meter stylesheet', () => {
-  it('edges the track in control-border, so the track reads against the page', () => {
-    expect(declarations(meterCss, '.balance-meter__track').get('border')).toBe(
-      '1px solid var(--control-border)',
-    )
+  it('draws the line at 3 px in control-border, so it reads against the page', () => {
+    const line = declarations(meterCss, '.balance-meter__track::before')
+    expect(line.get('height')).toBe('3px')
+    expect(line.get('background')).toBe('var(--control-border)')
   })
 
   it.each([
     ['run', 'series-run'],
     ['ride', 'series-ride'],
-  ] as const)('edges the %s band and fills its dot in the sport colour', (sport, token) => {
-    expect(
-      declarations(meterCss, `.balance-meter--${sport} .balance-meter__band`).get('border-color'),
-    ).toBe(`var(--${token})`)
-    expect(
-      declarations(meterCss, `.balance-meter--${sport} .balance-meter__dot`).get('background'),
-    ).toBe(`var(--${token})`)
+  ] as const)('tints the %s band and fills its dot in the sport colour', (sport, token) => {
+    expect(ruleBody(meterCss, `.balance-meter--${sport} .balance-meter__band`)).toMatch(
+      new RegExp(`background:\\s*var\\(--${token}-soft\\)`),
+    )
+    expect(ruleBody(meterCss, `.balance-meter--${sport} .balance-meter__dot`)).toMatch(
+      new RegExp(`background:\\s*var\\(--${token}\\)`),
+    )
+  })
+
+  it('rings the dot in the page colour, so it stands clear of the line and the band', () => {
+    expect(ruleBody(meterCss, '.balance-meter__dot')).toMatch(
+      /box-shadow:\s*0 0 0 3px var\(--surface-0\)/,
+    )
+  })
+
+  it('marks the range with a translucent band alone: no edge, no dashes', () => {
+    const band = ruleBody(meterCss, '.balance-meter__band')
+    expect(band).toMatch(/background:\s*var\(--neutral-band\)/)
+    expect(band).not.toMatch(/border:|outline|box-shadow/)
+    expect(meterCss).not.toMatch(/dashed|dotted|stroke-dasharray/)
   })
 })

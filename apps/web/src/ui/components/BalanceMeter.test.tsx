@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Lean } from '../../domain/lean'
-import { SPORT_LABEL, SPORT_ORDER } from '../sports'
+import { SPORT_ORDER, SPORT_TITLE } from '../sports'
 import { energyReading, gapReading, meterFraction, SCALE_SPAN } from './balanceScale'
 import type { BalanceReading } from './balanceScale'
 import { interval } from './fixtures'
@@ -45,7 +45,7 @@ describe('BalanceMeter with a grade gap', () => {
     render(<BalanceMeter reading={leaning('run')} />)
     const image = screen.getByRole('img')
     expect(image).toHaveAccessibleName(/Running grades 6 points higher than cycling/)
-    expect(image).toHaveAccessibleName(/range 2 to 10\u00a0points/)
+    expect(image).toHaveAccessibleName(/range 2 to 10 points/)
   })
 
   it('names the cycling lead in the same words, with the sport that leads first', () => {
@@ -56,8 +56,8 @@ describe('BalanceMeter with a grade gap', () => {
   it('labels each end with the sport that sits there, in the sport order', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
     const [left, right] = SPORT_ORDER
-    expect(endLabel(container, 'left').textContent).toContain(SPORT_LABEL[left])
-    expect(endLabel(container, 'right').textContent).toContain(SPORT_LABEL[right])
+    expect(endLabel(container, 'left').textContent).toContain(SPORT_TITLE[left])
+    expect(endLabel(container, 'right').textContent).toContain(SPORT_TITLE[right])
   })
 
   it.each(['run', 'ride'] as const)(
@@ -78,12 +78,34 @@ describe('BalanceMeter with a grade gap', () => {
     expect(screen.getByText('Even')).toBeInTheDocument()
   })
 
-  it('prints ticks at 10, 20 and 30 on each side of the centre', () => {
+  it('writes the value and the range right under the dot, with no key', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    const ticks = [...container.querySelectorAll('.balance-meter__tick')].map((tick) =>
-      tick.textContent?.trim(),
+    const reading = container.querySelector<HTMLElement>('.balance-meter__reading')
+    expect(reading?.querySelector('.balance-meter__value')?.textContent).toBe('+6pts')
+    expect(reading?.querySelector('.balance-meter__edges')?.textContent).toBe('2 to 10')
+    expect(container.querySelector('.balance-meter__key')).toBeNull()
+    expect(container.querySelector('.balance-meter__tick')).toBeNull()
+    expect(reading?.style.getPropertyValue('--at')).toBe(`${dotLeft(container)}%`)
+  })
+
+  it('defines the range in place, on the word "range"', () => {
+    render(<BalanceMeter reading={leaning('run')} />)
+    expect(screen.getByRole('button', { name: 'range' })).toBeInTheDocument()
+  })
+
+  it('writes a range that reaches zero with signs', () => {
+    const { container } = render(
+      <BalanceMeter reading={gapReading({ centre: 4, low: -2, high: 10, lean: 'even' })} />,
     )
-    expect(ticks.sort()).toEqual(['10', '10', '20', '20', '30', '30'])
+    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('−2 to +10')
+  })
+
+  it('writes no range for a lead whose range rounds to one value', () => {
+    const { container } = render(
+      <BalanceMeter reading={gapReading({ centre: 30, low: 30, high: 30, lean: 'run' })} />,
+    )
+    expect(container.querySelector('.balance-meter__range')).toBeNull()
+    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+30pts')
   })
 
   it('draws the band between the low and high ends of its range, centred on the band', () => {
@@ -91,6 +113,10 @@ describe('BalanceMeter with a grade gap', () => {
     const band = container.querySelector<HTMLElement>('.balance-meter__band')
     const middle = (positionOf(2) + positionOf(10)) / 2
     expect(Number.parseFloat(band?.style.left ?? '')).toBeCloseTo(middle, 6)
+    expect(Number.parseFloat(band?.style.width ?? '')).toBeCloseTo(
+      Math.abs(positionOf(10) - positionOf(2)),
+      6,
+    )
   })
 
   it('keeps the dot inside its band when the range is wider than the centre', () => {
@@ -104,52 +130,27 @@ describe('BalanceMeter with a grade gap', () => {
     expect(dotLeft(container)).toBeLessThanOrEqual(middle + half)
   })
 
-  it('flags a lead of one point as 1 pt, not 1 pts', () => {
-    const { container } = render(
-      <BalanceMeter reading={gapReading({ centre: 1, low: -1, high: 3, lean: 'even' })} />,
-    )
-    expect(container.querySelector('.balance-meter__flag')?.textContent).toBe('1 pt')
-  })
-
-  it('flags the best estimate over the dot, in points', () => {
+  it('places the dot and the value by a custom property, not a bare left, so the CSS can clamp them', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    const flag = container.querySelector<HTMLElement>('.balance-meter__flag')
-    expect(flag?.textContent).toBe('6 pts')
-    expect(Number.parseFloat(flag?.style.getPropertyValue('--at') ?? '')).toBeCloseTo(
-      dotLeft(container),
-      6,
-    )
-  })
-
-  it('places the flag and the dot by a custom property, not a bare left, so the CSS can clamp them', () => {
-    const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    for (const selector of ['.balance-meter__flag', '.balance-meter__dot']) {
+    for (const selector of ['.balance-meter__reading', '.balance-meter__dot']) {
       const placed = container.querySelector<HTMLElement>(selector)
       expect(placed?.style.left, selector).toBe('')
       expect(placed?.style.getPropertyValue('--at'), selector).toMatch(/%$/)
     }
   })
 
-  it('caps a lead past the scale at its end with a 30+ marker, not beyond the track', () => {
+  it('keeps a lead past the scale at the end of the track, with its true value written under it', () => {
     const { container } = render(
       <BalanceMeter reading={gapReading({ centre: 40, low: 34, high: 46, lean: 'run' })} />,
     )
-    expect(screen.getByText('30+')).toBeInTheDocument()
     expect(dotLeft(container)).toBeCloseTo(positionOf(SCALE_SPAN), 6)
+    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+40pts')
   })
 
-  it('reads the key under the meter, with the range and what the scale counts', () => {
+  it('sets the track as a paragraph-free figure: no caption, no key', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    const key = container.querySelector('.balance-meter__key')
-    expect(key?.textContent).toMatch(/Dot: best estimate/)
-    expect(key?.textContent).toMatch(/2 to 10\u00a0points/)
-    expect(key?.textContent).toMatch(/Scale: age\u2011grade points\./)
-  })
-
-  it('sets the key as a paragraph, as the ladder key is, rather than a figure caption', () => {
-    const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    expect(container.querySelector('p.balance-meter__key')).not.toBeNull()
     expect(container.querySelector('figcaption')).toBeNull()
+    expect(container.querySelector('.balance-meter__key')).toBeNull()
   })
 })
 
@@ -161,84 +162,28 @@ describe('BalanceMeter with the energy ratio', () => {
     )
   })
 
-  it('reads the same key in words as the points, with its scale in energy per kilogram', () => {
+  it('writes its value and range in percent', () => {
     const { container } = render(
       <BalanceMeter reading={energyReading(interval(1.05, 1.12, 1.2))} />,
     )
-    expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
-      'Dot: best estimate. Band: 90% range, 5% to 20%. Scale: energy per kilogram.',
+    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+12%')
+    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('5% to 20%')
+  })
+
+  it('says the range was informed by heart rate only when heart-rate data was used', () => {
+    const reading = energyReading(interval(1.05, 1.12, 1.2))
+    const { container, rerender } = render(<BalanceMeter reading={reading} />)
+    expect(container.querySelector('.balance-meter__basis')).toBeNull()
+    rerender(<BalanceMeter reading={reading} adjusted />)
+    expect(container.querySelector('.balance-meter__basis')?.textContent).toBe(
+      'informed by heart rate',
     )
   })
 
-  it('keeps the energy scale in its key, and adds the heart-rate note, when heart-rate data was used', () => {
-    const { container } = render(
-      <BalanceMeter reading={energyReading(interval(1.05, 1.12, 1.2))} adjusted />,
-    )
-    expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
-      'Dot: best estimate. Band: 90% range, 5% to 20%. Scale: energy per kilogram. Range informed by heart rate.',
-    )
-  })
-
-  it('prints its ticks in percent', () => {
-    render(<BalanceMeter reading={energyReading(interval(1.05, 1.12, 1.2))} />)
-    expect(screen.getAllByText('10%').length).toBeGreaterThan(0)
-  })
-})
-
-describe('BalanceMeter scale details', () => {
-  it('caps a cycling lead past the scale at the cycling end, marked 30+', () => {
+  it('keeps a cycling lead past the scale at the cycling end of the track', () => {
     const { container } = render(
       <BalanceMeter reading={gapReading({ centre: -40, low: -46, high: -34, lean: 'ride' })} />,
     )
-    expect(screen.getByText('30+')).toBeInTheDocument()
     expect(dotLeft(container)).toBeCloseTo(positionOf(-SCALE_SPAN), 6)
-  })
-
-  it('marks a percent cap as 30%+, since its scale is percent of energy', () => {
-    render(<BalanceMeter reading={energyReading(interval(1.6, 1.9, 2.2))} />)
-    expect(screen.getByText('30%+')).toBeInTheDocument()
-  })
-
-  it('does not cap a lead of exactly 30, which sits at the end of the scale', () => {
-    render(<BalanceMeter reading={gapReading({ centre: 30, low: 30, high: 30, lean: 'run' })} />)
-    expect(screen.queryByText('30+')).toBeNull()
-  })
-
-  it('draws the band over its range, as wide as the range on the track', () => {
-    const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    const band = container.querySelector<HTMLElement>('.balance-meter__band')
-    expect(Number.parseFloat(band?.style.width ?? '')).toBeCloseTo(
-      Math.abs(positionOf(10) - positionOf(2)),
-      6,
-    )
-  })
-
-  it('places each tick on the scale, on both sides of the centre', () => {
-    const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    const ticks = [...container.querySelectorAll<HTMLElement>('.balance-meter__tick')]
-    for (const value of [10, 20]) {
-      const lefts = ticks
-        .filter((tick) => tick.textContent === String(value))
-        .map((tick) => Number.parseFloat(tick.style.left))
-        .sort((a, b) => a - b)
-      expect(lefts).toHaveLength(2)
-      const expected = [positionOf(value), positionOf(-value)].sort((a, b) => a - b)
-      expect(lefts[0]).toBeCloseTo(expected[0] ?? Number.NaN, 6)
-      expect(lefts[1]).toBeCloseTo(expected[1] ?? Number.NaN, 6)
-    }
-  })
-
-  it('says the band is the 90% range in the key, with its range, for a grade gap', () => {
-    const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
-      'Dot: best estimate. Band: 90% range, 2 to 10\u00a0points. Scale: age\u2011grade points.',
-    )
-  })
-
-  it('says the range is informed by heart rate in place of the points scale, when heart-rate data was used', () => {
-    const { container } = render(<BalanceMeter reading={leaning('run')} adjusted />)
-    expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
-      'Dot: best estimate. Band: 90% range, 2 to 10\u00a0points. Range informed by heart rate.',
-    )
   })
 })

@@ -40,27 +40,21 @@
   }
 }
 
-/* The scoreboard and the level scale under it stack with the gap a page's sections have. */
+/* The answer, the meter, the levels, the period control and the share button stack with the gap a page's sections have. */
 .balance-hero__pair {
   display: grid;
   gap: var(--space-5);
   min-width: 0;
 }
 
-/* What sits under the scale, such as the share button, keeps its own width. */
-.balance-hero__pair > :not(.balance-scale, .balance-hero, .scale-figure) {
+/* What sits under the levels, such as the period control and the share button, keeps its own width. */
+.balance-hero__pair > :not(.balance-hero, .scale-figure, .balance-levels) {
   justify-self: start;
 }
 
-/* The answer's text column beside the gap's display figure, which sits at the foot of the headline's row. */
+/* The meter sits a step apart from the sentence above it, so the line has room to breathe. */
 .balance-hero--answer {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: var(--space-2) var(--space-7);
-}
-
-.balance-hero--answer > .balance-hero__text {
-  max-width: none;
+  margin-bottom: var(--space-3);
 }
 
 .balance-hero__text {
@@ -92,140 +86,28 @@
   font-size: var(--text-lead);
 }
 
-/* The gap as a scoreboard figure at display size, with its direction and range under it. */
-.balance-hero__gap {
-  display: grid;
-  justify-items: end;
-  gap: var(--space-2);
-  text-align: right;
-}
-
-.balance-hero__figure {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-family: var(--font-display);
-  font-weight: 800;
-  line-height: 0.8;
-}
-
-.balance-hero__number {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: clamp(5.5rem, 12vw, 8.5rem);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
-.balance-hero__unit {
-  color: var(--text-muted);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.5rem;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-}
-
-/* The direction and the range are two lines, each held whole, so a wide screen never breaks "range 1 / to 12 points". */
-.balance-hero__note {
-  font-size: var(--text-sm);
-}
-
-.balance-hero__side,
-.balance-hero__range {
-  display: block;
-  white-space: nowrap;
-}
-
-/* The figure drops under the headline on a phone, left-aligned, with its note beside it. */
 @media (max-width: 760px) {
-  .balance-hero--answer {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-3);
-  }
-
-  .balance-hero__gap {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: end;
-    justify-items: start;
-    text-align: left;
-  }
-
-  .balance-hero__number {
-    font-size: 4.5rem;
-  }
-
   .balance-hero__lede {
     font-size: var(--text-md);
-  }
-
-  /* On a phone the note sits beside the figure in what is left of the width, so its lines may wrap. */
-  .balance-hero__side,
-  .balance-hero__range {
-    white-space: normal;
   }
 }
 
 /*
- * On a phone (BALANCE_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts) the answer is one block: the headline at 28 px
- * with the gap's figure beside it, and one clause of sentence under both. The eyebrow goes, since the period control
- * under it states the dates, and the figure's range line goes, since the scale's caption says it. Together with the
- * tighter scale (BalanceScale.css) both lanes and the axis are on the first screen above the section tabs at
- * 390 x 844 and 320 x 640 with the sample notice showing. BalanceHero.tsx gives the sentence its short form.
+ * On a phone (BALANCE_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts) the eyebrow goes, since the period control under
+ * the levels states the dates, and the stack tightens, so the meter and both levels are on the first screen above the
+ * section tabs at 390 x 844 and 320 x 640 with the sample notice showing.
  */
 @media (max-width: 479px) {
-  .balance-hero--answer {
-    grid-template-areas:
-      'title gap'
-      'lede lede';
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-2) var(--space-3);
-  }
-
-  .balance-hero--answer > .balance-hero__text {
-    display: contents;
-  }
-
-  .balance-hero--answer .eyebrow,
-  .balance-hero__range {
+  .balance-hero--answer .eyebrow {
     display: none;
   }
 
-  .balance-hero__head {
-    grid-area: title;
-  }
-
-  .balance-hero__title {
-    /* A display size with no type token; see DESIGN.md, Type. */
-    font-size: 1.75rem;
-  }
-
-  .balance-hero--answer .balance-hero__lede {
-    grid-area: lede;
-    font-size: var(--text-md);
-  }
-
-  .balance-hero--answer > .balance-hero__text > p:not(.eyebrow, .balance-hero__lede) {
-    grid-column: 1 / -1;
-  }
-
-  .balance-hero--answer .balance-hero__gap {
-    grid-area: gap;
-    grid-template-columns: auto;
-    justify-items: end;
-    gap: 2px;
-    text-align: right;
-  }
-
-  .balance-hero__number {
-    font-size: 3.25rem;
-  }
-
-  .balance-hero__unit {
-    font-size: var(--text-md);
-  }
-
   .balance-hero__pair {
-    gap: var(--space-2);
+    gap: var(--space-4);
+  }
+
+  .balance-hero--answer {
+    margin-bottom: 0;
   }
 }
 

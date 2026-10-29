@@ -239,37 +239,28 @@ describe('buildShareCard', () => {
     const both = { run: RUN_GRADE, ride: RIDE_GRADE }
     const graded = () => cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap, both)
 
-    it('carries the page’s level scale: each sport’s whole percent, dot or ring, and the gap', () => {
-      const scale = graded()?.scale
-      expect(scale?.lanes.map((lane) => [lane.sport, lane.basis, lane.centre])).toEqual([
-        ['run', 'recorded', 64],
-        ['ride', 'estimated', 61],
-      ])
-      expect(scale?.lanes[1]).toMatchObject({ low: 55, high: 67, level: 'Recreational to Local' })
-      expect(scale?.gap.figure).toBe('3 pts')
+    it('states the lead in one line under the headline, as the page’s meter does', () => {
+      expect(graded()?.magnitude).toBe(leadSentence(gapReading(gap)))
     })
 
-    it('draws the scale in place of the magnitude line, which the bracket says, and of the hero grade lines', () => {
+    it('gives each hero its grade line and the card the graded footnote, with the meter as the balance', () => {
       const card = graded()
-      expect(card?.magnitude).toBeNull()
-      expect(card?.heroes.map((hero) => hero.grade)).toEqual([null, null])
-      // The meter's reading is still the balance, as the headline is taken from it.
+      expect(card?.heroes.map((hero) => hero.grade)).toEqual([
+        'Local · 64% on best 20 min',
+        'Recreational · 61% on best 20 min',
+      ])
       expect(card?.meter).toEqual(gapReading(gap))
       expect(card?.footnote).toBe(GRADED_FOOTNOTE)
     })
 
-    it('carries no level target: the card says the gap, not what to do about it', () => {
-      expect(graded()?.scale?.target).toBeNull()
-    })
-
-    it('has no scale while a sport has no grade, and keeps the magnitude and the grade lines then', () => {
+    it('keeps the magnitude, and gives a grade line to the sport that has one, while the other has none', () => {
       const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap, {
         run: RUN_GRADE,
         ride: null,
       })
-      expect(card?.scale).toBeNull()
       expect(card?.magnitude).toBe(leadSentence(gapReading(gap)))
       expect(card?.heroes[0]?.grade).toBe('Local · 64% on best 20 min')
+      expect(card?.heroes[1]?.grade).toBeNull()
     })
   })
 
@@ -363,7 +354,6 @@ describe('buildShareCard', () => {
         'name',
         'origin',
         'period',
-        'scale',
         'title',
       ].sort(),
     )

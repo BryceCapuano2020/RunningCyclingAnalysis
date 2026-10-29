@@ -109,7 +109,7 @@ export function rangeText(reading: BalanceReading): string {
 }
 
 /** The range's two edges alone, "−4 to +18" or "5% to 20%", for a line with no room for the unit. */
-function rangeEdges(reading: BalanceReading): string {
+export function rangeEdges(reading: BalanceReading): string {
   const [low, high] = sideRange(reading)
   const signed = signedRange(reading)
   if (reading.unit === 'points') {

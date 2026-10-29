@@ -58,9 +58,9 @@ export const HEADLINE_SMALL_MAX_WIDTH_PX = 359
 export const SPLIT_FILTERS_MIN_WIDTH_PX = PHONE_MAX_WIDTH_PX + 1
 
 /**
- * At or below this width the Balance answer is compact so the level scale sits on the first screen: the eyebrow goes (the
- * period control states the dates), the headline is 28 px, the sentence under it is one clause, and the scale's own
- * sentence moves under its drawing (BalancePage.css, BalanceScale.css, BalanceHero.tsx).
+ * At or below this width the Balance answer is compact so the meter and the levels sit on the first screen: the eyebrow
+ * goes (the period control under the levels states the dates) and the meter's value and the levels tighten
+ * (BalancePage.css, BalanceMeter.css, BalanceLevels.css).
  */
 export const BALANCE_PHONE_MAX_WIDTH_PX = 479
 

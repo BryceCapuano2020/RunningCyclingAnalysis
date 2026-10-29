@@ -27,6 +27,8 @@ export interface BalanceTilesProps {
   period: Period
   /** The balance as points, when both sports are graded; the lean tile waits for it. */
   reading: BalanceReading | null
+  /** What the lower sport would need to grade level, as a sentence, for the lean tile; null when nothing would. */
+  target?: string | null
   onAddFiles: (files: File[]) => void
 }
 
@@ -44,6 +46,7 @@ export function BalanceTiles({
   weighted,
   period,
   reading,
+  target = null,
   onAddFiles,
 }: BalanceTilesProps) {
   const both = SPORT_ORDER.every((sport) => countSport(result.activities, sport) > 0)
@@ -84,7 +87,7 @@ export function BalanceTiles({
     ),
     ...(reading === null || !weighted
       ? []
-      : [<LeanTile key="lean" reading={reading} basis={leanBasis} />]),
+      : [<LeanTile key="lean" reading={reading} basis={leanBasis} target={target} />]),
     ...(both
       ? [
           <CrossSportCard

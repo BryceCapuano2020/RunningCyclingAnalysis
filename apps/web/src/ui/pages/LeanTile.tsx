@@ -16,6 +16,8 @@ export interface LeanTileProps {
    * an equivalent when a power meter measured them and only the ride's level goes through the run equivalent.
    */
   basis: TileBasis
+  /** What the lower sport's best effort would need to grade level with the higher, as a sentence; null when nothing would. */
+  target?: string | null
 }
 
 /** The sports in the order they are subtracted: the first's grade less the second's. */
@@ -33,8 +35,9 @@ function captionOf(leader: Sport | null): string {
 /**
  * The lean as a tile: the size of the gap in points, set large, with its 90% range as a shape. Its ends are
  * written from the side the balance leans to, signed when the range reaches zero, as the headline writes them.
+ * The level target, when there is one, is the tile's second line: what the lower sport would need to level.
  */
-export function LeanTile({ reading, basis }: LeanTileProps) {
+export function LeanTile({ reading, basis, target = null }: LeanTileProps) {
   const size = Math.abs(wholeCentre(reading.lead))
   const side = readFrom(reading)
   const [low, high] = sideRange(reading)
@@ -59,6 +62,7 @@ export function LeanTile({ reading, basis }: LeanTileProps) {
       }
     >
       <p className="stat-tile__line">{captionOf(size === 0 ? null : side)}</p>
+      {target === null ? null : <p className="stat-tile__line">{target}</p>}
     </StatTile>
   )
 }

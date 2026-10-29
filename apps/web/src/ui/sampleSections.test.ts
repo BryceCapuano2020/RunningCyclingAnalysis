@@ -103,14 +103,13 @@ describe('the sample gives one result on every day of a week, and in every week'
     expect(later.get(day)).toEqual(reference)
   })
 
-  it('is the result the landing example and the share card show', () => {
+  it('is the result the landing example shows', () => {
     expect(reference.gap).toMatchObject(LANDING_EXAMPLE.gap)
     for (const sport of ['run', 'ride'] as const) {
       const outcome = reference[sport]
       if (outcome.kind !== 'graded') throw new Error(`The sample has no ${sport} grade`)
       expect(outcome.grade).toEqual(LANDING_EXAMPLE.grades[sport])
     }
-    expect(reference.rideBest20).toBe(`${LANDING_EXAMPLE.best20.rideWatts} W`)
   })
 
   // The grades count age from the birth year against each effort's calendar year, and the persona is 37 in the

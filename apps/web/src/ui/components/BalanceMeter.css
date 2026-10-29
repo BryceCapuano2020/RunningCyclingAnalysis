@@ -1,118 +1,24 @@
-/* The meter spans the width of the card row, so its centre is the gutter between the two cards. Its
-   figure rules are the shared .scale-figure. */
-
 /*
- * The plot keeps a line above the track for the value flag over the dot, clear of the even line. The
- * flag and the dot share one edge, so at either end they clamp to the same place and stay centred together.
+ * The meter is one line: the sport names over its ends, a 3 px track, a ringed dot for the best estimate with a
+ * translucent band behind it for the range, and the value written under the dot. It has no key, so nothing on
+ * it needs reading twice. Its figure rules are the shared .scale-figure.
  */
-.balance-meter__plot {
-  --meter-edge: 2rem;
-  position: relative;
-  padding-top: 1.75rem;
-}
-
-/* The flag and the dot take their place from --at, inside the edge the plot sets. */
-.balance-meter__flag {
-  position: absolute;
-  top: 0;
-  left: clamp(var(--meter-edge), var(--at), calc(100% - var(--meter-edge)));
-  transform: translateX(-50%);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.balance-meter__track {
-  position: relative;
-  box-sizing: border-box;
-  height: 1.5rem;
-  border: 1px solid var(--control-border);
-  border-radius: 999px;
-  background: var(--surface-2);
-}
-
-/* The band is the range: a tint with a solid edge in the leading sport's colour, so it reads at 3:1. */
-.balance-meter__band {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  box-sizing: border-box;
-  min-width: 1.5rem;
-  transform: translateX(-50%);
-  border: 2px solid var(--neutral-mark);
-  border-radius: 999px;
-  background: var(--neutral-band);
-}
-
-.balance-meter--run .balance-meter__band {
-  border-color: var(--series-run);
-  background: var(--series-run-soft);
-}
-
-.balance-meter--ride .balance-meter__band {
-  border-color: var(--series-ride);
-  background: var(--series-ride-soft);
-}
-
-.balance-meter__even {
-  position: absolute;
-  top: -0.375rem;
-  bottom: -0.375rem;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: var(--text-muted);
-}
-
-.balance-meter__dot {
-  position: absolute;
-  top: 50%;
-  left: clamp(var(--meter-edge), var(--at), calc(100% - var(--meter-edge)));
-  width: 1.25rem;
-  height: 1.25rem;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: var(--neutral-mark);
-  box-shadow: 0 0 0 3px var(--surface-0);
-}
-
-.balance-meter--run .balance-meter__dot {
-  background: var(--series-run);
-}
-
-.balance-meter--ride .balance-meter__dot {
-  background: var(--series-ride);
-}
-
-.balance-meter__ticks {
-  position: relative;
-  height: 1.25rem;
-  margin-top: var(--space-1);
-}
-
-.balance-meter__tick {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.balance-meter__tick--cap {
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
+/* The sport at each end, in the display face, with Even over the middle of the track. */
 .balance-meter__ends {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: var(--space-2);
   color: var(--text-secondary);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.balance-meter__ends {
+  margin-bottom: var(--space-2);
 }
 
 .balance-meter__end {
@@ -136,32 +42,200 @@
 
 /* The meter sets its glyphs in rem, so their unit is one rem's share of the grid, not an em's. */
 .balance-meter__glyph.icon {
-  --icon-size: 1.25rem;
+  --icon-size: 1.125rem;
   flex: none;
 }
 
 .balance-meter__even-label {
   color: var(--text-muted);
-  font-size: var(--text-sm);
-  font-weight: 400;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.balance-meter__key {
+/*
+ * The dot and the value both take their place from --at. The dot stays whole inside the track's ends; the value
+ * is centred under the dot and held inside the plot, so at either end of the scale it still fits.
+ */
+.balance-meter__plot {
+  --dot-edge: 0.75rem;
+  --reading-edge: 4.25rem;
+  position: relative;
+  padding-bottom: 5rem;
+}
+
+.balance-meter__track {
+  position: relative;
+  height: 1.75rem;
+}
+
+/* The 3 px line, and a short cap at each end of it. */
+.balance-meter__track::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--control-border);
+}
+
+.balance-meter__track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 0.625rem;
+  transform: translateY(-50%);
+  border-inline: 2px solid var(--control-border);
+}
+
+/* The band is the range: the leading sport's colour, translucent, so the line shows through it. */
+.balance-meter__band {
+  position: absolute;
+  top: 50%;
+  box-sizing: border-box;
+  height: 1.5rem;
+  min-width: 1.5rem;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: var(--neutral-band);
+}
+
+/* A second layer of the same tint, so the band reads as a range without a heavier colour than the tokens give. */
+.balance-meter__band::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+}
+
+.balance-meter--run .balance-meter__band {
+  background: var(--series-run-soft);
+}
+
+.balance-meter--ride .balance-meter__band {
+  background: var(--series-ride-soft);
+}
+
+.balance-meter__even {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 1.5rem;
+  transform: translate(-50%, -50%);
+  background: var(--text-muted);
+}
+
+.balance-meter__dot {
+  position: absolute;
+  top: 50%;
+  left: clamp(var(--dot-edge), var(--at), calc(100% - var(--dot-edge)));
+  width: 1rem;
+  height: 1rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--neutral-mark);
+  box-shadow: 0 0 0 3px var(--surface-0);
+}
+
+.balance-meter--run .balance-meter__dot {
+  background: var(--series-run);
+}
+
+.balance-meter--ride .balance-meter__dot {
+  background: var(--series-ride);
+}
+
+/* The value and its range, centred under the dot. */
+.balance-meter__reading {
+  position: absolute;
+  top: 2.25rem;
+  left: clamp(var(--reading-edge), var(--at), calc(100% - var(--reading-edge)));
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  transform: translateX(-50%);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.balance-meter__reading > p {
+  margin: 0;
+}
+
+.balance-meter__value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 0.9;
+}
+
+.balance-meter__number {
+  /* A display size with no type token; see DESIGN.md, Type. */
+  font-size: 2.75rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.balance-meter__unit {
+  color: var(--text-muted);
+  font-size: var(--text-lead);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.balance-meter__range {
   color: var(--text-muted);
   font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
-/* In forced colours the tints go, so the track, the band and the dot keep their edges in the
-   system's text and highlight colours. */
+.balance-meter__basis {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 479px) {
+  .balance-meter__plot {
+    padding-bottom: 4.25rem;
+  }
+
+  .balance-meter__reading {
+    top: 2.125rem;
+  }
+
+  .balance-meter__number {
+    /* A display size with no type token; see DESIGN.md, Type. */
+    font-size: 2.25rem;
+  }
+}
+
+/* In forced colours the tints go, so the line, the band and the dot keep their edges in the system's text and
+   highlight colours. */
 @media (forced-colors: active) {
-  .balance-meter__track {
+  .balance-meter__track::before {
+    background: CanvasText;
+  }
+
+  .balance-meter__track::after {
     border-color: CanvasText;
-    background: Canvas;
   }
 
   .balance-meter__band {
-    border-color: Highlight;
+    border: 1px solid Highlight;
     background: Canvas;
+  }
+
+  .balance-meter__band::after {
+    display: none;
   }
 
   .balance-meter__even {

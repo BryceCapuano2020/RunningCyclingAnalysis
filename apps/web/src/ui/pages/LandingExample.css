@@ -1,6 +1,6 @@
 /*
- * The example's own parts: its headline over Balance's level scale. The scale brings its own heading, legend
- * and table twin, and the card gives it the room its drawing needs.
+ * The example's own parts: its headline over Balance's meter and levels line. The meter and the levels bring
+ * their own layout, and the card gives them the width they need.
  */
 .landing-example__title {
   margin: 0;
@@ -12,6 +12,12 @@
   text-transform: uppercase;
 }
 
-.landing-example .balance-scale {
+.landing-example .balance-meter,
+.landing-example .balance-levels {
   min-width: 0;
+}
+
+/* The meter keeps a step of air under the example's headline. */
+.landing-example .balance-meter {
+  margin-top: var(--space-3);
 }

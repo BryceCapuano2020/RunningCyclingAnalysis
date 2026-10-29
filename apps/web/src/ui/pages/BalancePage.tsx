@@ -10,7 +10,7 @@ import { SharedTrendChart, WeeklyVolumeChart } from '../charts'
 import { copyOf } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, headlinePick } from '../components'
-import { gapReading } from '../components/balanceScale'
+import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
 import { gapOfHeadline } from '../balanceGap'
 import { levelTarget } from '../levelTarget'
@@ -32,10 +32,10 @@ import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
 import { balanceChanges } from './balanceChangeItems'
-import { scaleModel } from './balanceScaleModel'
+import { balanceLevels } from './levelsModel'
 import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
-import { BalanceScale } from './BalanceScale'
+import { BalanceLevels } from './BalanceLevels'
 import { BalanceTiles } from './BalanceTiles'
 import { EvidenceLine } from './EvidenceLine'
 import { useBalanceTrend } from './useBalanceTrend'
@@ -142,13 +142,22 @@ export function BalancePage({
     }),
     [headline, weightKnown],
   )
+  // The balance is stated once the headline can compare the sports; without a pick it is held, and the gap is
+  // held with it. This is the one gate: the headline, the tiles, the level target and the changes all read it.
+  const reading = useMemo(
+    () => (weightKnown ? balanceOfPick(gap, pick) : null),
+    [weightKnown, gap, pick],
+  )
+  const heldGap = pick === null ? null : gap
+  // The lean tile and the target are in points, which only a grade gap gives; an energy balance has none.
+  const pointsReading = reading?.unit === 'points' ? reading : null
   // The level target waits for the same things as the balance: both grades, and so the weight. Its ride
   // search runs on each change of these inputs, not on each render, so it is memoised on them.
   const target = useMemo(
     () =>
-      gap !== null && sex !== null
+      heldGap !== null && sex !== null
         ? levelTarget({
-            lean: gap.lean,
+            lean: heldGap.lean,
             grades,
             result,
             sex,
@@ -157,32 +166,23 @@ export function BalancePage({
             calibration,
           })
         : null,
-    [gap, grades, result, sex, settings.massKg, units, calibration],
+    [heldGap, grades, result, sex, settings.massKg, units, calibration],
   )
-  const reading = useMemo(() => (gap === null ? null : gapReading(gap)), [gap])
-  const scale = useMemo(
-    () =>
-      reading === null
-        ? null
-        : scaleModel({ grades, reading, target, result, massKg: settings.massKg, units }),
-    [grades, reading, target, result, settings.massKg, units],
+  const runCount = countSport(result.activities, 'run')
+  const rideCount = countSport(result.activities, 'ride')
+  const inPeriod = useMemo<Record<Sport, number>>(
+    () => ({ run: runCount, ride: rideCount }),
+    [runCount, rideCount],
   )
-  // With one sport in the period, its level is the answer on its own: a lane with no gap and no target.
-  const sportsHere = SPORT_ORDER.filter((sport) => countSport(result.activities, sport) > 0)
-  const aloneScale = useMemo(
-    () =>
-      sportsHere.length === 1
-        ? scaleModel({
-            grades,
-            reading: null,
-            target: null,
-            result,
-            massKg: settings.massKg,
-            units,
-          })
-        : null,
-    [sportsHere.length, grades, result, settings.massKg, units],
-  )
+  // The levels under the meter: both sports with the balance. With one sport in the period, its level stands alone
+  // when it has one; with two but no balance, the headline already names the levels.
+  const hasReading = reading !== null
+  const levels = useMemo(() => {
+    const sports = SPORT_ORDER.filter((sport) => hasReading || inPeriod[sport] > 0)
+    if (!hasReading && sports.length !== 1) return null
+    const model = balanceLevels({ grades, sports, inPeriod, missingAge })
+    return !hasReading && model.rows.every((row) => row.grade === null) ? null : model
+  }, [hasReading, grades, inPeriod, missingAge])
   // What moved since the previous period, graded as this period is; the previous gap is priced once here.
   const previousLabel = previousPeriodLabel(period.days)
   const changes = useMemo(
@@ -194,7 +194,7 @@ export function BalancePage({
         previousLabel,
         units,
         rideShown: weightKnown,
-        gap,
+        gap: heldGap,
         grading:
           profile === null
             ? null
@@ -212,7 +212,7 @@ export function BalancePage({
       previousLabel,
       units,
       weightKnown,
-      gap,
+      heldGap,
       profile,
       settings.massKg,
       calibration,
@@ -228,12 +228,8 @@ export function BalancePage({
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
-  const counts = {
-    run: countSport(result.activities, 'run'),
-    ride: countSport(result.activities, 'ride'),
-  }
   // With one sport in the period, the comparison slots say nothing, so they are left out.
-  const bothInPeriod = counts.run > 0 && counts.ride > 0
+  const bothInPeriod = runCount > 0 && rideCount > 0
   // A ride is named as graded only when its grade is on screen, which waits for the weight.
   const rideGraded = grades.ride?.kind === 'graded'
   // Each grade is at the age on its own effort's day, so the footer names both ages when they differ.
@@ -258,14 +254,13 @@ export function BalancePage({
         result={result}
         library={library}
         pick={pick}
-        gap={gap}
+        reading={reading}
         period={period}
         onShowAll={onShowAll}
         weightKnown={weightKnown}
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
-        scale={scale === null ? null : <BalanceScale model={scale} />}
-        aloneScale={aloneScale === null ? null : <BalanceScale model={aloneScale} />}
+        levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
         action={
           <ShareImageButton
@@ -293,7 +288,8 @@ export function BalancePage({
         grades={grades}
         weighted={weightKnown}
         period={period}
-        reading={reading}
+        reading={pointsReading}
+        target={target?.sentence ?? null}
         onAddFiles={analysis.addFiles}
       />
 

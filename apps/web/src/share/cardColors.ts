@@ -2,8 +2,7 @@
  * The share card is always dark. Canvas cannot read custom properties, so each colour copies the
  * dark-theme value of the token named in CARD_TOKEN, from apps/web/src/styles/tokens.css.
  * cardColors.test.ts keeps every value equal to its token. The meter's band is the leading sport's
- * solid colour drawn at BAND_OPACITY (cardMeter.ts), so it has no colour of its own. The level scale's five
- * washes (cardScale.ts) are the level tokens, which sit in blocks of their own after the colour table.
+ * solid colour drawn at BAND_OPACITY (cardMeter.ts), so it has no colour of its own.
  */
 export const CARD_COLORS = {
   ink: '#0e1116',
@@ -16,11 +15,6 @@ export const CARD_COLORS = {
   run: '#f0435f',
   ride: '#4d6ef5',
   neutralMark: '#b6bcc6',
-  level1: '#eef0f308',
-  level2: '#eef0f315',
-  level3: '#eef0f323',
-  level4: '#eef0f32f',
-  level5: '#eef0f339',
 } as const
 
 export type CardColor = keyof typeof CARD_COLORS
@@ -37,9 +31,4 @@ export const CARD_TOKEN: Record<CardColor, string> = {
   run: 'series-run',
   ride: 'series-ride',
   neutralMark: 'neutral-mark',
-  level1: 'level-1',
-  level2: 'level-2',
-  level3: 'level-3',
-  level4: 'level-4',
-  level5: 'level-5',
 }

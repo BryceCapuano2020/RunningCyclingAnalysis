@@ -206,6 +206,9 @@ const AT_TODAYS_MASS: Record<Sport, (own: number, rideKg: number, todayKg: numbe
   ride: (watts, rideKg, todayKg) => (watts * todayKg) / rideKg,
 }
 
+/** Whether a sport's own number depends on body mass: a ride's watts do, a run's pace does not. */
+const MASS_DEPENDENT: Record<Sport, boolean> = { run: false, ride: true }
+
 /** A pace, m/s, taken at the faster whole 5 s, so the rounded pace reaches the target. */
 function levelledSpeed(speedMs: number, units: UnitSystem): number {
   const seconds = paceSeconds(speedMs, units)
@@ -337,7 +340,7 @@ export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   const rideKg = activityMasses(result.activities)[
     curve.find((p) => p.durationS === HEADLINE_DURATION_S)?.activityId ?? ''
   ]
-  const reweighted = rideKg !== undefined && rideKg !== massKg
+  const reweighted = MASS_DEPENDENT[lower] && rideKg !== undefined && rideKg !== massKg
   const now = reweighted ? AT_TODAYS_MASS[lower](shown, rideKg, massKg) : shown
   if (needed === null || !Number.isFinite(now)) return null
   const levelled = levelledRange(lower, needed, units)

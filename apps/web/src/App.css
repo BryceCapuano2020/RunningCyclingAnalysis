@@ -220,8 +220,8 @@
 }
 
 /*
- * The example is a caption and a headline over Balance's level scale, which is a framed card of its own, so the
- * example adds no second frame. The frame stays solid, where the drop area beside it is dashed.
+ * The example is a caption and a headline over Balance's meter and levels line, set on the page with no frame,
+ * where the drop area beside it is a dashed frame.
  */
 .landing-example {
   display: grid;

@@ -151,7 +151,7 @@ export function ResultPage({
   // The fallback names both sports, so with one sport in the library there is nothing for it to say.
   const bothSports = countSport(analysed, 'run') > 0 && countSport(analysed, 'ride') > 0
   // The note under the dates says why the default is all time, then how old the newest activity is.
-  // Balance sets its period control compact under the scoreboard: it says when a longer period repeats a shorter one,
+  // Balance sets its period control compact under the levels: it says when a longer period repeats a shorter one,
   // links its count to the activities, and says how many runs at walking pace the count leaves out.
   const walking = analysis.state.walkingPaceRuns
   const control = (

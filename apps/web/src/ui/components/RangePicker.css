@@ -123,7 +123,7 @@
 }
 
 /*
- * The compact form, under Balance's scoreboard: chips about 40 px tall in one row where they fit, and the dates, the
+ * The compact form, under Balance's levels: chips about 40 px tall in one row where they fit, and the dates, the
  * count and the note as one small line. The legend is hidden but still names the group.
  */
 .range-picker--compact {
