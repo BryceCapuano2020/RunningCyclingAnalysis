@@ -30,6 +30,7 @@ export interface WorkbenchStore {
    * Keeps the trace of an activity that started at `startMs`, dropping the recordings of the oldest
    * activities to make room. Never drops one of a newer activity: when the cache is full of those the
    * result is `outranked`. `refused` is storage that would not take it, or a trace over a cache limit.
+   * The trace is the app's own (from activityTraceOf), so it is not validated; `get` validates what it reads.
    */
   put(scope: TraceScope, trace: ActivityTrace, startMs: number): Promise<PutResult>
   /** Whether a trace is stored, without reading it. Null when storage cannot say. */

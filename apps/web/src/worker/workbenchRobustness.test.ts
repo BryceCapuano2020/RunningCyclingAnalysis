@@ -120,3 +120,19 @@ describe('a throw part way through a workbench transaction', () => {
     expect(await repairLedger()).toBe(false)
   })
 })
+
+describe('checking a trace', () => {
+  it('trusts the app’s own trace when it is written, and checks what it reads back', async () => {
+    const { store } = await fresh()
+    // A value no trace the app builds could hold: an infinite speed.
+    const speed = Float32Array.from({ length: trace.durationS }, () => 1)
+    speed[3] = Infinity
+    const odd = { ...trace, streams: { ...trace.streams, speed } }
+
+    expect(await store.put(DEVICE, odd, activity.startMs)).toBe('stored')
+
+    // Read back, it is checked, found wrong, and dropped from the cache.
+    expect(await store.get(DEVICE, odd.activityId)).toBeNull()
+    expect(await store.has(DEVICE, odd.activityId)).toBe(false)
+  })
+})

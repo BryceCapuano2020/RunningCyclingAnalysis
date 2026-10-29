@@ -1,3 +1,4 @@
+import { traceQualityOf } from '@rca/core/quality'
 import { activityTraceOf, parseActivityTrace } from '@rca/core/workbench'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { sampleDataset } from '@rca/core/synthetic'
@@ -7,7 +8,7 @@ import { digestActivity } from '@rca/core/digest'
 import { matchOriginalActivity } from './originalActivity'
 import { Workbench } from './workbench'
 import type { PutResult, TraceScope, WorkbenchStore } from './workbenchStore'
-import { activityTraceBytes, WORKBENCH_ENTRY_BYTES } from './workbenchStore'
+import { activityTraceBytes, WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES } from './workbenchStore'
 
 function scopeKey(scope: TraceScope, id: string): string {
   return JSON.stringify([scope.kind === 'device' ? 'device' : scope.userId, id])
@@ -201,6 +202,156 @@ describe('workbench evidence cache', () => {
     expect(tried).not.toContain(b!.id)
     expect(workbench.isStored(scope, c!.id)).toBe(true)
     expect(rows.has(scopeKey(scope, b!.id))).toBe(false)
+  })
+
+  describe('recordings deferred to the end of an import', () => {
+    const scope: TraceScope = { kind: 'device' }
+    const startingAt = (id: string, startMs: number): Activity => ({ ...first, id, startMs })
+
+    it('writes nothing until asked, then writes the newest first', async () => {
+      const { rows, store } = memoryStore()
+      const workbench = new Workbench(store)
+
+      for (const [id, startMs] of [
+        ['old', 1_000],
+        ['new', 3_000],
+        ['mid', 2_000],
+      ] as const)
+        expect(workbench.captureDeferred(startingAt(id, startMs), scope)).not.toBeNull()
+      expect(store.put).not.toHaveBeenCalled()
+      expect(await workbench.holds(scope, 'old')).toBe(true)
+
+      const stored = await workbench.storeDeferred()
+
+      expect(vi.mocked(store.put).mock.calls.map(([, trace]) => trace.activityId)).toEqual([
+        'new',
+        'mid',
+        'old',
+      ])
+      expect([...stored].sort()).toEqual(['mid', 'new', 'old'])
+      expect(rows.size).toBe(3)
+      // Once written, nothing is left to write.
+      vi.mocked(store.put).mockClear()
+      await workbench.storeDeferred()
+      expect(store.put).not.toHaveBeenCalled()
+    })
+
+    it('does not write one that was removed first, and reports only those storage kept', async () => {
+      const { store } = memoryStore({
+        put: vi.fn(async (_scope, trace) => (trace.activityId === 'full' ? 'outranked' : 'stored')),
+      })
+      const workbench = new Workbench(store)
+      workbench.captureDeferred(startingAt('gone', 2_000), scope)
+      workbench.captureDeferred(startingAt('full', 3_000), scope)
+      workbench.captureDeferred(startingAt('kept', 4_000), scope)
+
+      await workbench.remove(scope, 'gone')
+      const stored = await workbench.storeDeferred()
+
+      expect([...stored]).toEqual(['kept'])
+      expect(vi.mocked(store.put).mock.calls.map(([, trace]) => trace.activityId)).toEqual([
+        'kept',
+        'full',
+      ])
+    })
+
+    it('holds no more than the cache can, dropping the oldest activities first', async () => {
+      const { store } = memoryStore()
+      const workbench = new Workbench(store)
+      const n = 380_000
+      const big = (id: string, startMs: number): Activity => ({
+        ...startingAt(id, startMs),
+        n,
+        speed: new Float64Array(n),
+        distance: new Float64Array(n),
+        altitude: new Float64Array(n),
+        heartRate: new Float64Array(n),
+        power: new Float64Array(n),
+        paused: new Uint8Array(n),
+        unrecorded: undefined,
+        laps: [],
+      })
+      const probe = big('probe', 0)
+      // The trace the cache builds carries the masks of the quality assessment too.
+      const bytes = activityTraceBytes(activityTraceOf(probe, traceQualityOf(probe)))
+      expect(bytes).toBeLessThanOrEqual(WORKBENCH_ENTRY_BYTES)
+      const fit = Math.floor(WORKBENCH_TOTAL_BYTES / bytes)
+
+      // One more than fits, the oldest arriving last.
+      for (let i = 0; i <= fit; i++) workbench.captureDeferred(big(`a${i}`, 10_000 - i), scope)
+      await workbench.storeDeferred()
+
+      const written = vi.mocked(store.put).mock.calls.map(([, trace]) => trace.activityId)
+      expect(written).toHaveLength(fit)
+      expect(written).not.toContain(`a${fit}`)
+      expect(written[0]).toBe('a0')
+    })
+  })
+
+  describe('once storage has turned a recording away as outranked', () => {
+    /** The sample's first activity under another id, started at `startMs`. */
+    const startingAt = (id: string, startMs: number): Activity => ({ ...first, id, startMs })
+    const scope: TraceScope = { kind: 'device' }
+
+    function fullOfNewer() {
+      const { store } = memoryStore({ put: vi.fn(async () => 'outranked' as const) })
+      return { store, workbench: new Workbench(store) }
+    }
+
+    it('does not offer storage a recording that started no later and is no larger', async () => {
+      const { store, workbench } = fullOfNewer()
+      await workbench.capture(startingAt('a', 5_000), scope)
+      expect(store.put).toHaveBeenCalledTimes(1)
+
+      const older = await workbench.capture(startingAt('b', 4_000), scope)
+      const same = await workbench.capture(startingAt('c', 5_000), scope)
+
+      expect(store.put).toHaveBeenCalledTimes(1)
+      // It is kept in memory all the same, as an outranked recording always is.
+      expect(older).not.toBeNull()
+      expect(same).not.toBeNull()
+      expect(await workbench.get(scope, 'b')).toEqual(older)
+      expect(workbench.isStored(scope, 'b')).toBe(false)
+    })
+
+    it('still offers one that started later, or is smaller', async () => {
+      const { store, workbench } = fullOfNewer()
+      await workbench.capture(startingAt('a', 5_000), scope)
+
+      await workbench.capture(startingAt('newer', 6_000), scope)
+      expect(store.put).toHaveBeenCalledTimes(2)
+
+      const smaller = startingAt('small', 4_000)
+      const half = Math.floor(smaller.n / 2)
+      await workbench.capture(
+        {
+          ...smaller,
+          n: half,
+          speed: smaller.speed.slice(0, half),
+          distance: smaller.distance.slice(0, half),
+          altitude: smaller.altitude.slice(0, half),
+          heartRate: smaller.heartRate.slice(0, half),
+          power: smaller.power.slice(0, half),
+          paused: smaller.paused.slice(0, half),
+        },
+        scope,
+      )
+      expect(store.put).toHaveBeenCalledTimes(3)
+    })
+
+    it.each([
+      ['a removal', (workbench: Workbench) => workbench.remove(scope, 'other')],
+      ['clearing a scope', (workbench: Workbench) => workbench.clearScope(scope)],
+      ['a new import', (workbench: Workbench) => workbench.forgetOutranked()],
+    ])('asks storage again after %s, since room may have opened up', async (_name, free) => {
+      const { store, workbench } = fullOfNewer()
+      await workbench.capture(startingAt('a', 5_000), scope)
+      await free(workbench)
+
+      await workbench.capture(startingAt('b', 4_000), scope)
+
+      expect(store.put).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('never writes a memory-only trace, and drops a pending one whose account was deleted', async () => {

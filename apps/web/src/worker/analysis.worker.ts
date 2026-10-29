@@ -79,11 +79,15 @@ async function addFiles(
         ? { kind: 'device' }
         : null
   activeScope = traceScope ?? { kind: 'device' }
+  // What storage turned away in an earlier import says nothing about room now.
+  workbench.forgetOutranked()
   // Signing in again lifts the block that signing out put on the account's recordings.
   if (traceScope?.kind === 'account') await workbench.reopenScope(traceScope)
   let stoppedBy: SyncIssueCode | null = null
-  // Activities the import already held and gave a recording back, which the summary says.
+  // Activities the import already held and gave a recording back, which the summary says. A
+  // candidate is one whose recording was missing; it counts once it is in storage.
   const restored = new Set<string>()
+  const restoreCandidates = new Set<string>()
   const addedIds = new Set<string>()
   let outcome: ImportOutcome = {
     activities: 0,
@@ -144,19 +148,22 @@ async function addFiles(
         if (traceScope === null) return workbench.captureMemory(activity, { kind: 'device' })
         // Only a workout the library already held can have its recording restored.
         const had = held && (await workbench.holds(traceScope, activity.id))
-        const kept = await workbench.capture(activity, traceScope)
-        // Counted once it is in storage: a recording held in memory alone is gone after a reload.
-        if (held && !had && kept !== null && workbench.isStored(traceScope, activity.id))
-          restored.add(activity.id)
+        // Stored when the import ends, newest first, so the ones the cache cannot hold are not written.
+        const kept = workbench.captureDeferred(activity, traceScope)
+        if (held && !had && kept !== null) restoreCandidates.add(activity.id)
       },
       async (replacedId) => {
         restored.delete(replacedId)
+        restoreCandidates.delete(replacedId)
         if (traceScope === null) workbench.dropMemory({ kind: 'device' }, replacedId)
         else await workbench.remove(traceScope, replacedId)
       },
     )
   } finally {
-    // On a failure too: the page learns how many were saved before the error reply.
+    // On a failure too: what was read is stored, and the page learns how many were saved.
+    const stored = await workbench.storeDeferred()
+    // Counted once it is in storage: a recording held in memory alone is gone after a reload.
+    for (const id of restoreCandidates) if (stored.has(id)) restored.add(id)
     reporter.end()
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length

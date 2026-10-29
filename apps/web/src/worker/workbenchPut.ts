@@ -11,7 +11,6 @@ import {
   abortQuietly,
   activityTraceBytes,
   entryKey,
-  parseBoundedTrace,
   requestResult,
   resetWorkbenchDatabase,
   scopeKey,
@@ -57,9 +56,10 @@ async function writeTrace(
   const retry = async (): Promise<PutResult> =>
     !repaired && (await repairLedger()) ? writeTrace(scope, input, startMs, true) : 'refused'
   try {
-    const trace = parseBoundedTrace(input)
-    if (!trace || trace.activityId !== input.activityId || !Number.isFinite(startMs))
-      return 'refused'
+    // The trace was built here by activityTraceOf, so it is not checked again on the way in. What
+    // storage hands back is, in WorkbenchStore.get.
+    const trace = input
+    if (!Number.isFinite(startMs)) return 'refused'
     const bytes = activityTraceBytes(trace)
     if (bytes > WORKBENCH_ENTRY_BYTES) return 'refused'
     const db = await workbenchDatabase()
