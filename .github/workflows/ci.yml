@@ -20,7 +20,8 @@ jobs:
   verify:
     name: Lint, typecheck, unit tests, build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Guards against a hang; it is not a speed budget (the job takes 8 to 9 minutes on a normal run).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
