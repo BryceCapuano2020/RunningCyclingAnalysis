@@ -1,3 +1,4 @@
+import './test/warmSample'
 import { describe, expect, it, vi } from 'vitest'
 import { seasonDigests } from './sessionSample'
 import { SAMPLE_CLOCK, SAMPLE_REFERENCE_NOW_MS, samplePlan } from './synthetic'

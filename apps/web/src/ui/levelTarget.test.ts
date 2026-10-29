@@ -1,3 +1,4 @@
+import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { equivalentRunSpeed } from '@rca/core/digest'

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import '../../test/warmSample'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'

@@ -1,3 +1,4 @@
+import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import { SAMPLE_SETTINGS } from './sampleAthlete'

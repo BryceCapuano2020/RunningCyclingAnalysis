@@ -23,6 +23,8 @@ import type { WorkerRequest, WorkerResponse } from './protocol'
 const WAIT_FOR_MS = 10_000
 
 const limits = vi.hoisted(() => ({ maxFileBytes: 50 * 1024 * 1024 }))
+/** How many of the sample's newest activities the worker draws in these tests: both sports, a few weeks. */
+const SAMPLE_PLAN_TAIL = vi.hoisted(() => 8)
 
 vi.mock('@rca/contract', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@rca/contract')>()
@@ -31,6 +33,21 @@ vi.mock('@rca/contract', async (importOriginal) => {
     get MAX_FILE_BYTES() {
       return limits.maxFileBytes
     },
+  }
+})
+
+/**
+ * The sample is drawn second by second, and the worker draws it afresh on each load: these tests need a sample
+ * on screen, not a season, so its plan is its last few activities. The worker's own clock and the plan are
+ * still the real ones, so a recording drawn later is of the same activity (sampleClock.test.ts draws the
+ * full season's plan, and sampleSections.test.ts its figures).
+ */
+vi.mock('@rca/core/synthetic', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@rca/core/synthetic')>()
+  return {
+    ...actual,
+    samplePlan: (...args: Parameters<typeof actual.samplePlan>) =>
+      actual.samplePlan(...args).slice(-SAMPLE_PLAN_TAIL),
   }
 })
 

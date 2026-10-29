@@ -1,3 +1,4 @@
+import './test/warmSample'
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'

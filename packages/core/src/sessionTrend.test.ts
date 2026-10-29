@@ -1,3 +1,4 @@
+import './test/warmSample'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as trend from './digest/trend'
 import { AnalysisSession } from './session'

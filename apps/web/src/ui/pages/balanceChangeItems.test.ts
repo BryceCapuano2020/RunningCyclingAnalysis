@@ -1,3 +1,4 @@
+import '../../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { equivalenceFor } from '@rca/core/pipeline'
