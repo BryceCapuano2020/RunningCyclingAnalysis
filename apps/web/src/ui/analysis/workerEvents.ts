@@ -106,7 +106,11 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       if (message.type === 'deviceIssue') {
         current.library.setDeviceIssue(
           message.issue === 'notSaved'
-            ? { issue: 'notSaved', count: message.count }
+            ? {
+                issue: 'notSaved',
+                count: message.count,
+                ...(message.newer === undefined ? {} : { newer: message.newer }),
+              }
             : { issue: 'notForgotten' },
         )
         return

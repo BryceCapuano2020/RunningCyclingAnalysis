@@ -5,7 +5,7 @@ import type { SyncItem } from '@rca/core/session'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { deviceActions, workoutKeyOf } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
 import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
@@ -76,15 +76,30 @@ describe('device library actions', () => {
     }
     const { actions } = setup(refusing)
 
-    await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBe(false)
+    await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBe('refused')
+  })
+
+  it('save leaves a stored row it cannot read, as a newer version of the app wrote it', async () => {
+    const put = vi.fn(() => Promise.resolve())
+    const unreadable: DeviceLibrary = {
+      ...memoryDeviceLibrary(),
+      lookup: async () => 'unreadable',
+      put,
+    }
+    const { actions } = setup(unreadable)
+
+    await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBe('newer')
+    expect(put).not.toHaveBeenCalled()
   })
 
   it('save says it kept the activity, and counts a kept copy it prefers as kept', async () => {
     const { actions } = setup()
     const fit = copyFrom(FIRST, 'run.fit')
 
-    await expect(actions.save(itemFor(fit, 'hash-fit'))).resolves.toBe(true)
-    await expect(actions.save(itemFor(copyFrom(FIRST, 'run.gpx'), 'hash-gpx'))).resolves.toBe(true)
+    await expect(actions.save(itemFor(fit, 'hash-fit'))).resolves.toBe('kept')
+    await expect(actions.save(itemFor(copyFrom(FIRST, 'run.gpx'), 'hash-gpx'))).resolves.toBe(
+      'kept',
+    )
   })
 
   it('keeps a richer FIT copy over a GPX copy of the same workout, and a poorer copy does not replace it', async () => {

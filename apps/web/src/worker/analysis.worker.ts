@@ -115,16 +115,19 @@ async function addFiles(
   if (sync === null && request.saveToDevice && !device.inSession())
     await device.load(request.settings)
   showingSample = false
-  // Workouts this browser refused to keep, counted once however many copies of one were refused, and
-  // not at all when another copy of it was kept. The results still show; the page is told the count.
+  // Workouts this browser refused to keep, or left to a newer version's copy, counted once however
+  // many copies of one were turned away, and not at all when another copy of it was kept. The
+  // results still show; the page is told the counts.
   const refused = new Set<string>()
+  const leftToNewer = new Set<string>()
   const keptKeys = new Set<string>()
   const keepOnDevice = async (item: SyncItem) => {
     const key = activityKey(item.digest)
-    if (await device.save(item)) keptKeys.add(key)
-    else refused.add(key)
+    const saved = await device.save(item)
+    if (saved === 'kept') keptKeys.add(key)
+    else (saved === 'newer' ? leftToNewer : refused).add(key)
   }
-  const notKept = () => [...refused].filter((key) => !keptKeys.has(key)).length
+  const notKept = (keys: Set<string>) => [...keys].filter((key) => !keptKeys.has(key)).length
   let state: SessionState
   try {
     state = await session.addFiles(
@@ -163,8 +166,10 @@ async function addFiles(
     reportLibrary()
   } else if (request.saveToDevice) {
     await device.report()
-    const count = notKept()
-    if (count > 0) post({ type: 'deviceIssue', issue: 'notSaved', count })
+    const count = notKept(refused)
+    const newer = notKept(leftToNewer)
+    if (count > 0 || newer > 0)
+      post({ type: 'deviceIssue', issue: 'notSaved', count, ...(newer > 0 ? { newer } : {}) })
   }
   if (stoppedBy !== null) post({ type: 'accountIssue', issue: stoppedBy })
   return { state, outcome, ...(sync ? { saved: reporter.savedCount } : {}) }

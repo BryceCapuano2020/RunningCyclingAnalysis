@@ -194,7 +194,15 @@ export function workerFailureText(
 export function deviceIssueText(notice: DeviceIssue, signedIn: boolean): string {
   if (notice.issue === 'notSaved') {
     const one = notice.count === 1
-    return `${plural(notice.count, 'activity', 'activities')} ${one ? 'shows' : 'show'} here but could not be kept in this browser. ${one ? 'It' : 'They'} will not be here after a reload.`
+    const refused =
+      notice.count === 0
+        ? ''
+        : `${plural(notice.count, 'activity', 'activities')} ${one ? 'shows' : 'show'} here but could not be kept in this browser. ${one ? 'It' : 'They'} will not be here after a reload.`
+    const newer = notice.newer ?? 0
+    if (newer === 0) return refused
+    const oneNewer = newer === 1
+    const left = `${plural(newer, 'activity', 'activities')} ${oneNewer ? 'shows' : 'show'} here. This browser keeps ${oneNewer ? 'a copy of it' : 'copies of them'} saved by a newer version of this app, and ${oneNewer ? 'that copy was' : 'those copies were'} left as ${oneNewer ? 'it is' : 'they are'}. Reload the page to update the app.`
+    return refused === '' ? left : `${refused} ${left}`
   }
   return signedIn
     ? 'This browser could not delete its copy of the activity or its recording. It may come back when you sign out.'

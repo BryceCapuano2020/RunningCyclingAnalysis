@@ -209,6 +209,19 @@ describe('device library in IndexedDB', () => {
     expect([...fake.rows.keys()].sort()).toEqual(['ride-2', 'run-1'])
   })
 
+  it('tells a row this version cannot read from no row', async () => {
+    const fake = fakeIndexedDb()
+    vi.stubGlobal('indexedDB', fake.indexedDB)
+    const library = openDeviceLibrary()
+    await library.put('run-1', MEASURED)
+    fake.rows.set('ride-2', { not: 'a digest' })
+
+    expect(await library.lookup('run-1')).toEqual(MEASURED)
+    expect(await library.lookup('ride-2')).toBe('unreadable')
+    expect(await library.get('ride-2')).toBeNull()
+    expect(await library.lookup('swim-3')).toBeNull()
+  })
+
   it('reopens the database after the browser closes it', async () => {
     const fake = fakeIndexedDb()
     vi.stubGlobal('indexedDB', fake.indexedDB)

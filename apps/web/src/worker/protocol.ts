@@ -19,9 +19,11 @@ export interface SavedActivity {
 
 /**
  * What this browser failed to do with the activities it keeps. `notSaved` counts activities of one
- * import that show but were not kept; `notForgotten` is a delete or removal that left a copy behind.
+ * import that show but were not kept, and `newer` those it left because a newer version of the app
+ * keeps a copy that this one cannot read; `notForgotten` is a delete or removal that left a copy behind.
  */
-export type DeviceIssue = { issue: 'notSaved'; count: number } | { issue: 'notForgotten' }
+export type DeviceIssue =
+  { issue: 'notSaved'; count: number; newer?: number } | { issue: 'notForgotten' }
 
 export interface ImportOutcome {
   /** The activities the import read, which a file may hold several of. */

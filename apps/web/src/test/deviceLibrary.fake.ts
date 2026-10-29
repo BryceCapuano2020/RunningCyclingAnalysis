@@ -16,6 +16,7 @@ export function memoryDeviceLibrary(): DeviceLibrary {
     all,
     allStrict: all,
     get: async (workoutKey) => entries.get(workoutKey)?.digest ?? null,
+    lookup: async (workoutKey) => entries.get(workoutKey)?.digest ?? null,
     route: async (workoutKey) => entries.get(workoutKey)?.route ?? null,
     put: async (workoutKey, digest, route = null) => {
       entries.set(workoutKey, { digest, route })

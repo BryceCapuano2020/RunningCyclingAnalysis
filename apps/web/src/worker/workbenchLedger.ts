@@ -5,6 +5,7 @@ import {
   TRACES,
   WORKBENCH_MAX_ENTRIES,
   WORKBENCH_TOTAL_BYTES,
+  abortQuietly,
   resetWorkbenchDatabase,
   transactionDone,
   validTraceMetadata,
@@ -23,17 +24,21 @@ export async function rebuildLedger(transaction: IDBTransaction): Promise<void> 
     cursorRequest.onerror = () =>
       reject(cursorRequest.error ?? new Error('Workbench storage failed'))
     cursorRequest.onsuccess = () => {
-      const cursor = cursorRequest.result
-      if (!cursor) return resolve()
-      const row = cursor.value
-      if (!validTraceMetadata(row)) {
-        if (typeof cursor.primaryKey === 'string') traces.delete(cursor.primaryKey)
-        cursor.delete()
-      } else {
-        bytes += row.bytes
-        count++
+      try {
+        const cursor = cursorRequest.result
+        if (!cursor) return resolve()
+        const row = cursor.value
+        if (!validTraceMetadata(row)) {
+          if (typeof cursor.primaryKey === 'string') traces.delete(cursor.primaryKey)
+          cursor.delete()
+        } else {
+          bytes += row.bytes
+          count++
+        }
+        cursor.continue()
+      } catch (error) {
+        reject(error)
       }
-      cursor.continue()
     }
   })
   if (bytes > WORKBENCH_TOTAL_BYTES || count > WORKBENCH_MAX_ENTRIES) {
@@ -42,15 +47,19 @@ export async function rebuildLedger(transaction: IDBTransaction): Promise<void> 
       cursorRequest.onerror = () =>
         reject(cursorRequest.error ?? new Error('Workbench storage failed'))
       cursorRequest.onsuccess = () => {
-        const cursor = cursorRequest.result
-        if (!cursor || (bytes <= WORKBENCH_TOTAL_BYTES && count <= WORKBENCH_MAX_ENTRIES))
-          return resolve()
-        const row = cursor.value as TraceMetadata
-        bytes -= row.bytes
-        count--
-        traces.delete(row.key)
-        cursor.delete()
-        cursor.continue()
+        try {
+          const cursor = cursorRequest.result
+          if (!cursor || (bytes <= WORKBENCH_TOTAL_BYTES && count <= WORKBENCH_MAX_ENTRIES))
+            return resolve()
+          const row = cursor.value as TraceMetadata
+          bytes -= row.bytes
+          count--
+          traces.delete(row.key)
+          cursor.delete()
+          cursor.continue()
+        } catch (error) {
+          reject(error)
+        }
       }
     })
   }
@@ -59,14 +68,17 @@ export async function rebuildLedger(transaction: IDBTransaction): Promise<void> 
 
 /** Repairs metadata accounting in an isolated transaction after a corrupt row aborts a write. */
 export async function repairLedger(): Promise<boolean> {
+  let transaction: IDBTransaction | null = null
   try {
     const db = await workbenchDatabase()
-    const transaction = db.transaction([TRACES, ENTRIES, STATE], 'readwrite')
+    transaction = db.transaction([TRACES, ENTRIES, STATE], 'readwrite')
     const done = transactionDone(transaction)
+    done.catch(() => undefined)
     await rebuildLedger(transaction)
     await done
     return true
   } catch {
+    abortQuietly(transaction)
     resetWorkbenchDatabase()
     return false
   }

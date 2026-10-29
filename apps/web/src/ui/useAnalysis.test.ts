@@ -867,6 +867,13 @@ describe('useAnalysis account handling', () => {
       expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 2 })
     })
 
+    it('keeps how many were left to a newer version of the app', () => {
+      const { result } = setup(SIGNED_OUT)
+      finishDeviceLoad(STATE)
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 0, newer: 2 }))
+      expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 0, newer: 2 })
+    })
+
     it('clears the refusal when the next import is sent, and shows it again if that one fails too', () => {
       const { result } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)

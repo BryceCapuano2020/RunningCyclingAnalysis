@@ -21,6 +21,11 @@ export interface DeviceLibrary {
    */
   allStrict(): Promise<DeviceEntry[]>
   get(workoutKey: string): Promise<ActivityDigest | null>
+  /**
+   * As `get`, but tells a row this version cannot read, such as one a newer version of the app wrote,
+   * from no row at all: it resolves 'unreadable' for the first and null for the second.
+   */
+  lookup(workoutKey: string): Promise<ActivityDigest | 'unreadable' | null>
   /** The route shape kept with the digest, or null when none was kept or it does not read. */
   route(workoutKey: string): Promise<RouteShape | null>
   /** Keeps a digest with its route, which goes with it. A replacement without a route keeps none. */
@@ -171,6 +176,15 @@ export function openDeviceLibrary(): DeviceLibrary {
     all: () => entries(false),
     allStrict: () => entries(true),
     get: async (workoutKey) => (await readOne(workoutKey))?.digest ?? null,
+    lookup: (workoutKey) =>
+      withStore(
+        'readonly',
+        async (store) => {
+          const stored: unknown = await done(store.get(workoutKey))
+          return stored === undefined ? null : (readRow(stored)?.digest ?? 'unreadable')
+        },
+        null,
+      ),
     route: async (workoutKey) => (await readOne(workoutKey))?.route ?? null,
     put: (workoutKey, digest, route = null) =>
       write((store) => store.put({ digest: serializeDigest(digest), route }, workoutKey)),

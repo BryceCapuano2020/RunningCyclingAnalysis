@@ -8,6 +8,7 @@ import {
   WORKBENCH_ENTRY_BYTES,
   WORKBENCH_MAX_ENTRIES,
   WORKBENCH_TOTAL_BYTES,
+  abortQuietly,
   activityTraceBytes,
   entryKey,
   parseBoundedTrace,
@@ -28,15 +29,6 @@ import type {
   TraceScope,
 } from './workbenchSchema'
 import { repairLedger } from './workbenchLedger'
-
-/** Aborts a transaction that may already be over; either way it can no longer commit. */
-function abortQuietly(transaction: IDBTransaction | null): void {
-  try {
-    transaction?.abort()
-  } catch {
-    // Already finished or aborted.
-  }
-}
 
 /**
  * Keeps the trace of an activity that started at `startMs`, in one transaction that evicts the
@@ -74,6 +66,7 @@ async function writeTrace(
     const opened = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
     transaction = opened
     const done = transactionDone(opened)
+    done.catch(() => undefined)
     const key = entryKey(scope, trace.activityId)
     const entries = opened.objectStore(ENTRIES)
     const traces = opened.objectStore(TRACES)
@@ -108,24 +101,29 @@ async function writeTrace(
         cursorRequest.onerror = () =>
           reject(cursorRequest.error ?? new Error('Workbench storage failed'))
         cursorRequest.onsuccess = () => {
-          const cursor = cursorRequest.result
-          if (!cursor || !mustEvict() || corruptCandidate) return resolve()
-          if (!validTraceMetadata(cursor.value)) {
-            corruptCandidate = true
-            return resolve()
-          }
-          const candidate = cursor.value
-          if (candidate.key !== key) {
-            if (candidate.startMs > startMs) {
-              outranked = true
+          // A throw here would leave the request unanswered, and the serial queue behind it stuck.
+          try {
+            const cursor = cursorRequest.result
+            if (!cursor || !mustEvict() || corruptCandidate) return resolve()
+            if (!validTraceMetadata(cursor.value)) {
+              corruptCandidate = true
               return resolve()
             }
-            traces.delete(candidate.key)
-            totalBytes -= candidate.bytes
-            count--
-            cursor.delete()
+            const candidate = cursor.value
+            if (candidate.key !== key) {
+              if (candidate.startMs > startMs) {
+                outranked = true
+                return resolve()
+              }
+              traces.delete(candidate.key)
+              totalBytes -= candidate.bytes
+              count--
+              cursor.delete()
+            }
+            cursor.continue()
+          } catch (error) {
+            reject(error)
           }
-          cursor.continue()
         }
       })
     }

@@ -4,6 +4,7 @@ import {
   OWNERS,
   STATE,
   TRACES,
+  abortQuietly,
   activityTraceBytes,
   entryKey,
   parseBoundedTrace,
@@ -87,10 +88,12 @@ async function closeScope(
 /** A separate database keeps this schema independent of the long-lived digest library. */
 export function openWorkbenchStore(): WorkbenchStore {
   async function clear(scope: TraceScope, closing: Closing): Promise<boolean> {
+    let transaction: IDBTransaction | null = null
     try {
       const db = await workbenchDatabase(true)
-      const transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
+      transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
       const done = transactionDone(transaction)
+      done.catch(() => undefined)
       const traces = transaction.objectStore(TRACES)
       const entries = transaction.objectStore(ENTRIES)
       const cursorRequest = entries.index('scopeKey').openCursor(IDBKeyRange.only(scopeKey(scope)))
@@ -98,11 +101,16 @@ export function openWorkbenchStore(): WorkbenchStore {
         cursorRequest.onerror = () =>
           reject(cursorRequest.error ?? new Error('Workbench storage failed'))
         cursorRequest.onsuccess = () => {
-          const cursor = cursorRequest.result
-          if (!cursor) return resolve()
-          if (typeof cursor.primaryKey === 'string') traces.delete(cursor.primaryKey)
-          cursor.delete()
-          cursor.continue()
+          // A throw here would leave the request unanswered, and the serial queue behind it stuck.
+          try {
+            const cursor = cursorRequest.result
+            if (!cursor) return resolve()
+            if (typeof cursor.primaryKey === 'string') traces.delete(cursor.primaryKey)
+            cursor.delete()
+            cursor.continue()
+          } catch (error) {
+            reject(error)
+          }
         }
       })
       await rebuildLedger(transaction)
@@ -111,6 +119,7 @@ export function openWorkbenchStore(): WorkbenchStore {
       await done
       return true
     } catch (error) {
+      abortQuietly(transaction)
       resetWorkbenchDatabase()
       return nothingCached(error)
     }
@@ -118,10 +127,12 @@ export function openWorkbenchStore(): WorkbenchStore {
 
   return {
     async get(scope, activityId) {
+      let transaction: IDBTransaction | null = null
       try {
         const db = await workbenchDatabase()
-        const transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
+        transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
         const done = transactionDone(transaction)
+        done.catch(() => undefined)
         const key = entryKey(scope, activityId)
         const entries = transaction.objectStore(ENTRIES)
         const traces = transaction.objectStore(TRACES)
@@ -163,6 +174,7 @@ export function openWorkbenchStore(): WorkbenchStore {
         await done
         return trace
       } catch {
+        abortQuietly(transaction)
         resetWorkbenchDatabase()
         return null
       }
@@ -200,10 +212,12 @@ export function openWorkbenchStore(): WorkbenchStore {
     },
 
     async remove(scope, activityId) {
+      let transaction: IDBTransaction | null = null
       try {
         const db = await workbenchDatabase(true)
-        const transaction = db.transaction([TRACES, ENTRIES, STATE], 'readwrite')
+        transaction = db.transaction([TRACES, ENTRIES, STATE], 'readwrite')
         const done = transactionDone(transaction)
+        done.catch(() => undefined)
         const key = entryKey(scope, activityId)
         const entries = transaction.objectStore(ENTRIES)
         const rawMetadata = (await requestResult(entries.get(key))) as unknown
@@ -221,22 +235,26 @@ export function openWorkbenchStore(): WorkbenchStore {
         await done
         return true
       } catch (error) {
+        abortQuietly(transaction)
         resetWorkbenchDatabase()
         return nothingCached(error)
       }
     },
 
     async reopenScope(scope) {
+      let transaction: IDBTransaction | null = null
       try {
         const db = await workbenchDatabase(true)
-        const transaction = db.transaction(OWNERS, 'readwrite')
+        transaction = db.transaction(OWNERS, 'readwrite')
         const done = transactionDone(transaction)
+        done.catch(() => undefined)
         const owners = transaction.objectStore(OWNERS)
         const row = (await requestResult(owners.get(scopeKey(scope)))) as OwnerRow | undefined
         if (row !== undefined && row.deletedAt === undefined) owners.delete(scopeKey(scope))
         await done
         return true
       } catch (error) {
+        abortQuietly(transaction)
         resetWorkbenchDatabase()
         return nothingCached(error)
       }

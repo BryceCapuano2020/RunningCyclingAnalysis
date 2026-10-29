@@ -99,12 +99,26 @@ export function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   })
 }
 
+/**
+ * Resolves when the transaction commits, and rejects when it fails or aborts. A caller that can throw
+ * before it awaits the result should also call `.catch(() => undefined)` on it, so that an abort
+ * nobody is waiting for yet is not reported as an unhandled rejection.
+ */
 export function transactionDone(transaction: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error ?? new Error('Workbench storage failed'))
     transaction.onabort = () => reject(transaction.error ?? new Error('Workbench storage aborted'))
   })
+}
+
+/** Aborts a transaction that may already be over; either way it can no longer commit. */
+export function abortQuietly(transaction: IDBTransaction | null): void {
+  try {
+    transaction?.abort()
+  } catch {
+    // Already finished or aborted.
+  }
 }
 
 /** Bounds structured-clone input before the core parser walks or clones any arrays. */

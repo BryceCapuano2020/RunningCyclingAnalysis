@@ -1288,6 +1288,7 @@ function refusingLibrary(): DeviceLibrary {
     all: async () => [],
     allStrict: async () => [],
     get: async () => null,
+    lookup: async () => null,
     route: async () => null,
     put: refused,
     remove: refused,
@@ -1556,6 +1557,28 @@ describe('device library', () => {
     expect(messages.at(-2)).toEqual({ type: 'deviceIssue', issue: 'notSaved', count: 2 })
     expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 2 } })
     expect(messages.some((message) => message.type === 'error')).toBe(false)
+  })
+
+  it('leaves a row a newer version wrote, and tells the page it did', async () => {
+    const put = vi.fn(() => Promise.resolve())
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      lookup: async () => 'unreadable',
+      put,
+    }
+    const { send } = await startWorker()
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(put).not.toHaveBeenCalled()
+    expect(messages.at(-2)).toEqual({ type: 'deviceIssue', issue: 'notSaved', count: 0, newer: 1 })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
   })
 
   it('counts a workout once when two refused copies of it were imported', async () => {
