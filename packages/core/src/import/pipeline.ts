@@ -17,7 +17,7 @@ const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
 /** The shortest activity, in seconds: the records must vouch for at least this much. */
 const MIN_SAMPLES = 60
-/** The seconds of movement a device can count before its first record and still have that distance kept. */
+/** The seconds of movement a device can count before its first distance and still have that distance kept. */
 const HEAD_START_S = 30
 /** The fastest speed a sample may have, per sport. Faster samples are dropped as impossible. */
 export const MAX_SPEED_MPS: Record<Sport, number> = {
@@ -288,11 +288,12 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
   }
   // A part after a gap of over four hours counts from its own first sample, and a unit that follows
   // another in the same file counts from where the device's running total stood. A first unit keeps
-  // the few metres a device counts before its first record, but a larger first distance is an
+  // the few metres a device counts before its first distance, but a larger first distance is an
   // earlier count of the file's own, so it counts from its own first sample.
-  const firstDistance = resampled.distance[0] ?? 0
   const origin =
-    part === 0 ? (unit.distanceOrigin ?? beyondHeadStart(firstDistance, maxSpeed)) : firstDistance
+    part === 0
+      ? (unit.distanceOrigin ?? unexplainedStart(segment, resampled, maxSpeed))
+      : (resampled.distance[0] ?? 0)
   subtractDistance(resampled.distance, origin)
   const indoor = unit.indoor || (!unit.hasPosition && isIndoorWithoutPositions(resampled, sport))
   // A speed derived from distance can still exceed the sport's limit; such samples are missing.
@@ -361,12 +362,23 @@ function mostlySparse(segment: RawRecord[]): boolean {
   return segment.length > 1 && long * 2 >= segment.length - 1
 }
 
-/** Subtracts `origin` from every distance. Distances stay non-decreasing. */
-/** The distance to drop from a first unit: its first sample's, unless it is a plausible head start. */
-function beyondHeadStart(firstDistance: number, maxSpeed: number): number {
-  return firstDistance > maxSpeed * HEAD_START_S ? firstDistance : 0
+/**
+ * The distance to drop from a first unit: its first distance, unless the athlete could have covered it
+ * before that distance was first recorded. The time allowed is HEAD_START_S plus the time to the first
+ * record that has a distance (a file that gives none for minutes has its first reading filled back over
+ * them), at the fastest speed the file itself shows, which the sport's limit caps.
+ */
+function unexplainedStart(segment: RawRecord[], resampled: Resampled, maxSpeed: number): number {
+  const firstDistance = resampled.distance[0]
+  if (firstDistance === undefined || !Number.isFinite(firstDistance)) return 0
+  const withDistance = segment.find((r) => Number.isFinite(r.distance))
+  const lead = withDistance === undefined ? 0 : (withDistance.tMs - segment[0]!.tMs) / 1000
+  let fastest = 0
+  for (const v of resampled.speed) if (v > fastest && v <= maxSpeed) fastest = v
+  return firstDistance > (HEAD_START_S + lead) * fastest ? firstDistance : 0
 }
 
+/** Subtracts `origin` from every distance. Distances stay non-decreasing. */
 function subtractDistance(distance: Float64Array, origin: number): void {
   if (!Number.isFinite(origin) || origin === 0) return
   for (let i = 0; i < distance.length; i++) distance[i] = distance[i]! - origin
