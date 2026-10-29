@@ -150,12 +150,29 @@ describe('GradeProfileChart', () => {
     const text = (sport: string) =>
       labels.find((label) => label.getAttribute('data-sport') === sport)?.textContent
     expect(text('run')).toBe('Run 64%')
-    expect(text('ride')).toMatch(/^Ride \d+%range \d+–\d+%$/)
-    // The run's label is above and to the right of its 20 min point, which is the fourth mark.
+    // This fixture's wide band sits under the ride's point, so its label is left out rather than set over the band.
+    expect(text('ride')).toBeUndefined()
+    // The run's label is above its 20 min point, which is the fourth mark, on whichever side the line leaves clear.
     const marker = container.querySelectorAll('[data-testid="profile-marker"][data-sport="run"]')[3]
     const label = labels.find((each) => each.getAttribute('data-sport') === 'run')
-    expect(Number(label?.getAttribute('x'))).toBeGreaterThan(Number(marker?.getAttribute('cx')))
     expect(Number(label?.getAttribute('y'))).toBeLessThan(Number(marker?.getAttribute('cy')))
+  })
+
+  it('keeps the ride’s label where it is clear of the band and the lines, dropping the range line first', () => {
+    const narrow = (fraction: number): SportGrade => ({
+      centre: grade(fraction),
+      range: { low: grade(fraction - 0.004), high: grade(fraction + 0.004) },
+    })
+    const profile: GradeProfile = {
+      run: PROFILE.run,
+      ride: PROFILE.ride.map((point) => ({
+        ...point,
+        grade: narrow(point.grade.centre.grade - 0.1),
+      })),
+    }
+    const { container } = renderChart({ profile })
+    const label = container.querySelector('[data-testid="profile-label"][data-sport="ride"]')
+    expect(label?.textContent).toMatch(/^Ride \d+%/)
   })
 
   it('names both sports in the key, with the ride marked as an estimate', () => {

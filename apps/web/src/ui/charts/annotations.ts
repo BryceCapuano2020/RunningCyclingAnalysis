@@ -60,6 +60,8 @@ export function layoutAnnotations(
     )
   }
   const taken: Box[] = [...(space.obstacles ?? [])]
+  // The text boxes already placed, which a later leader line must not run through.
+  const texts: Box[] = []
   const placed = new Map<string, PlacedAnnotation>()
   // Within a kind, what must be drawn is placed before what may be left out.
   const rank = (a: Annotation) => PRIORITY[a.kind] * 2 + (a.optional === true ? 1 : 0)
@@ -75,13 +77,17 @@ export function layoutAnnotations(
         : inside(candidate.box, space.plot, annotation.kind === 'bracket'),
     )
     const free = candidates.findIndex(
-      (candidate, i) => fits[i] === true && !meetsBoxes(candidate.box, taken, CLEARANCE),
+      (candidate, i) =>
+        fits[i] === true &&
+        !meetsBoxes(candidate.box, taken, CLEARANCE) &&
+        !leaderCrosses(candidate.leader, texts),
     )
     if (free < 0 && annotation.optional === true) continue
     const choice = free >= 0 ? free : cheapest(candidates, fits, taken)
     const picked = candidates[choice]
     if (picked === undefined) continue
     taken.push(picked.box)
+    texts.push(picked.box)
     // A reference line keeps the others off its rule and its band as well as off its label.
     if (annotation.kind === 'reference') {
       const edges = [annotation.y, annotation.band?.top, annotation.band?.bottom].filter(
@@ -114,6 +120,19 @@ export function layoutAnnotations(
     })
   }
   return unique.flatMap((annotation) => placed.get(annotation.id) ?? [])
+}
+
+/** Whether a callout's leader line runs through the text of an annotation already placed. */
+function leaderCrosses(leader: Candidate['leader'], placed: readonly Box[]): boolean {
+  if (leader === undefined || leader === null) return false
+  const along = lineObstacles(
+    [
+      { x: leader.x1, y: leader.y1 },
+      { x: leader.x2, y: leader.y2 },
+    ],
+    2,
+  )
+  return along.some((piece) => meetsBoxes(piece, placed, 0))
 }
 
 function cheapest(

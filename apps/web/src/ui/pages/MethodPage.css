@@ -78,8 +78,15 @@
 /* Charts sit behind a disclosure, and the claim above them stays in words. */
 .method__evidence {
   display: grid;
+  /* One column that may shrink below its content, so a wide table scrolls inside itself. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   min-width: 0;
+}
+
+.method__evidence > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .method__evidence[open] > summary {

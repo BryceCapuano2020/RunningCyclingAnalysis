@@ -207,6 +207,41 @@ test('the level ladder labels are at least 11 px, and the page does not scroll s
   expect(overflow).toBeLessThanOrEqual(0)
 })
 
+for (const sport of ['Run', 'Ride'] as const) {
+  test(`${sport} with every section and disclosure open does not scroll sideways at 320 px`, async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== 'narrow-320',
+      'Only the 320 px project measures the narrowest screen',
+    )
+    await openEverySection(sport)(page)
+    // Every other disclosure (a chart's table, a method note) too, each followed by its open state.
+    const closed = page.locator('details:not([open]) > summary')
+    while ((await closed.count()) > 0) {
+      const before = await page.locator('details[open]').count()
+      await closed.first().click()
+      await expect(page.locator('details[open]')).toHaveCount(before + 1)
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+    ).toBeLessThanOrEqual(0)
+    // The page can hide an overflow its own box still has, so each disclosure's content is held to its box too.
+    const wider = await page.evaluate(() =>
+      [...document.querySelectorAll('details > *:not(summary)')].flatMap((child) => {
+        const box = child.parentElement?.getBoundingClientRect()
+        const edge = child.getBoundingClientRect().right
+        return box !== undefined && edge > box.right + 1
+          ? [
+              `${child.className || child.tagName} ends ${Math.round(edge - box.right)} px past its disclosure`,
+            ]
+          : []
+      }),
+    )
+    expect(wider).toEqual([])
+  })
+}
+
 test('Profile with dated settings fits 320 px, and its table is a keyboard scroll region', async ({
   page,
 }, testInfo) => {

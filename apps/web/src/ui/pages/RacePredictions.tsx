@@ -5,6 +5,7 @@ import { formatPace, formatRecordTime } from '@rca/core/units'
 import { METHOD_NAME, METHOD_SHORT, RACE_PREDICTIONS_NAME, raceName } from '../racePredictions'
 import { Definition } from '../components/Definition'
 import { DEFINITIONS } from './balanceDefinitions'
+import { useScrollRegion } from '../useScrollRegion'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
 import { methodNote, originText, predictionsLede, spreadText } from './racePredictionCopy'
 import { raceBar } from './raceBars'
@@ -140,8 +141,10 @@ function RaceTable({
   ran: readonly RanBest[]
 }) {
   const ranAt = (distanceM: number) => ran.find((r) => r.distanceM === distanceM)
+  // At 320 px the table is wider than its box and scrolls there, so a keyboard reader can reach it.
+  const region = useScrollRegion('Race predictions')
   return (
-    <div className="table-scroll">
+    <div className="table-scroll" {...region}>
       <table className="race-table">
         <caption className="sr-only">
           Race predictions with their assumed spread and each estimate

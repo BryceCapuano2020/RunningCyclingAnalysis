@@ -9,6 +9,11 @@ import type { AxisTick, ChartSize, Point } from './chartTypes'
 import { linearScale, logScale, niceDomain, tickDecimals } from './scale'
 import { plotted } from './sharedTrendText'
 import { fitTicks } from './ticks'
+import type { Box } from './chartBoxes'
+import { lineObstacles } from './annotations'
+import { bandBoxes, fitLabel, insideTickBoxes, placedBox } from './directLabelFit'
+import type { LabelSpace } from './directLabelFit'
+import { rootFontPx } from './rootFont'
 
 /** One duration the chart has a grade at, with each sport's grade there or none. */
 export interface ProfileRow {
@@ -134,16 +139,41 @@ export function profileLayout(
       high: at((grade) => grade.range?.high.grade, true),
     }
   })
+  const xs = rows.map((row) => x(row.durationS))
+  const yTicks = fitTicks(
+    ticks.map((tick) => ({ position: y(tick), label: `${tick.toFixed(decimals)}%` })),
+    { axis: 'y', width },
+  )
   return {
-    xs: rows.map((row) => x(row.durationS)),
-    labels: directLabels(rows, marks, plot.right),
+    xs,
+    labels: directLabels(rows, marks, plot.right, labelSpaceOf(marks, xs, yTicks, size)),
     ys: rows.map((_, i) => marks.map((m) => m.centre[i]?.y).find((v) => v !== undefined) ?? null),
     marks,
     xTicks: durationTicksOf(rows, x, width),
-    yTicks: fitTicks(
-      ticks.map((tick) => ({ position: y(tick), label: `${tick.toFixed(decimals)}%` })),
-      { axis: 'y', width },
-    ),
+    yTicks,
+  }
+}
+
+/** How thick, px, a line is as an obstacle to a label: its stroke and a little clear air. */
+const LINE_OBSTACLE_PX = 8
+
+/** What the labels keep off: each line, the ranges' bands, and the y tick labels where they sit inside the plot. */
+function labelSpaceOf(
+  marks: readonly SportMarks[],
+  xs: readonly number[],
+  yTicks: readonly AxisTick[],
+  size: ChartSize,
+): LabelSpace {
+  const rootPx = rootFontPx()
+  const ticks = insideTickBoxes(yTicks, size.plot, rootPx)
+  return {
+    plot: size.plot,
+    rootPx,
+    obstacles: [
+      ...marks.flatMap((m) => lineObstacles(m.centre, LINE_OBSTACLE_PX)),
+      ...marks.filter((m) => m.ranged).flatMap((m) => bandBoxes(xs, m.high, m.low)),
+      ...ticks,
+    ],
   }
 }
 
@@ -173,6 +203,7 @@ export function directLabels(
   rows: readonly ProfileRow[],
   marks: readonly SportMarks[],
   plotRight: number,
+  avoid?: LabelSpace,
 ): DirectLabel[] {
   const index = rows.findIndex((row) => row.durationS === HEADLINE_DURATION_S)
   const row = rows[index]
@@ -186,11 +217,12 @@ export function directLabels(
     (best, item) => (item.point.y < best.point.y ? item : best),
     found[0]!,
   )
-  return found.map(({ mark, point, grade }): DirectLabel => {
+  const placed: Box[] = []
+  return found.flatMap(({ mark, point, grade }): DirectLabel[] => {
     const above = found.length === 1 || highest.mark === mark
     const turned = point.x + LABEL_OFFSET + LABEL_ROOM > plotRight
     const towardRight = above && !turned
-    return {
+    const label: DirectLabel = {
       sport: mark.sport,
       x: point.x + (towardRight ? LABEL_OFFSET : -LABEL_OFFSET),
       y: point.y + (above ? -LABEL_OFFSET : LABEL_OFFSET + 8),
@@ -199,5 +231,19 @@ export function directLabels(
       range: grade.range === null ? null : `range ${gradeRangeText(grade.range)}`,
       below: !above,
     }
+    if (avoid === undefined) return [label]
+    // Turned to the other side of the point, the label's x is mirrored about it.
+    const fitted = fitLabel(
+      label,
+      {
+        x: point.x + (towardRight ? -LABEL_OFFSET : LABEL_OFFSET),
+        anchor: towardRight ? 'end' : 'start',
+      },
+      avoid,
+      placed,
+    )
+    if (fitted === null) return []
+    placed.push(placedBox(fitted, avoid.rootPx))
+    return [{ ...label, ...fitted }]
   })
 }

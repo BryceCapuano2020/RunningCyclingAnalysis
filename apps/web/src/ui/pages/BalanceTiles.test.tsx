@@ -53,7 +53,15 @@ describe('RangeTrack', () => {
     expect(container.querySelector('.range-track__bar')).toHaveAttribute('aria-hidden', 'true')
     expect(container.querySelector('.range-track__band')).not.toBeNull()
     expect(container.querySelectorAll('.range-track__cap')).toHaveLength(2)
-    expect(container.querySelector('.range-track__ends')?.textContent).toBe('7:07range7:18')
+    const printed = container.querySelectorAll('.range-track__ends > [aria-hidden="true"]')
+    expect([...printed].map((node) => node.textContent)).toEqual(['7:07', 'range', '7:18'])
+  })
+
+  it('reads the range as one phrase, not as three loose figures', () => {
+    const { container } = render(<RangeTrack ends={['6', '16']} at={0.5} label="90% range" />)
+    expect(container.querySelector('.range-track__ends .sr-only')?.textContent).toBe(
+      '90% range 6 to 16',
+    )
   })
 
   it('places the ring at its share of the band, and holds it inside the band', () => {
