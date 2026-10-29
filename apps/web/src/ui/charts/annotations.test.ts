@@ -373,3 +373,23 @@ describe('lineObstacles', () => {
     expect(markerObstacle({ x: 10, y: 20 }, 7)).toEqual({ left: 3, right: 17, top: 13, bottom: 27 })
   })
 })
+
+describe('an end label with a leading mark', () => {
+  const end = (glyph?: string): Annotation => ({
+    kind: 'end',
+    id: 'e',
+    tone: 'ride',
+    at: { x: PLOT.right, y: 150 },
+    text: '58%',
+    ...(glyph === undefined ? {} : { glyph }),
+  })
+
+  it('carries the mark into its text, and its box is wide enough to hold it', () => {
+    const [plain] = layoutAnnotations([end()], SPACE)
+    const [marked] = layoutAnnotations([end('○')], SPACE)
+    expect(marked?.texts[0]).toMatchObject({ role: 'label', text: '58%', glyph: '○' })
+    expect(plain?.texts[0]?.glyph).toBeUndefined()
+    const width = (box: { left: number; right: number }) => box.right - box.left
+    expect(width(marked!.box)).toBeGreaterThan(width(plain!.box))
+  })
+})

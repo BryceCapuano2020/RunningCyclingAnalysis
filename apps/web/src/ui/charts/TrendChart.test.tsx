@@ -175,7 +175,7 @@ describe('TrendChart', () => {
     expect(screen.getAllByTestId('trend-marker')).toHaveLength(3)
     expect(screen.getByTestId('trend-latest')).toBeInTheDocument()
     // The latest run is 4.3 m/s, which is 3:53 /km. Its label gives the value alone, since the title names the window.
-    expect(container.querySelector('.chart-series__label')?.textContent).toBe('3:53 /km')
+    expect(container.querySelector('.annot--end .annot__text--label')?.textContent).toBe('3:53 /km')
   })
 
   it('sets the latest label in the gutter right of the plot, level with its point', () => {
@@ -189,7 +189,7 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    const label = container.querySelector('.chart-series__label')
+    const label = container.querySelector('.annot--end .annot__text--label')
     const latest = screen.getByTestId('trend-latest')
     expect(label?.getAttribute('text-anchor')).toBe('start')
     expect(Number(label?.getAttribute('x'))).toBeGreaterThan(Number(latest.getAttribute('cx')))

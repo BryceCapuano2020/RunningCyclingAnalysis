@@ -294,24 +294,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   card colour, bars with rounded data ends and 2 px gaps, and axis text of 12 px or more in `--text-muted` (4.5:1 on the card).
   A chart also has an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. On a best-effort curve the 20-minute effort is called out
-  with its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
-  width, such as "Run 64%", since the title names the effort and window; the note under the chart says that the latest point covers only the last window, so it can differ from a card's best over the period. On a sport trend the latest label
-  is its value alone, such as "5:12 /km", beside its point: below it, above it where the line would run
-  under it, or to its right where both of those would cross the line. At every width, a trend's run label keeps clear of the ride band, and 4 px where it can of the run's own
-  line and markers, after the band. The band is drawn only where both of
-  its weeks have a range, with a step at each week's x. The label's box stays inside the plot both
-  ways and 2 px from the band. Its box sits on the left of its point unless that would cross the
-  plot's left edge, when it sits on the right. Its spots are the baseline beside its point that the
-  line's arrival prefers, the other baseline beside it, and the baselines just above or just below
-  each edge of the band beneath it, each kept inside the plot and within four label heights of the point (`LABEL_REACH_EM`), since a label further from its point reads as the label of the line beside it. The two end labels are placed
-  together. Of the combinations that keep both boxes inside the plot and off the band, the one with
-  the fewest labels within 2 px of the band wins, then the one nearest their preferred places. A box
-  that would cross the plot's edge moves along it to sit inside, which can bring it over its point.
-  Where no combination within that reach keeps the run label off the band, the labels keep their preferred places,
-  spread apart and inside the plot, so the run label sits over the band, where its halo keeps it
-  readable. Where the plot is too short to hold both labels a gap apart, they stay inside it and may
-  overlap one another. Where there is room, the two end labels never overlap one another, and
-  neither reaches the y tick labels.
+  with its value, such as "250 W". On the Balance trend, each end label names its sport and value, such as "Run 64%" (below 420 px a value led by its
+  line's mark: a dot for a run, a ring for an estimated ride); behind About this chart it says that the latest point
+  covers only the last window, so it can differ from a card's best over the period. On a sport trend the latest label
+  is its value alone, such as "5:12 /km". Both are end labels of the annotation primitive (below): in the gutter right of
+  the plot, or beside the line's own end where it stops early, moved off one another and off the lines and markers,
+  which the layout takes as its obstacles. An end label may carry a `glyph`, which leads its text in its tone's colour.
   A best-effort curve marks the 1, 5, 20 and
   60 minute efforts, the same ones its records list names, and calls out the 5, 20 and 60 minute bests with an eyebrow
   ("5 min"), the value at display size and a caption (a ride's W/kg, a run's "flat pace"; a phone has no caption), on a leader line to the point.
@@ -535,9 +523,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     and a translucent 90% band, never dashes. A sport's week-by-week chart fits its y axis to its own values with room round them (a
     pace axis spans at least 30 s and ticks 10 s apart; a power axis at least 8% of its middle) and draws a soft wash under a
     line of four or more weeks, and leaves off the weeks before the sport's first value and after its last.
-  - **Labels.** Every trend's end label sits in a gutter right of the plot, level with the line's last point, the labels
-    spread apart and kept inside the plot; the strip under the Balance trend keeps the same margin so the axes line up. A line
-    that stops before the right edge is labelled beside its own last point. Where the labels name their lines there is no
+  - **Labels.** Every trend's end label is an annotation (`layoutAnnotations`): in the gutter right of the plot, level with
+    the line's last point, kept off the other label and off the lines; the strip under the Balance trend keeps the same
+    margin (the label's width and 14 px) so the axes line up. A line that stops before the right edge is labelled beside its
+    own last point. Where the labels name their lines there is no
     key. Below 420 px a label is its value led by the mark of its line (a dot, or a ring for an estimate), and the key is
     drawn (the window is 500 px or less). The plot is about 190 px tall on a phone and 280 px on a wide screen.
   - **Words.** One short sentence stays under the chart, which says what a point is ("Each point is your best 20 min of

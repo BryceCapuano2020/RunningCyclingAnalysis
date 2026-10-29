@@ -3,19 +3,21 @@ import type { TimeAxis } from '@rca/core/digest/trendSeries'
 import type { TrendPoint } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { LABEL_GAP_X } from './chartInteraction'
+import { smallWidth } from './annotationTypes'
+import { lineObstacles, markerObstacle } from './annotations'
+import type { Annotation } from './annotations'
+import type { Box } from './chartBoxes'
+import { markerRadii } from './chartInteraction'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
-import { placeEndLabels } from './endLabels'
-import type { PlacedLabel } from './endLabels'
 import { PLOT_MARGIN } from './plotBox'
-import { labelWidthPx, rootFontPx } from './rootFont'
+import { rootFontPx } from './rootFont'
 import { timeScale } from './timeScale'
 import type { TimeScale } from './timeScale'
 import { fitTicks } from './ticks'
 import { trendXTicks } from './trendTicks'
 import { nativeValue } from '../records'
 import { SPORT_FORMAT } from '../sports'
-import { MARKER_SPACING_PX } from './sharedTrendLayout'
+import { END_LABEL_MARGIN_PX, MARKER_SPACING_PX } from './sharedTrendLayout'
 import { isIsolated, meanPoint, runsOf } from './smoothPath'
 import { fittedYAxis, formatNative, plottedValue, usable } from './sportAxis'
 
@@ -123,7 +125,7 @@ export function latestText(
 /** The plot's right margin: the gutter that holds the latest value's label, or the usual margin without one. */
 export function sportGutter(text: string | null): number {
   if (text === null) return PLOT_MARGIN.right
-  return Math.ceil(labelWidthPx(text, rootFontPx())) + LABEL_GAP_X + 4
+  return Math.ceil(smallWidth(text, rootFontPx())) + END_LABEL_MARGIN_PX
 }
 
 export interface SportLayout {
@@ -136,7 +138,9 @@ export interface SportLayout {
   ys: (number | null)[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
-  label: PlacedLabel<Sport> | null
+  /** The latest value's end label, which the annotation layout places, and the data as boxes it keeps off. */
+  annotations: Annotation[]
+  obstacles: Box[]
   breaks: TimeScale['breaks']
   markers: boolean
 }
@@ -168,8 +172,8 @@ export function sportTrendLayout(
   const latest = points.findLastIndex((point) => point !== null)
   const point = points[latest]
   const text = latestText(rows, sport, units)
-  const [label] =
-    point == null || text === null ? [] : placeEndLabels([{ kind: sport, text, point }], size)
+  const annotations: Annotation[] =
+    point == null || text === null ? [] : [{ kind: 'end', id: 'end', tone: sport, at: point, text }]
   return {
     xs: rows.map((row) => x(row.endMs)),
     points,
@@ -184,7 +188,11 @@ export function sportTrendLayout(
       data.axis?.gaps ?? [],
     ),
     yTicks: fitTicks(ticks, { axis: 'y', width }),
-    label: label ?? null,
+    annotations,
+    obstacles: [
+      ...lineObstacles(points),
+      ...points.flatMap((p) => (p ? [markerObstacle(p, markerRadii(width).active)] : [])),
+    ],
     breaks: time.breaks,
     markers: (plot.right - plot.left) / (rows.length - 1) >= MARKER_SPACING_PX,
   }

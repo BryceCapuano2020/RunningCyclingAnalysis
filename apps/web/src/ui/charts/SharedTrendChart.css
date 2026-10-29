@@ -7,20 +7,10 @@
   stroke: none;
 }
 
-/* The mark that leads an end label on a narrow chart: a dot or ring, in the sport's colour. */
-.trend-end-label__glyph {
-  fill: var(--sport-colour);
-  stroke: none;
-}
-
 @media (forced-colors: active) {
   .trend-band {
     fill: Canvas;
     stroke: Highlight;
-  }
-
-  .trend-end-label__glyph {
-    fill: CanvasText;
   }
 }
 

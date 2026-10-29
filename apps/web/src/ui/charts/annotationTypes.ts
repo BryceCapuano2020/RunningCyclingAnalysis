@@ -27,6 +27,11 @@ export interface EndLabel extends Mark {
   text: string
   /** A smaller second line, such as where the series ends. */
   sub?: string
+  /**
+   * A mark that leads the text and stands for the series, in its tone's colour, such as a dot for a value as recorded
+   * and a ring for an estimate: for a label that is a value alone, whose sport the mark and the key then name.
+   */
+  glyph?: string
 }
 
 /** A marked point: an eyebrow, its value at display size, a caption, and a leader line to the point. */
@@ -78,6 +83,8 @@ export interface PlacedText {
   unit?: string
   /** A value's size in px at a 16 px root, which the layout measured it at. */
   px?: number
+  /** A mark that leads the text, drawn in the annotation's tone. */
+  glyph?: string
 }
 
 export interface PlacedAnnotation {

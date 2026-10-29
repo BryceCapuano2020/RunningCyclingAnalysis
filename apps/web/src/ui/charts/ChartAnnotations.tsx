@@ -29,6 +29,14 @@ function textElement(placed: PlacedAnnotation, text: PlacedText, phone: boolean,
         display ? { fontSize: `${(text.px ?? valuePx(phone)) / DEFAULT_ROOT_PX}rem` } : undefined
       }
     >
+      {text.glyph === undefined ? null : (
+        <tspan
+          className="annot__glyph"
+          data-sport={placed.tone === 'neutral' ? undefined : placed.tone}
+        >
+          {`${text.glyph} `}
+        </tspan>
+      )}
       {text.text}
       {text.unit ? <tspan className="annot__unit">{text.unit}</tspan> : null}
     </text>

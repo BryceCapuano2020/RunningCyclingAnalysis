@@ -267,7 +267,7 @@ describe('SharedTrendChart', () => {
   it('labels the latest values with their sport and value on a wide chart', () => {
     chartWidth(640)
     const { container } = renderChart()
-    const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
+    const labels = Array.from(container.querySelectorAll('.annot--end .annot__text--label')).map(
       (label) => label.textContent,
     )
     expect(labels).toEqual(['Run 66%', 'Ride 58%'])
@@ -276,19 +276,20 @@ describe('SharedTrendChart', () => {
   it('labels a narrow chart’s latest values with the mark of their line, a dot for run and a ring for ride', () => {
     chartWidth(340)
     const { container } = renderChart()
-    const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
+    const labels = Array.from(container.querySelectorAll('.annot--end .annot__text--label')).map(
       (label) => label.textContent,
     )
     expect(labels).toEqual(['● 66%', '○ 58%'])
-    expect(container.querySelectorAll('.trend-end-label__glyph')).toHaveLength(2)
+    expect(container.querySelectorAll('.annot--end .annot__glyph')).toHaveLength(2)
   })
 
   it('keeps the two end labels apart where both lines end on the same value', () => {
     chartWidth(640)
     const { container } = renderChart({ weeks: [week(0, 0.6, 0.6), week(1, 0.6, 0.6)] })
-    const [run, ride] = Array.from(container.querySelectorAll('.chart-series__label'))
+    const [run, ride] = Array.from(container.querySelectorAll('.annot--end .annot__text--label'))
     const gap = Math.abs(Number(run?.getAttribute('y')) - Number(ride?.getAttribute('y')))
-    expect(gap).toBeGreaterThanOrEqual(12)
+    // One line of label (14 px) apart, so neither is set over the other.
+    expect(gap).toBeGreaterThanOrEqual(14)
   })
 
   it('names a run that stops at the first week beside its own end, not in the gutter', () => {
@@ -296,7 +297,7 @@ describe('SharedTrendChart', () => {
     const { container } = renderChart({
       weeks: [week(0, 0.6, 0.52), week(1, null, 0.54), week(2, null, 0.56)],
     })
-    const run = Array.from(container.querySelectorAll('.chart-series__label')).find(
+    const run = Array.from(container.querySelectorAll('.annot--end .annot__text--label')).find(
       (label) => label.textContent === 'Run 60%',
     )
     expect(run?.getAttribute('text-anchor')).toBe('start')

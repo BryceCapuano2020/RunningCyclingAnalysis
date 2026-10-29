@@ -1,8 +1,8 @@
-import { LABEL_GAP_X } from './chartInteraction'
+import { smallWidth } from './annotationTypes'
 import type { SharedWeek } from './gradeTrend'
 import { PLOT_MARGIN } from './plotBox'
-import { labelWidthPx, rootFontPx } from './rootFont'
-import { endLabelText } from './sharedTrendLayout'
+import { rootFontPx } from './rootFont'
+import { END_LABEL_MARGIN_PX, endLabelText } from './sharedTrendLayout'
 import type { TimeAxis } from '@rca/core/digest/trendSeries'
 import { trendRowsOf } from './sharedTrendRows'
 import { withRideHeld } from './sharedTrendText'
@@ -29,7 +29,8 @@ export function trendGutter(
       return [glyph === undefined ? text : `${glyph} ${text}`]
     })
     if (texts.length === 0) return PLOT_MARGIN.right
-    const widest = Math.max(...texts.map((text) => labelWidthPx(text, rootPx)))
-    return Math.ceil(widest) + LABEL_GAP_X + 4
+    // An end label sits 10 px right of the plot and keeps 4 px from the chart's edge.
+    const widest = Math.max(...texts.map((text) => smallWidth(text, rootPx)))
+    return Math.ceil(widest) + END_LABEL_MARGIN_PX
   }
 }

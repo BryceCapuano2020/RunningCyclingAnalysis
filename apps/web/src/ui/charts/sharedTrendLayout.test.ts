@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ChartSize } from './chartTypes'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, plotBoxOf } from './plotBox'
-import { DEFAULT_ROOT_PX, labelSizePx, labelWidthPx } from './rootFont'
+import { smallWidth } from './annotationTypes'
+import { layoutAnnotations } from './annotations'
+import { DEFAULT_ROOT_PX } from './rootFont'
 import { trendGutter } from './sharedTrendGutter'
 import { VALUE_ONLY_WIDTH, endLabelText, sharedTrendLayout } from './sharedTrendLayout'
 import { trendRowsOf } from './sharedTrendRows'
@@ -80,31 +82,43 @@ describe('sharedTrendLayout', () => {
 })
 
 describe('sharedTrendLayout end labels', () => {
-  const em = labelSizePx(DEFAULT_ROOT_PX)
+  /** Where the annotation layout puts the layout's end labels at this size, as the chart draws them. */
+  const placedAt = (m: NonNullable<ReturnType<typeof sharedTrendLayout>>, size: ChartSize) =>
+    layoutAnnotations(m.annotations, {
+      plot: size.plot,
+      width: size.width,
+      rootPx: DEFAULT_ROOT_PX,
+      obstacles: m.obstacles,
+    })
 
-  it('names each line by its sport and value in the gutter, level with its last point', () => {
+  it('gives each line one end label at its last point, named by its sport and value', () => {
     const data = trendRowsOf(weeks(10, () => [0.64, 0.5]))
     const size = sizeOf(700, 90)
     const m = sharedTrendLayout(data, size)!
-    expect(m.labels.map((label) => label.text)).toEqual(['Run 64%', 'Ride 50%'])
-    for (const label of m.labels) {
-      expect(label.anchor).toBe('start')
-      expect(label.at.x).toBeGreaterThan(size.plot.right)
-    }
-    const run = m.runRuns[0]!.at(-1)!
-    expect(Math.abs(m.labels[0]!.at.y - run.y)).toBeLessThan(em)
+    expect(m.annotations).toMatchObject([
+      { id: 'end-run', kind: 'end', tone: 'run', text: 'Run 64%' },
+      { id: 'end-ride', kind: 'end', tone: 'ride', text: 'Ride 50%' },
+    ])
+    expect(m.annotations[0]).toMatchObject({ at: m.runRuns[0]!.at(-1) })
   })
 
-  it('keeps the labels apart and inside the plot when both lines end on the same value', () => {
-    const data = trendRowsOf(weeks(10, () => [0.6, 0.6]))
-    const size = sizeOf(700, 90)
+  it('sets the labels in the gutter right of the plot, level with their lines', () => {
+    const data = trendRowsOf(weeks(10, () => [0.64, 0.5]))
+    const size = sizeOf(700, trendGutter(weeks(10, () => [0.64, 0.5]))(700))
     const m = sharedTrendLayout(data, size)!
-    const [a, b] = m.labels
-    expect(Math.abs(a!.at.y - b!.at.y)).toBeGreaterThanOrEqual(em)
-    for (const label of m.labels) {
-      expect(label.at.y).toBeGreaterThanOrEqual(size.plot.top)
-      expect(label.at.y).toBeLessThanOrEqual(size.plot.bottom)
+    const placed = placedAt(m, size)
+    expect(placed).toHaveLength(2)
+    for (const label of placed) {
+      expect(label.box.left).toBeGreaterThan(size.plot.right)
+      expect(label.box.right).toBeLessThanOrEqual(size.width)
     }
+  })
+
+  it('keeps the two labels apart where both lines end on the same value', () => {
+    const data = trendRowsOf(weeks(10, () => [0.6, 0.6]))
+    const size = sizeOf(700, trendGutter(weeks(10, () => [0.6, 0.6]))(700))
+    const [a, b] = placedAt(sharedTrendLayout(data, size)!, size)
+    expect(a!.box.bottom <= b!.box.top || b!.box.bottom <= a!.box.top).toBe(true)
   })
 
   it('leads a narrow chart’s labels with the line’s own mark and leaves the sport out of the text', () => {
@@ -114,19 +128,26 @@ describe('sharedTrendLayout end labels', () => {
     })
     expect(endLabelText('ride', 0.58, 320)).toEqual({ text: '58%', glyph: '○' })
     expect(endLabelText('ride', 0.58, VALUE_ONLY_WIDTH)).toEqual({ text: 'Ride 58%' })
+    // A line that reaches the gutter carries its mark; the label of a line that stops early needs none.
+    const data = trendRowsOf(weeks(12, (i) => [0.6, i < 6 ? 0.5 : null]))
+    const size = sizeOf(340, 60)
+    const m = sharedTrendLayout(data, size)!
+    expect(m.annotations.map((a) => (a.kind === 'end' ? a.glyph : 'x'))).toEqual(['●', undefined])
   })
 
   it('names a line that stops before the right edge beside its own end, not in the gutter', () => {
     const data = trendRowsOf(weeks(12, (i) => [0.6, i < 6 ? 0.5 : null]))
-    const size = sizeOf(700, 90)
-    const m = sharedTrendLayout(data, size)!
-    const ride = m.labels.find((label) => label.kind === 'ride')!
-    expect(ride.at.x).toBeLessThan(size.plot.right)
+    const size = sizeOf(700, trendGutter(weeks(12, () => [0.6, 0.5]))(700))
+    const placed = placedAt(sharedTrendLayout(data, size)!, size)
+    const ride = placed.find((label) => label.id === 'end-ride')!
+    expect(ride.box.left).toBeLessThan(size.plot.right)
   })
 
   it('has no label for a sport with no value, nor for a held ride', () => {
     const data = trendRowsOf(weeks(10, () => [0.6, null]))
-    expect(sharedTrendLayout(data, sizeOf(700, 90))!.labels.map((l) => l.kind)).toEqual(['run'])
+    expect(sharedTrendLayout(data, sizeOf(700, 90))!.annotations.map((a) => a.id)).toEqual([
+      'end-run',
+    ])
   })
 })
 
@@ -134,10 +155,10 @@ describe('trendGutter', () => {
   const data = weeks(10, () => [0.6, 0.55])
 
   it('is as wide as the widest label and its gap, so none of it is unused', () => {
-    const rootPx = DEFAULT_ROOT_PX
     const wide = trendGutter(data)(900)
-    expect(wide).toBeGreaterThanOrEqual(Math.ceil(labelWidthPx('Ride 55%', rootPx)) + 8)
-    expect(wide).toBeLessThan(labelWidthPx('Ride 55%', rootPx) + 20)
+    const text = smallWidth('Ride 55%', DEFAULT_ROOT_PX)
+    // 10 px between the plot and the text, and 4 px between the text and the chart's edge.
+    expect(wide).toBe(Math.ceil(text) + 14)
   })
 
   it('is narrower on a phone, where a label is its value and a mark', () => {

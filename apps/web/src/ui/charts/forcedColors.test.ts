@@ -73,7 +73,6 @@ describe('forced colours keep the chart marks visible', () => {
 
   it('outlines the ride’s range band, and draws the sport trend’s wash as nothing, in forced colours', () => {
     expect(forcedBody(sharedTrendCss)).toMatch(/\.trend-band \{[^}]*stroke: Highlight/)
-    expect(forcedBody(sharedTrendCss)).toMatch(/\.trend-end-label__glyph \{[^}]*fill: CanvasText/)
     expect(forcedBody(sportTrendCss)).toMatch(/\.trend-wash \{[^}]*fill: none/)
   })
 

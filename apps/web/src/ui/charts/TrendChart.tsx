@@ -13,6 +13,7 @@ import { Crosshair } from './Crosshair'
 import { ChartYAxis } from './ChartYAxis'
 import { AxisBreaks } from './AxisBreaks'
 import { ChartAbout } from './ChartAbout'
+import { ChartAnnotations } from './ChartAnnotations'
 import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import { useChartHeight } from './chartHeight'
 import type { ChartSize, TooltipContent } from './chartTypes'
@@ -282,16 +283,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
                   />
                 )
               })}
-              {m.label ? (
-                <text
-                  className="chart-series__label"
-                  textAnchor={m.label.anchor}
-                  x={m.label.at.x}
-                  y={m.label.at.y}
-                >
-                  {m.label.text}
-                </text>
-              ) : null}
+              <ChartAnnotations annotations={m.annotations} size={size} obstacles={m.obstacles} />
             </>
           )
         }}

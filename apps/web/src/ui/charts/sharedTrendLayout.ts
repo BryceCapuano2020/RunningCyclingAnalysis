@@ -1,7 +1,9 @@
 import { SPORT_LABEL } from '../sports'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
-import { placeEndLabels } from './endLabels'
-import type { PlacedLabel } from './endLabels'
+import { lineObstacles, markerObstacle } from './annotations'
+import type { Annotation } from './annotations'
+import type { Box } from './chartBoxes'
+import { markerRadii } from './chartInteraction'
 import { isIsolated, meanPoint, runsOf } from './smoothPath'
 import { linearScale, tickDecimals } from './scale'
 import { timeScale } from './timeScale'
@@ -10,14 +12,14 @@ import { axisTicksOf, yDomainOf } from './sharedTrendAxes'
 import type { TrendRows } from './sharedTrendRows'
 import { formatValue, plotted } from './sharedTrendText'
 
-/** A value at the end of a line, named by its sport and value, such as "Run 64%". */
-export type EndLabel = PlacedLabel<'run' | 'ride'>
-
 /** Below this chart width an end label is its value alone, since its sport's colour and the key name it. */
 export const VALUE_ONLY_WIDTH = 420
 
 /** The mark a line's points have, by sport: a ring for an estimated ride, a dot for a run as recorded. */
 const GLYPH: Record<'run' | 'ride', string> = { run: '●', ride: '○' }
+
+/** The room an end label needs beyond its text: 10 px from the plot and 4 px from the chart's edge. */
+export const END_LABEL_MARGIN_PX = 14
 
 /** Rows closer than this, in px, get no marker of their own; the line and its last point carry them. */
 export const MARKER_SPACING_PX = 9
@@ -43,7 +45,10 @@ export interface SharedLayout {
   isolatedRide: { at: Point; low: Point; high: Point }[]
   /** Where each row's tooltip is anchored: beside its first point. */
   ys: (number | null)[]
-  labels: EndLabel[]
+  /** The end label of each line, named by its sport and value, such as "Run 64%"; the annotation layout places them. */
+  annotations: Annotation[]
+  /** The lines and their markers as boxes, so the labels keep off the data. */
+  obstacles: Box[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
   /** Where the time axis skips a gap of a year or more, to mark it. */
@@ -99,14 +104,25 @@ export function sharedTrendLayout(data: TrendRows, size: ChartSize): SharedLayou
   const low = pointsOf((row) => row.rideLow)
   const high = pointsOf((row) => row.rideHigh)
   const xs = rows.map((row) => x(row.endMs))
-  const ends = (['run', 'ride'] as const).flatMap((kind) => {
+  const annotations = (['run', 'ride'] as const).flatMap((kind): Annotation[] => {
     const points = { run, ride }[kind]
     const latest = points.findLastIndex((point) => point !== null)
     const point = points[latest]
     const value = rows[latest]?.[kind]
-    return point == null || value == null
-      ? []
-      : [{ kind, point, ...endLabelText(kind, value, width) }]
+    if (point == null || value == null) return []
+    const { text, glyph } = endLabelText(kind, value, width)
+    // A mark leads a value that is alone, where the line reaches the gutter: beside its own end it needs none.
+    const atEdge = point.x >= plot.right - 1
+    return [
+      {
+        kind: 'end',
+        id: `end-${kind}`,
+        tone: kind,
+        at: point,
+        text,
+        ...(atEdge && glyph !== undefined ? { glyph } : {}),
+      },
+    ]
   })
   const spacing = (plot.right - plot.left) / (rows.length - 1)
   const runRuns = runsOf(run, data.breaks.run)
@@ -133,7 +149,14 @@ export function sharedTrendLayout(data: TrendRows, size: ChartSize): SharedLayou
         : [],
     ),
     ys: rows.map((_, i) => (run[i] ?? ride[i])?.y ?? null),
-    labels: placeEndLabels(ends, size),
+    annotations,
+    obstacles: [
+      ...lineObstacles(run),
+      ...lineObstacles(ride),
+      ...[...run, ...ride].flatMap((p) =>
+        p ? [markerObstacle(p, markerRadii(width).active)] : [],
+      ),
+    ],
     markers: spacing >= MARKER_SPACING_PX,
     breaks: time.breaks,
     ...axisTicksOf(rows, x, y, ticks, decimals, size, data.axis?.gaps ?? []),

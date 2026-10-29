@@ -7,6 +7,7 @@ import { ChartYAxis } from './ChartYAxis'
 import { Crosshair } from './Crosshair'
 import { AxisBreaks } from './AxisBreaks'
 import { ChartAbout } from './ChartAbout'
+import { ChartAnnotations } from './ChartAnnotations'
 import { plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import type { ChartSize } from './chartTypes'
 import { useChartHeight, useNarrowChart } from './chartHeight'
@@ -204,23 +205,7 @@ export function SharedTrendChart({
               {isolatedMarks(m, size)}
               {marksOf('run', false, data, m, size, active)}
               {marksOf('ride', true, data, m, size, active)}
-              {m.labels.map((label) => (
-                <text
-                  key={label.kind}
-                  data-testid="trend-end-label"
-                  className="chart-series__label"
-                  textAnchor={label.anchor}
-                  x={label.at.x}
-                  y={label.at.y}
-                >
-                  {label.glyph === undefined ? null : (
-                    <tspan className="trend-end-label__glyph" data-sport={label.kind}>
-                      {`${label.glyph} `}
-                    </tspan>
-                  )}
-                  {label.text}
-                </text>
-              ))}
+              <ChartAnnotations annotations={m.annotations} size={size} obstacles={m.obstacles} />
             </>
           )
         }}
