@@ -1,3 +1,4 @@
+import { hasClips } from './timeSeriesEdge'
 import { windowText } from './timeSeriesModel'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
 
@@ -22,11 +23,7 @@ export function TimeSeriesNote({
   const kinds = (['paused', 'unrecorded'] as const).filter((kind) =>
     marks.some((mark) => mark.kind === kind && inWindow(mark.startS, mark.endS)),
   )
-  const clipped = channels.some((channel) =>
-    channel.columns.x.some(
-      (_, i) => channel.columns.hi[i]! > channel.high || channel.columns.lo[i]! < channel.low,
-    ),
-  )
+  const clipped = channels.some(hasClips)
   const bands = channels.some((channel) => channel.shape === 'line')
   return (
     <p className="chart-frame__note ts-stack__note">

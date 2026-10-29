@@ -40,13 +40,17 @@ export function smoothedStream(values: Float32Array): SmoothedStream {
   return { values, sum, count }
 }
 
-/** One column per pixel of a window: where it is, its smoothed value, and its lowest and highest reading. */
+/** One column per pixel of a window: where it is, its smoothed value, and the spread of its readings. */
 export interface SeriesColumns {
   /** Each column's centre, in seconds from the start of the activity. */
   x: number[]
   /** The rolling mean around the centre, or NaN where no reading lies in the window. */
   mean: number[]
-  /** The lowest and highest reading inside the column, or NaN where it holds none. */
+  /**
+   * The spread of the readings inside the column, the 10th and 90th percentile, or NaN where it holds none. A
+   * few stray readings do not set it, so the band stays a spread and not the whole row. With fewer than ten
+   * readings these are the lowest and highest.
+   */
   lo: number[]
   hi: number[]
   /** The rolling mean's width, in seconds. */
@@ -98,12 +102,19 @@ export function windowText(seconds: number): string {
   return seconds >= 60 ? `${Math.round(seconds / 60)} min` : `${seconds} s`
 }
 
-/** The stream over [startS, endS) as at most `columns` columns, in one pass over the seconds it spans. */
+/** The share of a column's readings cut from each end of its band. */
+const BAND_CUT = 0.1
+
+/**
+ * The stream over [startS, endS) as at most `columns` columns. With `ignoreZero` the band leaves out zero
+ * readings (a power meter's coasting seconds), unless the column holds nothing else; the line's mean keeps them.
+ */
 export function reduceSeries(
   stream: SmoothedStream,
   startS: number,
   endS: number,
   columns: number,
+  ignoreZero = false,
 ): SeriesColumns {
   const length = stream.values.length
   const from = Math.max(0, Math.floor(startS))
@@ -112,24 +123,31 @@ export function reduceSeries(
   const count = Math.max(1, Math.min(Math.floor(columns), span))
   const windowS = smoothingWindowS(span)
   const out: SeriesColumns = { x: [], mean: [], lo: [], hi: [], windowS }
+  const scratch = new Float64Array(Math.ceil(span / count) + 2)
   for (let k = 0; k < count; k += 1) {
     const first = from + Math.floor((k * span) / count)
     const last = Math.max(first + 1, from + Math.floor(((k + 1) * span) / count))
-    let lo = Infinity
-    let hi = -Infinity
+    let seen = 0
+    let positive = 0
     for (let i = first; i < last; i += 1) {
       const value = stream.values[i]!
       if (!Number.isFinite(value)) continue
-      if (value < lo) lo = value
-      if (value > hi) hi = value
+      scratch[seen] = value
+      seen += 1
+      if (value !== 0) positive += 1
     }
+    let readings = scratch.subarray(0, seen)
+    readings.sort()
+    // Coasting is not the spread of the effort: leave its zeros out of the band, where the column has other readings.
+    if (ignoreZero && positive > 0 && positive < seen) readings = readings.subarray(seen - positive)
     const centre = (first + last) / 2
     // A column with no reading in it is on the line only across a gap of a second or two; a longer one breaks it.
-    const gap = lo === Infinity && !bridged(stream, first, last, BRIDGED_GAP_S)
+    const gap = seen === 0 && !bridged(stream, first, last, BRIDGED_GAP_S)
     out.x.push(centre)
     out.mean.push(gap ? Number.NaN : windowMean(stream, centre, windowS))
-    out.lo.push(lo === Infinity ? Number.NaN : lo)
-    out.hi.push(hi === -Infinity ? Number.NaN : hi)
+    const n = readings.length
+    out.lo.push(n === 0 ? Number.NaN : readings[Math.floor(n * BAND_CUT)]!)
+    out.hi.push(n === 0 ? Number.NaN : readings[Math.max(0, Math.ceil(n * (1 - BAND_CUT)) - 1)]!)
   }
   return out
 }

@@ -175,7 +175,7 @@
 /* A reading past the axis: an arrowhead on the row's edge, in the line's colour. */
 .ts-stack__edge {
   fill: var(--ch);
-  fill-opacity: 0.75;
+  fill-opacity: 0.55;
 }
 
 /* A left-out reading: a short tick on the row's floor. */

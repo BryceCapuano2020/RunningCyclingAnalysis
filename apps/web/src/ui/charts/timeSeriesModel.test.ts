@@ -49,11 +49,44 @@ describe('reduceSeries', () => {
     expect(reduceSeries(stream, 10, 18, 600).x).toHaveLength(8)
   })
 
-  it('keeps a spike in the band though the rolling mean smooths it away', () => {
+  it('draws the band as the 10th to 90th percentile of a column, so a few strays do not set it', () => {
+    // A column of twenty readings with two strays each way: the band is the readings between them.
+    const values = Float32Array.from({ length: 20 }, (_, i) => 100 + i)
+    values[0] = 0
+    values[1] = 1
+    values[18] = 900
+    values[19] = 901
+    const columns = reduceSeries(smoothedStream(values), 0, 20, 1)
+    expect(columns.lo).toEqual([102])
+    expect(columns.hi).toEqual([117])
+  })
+
+  it('is the lowest and highest where a column holds fewer than ten readings', () => {
+    const stream = smoothedStream(Float32Array.from([5, 9, 1, 7, 3]))
+    const columns = reduceSeries(stream, 0, 5, 1)
+    expect([columns.lo[0], columns.hi[0]]).toEqual([1, 9])
+  })
+
+  it('leaves coasting zeros out of a power band, not out of its mean', () => {
+    // Half the minute coasting at 0 W and half pushing 200 to 300 W.
+    const values = Float32Array.from({ length: 60 }, (_, i) => (i % 2 === 0 ? 0 : 200 + i))
+    const stream = smoothedStream(values)
+    const kept = reduceSeries(stream, 0, 60, 1)
+    const power = reduceSeries(stream, 0, 60, 1, true)
+    expect(kept.lo[0]).toBe(0)
+    expect(power.lo[0]).toBeGreaterThanOrEqual(200)
+    expect(power.mean[0]).toBe(kept.mean[0])
+    // A column that is all zeros still has a band, at zero.
+    const stopped = reduceSeries(smoothedStream(new Float32Array(30)), 0, 30, 1, true)
+    expect([stopped.lo[0], stopped.hi[0]]).toEqual([0, 0])
+  })
+
+  it('shows a spike in the band of a column narrow enough to be mostly it, and smooths it out of the line', () => {
     const values = steady(600, 100)
     values[300] = 400
     const columns = reduceSeries(smoothedStream(values), 0, 600, 100)
     const at = columns.x.findIndex((x) => x > 300)
+    // Six seconds to a column: a spike in six readings is the highest of them.
     expect(columns.hi[at]).toBe(400)
     expect(columns.lo[at]).toBe(100)
     // Six seconds to a column and a 12 s mean: the spike is a thirtieth of its window.

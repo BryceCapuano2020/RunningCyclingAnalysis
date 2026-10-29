@@ -3,6 +3,7 @@ import { ChartXAxis } from './ChartXAxis'
 import { axisFontRem } from './ticks'
 import { areaPath, bandPath, linePath, timeTicks } from './timeSeriesModel'
 import type { PixelMap } from './timeSeriesModel'
+import { bandOpacity, edgeTicks } from './timeSeriesEdge'
 import { valueMap } from './timeSeriesLayout'
 import type { StackLayout } from './timeSeriesLayout'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
@@ -12,9 +13,6 @@ import './TimeSeriesStack.css'
 
 /** The widest a time label is, in px, so ticks keep clear of each other. */
 const TICK_GAP_PX = 64
-const EDGE_MARK_PX = 3
-/** A bar for a single column is at least this wide, so it is seen. */
-const EDGE_MIN_PX = 5
 const SKIPPED_PX = 5
 
 export interface TimeSeriesRowsProps {
@@ -26,43 +24,6 @@ export interface TimeSeriesRowsProps {
   laps: readonly { startS: number; endS: number }[]
   marks: readonly StackMark[]
   hatchId: string
-}
-
-/**
- * A short bar on a row's top or bottom edge for each stretch where the raw readings went past the axis, so a
- * spike the axis leaves out is seen where it happened. Neighbouring columns share one bar, and a lone one is
- * at least a few px wide.
- */
-function edgeMarks(
-  channel: StackChannel,
-  row: { top: number; bottom: number },
-  x: PixelMap['x'],
-): string {
-  const { columns } = channel
-  const half = columns.x.length > 1 ? (x(columns.x[1]!) - x(columns.x[0]!)) / 2 : 2
-  const bar = (from: number, to: number, edge: 'top' | 'bottom') => {
-    const left = Math.round(x(columns.x[from]!) - Math.max(half, EDGE_MIN_PX / 2))
-    const right = Math.round(x(columns.x[to]!) + Math.max(half, EDGE_MIN_PX / 2))
-    const [near, far] =
-      edge === 'top' ? [row.top, row.top + EDGE_MARK_PX] : [row.bottom, row.bottom - EDGE_MARK_PX]
-    return `M ${left} ${near} L ${right} ${near} L ${right} ${far} L ${left} ${far} Z`
-  }
-  const marks: string[] = []
-  for (const [edge, past] of [
-    ['top', (i: number) => columns.hi[i]! > channel.high],
-    ['bottom', (i: number) => columns.lo[i]! < channel.low],
-  ] as const) {
-    let from = -1
-    for (let i = 0; i <= columns.x.length; i += 1) {
-      const here = i < columns.x.length && past(i)
-      if (here && from < 0) from = i
-      if (!here && from >= 0) {
-        marks.push(bar(from, i - 1, edge))
-        from = -1
-      }
-    }
-  }
-  return marks.join(' ')
 }
 
 /**
@@ -146,10 +107,14 @@ export const TimeSeriesRows = memo(function TimeSeriesRows({
               <path className="ts-stack__area" d={areaPath(channel.columns, map, row.bottom)} />
             )}
             {channel.shape === 'line' && (
-              <path className="ts-stack__band" d={bandPath(channel.columns, map)} />
+              <path
+                className="ts-stack__band"
+                d={bandPath(channel.columns, map)}
+                style={{ opacity: bandOpacity(span / Math.max(1, channel.columns.x.length)) }}
+              />
             )}
             <path className="ts-stack__line" d={linePath(channel.columns, map)} />
-            <path className="ts-stack__edge" d={edgeMarks(channel, row, x)} />
+            <path className="ts-stack__edge" d={edgeTicks(channel, row, x)} />
             {channel.skipped.map(([from, to]) =>
               to > startS && from < endS ? (
                 <rect
