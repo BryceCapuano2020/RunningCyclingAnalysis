@@ -8,9 +8,12 @@ import type { ReactNode } from 'react'
  */
 export function EvidenceDisclosure({
   section,
+  label,
   children,
 }: {
   section: string
+  /** The summary in full, where "Show the evidence" is not what the closed row should say. */
+  label?: string
   children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -24,7 +27,11 @@ export function EvidenceDisclosure({
       }}
     >
       <summary>
-        {open ? 'Hide' : 'Show'} the evidence<span className="sr-only"> for {section}</span>
+        {label ?? (
+          <>
+            {open ? 'Hide' : 'Show'} the evidence<span className="sr-only"> for {section}</span>
+          </>
+        )}
       </summary>
       {mounted && children}
     </details>

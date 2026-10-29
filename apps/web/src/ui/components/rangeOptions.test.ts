@@ -8,6 +8,7 @@ import {
   choiceOfValue,
   optionValue,
   periodDates,
+  periodName,
   previousPeriodLabel,
 } from './rangeOptions'
 
@@ -64,6 +65,19 @@ describe('periodDates', () => {
 
   it('has no dates for an empty library', () => {
     expect(periodDates(period({ startMs: null, endMs: null, days: null }))).toBe('')
+  })
+})
+
+describe('periodName', () => {
+  it('names the period the figures are for, in the words the control uses', () => {
+    expect(periodName(42)).toBe('6 weeks')
+    expect(periodName(84)).toBe('12 weeks')
+    expect(periodName(365)).toBe('12 months')
+    expect(periodName(null)).toBe('All time')
+  })
+
+  it('counts days for a custom range', () => {
+    expect(periodName(10)).toBe('10 days')
   })
 })
 

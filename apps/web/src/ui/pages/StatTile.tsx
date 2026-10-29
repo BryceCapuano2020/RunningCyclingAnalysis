@@ -13,6 +13,11 @@ const BASIS_TEXT: Record<TileBasis, string> = {
   floor: 'At least',
 }
 
+/** The chip that says what kind of evidence a figure is, a ring for an estimate and a dot for what was recorded. */
+export function BasisChip({ basis }: { basis: TileBasis }) {
+  return <span className={`stat-tile__basis stat-tile__basis--${basis}`}>{BASIS_TEXT[basis]}</span>
+}
+
 export interface StatTileProps {
   /** The sport whose figure this is, which sets its dot and its range track's colour; none for a figure of both. */
   sport?: Sport
@@ -62,9 +67,7 @@ export function StatTile({
         <h3 className="stat-tile__name">
           <HeadingText heading={heading} definition={definition} />
         </h3>
-        {basis === undefined ? null : (
-          <span className={`stat-tile__basis stat-tile__basis--${basis}`}>{BASIS_TEXT[basis]}</span>
-        )}
+        {basis === undefined ? null : <BasisChip basis={basis} />}
       </div>
       {figure === undefined ? null : (
         <p className="stat-tile__figure">

@@ -320,7 +320,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   comparison and the best skip carried rows and take the longest measured effort. The chart's name stays as the small caption above the finding.
   Where the curve's points are a longer effort's value copied down by the envelope (`windowS` longer than `durationS`), the
   line there is that longer effort's value, not a measured one at its own length: the stretch is drawn lighter, from the measured
-  point before it to the one after, and described by its shape under a bracket, "Between 20 and 60 min the line carries your 60 min best." (the effort named is the one the carried points say they came from)
+  point before it to the one after, and described by its shape under a bracket, "No separate 20–60 min effort: this stretch uses your 60 min best" (the effort named is the one the carried points say they came from)
   (the widest such stretch, which the table's caption repeats). It never says an effort is missing from the file, which a longer window always
   contains. A carried point is a hollow ring, not a solid dot, is not called out as a best, and its tooltip and table row say "from your 60 min effort". On a phone,
   annotations that would overlap another mark are left out (`optional`), keeping the 20 minute callout and the threshold. Every chart has a visible title, which names
@@ -353,60 +353,83 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   above it. The chart mounts when the disclosure is first opened, so a closed section draws nothing.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
-- A sport page reads top to bottom: the threshold, with its range under the figure, the line on uneven bests when there are any, and a line on the best 20 minutes by heart rate
-  under its meaning, on either sport when the library holds a 20 min best in both sports, then its grade and level ladder for the best 20 minutes
-  (the same grade line as the card), then the period control, then the sport's sections in the order its list
-  gives (`SPORT_SECTIONS` in `apps/web/src/ui/pages/sportSections.tsx`, one list per sport, so a sport adds or
-  drops a section there and the page maps it). The run's list is **Best efforts**, **Race predictions**,
-  **Week by week**, **At the same heart rate**, **Late in long sessions** and **Time in zones**; the ride's is the same without the race predictions.
-  - **Best efforts** holds a line of recent form ("Last run 14 Jan · 9 runs · 42.10 km"), the records, with the
-    Flat note under them on a run, and then, directly under the list, the best-effort curve in the sport's unit. It has no
-    section heading of its own, because it is the records' chart; the chart's own title ("Run flat pace per
-    kilometre by duration") names it.
-    Under the curve is the stand-out finding as its caption (below), then **See your runs**, which opens
-    Activities filtered to that sport.
+- A sport page reads top to bottom, on about 1,200 px of a desktop and in one column on a phone. The answer is one
+  card: the **threshold** on the left (60%) at display size, named with its period ("Threshold pace · 12 weeks", so it
+  is not read against Profile's all-time figure) and a chip that says Estimated (a ring) or At least (a floor, a held
+  best), its fit drawn as a slim track with the two ends printed and the word "fit spread" between them (a range
+  between two fits, as with uneven bests, is "range"), what it means, and the heart-rate check said once, as a chip
+  beside the name: "Hard efforts on file · 97% of reference heart rate" with a tick, or "Not a hard effort · 80% of
+  reference heart rate" with a warning, the Balance evidence card's two labels; the full sentence (where the
+  reference comes from, what would raise it) is the chip's definition, one press away. On the right (40%) the **level of the best 20
+  minutes** at display size with its percent, one line of what it grades, and the level ladder on the neutral
+  level bands, a dot for a recorded effort and a ring with its range for an estimated one. Then the period
+  control, then "On this page", then the sport's sections as the rows its list gives (`SPORT_ROWS` in
+  `apps/web/src/ui/pages/sportSections.tsx`, one list per sport, so a sport adds or drops a section there and
+  the page maps it). The page's title row carries a line of recent form ("Last run 14 Jan · 9 runs · 42.10 km").
+  - **Open sections first, closed ones after.** Open: **Best efforts** (the curve with its findings written on
+    it, and a strip of four record tiles under it), **Race predictions** beside **Time in zones** (60 and 40 on
+    a desktop; a ride's zones take the whole row), and **Week by week**. Closed, each a card whose row names the
+    section and says what it found, so a closed section still tells the athlete something: **At the same heart
+    rate** ("At the same heart rate you run 6 s/km faster than in March (145 bpm)", the row naming the heart rate
+    so "the same" is a number), **Late in long sessions** ("Best 20 min held 99% after an hour; output per
+    heartbeat fell 3% from the first half to the second"), **Where your bests stand out**, and **All best
+    efforts** (every record with its level, where there is a profile to grade it, and its activity, and the notes
+    on how the figures were made). A closed section mounts its content when it first opens, so nothing is
+    measured while hidden. For the same reason the browser's find-in-page does not search a closed section's
+    content: its row (name and finding) is searchable, and "On this page" opens a section in one press.
+  - **"On this page"** is a row of buttons, one for each section the page has. On a desktop it holds its place
+    under the header while the page scrolls, because the page is long and a section is then one press from
+    anywhere; on a phone it is a row that scrolls sideways and does not hold. A button scrolls to the section,
+    opens it when it is closed and moves the keyboard there; they are buttons and not links because the app
+    routes by the hash.
+  - **Best efforts** has no heading of its own on screen (a screen reader has one): the chart's title and its
+    finding name it. Its four tiles are a run's 1 km, 1 mi, 5 km and 10 km, or a ride's 1, 5, 20 and 60 minutes
+    (`RECORD_TILE_KEYS`), each the time or power at display size with its pace or W/kg, a level chip and the
+    activity as a link, or, when every record was set in one activity, that activity once under the strip.
+    A run with none of its distance bests shows its duration bests. The Flat note sits under the tiles on a run.
+    **See your runs** opens Activities filtered to that sport.
   - **Week by week** is the trend for 5, 20 or 60 minutes, with one muted line under the chart: "A dip
     can be a best leaving the 4-week window, not a change in you." The window is the one the chart uses.
-  - **Late in long sessions** is the last section. It holds two readings, each with its own sentence, chart and
-    note, and each shown only once 3 activities stand behind it (`LATE_IN_EFFORT` in
+  - **Late in long sessions** is a closed section. It holds two readings, each titled by what it found, with its
+    chart and note, and each shown only once 3 activities stand behind it (`LATE_IN_EFFORT` in
     `packages/core/src/constants.ts`). The first compares the best 5 and 20 min overall, from any point in an
-    effort, with the best that starts after 60, 90 and 120 min of moving time (`periodDurability`). Its
-    sentence takes the deepest level with 3 activities behind it, at the longest duration that has them, and
-    does not count them: "After 90 min your best 20 min is 6% below your best 20 min overall." (or "above", or
-    "is within 1% of" when it rounds to under 1%). The note gives the count ("Your best 20 min after 90 min
-    rests on 4 rides."), says that a lower figure late on can also mean the run never asked for more, and for a
-    ride that only a power meter counts. The chart is a row for the best overall and one for each level shown,
-    in the sport's own unit (a pace for a run, which is the flat speed the late best costs, and watts for a
-    ride), a mark on a track with better to the right and a stem back to a dashed line at the best overall. The
-    track spans at least a fifth of the best overall, so a small fall stays a short stem. **View as table**
-    lists each figure with its fall against the best overall and the activities behind it. The second reading
-    is the drift of steady efforts over an hour (`driftTrend`): "On steady runs over an hour, your output per
-    heartbeat fell 3% from the first half to the second (median of 12 runs)." (or "rose", or "held level" when
-    it rounds to under 1%). The chart is a dot for each steady effort by date, its change in output per
-    heartbeat in percent (a fall is below zero), with no line between them, and a dashed line at a 5% fall
-    named in the key as "A fall of 5%: a common coaching reference line". That is a coaching
-    convention (`docs/research/durability.md`), a light reference and not a verdict, and the note says that
-    heat, hydration and tiredness also move heart rate, so a change is not fitness. An activity whose heart
-    rate is set aside has no drift. A half with too few activities is left out and named in the "Not enough
-    yet" list, such as "Late in long sessions: add 3 runs longer than an hour." (a ride adds "with a power
-    meter") or "Late in long sessions: needs 3 steady runs over an hour with heart rate to show how output per
-    heartbeat changes." (a ride needs a power meter and heart rate). With neither, the section has no heading
-    and the line names both needs. The copy never says limiter, weak, strength, "holding you back" or "ahead
-    of".
+    effort, with the best that starts after 60, 90 and 120 min of moving time (`periodDurability`). Its title
+    is one stat, the share of output held at the deepest level with 3 activities behind it at the longest
+    duration that has them, with that duration: "Best 20 min held 94% after 90 min". The note gives the sentence ("After 90 min your
+    best 20 min is 6% below your best 20 min overall.") and the count ("Your best 20 min after 90 min rests on 4
+    rides."), says that a lower figure late on can also mean the run never asked for more, and for a ride that
+    only a power meter counts. The chart is a dumbbell for each late best: a ring at no fall, a solid mark at
+    the share the late best kept and the bar between them, all rows on one scale of the share kept (a pace's by
+    its speed), which runs only a few per cent past the extremes, so a small fall is a short bar and not an
+    empty row. **View as table** lists each figure with its fall against the best overall and the activities
+    behind it. The second reading is the drift of steady efforts over an hour (`driftTrend`), titled "On steady
+    runs over an hour, your output per heartbeat fell 3% from the first half to the second (median of 12
+    runs)." (or "rose", or "held level" when it rounds to under 1%). The chart is a dot for each steady effort
+    by date, its change in output per heartbeat in percent (a fall is below zero), a line at the median across
+    the dots labelled "Median: fell 3%", and a dashed line at a 5% fall named in the key as "A fall of 5%:
+    a common coaching reference line". That is a coaching convention
+    (`docs/research/durability.md`), a light reference and not a verdict, and the note says that heat,
+    hydration and tiredness also move heart rate, so a change is not fitness. An activity whose heart rate is
+    set aside has no drift. A half with too few activities is left out and named in the "Not enough yet" list,
+    one line for each missing half, each naming that half and not the section: "Best efforts late in long sessions:
+    add 3 runs longer than an hour." (a ride adds "with a power meter") or "Output per heartbeat over an hour:
+    needs 3 steady runs with heart rate." (a ride needs a power meter and heart rate). With neither, the section
+    has no row and both lines are in the list. The copy never says limiter, weak, strength, "holding you back" or "ahead of".
   - **A section with nothing to show has no heading.** Its reason is one line of a muted list at the end of the
     page, headed "Not enough yet", before the footnote: "Race predictions: needs a best of a mile or more, or
     runs with heart rate." Each section names its need in the plain words it would have used under its own
     heading, lower-cased after the section's name, so a new athlete sees no dead headings and no jargon.
     The list is left out when every section has content, and on a page with no activities.
-  - **A threshold the fit refused, shown as its floor, is labelled "Threshold pace, at least"** (or "power"),
-    not "estimated", since the floor is a held best. A range whose two ends would print the same reads
-    "About 48 W" in place of "Fit spread 48 to 48 W".
+  - **A threshold the fit refused, shown as its floor, is "Threshold pace" with the chip At least** (or "power"),
+    not Estimated, since the floor is a held best; its heading says ", at least" to a screen reader. A range
+    whose two ends would print the same has no track to draw.
     The threshold carries no count: the period control under
     the answer names the dates the efforts come from. A sport the library has no activities for has no
     period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
     **How to get your files** side by side.
 - **"Where your bests stand out" compares an athlete with their own curve, never with anyone else's.** The
-  finding is the caption of the curve under Best efforts on each sport page (it has no heading) and says, for each duration from 5 s to 60 min, how far
+  finding is a closed section on each sport page, whose row says it and whose body holds the strip of every best
+  against the others when one stands out. It says, for each duration from 5 s to 60 min, how far
   the best sits above or below what the athlete's other durations predict (Morton's three-parameter
   critical-power model, fitted without that duration; the method is in
   [research/duration-profile.md](research/duration-profile.md)). A sentence leads: "Your 1 min best is 14%
@@ -539,32 +562,38 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     30 Oct 2022 to 24 Sep 2023: no rides of 20 min or longer with power in that time."), which names the trend's effort length, since a gap at 60 min is not
     a gap in training; what a sport's chart covers; and, when a sport's line stops before the window does, the day of its latest activity
     of any length: "No runs since 20 Jan 2025.", left off while the line reaches the last week.
-- **"At the same heart rate"** follows "Week by week" on each sport page and reads the one signal built from
-  easy and steady efforts (`docs/research/same-heart-rate.md`). A sentence sits above the chart and says one of
-  three things. With a real change: "At 145 bpm you now run 5:52 /km, against 6:10 /km 8 weeks ago." (or
-  "you now ride 214 W, against 198 W"). It says "now" only when the change reaches the period's last week; it
-  otherwise names the week: "At 145 bpm in the week ending Sun 6 Apr 2025 you rode 214 W, against 198 W 5 weeks
-  earlier." Without a real change, it quotes the first and last values: "At 145 bpm your pace went from 4:49 to
-  5:01 /km: no clear change, within the error." (or "your power went from 204 to 207 W"), and with fewer than 4
-  reporting weeks it says only "Too few weeks to show a change yet." in a muted line. With too little data
-  to draw, the section has no heading, and a line of the "Not enough yet" list names what is missing, one of: too few steady 5-minute stretches, too few activities, activities in
-  too few weeks, heart rate that hardly varies, no effort near the reference heart rate in the latest weeks, or
-  less than 4 weeks of steady efforts in the period ("Needs 4 weeks of steady efforts with heart rate. Pick a
-  longer period to see it."); the numbers in them come from `SAME_HEART_RATE`. The reference heart rate is the
-  library's, not the period's, so choosing 6 or 12 weeks does not move it. A change is real only when the 90% ranges
-  of the first and last reporting weeks do not overlap, and a fall is told as plainly as a rise. The words are
-  "output at the same heart rate", never "fitness", "limiter", "weak", "strength", "holding you back" or "ahead
-  of". The chart is titled with the heart rate and the sport's unit, "Your output at 145 bpm, flat pace per
-  kilometre". It has one dot for each week that reports (a diamond for a ride, as in every chart) with its 90%
-  range as a thin bar in the sport's colour, and no line across the weeks: a week that does not report has
-  no dot and a mark on the date axis, as in the trend. The vertical axis is the sport's own number, pace
-  with faster up or watts, and watts do not start at zero, since nothing is filled and a 5% change must
-  show. The chart uses the shared frame: its key row is absent, its tooltip and arrow-key reading say the week,
-  the value, the 90% range and the stretches and activities behind it, and **View as table** lists every
-  week. The note under it says how a dot is made, that only outdoor runs and rides with a power meter count, and
-  that fatigue can lower heart rate at a given effort, so a rise can come with fatigue as well as with
-  training. The windows lie inside the period, as the trend's do, so a 6-week period reports about two
-  weeks. The chart is drawn only with two or more reporting weeks.
+- **"At the same heart rate"** is a closed section after "Week by week" on each sport page, and reads the one
+  signal built from easy and steady efforts (`docs/research/same-heart-rate.md`). The chart's title is the
+  finding, and the closed row says the same sentence: with a real change, "At the same heart rate you run 6
+  s/km faster than in March" (or "you put out 8 W more"; a fall says slower or less as plainly), the amount in
+  the unit the axis reads in (taken from the fitted line, from its start to its end across the reporting weeks, not
+  from the two end weeks) and the month the first week's window is in, with its year when that is the same month as
+  the last week's or nine or more months before it. A change that ends before the
+  period's last week names the week: "At the same heart rate, by the week ending Sun 6 Apr 2025, you put out 16
+  W more than in March". Without a real change, "At the same heart rate: no clear change since March", and with
+  fewer than 4 reporting weeks only "Too few weeks to show a change yet." A change is named only when the fitted line's slope is clear of zero: its 90% band, scaled for scatter about the line
+  and widened for the overlap of the weekly windows, excludes it. That is the one test, so the sentence and the line
+  cannot contradict each other; the note under the chart says so. With too little data to draw, the section has no row, and
+  a line of the "Not enough yet" list names what is missing, one of: too few steady 5-minute stretches, too few
+  activities, activities in too few weeks, heart rate that hardly varies, no effort near the reference heart
+  rate in the latest weeks, or less than 4 weeks of steady efforts in the period ("Needs 4 weeks of steady
+  efforts with heart rate. Pick a longer period to see it."); the numbers in them come from `SAME_HEART_RATE`.
+  The reference heart rate is the library's, not the period's, so choosing 6 or 12 weeks does not move it. The
+  words are "output at the same heart rate", never "fitness", "limiter", "weak", "strength", "holding you back"
+  or "ahead of". The chart is named with the heart rate and the sport's unit, "Your output at 145 bpm, flat pace
+  per kilometre". It draws a light dot for each week that reports (a diamond for a ride, as in every chart), a
+  straight line fitted through them (each weighted by how tightly its own range pinned it, within four times the
+  median weight so that no one week is the line) and a band for how well the line is pinned down, widened for the
+  overlap of the weekly windows and for scatter about the line. The line runs across the reporting weeks only,
+  never past them, and its end value is labelled. With fewer than three weeks it draws no line, and a line that
+  slopes within its band is drawn but not claimed. A week that does not report has no dot and a mark on the date axis. The vertical axis is the
+  sport's own number, pace with faster up or watts, and watts do not start at zero, since nothing is filled and
+  a 5% change must show. The chart uses the shared frame: its tooltip and arrow-key reading say the week, the
+  value, the 90% range and the stretches and activities behind it, and **View as table** lists every week. The
+  note under it says how a dot is made, that only outdoor runs and rides with a power meter count, and that
+  fatigue can lower heart rate at a given effort, so a rise can come with fatigue as well as with training. The
+  windows lie inside the period, as the trend's do, so a 6-week period reports about two weeks. The chart is
+  drawn only with two or more reporting weeks.
 - On the Balance age-grade trend, a run is solid with a dot, as recorded. A ride is an estimate: it
   is graded through its running equivalent, as the cards grade it, so it is dashed with a ring at
   each week, its model range is a band (a soft tint in the ride colour, with a ride-coloured outline), and the
@@ -939,17 +968,22 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate
   in one sentence, where it explains the heart-rate check. Each line that names it glosses it once, as "(set from your highest
   heart rates on file)", which holds for both sports: cycling's is derived from running's, so a ride is never
-  called your highest heart rate. A sport page's line says "so it was hard" at 90% or more,
+  called your highest heart rate. A sport page's chip says "Hard efforts on file" at 90% or more,
   judged on the percent it shows, so a share that rounds to 90% is hard.
-- **Race predictions sit in the middle.** The Run page predicts the 5 km, 10 km, half marathon and
-  marathon after Best efforts, in two columns that fit 320 px. The first column holds the race with its
-  pace under it. The second holds the predicted time, "assumed spread" its 10th to 90th percentile of an assumed error (the marathon's is a published validation figure, the shorter races' a judgement, so it is not called a range), and the two
-  estimates it sits between ("runs 20:25 · heart rate 18:13"). Each is the geometric mean of the runner's
+- **Race predictions sit beside the zones.** The Run page predicts the 5 km, 10 km, half marathon and
+  marathon in a card of range bars, 60 beside the zones' 40 on a desktop. A row is the race with its pace on
+  the left, the predicted time at display size on the right, and between them a bar: the **assumed spread**
+  (its 10th to 90th percentile; the wording is "assumed spread", a defined term, never a range or a confidence
+  interval) as a rounded band between two caps with its ends printed, the prediction as a ring, and each
+  estimate it sits between as a triangle, ▼ from the runner's bests above the bar and ▲ from heart rate below
+  it. The bar is linear in seconds and its scale widens for an estimate outside the spread, so a mark is drawn
+  where it is. Each prediction is the geometric mean of the runner's
   bests and the races their heart-rate VO2max would run, both carried by Riegel's law at 1.07 and, for the
-  marathon, Vickers & Vertosick's mileage-corrected model. The note says how many hard runs the heart-rate
+  marathon, Vickers & Vertosick's mileage-corrected model. **About these predictions**, a disclosure
+  under the bars, holds the note, a table of every figure and where each estimate came from. The note says how many hard runs the heart-rate
   side rests on, how many hilly runs it left out, and, when the two disagree, which points higher and
-  why. In All time the note adds "In All time they reflect your best period. A shorter period shows your recent form." The evidence disclosure says which best each estimate was carried from. With no best from the mile up
-  and no heart-rate VO2max, the section has no heading and says so in the "Not enough yet" list. The method and its sources
+  why. In All time the note adds "In All time they reflect your best period. A shorter period shows your recent form." With no best from the mile up
+  and no heart-rate VO2max, the section has no card and says so in the "Not enough yet" list. The method and its sources
   are in `docs/research/race-prediction.md`. Predictors are keyed by sport in
   `apps/web/src/ui/racePredictions.ts`, so a sport adds one there and the page shows it.
 - **Heart rate that cannot be right is set aside.** When a ride with a power meter, or an outdoor run, holds

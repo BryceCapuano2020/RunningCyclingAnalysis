@@ -97,6 +97,15 @@ export function formatMonth(ms: number, withYear: boolean): string {
   return withYear ? `${month} ${new Date(ms).getFullYear()}` : month
 }
 
+/**
+ * A month's full name in the viewer's local zone and language, such as "March", for a sentence; with the year when
+ * `withYear` is set, "March 2025".
+ */
+export function formatMonthName(ms: number, withYear = false): string {
+  const { month = '' } = namesOf(ms, { month: 'long' })
+  return withYear ? `${month} ${new Date(ms).getFullYear()}` : month
+}
+
 /** The local time of day in twelve-hour form, such as "6:42 am". Core's formatter, so there is one. */
 export { formatTimeOfDay } from '@rca/core/units'
 

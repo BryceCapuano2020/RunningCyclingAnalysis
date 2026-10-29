@@ -1,0 +1,46 @@
+/* The "On this page" row: pills in one line, held under the header on a desktop. */
+.section-nav {
+  min-width: 0;
+  /* Covers the page behind it while it holds its place, so a card does not show through it. */
+  background: var(--surface-0);
+}
+
+.section-nav__list {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.section-nav__button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.section-nav__button:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+/* The header is a sticky bar of its own on a desktop; the row holds its place right under it. */
+@media (min-width: 1081px) {
+  .section-nav {
+    position: sticky;
+    top: var(--header-height);
+    z-index: 10;
+  }
+}

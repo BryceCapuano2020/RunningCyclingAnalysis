@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CurveRow } from './curveTable'
-import { curveTakeaway } from './sportCurveTakeaway'
+import { citedDurationS, curveTakeaway } from './sportCurveTakeaway'
 
 const row = (
   durationS: number,
@@ -187,5 +187,36 @@ describe('curveTakeaway with no period before', () => {
 
   it('has nothing to say for a curve with no effort', () => {
     expect(curveTakeaway({ ...none, sport: 'ride', rows: [] })).toBeNull()
+  })
+})
+
+describe('citedDurationS', () => {
+  it('is the effort the comparison reads, when the title cites it', () => {
+    const rows = [
+      row(300, 330, 320),
+      row(900, 280, 216),
+      row(1200, 263, 263, { previousCarried: true }),
+    ]
+    // The 20 minute effort is carried in the earlier period, so the comparison reads the 15 minutes: 64 W.
+    expect(curveTakeaway({ ...base, sport: 'ride', rows })).toBe(
+      '15 min is 64 W higher than the previous 12 weeks',
+    )
+    expect(citedDurationS({ ...base, sport: 'ride', rows })).toBe(900)
+  })
+
+  it('is the 20 minutes when that is what the comparison reads', () => {
+    expect(
+      citedDurationS({ ...base, sport: 'ride', rows: [row(300, 330, 320), row(1200, 263, 250)] }),
+    ).toBe(1200)
+  })
+
+  it('is none when the title says no clear change, which cites no effort', () => {
+    expect(citedDurationS({ ...base, sport: 'ride', rows: [row(900, 250, 250)] })).toBeNull()
+  })
+
+  it('is none without a period before, whose title names the best 20 minutes', () => {
+    expect(
+      citedDurationS({ ...base, previousLabel: null, sport: 'ride', rows: [row(900, 250, 240)] }),
+    ).toBeNull()
   })
 })

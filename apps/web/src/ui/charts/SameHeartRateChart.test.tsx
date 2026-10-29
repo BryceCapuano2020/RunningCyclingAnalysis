@@ -71,14 +71,91 @@ describe('SameHeartRateChart', () => {
     ).toBeInTheDocument()
   })
 
-  it('draws a dot and an interval bar for each reporting week, and no line across the gap', () => {
+  it('draws a light dot for each reporting week, a fitted line and its band, and a mark where a week is missing', () => {
     const { container } = render(
       <SameHeartRateChart sport="run" data={RUN} units="metric" note={NOTE} />,
     )
-    expect(container.querySelectorAll('[data-testid="same-hr-marker"]')).toHaveLength(4)
-    expect(container.querySelectorAll('[data-testid="same-hr-interval"]')).toHaveLength(4)
+    const dots = container.querySelectorAll('[data-testid="same-hr-marker"]')
+    expect(dots).toHaveLength(4)
+    for (const dot of Array.from(dots)) expect(dot).toHaveClass('chart-series__marker--light')
+    expect(container.querySelector('[data-testid="same-hr-trend"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="same-hr-band"]')).not.toBeNull()
     expect(container.querySelectorAll('[data-testid="trend-gap"]')).toHaveLength(1)
-    expect(container.querySelector('path.chart-series__line--run')).toBeNull()
+    // The error bars that overlapped are gone: the weeks' ranges are in the tooltip and the table.
+    expect(container.querySelector('[data-testid="same-hr-interval"]')).toBeNull()
+  })
+
+  it('draws the line rising on the page for a pace that gets faster, since faster is up', () => {
+    const { container } = render(
+      <SameHeartRateChart sport="run" data={RUN} units="metric" note={NOTE} />,
+    )
+    const [start, end] = (
+      container
+        .querySelector('[data-testid="same-hr-trend"]')!
+        .getAttribute('d')!
+        .match(/-?[\d.]+ -?[\d.]+/g) ?? []
+    ).map((pair) => Number(pair.split(' ')[1]))
+    expect(end).toBeLessThan(start!)
+  })
+
+  it('runs the line and its band across the reporting weeks only, never out to a week that did not report', () => {
+    const { container } = render(
+      <SameHeartRateChart
+        sport="ride"
+        data={dataOf([null, 200, 204, 208, 212, null])}
+        units="metric"
+        note={NOTE}
+      />,
+    )
+    const xs = (selector: string, attribute: string) =>
+      (
+        container
+          .querySelector(selector)!
+          .getAttribute(attribute)!
+          .match(/-?[\d.]+(?= )/g) ?? []
+      ).map(Number)
+    const dots = Array.from(container.querySelectorAll('[data-testid="same-hr-marker"]')).map(
+      (dot) => Number(dot.getAttribute('d')!.match(/M([\d.]+)/)![1]),
+    )
+    const line = xs('[data-testid="same-hr-trend"]', 'd')
+    // A diamond's path starts at its left corner, so compare to within its radius.
+    expect(Math.min(...line)).toBeGreaterThanOrEqual(Math.min(...dots) - 8)
+    expect(Math.max(...line)).toBeLessThanOrEqual(Math.max(...dots) + 8)
+    const band = xs('[data-testid="same-hr-band"]', 'd')
+    expect(Math.min(...band)).toBeCloseTo(Math.min(...line), 0)
+    expect(Math.max(...band)).toBeCloseTo(Math.max(...line), 0)
+  })
+
+  it('labels the line’s own value at its end, not the last week’s', () => {
+    render(
+      <SameHeartRateChart
+        sport="ride"
+        data={dataOf([200, 206, 200, 210, 204, 214])}
+        units="metric"
+        note={NOTE}
+      />,
+    )
+    // The weeks end at 214 W, but the line through them ends below it.
+    const label = document.querySelector('[data-annotation="trend-end"]')
+    expect(label?.textContent).toMatch(/^2\d\d W/)
+    expect(label?.textContent).not.toMatch(/^214 W/)
+  })
+
+  it('draws no line and no band with fewer than three reporting weeks, since a line through two would claim a trend', () => {
+    const { container } = render(
+      <SameHeartRateChart sport="run" data={dataOf([3.0, 3.1])} units="metric" note={NOTE} />,
+    )
+    expect(container.querySelectorAll('[data-testid="same-hr-marker"]')).toHaveLength(2)
+    expect(container.querySelector('[data-testid="same-hr-trend"]')).toBeNull()
+    expect(container.querySelector('[data-testid="same-hr-band"]')).toBeNull()
+  })
+
+  it('sets the finding as the chart’s headline, and the heart rate and unit above it as its name', () => {
+    render(<SameHeartRateChart sport="ride" data={RIDE} units="metric" note={NOTE} />)
+    const figure = screen.getByRole('figure', { name: 'Your output at 145 bpm, power in watts' })
+    expect(figure).toHaveAccessibleDescription(
+      'At the same heart rate: no clear change since December',
+    )
   })
 
   it('draws a run as dots and a ride as diamonds', () => {
@@ -91,22 +168,6 @@ describe('SameHeartRateChart', () => {
     run.unmount()
     const ride = render(<SameHeartRateChart sport="ride" data={RIDE} units="metric" note={NOTE} />)
     expect(new Set(shapes(ride.container))).toEqual(new Set(['diamond']))
-  })
-
-  it('draws a bar from the low end to the high end of the range, longer for a wider range', () => {
-    const wide: SameHeartRate = {
-      ...RIDE,
-      weeks: RIDE.weeks.map((w, i) =>
-        i === 0 && w.fit ? { ...w, fit: { ...w.fit, low: 180, high: 220 } } : w,
-      ),
-    }
-    const { container } = render(
-      <SameHeartRateChart sport="ride" data={wide} units="metric" note={NOTE} />,
-    )
-    const bars = Array.from(container.querySelectorAll('[data-testid="same-hr-interval"]'))
-    const length = (bar: Element) =>
-      Math.abs(Number(bar.getAttribute('y2')) - Number(bar.getAttribute('y1')))
-    expect(length(bars[0]!)).toBeGreaterThan(length(bars[1]!))
   })
 
   it('labels the pace axis faster up, and a power axis in watts that does not start at zero', () => {
