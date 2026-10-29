@@ -366,9 +366,15 @@ describe('annotations on a realistic curve', () => {
     expect(
       container.querySelector('[data-annotation="best-300"] .annot__text--caption'),
     ).not.toBeNull()
-    const rule = Number(container.querySelector('.annot__rule')?.getAttribute('y1'))
-    const text = container.querySelector('[data-annotation="best-3600"] .annot__text--value')
-    expect(Number(text?.getAttribute('y'))).toBeLessThan(rule)
+    // Its whole text is above the threshold's band, by at least the leader line's length: not touching it.
+    const bandTop = Number(container.querySelector('.annot__band')?.getAttribute('y'))
+    const callout = container.querySelector('[data-annotation="best-3600"]')
+    const value = Number(callout?.querySelector('.annot__text--value')?.getAttribute('y'))
+    const eyebrow = Number(callout?.querySelector('.annot__text--eyebrow')?.getAttribute('y'))
+    expect(eyebrow).toBeLessThan(value)
+    expect(value).toBeLessThanOrEqual(bandTop - 20)
+    // And a leader line runs from the text down to its point.
+    expect(callout?.querySelector('.annot__leader')).not.toBeNull()
   })
 })
 

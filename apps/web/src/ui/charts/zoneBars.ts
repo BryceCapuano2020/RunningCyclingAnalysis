@@ -1,3 +1,4 @@
+import { GLYPH_EM } from './rootFont'
 import { percentText } from '../zoneTimeCopy'
 
 /** The least room, px, a share's text needs besides its characters. */
@@ -57,7 +58,6 @@ const LABEL_GAP = 6
 const OVERHANG = 8
 /** A segment narrower than this, px, has no label: its number would be taken for a neighbour's. */
 const LABEL_MIN_SEGMENT = 10
-const LABEL_GLYPH_EM = 0.52
 
 /**
  * The labels under a bar. Every segment that can show its number and name does: the widest are placed first,
@@ -72,7 +72,8 @@ export function underLabels(
   rootPx: number,
 ): UnderLabel[] {
   const size = 0.75 * rootPx
-  const widthOf = (text: string) => text.length * size * LABEL_GLYPH_EM
+  // The same glyph estimate as every other chart label, so a name is given the room the axes would give it.
+  const widthOf = (text: string) => text.length * size * GLYPH_EM
   const taken: { left: number; right: number }[] = []
   const placed: UnderLabel[] = []
   const free = (left: number, right: number) =>

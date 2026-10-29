@@ -178,10 +178,11 @@
 /*
  * A phone's scrub readout: a row above the plot that the tooltip draws into, in place of a box floating over the
  * plot where a finger is. It reserves the room of the fullest reading (a title, a value with its note, and the
- * previous period's row), so reading a value never moves the plot. With nothing active it says how to read one.
+ * previous period's row), so reading a value never moves the plot: measured at 6 rem on a 320 to 360 px phone,
+ * where the note wraps to a third line, and 5 rem from 370 px, where it does not. With nothing active it says how to read one.
  */
 .chart-frame__readout {
-  min-height: 5.5rem;
+  min-height: 6rem;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
@@ -212,6 +213,12 @@
 
 .chart-frame__readout .chart-tooltip__note {
   padding-left: 0;
+}
+
+@media (min-width: 370px) {
+  .chart-frame__readout {
+    min-height: 5rem;
+  }
 }
 
 @media (max-width: 480px) {

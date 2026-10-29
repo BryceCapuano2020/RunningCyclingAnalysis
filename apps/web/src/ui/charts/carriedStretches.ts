@@ -84,14 +84,15 @@ export function strokeSplit(
 /**
  * What a carried stretch is, in words: "Between 20 and 60 min the line carries your 60 min best." The line
  * there is a longer effort's value copied down, which a longer window always contains, so it is described by
- * its shape and never as an effort missing from the file.
+ * its shape and never as an effort missing from the file. `carriedFromS` is the length of the effort whose value
+ * it carries, which the carried points name in `windowS`; it is the span's far end when they do not.
  */
-export function spanLabel(fromS: number, toS: number): string {
-  const [from, to] = [effortLabel(fromS), effortLabel(toS)]
+export function spanLabel(fromS: number, toS: number, carriedFromS: number = toS): string {
+  const [from, to, source] = [fromS, toS, carriedFromS].map(effortLabel) as [string, string, string]
   const minutes = /^(\d+) min$/
   const shared = minutes.exec(from)?.[1]
   const between = shared !== undefined && minutes.test(to) ? shared : from
-  return `Between ${between} and ${to} the line carries your ${to} best.`
+  return `Between ${between} and ${to} the line carries your ${source} best.`
 }
 
 /** The short note on a carried row: "from your 60 min effort". */

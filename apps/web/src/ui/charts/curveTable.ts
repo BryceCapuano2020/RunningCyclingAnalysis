@@ -23,6 +23,8 @@ export interface CurveRow {
   activityId: string | null
   /** Whether the value is a longer effort's, carried down the curve by the envelope. */
   carried?: boolean
+  /** Whether the previous period's value is carried the same way. */
+  previousCarried?: boolean
   /** The length, s, of the effort a carried value belongs to. */
   carriedFromS?: number
 }

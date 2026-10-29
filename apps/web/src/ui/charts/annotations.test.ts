@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { layoutAnnotations, lineObstacles, markerObstacle, splitValue } from './annotations'
 import type { Annotation, AnnotationSpace } from './annotations'
 import { meetsBoxes } from './chartBoxes'
@@ -316,10 +316,21 @@ describe('layoutAnnotations on the marks of a real curve', () => {
 })
 
 describe('layoutAnnotations', () => {
-  it('refuses two annotations with one id, which would draw one and lose the other', () => {
-    expect(() =>
-      layoutAnnotations([callout('a', 300, 200), callout('a', 400, 200)], SPACE),
-    ).toThrow('annotation ids must be unique')
+  it('keeps the first of two annotations with one id and warns in development, rather than throwing', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const placed = layoutAnnotations([callout('a', 300, 200), callout('a', 600, 200)], SPACE)
+    expect(placed.map((each) => each.id)).toEqual(['a'])
+    // The first stands: its box is about 300, not 600.
+    expect(placed[0]!.box.left).toBeLessThan(400)
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('does not warn for ids that are unique', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    layoutAnnotations([callout('a', 300, 200), callout('b', 600, 200)], SPACE)
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
   })
 
   it('returns the annotations in the order given, whatever order they were placed in', () => {

@@ -106,6 +106,13 @@ describe('spanLabel', () => {
     expect(spanLabel(1200, 3600)).not.toMatch(/no effort|on file/i)
   })
 
+  it('names the effort the carried points came from, which need not be the far end of the stretch', () => {
+    // The 30 and 45 minute points carry a 90 minute effort across a stretch that ends at 60 minutes.
+    expect(spanLabel(1200, 3600, 5400)).toBe(
+      'Between 20 and 60 min the line carries your 90 min best.',
+    )
+  })
+
   it('names each end in full when they are not both minutes', () => {
     expect(spanLabel(30, 300)).toBe('Between 30 s and 5 min the line carries your 5 min best.')
   })

@@ -321,12 +321,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   without its caption. The last point is named at its end with its value and its duration. Both
   sports' curves are on a 12% wash of the sport's colour to the foot of the axis, and the period before is a thinner (2 px) solid
   grey line, never dashed: dashes belong to estimates. The curve's title is its finding (`curveTakeaway`): with a period before, how far the best
-  20 minutes (or the longest effort both periods have) moved, when the move is larger than the threshold's own range
-  and 1% of the earlier value ("20 min is 11 s /km quicker than the previous 12 weeks", "20 min is 12 W higher than ..."), or "Your 20 min pace
-  held steady against the previous 12 weeks"; without one, the best with its level ("Best 20 min: 4:11 /km, Local"). The chart's name stays as the small caption above it.
+  20 minutes (or the longest effort both periods have measured) moved ("20 min is 11 s/km quicker than the previous 12 weeks", "20 min is 12 W higher than ...",
+  with the seconds set tight to the unit), or "No clear change against the previous 12 weeks"; without one, the best with its level
+  ("Best 20 min: 4:11 /km, Local"). One floor decides, for every curve and whatever its fit says of its own spread, so the same data
+  always gets the same verdict: a change is a change only when it is more than 1% of the earlier value and more than 2 W for a ride, 2 s/km for a run
+  in kilometres or 3 s/mi in miles, about what two readings of one effort differ by. A carried value (below) is never read as a finding, in either period: the
+  comparison and the best skip carried rows and take the longest measured effort. The chart's name stays as the small caption above the finding.
   Where the curve's points are a longer effort's value copied down by the envelope (`windowS` longer than `durationS`), the
   line there is that longer effort's value, not a measured one at its own length: the stretch is drawn lighter, from the measured
-  point before it to the one after, and described by its shape under a bracket, "Between 20 and 60 min the line carries your 60 min best."
+  point before it to the one after, and described by its shape under a bracket, "Between 20 and 60 min the line carries your 60 min best." (the effort named is the one the carried points say they came from)
   (the widest such stretch, which the table's caption repeats). It never says an effort is missing from the file, which a longer window always
   contains. A carried point is a hollow ring, not a solid dot, is not called out as a best, and its tooltip and table row say "from your 60 min effort". On a phone,
   annotations that would overlap another mark are left out (`optional`), keeping the 20 minute callout and the threshold. Every chart has a visible title, which names
@@ -344,7 +347,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   sits in its top corner, and a tooltip takes its place once a point is active.
   A chart narrower than 480 px takes phone geometry (`PHONE_CHART_WIDTH`): a 40 px y gutter and a 44 px x band, a chart
   height of 262 px so the plot is about 190 px tall (where the chart sets no height of its own), y tick labels set inside the plot
-  above their gridlines where the widest would not fit the gutter, and a readout row above the plot (at least 5.5 rem, the room of a title, a value with its note and the previous period's row, with "Select a point to read its value" until one is) in place of
+  above their gridlines where the widest would not fit the gutter, and a readout row above the plot (at least 6 rem on a 320 to 360 px phone and 5 rem from 370 px, measured as the room of the fullest reading: a title, a value with its note and the previous period's row; with "Select a point to read its value" until one is) in place of
   a floating tooltip, which a finger would cover; the tooltip draws into that row, so the plot never moves and a screen reader
   still hears the values as the status element. A chart can state its finding: a `ChartFrame` with a `takeaway` sets the sentence
   large under the title, which then becomes a small caption and stays the chart's name, and an optional `focal` figure sits beside it.

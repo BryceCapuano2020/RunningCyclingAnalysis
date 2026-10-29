@@ -44,19 +44,26 @@ function costOf(box: Box, taken: readonly Box[]): number {
  * Where each annotation's text goes. In priority order, an annotation takes its first candidate place that
  * stays in the plot and keeps CLEARANCE from every box already placed and from the data's obstacles; where
  * none does, an optional annotation is left out and another takes the place that overlaps least, and says so in
- * `crowded`. The result is in the order of the input, without the annotations left out.
+ * `crowded`. The result is in the order of the input, without the annotations left out and without a repeated id.
  */
 export function layoutAnnotations(
   annotations: readonly Annotation[],
   space: AnnotationSpace,
 ): PlacedAnnotation[] {
-  const ids = new Set(annotations.map((annotation) => annotation.id))
-  if (ids.size !== annotations.length) throw new Error('annotation ids must be unique')
+  const unique = annotations.filter(
+    (annotation, i) => annotations.findIndex((other) => other.id === annotation.id) === i,
+  )
+  // A repeated id would draw one annotation and lose the other: the first stands, and development says so.
+  if (unique.length !== annotations.length && import.meta.env.DEV) {
+    console.warn(
+      'layoutAnnotations: annotation ids must be unique; the repeated ones were left out',
+    )
+  }
   const taken: Box[] = [...(space.obstacles ?? [])]
   const placed = new Map<string, PlacedAnnotation>()
   // Within a kind, what must be drawn is placed before what may be left out.
   const rank = (a: Annotation) => PRIORITY[a.kind] * 2 + (a.optional === true ? 1 : 0)
-  const order = [...annotations].sort((a, b) => rank(a) - rank(b))
+  const order = [...unique].sort((a, b) => rank(a) - rank(b))
   for (const annotation of order) {
     const candidates = (
       CANDIDATES[annotation.kind] as (a: Annotation, s: AnnotationSpace) => Candidate[]
@@ -106,7 +113,7 @@ export function layoutAnnotations(
       crowded: free < 0,
     })
   }
-  return annotations.flatMap((annotation) => placed.get(annotation.id) ?? [])
+  return unique.flatMap((annotation) => placed.get(annotation.id) ?? [])
 }
 
 function cheapest(

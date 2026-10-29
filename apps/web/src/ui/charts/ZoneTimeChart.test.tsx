@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { readStylesheet } from '../components/stylesheet'
 import { ZoneTimeChart } from './ZoneTimeChart'
 import type { ZoneChartRow } from './ZoneTimeChart'
+import { GLYPH_EM } from './rootFont'
 import { FALLBACK_WIDTH } from './useSize'
 import { percentFits, segmentsOf, takeawayText, underLabels } from './zoneBars'
 
@@ -173,8 +174,8 @@ describe('underLabels', () => {
       '2 Endurance',
       '3 Tempo',
     ])
-    // Two 5% segments are 45 px each: "Maximum" fits its room, "Threshold" is longer than the room, so it shows its number.
-    expect(labels.map((label) => label.text).slice(3)).toEqual(['4', '5 Maximum'])
+    // Two 5% segments are 45 px each: neither "4 Threshold" nor "5 Maximum" fits its room, so each shows its number.
+    expect(labels.map((label) => label.text).slice(3)).toEqual(['4', '5'])
   })
 
   it('shows a number alone where the name does not fit, and the same rule for every segment', () => {
@@ -202,7 +203,7 @@ describe('underLabels', () => {
       [33, 2, 30, 3, 32],
     ]) {
       const labels = plan(seconds, 360)
-      const half = (text: string) => (text.length * 12 * 0.52) / 2
+      const half = (text: string) => (text.length * 12 * GLYPH_EM) / 2
       for (const [i, label] of labels.entries()) {
         expect(label.x - half(label.text)).toBeGreaterThanOrEqual(-0.001)
         expect(label.x + half(label.text)).toBeLessThanOrEqual(360.001)

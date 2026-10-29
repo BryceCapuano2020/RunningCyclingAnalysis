@@ -149,8 +149,12 @@ describe('the phone readout row’s stylesheet', () => {
       css.indexOf('.chart-frame__readout {'),
       css.indexOf('}', css.indexOf('.chart-frame__readout {')),
     )
-    // A title, a value with its note and the previous period's row: about 5.5 rem with its padding.
-    expect(body).toMatch(/min-height: 5\.5rem/)
+    // A title, a value with its note and the previous period's row, measured on a phone: 6 rem where the note wraps
+    // to a third line (320 to 360 px), and 5 rem where it does not (370 px and up).
+    expect(body).toMatch(/min-height: 6rem/)
+    expect(css).toMatch(
+      /@media \(min-width: 370px\) \{\s*\.chart-frame__readout \{\s*min-height: 5rem/,
+    )
     // A fixed height with clipped overflow would cut a long note; the row only ever grows.
     expect(body).not.toMatch(/(^|[\s;])height:/)
     expect(body).not.toMatch(/overflow/)

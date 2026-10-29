@@ -140,7 +140,6 @@ export function SportCurveChart({
               units,
               rows,
               previousLabel: shown?.label ?? null,
-              threshold,
               level: bestLevel,
             }) ?? undefined)
           : undefined

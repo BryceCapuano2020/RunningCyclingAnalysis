@@ -132,7 +132,10 @@ export function curveMarks(
   }
 }
 
-/** The one label for the stretch with no effort on file ("No effort of 20 to 60 min on file"), or an empty string with none. */
+/**
+ * The one label for the widest carried stretch ("Between 20 and 60 min the line carries your 60 min best."), or an
+ * empty string with none. The effort named is the one the carried points say they came from.
+ */
 export function noEffortLabel(rows: readonly CurveRow[], spans: Layout['spans']): string {
   const widest = widestSpan(
     spans,
@@ -140,5 +143,9 @@ export function noEffortLabel(rows: readonly CurveRow[], spans: Layout['spans'])
   )
   const from = widest === null ? undefined : rows[widest.from]
   const to = widest === null ? undefined : rows[widest.to]
-  return from && to ? spanLabel(from.durationS, to.durationS) : ''
+  if (widest === null || !from || !to) return ''
+  const source = rows
+    .slice(widest.from + 1, widest.to + 1)
+    .find((row) => row.carried === true && row.carriedFromS !== undefined)?.carriedFromS
+  return spanLabel(from.durationS, to.durationS, source)
 }

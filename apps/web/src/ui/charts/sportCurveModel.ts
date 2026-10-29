@@ -33,6 +33,7 @@ export function buildRows(sport: Sport, curve: Curve, before: Curve): CurveRow[]
       previous: usable(earlier?.value ?? NaN),
       activityId: current?.activityId ?? null,
       carried: current !== undefined && isCarried(current),
+      previousCarried: earlier !== undefined && isCarried(earlier),
       carriedFromS:
         current !== undefined && isCarried(current) ? (current.windowS ?? undefined) : undefined,
     }))
