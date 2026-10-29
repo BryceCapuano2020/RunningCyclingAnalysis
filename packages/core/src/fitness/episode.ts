@@ -126,7 +126,14 @@ function step(
   return { state, low: false, fresh: false, close: false, z: Number.NaN, ...base, ...more }
 }
 
-/** The strongest evidence that the level is rising this week, or null: a contrast against the episode's own low, a 26-week trend, or a rise from the 20-week trough. */
+/**
+ * The evidence that the level is rising this week, or null. Three rules look for it: a contrast of the
+ * last 8, 16 or 26 weeks against the episode's own low, a 26-week trend, and a rise from the 20-week
+ * trough. The contrast and the trend must
+ * both fire (one alone is too often a stretch of wander), or the trough rule must, on its own and against
+ * a high bar, since it compares with the lowest of many levels. Each statistic is taken against a
+ * model-error floor that can grow with the episode's age. The strongest statistic that fired is returned.
+ */
 function riseOf(
   runs: readonly RunPoint[],
   day: number,
@@ -135,7 +142,9 @@ function riseOf(
   since: number,
   trend: { change: number; se: number } | null,
 ): number | null {
-  let best: number | null = null
+  const tau = Math.sqrt(E.riseTau ** 2 + E.riseTauGrowth ** 2 * Math.max(0, w - ep.declared))
+  const contrastFired: number[] = []
+  const troughFired: number[] = []
   let contrast: { z: number; delta: number } | null = null
   for (const weeks of E.riseWindows) {
     const recent = slice(runs, day - weeks * 7, day)
@@ -146,12 +155,14 @@ function riseOf(
     const a = levelOf(recent, mu, ep.sigma)!
     const b = levelOf(base, mu, ep.sigma)!
     const delta = a.m - b.m
-    const z = delta / Math.sqrt(a.se ** 2 + b.se ** 2 + M.tau ** 2)
+    const z = delta / Math.sqrt(a.se ** 2 + b.se ** 2 + tau ** 2)
     if (contrast === null || z > contrast.z) contrast = { z, delta }
   }
-  if (contrast !== null && contrast.z >= E.zUp && contrast.delta >= E.deltaUp) best = contrast.z
-  if (trend !== null && trend.change >= E.deltaTrendUp && trend.change / trend.se >= E.zTrendUp) {
-    best = Math.max(best ?? 0, trend.change / trend.se)
+  if (contrast !== null && contrast.z >= E.zUp && contrast.delta >= E.deltaUp)
+    contrastFired.push(contrast.z)
+  if (trend !== null) {
+    const z = trend.change / Math.sqrt(trend.se ** 2 - M.tau ** 2 + tau ** 2)
+    if (trend.change >= E.deltaTrendUp && z >= E.zTrendUp) contrastFired.push(z)
   }
   const l20 = adaptiveLevel(runs, day, ep, E.troughMinRuns, [E.troughWeeks])
   if (l20 !== null) {
@@ -161,11 +172,14 @@ function riseOf(
       if (h.w <= w - E.troughWeeks && (low === null || h.m < low.m)) low = h
     if (low !== null) {
       const delta = l20.m - low.m
-      const z = delta / Math.sqrt(l20.se ** 2 + low.se ** 2 + M.tau ** 2)
-      if (delta >= E.deltaTrough && z >= E.zTrough) best = Math.max(best ?? 0, z)
+      const z = delta / Math.sqrt(l20.se ** 2 + low.se ** 2 + tau ** 2)
+      if (delta >= E.deltaTrough && z >= E.zTrough) troughFired.push(z)
     }
   }
-  return best
+  // The contrast and the trend must agree; the trough rule, which compares with the lowest of many levels, has its own high bar.
+  const fired =
+    contrastFired.length >= E.contrastAgree ? [...contrastFired, ...troughFired] : troughFired
+  return fired.length > 0 ? Math.max(...fired) : null
 }
 
 /**
@@ -227,7 +241,7 @@ export function episodeStep(runs: readonly RunPoint[], day: number, w: number, e
       return reslip(trend!.change / trend!.se)
     return step('recovering', base)
   }
-  if (ep.riseRun >= M.consecutive) {
+  if (ep.riseRun >= E.recoverConsecutive) {
     ep.phase = 'recovering'
     ep.phaseAt = w
     return step('recovering', base, { fresh: true, z: rise ?? Number.NaN })

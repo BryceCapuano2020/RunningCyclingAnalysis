@@ -112,6 +112,12 @@ export const FITNESS = {
     riseWindows: [8, 16, 26],
     riseBaseWeeks: 48,
     riseOnsetSkipDays: 14,
+    /** The model-error floor in the rise tests, and how fast it grows with the episode's age (per square-root week). */
+    riseTau: 0.01,
+    riseTauGrowth: 0,
+    /** How many of the contrast and the trend must fire (the trough rule stands alone), and for how many weekly evaluations running. */
+    contrastAgree: 2,
+    recoverConsecutive: 2,
     zUp: 4.3,
     deltaUp: 0.04,
     zTrendUp: 4.0,
@@ -119,7 +125,7 @@ export const FITNESS = {
     troughWeeks: 20,
     troughMinRuns: 10,
     deltaTrough: 0.07,
-    zTrough: 4.5,
+    zTrough: 6.5,
     /** Back: a 12-week level (8 runs) within `backPoint` of the reference with its lower bound above -`backTol`, 3 weeks running and at least 4 weeks after the slip. */
     backWeeks: [12, 16],
     backMinRuns: 8,

@@ -122,12 +122,34 @@ describe('fitness status: recovery', () => {
   }
   const ANY_SIZE = { relativeTolerance: 5 }
 
-  it('says recovering within 12 weeks of the return, in 60%', () => {
+  it('says recovering within 12 weeks of an abrupt return, in 90%', () => {
     expectFinds(only('recovering'), dip, {
       seeds: 40,
       lagWeeks: 12,
       sign: 1,
-      minRate: 0.6,
+      minRate: 0.9,
+      truth: 1,
+      size: ANY_SIZE,
+    })
+  })
+
+  it('says recovering within 40 weeks of a return spread over a month, in 90%', () => {
+    const gradual = {
+      ...dip,
+      effects: [
+        dip.effects[0]!,
+        ...[0, 7, 14, 21].map((k) => ({
+          type: 'efficiency-shift' as const,
+          atWeek: 100 + k,
+          size: 0.0316,
+        })),
+      ],
+    }
+    expectFinds(only('recovering'), gradual, {
+      seeds: 40,
+      lagWeeks: 40,
+      sign: 1,
+      minRate: 0.9,
       truth: 1,
       size: ANY_SIZE,
     })
@@ -144,30 +166,32 @@ describe('fitness status: recovery', () => {
     })
   })
 
-  it('rarely says back (the research saw up to 1 in 10) or, in under 55% in the first year, recovering when the level stays down', () => {
+  it('rarely says back or recovering when the level stays down: 15% within a year, 25% within 2.5 years', () => {
     const seeds = 40
-    let backs = 0
-    let recoveries = 0
+    const inYear = { back: 0, recovering: 0 }
+    const overall = { back: 0, recovering: 0 }
     for (let seed = 1; seed <= seeds; seed++) {
-      const library = plantedLibrary({ seed, ...planted(-0.12), weeks: 170 })
+      const library = plantedLibrary({ seed, ...planted(-0.12), weeks: 190 })
       const onset = library.truths[0]!.onsetMs
-      const states = new Set<string>()
-      for (let week = 6; week <= 58; week++) {
+      const seen = { year: new Set<string>(), all: new Set<string>() }
+      for (let week = 6; week <= 130; week++) {
         const asOfMs = onset + week * WEEK
-        const status = fitnessStatuses(
+        const { state } = fitnessStatuses(
           library.digests.filter((d) => d.startMs <= asOfMs),
           new Set(),
           { asOfMs },
         ).run
-        states.add(status.state)
+        seen.all.add(state)
+        if (week <= 58) seen.year.add(state)
       }
-      if (states.has('back')) backs++
-      if (states.has('recovering')) recoveries++
+      for (const kind of ['back', 'recovering'] as const) {
+        if (seen.year.has(kind)) inYear[kind]++
+        if (seen.all.has(kind)) overall[kind]++
+      }
     }
-    expect(backs / seeds).toBeLessThanOrEqual(0.1)
-    // This is the weakest claim of the monitor: with the harness's wander of about 2.5% (a little over the research's 2%)
-    // and no sensor noise, 18 of 40 libraries (45%) are called recovering at some point in the year after a loss that
-    // stays. The run-level grids show 30%; the research measured 28% over 2.4 years.
-    expect(recoveries / seeds).toBeLessThan(0.55)
+    expect(inYear.back / seeds).toBeLessThanOrEqual(0.05)
+    expect(overall.back / seeds).toBeLessThanOrEqual(0.1)
+    expect(inYear.recovering / seeds).toBeLessThanOrEqual(0.15)
+    expect(overall.recovering / seeds).toBeLessThanOrEqual(0.25)
   })
 })

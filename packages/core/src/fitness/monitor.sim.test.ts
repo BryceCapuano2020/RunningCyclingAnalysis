@@ -149,7 +149,7 @@ describe('recovery', () => {
   it('confirms an abrupt return as recovering within weeks and back within a year', () => {
     const result = after(dip(0.08), 40)
     expect(quantile(result.recovering, 0.5)).toBeLessThanOrEqual(10)
-    expect(within(result.recovering, 20)).toBeGreaterThanOrEqual(0.8)
+    expect(within(result.recovering, 52)).toBeGreaterThanOrEqual(0.85)
     expect(within(result.back, 52)).toBeGreaterThanOrEqual(0.6)
     expect(result.early).toBeLessThanOrEqual(10)
   })
@@ -158,7 +158,7 @@ describe('recovery', () => {
     const result = after(dip(0.08, 26), 40)
     const abrupt = after(dip(0.08), 40)
     expect(quantile(result.recovering, 0.5)).toBeGreaterThan(quantile(abrupt.recovering, 0.5))
-    expect(within(result.recovering, 40)).toBeGreaterThanOrEqual(0.7)
+    expect(within(result.recovering, 52)).toBeGreaterThanOrEqual(0.75)
   })
 
   it('does not call a return back that stays short of the old level by more than the tolerance', () => {
@@ -166,24 +166,28 @@ describe('recovery', () => {
     expect(within(result.back, 100)).toBeLessThanOrEqual(0.3)
   })
 
-  it('never says back when the level stays down, and says recovering falsely in under 4 in 10 within a year', () => {
+  it('rarely says recovering or back when the level stays down: 10% within a year, 20% within 2.5 years', () => {
+    // Shown states, as the athlete sees them: a state has to hold for two weekly evaluations.
+    const seeds = 60
+    let year = 0
+    let long = 0
     let backs = 0
-    let recoveringInYear = 0
-    const seeds = 40
     for (let seed = 1; seed <= seeds; seed++) {
       const spec: SimSpec = {
-        weeks: 210,
+        weeks: 200,
         perWeek: 3,
+        bad: 0.03,
         planted: [{ type: 'step', week: 60, size: -0.08 }],
       }
       const records = replaySim(simulate(spec, seed), spec.weeks)
-      const slip = firstWeekOf(records, 60, 'slipping')!
+      const slip = firstWeekOf(records, 55, 'slipping')!
+      const rec = records.find((r) => r.w >= slip && r.shown === 'recovering')
+      if (rec !== undefined && rec.w - slip < 52) year++
+      if (rec !== undefined && rec.w - slip < 130) long++
       if (records.some((r) => r.w >= slip && r.state === 'back')) backs++
-      const r = firstWeekOf(records, slip, 'recovering')
-      if (r !== null && r - slip < 52) recoveringInYear++
     }
-    expect(backs).toBe(0)
-    // The research measured 28% over 2.4 years of a persistent loss (18% at one steady run a week); this sim shows about 30% in the first year.
-    expect(recoveringInYear / seeds).toBeLessThanOrEqual(0.4)
+    expect(year / seeds).toBeLessThanOrEqual(0.1)
+    expect(long / seeds).toBeLessThanOrEqual(0.2)
+    expect(backs / seeds).toBeLessThanOrEqual(0.05)
   })
 })

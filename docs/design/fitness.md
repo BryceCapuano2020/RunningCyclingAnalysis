@@ -38,8 +38,8 @@ Evaluated at the end of each week from the first with a reference (12 runs over 
 A slip is a window contrast at scales (4, 32), (8, 32), (16, 48), (26, 78) weeks with z <= -3.3 and a loss of
 at least 4% on two weeks running; the onset is the best split of the last 40 weeks; the reference is then
 frozen for the episode. The episode moves between slipping, holding below (24-week trend flat within 5%),
-recovering (a rise against the episode's own low, a 26-week trend or a rise from the 20-week trough, two weeks
-running) and back (a 12-week level within 1% of the reference with a lower bound above -2%, three weeks
+recovering (the contrast against the episode's own low and the 26-week trend both firing, or the rise from the 20-week
+trough on its own at z of 6.5, two weeks running) and back (a 12-week level within 1% of the reference with a lower bound above -2%, three weeks
 running), which closes after 12 weeks. A new state is shown after it has held two weekly evaluations, unless
 it begins when the athlete was calm. All numbers are in one table, `fitness/params.ts`. The state machine
 agrees record for record with the research prototype on simulated series.
@@ -64,5 +64,13 @@ about a quarter of an alarm per athlete-year.
    enough recent evidence" without changing the monitor's state.
 4. Known gaps, measured: a seasonal swing of 3% amplitude gives 0.7 alarms an athlete-year (budget 0.4); every
    nuisance at once about 0.55; a watch or strap change of 3 to 5% reads as a real slip, since the data cannot
-   tell them apart. In a persistent loss about 3 in 10 libraries get a false "recovering" within a year; none
-   get "back".
+   tell them apart.
+5. "Recovering" is a headline claim, so it is held to a stricter bar than a slip. Before tuning, about 1 in 9
+   persistent-loss libraries was called recovering within a year and 1 in 3 within 2.5 years (on harness libraries,
+   with a wider wander, 1 in 5 and 1 in 2). The contrast and the trend now have to agree, and the trough rule, which
+   compares with the lowest of many levels and so reads wander as a rise, stands alone only at z of 6.5. Now: 3%
+   within a year and 8% within 2.5 years at run level (6% and 15% on harness libraries); "back" about 1%. The cost is
+   a slower confirmation: after an abrupt return of 8%, a median of 7 weeks to "recovering" (about 6 before), and
+   94% within a year (87% on harness libraries); a return spread over half a year takes a median of 24 weeks.
+   The other levers tried (higher z everywhere, a larger or growing model-error floor, longer confirmation, longer
+   windows) either cut true recoveries as fast as false ones or did little; see the table in the PR.
