@@ -1,7 +1,7 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
 import { EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../constants'
-import { criticalPowerOutcome, fitCriticalPowerUnchecked, unevenFit, wPrimeFloor } from '../cp'
+import { criticalPowerOutcome, unevenFit, wPrimeFloor } from '../cp'
 import type { UnevenFit } from '../cp'
 import { checkEfforts } from '../effort'
 import { requirePositiveFinite } from '../math'
@@ -13,12 +13,10 @@ import type {
   CriticalPowerFit,
   CriticalPowerRefusal,
   Curve,
-  DigestCurvePoint,
   EffortCheck,
   HrCalibration,
   HrCrossCheck,
   Interval,
-  Sport,
   VirtualPowerAccuracy,
 } from '../types'
 import { plainCurve } from './bestCurve'
@@ -28,16 +26,11 @@ import type { BikeModelSource } from '../virtualPower'
 import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
-import {
-  bestCurves,
-  centralWkgFromWatts,
-  fitBikeModelOver,
-  measuredRideBest,
-  rideWattsAt,
-  runCentralWkg,
-} from './rideCurves'
+import { judgedCurves } from './judgedCurves'
+import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
+import type { EstimatedRideGate } from './estimatedRide'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
-import { trustedHeartRate, withoutSetAside } from './trustedHeartRate'
+import { withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
 import type { HeartRateJudgement } from './setAsideTypes'
 
@@ -203,6 +196,12 @@ export interface CombineOptions {
    * period is on screen. Absent, they are taken from these digests alone.
    */
   references?: Pick<HeartRateJudgement, 'referenceHr' | 'observedMaxHr'>
+  /**
+   * The library's estimated-ride gate (`HeartRateJudgement.rideGate`): which rides without a power meter count
+   * toward the bests, as the athlete's measured rides' heart rate says. Given, every period reads rides by the
+   * same rule. Absent, it is built from these digests; null counts every estimated point.
+   */
+  rideGate?: EstimatedRideGate | null
 }
 
 /**
@@ -230,34 +229,18 @@ export function combine(
       ? leaveOneOutAccuracy(calibrated, (digest) => masses.totalKg(digest))
       : null
 
-  const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = bestCurves(
-    ordered,
-    masses,
-    bikeModel,
-    massKg,
-  )
+  const { curves, fits, heart } = judgedCurves(ordered, masses, bikeModel, massKg, {
+    heartRateSetAside: opts.heartRateSetAside,
+    rideGate: opts.rideGate,
+  })
+  const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = curves
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
   const rideMeasuredCurve = plainCurve(measuredRideBest(ordered))
   const rideMetabolicCurve = rideMetabolic
 
-  const runFit = fitCriticalPowerUnchecked(runCurve)
-  const rideFit = fitCriticalPowerUnchecked(rideMetabolicCurve)
-  // Each sport's points priced in its fit's unit, so a best effort is judged against its threshold.
-  const fitUnit: Record<Sport, (digest: ActivityDigest, point: DigestCurvePoint) => number> = {
-    run: (_digest, point) => runCentralWkg(point),
-    ride: (digest, point) =>
-      centralWkgFromWatts(
-        rideWattsAt(point, masses.totalKg(digest), bikeModel),
-        masses.bodyKg(digest),
-      ),
-  }
-  const heart = trustedHeartRate(
-    ordered,
-    { run: runFit, ride: rideFit },
-    (digest, point) => fitUnit[digest.sport](digest, point),
-    opts.heartRateSetAside,
-  )
+  const runFit = fits.run
+  const rideFit = fits.ride
 
   // Heart rate tracks metabolic power linearly only while the effort is aerobic; above critical
   // power it flattens toward maximum. Blocks are selected on power, never on heart rate, because

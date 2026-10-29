@@ -1,4 +1,9 @@
-import { FLAT_RUN_COST, PRIORS, RUN_COST_CORRECTION } from '@rca/core/constants'
+import {
+  ESTIMATED_RIDE_MIN_SHARE,
+  FLAT_RUN_COST,
+  PRIORS,
+  RUN_COST_CORRECTION,
+} from '@rca/core/constants'
 import { ENERGY_RATE_UNIT } from '@rca/core/units'
 import {
   DEFAULT_WINDOW_DAYS,
@@ -104,6 +109,7 @@ const TOPIC_LIST = [
     title: 'Virtual power meter',
     plain: [
       'Rides without a power meter get an estimated power on climbs, from speed, gradient and weight. The model is fitted to your rides that have a power meter, and its accuracy is checked on each ride with that ride left out of the fit. Only climbs are used, because wind and drafting dominate on flat roads.',
+      `An estimated effort counts toward your bests only when your heart rate backs it: at least ${Math.round(ESTIMATED_RIDE_MIN_SHARE * 100)}% of the heart rate your power-meter rides show at that power for that duration. With no heart rate, an estimate never beats a measured effort.`,
     ],
     detail:
       'Air density follows the altitude in the file, using the International Standard Atmosphere ' +

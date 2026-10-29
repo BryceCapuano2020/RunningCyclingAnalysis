@@ -3,6 +3,7 @@ import { sameMasses } from './athlete/mass'
 import { combine, sportCurves } from './digest/combine'
 import type { CombineOptions } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
+import type { EstimatedRideGate } from './digest/estimatedRide'
 import { lateEvidence } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import { sameHeartRate } from './digest/sameHeartRate'
@@ -59,6 +60,16 @@ function calibrationKey(calibration: HrCalibration | null | undefined): string {
   return calibration === null ? 'none' : `${calibration.kappa}|${calibration.lnKappaSe}`
 }
 
+/**
+ * A ride gate as a key: gates with the same lines are the same key, so an activity that leaves the lines as they are
+ * does not redo a period; none, and the period's own, are each their own. Whose heart rate is trusted is in the
+ * set-aside key, so it is not repeated.
+ */
+function gateKey(gate: EstimatedRideGate | null | undefined): string {
+  if (gate === undefined) return 'own'
+  return gate === null ? 'none' : JSON.stringify([...gate.lines])
+}
+
 /** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
 const ANALYSES_KEPT = 4
 
@@ -77,11 +88,12 @@ export class PeriodCache {
       startMs: number | null
       equivalence: boolean
       calibration: string
+      gate: string
       points: TrendPoint[]
     }
   >()
-  private previousEntry: (Inputs & { previous: ActivityDigest[]; curves: SportCurves }) | null =
-    null
+  private previousEntry:
+    (Inputs & { previous: ActivityDigest[]; gate: string; curves: SportCurves }) | null = null
   // Output at the same heart rate reads no mass, so its key is the digests, the period's start and the set-aside.
   // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
   private sameEntries: {
@@ -103,6 +115,7 @@ export class PeriodCache {
     setAside: string
     calibration: string
     references: string
+    gate: string
     analysis: AnalysisResult
   })[] = []
 
@@ -114,7 +127,8 @@ export class PeriodCache {
    * than judging the period alone. Only the ids in this period's digests can change its analysis, so those
    * are the key: an activity added outside the period does not redo it. The library's `calibration` and
    * `references` (its reference heart rates) are part of the key too, since they set the equivalents and the
-   * effort checks, and are read by every period alike.
+   * effort checks, and are read by every period alike. So is the library's `rideGate`, which decides which
+   * rides without a power meter count.
    */
   analysis(
     selected: ActivityDigest[],
@@ -122,15 +136,18 @@ export class PeriodCache {
     setAside: readonly string[],
     calibration?: HrCalibration | null,
     references?: CombineOptions['references'],
+    rideGate?: EstimatedRideGate | null,
   ): AnalysisResult {
     const key = setAsideAmong(selected, setAside)
     const calibrationId = calibrationKey(calibration)
     const referencesId = JSON.stringify(references ?? null)
+    const gateId = gateKey(rideGate)
     const hit = this.analysisEntries.findIndex(
       (entry) =>
         entry.setAside === key &&
         entry.calibration === calibrationId &&
         entry.references === referencesId &&
+        entry.gate === gateId &&
         sameInputs(entry, selected, settings),
     )
     if (hit >= 0) {
@@ -142,6 +159,7 @@ export class PeriodCache {
       heartRateSetAside: new Set(setAside),
       calibration,
       references,
+      rideGate,
     })
     this.analysisEntries.unshift({
       selected,
@@ -149,6 +167,7 @@ export class PeriodCache {
       setAside: key,
       calibration: calibrationId,
       references: referencesId,
+      gate: gateId,
       analysis,
     })
     this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)
@@ -183,11 +202,12 @@ export class PeriodCache {
     startMs: number | null,
     bikeModel: BikeModel | undefined,
     hr: HrCalibration | null | undefined,
+    rideGate?: EstimatedRideGate | null,
   ): Record<EffortLengthS, TrendPoint[]> {
     return Object.fromEntries(
       EFFORT_LENGTHS_S.map((durationS) => [
         durationS,
-        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, hr),
+        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, hr, rideGate),
       ]),
     ) as Record<EffortLengthS, TrendPoint[]>
   }
@@ -201,6 +221,7 @@ export class PeriodCache {
     bikeModel: BikeModel | undefined,
     durationS: EffortLengthS,
     hr: HrCalibration | null | undefined,
+    rideGate: EstimatedRideGate | null | undefined,
   ): TrendPoint[] {
     const equivalence = hr !== undefined && durationS === HEADLINE_DURATION_S
     const cached = this.trendEntries.get(durationS)
@@ -210,6 +231,7 @@ export class PeriodCache {
       cached.startMs === startMs &&
       cached.equivalence === equivalence &&
       cached.calibration === calibrationKey(hr) &&
+      cached.gate === gateKey(rideGate) &&
       sameInputs(cached, selected, settings)
     ) {
       return cached.points
@@ -219,6 +241,7 @@ export class PeriodCache {
       windowDays: trendWindowDays(rangeDays),
       fromMs: startMs ?? undefined,
       bikeModel,
+      rideGate,
       equivalence: equivalence && hr !== undefined ? { hr } : undefined,
     })
     this.trendEntries.set(durationS, {
@@ -228,6 +251,7 @@ export class PeriodCache {
       startMs,
       equivalence,
       calibration: calibrationKey(hr),
+      gate: gateKey(rideGate),
       points,
     })
     return points
@@ -289,17 +313,20 @@ export class PeriodCache {
     previous: ActivityDigest[],
     settings: AthleteSettings,
     bikeModel: BikeModel,
+    rideGate?: EstimatedRideGate | null,
   ): SportCurves {
     const cached = this.previousEntry
+    const gate = gateKey(rideGate)
     if (
       cached !== null &&
+      cached.gate === gate &&
       sameInputs(cached, selected, settings) &&
       sameDigests(cached.previous, previous)
     ) {
       return cached.curves
     }
-    const curves = sportCurves(previous, settings, bikeModel)
-    this.previousEntry = { selected, settings, previous, curves }
+    const curves = sportCurves(previous, settings, bikeModel, rideGate)
+    this.previousEntry = { selected, settings, previous, gate, curves }
     return curves
   }
 }

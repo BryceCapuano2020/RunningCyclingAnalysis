@@ -1178,7 +1178,15 @@ The grade chart's extra durations and the level target use it too, so the ride's
 share one conversion. Because it is the library's, adding files can shift older equivalents (the calibration
 refits over everything), where a period's own check moved only with that period. A ride without a power meter is
 the exception to period independence: its watts come from a bike model fitted over the period's own
-power-meter rides, so those watts, and the pace they are worth, can still differ by period.
+power-meter rides, so those watts, and the pace they are worth, can still differ by period. Whether such a ride's
+point counts at all is the library's call (`HeartRateJudgement.rideGate`, built by `rideGateOf` in
+`digest/estimatedRide.ts`): for each curve duration a robust line (Theil-Sen, refitted without the points under
+the tolerance, never read beyond the fitted watts) of the heart rate of the trusted power-meter rides on their
+watts, and an estimated window counts toward the bests, curves, thresholds, records and trends only if its mean
+heart rate is at least `ESTIMATED_RIDE.minShare` (90%) of the line at its watts. A window with no trusted heart rate
+counts only where the set holds no measured point at that duration. Fewer than 6 power-meter rides with heart rate
+give no gate and nothing changes. It is a combine-time rule on the digest's `terms`, so `MODEL_REVISION` is
+unchanged. Periods, trends, the previous period and records all take the library's gate, so they agree.
 Changing the period does not judge again. The reference it was judged against is the library's, which can differ from a
 period's own figure, so the notes on a set-aside heart rate cite it ("under 70% of your reference heart rate across all your
 activities (200 bpm running)", on How sure is this? and on the activity), and cannot seem to contradict the period's. With too

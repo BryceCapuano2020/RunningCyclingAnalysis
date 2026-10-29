@@ -22,7 +22,7 @@ export const HR_LOW_FOR_POWER = {
 } as const
 
 /** One activity's level: its median heart rate and its median output over the 5 min blocks, in its sport's unit. */
-interface Level {
+export interface Level {
   id: string
   output: number
   heartRate: number
@@ -66,13 +66,13 @@ function levelFrom(digest: ActivityDigest): Level | null {
 }
 
 /** A line heart rate = intercept + slope * output, by the median of the pairwise slopes (Theil-Sen). */
-interface Line {
+export interface Line {
   intercept: number
   slope: number
 }
 
 /** The robust line through the levels, or null when its slope is not positive: a heart rate that does not rise with output. */
-function fitLine(levels: Level[]): Line | null {
+export function fitLine(levels: Level[]): Line | null {
   // Ordered by output, then id, before subsampling, so the line does not depend on the order digests arrive in.
   const ordered = levels.slice().sort((a, b) => a.output - b.output || (a.id < b.id ? -1 : 1))
   const stride = Math.max(1, Math.ceil(ordered.length / HR_LOW_FOR_POWER.maxFitPoints))
