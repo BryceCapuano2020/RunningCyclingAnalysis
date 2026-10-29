@@ -76,4 +76,45 @@ describe('RouteShape', () => {
 
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('marks the start with a ring and the finish with a dot, in either colouring', () => {
+    const { container } = render(<RouteShape shape={WIDE} sport="run" />)
+
+    const [ring, , , dot] = [
+      '.route-shape__start-ring',
+      '.route-shape__start-fill',
+      '.route-shape__finish-halo',
+      '.route-shape__finish',
+    ].map((selector) => container.querySelector(selector))
+    // Each is a zero-length stroke at the first or last point, sized in px, not in the shape's units.
+    expect(ring?.getAttribute('d')).toBe('M 0 0 L 0 0')
+    expect(dot?.getAttribute('d')).toBe('M 0 0 L 0 0')
+    expect(ring?.getAttribute('vector-effect')).toBe('non-scaling-stroke')
+  })
+
+  describe('coloured by pace', () => {
+    const pace = [0, 0.4, 1, 0.2]
+
+    it('draws a segment for each stretch, thicker the faster it was, and keys the colours', () => {
+      const { container } = render(<RouteShape shape={WIDE} sport="run" segmentPace={pace} />)
+
+      expect(
+        screen.getByRole('img', { name: 'Route shape of this run, coloured by pace' }),
+      ).toBeInTheDocument()
+      const segments = [...container.querySelectorAll<SVGPathElement>('.route-shape__segment')]
+      expect(segments).toHaveLength(4)
+      expect(container.querySelector('polyline')).toBeNull()
+      const widths = segments.map((segment) => Number.parseFloat(segment.style.strokeWidth))
+      expect(widths[2]).toBeGreaterThan(widths[1]!)
+      expect(widths[1]).toBeGreaterThan(widths[0]!)
+      expect(container.querySelector('.route-shape__key')).toHaveTextContent('SlowerFaster')
+    })
+
+    it('stays in the sport’s colour when the paces do not fit the outline', () => {
+      const { container } = render(<RouteShape shape={WIDE} sport="run" segmentPace={[0.5, 0.5]} />)
+
+      expect(container.querySelector('polyline')).not.toBeNull()
+      expect(container.querySelector('.route-shape__key')).toBeNull()
+    })
+  })
 })

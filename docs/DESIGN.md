@@ -17,7 +17,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/`               | Balance           | The answer as a scoreboard (a headline, a plain first sentence and the gap as a display figure), the level scale for both sports (Where you stand), what changed since the previous period, four tiles (each sport's threshold, the lean, the ride on foot), evidence, the grade by duration at the page's width, one fitness trend for both sports on one scale with weekly training hours by sport under it, share sheet                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, the best 20 min's heart-rate share, a line of recent form, records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, the best-effort curve in pace or watts under the records (previous period dashed) with where the bests stand out as its caption, race predictions (runs), a weekly trend for 5, 20 or 60 minutes, output at the same heart rate, late in long sessions, time in zones, and one "Not enough yet" list for any section with nothing to show                                                                                                                                                                       |
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `#/activities/:id` | Activity          | Moving time and the figures beside it (beside the route shape from 761 px, under it on a phone), In detail (timelines, laps, intervals and how your reps held up, and time in zones), a Walking pace chip for a run at walking pace, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `#/activities/:id` | Activity          | Moving time and the figures as tiles beside the route shape (the route and figures stand in a column beside the timeline from 1100 px), In detail (one aligned timeline of the measures with a crosshair, laps, intervals and how your reps held up, and time in zones), a Walking pace chip for a run at walking pace, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check with the 20 minute effort under it, virtual-power accuracy, what is calculated and how this works                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, Settings over time (dated weight, max heart rate and thresholds: a form and a table of entries, latest date first within each setting), Training zones (a table for each sport and measure, with where its reference came from), account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), each a count by sport and the months it spans with a link to Activities, where an activity is opened and deleted, then Remove activities, which says Clear the analysis when nothing is kept |
 
@@ -228,6 +228,16 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--zone-ink-3`         | `#ffffff`   | `#0e1116`   | Text on zone 3 of either sport (4.5:1 or better)                                                                                           |
 | `--zone-ink-4`         | `#ffffff`   | `#0e1116`   | Text on zone 4 of either sport (4.5:1 or better)                                                                                           |
 | `--zone-ink-5`         | `#ffffff`   | `#0e1116`   | Text on zone 5 of either sport (4.5:1 or better)                                                                                           |
+| `--ch-pace`            | `#1b8a4d`   | `#3fc27a`   | Activity page: pace or speed channel                                                                                                       |
+| `--ch-power`           | `#b86400`   | `#f0a030`   | Activity page: power channel                                                                                                               |
+| `--ch-heartrate`       | `#b02e9a`   | `#e072cc`   | Activity page: heart rate channel                                                                                                          |
+| `--ch-cadence`         | `#8c8210`   | `#e2e25a`   | Activity page: cadence channel                                                                                                             |
+| `--ch-elevation`       | `#6e675c`   | `#a39c90`   | Activity page: elevation channel                                                                                                           |
+| `--ch-pace-soft`       | `#1b8a4d26` | `#3fc27a33` | Pace band and area fill                                                                                                                    |
+| `--ch-power-soft`      | `#b8640026` | `#f0a03033` | Power band and area fill                                                                                                                   |
+| `--ch-heartrate-soft`  | `#b02e9a26` | `#e072cc33` | Heart rate band and area fill                                                                                                              |
+| `--ch-cadence-soft`    | `#8c821026` | `#e2e25a2e` | Cadence band and area fill                                                                                                                 |
+| `--ch-elevation-soft`  | `#6e675c33` | `#a39c9040` | Elevation area fill                                                                                                                        |
 | `--status-warning`     | `#8a5300`   | `#f2b544`   | Warning icon and label                                                                                                                     |
 | `--status-warning-bg`  | `#fbf2d9`   | `#33290c`   | Warning chip background                                                                                                                    |
 | `--status-critical`    | `#b3261e`   | `#ff8a80`   | Error icon and label; destructive button background                                                                                        |
@@ -717,7 +727,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   estimated." The line links to How sure is this?. The pipeline writes an average power only from a
   power meter, so the **Estimated** mark on the activity page and in its list row guards a summary that
   carries estimated watts.
-- **How your reps held up** sits in an activity's In detail section, under the lap buttons (a Laps row shows for two or more recorded laps, since one lap is the whole activity, and Suggested intervals show when none were recorded), when the activity
+- **How your reps held up** sits in an activity's In detail section, under the lap strip (a Laps strip shows for two or more recorded laps, since one lap is the whole activity, and Suggested intervals show when none were recorded), when the activity
   has at least 3 laps (the device's, or the suggested intervals when it recorded none) of about one length:
   within 20% of the middle one's duration. Recoveries between reps are left out only where they alternate with
   the reps: where the sorted outputs part by 15% or more and the hard laps all sit at places of one parity, the
@@ -742,7 +752,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Distance, average pace or speed over the moving time, climb, average heart rate with the highest 30 s
   average (the stream's own highest reading is higher), and average power follow. An indoor ride reports no
   speed anywhere, since a trainer's speed is virtual rather than measured on a road. Then **In detail** (the
-  time selection, the measures, the lap buttons, how your reps held up, the plots, the figures for the
+  measures, the lap strip, the timeline and its brush, how your reps held up, the figures for the
   selection and time in zones), then, for a ride without a power meter, the line "Power here is estimated
   from speed and climbs. No power meter recorded it." Earlier and Later name the activities either side in
   the library, then the all-time records as chips, each linking to its sport's page (underlined on hover, not
@@ -1088,7 +1098,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   (`apps/web/src/ui/components/methodCalculated.ts`): _Calculated by this app_ (from the files: the balance
   and levels, thresholds and their ranges, best efforts and curves, race predictions, output at the same heart
   rate, the level target, grade by duration, bests that stand out, virtual power, splits, moving time and
-  climb, the time at each pace in In detail, time in zones, late in long sessions, how your reps held up,
+  climb, the timeline in In detail, time in zones, late in long sessions, how your reps held up,
   weekly hours by sport, runs at walking pace, dated settings and estimated zones, the equivalence across
   sports, best effort week by week, and the heart-rate set-aside), _Read from your files_ (as the
   device recorded it: the sport, start time, distance and route, heart rate, power from a meter, and the
@@ -1221,16 +1231,52 @@ How the time was spread across the training zones above, in one activity's selec
 sport's period. The maths is `packages/core/src/zones` (`timeInZones.ts`, `traceZones.ts`, `periodTime.ts`,
 `zoneShares.ts`); the research notes are in [research/zones.md](research/zones.md#5-time-in-zones).
 
-**Activity page, In detail: the plots.** A plot's axis holds the readings the run held, not the artifacts at its ends. A
-pace (or a ride's speed) spans its 2nd to 99.5th percentile of moving readings, the slow end cut harder since a start, a stop or a dropout is slow and a stride or a descent is real (`readingBand` in
-`packages/core/src/workbench/band.ts`), and so does its histogram, so a standing start or a stop leaves neither a crushed
-axis nor empty bins. A cut removes nothing from a selection too short for it (under fifty readings at the slow end, two hundred at the fast end), and a band a cut would collapse to a single value is left whole.
-What lies past each end is a dot on the plot's edge, a line under the plot ("Past the axis, marked at its edge: 24 s slower
-than 6:39 /km, 28 s faster than 4:25 /km.") and a row at each end of the histogram's table, so the table still adds up to
-the moving time; the interval summary keeps the true extremes. The summary's extremes read Fastest and Slowest for a pace
+**Activity page, In detail: the timeline.** The measures stand in one figure, each in its own row at true pixel proportions
+(never a stretched SVG), all on one time axis and under one crosshair, in `ui/charts/TimeSeriesStack.tsx` (the arithmetic is
+`timeSeriesModel.ts`, which knows nothing of activities). Each row draws a smoothed line, a rolling mean as wide as a
+hundred and seventy-fifth of what is in view (3 s at least, so a lap shows its detail, and two minutes over a six-hour ride,
+which reads as a trend), and a light band behind it, the usual spread of the raw readings in each pixel: their 10th to 90th percentile, so a few
+strays do not set it and it does not routinely fill the row. Power's band leaves out the coasting zeros (the line's mean keeps
+them), and the band fades from full strength where a pixel is a second or two to about half where it is twenty seconds or more,
+so an overview's spread is quiet behind its trend. The line breaks across a gap of more than two seconds, the recorders' sample rate, and bridges a hiccup of one
+or two. Elevation is an area. Each measure has its own colour (the `--ch-*` tokens: pace green, power amber, heart rate
+magenta, cadence olive, elevation stone), which reaches 3:1 on the card in both schemes and stays at least 15 CIEDE2000 from
+the others and from the run, ride and swim hues (`channelTokens.test.ts`); the sport hue still only means a sport. A row's
+axis is fitted to its smoothed line, from the 1st to the 99th percentile, with 8% of room round it and never narrower than a
+fifth of the raw readings' own span (so a flat trend is drawn flat; a measure that cannot be negative is not widened below zero), and a pace axis never reaches zero speed, which would be an
+infinite pace. A raw reading past the axis (a power spike, a standing start) clips at the row's edge. It is marked only where it is more than
+15% of the axis's span past it, with one small tick, in the row's colour at reduced opacity, to each 8 px, and keyed "Reading past
+the axis" under the plot while any is drawn. The band is a spread, not the extremes: the table twin and the interval summary keep
+the true lowest and highest of every reading, spikes included. A
+pace is read faster upward, and its ticks fall on round paces (4:30, not 4:32). There is no histogram: the time in zones says how
+time was spread, with its own table.
+The readout above the plot is the chart system's readout row, kept at every width (five measures at once would cover the plot
+if they floated): at the cursor it gives the elapsed time, the distance and each measure's value (the line's, and nothing in a
+paused or unrecorded stretch), and with no cursor the selection's averages, the same as the interval summary's. Arrow keys
+move the cursor by a hundredth of the window (a second at least), Home and End jump to the ends, Escape clears it, and the readout is
+announced to a screen reader from when the plot gains keyboard focus (not for a press, a pointer sweeping, or the idle averages); on a phone a touch scrubs and keeps its reading after the finger lifts. Pauses and
+gaps in the recording are marks on a lane under the rows (a pause solid grey, a gap hatched), and the readings the analysis
+left out are ticks on their own row, each keyed under the plot only for the kinds the window holds. Every second lap is
+shaded behind the rows. The laps, or the intervals found in the readings, are one strip above the plot. Up to eight are
+numbered buttons as wide as the lap was long, at least a finger wide; more are a proportional bar (a number in a segment only
+where it fits) with the chosen lap's name, duration, pace or speed and heart rate in a line under it, one stop in the tab order
+with Left and Right (and Home and End) stepping from lap to lap, so Up and Down still scroll. Choosing a lap zooms the timeline to it. The interval is set by a brush
+over a small overview of the whole activity (elevation where there is any): drag an end (by how far it moves, so a grab
+off its centre does not jump), the window or the empty track; each end is a slider with named values ("Start 12 min 30 s"),
+and a disclosure under it ("0:00 to 6:13:37 · Set by time") sets either end by typed time. The plot lets a vertical drag
+scroll the page; only the brush takes the touch. The summary's extremes read Fastest and Slowest for a pace
 and Lowest and Highest otherwise, so a pace is a table of its own, which says it leaves out stops; beside the elapsed time and
-distance it gives the average pace, or speed, as the header does: distance over moving time. The interval's two sliders are
-the native range input with a track and thumb drawn from the tokens, a control tall, and in forced colours from system colours.
+distance it gives the average pace, or speed, as the header does: distance over moving time. Opening a 6-hour ride at 1 Hz with
+five measures, building every row's columns and paths, takes about 15 ms here (budget 40), a brush step about 10 (budget 25) and a
+cursor step a fraction of a millisecond (`workbenchChannels.perf.test.ts`, `timeSeriesModel.perf.test.ts`); the heavy figures
+follow the brush through `useDeferredValue`, and the rows are not redrawn when the cursor moves.
+
+**Activity page: the route tile.** The route is a tile about 160 px tall, drawn at the track's true aspect, with the start a ring and the
+finish a dot (shapes, not colours). Where the activity's readings are on the device and the pace varied (the 10th to the 90th percentile
+differ by 5% or more) the line is coloured by pace on a ramp from the neutral grey of secondary text (slow) to the pace green (fast), kept apart for protan, deutan and tritan vision (`channelTokens.test.ts`), with a thicker stroke the faster it
+was, and keyed "Slower, Faster"; a route that held one pace is the sport's colour with no key. The outline carries no time or distance by design, so each
+segment stands for the share of the distance that the path's length gives it (`routePace.ts`): a guide to where the pace was high or low,
+read from the trace already on the device, and nothing is sent.
 
 **Activity page, In detail.** Under the interval summary, a **Time in zones** block follows the interval the
 athlete selects: one stacked bar for each of power (rides with a power meter), pace (runs) and heart rate that the interval

@@ -33,7 +33,7 @@ describe('What is calculated', () => {
       /stand out/,
       /Virtual power/,
       /Splits/,
-      /Time at each pace/,
+      /The timeline in detail/,
       /Time in zones/,
       /Heart-rate set-aside/,
       /Late in long sessions/,
