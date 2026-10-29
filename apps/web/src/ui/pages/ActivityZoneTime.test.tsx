@@ -63,14 +63,10 @@ describe('ActivityZoneTime', () => {
   it('follows the interval: each part of the run is read in its own zones', () => {
     const trace = twoPartRun()
     const { unmount } = show(trace, [heartRate200], 0, 60)
-    expect(
-      screen.getByText('All of this run was in heart rate zone 1 (100%).'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('All of this run was in heart rate zone 1 (100%).')).toBeInTheDocument()
     unmount()
     show(trace, [heartRate200], 60, 120)
-    expect(
-      screen.getByText('All of this run was in heart rate zone 3 (100%).'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('All of this run was in heart rate zone 3 (100%).')).toBeInTheDocument()
   })
 
   it('says no zone held half when the time is spread', () => {

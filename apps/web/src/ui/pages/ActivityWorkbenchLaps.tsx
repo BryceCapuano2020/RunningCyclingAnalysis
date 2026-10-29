@@ -1,5 +1,6 @@
 import type { ActivityLap, ActivityTrace } from '@rca/core/workbench'
 import { formatRecordTime, formatTotalTime } from '@rca/core/units'
+import { MIN_LAPS } from '../components/lapRows'
 import { suggestedIntervals } from './workbenchData'
 import type { Selection } from './workbenchTime'
 
@@ -17,7 +18,8 @@ export function LapChoices({
 }) {
   const recorded = trace.laps.length > 0
   const laps: ActivityLap[] = recorded ? trace.laps : suggestedIntervals(trace)
-  if (laps.length === 0) return null
+  // One recorded lap is the whole activity, which the whole-activity selection already is. A lone suggestion is a finding.
+  if (laps.length === 0 || (recorded && laps.length < MIN_LAPS)) return null
   const name = recorded ? 'Lap' : 'Interval'
   return (
     <div className="activity-workbench__laps">

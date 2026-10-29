@@ -128,6 +128,15 @@ describe('ActivityWorkbench', () => {
     expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('4 s')
   })
 
+  it('shows no Laps row for a single recorded lap, which is the whole activity', async () => {
+    const trace = runTrace()
+    trace.laps = [{ startS: 0, endS: 10 }]
+    show(trace)
+    await screen.findByText('Elapsed time')
+    expect(screen.queryByRole('heading', { name: 'Laps' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Lap 1/ })).not.toBeInTheDocument()
+  })
+
   it('names suggested intervals by number and start instead of repeating one label', async () => {
     const trace = steadyTrace(400)
     trace.streams.power = Float32Array.from({ length: 400 }, (_, index) =>

@@ -620,7 +620,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   estimated." The line links to How sure is this?. The pipeline writes an average power only from a
   power meter, so the **Estimated** mark on the activity page and in its list row guards a summary that
   carries estimated watts.
-- **How your reps held up** sits in an activity's In detail section, under the lap buttons, when the activity
+- **How your reps held up** sits in an activity's In detail section, under the lap buttons (a Laps row shows for two or more recorded laps, since one lap is the whole activity, and Suggested intervals show when none were recorded), when the activity
   has at least 3 laps (the device's, or the suggested intervals when it recorded none) of about one length:
   within 20% of the middle one's duration. Recoveries between reps are left out only where they alternate with
   the reps: where the sorted outputs part by 15% or more and the hard laps all sit at places of one parity, the
