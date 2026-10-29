@@ -14,6 +14,12 @@ import {
 } from '../digest/rideCurves'
 import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
 
+/** The ride or run holding the best value at a duration. */
+interface Best {
+  id: string
+  value: number
+}
+
 /** A best effort an activity holds across a library: a duration best, or a run distance best. */
 export type EarnedRecord =
   { kind: 'duration'; durationS: number } | { kind: 'distance'; distanceM: RunRecordDistanceM }
@@ -21,7 +27,8 @@ export type EarnedRecord =
 /**
  * A ride point's value for comparing rides: its watts, or with dated body masses its watts per kilogram of
  * the body mass on its day, so the record is held by the same ride the best-effort curve shows. NaN for an
- * estimate the athlete's heart rate does not back (see ESTIMATED_RIDE), which holds no record.
+ * estimate the athlete's heart rate does not back (see ESTIMATED_RIDE), which holds no record. `alone` is an
+ * estimate with no heart rate that stands at its own duration only.
  */
 function rideValueAt(
   point: DigestCurvePoint,
@@ -29,9 +36,9 @@ function rideValueAt(
   masses: Masses,
   bikeModel: BikeModel,
   standing: EstimatedStanding,
-): number {
-  const { watts } = ridePriced(point, digest, masses, bikeModel, standing)
-  return masses.dated ? centralWkgFromWatts(watts, masses.bodyKg(digest)) : watts
+): { value: number; alone: boolean } {
+  const { watts, alone } = ridePriced(point, digest, masses, bikeModel, standing)
+  return { value: masses.dated ? centralWkgFromWatts(watts, masses.bodyKg(digest)) : watts, alone }
 }
 
 /**
@@ -62,20 +69,33 @@ export function recordHolders(
 
   for (const sport of ['run', 'ride'] satisfies Sport[]) {
     const own = eligible.filter((digest) => digest.sport === sport)
+    // The record at the nearest shorter duration that has one: an estimate that stands alone is kept only under it,
+    // as on the curve, so a longer duration never reads higher than a shorter one.
+    let shorter = Number.POSITIVE_INFINITY
     for (const [index, durationS] of DURATIONS_S.entries()) {
-      let best: { id: string; value: number } | null = null
+      const bests = { held: null as Best | null, alone: null as Best | null }
       for (const digest of own) {
         const point = pointAt(digest, index)
         if (!point) continue
-        const value =
+        const { value, alone } =
           sport === 'run'
-            ? runCentralWkg(point)
+            ? { value: runCentralWkg(point), alone: false }
             : rideValueAt(point, digest, masses, bikeModel, standing)
-        if (Number.isFinite(value) && (best === null || value > best.value)) {
-          best = { id: digest.id, value }
+        const kind = alone ? 'alone' : 'held'
+        if (alone && value > shorter) continue
+        if (Number.isFinite(value) && (bests[kind] === null || value > bests[kind].value)) {
+          bests[kind] = { id: digest.id, value }
         }
       }
-      if (best !== null) give(best.id, { kind: 'duration', durationS })
+      const { held: heldBest, alone: aloneBest } = bests
+      const best =
+        aloneBest !== null && (heldBest === null || aloneBest.value > heldBest.value)
+          ? aloneBest
+          : heldBest
+      if (best !== null) {
+        give(best.id, { kind: 'duration', durationS })
+        shorter = best.value
+      }
     }
   }
 

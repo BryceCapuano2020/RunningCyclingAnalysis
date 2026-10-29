@@ -84,12 +84,18 @@ export function bestOfEach(
     }
   })
   const curve = bestCurve(split.map((d) => d.backed))
-  const standing = mergeCurves(split.map((d) => d.standing))
+  // Ascending, so a standing point is held to the finished curve at the nearest shorter duration with a value: the
+  // curve stays non-increasing, and an estimate never reads higher than a shorter effort. Each candidate is held to it
+  // before the best is taken, so a lower one stands when a higher one cannot.
+  let shorter = Number.POSITIVE_INFINITY
   return curve.map((point, i) => {
-    const alone = standing[i]
-    return alone !== undefined && !Number.isNaN(alone.value) && !(alone.value <= point.value)
-      ? alone
-      : point
+    let placed = point
+    for (const { standing } of split) {
+      const alone = standing[i]!
+      if (alone.value <= shorter && !(alone.value <= placed.value)) placed = alone
+    }
+    if (!Number.isNaN(placed.value)) shorter = placed.value
+    return placed
   })
 }
 
