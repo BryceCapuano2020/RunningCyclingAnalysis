@@ -630,7 +630,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   pattern every lap is a rep, so a rep that blew up is the fade shown. The table is for structured intervals
   only: every rep after the first must follow a recovery, which is the laps between it and the rep before
   being all clearly slower (15% or more below the reps' middle output) or shorter (20% or more below their
-  middle length), or, with no lap between, a rest of 10 s or more that no lap covers (`recoversBetween`).
+  middle length) and not faster than the reps, or, with no lap between, a rest of 10 s or more that no lap covers (`recoversBetween`).
   Equal laps run one into the next at a steady effort, such as a watch's mile auto-laps, are splits, not
   reps, so they get no table. Every rep needs the measure it is read in, and none
   is dropped for want of one. A run is read as flat pace where its altitude gives a grade for each rep, so a hill

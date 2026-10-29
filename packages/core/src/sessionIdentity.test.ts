@@ -23,8 +23,8 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * failure (13 of the 24), so the flags in `library` and `result`, the heart rate masked there, and `timeInZones` move
  * with it; the trends, same-heart-rate, late-evidence, previous, records and period are as before.
  * Re-pinned for period-independent zones. `heartRateJudgement` gains the library's `observedMaxHr` (every period, since the
- * judgement is the library's). The new `zoneEstimates` field is the library-wide thresholds and reference heart rates that
- * zones are cut from, and is the same under every period. A period's analysis now takes the library's reference heart
+ * judgement is the library's) and its reported threshold `fit`s. The new `zoneEstimates` field is the library-wide thresholds
+ * and reference heart rates that zones are cut from, and is the same under every period. A period's analysis now takes the library's reference heart
  * rates, so the one period that is not the whole library (the custom range) moves `result` where its own maximum differed
  * (three of four settings; the set-aside library's custom range under Auckland), and the zones of every period are cut by
  * the library's references, which moves `timeInZones` where the period's own references differed.

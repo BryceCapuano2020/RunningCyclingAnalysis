@@ -240,8 +240,25 @@ describe('repFadeOf', () => {
     expect(fade.reps.map((r) => r.lapNumber)).toEqual([2, 4, 6, 8, 10, 12])
   })
 
+  it('does not take a short fast surge between laps for a recovery', () => {
+    // Five 5 min laps at 3.6 m/s with a 60 s lap at 3.7 m/s between each: shorter, but not slower, so not a rest.
+    const stretches: Stretch[] = []
+    const laps: [number, number][] = []
+    let at = 0
+    for (let i = 0; i < 5; i++) {
+      stretches.push({ seconds: 300, speed: 3.6 })
+      laps.push([at, at + 300])
+      at += 300
+      if (i === 4) break
+      stretches.push({ seconds: 60, speed: 3.7 })
+      laps.push([at, at + 60])
+      at += 60
+    }
+    expect(repFadeOf(repsTrace('run', stretches, laps), OUTDOOR)).toBeNull()
+  })
+
   it('shows reps whose recoveries are shorter laps at the same pace', () => {
-    // A 30 s walking-pace-free standing rest lap is shorter than the 5 min reps by more than a fifth.
+    // A 60 s lap between 5 min reps is shorter than them by more than a fifth, at their pace, and not faster.
     const stretches: Stretch[] = []
     const laps: [number, number][] = []
     let at = 0

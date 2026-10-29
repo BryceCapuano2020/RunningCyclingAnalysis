@@ -75,7 +75,7 @@ export function gradeProfile(
   return Object.fromEntries(SPORT_ORDER.map((sport) => [sport, pointsOf(sport)])) as GradeProfile
 }
 
-/** A duration with both sports graded: the gap between their centre grades, and which way the balance reads it. */
+/** A duration with both sports graded: the gap between their centre grades, and which way the range alone reads it. */
 export interface Lean {
   durationS: number
   /** The first sport's centre grade less the second's, in whole points, as the balance takes it. */

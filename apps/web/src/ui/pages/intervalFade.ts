@@ -12,7 +12,7 @@ import type { Selection } from './workbenchTime'
  * level. A split of splitGap or more between the hard laps and the easy ones means the easy ones are
  * the recoveries between, which are left out. A recovery between two reps is a lap that is clearly slower
  * (splitGap or more below the reps' middle output) or clearly shorter (lengthTolerance or more below their
- * middle length), or, with no lap between, a rest of restS or more that no lap covers.
+ * middle length) and not faster than the reps, or, with no lap between, a rest of restS or more that no lap covers.
  */
 export const REP_FADE = {
   minReps: 3,
@@ -139,7 +139,7 @@ function recoversBetween(
   const repLength = median(chosen.map((i) => lengths[i]!))
   const isRecovery = (lap: number) =>
     outputs[lap]! <= repOutput * (1 - REP_FADE.splitGap) ||
-    lengths[lap]! <= repLength * (1 - REP_FADE.lengthTolerance)
+    (lengths[lap]! <= repLength * (1 - REP_FADE.lengthTolerance) && outputs[lap]! <= repOutput)
   return chosen.every((lap, k) => {
     if (k === 0) return true
     const before = chosen[k - 1]!

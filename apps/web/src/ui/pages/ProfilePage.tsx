@@ -299,7 +299,7 @@ export function ProfilePage({
       />
       <ZoneTables
         athlete={athlete}
-        result={analysis.state.isSample ? null : analysis.state.zoneEstimates}
+        estimates={analysis.state.isSample ? null : analysis.state.zoneEstimates}
         weightKnown={weightKnown(settings)}
         units={shownUnits}
       />

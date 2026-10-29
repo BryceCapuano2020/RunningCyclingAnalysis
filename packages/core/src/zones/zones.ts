@@ -68,7 +68,7 @@ export function zonesFor(measure: ZoneMeasure, reference: number): Zone[] {
   }))
 }
 
-/** What an analysis offers as references: the threshold fits and the reference heart rates. */
+/** What the zones take as references: the threshold fits and the reference heart rates. */
 export type ZoneEstimates = Pick<
   AnalysisResult,
   | 'runCp'
@@ -151,8 +151,8 @@ const ESTIMATE: Record<Sport, Partial<Record<ZoneMeasure, Estimate>>> = {
  * any other feature that needs zones asks here with an activity's start.
  *
  * A dated setting the athlete entered (settings.measurements) wins: the entry in effect on the local
- * date, by the policy on Measurement. Otherwise the zones come from `estimates`, the analysis the
- * athlete is looking at, and are marked estimated. A sport and measure with neither are left out.
+ * date, by the policy on Measurement. Otherwise the zones come from `estimates`, the whole library's
+ * thresholds and reference heart rates (`zoneEstimatesOf`), the same under every period, and are marked estimated. A sport and measure with neither are left out.
  */
 export function zonesAt(
   at: number,
