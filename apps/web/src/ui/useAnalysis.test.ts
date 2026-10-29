@@ -855,6 +855,32 @@ describe('useAnalysis account handling', () => {
         expect(restarted.posted.at(-1)).toEqual({ type: 'keepProvisional', settings: SETTINGS })
       })
 
+      it('ignores the kept library’s late replies once a sign-in is found, even if the account fails to load', () => {
+        const { result, rerender } = setup(UNREACHABLE)
+        act(() => result.current.addFiles([FILE]))
+        rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+        const device = {
+          id: 'run-1',
+          name: 'Run',
+          startMs: Date.UTC(2026, 9, 20),
+          sport: 'run' as const,
+          copy: SAVED_COPY,
+        }
+
+        // The kept library's answer arrives late: its list, then its state.
+        act(() => worker().reply({ type: 'libraryActivities', activities: [device] }))
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 5 } }))
+        expect(result.current.savedActivities).toEqual([])
+        expect(result.current.state.totalActivities).toBe(0)
+
+        // Then the provisional analysis (dropped), the clear, and a library that fails to load.
+        settle({ ...STATE, totalActivities: 1 })
+        settle()
+        act(() => worker().reply({ type: 'error', message: 'Library down' }))
+        expect(result.current.savedActivities).toEqual([])
+        expect(result.current.state.totalActivities).toBe(0)
+      })
+
       it('sends nothing to keep when no file was analysed meanwhile', () => {
         const { rerender } = setup(UNREACHABLE)
         finishDeviceLoad()

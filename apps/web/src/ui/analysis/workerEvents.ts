@@ -94,6 +94,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         return
       }
       if (message.type === 'libraryActivities') {
+        if (isStaleDeviceList(current)) return
         // Also read at once by rememberKeptLibrary, ahead of the render that sets the state.
         current.library.savedActivitiesRef.current = message.activities
         current.library.setSavedActivities(message.activities)
@@ -175,6 +176,27 @@ function rememberKeptLibrary(
   ) {
     setKeptLibraryHinted(kept)
   }
+}
+
+/** The requests whose answer lists the library kept in this browser. */
+const DEVICE_LIST_KINDS = new Set<Pending['kind']>([
+  'loadDevice',
+  'keepProvisional',
+  'deleteDeviceActivity',
+])
+
+/**
+ * Whether the list of activities kept in this browser, posted ahead of the reply to the oldest request
+ * waiting, should be dropped: that request was overtaken by a Start over or a sign-in, or the page is
+ * signed in, where the browser's own library is never listed.
+ */
+function isStaleDeviceList(deps: WorkerEventDeps): boolean {
+  const front = deps.transport.pendingRepliesRef.current[0]
+  if (front === undefined) return false
+  return (
+    isOvertaken(deps.transport, front) ||
+    (DEVICE_LIST_KINDS.has(front.kind) && deps.accountRef.current.status === 'signed-in')
+  )
 }
 
 /**

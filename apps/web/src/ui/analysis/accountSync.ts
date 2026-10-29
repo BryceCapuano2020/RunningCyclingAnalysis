@@ -218,6 +218,14 @@ function loadSignedInLibrary(deps: AccountTransitionDeps, userId: string): void 
   // nothing analysed since was written to it, so it goes from the page before the account loads.
   const keptShown = deps.deviceLoaded()
   deps.library.dropNotSaved()
+  if (keptShown) {
+    // Replies to what was sent for the kept library or the provisional analysis are overtaken, so
+    // nothing of the browser's own library or of those files shows on the signed-in page.
+    deps.transport.dropProvisional()
+    deps.transport.sessionEpochRef.current += 1
+    deps.library.savedActivitiesRef.current = []
+    deps.library.setSavedActivities([])
+  }
   if (batches.length > 0 || keptShown) {
     deps.clearSession()
     deps.library.libraryWaitRef.current.push(...batches)
