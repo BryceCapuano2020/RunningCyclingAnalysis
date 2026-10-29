@@ -6,12 +6,12 @@ import { fastestMs } from './test/timing'
 /**
  * What "See a sample athlete" costs: the season is drawn second by second and digested in the worker
  * before the first result shows. A cold load takes about 0.35 s of CPU locally (planning alone under 5 ms),
- * and a load of a season the worker already holds is the analysis alone. The cold budget is about twice
- * the cold time, so a season that grows by a few dozen long sessions, or a drawing that gets several times
+ * and a load of a season the worker already holds is the analysis alone. The cold budget is about three
+ * times the idle cold time (it ran 1.4 s at a machine load of 60, so 800 ms failed on a busy runner), so a season that grows by a few dozen long sessions, or a drawing that gets several times
  * slower, fails it even on a loaded runner. The earlier budget was six times the time and passed a sevenfold
  * slowdown.
  */
-const COLD_LOAD_BUDGET_MS = 800
+const COLD_LOAD_BUDGET_MS = 1000
 const WARM_LOAD_BUDGET_MS = 150
 const PLAN_BUDGET_MS = 50
 const WEEK_MS = 7 * 86_400_000
