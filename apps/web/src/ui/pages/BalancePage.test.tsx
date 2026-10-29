@@ -235,8 +235,8 @@ describe('BalancePage', () => {
       return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
     })
     expect(rows).toHaveLength(2)
-    expect(rows[0]).toMatch(/^Run \d+% \w+/)
-    expect(rows[1]).toMatch(/^Ride \d+% \w+/)
+    expect(rows[0]).toMatch(/^Running \d+% \w+/)
+    expect(rows[1]).toMatch(/^Cycling \d+% \w+/)
     // The levels come after the meter and before the period control.
     const meter = container.querySelector('.balance-meter') as Node
     const picker = screen.getByText('Period picker')
@@ -870,7 +870,7 @@ describe('BalancePage with one sport', () => {
     const rows = container.querySelectorAll('.balance-levels__row')
     expect(rows).toHaveLength(1)
     expect(rows[0]).toHaveAttribute('data-sport', 'run')
-    expect(rows[0]).toHaveTextContent(/^Run\s*\d+%\s*Local/)
+    expect(rows[0]).toHaveTextContent(/^Running\s*\d+%\s*Local/)
     expect(container.querySelector('.balance-meter')).toBeNull()
   })
 

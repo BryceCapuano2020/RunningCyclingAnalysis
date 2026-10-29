@@ -48,6 +48,41 @@ describe('BalanceMeter with a grade gap', () => {
     expect(image).toHaveAccessibleName(/range 2 to 10 points/)
   })
 
+  it('adds what the range says to the spoken name only: it holds, or the two could be level', () => {
+    const { container, rerender } = render(<BalanceMeter reading={leaning('run')} />)
+    expect(screen.getByRole('img')).toHaveAccessibleName(/, so the lead holds across the range$/)
+    expect(container.textContent).not.toMatch(/so the lead holds/)
+    rerender(<BalanceMeter reading={gapReading({ centre: 9, low: -4, high: 18, lean: 'run' })} />)
+    expect(screen.getByRole('img')).toHaveAccessibleName(/, so the two could be level$/)
+  })
+
+  it('marks a lead past the scale beside the name of the sport it runs toward, and no other', () => {
+    const { container, rerender } = render(
+      <BalanceMeter reading={gapReading({ centre: 40, low: 34, high: 46, lean: 'run' })} />,
+    )
+    const caps = () =>
+      [...container.querySelectorAll('.balance-meter__end')].map(
+        (end) => end.querySelector('.balance-meter__cap')?.textContent ?? null,
+      )
+    expect(caps()).toEqual(['30+', null])
+    rerender(
+      <BalanceMeter reading={gapReading({ centre: -40, low: -46, high: -34, lean: 'ride' })} />,
+    )
+    expect(caps()).toEqual([null, '30+'])
+    rerender(<BalanceMeter reading={energyReading(interval(1.6, 1.9, 2.2))} />)
+    expect(caps().join('')).toBe('30%+')
+    rerender(<BalanceMeter reading={gapReading({ centre: 30, low: 30, high: 30, lean: 'run' })} />)
+    expect(caps()).toEqual([null, null])
+  })
+
+  it('tells the stylesheet how many characters the number, its unit and the range take', () => {
+    const { container } = render(<BalanceMeter reading={leaning('run')} />)
+    const reading = container.querySelector<HTMLElement>('.balance-meter__reading')
+    expect(reading?.style.getPropertyValue('--number-chars')).toBe('2')
+    expect(reading?.style.getPropertyValue('--unit-chars')).toBe('3')
+    expect(reading?.style.getPropertyValue('--range-chars')).toBe(String('range 2 to 10'.length))
+  })
+
   it('names the cycling lead in the same words, with the sport that leads first', () => {
     render(<BalanceMeter reading={leaning('ride')} />)
     expect(screen.getByRole('img')).toHaveAccessibleName(/Cycling grades 6 points higher/)

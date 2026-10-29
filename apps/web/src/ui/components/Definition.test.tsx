@@ -10,6 +10,11 @@ afterEach(cleanup)
 
 const MEANING = 'Your pace, scored against the standard for your age and sex.'
 
+/** A pointer coming to rest on a term: a mouse unless told otherwise. */
+function rest(root: HTMLElement, pointerType = 'mouse'): void {
+  fireEvent.pointerEnter(root, { pointerType })
+}
+
 function noteOf(button: HTMLElement): HTMLElement {
   const note = document.getElementById(button.getAttribute('aria-controls') ?? '')
   if (note === null) throw new Error('The button controls nothing')
@@ -81,14 +86,45 @@ describe('Definition', () => {
   })
 
   describe('by pointer', () => {
+    it('opens for a resting pen, and not for a resting touch, which has no hover and leaves it stuck on iOS', () => {
+      render(<Definition meaning={MEANING}>age grade</Definition>)
+      const root = screen
+        .getByRole('button', { name: 'age grade' })
+        .closest('.definition') as HTMLElement
+      rest(root, 'touch')
+      expect(root).toHaveAttribute('data-open', 'false')
+      rest(root, 'pen')
+      expect(root).toHaveAttribute('data-open', 'true')
+    })
+
+    it('does not open for a mouse on a device that cannot hover, as a phone reports it', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query !== '(hover: hover)',
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }))
+      try {
+        render(<Definition meaning={MEANING}>age grade</Definition>)
+        const root = screen
+          .getByRole('button', { name: 'age grade' })
+          .closest('.definition') as HTMLElement
+        rest(root)
+        expect(root).toHaveAttribute('data-open', 'false')
+        fireEvent.click(screen.getByRole('button', { name: 'age grade' }))
+        expect(root).toHaveAttribute('data-open', 'true')
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
+
     it('shows the note while a pointer rests on the term, and hides it when the pointer leaves', () => {
       render(<Definition meaning={MEANING}>age grade</Definition>)
       const button = screen.getByRole('button', { name: 'age grade' })
       const root = button.closest('.definition') as HTMLElement
-      fireEvent.mouseEnter(root)
+      rest(root)
       expect(root).toHaveAttribute('data-open', 'true')
       expect(button).toHaveAttribute('aria-expanded', 'true')
-      fireEvent.mouseLeave(root)
+      fireEvent.pointerLeave(root)
       expect(root).toHaveAttribute('data-open', 'false')
     })
 
@@ -97,8 +133,8 @@ describe('Definition', () => {
       const button = screen.getByRole('button', { name: 'age grade' })
       const root = button.closest('.definition') as HTMLElement
       fireEvent.click(button)
-      fireEvent.mouseEnter(root)
-      fireEvent.mouseLeave(root)
+      rest(root)
+      fireEvent.pointerLeave(root)
       expect(root).toHaveAttribute('data-open', 'true')
     })
 
@@ -107,10 +143,14 @@ describe('Definition', () => {
       const root = screen
         .getByRole('button', { name: 'age grade' })
         .closest('.definition') as HTMLElement
-      fireEvent.mouseEnter(root)
+      rest(root)
       expect(root).toHaveAttribute('data-open', 'true')
       fireEvent.keyDown(document, { key: 'Escape' })
       expect(root).toHaveAttribute('data-open', 'false')
+    })
+
+    it('wraps its words whatever it sits in, so a term inside a no-wrap line does not make a one-line note', () => {
+      expect(ruleBody(css, '.definition__note')).toMatch(/white-space:\s*normal/)
     })
 
     it('has no stylesheet rule of its own for hover: the state decides, so a keyboard and a pointer agree', () => {
@@ -152,7 +192,7 @@ describe('Definition', () => {
     fireEvent.click(two)
     expect(one).toHaveAttribute('aria-expanded', 'false')
     expect(two).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.mouseEnter(three.closest('.definition') as HTMLElement)
+    rest(three.closest('.definition') as HTMLElement)
     expect(two).toHaveAttribute('aria-expanded', 'false')
     expect(three).toHaveAttribute('aria-expanded', 'true')
   })

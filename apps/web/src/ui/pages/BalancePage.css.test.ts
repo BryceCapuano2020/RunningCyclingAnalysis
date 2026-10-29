@@ -3,6 +3,8 @@ import { mediaBlock, readStylesheet } from '../components/stylesheet'
 import { BALANCE_PHONE_MAX_WIDTH_PX, HEADLINE_SMALL_MAX_WIDTH_PX } from '../layoutBreakpoints'
 
 const page = await readStylesheet(import.meta.url, './BalancePage.css')
+const meter = await readStylesheet(import.meta.url, '../components/BalanceMeter.css')
+const levels = await readStylesheet(import.meta.url, './BalanceLevels.css')
 
 describe('Balance page stylesheet', () => {
   it('sets the headline a step smaller at the width named in layoutBreakpoints.ts, and names that constant beside it', () => {
@@ -26,6 +28,12 @@ describe('Balance page stylesheet', () => {
     const phone = mediaBlock(page, `(max-width: ${BALANCE_PHONE_MAX_WIDTH_PX}px)`)
     expect(page).toContain('BALANCE_PHONE_MAX_WIDTH_PX')
     expect(phone).toMatch(/\.balance-hero--answer \.eyebrow \{[^}]*display:\s*none/)
+  })
+
+  it('tightens the meter and the levels at the same width, so the phone layout changes at one place', () => {
+    const query = `(max-width: ${BALANCE_PHONE_MAX_WIDTH_PX}px)`
+    expect(mediaBlock(meter, query)).toMatch(/\.balance-meter__number/)
+    expect(mediaBlock(levels, query)).toMatch(/\.balance-levels__list/)
   })
 
   it('draws no underline under a keyboard-focused headline, since the sport it names carries the only one', () => {

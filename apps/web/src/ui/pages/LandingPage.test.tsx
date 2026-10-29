@@ -241,7 +241,7 @@ describe('LandingPage', () => {
     expect(example.querySelector('.balance-meter__value')?.textContent).toBe('+11pts')
     expect(example.querySelector('.balance-meter__edges')?.textContent).toBe('6 to 16')
     const rows = [...example.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(['Run 67% Local', 'Ride 56% Recreational to Local'])
+    expect(rows).toEqual(['Running 67% Local', 'Cycling 56% Recreational to Local'])
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()
     // The line is named for a screen reader.
     expect(

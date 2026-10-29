@@ -60,7 +60,7 @@ describe('LandingExample', () => {
     expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+11pts')
     expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('6 to 16')
     const rows = [...container.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(['Run 67% Local', 'Ride 56% Recreational to Local'])
+    expect(rows).toEqual(['Running 67% Local', 'Cycling 56% Recreational to Local'])
   })
 
   it('draws no level scale, ring or table: the meter and one line a sport are all it shows', () => {

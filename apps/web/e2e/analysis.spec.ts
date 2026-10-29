@@ -285,7 +285,9 @@ test('at 1440 by 900 the meter, its value and both levels are on the first scree
   expect(first).toContain('balance-meter')
   // The answer is a line: no scale drawing, no ladder.
   await expect(page.locator('.balance-meter__value')).toHaveText('+11pts')
-  await expect(page.locator('.balance-hero svg:not(.icon), .balance-scale')).toHaveCount(0)
+  // The line is HTML, not a drawing: nothing in the answer's stack is an SVG but the sport glyphs.
+  await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
+  await expect(page.locator('.balance-hero__pair svg:not(.icon)')).toHaveCount(0)
 })
 
 // A phone holds the whole line on its first screen, the sample notice and all: at 390 by 844 and at 320 by 640 the
@@ -399,8 +401,10 @@ test('the meter is named in words and its value and levels are text, none under 
   await expect(page.locator(TRACK)).toHaveAccessibleName(
     /^Running grades 11 points higher than cycling \(range 6 to 16/,
   )
-  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Run\s*67%\s*Local/)
-  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(/Ride\s*56%\s*Recreational to Local/)
+  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Running\s*67%\s*Local/)
+  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(
+    /Cycling\s*56%\s*Recreational to Local/,
+  )
   const sizes = await page
     .locator(
       '.balance-meter__value > *, .balance-meter__range, .balance-meter__ends, .balance-levels__row > *',
@@ -411,4 +415,173 @@ test('the meter is named in words and its value and levels are text, none under 
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(0)
+})
+
+// On a phone a defined term's note is a sheet at the window's foot. It is fixed to the window, so no box around a
+// term may be transformed, filtered or contained, or the sheet would be squeezed into that box (it was, once, into a
+// 90 px column over the headline).
+for (const [width, height] of [
+  [390, 844],
+  [320, 640],
+] as const) {
+  test(`at ${width} by ${height} the range and level notes are sheets at the window's foot`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await openSample(page)
+    const terms = [
+      page.getByRole('button', { name: 'range', exact: true }),
+      page.locator(LEVEL_ROWS).first().getByRole('button'),
+    ]
+    for (const term of terms) {
+      await term.focus()
+      await page.keyboard.press('Enter')
+      await expect(term).toHaveAttribute('aria-expanded', 'true')
+      const id = await term.getAttribute('aria-controls')
+      const box = await page.locator(`[id="${id}"]`).boundingBox()
+      if (box === null) throw new Error('the note has no box')
+      expect(box.width).toBeGreaterThanOrEqual(width - 1)
+      expect(box.x).toBeLessThanOrEqual(1)
+      expect(box.y + box.height).toBeGreaterThanOrEqual(height - 1)
+      expect(box.y + box.height).toBeLessThanOrEqual(height + 1)
+      expect(box.height).toBeLessThan(height / 2)
+      // The note's words wrap inside it, whatever line the term sits in: none runs past its right edge.
+      expect(
+        await page.locator(`[id="${id}"]`).evaluate((note) => note.scrollWidth - note.clientWidth),
+      ).toBeLessThanOrEqual(0)
+      await page.keyboard.press('Escape')
+      await expect(term).toHaveAttribute('aria-expanded', 'false')
+    }
+  })
+}
+
+test('no box around a defined term is transformed, filtered or contained, on Balance or a sport page', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openSample(page)
+  const guard = () =>
+    page.evaluate(() => {
+      const bad: string[] = []
+      const terms = document.querySelectorAll('.definition')
+      for (const term of terms) {
+        for (let node = term.parentElement; node !== null; node = node.parentElement) {
+          const style = getComputedStyle(node)
+          const risky = [
+            ['transform', style.transform, 'none'],
+            ['filter', style.filter, 'none'],
+            ['backdrop-filter', style.backdropFilter, 'none'],
+            ['perspective', style.perspective, 'none'],
+            ['contain', style.contain, 'none'],
+            ['container-type', style.containerType, 'normal'],
+            [
+              'will-change',
+              /transform|filter|perspective/.test(style.willChange) ? style.willChange : 'auto',
+              'auto',
+            ],
+          ].filter(([, value, fine]) => value !== fine)
+          for (const [name, value] of risky) bad.push(`${node.className} ${name}: ${value}`)
+        }
+      }
+      return { terms: terms.length, bad }
+    })
+  const balance = await guard()
+  expect(balance.terms).toBeGreaterThan(3)
+  expect(balance.bad).toEqual([])
+  for (const sport of ['Run', 'Ride'] as const) {
+    await goTo(page, sport)
+    const found = await guard()
+    expect(found.terms, sport).toBeGreaterThan(0)
+    expect(found.bad, sport).toEqual([])
+  }
+})
+
+/**
+ * Sets the meter's reading to a lead the sample does not give: where its dot sits, and the words and the character
+ * counts the stylesheet keeps clear of the track's ends, as the component sets them.
+ */
+async function setReading(
+  page: Page,
+  reading: { at: string; number: string; unit: string; range: string },
+): Promise<void> {
+  await page.evaluate((r) => {
+    const root = document.querySelector<HTMLElement>('.balance-meter__reading')
+    const dot = document.querySelector<HTMLElement>('.balance-meter__dot')
+    if (root === null || dot === null) throw new Error('no meter')
+    dot.style.setProperty('--at', r.at)
+    root.style.setProperty('--at', r.at)
+    root.style.setProperty('--number-chars', String(r.number.length))
+    root.style.setProperty('--unit-chars', String(r.unit.length))
+    root.style.setProperty('--range-chars', String(r.range.length))
+    const set = (selector: string, text: string) => {
+      const node = root.querySelector(selector)
+      if (node !== null) node.textContent = text
+    }
+    set('.balance-meter__number', r.number)
+    set('.balance-meter__unit', r.unit)
+    set('.balance-meter__edges', r.range)
+  }, reading)
+}
+
+// The reading under the dot stays whole inside the window at either end of the scale, and with a long range, at
+// every width: its number, its hanging unit and its range line.
+for (const [width, height] of [
+  [1440, 900],
+  [390, 844],
+  [320, 640],
+] as const) {
+  test(`at ${width} the reading stays inside the window at the ends of the scale and with a long range`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await openSample(page)
+    const cases = [
+      { at: '2.5%', number: '+100', unit: 'pts', range: '84 to 120' },
+      { at: '97.5%', number: '+100', unit: 'pts', range: '84 to 120' },
+      { at: '2.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
+      { at: '97.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
+      { at: '50%', number: '+12', unit: '%', range: '-12.4% to +130.5%' },
+    ]
+    for (const reading of cases) {
+      await setReading(page, reading)
+      const boxes = await page.evaluate(() => {
+        const rect = (selector: string) => {
+          const box = document.querySelector(selector)?.getBoundingClientRect()
+          return box === undefined ? null : { left: box.left, right: box.right }
+        }
+        return ['.balance-meter__number', '.balance-meter__unit', '.balance-meter__range'].map(rect)
+      })
+      for (const box of boxes) {
+        if (box === null) throw new Error('a part of the reading is missing')
+        expect(box.left, JSON.stringify(reading)).toBeGreaterThanOrEqual(0)
+        expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(width)
+      }
+      // Each line stays one line: the range does not wrap into a column, and the page does not scroll sideways.
+      const heights = await page.evaluate(() =>
+        ['.balance-meter__number', '.balance-meter__range'].map(
+          (selector) =>
+            (document.querySelector(selector)?.getBoundingClientRect().height ?? 0) /
+            parseFloat(getComputedStyle(document.querySelector(selector) as Element).lineHeight),
+        ),
+      )
+      for (const lines of heights) expect(lines, JSON.stringify(reading)).toBeLessThan(1.6)
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+        JSON.stringify(reading),
+      ).toBeLessThanOrEqual(0)
+    }
+  })
+}
+
+test('the number is centred under the dot, with its unit hanging off to the right', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openSample(page)
+  const dot = await page.locator('.balance-meter__dot').boundingBox()
+  const number = await page.locator('.balance-meter__number').boundingBox()
+  const unit = await page.locator('.balance-meter__unit').boundingBox()
+  if (dot === null || number === null || unit === null) throw new Error('no meter boxes')
+  expect(number.x + number.width / 2).toBeCloseTo(dot.x + dot.width / 2, 0)
+  expect(unit.x).toBeGreaterThanOrEqual(number.x + number.width)
 })

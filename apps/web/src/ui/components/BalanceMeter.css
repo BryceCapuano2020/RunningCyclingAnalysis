@@ -54,12 +54,14 @@
 }
 
 /*
- * The dot and the value both take their place from --at. The dot stays whole inside the track's ends; the value
- * is centred under the dot and held inside the plot, so at either end of the scale it still fits.
+ * The dot and the value both take their place from --at. The dot stays whole inside the track's ends. The value is
+ * centred on the dot by a zero-width anchor and flex centring, not a transform: a transformed box would become the
+ * containing block of a defined term's fixed sheet on a phone, and the sheet would be squeezed into it. The anchor
+ * is held inside the plot by the room the reading's own characters take (--number-chars, --unit-chars and
+ * --range-chars, which the component sets), so at either end of the scale it still fits.
  */
 .balance-meter__plot {
   --dot-edge: 0.75rem;
-  --reading-edge: 4.25rem;
   position: relative;
   padding-bottom: 5rem;
 }
@@ -152,27 +154,41 @@
   background: var(--series-ride);
 }
 
-/* The value and its range, centred under the dot. */
+/* The value and its range, centred under the dot: the number is centred on it, and its unit hangs off to the right. */
 .balance-meter__reading {
+  /* The room each side of the anchor: the number's half (a digit of the display face is about 0.62rem), with its unit on the right, or the range line's half. */
+  --edge-left: max(
+    calc(var(--number-chars, 3) * 0.62rem),
+    calc(var(--range-chars, 14) * 0.5ch + var(--space-1))
+  );
+  --edge-right: max(
+    calc(var(--number-chars, 3) * 0.62rem + var(--space-2) + var(--unit-chars, 3) * 0.8rem),
+    calc(var(--range-chars, 14) * 0.5ch + var(--space-1))
+  );
   position: absolute;
   top: 2.25rem;
-  left: clamp(var(--reading-edge), var(--at), calc(100% - var(--reading-edge)));
-  display: grid;
-  justify-items: center;
+  left: clamp(var(--edge-left), var(--at), calc(100% - var(--edge-right)));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 0;
   gap: var(--space-1);
-  transform: translateX(-50%);
+  font-size: var(--text-sm);
   text-align: center;
   white-space: nowrap;
 }
 
 .balance-meter__reading > p {
+  flex: none;
   margin: 0;
+  /* Set on the lines themselves: a rule for paragraphs resets it, and a wrapped range would be a column. */
+  white-space: nowrap;
 }
 
 .balance-meter__value {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 0;
   align-items: baseline;
-  gap: var(--space-2);
   font-family: var(--font-display);
   font-weight: 800;
   line-height: 0.9;
@@ -186,6 +202,7 @@
 }
 
 .balance-meter__unit {
+  margin-left: var(--space-2);
   color: var(--text-muted);
   font-size: var(--text-lead);
   letter-spacing: var(--tracking-caps);
@@ -201,6 +218,11 @@
 .balance-meter__basis {
   color: var(--text-muted);
   font-size: var(--text-xs);
+}
+
+/* A lead past the scale is drawn at its end; this mark beside the sport's name says it runs beyond. */
+.balance-meter__cap {
+  color: var(--text-secondary);
 }
 
 @media (max-width: 479px) {

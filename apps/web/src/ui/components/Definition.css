@@ -50,6 +50,9 @@
   letter-spacing: normal;
   line-height: 1.4;
   text-transform: none;
+  /* A note wraps whatever it sits in: a term in a line that does not wrap must not make its note one line. */
+  white-space: normal;
+  text-align: start;
   transform: translateX(var(--definition-shift, 0px));
 }
 

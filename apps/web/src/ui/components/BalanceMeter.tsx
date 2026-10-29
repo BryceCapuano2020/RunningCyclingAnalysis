@@ -1,11 +1,11 @@
 import type { CSSProperties } from 'react'
 import { SPORT_ORDER, SPORT_TITLE } from '../sports'
 import { balanceSentence } from './headlineText'
-import { EVEN_LABEL, meterFraction, type BalanceReading } from './balanceScale'
+import { EVEN_LABEL, capText, cappedEnds, meterFraction, type BalanceReading } from './balanceScale'
 import { DEFINITIONS } from '../pages/balanceDefinitions'
 import { Definition } from './Definition'
 import { SportIcon } from './icons'
-import { meterRange, meterValue } from './meterReading'
+import { RANGE_WORD, meterRange, meterValue, rangeVerdictText, readingChars } from './meterReading'
 import './BalanceMeter.css'
 
 export interface BalanceMeterProps {
@@ -28,6 +28,23 @@ function placedAt(lead: number): CSSProperties {
   return { '--at': `${percentAt(lead)}%` } as CSSProperties
 }
 
+/** The balance's name for a screen reader: the sentence, and for a grade lead what its range says. */
+function nameOf(reading: BalanceReading): string {
+  const verdict = rangeVerdictText(reading)
+  return verdict === null ? balanceSentence(reading) : `${balanceSentence(reading)}, ${verdict}`
+}
+
+/** The reading's place and its size in characters, which the stylesheet keeps clear of the track's ends. */
+function readingStyle(reading: BalanceReading): CSSProperties {
+  const chars = readingChars(reading)
+  return {
+    ...placedAt(reading.lead.centre),
+    '--number-chars': chars.number,
+    '--unit-chars': chars.unit,
+    '--range-chars': chars.range,
+  } as CSSProperties
+}
+
 /**
  * The balance between the two sports as one line: the dot is the best estimate and the band behind it the
  * range. The value and the range are written right under the dot, so the line needs no key. The sport on
@@ -40,6 +57,9 @@ export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
   const bandRight = Math.max(...bandEdges)
   const value = meterValue(reading)
   const range = meterRange(reading)
+  const capped = cappedEnds(lead)
+  const cappedSport = { run: capped.running, ride: capped.cycling }
+  const cap = capText(reading.unit)
 
   return (
     <figure className={`scale-figure balance-meter balance-meter--${lean}`}>
@@ -47,15 +67,17 @@ export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
         <span className="balance-meter__end balance-meter__end--left" data-sport={LEFT}>
           <SportIcon sport={LEFT} className="balance-meter__glyph" />
           {SPORT_TITLE[LEFT]}
+          {cappedSport[LEFT] ? <span className="balance-meter__cap">{cap}</span> : null}
         </span>
         <span className="balance-meter__even-label">{EVEN_LABEL}</span>
         <span className="balance-meter__end balance-meter__end--right" data-sport={RIGHT}>
+          {cappedSport[RIGHT] ? <span className="balance-meter__cap">{cap}</span> : null}
           <SportIcon sport={RIGHT} className="balance-meter__glyph" />
           {SPORT_TITLE[RIGHT]}
         </span>
       </div>
       <div className="balance-meter__plot">
-        <div className="balance-meter__track" role="img" aria-label={balanceSentence(reading)}>
+        <div className="balance-meter__track" role="img" aria-label={nameOf(reading)}>
           <span
             className="balance-meter__band"
             style={{ left: `${(bandLeft + bandRight) / 2}%`, width: `${bandRight - bandLeft}%` }}
@@ -63,14 +85,14 @@ export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
           <span className="balance-meter__even" />
           <span className="balance-meter__dot" style={placedAt(lead.centre)} />
         </div>
-        <div className="balance-meter__reading" style={placedAt(lead.centre)}>
+        <div className="balance-meter__reading" style={readingStyle(reading)}>
           <p className="balance-meter__value">
             <span className="balance-meter__number">{value.number}</span>
             <span className="balance-meter__unit">{value.unit}</span>
           </p>
           {range === null ? null : (
             <p className="balance-meter__range">
-              <Definition meaning={DEFINITIONS.range90}>range</Definition>{' '}
+              <Definition meaning={DEFINITIONS.range90}>{RANGE_WORD}</Definition>{' '}
               <span className="balance-meter__edges">{range}</span>
             </p>
           )}

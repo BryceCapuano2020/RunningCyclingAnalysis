@@ -467,13 +467,33 @@ describe('balance hero, meter and evidence', () => {
 
   it('clamps the dot and the value to an edge inside the plot, so each stays whole at either end of the scale', () => {
     expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--dot-edge:\s*0\.75rem/)
-    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--reading-edge:\s*4\.25rem/)
     expect(rulesWith(balanceMeter, '.balance-meter__dot')).toMatch(
       /left:\s*clamp\(var\(--dot-edge\),\s*var\(--at\),\s*calc\(100% - var\(--dot-edge\)\)\)/,
     )
-    expect(rulesWith(balanceMeter, '.balance-meter__reading')).toMatch(
-      /left:\s*clamp\(var\(--reading-edge\),\s*var\(--at\),\s*calc\(100% - var\(--reading-edge\)\)\)/,
+    const reading = rulesWith(balanceMeter, '.balance-meter__reading')
+    expect(reading).toMatch(
+      /left:\s*clamp\(var\(--edge-left\),\s*var\(--at\),\s*calc\(100% - var\(--edge-right\)\)\)/,
     )
+    // The room each side comes from the reading's own characters, so a long range keeps clear of the gutter.
+    expect(reading).toMatch(/--edge-left:[^;]*var\(--number-chars[^;]*var\(--range-chars/)
+    expect(reading).toMatch(/--edge-right:[^;]*var\(--unit-chars[^;]*var\(--range-chars/)
+  })
+
+  it('centres the value with a zero-width anchor and flex, never a transform, which would trap a definition’s fixed sheet on a phone', () => {
+    const reading = rulesWith(balanceMeter, '.balance-meter__reading')
+    expect(reading).toMatch(/width:\s*0;/)
+    expect(reading).toMatch(/align-items:\s*center/)
+    for (const selector of [
+      '.balance-meter',
+      '.balance-meter__plot',
+      '.balance-meter__reading',
+      '.balance-meter__value',
+      '.balance-meter__range',
+    ]) {
+      expect(rulesWith(balanceMeter, selector), selector).not.toMatch(
+        /(^|[;{\s])(transform|filter|backdrop-filter|perspective|contain|will-change|container-type):/,
+      )
+    }
   })
 
   it('sets the value in the display face, tabular, with its unit quieter beside it', () => {

@@ -102,8 +102,8 @@ export async function openSample(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE, {
     timeout: SAMPLE_READY_MS,
   })
-  // The pointer is left where the button was, which the answer's own text may now sit under: a term defined in
-  // place opens on a resting pointer, and its note would cover what the test clicks next.
+  // Test only: the pointer is left where the button was, and a mouse resting on a term defined in place opens its
+  // note, which would cover what the test clicks next. A phone has no resting pointer (Definition ignores touch).
   await page.mouse.move(0, 0)
 }
 

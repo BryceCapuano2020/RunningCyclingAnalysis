@@ -1,12 +1,12 @@
 import { Definition } from '../components/Definition'
 import { SportIcon } from '../components/icons'
-import { SPORT_LABEL } from '../sports'
+import { SPORT_TITLE } from '../sports'
 import { DEFINITIONS } from './balanceDefinitions'
 import type { BalanceLevelsModel } from './levelsModel'
 import './BalanceLevels.css'
 
 /**
- * Each sport's level on one plain line under the meter: its name, its age grade, then the level that grade
+ * Each sport's level on one plain line under the meter, named as the meter's ends are: its name, its age grade, then the level that grade
  * names. The sport colour marks the sport's glyph only. A sport with no grade says what it is missing.
  */
 export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
@@ -19,7 +19,7 @@ export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
             <li key={row.sport} className="balance-levels__row" data-sport={row.sport}>
               <span className="balance-levels__name">
                 <SportIcon sport={row.sport} className="balance-levels__glyph" />
-                {SPORT_LABEL[row.sport]}
+                {SPORT_TITLE[row.sport]}
               </span>{' '}
               {row.grade === null ? (
                 <span className="balance-levels__missing">{row.missing}</span>

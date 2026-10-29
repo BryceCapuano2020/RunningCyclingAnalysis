@@ -17,12 +17,17 @@
   list-style: none;
 }
 
+/* A fixed name column and a fixed grade column, so the grades line up when the rows stack. */
 .balance-levels__row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 4.75rem 3rem minmax(0, auto);
   align-items: baseline;
-  gap: var(--space-1) var(--space-3);
+  column-gap: var(--space-2);
   min-width: 0;
+}
+
+.balance-levels__row > .balance-levels__missing {
+  grid-column: 2 / -1;
 }
 
 .balance-levels__name {
@@ -58,6 +63,12 @@
 
 .balance-levels__level {
   color: var(--text-secondary);
+  /* A defined term is a button, which centres its text: the level reads from the left, wrapped or not. */
+  text-align: start;
+}
+
+.balance-levels__level .definition__term {
+  text-align: start;
 }
 
 .balance-levels__missing {
