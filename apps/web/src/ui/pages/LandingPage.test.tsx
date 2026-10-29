@@ -238,43 +238,32 @@ describe('LandingPage', () => {
     expect(screen.getByRole('region', { name: 'How to get your files' })).toBeInTheDocument()
   })
 
-  it('shows the example result: the lean and its range, each sport’s level on its bar, and the pace and power', () => {
+  it('shows the example result as Balance’s level scale: the lean, each sport’s level and best 20 minutes', () => {
     render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
     )
 
     const example = exampleFigure()
     expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
-    expect(within(example).getByText('+11')).toBeInTheDocument()
-    expect(within(example).getByText('range 6 to 16 points')).toBeInTheDocument()
-    expect(within(example).getByText('Run · Local · 67%')).toBeInTheDocument()
-    expect(within(example).getByText('Pace 4:17 /km')).toBeInTheDocument()
-    expect(within(example).getByText('Power 222 W')).toBeInTheDocument()
+    expect(within(example).getByText('11 pts')).toBeInTheDocument()
+    expect(within(example).getByText(/^Local · 3:56 \/km on your best 20 min$/)).toBeInTheDocument()
+    expect(within(example).getByText(/^Recreational to Local · 243 W/)).toBeInTheDocument()
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()
-    // Each bar is named for a screen reader, and its mark is the sport's own: a dot, or a ring over a band.
-    expect(within(example).getAllByRole('img')).toHaveLength(2)
-    expect(example.querySelector('.level-ladder__dot')).not.toBeNull()
-    expect(example.querySelector('.level-ladder__ring')).not.toBeNull()
-  })
-
-  it('leaves out the explanatory key, the scale numbers and the level-name row, which the lines above the bars replace', () => {
-    render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
-    )
-    const example = exampleFigure()
-    expect(within(example).queryByText(/Dot: best estimate/)).not.toBeInTheDocument()
-    expect(within(example).queryByText(/Scale:/)).not.toBeInTheDocument()
-    expect(example.querySelector('.balance-meter')).toBeNull()
-    expect(example.querySelector('.level-ladder__scale')).toBeNull()
-    expect(example.querySelector('.level-ladder__names')).toBeNull()
+    // The drawing is named for a screen reader, and its marks are the sports': a dot, and a ring over a band.
+    expect(
+      within(example).getByRole('img', { name: /^Age-grade level of your best 20 min\./ }),
+    ).toBeInTheDocument()
+    expect(example.querySelector('.balance-scale__dot')).not.toBeNull()
+    expect(example.querySelector('.balance-scale__ring')).not.toBeNull()
   })
 
   it('gives the example pace per mile for imperial', () => {
     render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="imperial" onFiles={vi.fn()} />,
     )
-    // The sample's own Balance reads the same pace.
-    expect(within(exampleFigure()).getByText('Pace 6:53 /mi')).toBeInTheDocument()
+    expect(
+      within(exampleFigure()).getByText(/^Local · 6:19 \/mi on your best 20 min$/),
+    ).toBeInTheDocument()
   })
 
   it('explains the result in three plain sentences, with a link to the full method', () => {

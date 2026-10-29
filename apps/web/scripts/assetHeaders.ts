@@ -7,17 +7,26 @@
  */
 export const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable'
 
-/** Workers Static Assets allows 100 header rules in all; the file's own rules keep a few of them. */
-export const MAX_ASSET_RULES = 90
+/** Workers Static Assets allows 100 header rules in all, the file's own included. */
+export const MAX_HEADER_RULES = 100
 
 /** Marks the block the build appends, so a second run replaces nothing and adds nothing twice. */
 export const RULES_MARKER = '# Cache rules written by the build'
 
-/** The rules for the files in dist/assets, or throws when there are more than a `_headers` file can hold. */
-export function immutableAssetRules(files: readonly string[]): string {
-  if (files.length > MAX_ASSET_RULES) {
+/** The rules a `_headers` text already holds: each path line, which is any line that is not blank, a comment or indented. */
+export function countRules(headers: string): number {
+  return headers.split('\n').filter((line) => /^[^\s#]/.test(line)).length
+}
+
+/**
+ * The rules for the files in dist/assets, or throws when they and the rules already in `_headers` (the text of
+ * the file as it stands) are more than a `_headers` file can hold.
+ */
+export function immutableAssetRules(files: readonly string[], existingHeaders = ''): string {
+  const existing = countRules(existingHeaders)
+  if (existing + files.length > MAX_HEADER_RULES) {
     throw new Error(
-      `${files.length} built assets need ${files.length} header rules; the limit is ${MAX_ASSET_RULES}. Merge chunks or fonts.`,
+      `${files.length} built assets need ${files.length} header rules beside the ${existing} already in _headers; the limit is ${MAX_HEADER_RULES}. Merge chunks or fonts.`,
     )
   }
   const rules = [...files]

@@ -34,8 +34,23 @@ function immutableAssets(): Plugin {
     },
     closeBundle: () => {
       const headers = join(outDir, '_headers')
-      if (readFileSync(headers, 'utf8').includes(RULES_MARKER)) return
-      appendFileSync(headers, immutableAssetRules(readdirSync(join(outDir, 'assets'))))
+      const existing = readFileSync(headers, 'utf8')
+      if (existing.includes(RULES_MARKER)) return
+      const entries = readdirSync(join(outDir, 'assets'), { withFileTypes: true })
+      // A rule is an exact path, so a file in a subfolder would need its own path: fail rather than miss it.
+      const nested = entries.filter((entry) => entry.isDirectory())
+      if (nested.length > 0) {
+        throw new Error(
+          `dist/assets has a subfolder (${nested.map((entry) => entry.name).join(', ')}); assetHeaders.ts writes one rule for each file directly in it.`,
+        )
+      }
+      appendFileSync(
+        headers,
+        immutableAssetRules(
+          entries.map((entry) => entry.name),
+          existing,
+        ),
+      )
     },
   }
 }

@@ -338,7 +338,7 @@ carries no such header. A missing path is not answered with `index.html`: the we
 `not_found_handling` is `404-page`, so it gets the built `404.html` with a 404 status. Cloudflare's docs say a
 non-navigation request there still invokes the Worker, whose plain-text 404 for `/assets/` sends
 `Cache-Control: no-store` (`apps/api/src/app.ts`). A `_headers` file holds at most 100 rules; the build
-fails when the assets alone need more than 90.
+fails when the assets and the rules already in `public/_headers` together need more, or when `dist/assets` has a subfolder.
 
 API responses include `X-Request-ID`. Unexpected-error logs contain that id and the exception
 class; they do not include request bodies, query strings, original files, tokens, or raw database

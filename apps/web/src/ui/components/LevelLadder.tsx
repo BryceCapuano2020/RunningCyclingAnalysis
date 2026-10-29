@@ -16,11 +16,6 @@ export interface LevelLadderProps {
   grade: SportGrade
   /** The key under the drawing, in words. The landing example leaves it out, since it is illustrative. */
   showKey?: boolean
-  /**
-   * The percentages above the bar and the level names below it. The landing example leaves them out: its line
-   * above the bar already names the level and the grade, and the bar's own label says so to a screen reader.
-   */
-  showScale?: boolean
 }
 
 /** The scale runs from 30% to 100%, the span the level bands cover. */
@@ -189,37 +184,33 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
  * A ride is estimated: a ring over a band for its model range. The band the grade falls in is filled
  * and its name is bold, and the names, percentages and key are visible text beside the drawing.
  */
-export function LevelLadder({ sport, grade, showKey = true, showScale = true }: LevelLadderProps) {
+export function LevelLadder({ sport, grade, showKey = true }: LevelLadderProps) {
   const current = currentBands(grade)
   return (
     <figure className={`scale-figure level-ladder level-ladder--${sport}`} data-sport={sport}>
-      {showScale && (
-        <div className="level-ladder__scale" aria-hidden="true">
-          {SCALE_TICKS.map((tick, index) => (
-            <span
-              key={tick}
-              className={`level-ladder__pct level-ladder__pct--${tickAlignment(index)}`}
-              style={{ left: `${place(tick)}%` }}
-            >
-              {percentText(tick)}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="level-ladder__scale" aria-hidden="true">
+        {SCALE_TICKS.map((tick, index) => (
+          <span
+            key={tick}
+            className={`level-ladder__pct level-ladder__pct--${tickAlignment(index)}`}
+            style={{ left: `${place(tick)}%` }}
+          >
+            {percentText(tick)}
+          </span>
+        ))}
+      </div>
       <LadderTrack sport={sport} grade={grade} />
-      {showScale && (
-        <div className="level-ladder__names" aria-hidden="true">
-          {BANDS.map((band, index) => (
-            <span
-              key={band.name}
-              className={`level-ladder__name level-ladder__name--${index % 2 === 0 ? 'top' : 'bottom'}${current.has(band.name) ? ' level-ladder__name--current' : ''}`}
-              style={{ left: `${(place(band.low) + place(band.high)) / 2}%` }}
-            >
-              {band.name}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="level-ladder__names" aria-hidden="true">
+        {BANDS.map((band, index) => (
+          <span
+            key={band.name}
+            className={`level-ladder__name level-ladder__name--${index % 2 === 0 ? 'top' : 'bottom'}${current.has(band.name) ? ' level-ladder__name--current' : ''}`}
+            style={{ left: `${(place(band.low) + place(band.high)) / 2}%` }}
+          >
+            {band.name}
+          </span>
+        ))}
+      </div>
       {showKey && <p className="level-ladder__key">{keyText(sport, grade)}</p>}
     </figure>
   )

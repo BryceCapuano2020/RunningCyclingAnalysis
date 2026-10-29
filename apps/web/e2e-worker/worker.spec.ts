@@ -85,6 +85,7 @@ test('an unknown path gets the static 404 page, and /api keeps its JSON 404', as
   const typed = await page.goto('/assets/missing-0000.js')
   expect(typed?.status()).toBe(404)
   expect(typed?.headers()['cache-control'] ?? '').not.toContain('immutable')
+  expect(typed?.headers()['cache-control'] ?? '').not.toContain('max-age=31536000')
 
   // The API keeps its JSON 404, which runs the Worker and so its rate limiter.
   const api = await page.request.get('/api/no-such-route')
@@ -139,4 +140,29 @@ test('the share image, the manifest and its icons are served as static files wit
   )
   const headers = (await page.request.get('/')).headers()
   expect(headers['content-security-policy']).toContain("default-src 'self'")
+})
+
+test('every built asset is served with the year-long cache rule, from its own exact rule', async ({
+  request,
+}) => {
+  // The files the build emitted, read from the build output the Worker serves.
+  const { readdirSync, readFileSync } = await import('node:fs')
+  const dist = new URL('../dist/', import.meta.url)
+  const assets = readdirSync(new URL('assets/', dist), { withFileTypes: true })
+  expect(assets.some((entry) => entry.isDirectory())).toBe(false)
+  const files = assets.map((entry) => entry.name)
+  // A script, a stylesheet, a font and the analysis worker are among them, so each kind is covered.
+  for (const pattern of [/\.js$/, /\.css$/, /\.woff2?$/, /^analysis\.worker-/]) {
+    expect(
+      files.some((file) => pattern.test(file)),
+      String(pattern),
+    ).toBe(true)
+  }
+  const headers = readFileSync(new URL('_headers', dist), 'utf8')
+  for (const file of files) {
+    expect(headers, `a rule for ${file}`).toContain(`/assets/${file}\n  Cache-Control:`)
+    const response = await request.get(`/assets/${file}`)
+    expect(response.status(), file).toBe(200)
+    expect(response.headers()['cache-control'], file).toBe('public, max-age=31536000, immutable')
+  }
 })

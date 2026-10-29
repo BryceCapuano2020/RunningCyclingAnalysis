@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import { formatPace } from '@rca/core/units'
 import { gapOfHeadline } from '../balanceGap'
 import { headlineGrades } from '../grades'
-import { threshold } from '../records'
+import { headlineEffort, sportRecords } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { LandingExample } from './LandingExample'
 import { LANDING_EXAMPLE } from '../landingExample'
@@ -25,23 +25,13 @@ describe('LandingExample', () => {
   it('matches the numbers the sample athlete itself shows', () => {
     const result = sampleResult()
     expect(gapOfHeadline(headlineGrades(result, SAMPLE_PROFILE))).toMatchObject(LANDING_EXAMPLE.gap)
-    expect(threshold(result, 'run', SAMPLE_SETTINGS.massKg, 'metric')?.value).toBe(
-      formatPace(LANDING_EXAMPLE.runSpeedMs, 'metric'),
-    )
-    expect(threshold(result, 'ride', SAMPLE_SETTINGS.massKg, 'metric')?.value).toBe(
-      `${LANDING_EXAMPLE.rideWatts} W`,
-    )
-  })
-
-  it('shows the sample’s threshold pace as its Balance does, in both units', () => {
-    const result = sampleResult()
+    // The best 20 minutes each lane rests on, in both units.
     for (const units of ['metric', 'imperial'] as const) {
-      expect(threshold(result, 'run', SAMPLE_SETTINGS.massKg, units)?.value).toBe(
-        formatPace(LANDING_EXAMPLE.runSpeedMs, units),
-      )
+      const records = (sport: 'run' | 'ride') =>
+        headlineEffort(sport, sportRecords(result, sport, SAMPLE_SETTINGS.massKg, units))
+      expect(records('run')).toBe(formatPace(LANDING_EXAMPLE.best20.runSpeedMs, units))
+      expect(records('ride')).toBe(`${LANDING_EXAMPLE.best20.rideWatts} W`)
     }
-    render(<LandingExample units="imperial" />)
-    expect(screen.getByText('Pace 6:53 /mi')).toBeInTheDocument()
   })
 
   it('carries each grade exactly as the sample athlete’s analysis gives it, with its range', () => {
@@ -53,21 +43,44 @@ describe('LandingExample', () => {
     }
   })
 
-  it('is labelled illustrative, names the sample, and shows each sport’s level and grade', () => {
+  it('is labelled illustrative, names the sample, and gives the answer’s headline', () => {
     render(<LandingExample units="metric" />)
     expect(
       screen.getByText('Illustrative: the sample athlete, a 37-year-old man at 75 kg'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Run · Local · 67%')).toBeInTheDocument()
-    expect(screen.getByText('Ride · Recreational · 56%')).toBeInTheDocument()
-    expect(screen.getByText('Pace 4:17 /km')).toBeInTheDocument()
-    expect(screen.getByText('Power 222 W')).toBeInTheDocument()
+    expect(screen.getByText('Your balance leans toward running')).toBeInTheDocument()
   })
 
-  it('leaves the ladder keys out, since the example is illustrative and says so', () => {
-    render(<LandingExample units="metric" />)
-    expect(screen.queryByText(/Solid dot:/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Ring:/)).not.toBeInTheDocument()
+  it('draws the real level scale from the sample’s figures: each sport’s grade, level and best 20 minutes, and the gap', () => {
+    const { container } = render(<LandingExample units="metric" />)
+    const scale = container.querySelector('.balance-scale')
+    expect(scale).not.toBeNull()
+    expect(
+      screen.getByRole('img', {
+        name: /^Age-grade level of your best 20 min\. Run 67 percent, Local, recorded\. Ride 56 percent, Recreational to Local, estimated, range 51 to 61 percent\./,
+      }),
+    ).toBeInTheDocument()
+    const drawing = within(container.querySelector('svg') as unknown as HTMLElement)
+    expect(drawing.getByText('67%')).toBeInTheDocument()
+    expect(drawing.getByText('56%')).toBeInTheDocument()
+    expect(screen.getByText(/^Local · 3:56 \/km on your best 20 min$/)).toBeInTheDocument()
+    expect(screen.getByText(/^Recreational to Local · 243 W/)).toBeInTheDocument()
+    expect(screen.getByText('11 pts')).toBeInTheDocument()
+    // A recorded grade is a dot, an estimate a ring over a bracketed band, as on Balance.
+    expect(container.querySelector('.balance-scale__dot')).not.toBeNull()
+    expect(container.querySelector('.balance-scale__ring')).not.toBeNull()
+    expect(container.querySelector('.balance-scale__range')).not.toBeNull()
+  })
+
+  it('gives the pace per mile for imperial', () => {
+    render(<LandingExample units="imperial" />)
+    expect(screen.getByText(/^Local · 6:19 \/mi on your best 20 min$/)).toBeInTheDocument()
+  })
+
+  it('has its figures as a table too, and no ghost target, which needs the analysis', () => {
+    const { container } = render(<LandingExample units="metric" />)
+    expect(container.querySelector('.balance-scale__details')).not.toBeNull()
+    expect(container.querySelector('.balance-scale__ghost')).toBeNull()
   })
 
   it('drops the watts per kilogram, which a first-time visitor does not need', () => {

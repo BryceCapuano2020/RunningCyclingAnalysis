@@ -1,6 +1,7 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
 import { HEADLINE_LABEL, gradeParts } from '../grades'
 import type { GradeOutcome } from '../grades'
@@ -61,6 +62,8 @@ export function ThresholdTile({
   if (sport === 'ride' && !weighted) {
     return (
       <StatTile sport={sport} heading={NAME[sport]} definition={DEFINED[sport]}>
+        {/* What needs no weight: how many rides, how long, and when the latest was. Then the one ask. */}
+        <HeldSportFacts sport={sport} activities={result.activities} />
         <WeightNote />
       </StatTile>
     )

@@ -1,26 +1,17 @@
 /*
- * One sport in the example: its name, level and grade, then its level band and its measure. Its
- * three rows are the example's rows, so the two sports' names, bands and measures line up.
+ * The example's own parts: its headline over Balance's level scale. The scale brings its own heading, legend
+ * and table twin, and the card gives it the room its drawing needs.
  */
-.landing-example__sport {
-  display: grid;
-  grid-row: span 3;
-  grid-template-rows: subgrid;
-  gap: var(--space-2);
-}
-
-.landing-example__sport-name {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.landing-example__title {
   margin: 0;
-  font-weight: 600;
+  font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.05;
+  text-transform: uppercase;
 }
 
-.landing-example__sport p {
-  margin: 0;
-}
-
-.landing-example__sport-name .icon {
-  color: var(--sport-colour);
+.landing-example .balance-scale {
+  min-width: 0;
 }

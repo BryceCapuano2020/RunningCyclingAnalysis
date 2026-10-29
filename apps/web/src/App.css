@@ -215,89 +215,19 @@
  */
 @media (min-width: 900px) {
   .landing__start {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-columns: minmax(0, 7fr) minmax(0, 4fr);
   }
 }
 
-/* A solid frame: the dashed outline is for the drop area beside it, so the two are not confused. */
+/*
+ * The example is a caption and a headline over Balance's level scale, which is a framed card of its own, so the
+ * example adds no second frame. The frame stays solid, where the drop area beside it is dashed.
+ */
 .landing-example {
   display: grid;
   gap: var(--space-3);
+  min-width: 0;
   margin: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
-}
-
-.landing-example__lead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-5);
-}
-
-.landing-example__title {
-  flex: 1 1 14rem;
-  margin: 0;
-  font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.75rem;
-  font-weight: 800;
-  line-height: 1.05;
-  text-transform: uppercase;
-}
-
-/* The one display figure: how far the balance leans, in the display font, with its unit and range under it. */
-.landing-example__figure {
-  display: grid;
-  margin: 0;
-  justify-items: start;
-}
-
-/* Beside the title, the figure sits at the card's right edge; stacked under it on a phone, at the left. */
-@media (min-width: 560px) {
-  .landing-example__figure {
-    justify-items: end;
-    text-align: end;
-  }
-}
-
-.landing-example__number {
-  font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: clamp(3.5rem, 10vw, 5rem);
-  font-weight: 800;
-  line-height: 0.9;
-  font-variant-numeric: tabular-nums;
-}
-
-.landing-example__unit {
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.landing-example__range {
-  font-size: var(--text-sm);
-}
-
-.landing-example__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-example)), 1fr));
-  gap: var(--space-4);
-  margin: 0;
-}
-
-/* Two ladders side by side at a phone width run their scale labels into each other, so they stack. */
-@media (max-width: 560px) {
-  .landing-example__stats {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* The method's three sentences, with the link to the full page below them. */

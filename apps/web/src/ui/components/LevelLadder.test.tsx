@@ -65,22 +65,6 @@ describe('LevelLadder', () => {
     expect(screen.getByText('Ring: estimated, with its 90% range in brackets.')).toBeInTheDocument()
   })
 
-  it('leaves out the percentages and the level names when asked, keeping the bar and its name', () => {
-    const { container } = render(<LevelLadder sport="ride" grade={RIDE} showScale={false} />)
-    expect(container.querySelector('.level-ladder__scale')).toBeNull()
-    expect(container.querySelector('.level-ladder__names')).toBeNull()
-    expect(container.querySelector('.level-ladder__ring')).not.toBeNull()
-    expect(
-      screen.getByRole('img', { name: /^Estimated age grade 67%, Local to Regional/ }),
-    ).toBeInTheDocument()
-  })
-
-  it('shows the percentages and the level names by default', () => {
-    const { container } = render(<LevelLadder sport="run" grade={RUN} />)
-    expect(container.querySelector('.level-ladder__scale')).not.toBeNull()
-    expect(container.querySelectorAll('.level-ladder__name')).toHaveLength(5)
-  })
-
   it('sets the key as a paragraph under the drawing, and leaves it out when asked', () => {
     const { container } = render(<LevelLadder sport="run" grade={RUN} />)
     expect(container.querySelector('p.level-ladder__key')).toHaveTextContent(

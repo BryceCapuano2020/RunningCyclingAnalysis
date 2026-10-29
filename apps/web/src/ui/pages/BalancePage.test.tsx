@@ -799,8 +799,9 @@ describe('BalancePage with one sport', () => {
     })
     const { container } = renderPage(result, { state: { library: [run] } }, MAN_BORN_1986)
     expect(
-      screen.getByRole('heading', { level: 1, name: /^Your running is at Local level\./ }),
+      screen.getByRole('heading', { level: 1, name: 'Your running is at Local level' }),
     ).toBeInTheDocument()
+    expect(screen.getByText('Add a ride to compare it with your running.')).toBeInTheDocument()
     expect(container.querySelectorAll('.balance-scale')).toHaveLength(1)
     expect(container.querySelector('[data-sport="run"][data-kind="dot"]')).not.toBeNull()
     expect(container.querySelector('.balance-scale [data-sport="ride"]')).toBeNull()

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   IMMUTABLE_CACHE_CONTROL,
-  MAX_ASSET_RULES,
+  MAX_HEADER_RULES,
+  countRules,
   RULES_MARKER,
   immutableAssetRules,
 } from '../scripts/assetHeaders'
@@ -25,10 +26,20 @@ describe('immutableAssetRules', () => {
     expect(immutableAssetRules(['b.js', 'a.js'])).toBe(immutableAssetRules(['a.js', 'b.js']))
   })
 
-  it('refuses more files than the headers file can hold, rather than ship a file Cloudflare rejects', () => {
-    const files = Array.from({ length: MAX_ASSET_RULES + 1 }, (_, index) => `f${index}.js`)
-    expect(() => immutableAssetRules(files)).toThrow(/need 91 header rules/)
-    expect(() => immutableAssetRules(files.slice(1))).not.toThrow()
+  it('counts the rules a headers text already holds: path lines only, not comments, headers or blanks', () => {
+    expect(
+      countRules('# a comment\n/*\n  A: b\n  C: d\n\n/.well-known/security.txt\n  E: f\n'),
+    ).toBe(2)
+  })
+
+  it('refuses more files than fit beside the rules already in the headers file, not a fixed headroom', () => {
+    const existing = '# c\n/*\n  A: b\n\n/x\n  C: d\n'
+    const room = MAX_HEADER_RULES - countRules(existing)
+    const files = (count: number) => Array.from({ length: count }, (_, index) => `f${index}.js`)
+    expect(() => immutableAssetRules(files(room), existing)).not.toThrow()
+    expect(() => immutableAssetRules(files(room + 1), existing)).toThrow(/beside the 2 already/)
+    expect(() => immutableAssetRules(files(MAX_HEADER_RULES))).not.toThrow()
+    expect(() => immutableAssetRules(files(MAX_HEADER_RULES + 1))).toThrow(/limit is 100/)
   })
 
   it('says why the rules are written one by one, in the header file the pattern used to be in', async () => {

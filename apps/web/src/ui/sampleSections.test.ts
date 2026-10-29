@@ -7,7 +7,7 @@ import { gapOfHeadline } from './balanceGap'
 import { profileOf } from './durationProfile'
 import { headlineGrades } from './grades'
 import { LANDING_EXAMPLE } from './landingExample'
-import { threshold } from './records'
+import { headlineEffort, sportRecords } from './records'
 import { sampleProfileAt } from './sampleAthlete'
 
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
@@ -82,8 +82,8 @@ describe('the sample gives one result on every day of a week, and in every week'
       gap: gapOfHeadline(grades),
       run: grades.run,
       ride: grades.ride,
-      runPace: threshold(result, 'run', SETTINGS.massKg, 'metric')?.value,
-      ridePower: threshold(result, 'ride', SETTINGS.massKg, 'metric')?.value,
+      runBest20: headlineEffort('run', sportRecords(result, 'run', SETTINGS.massKg, 'metric')),
+      rideBest20: headlineEffort('ride', sportRecords(result, 'ride', SETTINGS.massKg, 'metric')),
     }
   }
 
@@ -103,6 +103,31 @@ describe('the sample gives one result on every day of a week, and in every week'
       if (outcome.kind !== 'graded') throw new Error(`The sample has no ${sport} grade`)
       expect(outcome.grade).toEqual(LANDING_EXAMPLE.grades[sport])
     }
-    expect(reference.ridePower).toBe(`${LANDING_EXAMPLE.rideWatts} W`)
+    expect(reference.rideBest20).toBe(`${LANDING_EXAMPLE.best20.rideWatts} W`)
+  })
+
+  // The grades count age from the birth year against each effort's calendar year, and the persona is 37 in the
+  // year of the newest effort. In the first week of January the newest effort is in a new year while the
+  // efforts the grade rests on are in the last, a year younger, so the grades move a little. The plan, the
+  // sessions and the figures of each effort do not: only the age they are graded at.
+  it('moves the grades only by the age across New Year, and nothing else', () => {
+    const january = new AnalysisSession().loadSample(SETTINGS, {
+      nowMs: Date.UTC(2027, 0, 6, 12),
+    })
+    const newest = january.library[0]!.startMs
+    // The newest effort is in the new year, so the persona turns a year older on it: the efforts of the last year, which
+    // the grades rest on, are graded at the age he was.
+    expect(new Date(newest).getUTCFullYear()).toBe(2027)
+    const grades = headlineGrades(january.result!, sampleProfileAt(newest))
+    const effort = (sport: 'run' | 'ride') =>
+      headlineEffort(sport, sportRecords(january.result!, sport, SETTINGS.massKg, 'metric'))
+    // The efforts are the same ones, at the same figures.
+    expect(effort('run')).toBe(reference.runBest20)
+    expect(effort('ride')).toBe(reference.rideBest20)
+    for (const sport of ['run', 'ride'] as const) {
+      const [then, now] = [reference[sport], grades[sport]]
+      if (then.kind !== 'graded' || now.kind !== 'graded') throw new Error('The sample is graded')
+      expect(Math.abs(now.grade.centre.grade - then.grade.centre.grade)).toBeLessThan(0.03)
+    }
   })
 })
