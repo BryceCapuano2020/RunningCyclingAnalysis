@@ -37,6 +37,8 @@
 
 .table-scroll {
   overflow-x: auto;
+  /* Holds its visually hidden header cells (.sr-only is absolute), so they cannot widen the page. */
+  position: relative;
 }
 
 .card {
