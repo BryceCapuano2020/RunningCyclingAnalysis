@@ -132,8 +132,8 @@ export function flagSpanText(flag: FlagSpan): string {
 
 /**
  * The count a page shows for readings left out of its figures. The count is of flags, each a stretch
- * of readings the digest merged, so the line says how many times the skipping happened.
+ * of readings the digest merged, so the line says how many dropouts the sensor had.
  */
 export function skippedReadingsText(count: number): string {
-  return count === 1 ? 'Readings skipped once' : `Readings skipped ${formatCount(count)} times`
+  return count === 1 ? '1 sensor dropout' : `${formatCount(count)} sensor dropouts`
 }

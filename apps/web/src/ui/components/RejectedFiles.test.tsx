@@ -1,12 +1,21 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render as plainRender, screen, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { RejectedFile } from '@rca/core/session'
+import { openDisclosures } from '../test/openDisclosures'
 import { RejectedFiles } from './RejectedFiles'
 
 afterEach(() => {
   cleanup()
 })
+
+/** Renders, then opens the disclosures, which is how every list below is read. */
+function render(ui: ReactElement) {
+  const view = plainRender(ui)
+  openDisclosures()
+  return view
+}
 
 interface SkippedProps {
   rejected?: RejectedFile[]
@@ -58,9 +67,9 @@ describe('RejectedFiles: the headline adds up', () => {
     )
 
     const headline = screen.getByText(
-      '16 files: 9 added, 1 needs a look, 2 other sports left out on purpose, 4 not listed as activities.',
+      '16 files, 12 of them activity files: 9 added, 1 needs a look, 2 other sports left out on purpose, 4 not listed as activities.',
     )
-    expect(headline.closest('summary')).not.toBeNull()
+    expect(headline.closest('details')).not.toBeNull()
   })
 
   it("adds up the owner's export, 3,018 files with 320 files its list does not name among them", () => {
@@ -80,7 +89,7 @@ describe('RejectedFiles: the headline adds up', () => {
 
     expect(
       screen.getByText(
-        '3,018 files: 1,915 added, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities.',
+        '3,018 files, 2,698 of them activity files: 1,915 added, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByText('Need a look: 35 files')).toBeInTheDocument()
@@ -96,8 +105,8 @@ describe('RejectedFiles: the headline adds up', () => {
   })
 })
 
-describe('RejectedFiles: the first file under the headline', () => {
-  it('is the first file that needs a look, not the first file in the zip', () => {
+describe('RejectedFiles: one line and a disclosure', () => {
+  it('says in one line what needs a look, and keeps the headline and every file under it', () => {
     const { container } = render(
       <Skipped
         added={1}
@@ -110,39 +119,59 @@ describe('RejectedFiles: the first file under the headline', () => {
     )
 
     const summary = container.querySelector('summary')!
-    expect(summary.querySelector('.rejected-files__first')).toHaveTextContent(
-      'empty.gpx: It holds no recorded points, so there is nothing to read.',
-    )
-    expect(within(summary).queryByText(/walk\.fit/)).not.toBeInTheDocument()
+    expect(summary).toHaveTextContent(/^2 files need a look$/)
+    expect(container.querySelectorAll('details > summary')).toHaveLength(2)
+    expect(within(container.querySelector('details')!).getByText(/^4 files:/)).toBeInTheDocument()
   })
 
-  it('is left out when no file needs a look, so the headline stands alone', () => {
-    const { container } = render(<Skipped added={1} rejected={sportFiles(2, 'hiking')} />)
-    expect(container.querySelector('.rejected-files__first')).toBeNull()
-  })
-
-  it('is not listed again below, since it is shown under the headline', () => {
+  it('lists each file that needs a look once, in the list, with none shown beside the summary', () => {
     const { container } = render(
       <Skipped rejected={[skipped('a.gpx', 'empty'), skipped('b.gpx', 'empty')]} />,
     )
 
-    const list = container.querySelector<HTMLElement>('.rejected-files__list')!
     const reason = 'It holds no recorded points, so there is nothing to read.'
-    expect(within(list).queryByText(`a.gpx: ${reason}`)).not.toBeInTheDocument()
-    expect(within(list).getByText(`b.gpx: ${reason}`)).toBeInTheDocument()
+    expect(screen.getAllByText(`a.gpx: ${reason}`)).toHaveLength(1)
+    expect(screen.getAllByText(`b.gpx: ${reason}`)).toHaveLength(1)
+    const list = container.querySelector<HTMLElement>('.rejected-files__list')!
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2)
+    expect(container.querySelector('summary')).not.toHaveTextContent('a.gpx')
   })
 
-  it('gives the headline, then the first file, above the groups', () => {
-    const { container } = render(
-      <Skipped rejected={[skipped('a.gpx', 'empty'), skipped('b.gpx', 'empty')]} />,
+  it('names what was left out when no file needs a look, and the copies when nothing else is', () => {
+    const sports = render(<Skipped added={1} rejected={sportFiles(2, 'hiking')} />)
+    expect(sports.container.querySelector('summary')).toHaveTextContent(
+      /^2 files of other sports left out$/,
+    )
+    sports.unmount()
+    const copies = render(
+      <Skipped added={3} duplicates={[skipped('copy.gpx', 'duplicate', 'run.fit')]} />,
+    )
+    expect(copies.container.querySelector('summary')).toHaveTextContent(/^1 copy already added$/)
+  })
+
+  it('holds no list while it is shut, so copying the page does not paste a column of empty bullets', () => {
+    plainRender(
+      <Skipped added={1} rejected={[skipped('empty.gpx', 'empty'), ...sportFiles(30, 'hiking')]} />,
     )
 
-    const summary = container.querySelector('summary')!
-    const headline = within(summary).getByText(/^2 files:/)
-    const first = summary.querySelector('.rejected-files__first')!
-    const group = container.querySelector('.rejected-files__group')!
-    expect(headline.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(first.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(document.querySelectorAll('li')).toHaveLength(0)
+    openDisclosures()
+    const items = Array.from(document.querySelectorAll('li'))
+    expect(items.length).toBeGreaterThan(30)
+    for (const item of items) expect(item.textContent?.trim()).not.toBe('')
+  })
+
+  it('makes the list of other-sport files when Show the files opens, and drops it when it shuts', () => {
+    plainRender(<Skipped added={1} rejected={sportFiles(2, 'hiking')} />)
+    openDisclosures()
+    const nested = screen.getByText('Show the files').closest('details')!
+    expect(within(nested).getAllByRole('listitem')).toHaveLength(2)
+
+    act(() => {
+      nested.removeAttribute('open')
+      nested.dispatchEvent(new Event('toggle'))
+    })
+    expect(within(nested).queryAllByRole('listitem')).toHaveLength(0)
   })
 })
 
@@ -160,7 +189,7 @@ describe('RejectedFiles: the files that need a look', () => {
 
     const group = screen.getByText('Need a look: 3 files').closest('.rejected-files__group')!
     const lines = within(group as HTMLElement).getAllByRole('listitem')
-    expect(lines).toHaveLength(2)
+    expect(lines).toHaveLength(3)
     expect(lines[0]!.closest('details')).toBe(container.querySelector('details'))
   })
 
@@ -281,14 +310,13 @@ describe('RejectedFiles: the other sports, left out on purpose', () => {
     expect(lines.slice(0, 3)).toEqual(['Training session: 4', 'Hike: 2', 'E-bike ride: 1'])
   })
 
-  it('puts the files behind a nested Show the files disclosure that starts closed', () => {
+  it('puts the files behind a nested Show the files disclosure', () => {
     const { container } = render(<Skipped added={1} rejected={sportFiles(2, 'hiking')} />)
 
     const outer = container.querySelector('details')!
     const nested = screen.getByText('Show the files').closest('details')!
     expect(nested).not.toBe(outer)
     expect(outer).toContainElement(nested)
-    expect(nested).not.toHaveAttribute('open')
     expect(
       within(nested).getByText('hiking/0.fit: A hike is not a run or a ride.'),
     ).toBeInTheDocument()
@@ -407,7 +435,9 @@ describe('RejectedFiles: files the export does not list, and copies already adde
     const { container } = render(<Skipped added={1915} unlisted={320} />)
 
     expect(
-      screen.getByText('2,235 files: 1,915 added, 320 not listed as activities.'),
+      screen.getByText(
+        '2,235 files, 1,915 of them activity files: 1,915 added, 320 not listed as activities.',
+      ),
     ).toBeVisible()
     expect(container.querySelector('details')).toBeNull()
     expect(screen.queryByRole('button', { name: 'How to get your files' })).not.toBeInTheDocument()
@@ -428,21 +458,20 @@ describe('RejectedFiles: the next step', () => {
 })
 
 describe('RejectedFiles: a group that would have no lines', () => {
-  it('leaves out the Need a look title when the first file is its only line', () => {
+  it('lists a single file that needs a look under its title, once', () => {
     render(<Skipped added={3} rejected={[skipped('empty.gpx', 'empty')]} />)
 
-    expect(screen.queryByText(/^Need a look/)).not.toBeInTheDocument()
+    expect(screen.getByText('Need a look: 1 file')).toBeInTheDocument()
     expect(screen.getAllByText(/empty\.gpx/)).toHaveLength(1)
     expect(screen.getByText('4 files: 3 added, 1 needs a look.')).toBeInTheDocument()
   })
 
-  it('shows the headline and the first file as text with nothing to open, and still offers the guides', () => {
-    const { container } = render(<Skipped rejected={[skipped('bad.fit', 'corrupt')]} />)
+  it('lists a damaged file with its advice and still offers the guides', () => {
+    render(<Skipped rejected={[skipped('bad.fit', 'corrupt')]} />)
 
-    expect(container.querySelector('details')).toBeNull()
-    expect(container.querySelector('.rejected-files__first')).toHaveTextContent(
-      'bad.fit: Damaged, so it could not be read. Export it again.',
-    )
+    expect(
+      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'How to get your files' })).toBeInTheDocument()
   })
 

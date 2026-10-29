@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
-import { act, render, renderHook, screen, waitFor } from '@testing-library/react'
+import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
@@ -1612,6 +1612,39 @@ describe('useAnalysis state', () => {
     expect(result.current.missingOriginals).toBe(2)
   })
 
+  it('exposes which activities hold detailed readings, and forgets them when the sample loads', () => {
+    const { result } = setup()
+    expect(result.current.detail).toBeNull()
+    act(() =>
+      worker().reply({ type: 'detailCoverage', ids: ['a', 'b'], oldestStartMs: 1_700_000_000_000 }),
+    )
+    expect(result.current.detail?.ids.has('a')).toBe(true)
+    expect(result.current.detail?.ids.has('z')).toBe(false)
+    expect(result.current.detail?.oldestStartMs).toBe(1_700_000_000_000)
+
+    act(() => result.current.loadSample())
+    expect(result.current.detail).toBeNull()
+  })
+
+  it('forgets which activities hold detail when storage cannot say, and when the library changes', () => {
+    const { result } = setup()
+    act(() => worker().reply({ type: 'detailCoverage', ids: ['a'], oldestStartMs: 1 }))
+    expect(result.current.detail).not.toBeNull()
+    act(() => worker().reply({ type: 'detailCoverage', ids: null, oldestStartMs: null }))
+    expect(result.current.detail).toBeNull()
+
+    act(() => worker().reply({ type: 'detailCoverage', ids: ['a'], oldestStartMs: 1 }))
+    act(() => result.current.clear())
+    expect(result.current.detail).toBeNull()
+  })
+
+  it('forgets what was noted about the data when everything is cleared', () => {
+    window.localStorage.setItem('rca.aboutDataSeen', '{"walking":3}')
+    const { result } = setup()
+    act(() => result.current.clear())
+    expect(window.localStorage.getItem('rca.aboutDataSeen')).toBeNull()
+  })
+
   it('takes the outdated activities that have an original from the same reply as the state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     const outdated = { ...STATE, outdatedActivities: 3 }
@@ -1726,7 +1759,9 @@ describe('useAnalysis state', () => {
       worker().reply({ type: 'state', state: STATE, saved: 3 })
     })
 
-    expect(screen.getByRole('status')).toHaveTextContent('Saved 3 activities to your library.')
+    expect(document.querySelector('.sync-status__message')).toHaveTextContent(
+      'Saved 3 activities to your library.',
+    )
   })
 
   it('says why a paused import waits, and stops saying it with the next progress', () => {

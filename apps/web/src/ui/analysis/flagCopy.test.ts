@@ -166,11 +166,11 @@ describe('skippedKinds', () => {
 
 describe('skippedReadingsText', () => {
   it('says the readings were skipped once for one, and the count otherwise', () => {
-    expect(skippedReadingsText(1)).toBe('Readings skipped once')
-    expect(skippedReadingsText(2)).toBe('Readings skipped 2 times')
+    expect(skippedReadingsText(1)).toBe('1 sensor dropout')
+    expect(skippedReadingsText(2)).toBe('2 sensor dropouts')
   })
 
   it('groups the count from a thousand on', () => {
-    expect(skippedReadingsText(1204)).toBe('Readings skipped 1,204 times')
+    expect(skippedReadingsText(1204)).toBe('1,204 sensor dropouts')
   })
 })

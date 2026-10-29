@@ -19,6 +19,7 @@ const CAPTURES = 200
 const NOWHERE: WorkbenchStore = {
   get: async () => null,
   has: async () => false,
+  list: async () => [],
   put: async (_scope, _trace: ActivityTrace) => 'stored',
   remove: async () => true,
   clearScope: async () => true,

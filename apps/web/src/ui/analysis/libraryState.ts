@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { DeviceIssue, SavedActivity, WorkerRequest } from '../../worker/protocol'
 import { hasRemovedMark } from '../activitiesView'
 import { keptLibraryHinted } from './keptLibrary'
-import type { LibraryStatus } from './model'
+import type { DetailCoverage, LibraryStatus } from './model'
 
 /**
  * Whether a request writes to the library kept in this browser again, so a refusal reported earlier no
@@ -34,6 +34,7 @@ export function useLibraryState() {
   const [libraryNotice, setLibraryNotice] = useState<string | null>(null)
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [missingOriginals, setMissingOriginals] = useState(0)
+  const [detail, setDetail] = useState<DetailCoverage | null>(null)
   const [outdatedWithOriginal, setOutdatedWithOriginal] = useState(0)
   const [libraryUnreadable, setLibraryUnreadable] = useState(0)
   const [deviceIssue, setDeviceIssue] = useState<DeviceIssue | null>(null)
@@ -75,6 +76,14 @@ export function useLibraryState() {
   const resetNoticesFor = useCallback(
     (request: WorkerRequest) => {
       if (request.type === 'loadServer' || request.type === 'rebuildStale') setLibraryUnreadable(0)
+      // A sample, another library or a clear is another scope, so what was held for the last no longer stands.
+      if (
+        request.type === 'loadSample' ||
+        request.type === 'loadServer' ||
+        request.type === 'loadDevice' ||
+        request.type === 'clear'
+      )
+        setDetail(null)
       if (request.type === 'loadSample' || request.type === 'loadDevice') dropNotSaved()
       if (retriesDevice(request)) setDeviceIssue(null)
     },
@@ -96,6 +105,8 @@ export function useLibraryState() {
     setLibraryError,
     missingOriginals,
     setMissingOriginals,
+    detail,
+    setDetail,
     outdatedWithOriginal,
     setOutdatedWithOriginal,
     libraryUnreadable,

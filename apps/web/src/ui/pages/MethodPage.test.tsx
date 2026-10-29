@@ -138,7 +138,7 @@ describe('MethodPage answer', () => {
     expect(lines[2]).toHaveTextContent('These checks show how far to trust them.')
   })
 
-  it('states the lean the comparison gives, with even outside its range, in the second line', () => {
+  it('states the lean the comparison gives, with a dead heat outside its range, in the second line', () => {
     // The fixture's ratio puts running 5% to 20% ahead, so the range never reaches even: the balance
     // leans toward running. A reversed lean would read toward cycling and fail here.
     renderPage(makeResult(CONTRIBUTING))
@@ -146,7 +146,9 @@ describe('MethodPage answer', () => {
     const line = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
       'listitem',
     )[1]
-    expect(line).toHaveTextContent('Your balance leans toward running. Even is outside its range.')
+    expect(line).toHaveTextContent(
+      'Your balance leans toward running. A dead heat is outside the range, so the lean is real.',
+    )
     expect(line).not.toHaveTextContent('leans toward cycling')
   })
 

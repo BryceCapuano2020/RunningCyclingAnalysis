@@ -46,8 +46,9 @@ function headerSignIn(page: Page) {
   return page.getByRole('banner').getByRole('button', { name: 'Sign in with Google' })
 }
 
+/** The notice about saved activities that need an update, which is only on the page while there is one. */
 function savedActivityUpdates(page: Page) {
-  return page.getByRole('region', { name: 'Saved activity updates' }).getByRole('status')
+  return page.getByRole('region', { name: 'Saved activity updates' })
 }
 
 /** The saved units and body mass, read together so a test can wait for both writes. */
@@ -330,10 +331,14 @@ test('rebuilds a legacy saved activity from its original file without changing i
   await expect(savedActivityUpdates(page)).toContainText(
     '1 saved activity needs a quick update before it counts',
   )
+  await expect(
+    savedActivityUpdates(page).getByText('1 saved activity needs an update'),
+  ).toBeVisible()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
   await page.getByRole('button', { name: 'Update now', exact: true }).click()
 
-  await expect(savedActivityUpdates(page)).toBeHidden()
+  // The notice is added to the page's live region and removed from it once nothing needs an update.
+  await expect(savedActivityUpdates(page)).toHaveCount(0)
   await expect(await activitiesRows(page)).toHaveCount(1)
   const records = await apiActivities(page.request)
   expect(records).toHaveLength(1)

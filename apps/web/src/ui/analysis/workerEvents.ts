@@ -52,6 +52,7 @@ type ReplyResponse = Exclude<
     type:
       | 'progress'
       | 'missingOriginals'
+      | 'detailCoverage'
       | 'libraryActivities'
       | 'libraryUnreadable'
       | 'accountIssue'
@@ -93,6 +94,15 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       }
       if (message.type === 'missingOriginals') {
         current.library.setMissingOriginals(message.count)
+        return
+      }
+      if (message.type === 'detailCoverage') {
+        // Unknown when storage could not say, so no activity is called detail-less on an old answer.
+        current.library.setDetail(
+          message.ids === null
+            ? null
+            : { ids: new Set(message.ids), oldestStartMs: message.oldestStartMs },
+        )
         return
       }
       if (message.type === 'libraryActivities') {

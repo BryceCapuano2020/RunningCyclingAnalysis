@@ -161,7 +161,7 @@ describe('privacy page names controls as the app does', () => {
     ['Delete account', 'ui/components/AccountSection.tsx'],
     ['Saved library', 'ui/components/SavedLibraryCard.tsx'],
     ['Kept in this browser', 'ui/components/SavedLibraryCard.tsx'],
-    ['Remove all my activities', 'ui/pages/ProfilePage.tsx'],
+    ['Remove all my activities', 'ui/pages/profileCopy.ts'],
     ['Prefer not to say', 'ui/components/AthleteFields.tsx'],
   ]
 
@@ -302,9 +302,10 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(rateLimit).toContain("c.req.header('CF-Connecting-IP')")
     expect(rateLimit).toContain('`ip:${address}`')
     expect(text).toContain(
-      "Cloudflare's request logs may include each request's network address, approximate location and browser user agent",
+      "Cloudflare's request logs may include each request's network address, approximate location, browser user agent and the address of the request (URL)",
     )
-    expect(text).toContain('The address is used only as a rate-limit key.')
+    expect(text).toContain('can carry the one-time Google sign-in code and state')
+    expect(text).toContain('The network address is used only as a rate-limit key.')
   })
 
   it('names the pending-deletion row in the production notes until a deletion completes', () => {

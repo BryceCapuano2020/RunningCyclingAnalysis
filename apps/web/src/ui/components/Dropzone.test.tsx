@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HISTORY_ADVICE } from '../exportGuides'
-import { STRIP_DELAY_MS } from './ImportStatus'
 import { noMatchMedia } from '../../test/viewport'
 import { TOUCH_QUERY } from '../useMediaQuery'
 import { Dropzone } from './Dropzone'
@@ -139,14 +138,18 @@ describe('Dropzone', () => {
     expect(screen.getByRole('button', { name: 'Add files' })).toBeInTheDocument()
   })
 
-  it('marks only the sample button aria-disabled while busy, and ignores its clicks', async () => {
-    const user = userEvent.setup()
-    const { choose, onSample } = renderDropzone({ busy: true })
-    const sample = screen.getByRole('button', { name: 'See a sample athlete' })
-    expect(sample).toHaveAttribute('aria-disabled', 'true')
+  it('leaves the sample off the page while an import runs, and keeps Add files', () => {
+    const { choose } = renderDropzone({ busy: true })
+    expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Available when the current import finishes/)).not.toBeInTheDocument()
     expect(choose).not.toHaveAttribute('aria-disabled')
-    await user.click(sample)
-    expect(onSample).not.toHaveBeenCalled()
+  })
+
+  it('leaves the sample off a touch screen too while an import runs, and Add files leads', () => {
+    touchScreen()
+    render(<Dropzone {...baseProps()} busy />)
+    expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add files' })).toHaveClass('btn-primary')
   })
 
   it('keeps focus on the sample button when its click starts the sample', async () => {
@@ -157,55 +160,9 @@ describe('Dropzone', () => {
     await user.click(sample)
     expect(onSample).toHaveBeenCalledTimes(1)
 
-    // The sample starts, so the page turns busy. A disabled button would drop the focus it holds.
+    // The sample starts, so the page turns busy and the button goes with the sample.
     rerender(<Dropzone {...baseProps()} onSample={onSample} busy />)
-    expect(sample).toBeEnabled()
-    expect(sample).toHaveFocus()
-  })
-
-  describe('the reason the sample is off', () => {
-    const REASON = 'Available when the current import finishes.'
-
-    it('shows only once the import has lasted as long as the busy strip waits, so a quick one does not flash it', () => {
-      vi.useFakeTimers()
-      renderDropzone({ busy: true })
-      expect(screen.queryByText(REASON)).not.toBeInTheDocument()
-      act(() => vi.advanceTimersByTime(STRIP_DELAY_MS - 1))
-      expect(screen.queryByText(REASON)).not.toBeInTheDocument()
-      act(() => vi.advanceTimersByTime(1))
-      expect(screen.getByText(REASON)).toBeInTheDocument()
-    })
-
-    it('names that reason on the sample button once it shows', () => {
-      vi.useFakeTimers()
-      renderDropzone({ busy: true })
-      act(() => vi.advanceTimersByTime(STRIP_DELAY_MS))
-      expect(
-        screen.getByRole('button', { name: 'See a sample athlete' }),
-      ).toHaveAccessibleDescription(REASON)
-    })
-
-    it('hides the reason when the import ends, and waits the delay again on the next one', () => {
-      vi.useFakeTimers()
-      const view = render(<Dropzone {...baseProps()} busy />)
-      act(() => vi.advanceTimersByTime(STRIP_DELAY_MS))
-      expect(screen.getByText(REASON)).toBeInTheDocument()
-
-      view.rerender(<Dropzone {...baseProps()} busy={false} />)
-      expect(screen.queryByText(REASON)).not.toBeInTheDocument()
-
-      view.rerender(<Dropzone {...baseProps()} busy />)
-      expect(screen.queryByText(REASON)).not.toBeInTheDocument()
-      act(() => vi.advanceTimersByTime(STRIP_DELAY_MS))
-      expect(screen.getByText(REASON)).toBeInTheDocument()
-    })
-  })
-
-  it('gives no reason for an off sample while nothing is busy', () => {
-    renderDropzone()
-    expect(
-      screen.queryByText('Available when the current import finishes.'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
   })
 
   it('has no live region or progress of its own, since ImportStatus owns them', () => {

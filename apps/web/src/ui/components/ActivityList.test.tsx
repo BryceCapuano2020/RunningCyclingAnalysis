@@ -213,9 +213,25 @@ describe('ActivityList rows', () => {
         flags: [flag('Heart rate read zero'), flag('Speed jumped'), flag('Power spiked')],
       }),
     ])
-    expect(within(rowFor('Noisy run')).getByText('Readings skipped 3 times')).toBeInTheDocument()
-    expect(within(rowFor('Clean run')).queryByText(/skipped/)).not.toBeInTheDocument()
-    expect(screen.getAllByText(/skipped/)).toHaveLength(1)
+    expect(within(rowFor('Noisy run')).getByText('3 sensor dropouts')).toBeInTheDocument()
+    expect(within(rowFor('Clean run')).queryByText(/sensor dropout/)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/sensor dropout/)).toHaveLength(1)
+  })
+
+  it('tags an activity that has no detailed readings stored, and no other', () => {
+    renderList(
+      [makeActivity({ id: 'old', name: 'Old run' }), makeActivity({ id: 'new', name: 'New run' })],
+      'metric',
+      new Map(),
+      { detailIds: new Set(['new']) },
+    )
+    expect(within(rowFor('Old run')).getByText('No detail')).toBeInTheDocument()
+    expect(within(rowFor('New run')).queryByText('No detail')).not.toBeInTheDocument()
+  })
+
+  it('does not tag anything while it is not known which activities have detail', () => {
+    renderList([makeActivity({ id: 'old', name: 'Old run' })])
+    expect(screen.queryByText('No detail')).not.toBeInTheDocument()
   })
 
   it('marks a run at walking pace, which the analysis leaves out', () => {
@@ -238,8 +254,8 @@ describe('ActivityList rows', () => {
         flags: [{ ...blip, kind: 'hr-dropout', start: 600, end: 900 }],
       }),
     ])
-    expect(within(rowFor('Blip ride')).queryByText(/skipped/)).not.toBeInTheDocument()
-    expect(within(rowFor('Strap ride')).getByText('Readings skipped once')).toBeInTheDocument()
+    expect(within(rowFor('Blip ride')).queryByText(/sensor dropout/)).not.toBeInTheDocument()
+    expect(within(rowFor('Strap ride')).getByText('1 sensor dropout')).toBeInTheDocument()
   })
 
   it('leaves altitude notes off the skipped chip, since they remove no reading', () => {
@@ -250,7 +266,7 @@ describe('ActivityList rows', () => {
         flagCounts: { 'altitude-jump': 2, 'missing-altitude': 1 },
       }),
     ])
-    expect(within(rowFor('Hilly run')).queryByText(/skipped/)).not.toBeInTheDocument()
+    expect(within(rowFor('Hilly run')).queryByText(/sensor dropout/)).not.toBeInTheDocument()
   })
 
   it('counts every reading skipped, not only the flags the digest keeps', () => {
@@ -261,14 +277,12 @@ describe('ActivityList rows', () => {
         flagCounts: { 'hr-dropout': 60 },
       }),
     ])
-    expect(
-      within(rowFor('Noisy strap run')).getByText('Readings skipped 60 times'),
-    ).toBeInTheDocument()
+    expect(within(rowFor('Noisy strap run')).getByText('60 sensor dropouts')).toBeInTheDocument()
   })
 
   it('says once for one reading skipped', () => {
     renderList([makeActivity({ name: 'One skip run', flags: [flag('Heart rate read zero')] })])
-    expect(within(rowFor('One skip run')).getByText('Readings skipped once')).toBeInTheDocument()
+    expect(within(rowFor('One skip run')).getByText('1 sensor dropout')).toBeInTheDocument()
   })
 
   it('is a list rather than a table, so it reflows on a phone', () => {
@@ -455,7 +469,7 @@ describe('ActivityList paging', () => {
     renderList(activities)
 
     expect(rowsShown()).toHaveLength(20)
-    expect(screen.getAllByText('Readings skipped once')).toHaveLength(20)
+    expect(screen.getAllByText('1 sensor dropout')).toHaveLength(20)
     expect(screen.getByText('Showing 1–20 of 5,000 activities. Page 1 of 250.')).toBeVisible()
   })
 

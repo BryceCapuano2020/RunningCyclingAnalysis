@@ -206,6 +206,8 @@ export function ResultPage({
           keptIds={keptIds}
           weightKnown={weightKnown}
           busy={removing}
+          // A signed-in library can read older detail back from a saved original, so only this browser's own is judged.
+          detailIds={signedIn ? null : (analysis.detail?.ids ?? null)}
           signedIn={signedIn}
           onDelete={analysis.deleteActivity}
           libraryNotice={analysis.libraryNotice}

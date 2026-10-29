@@ -140,6 +140,12 @@ export type WorkerResponse =
       uploaded?: number
       paused?: true
     }
+  /**
+   * The activities whose detailed readings this browser holds, and when the oldest of them started. Sent
+   * before the state that ends a request that can change what is stored, and not again while it is the
+   * same. Null ids say storage could not answer. Absent while a sample shows.
+   */
+  | { type: 'detailCoverage'; ids: string[] | null; oldestStartMs: number | null }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
   /** The account's saved activities when signed in, or the ones kept in this browser when not. */

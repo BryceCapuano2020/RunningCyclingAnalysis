@@ -33,6 +33,8 @@ export interface ActivitiesPageProps {
   /** False while no body weight is entered, which holds a ride's record chips. */
   weightKnown?: boolean
   busy?: boolean
+  /** The activities this browser holds detailed readings for; null while that is not known. */
+  detailIds?: ReadonlySet<string> | null
   /** Whether the visitor is signed in, which says where a removal takes the activity from. */
   signedIn: boolean
   onDelete?: (savedId: string) => void
@@ -64,6 +66,7 @@ export function ActivitiesPage({
   keptIds,
   weightKnown = true,
   busy = false,
+  detailIds = null,
   signedIn,
   onDelete,
   libraryNotice = null,
@@ -226,6 +229,7 @@ export function ActivitiesPage({
           keptIds={keptIds}
           weightKnown={weightKnown}
           busy={busy}
+          detailIds={detailIds}
           signedIn={signedIn}
           onDelete={removeHere}
         />

@@ -214,7 +214,9 @@ test('Profile with dated settings fits 320 px, and its table is a keyboard scrol
     testInfo.project.name !== 'narrow-320',
     'Only the 320 px project measures the narrowest screen',
   )
-  await openSample(page)
+  // The sample's settings are read-only, so dated settings are the visitor's own, with their own file.
+  await page.goto('/')
+  await uploadFixtures(page, ['one-run.fit'])
   await goTo(page, 'Profile')
   const dates = ['2026-08-15', '2025-08-15', '2026-05-01']
   for (const [index, date] of dates.entries()) {
@@ -266,3 +268,68 @@ for (const width of [600, 760]) {
     expect(overflow).toBeLessThanOrEqual(0)
   })
 }
+
+test('the sample on Profile shows its own settings read-only, and nothing is saved', async ({
+  page,
+}) => {
+  await openSample(page)
+  await goTo(page, 'Profile')
+
+  await expect(
+    page.getByText("These are the sample athlete's settings. Add your files to use your own."),
+  ).toBeVisible()
+  const list = page.getByRole('region', { name: 'Sample athlete' })
+  // The sample is 37 on its newest effort, which is this year's.
+  await expect(list.getByText(String(new Date().getFullYear() - 37))).toBeVisible()
+  await expect(list.getByText('Man', { exact: true })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Year of birth' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Settings over time' })).toHaveCount(0)
+  // The sample's zones are shown, from its own references.
+  await expect(page.getByRole('table', { name: /^Run heart rate zones/ })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('rca.preferences.v1'))).toBeNull()
+})
+
+test('zone tables name themselves outside the table and fit the screen without scrolling', async ({
+  page,
+}, testInfo) => {
+  await openSample(page)
+  await goTo(page, 'Profile')
+  await expect(page.locator('.zone-tables caption')).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 3, name: 'Run pace zones' })).toBeVisible()
+  const clipped = await page.evaluate(
+    () =>
+      [...document.querySelectorAll<HTMLElement>('.zone-tables__table')].filter(
+        (box) => box.scrollWidth > box.clientWidth,
+      ).length,
+  )
+  expect(clipped, `${testInfo.project.name} clips a zone table`).toBe(0)
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  )
+  expect(overflow).toBeLessThanOrEqual(0)
+})
+
+test('notices sit inside main, and a page has no empty live region of its own to count', async ({
+  page,
+}) => {
+  await openSample(page)
+  const outside = await page.evaluate(
+    () =>
+      [...document.querySelectorAll('[role="status"],[role="alert"]')].filter(
+        (node) =>
+          !node.closest('main') &&
+          (node.textContent ?? '').trim() !== '' &&
+          !node.closest('header'),
+      ).length,
+  )
+  expect(outside).toBe(0)
+  await expect(page.getByRole('main').getByText(/^Sample athlete, a 37-year-old man/)).toBeVisible()
+
+  // The notice region is one live region, and a notice added to it is announced from there.
+  await goTo(page, 'Run')
+  await expect(page.getByRole('button', { name: 'Sample athlete' })).toBeVisible()
+  const regions = await page.evaluate(
+    () => document.querySelectorAll('main .app__live[role="status"]').length,
+  )
+  expect(regions).toBe(1)
+})

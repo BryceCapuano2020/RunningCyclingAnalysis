@@ -86,11 +86,11 @@ function issueSentence(issue: SyncIssue, saved: number | null): string {
 }
 
 /**
- * Status line for save outcomes. Render it once, outside the pages, so its
- * live region stays mounted: a region that mounts with the content is not announced. It announces
- * how an upload ends, once it finishes: the count saved, or that none was. Starts are not announced
- * here, and the running count is visual only, shown once at least one activity is saved. Issues
- * stay visible until the parent clears them.
+ * Status line for save outcomes. Render it once, inside the notice region (AppNotices), which is a live
+ * region that stays mounted: a region that mounts with its content is not announced, but a line added to
+ * one that is already there is. It says how an upload ends, once it finishes: the count saved, or that
+ * none was. Starts are not announced here, and the running count is visual only, shown once at least one
+ * activity is saved. Issues stay visible until the parent clears them.
  */
 export function SyncStatus({
   uploading,
@@ -126,15 +126,15 @@ export function SyncStatus({
   }
   const messageClass =
     issues.length > 0 ? 'sync-status__message sync-status__message--failed' : 'sync-status__message'
+  const showCount = signedIn && uploading !== null && uploading > 0
+  if (text === '' && !showCount) return null
 
   return (
     <div className="sync-status">
-      <p role="status" className={messageClass}>
-        {text}
-      </p>
-      {signedIn && uploading !== null && uploading > 0 && (
+      {text !== '' && <p className={messageClass}>{text}</p>}
+      {showCount && (
         <span className="sync-status__count" aria-hidden="true">
-          {`${formatCount(uploading)} saved`}
+          {`${formatCount(uploading ?? 0)} saved`}
         </span>
       )}
     </div>

@@ -1,0 +1,32 @@
+/* One line with its sentence under Details. It sits in a .notice or on the page, so it adds no frame. */
+.notice-line {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.notice-line > summary {
+  min-height: 28px;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* The triangle stays at the left, the short text takes the row and Details sits at the right. */
+.notice-line__short {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: auto;
+  overflow-wrap: anywhere;
+}
+
+.notice-line__more {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+}
+
+.notice-line__full {
+  margin: var(--space-1) 0 var(--space-2);
+  padding-left: var(--space-4);
+  color: var(--text-secondary);
+}

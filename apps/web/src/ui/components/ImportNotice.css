@@ -35,3 +35,10 @@
   align-items: center;
   min-height: var(--control-height);
 }
+
+/* The line on where detailed readings stop: quiet, since it explains rather than reports. */
+.import-notice__detail {
+  margin-top: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

@@ -7,8 +7,12 @@ const NO_RUN_EFFORT = 'No run has a usable effort yet.'
 /** Line two of the answer while a ride's grade waits for the weight. */
 const WAITS_FOR_WEIGHT = 'Your balance waits for your weight.'
 
+/** What the range says of a dead heat: outside it the lean is firm, inside it the model cannot rule one out. */
+const DEAD_HEAT_OUTSIDE = 'A dead heat is outside the range, so the lean is real.'
+const DEAD_HEAT_INSIDE = 'A dead heat is inside the range, so the lean could go either way.'
+
 /**
- * Line two of the answer: which way the balance leans, in Balance's words, and whether even is inside
+ * Line two of the answer: which way the balance leans, in Balance's words, and whether a dead heat is inside
  * the range the model gives. Null while no balance is stated.
  */
 export function answerVerdict(
@@ -18,8 +22,8 @@ export function answerVerdict(
   if (waitsForWeight) return WAITS_FOR_WEIGHT
   if (balance === null) return null
   const { low, high } = balance.lead
-  const even = low <= 0 && high >= 0 ? 'inside' : 'outside'
-  return `${balanceTitle(balance)}. Even is ${even} its range.`
+  const dead = low <= 0 && high >= 0 ? DEAD_HEAT_INSIDE : DEAD_HEAT_OUTSIDE
+  return `${balanceTitle(balance)}. ${dead}`
 }
 
 /**

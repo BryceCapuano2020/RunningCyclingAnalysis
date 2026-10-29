@@ -76,13 +76,25 @@ function scopeKey(scope: TraceScope, id: string): string {
 /** An evidence store in memory whose every call is observable. */
 function spyStore() {
   const rows = new Map<string, ActivityTrace>()
+  const starts = new Map<string, number>()
   const store = {
     get: vi.fn(async (scope: TraceScope, id: string) => rows.get(scopeKey(scope, id)) ?? null),
     has: vi.fn(async (scope: TraceScope, id: string) => rows.has(scopeKey(scope, id))),
-    put: vi.fn(async (scope: TraceScope, trace: ActivityTrace): Promise<PutResult> => {
-      rows.set(scopeKey(scope, trace.activityId), trace)
-      return 'stored'
-    }),
+    put: vi.fn(
+      async (scope: TraceScope, trace: ActivityTrace, startMs: number): Promise<PutResult> => {
+        rows.set(scopeKey(scope, trace.activityId), trace)
+        starts.set(scopeKey(scope, trace.activityId), startMs)
+        return 'stored'
+      },
+    ),
+    list: vi.fn(async (scope: TraceScope) =>
+      [...rows.keys()]
+        .filter((key) => key === scopeKey(scope, (JSON.parse(key) as string[])[1]!))
+        .map((key) => ({
+          activityId: (JSON.parse(key) as string[])[1]!,
+          startMs: starts.get(key)!,
+        })),
+    ),
     remove: vi.fn(async (scope: TraceScope, id: string) => {
       rows.delete(scopeKey(scope, id))
       return true
@@ -284,6 +296,56 @@ describe('where an import keeps recordings', () => {
     expect(reply).toEqual({
       type: 'activityTrace',
       reply: { kind: 'trace', trace: expect.objectContaining({ activityId: id }) },
+    })
+  })
+
+  it('tells the page which activities have stored detail, and since when, before the state that ends the import', async () => {
+    const { send } = await startWorker()
+    const messages = await send(signedOutImport(fitFile()))
+
+    const coverage = messages.find((message) => message.type === 'detailCoverage')
+    expect(coverage).toMatchObject({ type: 'detailCoverage', ids: [expect.any(String)] })
+    expect(coverage?.type === 'detailCoverage' && coverage.oldestStartMs).toBe(run.startMs)
+    expect(messages.findIndex((message) => message.type === 'detailCoverage')).toBeLessThan(
+      messages.findIndex((message) => message.type === 'state'),
+    )
+
+    // A request that cannot change what is stored says nothing more, and neither does one that leaves it as it was.
+    const same = await send({ type: 'keepProvisional', settings: SETTINGS })
+    expect(same.find((message) => message.type === 'detailCoverage')).toBeUndefined()
+    const settings = await send({ type: 'setSettings', settings: SETTINGS })
+    expect(settings.find((message) => message.type === 'detailCoverage')).toBeUndefined()
+
+    spy.rows.clear()
+    const cleared = await send({ type: 'keepProvisional', settings: SETTINGS })
+    expect(cleared.find((message) => message.type === 'detailCoverage')).toMatchObject({
+      ids: [],
+      oldestStartMs: null,
+    })
+  })
+
+  it('counts recordings held in memory alone, as a provisional import leaves them', async () => {
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      provisional: true,
+    })
+    const coverage = messages.find((message) => message.type === 'detailCoverage')
+    expect(coverage).toMatchObject({ ids: [expect.any(String)], oldestStartMs: run.startMs })
+  })
+
+  it('tells the page storage cannot say only when it holds an answer from before', async () => {
+    const { send } = await startWorker()
+    const first = await send(signedOutImport(fitFile()))
+    expect(first.some((message) => message.type === 'detailCoverage')).toBe(true)
+
+    spy.store.list.mockResolvedValueOnce(null as never)
+    const unknown = await send({ type: 'keepProvisional', settings: SETTINGS })
+    expect(unknown.find((message) => message.type === 'detailCoverage')).toMatchObject({
+      ids: null,
     })
   })
 

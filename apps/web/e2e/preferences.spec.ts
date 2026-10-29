@@ -50,7 +50,7 @@ test('a visitor’s own ride W/kg follows the body weight they enter on Profile'
   await expect(ride).toContainText('W/kg')
 })
 
-test('the sample keeps its own 75 kg whatever weight the visitor enters, and the weight is kept for later', async ({
+test('the sample keeps its own 75 kg whatever weight the visitor has entered, and that weight is kept for later', async ({
   page,
 }) => {
   await openSample(page)
@@ -58,18 +58,31 @@ test('the sample keeps its own 75 kg whatever weight the visitor enters, and the
   await expect(ride).toContainText('W/kg')
   const before = await ride.innerText()
 
-  await goTo(page, 'Profile')
-  const body = page.getByLabel('Body weight')
-  await body.fill('185')
-  await body.blur()
-  await expect(body).toHaveValue(/^185(\.0)?$/)
-
-  // The sample is analysed with its own mass, so the Ride figures do not move.
-  await goTo(page, 'Balance')
+  // The visitor's own weight, entered before and kept in this browser.
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'rca.preferences.v1',
+      JSON.stringify({
+        settings: { massKg: 83.9, bikeMassKg: 9 },
+        units: 'imperial',
+        birthYear: null,
+        sex: null,
+        setupDone: true,
+      }),
+    )
+  })
+  await page.reload()
+  await openSample(page)
   await expect(ride).toContainText('W/kg')
+  // The sample is analysed with its own mass, so the Ride figures do not move.
   expect(await ride.innerText()).toBe(before)
 
-  // The visitor's own weight is still on Profile for when they add files of their own.
+  // Profile shows the sample's settings, read-only, and not the visitor's.
   await goTo(page, 'Profile')
-  await expect(page.getByLabel('Body weight')).toHaveValue(/^185(\.0)?$/)
+  const settings = page.getByRole('region', { name: 'Sample athlete' })
+  await expect(settings.getByText('165.3 lb')).toBeVisible()
+  await expect(page.getByLabel('Body weight')).toHaveCount(0)
+  // Looking at the sample leaves what the visitor entered as it was, for when they add files of their own.
+  const kept = await page.evaluate(() => localStorage.getItem('rca.preferences.v1'))
+  expect(JSON.parse(kept ?? '{}')).toMatchObject({ settings: { massKg: 83.9 } })
 })

@@ -25,11 +25,10 @@ vi.mock('./ui/charts', async () => {
 const APP = 'RunningCyclingAnalysis'
 const COLD = 'Add your files to see this page.'
 
-/** The status line above the page, which says why a link shows the landing page. */
-function noticeOf(): HTMLElement {
+/** The line above the page that says why a link shows the landing page, or null while there is none. */
+function noticeOf(): HTMLElement | null {
   const notice = document.querySelector('.app__notice')
-  if (!(notice instanceof HTMLElement)) throw new Error('No notice')
-  return notice
+  return notice instanceof HTMLElement ? notice : null
 }
 
 beforeEach(() => {
@@ -179,7 +178,7 @@ describe('deep links without a result', () => {
   it('show no notice on Balance, which is the landing page', () => {
     window.location.hash = '#/'
     render(<App />)
-    expect(noticeOf()).toBeEmptyDOMElement()
+    expect(noticeOf()).toBeNull()
   })
 
   it('replace an unknown hash with Balance, so the address names the page shown', async () => {

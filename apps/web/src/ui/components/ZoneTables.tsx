@@ -3,7 +3,6 @@ import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { zonesAt } from '@rca/core/zones'
 import type { ZoneEstimates, ZoneSet } from '@rca/core/zones'
-import { ChartTable } from '../charts/ChartTable'
 import { useNow } from '../useNow'
 import { NEEDS_WEIGHT, zoneTable } from '../zoneRows'
 import './ZoneTables.css'
@@ -19,6 +18,41 @@ export interface ZoneTablesProps {
   /** Whether a body weight is entered. Without one a ride's estimated power zones have no watts to show. */
   weightKnown: boolean
   units: UnitSystem
+}
+
+/**
+ * One zone set's rows, with the title above the table rather than inside it, so the table is as wide as
+ * its rows need. It wraps its cells instead of scrolling, so a narrow page shows every range.
+ */
+function ZoneTable({ id, columns, rows }: { id: string; columns: string[]; rows: string[][] }) {
+  return (
+    <table className="zone-tables__rows" aria-labelledby={`${id} ${id}-detail`}>
+      <thead>
+        <tr>
+          {columns.map((column) => (
+            <th key={column} scope="col">
+              {column}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.join('|')}>
+            {row.map((cell, i) =>
+              i === 0 ? (
+                <th key={columns[i]} scope="row">
+                  {cell}
+                </th>
+              ) : (
+                <td key={columns[i]}>{cell}</td>
+              ),
+            )}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 }
 
 /**
@@ -57,14 +91,15 @@ export function ZoneTables({ athlete, estimates, weightKnown, units }: ZoneTable
           <div className="zone-tables__grid">
             {sets.map((set) => {
               const table = zoneTable(set, units)
+              const id = `${titleId}-${set.sport}-${set.measure}`
               return (
                 <div key={`${set.sport}.${set.measure}`} className="zone-tables__table">
-                  <ChartTable
-                    caption={`${table.title}. ${table.detail}.`}
-                    columns={table.columns}
-                    rows={table.rows}
-                    textColumns={[1, 2]}
-                  />
+                  <h3 id={id}>{table.title}</h3>
+                  <p
+                    id={`${id}-detail`}
+                    className="secondary zone-tables__detail"
+                  >{`${table.detail}.`}</p>
+                  <ZoneTable id={id} columns={table.columns} rows={table.rows} />
                   <p className="zone-tables__citation muted">{table.citation}</p>
                 </div>
               )

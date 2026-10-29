@@ -67,6 +67,9 @@ const NO_FILES_ENERGY =
 /** The energy view, when Balance shows the age-grade gap, and when it shows the energy ratio instead. */
 const ENERGY_CROSS_CHECK =
   'The energy view is a cross-check of the age-grade gap on Balance. Near even, the energy check can lean the other way from the age-grade gap.'
+/** Where the energy range and Balance's points range sit side by side: how the two relate. */
+const ENERGY_BRIDGE =
+  'Balance gives its range in grade points and this view gives it in percent of energy. Both come from the same 90% spread in the model’s assumptions, so the two ranges describe one uncertainty in two units.'
 const ENERGY_FALLBACK =
   'When Balance has no age-grade gap to show, it shows the energy ratio instead: running’s energy rate as a percentage of cycling’s. This view is that ratio.'
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
@@ -275,6 +278,7 @@ export function MethodPage({
         ) : (
           <>
             <p className="secondary">{gradeGapShown ? ENERGY_CROSS_CHECK : ENERGY_FALLBACK}</p>
+            {gradeGapShown && <p className="secondary">{ENERGY_BRIDGE}</p>}
             <p className="secondary">
               The 90% range is the spread the model gives for its assumptions. Nine times in ten,
               the true value falls inside it if those assumptions hold.

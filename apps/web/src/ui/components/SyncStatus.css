@@ -15,15 +15,3 @@
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
-
-/*
- * With nothing to say, take the region out of the layout (no empty grid row) but keep it
- * in the accessibility tree, so the next message is still announced.
- */
-.sync-status:has(> p:empty):not(:has(.sync-status__count)) {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}

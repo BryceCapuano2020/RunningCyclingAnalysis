@@ -20,6 +20,7 @@ import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import { ImportReporter } from './importReporter'
 import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { summarizeAdded } from './importSummary'
+import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCoverage'
 import { deviceClock, sampleActivityById } from './sampleClock'
 import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
@@ -78,6 +79,7 @@ const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 let showingSample = false
 // The clock the sample on screen was drawn with, so a recording drawn later is of the same activity.
 let sampleClock: SampleClock = deviceClock()
+const reportDetail = detailReporter(workbench, post, () => (showingSample ? null : activeScope))
 
 /** Runs one import: each new activity is saved, and its file uploaded when files are kept. */
 async function addFiles(
@@ -356,17 +358,13 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
       if (event.data.type === 'addFiles') {
-        post({
-          type: 'state',
-          ...(await addFiles(event.data)),
-          ...rebuildable(),
-        })
+        const imported = await addFiles(event.data)
+        await reportDetail()
+        post({ type: 'state', ...imported, ...rebuildable() })
       } else if (event.data.type === 'rebuildStale') {
-        post({
-          type: 'rebuildComplete',
-          ...(await rebuildStale(libraryContext, event.data.settings, event.data.userId)),
-          ...rebuildable(),
-        })
+        const rebuilt = await rebuildStale(libraryContext, event.data.settings, event.data.userId)
+        await reportDetail()
+        post({ type: 'rebuildComplete', ...rebuilt, ...rebuildable() })
       } else if (event.data.type === 'exportData') {
         post({ type: 'exportReady', file: await exportAccount(event.data) })
       } else if (event.data.type === 'activitySplits') {
@@ -379,12 +377,13 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         post(await routes.reply(event.data))
       } else if (event.data.type === 'activityTrace') {
         post({ type: 'activityTrace', reply: await activityTraceReply(event.data) })
+        // Reading a trace back from an original stores it, which may push an older one out.
+        if (event.data.fromOriginal === true) await reportDetail()
       } else {
-        post({
-          type: 'state',
-          state: await handle(event.data),
-          ...rebuildable(),
-        })
+        const state = await handle(event.data)
+        const { type } = event.data
+        if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
+        post({ type: 'state', state, ...rebuildable() })
       }
     } catch (error) {
       post({

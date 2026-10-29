@@ -91,14 +91,6 @@
   gap: var(--space-3);
 }
 
-/* Says why the sample is off while an import runs, on a line of its own under the button. */
-.dropzone__busy {
-  width: 100%;
-  margin: 0;
-  text-align: center;
-  font-size: var(--text-sm);
-}
-
 /*
  * On a touch screen the drop zone is not a drop target, so it is not drawn as one: it is the row of actions
  * under the pitch, with the accepted files and the guides link under it in small text.

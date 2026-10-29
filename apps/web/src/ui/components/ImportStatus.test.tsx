@@ -226,10 +226,10 @@ describe('ImportStatus: the busy strip', () => {
     )
   })
 
-  it('uses the singular for a total of one file', () => {
+  it('says it is analysing once every file is read, while the activities are worked out together', () => {
     renderStatus({ busy: true, progress: { filesRead: 1, filesTotal: 1 } })
     afterDelay()
-    expect(screen.getByText('Reading 1 of 1 activity file')).toBeInTheDocument()
+    expect(screen.getByText('Analysing your activities')).toBeInTheDocument()
   })
 
   it('fills the bar to the share of the total that is read, and keeps it hidden from screen readers', () => {
@@ -449,7 +449,7 @@ describe('ImportStatus: announcements', () => {
       />,
     )
     expect(screen.getByRole('status').textContent).toBe(
-      'Nothing new: 5 activities already in your library. 328 files: 5 already added, 1 needs a look, 2 other sports left out on purpose, 320 not listed as activities.',
+      'Nothing new: 5 activities already in your library. 328 files, 8 of them activity files: 5 already added, 1 needs a look, 2 other sports left out on purpose, 320 not listed as activities.',
     )
   })
 

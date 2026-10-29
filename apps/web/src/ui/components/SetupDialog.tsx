@@ -17,7 +17,7 @@ import { AthleteFields } from './AthleteFields'
 import { NumberField } from './NumberField'
 import { SegmentedControl } from './SegmentedControl'
 import './SetupDialog.css'
-import { WEIGHT_PROMPT_TEXT } from '../weightCopy'
+import { WEIGHT_DIALOG_TEXT } from '../weightCopy'
 
 export interface SetupDialogProps {
   /** What the dialog starts from: the saved values, or the signed-in profile. */
@@ -208,8 +208,8 @@ export function SetupDialog({
           A few details
         </h2>
         <p id={helpId} className="setup-dialog__help">
-          Your year of birth and sex set your level in each sport. They stay on this device unless
-          you sign in.
+          Everything here is optional. Your year of birth and sex set your level in each sport, and
+          your weight lets rides be compared with runs. They stay on this device unless you sign in.
         </p>
         <SegmentedControl
           legend="Units"
@@ -263,7 +263,7 @@ export function SetupDialog({
           }}
         />
         <div className="setup-dialog__notes">
-          {weightBlank && <p className="setup-dialog__note muted">{WEIGHT_PROMPT_TEXT}</p>}
+          {weightBlank && <p className="setup-dialog__note muted">{WEIGHT_DIALOG_TEXT}</p>}
         </div>
         {error && (
           <p role="alert" className="setup-dialog__error">

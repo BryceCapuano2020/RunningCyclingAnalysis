@@ -20,6 +20,7 @@ function memoryStore(overrides: Partial<WorkbenchStore> = {}) {
   const store: WorkbenchStore = {
     get: vi.fn(async (scope, id) => rows.get(scopeKey(scope, id)) ?? null),
     has: vi.fn(async (scope, id) => rows.has(scopeKey(scope, id))),
+    list: vi.fn(async () => []),
     put: vi.fn(async (scope, trace) => {
       rows.set(scopeKey(scope, trace.activityId), trace)
       return 'stored' as const

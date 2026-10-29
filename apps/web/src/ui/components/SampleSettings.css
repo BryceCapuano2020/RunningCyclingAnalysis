@@ -1,0 +1,25 @@
+/* The sample's settings as a read-only list: four figures, side by side where they fit. */
+.sample-settings__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-stat)), 1fr));
+  gap: var(--space-4) var(--space-5);
+  margin: 0;
+}
+
+.sample-settings__row {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sample-settings__list dt {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.sample-settings__list dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+  font-weight: 700;
+}

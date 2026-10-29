@@ -13,68 +13,69 @@ function props(overrides: Partial<SyncStatusProps> = {}): SyncStatusProps {
   return { uploading: null, issues: [], signedIn: true, ...overrides }
 }
 
+/** The line of text, which the notice region around it announces as it is added. */
+function message(): HTMLElement {
+  const line = document.querySelector<HTMLElement>('.sync-status__message')
+  if (line === null) throw new Error('no status message is shown')
+  return line
+}
+
 const issue = (code: SyncIssue['code'], count: number): SyncIssue => ({ code, count })
 
 describe('SyncStatus', () => {
-  it('keeps one live status region mounted, empty when idle', () => {
-    render(<SyncStatus {...props()} />)
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  it('renders nothing when idle, rather than an empty region', () => {
+    const { container } = render(<SyncStatus {...props()} />)
+    expect(container).toBeEmptyDOMElement()
   })
 
-  it('stays mounted and empty when signed out with nothing to report', () => {
-    const { rerender } = render(<SyncStatus {...props({ signedIn: false })} />)
+  it('renders nothing when signed out with nothing to report', () => {
+    const { container, rerender } = render(<SyncStatus {...props({ signedIn: false })} />)
     rerender(<SyncStatus {...props({ signedIn: false, uploading: null })} />)
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
-    expect(screen.queryByText(/saved/)).not.toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 
-  it('does not announce the start of an upload, since the analysis status already does', () => {
+  it('says nothing of the start of an upload, since the analysis status already does', () => {
     const { rerender } = render(<SyncStatus {...props()} />)
     rerender(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: 3 })} />)
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(document.querySelector('.sync-status__message')).toBeNull()
   })
 
-  it('keeps the live text empty during the upload and shows the running count outside it', () => {
+  it('has no message text during the upload and shows the running count, hidden from readers', () => {
     const { rerender } = render(<SyncStatus {...props()} />)
     rerender(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: 12 })} />)
     rerender(<SyncStatus {...props({ uploading: 13 })} />)
 
-    const status = screen.getByRole('status')
-    expect(status).toBeEmptyDOMElement()
-    const count = screen.getByText('13 saved')
-    expect(count).toHaveAttribute('aria-hidden', 'true')
-    expect(status).not.toContainElement(count)
+    expect(document.querySelector('.sync-status__message')).toBeNull()
+    expect(screen.getByText('13 saved')).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('announces a finished upload with the saved count, in the singular and the plural', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: 12 })} />)
     rerender(<SyncStatus {...props({ uploading: null })} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Saved 12 activities to your library')
-    expect(screen.getByRole('status')).not.toHaveClass('sync-status__message--failed')
+    expect(message()).toHaveTextContent('Saved 12 activities to your library')
+    expect(message()).not.toHaveClass('sync-status__message--failed')
     expect(screen.queryByText('12 saved')).not.toBeInTheDocument()
 
     rerender(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: 1 })} />)
     rerender(<SyncStatus {...props({ uploading: null })} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Saved 1 activity to your library')
+    expect(message()).toHaveTextContent('Saved 1 activity to your library')
   })
 
   it('takes the saved count from the reply that ended the import, when the last progress lagged', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: 1 })} />)
     rerender(<SyncStatus {...props({ uploading: null, savedCount: 12 })} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Saved 12 activities to your library')
+    expect(message()).toHaveTextContent('Saved 12 activities to your library')
 
     // The same count says the same: it is the end of the import that makes the sentence.
     rerender(<SyncStatus {...props({ uploading: 0, savedCount: null })} />)
     rerender(<SyncStatus {...props({ uploading: 4, savedCount: null })} />)
     rerender(<SyncStatus {...props({ uploading: null, savedCount: 0 })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'No new activities were saved to your library.',
-    )
+    expect(message()).toHaveTextContent('No new activities were saved to your library.')
   })
 
   it('never shows a saved count of zero, and says so when a signed-in import saved nothing', () => {
@@ -82,7 +83,7 @@ describe('SyncStatus', () => {
     expect(screen.queryByText('0 saved')).not.toBeInTheDocument()
 
     rerender(<SyncStatus {...props({ uploading: null })} />)
-    const status = screen.getByRole('status')
+    const status = message()
     expect(status).toHaveTextContent('No new activities were saved to your library.')
     expect(status).not.toHaveTextContent('Saved 0')
     expect(status).not.toHaveClass('sync-status__message--failed')
@@ -90,11 +91,11 @@ describe('SyncStatus', () => {
 
   it('does not announce a start or finish for an upload that was already running on mount', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 5 })} />)
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(document.querySelector('.sync-status__message')).toBeNull()
     expect(screen.getByText('5 saved')).toHaveAttribute('aria-hidden', 'true')
 
     rerender(<SyncStatus {...props({ uploading: 6 })} />)
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(document.querySelector('.sync-status__message')).toBeNull()
   })
 
   it('groups the running count and the finished count from a thousand on', () => {
@@ -102,14 +103,12 @@ describe('SyncStatus', () => {
     rerender(<SyncStatus {...props({ uploading: 1915 })} />)
     expect(screen.getByText('1,915 saved')).toBeInTheDocument()
     rerender(<SyncStatus {...props({ uploading: null })} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Saved 1,915 activities to your library.')
+    expect(message()).toHaveTextContent('Saved 1,915 activities to your library.')
   })
 
   it('groups the count in an issue sentence from a thousand on', () => {
     render(<SyncStatus {...props({ issues: [issue('activity-conflict', 1204)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(
-      '1,204 workouts are already saved from different files.',
-    )
+    expect(message()).toHaveTextContent('1,204 workouts are already saved from different files.')
   })
 
   it('shows no running count when no upload is in progress', () => {
@@ -120,7 +119,7 @@ describe('SyncStatus', () => {
   it('reports the issues of a finished upload in place of the saved message', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue('network', 3)] })} />)
-    const status = screen.getByRole('status')
+    const status = message()
     expect(status).toHaveTextContent(
       '3 activities were not fully saved because the connection dropped. Add them again to retry.',
     )
@@ -129,7 +128,7 @@ describe('SyncStatus', () => {
 
   it('keeps reporting issues while idle, so they are not lost after the upload ends', () => {
     render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(message()).toHaveTextContent(
       '1 activity was not fully saved because of a server error. Add it again to retry.',
     )
   })
@@ -137,16 +136,14 @@ describe('SyncStatus', () => {
   it('keeps earlier issues visible while a new upload runs', () => {
     const { rerender } = render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
     rerender(<SyncStatus {...props({ uploading: 0, issues: [issue('server', 1)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'not fully saved because of a server error',
-    )
+    expect(message()).toHaveTextContent('not fully saved because of a server error')
   })
 
   it('joins several issues into one message, one sentence each', () => {
     render(
       <SyncStatus {...props({ issues: [issue('storage-budget', 2), issue('rate-limited', 4)] })} />,
     )
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(message()).toHaveTextContent(
       'Original-file storage is paused for now, so 2 originals were not kept. The summaries were saved. Too many requests at once. 4 waiting. Wait a minute, then add the rest again.',
     )
   })
@@ -260,12 +257,12 @@ describe('SyncStatus', () => {
     ],
   ])('says what happened and what works for %s with %i affected', (code, count, text) => {
     render(<SyncStatus {...props({ issues: [issue(code, count)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(text)
+    expect(message()).toHaveTextContent(text)
   })
 
   it('says the daily save limit resets at a local time, with no UTC in the words', () => {
     render(<SyncStatus {...props({ issues: [issue('daily-limit', 2)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(message()).toHaveTextContent(
       /^You have reached today's limit on saves\. 2 waiting\. It resets at .+, your time\. Add the rest again after that\.$/,
     )
   })
@@ -287,7 +284,7 @@ describe('SyncStatus', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: 1915 })} />)
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue(code, 1103)] })} />)
-    const status = screen.getByRole('status')
+    const status = message()
     expect(status.textContent).toMatch(text)
     expect(status).toHaveClass('sync-status__message--failed')
   })
@@ -303,7 +300,7 @@ describe('SyncStatus', () => {
         })}
       />,
     )
-    expect(screen.getByRole('status').textContent).toMatch(
+    expect(message().textContent).toMatch(
       /^You have reached today's limit on saves\. 90 saved, 10 waiting\. /,
     )
   })
@@ -319,7 +316,7 @@ describe('SyncStatus', () => {
         })}
       />,
     )
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(message()).toHaveTextContent(
       'Your library is full (5,000 activities). 1,103 waiting. Delete older activities to make room, then add the rest again.',
     )
   })
@@ -327,14 +324,14 @@ describe('SyncStatus', () => {
   it('says none were saved when the limit came before the first save', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue('rate-limited', 40)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(message()).toHaveTextContent(
       'Too many requests at once. 0 saved, 40 waiting. Wait a minute, then add the rest again.',
     )
   })
 
   it('shows issues to a signed-out visitor, who is the one who needs to sign in', () => {
     render(<SyncStatus {...props({ signedIn: false, issues: [issue('signed-out', 1)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Sign in and add it again.')
+    expect(message()).toHaveTextContent('Sign in and add it again.')
   })
 
   it('shows no running count while signed out', () => {
@@ -349,24 +346,20 @@ describe('SyncStatus: what moved', () => {
     rerender(<SyncStatus {...props({ uploading: 3, moved: true })} />)
     rerender(<SyncStatus {...props({ uploading: null, moved: true })} />)
     rerender(<SyncStatus {...props({ uploading: null, moved: false })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Saved 3 activities to your library. Your numbers moved.',
-    )
+    expect(message()).toHaveTextContent('Saved 3 activities to your library. Your numbers moved.')
   })
 
   it('says the numbers moved in the completion announcement', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0, moved: true })} />)
     rerender(<SyncStatus {...props({ uploading: 3, moved: true })} />)
     rerender(<SyncStatus {...props({ uploading: null, moved: true })} />)
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Saved 3 activities to your library. Your numbers moved.',
-    )
+    expect(message()).toHaveTextContent('Saved 3 activities to your library. Your numbers moved.')
   })
 
   it('leaves the numbers out of the completion when nothing moved', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: 3 })} />)
     rerender(<SyncStatus {...props({ uploading: null })} />)
-    expect(screen.getByRole('status').textContent).toBe('Saved 3 activities to your library.')
+    expect(message().textContent).toBe('Saved 3 activities to your library.')
   })
 })
