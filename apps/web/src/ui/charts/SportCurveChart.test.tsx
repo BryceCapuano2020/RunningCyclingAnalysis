@@ -175,38 +175,31 @@ describe('SportCurveChart', () => {
     expect(yTickLabels(container)[0]).toBe('0')
   })
 
-  it('draws a pace line alone, and fills the area under a watts line in its soft colour', () => {
-    const run = render(
-      <SportCurveChart
-        sport="run"
-        curve={RUN_SPEEDS}
-        previous={null}
-        massKg={MASS_KG}
-        units="metric"
-      />,
-    )
-    expect(run.container.querySelectorAll('[data-testid="sport-curve-line"]')).toHaveLength(1)
-    expect(run.container.querySelector('.chart-series__line--run')).not.toBeNull()
-    expect(run.container.querySelector('.chart-series__area')).toBeNull()
-    run.unmount()
-
-    const ride = render(
-      <SportCurveChart
-        sport="ride"
-        curve={RIDE_WATTS}
-        previous={null}
-        massKg={MASS_KG}
-        units="metric"
-      />,
-    )
-    const area = ride.container.querySelector('.chart-series__area')
-    expect(area).toHaveClass('chart-series__area--ride')
-    // The area takes its colour from --sport-colour-soft, which data-sport sets for the ride.
-    expect(area).toHaveAttribute('data-sport', 'ride')
-    expect(area?.getAttribute('d')).toMatch(/Z$/)
+  it('washes the area under the line in the sport colour, for pace as well as power', () => {
+    for (const [sport, curve] of [
+      ['run', RUN_SPEEDS],
+      ['ride', RIDE_WATTS],
+    ] as const) {
+      const { container, unmount } = render(
+        <SportCurveChart
+          sport={sport}
+          curve={curve}
+          previous={null}
+          massKg={MASS_KG}
+          units="metric"
+        />,
+      )
+      expect(container.querySelectorAll('[data-testid="sport-curve-line"]')).toHaveLength(1)
+      const area = container.querySelector('.chart-series__area')
+      expect(area).toHaveClass(`chart-series__area--${sport}`)
+      // The wash takes its colour from --sport-colour, which data-sport sets for the sport.
+      expect(area).toHaveAttribute('data-sport', sport)
+      expect(area?.getAttribute('d')).toMatch(/Z$/)
+      unmount()
+    }
   })
 
-  it('emphasises the 20-minute effort and labels it', () => {
+  it('emphasises the 20-minute effort and calls it out with its value, in watts, not its duration alone', () => {
     const { container } = render(
       <SportCurveChart
         sport="ride"
@@ -217,8 +210,8 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(screen.getByTestId('sport-curve-emphasis')).toBeInTheDocument()
-    // The label is the value at the emphasised effort, in watts, not its duration.
-    expect(container.querySelector('.chart-series__label')?.textContent).toBe('250 W')
+    const callout = container.querySelector('[data-annotation="best-1200"]')
+    expect(callout?.textContent).toBe('20 min250 W3.3 W/kg')
   })
 
   it('emphasises the longest effort instead when there is no 20-minute one', () => {
@@ -231,10 +224,13 @@ describe('SportCurveChart', () => {
         units="metric"
       />,
     )
-    expect(container.querySelector('.chart-series__label')?.textContent).toBe('320 W')
+    expect(screen.getByTestId('sport-curve-emphasis')).toBeInTheDocument()
+    // The 5 minute effort is the longest, and the end of the curve, so it is called out and not labelled twice.
+    expect(container.querySelector('[data-annotation="best-300"]')?.textContent).toContain('320 W')
+    expect(container.querySelector('[data-annotation="end"]')).toBeNull()
   })
 
-  it('draws the previous period dashed and names it in the legend, when given', () => {
+  it('draws the previous period as a thinner solid grey line and names it in the legend, when given', () => {
     const { container } = render(
       <SportCurveChart
         sport="run"
@@ -247,7 +243,7 @@ describe('SportCurveChart', () => {
     const previousLine = container.querySelector('[data-testid="sport-curve-previous"]')
     const currentLine = container.querySelector('[data-testid="sport-curve-line"]')
     expect(previousLine).not.toBeNull()
-    // The dashed line is its own path through the previous period's points, not a copy of the current one.
+    // The grey line is its own path through the previous period's points, not a copy of the current one.
     const previousD = previousLine?.getAttribute('d') ?? ''
     expect(previousD).not.toBe(currentLine?.getAttribute('d'))
     // Two points, one per duration the previous period has; the gap at five minutes lifts the pen.
@@ -255,7 +251,11 @@ describe('SportCurveChart', () => {
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Previous 6 weeks')).toBeInTheDocument()
     expect(within(legend).getByText('Run')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /Dashed line: Previous 6 weeks\./ })).toBeInTheDocument()
+    // The previous period is never dashed: dashes are for estimates. Its key is a solid grey rule.
+    expect(previousLine).not.toHaveAttribute('stroke-dasharray')
+    expect(legend.querySelector('.chart-legend__key--previous')).not.toBeNull()
+    expect(legend.querySelector('.chart-legend__key--dashed')).toBeNull()
+    expect(screen.getByRole('img', { name: /Grey line: Previous 6 weeks\./ })).toBeInTheDocument()
   })
 
   it('draws no previous line, and no legend, without a previous period', () => {
@@ -505,7 +505,7 @@ describe('SportCurveChart', () => {
 })
 
 describe('SportCurveChart record marks', () => {
-  it('marks the 1, 5, 20 and 60 minute efforts, and labels the last point with its value', () => {
+  it('marks the 1, 5, 20 and 60 minute efforts, and calls out the 5, 20 and 60 minute bests', () => {
     const { container } = render(
       <SportCurveChart
         sport="ride"
@@ -525,14 +525,18 @@ describe('SportCurveChart record marks', () => {
     // The 20-minute effort is the emphasised point; the 1, 5 and 60 minute efforts are marked too,
     // and 10 minutes is not a record, so it is left unmarked.
     expect(container.querySelectorAll('[data-testid="sport-curve-record"]')).toHaveLength(3)
-    const labels = [...container.querySelectorAll('.chart-series__label')].map(
-      (label) => label.textContent,
+    const callouts = [...container.querySelectorAll('.annot--callout')].map((callout) =>
+      callout.getAttribute('data-annotation'),
     )
-    expect(labels).toEqual(['250 W', '210 W'])
+    expect(callouts).toEqual(['best-300', 'best-1200', 'best-3600'])
+    const values = [...container.querySelectorAll('.annot__text--value')].map(
+      (value) => value.textContent,
+    )
+    expect(values).toEqual(['320 W', '250 W', '210 W'])
   })
 })
 
-describe('the last point’s label beside the 20 minute label', () => {
+describe('the series’ end label', () => {
   const CURVE = [
     curvePoint(60, 400, 'ride-1'),
     curvePoint(300, 320, 'ride-1'),
@@ -540,49 +544,9 @@ describe('the last point’s label beside the 20 minute label', () => {
     curvePoint(1800, 230, 'ride-1'),
   ]
 
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    document.documentElement.style.fontSize = ''
-  })
+  const endOf = (container: HTMLElement) => container.querySelector('[data-annotation="end"]')
 
-  it('leaves the last label out at a large root font, where its text is wider than at the default', () => {
-    // The label is 0.75 rem, so at a 32 px root its text is about 72 px wide for "230 W". The last point
-    // sits about 60 px past the 20 minute label, so the label would overlap it there.
-    document.documentElement.style.fontSize = '32px'
-    chartWidth(575)
-    const { container } = render(
-      <SportCurveChart
-        sport="ride"
-        curve={CURVE}
-        previous={null}
-        massKg={MASS_KG}
-        units="metric"
-      />,
-    )
-    const labels = [...container.querySelectorAll('.chart-series__label')].map(
-      (label) => label.textContent,
-    )
-    expect(labels).toEqual(['250 W'])
-  })
-
-  it('leaves the last label out when it would sit on the 20 minute label on a 280 px chart', () => {
-    chartWidth(280)
-    const { container } = render(
-      <SportCurveChart
-        sport="ride"
-        curve={CURVE}
-        previous={null}
-        massKg={MASS_KG}
-        units="metric"
-      />,
-    )
-    const labels = [...container.querySelectorAll('.chart-series__label')].map(
-      (label) => label.textContent,
-    )
-    expect(labels).toEqual(['250 W'])
-  })
-
-  it('labels the last point where there is room beside the 20 minute label', () => {
+  it('names the last effort’s value and where it is, in the right margin of a wide chart', () => {
     chartWidth(900)
     const { container } = render(
       <SportCurveChart
@@ -593,10 +557,68 @@ describe('the last point’s label beside the 20 minute label', () => {
         units="metric"
       />,
     )
-    const labels = [...container.querySelectorAll('.chart-series__label')].map(
-      (label) => label.textContent,
+    const end = endOf(container)
+    expect(end?.textContent).toBe('230 Wat 30 min')
+    const x = Number(end?.querySelector('text')?.getAttribute('x'))
+    // The plot ends 180 px before the chart does, and the label starts in that margin.
+    expect(x).toBeGreaterThan(900 - 180)
+    expect(end?.querySelector('text')?.getAttribute('text-anchor')).toBe('start')
+  })
+
+  it('moves left of its point on a chart with no margin to hold it', () => {
+    chartWidth(300)
+    // No 5, 20 or 60 minute effort, so nothing else is called out and the label has the room.
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={[
+          curvePoint(60, 400, 'ride-1'),
+          curvePoint(120, 360, 'ride-1'),
+          curvePoint(1800, 230, 'ride-1'),
+        ]}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
     )
-    expect(labels).toEqual(['250 W', '230 W'])
+    expect(endOf(container)?.querySelector('text')?.getAttribute('text-anchor')).toBe('end')
+  })
+
+  it('is left out, with the other bests it would crowd, where a phone’s plot has no room, and the headline stays', () => {
+    chartWidth(300)
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={CURVE}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('[data-annotation="best-1200"]')).not.toBeNull()
+    expect(container.querySelectorAll('[data-crowded]')).toHaveLength(0)
+  })
+
+  it('stays above the plot’s floor, clear of the x tick labels, wherever its point is', () => {
+    chartWidth(900)
+    const { container } = render(
+      <SportCurveChart
+        sport="run"
+        curve={[
+          curvePoint(180, 5.0, 'run-1'),
+          curvePoint(300, 4.5, 'run-1'),
+          curvePoint(1200, 4.0, 'run-1'),
+          curvePoint(1800, 3.2, 'run-1'),
+        ]}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    for (const text of endOf(container)?.querySelectorAll('text') ?? []) {
+      // The plot ends 52 px above the SVG's bottom.
+      expect(Number(text.getAttribute('y'))).toBeLessThanOrEqual(320 - 52)
+    }
   })
 })
 
@@ -665,7 +687,7 @@ describe('the curve’s key row, table and labels', () => {
     expect(ticks).toContain('20 min')
   })
 
-  it('draws the previous period’s key in the tooltip dashed, in its own mark', () => {
+  it('draws the previous period’s key in the tooltip as a solid grey rule, in its own mark', () => {
     render(
       <SportCurveChart
         sport="run"
@@ -677,7 +699,8 @@ describe('the curve’s key row, table and labels', () => {
     )
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     const status = screen.getByRole('status')
-    expect(status.querySelector('.chart-tooltip__key--dashed')).not.toBeNull()
+    expect(status.querySelector('.chart-tooltip__key--previous')).not.toBeNull()
+    expect(status.querySelector('.chart-tooltip__key--dashed')).toBeNull()
     expect(status.querySelector('.chart-tooltip__key--neutral')).toBeNull()
   })
 
@@ -695,31 +718,6 @@ describe('the curve’s key row, table and labels', () => {
       'No rides in the previous 6 weeks',
     )
     expect(container.querySelector('.chart-frame > .chart-frame__note')).toBeNull()
-  })
-
-  it('moves the last label above its point where a label below would sit on the x tick labels', () => {
-    // The last point sits 28 px above the plot's bottom, so a label 18 px below it would run past the floor.
-    // The chart is wide enough that the padded label still clears the 20 minute label beside it.
-    chartWidth(900)
-    const { container } = render(
-      <SportCurveChart
-        sport="run"
-        curve={[
-          curvePoint(180, 5.0, 'run-1'),
-          curvePoint(300, 4.5, 'run-1'),
-          curvePoint(1200, 4.0, 'run-1'),
-          curvePoint(1800, 3.2, 'run-1'),
-        ]}
-        previous={null}
-        massKg={MASS_KG}
-        units="metric"
-      />,
-    )
-    const last = [...container.querySelectorAll('.chart-series__label')].find(
-      (label) => label.textContent === '5:13 /km',
-    )
-    // The plot ends 52 px above the SVG's bottom, and a label keeps 12 px clear of that edge.
-    expect(Number(last?.getAttribute('y'))).toBeLessThanOrEqual(320 - 52 - 12)
   })
 
   it('reserves no key row for a curve without a previous period', () => {

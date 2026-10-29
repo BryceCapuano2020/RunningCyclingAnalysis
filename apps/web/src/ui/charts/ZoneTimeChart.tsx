@@ -1,6 +1,9 @@
-import type { CSSProperties } from 'react'
+import { useId } from 'react'
+import { percentText } from '../zoneTimeCopy'
 import { ChartFrame } from './ChartFrame'
 import type { ChartSize, ChartTableData } from './chartTypes'
+import { rootFontPx } from './rootFont'
+import { percentFits, segmentsOf, takeawayText, underLabels } from './zoneBars'
 import './ZoneTimeChart.css'
 
 /** One measure's stacked bar: the seconds in each zone, lowest effort first. */
@@ -10,6 +13,10 @@ export interface ZoneChartRow {
   seconds: readonly number[]
   /** What the bar reads as text: "zone 1 12%, zone 2 64%". */
   summary: string
+  /** The zone names, lowest effort first: "Endurance", set under a segment wide enough to hold it. */
+  names?: readonly string[]
+  /** The shares of the time that were easy and hard, 0 to 1: the bar's takeaway, written above it. */
+  easyHard?: { easy: number; hard: number }
 }
 
 export interface ZoneTimeChartProps {
@@ -22,96 +29,175 @@ export interface ZoneTimeChartProps {
   summary?: ChartTableData
 }
 
-/** One measure's band: the label, the bar and the zone numbers under it. */
-const ROW_HEIGHT = 64
+/** One measure's band: its label and takeaway line, the bar, and the zone numbers and names under it. */
 const LABEL_BASELINE = 14
-const BAR_TOP = 22
-const BAR_HEIGHT = 22
-const NUMBER_BASELINE = 60
-/** A zone number is drawn under its segment only when the segment is at least this wide, in px. */
-const NUMBER_MIN_WIDTH = 20
+const BAR_TOP = 24
+const BAR_HEIGHT = 44
+const NAME_GAP = 16
+const ROW_GAP = 22
+/** The key under the bars: Easy, five numbered steps, Hard. */
+const KEY_HEIGHT = 30
+const KEY_CHIP = { width: 34, height: 22, gap: 6 }
+const BAR_RADIUS = 8
+/** The gap kept between two segments, px. */
+const SEGMENT_GAP = 2
 
-/**
- * The least strength, in percent, of the sport's colour in a segment. At 80% the lightest segment keeps 3:1
- * against the card in both schemes and both sports (the least that does is 66 to 80%, which
- * zoneTint.test.ts checks from the tokens), which is what a graphic that carries meaning needs.
- */
-export const MIN_ZONE_TINT = 80
+const ROW_HEIGHT = BAR_TOP + BAR_HEIGHT + NAME_GAP + ROW_GAP
 
-/**
- * The tint of a zone: the sport's colour at a strength that rises with the zone, from MIN_ZONE_TINT to
- * 100%. So close a range cannot tell zones apart on its own: the order of the bar, the numbers under it
- * and the table say which zone is which, and the segments are edged in the page colour.
- */
-function tint(index: number, count: number): number {
-  return Math.round(MIN_ZONE_TINT + ((100 - MIN_ZONE_TINT) * (index + 1)) / count)
+/** The height of the whole chart for this many bars: each band, then the key. */
+function heightOf(rows: number): number {
+  return rows * ROW_HEIGHT + KEY_HEIGHT
 }
 
-function segmentStyle(index: number, count: number): CSSProperties {
-  return { ['--zone-tint' as string]: `${tint(index, count)}%` }
-}
-
-/** The segments of a bar, left to right across the width, with the zone each stands for. Empty zones have none. */
-function segmentsOf(seconds: readonly number[], width: number) {
-  const total = seconds.reduce((a, b) => a + b, 0)
-  const lefts = seconds.map((_, i) => seconds.slice(0, i).reduce((a, b) => a + b, 0))
-  return seconds.flatMap((each, i) =>
-    each > 0 && total > 0
-      ? [{ level: i + 1, left: (lefts[i]! / total) * width, width: (each / total) * width }]
-      : [],
-  )
-}
-
-function Bar({ row, index, size }: { row: ZoneChartRow; index: number; size: ChartSize }) {
+function Bar({
+  row,
+  index,
+  size,
+  clipId,
+}: {
+  row: ZoneChartRow
+  index: number
+  size: ChartSize
+  clipId: string
+}) {
+  const barHeight = BAR_HEIGHT
   const top = index * ROW_HEIGHT
+  const barTop = top + BAR_TOP
+  const rootPx = rootFontPx()
+  const segments = segmentsOf(row.seconds, size.width)
+  const clip = `${clipId}-${index}`
   return (
     <g>
       <text className="zone-time__label" x={0} y={top + LABEL_BASELINE}>
         {row.label}
       </text>
-      {segmentsOf(row.seconds, size.width).map((segment) => (
-        <g key={segment.level}>
-          <rect
-            className="zone-time__segment"
-            style={segmentStyle(segment.level - 1, row.seconds.length)}
-            x={segment.left}
-            y={top + BAR_TOP}
-            width={segment.width}
-            height={BAR_HEIGHT}
-          />
-          {segment.width >= NUMBER_MIN_WIDTH ? (
-            <text
-              className="zone-time__number"
-              x={segment.left + segment.width / 2}
-              y={top + NUMBER_BASELINE}
-              textAnchor="middle"
-            >
-              {segment.level}
-            </text>
-          ) : null}
-        </g>
+      {row.easyHard ? (
+        <text
+          className="zone-time__takeaway"
+          x={size.width}
+          y={top + LABEL_BASELINE}
+          textAnchor="end"
+        >
+          {takeawayText(row.easyHard)}
+        </text>
+      ) : null}
+      <clipPath id={clip}>
+        <rect x={0} y={barTop} width={size.width} height={barHeight} rx={BAR_RADIUS} />
+      </clipPath>
+      <g clipPath={`url(#${clip})`}>
+        {segments.map((segment, i) => {
+          // Each segment gives up half the gap on a side it shares with a neighbour, so the gap is the same everywhere.
+          const first = i === 0
+          const last = i === segments.length - 1
+          const x = segment.left + (first ? 0 : SEGMENT_GAP / 2)
+          const width = segment.width - (first ? 0 : SEGMENT_GAP / 2) - (last ? 0 : SEGMENT_GAP / 2)
+          const text = percentText(segment.share)
+          return (
+            <g key={segment.level} data-zone={segment.level}>
+              <rect
+                className="zone-time__segment"
+                data-zone={segment.level}
+                x={x}
+                y={barTop}
+                width={Math.max(0, width)}
+                height={barHeight}
+              />
+              {percentFits(text, segment.width, rootPx) ? (
+                <text
+                  className="zone-time__percent"
+                  data-zone={segment.level}
+                  x={segment.left + segment.width / 2}
+                  y={barTop + barHeight / 2}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                >
+                  {text}
+                </text>
+              ) : null}
+            </g>
+          )
+        })}
+      </g>
+      {underLabels(segments, row.names, size.width, rootPx).map((label) => (
+        <text
+          key={label.level}
+          className="zone-time__number"
+          x={label.x}
+          y={barTop + barHeight + NAME_GAP - 2}
+          textAnchor="middle"
+        >
+          {label.text}
+        </text>
       ))}
     </g>
   )
 }
 
+/** The key: the five steps, numbered, from easy to hard, in the ramp's colours. */
+function Key({ y }: { y: number }) {
+  const step = KEY_CHIP.width + KEY_CHIP.gap
+  const left = 40
+  return (
+    <g className="zone-time__key">
+      <text className="zone-time__number" x={0} y={y + 16}>
+        Easy
+      </text>
+      {[1, 2, 3, 4, 5].map((level) => (
+        <g key={level}>
+          <rect
+            className="zone-time__chip"
+            data-zone={level}
+            x={left + (level - 1) * step}
+            y={y}
+            width={KEY_CHIP.width}
+            height={KEY_CHIP.height}
+            rx={4}
+          />
+          <text
+            className="zone-time__percent zone-time__percent--key"
+            data-zone={level}
+            x={left + (level - 1) * step + KEY_CHIP.width / 2}
+            y={y + KEY_CHIP.height / 2}
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            {level}
+          </text>
+        </g>
+      ))}
+      <text className="zone-time__number" x={left + 5 * step + 2} y={y + 16}>
+        Hard
+      </text>
+    </g>
+  )
+}
+
 /**
- * The share of time in each zone as a stacked horizontal bar for each measure, with the sentence it
- * supports above and the same numbers in a table behind View as table. The bars fill the width, so a
- * 320 px phone shows them whole. A zone's number sits under its segment when the segment is wide enough.
+ * The share of time in each zone as a stacked horizontal bar for each measure, on the sport's five-step ramp:
+ * the percent inside each segment where it fits, the zone's number and name under it where they fit, and the
+ * easy and hard shares above the bar as its takeaway. Under the bars a key reads Easy 1 2 3 4 5 Hard. The
+ * sentence the bars support is above them and the same numbers are in a table behind View as table.
  */
 export function ZoneTimeChart({ title, lede, rows, table, summary }: ZoneTimeChartProps) {
+  const clipId = useId().replaceAll(':', '')
   const description = `Stacked bars of the share of time in each zone. ${rows.map((row) => `${row.label}: ${row.summary}.`).join(' ')}`
   return (
     <ChartFrame
       title={title}
       description={description}
       lede={lede}
-      height={rows.length * ROW_HEIGHT + 4}
+      height={heightOf(rows.length)}
       table={table}
       summary={summary}
     >
-      {(size) => rows.map((row, i) => <Bar key={row.label} row={row} index={i} size={size} />)}
+      {(size) => (
+        <>
+          {rows.map((row, i) => (
+            <Bar key={row.label} row={row} index={i} size={size} clipId={clipId} />
+          ))}
+          <Key y={rows.length * ROW_HEIGHT} />
+        </>
+      )}
     </ChartFrame>
   )
 }

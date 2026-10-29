@@ -20,3 +20,14 @@ describe('the chart legend’s dashed keys', () => {
     }
   })
 })
+
+describe('the chart legend’s previous-period key', () => {
+  it('is a solid grey rule, 2 px, the width the previous line is drawn at, and never dashed', () => {
+    const body = ruleBody(legendCss, '.chart-legend__key--previous')
+    expect(body).toMatch(/border-top:\s*2px solid var\(--previous-mark\)/)
+    expect(body).not.toContain('dashed')
+    expect(widthOf(ruleBody(seriesCss, '.chart-series__line--previous'), 'stroke-width')).toBe(
+      '2px',
+    )
+  })
+})

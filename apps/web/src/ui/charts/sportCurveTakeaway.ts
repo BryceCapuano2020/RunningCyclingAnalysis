@@ -1,0 +1,116 @@
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import type { Sport } from '@rca/core/types'
+import type { UnitSystem } from '@rca/core/units'
+import { effortLabel } from '../records'
+import { splitValue } from './annotationTypes'
+import type { CurveRow } from './curveTable'
+import { formatNative, plottedValue } from './sportAxis'
+
+/** How a sport's own number reads when it moves: its words, and whether a lower number is the better one. */
+interface Wording {
+  /** What the number is, in a sentence: "pace", "power". */
+  noun: string
+  better: string
+  worse: string
+  /** A pace is seconds per unit, so a smaller number is quicker. */
+  lowerIsBetter: boolean
+  /** The size of a change as text, from whole plotted units and the unit of the sport's formatted value. */
+  size: (amount: number, unit: string) => string
+  /** The least change, in plotted units, that is called a change: below it the two periods are the same to a reading's noise. */
+  floor: (units: UnitSystem) => number
+}
+
+const WORDING: Record<Sport, Wording> = {
+  run: {
+    noun: 'pace',
+    better: 'quicker',
+    worse: 'slower',
+    lowerIsBetter: true,
+    // The unit is "/km" or "/mi", set tight to the seconds: "13 s/km".
+    size: (amount, unit) => `${amount} s${unit.trim()}`,
+    floor: (units) => (units === 'metric' ? RUN_FLOOR_S_PER_KM : RUN_FLOOR_S_PER_MI),
+  },
+  ride: {
+    noun: 'power',
+    better: 'higher',
+    worse: 'lower',
+    lowerIsBetter: false,
+    size: (amount, unit) => `${amount}${unit}`,
+    floor: () => RIDE_FLOOR_W,
+  },
+}
+
+/**
+ * When a change is a change. One floor for every curve, whatever else is known about its fit, so the same
+ * data always gets the same verdict: the change must exceed 1% of the earlier value and this much besides,
+ * which is about what two readings of the same effort differ by. A change under it is "no clear change".
+ */
+export const MIN_RELATIVE_CHANGE = 0.01
+export const RIDE_FLOOR_W = 2
+export const RUN_FLOOR_S_PER_KM = 2
+export const RUN_FLOOR_S_PER_MI = 3
+
+export interface TakeawayInput {
+  sport: Sport
+  units: UnitSystem
+  rows: readonly CurveRow[]
+  /** The period before, such as "Previous 12 weeks", when it has something to compare. */
+  previousLabel: string | null
+  /** The level the best 20 minutes grades to, such as "Local", when it can be graded. */
+  level?: string
+}
+
+const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
+
+/** A row whose value, in either period, is its own effort's: a carried value is a longer effort's, not a finding at this length. */
+const measuredIn = (row: CurveRow, key: 'value' | 'previous') =>
+  Number.isFinite(row[key]) &&
+  (key === 'value' ? row.carried !== true : row.previousCarried !== true)
+
+/**
+ * The effort the comparison reads: the best 20 minutes when both periods have a measured one, else the longest
+ * effort both have measured, which holds the most evidence.
+ */
+function comparedRow(rows: readonly CurveRow[]): CurveRow | undefined {
+  const both = rows.filter((row) => measuredIn(row, 'value') && measuredIn(row, 'previous'))
+  return both.find((row) => row.durationS === HEADLINE_DURATION_S) ?? both.at(-1)
+}
+
+/** The best measured 20 minutes, or the longest measured effort when there is none. */
+function bestRow(rows: readonly CurveRow[]): CurveRow | undefined {
+  const measured = rows.filter((row) => measuredIn(row, 'value'))
+  return measured.find((row) => row.durationS === HEADLINE_DURATION_S) ?? measured.at(-1)
+}
+
+/**
+ * The curve's finding, as the sentence its title carries. With a period before, it says how far the 20 minute
+ * effort (or the longest effort both periods have measured) moved, when the move clears the floor above, or that
+ * there is no clear change. Without one, it names the best, with its level. A carried value is never read
+ * as a finding. Null when the curve has no measured effort to name.
+ */
+export function curveTakeaway({
+  sport,
+  units,
+  rows,
+  previousLabel,
+  level,
+}: TakeawayInput): string | null {
+  const wording = WORDING[sport]
+  const compared = previousLabel === null ? undefined : comparedRow(rows)
+  if (previousLabel !== null && compared !== undefined) {
+    const change =
+      plottedValue(sport, compared.value, units) - plottedValue(sport, compared.previous, units)
+    const before = plottedValue(sport, compared.previous, units)
+    const amount = Math.round(Math.abs(change))
+    const floor = Math.max(wording.floor(units), Math.abs(before) * MIN_RELATIVE_CHANGE)
+    const against = `the ${lowerFirst(previousLabel)}`
+    if (!(Math.abs(change) > floor) || amount < 1) return `No clear change against ${against}`
+    const better = wording.lowerIsBetter ? change < 0 : change > 0
+    const { unit } = splitValue(formatNative(sport, compared.value, units))
+    return `${effortLabel(compared.durationS)} is ${wording.size(amount, unit)} ${better ? wording.better : wording.worse} than ${against}`
+  }
+  const best = bestRow(rows)
+  if (best === undefined) return null
+  const graded = best.durationS === HEADLINE_DURATION_S && level !== undefined ? `, ${level}` : ''
+  return `Best ${effortLabel(best.durationS)}: ${formatNative(sport, best.value, units)}${graded}`
+}

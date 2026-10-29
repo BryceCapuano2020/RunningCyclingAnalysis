@@ -29,6 +29,8 @@ const TITLE = 'Training hours per week'
 const DESCRIPTION = 'Stacked bars of the hours trained each week, one colour for each sport.'
 /** The strip is shorter than the trend it sits under, since it carries one measure. */
 const HEIGHT = 200
+/** The radius of a bar's data end, px: the top part's corners. */
+const BAR_END_RADIUS = 2
 
 /** A week's tooltip: the hours in each sport it trained, and the total, or a note that it did not train. */
 function tooltipFor(week: VolumeWeek, x: number, y: number): TooltipContent {
@@ -119,7 +121,7 @@ export function WeeklyVolumeChart({ weeks, lede, plotRightMargin }: WeeklyVolume
             <GapMarks xs={m.xs} gaps={weeks.map((week) => !trained(week))} plot={plot} />
             {activeX !== undefined ? <Crosshair x={activeX} plot={plot} /> : null}
             {m.bars.flatMap((bar, i) =>
-              bar.segments.map((segment) => (
+              bar.segments.map((segment, k) => (
                 <rect
                   key={`${weeks[i]?.endMs}-${segment.sport}`}
                   data-testid="volume-bar"
@@ -129,6 +131,7 @@ export function WeeklyVolumeChart({ weeks, lede, plotRightMargin }: WeeklyVolume
                   y={segment.y}
                   width={bar.width}
                   height={segment.height}
+                  rx={k === bar.segments.length - 1 && segment.edged ? BAR_END_RADIUS : undefined}
                 />
               )),
             )}

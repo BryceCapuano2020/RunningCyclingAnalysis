@@ -12,3 +12,17 @@
   fill: var(--text-secondary);
   font-size: var(--text-xs);
 }
+
+/* Inside the plot a label sits over data and gridlines, so it is set on a halo in the card colour. */
+.chart-y-axis__tick--inside {
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+@media (forced-colors: active) {
+  .chart-y-axis__tick--inside {
+    stroke: Canvas;
+  }
+}

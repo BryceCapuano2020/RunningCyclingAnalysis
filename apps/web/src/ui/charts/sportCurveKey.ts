@@ -16,6 +16,6 @@ export function keyOf(
   if (shown === null) return previous === null ? undefined : []
   return [
     { label: SPORT_LABEL[sport], kind: sport, swatch: 'line' },
-    { label: shown.label, kind: 'neutral', swatch: 'dashed' },
+    { label: shown.label, kind: 'neutral', swatch: 'previous' },
   ]
 }

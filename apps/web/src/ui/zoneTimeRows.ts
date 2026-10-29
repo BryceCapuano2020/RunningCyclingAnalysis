@@ -1,5 +1,6 @@
 import type { MeasureTime } from '@rca/core/zones'
-import { hasEnoughZoneTime, sameEnteredReferences, zoneShares } from '@rca/core/zones'
+import { effortSplit, hasEnoughZoneTime, sameEnteredReferences, zoneShares } from '@rca/core/zones'
+import type { ZoneMeasure } from '@rca/core/zones'
 import type { ChartTableData } from './charts/chartTypes'
 import type { ZoneChartRow } from './charts/ZoneTimeChart'
 import { ROW_LABEL, percentText, zoneTimeText } from './zoneTimeCopy'
@@ -12,13 +13,33 @@ export function barSummary(time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>):
     .join(', ')
 }
 
+/** The shares of a measure's time that were easy and hard, from the same split as the sentence above the bars. */
+export function easyHardShares(
+  measure: ZoneMeasure,
+  time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>,
+): { easy: number; hard: number } {
+  const { easy, hard } = effortSplit({ measure, ...time })
+  return { easy, hard }
+}
+
+/** One measure's bar: its label, the time in each zone, its text reading, its zone names and its easy and hard shares. */
+export function zoneBar(
+  measure: ZoneMeasure,
+  time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>,
+  names: readonly string[],
+): ZoneChartRow {
+  return {
+    label: ROW_LABEL[measure],
+    seconds: time.seconds,
+    summary: barSummary(time),
+    names,
+    easyHard: easyHardShares(measure, time),
+  }
+}
+
 /** The bars of a period: one for each measure. */
 export function periodBars(rows: readonly MeasureTime[]): ZoneChartRow[] {
-  return rows.map((row) => ({
-    label: ROW_LABEL[row.measure],
-    seconds: row.seconds,
-    summary: barSummary(row),
-  }))
+  return rows.map((row) => zoneBar(row.measure, row, row.names))
 }
 
 /** The previous period's row of a measure, only when it can be compared: enough time, and the same entered settings. */

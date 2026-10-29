@@ -179,46 +179,61 @@ A sport's figure is set in ink, and its shape carries the colour. A surface of o
 a chip or a route takes its own sport's colour. Status
 colours always come with an icon and a label, so a warning never relies on red beside the run coral.
 
-| Token                  | Light       | Dark        | Use                                                                        |
-| ---------------------- | ----------- | ----------- | -------------------------------------------------------------------------- |
-| `--surface-0`          | `#f5f6f8`   | `#0f1115`   | Page (paper)                                                               |
-| `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs                                                              |
-| `--surface-2`          | `#eceff3`   | `#1e232c`   | Hover, tiles, tracks                                                       |
-| `--surface-pressed`    | `#dde2ea`   | `#101318`   | A button's fill while it is pressed                                        |
-| `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                                       |
-| `--grid`               | `#e9ecf1`   | `#232830`   | Chart gridlines                                                            |
-| `--control-border`     | `#7f8694`   | `#6b7380`   | Input and button outlines (3:1 or better)                                  |
-| `--text-primary`       | `#0e1116`   | `#eef0f3`   | Ink                                                                        |
-| `--text-secondary`     | `#474f5c`   | `#b6bcc6`   | Supporting text                                                            |
-| `--text-muted`         | `#5f6774`   | `#8d95a2`   | Captions, axis labels (4.5:1 or better)                                    |
-| `--neutral-mark`       | `#474f5c`   | `#b6bcc6`   | Neutral data and reference marks                                           |
-| `--neutral-band`       | `#474f5c24` | `#b6bcc629` | Neutral band fill                                                          |
-| `--previous-mark`      | `#838a97`   | `#737b89`   | The previous period's line: a thin dashed mid grey, under the current line |
-| `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                              |
-| `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                     |
-| `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                         |
-| `--accent-hover`       | `#474f5c`   | `#a9d62c`   | Primary button fill on hover, a visible change in both schemes             |
-| `--accent-pressed`     | `#000000`   | `#8fb81c`   | Primary button fill while it is pressed, with a 1 px drop                  |
-| `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                  |
-| `--mark-ring`          | `#0e1116`   | `#6b7380`   | The ring round the brand mark's tile, so the tile shows on the dark page   |
-| `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                                    |
-| `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                                         |
-| `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                   |
-| `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                 |
-| `--series-run`         | `#e5304f`   | `#f0435f`   | Running data                                                               |
-| `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                               |
-| `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                   |
-| `--series-run-soft`    | `#e5304f26` | `#f0435f33` | Running band and area fill                                                 |
-| `--series-ride-soft`   | `#2f56e826` | `#4d6ef533` | Cycling band and area fill                                                 |
-| `--series-swim-soft`   | `#0f9fb026` | `#14a0b033` | Swimming band and area fill (reserved)                                     |
-| `--ladder-run-band`    | `#e5304f26` | `#f0435f26` | Run band behind the level ladder's range, low enough alpha for the outline |
-| `--ladder-ride-band`   | `#2f56e826` | `#4d6ef526` | Ride band behind the level ladder's range, low enough alpha for the ring   |
-| `--status-warning`     | `#8a5300`   | `#f2b544`   | Warning icon and label                                                     |
-| `--status-warning-bg`  | `#fbf2d9`   | `#33290c`   | Warning chip background                                                    |
-| `--status-critical`    | `#b3261e`   | `#ff8a80`   | Error icon and label; destructive button background                        |
-| `--status-critical-bg` | `#fde8e6`   | `#3a1714`   | Error chip background                                                      |
-| `--status-good`        | `#17753a`   | `#4ac26b`   | Success icon and label                                                     |
-| `--status-good-bg`     | `#e3f4e8`   | `#10301b`   | Success chip background                                                    |
+| Token                  | Light       | Dark        | Use                                                                                                                                        |
+| ---------------------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--surface-0`          | `#f5f6f8`   | `#0f1115`   | Page (paper)                                                                                                                               |
+| `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs                                                                                                                              |
+| `--surface-2`          | `#eceff3`   | `#1e232c`   | Hover, tiles, tracks                                                                                                                       |
+| `--surface-pressed`    | `#dde2ea`   | `#101318`   | A button's fill while it is pressed                                                                                                        |
+| `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                                                                                                       |
+| `--grid`               | `#d0d5de`   | `#343b47`   | Chart gridlines: about 1.5:1 on the card, visible but recessive                                                                            |
+| `--control-border`     | `#7f8694`   | `#6b7380`   | Input and button outlines (3:1 or better)                                                                                                  |
+| `--text-primary`       | `#0e1116`   | `#eef0f3`   | Ink                                                                                                                                        |
+| `--text-secondary`     | `#474f5c`   | `#b6bcc6`   | Supporting text                                                                                                                            |
+| `--text-muted`         | `#5f6774`   | `#8d95a2`   | Captions, axis labels (4.5:1 or better)                                                                                                    |
+| `--neutral-mark`       | `#474f5c`   | `#b6bcc6`   | Neutral data and reference marks                                                                                                           |
+| `--neutral-band`       | `#474f5c24` | `#b6bcc629` | Neutral band fill                                                                                                                          |
+| `--previous-mark`      | `#838a97`   | `#737b89`   | The previous period's line: a thin dashed mid grey, under the current line                                                                 |
+| `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                                                                                              |
+| `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                                                                                     |
+| `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                                                                                         |
+| `--accent-hover`       | `#474f5c`   | `#a9d62c`   | Primary button fill on hover, a visible change in both schemes                                                                             |
+| `--accent-pressed`     | `#000000`   | `#8fb81c`   | Primary button fill while it is pressed, with a 1 px drop                                                                                  |
+| `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                                                                                  |
+| `--mark-ring`          | `#0e1116`   | `#6b7380`   | The ring round the brand mark's tile, so the tile shows on the dark page                                                                   |
+| `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                                                                                                    |
+| `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                                                                                                         |
+| `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                                                                                   |
+| `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                                                                                 |
+| `--series-run`         | `#e5304f`   | `#f0435f`   | Running data                                                                                                                               |
+| `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                                                                                               |
+| `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                                                                                   |
+| `--series-run-soft`    | `#e5304f26` | `#f0435f33` | Running band and area fill                                                                                                                 |
+| `--series-ride-soft`   | `#2f56e826` | `#4d6ef533` | Cycling band and area fill                                                                                                                 |
+| `--series-swim-soft`   | `#0f9fb026` | `#14a0b033` | Swimming band and area fill (reserved)                                                                                                     |
+| `--ladder-run-band`    | `#e5304f26` | `#f0435f26` | Run band behind the level ladder's range, low enough alpha for the outline                                                                 |
+| `--ladder-ride-band`   | `#2f56e826` | `#4d6ef526` | Ride band behind the level ladder's range, low enough alpha for the ring                                                                   |
+| `--zone-run-1`         | `#e16265`   | `#b43d52`   | Running zone 1, the lowest effort; the ramp darkens with effort in light and, in dark, grows more luminous at full saturation, never paler |
+| `--zone-run-2`         | `#d0293d`   | `#ca4556`   | Running zone 2, lowest effort first                                                                                                        |
+| `--zone-run-3`         | `#a90227`   | `#de555d`   | Running zone 3, lowest effort first                                                                                                        |
+| `--zone-run-4`         | `#750017`   | `#ee716e`   | Running zone 4, lowest effort first                                                                                                        |
+| `--zone-run-5`         | `#410008`   | `#ff897f`   | Running zone 5, lowest effort first                                                                                                        |
+| `--zone-ride-1`        | `#6589d3`   | `#5061b3`   | Cycling zone 1, the lowest effort; the ramp darkens with effort in light and, in dark, grows more luminous at full saturation, never paler |
+| `--zone-ride-2`        | `#3c67c9`   | `#4f70d6`   | Cycling zone 2, lowest effort first                                                                                                        |
+| `--zone-ride-3`        | `#1844b9`   | `#4a81f4`   | Cycling zone 3, lowest effort first                                                                                                        |
+| `--zone-ride-4`        | `#082c91`   | `#5196ff`   | Cycling zone 4, lowest effort first                                                                                                        |
+| `--zone-ride-5`        | `#041b5d`   | `#67acfe`   | Cycling zone 5, lowest effort first                                                                                                        |
+| `--zone-ink-1`         | `#0e1116`   | `#ffffff`   | Text on zone 1 of either sport (4.5:1 or better)                                                                                           |
+| `--zone-ink-2`         | `#ffffff`   | `#ffffff`   | Text on zone 2 of either sport (4.5:1 or better)                                                                                           |
+| `--zone-ink-3`         | `#ffffff`   | `#0e1116`   | Text on zone 3 of either sport (4.5:1 or better)                                                                                           |
+| `--zone-ink-4`         | `#ffffff`   | `#0e1116`   | Text on zone 4 of either sport (4.5:1 or better)                                                                                           |
+| `--zone-ink-5`         | `#ffffff`   | `#0e1116`   | Text on zone 5 of either sport (4.5:1 or better)                                                                                           |
+| `--status-warning`     | `#8a5300`   | `#f2b544`   | Warning icon and label                                                                                                                     |
+| `--status-warning-bg`  | `#fbf2d9`   | `#33290c`   | Warning chip background                                                                                                                    |
+| `--status-critical`    | `#b3261e`   | `#ff8a80`   | Error icon and label; destructive button background                                                                                        |
+| `--status-critical-bg` | `#fde8e6`   | `#3a1714`   | Error chip background                                                                                                                      |
+| `--status-good`        | `#17753a`   | `#4ac26b`   | Success icon and label                                                                                                                     |
+| `--status-good-bg`     | `#e3f4e8`   | `#10301b`   | Success chip background                                                                                                                    |
 
 Spacing, radius, font and shadow tokens live in `apps/web/src/styles/tokens.css`, beside the colours.
 
@@ -274,9 +289,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   starts. Its left edge is the icon's edge in the tabs, the headings and the meter, and the gap to its label
   is the same for both sports. The share card draws the same crop, with the ink at the inset; its label
   starts at a fixed x, so the gap there is wider for the narrower runner.
-- Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
-  of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
-  its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
+- Charts share one set of defaults: a visible but recessive grid (`--grid`, about 1.5:1 on the card in both schemes), 3 px lines
+  with round caps and joins, an optional wash of the sport's colour at 12% under a line, markers that are a fill ringed in the
+  card colour, bars with rounded data ends and 2 px gaps, and axis text of 12 px or more in `--text-muted` (4.5:1 on the card).
+  A chart also has an emphasised point: the latest value
+  of a trend, or the 20-minute effort of a best-effort curve. On a best-effort curve the 20-minute effort is called out
+  with its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
   width, such as "Run 64%", since the title names the effort and window; the note under the chart says that the latest point covers only the last window, so it can differ from a card's best over the period. On a sport trend the latest label
   is its value alone, such as "5:12 /km", beside its point: below it, above it where the line would run
   under it, or to its right where both of those would cross the line. At every width, a trend's run label keeps clear of the ride band, and 4 px where it can of the run's own
@@ -295,9 +313,26 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   overlap one another. Where there is room, the two end labels never overlap one another, and
   neither reaches the y tick labels.
   A best-effort curve marks the 1, 5, 20 and
-  60 minute efforts, the same ones its records list names, and labels its last point with its value
-  where there is room beside the 20 minute label. Watts charts also fill the area under the line. Pace charts draw
-  the line alone: pace has no zero to fill down to. Every chart has a visible title, which names
+  60 minute efforts, the same ones its records list names, and calls out the 5, 20 and 60 minute bests with an eyebrow
+  ("5 min"), the value at display size and a caption (a ride's W/kg, a run's "flat pace"; a phone has no caption), on a leader line to the point.
+  The threshold is a labelled rule across the plot with its range as a quiet band, named in the right margin of a chart 800 px
+  wide or more and along the rule on a narrower one; a threshold that rests on estimated watts is named "Threshold (estimated)",
+  drawn lighter and ended in a hollow ring, never dashed. A best that sits within 20 px of the threshold line goes above it
+  without its caption. The last point is named at its end with its value and its duration. Both
+  sports' curves are on a 12% wash of the sport's colour to the foot of the axis, and the period before is a thinner (2 px) solid
+  grey line, never dashed: dashes belong to estimates. The curve's title is its finding (`curveTakeaway`): with a period before, how far the best
+  20 minutes (or the longest effort both periods have measured) moved ("20 min is 11 s/km quicker than the previous 12 weeks", "20 min is 12 W higher than ...",
+  with the seconds set tight to the unit), or "No clear change against the previous 12 weeks"; without one, the best with its level
+  ("Best 20 min: 4:11 /km, Local"). One floor decides, for every curve and whatever its fit says of its own spread, so the same data
+  always gets the same verdict: a change is a change only when it is more than 1% of the earlier value and more than 2 W for a ride, 2 s/km for a run
+  in kilometres or 3 s/mi in miles, about what two readings of one effort differ by. A carried value (below) is never read as a finding, in either period: the
+  comparison and the best skip carried rows and take the longest measured effort. The chart's name stays as the small caption above the finding.
+  Where the curve's points are a longer effort's value copied down by the envelope (`windowS` longer than `durationS`), the
+  line there is that longer effort's value, not a measured one at its own length: the stretch is drawn lighter, from the measured
+  point before it to the one after, and described by its shape under a bracket, "Between 20 and 60 min the line carries your 60 min best." (the effort named is the one the carried points say they came from)
+  (the widest such stretch, which the table's caption repeats). It never says an effort is missing from the file, which a longer window always
+  contains. A carried point is a hollow ring, not a solid dot, is not called out as a best, and its tooltip and table row say "from your 60 min effort". On a phone,
+  annotations that would overlap another mark are left out (`optional`), keeping the 20 minute callout and the threshold. Every chart has a visible title, which names
   the figure once; the plot is described by its tooltip and arrow-key hint, not named again, and a
   value's label sits clear of its own line. A week's marker is enlarged when the
   reader points at it, as well as the latest one. A tooltip names its week, as "Week ending Sun 12 Jan
@@ -310,6 +345,14 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   itself, and a keyboard reader can reach it. A table that overflows its region is a keyboard scroll region too, and a phone
   shows a trend's table without its run and ride counts. While the plot has focus, the arrow-key hint
   sits in its top corner, and a tooltip takes its place once a point is active.
+  A chart narrower than 480 px takes phone geometry (`PHONE_CHART_WIDTH`): a 40 px y gutter and a 44 px x band, a chart
+  height of 262 px so the plot is about 190 px tall (where the chart sets no height of its own), y tick labels set inside the plot
+  above their gridlines where the widest would not fit the gutter, and a readout row above the plot (at least 6 rem on a 320 to 360 px phone and 5 rem from 370 px, measured as the room of the fullest reading: a title, a value with its note and the previous period's row; with "Select a point to read its value" until one is) in place of
+  a floating tooltip, which a finger would cover; the tooltip draws into that row, so the plot never moves and a screen reader
+  still hears the values as the status element. A chart can state its finding: a `ChartFrame` with a `takeaway` sets the sentence
+  large under the title, which then becomes a small caption and stays the chart's name, and an optional `focal` figure sits beside it.
+  Pages opt in to the annotation primitive (`ChartAnnotations`: end labels, callouts, reference lines and brackets, each text
+  on a card-coloured halo, placed so none overlaps another or the data) from their own charts.
 - The energy view's ratio chart on How sure is this? tints running coral above its line and cycling
   blue below it, so the side that is higher reads before the numbers do. Its zero line is labelled
   "Even" on the axis, and its key names the bands "Before heart-rate check: 90% range" and "After
@@ -1203,12 +1246,17 @@ activities (200 bpm running)", on How sure is this? and on the activity), and ca
 little to describe, the section has no heading and "Time in zones: needs 3 activities with heart rate, or a threshold
 pace entered on Profile, and 1 hour of them." joins the "Not enough yet" list.
 
-**Bars.** `ZoneTimeChart` is a `ChartFrame` with one band for each measure: its label, the bar across the full
-width, and a zone number under each segment at least 20 px wide. A segment is the sport's colour (`--sport-colour`) mixed
-with the page colour in equal steps from 80% (`MIN_ZONE_TINT`, the least that keeps 3:1 against the card in both schemes and for
-both sports, pinned by `zoneTint.test.ts`) for the lowest zone to 100% for the highest, edged in the page colour; the order, the
-numbers and the table say which zone is which, so the tint is not the only cue. In forced colours every segment is the
-highlight colour. The figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%").
+**Bars.** `ZoneTimeChart` is a `ChartFrame` with one band for each measure: its label in capitals with the easy and hard
+shares at the right ("31% easy · 28% hard"), the bar across the full width with rounded outer ends and a 2 px gap between
+segments, the share inside each segment where it fits at display size, and under each segment its number and name ("2 Endurance")
+where they fit, or its number alone where the segment is at least 20 px wide. Under the bars a key reads Easy, the five
+steps numbered, Hard. A segment is a step of the sport's five-step zone ramp (`--zone-1` to `--zone-5`, aliased for each
+`data-sport` from `--zone-run-n` and `--zone-ride-n`), and its text takes that step's ink (`--zone-ink-n`). The ramp darkens with
+effort in light and, in dark, grows more luminous at full saturation without paling. `zoneRamp.test.ts` checks it from the tokens: every step keeps 3:1 against the card
+and the page, its ink 4.5:1, and neighbouring steps stay apart in CIEDE2000 (at least 7 in light and 5 in dark, where every step stays saturated) for normal
+colour vision and for protanopia, deuteranopia and tritanopia. The number, the name and the table say which zone is which, so colour is never the
+only cue. In forced colours every segment is the highlight colour with its text in the highlight's own text colour. The
+figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%").
 
 **Zones do not depend on the period.** The references that estimated zones are cut from (the run threshold pace, the
 ride threshold power, and the reference heart rates) are the whole library's, whatever period is picked: the

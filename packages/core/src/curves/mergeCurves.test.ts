@@ -83,3 +83,38 @@ describe('mergeCurves', () => {
     expect(() => mergeCurves([a, b])).toThrow(/same durations/)
   })
 })
+
+describe('mergeCurves ties between a measured and a carried point', () => {
+  const measured = (value: number, id: string): CurvePoint => ({
+    ...point(1200, value, id, 1),
+    windowS: 1200,
+  })
+  const carried = (value: number, id: string): CurvePoint => ({
+    ...point(1200, value, id, 2),
+    windowS: 3600,
+  })
+
+  it('prefers the point measured over its own length, whichever curve it is in', () => {
+    expect(mergeCurves([[carried(250, 'a')], [measured(250, 'b')]])[0]?.activityId).toBe('b')
+    expect(mergeCurves([[measured(250, 'b')], [carried(250, 'a')]])[0]?.activityId).toBe('b')
+  })
+
+  it('treats a difference of float noise as a tie, so a 1-ulp higher carried value does not displace a measured one', () => {
+    const noisy = 250 * (1 + 1e-12)
+    expect(mergeCurves([[measured(250, 'b')], [carried(noisy, 'a')]])[0]?.activityId).toBe('b')
+  })
+
+  it('still takes the higher value when it is higher by more than float noise', () => {
+    expect(mergeCurves([[measured(250, 'b')], [carried(251, 'a')]])[0]?.activityId).toBe('a')
+    expect(mergeCurves([[carried(250, 'a')], [measured(251, 'b')]])[0]?.activityId).toBe('b')
+  })
+
+  it('keeps the earlier curve on a tie between two points of the same kind, as before', () => {
+    expect(mergeCurves([[measured(250, 'a')], [measured(250, 'b')]])[0]?.activityId).toBe('a')
+    expect(mergeCurves([[carried(250, 'a')], [carried(250, 'b')]])[0]?.activityId).toBe('a')
+  })
+
+  it('takes a point with no window, as on a curve made without digests, as measured', () => {
+    expect(mergeCurves([[carried(250, 'a')], [point(1200, 250, 'b')]])[0]?.activityId).toBe('b')
+  })
+})

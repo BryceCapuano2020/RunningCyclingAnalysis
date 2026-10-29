@@ -1,7 +1,7 @@
-/* Shared by the single-series charts: a 2.5 px line with round joins, an area under it and markers. */
+/* Shared by the single-series charts: a 3 px line with round caps and joins, an area under it and markers. */
 .chart-series__line {
   fill: none;
-  stroke-width: 2.5px;
+  stroke-width: 3px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -14,25 +14,28 @@
   stroke: var(--series-ride);
 }
 
-/* The previous period is a thin dashed mid grey line, under the current one, so it reads as context and never as a sport. */
+/* The previous period is a thinner solid mid grey line, under the current one, so it reads as context and never as a sport. Dashes are for estimates only. */
 .chart-series__line--previous {
   stroke: var(--previous-mark);
-  stroke-width: 1.5px;
-  stroke-dasharray: 5 4;
-}
-
-/* An area is filled, never outlined: its colour comes from the modifier that names its sport. */
-.chart-series__area {
-  stroke: none;
+  stroke-width: 2px;
 }
 
 /*
- * Only watts are filled. Pace has no zero to fill down to: its baseline is the slowest pace on the
- * axis, so a run's area would show the axis rather than the effort, and no run area is drawn. The
- * area names its sport on data-sport, so it reads that sport's soft colour.
+ * An area is a wash under its line, never outlined: its colour comes from the modifier that names its sport,
+ * at 12% so the line and the gridlines stay in front.
  */
+.chart-series__area {
+  stroke: none;
+  fill-opacity: 0.12;
+}
+
+/* The wash takes its sport's colour from data-sport, which sets --sport-colour on the area itself. */
+.chart-series__area--run {
+  fill: var(--sport-colour);
+}
+
 .chart-series__area--ride {
-  fill: var(--sport-colour-soft);
+  fill: var(--sport-colour);
 }
 
 /*
@@ -50,16 +53,26 @@
   stroke-dasharray: 6 4;
 }
 
+/*
+ * A hollow ring: a point that is not a measured best (an estimate, or a value carried down from a longer effort),
+ * in the sport's colour over the card.
+ */
 .chart-series__ring--ride {
-  fill: var(--surface-0);
+  fill: var(--surface-1);
   stroke: var(--series-ride);
-  stroke-width: 2px;
+  stroke-width: 2.5px;
 }
 
-/* A marker ringed in the surface the chart sits on, so it stays legible where it crosses a line. */
+.chart-series__ring--run {
+  fill: var(--surface-1);
+  stroke: var(--series-run);
+  stroke-width: 2.5px;
+}
+
+/* A marker is its fill ringed in the card colour, so it stays legible where it crosses a line or a gridline. */
 .chart-series__marker {
-  stroke: var(--surface-0);
-  stroke-width: 2;
+  stroke: var(--surface-1);
+  stroke-width: 2.5;
 }
 
 .chart-series__marker--run {
@@ -101,6 +114,11 @@
 /* In forced colours the sport strokes take the system's text and highlight colours, so the two
    lines stay apart without the tints. */
 @media (forced-colors: active) {
+  /* A wash is a tint, which forced colours drop: the line alone carries the series. */
+  .chart-series__area {
+    fill: none;
+  }
+
   .chart-series__line--run {
     stroke: CanvasText;
   }
@@ -133,6 +151,11 @@
     stroke: Highlight;
   }
 
+  .chart-series__ring--run {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+
   .chart-series__band--ride {
     fill: Canvas;
     stroke: Highlight;
@@ -149,4 +172,12 @@
     stroke: CanvasText;
     stroke-width: 2px;
   }
+}
+
+/*
+ * A stretch of the curve with no effort of its own length on file: the same line, lighter. It is drawn
+ * between its neighbours, not through data, and the chart labels it once.
+ */
+.chart-series__line--carried {
+  opacity: 0.4;
 }

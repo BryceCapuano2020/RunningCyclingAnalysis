@@ -1,5 +1,5 @@
 import type { AxisTick, PlotBox } from './chartTypes'
-import { axisFontRem } from './ticks'
+import { axisFontRem, labelWidth, rootScale } from './ticks'
 import './ChartYAxis.css'
 
 export interface ChartYAxisProps {
@@ -11,8 +11,21 @@ export interface ChartYAxisProps {
   fontSize?: number
 }
 
-/** Horizontal hairline gridlines, tick labels to the left, and an optional title above the plot. */
+/** The gap, px, between a tick label and the plot's left edge. */
+const TICK_GAP = 8
+
+/** How far above its gridline an inside label's baseline sits, px. */
+const INSIDE_LIFT = 5
+
+/**
+ * Gridlines, tick labels to the left of the plot, and an optional title above it. Where the widest label
+ * does not fit the gutter (a phone's 40 px), every label is set inside the plot instead, above its
+ * gridline and over a halo, so the gutter can stay narrow and no label is cut off.
+ */
 export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProps) {
+  const scale = rootScale()
+  const widest = Math.max(0, ...ticks.map((tick) => labelWidth(tick.label, fontSize, scale)))
+  const inside = widest + TICK_GAP > plot.left
   return (
     <g className="chart-y-axis">
       {ticks.map((tick) => (
@@ -25,12 +38,14 @@ export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProp
             y2={tick.position}
           />
           <text
-            className="chart-y-axis__tick"
+            className={
+              inside ? 'chart-y-axis__tick chart-y-axis__tick--inside' : 'chart-y-axis__tick'
+            }
             style={{ fontSize: axisFontRem(fontSize) }}
-            x={plot.left - 8}
-            y={tick.position}
-            textAnchor="end"
-            dominantBaseline="central"
+            x={inside ? plot.left + 4 : plot.left - TICK_GAP}
+            y={inside ? tick.position - INSIDE_LIFT : tick.position}
+            textAnchor={inside ? 'start' : 'end'}
+            dominantBaseline={inside ? 'auto' : 'central'}
           >
             {tick.label}
           </text>

@@ -100,6 +100,21 @@ describe('ChartTooltip', () => {
     )
   })
 
+  it('draws the previous period’s key as a solid grey rule, thinner than a sport’s line, and not dashed', () => {
+    const { el } = renderTooltip({
+      content: {
+        ...content,
+        rows: [{ kind: 'neutral', value: '50%', label: 'Previous 6 weeks', swatch: 'previous' }],
+      },
+    })
+    const key = el.querySelector('.chart-tooltip__key')
+    expect(key).toHaveClass('chart-tooltip__key--previous')
+    expect(key).not.toHaveClass('chart-tooltip__key--dashed')
+    expect(ruleBody(tooltipCss, '.chart-tooltip__key--previous')).toMatch(
+      /border-top:\s*2px solid var\(--previous-mark\)/,
+    )
+  })
+
   it('sets a tooltip’s note in balanced lines, so it does not end on one word', () => {
     expect(ruleBody(tooltipCss, '.chart-tooltip__note')).toMatch(/text-wrap:\s*pretty/)
   })

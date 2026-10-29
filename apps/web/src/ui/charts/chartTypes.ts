@@ -34,8 +34,8 @@ export interface TooltipRow {
   label: string
   value: string
   kind?: SeriesKind
-  /** A dashed key, for an estimate or the previous period. Solid when omitted. */
-  swatch?: 'solid' | 'dashed'
+  /** A dashed key for an estimate, or a thinner grey line for the previous period. Solid when omitted. */
+  swatch?: 'solid' | 'dashed' | 'previous'
   /** Muted line shown under the row. */
   note?: string
 }
