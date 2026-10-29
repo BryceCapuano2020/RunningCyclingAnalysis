@@ -149,7 +149,9 @@ export class AnalysisSession {
 
   /** Replaces the whole library with digests that were stored elsewhere (the server). */
   loadDigests(digests: ActivityDigest[], settings: AthleteSettings): SessionState {
-    // Sync issues stay: those activities are still unsaved, whatever the library now holds.
+    // An activity whose save failed exists only here. It stays in the library, and still unsaved, so
+    // adding its file again retries it; a copy already stored under its key replaces it.
+    const unsaved = [...this.digests].filter(([key]) => this.unsynced.has(key))
     this.resetLibrary()
     const outdatedKeys = new Set<string>()
     const incompatibleKeys = new Set<string>()
@@ -161,6 +163,16 @@ export class AnalysisSession {
         continue
       }
       this.digests.set(key, digest)
+    }
+    for (const [key, digest] of unsaved) {
+      if (this.digests.has(key)) {
+        this.unsynced.delete(key)
+        this.latestUnsynced.delete(key)
+      } else {
+        this.digests.set(key, digest)
+        outdatedKeys.delete(key)
+        incompatibleKeys.delete(key)
+      }
     }
     for (const key of outdatedKeys) {
       if (!this.digests.has(key)) this.outdatedKeys.add(key)
