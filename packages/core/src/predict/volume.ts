@@ -16,8 +16,10 @@ export function typicalWeeklyDistance(
   const from = newest - VOLUME_WEEKS * 7 * DAY_MS
   const recent = runs.filter((r) => r.startMs > from)
   const earliest = Math.min(...recent.map((r) => r.startMs))
-  // Runs a week apart span one week each, so eight weekly runs are eight weeks, not seven.
-  const spanned = Math.round((newest - earliest) / (7 * DAY_MS)) + 1
+  // The calendar days from the first run's day to the newest run's day, both counted, in whole weeks rounded
+  // up: runs a week apart cover two weeks, and a run every day for four weeks covers four, not five.
+  const days = Math.round((newest - earliest) / DAY_MS) + 1
+  const spanned = Math.ceil(days / 7)
   const weeks = Math.max(1, Math.min(VOLUME_WEEKS, spanned))
   return recent.reduce((sum, r) => sum + Math.max(0, r.distanceM), 0) / weeks
 }

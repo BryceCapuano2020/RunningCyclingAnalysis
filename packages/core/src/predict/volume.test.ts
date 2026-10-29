@@ -15,4 +15,15 @@ describe('typicalWeeklyDistance', () => {
     expect(typicalWeeklyDistance([run(0, 12)])).toBe(12_000)
     expect(typicalWeeklyDistance([])).toBe(0)
   })
+
+  it('counts the weeks a short history covers, not one more', () => {
+    for (const weeks of [1, 2, 4, 6, 7]) {
+      const daily = Array.from({ length: weeks * 7 }, (_, d) => run(100 + d, 1))
+      expect(typicalWeeklyDistance(daily)).toBeCloseTo(7_000, 6)
+    }
+    // Runs at different times of day on the first and last day are still the same whole days apart.
+    const morning = { startMs: 100 * DAY_MS + 7 * 3_600_000, distanceM: 10_000 }
+    const evening = { startMs: 127 * DAY_MS + 17 * 3_600_000, distanceM: 10_000 }
+    expect(typicalWeeklyDistance([morning, evening])).toBeCloseTo(5_000, 6)
+  })
 })

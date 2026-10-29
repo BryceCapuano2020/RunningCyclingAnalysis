@@ -1,3 +1,4 @@
+import { medianInPlace } from '../math'
 import { isMovingSecond } from './moving'
 import { isTraceObservation } from './selection'
 import type { ActivityLap, ActivityTrace, TraceMetric } from './types'
@@ -5,23 +6,27 @@ import type { ActivityLap, ActivityTrace, TraceMetric } from './types'
 const WINDOW_S = 30
 const MIN_INTERVAL_S = 60
 
-/** Finds sustained mechanical step changes; returned segments are suggestions for editing. */
+/**
+ * Finds sustained mechanical step changes; returned segments are suggestions for editing. Each 30 s window
+ * is compared with the activity's typical level, the median of its windows, so a walk to the start, a
+ * stationary start or a slow warm-up does not set the level every later window is judged against.
+ */
 export function detectIntervals(trace: ActivityTrace): ActivityLap[] {
   const metric: TraceMetric = trace.streams.power !== undefined ? 'power' : 'speed'
   if (trace.streams[metric] === undefined || trace.durationS < WINDOW_S * 3) return []
-  const baseline = mean(trace, metric, 0, WINDOW_S)
-  if (baseline === null || baseline <= 0) return []
-  const threshold =
-    metric === 'power' ? Math.max(40, baseline * 0.25) : Math.max(0.5, baseline * 0.2)
+  const means = windowMeans(trace, metric)
+  const typical = medianOf(means)
+  if (typical === null || typical <= 0) return []
+  const threshold = metric === 'power' ? Math.max(40, typical * 0.25) : Math.max(0.5, typical * 0.2)
   const found: ActivityLap[] = []
   let start: number | null = null
   let direction = 0
   // A window's mean first differs once about half of it lies past a step, so the step is at the
   // window's centre, not its start.
-  for (let at = WINDOW_S; at + WINDOW_S <= trace.durationS; at++) {
-    const current = mean(trace, metric, at, at + WINDOW_S)
-    if (current === null) continue
-    const delta = current - baseline
+  for (let at = 0; at < means.length; at++) {
+    const current = means[at]!
+    if (Number.isNaN(current)) continue
+    const delta = current - typical
     const changed = Math.abs(delta) >= threshold
     const centre = at + WINDOW_S / 2
     if (start === null && changed) {
@@ -56,20 +61,30 @@ function withoutGaps(trace: ActivityTrace, interval: ActivityLap): ActivityLap[]
   return parts
 }
 
-/** The mean of the usable observations in the window, or null when under 80% of it is usable. */
-function mean(
-  trace: ActivityTrace,
-  metric: TraceMetric,
-  startS: number,
-  endS: number,
-): number | null {
+/**
+ * The mean of the usable observations in each window of WINDOW_S seconds, by the window's first second, or
+ * NaN where under 80% of the window is usable. Found with running sums, so a long activity costs one pass.
+ */
+function windowMeans(trace: ActivityTrace, metric: TraceMetric): Float64Array {
   const values = trace.streams[metric]!
-  let count = 0
-  let total = 0
-  for (let i = startS; i < endS; i++) {
-    if (!isTraceObservation(trace, metric, i)) continue
-    count++
-    total += values[i]!
+  const n = trace.durationS
+  const counts = new Uint32Array(n + 1)
+  const sums = new Float64Array(n + 1)
+  for (let i = 0; i < n; i++) {
+    const usable = isTraceObservation(trace, metric, i)
+    counts[i + 1] = counts[i]! + (usable ? 1 : 0)
+    sums[i + 1] = sums[i]! + (usable ? values[i]! : 0)
   }
-  return count >= (endS - startS) * 0.8 ? total / count : null
+  const out = new Float64Array(Math.max(0, n - WINDOW_S + 1))
+  for (let at = 0; at < out.length; at++) {
+    const count = counts[at + WINDOW_S]! - counts[at]!
+    out[at] = count >= WINDOW_S * 0.8 ? (sums[at + WINDOW_S]! - sums[at]!) / count : NaN
+  }
+  return out
+}
+
+/** The median of the windows that have a mean, or null when none does. */
+function medianOf(means: Float64Array): number | null {
+  const kept = means.filter((value) => !Number.isNaN(value))
+  return kept.length === 0 ? null : medianInPlace(kept)
 }

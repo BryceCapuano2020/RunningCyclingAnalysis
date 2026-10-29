@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from './types'
 import { activityTraceOf, parseActivityTrace } from './trace'
 import { detectIntervals } from './intervals'
+import { readingBand } from './band'
 import { isTraceObservation, summarizeSelection } from './selection'
 
 function trace(n: number): ActivityTrace {
@@ -199,6 +200,35 @@ describe('selection evidence', () => {
   })
 })
 
+describe('seconds the quality assessment left out', () => {
+  function spiked() {
+    const item = trace(600)
+    item.sport = 'ride'
+    item.streams.power = Float32Array.from({ length: 600 }, (_, i) => (i === 300 ? 2400 : 200))
+    item.unusable = { power: Uint8Array.from({ length: 600 }, (_, i) => (i === 300 ? 1 : 0)) }
+    return item
+  }
+
+  it('leaves a flagged spike out of the selection summary and the reading band', () => {
+    const item = spiked()
+    expect(summarizeSelection(item, 0, 600).metrics.power).toEqual({
+      mean: 200,
+      min: 200,
+      max: 200,
+      seconds: 599,
+    })
+    expect(isTraceObservation(item, 'power', 300)).toBe(false)
+    expect(isTraceObservation(item, 'power', 301)).toBe(true)
+    expect(readingBand(item, 'power', 0, 600)).toEqual({ low: 200, high: 200, below: 0, above: 0 })
+  })
+
+  it('reads every reading of a trace built without the assessment', () => {
+    const item = spiked()
+    delete item.unusable
+    expect(summarizeSelection(item, 0, 600).metrics.power?.max).toBe(2400)
+  })
+})
+
 describe('conservative interval suggestions', () => {
   it('marks sustained speed changes as editable inferred intervals', () => {
     const item = trace(240)
@@ -219,8 +249,8 @@ describe('conservative interval suggestions', () => {
   })
 
   it('does not bridge a paused or unrecorded stretch inside an effort', () => {
-    const item = trace(400)
-    item.streams.speed = Float32Array.from({ length: 400 }, (_, i) => (i >= 60 && i < 350 ? 5 : 3))
+    const item = trace(700)
+    item.streams.speed = Float32Array.from({ length: 700 }, (_, i) => (i >= 60 && i < 350 ? 5 : 3))
     for (let i = 200; i < 206; i++) item.paused[i] = 1
     for (let i = 280; i < 283; i++) item.unrecorded[i] = 1
     const suggestions = detectIntervals(item)
@@ -230,6 +260,38 @@ describe('conservative interval suggestions', () => {
         expect(item.paused[i] === 1 || item.unrecorded[i] === 1).toBe(false)
       }
     }
+  })
+
+  it('finds no interval in a steady run that starts with a walk', () => {
+    const item = trace(3000)
+    item.streams.speed = Float32Array.from({ length: 3000 }, (_, i) => (i < 30 ? 1.5 : 3))
+    expect(detectIntervals(item)).toEqual([])
+  })
+
+  it('finds the repeats of a session that starts with a walk', () => {
+    const item = trace(30 + 5 * 300)
+    // Five efforts of 120 s at 4.5 m/s, each with 180 s at 3 m/s, after 30 s of walking.
+    item.streams.speed = Float32Array.from({ length: 30 + 5 * 300 }, (_, i) =>
+      i < 30 ? 1.5 : (i - 30) % 300 < 120 ? 4.5 : 3,
+    )
+    const found = detectIntervals(item)
+    expect(found).toHaveLength(5)
+    found.forEach((lap, k) => {
+      expect(Math.abs(lap.startS - (30 + k * 300))).toBeLessThanOrEqual(10)
+      expect(Math.abs(lap.endS - (150 + k * 300))).toBeLessThanOrEqual(10)
+    })
+  })
+
+  it('finds the efforts of a session whose first minute is stationary', () => {
+    const item = trace(900)
+    // Speed under 0.5 m/s is not a reading, so the stationary start has none.
+    item.streams.speed = Float32Array.from({ length: 900 }, (_, i) =>
+      i < 60 ? Number.NaN : i >= 400 && i < 520 ? 5 : 3,
+    )
+    const found = detectIntervals(item)
+    expect(found).toHaveLength(1)
+    expect(Math.abs(found[0]!.startS - 400)).toBeLessThanOrEqual(10)
+    expect(Math.abs(found[0]!.endS - 520)).toBeLessThanOrEqual(10)
   })
 
   it('suggests nothing from a trace with neither power nor speed', () => {
