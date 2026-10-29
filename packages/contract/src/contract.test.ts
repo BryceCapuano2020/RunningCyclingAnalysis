@@ -664,13 +664,25 @@ describe('moving time and averages', () => {
   })
 
   it('keeps a run at walking pace on a create and on a stored row, and reads other digests as having none', () => {
-    const wire = atRevision(MODEL_REVISION, { walkingPace: true })
+    const wire = atRevision(MODEL_REVISION, { sport: 'run', walkingPace: true })
     expect(ActivityDigestSchema.parse(wire).walkingPace).toBe(true)
     expect(StoredActivityDigestSchema.parse(wire).walkingPace).toBe(true)
     expect(StoredActivityDigestSchema.parse(digestWire)).not.toHaveProperty('walkingPace')
     expect(() =>
-      ActivityDigestSchema.parse(atRevision(MODEL_REVISION, { walkingPace: false })),
+      ActivityDigestSchema.parse(atRevision(MODEL_REVISION, { sport: 'run', walkingPace: false })),
     ).toThrow()
+  })
+
+  it('allows walking pace on a run only', () => {
+    const ride = atRevision(MODEL_REVISION, { sport: 'ride', walkingPace: true })
+    expect(() => ActivityDigestSchema.parse(ride)).toThrow(/Only runs have a walking pace/)
+    expect(() => StoredActivityDigestSchema.parse(ride)).toThrow(/Only runs have a walking pace/)
+    const run = atRevision(MODEL_REVISION, { sport: 'run', walkingPace: true })
+    expect(ActivityDigestSchema.parse(run).walkingPace).toBe(true)
+    expect(StoredActivityDigestSchema.parse(run).walkingPace).toBe(true)
+    expect(
+      ActivityDigestSchema.parse(atRevision(MODEL_REVISION, { sport: 'ride' })),
+    ).not.toHaveProperty('walkingPace')
   })
 
   it('reads a digest without them as having none', () => {

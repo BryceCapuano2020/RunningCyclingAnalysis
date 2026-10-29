@@ -179,6 +179,22 @@ function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): 
     }
   })
 }
+/** Whether a sport's digests can be at walking pace: a ride is not judged against one. */
+const HAS_WALKING_PACE: Record<'run' | 'ride', boolean> = { run: true, ride: false }
+
+function checkWalkingPace(
+  digest: { sport: 'run' | 'ride'; walkingPace?: true },
+  ctx: z.RefinementCtx,
+): void {
+  if (digest.walkingPace === true && !HAS_WALKING_PACE[digest.sport]) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['walkingPace'],
+      message: 'Only runs have a walking pace',
+    })
+  }
+}
+
 /** Moving seconds are a part of the duration: a pause or a record gap is never more than the whole. */
 function checkMovingTime(
   digest: { durationS: number; movingS?: number },
@@ -264,6 +280,7 @@ export const ActivityDigestSchema = z
     }
     checkDistanceBests(digest, ctx)
     checkMovingTime(digest, ctx)
+    checkWalkingPace(digest, ctx)
     checkEvidence(digest, ctx)
   })
 
@@ -307,6 +324,7 @@ const StoredActivityDigestBase = z.object({
 export const StoredActivityDigestSchema = StoredActivityDigestBase.superRefine((digest, ctx) => {
   checkDistanceBests(digest, ctx)
   checkMovingTime(digest, ctx)
+  checkWalkingPace(digest, ctx)
   checkEvidence(digest, ctx)
 })
 
