@@ -51,6 +51,26 @@ export async function activitiesRows(page: Page): Promise<Locator> {
   return page.locator('.activity-list__items > li')
 }
 
+/**
+ * Waits for the app to show the library it kept in this browser, which has `count` activities. Call it
+ * after `page.goto` and before adding files: files chosen while the app is still deciding whether
+ * anyone is signed in and loading that library can be lost, which showed as a row missing from the list.
+ */
+export async function libraryLoaded(page: Page, count: number): Promise<void> {
+  await expect(await activitiesRows(page)).toHaveCount(count, { timeout: 30_000 })
+}
+
+/**
+ * Waits for an import to end, which is when the app shows its summary. The summary appears after the
+ * worker has saved the library and the recordings, so a test that leaves the page next does not cut
+ * those writes short. A row in the Activities list is no such signal: it shows before the saves end.
+ */
+export async function importSummaryShown(page: Page, sentence: RegExp, timeoutMs = 30_000) {
+  await expect(page.locator('.import-notice').getByText(sentence)).toBeVisible({
+    timeout: timeoutMs,
+  })
+}
+
 const FIXTURE_DIR = fileURLToPath(new URL('./fixtures/', import.meta.url))
 
 export function fixturePath(name: string): string {

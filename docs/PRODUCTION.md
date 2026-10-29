@@ -4,11 +4,13 @@ This document records the operational behavior, the release and migration rules,
 remaining release evidence. It is not a claim of perfect reliability or of validated physiological
 accuracy.
 
-**Current release state.** The hardening release described here was deployed with the Wrangler CLI,
-not by the Deploy workflow. This document does not record the live version or its commit. To see the
-active version and its tagged source commit, run `npx wrangler deployments list` in `apps/api`, and
-check the live origin with `scripts/ops/smoke.mjs`. Future production deploys should go through
-`.github/workflows/deploy.yml` once the `production` environment and its secrets exist.
+**Current release state.** Releases so far were deployed with the Wrangler CLI from a local session,
+not by the Deploy workflow. [RELEASES.md](RELEASES.md) is the ledger of what went live and when: the
+commit, the Worker version, the migrations applied and the rollback floor. The live build reports its
+commit as `sha` in `GET /api/health`, and `npm run smoke:prod -- --expect-sha <sha>` checks the live
+origin against it. To list versions and their tagged commits, run `npx wrangler deployments list` in
+`apps/api`. Future production deploys should go through `.github/workflows/deploy.yml` once the
+`production` environment and its secrets exist.
 
 Backup and uptime schedules stay disabled until their repository variables are set. The owner setup
 order is under [Setting up backups (owner)](#setting-up-backups-owner). No automatic rollback target
@@ -43,9 +45,10 @@ intended order:
 5. **Migrations.** Pending D1 migrations are applied to the production database before the new
    Worker code runs. See [Migrations: order of operations](#migrations-order-of-operations).
 6. **Deploy.** `wrangler deploy` uploads the Worker. Its version carries the commit SHA as its tag
-   and message.
-7. **Smoke test.** `scripts/ops/smoke.mjs` checks the live origin: `GET /api/health` returns
-   `{"status":"ok"}`, `GET /api/health/deep` returns 200, `GET /` serves HTML with the
+   and message, and the commit is built into `GET /api/health`.
+7. **Smoke test.** `scripts/ops/smoke.mjs --expect-sha` checks the live origin: `GET /api/health`
+   returns `{"status":"ok"}` and the `sha` of the commit just deployed, `GET /api/health/deep` returns
+   200, an unknown path returns 404 with the Worker's security headers, `GET /` serves HTML with the
    Content-Security-Policy header, `GET /api/me` returns 200 with a `null` body, and `GET /api/auth/google` returns a
    302 to `accounts.google.com` whose `redirect_uri` is `APP_URL` plus `/api/auth/google/callback`.
    Each check is retried briefly to allow for propagation.
@@ -58,7 +61,13 @@ intended order:
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
 the same release, without the approval and smoke-test steps, so use the workflow for production.
 `npm run deploy:built` refuses to run while remote D1 migrations are pending, so apply them first with
-`npm run db:migrate:remote -w @rca/api`.
+`npm run db:migrate:remote -w @rca/api`. It also refuses a working tree with uncommitted or untracked
+changes, a commit that is not the tip of `origin/main` (`--allow-older` deploys an older merged one on
+purpose) and a web build that was not made from that commit (`dist/build-info.json`), so a release can
+run from a detached worktree at the merged tip. It tags the Worker version with the 8-character
+commit id, writes the full commit into the version message, and builds the id into `/api/health`.
+After any local deploy run `npm run smoke:prod -- --expect-sha <sha>`: it sends only GET
+requests, no mutating ones, to the live origin. Add the release to [RELEASES.md](RELEASES.md).
 
 Every `uses:` reference in `.github/workflows` is pinned to a full commit SHA, with the release tag in
 a comment. Repository settings do not enforce SHA pinning, and GitHub does not block a workflow that
@@ -82,8 +91,10 @@ The status-check names are the job names shown on pull requests and must match e
 
 - A pull request before merging, with 0 required approvals, because the owner is the sole
   maintainer. The required status checks are the gate.
-- Passing status checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)` and
-  `Dependency audit`.
+- Passing status checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)`,
+  `Performance budgets` and `Dependency audit`. `Performance budgets` is the wall-clock timing job,
+  split out of the first check so a loaded runner cannot fail the unit tests; add it to the required
+  list, or its failure will not block a merge.
 - The branch to be up to date with `main` before merging.
 - All review conversations resolved; stale approvals are dismissed on new commits.
 - Linear history (merges are squash-only and merged branches are deleted).
@@ -325,7 +336,7 @@ that sends `Cache-Control: no-store` (`apps/api/src/app.ts`).
 
 API responses include `X-Request-ID`. Unexpected-error logs contain that id and the exception
 class; they do not include request bodies, query strings, original files, tokens, or raw database
-error messages. Use the id to correlate a reported failure with Worker logs. Do not enable verbose
+error messages. (Cloudflare's own per-request invocation log is separate and does record the URL.) Use the id to correlate a reported failure with Worker logs. Do not enable verbose
 request/body logging around personal activity files or OAuth callbacks.
 
 ## Observability
@@ -355,6 +366,16 @@ request/body logging around personal activity files or OAuth callbacks.
   it does not measure quota exhaustion before it causes failures.
 - **Owner notifications.** Turn on GitHub notifications for failed workflow runs and for issues
   labelled `outage`, so a failed probe reaches the owner.
+- **Access log.** The Worker writes one JSON line per API request, `event` `api_request`, with
+  `method`, `route` (the route pattern such as `/api/activities/:id`, or `unmatched`), `status`,
+  `duration_ms` and `request_id`, which is the `X-Request-ID` of the response. It holds no path, query,
+  header, cookie, address, user id, email or body, and a method other than the standard verbs is
+  logged as `OTHER`. To stay inside the Free plan's daily log cap it logs every response outside 2xx
+  and every request over 1 s, and one 2xx response in ten, chosen by request id; so a count of 2xx
+  lines is a tenth of the traffic. `duration_ms` is wall time on the Workers clock, which only
+  advances at I/O. Filter Workers Logs on the event to see traffic by route and status, and use the
+  request id to find the line for a failure a user reports. Cloudflare's own invocation log is separate
+  and does carry each request's URL, query string included.
 - **Worker and platform.** Worker logs and the Cloudflare dashboard show request and error counts
   and D1 and R2 usage. Check them when an outage issue opens, and before raising any limit.
 
@@ -389,8 +410,7 @@ The live Chrome smoke used the repository's synthetic `one-run.fit`, not real de
   preparation helper below corrected the restore order.
 - Production was rolled back to the preceding release and then returned to the fixed release.
   Sign-in and the saved library survived. Both tested releases used the same schema/model revision;
-  this does not establish compatibility with migrations or model revisions added on the hardening
-  branch.
+  this does not establish compatibility with migrations or model revisions added since.
 
 A $0.01 R2 billing alert was saved for the account owner. This is a notification, not a spending
 cap. Application code budgets still cover only traffic through this Worker. Google Auth remains

@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
@@ -6,11 +6,10 @@ import type { ZoneSet } from '@rca/core/zones'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import { ActivityZoneTime } from './ActivityZoneTime'
 import { LapChoices } from './ActivityWorkbenchLaps'
-import { ActivityWorkbenchStack } from './ActivityWorkbenchStack'
+import { ActivityWorkbenchPlot } from './ActivityWorkbenchPlot'
 import { RepFadeTable } from './ActivityWorkbenchReps'
 import { SelectionStats } from './ActivityWorkbenchStats'
 import { TimeSelection } from './ActivityWorkbenchTime'
-import { colourOf, overviewOf } from './workbenchChannels'
 import { DEFAULT_METRICS, METRIC_ORDER, metricLabel, metricUnit } from './workbenchFormat'
 import { clampSelection } from './workbenchTime'
 import type { Selection } from './workbenchTime'
@@ -221,13 +220,6 @@ function ReadyWorkbench({
     available.filter((metric) => DEFAULT_METRICS.includes(metric)),
   )
   const [chosen, setChosen] = useState<Selection>({ startS: 0, endS: max })
-  const overview = useMemo(() => (max < 1 ? null : overviewOf(trace, max)), [trace, max])
-
-  const selection = clampSelection(chosen, max)
-  // The brush and the lap strip follow the pointer at once; the stack, the figures and the zones, which
-  // read the whole interval, catch up when the pointer pauses, so dragging across a long ride stays smooth.
-  const startS = useDeferredValue(selection.startS)
-  const endS = useDeferredValue(selection.endS)
 
   // An empty recording has no seconds to select, so none of the selection is drawn.
   if (max < 1)
@@ -236,6 +228,7 @@ function ReadyWorkbench({
         <p className="secondary">No detailed measures were recorded for this activity.</p>
       </WorkbenchSection>
     )
+  const selection = clampSelection(chosen, max)
 
   return (
     <WorkbenchSection sport={trace.sport}>
@@ -243,6 +236,7 @@ function ReadyWorkbench({
         Detailed readings stay on this device.
         {fromOriginal && ' Read from the original file.'}
       </p>
+      <TimeSelection max={max} selection={selection} onChange={setChosen} />
       <MetricControls
         trace={trace}
         units={units}
@@ -250,25 +244,7 @@ function ReadyWorkbench({
         visible={visible}
         onChange={setVisible}
       />
-      <LapChoices
-        trace={trace}
-        max={max}
-        selection={selection}
-        units={units}
-        onSelect={setChosen}
-      />
-      {visible.length > 0 ? (
-        <ActivityWorkbenchStack
-          trace={trace}
-          units={units}
-          metrics={visible}
-          startS={startS}
-          endS={endS}
-        />
-      ) : (
-        <p className="secondary">Choose a measure to see it over time.</p>
-      )}
-      <TimeSelection max={max} selection={selection} overview={overview} onChange={setChosen} />
+      <LapChoices trace={trace} max={max} selection={selection} onSelect={setChosen} />
       <RepFadeTable
         trace={trace}
         units={units}
@@ -276,14 +252,36 @@ function ReadyWorkbench({
         selection={selection}
         onSelect={setChosen}
       />
-      <SelectionStats trace={trace} startS={startS} endS={endS} units={units} metrics={visible} />
+      {visible.length > 0 ? (
+        <div className="activity-workbench__plots">
+          {visible.map((metric) => (
+            <ActivityWorkbenchPlot
+              key={metric}
+              trace={trace}
+              metric={metric}
+              units={units}
+              startS={selection.startS}
+              endS={selection.endS}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="secondary">Choose a measure to see it over time.</p>
+      )}
+      <SelectionStats
+        trace={trace}
+        startS={selection.startS}
+        endS={selection.endS}
+        units={units}
+        metrics={visible}
+      />
       {zoneSets && (
         <ActivityZoneTime
           trace={trace}
           sets={zoneSets}
           heartRateSetAside={heartRateSetAside}
-          startS={startS}
-          endS={endS}
+          startS={selection.startS}
+          endS={selection.endS}
           units={units}
         />
       )}
@@ -310,10 +308,9 @@ function MetricControls({
     <fieldset className="activity-workbench__metrics">
       <legend>Measures shown</legend>
       {available.map((metric) => (
-        <label key={metric} className={`metric-chip ts-ch ts-ch--${colourOf(metric)}`}>
+        <label key={metric}>
           <input
             type="checkbox"
-            className="metric-chip__input"
             checked={visible.includes(metric)}
             onChange={(event) => {
               const next = new Set(visible)
@@ -322,9 +319,8 @@ function MetricControls({
               onChange(METRIC_ORDER.filter((item) => next.has(item)))
             }}
           />
-          <span className="metric-chip__box" aria-hidden="true" />
           {metricLabel(metric, trace.sport)}{' '}
-          <span className="sr-only">
+          <span className="muted">
             ({metricUnit(metric, trace.sport, units, trace.cadenceUnit)})
           </span>
         </label>

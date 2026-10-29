@@ -1,9 +1,7 @@
 import { DISTRIBUTION_BINS } from '../constants'
 import type { DistributionMeasure } from '../constants'
+import { EDGE_EPSILON } from '../math'
 import type { Activity, DigestDistribution, DigestDistributions, QualityReport } from '../types'
-
-/** Absorbs the rounding of value / width, so a value on a bin edge, such as 0.3 m/s, is in the bin it opens. */
-const EDGE_EPSILON = 1e-9
 
 /** The bin a value falls in, or -1 when it is negative or past the measure's last bin. */
 export function binOf(measure: DistributionMeasure, value: number): number {

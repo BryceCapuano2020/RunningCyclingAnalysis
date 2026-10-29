@@ -70,6 +70,25 @@ export function ridePriced(
   return { watts: how === 'drops' ? Number.NaN : watts, alone: how === 'stands' }
 }
 
+/**
+ * One curve point of any sport priced in gross metabolic W/kg, the unit every comparison shares. A run
+ * point is read at the prior-mean running economy (NaN past the world-record ceiling); a ride point at
+ * the prior-mean efficiency, from its priced watts and the body mass of its day. `watts` is the ride's
+ * mechanical watts and NaN for a run; `alone` as in ridePriced. The one place a point becomes W/kg, so the
+ * trend, the records, the curves and the heart-rate judgement price a point the same way.
+ */
+export function pointWkg(
+  point: DigestCurvePoint,
+  digest: ActivityDigest,
+  masses: Masses,
+  model: BikeModel,
+  standing: EstimatedStanding,
+): { wkg: number; watts: number; alone: boolean } {
+  if (digest.sport === 'run') return { wkg: runCentralWkg(point), watts: Number.NaN, alone: false }
+  const { watts, alone } = ridePriced(point, digest, masses, model, standing)
+  return { wkg: centralWkgFromWatts(watts, masses.bodyKg(digest)), watts, alone }
+}
+
 /** The run and ride curves a combine works from, with the ride in each unit it needs. */
 export interface BestCurves {
   runBest: EffortPoint[]
@@ -131,11 +150,7 @@ export function bestCurves(
   const wkgBest = bestOfEach(
     ordered,
     'ride',
-    (digest) => (point) =>
-      centralWkgFromWatts(
-        ridePriced(point, digest, masses, bikeModel, standing).watts,
-        masses.bodyKg(digest),
-      ),
+    (digest) => (point) => pointWkg(point, digest, masses, bikeModel, standing).wkg,
     undefined,
     aloneFor,
   )

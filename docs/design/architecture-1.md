@@ -1,6 +1,6 @@
 # Architecture I: originals store, analysis-module registry, unified storage layer
 
-Status: designed. Stage B of [design/README.md](README.md). Stages C (routes), D (findings) and E (training load) build on it.
+Status: designed, deferred until findings need it (see the [stage plan](README.md)). The stage letters in the body are those of the earlier plan: B this design, C routes, D findings, E training load. The current plan is in [README.md](README.md).
 
 ## 0. Findings from the current code that shape the design
 

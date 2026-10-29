@@ -6,6 +6,7 @@ import type { Locator, Page } from '@playwright/test'
 import type { Me } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { parseFit } from '@rca/core/fit'
+import { lbToKg } from '@rca/core/units'
 import {
   CLIENT_HEADERS,
   LANDING_TITLE,
@@ -49,11 +50,12 @@ function savedActivityUpdates(page: Page) {
   return page.getByRole('region', { name: 'Saved activity updates' }).getByRole('status')
 }
 
-async function profileMassKg(page: Page): Promise<number | null> {
+/** The saved units and body mass, read together so a test can wait for both writes. */
+async function profileUnitsAndMass(page: Page): Promise<{ units: string; massKg: number | null }> {
   const response = await page.request.get('/api/me')
   expect(response.status()).toBe(200)
-  const me = (await response.json()) as Me
-  return me.profile.massKg
+  const { profile } = (await response.json()) as Me
+  return { units: profile.units, massKg: profile.massKg }
 }
 
 async function profileKeepsFiles(page: Page): Promise<boolean> {
@@ -136,8 +138,15 @@ test('a saved library survives reloads and sign-out, and deleting the account re
     await body.blur()
     await expect(body).toHaveValue(/^185(\.0)?$/)
 
-    // 185 lb is about 83.9 kg, which is what the profile keeps.
-    await expect.poll(() => profileMassKg(page)).toBeCloseTo(83.91, 1)
+    // The setup dialog already saved this weight (83.9 kg), so the mass cannot show that this step's writes
+    // landed; the units can, because the account starts in metric. Reloading before they have lands the
+    // old units on the page, where 185 shows as 83.9. The profile keeps 185 lb as about 83.9 kg.
+    await expect
+      .poll(async () => {
+        const { units, massKg } = await profileUnitsAndMass(page)
+        return units === 'imperial' && massKg !== null && Math.abs(massKg - lbToKg(185)) < 0.05
+      })
+      .toBe(true)
 
     await page.reload()
     await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()

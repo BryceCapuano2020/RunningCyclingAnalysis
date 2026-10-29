@@ -1,5 +1,12 @@
 import type { LinearFit } from './types'
 
+/**
+ * Absorbs floating-point rounding, as an absolute amount, where a value sits on an edge: a zone edge
+ * on a bin edge such as 0.3 m/s, a product that is a whole number such as 0.6 * 200, a share of a
+ * window that is a whole number of seconds, a run ending exactly on a whole unit.
+ */
+export const EDGE_EPSILON = 1e-9
+
 /** Deterministic PRNG returning uniform values in [0, 1). */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0

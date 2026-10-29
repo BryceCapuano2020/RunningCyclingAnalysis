@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { activitiesRows, uploadFixtures } from './helpers.js'
+import { activitiesRows, importSummaryShown, libraryLoaded, uploadFixtures } from './helpers.js'
 import {
   CACHE_BYTES,
   CACHE_ENTRIES,
@@ -21,17 +21,28 @@ const RUN_ID = '1749798900000-one-run.tcx'
 const MIB = 1024 * 1024
 const SLOW = { timeout: 30_000 }
 
-/** Imports one file, so the app creates the cache, then leaves a page that holds no connection to it. */
+/** The summary of an import of one activity: the app shows it once the saves are done. */
+const ADDED_ONE = /^Added 1 (run|ride), on /
+
+/**
+ * Imports one file, so the app creates the cache, then leaves a page that holds no connection to it.
+ * It leaves only when the import has ended: the activity's row shows before its saves do, and a
+ * page left in between loses the library write and the cache entry.
+ */
 async function createCacheWith(page: Page, fixture: string): Promise<void> {
   await page.goto('/')
   await uploadFixtures(page, [fixture])
+  await importSummaryShown(page, ADDED_ONE)
   await expect(await activitiesRows(page)).toHaveCount(1, SLOW)
   await page.goto('/privacy')
 }
 
+/** Opens the app on the library it kept, waits for that library, then imports one more activity. */
 async function importAgain(page: Page, fixture: string, rows: number): Promise<void> {
   await page.goto('/')
+  await libraryLoaded(page, rows - 1)
   await uploadFixtures(page, [fixture])
+  await importSummaryShown(page, ADDED_ONE)
   await expect(await activitiesRows(page)).toHaveCount(rows, SLOW)
   await page.goto('/privacy')
 }
@@ -80,12 +91,14 @@ test('an older activity added to a cache full of newer ones is not stored, and s
   const seeded = filling('seeded', 8, CACHE_BYTES, YEAR_2030, DAY_MS)
   await seedCache(page, seeded)
   await page.goto('/')
+  await libraryLoaded(page, 1)
   await uploadFixtures(page, ['one-run.tcx'])
+  await importSummaryShown(page, ADDED_ONE)
   const rows = await activitiesRows(page)
   await expect(rows).toHaveCount(2, SLOW)
   // The older run is the second row. Its recording lasts for this visit.
   await rows.nth(1).getByRole('link').click()
-  await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible(SLOW)
+  await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
 
   await page.goto('/privacy')
   const { entries, ledger } = await readCache(page)

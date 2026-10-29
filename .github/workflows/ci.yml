@@ -36,7 +36,6 @@ jobs:
       - run: npm run test:deploy-config
       - run: npm run test:ops
       - run: npm run test:coverage
-      - run: npm run test:perf
       - run: npm run build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -50,6 +49,30 @@ jobs:
           path: apps/web/dist
           retention-days: 7
           include-hidden-files: true
+
+  # The wall-clock budgets (*.perf.test.ts) are their own job so a loaded runner cannot fail the unit
+  # tests, and the unit tests' load cannot fail a budget. They still run on every pull request and
+  # fail on a real regression: a budget that fails is run once more, and the job fails only if the
+  # second run fails too. A real regression fails both runs; a noisy neighbour rarely fails two in a row.
+  perf:
+    name: Performance budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit
+      - name: Run the budgets, once more if they fail
+        run: |
+          if ! npm run test:perf; then
+            echo "::warning title=Performance budgets::The budgets failed once; running them again. A second failure fails the job."
+            npm run test:perf
+          fi
 
   e2e:
     name: End-to-end (Playwright)

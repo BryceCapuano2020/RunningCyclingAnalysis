@@ -160,7 +160,8 @@ npm run dev
 | `npm run test:coverage`           | Same, with coverage thresholds                                                             |
 | `npm run e2e`                     | Playwright tests against the production build; run `npm run build` first                   |
 | `npm run check`                   | Format check, lint, typecheck, tests with coverage, deploy-config and ops tests, and build |
-| `npm run test:perf`               | Performance tests for `@rca/core` (`vitest.perf.config.ts`)                                |
+| `npm run test:perf`               | Wall-clock and heap budgets for `@rca/core` and `@rca/web` (`vitest.perf.config.ts`)       |
+| `npm run smoke:prod`              | Read-only checks of the live origin; add `-- --expect-sha <sha>` after a release           |
 | `npm run fixtures -w @rca/web`    | Regenerates the deterministic e2e fixtures (FIT, GPX, TCX and the Strava zip)              |
 | `npm run screenshots -w @rca/web` | Builds, then regenerates the README screenshots in `docs/`                                 |
 
@@ -209,8 +210,8 @@ docs/                architecture, roadmap and README screenshots
 ```
 
 The repository contains CI workflow definitions for formatting, lint, types, deployment and
-operations tests, unit tests with coverage, builds, Playwright, and dependency audits. The hardening
-branch has not run those workflows from the default branch.
+operations tests, unit tests with coverage, wall-clock performance budgets, builds, Playwright, and
+dependency audits. They run on every pull request and on every push to `main`.
 
 ## Deploy
 
@@ -232,6 +233,29 @@ TypeScript, React, Vite, Vitest, Playwright, fflate and an in-house FIT decoder/
 FIT SDK is a development-only reference for differential tests. The API runs on
 Cloudflare Workers with D1 and R2, using Hono, Drizzle ORM and zod. Written with Claude Code; no
 language model runs in the product.
+
+## How this was built and verified
+
+Most of the code was written by AI coding agents (Claude Code) working under the standing rules in
+[docs/ENGINEERING.md](docs/ENGINEERING.md). The decisions are
+the owner's: what the product is for, what it may store, how results are worded, and what ships.
+Nothing is deployed without the owner asking for it.
+
+- **Tests.** Unit and component tests cover the analysis core, the API and the web app, with coverage
+  thresholds. Identity pins fix the exact output for a set of synthetic sessions, so a change to a
+  result is deliberate and listed. Playwright runs the production build in Chromium and WebKit,
+  including a run against the real Worker. Timing budgets run in their own CI job.
+- **Fixtures.** Tests use synthetic activities generated in code and the public test files of
+  open-source FIT, GPX and TCX parsers. No personal data is committed.
+- **Review loop.** Each change is one branch and one pull request. A second agent session reviews it
+  against the standing rules, and CI must pass before the squash merge.
+- **Gates.** After each stage of the plan in [docs/design/README.md](docs/design/README.md), separate
+  passes check quality, security, real data (run outside the repository, reporting counts only),
+  hardening, performance and accessibility. Findings that matter are fixed before the next stage.
+- **Releases.** A release runs the full gate on the exact commit, then deploys it with
+  `npm run deploy:built`, which tags the Worker version with the commit. The live `/api/health`
+  reports that commit, `npm run smoke:prod` checks the live origin, and [docs/RELEASES.md](docs/RELEASES.md)
+  records every release.
 
 ## Privacy, security and license
 

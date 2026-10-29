@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { activitiesRows, uploadFixtures } from './helpers.js'
+import { activitiesRows, importSummaryShown, uploadFixtures } from './helpers.js'
 
 test('a refused detail-cache write preserves analysis and the saved activity summary', async ({
   page,
@@ -17,7 +17,7 @@ test('a refused detail-cache write preserves analysis and the saved activity sum
   await uploadFixtures(page, ['one-run.tcx'])
   const rows = await activitiesRows(page)
   await rows.first().getByRole('link').click()
-  await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   await page.reload()
   await expect(page.getByText(/Add this activity's file again/)).toBeVisible()
   await expect(await activitiesRows(page)).toHaveCount(1)
@@ -28,6 +28,7 @@ test('a corrupt byte ledger is repaired before further detail recordings are sto
 }) => {
   await page.goto('/')
   await uploadFixtures(page, ['one-run.tcx'])
+  await importSummaryShown(page, /^Added 1 run, on /)
   await expect(await activitiesRows(page)).toHaveCount(1)
   await page.goto('/privacy')
   await page.evaluate(async () => {
@@ -60,7 +61,7 @@ test('a corrupt byte ledger is repaired before further detail recordings are sto
   await uploadFixtures(page, ['one-run.tcx'])
   const restored = await activitiesRows(page)
   await restored.first().getByRole('link').click()
-  await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   const accounting = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('rca-workbench-evidence', 3)

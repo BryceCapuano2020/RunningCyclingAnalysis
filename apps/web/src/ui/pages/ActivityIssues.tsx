@@ -5,8 +5,7 @@ import { flagKindSentence, flagSpanText, listsTimesOf, skippedKinds } from '../a
 import { skippedCountOf } from '../activityFigures'
 
 /**
- * The data the app noted on this activity, behind a disclosure. The timeline above already marks where
- * readings were left out, so this is the evidence: grouped by kind, one line for each kind, with its count.
+ * The data the app noted on this activity, grouped by kind: one line for each kind, with its count.
  * Readings left out of the figures are counted under "Skipped readings"; altitude notes stand under
  * "Data notes". Each reading's time is listed under its kind. The digest keeps the first flags, so
  * the note says when the rest are not listed. Heart rate the analysis set aside is noted last.
@@ -24,40 +23,36 @@ export function ActivityIssues({
   const skipped = skippedCountOf(activity)
   const total = kinds.reduce((sum, kind) => sum + (activity.flagCounts[kind] ?? 0), 0)
   const shown = activity.flags.length
-  const notes = kinds.length + (setAsideNote === null ? 0 : 1)
   return (
     <section className="section" aria-labelledby="activity-issues">
       <h2 id="activity-issues">{skipped > 0 ? 'Skipped readings' : 'Data notes'}</h2>
-      <details className="activity-page__notes">
-        <summary>{notes === 1 ? 'Show the note' : `Show the ${notes} notes`}</summary>
-        <ul className="activity-page__flags">
-          {kinds.map((kind) => {
-            const flags = activity.flags.filter((flag) => flag.kind === kind)
-            return (
-              <li key={kind}>
-                <p>{flagKindSentence(kind, activity.flagCounts[kind] ?? 0, activity.indoor)}</p>
-                {listsTimesOf(kind) && flags.length > 0 && (
-                  <ul className="activity-page__flag-times">
-                    {keyByContent(flags, (flag) => `${flag.start}-${flag.end}`).map(
-                      ({ key, item: flag }) => (
-                        <li key={key}>{flagSpanText(flag)}</li>
-                      ),
-                    )}
-                  </ul>
-                )}
-              </li>
-            )
-          })}
-          {setAsideNote !== null && (
-            <li>
-              <p>{setAsideNote}</p>
+      <ul className="activity-page__flags">
+        {kinds.map((kind) => {
+          const flags = activity.flags.filter((flag) => flag.kind === kind)
+          return (
+            <li key={kind}>
+              <p>{flagKindSentence(kind, activity.flagCounts[kind] ?? 0, activity.indoor)}</p>
+              {listsTimesOf(kind) && flags.length > 0 && (
+                <ul className="activity-page__flag-times">
+                  {keyByContent(flags, (flag) => `${flag.start}-${flag.end}`).map(
+                    ({ key, item: flag }) => (
+                      <li key={key}>{flagSpanText(flag)}</li>
+                    ),
+                  )}
+                </ul>
+              )}
             </li>
-          )}
-        </ul>
-        {shown < total && (
-          <p className="secondary">{`Showing the first ${formatCount(shown)} of ${formatCount(total)}.`}</p>
+          )
+        })}
+        {setAsideNote !== null && (
+          <li>
+            <p>{setAsideNote}</p>
+          </li>
         )}
-      </details>
+      </ul>
+      {shown < total && (
+        <p className="secondary">{`Showing the first ${formatCount(shown)} of ${formatCount(total)}.`}</p>
+      )}
     </section>
   )
 }

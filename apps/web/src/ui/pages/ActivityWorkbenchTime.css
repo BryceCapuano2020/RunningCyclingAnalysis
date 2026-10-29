@@ -1,44 +1,103 @@
-/* The range's words are the disclosure's summary; the button to widen it back sits at its right. */
-.activity-workbench__foot {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.activity-workbench__exact summary {
-  min-height: 40px;
-}
-
-.activity-workbench__exact {
+/*
+ * The interval's sliders. The native control is kept, so it keeps its keyboard and touch behaviour, and
+ * only its track and thumb are drawn from the tokens. The input is a control tall, which is the thumb's
+ * touch target; the track and the thumb are drawn inside it.
+ */
+.activity-workbench__input-row input[type='range'] {
   flex: 1 1 auto;
   min-width: 0;
-  font-variant-numeric: tabular-nums;
+  height: var(--control-height);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
 }
 
-/* The two typed times sit side by side where there is room, and stack on a phone. */
-.activity-workbench__exact summary {
-  color: var(--text-secondary);
-}
-
-.activity-workbench__exact .activity-workbench__range {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-field)), 1fr));
-  padding-top: var(--space-2);
-}
-
-.activity-workbench__field input[type='text'] {
-  width: 100%;
-  min-height: var(--control-height);
-  padding: 0 var(--space-2);
+.activity-workbench__input-row input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
-  font: inherit;
-  font-variant-numeric: tabular-nums;
+  border-radius: 3px;
+  background: var(--surface-2);
 }
 
-.activity-workbench__field input[aria-invalid='true'] {
-  border-color: var(--status-critical);
-  border-width: 2px;
+.activity-workbench__input-row input[type='range']::-moz-range-track {
+  height: 6px;
+  border: 1px solid var(--control-border);
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
+.activity-workbench__input-row input[type='range']::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+  /* Centres the thumb on the track's 6 px of content: half the difference of their heights. */
+  margin-top: -8px;
+  border: 3px solid var(--surface-1);
+  border-radius: 50%;
+  background: var(--selected);
+  box-shadow: 0 0 0 1px var(--control-border);
+  appearance: none;
+}
+
+.activity-workbench__input-row input[type='range']::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--surface-1);
+  border-radius: 50%;
+  background: var(--selected);
+  box-shadow: 0 0 0 1px var(--control-border);
+}
+
+.activity-workbench__input-row input[type='range']:hover::-webkit-slider-thumb {
+  background: var(--accent-hover);
+}
+
+.activity-workbench__input-row input[type='range']:hover::-moz-range-thumb {
+  background: var(--accent-hover);
+}
+
+.activity-workbench__input-row input[type='range']:active::-webkit-slider-thumb {
+  background: var(--accent-pressed);
+}
+
+.activity-workbench__input-row input[type='range']:active::-moz-range-thumb {
+  background: var(--accent-pressed);
+}
+
+/* The thumb is what moves, so it carries the focus ring, not the whole control's box. */
+.activity-workbench__input-row input[type='range']:focus-visible {
+  outline: none;
+}
+
+.activity-workbench__input-row input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.activity-workbench__input-row input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* On a phone the slider takes a line of its own, under the typed time. */
+@media (max-width: 479px) {
+  .activity-workbench__input-row input[type='range'] {
+    flex-basis: 100%;
+    order: 1;
+  }
+}
+
+@media (forced-colors: active) {
+  .activity-workbench__input-row input[type='range']::-webkit-slider-runnable-track,
+  .activity-workbench__input-row input[type='range']::-moz-range-track {
+    border-color: ButtonText;
+    background: Canvas;
+  }
+
+  .activity-workbench__input-row input[type='range']::-webkit-slider-thumb,
+  .activity-workbench__input-row input[type='range']::-moz-range-thumb {
+    border-color: Canvas;
+    background: ButtonText;
+  }
 }

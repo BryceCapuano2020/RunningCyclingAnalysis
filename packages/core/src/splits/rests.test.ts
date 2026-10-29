@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { restSeconds, restsOf } from './rests'
+import { restsOf } from './rests'
 
 /** Cumulative metres per sample at 1 Hz. */
 const metres = (...values: number[]) => Float64Array.from(values)
@@ -8,7 +8,7 @@ const metres = (...values: number[]) => Float64Array.from(values)
 const mask = (text: string) => Uint8Array.from(text, (c) => (c === '1' ? 1 : 0))
 
 const rests = (distance: Float64Array, moving: string) =>
-  [...restSeconds(distance, mask(moving))].join('')
+  [...restsOf(distance, mask(moving)).rest].join('')
 
 /*
  * When a file resumes, the step into the first timed sample can hold one second of running: a pause
@@ -16,7 +16,7 @@ const rests = (distance: Float64Array, moving: string) =>
  * stretch's last sample leaves the rest and the step comes off the stretch's gain. A file whose resume
  * sample is held (no step into it) has nothing to take off.
  */
-describe('restSeconds', () => {
+describe('restsOf rest seconds', () => {
   it('marks a stretch the runner stood through, less the second of running at its end', () => {
     // Four seconds at 4 m/s, a 5 s stop with the distance held, then four more.
     const distance = metres(0, 4, 8, 12, 12, 12, 12, 12, 12, 16, 20, 24)

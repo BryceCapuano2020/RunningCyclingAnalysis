@@ -1,4 +1,4 @@
-export { METRES_PER_FOOT, METRES_PER_KM, METRES_PER_MILE, kgToLb, lbToKg } from './convert'
+export { METRES_PER_KM, METRES_PER_MILE, kgToLb, lbToKg } from './convert'
 export {
   formatClock,
   formatRecordTime,

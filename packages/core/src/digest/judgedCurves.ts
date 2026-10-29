@@ -2,10 +2,10 @@ import { fitCriticalPowerUnchecked } from '../cp'
 import { lowForPowerSetAside } from '../hr'
 import type { ActivityDigest, BikeModel, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
 import { plainCurve } from './bestCurve'
-import { rideGateOf } from './estimatedRide'
+import { estimatedStanding, rideGateOf } from './estimatedRide'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { Masses } from './masses'
-import { bestCurves, centralWkgFromWatts, rideWattsAt, runCentralWkg } from './rideCurves'
+import { bestCurves, pointWkg } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { trustedHeartRate } from './trustedHeartRate'
 import type { TrustedHeartRate } from './trustedHeartRate'
@@ -27,19 +27,13 @@ export interface JudgedCurves {
   gate: EstimatedRideGate | null
 }
 
-/** Each sport's curve points priced in its fit unit, gross metabolic W/kg. */
+/** A curve point priced in its sport's fit unit, gross metabolic W/kg, before any estimated ride is refused. */
 function unitsOf(
   masses: Masses,
   bikeModel: BikeModel,
-): Record<Sport, (digest: ActivityDigest, point: DigestCurvePoint) => number> {
-  return {
-    run: (_digest, point) => runCentralWkg(point),
-    ride: (digest, point) =>
-      centralWkgFromWatts(
-        rideWattsAt(point, masses.totalKg(digest), bikeModel),
-        masses.bodyKg(digest),
-      ),
-  }
+): (digest: ActivityDigest, point: DigestCurvePoint) => number {
+  const everyPointHolds = estimatedStanding(null)
+  return (digest, point) => pointWkg(point, digest, masses, bikeModel, everyPointHolds).wkg
 }
 
 function fitsOf(curves: BestCurves): Record<Sport, CriticalPowerFit | null> {
@@ -68,13 +62,7 @@ export function judgedCurves(
   let gate = given.rideGate === undefined ? rideGateOf(ordered, first) : given.rideGate
   let curves = bestCurves(ordered, masses, bikeModel, todayKg, gate)
   let fits = fitsOf(curves)
-  const units = unitsOf(masses, bikeModel)
-  const heart = trustedHeartRate(
-    ordered,
-    fits,
-    (digest, point) => units[digest.sport](digest, point),
-    given.heartRateSetAside,
-  )
+  const heart = trustedHeartRate(ordered, fits, unitsOf(masses, bikeModel), given.heartRateSetAside)
   if (given.heartRateSetAside === undefined && given.rideGate === undefined) {
     if (heart.setAside.size !== first.size) {
       gate = rideGateOf(ordered, heart.setAside)

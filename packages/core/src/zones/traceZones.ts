@@ -1,7 +1,7 @@
 import { isTraceObservation } from '../workbench/selection'
 import type { ActivityTrace, MaskedMetric } from '../workbench/types'
 import type { ZoneMeasure } from './schemes'
-import { EDGE_EPSILON } from './timeInZones'
+import { EDGE_EPSILON } from '../math'
 import type { Zone } from './zones'
 
 /** The recorded stream each zone measure reads: a pace's zones are cut in speed. */

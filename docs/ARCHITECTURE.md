@@ -7,8 +7,9 @@ per-activity digests in its own IndexedDB storage (database `rca-device-library`
 the results; nothing from them reaches the server. One Cloudflare Worker serves both the built web app
 and the API.
 
-This page describes the hardening branch's source. For what is deployed and when it was verified,
-see the release state and live verification sections of [PRODUCTION.md](PRODUCTION.md).
+This page describes the source on `main`. For what is deployed and when it was released, see the
+ledger in [RELEASES.md](RELEASES.md); for how releases are verified, see
+[PRODUCTION.md](PRODUCTION.md).
 
 Designs for planned features, and the stage plan, are in [design/README.md](design/README.md).
 

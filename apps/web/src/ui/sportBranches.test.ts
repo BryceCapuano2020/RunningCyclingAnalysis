@@ -11,7 +11,7 @@ const SPORT_CHECK =
   /(?:[!=]==?)\s*['"](?:run|ride)['"]|['"](?:run|ride)['"]\s*(?:[!=]==?)|\bcase\s+['"](?:run|ride)['"]/g
 
 /** The most sport comparisons the source may hold outside tests. A new one needs a table instead. */
-const SPORT_CHECK_BUDGET = 63
+const SPORT_CHECK_BUDGET = 60
 
 /** The web app's and the two packages' source, without the tests, their fixtures or the benchmarks. */
 async function sourceFiles(): Promise<{ path: string; text: string }[]> {

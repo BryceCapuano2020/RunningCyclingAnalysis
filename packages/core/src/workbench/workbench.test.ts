@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from './types'
 import { activityTraceOf, parseActivityTrace } from './trace'
 import { detectIntervals } from './intervals'
-import { isTraceObservation, summarizeSelection } from './selection'
+import { distributionOf, isTraceObservation, summarizeSelection } from './selection'
 
 function trace(n: number): ActivityTrace {
   const distance = Float64Array.from({ length: n }, (_, i) => i * 10)
@@ -172,7 +172,27 @@ describe('selection evidence', () => {
     expect(() => summarizeSelection(item, -1, 2)).toThrow(RangeError)
   })
 
-  it('shares observation validity with plots and summaries', () => {
+  it('builds a bounded distribution from valid observed seconds only', () => {
+    const item = trace(100)
+    item.streams.heartRate![25] = 251
+    item.streams.temperature![26] = 81
+    item.paused[27] = 1
+    const histogram = distributionOf(item, 'heartRate', 0, 100)
+    expect(histogram.length).toBeLessThanOrEqual(10)
+    expect(histogram.reduce((sum, bin) => sum + bin.seconds, 0)).toBe(98)
+    expect(
+      distributionOf(item, 'temperature', 0, 100).reduce((sum, bin) => sum + bin.seconds, 0),
+    ).toBe(98)
+    expect(distributionOf(item, 'power', 0, 100)).toEqual([])
+  })
+
+  it('puts a constant series in one bin', () => {
+    const item = trace(50)
+    expect(distributionOf(item, 'temperature', 0, 50)).toEqual([{ from: 18, to: 18, seconds: 50 }])
+    expect(distributionOf(item, 'temperature', 10, 11)).toEqual([{ from: 18, to: 18, seconds: 1 }])
+  })
+
+  it('shares observation validity with plots, summaries, and distributions', () => {
     const item = trace(4)
     item.streams.heartRate![1] = 251
     item.paused[2] = 1
@@ -185,6 +205,9 @@ describe('selection evidence', () => {
       false,
     ])
     expect(summarizeSelection(item, 0, 4).metrics.heartRate?.seconds).toBe(1)
+    expect(distributionOf(item, 'heartRate', 0, 4).reduce((sum, bin) => sum + bin.seconds, 0)).toBe(
+      1,
+    )
   })
 
   it('excludes pause-filled power zeros from moving-time summaries', () => {
@@ -196,6 +219,7 @@ describe('selection evidence', () => {
     expect(summary.recordedS).toBe(3)
     expect(summary.movingS).toBe(2)
     expect(summary.metrics.power).toEqual({ mean: 200, min: 200, max: 200, seconds: 2 })
+    expect(distributionOf(item, 'power', 0, 3).reduce((sum, bin) => sum + bin.seconds, 0)).toBe(2)
   })
 })
 

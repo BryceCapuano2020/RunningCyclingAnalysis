@@ -1,3 +1,4 @@
+import { EDGE_EPSILON } from '../math'
 import type { Curve, CurvePoint } from '../types'
 
 /** A window counts only when at least minFraction of its samples are 1 in `moving`. */
@@ -43,7 +44,7 @@ export function meanMaximal(
     bestWindow(
       d,
       n,
-      { sum, bad, moving, minMoving: Math.ceil(minFraction * d - 1e-9) },
+      { sum, bad, moving, minMoving: Math.ceil(minFraction * d - EDGE_EPSILON) },
       activityId,
       firstStart,
     ),

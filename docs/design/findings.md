@@ -1,6 +1,6 @@
 # Findings engine: design
 
-Status: in progress (stage D in the [plan](README.md)). The contract, statistics, scoring, shared
+Status: in progress (stage C in the [plan](README.md)). The contract, statistics, scoring, shared
 tables, evaluation and replay, and the planted and null test harness exist on an unmerged branch
 (phase 1 below). The detectors, ledger, worker wiring and UI are designed only.
 
@@ -212,8 +212,9 @@ of the series with the compared windows shaded; up to 12 activity links (expand 
    calibration.
 5. **Later:** swim and lifting adapters.
 
-In the [stage plan](README.md) this follows routes (stage C), because course-progress reads route
-groups, and runs on the stage B module registry rather than adding another field to `SessionState`.
+In the [stage plan](README.md) this is stage C. Course-progress reads route groups, which are scheduled
+later, so it ships without that evidence gap; the module registry of [architecture-1.md](architecture-1.md)
+is built when findings need it, rather than adding another field to `SessionState` first.
 
 ## Decisions
 

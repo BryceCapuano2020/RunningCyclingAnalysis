@@ -135,6 +135,8 @@ function fastestNear(
   for (const stretch of stretches) {
     const reach = reachOf(distance, stretch)
     if (reach >= target * (1 - DISTANCE_BEST_TOLERANCE) && reach < target) {
+      // A relative margin, not rounding absorption (EDGE_EPSILON is absolute): the span must be strictly
+      // inside the reach.
       const span = reach * (1 - 1e-9)
       const scale = target / span
       const scaled = fastestWithin(distance, stretch, span) * scale

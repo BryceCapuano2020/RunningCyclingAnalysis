@@ -6,12 +6,7 @@ import { massesOf } from '../digest/masses'
 import { orderedCurrent } from '../digest/ordered'
 import { estimatedStanding, ownRideGate, pointAt } from '../digest/estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from '../digest/estimatedRide'
-import {
-  centralWkgFromWatts,
-  fitBikeModelOver,
-  ridePriced,
-  runCentralWkg,
-} from '../digest/rideCurves'
+import { fitBikeModelOver, pointWkg } from '../digest/rideCurves'
 import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
 
 /** The ride or run holding the best value at a duration. */
@@ -25,20 +20,22 @@ export type EarnedRecord =
   { kind: 'duration'; durationS: number } | { kind: 'distance'; distanceM: RunRecordDistanceM }
 
 /**
- * A ride point's value for comparing rides: its watts, or with dated body masses its watts per kilogram of
- * the body mass on its day, so the record is held by the same ride the best-effort curve shows. NaN for an
- * estimate the athlete's heart rate does not back (see ESTIMATED_RIDE), which holds no record. `alone` is an
- * estimate with no heart rate that stands at its own duration only.
+ * A point's value for comparing activities of its sport: gross metabolic W/kg for a run, and for a ride its
+ * watts, or with dated body masses its watts per kilogram of the body mass on its day, so the record is held
+ * by the same ride the best-effort curve shows. NaN for an estimate the athlete's heart rate does not back (see
+ * ESTIMATED_RIDE), which holds no record. `alone` is an estimate with no heart rate that stands at its own
+ * duration only.
  */
-function rideValueAt(
+function valueAt(
   point: DigestCurvePoint,
   digest: ActivityDigest,
   masses: Masses,
   bikeModel: BikeModel,
   standing: EstimatedStanding,
 ): { value: number; alone: boolean } {
-  const { watts, alone } = ridePriced(point, digest, masses, bikeModel, standing)
-  return { value: masses.dated ? centralWkgFromWatts(watts, masses.bodyKg(digest)) : watts, alone }
+  const { wkg, watts, alone } = pointWkg(point, digest, masses, bikeModel, standing)
+  // A run has no watts (NaN), and a dropped ride is NaN in either unit, so NaN watts read as W/kg.
+  return { value: masses.dated || Number.isNaN(watts) ? wkg : watts, alone }
 }
 
 /**
@@ -77,10 +74,7 @@ export function recordHolders(
       for (const digest of own) {
         const point = pointAt(digest, index)
         if (!point) continue
-        const { value, alone } =
-          sport === 'run'
-            ? { value: runCentralWkg(point), alone: false }
-            : rideValueAt(point, digest, masses, bikeModel, standing)
+        const { value, alone } = valueAt(point, digest, masses, bikeModel, standing)
         const kind = alone ? 'alone' : 'held'
         if (alone && value > shorter) continue
         if (Number.isFinite(value) && (bests[kind] === null || value > bests[kind].value)) {

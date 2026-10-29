@@ -1,4 +1,5 @@
 import { MAX_KM_SPLITS, MAX_MILE_SPLITS } from '../constants'
+import { EDGE_EPSILON } from '../math'
 import { elevationIncrements } from '../digest/elevationGain'
 import { metabolicToFlatSpeed } from '../metabolic'
 import { QUALITY_THRESHOLDS } from '../quality'
@@ -8,8 +9,6 @@ import { METRES_PER_KM, METRES_PER_MILE } from '../units/convert'
 
 /** A partial remainder shorter than this is not reported, m. */
 const MIN_PARTIAL_M = 100
-/** Absorbs rounding, so a run that ends exactly on a whole unit has no partial split. */
-const UNIT_EPSILON = 1e-9
 
 /** The per-sample inputs every split of one run is read from. */
 interface Streams {
@@ -216,7 +215,7 @@ function splitOf(s: Streams, span: Span): DigestSplit {
  * last split owns the rest of the run, so every sample's climb is counted in exactly one split.
  */
 function splitsOf(s: Streams, totalM: number, unit: number, limit: number): DigestSplit[] {
-  const whole = Math.floor(totalM / unit + UNIT_EPSILON)
+  const whole = Math.floor(totalM / unit + EDGE_EPSILON)
   const remainder = totalM - whole * unit
   const partial = remainder >= MIN_PARTIAL_M
   if (whole + (partial ? 1 : 0) > limit) return []
