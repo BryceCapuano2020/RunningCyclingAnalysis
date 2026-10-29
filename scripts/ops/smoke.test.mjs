@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { appUrlFromConfig, runSmoke, smokeChecks } from './smoke.mjs'
+import { appUrlFromConfig, runSmoke, shaArgument, smokeChecks } from './smoke.mjs'
 
 const ORIGIN = 'https://rca-api.example.workers.dev'
 const GOOGLE_URL = (redirectUri) =>
@@ -9,7 +9,7 @@ const GOOGLE_URL = (redirectUri) =>
 /** A healthy origin: every route answers the way the deployed Worker must. */
 function healthyFetch(overrides = {}) {
   const routes = {
-    '/api/health': () => Response.json({ status: 'ok' }),
+    '/api/health': () => Response.json({ status: 'ok', sha: 'abc1234' }),
     '/api/health/deep': () => new Response('{}', { status: 200 }),
     '/': () =>
       new Response('<html><body><div id="root"></div></body></html>', {
@@ -42,7 +42,15 @@ function healthyFetch(overrides = {}) {
   return async (url, init) => {
     assert.equal(init.redirect, 'manual', 'smoke requests must not follow redirects')
     const handler = routes[new URL(url).pathname]
-    if (!handler) return new Response('missing', { status: 404 })
+    if (!handler) {
+      return new Response('missing', {
+        status: 404,
+        headers: {
+          'x-content-type-options': 'nosniff',
+          'content-security-policy': "default-src 'none'; frame-ancestors 'none'",
+        },
+      })
+    }
     return handler()
   }
 }
@@ -137,7 +145,7 @@ test('reads APP_URL from the Wrangler configuration', () => {
 
 test('lists one check per production route that must stay reachable', () => {
   const names = smokeChecks(ORIGIN, ORIGIN).map((check) => check.name)
-  assert.equal(names.length, 8)
+  assert.equal(names.length, 9)
   assert.ok(names.some((name) => name.includes('/api/auth/google')))
   assert.ok(names.some((name) => name.includes('/.well-known/security.txt')))
   assert.ok(names.some((name) => name.includes('/robots.txt')))
@@ -237,4 +245,97 @@ test('a privacy page served as plain text fails the smoke test', async () => {
   })
   assert.equal(failures.length, 1)
   assert.match(failures[0], /content-type is not text\/html/)
+})
+
+test('with an expected commit, /api/health must report that build', async () => {
+  const run = (expectSha) =>
+    runSmoke({
+      origin: ORIGIN,
+      appUrl: ORIGIN,
+      attempts: 1,
+      expectSha,
+      fetchImpl: healthyFetch(),
+      sleep: noSleep,
+    })
+  assert.deepEqual(await run('abc1234'), [])
+  assert.deepEqual(await run('abc1234def5678901234567890123456789abcd'), [])
+  const stale = (await run('fff0000')).join('\n')
+  assert.match(stale, /reports build abc1234, not fff0000/)
+})
+
+test('an unknown path must answer 404 with the Worker security headers', async () => {
+  const failures = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    attempts: 1,
+    fetchImpl: healthyFetch({
+      '/smoke-check-no-such-page': () => new Response('<html>app</html>', { status: 200 }),
+    }),
+    sleep: noSleep,
+  })
+  assert.match(
+    failures.join('\n'),
+    /answers 404 with the Worker security headers: expected 404, got 200/,
+  )
+})
+
+test('every smoke request is a bodyless GET, so a run sends no mutating request', async () => {
+  const seen = []
+  const fetchImpl = healthyFetch()
+  await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    expectSha: 'abc1234',
+    fetchImpl: async (url, init) => {
+      seen.push(init)
+      return fetchImpl(url, init)
+    },
+    sleep: noSleep,
+  })
+  assert.ok(seen.length >= 9)
+  for (const init of seen) {
+    assert.ok(init.method === undefined || init.method === 'GET')
+    assert.equal(init.body, undefined)
+  }
+})
+
+test('a Worker with no build id still passes without --expect-sha, and fails with it', async () => {
+  const old = healthyFetch({ '/api/health': () => Response.json({ status: 'ok' }) })
+  const run = (expectSha) =>
+    runSmoke({
+      origin: ORIGIN,
+      appUrl: ORIGIN,
+      attempts: 1,
+      expectSha,
+      fetchImpl: old,
+      sleep: noSleep,
+    })
+  assert.deepEqual(await run(undefined), [])
+  assert.match((await run('abc1234')).join('\n'), /has no build sha/)
+})
+
+test('a retry of the deep health check waits out its one-a-minute limiter', async () => {
+  const waits = []
+  let calls = 0
+  const healthy = healthyFetch()
+  const failures = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    fetchImpl: async (url, init) => {
+      if (new URL(url).pathname === '/api/health/deep' && calls++ === 0) {
+        return new Response('slow down', { status: 429 })
+      }
+      return healthy(url, init)
+    },
+    sleep: async (ms) => waits.push(ms),
+  })
+  assert.deepEqual(failures, [])
+  assert.deepEqual(waits, [61_000])
+})
+
+test('--expect-sha needs a commit id', () => {
+  assert.equal(shaArgument('abc1234'), 'abc1234')
+  for (const bad of [undefined, '', '--config', 'xyz', 'abc12']) {
+    assert.throws(() => shaArgument(bad), /--expect-sha needs a commit id/)
+  }
 })

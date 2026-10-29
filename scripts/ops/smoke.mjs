@@ -7,6 +7,10 @@ export const DEFAULT_CONFIG = fileURLToPath(
 )
 const GOOGLE_HOST = 'accounts.google.com'
 const REQUEST_TIMEOUT_MS = 15_000
+/** A build id as /api/health reports it: a short or full commit id, or `unknown` outside a release build. */
+const SHA_SHAPE = /^(?:[0-9a-f]{7,40}|unknown)$/
+/** The deep health check allows one call a minute, so a retry waits out the limiter. */
+const DEEP_HEALTH_RETRY_DELAY_MS = 61_000
 
 /** The public origin from wrangler.toml, which Google's redirect URI is built from. */
 export function appUrlFromConfig(toml) {
@@ -22,24 +26,65 @@ async function get(origin, path, fetchImpl) {
   })
 }
 
+/** The value of --expect-sha: a commit id of 7 to 40 hex digits. A missing or malformed one is an error. */
+export function shaArgument(value) {
+  if (value === undefined || !/^[0-9a-f]{7,40}$/.test(value)) {
+    throw new Error(
+      '--expect-sha needs a commit id of 7 to 40 hex digits, for example --expect-sha abc1234',
+    )
+  }
+  return value
+}
+
 function expect(condition, message) {
   if (!condition) throw new Error(message)
 }
 
-/** The checks run against the live origin. Each one throws with a short, non-sensitive reason. */
-export function smokeChecks(origin, appUrl) {
+/**
+ * The checks run against the live origin. Each one throws with a short, non-sensitive reason. They
+ * are all GET requests with no body: no mutating requests (the deep health check reserves a row in its
+ * own budget). `expectSha` is the commit the deploy was built from, full or short; when given,
+ * /api/health must report a build id and it must match. Without it a missing build id is a warning, so
+ * the smoke test still passes against a Worker that predates the id, as after a rollback.
+ */
+export function smokeChecks(origin, appUrl, expectSha) {
   return [
     {
-      name: 'GET /api/health',
+      name: expectSha ? 'GET /api/health reports the deployed commit' : 'GET /api/health',
       run: async (fetchImpl) => {
         const res = await get(origin, '/api/health', fetchImpl)
         expect(res.status === 200, `expected 200, got ${res.status}`)
         const body = await res.json()
         expect(body?.status === 'ok', 'health body is not {"status":"ok"}')
+        const sha = typeof body.sha === 'string' ? body.sha : ''
+        const hasSha = SHA_SHAPE.test(sha)
+        if (expectSha) {
+          expect(hasSha, 'health body has no build sha')
+          expect(
+            sha.startsWith(expectSha) || expectSha.startsWith(sha),
+            `health reports build ${sha}, not ${expectSha.slice(0, 12)}`,
+          )
+        } else if (!hasSha) {
+          console.warn('warning: /api/health reports no build sha (a Worker from before the id).')
+        }
+      },
+    },
+    {
+      name: 'GET an unknown path answers 404 with the Worker security headers',
+      run: async (fetchImpl) => {
+        const res = await get(origin, '/smoke-check-no-such-page', fetchImpl)
+        expect(res.status === 404, `expected 404, got ${res.status}`)
+        expect(res.headers.get('x-content-type-options') === 'nosniff', 'nosniff header missing')
+        expect(
+          (res.headers.get('content-security-policy') ?? '').includes('frame-ancestors'),
+          'Content-Security-Policy missing on the 404',
+        )
       },
     },
     {
       name: 'GET /api/health/deep',
+      delayMs: DEEP_HEALTH_RETRY_DELAY_MS,
+      attempts: 2,
       run: async (fetchImpl) => {
         const res = await get(origin, '/api/health/deep', fetchImpl)
         expect(res.status === 200, `expected 200, got ${res.status}`)
@@ -127,6 +172,7 @@ export async function runSmoke({
   origin,
   appUrl,
   fetchImpl = fetch,
+  expectSha,
   attempts = 5,
   delayMs = 6_000,
   sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
@@ -134,16 +180,17 @@ export async function runSmoke({
   const normalise = (value) => new URL(value).origin
   expect(normalise(origin) === normalise(appUrl), 'the origin under test is not APP_URL')
   const failures = []
-  for (const check of smokeChecks(origin, appUrl)) {
+  for (const check of smokeChecks(origin, appUrl, expectSha)) {
     let lastError
-    for (let attempt = 1; attempt <= attempts; attempt++) {
+    const tries = Math.min(attempts, check.attempts ?? attempts)
+    for (let attempt = 1; attempt <= tries; attempt++) {
       try {
         await check.run(fetchImpl)
         lastError = undefined
         break
       } catch (error) {
         lastError = error
-        if (attempt < attempts) await sleep(delayMs)
+        if (attempt < tries) await sleep(check.delayMs ?? delayMs)
       }
     }
     if (lastError) failures.push(`${check.name}: ${lastError.message}`)
@@ -157,7 +204,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     const appUrl = appUrlFromConfig(await readFile(configPath, 'utf8'))
     const origin = args.includes('--origin') ? args[args.indexOf('--origin') + 1] : appUrl
-    const failures = await runSmoke({ origin, appUrl })
+    const expectSha = args.includes('--expect-sha')
+      ? shaArgument(args[args.indexOf('--expect-sha') + 1])
+      : undefined
+    const failures = await runSmoke({ origin, appUrl, expectSha })
     if (failures.length) {
       console.error(`Smoke test failed for ${origin}:\n- ${failures.join('\n- ')}`)
       process.exitCode = 1

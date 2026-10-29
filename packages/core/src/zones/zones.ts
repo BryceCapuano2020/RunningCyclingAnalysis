@@ -2,6 +2,7 @@ import { massAtFor } from '../athlete/mass'
 import { entryAt } from '../athlete/measurements'
 import type { AthleteSettings } from '../athlete/settings'
 import { PRIORS } from '../constants'
+import { EDGE_EPSILON } from '../math'
 import type { AnalysisResult } from '../digest/combine'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
@@ -45,9 +46,6 @@ export interface ZoneSet {
   zones: Zone[]
 }
 
-/** Absorbs the rounding of a product that is a whole number, such as 0.6 * 200. */
-const WHOLE_EPSILON = 1e-9
-
 /**
  * The zones of a measure for a reference value, by the published scheme. A heart rate and a power are whole
  * numbers, so their edges are the first whole number at or above the cut (0.7 of 190 bpm is 133; 0.6 of 219
@@ -59,7 +57,7 @@ const WHOLE_EPSILON = 1e-9
 export function zonesFor(measure: ZoneMeasure, reference: number): Zone[] {
   const { names, cuts } = ZONE_SCHEMES[measure]
   const edge = (cut: number): number =>
-    WHOLE_NUMBER_MEASURES[measure] ? Math.ceil(reference * cut - WHOLE_EPSILON) : reference * cut
+    WHOLE_NUMBER_MEASURES[measure] ? Math.ceil(reference * cut - EDGE_EPSILON) : reference * cut
   return names.map((name, i) => ({
     level: i + 1,
     name,

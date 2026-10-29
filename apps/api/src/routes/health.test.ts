@@ -37,7 +37,7 @@ describe('GET /api/health', () => {
     const h = createHarness({}, { DB: failingDb(), FILES: failingBucket('head') })
     const res = await h.send({ path: '/api/health' })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ status: 'ok' })
+    expect(await res.json()).toEqual({ status: 'ok', sha: 'unknown' })
   })
 })
 

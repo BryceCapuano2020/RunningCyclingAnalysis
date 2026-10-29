@@ -1,3 +1,4 @@
+import { isMovingSecond } from './moving'
 import { SPORT_TRACE } from './sportTrace'
 import type { ActivityTrace, SelectionSummary, TraceMetric } from './types'
 
@@ -20,7 +21,7 @@ export function summarizeSelection(
   let recordedS = 0
   for (let i = startS; i < endS; i++) {
     if (trace.unrecorded[i] !== 1) recordedS++
-    if (trace.unrecorded[i] !== 1 && trace.paused[i] !== 1) movingS++
+    if (isMovingSecond(trace, i)) movingS++
   }
   const metrics: SelectionSummary['metrics'] = {}
   for (const [metric, stream] of Object.entries(trace.streams) as [TraceMetric, Float32Array][]) {
@@ -52,6 +53,51 @@ export function summarizeSelection(
     distanceM: distanceIn(trace, startS, endS),
     metrics,
   }
+}
+
+/**
+ * A deterministic histogram of moving-time observations, with no more than ten equal-width bins. With
+ * `within`, only observations from its low to its high are counted, so the bins span that band and a few
+ * outliers do not leave empty bins between the bars.
+ */
+export function distributionOf(
+  trace: ActivityTrace,
+  metric: TraceMetric,
+  startS: number,
+  endS: number,
+  within?: { low: number; high: number },
+): Array<{ from: number; to: number; seconds: number }> {
+  assertSelection(trace, startS, endS)
+  const stream = trace.streams[metric]
+  if (stream === undefined) return []
+  const values: number[] = []
+  for (let i = startS; i < endS; i++) {
+    const value = stream[i]!
+    if (!isTraceObservation(trace, metric, i)) continue
+    if (within !== undefined && (value < within.low || value > within.high)) continue
+    values.push(value)
+  }
+  if (values.length === 0) return []
+  let min = Infinity
+  let max = -Infinity
+  for (const value of values) {
+    min = Math.min(min, value)
+    max = Math.max(max, value)
+  }
+  // Every value equal: one bin holds them all, rather than several empty ones around it.
+  if (max === min) return [{ from: min, to: max, seconds: values.length }]
+  const binCount = Math.min(10, Math.max(1, Math.ceil(Math.sqrt(values.length))))
+  const width = (max - min) / binCount
+  const bins = Array.from({ length: binCount }, (_, index) => ({
+    from: min + index * width,
+    to: index === binCount - 1 ? max : min + (index + 1) * width,
+    seconds: 0,
+  }))
+  for (const value of values) {
+    const index = Math.min(binCount - 1, Math.floor((value - min) / width))
+    bins[index]!.seconds++
+  }
+  return bins
 }
 
 function distanceIn(trace: ActivityTrace, startS: number, endS: number): number | null {
@@ -90,8 +136,7 @@ export function isTraceObservation(
     !Number.isInteger(index) ||
     index < 0 ||
     index >= trace.durationS ||
-    trace.paused[index] === 1 ||
-    trace.unrecorded[index] === 1
+    !isMovingSecond(trace, index)
   ) {
     return false
   }

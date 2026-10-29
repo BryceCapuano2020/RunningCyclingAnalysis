@@ -1,6 +1,6 @@
 # Same route and same climb: design
 
-Status: in progress (stage C in the [plan](README.md)). The fingerprint, matching and progress code
+Status: in progress, scheduled later in the [stage plan](README.md). The fingerprint, matching and progress code
 exists on unmerged branches; the rest is designed only. Written against main after #130.
 
 Goal: when an athlete repeats a route or a climb, say how this visit compares with the others, on
@@ -134,8 +134,8 @@ by `routeFromFixes`; the fingerprint uses the same slicing.
 
 A and B run in parallel, then C, then D and E in parallel; F can start after A. Keep stacks to three
 PRs before review and merge (pillar 6 in [ENGINEERING.md](../ENGINEERING.md)). Each file under 400
-lines. In the [stage plan](README.md) this work lands on the stage B storage layer, not on a new
-bespoke store.
+lines. When it is scheduled it lands on the unified storage layer of [architecture-1.md](architecture-1.md) if
+that has been built by then, not on a new bespoke store.
 
 Tests
 

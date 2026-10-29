@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ActivityDigest, DigestDistribution, DigestDrift, Sport } from '../types'
+import type { ActivityDigest, DigestDrift, Sport } from '../types'
 import { driftTrend } from './driftTrend'
-import { mergeDistributions } from './distributionMerge'
 import { periodDurability } from './durabilityPeriod'
 import { digestActivity } from './digestActivity'
 import { syntheticActivity } from './test/syntheticActivity'
@@ -138,34 +137,5 @@ describe('driftTrend', () => {
 
   it('leaves out the other sport', () => {
     expect(driftTrend([run('a', 1, drift(0.1, 0.09))], 'ride')).toEqual([])
-  })
-})
-
-describe('mergeDistributions', () => {
-  const dist = (offset: number, counts: number[]): DigestDistribution => ({ offset, counts })
-  const withHr = (sport: Sport, d: DigestDistribution) => ({
-    ...base(sport),
-    distributions: { heartRate: d },
-  })
-
-  it('sums the bins of the digests of the sport', () => {
-    const merged = mergeDistributions(
-      [
-        withHr('run', dist(140, [1, 2])),
-        withHr('run', dist(142, [4])),
-        withHr('ride', dist(100, [9])),
-      ],
-      'run',
-      'heartRate',
-    )
-    expect(merged).toEqual({ offset: 140, counts: [1, 2, 4], activities: 2, seconds: 7 })
-  })
-
-  it('is null when the sport does not keep the measure or no digest has it', () => {
-    const rides = [withHr('ride', dist(100, [9]))]
-    expect(mergeDistributions(rides, 'ride', 'speed')).toBeNull()
-    expect(mergeDistributions(rides, 'ride', 'power')).toBeNull()
-    expect(mergeDistributions([{ ...base('run'), distributions: {} }], 'run', 'speed')).toBeNull()
-    expect(mergeDistributions([], 'run', 'heartRate')).toBeNull()
   })
 })

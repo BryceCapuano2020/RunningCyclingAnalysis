@@ -277,10 +277,3 @@ export function deleteWorkbenchScope(
 ): Promise<boolean> {
   return openWorkbenchStore().deleteScope(scope)
 }
-
-/** Reports whether account-scoped evidence was permanently deleted on this browser. */
-export function workbenchScopeDeleted(
-  scope: Extract<TraceScope, { kind: 'account' }>,
-): Promise<boolean> {
-  return openWorkbenchStore().isDeleted(scope)
-}

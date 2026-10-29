@@ -94,9 +94,9 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'Moving time leaves out pauses and gaps in the recording. Climb adds up the recorded altitude and ignores small barometer noise.',
   },
   {
-    name: 'The timeline in detail',
+    name: 'Time at each pace, power or heart rate',
     state: 'calculated',
-    line: 'In detail shows your measures on one time axis, smoothed to what you are viewing, and summarises any stretch you select.',
+    line: 'In detail shows how long you spent in each band, summarises any stretch you select, and suggests intervals when the device marked no laps.',
   },
   {
     name: 'Time in zones',

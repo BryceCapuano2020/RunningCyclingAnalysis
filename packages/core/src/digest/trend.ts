@@ -16,7 +16,7 @@ import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
 import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
-import { centralWkgFromWatts, fitBikeModelOver, ridePriced, runCentralWkg } from './rideCurves'
+import { fitBikeModelOver, pointWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
 import { DEFAULT_WINDOW_DAYS, weekEndMs } from './trendPoints'
 
@@ -98,12 +98,10 @@ function measureOf(
   bikeModel: BikeModel,
   standing: EstimatedStanding,
 ): Best & { alone: boolean } {
-  const massKg = masses.bodyKg(digest)
-  if (digest.sport === 'run') {
-    return { wkg: runCentralWkg(point), watts: Number.NaN, massKg, alone: false }
+  return {
+    ...pointWkg(point, digest, masses, bikeModel, standing),
+    massKg: masses.bodyKg(digest),
   }
-  const { watts, alone } = ridePriced(point, digest, masses, bikeModel, standing)
-  return { wkg: centralWkgFromWatts(watts, massKg), watts, massKg, alone }
 }
 
 /**

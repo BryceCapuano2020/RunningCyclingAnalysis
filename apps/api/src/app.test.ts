@@ -8,7 +8,7 @@ describe('app shell', () => {
     const h = createHarness()
     const res = await h.send({ path: '/api/health' })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ status: 'ok' })
+    expect(await res.json()).toEqual({ status: 'ok', sha: 'unknown' })
   })
 
   it('exports a Worker entry point with a fetch handler', () => {

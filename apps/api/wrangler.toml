@@ -25,8 +25,10 @@ name = "HEALTH_RATE_LIMITER"
 namespace_id = "27104"
 simple = { limit = 1, period = 60 }
 
-# Structured logs, retained by Cloudflare for 3 days on the Free plan. Logs never include request
-# bodies, query strings, tokens or database error text (see app.ts).
+# Structured logs, retained by Cloudflare for 3 days on the Free plan. The lines this app writes
+# (app.ts, accessLog.ts) never include request bodies, query strings, tokens or database error text.
+# Cloudflare's own invocation log for each request does carry the request URL, query string included,
+# so an OAuth callback's code and state are in it until it expires.
 [observability]
 enabled = true
 

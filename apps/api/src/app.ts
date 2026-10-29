@@ -12,6 +12,8 @@ import { measurementRoutes } from './routes/measurements.ts'
 import { activityRoutes } from './routes/activities/index.ts'
 import { publicRateLimit } from './rateLimit.ts'
 import { healthRoutes } from './routes/health.ts'
+import { BUILD_SHA } from './buildInfo.ts'
+import { accessLog } from './accessLog.ts'
 
 /** Builds the API. Overrides replace the clock, randomness and OAuth client (tests). */
 export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
@@ -40,6 +42,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
       c.res.headers.set('Strict-Transport-Security', 'max-age=31536000')
     }
   })
+  app.use('*', accessLog)
   app.use('/api/*', publicRateLimit)
   app.use('/api/*', csrfGuard)
 
@@ -73,7 +76,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
     return c.json(apiError('not_found', 'Not found'), 404)
   })
 
-  app.get('/api/health', (c) => c.json({ status: 'ok' }, 200))
+  app.get('/api/health', (c) => c.json({ status: 'ok', sha: BUILD_SHA }, 200))
   app.route('/api/health', healthRoutes)
   app.route('/api/auth', authRoutes)
   app.route('/api', meRoutes)

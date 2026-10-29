@@ -63,8 +63,3 @@ export function restsOf(distance: Float64Array, moving: Uint8Array): Rests {
   }
   return { rest, gain }
 }
-
-/** The seconds that are rests, as restsOf marks them. */
-export function restSeconds(distance: Float64Array, moving: Uint8Array): Uint8Array {
-  return restsOf(distance, moving).rest
-}

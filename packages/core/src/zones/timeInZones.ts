@@ -1,5 +1,6 @@
 import type { DistributionMeasure } from '../constants'
 import { DISTRIBUTION_BINS } from '../constants'
+import { EDGE_EPSILON } from '../math'
 import type { ActivityDigest, DigestDistribution } from '../types'
 import { ZONE_MEASURES } from './schemes'
 import type { ZoneMeasure } from './schemes'
@@ -17,9 +18,6 @@ export const DISTRIBUTION_OF: Record<ZoneMeasure, DistributionMeasure> = {
   heartRate: 'heartRate',
   pace: 'speed',
 }
-
-/** Absorbs the rounding of a zone edge that lands on a bin edge, such as 0.3 m/s. */
-export const EDGE_EPSILON = 1e-9
 
 /**
  * The seconds of a distribution in each zone, lowest effort first, so one number a zone. Every second is

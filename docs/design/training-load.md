@@ -1,7 +1,7 @@
 # Training load: design
 
-Status: designed (stage E in the [plan](README.md)); no code yet. The dated zones it relies on are
-merged. The intensity bands should reuse the zone classification from time in zones (stage A) rather
+Status: designed, not scheduled in the [stage plan](README.md); no code yet. The dated zones it relies on are
+merged. The intensity bands should reuse the zone classification from time in zones (shipped in the first stage) rather
 than add a second one.
 
 Principle: **recorded time and work are demonstrated; zones are labelled entered or estimated.** Every
@@ -115,7 +115,7 @@ commitment.
    `loadWindows.ts` (windows, ramp, basis rule, coverage, halves); **C** `intensity.ts` (bands,
    shares, pattern rule); **D** `apps/web/src/ui/loadCaption.ts` (all ledes as pure text, like
    `volumeCaption`).
-2. **E** worker and session-state wiring (on the stage B module registry); then in parallel **F**
+2. **E** worker and session-state wiring (on the module registry of [architecture-1.md](architecture-1.md), if built by then); then in parallel **F**
    sport-page Load section (stacked bar plus table, run coral and ride blue), **G** Balance lines,
    Method and CalculatedSection entries, DESIGN.md.
 3. **H** activity-page line; **I** research spike on impulse-response against demonstrated bests.

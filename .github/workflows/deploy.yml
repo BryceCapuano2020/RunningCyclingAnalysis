@@ -129,12 +129,13 @@ jobs:
           log="$RUNNER_TEMP/deploy.log"
           npm exec -w @rca/api -- wrangler deploy \
             --tag "$GITHUB_SHA" \
-            --message "Commit $GITHUB_SHA, workflow run $GITHUB_RUN_ID" 2>&1 | tee "$log"
+            --message "Commit $GITHUB_SHA, workflow run $GITHUB_RUN_ID" \
+            --define "__BUILD_SHA__:\"${GITHUB_SHA::8}\"" 2>&1 | tee "$log"
           version="$(grep -oiE 'version id: [0-9a-f-]{36}' "$log" | awk '{print $NF}' | head -n 1 || true)"
           echo "version=${version:-unknown}" >> "$GITHUB_OUTPUT"
       - name: Smoke test the live origin
         id: smoke
-        run: node scripts/ops/smoke.mjs
+        run: node scripts/ops/smoke.mjs --expect-sha "$GITHUB_SHA"
       - name: Roll back the Worker after a failed smoke test
         if: ${{ always() && steps.smoke.outcome == 'failure' && vars.RCA_SAFE_ROLLBACK_VERSION != '' }}
         env:

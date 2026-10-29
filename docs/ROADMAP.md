@@ -4,6 +4,13 @@ Planned work, grouped by the phases in [VISION.md](VISION.md), then by model acc
 formats, operations and engineering. Shipped behaviour is in the [README](../README.md), and the
 design is in [ARCHITECTURE.md](ARCHITECTURE.md). Open review findings are in [REVIEWS.md](REVIEWS.md).
 
+The order of work is the stage plan in [design/README.md](design/README.md): stage B is the visual
+system, the home screen, the first impression and operations quick wins (in progress); C is findings
+and a "what changed" ledger; D is a read-only MCP server per account; E is a discipline registry,
+lifting through Hevy CSV import and an interference analysis. Same-route, a watch folder and swimming
+come later, Strava sync waits for a written answer on API policy section 6.2 (the seven-day cache
+rule), and the local originals store and module registry wait until findings need them.
+
 ## Phase 1: Foundations
 
 - **Dated body measurements.** Shipped in #133: dated weight, max heart rate and threshold, so each
@@ -33,7 +40,8 @@ one week and 42 days; all time uses 42 days (PR #17).
 
 ## Phase 4: Strength
 
-- **Lifting logs** from manual entry, common app CSV exports and FIT strength sets.
+- **Lifting logs** from manual entry, common app CSV exports and FIT strength sets. Hevy CSV import
+  comes first (stage E), with an interference analysis against runs and rides.
 - **Estimated one-rep max per lift**, with an interval, relative to body mass on the lift's date.
   It keeps its own units and is not placed on a shared axis with energy rate. Research:
   [strength.md](research/strength.md).
@@ -74,7 +82,8 @@ one week and 42 days; all time uses 42 days (PR #17).
 
 ## Input formats
 
-1. **CSV.** Strava CSV summaries, and the lifting CSV exports used in Phase 4.
+1. **CSV.** Strava CSV summaries, and the lifting CSV exports used in Phase 4 (Hevy first).
+   Strava sync through its API is deferred pending a written answer on API policy section 6.2.
 2. **Apple Health export.** Workouts and dated body mass, parsed with the streaming XML scanner in
    `packages/core/src/xml`.
 3. **FIT memory.** Real device fixtures are now in `packages/core/test-corpus`. Remaining: stream
@@ -109,7 +118,11 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
 7. **Google public brand.** Complete Google's verification requirements. Sign-in is still External and
    Testing.
 8. **Done: release gate, pinned actions, atomic quotas, R2 budgets and rate limits.**
-9. **Done: browser-side rebuild of saved libraries from retained originals.**
+9. **Merged, not yet deployed: release ledger ([RELEASES.md](RELEASES.md)), tagged releases, the
+   build id in `/api/health`, a post-deploy smoke test that sends no mutating requests, a sampled
+   structured access log and a separate CI job for timing budgets.** The Worker items take effect at
+   the next release; this entry becomes Done then.
+10. **Done: browser-side rebuild of saved libraries from retained originals.**
 
 ## Engineering
 

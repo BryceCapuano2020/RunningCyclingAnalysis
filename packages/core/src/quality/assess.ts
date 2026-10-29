@@ -7,6 +7,7 @@ import type { Range } from './runs'
 import { runsWhere } from './runs'
 import { implausibleSpeedStretches } from './sustainedSpeed'
 import { GRADE_SMOOTHING_MARGIN_S } from '../metabolic'
+import { SPORT_TRACE } from '../workbench/sportTrace'
 import type { Activity, QualityFlag, QualityKind, QualityReport } from '../types'
 
 /** Every threshold used by assessQuality. Samples are 1 Hz, so samples and seconds are the same. */
@@ -18,7 +19,12 @@ export const QUALITY_THRESHOLDS = {
   hrImplausibleForPower: HR_IMPLAUSIBLE_FOR_POWER,
   powerSpike: { maxW: 2000, marginS: 1 },
   powerDropout: { minDurationS: 5, minSpeedMs: 3 },
-  speedSpike: { maxSpeedMs: { run: 12.5, ride: 30 }, maxStepMs: 5, marginS: 3 },
+  speedSpike: {
+    /** The same ceiling the file readers drop fixes above (SPORT_TRACE), so there is one number a sport. */
+    maxSpeedMs: { run: SPORT_TRACE.run.maxSpeedMs, ride: SPORT_TRACE.ride.maxSpeedMs },
+    maxStepMs: 5,
+    marginS: 3,
+  },
   altitudeJump: { maxStepM: 10, marginS: 10 },
   /**
    * A rise of at least maxMs over windowS, in altitude smoothed over smoothS to quiet sample noise,

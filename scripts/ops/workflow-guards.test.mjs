@@ -143,3 +143,34 @@ test('npm retries transient registry failures before a dependency install fails'
     assert.match(await workflow(name), /npm_config_fetch_retries: '5'/)
   }
 })
+
+test('wall-clock budgets run in their own job, retried once, and never inside the unit-test job', async () => {
+  const blocks = jobBlocks(await workflow('ci'))
+  const verify = blocks.get('verify').join('\n')
+  const perf = blocks.get('perf').join('\n')
+  assert.match(verify, /^ {4}name: Lint, typecheck, unit tests, build$/m)
+  assert.doesNotMatch(verify, /test:perf/)
+  assert.match(perf, /^ {4}name: Performance budgets$/m)
+  const runs = perf.match(/npm run test:perf/g) ?? []
+  assert.equal(runs.length, 2, 'one run, and one retry after a failure')
+  assert.match(perf, /if ! npm run test:perf; then/)
+})
+
+test('a deploy records the commit on the Worker version and the live /api/health must report it', async () => {
+  const deploy = await workflow('deploy')
+  assert.match(deploy, /--define "__BUILD_SHA__:\\"\$\{GITHUB_SHA::8\}\\""/)
+  assert.match(deploy, /node scripts\/ops\/smoke\.mjs --expect-sha "\$GITHUB_SHA"/)
+  const api = JSON.parse(await readFile(new URL('apps/api/package.json', root), 'utf8'))
+  const script = api.scripts['deploy:built']
+  assert.match(
+    script,
+    /^node scripts\/check-deploy-config\.mjs/,
+    'the configuration is checked first',
+  )
+  assert.match(
+    script,
+    /deploy-built\.mjs$/,
+    'the last step is the tagged deploy, not a bare wrangler deploy',
+  )
+  assert.doesNotMatch(script, /wrangler deploy/)
+})

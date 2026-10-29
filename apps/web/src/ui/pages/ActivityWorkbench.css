@@ -1,57 +1,20 @@
-/*
- * The privacy line shares the heading's row, so the controls and the plot start higher; on a phone it is
- * set small to fit. The gap is closer than a page section's: the controls, the stack and its brush read as
- * one instrument.
- */
-.section.activity-workbench {
+.activity-workbench {
   min-width: 0;
-  gap: var(--space-3);
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
-  column-gap: var(--space-3);
 }
 
-.activity-workbench > * {
-  grid-column: 1 / -1;
-}
-
-.activity-workbench > h2 {
-  grid-column: 1;
-}
-
-.activity-workbench > h2 + .muted {
-  grid-column: 2;
-  margin: 0;
-  font-size: var(--text-xs);
-}
-
-@media (min-width: 761px) {
-  .activity-workbench > h2 + .muted {
-    font-size: var(--text-md);
-  }
-}
-
-@media (max-width: 760px) {
-  .section.activity-workbench {
-    gap: var(--space-2);
-  }
-}
-
-/* The brush needs no box of its own: its legend names the group for a screen reader and is not drawn. */
-.activity-workbench__selection {
+.activity-workbench__selection,
+.activity-workbench__metrics {
   min-width: 0;
   margin: 0;
-  padding: 0;
-  border: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
-.activity-workbench__selection legend {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+.activity-workbench__selection legend,
+.activity-workbench__metrics legend {
+  padding: 0 var(--space-1);
+  font-weight: 600;
 }
 
 .activity-workbench__range {
@@ -71,76 +34,45 @@
   font-size: var(--text-sm);
 }
 
-/* The measures are chips, each with its channel's colour, so the choice also keys the rows below. */
-.activity-workbench__metrics {
+.activity-workbench__input-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.activity-workbench__metrics legend {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.metric-chip {
-  position: relative;
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  /* A chip is 40 px, a touch target that still lets five of them take two rows of a phone. */
-  min-height: 40px;
-  padding: 0 10px;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.activity-workbench__input-row input[type='number'] {
+  width: 6rem;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
   color: var(--text-primary);
-  cursor: pointer;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
-/* The native checkbox is kept, so it keeps its keyboard and screen reader behaviour; it covers the chip and is not seen. */
-.metric-chip__input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
+.activity-workbench__input-row input[aria-invalid='true'] {
+  border-color: var(--status-critical);
+  border-width: 2px;
 }
 
-.metric-chip__box {
-  flex: none;
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--ch);
-  border-radius: 50%;
+.activity-workbench__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
 }
 
-.metric-chip:has(:checked) {
-  background: var(--surface-2);
-  border-color: var(--text-primary);
-  font-weight: 600;
+.activity-workbench__metrics label {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
-.metric-chip:has(:checked) .metric-chip__box {
-  background: var(--ch);
-}
-
-.metric-chip:has(:focus-visible) {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.activity-workbench__actions {
+.activity-workbench__actions,
+.activity-workbench__lap-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -161,18 +93,6 @@
   font-size: 1.05rem;
 }
 
-/* The strip's name sits beside it, on a phone too, so the strip costs one row and not two. */
-.activity-workbench__laps {
-  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--space-3);
-}
-
-.activity-workbench__laps h3 {
-  max-width: 7rem;
-  font-size: var(--text-sm);
-}
-
 /* A rep's button and its lap's name stay on one line, so five columns still fit a phone. */
 .activity-workbench__reps th[scope='row'] {
   white-space: nowrap;
@@ -181,6 +101,114 @@
 .activity-workbench__reps .btn {
   padding-inline: var(--space-2);
   white-space: nowrap;
+}
+
+/* The chosen lap takes the selected colours and a tick, so it is not told apart by colour alone. */
+.btn.activity-workbench__lap--active {
+  border-color: var(--selected);
+  background: var(--selected);
+  color: var(--selected-contrast);
+  font-weight: 700;
+}
+
+.btn.activity-workbench__lap--active:hover {
+  background: var(--selected);
+  border-color: var(--selected);
+}
+
+.btn.activity-workbench__lap--active::before {
+  content: '✓';
+}
+
+.activity-workbench__plots {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.activity-workbench__plot {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.activity-workbench__plot figcaption {
+  font-weight: 600;
+}
+
+.activity-workbench__plot figcaption span {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* The value labels sit left of the line, the times under it, so the line keeps one column. */
+.activity-workbench__plot-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-2);
+  min-width: 0;
+}
+
+.activity-workbench__yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.activity-workbench__plot svg {
+  display: block;
+  width: 100%;
+  height: 11rem;
+  overflow: visible;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(25% - 1px),
+    var(--grid) calc(25% - 1px),
+    var(--grid) 25%
+  );
+}
+
+.activity-workbench__line {
+  fill: none;
+  stroke: var(--sport-colour);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A reading past the axis is a dot on its edge: the plot's line is clamped there. */
+.activity-workbench__clipped {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 6;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.activity-workbench__note {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.activity-workbench__axis {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .activity-workbench__summary {
@@ -207,22 +235,46 @@
   font-variant-numeric: tabular-nums;
 }
 
-.activity-workbench__channel-table {
+.activity-workbench__distribution {
   display: grid;
   gap: var(--space-1);
   min-width: 0;
 }
 
-.activity-workbench__channel-table p {
+.activity-workbench__distribution-title {
+  color: var(--text-secondary);
+}
+
+.activity-workbench__distribution p {
   margin: 0;
   font-size: var(--text-sm);
 }
 
-.activity-workbench__channel-table + .activity-workbench__channel-table {
-  margin-top: var(--space-4);
+.activity-workbench__distribution .activity-workbench__axis {
+  grid-column: auto;
 }
 
-/* The tables are set in the page's small size and their rules are the charts'. */
+.activity-workbench__histogram {
+  height: 3.5rem;
+  display: flex;
+  align-items: end;
+  gap: 1px;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-workbench__histogram span {
+  flex: 1 1 0;
+  min-width: 1px;
+  background: var(--sport-colour);
+}
+
+/* The measure's values in a table: the tables are set in the page's small size and their rules are the charts'. */
+.activity-workbench__details .table-scroll {
+  max-width: 100%;
+  margin-top: var(--space-2);
+}
+
+.activity-workbench__details caption,
 .activity-workbench__reps caption,
 .activity-workbench__stats caption {
   caption-side: top;
@@ -243,15 +295,21 @@
     padding: var(--space-2) var(--space-1);
     white-space: normal;
   }
+
+  .activity-workbench__input-row {
+    flex-wrap: wrap;
+  }
 }
 
 @media (forced-colors: active) {
-  .metric-chip__box {
-    border-color: ButtonText;
+  .activity-workbench__line,
+  .activity-workbench__clipped {
+    stroke: CanvasText;
   }
 
-  .metric-chip:has(:checked) .metric-chip__box {
-    background: Highlight;
+  .activity-workbench__histogram span {
+    background: CanvasText;
+    border: 1px solid CanvasText;
   }
 }
 

@@ -1,3 +1,4 @@
+import { isMovingSecond } from './moving'
 import { isTraceObservation } from './selection'
 import type { ActivityLap, ActivityTrace, TraceMetric } from './types'
 
@@ -47,7 +48,7 @@ function withoutGaps(trace: ActivityTrace, interval: ActivityLap): ActivityLap[]
   const parts: ActivityLap[] = []
   let from = interval.startS
   for (let i = interval.startS; i <= interval.endS; i++) {
-    const gap = i === interval.endS || trace.paused[i] === 1 || trace.unrecorded[i] === 1
+    const gap = i === interval.endS || !isMovingSecond(trace, i)
     if (!gap) continue
     if (i - from >= MIN_INTERVAL_S) parts.push({ ...interval, startS: from, endS: i })
     from = i + 1
