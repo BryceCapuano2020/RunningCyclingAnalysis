@@ -37,6 +37,10 @@ const activitiesCsvSource = await readStylesheet(
   import.meta.url,
   '../../../packages/core/src/import/activitiesCsv.ts',
 )
+const garminListSource = await readStylesheet(
+  import.meta.url,
+  '../../../packages/core/src/import/garminList.ts',
+)
 const periodPreference = await readStylesheet(import.meta.url, './ui/periodPreference.ts')
 const cardName = await readStylesheet(import.meta.url, './share/cardName.ts')
 const contractDigest = await readStylesheet(
@@ -519,6 +523,7 @@ describe('privacy page says where activity names come from', () => {
   it('says so in the summary kept without an account', () => {
     const sentence = sentenceWith('Its name comes from')
     expect(sentence).toMatch(/activity list in a Strava export/)
+    expect(sentence).toMatch(/activity summaries in a Garmin export/)
     expect(sentence).toMatch(/title in the file/)
     expect(sentence).toMatch(/start time and sport/)
   })
@@ -532,6 +537,12 @@ describe('privacy page says where activity names come from', () => {
   it('names the list and its column as the importer reads them', () => {
     expect(activitiesCsvSource).toContain("const LIST_NAME = 'activities.csv'")
     expect(activitiesCsvSource).toContain("columns.indexOf('activity name')")
+  })
+
+  it('names the Garmin summaries and the fields the importer reads them by', () => {
+    expect(garminListSource).toContain('summarizedActivities')
+    expect(garminListSource).toContain('summarizedActivitiesExport')
+    expect(garminListSource).toContain('entry.name')
   })
 })
 

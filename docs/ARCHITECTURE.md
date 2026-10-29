@@ -160,7 +160,7 @@ cascades to `oauth_accounts`, `sessions`, `profiles`, `athlete_measurements` and
 ## Import
 
 Every activity file goes through the same path, whether it is dropped on the page or found inside a
-Strava export zip. The stages are in the browser Web Worker, and none of them need the network.
+Strava or Garmin export zip. The stages are in the browser Web Worker, and none of them need the network.
 
 1. **Archive extraction** (`extractFitFiles` in `packages/core/src/fit/archive.ts`). A source is
    one file, optionally gzipped, or a zip. Zips are streamed, and zips nested inside them are read
@@ -245,6 +245,21 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    reported as that sport. An empty run or ride stays empty.
    The refusal says `listed: true` when that name is the list's, so a page can show it as written; a
    name the file gives, such as a FIT sport, is not marked.
+   **Garmin Connect export** (`readGarminList` in `packages/core/src/import/garminList.ts`). A Garmin
+   bulk export has no activity list of that kind. Its zip holds `DI_CONNECT/`; the activity originals
+   are zips under `DI-Connect-Uploaded-Files/` (`UploadedFiles_*.zip`, or `DI-Connect-Fitness-Uploaded-Files/`
+   in some exports) holding `.fit` files named by upload, and the names, types and start times are in
+   `DI-Connect-Fitness/*summarizedActivities*.json`. The nested zips are read as any zip nested in a zip is,
+   sharing the one budget of entries, activity files, buffered and decompressed bytes. Only a zip with no
+   `activities.csv` is searched for summaries, by range, and every summary file is read (at most 32, each
+   up to 32 MiB inflated; their bytes count against the decompressed-bytes budget). Each lists
+   `startTimeGmt` (else `beginTimestamp`) in epoch milliseconds and a `name`. A file's names are not known
+   before it is parsed, so each parsed activity is named by `ParseOptions.nameAt`: the summary that started
+   within 5 seconds of it, the nearest first. An activity with no such summary, or an unnamed one, is named
+   as any other (the title in the file, else its start time and sport). The summary's type is not used: a
+   FIT file keeps its own sport. What the import skipped is counted by the same tally as any import
+   (other sports, files that need a look, copies). A nested zip is held in memory whole, so one over the
+   64 MiB entry limit is refused with that reason.
    An import counts files, not activities. `filesAdded` is the files with an activity that is in the
    library afterwards and shown, which is a workout the library did not hold or a held one whose save
    had failed and now succeeds, and not one hidden as a copy of another. Every other file read is one

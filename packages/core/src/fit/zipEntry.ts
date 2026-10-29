@@ -16,6 +16,11 @@ export interface ZipEntryBytes {
   bytes: Uint8Array<ArrayBuffer>
 }
 
+interface Found {
+  name: string
+  entry: CentralEntry
+}
+
 /**
  * The bytes of one entry of a zip, read by range: only the central directory and the entry itself
  * are read. Of the entries `isWanted` accepts, the one nearest the root is taken. Null when none is
@@ -29,46 +34,87 @@ export async function readZipEntry(
   limits: ExtractLimits = DEFAULT_EXTRACT_LIMITS,
 ): Promise<ZipEntryBytes | null> {
   try {
-    const directory = await directoryOf(source, limits)
-    if (directory === null) return null
-    const found: { name: string; entry: CentralEntry }[] = []
-    await walkDirectory(
-      (start, end) => readRange(source, start, end),
-      directory.offset,
-      directory.size,
-      limits.maxArchiveEntries,
-      (name, entry) => {
-        if (!isIgnored(name) && isWanted(name)) found.push({ name, entry })
-      },
-    )
-    const best = found.reduce<{ name: string; entry: CentralEntry } | undefined>(
+    const found = await wantedEntries(source, isWanted, limits)
+    const best = found?.reduce<Found | undefined>(
       (a, b) => (a === undefined || depthOf(b.name) < depthOf(a.name) ? b : a),
       undefined,
     )
-    if (best === undefined) return null
-
-    const head = await readBytes(source, best.entry.localOffset, LOCAL_HEADER_BYTES)
-    if (head === null) return null
-    const view = new DataView(head.buffer)
-    if (view.getUint32(0, true) !== LOCAL_HEADER_SIGNATURE) return null
-    if ((best.entry.flags & ENCRYPTED) !== 0) return null
-    const nameLength = view.getUint16(26, true)
-    const localName = await readBytes(
-      source,
-      best.entry.localOffset + LOCAL_HEADER_BYTES,
-      nameLength,
-    )
-    if (localName === null || new TextDecoder().decode(localName) !== best.name) return null
-    if (best.entry.compressedSize > limits.maxEntryBytes) return null
-    const dataStart =
-      best.entry.localOffset + LOCAL_HEADER_BYTES + nameLength + view.getUint16(28, true)
-    const data = await readBytes(source, dataStart, best.entry.compressedSize)
-    if (data === null) return null
-    const bytes = decompress(best.entry.method, data, limits.maxEntryBytes)
-    return bytes === null ? null : { name: best.name, bytes }
+    return best === undefined ? null : await readFound(source, best, limits)
   } catch {
     return null
   }
+}
+
+/**
+ * The entries `isWanted` accepts, each read as readZipEntry reads one, in the order the zip lists them. An
+ * entry that cannot be read is left out. Reading stops before an entry that would take the bytes read past
+ * `maxBytes`, or after `maxEntries` entries, so the rest are not read. Never throws.
+ */
+export async function readZipEntries(
+  source: RangedSource,
+  isWanted: (name: string) => boolean,
+  limits: ExtractLimits,
+  maxBytes: number,
+  maxEntries: number,
+): Promise<ZipEntryBytes[]> {
+  const read: ZipEntryBytes[] = []
+  try {
+    let bytes = 0
+    for (const found of (await wantedEntries(source, isWanted, limits))?.slice(0, maxEntries) ??
+      []) {
+      const entry = await readFound(source, found, limits)
+      if (entry === null) continue
+      bytes += entry.bytes.length
+      if (bytes > maxBytes) break
+      read.push(entry)
+    }
+  } catch {
+    // What was read stays.
+  }
+  return read
+}
+
+/** The entries of the zip's central directory that `isWanted` accepts. Null when it has no readable directory. */
+async function wantedEntries(
+  source: RangedSource,
+  isWanted: (name: string) => boolean,
+  limits: ExtractLimits,
+): Promise<Found[] | null> {
+  const directory = await directoryOf(source, limits)
+  if (directory === null) return null
+  const found: Found[] = []
+  await walkDirectory(
+    (start, end) => readRange(source, start, end),
+    directory.offset,
+    directory.size,
+    limits.maxArchiveEntries,
+    (name, entry) => {
+      if (!isIgnored(name) && isWanted(name)) found.push({ name, entry })
+    },
+  )
+  return found
+}
+
+/** One listed entry's bytes, or null when it cannot be read within the limits. */
+async function readFound(
+  source: RangedSource,
+  { name, entry }: Found,
+  limits: ExtractLimits,
+): Promise<ZipEntryBytes | null> {
+  const head = await readBytes(source, entry.localOffset, LOCAL_HEADER_BYTES)
+  if (head === null) return null
+  const view = new DataView(head.buffer)
+  if (view.getUint32(0, true) !== LOCAL_HEADER_SIGNATURE) return null
+  if ((entry.flags & ENCRYPTED) !== 0) return null
+  const nameLength = view.getUint16(26, true)
+  const localName = await readBytes(source, entry.localOffset + LOCAL_HEADER_BYTES, nameLength)
+  if (localName === null || new TextDecoder().decode(localName) !== name) return null
+  if (entry.compressedSize > limits.maxEntryBytes) return null
+  const dataStart = entry.localOffset + LOCAL_HEADER_BYTES + nameLength + view.getUint16(28, true)
+  const data = await readBytes(source, dataStart, entry.compressedSize)
+  if (data === null) return null
+  const bytes = decompress(entry.method, data, limits.maxEntryBytes)
+  return bytes === null ? null : { name, bytes }
 }
 
 /** Folders in an entry's name: the nearer the root, the fewer. */

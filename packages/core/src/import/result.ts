@@ -58,6 +58,12 @@ export interface ParseOptions {
    */
   activityName?: string
   /**
+   * The name the file's export gives the activity that started at an instant, for an export that names
+   * its activities by start time rather than by file, such as Garmin's. Asked with each activity's own
+   * start. The file's `activityName`, when it has one, wins.
+   */
+  nameAt?: (startMs: number) => string | undefined
+  /**
    * The type the file's export gives the activity, such as Strava's "Trail Run" or "Virtual Ride". It
    * fills in a sport the file does not say: a GPX track with no type or only a number the app does not
    * know, or a TCX activity whose Sport is Other. A sport the file names is never overridden, and a FIT

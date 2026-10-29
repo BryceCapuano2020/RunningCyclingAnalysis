@@ -1,5 +1,5 @@
 /** How much history to bring. Shown in the dropzone and in step 1 of the landing page. */
-export const HISTORY_ADVICE = 'A Strava export brings in the most history at once.'
+export const HISTORY_ADVICE = 'A Strava or Garmin export brings in the most history at once.'
 
 /** The day the guides' steps were read against their sources, as the page says it. */
 export const GUIDES_CHECKED_ON = '27 October 2026'
@@ -63,7 +63,7 @@ export const EXPORT_GUIDES: readonly ExportGuide[] = [
     ],
     contains: 'The original file of one activity, usually a FIT file.',
     alsoAvailable:
-      'For everything at once, in Garmin Account Data Management choose “Export Your Data”, then “Request Data Export”. The link usually comes within 48 hours but can take up to 30 days.',
+      'For everything at once, in Garmin Account Data Management choose “Export Your Data”, then “Request Data Export”. The link usually comes within 48 hours but can take up to 30 days. Drop the zip here as it is.',
     helpUrl: 'https://support.garmin.com/en-US/?faq=W1TvTPW8JZ6LfJSfK512Q8',
     verified: true,
   },

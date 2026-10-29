@@ -88,7 +88,7 @@ describe('LandingPage', () => {
     )
     expect(
       screen.getByText(
-        'Drop in your Strava export or watch files to see your level in each sport for your age, with honest ranges. Nothing leaves your device.',
+        'Drop in your Strava or Garmin export or watch files to see your level in each sport for your age, with honest ranges. Nothing leaves your device.',
       ),
     ).toBeInTheDocument()
   })
@@ -98,7 +98,7 @@ describe('LandingPage', () => {
     expect(screen.queryByText(/Nothing leaves your device/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
-        'Drop in your Strava export or watch files to see your level in each sport for your age, with honest ranges. Your files are analysed on your device.',
+        'Drop in your Strava or Garmin export or watch files to see your level in each sport for your age, with honest ranges. Your files are analysed on your device.',
       ),
     ).toBeInTheDocument()
   })
@@ -186,7 +186,7 @@ describe('LandingPage', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Export from Garmin, Wahoo, COROS or Zwift, or download the zip from Strava’s account export.',
+        'Download your account export from Strava or Garmin and drop the zip as it is, or export from Wahoo, COROS or Zwift.',
       ),
     ).toBeInTheDocument()
   })

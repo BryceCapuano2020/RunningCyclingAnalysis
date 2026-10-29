@@ -56,7 +56,7 @@ describe('Dropzone', () => {
   it('asks for FIT, GPX or TCX files or a Strava zip, without saying drop them here', () => {
     renderDropzone()
     expect(
-      screen.getByText('Add FIT, GPX or TCX files, or a Strava export zip'),
+      screen.getByText('Add FIT, GPX or TCX files, or a Strava or Garmin export zip'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/Drop .* here/)).not.toBeInTheDocument()
   })

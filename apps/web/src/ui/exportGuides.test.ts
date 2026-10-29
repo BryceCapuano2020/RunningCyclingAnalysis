@@ -87,6 +87,7 @@ describe('EXPORT_GUIDES', () => {
     const also = guideFor('Garmin Connect').alsoAvailable ?? ''
     expect(also).toMatch(/“Export Your Data”, then “Request Data Export”/)
     expect(also).toMatch(/within 48 hours but can take up to 30 days/)
+    expect(also).toMatch(/Drop the zip here as it is\./)
   })
 
   it('names COROS’s Activity List tab and Export Data, as its help article does', () => {
@@ -113,7 +114,7 @@ describe('EXPORT_GUIDES', () => {
 })
 
 describe('HISTORY_ADVICE', () => {
-  it('says that a Strava export brings the most history at once', () => {
-    expect(HISTORY_ADVICE).toBe('A Strava export brings in the most history at once.')
+  it('says that a Strava or Garmin export brings the most history at once', () => {
+    expect(HISTORY_ADVICE).toBe('A Strava or Garmin export brings in the most history at once.')
   })
 })

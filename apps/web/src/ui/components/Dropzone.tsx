@@ -80,7 +80,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
           <div className="dropzone__actions">{addFiles(true)}</div>
         )}
         <p className="dropzone__hint">
-          {`Add FIT, GPX or TCX files, or a Strava export zip. ${HISTORY_ADVICE}`}
+          {`Add FIT, GPX or TCX files, or a Strava or Garmin export zip. ${HISTORY_ADVICE}`}
         </p>
         <p className="dropzone__guides">
           <span className="dropzone__touch">Exports usually come from a computer. </span>
@@ -103,7 +103,9 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
       onDrop={() => setDragging(false)}
     >
       <div className="dropzone__target">
-        <p className="dropzone__title">Add FIT, GPX or TCX files, or a Strava export zip</p>
+        <p className="dropzone__title">
+          Add FIT, GPX or TCX files, or a Strava or Garmin export zip
+        </p>
         <p className="dropzone__hint">{HISTORY_ADVICE}</p>
         <p className="dropzone__drag">Drag them onto this box, or</p>
         {addFiles(true)}
