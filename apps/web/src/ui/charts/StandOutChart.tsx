@@ -138,11 +138,11 @@ function StandOutLabel({
 }
 
 const DESCRIPTION =
-  'How far each best sits above or below what your other bests predict, one point per duration with its likely range. Duration is on a log scale. Zero is in line with your other bests.'
+  'How far each best sits above or below what your other bests predict, one point per duration with its range. Duration is on a log scale. Zero is in line with your other bests.'
 
 /**
  * Where each duration's best sits against what the others predict: a strip with a zero line for "in
- * line with your other bests", and one lollipop per duration, its bar the likely range. A point that
+ * line with your other bests", and one lollipop per duration, its bar the range. A point that
  * stands out is filled in the sport's colour and shape; one that is in line is hollow.
  */
 export function StandOutChart({ sport, rows }: StandOutChartProps) {

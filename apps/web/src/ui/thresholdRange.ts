@@ -18,7 +18,7 @@ export function fitRestsOnEstimate(result: AnalysisResult): boolean {
 
 /**
  * The range between two critical powers as a line, in the sport's own unit, read from its faster end for a run.
- * When both ends print the same, "Likely A to A" would say nothing, so it is "About A".
+ * When both ends print the same, "Range A to A" would say nothing, so it is "About A".
  */
 function rangeOf(
   sport: Sport,
@@ -40,12 +40,12 @@ function rangeOf(
   }
   if (low.number === high.number) return `About ${low.value}`
   const [from, to] = ends[sport]
-  return `Likely ${from} to ${to}`
+  return `Range ${from} to ${to}`
 }
 
 /**
- * The threshold's likely range as a line, in the sport's own unit, such as "Likely 22:58 to 23:49 /km" or
- * "Likely 48 to 49 W", or "About 48 W" when both ends print the same. When the
+ * The threshold's range as a line, in the sport's own unit, such as "Range 22:58 to 23:49 /km" or
+ * "Range 48 to 49 W", or "About 48 W" when both ends print the same. When the
  * sport has an uneven fit, the range runs from the main threshold to the uneven one, since the bests that were
  * left out only set a floor. With the main threshold refused, its low end is that floor, the lowest bests left
  * out. Otherwise it is the standard error of the critical-power fit either side of the critical power, a rough

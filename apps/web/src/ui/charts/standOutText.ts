@@ -37,7 +37,7 @@ export function signedPercent(fraction: number): string {
   return formatPercent(fraction, true)
 }
 
-/** The likely range of a residual, such as "+6% to +22%". */
+/** The range of a residual, such as "+6% to +22%". */
 export function rangeText(row: ProfileRow): string {
   return `${signedPercent(row.low)} to ${signedPercent(row.high)}`
 }
@@ -51,14 +51,14 @@ function differenceText(row: ProfileRow): string {
 /** The table that holds every value the chart draws. */
 export function tableOf(rows: readonly ProfileRow[], scale: string): ChartTableData {
   return {
-    caption: `How far each best sits above or below what your other bests predict, with its likely range. Above or below marks a best that stands out. ${scale}.`,
-    columns: ['Duration', 'Difference', 'Likely range'],
+    caption: `How far each best sits above or below what your other bests predict, with its range. Above or below marks a best that stands out. ${scale}.`,
+    columns: ['Duration', 'Difference', 'Range'],
     rows: rows.map((row) => [effortLabel(row.durationS), differenceText(row), rangeText(row)]),
   }
 }
 
 /**
- * The key: a filled point stands out, a hollow one is in line, and the bar is the likely range. The
+ * The key: a filled point stands out, a hollow one is in line, and the bar is the range. The
  * points are the sport's shape, a dot for running and a diamond for riding.
  */
 export function keyOf(sport: Sport): ChartLegendEntry[] {
@@ -66,7 +66,7 @@ export function keyOf(sport: Sport): ChartLegendEntry[] {
   return [
     { label: 'Stands out', kind: sport, swatch: glyph },
     { label: 'In line', kind: sport, swatch: glyph === 'dot' ? 'ring' : 'ring-diamond' },
-    { label: 'Likely range', kind: sport, swatch: 'line' },
+    { label: 'Range', kind: sport, swatch: 'line' },
   ]
 }
 
@@ -83,7 +83,7 @@ export function tooltipOf(row: ProfileRow, x: number, y: number, sport: Sport): 
         value: signedPercent(row.residual),
         note: row.standsOut === 'below' ? 'May be relatively low, or untested' : undefined,
       },
-      { kind: 'neutral', label: 'likely range', value: rangeText(row) },
+      { kind: 'neutral', label: 'range', value: rangeText(row) },
     ],
   }
 }

@@ -41,7 +41,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Thresholds and their ranges',
     state: 'calculated',
-    line: `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts, with a likely range from the fit.`,
+    line: `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts, with a range from the fit.`,
   },
   {
     name: 'Best efforts and curves',
@@ -56,7 +56,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Race predictions',
     state: 'calculated',
-    line: 'Times for the usual road races, up to the marathon, carried from your best runs, your heart-rate VO2max and your weekly running distance, with a likely range.',
+    line: 'Times for the usual road races, up to the marathon, carried from your best runs, your heart-rate VO2max and your weekly running distance, with a range.',
   },
   {
     name: 'Output at the same heart rate',

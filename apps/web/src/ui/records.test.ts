@@ -67,12 +67,12 @@ describe('threshold', () => {
 describe('thresholdRange', () => {
   it('gives a running threshold’s one-standard-error range, from the faster pace to the slower', () => {
     // The fixture’s critical power is 4.0 W/kg, with a standard error of 0.05 W/kg either side.
-    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Likely 22:58 to 23:49 /km')
-    expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe('Likely 36:58 to 38:19 /mi')
+    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Range 22:58 to 23:49 /km')
+    expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe('Range 36:58 to 38:19 /mi')
   })
 
   it('gives a cycling threshold’s range in watts, from the lower to the higher', () => {
-    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('Likely 48 to 49 W')
+    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('Range 48 to 49 W')
   })
 
   it('is null without a fit, and when the low end would not be a positive work rate', () => {
@@ -109,7 +109,7 @@ describe('thresholdRange', () => {
     const outside = [curvePoint(3600, 2.5, 'ride-1'), curvePoint(600, 3.0, 'ride-2')]
     expect(
       thresholdRange(makeResult({ activities, rideCurve: outside }), 'ride', 75, 'metric'),
-    ).toBe('Likely 48 to 49 W')
+    ).toBe('Range 48 to 49 W')
   })
 })
 
@@ -138,12 +138,12 @@ describe('thresholdRange with an uneven fit', () => {
   it('runs from the main threshold to the uneven one, from its faster end', () => {
     // The main fit is 4.0 W/kg and the uneven one 4.2, which is the faster pace, so it reads first.
     const result = makeResult({ runCpUneven: uneven(4.2) })
-    expect(thresholdRange(result, 'run', 70, 'metric')).toBe('Likely 21:49 to 23:23 /km')
+    expect(thresholdRange(result, 'run', 70, 'metric')).toBe('Range 21:49 to 23:23 /km')
   })
 
   it('runs from the main threshold to the uneven one in watts for a ride', () => {
     const result = makeResult({ rideCpUneven: uneven(3.6) })
-    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('Likely 48 to 58 W')
+    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('Range 48 to 58 W')
   })
 
   it('is shown for a ride whose fit draws on estimated watts, since the note says so', () => {
@@ -153,12 +153,12 @@ describe('thresholdRange with an uneven fit', () => {
     ]
     const inWindow = [curvePoint(300, 3.0, 'ride-1'), curvePoint(1200, 2.8, 'ride-2')]
     const result = makeResult({ activities, rideCurve: inWindow, rideCpUneven: uneven(3.6) })
-    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('Likely 48 to 58 W')
+    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('Range 48 to 58 W')
   })
 
   it('starts from the floor when the main threshold is refused, so the range still shows', () => {
     const result = makeResult({ rideCp: null, rideCpRefusal: 'shape', rideCpUneven: uneven(3.6) })
-    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('Likely 52 to 58 W')
+    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('Range 52 to 58 W')
   })
 
   it('is null when the uneven threshold does not sit above its floor', () => {

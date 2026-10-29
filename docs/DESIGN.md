@@ -319,7 +319,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   above it. The chart mounts when the disclosure is first opened, so a closed section draws nothing.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
-- A sport page reads top to bottom: the threshold, with its likely range under the figure, the line on uneven bests when there are any, and a line on the best 20 minutes by heart rate
+- A sport page reads top to bottom: the threshold, with its range under the figure, the line on uneven bests when there are any, and a line on the best 20 minutes by heart rate
   under its meaning, on either sport when the library holds a 20 min best in both sports, then its grade and level ladder for the best 20 minutes
   (the same grade line as the card), then the period control, then the sport's sections in the order its list
   gives (`SPORT_SECTIONS` in `apps/web/src/ui/pages/sportSections.tsx`, one list per sport, so a sport adds or
@@ -366,7 +366,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     The list is left out when every section has content, and on a page with no activities.
   - **A threshold the fit refused, shown as its floor, is labelled "Threshold pace, at least"** (or "power"),
     not "estimated", since the floor is a held best. A range whose two ends would print the same reads
-    "About 48 W" in place of "Likely 48 to 48 W".
+    "About 48 W" in place of "Range 48 to 48 W".
     The threshold carries no count: the period control under
     the answer names the dates the efforts come from. A sport the library has no activities for has no
     period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
@@ -387,15 +387,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Under the sentence, when something stands out, is a disclosure, "Show each best against the others" (it
   reads "Hide ..." while open, and starts closed; the strip mounts when first opened), that holds a lollipop strip: duration on a log x axis, 5 s to
   60 min; a heavy zero line, the best in line with the others, with the vertical axis in per cent either side
-  of zero. The axis is one range for the chart, symmetric about zero and rounded up from the widest likely
+  of zero. The axis is one range for the chart, symmetric about zero and rounded up from the widest
   range, and the chart says it under the plot ("Scale: ±40%") and in its table's caption, since a run's and a
-  ride's differ and two charts must not be read as alike. It has one point per duration at its residual, with a thin bar for its likely range (90%). A point whose range
+  ride's differ and two charts must not be read as alike. It has one point per duration at its residual, with a thin bar for its range (90%). A point whose range
   leaves zero is filled in the sport's colour and shape, a dot for running and a diamond for riding, and
   carries its duration as a label beside it, to the left where the right would leave the plot, so it reads
   at 320 px; any other is hollow and unlabelled, so the shape and the fill carry the meaning, and in forced colours the fill still tells them
-  apart. The key reads "Stands out", "In line" and "Likely range". The chart has a tooltip and keyboard
+  apart. The key reads "Stands out", "In line" and "Range". The chart has a tooltip and keyboard
   reading like the curve, and **View as table** lists duration, difference (with "above" or "below" when it
-  stands out) and likely range. A ride reads measured power only, a run its metabolic W/kg, and each is read
+  stands out) and range. A ride reads measured power only, a run its metabolic W/kg, and each is read
   through a table keyed by sport. With fewer than five durations, no best at 1 min or under, none at
   12 min or more, or bests from fewer than two sessions, there is no caption and the finding is one line of
   the "Not enough yet" list naming what is missing, such as "Where your bests stand out: needs a best at 1
@@ -586,8 +586,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
   ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, and every column reserves the rows of the tallest label, so the two figures line up even where one label wraps to a single line. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
-- **A threshold has its likely range under it, in small text.** It reads "Likely 22:58 to 23:49 /km" for a
-  run and "Likely 48 to 49 W" for a ride, or "About 48 W" when both ends would print the same. The method is the standard error of the critical-power fit: one
+- **A threshold has its range under it, in small text.** It reads "Range 22:58 to 23:49 /km" for a
+  run and "Range 48 to 49 W" for a ride, or "About 48 W" when both ends would print the same. The method is the standard error of the critical-power fit: one
   standard error either side of the critical power, a rough spread of the fit rather than a confidence
   interval. A range is left out when its low end is not above resting metabolic rate, which
   would be no estimate of a threshold; when a ride's fit draws on an effort whose watts are estimated from
@@ -597,7 +597,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   and the rest of that window averages under 85% of the shorter best: a 15 or 20 minute effort held
   while the easier riding round it was all the rider could hold at the start. The threshold is then
   fitted without those bests, and it is the top of the range, from the main threshold to that one
-  ("Likely 261 to 296 W"). Such a fit is kept only above the main one. Under the range, one muted
+  ("Range 261 to 296 W"). Such a fit is kept only above the main one. Under the range, one muted
   line says why: "Your best 15 min and 20 min were uneven: each held a hard burst inside easier riding, so
   the range stays wide. A steady all-out 20 min would narrow it." A run says "running". When
   the uneven fit draws on estimated watts, the line adds "The top end uses estimated watts." The range
@@ -789,15 +789,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   read naturally, such as "Running grades 6 points higher than cycling". A chart's accessible name is its
   title, so the two match. Chart descriptions and the reading cells of the ratio table are sentences, so they keep "running" and "cycling", as in "Running 8% higher than cycling"; so do the balance sentences. The Method energy curve names its energy rate once, as "energy rate (metabolic W/kg)", in its title and its
   table caption, with "Energy rate (metabolic W/kg)" on its axis. The shared energy trend and the heart-rate chart name their unit the same way, in their axes and column headings.
-- **Effort checks say "your hardest".** A best effort below 90% of your reference heart rate is "probably not
-  your hardest", never "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate
+- **Effort checks state the measured share and the action.** A best effort below 90% of your reference heart
+  rate says the share it reached, then "A hard 20 min effort would raise this.", with no "probably" or
+  "could be higher" (the cards are titled "Your best run was at an easy heart rate", and the like), never
+  "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate
   in one sentence, where it explains the heart-rate check. Each line that names it glosses it once, as "(set from your highest
   heart rates on file)", which holds for both sports: cycling's is derived from running's, so a ride is never
   called your highest heart rate. A sport page's line says "so it was hard" at 90% or more,
   judged on the percent it shows, so a share that rounds to 90% is hard.
 - **Race predictions sit in the middle.** The Run page predicts the 5 km, 10 km, half marathon and
   marathon after Best efforts, in two columns that fit 320 px. The first column holds the race with its
-  pace under it. The second holds the predicted time, "likely" its 10th to 90th percentile, and the two
+  pace under it. The second holds the predicted time, "range" its 10th to 90th percentile, and the two
   estimates it sits between ("runs 20:25 · heart rate 18:13"). Each is the geometric mean of the runner's
   bests and the races their heart-rate VO2max would run, both carried by Riegel's law at 1.07 and, for the
   marathon, Vickers & Vertosick's mileage-corrected model. The note says how many hard runs the heart-rate

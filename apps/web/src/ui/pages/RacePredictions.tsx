@@ -10,9 +10,9 @@ import './RacePredictions.css'
 /** VO2max figures differ by more than this share before the note says the two estimates disagree. */
 const DISAGREE_SHARE = 0.1
 
-/** The likely range under a prediction, from its 10th to 90th percentile. */
+/** The range under a prediction, from its 10th to 90th percentile. */
 function rangeText(prediction: RacePrediction): string {
-  return `likely ${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
+  return `range ${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
 }
 
 /** Each estimate in a few words, such as "runs 20:25 · heart rate 16:54"; null for one estimate. */
@@ -85,7 +85,7 @@ function RaceRow({ prediction, units }: { prediction: RacePrediction; units: Uni
 
 /**
  * A sport's race predictions, as racePredictionsOf found them: each race's predicted time and pace, its
- * likely range and the two estimates it sits between, and how they were reached.
+ * range and the two estimates it sits between, and how they were reached.
  */
 export function RacePredictions({
   sport,
