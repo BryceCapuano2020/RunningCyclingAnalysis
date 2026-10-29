@@ -2,6 +2,7 @@ import { DURATIONS_S, ESTIMATED_RIDE_MIN_RIDES, ESTIMATED_RIDE_MIN_SHARE } from 
 import { fitLine, lowForPowerSetAside } from '../hr'
 import type { Level, Line } from '../hr'
 import type { ActivityDigest, DigestCurvePoint, Sport } from '../types'
+import { memoByDigests } from '../digestMemo'
 import { effortsCount } from './effortTrust'
 
 /**
@@ -102,11 +103,22 @@ function measuredDurationsOf(measured: ActivityDigest[]): Set<number> {
   return new Set(DURATIONS_S.filter((durationS) => durationS <= longest))
 }
 
+function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  return a === b || (a.size === b.size && [...a].every((id) => b.has(id)))
+}
+
 /**
  * The gate of a set of digests, taking heart rate only from the measured rides not in setAside. Null when
  * fewer than minRides measured rides have heart rate to fit: then nothing about an estimated ride changes.
  */
 export function rideGateOf(
+  ordered: ActivityDigest[],
+  setAside: ReadonlySet<string>,
+): EstimatedRideGate | null {
+  return rideGateMemo(ordered, new Set(setAside))
+}
+
+function buildRideGate(
   ordered: ActivityDigest[],
   setAside: ReadonlySet<string>,
 ): EstimatedRideGate | null {
@@ -128,6 +140,12 @@ export function rideGateOf(
   }
   return { lines, measuredDurations: measuredDurationsOf(measured) }
 }
+
+/**
+ * The gate reads only measured rides' watts and trusted heart rate, never body mass or settings, so a change of
+ * either finds the gate it had.
+ */
+const rideGateMemo = memoByDigests(buildRideGate, sameSet)
 
 /**
  * The gate of digests judged among themselves, for a reader given none from the library: heart rate that reads

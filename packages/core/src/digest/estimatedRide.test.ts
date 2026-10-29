@@ -293,6 +293,23 @@ describe('an estimated ride against the measured ones', () => {
   })
 })
 
+describe('the gate is worked out once for the same rides', () => {
+  it('finds the gate again for the same digests and set-aside, whatever list holds them', () => {
+    const first = rideGateOf(orderedCurrent(LIBRARY), new Set())
+    expect(rideGateOf(orderedCurrent(LIBRARY), new Set())).toBe(first)
+    // Another set-aside, or another set of rides, is another gate.
+    expect(rideGateOf(orderedCurrent(LIBRARY), new Set(['measured-0']))).not.toBe(first)
+    expect(rideGateOf(orderedCurrent(LIBRARY.slice(1)), new Set())).not.toBe(first)
+  })
+
+  it('keeps the set it is given apart from the one it remembers', () => {
+    const setAside = new Set(['measured-0'])
+    const first = rideGateOf(orderedCurrent(LIBRARY), setAside)
+    setAside.add('measured-1')
+    expect(rideGateOf(orderedCurrent(LIBRARY), new Set(['measured-0']))).toBe(first)
+  })
+})
+
 describe('where the rule is read', () => {
   const library = [...LIBRARY, DRAFTED]
   const gate = rideGateOf(orderedCurrent(library), new Set())

@@ -1,3 +1,4 @@
+import { memoByDigests } from '../digestMemo'
 import { quantile } from '../math'
 import type { ActivityDigest, Sport } from '../types'
 import { MEASURED_EFFORT } from './setAside'
@@ -119,7 +120,7 @@ function lowAgainst(levels: Level[], line: Line): Set<string> {
  * it first set aside so they do not pull it down; the verdict is taken against the second line. A sport with too
  * few activities to fit gives no verdict.
  */
-export function lowForPowerSetAside(digests: ActivityDigest[]): Set<string> {
+function judgeLowForPower(digests: ActivityDigest[]): Set<string> {
   const bySport = new Map<Sport, Level[]>()
   for (const digest of digests) {
     const level = levelOf(digest)
@@ -140,4 +141,18 @@ export function lowForPowerSetAside(digests: ActivityDigest[]): Set<string> {
     for (const id of lowAgainst(levels, line)) out.add(id)
   }
   return out
+}
+
+/**
+ * The same judgement, remembered for the last few libraries: it reads no body mass, so a change of mass finds it.
+ * Each call has a set of its own, since callers add to it.
+ */
+const judged = memoByDigests(
+  judgeLowForPower,
+  () => true,
+  (ids) => new Set(ids),
+)
+
+export function lowForPowerSetAside(digests: ActivityDigest[]): Set<string> {
+  return judged(digests, undefined)
 }

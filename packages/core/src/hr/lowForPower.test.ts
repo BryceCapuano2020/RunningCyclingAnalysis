@@ -43,6 +43,15 @@ describe('heart rate that reads low for the power across a whole activity', () =
     expect(lowForPowerSetAside([...library(), fit]).size).toBe(0)
   })
 
+  it('gives each call a set of its own, since callers add to it, and the same ids for the same library', () => {
+    const rides = [...library(), made(ride, 'locked', 210, 0.6)]
+    const first = lowForPowerSetAside(rides)
+    first.add('added-by-a-caller')
+    const again = lowForPowerSetAside([...rides])
+    expect([...again]).toEqual(['locked'])
+    expect(again).not.toBe(first)
+  })
+
   it('keeps the athlete’s own rides, and sets nothing aside in a library of sound heart rate', () => {
     expect(lowForPowerSetAside(library()).size).toBe(0)
   })

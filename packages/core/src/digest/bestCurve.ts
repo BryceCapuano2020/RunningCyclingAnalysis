@@ -74,24 +74,25 @@ export function bestOfEach(
 ): EffortPoint[] {
   const digests = ordered.filter((d) => d.sport === sport && keep(d))
   if (aloneFor === undefined) return bestCurve(digests.map((d) => candidates(d, valueFor(d))))
-  const split = digests.map((d) => {
-    const found = candidates(d, valueFor(d))
-    const alone = aloneFor(d)
-    const flags = d.curve.map(alone)
-    return {
-      backed: found.map((p, i) => (flags[i] ? unfound(p) : p)),
-      standing: found.map((p, i) => (flags[i] ? p : unfound(p))),
-    }
+  const found = digests.map((d) => candidates(d, valueFor(d)))
+  // Only a digest with a point that stands alone is split, so the common case costs one pass more than none.
+  const standing: EffortPoint[][] = []
+  const backed = found.map((points, k) => {
+    const flags = digests[k]!.curve.map(aloneFor(digests[k]!))
+    if (!flags.includes(true)) return points
+    standing.push(points.map((p, i) => (flags[i] ? p : unfound(p))))
+    return points.map((p, i) => (flags[i] ? unfound(p) : p))
   })
-  const curve = bestCurve(split.map((d) => d.backed))
+  const curve = bestCurve(backed)
+  if (standing.length === 0) return curve
   // Ascending, so a standing point is held to the finished curve at the nearest shorter duration with a value: the
   // curve stays non-increasing, and an estimate never reads higher than a shorter effort. Each candidate is held to it
   // before the best is taken, so a lower one stands when a higher one cannot.
   let shorter = Number.POSITIVE_INFINITY
   return curve.map((point, i) => {
     let placed = point
-    for (const { standing } of split) {
-      const alone = standing[i]!
+    for (const points of standing) {
+      const alone = points[i]!
       if (alone.value <= shorter && !(alone.value <= placed.value)) placed = alone
     }
     if (!Number.isNaN(placed.value)) shorter = placed.value
