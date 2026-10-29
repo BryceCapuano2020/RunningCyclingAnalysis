@@ -24,7 +24,8 @@ export interface DeviceLibrary {
   /**
    * As `get`, but says why a row does not read. 'newer' is a digest written in a format later than this
    * version's (its own `version`), which an older build must leave alone; 'unreadable' is any other
-   * row that does not read, which is damaged or from an older format. Null is no row at all.
+   * row that does not read, which is damaged or from an older format. Null is no row at all. Unlike
+   * `get`, it rejects when the read fails on storage that opened, so a failed read is not taken for no row.
    */
   lookup(workoutKey: string): Promise<ActivityDigest | 'newer' | 'unreadable' | null>
   /** The route shape kept with the digest, or null when none was kept or it does not read. */
@@ -211,6 +212,8 @@ export function openDeviceLibrary(): DeviceLibrary {
           return fromNewerVersion(stored) ? 'newer' : 'unreadable'
         },
         null,
+        // A failed read must not look like no kept copy, or a save would write over a better one.
+        true,
       ),
     route: async (workoutKey) => (await readOne(workoutKey))?.route ?? null,
     put: (workoutKey, digest, route = null) =>

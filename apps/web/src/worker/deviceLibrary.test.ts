@@ -292,6 +292,14 @@ describe('device library in IndexedDB', () => {
     await expect(library.allStrict()).rejects.toThrow('Transactions are refused')
   })
 
+  it('rejects a lookup that fails on a database that opened, so it is not taken for no kept copy', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb({ transaction: true }).indexedDB)
+    const library = openDeviceLibrary()
+
+    await expect(library.lookup('run-1')).rejects.toThrow('Transactions are refused')
+    await expect(library.get('run-1')).resolves.toBeNull()
+  })
+
   it('keeps the stored digests when a clear is refused', async () => {
     vi.stubGlobal('indexedDB', fakeIndexedDb({ clear: true }).indexedDB)
     const library = openDeviceLibrary()

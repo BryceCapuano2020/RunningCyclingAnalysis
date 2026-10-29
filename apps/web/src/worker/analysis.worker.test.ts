@@ -643,6 +643,20 @@ describe('analysis worker', () => {
     ])
   })
 
+  it('answers with an error, not an empty library, when the kept library cannot be read', async () => {
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      all: async () => [],
+      allStrict: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+    }
+    const { send } = await startWorker()
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(messages).toEqual([
+      { type: 'error', message: expect.stringMatching(/kept results could not be read/) },
+    ])
+  })
+
   it('leaves the sample on its period when the kept library loads after it', async () => {
     const { send } = await startWorker()
     await send({ type: 'loadSample', settings: SETTINGS })

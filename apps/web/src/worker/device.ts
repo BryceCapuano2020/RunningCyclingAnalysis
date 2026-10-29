@@ -7,8 +7,14 @@ import type { DeviceEntry, DeviceLibrary } from './deviceLibrary'
 import type { WorkerResponse } from './protocol'
 import { savedActivityOf } from './savedActivity'
 
+const KEPT_NOT_READ =
+  'Your kept results could not be read from this browser just now. Reload the page to try again.'
+
 export interface DeviceActions {
-  /** Replaces the session's library with the one kept in this browser. */
+  /**
+   * Replaces the session's library with the one kept in this browser. Rejects when the library
+   * cannot be read, rather than loading it as empty: an empty library would be taken for the real one.
+   */
   load(settings: AthleteSettings): Promise<SessionState>
   /** Whether the session holds that library already, so loading it again would drop imports. */
   inSession(): boolean
@@ -74,14 +80,17 @@ export function deviceActions(
   let held = false
   const report = async () => {
     try {
-      post({ type: 'libraryActivities', activities: newestFirst(await device.all()) })
+      // Strict, so a failed read leaves the list on screen as it is instead of replacing it with none.
+      post({ type: 'libraryActivities', activities: newestFirst(await device.allStrict()) })
     } catch {
       // The list is shown again after the next change.
     }
   }
   return {
     async load(settings) {
-      const entries = await device.all()
+      const entries = await device.allStrict().catch(() => {
+        throw new Error(KEPT_NOT_READ)
+      })
       post({ type: 'libraryActivities', activities: newestFirst(entries) })
       const state = session.loadDigests(
         entries.map((entry) => entry.digest),

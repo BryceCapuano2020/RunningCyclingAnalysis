@@ -60,6 +60,39 @@ describe('device library actions', () => {
     expect(state.totalActivities).toBe(2)
   })
 
+  describe('when the kept library cannot be read', () => {
+    /** A library whose reads fail on an open database: the plain read lists nothing, the strict one rejects. */
+    function unreadable(): DeviceLibrary {
+      const library = memoryDeviceLibrary()
+      return {
+        ...library,
+        all: async () => [],
+        allStrict: async () => {
+          throw new Error('Connection to Indexed Database server lost')
+        },
+        lookup: async () => {
+          throw new Error('Connection to Indexed Database server lost')
+        },
+      }
+    }
+
+    it('load rejects instead of loading an empty library, and does not post an empty list', async () => {
+      const { actions, posted } = setup(unreadable())
+
+      await expect(actions.load(SETTINGS)).rejects.toThrow(/could not be read/)
+
+      expect(posted).toEqual([])
+      expect(actions.inSession()).toBe(false)
+    })
+
+    it('save is refused rather than written over a copy that could not be looked up', async () => {
+      const put = vi.fn()
+      const { actions } = setup({ ...unreadable(), put })
+      expect(await actions.save(itemFor(FIRST, 'a'))).toBe('refused')
+      expect(put).not.toHaveBeenCalled()
+    })
+  })
+
   it('save keeps the digest for a later load', async () => {
     const { actions, posted } = setup()
 
@@ -243,7 +276,9 @@ describe('device library actions', () => {
   it('report posts nothing when the library cannot be read, and does not throw', async () => {
     const unreadable: DeviceLibrary = {
       ...memoryDeviceLibrary(),
-      all: () => Promise.reject(new Error('Device storage failed')),
+      // The plain read lists nothing for a failed read; the report must not show that as the library.
+      all: async () => [],
+      allStrict: () => Promise.reject(new Error('Device storage failed')),
     }
     const { actions, posted } = setup(unreadable)
 
