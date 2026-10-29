@@ -53,10 +53,14 @@ export function ThresholdPanel({
       aria-labelledby={`${sport}-threshold`}
     >
       <div className="sport-hero__head">
-        {/* The name is the figure's whole kind to a screen reader: the chip beside it repeats it for the eye. */}
-        <h2 id={`${sport}-threshold`} className="eyebrow sport-hero__eyebrow">
+        {/* The accessible name carries the figure's whole kind; the chip beside it repeats it for the eye. A name set in
+            an off-screen span would be read with a gap in it, "Threshold pace , estimated". */}
+        <h2
+          id={`${sport}-threshold`}
+          className="eyebrow sport-hero__eyebrow"
+          aria-label={`${THRESHOLD_HEADING[sport]}${floor ? ', at least' : ', estimated'}`}
+        >
           {THRESHOLD_HEADING[sport]}
-          <span className="sr-only">{floor ? ', at least' : ', estimated'}</span>
         </h2>
         {hero && (
           <span aria-hidden="true">

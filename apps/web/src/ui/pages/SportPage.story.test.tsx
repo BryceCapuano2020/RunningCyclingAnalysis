@@ -85,7 +85,9 @@ function renderPage(
 }
 
 const headings = () =>
-  screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+  screen
+    .getAllByRole('heading', { level: 2 })
+    .map((heading) => heading.getAttribute('aria-label') ?? heading.textContent)
 
 /** The names of the page's named sections, in the order they are read. */
 const regions = () =>
