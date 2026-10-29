@@ -92,7 +92,7 @@ describe('zoneTable', () => {
     expect(table.detail).toBe('From your rides: threshold power 250 W')
     expect(table.columns).toEqual(['Zone', 'Name', 'Range'])
     expect(table.rows).toHaveLength(7)
-    expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 138 W'])
+    expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 140 W'])
   })
 
   it('says an entered reference was entered', () => {

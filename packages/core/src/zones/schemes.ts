@@ -87,3 +87,14 @@ export const WHOLE_NUMBER_MEASURES: Record<ZoneMeasure, boolean> = {
   heartRate: true,
   pace: false,
 }
+
+/**
+ * How a measure's cuts become edges (`zonesFor`). A heart rate reading is a whole number and a cut is the first
+ * whole number at or above it. Power and pace are moved to the nearest step of the digest's bins (5 W, 0.05 m/s),
+ * so no bin straddles an edge.
+ */
+export const EDGE_ROUNDING: Record<ZoneMeasure, 'up' | 'nearest'> = {
+  power: 'nearest',
+  heartRate: 'up',
+  pace: 'nearest',
+}

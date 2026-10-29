@@ -59,8 +59,13 @@ describe('zonesFor', () => {
     expect(zonesFor('heartRate', 219).map((zone) => zone.low)).toEqual([0, 132, 154, 176, 198])
     // A cut that is exactly a whole number stays there, whatever the rounding of the product.
     expect(zonesFor('heartRate', 200).map((zone) => zone.low)).toEqual([0, 120, 140, 160, 180])
+    // Power is moved to the nearest 5 W instead, the step of the digest's bins: 110.55, 150.75, 180.9, 211.05,
+    // 241.2 and 301.5 W of 201 W are 110, 150, 180, 210, 240 and 300 W (301.5 is nearer 300 than 305).
     expect(zonesFor('power', 201).map((zone) => zone.low)).toEqual([
-      0, 111, 151, 181, 212, 242, 302,
+      0, 110, 150, 180, 210, 240, 300,
+    ])
+    expect(zonesFor('power', 267).map((zone) => zone.low)).toEqual([
+      0, 145, 200, 240, 280, 320, 400,
     ])
     for (const measure of ['power', 'heartRate'] as const) {
       for (const reference of [137.3, 188.6, 250.4]) {
