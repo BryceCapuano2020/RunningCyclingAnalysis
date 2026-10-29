@@ -8,7 +8,7 @@ import type { CurvePoint } from '../types'
 export const ENVELOPE_TIE_TOLERANCE = 1e-9
 
 /**
- * Enforces a non-increasing curve. Walking from the longest duration to the shortest, a point
+ * Enforces a curve that is non-increasing within ENVELOPE_TIE_TOLERANCE: a point lower than a longer one by no more than that share is a tie and keeps its own window. Walking from the longest duration to the shortest, a point
  * whose value is NaN or below the best value seen at longer durations takes every field of that
  * longer point (value, activityId, startIndex and any window fields), keeping its own durationS.
  * Returns a new array.
