@@ -14,7 +14,8 @@ import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
 import {
   countIssues,
-  NETWORK_FAILURES_BEFORE_HALT,
+  NETWORK_FAILURES_BEFORE_PROBE,
+  NETWORK_PROBE_DELAY_MS,
   networkStreakAfter,
   stopsSaving,
   SyncFailure,
@@ -284,6 +285,10 @@ export class AnalysisSession {
       }
       return considered(false)
     }
+    // After a run of network failures the next save is a probe, sent once the outage has had a moment
+    // to pass. If it fails too the network is down and the saves stop; if not, the import carries on.
+    const probing = batch.networkStreak >= NETWORK_FAILURES_BEFORE_PROBE
+    if (probing) await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
     try {
       await sink({ digest, route: activity.route, ...file })
       this.unsynced.delete(key)
@@ -291,10 +296,10 @@ export class AnalysisSession {
     } catch (error) {
       const code = error instanceof SyncFailure ? error.code : 'server'
       this.leaveUnsynced(key, code)
-      batch.networkStreak = networkStreakAfter(batch.networkStreak, code)
-      if (stopsSaving(code) || batch.networkStreak >= NETWORK_FAILURES_BEFORE_HALT) {
-        batch.halt = code
-      }
+      // The server answered when only the original file failed to upload, so the network is up.
+      const answered = error instanceof SyncFailure && error.digestSaved
+      batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
+      if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
       return considered(false)
     }
     return considered(true)

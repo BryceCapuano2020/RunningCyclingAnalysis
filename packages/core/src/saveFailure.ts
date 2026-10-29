@@ -27,11 +27,17 @@ export interface SyncIssue {
 /** A sink throws this to say why a save failed. Any other error is reported as 'server'. */
 export class SyncFailure extends Error {
   readonly code: SyncIssueCode
+  /**
+   * True when the activity's digest was saved and only a later step failed, such as uploading its
+   * original file. The server answered, so it says nothing about the network being down.
+   */
+  readonly digestSaved: boolean
 
-  constructor(code: SyncIssueCode, message: string) {
+  constructor(code: SyncIssueCode, message: string, digestSaved = false) {
     super(message)
     this.name = 'SyncFailure'
     this.code = code
+    this.digestSaved = digestSaved
   }
 }
 
@@ -70,11 +76,18 @@ export function stopsSaving(code: SyncIssueCode): boolean {
 }
 
 /**
- * How many network failures in a row end an import's saves. One lost request can be a blip, but
- * with the network down every save costs a round trip (a second, or its whole timeout when the
+ * How many network failures in a row make the import stop and probe. One lost request can be a blip,
+ * but with the network down every save costs a round trip (a second, or its whole timeout when the
  * request hangs), which across thousands of activities is minutes of waiting for nothing.
  */
-export const NETWORK_FAILURES_BEFORE_HALT = 3
+export const NETWORK_FAILURES_BEFORE_PROBE = 3
+
+/**
+ * How long the import waits after those failures before the next save, which is the probe. A short
+ * outage, such as a Wi-Fi network changing, is over by then, and the import carries on. If the probe
+ * fails too, the saves stop.
+ */
+export const NETWORK_PROBE_DELAY_MS = 2_000
 
 /**
  * The count of consecutive network failures after a save: one more for a network failure, and none

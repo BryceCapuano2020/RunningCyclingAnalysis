@@ -63,7 +63,13 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     if (record.hasFile) missingOriginals.delete(key)
     else missingOriginals.add(key)
     if (sync.keepFiles && !record.hasFile) {
-      await upload(record, item)
+      try {
+        await upload(record, item)
+      } catch (error) {
+        // The digest is saved. Only the original is missing, which says nothing about the network.
+        const failure = syncFailureOf(error)
+        throw new SyncFailure(failure.code, failure.message, true)
+      }
       missingOriginals.delete(key)
     }
     ctx.onSaved()
