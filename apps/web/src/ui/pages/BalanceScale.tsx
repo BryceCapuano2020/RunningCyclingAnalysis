@@ -7,11 +7,15 @@ import { SportIcon } from '../components/icons'
 import { HEADLINE_LABEL } from '../grades'
 import { SPORT_LABEL } from '../sports'
 import { DEFINITIONS } from './balanceDefinitions'
-import { SCALE_TABLE_COLUMNS } from './balanceScaleModel'
+import { SAME_GRADE, SCALE_TABLE_COLUMNS, VIA_EQUIVALENT } from './balanceScaleModel'
+import { levelEdgesText } from './balanceScaleAxis'
+import { BALANCE_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
+import { useNarrowScreen } from '../useNarrowScreen'
 import type { ScaleModel } from './balanceScaleModel'
 import { scaleLayout } from './balanceScaleLayout'
 import type { LaneBox, ScaleLayout, TextAt } from './balanceScaleLayout'
 import './BalanceScale.css'
+import './BalanceScaleKey.css'
 
 export interface BalanceScaleProps {
   model: ScaleModel
@@ -125,9 +129,13 @@ function Mark({ lane, layout }: { lane: LaneBox; layout: ScaleLayout }) {
   )
 }
 
-/** The gap's bracket, the ghost ring for the level target, and the guide line that joins them. */
-function Gap({ layout, model }: { layout: ScaleLayout; model: ScaleModel }) {
-  const { bracket, ghost, gap, metrics: m } = layout
+/**
+ * The gap between the two marks, and the ghost ring for the level target. The gap is one connector: a stem from
+ * each mark and a bar between them, with no label in it, which the caption under the drawing says. The guide
+ * line joins the ghost ring to the grade it matches.
+ */
+function Gap({ layout }: { layout: ScaleLayout }) {
+  const { connector, ghost, metrics: m } = layout
   return (
     <>
       {ghost === null ? null : (
@@ -137,45 +145,19 @@ function Gap({ layout, model }: { layout: ScaleLayout; model: ScaleModel }) {
             d={`M${ghost.guide.x} ${ghost.guide.y1}V${ghost.guide.y2}`}
           />
           <circle className="balance-scale__ghost" cx={ghost.x} cy={ghost.y} r={m.markR} />
-          {ghost.label === null ? null : (
-            <>
-              <text
-                className="balance-scale__eyebrow"
-                {...at(ghost.label.eyebrow)}
-                fontSize={m.smallFs}
-              >
-                {model.target?.eyebrow}
-              </text>
-              <text className="balance-scale__line" {...at(ghost.label.line)} fontSize={m.smallFs}>
-                {model.target?.line}
-              </text>
-            </>
-          )}
         </>
       )}
-      {bracket === null ? null : (
+      {connector === null ? null : (
         <path
-          className="balance-scale__bracket"
-          d={`M${bracket.x1} ${bracket.y - 7}V${bracket.y + 7}M${bracket.x1} ${bracket.y}H${bracket.x2}M${bracket.x2} ${bracket.y - 7}V${bracket.y + 7}`}
+          className="balance-scale__connector"
+          d={`M${connector.x1} ${connector.y1}V${connector.y}H${connector.x2}V${connector.y2}`}
         />
-      )}
-      {gap === null || model.gap === null ? null : (
-        <>
-          <text className="balance-scale__big" {...at(gap.figure)} fontSize={gap.figureSize}>
-            {model.gap.figure}
-          </text>
-          {gap.note === null ? null : (
-            <text className="balance-scale__note" {...at(gap.note)} fontSize={m.smallFs}>
-              {gap.noteText}
-            </text>
-          )}
-        </>
       )}
     </>
   )
 }
 
-/** One lane's text: the grade large, the level and figure under it, and an estimate's two range ends. */
+/** One lane's header text: the grade large, the line under the name beside it, and an estimate's range ends. */
 function LaneText({
   lane,
   model,
@@ -188,24 +170,25 @@ function LaneText({
   const { metrics: m } = layout
   const data = model.lanes.find((candidate) => candidate.sport === lane.sport)
   if (data === undefined) return null
+  const sub = { full: data.sub, short: data.subShort, level: data.level }[lane.subForm]
   return (
     <>
       <text className="balance-scale__big" {...at(lane.pct)} fontSize={m.bigFs}>
         {data.pct}
       </text>
       <text className="balance-scale__sub" {...at(lane.sub)} fontSize={m.smallFs}>
-        {lane.short ? data.subShort : data.sub}
+        {sub}
       </text>
-      {lane.rangeLow === null || data.rangeLow === null ? null : (
-        <text className="balance-scale__range-end" {...at(lane.rangeLow)} fontSize={m.smallFs}>
-          {data.rangeLow}
+      {lane.ranges.map((range) => (
+        <text
+          key={range.text}
+          className="balance-scale__range-end"
+          {...at(range)}
+          fontSize={m.smallFs}
+        >
+          {range.text}
         </text>
-      )}
-      {lane.rangeHigh === null || data.rangeHigh === null ? null : (
-        <text className="balance-scale__range-end" {...at(lane.rangeHigh)} fontSize={m.smallFs}>
-          {data.rangeHigh}
-        </text>
-      )}
+      ))}
     </>
   )
 }
@@ -226,8 +209,11 @@ function LaneName({ lane, basis, size }: { lane: LaneBox; basis: string; size: n
   )
 }
 
-/** The key: a dot is recorded, a ring is estimated, a band is the 90% range. */
-function Legend() {
+/**
+ * The key: a dot is recorded, a ring is estimated, a band is the 90% range. Where a ride's watts were measured and
+ * only its level goes through the run equivalent, the ring says so, and "Estimated" is left for watts that were.
+ */
+function Legend({ viaEquivalent }: { viaEquivalent: boolean }) {
   return (
     <p className="balance-scale__legend">
       <span className="balance-scale__key">
@@ -236,7 +222,13 @@ function Legend() {
       </span>
       <span className="balance-scale__key">
         <i className="balance-scale__swatch balance-scale__swatch--ring" />
-        <Definition meaning={DEFINITIONS.estimated}>Estimated</Definition>
+        {viaEquivalent ? (
+          <Definition meaning={DEFINITIONS.viaEquivalent}>
+            Power measured · level via run equivalent
+          </Definition>
+        ) : (
+          <Definition meaning={DEFINITIONS.estimated}>Estimated</Definition>
+        )}
       </span>
       <span className="balance-scale__key">
         <i className="balance-scale__swatch balance-scale__swatch--band" />
@@ -249,13 +241,16 @@ function Legend() {
 /**
  * Where you stand: both sports' age-graded level of the best 20 minutes on one scale, the hero of
  * Balance. The five level bands are neutral, so a sport's colour only ever marks that sport. A recorded
- * grade is a solid dot; an estimate is a ring over a bracketed band for its 90% range. A bracket labels the
- * gap in points, and a ghost ring marks what the lower sport would need to level. The drawing is named for
- * a screen reader and has its table beneath it.
+ * grade is a solid dot; an estimate is a ring over a bracketed band for its 90% range. One connector joins the
+ * two marks, and the caption under the drawing says the gap in points and what the lower sport would need to
+ * level, so no label sits in the drawing's rows. The figure is named, the drawing is described for a screen
+ * reader, and its table twin is beneath it.
  */
 export function BalanceScale({ model }: BalanceScaleProps) {
   const [stageRef, width] = useStageWidth()
   const layout = scaleLayout(model, width, rootFontPx())
+  // On a phone the hero's sentence is its first clause, so the 90% range is defined here, where its figures are said.
+  const phone = useNarrowScreen(BALANCE_PHONE_MAX_WIDTH_PX)
   return (
     <section className="balance-scale" aria-labelledby="balance-scale-title">
       <h2 id="balance-scale-title" className="balance-scale__title">
@@ -264,10 +259,14 @@ export function BalanceScale({ model }: BalanceScaleProps) {
       <p className="balance-scale__lede">
         Age-graded <Definition meaning={DEFINITIONS.level}>level</Definition> of your best{' '}
         {HEADLINE_LABEL}, on{' '}
-        {model.lanes.length === 1 ? 'the scale every sport shares' : 'one scale for both sports'}.
+        {model.lanes.length === 1 ? 'the scale every sport shares' : 'one scale for both sports'}.{' '}
+        {levelEdgesText(layout.bands)}.
       </p>
-      <Legend />
-      <figure className="balance-scale__figure">
+      <Legend viaEquivalent={model.lanes.some((lane) => lane.basisText === VIA_EQUIVALENT)} />
+      <figure className="balance-scale__figure" aria-labelledby="balance-scale-name">
+        <figcaption id="balance-scale-name" className="sr-only">
+          Level scale: age-graded level of your best {HEADLINE_LABEL}, by sport
+        </figcaption>
         <div ref={stageRef} className="balance-scale__stage">
           <svg
             className="balance-scale__svg"
@@ -286,7 +285,7 @@ export function BalanceScale({ model }: BalanceScaleProps) {
                 d={`M0 ${lane.y}H${layout.width}`}
               />
             ))}
-            <Gap layout={layout} model={model} />
+            <Gap layout={layout} />
             {layout.lanes.map((lane) => (
               <Mark key={lane.sport} lane={lane} layout={layout} />
             ))}
@@ -299,17 +298,44 @@ export function BalanceScale({ model }: BalanceScaleProps) {
               key={lane.sport}
               lane={lane}
               size={layout.metrics.nameFs}
-              basis={model.lanes.find((candidate) => candidate.sport === lane.sport)?.basis ?? ''}
+              basis={
+                model.lanes.find((candidate) => candidate.sport === lane.sport)?.basisText ?? ''
+              }
             />
           ))}
         </div>
-        {layout.ghost?.label === null && model.target !== null ? (
-          <p className="balance-scale__target">
-            <i className="balance-scale__swatch balance-scale__swatch--ghost" />
-            <span className="balance-scale__eyebrow-text">{model.target.eyebrow}</span>
-            {model.target.line}
-          </p>
-        ) : null}
+        {model.gap === null && model.target === null ? null : (
+          <div className="balance-scale__caption">
+            {model.gap === null ? null : (
+              <p className="balance-scale__lean">
+                <i className="balance-scale__swatch balance-scale__swatch--bar" />
+                <span>
+                  {model.gap.side === SAME_GRADE
+                    ? 'Same grade'
+                    : `${model.gap.figure} ${model.gap.side}`}
+                  {model.gap.rangeValue === '' ? null : (
+                    <>
+                      {' · '}
+                      {phone ? (
+                        <Definition meaning={DEFINITIONS.range90}>90% range</Definition>
+                      ) : (
+                        '90% range'
+                      )}{' '}
+                      {model.gap.rangeValue}
+                    </>
+                  )}
+                </span>
+              </p>
+            )}
+            {model.target === null ? null : (
+              <p className="balance-scale__target">
+                <i className="balance-scale__swatch balance-scale__swatch--ghost" />
+                <span className="balance-scale__eyebrow-text">{model.target.eyebrow}</span>
+                {model.target.line}
+              </p>
+            )}
+          </div>
+        )}
         <details className="balance-scale__details">
           <summary>View as table</summary>
           <ChartTable

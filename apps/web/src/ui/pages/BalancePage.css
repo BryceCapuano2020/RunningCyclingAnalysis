@@ -165,23 +165,73 @@
 }
 
 /*
- * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the answer and its scale sit
- * closer, and the answer's own gaps tighten too, so the scale is on the first screen at 320 x 568
- * and 320 x 640 (the sample notice tightens too, in AppNotices.css). A short desktop window keeps the tall gaps: the query asks for a
- * finger or a phone-width window.
+ * On a phone (BALANCE_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts) the answer is one block: the headline at 28 px
+ * with the gap's figure beside it, and one clause of sentence under both. The eyebrow goes, since the period control
+ * under it states the dates, and the figure's range line goes, since the scale's caption says it. Together with the
+ * tighter scale (BalanceScale.css) both lanes and the axis are on the first screen above the section tabs at
+ * 390 x 844 and 320 x 640 with the sample notice showing. BalanceHero.tsx gives the sentence its short form.
  */
-@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
-  .balance-hero {
-    gap: var(--space-2);
+@media (max-width: 479px) {
+  .balance-hero--answer {
+    grid-template-areas:
+      'title gap'
+      'lede lede';
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
   }
 
-  .balance-hero__pair {
-    gap: var(--space-4);
+  .balance-hero--answer > .balance-hero__text {
+    display: contents;
+  }
+
+  .balance-hero--answer .eyebrow,
+  .balance-hero__range {
+    display: none;
+  }
+
+  .balance-hero__head {
+    grid-area: title;
+  }
+
+  .balance-hero__title {
+    /* A display size with no type token; see DESIGN.md, Type. */
+    font-size: 1.75rem;
+  }
+
+  .balance-hero--answer .balance-hero__lede {
+    grid-area: lede;
+    font-size: var(--text-md);
+  }
+
+  .balance-hero--answer > .balance-hero__text > p:not(.eyebrow, .balance-hero__lede) {
+    grid-column: 1 / -1;
+  }
+
+  .balance-hero--answer .balance-hero__gap {
+    grid-area: gap;
+    grid-template-columns: auto;
+    justify-items: end;
+    gap: 2px;
+    text-align: right;
   }
 
   .balance-hero__number {
-    font-size: 3.5rem;
+    font-size: 3.25rem;
   }
+
+  .balance-hero__unit {
+    font-size: var(--text-md);
+  }
+
+  .balance-hero__pair {
+    gap: var(--space-2);
+  }
+}
+
+/* A keyboard-focused headline is not underlined here: the sport it names carries the only underline. */
+.balance-hero__title[tabindex='-1']:focus-visible {
+  text-decoration: none;
 }
 
 /* The tiles' prompt for a sport with nothing in the period fills its slot. */
@@ -189,34 +239,18 @@
   align-content: start;
 }
 
-/* The heart-rate evidence sits under the tiles, in the page's own gap. */
-.balance__cards {
-  display: grid;
-  gap: var(--space-4);
+/* The one line for files with no heart rate sits under the tiles: a chip, its reason as a definition, and a link. */
+.evidence-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
-.balance__cards .card {
-  display: grid;
-  gap: var(--space-2);
-  align-content: start;
-}
-
-/* The heading's paragraph sits under the heading with the card's own gap, not a second margin. */
-.balance__cards .card > h2 + p {
-  margin-top: 0;
-}
-
-/* The quiet evidence card has no border, so its chip, sentence and link take a gap between them. */
-.balance__cards .evidence-card--quiet {
-  display: grid;
-  gap: var(--space-2);
-  justify-items: start;
-}
-
-.balance__cards .chip {
-  justify-self: start;
-}
-
+/* A tile's effort chip, under its lines: the check that says how hard the best 20 minutes were. */
 /* A chart that has the page's width to itself, as a card: grade by duration. */
 .balance__panel {
   display: grid;

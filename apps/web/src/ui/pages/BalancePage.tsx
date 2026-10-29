@@ -6,10 +6,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { SharedTrendChart, WeeklyVolumeChart, gradeWeeks } from '../charts'
-import { hasRealVolume } from '../charts/monthlyVolume'
-import { timeAxisOf } from '@rca/core/digest/trendSeries'
-import { trendGutter } from '../charts/sharedTrendGutter'
+import { SharedTrendChart, WeeklyVolumeChart } from '../charts'
 import { copyOf } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, headlinePick } from '../components'
@@ -34,14 +31,14 @@ import { hrefFor } from '../route'
 import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
-import { weeklyVolume } from '../weeklyVolume'
 import { balanceChanges } from './balanceChangeItems'
 import { scaleModel } from './balanceScaleModel'
 import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
 import { BalanceScale } from './BalanceScale'
 import { BalanceTiles } from './BalanceTiles'
-import { EvidenceCard } from './EvidenceCard'
+import { EvidenceLine } from './EvidenceLine'
+import { useBalanceTrend } from './useBalanceTrend'
 import { GradeProfileSection } from './GradeProfileSection'
 import './BalancePage.css'
 
@@ -221,40 +218,13 @@ export function BalancePage({
       calibration,
     ],
   )
-  // The hours trained in the trend's own weeks, which the strip under the trend draws; null folds it away.
-  const volume = useMemo(
-    () =>
-      weeklyVolume(
-        result.activities,
-        trend.map((point) => point.endMs),
-      ),
-    [result.activities, trend],
-  )
-  // The trend's weeks, which the volume strip's margin is sized from as the trend's own is. Without an age and sex
-  // there is no grade to draw, so the trend has no weeks and says what it waits for.
-  const trendWeeks = useMemo(
-    () => (weeksWithValue(trend) === 0 || profile === null ? [] : gradeWeeks(trend, profile)),
-    [trend, profile],
-  )
-  // The time axis the trend and the hours share: a week counts if the trend has a value or the athlete trained.
-  const axis = useMemo(
-    () =>
-      timeAxisOf(
-        trend.map((point) => point.endMs),
-        trend.map(
-          (point, i) =>
-            point.runWkg !== null ||
-            point.rideWkg !== null ||
-            (volume?.[i] !== undefined && hasRealVolume(volume[i])),
-        ),
-      ),
-    [trend, volume],
-  )
-  // The strip's margin is the trend's, from the weeks the trend draws, so the two axes line up.
-  const gutter = useMemo(
-    () => trendGutter(trendWeeks, weightKnown, axis),
-    [trendWeeks, weightKnown, axis],
-  )
+  const { volume, trendWeeks, axis, gutter } = useBalanceTrend({
+    trend,
+    activities: result.activities,
+    periodStartMs: period.startMs,
+    profile,
+    weightKnown,
+  })
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
@@ -296,6 +266,7 @@ export function BalancePage({
         rideLevel={gradedLevel(grades.ride)}
         scale={scale === null ? null : <BalanceScale model={scale} />}
         aloneScale={aloneScale === null ? null : <BalanceScale model={aloneScale} />}
+        controls={controls}
         action={
           <ShareImageButton
             result={result}
@@ -311,8 +282,6 @@ export function BalancePage({
           />
         }
       />
-
-      {controls}
 
       <BalanceChanges changes={changes} previousLabel={previousLabel} />
 
@@ -339,11 +308,7 @@ export function BalancePage({
         </div>
       )}
 
-      {bothInPeriod && (
-        <div className="balance__cards">
-          <EvidenceCard effort={effort} noHeartRate={result.maxHeartRate === null} />
-        </div>
-      )}
+      {bothInPeriod && <EvidenceLine noHeartRate={result.maxHeartRate === null} />}
 
       <GradeProfileSection
         result={result}

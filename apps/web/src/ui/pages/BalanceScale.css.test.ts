@@ -52,9 +52,33 @@ describe('level scale stylesheet', () => {
     expect(forced).toMatch(/\.balance-scale__range \{[^}]*stroke:\s*CanvasText/)
   })
 
+  it('gives every label a Canvas halo in forced colours, and draws the band edges light, so no line strikes a label through', () => {
+    expect(forced).toMatch(
+      /\.balance-scale svg text \{[^}]*paint-order:\s*stroke;[^}]*stroke:\s*Canvas;[^}]*stroke-width:\s*4px/,
+    )
+    const edge = /\.balance-scale__band[^{]*\{[^}]*stroke-width:\s*(0?\.\d+)/.exec(forced)
+    expect(Number(edge?.[1])).toBeLessThan(1)
+    // The bands stay visible: each keeps its edge in CanvasText, and the connector is drawn in it too.
+    expect(forced).toMatch(/\.balance-scale__band[^{]*\{[^}]*stroke:\s*CanvasText/)
+    expect(forced).toMatch(/\.balance-scale__connector[^{]*\{[^}]*stroke:\s*CanvasText/)
+  })
+
+  it('draws the gap as one ink connector with round joins, and outlines a range so it shows over the darker bands', () => {
+    expect(ruleBody(css, '.balance-scale__connector')).toMatch(/stroke:\s*var\(--text-primary\)/)
+    expect(ruleBody(css, '.balance-scale__connector')).toMatch(/stroke-linejoin:\s*round/)
+    expect(ruleBody(css, '.balance-scale__range')).toMatch(/stroke:\s*var\(--sport-colour\)/)
+  })
+
+  it('moves the sentence under the drawing on a phone under 480 px, and the title away on a short one', () => {
+    expect(mediaBlock(css, '(max-width: 479px)')).toMatch(/'title'\s*'figure'\s*'lede'\s*'legend'/)
+    expect(mediaBlock(css, '(max-width: 479px) and (max-height: 700px)')).toMatch(
+      /\.balance-scale__title \{[^}]*clip-path/,
+    )
+  })
+
   it('lets the key and the title share a row on a wide screen and puts the key under the drawing on a phone', () => {
     expect(ruleBody(css, '.balance-scale')).toMatch(/'title legend'/)
-    expect(mediaBlock(css, '(max-width: 760px)')).toMatch(/'figure'\s*'legend'/)
+    expect(mediaBlock(css, '(max-width: 760px)')).toMatch(/'lede'\s*'figure'\s*'legend'/)
   })
 
   it('gives a tile’s evidence chip an edge and system colours in forced colours', () => {

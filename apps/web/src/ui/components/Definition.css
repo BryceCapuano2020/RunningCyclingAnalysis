@@ -5,6 +5,7 @@
 }
 
 .definition__term {
+  position: relative;
   margin: 0;
   padding: 0;
   border: 0;
@@ -15,6 +16,16 @@
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+}
+
+/*
+ * A press target of 44 px or more, which the term's own line does not give. It is the button's own pseudo-element,
+ * so the line's height and spacing do not change.
+ */
+.definition__term::after {
+  content: '';
+  position: absolute;
+  inset: -12px -6px;
 }
 
 /* Shown while data-open: a press, which the keyboard makes with the button, or a pointer resting on the term or the note. */
@@ -46,12 +57,46 @@
   display: block;
 }
 
+/* Where the window has no room under the term, the note opens over it, and the bridge to it moves to its foot. */
+.definition[data-placement='above'] .definition__note {
+  top: auto;
+  bottom: calc(100% + var(--space-1));
+}
+
 /* The note touches the term's hover area, so a pointer crossing the gap to it never leaves. */
 .definition__note::before {
   content: '';
   position: absolute;
   inset: calc(var(--space-1) * -1) 0 auto;
   height: var(--space-1);
+}
+
+.definition[data-placement='above'] .definition__note::before {
+  inset: auto 0 calc(var(--space-1) * -1);
+}
+
+/*
+ * On a phone, under 480 px, the note is a sheet at the foot of the window, above the tabs: it never covers the
+ * term it explains, whichever line of a paragraph the term is on, and it has the width to read.
+ */
+@media (max-width: 479px) {
+  .definition .definition__note,
+  .definition[data-placement='above'] .definition__note {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 30;
+    width: auto;
+    max-width: none;
+    padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    border-width: 1px 0 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+    font-size: var(--text-md);
+    transform: none;
+  }
+
+  .definition__note::before {
+    display: none;
+  }
 }
 
 @media (forced-colors: active) {

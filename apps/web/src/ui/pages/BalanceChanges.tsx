@@ -51,29 +51,38 @@ function Tag({ tag }: { tag: ChangeTag }) {
  */
 export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) {
   if (changes === null || previousLabel === null) return null
-  const { items, compared } = changes
+  const { items, notes, compared } = changes
   return (
     <section className="balance-changes" aria-labelledby="balance-changes-title">
       <h2 id="balance-changes-title" className="balance-changes__title">
         {`What changed · vs the ${previousLabel.toLowerCase()}`}
       </h2>
-      {items.length === 0 ? (
+      {items.length === 0 && notes.length === 0 ? (
         <p className="balance-changes__empty">
           {compared ? noChangeText(previousLabel) : notComparedText(previousLabel)}
         </p>
       ) : (
-        <ul className="balance-changes__list" data-count={Math.min(items.length, MAX_CHANGES)}>
-          {items.map((item) => (
-            <li key={item.key} className="balance-changes__item">
-              <Arrow direction={item.direction} />
-              <div>
-                <p className="balance-changes__head">{item.title}</p>
-                <p className="balance-changes__body">{item.body}</p>
-                <Tag tag={item.tag} />
-              </div>
-            </li>
+        <>
+          {items.length === 0 ? null : (
+            <ul className="balance-changes__list" data-count={Math.min(items.length, MAX_CHANGES)}>
+              {items.map((item) => (
+                <li key={item.key} className="balance-changes__item">
+                  <Arrow direction={item.direction} />
+                  <div>
+                    <p className="balance-changes__head">{item.title}</p>
+                    <p className="balance-changes__body">{item.body}</p>
+                    <Tag tag={item.tag} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {notes.map((note) => (
+            <p key={note} className="balance-changes__empty">
+              {note}
+            </p>
           ))}
-        </ul>
+        </>
       )}
     </section>
   )

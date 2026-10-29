@@ -247,10 +247,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --level-1: #eef0f306;
-    --level-2: #eef0f30d;
-    --level-3: #eef0f314;
-    --level-4: #eef0f31d;
-    --level-5: #eef0f326;
+    --level-1: #eef0f308;
+    --level-2: #eef0f315;
+    --level-3: #eef0f323;
+    --level-4: #eef0f32f;
+    --level-5: #eef0f339;
   }
 }

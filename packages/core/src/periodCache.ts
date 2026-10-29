@@ -5,6 +5,7 @@ import type { CombineOptions } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
 import { rideGateKey } from './digest/estimatedRide'
 import type { EstimatedRideGate } from './digest/estimatedRide'
+import type { MaxHeartRates } from './effort'
 import { lateEvidence } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import { sameHeartRate } from './digest/sameHeartRate'
@@ -84,7 +85,8 @@ export class PeriodCache {
     }
   >()
   private previousEntry:
-    (Inputs & { previous: ActivityDigest[]; gate: string; curves: SportCurves }) | null = null
+    | (Inputs & { previous: ActivityDigest[]; gate: string; hardness: string; curves: SportCurves })
+    | null = null
   // Output at the same heart rate reads no mass, so its key is the digests, the period's start and the set-aside.
   // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
   private sameEntries: {
@@ -305,19 +307,34 @@ export class PeriodCache {
     settings: AthleteSettings,
     bikeModel: BikeModel,
     rideGate?: EstimatedRideGate | null,
+    judged?: { referenceHr: MaxHeartRates; setAside: readonly string[] },
   ): SportCurves {
     const cached = this.previousEntry
     const gate = rideGateKey(rideGate)
+    // The effort check reads the library's reference heart rates and the set-aside among the previous period's digests.
+    const hardness =
+      judged === undefined
+        ? 'none'
+        : `${judged.referenceHr.run}|${judged.referenceHr.ride}|${setAsideAmong(previous, judged.setAside)}`
     if (
       cached !== null &&
       cached.gate === gate &&
+      cached.hardness === hardness &&
       sameInputs(cached, selected, settings) &&
       sameDigests(cached.previous, previous)
     ) {
       return cached.curves
     }
-    const curves = sportCurves(previous, settings, bikeModel, rideGate)
-    this.previousEntry = { selected, settings, previous, gate, curves }
+    const curves = sportCurves(
+      previous,
+      settings,
+      bikeModel,
+      rideGate,
+      judged === undefined
+        ? undefined
+        : { reference: judged.referenceHr, setAside: new Set(judged.setAside) },
+    )
+    this.previousEntry = { selected, settings, previous, gate, hardness, curves }
     return curves
   }
 }

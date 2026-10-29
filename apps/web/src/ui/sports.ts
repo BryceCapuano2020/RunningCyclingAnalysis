@@ -150,3 +150,9 @@ export const THRESHOLD_MEANING: Record<Sport, string> = {
   run: `About the pace you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
   ride: `About the power you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
 }
+
+/** What a threshold is, in one line under its tile's name: the figure it gives, and for how long it can be held. */
+export const THRESHOLD_GLOSS: Record<Sport, string> = {
+  run: 'Pace you could hold for about an hour',
+  ride: 'Power you could hold for about an hour',
+}

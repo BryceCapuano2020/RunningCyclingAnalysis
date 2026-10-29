@@ -110,3 +110,44 @@
 .range-picker__swapped {
   color: var(--text-secondary);
 }
+
+/*
+ * The compact form, under Balance's scoreboard: chips about 40 px tall in one row where they fit, and the dates, the
+ * count and the note as one small line. The legend is hidden but still names the group.
+ */
+.range-picker--compact {
+  gap: var(--space-1);
+}
+
+.range-picker--compact .segmented-control__option {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding-inline: 6px;
+  font-size: var(--text-sm);
+}
+
+/*
+ * The five chips are one row on a phone: they fit at 360 px and up, and slide sideways under it, with the last one
+ * cut at the edge to say so, rather than wrapping to a second row the first screen has no room for.
+ */
+@media (max-width: 479px) {
+  .range-picker--compact .segmented-control__options,
+  .range-picker--compact .segmented-control__options:has(> :nth-child(4)) {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .range-picker--compact .segmented-control__option {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+}
+
+.range-picker--compact .range-picker__caption a {
+  color: inherit;
+  text-underline-offset: 2px;
+}

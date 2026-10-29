@@ -1,15 +1,17 @@
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { BalanceReading } from '../components/balanceScale'
-import { countSport } from '../records'
+import { countSport, headlineWattsEstimated, sportRecords } from '../records'
 import type { GradeOutcome } from '../grades'
 import { SPORT_ORDER } from '../sports'
 import { CrossSportCard } from './CrossSportCard'
 import { EmptySportCard } from './EmptySportCard'
 import { LeanTile } from './LeanTile'
+import type { TileBasis } from './StatTile'
 import { ThresholdTile } from './ThresholdTile'
 import './BalanceTiles.css'
 
@@ -49,6 +51,14 @@ export function BalanceTiles({
     const outcome = grades[sport]
     return outcome?.kind === 'graded' && outcome.grade.range !== null
   })
+  // "Estimated" is said only of watts that were: a measured ride's level is an equivalent, not an estimate of its power.
+  const leanBasis: TileBasis = !estimated
+    ? 'recorded'
+    : headlineWattsEstimated('ride', sportRecords(result, 'ride', massKg, units))
+      ? 'estimated'
+      : 'equivalent'
+  // The heart-rate check of the headline effort, which each threshold tile says for its own sport.
+  const effortCheck = result.effort.find((check) => check.durationS === HEADLINE_DURATION_S) ?? null
   const tiles = [
     ...SPORT_ORDER.map((sport) =>
       countSport(result.activities, sport) > 0 ? (
@@ -60,6 +70,7 @@ export function BalanceTiles({
           massKg={massKg}
           grade={grades[sport]}
           weighted={weighted}
+          effort={effortCheck}
         />
       ) : (
         <EmptySportCard
@@ -73,7 +84,7 @@ export function BalanceTiles({
     ),
     ...(reading === null || !weighted
       ? []
-      : [<LeanTile key="lean" reading={reading} estimated={estimated} />]),
+      : [<LeanTile key="lean" reading={reading} basis={leanBasis} />]),
     ...(both
       ? [
           <CrossSportCard

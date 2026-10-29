@@ -43,6 +43,15 @@ export interface RangePickerProps {
   total: number
   /** What is counted; the activities unless a sport page says otherwise. */
   noun?: keyof typeof NOUNS
+  /**
+   * The compact form Balance sets under its scoreboard: the legend hidden (the group is still named), the chips
+   * tight, and the dates, the count and the note on one line under them.
+   */
+  compact?: boolean
+  /** Where the count links to, such as the activity list that holds them. */
+  countHref?: string
+  /** What the count leaves out, such as "(38 walking-pace runs left out)", said after it. */
+  leftOut?: string
   /** An import is running, so a pick waits for it and says so. */
   busy?: boolean
   /**
@@ -67,6 +76,9 @@ export function RangePicker({
   shown,
   total,
   noun = 'activity',
+  compact = false,
+  countHref,
+  leftOut,
   busy = false,
   onChange,
 }: RangePickerProps) {
@@ -95,7 +107,13 @@ export function RangePicker({
   const offered = custom ? [...options, CUSTOM_OPTION] : options
   const [singular, pluralForm] = NOUNS[noun]
   const totalPhrase = plural(total, singular, pluralForm)
-  const count = shown < total ? `${formatCount(shown)} of ${totalPhrase}` : ''
+  // All of them need no count, unless something is said to be left out of it: then it says how many it is.
+  const count =
+    shown < total
+      ? `${formatCount(shown)} of ${totalPhrase}`
+      : leftOut === undefined
+        ? ''
+        : totalPhrase
   // Changing the period changes every number on the page, so the choice, the count and the dates are
   // announced. The region stays mounted, so the announcement is made when its text changes.
   const counted =
@@ -123,9 +141,10 @@ export function RangePicker({
     )
   }
   return (
-    <div className="range-picker" ref={rootRef}>
+    <div className={compact ? 'range-picker range-picker--compact' : 'range-picker'} ref={rootRef}>
       <SegmentedControl
         legend="Period"
+        legendHidden={compact}
         options={offered.map(({ value, label }) => ({ value, label }))}
         selected={customOpen ? CUSTOM_OPTION.value : optionValue(checked)}
         onSelect={(value) => {
@@ -142,23 +161,34 @@ export function RangePicker({
       {custom && customOpen && (
         <CustomRangeForm range={range} onApply={(next, reversed) => pick(next, reversed)} />
       )}
-      {(dates !== '' || count !== '' || swapped) && (
+      {(dates !== '' || count !== '' || swapped || (compact && noteText)) && (
         <p className="range-picker__caption muted">
           {dates !== '' && <span className="range-picker__dates">{dates}</span>}
           {dates !== '' && count !== '' && ' · '}
-          {count !== '' && <span className="range-picker__count">{count}</span>}
+          {count !== '' && (
+            <span className="range-picker__count">
+              {countHref === undefined ? count : <a href={countHref}>{count}</a>}
+              {leftOut === undefined ? null : ` ${leftOut}`}
+            </span>
+          )}
           {swapped && (
             <>
               {(dates !== '' || count !== '') && ' · '}
               <span className="range-picker__swapped">{SWAPPED_NOTE}</span>
             </>
           )}
+          {compact && noteText ? (
+            <>
+              {(dates !== '' || count !== '' || swapped) && ' · '}
+              <span className="range-picker__inline-note">{noteText}</span>
+            </>
+          ) : null}
         </p>
       )}
       <p role="status" className="sr-only">
         {announcement}
       </p>
-      {noteText && <p className="range-picker__note muted">{noteText}</p>}
+      {noteText && !compact && <p className="range-picker__note muted">{noteText}</p>}
     </div>
   )
 }

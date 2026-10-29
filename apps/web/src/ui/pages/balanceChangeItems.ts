@@ -9,11 +9,13 @@ import { activityMasses } from '../activityMasses'
 import { gapOfHeadline } from '../balanceGap'
 import type { BalanceGap } from '../balanceGap'
 import { gapReading } from '../components/balanceScale'
-import { rangeText } from '../components/headlineText'
+import { isPoint, rangeText } from '../components/headlineText'
 import { plural } from '../components/plural'
 import { formatDayMonth } from '../format/date'
-import { headlineGrades } from '../grades'
+import { HEADLINE_LABEL, headlineGrades } from '../grades'
 import type { AgeProfile } from '../grades'
+import { hardEffort } from '../effortCaveat'
+import { isClearChange } from '../charts/sportCurveTakeaway'
 import { recordChange } from '../recordChange'
 import { effortLabel, isEstimatedRecord, valueAt } from '../records'
 import { SPORT_NOUN, SPORT_ORDER } from '../sports'
@@ -65,8 +67,11 @@ export function rangeVerdict(
   return before.low <= now.high && now.low <= before.high ? 'within' : 'beyond'
 }
 
-/** What one comparison gave: null where it could not be made, else its item, or none when the figures are the same. */
-type Compared = { item: ChangeItem | null } | null
+/**
+ * What one comparison gave: null where it could not be made, else its item, or none when the figures are the same.
+ * A comparison that was made but not held, because a best was not a hard effort, carries the line that says so.
+ */
+type Compared = { item: ChangeItem | null; note?: string } | null
 
 /** The sports in the order a positive lead favours them: running first, as every scale in the app does. */
 const [FIRST, SECOND] = SPORT_ORDER
@@ -140,6 +145,30 @@ function setOn(words: string, source: ActivitySummary | null): string {
 }
 
 /**
+ * The line that says a best was not compared, or null when it can be: neither period's best 20 minutes is known to
+ * have been easy. The 90% heart-rate line is the effort check's own; where heart rate does not say, the best stands.
+ */
+function notHardNote(
+  sport: Sport,
+  result: Pick<AnalysisResult, 'effort'>,
+  previous: SportCurves,
+  label: string,
+): string | null {
+  const nowHard = hardEffort(
+    sport,
+    result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
+  )
+  const beforeHard = hardEffort(sport, previous.headlineEffort)
+  if (beforeHard === false) {
+    return `No comparable hard ${HEADLINE_LABEL} of ${SPORT_NOUN[sport]} in the ${label.toLowerCase()}.`
+  }
+  if (nowHard === false) {
+    return `Your best ${HEADLINE_LABEL} of ${SPORT_NOUN[sport]} in this period was not a hard effort, so it is not compared.`
+  }
+  return null
+}
+
+/**
  * A sport's best 20 minutes against the previous period's, in the figures the page shows. Recorded only when both
  * bests were measured: a ride's watts that were estimated, in either period, say estimated. No range is stated for a
  * best, so it claims neither beyond nor within.
@@ -155,6 +184,11 @@ function bestItem(
   const now = NATIVE[sport](bestOn(result, sport))
   const before = NATIVE[sport](bestOn(previous, sport))
   if (!Number.isFinite(now) || !Number.isFinite(before)) return null
+  // A best set at an easy heart rate is not what the sport can do, so it is not set against one that was.
+  const withheld = notHardNote(sport, result, previous, label)
+  if (withheld !== null) return { item: null, note: withheld }
+  // A move under the curve's own floor is no clear change, so the strip lists nothing, as the curve says nothing.
+  if (!isClearChange(sport, now, before, units)) return { item: null }
   const gain = SHOWN_GAIN[sport](now, before, units)
   if (gain === 0) return { item: null }
   const source = setBy(CURVE[sport](result), result.activities)
@@ -232,10 +266,16 @@ export function leanItem(now: BalanceGap, before: BalanceGap): ChangeItem | null
   const verdict = rangeVerdict(before, now)
   const crossed = Math.sign(from) !== Math.sign(to) && from !== 0 && to !== 0
   const grew = Math.abs(to) > Math.abs(from)
-  const title = crossed
-    ? `Lean moved toward ${SPORT_NOUN[favoured(to)]}`
-    : `Lean ${grew ? 'grew' : 'eased'} ${plural(Math.abs(Math.abs(to) - Math.abs(from)), 'pt')}`
-  const range = `90% range now ${rangeText(gapReading(now))}`
+  // Two readings both inside the band that counts as level have not moved sides, whichever way each rounds.
+  const stillLevel = now.lean === 'even' && before.lean === 'even'
+  const title = stillLevel
+    ? 'Still in balance'
+    : crossed
+      ? `Lean moved toward ${SPORT_NOUN[favoured(to)]}`
+      : `Lean ${grew ? 'grew' : 'eased'} ${plural(Math.abs(Math.abs(to) - Math.abs(from)), 'pt')}`
+  // A range that rounds to one value says nothing the figure does not, so no range is written.
+  const reading = gapReading(now)
+  const range = isPoint(reading) ? '' : ` 90% range now ${rangeText(reading)}.`
   const overlap =
     verdict === null
       ? ''
@@ -244,7 +284,7 @@ export function leanItem(now: BalanceGap, before: BalanceGap): ChangeItem | null
     key: 'lean',
     direction: grew ? 'up' : 'down',
     title,
-    body: `From ${leanWords(before)} to ${leanWords(now)}. ${range}${overlap}.`,
+    body: `From ${leanWords(before)} to ${leanWords(now)}.${range === '' ? '' : `${range.slice(0, -1)}${overlap}.`}`,
     tag: verdict ?? 'estimated',
   }
 }
@@ -267,6 +307,8 @@ export interface ChangesInput {
 /** What the strip says: what moved, and whether anything could be compared with the previous period at all. */
 export interface BalanceChangesResult {
   items: ChangeItem[]
+  /** Lines for the comparisons that were not made because a best was not a hard effort. */
+  notes: string[]
   /** False when the previous period lacks the efforts to compare, which is not the same as nothing moving. */
   compared: boolean
 }
@@ -289,12 +331,13 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
   const outcomes = [leanOutcome(), rideShown ? bestItem('ride', best) : null, bestItem('run', best)]
   const compared = outcomes.some((outcome) => outcome !== null)
   const items = outcomes.flatMap((outcome) => (outcome?.item ? [outcome.item] : []))
-  return { items: items.slice(0, MAX_CHANGES), compared }
+  const notes = outcomes.flatMap((outcome) => (outcome?.note === undefined ? [] : [outcome.note]))
+  return { items: items.slice(0, MAX_CHANGES), notes, compared }
 }
 
-/** The strip's line when nothing changed: a move within its range is listed as an item, so this means none. */
+/** The strip's line when nothing clearly changed: a move within its range is listed as an item, and a move under the curve's floor is none, so this means no clear one. */
 export function noChangeText(previousLabel: string): string {
-  return `Nothing changed since the ${previousLabel.toLowerCase()}.`
+  return `No clear change since the ${previousLabel.toLowerCase()}.`
 }
 
 /** The strip's line when the previous period has activities but not the efforts to compare. */

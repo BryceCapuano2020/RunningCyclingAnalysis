@@ -200,9 +200,12 @@ describe('AnalysisSession previous period', () => {
     )
     expect(previousPeriod.length).toBeGreaterThan(0)
     const selected = current.filter((digest) => digest.startMs >= newest - 42 * DAY_MS)
-    expect(state.previous).toEqual(
+    const { headlineEffort, ...curves } = state.previous ?? {}
+    expect(curves).toEqual(
       sportCurves(previousPeriod, SETTINGS, combine(selected, SETTINGS).bikeModel),
     )
+    // The session also says how hard its best 20 min were, against the library's reference heart rates.
+    expect(headlineEffort).toMatchObject({ durationS: 1200 })
   })
 
   it('prices a sparse previous period with the same bike model as the selected one', () => {

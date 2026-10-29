@@ -127,3 +127,37 @@ export function hardEffortsOnFile(effort: EffortCheck | null | undefined): boole
     isHard(effort.rideHrFraction)
   )
 }
+
+/**
+ * Whether a sport's best effort at the headline duration was hard by heart rate, by the same 90% line the
+ * caveats use: true or false, or null where heart rate does not say, as without a heart-rate stream.
+ */
+export function hardEffort(sport: Sport, effort: EffortCheck | null | undefined): boolean | null {
+  return effortShare(sport, effort)?.hard ?? null
+}
+
+/** What a sport's best effort says of its effort as a chip: how hard, by heart rate, with the share and the full reading. */
+export interface EffortChipText {
+  hard: boolean
+  /** "Not a hard effort · 70%" or "Hard effort · 95%": the share of the sport's reference heart rate, as the line shows it. */
+  label: string
+  /** The whole reading, which a definition opens: the share, what it is a share of, and what would change it. */
+  detail: string
+}
+
+/**
+ * The chip for a sport's best effort at the headline duration, or null where heart rate does not say. Balance's
+ * tiles and the sport pages' threshold panels both say the check with it, so the two read the same.
+ */
+export function effortChipText(
+  sport: Sport,
+  effort: EffortCheck | null | undefined,
+): EffortChipText | null {
+  const share = effortShare(sport, effort)
+  if (share === null) return null
+  return {
+    hard: share.hard,
+    label: `${share.hard ? 'Hard effort' : 'Not a hard effort'} · ${share.percent}%`,
+    detail: share.line,
+  }
+}

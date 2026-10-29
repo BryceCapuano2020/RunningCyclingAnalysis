@@ -36,12 +36,18 @@ function hasLongRide(result: AnalysisResult): boolean {
 }
 
 /**
+ * The shortest estimated ride effort the pace on foot is told from: an estimate of watts over a few minutes is too
+ * loose to price as a pace, so a ride that short, with no power meter, is asked for a longer one instead.
+ */
+export const ESTIMATED_EQUIVALENCE_MIN_S = 600
+
+/**
  * The line for a ride that cannot be compared yet: the duration it needs, the dates it is missing
  * between, and "with power" when a ride is long enough but has no power curve to read.
  */
-function needsRideText(period: Period, withPower: boolean): string {
+function needsRideText(period: Period, withPower: boolean, minS = EQUIVALENCE_MIN_S): string {
   const when = betweenClause(period)
-  const need = `Needs a ride of ${formatDuration(EQUIVALENCE_MIN_S)} or more${withPower ? ' with power' : ''}`
+  const need = `Needs a ride of ${formatDuration(minS)} or more${withPower ? ' with power' : ''}`
   return `${need}${when === '' ? '' : ` ${when}`}.`
 }
 
@@ -71,9 +77,18 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
       </StatTile>
     )
   }
-  const paceNumber = formatPaceValue(featured.runSpeed.p50, units)
   const source = rideAt(result, featured.durationS)
   const estimated = isEstimatedRecord('ride', source)
+  if (estimated && featured.durationS < ESTIMATED_EQUIVALENCE_MIN_S) {
+    return (
+      <StatTile heading="Ride on foot">
+        <p className="stat-tile__line">
+          {needsRideText(period, false, ESTIMATED_EQUIVALENCE_MIN_S)}
+        </p>
+      </StatTile>
+    )
+  }
+  const paceNumber = formatPaceValue(featured.runSpeed.p50, units)
   const duration = effortLabel(featured.durationS)
   return (
     <StatTile

@@ -13,6 +13,7 @@ import type { ChartSize } from './chartTypes'
 import { useChartHeight, useNarrowChart } from './chartHeight'
 import type { SharedWeek } from './gradeTrend'
 import { nearestByX } from './hover'
+import { idleFrom, lastIndexWhere } from './idleReadout'
 import { smoothBandPath, smoothLinePath } from './smoothPath'
 import { trendGutter } from './sharedTrendGutter'
 import { sharedTrendLayout } from './sharedTrendLayout'
@@ -113,6 +114,9 @@ export function SharedTrendChart({
   const takeaway = useMemo(() => trendTakeaway(data.weekly, { rideKnown }), [data, rideKnown])
   const legend = legendOf(copy, hasRun, hasRide, hasBand)
   const gutter = useMemo(() => trendGutter(given, rideKnown, axis), [given, rideKnown, axis])
+  // A phone's readout row says the latest week's grades until a point is selected.
+  const latest = lastIndexWhere(rows, (week) => week.run !== null || week.ride !== null)
+  const idle = hasData ? idleFrom(tooltipFor(data, latest, 0, 0, rideKnown)) : undefined
 
   return (
     <div className="takeaway-chart">
@@ -125,6 +129,7 @@ export function SharedTrendChart({
         description={`${copy.description}${axisGapDescription(gaps)}`}
         // Wide, each end label names its line, so no key is drawn; narrow, a label is a value and a mark.
         legend={single === undefined && narrow ? legend : undefined}
+        idleReadout={idle}
         note={
           hasData
             ? [copy.what, ...(heldRide ? [HELD_NOTE] : [])].join(' ')

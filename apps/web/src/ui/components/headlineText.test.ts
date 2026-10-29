@@ -313,6 +313,26 @@ describe('balanceSentence', () => {
     )
   })
 
+  it('leaves the range out where it rounds to one value, never "range 1 to 1 point"', () => {
+    for (const lean of ['run', 'ride'] as const) {
+      const centre = lean === 'run' ? 1 : -1
+      const text = balanceSentence(gapReading(gap({ centre, low: centre, high: centre, lean })))
+      expect(text).toMatch(/^(Running|Cycling) grades 1 point higher than (cycling|running)$/)
+      expect(text).not.toMatch(/range/)
+    }
+    expect(balanceSentence(gapReading(gap({ centre: 0, low: 0, high: 0, lean: 'even' })))).toBe(
+      'In balance: running and cycling have the same age grade',
+    )
+    expect(balanceSentence(gapReading(gap({ centre: 2, low: 2, high: 2, lean: 'even' })))).toBe(
+      'In balance: running 2 points higher',
+    )
+  })
+
+  it('leaves the range out of an even energy ratio that has none, too', () => {
+    const reading = energyReading(interval(1.0, 1.0, 1.0))
+    expect(balanceSentence(reading)).toBe('Level as energy per kilogram')
+  })
+
   it('names cycling and its range the same way when cycling grades higher', () => {
     expect(balanceSentence(gapReading(gap({ centre: -6, low: -10, high: -2, lean: 'ride' })))).toBe(
       'Cycling grades 6 points higher than running (range 2 to 10\u00a0points)',

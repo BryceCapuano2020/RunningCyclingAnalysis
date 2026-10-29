@@ -6,6 +6,7 @@ import { sharedSourceOf } from './activityText'
 import { carriedSpans, strokeSplit } from './carriedStretches'
 import { ChartAnnotations } from './ChartAnnotations'
 import { ChartFrame } from './ChartFrame'
+import { idleFrom } from './idleReadout'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
@@ -103,6 +104,9 @@ export function SportCurveChart({
   const hasData = rows.filter((row) => Number.isFinite(row.value)).length >= 2
   const [active, setActive] = useState<number | null>(null)
   const emphasis = emphasisIndex(rows)
+  // A phone's readout row says the best 20 minutes until a point is selected.
+  const bestRow = hasData ? rows[emphasis] : undefined
+  const idle = bestRow === undefined ? undefined : idleFrom(tooltipFor(bestRow, 0, 0, view), 'Best')
   const layoutOf = useMemo(
     () => sizedOnce((size: ChartSize) => layout(rows, view, size, threshold)),
     [rows, view, threshold],
@@ -147,6 +151,7 @@ export function SportCurveChart({
       description={`Best ${SPORT_FORMAT[sport].nativeLabel.toLowerCase()} for each duration. Duration is on a log scale.${shown ? ` Grey line: ${shown.label}.` : ''}`}
       legend={legend}
       keyNote={noPrevious}
+      idleReadout={idle}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}
       table={{
         caption: noEffort === '' ? caption : `${caption} ${noEffort}.`,

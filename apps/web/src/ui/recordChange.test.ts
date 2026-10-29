@@ -30,7 +30,7 @@ describe('recordChange', () => {
     )
   })
 
-  it('compares paces as the page shows them, so two paces that both show 6:42 are the same', () => {
+  it('compares paces as the page shows them, so two paces that both show 6:42 are no clear change', () => {
     expect(
       recordChange(
         'run',
@@ -39,11 +39,11 @@ describe('recordChange', () => {
         'imperial',
         'Previous 6 weeks',
       ),
-    ).toBe('Same as previous 6 weeks')
+    ).toBe('No clear change from previous 6 weeks')
   })
 
-  it('shows a one-second change when the paces show as 6:43 and 6:42', () => {
-    // 402.6 s shows as 6:43 and 402.2 s as 6:42, so the current pace is one second slower.
+  it('says a one-second change is no clear change, as the curve does, below its floor of three seconds a mile', () => {
+    // 402.6 s shows as 6:43 and 402.2 s as 6:42, one second apart: under the floor every page reads.
     expect(
       recordChange(
         'run',
@@ -52,7 +52,7 @@ describe('recordChange', () => {
         'imperial',
         'Previous 6 weeks',
       ),
-    ).toBe('0:01 /mi slower than previous 6 weeks')
+    ).toBe('No clear change from previous 6 weeks')
   })
 
   it('says a ride is more or less by how many watts, with no pace unit', () => {
@@ -70,9 +70,9 @@ describe('recordChange', () => {
     )
   })
 
-  it('says the same when the displayed figure has not moved', () => {
+  it('says no clear change when the displayed figure has not moved', () => {
     expect(recordChange('ride', 250.2, 250, 'metric', 'Previous 6 weeks')).toBe(
-      'Same as previous 6 weeks',
+      'No clear change from previous 6 weeks',
     )
     expect(
       recordChange(
@@ -82,7 +82,7 @@ describe('recordChange', () => {
         'imperial',
         'Previous 6 weeks',
       ),
-    ).toBe('Same as previous 6 weeks')
+    ).toBe('No clear change from previous 6 weeks')
   })
 
   it('gives nothing when the earlier period has no figure for the record', () => {

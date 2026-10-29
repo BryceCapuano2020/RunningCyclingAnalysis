@@ -10,11 +10,14 @@ import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
 import { FALLBACK_NOTE, periodDates, previousPeriodLabel } from '../components/rangeOptions'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
+import { plural } from '../components/plural'
 import { usePeriodChoice } from '../periodPreference'
+import { sameAsShorterText } from '../periodSame'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
 import { latestActivityText, sportEmptyText } from '../periodCopy'
 import type { SavedActivity } from '../../worker/protocol'
+import { hrefFor } from '../route'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthlete'
@@ -57,6 +60,15 @@ export interface ResultPageProps {
   sex: Sex | null
   /** Whether the visitor is signed in, which says where a removal takes an activity from. */
   signedIn: boolean
+}
+
+/**
+ * The notes under the period's dates as one line: Balance's sit in the dates' own line, so they are joined with a
+ * dot and end without a full stop; a sport page's follow each other as sentences.
+ */
+function noteOf(notes: (string | null)[], inline: boolean): string {
+  const said = notes.filter((note): note is string => note !== null && note !== '')
+  return inline ? said.map((note) => note.replace(/\.$/, '')).join(' · ') : said.join(' ')
 }
 
 /** The page the route names, once there is a result to show. */
@@ -139,21 +151,37 @@ export function ResultPage({
   // The fallback names both sports, so with one sport in the library there is nothing for it to say.
   const bothSports = countSport(analysed, 'run') > 0 && countSport(analysed, 'ride') > 0
   // The note under the dates says why the default is all time, then how old the newest activity is.
+  // Balance sets its period control compact under the scoreboard: it says when a longer period repeats a shorter one,
+  // links its count to the activities, and says how many runs at walking pace the count leaves out.
+  const walking = analysis.state.walkingPaceRuns
   const control = (
     shown: number,
     total: number,
     noun?: Sport,
     dated: string | null = null,
+    balance = false,
   ): ReactNode => (
     <RangePicker
       choice={period.choice}
       custom
       range={periodDays(period)}
       dates={periodDates(period)}
-      note={[period.fellBack && bothSports ? FALLBACK_NOTE : null, dated].filter(Boolean).join(' ')}
+      note={noteOf(
+        [
+          period.fellBack && bothSports ? FALLBACK_NOTE : null,
+          balance ? sameAsShorterText(analysed, period) : null,
+          dated,
+        ],
+        balance,
+      )}
       shown={shown}
       total={total}
       noun={noun}
+      compact={balance}
+      countHref={balance ? hrefFor({ page: 'activities' }) : undefined}
+      leftOut={
+        balance && walking > 0 ? `(${plural(walking, 'walking-pace run')} left out)` : undefined
+      }
       busy={analysis.busy}
       onChange={pickPeriod}
     />
@@ -263,7 +291,7 @@ export function ResultPage({
           units={units}
           profile={profile}
           missingAge={missingAge}
-          controls={control(result.activities.length, totalActivities, undefined, latest)}
+          controls={control(result.activities.length, totalActivities, undefined, latest, true)}
           onShowAll={() => pickPeriod('all')}
           footnote={balanceFootnote}
         />

@@ -121,7 +121,7 @@ function rangeEdges(reading: BalanceReading): string {
 }
 
 /** Whether a lead's range rounds to a single value, so the lead is said as that one value. */
-function isPoint(reading: BalanceReading): boolean {
+export function isPoint(reading: BalanceReading): boolean {
   return Math.round(reading.lead.low) === Math.round(reading.lead.high)
 }
 
@@ -266,17 +266,21 @@ export function leadSentence(reading: BalanceReading): string | null {
  */
 export function balanceSentence(reading: BalanceReading): string {
   const { unit, lean, lead } = reading
+  // A range that rounds to one value says nothing the estimate does not, so its clause is left out.
+  const point = isPoint(reading)
   if (lean === 'even') {
     const centre = wholeCentre(lead)
     const { leader } = leaderOf(readFrom(reading))
     if (unit === 'points') {
-      if (centre === 0) {
-        return `In balance: running and cycling have the same age grade, range ${rangeText(reading)}`
-      }
-      return `In balance: ${leader} ${points(Math.abs(centre))} higher, range ${rangeText(reading)}`
+      const range = point ? '' : `, range ${rangeText(reading)}`
+      if (centre === 0) return `In balance: running and cycling have the same age grade${range}`
+      return `In balance: ${leader} ${points(Math.abs(centre))} higher${range}`
     }
     const { other } = leaderOf(readFrom(reading))
-    return `Level as energy per kilogram (${leader} against ${other} ${rangeText(reading)})`
+    return point
+      ? 'Level as energy per kilogram'
+      : `Level as energy per kilogram (${leader} against ${other} ${rangeText(reading)})`
   }
-  return `${leadingSentence({ ...reading, lean })} (range ${rangeText(reading)})`
+  const leading = leadingSentence({ ...reading, lean })
+  return point ? leading : `${leading} (range ${rangeText(reading)})`
 }

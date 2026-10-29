@@ -880,3 +880,46 @@ describe('BalanceHero while no weight is entered', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('BalanceHero period control and phone lede', () => {
+  const GAPPED = {
+    ...ALL_TIME,
+    result: makeResult(),
+    pick: pickFor(interval(1.05, 1.12, 1.2)),
+    gap: gradedGap(),
+  }
+
+  it('puts the period control between the scoreboard and the scale it redraws', () => {
+    const { container } = render(
+      <BalanceHero
+        {...GAPPED}
+        controls={<div data-testid="controls" />}
+        scale={<div data-testid="scale" />}
+      />,
+    )
+    const answer = container.querySelector('.balance-hero--answer') as Node
+    const controls = screen.getByTestId('controls')
+    const scale = screen.getByTestId('scale')
+    expect(answer.compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(controls.compareDocumentPosition(scale) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('cuts the sentence to its first clause on a phone, with age grade still defined, and keeps both clauses elsewhere', () => {
+    const { container, unmount } = render(<BalanceHero {...GAPPED} />)
+    expect(ledeOf(container)).toMatch(/90% range/)
+    unmount()
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 479px)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }))
+    try {
+      const phone = render(<BalanceHero {...GAPPED} />)
+      expect(ledeOf(phone.container)).toBe('Running’s age grade is 6 points higher.')
+      expect(screen.getByRole('button', { name: 'age grade' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: '90% range' })).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})

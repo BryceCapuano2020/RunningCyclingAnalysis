@@ -95,7 +95,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         : zoneTimes.get(selected, previous, athlete, zoneEstimates, setAside),
     previous:
       athlete !== null && bikeModel !== undefined && previous.length > 0
-        ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate)
+        ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate, {
+            referenceHr: judgement.referenceHr,
+            setAside,
+          })
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,

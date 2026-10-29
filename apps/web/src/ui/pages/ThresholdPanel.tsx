@@ -2,40 +2,20 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { Definition } from '../components/Definition'
-import { CheckIcon, WarningIcon } from '../components/icons'
 import { periodName } from '../components/rangeOptions'
-import { effortShare } from '../effortCaveat'
+import { effortChipText } from '../effortCaveat'
 import { threshold } from '../records'
 import { THRESHOLD_HEADING, THRESHOLD_MEANING } from '../sports'
 import { floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { thresholdSpan } from '../thresholdRange'
 import { unevenNote } from '../unevenNote'
+import { EffortChip } from './EffortChip'
 import { RangeTrack } from './RangeTrack'
 import { BasisChip } from './StatTile'
 
 /** What the track's range is called under it: the fit's own spread, or the range between two fits. */
 const SPAN_LABEL = { spread: 'fit spread', between: 'range' } as const
-
-/** What the chip says of the best 20 minutes by heart rate: the Balance evidence card's two labels. */
-const CHECK_LABEL = { hard: 'Hard efforts on file', soft: 'Not a hard effort' } as const
-
-/**
- * The heart-rate check as one chip beside the threshold, a tick or a warning with its label and the share it rests
- * on. The full sentence, with where the reference heart rate comes from and what would raise it, is the chip's
- * definition, one press away, so the check is said once and not again as a card.
- */
-function HardEffortChip({ share }: { share: { line: string; hard: boolean; percent: number } }) {
-  return (
-    <span className={`chip sport-hero__check ${share.hard ? 'chip--good' : 'chip--warning'}`}>
-      {share.hard ? <CheckIcon /> : <WarningIcon />}
-      <Definition meaning={share.line}>
-        {`${CHECK_LABEL[share.hard ? 'hard' : 'soft']} · ${share.percent}% of reference heart rate`}
-      </Definition>
-    </span>
-  )
-}
 
 /**
  * The threshold, as the page's answer: its name with a chip that says whether it is an estimate, the figure at
@@ -61,7 +41,7 @@ export function ThresholdPanel({
   const hero = fitted ?? floorThreshold(result, sport, massKg, units)
   const span = thresholdSpan(result, sport, massKg, units)
   const floorNote = unevenNote(result, sport)
-  const share = effortShare(
+  const effortChip = effortChipText(
     sport,
     result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
   )
@@ -93,7 +73,7 @@ export function ThresholdPanel({
             <BasisChip basis={floor ? 'floor' : 'estimated'} />
           </span>
         )}
-        {share && <HardEffortChip share={share} />}
+        {effortChip && <EffortChip chip={effortChip} className="sport-hero__check" />}
       </div>
       {hero ? (
         <p className="sport-hero__figure">

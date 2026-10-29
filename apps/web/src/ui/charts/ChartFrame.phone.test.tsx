@@ -169,6 +169,55 @@ describe('the phone readout row’s stylesheet', () => {
   })
 })
 
+describe('the phone readout row at rest', () => {
+  it('says the chart’s own latest value in one line when the chart gives one, else how to read a point', () => {
+    chartWidth(358)
+    const { unmount } = render(<Readable idleReadout="Latest: 64% run, 58% ride" />)
+    expect(screen.getByTestId('chart-readout')).toHaveAttribute(
+      'data-idle',
+      'Latest: 64% run, 58% ride',
+    )
+    unmount()
+    render(<Readable />)
+    expect(screen.getByTestId('chart-readout')).toHaveAttribute(
+      'data-idle',
+      'Select a point to read its value',
+    )
+  })
+
+  it('is one 2 rem line at rest and draws a reading over it, so the plot is never moved by one', () => {
+    const rest = css.slice(
+      css.indexOf('.chart-frame__readout--compact {'),
+      css.indexOf('}', css.indexOf('.chart-frame__readout--compact {')),
+    )
+    expect(rest).toMatch(/min-height: 2rem/)
+    expect(css).toContain('content: attr(data-idle)')
+    expect(css).toMatch(/\.chart-frame__readout--compact \.chart-tooltip \{[^}]*position: absolute/)
+  })
+
+  it('animates its growth only where motion is welcome', () => {
+    const animation = css.indexOf('animation: chart-readout-open')
+    expect(animation).toBeGreaterThan(-1)
+    const block = css.lastIndexOf('@media', animation)
+    expect(css.slice(block, animation)).toContain('prefers-reduced-motion: no-preference')
+  })
+
+  it('leaves the rows other charts host, which set their own readout, on the base rules', () => {
+    // The modifier is ChartFrame's own: a row without it keeps the fullest-reading reserve and its hint.
+    expect(css).toMatch(/\.chart-frame__readout \{\s*min-height: 6rem/)
+    expect(css).toContain("content: 'Select a point to read its value'")
+  })
+
+  it('keeps a reading in the status element that is announced, with the row’s own class', () => {
+    chartWidth(358)
+    render(<Readable />)
+    const readout = screen.getByTestId('chart-readout')
+    expect(readout).toHaveClass('chart-frame__readout', 'chart-frame__readout--compact')
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    expect(within(readout).getByRole('status')).toHaveTextContent('Week 1')
+  })
+})
+
 describe('ChartFrame’s takeaway and focal figure', () => {
   it('writes the takeaway under the title, which stays the chart’s name', () => {
     const { container } = render(

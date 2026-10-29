@@ -16,11 +16,11 @@ export const CARD_COLORS = {
   run: '#f0435f',
   ride: '#4d6ef5',
   neutralMark: '#b6bcc6',
-  level1: '#eef0f306',
-  level2: '#eef0f30d',
-  level3: '#eef0f314',
-  level4: '#eef0f31d',
-  level5: '#eef0f326',
+  level1: '#eef0f308',
+  level2: '#eef0f315',
+  level3: '#eef0f323',
+  level4: '#eef0f32f',
+  level5: '#eef0f339',
 } as const
 
 export type CardColor = keyof typeof CARD_COLORS

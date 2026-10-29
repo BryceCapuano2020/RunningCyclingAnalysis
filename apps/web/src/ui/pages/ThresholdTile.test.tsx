@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { EffortCheck } from '@rca/core/types'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { curvePoint } from '../charts/fixtures'
 import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
@@ -16,6 +17,7 @@ function renderTile(
   result: AnalysisResult,
   grade: GradeOutcome | null = null,
   weighted = true,
+  effort: EffortCheck | null = null,
 ) {
   return render(
     <ThresholdTile
@@ -25,6 +27,7 @@ function renderTile(
       massKg={75}
       grade={grade}
       weighted={weighted}
+      effort={effort}
     />,
   )
 }
@@ -108,6 +111,18 @@ describe('ThresholdTile', () => {
     }
   })
 
+  it('carries the effort chip of its own sport, beside the figure it qualifies', () => {
+    const check = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 }
+    renderTile('run', makeResult(), null, true, check)
+    expect(screen.getByRole('button', { name: 'Not a hard effort · 70%' })).toBeInTheDocument()
+    cleanup()
+    renderTile('ride', makeResult(), null, true, check)
+    expect(screen.getByRole('button', { name: 'Hard effort · 95%' })).toBeInTheDocument()
+    cleanup()
+    renderTile('run', makeResult())
+    expect(screen.queryByRole('button', { name: /effort/ })).toBeNull()
+  })
+
   it('names the tile by its words alone, whatever the definition inside it says', () => {
     renderTile('ride', makeResult())
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toBeInTheDocument()
@@ -155,13 +170,70 @@ describe('ThresholdTile', () => {
     ]
 
     it('gives the level, the grade and the effort it rests on, for a run read as recorded', () => {
+      // A threshold above the best 20 min has no line of its own for it, so the grade line names the effort.
       const result = makeResult({
         activities,
+        runCp: { ...FIT, cpSe: 0.05, cp: FIVE_K_IN_20_MIN_WKG + 1 },
         runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
       })
       const { container } = renderTile('run', result, RUN_GRADED)
       expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
         /^Local · 64% on your best 20 min, \d+:\d{2} \/km\.$/,
+      )
+    })
+
+    it('says the best 20 min was faster than the threshold, once, and keeps its figure off the grade line', () => {
+      const result = makeResult({
+        activities,
+        runCp: { ...FIT, cpSe: 0.05, cp: FIVE_K_IN_20_MIN_WKG - 1 },
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      })
+      const { container } = renderTile('run', result, RUN_GRADED)
+      const lines = [...container.querySelectorAll('.stat-tile__line')].map((l) => l.textContent)
+      expect(lines).toEqual([
+        expect.stringMatching(/^Your best 20 min was faster: \d+:\d{2} \/km$/),
+        'Local · 64% on your best 20 min.',
+      ])
+    })
+
+    it('says a ride’s best 20 min was higher, with its watts marked where they were estimated', () => {
+      const result = makeResult({
+        activities,
+        rideCp: { ...FIT, cpSe: 0.04, cp: 3 },
+        rideMetabolicCurve: [curvePoint(HEADLINE_DURATION_S, 5, 'ride-1')],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 246, 'ride-1')],
+      })
+      const { container } = renderTile('ride', result, RIDE_GRADED)
+      expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
+        'Your best 20 min was higher: 246 W (estimated)',
+      )
+    })
+
+    it('says nothing of the best 20 min when it is not above the threshold, or the fit has none', () => {
+      const below = makeResult({
+        activities,
+        runCp: { ...FIT, cpSe: 0.05, cp: FIVE_K_IN_20_MIN_WKG + 1 },
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      })
+      expect(renderTile('run', below, RUN_GRADED).container.textContent).not.toMatch(/was faster/)
+      cleanup()
+      const none = makeResult({
+        activities,
+        runCp: null,
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      })
+      expect(renderTile('run', none, RUN_GRADED).container.textContent).not.toMatch(/was faster/)
+    })
+
+    it('says what a threshold is under the tile’s name: the pace or power held for about an hour', () => {
+      const run = renderTile('run', makeResult()).container
+      expect(run.querySelector('.stat-tile__gloss')).toHaveTextContent(
+        'Pace you could hold for about an hour',
+      )
+      cleanup()
+      const ride = renderTile('ride', makeResult()).container
+      expect(ride.querySelector('.stat-tile__gloss')).toHaveTextContent(
+        'Power you could hold for about an hour',
       )
     })
 

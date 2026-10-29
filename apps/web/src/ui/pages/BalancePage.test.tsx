@@ -260,9 +260,17 @@ describe('BalancePage', () => {
     renderPage(
       makeResult({ effort: [{ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 }] }),
     )
+    // The check sits on the tile it qualifies, as a one-line chip: no card of its own.
+    const tile = screen.getByRole('article', { name: 'Ride threshold' })
     expect(
-      screen.getByRole('region', { name: 'Your best ride did not reach a hard heart rate' }),
+      within(tile).getByRole('button', { name: 'Not a hard effort · 80%' }),
     ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('article', { name: 'Run threshold' })).getByRole('button', {
+        name: 'Hard effort · 95%',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /hard heart rate/ })).toBeNull()
   })
 
   it('shows no heart-rate card with no comparison while the files have heart rate', () => {
@@ -286,8 +294,9 @@ describe('BalancePage', () => {
       }),
     )
     expect(
-      screen.getByRole('region', { name: 'Add heart rate to sharpen this' }),
+      screen.getByRole('button', { name: 'Add heart rate to sharpen this' }),
     ).toBeInTheDocument()
+    expect(screen.getByText('No heart-rate check')).toBeInTheDocument()
   })
 
   it('folds the equivalence table into the ride on foot tile, closed under its figure', () => {
@@ -514,7 +523,8 @@ describe('BalancePage age grades', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
 
     const tile = screen.getByRole('article', { name: 'Run threshold' })
-    expect(tile).toHaveTextContent(/Local · 67% on your best 20 min, \d+:\d{2} \/(mi|km)\./)
+    expect(tile).toHaveTextContent(/Your best 20 min was faster: \d+:\d{2} \/(mi|km)/)
+    expect(tile).toHaveTextContent(/Local · 67% on your best 20 min\./)
   })
 
   it('drops the standards line from each tile, since the source line at the foot names it', () => {
@@ -757,7 +767,7 @@ describe('BalancePage concept budget', () => {
         copy.querySelectorAll('.definition__note').forEach((note) => note.remove())
         return copy.textContent
       })
-    // The scale, the share sheet's heading, the four tiles, and the one prompt for heart rate: nothing else.
+    // The scale, the share sheet's heading and the four tiles: nothing else. The heart-rate check is a chip on a tile.
     expect(before).toEqual([
       'Where you stand',
       'Share image',
@@ -766,7 +776,6 @@ describe('BalancePage concept budget', () => {
       'Ride threshold',
       'Lean',
       'Ride on foot',
-      'Add heart rate to sharpen this',
     ])
   })
 

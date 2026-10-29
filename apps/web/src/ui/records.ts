@@ -249,6 +249,15 @@ export function headlineEffort(sport: Sport, records: readonly SportRecord[]): s
     : headline.value
 }
 
+/**
+ * Whether the headline effort's watts are an estimate, a ride's that no power meter measured. False for a run, for a
+ * ride whose watts were measured, and when there is no headline effort, so "Estimated" is only said of virtual watts.
+ */
+export function headlineWattsEstimated(sport: Sport, records: readonly SportRecord[]): boolean {
+  const headline = records.find((record) => record.durationS === HEADLINE_DURATION_S)
+  return headline !== undefined && isEstimatedRecord(sport, headline.activity)
+}
+
 export function countSport(activities: ActivitySummary[], sport: Sport): number {
   return activities.filter((activity) => activity.sport === sport).length
 }

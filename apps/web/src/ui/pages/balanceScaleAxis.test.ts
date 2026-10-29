@@ -18,8 +18,31 @@ describe('fitAxis', () => {
     expect(fitAxis([97])).toEqual({ min: 60, max: 100 })
   })
 
+  it('runs past 100% in tens where a grade or a range end does, since grades are not capped', () => {
+    expect(fitAxis([132, 52])).toEqual({ min: 40, max: 140 })
+    expect(fitAxis([60, 62, 115])).toEqual({ min: 50, max: 120 })
+    // A mark at the top of the scale is not on the axis's edge.
+    expect(fitAxis([100, 90])).toEqual({ min: 70, max: 110 })
+    expect(fitAxis([99])).toEqual({ min: 60, max: 100 })
+  })
+
+  it('falls back to the default axis, and returns, for marks that are not numbers or are none', () => {
+    expect(fitAxis([])).toEqual({ min: 40, max: 80 })
+    expect(fitAxis([Number.NaN])).toEqual({ min: 40, max: 80 })
+    expect(fitAxis([62, Number.NaN, 70])).toEqual({ min: 40, max: 80 })
+    expect(fitAxis([Number.POSITIVE_INFINITY, 60])).toEqual({ min: 40, max: 80 })
+  })
+
   it('holds every mark whatever the data', () => {
-    for (const marks of [[10, 90], [55], [30, 99], [70, 71, 72]]) {
+    for (const marks of [
+      [10, 90],
+      [55],
+      [30, 99],
+      [70, 71, 72],
+      [52, 132],
+      [40, 115, 119.4],
+      [100],
+    ]) {
       const { min, max } = fitAxis(marks)
       expect(Math.min(...marks)).toBeGreaterThanOrEqual(min)
       expect(Math.max(...marks)).toBeLessThanOrEqual(max)
@@ -37,6 +60,13 @@ describe('bandsIn', () => {
       { name: 'Local', level: 2, from: 60, to: 70 },
       { name: 'Regional', level: 3, from: 70, to: 80 },
     ])
+  })
+
+  it('lets World run on to the axis’s end where the axis passes 100%', () => {
+    const bands = bandsIn({ min: 40, max: 140 })
+    expect(bands.at(-1)).toMatchObject({ name: 'World', to: 140 })
+    // Every band is clipped and the bands meet, so nothing of the axis is left bare.
+    bands.slice(1).forEach((band, i) => expect(band.from).toBe(bands[i]!.to))
   })
 
   it('names all five on the whole scale, ending World at 100%', () => {

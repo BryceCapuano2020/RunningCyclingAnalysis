@@ -53,3 +53,10 @@ export const HEADLINE_SMALL_MAX_WIDTH_PX = 359
 
 /** From this width Sport and Sort share a row on Activities, the first width past the phone layout. */
 export const SPLIT_FILTERS_MIN_WIDTH_PX = PHONE_MAX_WIDTH_PX + 1
+
+/**
+ * At or below this width the Balance answer is compact so the level scale sits on the first screen: the eyebrow goes (the
+ * period control states the dates), the headline is 28 px, the sentence under it is one clause, and the scale's own
+ * sentence moves under its drawing (BalancePage.css, BalanceScale.css, BalanceHero.tsx).
+ */
+export const BALANCE_PHONE_MAX_WIDTH_PX = 479

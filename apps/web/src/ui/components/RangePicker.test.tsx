@@ -412,3 +412,57 @@ describe('RangePicker custom range', () => {
     expect(screen.queryByLabelText('From')).toBeNull()
   })
 })
+
+describe('RangePicker compact, as Balance sets it under its scoreboard', () => {
+  it('hides the legend but still names the group, and marks the control compact', () => {
+    const { container } = render(picker({ compact: true }))
+    expect(screen.getByRole('group', { name: 'Period' })).toBeInTheDocument()
+    expect(container.querySelector('.range-picker')).toHaveClass('range-picker--compact')
+    expect(container.querySelector('legend')).toHaveClass('sr-only')
+  })
+
+  it('puts the note in the line of the dates and the count, after them, not in a paragraph of its own', () => {
+    const { container } = render(
+      picker({
+        compact: true,
+        dates: '3 Aug – 25 Oct 2026',
+        shown: 42,
+        total: 1909,
+        note: 'Same 42 activities as 6 weeks',
+      }),
+    )
+    expect(container.querySelector('.range-picker__note')).toBeNull()
+    expect(container.querySelector('.range-picker__caption')?.textContent).toBe(
+      '3 Aug – 25 Oct 2026 · 42 of 1,909 activities · Same 42 activities as 6 weeks',
+    )
+  })
+
+  it('links the count to where the activities are, and says how many runs at walking pace it leaves out', () => {
+    render(
+      picker({
+        compact: true,
+        shown: 42,
+        total: 1909,
+        countHref: '#/activities',
+        leftOut: '(38 walking-pace runs left out)',
+      }),
+    )
+    const link = screen.getByRole('link', { name: '42 of 1,909 activities' })
+    expect(link).toHaveAttribute('href', '#/activities')
+    expect(link.closest('.range-picker__count')?.textContent).toBe(
+      '42 of 1,909 activities (38 walking-pace runs left out)',
+    )
+  })
+
+  it('says how many there are, with what is left out, even when the period holds them all', () => {
+    render(picker({ shown: 1909, total: 1909, leftOut: '(38 walking-pace runs left out)' }))
+    expect(
+      screen.getByText(/1,909 activities \(38 walking-pace runs left out\)/),
+    ).toBeInTheDocument()
+  })
+
+  it('leaves a period that holds them all with no count and no link', () => {
+    const { container } = render(picker({ compact: true, countHref: '#/activities' }))
+    expect(container.querySelector('.range-picker__count')).toBeNull()
+  })
+})

@@ -8,6 +8,8 @@ import { balanceOfPick } from '../components/balanceScale'
 import { BalanceMeter } from '../components/BalanceMeter'
 import { levelsTitle } from '../components/headlineText'
 import { WeightPrompt } from '../components/WeightPrompt'
+import { BALANCE_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
+import { useNarrowScreen } from '../useNarrowScreen'
 import { countSport } from '../records'
 import { eyebrowText, gapFigure, titleParts } from './balanceCopy'
 import { fewEffortsText, missingText } from './balanceMissing'
@@ -37,6 +39,8 @@ export interface BalanceHeroProps {
   scale?: ReactNode
   /** The level scale of the one sport on file, under the line that asks for the other; none when both are. */
   aloneScale?: ReactNode
+  /** The period control, directly under the answer it changes, above the scale it redraws. */
+  controls?: ReactNode
 }
 
 /**
@@ -57,7 +61,9 @@ export function BalanceHero({
   rideLevel = null,
   scale = null,
   aloneScale = null,
+  controls = null,
 }: BalanceHeroProps) {
+  const phone = useNarrowScreen(BALANCE_PHONE_MAX_WIDTH_PX)
   const reading = weightKnown ? balanceOfPick(gap, pick) : null
   const head = (title: ReactNode, className?: string) => (
     <div className="balance-hero__head">
@@ -79,6 +85,7 @@ export function BalanceHero({
           <WeightPrompt />
         </p>
         {action}
+        {controls}
       </section>
     )
   }
@@ -101,10 +108,18 @@ export function BalanceHero({
         {aloneScale === null ? action : null}
       </section>
     )
-    if (aloneScale === null) return answer
+    if (aloneScale === null) {
+      return (
+        <div className="balance-hero__pair">
+          {answer}
+          {controls}
+        </div>
+      )
+    }
     return (
       <div className="balance-hero__pair">
         {answer}
+        {controls}
         {aloneScale}
         {action}
       </div>
@@ -133,6 +148,7 @@ export function BalanceHero({
             <BalanceLede
               reading={reading}
               durationS={pick?.point.durationS ?? HEADLINE_DURATION_S}
+              compact={phone}
             />
           </p>
           {few !== null && <p className="secondary">{few}</p>}
@@ -148,6 +164,7 @@ export function BalanceHero({
           </p>
         </div>
       </section>
+      {controls}
       {scale ?? <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />}
       {action}
     </div>
