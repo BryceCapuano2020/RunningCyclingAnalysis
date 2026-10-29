@@ -34,13 +34,14 @@ function rangeOf({ unit, lean, lead }: BalanceReading): { words: string; isRange
   const [low, high] = flip ? [-lead.high, -lead.low] : [lead.low, lead.high]
   const isRange = Math.round(low) !== Math.round(high)
   const middle = (low + high) / 2
+  // A range that reaches zero or the other side is signed, as the page writes it.
+  const signed = lean === 'even' || Math.round(low) < 0
   if (unit === 'percent') {
-    const edge = (value: number) => percentEdge(value, lean === 'even')
+    const edge = (value: number) => percentEdge(value, signed)
     const words = isRange ? `${edge(low)} to ${edge(high)}` : edge(middle)
     return { words, isRange }
   }
-  const count = (value: number) =>
-    lean === 'even' ? signedCount(value) : String(Math.round(value))
+  const count = (value: number) => (signed ? signedCount(value) : String(Math.round(value)))
   const words = isRange ? `${count(low)} to ${count(high)}` : count(middle)
   return { words, isRange }
 }

@@ -1,4 +1,4 @@
-/** Which way a balance leans: toward one sport, or even when its range spans zero. */
+/** Which way a balance leans: toward one sport, or even when the two are level. */
 export type Lean = 'run' | 'ride' | 'even'
 
 /**
@@ -11,11 +11,25 @@ export interface Lead {
   high: number
 }
 
+/** A lead within this many whole points of grade, or whole percent of energy, is level. */
+export const LEVEL_BAND = 2
+
 /**
- * The lean of a lead. It leans toward a sport when its whole range is on that sport's side of zero,
- * and it is even when the range touches or spans zero: the balance is not told apart from even.
+ * The lean of a lead: toward the sport its best estimate favours, and even only when that estimate is
+ * within LEVEL_BAND of zero. The range does not decide it. It is stated beside the estimate, so a
+ * lead of 9 points reads as 9 points whether its range reaches zero or not.
  */
 export function leanOfLead(lead: Lead): Lean {
+  const centre = Math.round(lead.centre)
+  if (Math.abs(centre) <= LEVEL_BAND) return 'even'
+  return centre > 0 ? 'run' : 'ride'
+}
+
+/**
+ * The lean by the range alone: toward a sport when the whole range is on its side of zero, else even.
+ * It says where one sport's grade is outside the other's range, which the grade profile reports.
+ */
+export function leanOfRange(lead: Lead): Lean {
   if (lead.low > 0) return 'run'
   if (lead.high < 0) return 'ride'
   return 'even'

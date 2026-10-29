@@ -3,6 +3,7 @@ import { equivalenceFor } from '@rca/core/pipeline'
 import type { AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { HrCalibration, Sport } from '@rca/core/types'
 import { activityMasses } from './activityMasses'
+import { leanOfRange } from '../domain/lean'
 import { balanceGap } from './balanceGap'
 import { sportGrade } from './grades'
 import type { AgeProfile, SportGrade } from './grades'
@@ -85,7 +86,8 @@ export interface Lean {
 
 /**
  * The durations both sports are graded at, each with its gap and lean. They come from the grades the
- * headline uses, through the balance's own `balanceGap`, so the lean at 20 min is the headline's.
+ * headline uses, through the balance's own `balanceGap`, so the gap at 20 min is the headline's. The
+ * lean here is by the range alone (`leanOfRange`): a sport leads where its grade is outside the other's range.
  */
 export function profileLeans(profile: GradeProfile): Lean[] {
   const [first, second] = SPORT_ORDER
@@ -93,7 +95,7 @@ export function profileLeans(profile: GradeProfile): Lean[] {
     const other = profile[second].find((candidate) => candidate.durationS === point.durationS)
     if (other === undefined) return []
     const gap = balanceGap(point.grade, other.grade)
-    return [{ durationS: point.durationS, gap: gap.centre, lean: gap.lean }]
+    return [{ durationS: point.durationS, gap: gap.centre, lean: leanOfRange(gap) }]
   })
 }
 

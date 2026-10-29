@@ -214,6 +214,20 @@ describe('buildShareCard', () => {
     expect(card?.magnitude).toBe(leadSentence(gapReading(gap)))
   })
 
+  it('leans on a 9 point estimate whose range reaches below zero, and says the lead', () => {
+    const gap: BalanceGap = { centre: 9, low: -4, high: 18, lean: 'run' }
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
+    expect(card?.headline).toBe('Your balance leans toward running')
+    expect(card?.magnitude).toBe('Running grades 9 points higher than cycling')
+    expect(card?.meter).toEqual(gapReading(gap))
+  })
+
+  it('says in balance only for an estimate within two points', () => {
+    const gap: BalanceGap = { centre: 2, low: -6, high: 10, lean: 'even' }
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
+    expect(card?.headline).toBe('Your running and cycling are in balance')
+  })
+
   it('has no magnitude line for a balance in range, where the headline already says so', () => {
     const gap: BalanceGap = { centre: 1, low: -2, high: 4, lean: 'even' }
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)

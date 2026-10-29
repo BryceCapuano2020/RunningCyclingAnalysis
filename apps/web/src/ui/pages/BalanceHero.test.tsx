@@ -74,7 +74,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     )
     expect(
       screen.getByText(
-        'Over 20 min, your running is 5% to 20% higher than your cycling, as energy per kilogram.',
+        'Over 20 min, your running is 12% higher than your cycling, within 5% to 20%, as energy per kilogram.',
       ),
     ).toBeInTheDocument()
   })
@@ -112,7 +112,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Over 20 min, your cycling is 11% to 33% higher than your running, as energy per kilogram.',
+        'Over 20 min, your cycling is 25% higher than your running, within 11% to 33%, as energy per kilogram.',
       ),
     ).toBeInTheDocument()
   })
@@ -229,7 +229,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s, within 2 to 10 points, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
   })
@@ -271,13 +271,36 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(screen.queryByRole('img', { name: /Running grades/ })).toBeNull()
   })
 
+  it('leans on a 9 point estimate whose range reaches below zero, with the range stated and no word of balance', () => {
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap({ centre: 9, low: -4, high: 18, lean: 'run' })}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Running’s age grade is 9 points higher than cycling’s, within −4 to +18 points, on your best 20 min in each.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/in balance|level/)).toBeNull()
+    expect(screen.getByRole('img', { name: /Running grades 9 points/ })).toHaveAccessibleName(
+      /range −4 to \+18\u00a0points/,
+    )
+  })
+
   it('says the two are in balance in the title, and gives the best estimate and its range under it', () => {
     render(
       <BalanceHero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap({ centre: 4, low: -2, high: 10, lean: 'even' })}
+        gap={gradedGap({ centre: 2, low: -2, high: 6, lean: 'even' })}
       />,
     )
     expect(
@@ -285,7 +308,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'On your best 20 min in each, running’s age grade is 4 points higher than cycling’s, with a range of −2 to +10 points for that lead, so the two are level.',
+        'On your best 20 min in each, running’s age grade is 2 points higher than cycling’s, within −2 to +6 points, so the two are level.',
       ),
     ).toBeInTheDocument()
   })
@@ -543,7 +566,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s, within 2 to 10 points, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/12 May/)).not.toBeInTheDocument()
@@ -560,7 +583,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s, within 2 to 10 points, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
   })

@@ -760,22 +760,27 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   dates are not grouped.
 - **Balance is neutral.** Say which way it leans ("Your balance leans toward running"), never
   that a sport is a limiter, a weakness or holding you back.
-- **The balance is stated as a grade gap.** With both grades: "Your running grades 6 points higher
-  than your cycling, on your best 20 min in each." When the gap's range spans zero, the best
-  estimate is named and the range is given, under the title "Your running and cycling are in balance":
-  "On your best 20 min in each, running's age grade is 4 points higher than cycling's, with a range of −2 to +10
-  points for that lead, so the two are level." The range is read from the leading sport's side, so a cycling lead reads "cycling's
-  age grade is 4 points higher than running's, with a range of −2 to +10 points for that lead". When the best estimate is level: "On your best 20 min in each, running and cycling have the same age grade, within −2 to +2 points, so the two are level." A lopsided range names its side: "within −1 to +3 points (running minus cycling)". Never "ahead of". Without an age and
-  sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
-  cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
-  levels. The energy ratio's 90% range names the sport that leads, with the same figures as the sentence
-  and the meter: "Ride against Run, 90% range: 11% to 33%." on How sure is this?, and "Run
-  against Ride, 90% range: -2% to +4%." only when the two are even. The lede names no dates: the period control's caption under the meter gives them when the period is
-  not All time, so the lede reads "Your running grades 2 to 10 points higher than your cycling, on your best
-  20 min in each." on its own. The lede says a lead as its likely range, so the gap is never read as one
-  exact number, and the meter's flag gives the best estimate; the energy ratio does the same: "Over 20 min,
-  your running is 5% to 20% higher than your cycling, as energy per kilogram." A range that rounds to a
-  single value is said as that value: "grades 6 points higher", "about 12% higher".
+- **The balance is stated as a grade gap, led by its best estimate.** With both grades: "Running's age grade
+  is 9 points higher than cycling's, within −4 to +18 points, on your best 20 min in each." The estimate
+  decides the title and the lean (`leanOfLead`): a lead of more than 2 whole points leans toward the sport it
+  favours, "Your balance leans toward running", whether or not its range reaches zero. The range is stated
+  beside the estimate, from the leading sport's side so a cycling lead reads "cycling's age grade is 9 points
+  higher than running's, within −4 to +18 points"; a range wholly on the leader's side is plain ("within 2 to
+  10 points"), and one that reaches zero or the other side is signed with true minus signs. A range that
+  rounds to a single value is left out: "Running's age grade is 6 points higher than cycling's, on your best 20
+  min in each." Only an estimate within 2 whole points (`LEVEL_BAND`), however wide its range, is called level,
+  under the title "Your running and cycling are in balance": "On your best 20 min in each, running's age grade
+  is 2 points higher than cycling's, within −2 to +6 points, so the two are level." Exactly zero reads "running
+  and cycling have the same age grade, within −2 to +2 points, so the two are level.", and a lopsided range
+  names its side: "within −1 to +3 points (running minus cycling)". The page, the meter, its spoken name and the
+  share card all read the one `BalanceReading`, so they cannot disagree. The grade profile keeps its own rule,
+  by range alone (`leanOfRange`): a sport leads at a duration only where its grade is outside the other's range.
+  Never "ahead of". Without an age and sex, the energy ratio stands in, led the same way: "Over 20 min, your
+  running is 12% higher than your cycling, within 5% to 20%, as energy per kilogram." The prompt says that
+  adding them shows the balance in points and levels. The energy ratio's 90% range names the sport that leads,
+  with the same figures as the sentence and the meter: "Ride against Run, 90% range: 11% to 33%." on How sure
+  is this?, and "Run against Ride, 90% range: -2% to +4%." only when the two are level. The lede names no
+  dates: the period control's caption under the meter gives them when the period is not All time.
 - **The level target says what would level the balance.** When the balance leans, one muted line under the
   meter, below the grades, names what the lower sport's best effort at the headline length would need to grade
   level with the higher sport's whole-percent grade, in its own unit, rounded toward the side that levels (watts up to the next 5 W, a pace to the faster 5 s), and a ride's range is the watts at the 5th and 95th percentile of its equivalence, rounded outward to 5 W: "To grade level

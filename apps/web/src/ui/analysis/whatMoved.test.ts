@@ -805,15 +805,15 @@ describe('whatMoved: review fixes for one added activity', () => {
     ])
   })
 
-  it('reads a small energy lead by its edge, as the Balance page does, never as 0%', () => {
-    // A 0.4% lead is still a lean, so it reads as 0.4%, never as 0%.
-    const before = resultWith({ comparison: balance(interval(1.001, 1.004, 1.007)) })
-    const after = resultWith({ comparison: balance(interval(1.001, 1.02, 1.03)) })
+  it('reads a small energy range edge by its value, as the Balance page does, never as 0%', () => {
+    // The range starts a tenth of a percent above even, so its edge reads 0.1%, never 0%.
+    const before = resultWith({ comparison: balance(interval(1.001, 1.03, 1.05)) })
+    const after = resultWith({ comparison: balance(interval(1.001, 1.05, 1.09)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
       {
-        text: 'Your balance now leans more toward running (0.4% → 2%), and the range was 0.1% to 1% and is now 0.1% to 3%',
+        text: 'Your balance now leans more toward running (3% → 5%), and the range was 0.1% to 5% and is now 0.1% to 9%',
         spoken:
-          'Your balance now leans more toward running, from 0.4% to 2%, and the range was 0.1% to 1% and is now 0.1% to 3%',
+          'Your balance now leans more toward running, from 3% to 5%, and the range was 0.1% to 5% and is now 0.1% to 9%',
       },
     ])
   })
