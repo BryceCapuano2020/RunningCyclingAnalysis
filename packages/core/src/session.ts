@@ -147,11 +147,25 @@ export class AnalysisSession {
     return this.outdatedKeys.has(dedupeKey(sport, startMs))
   }
 
-  /** Replaces the whole library with digests that were stored elsewhere (the server). */
-  loadDigests(digests: ActivityDigest[], settings: AthleteSettings): SessionState {
-    // An activity whose save failed exists only here. It stays in the library, and still unsaved, so
-    // adding its file again retries it; a copy already stored under its key replaces it.
-    const unsaved = [...this.digests].filter(([key]) => this.unsynced.has(key))
+  /**
+   * Replaces the whole library with digests that were stored elsewhere. With `keepUnsaved`, for a
+   * library read from the server the session saves to, an activity whose save failed exists only
+   * here: it stays in the library, and still unsaved, so adding its file again retries it, and a copy
+   * already stored under its key replaces it (the stored copy is saved, so nothing waits on it; an
+   * original that failed to upload is still counted by the page as a missing original). A library
+   * read from this browser leaves them out: they belong to the account that is gone.
+   */
+  loadDigests(
+    digests: ActivityDigest[],
+    settings: AthleteSettings,
+    { keepUnsaved = false }: { keepUnsaved?: boolean } = {},
+  ): SessionState {
+    const unsaved = keepUnsaved
+      ? [...this.unsynced.keys()].flatMap((key) => {
+          const digest = this.digests.get(key)
+          return digest === undefined ? [] : [[key, digest] as const]
+        })
+      : []
     this.resetLibrary()
     const outdatedKeys = new Set<string>()
     const incompatibleKeys = new Set<string>()

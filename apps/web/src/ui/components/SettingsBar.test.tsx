@@ -284,6 +284,30 @@ describe('SettingsBar', () => {
     expect(onChange).toHaveBeenLastCalledWith({ bikeMassKg: 9.5 })
   })
 
+  it('keeps a weight retyped in the same field while the first one is still saving', async () => {
+    const user = userEvent.setup()
+    let finish: () => void = () => undefined
+    const onChange = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    render(<SettingsBar settings={SETTINGS} units="metric" onChange={onChange} />)
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '82')
+    await user.tab()
+    await user.clear(body)
+    await user.type(body, '83')
+    finish()
+    expect(await screen.findByText(SAVED)).toBeInTheDocument()
+
+    expect(body).toHaveValue('83')
+    await user.tab()
+    expect(onChange).toHaveBeenLastCalledWith({ massKg: 83 })
+  })
+
   it('keeps the typed weight, and says so, when the change cannot be stored', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn(() => Promise.reject(new Error('offline')))

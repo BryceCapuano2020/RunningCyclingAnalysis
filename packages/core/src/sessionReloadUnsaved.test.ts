@@ -40,7 +40,7 @@ describe('AnalysisSession reloading the library from the server', () => {
     expect(unsavedState.syncIssues).toEqual([{ code: 'network', count: 1 }])
 
     // The server holds only the first activity, as the listing after Update now would show.
-    const reloaded = session.loadDigests([digestActivity(run(0))], SETTINGS)
+    const reloaded = session.loadDigests([digestActivity(run(0))], SETTINGS, { keepUnsaved: true })
     expect(reloaded.totalActivities).toBe(2)
     expect(reloaded.syncIssues).toEqual([{ code: 'network', count: 1 }])
 
@@ -59,8 +59,19 @@ describe('AnalysisSession reloading the library from the server', () => {
     await session.addFiles([fileOf(1)], SETTINGS, undefined, async () => {
       throw new SyncFailure('network', 'could not be saved')
     })
-    const reloaded = session.loadDigests([digestActivity(run(1))], SETTINGS)
+    const reloaded = session.loadDigests([digestActivity(run(1))], SETTINGS, { keepUnsaved: true })
     expect(reloaded.totalActivities).toBe(1)
     expect(reloaded.syncIssues).toEqual([])
+  })
+
+  it('leaves them out of a library read from this browser, as when a session expired mid-import', async () => {
+    const session = new AnalysisSession()
+    await session.addFiles([fileOf(1)], SETTINGS, undefined, async () => {
+      throw new SyncFailure('signed-out', 'The session ended')
+    })
+    const device = session.loadDigests([digestActivity(run(0))], SETTINGS)
+
+    expect(device.totalActivities).toBe(1)
+    expect(device.result?.activities.map((a) => a.id)).toEqual([run(0).id])
   })
 })

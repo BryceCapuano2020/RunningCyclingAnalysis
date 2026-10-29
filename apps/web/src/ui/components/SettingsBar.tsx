@@ -77,15 +77,16 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
     return displayWeight(weightKg(settings, field), units)
   }
 
-  async function saveChange(field: WeightField, kg: number) {
+  async function saveChange(field: WeightField, kg: number, text: string | undefined) {
     setStatus('saving')
     const change = field === 'body' ? { massKg: kg } : { bikeMassKg: kg }
     try {
       await onChange(change)
-      // Only this field's: the other may have been typed in while the save was away.
+      // Only this field's, and only the text that was saved: more may have been typed, in this field
+      // or the other, while the save was away.
       setError((earlier) => (earlier?.field === field ? null : earlier))
       if (field === 'body') setUnusual(null)
-      setDraft((earlier) => (earlier?.field === field ? null : earlier))
+      setDraft((earlier) => (earlier?.field === field && earlier.text === text ? null : earlier))
       setPartial(null)
       setStatus('saved')
     } catch (failure) {
@@ -117,7 +118,7 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
       setUnusual(read.kg)
       return
     }
-    await saveChange(field, read.kg)
+    await saveChange(field, read.kg, text)
   }
 
   function handleBlur(field: WeightField, event: FocusEvent<HTMLInputElement>) {
@@ -171,7 +172,7 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
                   ref={saveRef}
                   type="button"
                   className="btn"
-                  onClick={() => void saveChange('body', unusual)}
+                  onClick={() => void saveChange('body', unusual, draft?.text)}
                 >
                   Save {unusualKgText(unusual)} kg
                 </button>

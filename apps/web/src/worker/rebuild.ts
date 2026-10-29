@@ -62,6 +62,7 @@ export async function loadServer(
   return ctx.session.loadDigests(
     records.map((record) => record.digest),
     settings,
+    { keepUnsaved: true },
   )
 }
 
@@ -146,6 +147,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   const state = ctx.session.loadDigests(
     refreshed.map((record) => record.digest),
     settings,
+    { keepUnsaved: true },
   )
   ctx.savedRecords.clear()
   for (const record of refreshed) ctx.savedRecords.set(record.id, record)
