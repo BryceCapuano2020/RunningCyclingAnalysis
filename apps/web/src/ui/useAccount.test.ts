@@ -7,8 +7,10 @@ import { ApiRequestError } from '../api/client'
 import { useAccount } from './useAccount'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
 import { forgetAccountDetails } from '../worker/forgetAccountDetails'
+import { sweepAccountDetails } from '../worker/sweepAccountDetails'
 
 vi.mock('../worker/deleteAccountDetails', () => ({ deleteAccountDetails: vi.fn(async () => null) }))
+vi.mock('../worker/sweepAccountDetails', () => ({ sweepAccountDetails: vi.fn(async () => {}) }))
 vi.mock('../worker/forgetAccountDetails', () => ({
   forgetAccountDetails: vi.fn(async () => null),
 }))
@@ -632,6 +634,40 @@ describe('useAccount', () => {
         await result.current.refresh()
       })
 
+      expect(forgetAccountDetails).not.toHaveBeenCalled()
+    })
+
+    it('sweeps the other accounts on a definite answer from the server, keeping the signed-in one', async () => {
+      const { result } = await renderSignedIn()
+      expect(sweepAccountDetails).toHaveBeenLastCalledWith('u1')
+      mocked.getMe.mockResolvedValue(null)
+      await act(async () => {
+        await result.current.refresh()
+      })
+
+      expect(sweepAccountDetails).toHaveBeenLastCalledWith(null)
+    })
+
+    it('sweeps on a load that finds nobody signed in, as when the session ended with the tab closed', async () => {
+      mocked.getMe.mockResolvedValue(null)
+      renderHook(() => useAccount())
+
+      await waitFor(() => expect(sweepAccountDetails).toHaveBeenCalledExactlyOnceWith(null))
+    })
+
+    it('sweeps every account when the session is marked expired', async () => {
+      const { result } = await renderSignedIn()
+      act(() => result.current.markExpired())
+
+      expect(sweepAccountDetails).toHaveBeenLastCalledWith(null)
+    })
+
+    it('does not sweep, or clear anything, when the lookup fails on the network', async () => {
+      mocked.getMe.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+      const { result } = renderHook(() => useAccount())
+
+      await waitFor(() => expect(result.current.status).toBe('unavailable'))
+      expect(sweepAccountDetails).not.toHaveBeenCalled()
       expect(forgetAccountDetails).not.toHaveBeenCalled()
     })
 

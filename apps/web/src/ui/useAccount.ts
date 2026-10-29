@@ -5,6 +5,7 @@ import { ApiRequestError, signInUrl } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
 import { forgetAccountDetails } from '../worker/forgetAccountDetails'
+import { sweepAccountDetails } from '../worker/sweepAccountDetails'
 
 export type AccountStatus = 'loading' | 'signed-out' | 'signed-in' | 'unavailable'
 
@@ -100,6 +101,9 @@ export function useAccount(): AccountController {
       meRef.current = found
       // The session ended, or another account signed in, without a sign-out here.
       if (previous !== null && previous.user.id !== found?.user.id) forgetEnded(previous.user.id)
+      // A definite answer: any other account's recordings are not this browser's to keep, even one
+      // that ended while no tab was open.
+      void sweepAccountDetails(found?.user.id ?? null)
       profileWriteFailureRef.current = null
       setMe(found)
       setStatus(found ? 'signed-in' : 'signed-out')
@@ -123,6 +127,7 @@ export function useAccount(): AccountController {
     setSessionExpired(true)
     setError('Your session ended. Sign in to keep saving your activities.')
     forgetEnded(ended.user.id)
+    void sweepAccountDetails(null)
   }, [forgetEnded])
 
   useEffect(() => {
