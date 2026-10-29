@@ -150,7 +150,7 @@ const TOPIC_LIST = [
     id: 'limits',
     title: 'Limits',
     plain: [
-      'Best efforts are only as good as the hardest efforts on file. Heat, altitude and fatigue shift heart rate. Treadmill and indoor data have no gradient, so they are treated as flat.',
+      'Best efforts are only as good as the hardest efforts on file. Heat, altitude and fatigue shift heart rate. Treadmill and indoor data have no gradient, so they are treated as flat. Treadmill pace is never used for bests, thresholds or predictions, but its time, distance and heart rate count.',
       `Running bests by time start at ${effortLabel(RECORD_DURATIONS_S.run[0]!)} and the running curve at ${effortLabel(CURVE_START_S.run)}, because shorter slope-adjusted windows mostly measure the slope reading rather than the runner.`,
     ],
   },

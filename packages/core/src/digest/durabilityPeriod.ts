@@ -1,6 +1,7 @@
 import { DURABILITY_AFTER_S, DURABILITY_DURATIONS_S } from '../constants'
 import { possibleRunWkg } from '../curves'
 import type { ActivityDigest, Sport } from '../types'
+import { effortsCount } from './effortTrust'
 
 /** The best output at one duration, the activity it came from and how many activities had one. */
 export interface DurabilityBest {
@@ -33,8 +34,8 @@ interface SportRule {
 
 const SPORT_RULES: Record<Sport, SportRule> = {
   // Runs are in metabolic W/kg. A value above the world-record ceiling for its duration is not a
-  // possible effort, so it counts for nothing, as in the main best curve.
-  run: { counts: () => true, output: possibleRunWkg },
+  // possible effort, so it counts for nothing, as in the main best curve. A treadmill run counts for nothing either.
+  run: { counts: effortsCount, output: possibleRunWkg },
   // Only measured power: a ride's estimated watts are a model's output, never a durability.
   ride: { counts: (digest) => digest.powerSource === 'measured', output: (_s, value) => value },
 }

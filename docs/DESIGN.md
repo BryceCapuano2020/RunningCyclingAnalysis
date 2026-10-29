@@ -685,8 +685,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   this graded?. A run's pace is marked Flat, which the note spells out. Under a run's list a line says its distance
   times are as run, since the pace curve allows for hills: "Distance times are as run. The pace curve allows for
   hills, so they can differ."; a ride's watts are marked
-  Estimated unless a power meter measured them. A record set by a run held indoors is marked
-  Treadmill in the same chip, on its row, on a distance time and in the grade line's effort. When
+  Estimated unless a power meter measured them. A run held indoors on a treadmill sets no
+  record and holds no best: its belt or footpod pace is left out of the run curves, the records, the
+  distance bests, the thresholds, the race predictions and the Balance comparison
+  (`packages/core/src/digest/effortTrust.ts`, a table keyed by sport so a trainer ride's meter still
+  counts). It stays in the activity list, the volume, the time and the heart-rate zones. Its page lists
+  its own distance times under "Distance times", unmarked and ungraded, with one line: "Treadmill pace
+  is not used for bests." When
   every record was set in one activity, that activity is named once under the list ("All set on Morning run,
   5 Jan · 5 months ago"), the link and its count on one line in the second column, the name wrapping
   so the date stays whole. Otherwise each record links to its own activity, with its own count on the

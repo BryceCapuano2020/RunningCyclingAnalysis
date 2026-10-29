@@ -5,15 +5,9 @@ import type { SportCurves } from '@rca/core/digest'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { curvePoint } from '../charts/fixtures'
-import {
-  FIVE_K_IN_20_MIN_WKG,
-  MAN_BORN_1986,
-  makeActivity,
-  makeResult,
-} from '../components/fixtures'
+import { makeActivity, makeResult } from '../components/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { SportPage } from './SportPage'
 
@@ -150,23 +144,29 @@ describe('the change on the period before', () => {
   })
 })
 
-describe('the Treadmill mark', () => {
-  it('marks a run held indoors Treadmill, beside its Flat mark', () => {
-    const indoor = makeActivity({ id: 'run-1', sport: 'run', indoor: true, name: 'Dreadmill' })
-    renderPage(
-      'run',
-      makeResult({
-        activities: [indoor],
-        runCurve: [curvePoint(300, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-      }),
-    )
+describe('a treadmill run on the sport page', () => {
+  it('holds no distance record, so the slower outdoor run holds the 10 km', () => {
+    const indoor = makeActivity({
+      id: 'run-1',
+      sport: 'run',
+      indoor: true,
+      name: 'Dreadmill',
+      distanceBests: [{ distanceM: 10000, seconds: 2192 }],
+    })
+    const outdoor = makeActivity({
+      id: 'run-2',
+      sport: 'run',
+      name: 'Morning run',
+      distanceBests: [{ distanceM: 10000, seconds: 2400 }],
+    })
+    renderPage('run', makeResult({ activities: [indoor, outdoor] }))
 
-    const item = recordNamed('5 min')
-    expect(within(item).getByText('Flat')).toBeInTheDocument()
-    expect(within(item).getByText('Treadmill')).toBeInTheDocument()
+    const item = recordNamed('10 km')
+    expect(within(item).getByText('40:00')).toBeInTheDocument()
+    expect(within(item).queryByText('Treadmill')).toBeNull()
   })
 
-  it('marks a distance record set indoors Treadmill, as the 10 km of an indoor run', () => {
+  it('leaves the 10 km without a record when only the treadmill ran it', () => {
     const indoor = makeActivity({
       id: 'run-1',
       sport: 'run',
@@ -176,35 +176,6 @@ describe('the Treadmill mark', () => {
     })
     renderPage('run', makeResult({ activities: [indoor] }))
 
-    expect(within(recordNamed('10 km')).getByText('Treadmill')).toBeInTheDocument()
-  })
-
-  it('leaves Treadmill off a distance record set outdoors', () => {
-    const outdoor = makeActivity({
-      id: 'run-1',
-      sport: 'run',
-      distanceBests: [{ distanceM: 10000, seconds: 2192 }],
-    })
-    renderPage('run', makeResult({ activities: [outdoor] }))
-
-    expect(within(recordNamed('10 km')).queryByText('Treadmill')).toBeNull()
-  })
-
-  it('names a treadmill headline effort in the grade line', () => {
-    const indoor = makeActivity({ id: 'run-1', sport: 'run', indoor: true, name: 'Dreadmill' })
-    const { container } = renderPage(
-      'run',
-      makeResult({
-        activities: [indoor],
-        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-      }),
-      null,
-      undefined,
-      MAN_BORN_1986,
-    )
-
-    expect(container.querySelector('.age-grade__effort')).toHaveTextContent(
-      'on your best 20 min, 4:00 /km, treadmill',
-    )
+    expect(screen.queryByText('10 km')).toBeNull()
   })
 })

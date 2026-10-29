@@ -14,6 +14,7 @@ import type {
 import { fitBikeModel } from '../virtualPower'
 import { bestOf, bestOfEach, isMeasured, plainCurve } from './bestCurve'
 import { CalibrationPool, calibratedOf } from './calibration'
+import { effortsCount } from './effortTrust'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
@@ -83,13 +84,17 @@ export interface BestCurves {
   bodyKgById: Map<string, number>
 }
 
-/** The best run and ride values at each duration. Rides are priced with bikeModel. */
+/**
+ * The best run and ride values at each duration. Rides are priced with bikeModel. A treadmill run holds
+ * no best (see effortsCount), so it is left out of both curves.
+ */
 export function bestCurves(
-  ordered: ActivityDigest[],
+  all: ActivityDigest[],
   masses: Masses,
   bikeModel: BikeModel,
   todayKg: number,
 ): BestCurves {
+  const ordered = all.filter(effortsCount)
   const runBest = bestOf(ordered, 'run', runCentralWkg)
   if (!masses.dated) {
     const rideBest = bestOfEach(ordered, 'ride', (digest) => {
@@ -166,6 +171,8 @@ export function heartRatePoints(
   const runPoints: HrPoint[] = []
   const ridePoints: HrPoint[] = []
   for (const digest of ordered) {
+    // Treadmill pace is not a power, so a treadmill run's heart rate says nothing of the two sports' efficiency.
+    if (!effortsCount(digest)) continue
     for (const block of digest.hrBlocks) {
       const metabolicPower = blockMetabolic(digest, block)
       if (!(metabolicPower >= 2 * RESTING_W_PER_KG)) continue

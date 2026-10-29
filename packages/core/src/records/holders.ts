@@ -1,6 +1,7 @@
 import { DURATIONS_S, RUN_RECORD_DISTANCES_M } from '../constants'
 import type { RunRecordDistanceM } from '../constants'
 import type { Masses } from '../digest/masses'
+import { effortsCount } from '../digest/effortTrust'
 import { massesOf } from '../digest/masses'
 import { orderedCurrent } from '../digest/ordered'
 import {
@@ -42,6 +43,8 @@ export function recordHolders(
   const ordered = orderedCurrent(digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
+  // A treadmill run holds no record (see effortsCount), though its own times still show on its page.
+  const eligible = ordered.filter(effortsCount)
   const held = new Map<string, EarnedRecord[]>()
   const give = (id: string, record: EarnedRecord) => {
     const list = held.get(id)
@@ -50,7 +53,7 @@ export function recordHolders(
   }
 
   for (const sport of ['run', 'ride'] satisfies Sport[]) {
-    const own = ordered.filter((digest) => digest.sport === sport)
+    const own = eligible.filter((digest) => digest.sport === sport)
     for (const [index, durationS] of DURATIONS_S.entries()) {
       let best: { id: string; value: number } | null = null
       for (const digest of own) {
@@ -73,7 +76,7 @@ export function recordHolders(
 
   for (const distanceM of RUN_RECORD_DISTANCES_M) {
     let best: { id: string; seconds: number } | null = null
-    for (const digest of ordered) {
+    for (const digest of eligible) {
       if (digest.sport !== 'run') continue
       const seconds = digest.distanceBests?.find((b) => b.distanceM === distanceM)?.seconds
       if (seconds !== undefined && (best === null || seconds < best.seconds)) {

@@ -6,7 +6,7 @@ import { recordGradeCell } from '../components/recordGrade'
 import { distanceGrade, listedGradeNotes, sportGrade } from '../grades'
 import type { AgeProfile, GradeOutcome } from '../grades'
 import { recordChange } from '../recordChange'
-import { recordRow, treadmillMarks } from '../recordRow'
+import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import {
   calendarDaysBetween,
@@ -122,7 +122,7 @@ function distanceRowsOf(input: BestEffortInput): {
     sub: paceIsTime(record.distanceM, units) ? null : record.pace,
     // A distance best is the run's own pace, not a flat pace, so it carries no Flat mark.
     grade: recordGradeCell(sport, outcomes[index] ?? null, null, 'row'),
-    tags: treadmillMarks('run', record.activity),
+    tags: [],
     change: null,
     setDays: setDaysOf(record.activity, openedAt),
     activity: record.activity,

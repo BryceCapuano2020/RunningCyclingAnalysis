@@ -1,4 +1,5 @@
 import { HALF_MARATHON_M, MARATHON_M, RUN_RACE_DISTANCES_M } from '@rca/core/constants'
+import { effortsCount } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { predictRunRaces, typicalWeeklyDistance } from '@rca/core/predict'
 import type { PredictionMethod, RunPredictions } from '@rca/core/predict'
@@ -18,10 +19,12 @@ export const RACE_PREDICTORS: Partial<Record<Sport, (result: AnalysisResult) => 
   run: (result) => {
     const runs = result.activities.filter((activity) => activity.sport === RUN)
     return predictRunRaces({
-      // A best shorter than the mile is too short to carry to a race.
-      bests: runs.flatMap((run) =>
-        (run.distanceBests ?? []).filter((best) => best.distanceM >= METRES_PER_MILE),
-      ),
+      // A best shorter than the mile is too short to carry to a race, and a treadmill's pace is no best.
+      bests: runs
+        .filter(effortsCount)
+        .flatMap((run) =>
+          (run.distanceBests ?? []).filter((best) => best.distanceM >= METRES_PER_MILE),
+        ),
       vo2max: result.runVo2max,
       weeklyM: typicalWeeklyDistance(runs),
     })
