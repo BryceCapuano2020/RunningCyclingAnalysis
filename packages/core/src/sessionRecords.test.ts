@@ -71,6 +71,7 @@ describe('AnalysisSession records', () => {
     expect(Object.keys(cached).sort()).toEqual(
       [
         'effortTrends',
+        'fitness',
         'heartRateJudgement',
         'zoneEstimates',
         'hiddenDuplicates',

@@ -5,6 +5,7 @@ import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import { hiddenDigests } from './duplicates'
+import { fitnessStatuses } from './fitness/compute'
 import { splitPeriods } from './period'
 import type { PeriodCache, PeriodChoice } from './period'
 import type { EarnedRecord } from './records'
@@ -88,6 +89,8 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     sameHeartRate,
     lateEvidence: late,
     heartRateJudgement: judgement,
+    // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
+    fitness: fitnessStatuses(analysed, new Set(setAside)),
     zoneEstimates,
     timeInZones:
       athlete === null || analysis === null

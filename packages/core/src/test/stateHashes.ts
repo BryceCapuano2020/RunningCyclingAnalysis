@@ -30,6 +30,7 @@ const FIELDS = [
   'sameHeartRate',
   'lateEvidence',
   'heartRateJudgement',
+  'fitness',
   'zoneEstimates',
   'timeInZones',
   'previous',

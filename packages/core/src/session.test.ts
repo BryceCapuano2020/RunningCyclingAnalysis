@@ -10,6 +10,7 @@ import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import { parseActivityFile } from './import'
 import { generatedName } from './import/names'
 import { windowEnding } from './period'
+import { NO_FITNESS } from './fitness/types'
 import { AnalysisSession, SyncFailure } from './session'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
@@ -423,6 +424,7 @@ describe('AnalysisSession', () => {
       sameHeartRate: NO_SAME_HEART_RATE,
       lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
+      fitness: NO_FITNESS,
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
@@ -517,6 +519,7 @@ describe('AnalysisSession', () => {
       sameHeartRate: NO_SAME_HEART_RATE,
       lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
+      fitness: NO_FITNESS,
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,

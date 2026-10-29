@@ -6,6 +6,7 @@ import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
+import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
 import type { AccountController } from '../useAccount'
@@ -121,6 +122,7 @@ export const EMPTY_SESSION: SessionState = {
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
   heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
+  fitness: NO_FITNESS,
   zoneEstimates: null,
   timeInZones: NO_ZONE_TIMES,
   records: new Map(),
