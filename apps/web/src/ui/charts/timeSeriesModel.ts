@@ -68,13 +68,22 @@ export function smoothingWindowS(spanS: number): number {
 
 const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value))
 
-/** The mean of the `windowS` seconds centred on `centre`, cut short at the ends of the stream, or NaN with no reading in it. */
-function windowMean(stream: SmoothedStream, centre: number, windowS: number): number {
+/**
+ * The mean of the `windowS` seconds centred on `centre`, cut short at the ends of the stream and of the view
+ * (`from` to `to`), or NaN with no reading in it. A window past an end is cut there, not slid inward, so the mean
+ * there stays about its own centre, and a lap's first seconds are not averaged with the seconds before it.
+ */
+function windowMean(
+  stream: SmoothedStream,
+  centre: number,
+  windowS: number,
+  from = 0,
+  to = stream.values.length,
+): number {
   const length = stream.values.length
   const start = Math.round(centre - windowS / 2)
-  // A window past an end is cut there, not slid inward, so the mean there stays about its own centre.
-  const i0 = clamp(start, 0, length)
-  const i1 = clamp(start + windowS, 0, length)
+  const i0 = clamp(start, clamp(from, 0, length), length)
+  const i1 = clamp(start + windowS, 0, clamp(to, 0, length))
   const seen = stream.count[i1]! - stream.count[i0]!
   return seen > 0 ? (stream.sum[i1]! - stream.sum[i0]!) / seen : Number.NaN
 }
@@ -144,7 +153,7 @@ export function reduceSeries(
     // A column with no reading in it is on the line only across a gap of a second or two; a longer one breaks it.
     const gap = seen === 0 && !bridged(stream, first, last, BRIDGED_GAP_S)
     out.x.push(centre)
-    out.mean.push(gap ? Number.NaN : windowMean(stream, centre, windowS))
+    out.mean.push(gap ? Number.NaN : windowMean(stream, centre, windowS, from, to))
     const n = readings.length
     out.lo.push(n === 0 ? Number.NaN : readings[Math.floor(n * BAND_CUT)]!)
     out.hi.push(n === 0 ? Number.NaN : readings[Math.max(0, Math.ceil(n * (1 - BAND_CUT)) - 1)]!)
@@ -153,8 +162,51 @@ export function reduceSeries(
 }
 
 /** The mean of the window around second t, or NaN with no reading in it. */
-export function meanAround(stream: SmoothedStream, t: number, windowS: number): number {
-  return windowMean(stream, t + 0.5, windowS)
+export function meanAround(
+  stream: SmoothedStream,
+  t: number,
+  windowS: number,
+  from?: number,
+  to?: number,
+): number {
+  return windowMean(stream, t + 0.5, windowS, from, to)
+}
+
+/**
+ * How a channel's readings are spread over its row. A pace is read in minutes a kilometre, so it is drawn
+ * evenly in pace (a minute is the same height anywhere on the axis) and faster is up; every other measure is
+ * drawn evenly in its own unit. The readings stay in the channel's own unit, speed for a pace.
+ */
+export type AxisScale = 'linear' | 'pace'
+
+/** The least speed a pace is projected from, m/s, so a pace of no speed is a long one and never infinite. */
+const LEAST_SPEED = 0.01
+
+/** A reading's place along its axis: rising with the reading, and for a pace rising as the pace gets faster. */
+export function projectReading(scale: AxisScale | undefined, value: number): number {
+  return scale === 'pace' ? -1 / Math.max(value, LEAST_SPEED) : value
+}
+
+/** How far up an axis from `low` to `high` a reading sits: 0 at the bottom, 1 at the top, past them for a reading off the axis. */
+export function axisPosition(
+  scale: AxisScale | undefined,
+  low: number,
+  high: number,
+  value: number,
+): number {
+  const base = projectReading(scale, low)
+  const span = projectReading(scale, high) - base || 1
+  return (projectReading(scale, value) - base) / span
+}
+
+/** The share of the way up an axis that a reading sits, held to the axis's ends. */
+export function axisShare(
+  scale: AxisScale | undefined,
+  low: number,
+  high: number,
+  value: number,
+): number {
+  return Math.min(1, Math.max(0, axisPosition(scale, low, high, value)))
 }
 
 /** Maps seconds and values to pixels. The value scale is clamped to the row, so a reading past the axis sits on its edge. */

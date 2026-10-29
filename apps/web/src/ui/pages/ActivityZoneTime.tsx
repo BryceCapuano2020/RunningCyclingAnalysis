@@ -40,10 +40,13 @@ function rowsOf(
 
 const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
 
-/** Why heart rate is not read into zones, which the activity's issues explain. */
+/** Why heart rate is not read into zones: the reason in a line, and the activity's issues give it in full. */
 function SetAsideNote() {
   return (
-    <p className="muted">Heart rate is set aside for this activity, so it is left out of zones.</p>
+    <p className="muted">
+      Heart rate is set aside for this activity: it read too low for the effort, as a working sensor
+      would not, so it is left out of zones.
+    </p>
   )
 }
 
@@ -63,8 +66,8 @@ function ZoneNeed({ sport, heartRateSetAside }: { sport: Sport; heartRateSetAsid
     const { zones, threshold } = OTHER_ZONES[sport]
     return (
       <p className="muted">
-        {zones} are missing. Enter a {threshold} on {profile}, or add more activities for the app to
-        estimate it.
+        {zones} use a {threshold} from {profile}. Enter one there, or add more activities for the
+        app to estimate it.
       </p>
     )
   }

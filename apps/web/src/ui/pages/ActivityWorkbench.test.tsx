@@ -68,16 +68,18 @@ describe('ActivityWorkbench', () => {
   it('names the drawing once and labels each measure’s value range', async () => {
     show(runTrace())
     const figure = await screen.findByRole('figure', { name: 'Pace and heart rate over time' })
-    const plot = within(figure).getByRole('img', { name: /^From 0:00 to 0:10: Pace between/ })
+    const plot = within(figure).getByRole('img', {
+      name: /^From 0:00 to 0:10: Pace mostly between/,
+    })
     expect(plot).toHaveAccessibleName(
-      'From 0:00 to 0:10: Pace between 5:03 /km and 5:33 /km; Heart rate between 120 bpm and 128 bpm',
+      'From 0:00 to 0:10: Pace mostly between 5:03 /km and 5:33 /km; Heart rate mostly between 120 bpm and 128 bpm',
     )
     expect(plot.querySelector('title')).toBeNull()
     expect(
       [...figure.querySelectorAll('[data-channel="heartRate"] .ts-stack__tick')].map(
         (tick) => tick.textContent,
       ),
-    ).toEqual(['120', '125'])
+    ).toEqual(['122', '124', '126'])
     expect(within(figure).getByText('View as table')).toBeInTheDocument()
   })
 
@@ -98,7 +100,9 @@ describe('ActivityWorkbench', () => {
   it('lists measures in plain words, and says None in this interval for one with no reading', async () => {
     const trace = runTrace()
     // Cadence is read only in the last seconds, outside the lap.
-    trace.streams.cadence = Float32Array.from({ length: 10 }, (_, i) => (i >= 8 ? 170 : Number.NaN))
+    trace.streams.cadence = Float32Array.from({ length: 10 }, (_, i) =>
+      i >= 8 ? 170 + i : Number.NaN,
+    )
     show(trace)
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: /^Lap 1/ }))
@@ -110,7 +114,7 @@ describe('ActivityWorkbench', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((header) => header.textContent),
-    ).toEqual(['Measure', 'Average', 'Lowest', 'Highest', 'Time'])
+    ).toEqual(['Measure', 'Average', 'Typical range', 'Time'])
     const cadence = within(table).getByRole('row', { name: /^Cadence/ })
     expect(cadence).toHaveTextContent('None in this interval')
     expect(screen.queryByText(/Not recorded/)).not.toBeInTheDocument()
@@ -238,9 +242,9 @@ describe('ActivityWorkbench', () => {
     const user = userEvent.setup()
     show(steadyTrace(610))
     const start = await screen.findByRole('slider', { name: 'Selection start' })
-    expect(screen.queryByRole('button', { name: 'Whole activity' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument()
     fireEvent.keyDown(start, { key: 'ArrowRight' })
-    await user.click(screen.getByRole('button', { name: 'Whole activity' }))
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
     expect(start).toHaveAttribute('aria-valuenow', '0')
     expect(screen.getByRole('slider', { name: 'Selection end' })).toHaveAttribute(
       'aria-valuenow',
@@ -265,7 +269,9 @@ describe('ActivityWorkbench', () => {
     show(trace)
     const table = await screen.findByRole('table', { name: /pace in the selected interval/i })
     const pace = within(table).getByRole('row', { name: /^Pace/ })
-    expect(pace).toHaveTextContent('5:03 /km')
+    // The one fast second is not the typical range, which is the 5:33 the run held; the average is the distance
+    // over the moving time, the standing seconds in it, as the header's is.
+    expect(pace).toHaveTextContent('Pace5:39 /km5:33 /km')
     expect(pace).not.toHaveTextContent('—')
     expect(pace).toHaveTextContent(/0:48$/)
     expect(
@@ -372,14 +378,33 @@ describe('ActivityWorkbench', () => {
   it('explains when details are unavailable and offers retry after a source failure', async () => {
     const loadTrace = vi.fn(async () => ({ kind: 'missing' }) satisfies ActivityTraceReply)
     render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={loadTrace} />)
-    expect(await screen.findByText(/no original file is saved/i)).toBeInTheDocument()
+    expect(await screen.findByText(/aren't kept on this device/)).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(
-      "Add this activity's file again to see its detail.",
+      "Detailed readings for this activity aren't kept on this device: the browser keeps them for your newest activities, up to its storage limit. Its summary, bests and splits are still here.",
     )
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'those of the oldest activities are dropped first',
-    )
+    // Said of what was dropped, not as a fault: it does not tell a person who just imported to import again.
+    expect(screen.getByRole('status')).not.toHaveTextContent(/add this activity/i)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+
+    const onAddFiles = vi.fn()
+    const offered = render(
+      <ActivityWorkbench
+        activityId="run-2"
+        units="metric"
+        loadTrace={loadTrace}
+        onAddFiles={onAddFiles}
+      />,
+    )
+    // The file is offered again as a quiet action under the note, which opens the file chooser.
+    const again = await screen.findByRole('button', { name: "Add this activity's file again" })
+    expect(again).toHaveClass('btn')
+    expect(again).not.toHaveClass('btn-primary')
+    const file = new File(['x'], 'run.tcx')
+    fireEvent.change(offered.container.querySelector('input[type="file"]')!, {
+      target: { files: [file] },
+    })
+    expect(onAddFiles).toHaveBeenCalledWith([file])
+    offered.unmount()
 
     const failed = vi.fn(async () => ({ kind: 'failed' }) satisfies ActivityTraceReply)
     const view = render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={failed} />)

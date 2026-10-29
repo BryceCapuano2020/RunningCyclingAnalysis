@@ -194,7 +194,7 @@ describe('ActivityPage', () => {
       makeActivity({ id: 'activity-1', name: 'Heart run', avgHeartRate: 150, maxHeartRate: 171 }),
     )
     expect(within(statFor('Average heart rate')).getByText('150 bpm')).toBeInTheDocument()
-    expect(screen.getByText('Highest 30 s average 171 bpm')).toBeInTheDocument()
+    expect(screen.getByText('Peak heart rate (30 s) 171 bpm')).toBeInTheDocument()
     unmount()
     renderPage(
       makeActivity({
@@ -220,15 +220,16 @@ describe('ActivityPage', () => {
     expect(within(statFor('Average power')).getByText('210 W')).toBeInTheDocument()
   })
 
-  it('says a ride without a power meter has estimated power, and gives no power figure', () => {
-    renderPage({ ...powerRide, powerSource: 'virtual' })
+  it('says a ride without a power meter has estimated power only where an estimated power figure is shown', () => {
+    const sentence = 'Power here is estimated from speed and climbs. No power meter recorded it.'
+    const { unmount } = renderPage({ ...powerRide, powerSource: 'virtual' })
     expect(screen.queryByText('Power', { selector: 'dt' })).not.toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Power here is estimated from speed and climbs. No power meter recorded it.',
-      ),
-    ).toBeInTheDocument()
     expect(screen.queryByText('Average power', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(screen.queryByText(sentence)).not.toBeInTheDocument()
+    unmount()
+    renderPage({ ...powerRide, powerSource: 'virtual', avgPowerW: 180 })
+    expect(screen.getByText(sentence)).toBeInTheDocument()
+    expect(within(statFor('Average power')).getByText('Estimated')).toBeInTheDocument()
   })
 
   it('guards an average power that carries estimated watts, as estimated', () => {
@@ -1198,5 +1199,58 @@ describe('the back link', () => {
     renderPage(morningRun)
     fireEvent.click(screen.getByRole('link', { name: 'Back to activities' }), modifier)
     expect(back).not.toHaveBeenCalled()
+  })
+})
+
+describe('ActivityPage layout around the timeline', () => {
+  const heartRun = { ...morningRun, avgHeartRate: 150, maxHeartRate: 171 }
+
+  it('puts the distance and pace in the key strip and the climb and heart rate in the tiles that follow the timeline', async () => {
+    renderPage(heartRun)
+    const key = document.querySelector('.activity-page__stats--key')!
+    const more = document.querySelector('.activity-page__stats--more')!
+    expect(
+      within(key as HTMLElement)
+        .getAllByRole('term')
+        .map((t) => t.textContent),
+    ).toEqual(['Distance', 'Average pace'])
+    expect(
+      within(more as HTMLElement)
+        .getAllByRole('term')
+        .map((t) => t.textContent),
+    ).toEqual(['Climb', 'Average heart rate'])
+  })
+
+  it('leads a ride with its power in the key strip, and gives its speed to the tiles below', () => {
+    renderPage({ ...powerRide, avgPowerW: 210 })
+    const key = document.querySelector('.activity-page__stats--key') as HTMLElement
+    expect(
+      within(key)
+        .getAllByRole('term')
+        .map((t) => t.textContent),
+    ).toEqual(['Distance', 'Average power'])
+    expect(
+      within(document.querySelector('.activity-page__stats--more') as HTMLElement).getByText(
+        'Average speed',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('becomes a summary with a note after it when the recording is not kept, and offers the file as a quiet action', async () => {
+    const onAddFiles = vi.fn()
+    renderPage(morningRun, undefined, 'metric', undefined, undefined, undefined, undefined, {
+      loadTrace: async () => ({ kind: 'missing' }),
+      onAddFiles,
+    })
+    await screen.findByText(/aren't kept on this device/)
+    await waitFor(() =>
+      expect(document.querySelector('.activity-page__main')).toHaveClass(
+        'activity-page__main--summary-only',
+      ),
+    )
+    expect(document.querySelector('.activity-workbench')).toHaveClass('activity-workbench--note')
+    expect(screen.getByRole('button', { name: "Add this activity's file again" })).not.toHaveClass(
+      'btn-primary',
+    )
   })
 })

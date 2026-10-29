@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { MouseEvent } from 'react'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import type { EarnedRecord } from '@rca/core/records'
@@ -21,7 +20,6 @@ import type { AgeProfile } from '../grades'
 import { chipLabels } from '../records'
 import { hrefFor } from '../route'
 import { removedHash } from '../activitiesView'
-import { previousRoute } from '../routeHistory'
 import { SPORT_LABEL } from '../sports'
 import type { RouteReply } from '../routeReply'
 import { useDeleteOutcome } from '../useDeleteOutcome'
@@ -37,6 +35,8 @@ import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
 import { ActivityWorkbench } from './ActivityWorkbench'
 import { routeSegmentPace } from './routePace'
+import { BackLink } from './ActivityBackLink'
+import { backToList, originOf } from './activityBack'
 import { PAGE_HEADING_ID } from './pageHeading'
 import './ActivityPage.css'
 
@@ -68,6 +68,8 @@ export interface ActivityPageProps {
   loadSplits: (id: string) => Promise<DigestSplits | null>
   /** Reads a locally cached detail trace, or an original file only when explicitly requested. */
   loadTrace?: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
+  /** Offers files to the library, for the secondary action on an activity whose detail is not kept. */
+  onAddFiles?: (files: File[]) => void
   /** The library id this activity is saved under, or null when it is not saved, as with the sample. */
   routeId: string | null
   /** Reads a saved activity's route. `fromOriginal` reads the kept original file. */
@@ -106,34 +108,6 @@ function zoneSetsOf(
   )
 }
 
-/** A modified or non-primary click is the browser's to open in a tab, as a link is. */
-function isPlainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
-  return !(event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-}
-
-/**
- * Back to the list. When the list is the page before this one, Back returns to it where it was left,
- * rather than opening it again as a new page.
- */
-function backToList(event: MouseEvent<HTMLAnchorElement>) {
-  if (!isPlainClick(event) || previousRoute()?.page !== 'activities') return
-  event.preventDefault()
-  window.history.back()
-}
-
-/** The page the activity was opened from, when that is the list, Run or Ride; otherwise null. */
-function originOf(): 'activities' | 'run' | 'ride' | null {
-  const page = previousRoute()?.page
-  return page === 'activities' || page === 'run' || page === 'ride' ? page : null
-}
-
-/** Back to where the activity was opened from, so Back and the link agree, as backToList does. */
-function backToOrigin(event: MouseEvent<HTMLAnchorElement>) {
-  if (!isPlainClick(event) || originOf() === null) return
-  event.preventDefault()
-  window.history.back()
-}
-
 /**
  * One activity: its figures, its route, its best efforts and records, its splits, its skipped
  * readings, and the links that explain its numbers.
@@ -152,6 +126,7 @@ export function ActivityPage({
   records,
   loadSplits,
   loadTrace,
+  onAddFiles,
   routeId,
   loadRoute,
   period,
@@ -162,6 +137,8 @@ export function ActivityPage({
   libraryError = null,
 }: ActivityPageProps) {
   const { view: route, show } = useRouteShape(routeId, loadRoute)
+  // Where the interval's figures are drawn from 1100 px, in the column beside the timeline.
+  const [selectionHost, setSelectionHost] = useState<HTMLElement | null>(null)
   const removal = useDeleteOutcome(libraryNotice, libraryError)
   const setAsideIds = heartRateJudgement.setAside
   const zoneSets = useMemo(
@@ -223,13 +200,19 @@ export function ActivityPage({
   const earned = activity.sport === 'ride' && !weightKnown ? [] : (records.get(activity.id) ?? [])
   const chips = chipLabels(earned)
   // With a route, the figures sit beside it on a wide screen, so the header has no blank half.
+  const hasRoute = route.kind === 'shape'
+  // The detail has been looked for and there is none: the page is its summary, and says so after its bests.
+  const noDetail = loadTrace !== undefined && detail.settled && trace === null
   const figures = (
     <div
-      className={
-        route.kind === 'shape'
-          ? 'activity-page__top activity-page__top--route'
-          : 'activity-page__top'
-      }
+      className={[
+        'activity-page__top',
+        hasRoute && 'activity-page__top--route',
+        // With no timeline the figures are the page's own, and a phone lays them out itself.
+        (!loadTrace || noDetail) && 'activity-page__top-only',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       <RouteOutline
         shape={route.kind === 'shape' ? route.route : null}
@@ -238,6 +221,7 @@ export function ActivityPage({
         segmentPace={segmentPace}
       />
       <ActivityStats activity={activity} units={units} />
+      <div ref={setSelectionHost} className="activity-page__selection" />
     </div>
   )
   const timeline = loadTrace ? (
@@ -249,6 +233,8 @@ export function ActivityPage({
       zoneSets={zoneSets}
       heartRateSetAside={setAsideIds.includes(activity.id)}
       onTrace={onTrace}
+      selectionHost={selectionHost}
+      onAddFiles={onAddFiles}
     />
   ) : null
   return (
@@ -274,12 +260,17 @@ export function ActivityPage({
       {timeline === null ? (
         figures
       ) : (
-        <div className="activity-page__main">
+        <div
+          className={`activity-page__main ${
+            noDetail ? 'activity-page__main--summary-only' : 'activity-page__main--detail'
+          }`}
+        >
           {figures}
           {timeline}
         </div>
       )}
-      {activity.powerSource === 'virtual' && (
+      {/* Said where an estimated power is shown, which is where a figure for it is. */}
+      {activity.powerSource === 'virtual' && typeof activity.avgPowerW === 'number' && (
         <p className="secondary">
           Power here is estimated from speed and climbs. No power meter recorded it.
         </p>
@@ -363,20 +354,5 @@ export function ActivityPage({
         </div>
       )}
     </div>
-  )
-}
-
-/** The link back at the top of an activity: to the list, or to the Run or Ride page it was opened from. */
-function BackLink({ origin }: { origin: 'activities' | 'run' | 'ride' | null }) {
-  const label =
-    origin === 'run' || origin === 'ride' ? `Back to ${SPORT_LABEL[origin]}` : 'Back to activities'
-  return (
-    <a
-      className="activity-page__back"
-      href={hrefFor({ page: origin ?? 'activities' })}
-      onClick={backToOrigin}
-    >
-      {label}
-    </a>
   )
 }

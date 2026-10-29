@@ -1,4 +1,4 @@
-import type { SeriesColumns } from './timeSeriesModel'
+import type { AxisScale, SeriesColumns } from './timeSeriesModel'
 
 /** Which colour token a channel is drawn in. The CSS maps each to its `--ch-*` pair. */
 export type ChannelColour = 'pace' | 'power' | 'heartrate' | 'cadence' | 'elevation' | 'neutral'
@@ -34,6 +34,8 @@ export interface StackChannel {
   /** The axis's lowest and highest reading. A reading past either is drawn on its edge, with a mark. */
   low: number
   high: number
+  /** How readings are spread between low and high; a pace is even in pace, not in speed. */
+  scale?: AxisScale
   ticks: ValueTick[]
   columns: SeriesColumns
   /** The reading at the whole second, or null where the channel has none. */

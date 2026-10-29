@@ -1,5 +1,5 @@
 import type { PlotBox } from './chartTypes'
-import { STACK_MARGIN } from './timeSeriesModel'
+import { STACK_MARGIN, axisShare } from './timeSeriesModel'
 import { NARROW_WIDTH } from './ticks'
 import type { StackChannel } from './timeSeriesTypes'
 
@@ -52,9 +52,6 @@ export function layoutOf(width: number, channels: readonly StackChannel[]): Stac
 
 /** A reading's pixel row, clamped to it so one past the axis sits on its edge. */
 export function valueMap(channel: StackChannel, row: { top: number; bottom: number }) {
-  const span = channel.high - channel.low || 1
-  return (value: number) => {
-    const share = Math.min(1, Math.max(0, (value - channel.low) / span))
-    return row.bottom - share * (row.bottom - row.top)
-  }
+  return (value: number) =>
+    row.bottom - axisShare(channel.scale, channel.low, channel.high, value) * (row.bottom - row.top)
 }

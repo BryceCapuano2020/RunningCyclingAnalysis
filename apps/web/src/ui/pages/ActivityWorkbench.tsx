@@ -1,5 +1,4 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import type { ZoneSet } from '@rca/core/zones'
@@ -10,8 +9,11 @@ import { ActivityWorkbenchStack } from './ActivityWorkbenchStack'
 import { RepFadeTable } from './ActivityWorkbenchReps'
 import { SelectionStats } from './ActivityWorkbenchStats'
 import { TimeSelection } from './ActivityWorkbenchTime'
-import { colourOf, overviewOf } from './workbenchChannels'
-import { DEFAULT_METRICS, METRIC_ORDER, metricLabel, metricUnit } from './workbenchFormat'
+import { DetailNote, WorkbenchSection } from './ActivityWorkbenchSection'
+import { MetricControls } from './ActivityWorkbenchMeasures'
+import { overviewOf } from './workbenchChannels'
+import { DEFAULT_METRICS, METRIC_ORDER } from './workbenchFormat'
+import { readableTrace } from './workbenchData'
 import { clampSelection } from './workbenchTime'
 import type { Selection } from './workbenchTime'
 import './ActivityWorkbench.css'
@@ -31,6 +33,13 @@ export interface ActivityWorkbenchProps {
    * (it has either read a trace or found there is none), so the page can use its laps beside it.
    */
   onTrace?: (trace: ActivityTrace | null, settled: boolean) => void
+  /**
+   * The column beside the timeline, where the page draws the interval's figures from 1100 px. Absent, or
+   * on a narrower page, they sit under the timeline.
+   */
+  selectionHost?: HTMLElement | null
+  /** Offers files to the library: the secondary action of an activity whose detail is not kept. */
+  onAddFiles?: (files: File[]) => void
 }
 
 type LoadState =
@@ -41,9 +50,23 @@ type LoadState =
   | { status: 'original'; trace: ActivityTrace }
   | { status: 'failed' }
 
-function channelAvailable(trace: ActivityTrace, metric: TraceMetric): boolean {
-  const stream = trace.streams[metric]
-  return stream !== undefined && stream.some(Number.isFinite)
+/**
+ * What a measure holds: `varies` when it has readings that differ, `empty` when every reading is missing or
+ * they are all one value (a flat terrain, a power meter that read zero throughout), which draws no line worth a
+ * row, and null when the file has no such measure at all.
+ */
+type ChannelContent = 'varies' | 'empty'
+
+function channelContent(trace: ActivityTrace, metric: TraceMetric): ChannelContent | null {
+  const stream = readableTrace(trace).streams[metric]
+  if (stream === undefined) return null
+  let first = Number.NaN
+  for (const value of stream) {
+    if (!Number.isFinite(value)) continue
+    if (Number.isNaN(first)) first = value
+    else if (value !== first) return 'varies'
+  }
+  return 'empty'
 }
 
 function useTrace(activityId: string, loadTrace: ActivityWorkbenchProps['loadTrace']) {
@@ -94,6 +117,8 @@ export function ActivityWorkbench({
   zoneSets,
   heartRateSetAside,
   onTrace = noTrace,
+  selectionHost,
+  onAddFiles,
 }: ActivityWorkbenchProps) {
   return (
     <ActivityWorkbenchSession
@@ -105,27 +130,13 @@ export function ActivityWorkbench({
       zoneSets={zoneSets}
       heartRateSetAside={heartRateSetAside}
       onTrace={onTrace}
+      selectionHost={selectionHost}
+      onAddFiles={onAddFiles}
     />
   )
 }
 
 function noTrace() {}
-
-const HEADING_ID = 'activity-workbench-heading'
-
-/** The section every state sits in, named by what the athlete is looking at. */
-function WorkbenchSection({ sport, children }: { sport?: string; children: ReactNode }) {
-  return (
-    <section className="section activity-workbench" data-sport={sport} aria-labelledby={HEADING_ID}>
-      <h2 id={HEADING_ID}>In detail</h2>
-      {children}
-    </section>
-  )
-}
-
-/** What an activity says when this browser holds no recording of it and keeps no original file. */
-const MISSING_DETAIL =
-  "This browser has no detailed readings for this activity, and no original file is saved. Add this activity's file again to see its detail. Recordings are kept in limited browser space, and those of the oldest activities are dropped first when it is used up."
 
 function ActivityWorkbenchSession({
   activityId,
@@ -135,8 +146,12 @@ function ActivityWorkbenchSession({
   zoneSets,
   heartRateSetAside,
   onTrace,
-}: Required<Omit<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside'>> &
-  Pick<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside'>) {
+  selectionHost,
+  onAddFiles,
+}: Required<
+  Omit<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside' | 'selectionHost' | 'onAddFiles'>
+> &
+  Pick<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside' | 'selectionHost' | 'onAddFiles'>) {
   const loaded = useTrace(activityId, loadTrace)
   const { status } = loaded.state
   const trace =
@@ -157,6 +172,7 @@ function ActivityWorkbenchSession({
         indoor={indoor}
         zoneSets={zoneSets}
         heartRateSetAside={heartRateSetAside}
+        selectionHost={selectionHost}
         fromOriginal={status === 'original'}
       />
     )
@@ -171,29 +187,12 @@ function ActivityWorkbenchSession({
     )
   }
   return (
-    <WorkbenchSection>
-      <p className="secondary" role={status === 'failed' ? 'alert' : 'status'}>
-        {status === 'failed'
-          ? 'The recorded details could not be loaded.'
-          : status === 'originalAvailable'
-            ? 'This browser has no detailed readings for this activity. They can be read from the saved original file.'
-            : MISSING_DETAIL}
-      </p>
-      {status === 'failed' && (
-        <div className="activity-workbench__actions">
-          <button className="btn" type="button" onClick={loaded.retry}>
-            Try again
-          </button>
-        </div>
-      )}
-      {status === 'originalAvailable' && (
-        <div className="activity-workbench__actions">
-          <button className="btn" type="button" onClick={loaded.readOriginal}>
-            Read original file
-          </button>
-        </div>
-      )}
-    </WorkbenchSection>
+    <DetailNote
+      status={status}
+      onRetry={loaded.retry}
+      onReadOriginal={loaded.readOriginal}
+      onAddFiles={onAddFiles}
+    />
   )
 }
 
@@ -203,6 +202,7 @@ function ReadyWorkbench({
   indoor,
   zoneSets,
   heartRateSetAside,
+  selectionHost,
   fromOriginal,
 }: {
   trace: ActivityTrace
@@ -210,11 +210,25 @@ function ReadyWorkbench({
   indoor: boolean
   zoneSets?: readonly ZoneSet[]
   heartRateSetAside?: boolean
+  selectionHost?: HTMLElement | null
   fromOriginal: boolean
 }) {
-  const available = useMemo(
-    () => METRIC_ORDER.filter((metric) => channelAvailable(trace, metric)),
+  const content = useMemo(
+    () =>
+      METRIC_ORDER.flatMap((metric) => {
+        const found = channelContent(trace, metric)
+        return found === null ? [] : [[metric, found] as const]
+      }),
     [trace],
+  )
+  // A measure with nothing to draw has its chip, which says so, and no row until it has something.
+  const available = useMemo(
+    () => content.filter(([, found]) => found === 'varies').map(([metric]) => metric),
+    [content],
+  )
+  const empty = useMemo(
+    () => content.filter(([, found]) => found === 'empty').map(([metric]) => metric),
+    [content],
   )
   const max = Math.floor(trace.durationS)
   const [visible, setVisible] = useState<TraceMetric[]>(() =>
@@ -228,6 +242,12 @@ function ReadyWorkbench({
   // read the whole interval, catch up when the pointer pauses, so dragging across a long ride stays smooth.
   const startS = useDeferredValue(selection.startS)
   const endS = useDeferredValue(selection.endS)
+
+  const whole = selection.startS === 0 && selection.endS === max
+  const reset = () => setChosen({ startS: 0, endS: max })
+  const timeSelection = (
+    <TimeSelection max={max} selection={selection} overview={overview} onChange={setChosen} />
+  )
 
   // An empty recording has no seconds to select, so none of the selection is drawn.
   if (max < 1)
@@ -243,20 +263,6 @@ function ReadyWorkbench({
         Detailed readings stay on this device.
         {fromOriginal && ' Read from the original file.'}
       </p>
-      <MetricControls
-        trace={trace}
-        units={units}
-        available={available}
-        visible={visible}
-        onChange={setVisible}
-      />
-      <LapChoices
-        trace={trace}
-        max={max}
-        selection={selection}
-        units={units}
-        onSelect={setChosen}
-      />
       {visible.length > 0 ? (
         <ActivityWorkbenchStack
           trace={trace}
@@ -264,11 +270,32 @@ function ReadyWorkbench({
           metrics={visible}
           startS={startS}
           endS={endS}
+          onSelect={(from, to) => setChosen({ startS: from, endS: to })}
+          zoomed={!whole}
+          onReset={reset}
+          below={timeSelection}
         />
       ) : (
-        <p className="secondary">Choose a measure to see it over time.</p>
+        <>
+          <p className="secondary">Choose a measure to see it over time.</p>
+          {timeSelection}
+        </>
       )}
-      <TimeSelection max={max} selection={selection} overview={overview} onChange={setChosen} />
+      <LapChoices
+        trace={trace}
+        max={max}
+        selection={selection}
+        units={units}
+        onSelect={setChosen}
+      />
+      <MetricControls
+        trace={trace}
+        units={units}
+        available={available}
+        empty={empty}
+        visible={visible}
+        onChange={setVisible}
+      />
       <RepFadeTable
         trace={trace}
         units={units}
@@ -276,7 +303,14 @@ function ReadyWorkbench({
         selection={selection}
         onSelect={setChosen}
       />
-      <SelectionStats trace={trace} startS={startS} endS={endS} units={units} metrics={visible} />
+      <SelectionStats
+        trace={trace}
+        startS={startS}
+        endS={endS}
+        units={units}
+        metrics={visible}
+        tilesHost={selectionHost}
+      />
       {zoneSets && (
         <ActivityZoneTime
           trace={trace}
@@ -288,50 +322,5 @@ function ReadyWorkbench({
         />
       )}
     </WorkbenchSection>
-  )
-}
-
-function MetricControls({
-  trace,
-  units,
-  available,
-  visible,
-  onChange,
-}: {
-  trace: ActivityTrace
-  units: UnitSystem
-  available: TraceMetric[]
-  visible: TraceMetric[]
-  onChange: (metrics: TraceMetric[]) => void
-}) {
-  if (available.length === 0)
-    return <p className="secondary">No detailed measures were recorded for this activity.</p>
-  return (
-    <fieldset className="activity-workbench__metrics">
-      <legend>Measures shown</legend>
-      {available.map((metric) => (
-        <label key={metric} className={`metric-chip ts-ch ts-ch--${colourOf(metric)}`}>
-          <input
-            type="checkbox"
-            className="metric-chip__input"
-            checked={visible.includes(metric)}
-            onChange={(event) => {
-              const next = new Set(visible)
-              if (event.currentTarget.checked) next.add(metric)
-              else next.delete(metric)
-              onChange(METRIC_ORDER.filter((item) => next.has(item)))
-            }}
-          />
-          <span className="metric-chip__box" aria-hidden="true" />
-          {metricLabel(metric, trace.sport)}{' '}
-          <span className="sr-only">
-            ({metricUnit(metric, trace.sport, units, trace.cadenceUnit)})
-          </span>
-        </label>
-      ))}
-      {visible.includes('cadence') && trace.cadenceUnit === 'unknown' && (
-        <p className="muted">This file does not say whether cadence counts steps or revolutions.</p>
-      )}
-    </fieldset>
   )
 }

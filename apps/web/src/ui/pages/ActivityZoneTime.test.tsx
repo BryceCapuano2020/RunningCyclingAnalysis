@@ -150,22 +150,20 @@ describe('ActivityZoneTime, what it counts and what it says about heart rate', (
     expect(screen.queryByRole('img')).toBeNull()
   })
 
-  it('says heart rate was set aside, and that the sport’s other zones are missing, when none are left', () => {
+  it('says heart rate was set aside and why, and where the sport’s other zones come from, when none are left', () => {
     show(steadyTrace(120), [], 0, 120, true)
     expect(
-      screen.getByText('Heart rate is set aside for this activity, so it is left out of zones.'),
+      screen.getByText(
+        'Heart rate is set aside for this activity: it read too low for the effort, as a working sensor would not, so it is left out of zones.',
+      ),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText(/^Pace zones are missing\. Enter a threshold pace on/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/^Pace zones use a threshold pace from/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
   })
 
   it('names power zones for a ride whose heart rate is set aside and whose power zones are missing', () => {
     show({ ...steadyTrace(120), sport: 'ride' }, [], 0, 120, true)
-    expect(
-      screen.getByText(/^Power zones are missing\. Enter a threshold power on/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/^Power zones use a threshold power from/)).toBeInTheDocument()
   })
 
   it('says it beside the zones that remain', () => {

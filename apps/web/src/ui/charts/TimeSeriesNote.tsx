@@ -36,7 +36,7 @@ export function TimeSeriesNote({
       {clipped && (
         <span className="ts-key">
           <span className="ts-key__swatch ts-key__swatch--edge" aria-hidden="true" />
-          Reading past the axis
+          Reading beyond the chart edge
         </span>
       )}
       {skipped && (

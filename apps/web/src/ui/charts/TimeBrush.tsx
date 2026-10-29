@@ -1,10 +1,9 @@
 import { useCallback, useRef } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
-import { areaPath, linePath } from './timeSeriesModel'
-import type { SeriesColumns } from './timeSeriesModel'
-import { STACK_MARGIN } from './timeSeriesModel'
+import { STACK_MARGIN, areaPath, axisShare, linePath } from './timeSeriesModel'
+import type { AxisScale, SeriesColumns } from './timeSeriesModel'
 import type { ChannelColour } from './timeSeriesTypes'
-import { clamp, draggedRange } from './timeBrushModel'
+import { HANDLE_HIT_PX, draggedRange, handleOffsets } from './timeBrushModel'
 import type { BrushRange, Drag, Part } from './timeBrushModel'
 import { useSize } from './useSize'
 import './TimeBrush.css'
@@ -14,6 +13,7 @@ export interface BrushOverview {
   columns: SeriesColumns
   low: number
   high: number
+  scale?: AxisScale
   colour: ChannelColour
 }
 
@@ -27,7 +27,7 @@ export interface TimeBrushProps {
   spokenTime: (seconds: number) => string
 }
 
-const HEIGHT = 40
+const HEIGHT = 48
 /** A drag that has not moved this far is a click, which changes nothing. */
 const DRAG_THRESHOLD_PX = 3
 /** Presses of an arrow that cross the whole activity. */
@@ -133,6 +133,7 @@ export function TimeBrush({ max, selection, onChange, overview, spokenTime }: Ti
             part="start"
             label="Selection start"
             left={x(startS)}
+            offset={handleOffsets(x(endS) - x(startS)).start}
             value={startS}
             min={0}
             max={endS - 1}
@@ -143,6 +144,7 @@ export function TimeBrush({ max, selection, onChange, overview, spokenTime }: Ti
             part="end"
             label="Selection end"
             left={x(endS)}
+            offset={handleOffsets(x(endS) - x(startS)).end}
             value={endS}
             min={startS + 1}
             max={max}
@@ -159,6 +161,7 @@ function Handle({
   part,
   label,
   left,
+  offset,
   value,
   min,
   max,
@@ -168,6 +171,8 @@ function Handle({
   part: 'start' | 'end'
   label: string
   left: number
+  /** How far the hit area is moved from centred on the edge, in px; the grip stays on the edge. */
+  offset: number
   value: number
   min: number
   max: number
@@ -185,20 +190,24 @@ function Handle({
       aria-valuemax={max}
       aria-valuenow={value}
       aria-valuetext={text}
-      style={{ left }}
+      style={{ left: left - HANDLE_HIT_PX / 2 + offset, width: HANDLE_HIT_PX }}
       onKeyDown={onKeyDown}
     >
-      <span className="ts-brush__grip" aria-hidden="true" />
+      <span
+        className="ts-brush__grip"
+        aria-hidden="true"
+        style={{ transform: `translateX(${-offset}px)` }}
+      />
     </div>
   )
 }
 
 /** The overview's line and area at the track's width, from the activity's first second to its last. */
 function overviewPaths(overview: BrushOverview, width: number, max: number) {
-  const span = overview.high - overview.low || 1
   const map = {
     x: (timeS: number) => (timeS / max) * width,
-    y: (value: number) => HEIGHT - 4 - clamp((value - overview.low) / span, 0, 1) * (HEIGHT - 8),
+    y: (value: number) =>
+      HEIGHT - 4 - axisShare(overview.scale, overview.low, overview.high, value) * (HEIGHT - 8),
   }
   return {
     line: linePath(overview.columns, map),

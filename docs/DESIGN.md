@@ -1325,13 +1325,19 @@ so an overview's spread is quiet behind its trend. The line breaks across a gap 
 or two. Elevation is an area. Each measure has its own colour (the `--ch-*` tokens: pace green, power amber, heart rate
 magenta, cadence olive, elevation stone), which reaches 3:1 on the card in both schemes and stays at least 15 CIEDE2000 from
 the others and from the run, ride and swim hues (`channelTokens.test.ts`); the sport hue still only means a sport. A row's
-axis is fitted to its smoothed line, from the 1st to the 99th percentile, with 8% of room round it and never narrower than a
-fifth of the raw readings' own span (so a flat trend is drawn flat; a measure that cannot be negative is not widened below zero), and a pace axis never reaches zero speed, which would be an
-infinite pace. A raw reading past the axis (a power spike, a standing start) clips at the row's edge. It is marked only where it is more than
-15% of the axis's span past it, with one small tick, in the row's colour at reduced opacity, to each 8 px, and keyed "Reading past
-the axis" under the plot while any is drawn. The band is a spread, not the extremes: the table twin and the interval summary keep
-the true lowest and highest of every reading, spikes included. A
-pace is read faster upward, and its ticks fall on round paces (4:30, not 4:32). There is no histogram: the time in zones says how
+axis is fitted to its smoothed line over what is in view (so a zoomed lap fills its row, and the rolling mean is cut at the ends
+of the view, so a lap's first seconds are not averaged with the ones before it), from the 1st to the 99th percentile, kept to
+the line's own extremes where they lie within a quarter of the span past it, with 5% of room round it and never narrower than a
+fifth of the raw readings' own span (so a flat trend is drawn flat; a measure that cannot be negative is not widened below zero;
+an area, like elevation, is fitted to its own data and not forced through zero), and a pace axis never reaches zero speed, which would be an
+infinite pace. **A pace axis is even in pace, not in speed**: a minute is the same height anywhere on it, faster is up, and its
+ticks are evenly spaced (4:30, 5:00, 5:30), which an axis even in speed would not give; its room is a share of its height in
+pace, so the fast end clears the line as the slow end does (`timeSeriesModel.ts`, `AxisScale`). A raw reading past the axis (a power spike, a standing start) clips at the row's edge. It is marked only where it is more than
+15% of the axis's span past it (measured as the axis is drawn), with one small tick, in the row's colour at reduced opacity, to each 8 px, and keyed "Reading beyond
+the chart edge" under the plot while any is drawn. The band is a spread, not the extremes: the table twin keeps
+the true lowest and highest of every reading, spikes included, while the interval summary gives each measure's average and its typical range (5th to 95th percentile), as
+a lowest and highest are set by one stray second. Its
+ticks fall on round paces (4:30, not 4:32). There is no histogram: the time in zones says how
 time was spread, with its own table.
 The readout above the plot is the chart system's readout row, kept at every width (five measures at once would cover the plot
 if they floated): at the cursor it gives the elapsed time, the distance and each measure's value (the line's, and nothing in a
@@ -1343,13 +1349,18 @@ left out are ticks on their own row, each keyed under the plot only for the kind
 shaded behind the rows. The laps, or the intervals found in the readings, are one strip above the plot. Up to eight are
 numbered buttons as wide as the lap was long, at least a finger wide; more are a proportional bar (a number in a segment only
 where it fits) with the chosen lap's name, duration, pace or speed and heart rate in a line under it, one stop in the tab order
-with Left and Right (and Home and End) stepping from lap to lap, so Up and Down still scroll. Choosing a lap zooms the timeline to it. The interval is set by a brush
-over a small overview of the whole activity (elevation where there is any): drag an end (by how far it moves, so a grab
-off its centre does not jump), the window or the empty track; each end is a slider with named values ("Start 12 min 30 s"),
-and a disclosure under it ("0:00 to 6:13:37 · Set by time") sets either end by typed time. The plot lets a vertical drag
-scroll the page; only the brush takes the touch. The summary's extremes read Fastest and Slowest for a pace
-and Lowest and Highest otherwise, so a pace is a table of its own, which says it leaves out stops; beside the elapsed time and
-distance it gives the average pace, or speed, as the header does: distance over moving time. Opening a 6-hour ride at 1 Hz with
+with Left and Right (and Home and End) stepping from lap to lap, so Up and Down still scroll. Choosing a lap zooms the timeline to it. The interval is set by dragging across the plot (a mouse or pen, with a hint "Drag to zoom"; a finger scrubs as before and
+selects after it is held still for 0.4 s and then dragged, "Hold, then drag, to zoom"; the range is washed while dragged, applies on release, Escape drops it, and a Reset
+chip returns to the whole activity), or by a brush directly under the plot, over a small overview of the whole activity drawn from
+the measure the sport is read by (pace for a run, power for a ride, then heart rate, cadence and the terrain; one that never moves is passed over):
+drag an end (by how far it moves, so a grab off its centre does not jump), the window or the empty track; each end is a slider with named values ("Start 12 min 30 s"),
+which keeps the keyboard's way to the selection, and a disclosure under it ("0:00 to 6:13:37 · Set by time") sets either end by typed time. Each handle's hit area is
+44 px wide and slides outward from the other when the two are closer than that, so both stay grabbable for a four-minute rep in a seventy-minute run. The plot lets a vertical drag
+scroll the page. Measures a file holds with nothing to draw (all missing, or one value throughout) have a dashed chip that says "no data" and no row. The summary gives each measure's average and its
+typical range, and a pace or speed is a table of its own, whose caption says its average is the distance over the moving time, the figure the header, the interval's tiles and the readout also give. From 1100 px the
+interval's tiles stand in the column beside the timeline, below the figures, while a part of the activity is selected. On a phone the moving time and the two key figures are a strip directly under
+the title, then the timeline, then the other tiles, and the readout stays under the header while the rows scroll past (from 360 px).
+An activity whose recording is not kept is its summary, splits and bests, with one note after them and the file offered again as a quiet action. Opening a 6-hour ride at 1 Hz with
 five measures, building every row's columns and paths, takes about 15 ms here (budget 40), a brush step about 10 (budget 25) and a
 cursor step a fraction of a millisecond (`workbenchChannels.perf.test.ts`, `timeSeriesModel.perf.test.ts`); the heavy figures
 follow the brush through `useDeferredValue`, and the rows are not redrawn when the cursor moves.

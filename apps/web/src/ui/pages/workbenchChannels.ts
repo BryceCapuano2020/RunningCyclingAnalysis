@@ -3,17 +3,25 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDistance, formatRecordTime } from '@rca/core/units'
 import type { BrushOverview } from '../charts/TimeBrush'
 import { hasReadingNear, meanAround } from '../charts/timeSeriesModel'
+import type { AxisScale } from '../charts/timeSeriesModel'
 import type { ChannelColour, CursorHead, StackChannel, StackMark } from '../charts/timeSeriesTypes'
 import { MIN_LAPS } from '../components/lapRows'
 import {
-  axisFor,
+  movingAverageSpeed,
   plottedStream,
   selectionOf,
   seriesFor,
   smoothedBand,
   suggestedIntervals,
+  typicalBand,
 } from './workbenchData'
-import { SPORT_READING, metricLabel, metricUnit, readingRange } from './workbenchFormat'
+import {
+  SPORT_READING,
+  isPaceReading,
+  metricLabel,
+  metricUnit,
+  readingRange,
+} from './workbenchFormat'
 import { readingOf, valueTicks } from './workbenchScale'
 
 /** How each measure is drawn: its colour, whether its area is filled, and its row's height against a pace's. */
@@ -37,33 +45,58 @@ export function colourOf(metric: TraceMetric): ChannelColour {
   return STYLE[metric].colour
 }
 
-/** The share of a measure's span kept clear above and below its readings, so the line never touches a row's edge. */
-const PAD = 0.08
+/** The headroom kept above and below a measure's smoothed trend, as a share of its span, so the line clears a row's edges. */
+const HEADROOM = 0.05
 /** An area has this much of its span beneath its lowest reading, so its lowest point still has height. */
 const AREA_FLOOR = 0.3
+/** The least a pace axis spans, as a share of the pace: a steady run is drawn as steady, not stretched. */
+const FLAT_PACE_SPAN = 0.1
+
+/** Which scale a measure's row is drawn on: a pace evenly in pace, anything else in its own unit. */
+function scaleOf(metric: TraceMetric, sport: ActivityTrace['sport']): AxisScale {
+  return isPaceReading(metric, sport) ? 'pace' : 'linear'
+}
 
 /**
- * The axis's lowest and highest reading with room around them. A reading that cannot be negative never goes
- * below zero, and never below `least`, the least that still counts as a reading: a pace axis reaching zero
- * speed would be an infinite pace.
+ * The axis's lowest and highest reading with room round them. A reading that cannot be negative never goes
+ * below zero, and a pace never below `least`, the least speed that still counts as a reading: an axis reaching
+ * zero speed would be an infinite pace. A pace's headroom is a share of its height in pace, so the fast end
+ * clears the line as much as the slow end does.
  */
 function paddedAxis(
   low: number,
   high: number,
   shape: 'line' | 'area',
+  scale: AxisScale,
   least = Number.NEGATIVE_INFINITY,
 ) {
+  if (scale === 'pace') {
+    // Seconds a metre, so the span is read where the axis is even.
+    const slow = 1 / Math.max(low, least, 0.01)
+    const fast = 1 / Math.max(high, low, least, 0.01)
+    // A flat trend still gets a span of a tenth of its pace, so its row reads as steady, not as a hairline.
+    const pad = Math.max(slow - fast, fast * FLAT_PACE_SPAN) * HEADROOM
+    const middle = (slow + fast) / 2
+    const [near, far] =
+      slow - fast < fast * FLAT_PACE_SPAN
+        ? [middle - (fast * FLAT_PACE_SPAN) / 2, middle + (fast * FLAT_PACE_SPAN) / 2]
+        : [fast, slow]
+    return {
+      low: Math.max(least, 1 / (far + pad)),
+      high: 1 / Math.max(near - pad, near / 2),
+    }
+  }
   const span = high - low
-  const pad = span > 0 ? span * PAD : Math.max(1, Math.abs(high) * 0.05)
+  const pad = span > 0 ? span * HEADROOM : Math.max(1, Math.abs(high) * HEADROOM)
   const room = shape === 'area' ? Math.max(span, pad) * AREA_FLOOR : pad
   const paddedLow = low >= 0 && low - room < 0 && shape === 'line' ? 0 : low - room
   return { low: Math.max(least, paddedLow), high: high + pad }
 }
 
 /**
- * The axis a measure is plotted on, with room round it, or null with no readings. A line is read on the span
- * of its own smoothed trend, so a spike clips at the row's edge instead of squeezing the rest; an area (the
- * terrain, which has no spikes) takes all its readings.
+ * The axis a measure is plotted on, with room round it, or null with no readings. Every measure is read on the
+ * span of its own smoothed trend over what is in view (its 1st to 99th percentile), so a lap far from the
+ * activity's average fills its row, and a spike or a bad reading clips at the edge instead of squeezing the rest.
  */
 export function plotDomain(
   trace: ActivityTrace,
@@ -71,13 +104,11 @@ export function plotDomain(
   startS: number,
   endS: number,
 ): { low: number; high: number } | null {
-  const shape = STYLE[metric].shape
-  const band =
-    shape === 'area'
-      ? axisFor(trace, metric, startS, endS)
-      : smoothedBand(trace, metric, startS, endS)
+  const band = smoothedBand(trace, metric, startS, endS)
   const floor = metric === 'speed' ? SPORT_READING[trace.sport].minSpeedMs : undefined
-  return band === null ? null : paddedAxis(band.low, band.high, shape, floor)
+  return band === null
+    ? null
+    : paddedAxis(band.low, band.high, STYLE[metric].shape, scaleOf(metric, trace.sport), floor)
 }
 
 /** Seconds in runs of 1s in a mask, as [from, to) pairs. */
@@ -151,7 +182,10 @@ export function channelsFor(
     const style = STYLE[metric]
     const { low, high } = domain
     const read = (raw: number) => readingOf(metric, raw, trace.sport, units, trace.cadenceUnit)
-    const mean = summary.metrics[metric]?.mean
+    // A speed's average is the figure the header and the interval's tiles give (distance over moving time), so the
+    // readout does not say a second number beside them; the table keeps the mean of the readings, and says so.
+    const mean =
+      (metric === 'speed' ? movingAverageSpeed(summary) : null) ?? summary.metrics[metric]?.mean
     return [
       {
         key: metric,
@@ -161,12 +195,13 @@ export function channelsFor(
         ...style,
         low,
         high,
+        scale: scaleOf(metric, trace.sport),
         ticks: valueTicks(metric, trace.sport, units, low, high, tickCount),
         columns: series,
         at: (second) => {
           // A paused or unrecorded second reads nothing, though the average round it has a value.
           if (!hasReadingNear(stream, second)) return null
-          const raw = meanAround(stream, second, series.windowS)
+          const raw = meanAround(stream, second, series.windowS, startS, endS)
           return Number.isFinite(raw) ? { raw, ...read(raw) } : null
         },
         average: mean === null || mean === undefined ? null : read(mean),
@@ -186,7 +221,7 @@ export function headAt(trace: ActivityTrace, units: UnitSystem, second: number):
   }
 }
 
-/** What a screen reader hears of the drawing: each channel's range over the window. */
+/** What a screen reader hears of the drawing: where each channel mostly was over the window (its typical range). */
 export function stackDescription(
   trace: ActivityTrace,
   metrics: readonly TraceMetric[],
@@ -195,9 +230,9 @@ export function stackDescription(
   endS: number,
 ): string {
   const parts = metrics.flatMap((metric) => {
-    const axis = axisFor(trace, metric, startS, endS)
-    if (axis === null) return []
-    const { lowest, highest } = readingRange(metric, trace.sport, axis.low, axis.high)
+    const typical = typicalBand(trace, metric, startS, endS)
+    if (typical === null) return []
+    const { lowest, highest } = readingRange(metric, trace.sport, typical.low, typical.high)
     const text = (value: number) => {
       const { value: number, unit } = readingOf(
         metric,
@@ -212,29 +247,32 @@ export function stackDescription(
     return [
       lowest === highest
         ? `${label} steady at ${text(lowest)}`
-        : `${label} between ${text(lowest)} and ${text(highest)}`,
+        : `${label} mostly between ${text(lowest)} and ${text(highest)}`,
     ]
   })
   return `From ${formatRecordTime(startS)} to ${formatRecordTime(endS)}: ${parts.join('; ')}`
 }
 
-/** The measures the brush's overview prefers, in order: the terrain first, as it shows where the effort was. */
-const OVERVIEW_ORDER: readonly TraceMetric[] = [
-  'altitude',
-  'speed',
-  'heartRate',
-  'power',
-  'cadence',
-]
+/**
+ * The measures the brush's overview prefers, in order, for each sport: the one the sport is read by first (pace
+ * for a run, power for a ride), so the overview shows where the effort was, then what else the file holds.
+ */
+const OVERVIEW_ORDER: Record<ActivityTrace['sport'], readonly TraceMetric[]> = {
+  run: ['speed', 'heartRate', 'cadence', 'altitude'],
+  ride: ['power', 'speed', 'heartRate', 'cadence', 'altitude'],
+}
 const OVERVIEW_COLUMNS = 360
 
-/** One measure over the whole activity, small, for the brush to sit over. Null when the trace holds none to draw. */
+/** One measure over the whole activity, small, for the brush to sit over. Null when the trace holds none that varies. */
 export function overviewOf(trace: ActivityTrace, max: number): BrushOverview | null {
-  for (const metric of OVERVIEW_ORDER) {
+  for (const metric of OVERVIEW_ORDER[trace.sport]) {
     const domain = plotDomain(trace, metric, 0, max)
     const columns = seriesFor(trace, metric, 0, max, OVERVIEW_COLUMNS)
     if (domain === null || columns === null) continue
-    return { columns, colour: STYLE[metric].colour, ...domain }
+    const means = columns.mean.filter(Number.isFinite)
+    // A line that never moves is not an overview, whichever measure it is.
+    if (means.length === 0 || Math.min(...means) === Math.max(...means)) continue
+    return { columns, colour: STYLE[metric].colour, scale: scaleOf(metric, trace.sport), ...domain }
   }
   return null
 }

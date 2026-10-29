@@ -22,7 +22,6 @@ export function TimeSelection({
   onChange: (selection: Selection) => void
 }) {
   const { startS, endS } = selection
-  const whole = startS === 0 && endS === max
   return (
     <fieldset className="activity-workbench__selection">
       <legend>Selected interval</legend>
@@ -55,11 +54,6 @@ export function TimeSelection({
             />
           </div>
         </details>
-        {!whole && (
-          <button className="btn" type="button" onClick={() => onChange({ startS: 0, endS: max })}>
-            Whole activity
-          </button>
-        )}
       </div>
     </fieldset>
   )
