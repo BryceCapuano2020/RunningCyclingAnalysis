@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
-import { readStylesheet } from './stylesheet'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mediaBlock, readStylesheet, ruleBody } from './stylesheet'
 import { Definition } from './Definition'
 
 const css = await readStylesheet(import.meta.url, './Definition.css')
@@ -155,5 +155,60 @@ describe('Definition', () => {
     fireEvent.mouseEnter(three.closest('.definition') as HTMLElement)
     expect(two).toHaveAttribute('aria-expanded', 'false')
     expect(three).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  describe('placement', () => {
+    /** Makes the term's box and the note's height what a browser would measure, which jsdom has no layout for. */
+    function measure(
+      term: { top: number; bottom: number },
+      noteHeight: number,
+      windowHeight = 800,
+    ) {
+      Object.defineProperty(window, 'innerHeight', { value: windowHeight, configurable: true })
+      const rect = (box: Partial<DOMRect>) =>
+        ({ left: 0, right: 100, width: 100, ...box }) as DOMRect
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.classList.contains('definition__note')
+          ? rect({ top: 0, bottom: noteHeight, height: noteHeight })
+          : rect({ top: term.top, bottom: term.bottom, height: term.bottom - term.top })
+      })
+    }
+
+    afterEach(() => vi.restoreAllMocks())
+
+    it('opens under the term when the window has room under it', () => {
+      measure({ top: 100, bottom: 120 }, 90)
+      render(<Definition meaning={MEANING}>age grade</Definition>)
+      const button = screen.getByRole('button', { name: 'age grade' })
+      fireEvent.click(button)
+      expect(button.closest('.definition')).toHaveAttribute('data-placement', 'below')
+    })
+
+    it('opens over the term only when there is no room under it and there is above', () => {
+      measure({ top: 700, bottom: 720 }, 90)
+      render(<Definition meaning={MEANING}>age grade</Definition>)
+      const button = screen.getByRole('button', { name: 'age grade' })
+      fireEvent.click(button)
+      expect(button.closest('.definition')).toHaveAttribute('data-placement', 'above')
+    })
+
+    it('stays under the term when there is no more room above than below', () => {
+      measure({ top: 20, bottom: 40 }, 900, 800)
+      render(<Definition meaning={MEANING}>age grade</Definition>)
+      const button = screen.getByRole('button', { name: 'age grade' })
+      fireEvent.click(button)
+      expect(button.closest('.definition')).toHaveAttribute('data-placement', 'below')
+    })
+
+    it('is a sheet at the foot of the window under 480 px, and a press target of 44 px or more everywhere', () => {
+      const phone = mediaBlock(css, '(max-width: 479px)')
+      expect(phone).toMatch(/position:\s*fixed/)
+      expect(phone).toMatch(/inset:\s*auto 0 0/)
+      // The pseudo-element reaches 12 px past the line above and below, which a 20 px line makes 44.
+      expect(ruleBody(css, '.definition__term::after')).toMatch(/inset:\s*-12px -6px/)
+      expect(ruleBody(css, '.definition__term')).toMatch(/position:\s*relative/)
+    })
   })
 })

@@ -1,6 +1,7 @@
-import { HR_BLOCK_S, PRIORS, RESTING_W_PER_KG } from '../constants'
+import { HEADLINE_DURATION_S, HR_BLOCK_S, PRIORS, RESTING_W_PER_KG } from '../constants'
 import { possibleRunWkg } from '../curves'
-import type { EffortPoint } from '../effort'
+import { checkEfforts } from '../effort'
+import type { EffortPoint, MaxHeartRates } from '../effort'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -21,6 +22,7 @@ import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
 import { powerAt } from './terms'
+import { withoutSetAside } from './trustedHeartRate'
 
 /**
  * Gross metabolic W/kg of a run curve point at the prior-mean running economy, or NaN when the point
@@ -175,12 +177,15 @@ export function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
  * The run and ride curves of a set of digests, without the rest of the analysis. Rides are priced
  * with bikeModel, passed in so that two periods share one model and a change of model cannot read
  * as a change of fitness. `gate` is the library's (see ESTIMATED_RIDE); absent, it is read from these digests.
+ * With `hardness`, the result also says how hard the best 20 minutes were by heart rate, judged against the
+ * library's reference heart rates and set-aside list exactly as a period's own effort check is.
  */
 export function sportCurves(
   digests: ActivityDigest[],
   settings: AthleteSettings,
   bikeModel: BikeModel,
   gate?: EstimatedRideGate | null,
+  hardness?: { reference: MaxHeartRates; setAside: ReadonlySet<string> },
 ): SportCurves {
   const masses = massesOf(settings)
   const ordered = orderedCurrent(digests)
@@ -191,7 +196,15 @@ export function sportCurves(
     settings.massKg,
     gate === undefined ? ownRideGate(ordered) : gate,
   )
-  return { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
+  const curves = { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
+  if (hardness === undefined) return curves
+  const [effort] = checkEfforts(
+    withoutSetAside(runBest, new Set(hardness.setAside)),
+    withoutSetAside(rideBest, new Set(hardness.setAside)),
+    hardness.reference,
+    [HEADLINE_DURATION_S],
+  )
+  return { ...curves, headlineEffort: effort! }
 }
 
 /**

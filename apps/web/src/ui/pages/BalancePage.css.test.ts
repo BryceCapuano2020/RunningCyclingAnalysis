@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { mediaBlock, readStylesheet } from '../components/stylesheet'
 import {
+  BALANCE_PHONE_MAX_WIDTH_PX,
   HEADLINE_SMALL_MAX_WIDTH_PX,
   PHONE_MAX_WIDTH_PX,
-  SHORT_PHONE_MAX_HEIGHT_PX,
 } from '../layoutBreakpoints'
 
 const page = await readStylesheet(import.meta.url, './BalancePage.css')
-
-/** The short-phone query as BalancePage.css writes it: short, and a finger or a phone-width window. */
-const SHORT_PHONE = `(max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (pointer: coarse), (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
 
 describe('Balance page stylesheet', () => {
   it('sets the headline a step smaller at the width named in layoutBreakpoints.ts, and names that constant beside it', () => {
@@ -32,9 +29,19 @@ describe('Balance page stylesheet', () => {
     )
   })
 
-  it('tightens the gap between the answer and its scale on a short phone held upright, so the scale clears the section tabs at 320 x 640', () => {
-    expect(mediaBlock(page, SHORT_PHONE)).toMatch(
-      /\.balance-hero__pair \{[^}]*gap:\s*var\(--space-4\);/,
+  it('makes the answer one compact block on a phone: the headline at 28 px with the figure beside it, no eyebrow, one clause', () => {
+    const phone = mediaBlock(page, `(max-width: ${BALANCE_PHONE_MAX_WIDTH_PX}px)`)
+    expect(page).toContain('BALANCE_PHONE_MAX_WIDTH_PX')
+    expect(phone).toMatch(/\.balance-hero__title \{[^}]*font-size:\s*1\.75rem;/)
+    expect(phone).toMatch(/grid-template-areas:\s*'title gap'\s*'lede lede'/)
+    expect(phone).toMatch(
+      /\.balance-hero--answer \.eyebrow,\s*\.balance-hero__range \{[^}]*display:\s*none/,
+    )
+  })
+
+  it('draws no underline under a keyboard-focused headline, since the sport it names carries the only one', () => {
+    expect(page).toMatch(
+      /\.balance-hero__title\[tabindex='-1'\]:focus-visible \{[^}]*text-decoration:\s*none/,
     )
   })
 

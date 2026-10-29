@@ -41,6 +41,12 @@ export interface ChartFrameProps {
   table: ChartTableData
   /** A short table shown above `table` in the text view, for totals that are not per point. */
   summary?: ChartTableData
+  /**
+   * What a phone's readout row says while no point is selected: the chart's latest or headline value, such as
+   * "Latest: 64% run, 58% ride, week of 25 Oct". The row is one line then, and shows a point's full reading over it
+   * only while one is selected. Left out, it says how to select a point.
+   */
+  idleReadout?: string
   /** Replaces the plot with a short message when set. */
   empty?: string
   /** Muted text under the plot, which shows even while the chart is empty, to say why it is. */
@@ -72,6 +78,8 @@ function showLegend(legend: ChartLegendEntry[] | undefined): boolean {
 const DEFAULT_HEIGHT = 320
 /** Shown on a chart that can be read by keyboard, over the plot's top corner. The CSS reveals it while the plot has focus. */
 const READING_HINT = 'Left and right arrows read values'
+/** What a phone's readout row says with no point selected and no idleReadout from the chart. */
+const SELECT_HINT = 'Select a point to read its value'
 /** How far the hint sits below the top of the chart, in px: in the margin above the plot, which holds no data. */
 const HINT_INSET = 2
 
@@ -100,6 +108,7 @@ export function ChartFrame({
   summary,
   empty,
   keyNote,
+  idleReadout,
   note,
   plotRightMargin,
   plotBottomMargin,
@@ -164,9 +173,14 @@ export function ChartFrame({
           ) : null}
         </div>
       )}
-      {/* A phone's scrub readout: a row of fixed height, so reading values never moves the plot. */}
+      {/* A phone's scrub readout: one line at rest, and a point's full reading over it, so the plot never moves. */}
       {phone && surface && !empty ? (
-        <div ref={setReadout} className="chart-frame__readout" data-testid="chart-readout" />
+        <div
+          ref={setReadout}
+          className="chart-frame__readout chart-frame__readout--compact"
+          data-testid="chart-readout"
+          data-idle={idleReadout ?? SELECT_HINT}
+        />
       ) : null}
       <ReadoutContext.Provider value={phone ? readout : null}>
         <div ref={stageRef} className="chart-frame__stage">

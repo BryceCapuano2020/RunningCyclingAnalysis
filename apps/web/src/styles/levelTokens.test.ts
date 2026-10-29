@@ -74,6 +74,16 @@ describe('level band tokens', () => {
       for (let i = 1; i < painted.length; i += 1) {
         expect(contrast(painted[i]!, painted[i - 1]!)).toBeGreaterThanOrEqual(1.03)
       }
+      // In dark the washes are the only thing that tells a level from the next, so every pair with one band between
+      // them, as the neighbours of the middle level are, differ by at least 1.3:1.
+      if (_scheme === 'dark') {
+        for (let i = 2; i < painted.length; i += 1) {
+          expect(contrast(painted[i]!, painted[i - 2]!)).toBeGreaterThanOrEqual(1.3)
+        }
+        for (let i = 1; i < painted.length; i += 1) {
+          expect(contrast(painted[i]!, painted[i - 1]!)).toBeGreaterThanOrEqual(1.12)
+        }
+      }
       expect(contrast(painted[4]!, card)).toBeGreaterThanOrEqual(1.1)
     },
   )

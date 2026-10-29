@@ -15,6 +15,7 @@ import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { axisFontSize } from './ticks'
 import { weekDay } from './trendText'
 import { useChartHeight } from './chartHeight'
+import { idleFrom, lastIndexWhere } from './idleReadout'
 import { MONTHLY_VOLUME_NOTE, volumeRowsOf } from './monthlyVolume'
 import { axisGapDescription, axisGapNote, axisGapTable } from './trendGap'
 import type { TimeAxis } from '@rca/core/digest/trendSeries'
@@ -87,6 +88,9 @@ export function WeeklyVolumeChart({
   const axisNotes = gapNote === null ? [] : [gapNote]
   const height = useChartHeight(PLOT_PX)
   const layoutOf = sizedOnce((size: ChartSize) => weeklyVolumeLayout(weeks, size, gaps))
+  // A phone's readout row says the latest week that was trained until a point is selected.
+  const latest = lastIndexWhere(weeks, trained)
+  const idle = idleFrom(tooltipFor(data, latest, 0, 0))
   const legend: ChartLegendEntry[] = SPORT_ORDER.filter((sport) =>
     weeks.some((week) => week.seconds[sport] > 0),
   ).map((sport) => ({ label: SPORT_LABEL[sport], kind: sport }))
@@ -103,6 +107,7 @@ export function WeeklyVolumeChart({
         plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
         plotRightMargin={plotRightMargin}
         legend={legend}
+        idleReadout={idle}
         table={{
           caption: monthly
             ? 'Average hours trained a week, in each month, by sport'

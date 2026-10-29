@@ -1,15 +1,18 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { Sport } from '@rca/core/types'
+import type { EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
 import { HEADLINE_LABEL, gradeParts } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
-import { SPORT_LABEL, THRESHOLD_MEANING } from '../sports'
+import { SPORT_LABEL, THRESHOLD_GLOSS, THRESHOLD_MEANING } from '../sports'
 import { floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
+import { bestBeyondThresholdLine } from '../thresholdBest'
 import { thresholdSpan } from '../thresholdRange'
+import { EffortChip } from './EffortChip'
+import { effortChipText } from '../effortCaveat'
 import { RangeTrack } from './RangeTrack'
 import { StatTile } from './StatTile'
 
@@ -22,6 +25,8 @@ export interface ThresholdTileProps {
   grade: GradeOutcome | null
   /** False while no body weight is entered; a ride's figures then wait for it. */
   weighted: boolean
+  /** The heart-rate check of the headline effort, which the tile's grade rests on; null or absent says nothing of effort. */
+  effort?: EffortCheck | null
 }
 
 /** The tile's name: the sport and what the figure is, in the words the card used to carry as its label. */
@@ -58,6 +63,7 @@ export function ThresholdTile({
   massKg,
   grade,
   weighted,
+  effort: effortCheck = null,
 }: ThresholdTileProps) {
   if (sport === 'ride' && !weighted) {
     return (
@@ -73,7 +79,11 @@ export function ThresholdTile({
   const records = sportRecords(result, sport, massKg, units).filter((record) =>
     CHIP_DURATIONS_S.includes(record.durationS),
   )
-  const line = gradeLine(sport, grade, headlineEffort(sport, records))
+  const effort = headlineEffort(sport, records)
+  const chip = effortChipText(sport, effortCheck)
+  // Where the best 20 minutes has its own line, the grade line leaves its figure out rather than say it twice.
+  const bestLine = fitted === null ? null : bestBeyondThresholdLine(result, sport, effort)
+  const line = gradeLine(sport, grade, bestLine === null ? effort : null)
   if (hero === null) {
     return (
       <StatTile sport={sport} heading={NAME[sport]} definition={DEFINED[sport]}>
@@ -98,6 +108,7 @@ export function ThresholdTile({
       sport={sport}
       heading={NAME[sport]}
       definition={DEFINED[sport]}
+      gloss={fitted === null ? undefined : THRESHOLD_GLOSS[sport]}
       basis={fitted === null ? 'floor' : 'estimated'}
       figure={{
         number: hero.number,
@@ -115,7 +126,13 @@ export function ThresholdTile({
         )
       }
     >
+      {bestLine === null ? null : <p className="stat-tile__line">{bestLine}</p>}
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
+      {chip === null ? null : (
+        <p className="stat-tile__effort">
+          <EffortChip chip={chip} />
+        </p>
+      )}
     </StatTile>
   )
 }

@@ -10,11 +10,17 @@ import { levelTarget } from '../levelTarget'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { scaleModel } from './balanceScaleModel'
 
-/** The sample athlete's analysis, with every input the page hands the model. */
-function sample() {
+/** The sample athlete's analysis, with every input the page hands the model, its rides read as one power source. */
+function sample(powerSource?: 'measured' | 'virtual') {
   const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
   if (state.result === null) throw new Error('The sample has no result')
-  const { result } = state
+  const result =
+    powerSource === undefined
+      ? state.result
+      : {
+          ...state.result,
+          activities: state.result.activities.map((a) => ({ ...a, powerSource })),
+        }
   const headline = headlineGrades(result, SAMPLE_PROFILE)
   const gap = gapOfHeadline(headline)
   if (gap === null) throw new Error('The sample has no gap')
@@ -43,6 +49,30 @@ function gradeOf(outcome: GradeOutcome | null) {
   if (outcome?.kind !== 'graded') throw new Error('Expected a graded outcome')
   return outcome.grade
 }
+
+describe('scaleModel and what an estimate rests on', () => {
+  it('says estimated of a ride only when its watts were estimated', () => {
+    const ride = sample('virtual').model?.lanes[1]
+    expect(ride).toMatchObject({ basis: 'estimated', basisText: 'estimated' })
+    expect(ride?.effort).toMatch(/\(estimated\)$/)
+  })
+
+  it('says a ride whose watts were measured is graded via the run equivalent, not that its power was estimated', () => {
+    const { model } = sample('measured')
+    const ride = model?.lanes[1]
+    // The shapes are the same: it is still a ring over a band. Only the words change.
+    expect(ride).toMatchObject({ basis: 'estimated', basisText: 'via run equivalent' })
+    expect(ride?.effort).not.toMatch(/estimated/)
+    expect(model?.rows[1]?.[1]).toBe('Power measured, level via run equivalent')
+    expect(model?.description).toMatch(/power measured, level via the run equivalent/)
+    expect(model?.description).not.toMatch(/estimated/)
+  })
+
+  it('leaves a recorded run recorded either way', () => {
+    expect(sample('measured').model?.lanes[0]?.basisText).toBe('recorded')
+    expect(sample('virtual').model?.lanes[0]?.basisText).toBe('recorded')
+  })
+})
 
 describe('scaleModel', () => {
   it('takes each lane’s percent from the grade the tiles show, whole and floored, and nothing else', () => {
@@ -140,7 +170,7 @@ describe('scaleModel', () => {
       /^Age-grade level of your best 20 min\. Run \d+ percent, \w+, recorded\./,
     )
     expect(model?.description).toMatch(
-      /Ride \d+ percent, .*, estimated, range \d+ to \d+ percent\./,
+      /Ride \d+ percent, .*, power measured, level via the run equivalent, range \d+ to \d+ percent\./,
     )
     expect(model?.description).toMatch(/Running grades \d+ points? higher, range /)
     expect(model?.rows).toHaveLength(2)
@@ -152,7 +182,8 @@ describe('scaleModel', () => {
       model?.lanes[0]?.effort,
       'None',
     ])
-    expect(model?.rows[1]?.[1]).toBe('Estimated')
+    // The sample's rides have power meters, so its ride is an equivalent of measured power, not estimated watts.
+    expect(model?.rows[1]?.[1]).toBe('Power measured, level via run equivalent')
   })
 })
 
@@ -223,5 +254,40 @@ describe('scaleModel effort figure', () => {
     const lane = rideSub('measured')
     expect(lane?.sub).toMatch(/ \d+ W on your best 20 min$/)
     expect(lane?.effort).toMatch(/^\d+ W$/)
+  })
+})
+
+describe('scaleModel gap with a range that rounds to one value', () => {
+  /** The sample's lanes with a gap whose 90% range is one whole value, as a lead with no spread is. */
+  function degenerate(centre: number) {
+    const { grades, gap } = sample()
+    const base = gapReading(gap)
+    const lean = centre === 0 ? 'even' : 'run'
+    return scaleModel({
+      grades,
+      reading: { ...base, lean, lead: { centre, low: centre, high: centre } },
+      target: null,
+      result: new AnalysisSession().loadSample(SAMPLE_SETTINGS).result!,
+      massKg: SAMPLE_SETTINGS.massKg,
+      units: 'metric',
+    })
+  }
+
+  it('writes no range: not "1 to 1 point", in the note, the short notes, the caption words or the description', () => {
+    const model = degenerate(1)
+    const gap = model?.gap
+    expect(gap).toMatchObject({ figure: '1 pt', side: 'toward running', rangeValue: '' })
+    expect(gap?.note).toBe('toward running')
+    expect([gap?.noteShort, gap?.noteTiny]).toEqual(['toward running', 'toward running'])
+    expect(model?.description).not.toMatch(/range 1 to 1|1 to 1 point/)
+    expect(model?.description).toMatch(/Running grades 1 point higher\./)
+  })
+
+  it('writes no range for a gap of none either', () => {
+    expect(degenerate(0)?.gap?.rangeValue).toBe('')
+  })
+
+  it('still writes the range where it has a spread', () => {
+    expect(sample().model?.gap?.rangeValue).toMatch(/^\d+ to \d+\spoints$/)
   })
 })

@@ -601,10 +601,11 @@ describe('ResultPage period', () => {
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(false)
+      // Balance's period control is compact: the note is in the line of the dates, after them.
       const caption = container.querySelector('.range-picker__caption')
-      const note = container.querySelector('.range-picker__note')
+      const note = container.querySelector('.range-picker__caption .range-picker__inline-note')
       expect(note).toHaveTextContent('Latest activity 17 months ago')
-      expect(caption?.compareDocumentPosition(note as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+      expect(caption?.textContent).toMatch(/^.+ · Latest activity 17 months ago$/)
     } finally {
       vi.useRealTimers()
     }
@@ -615,8 +616,8 @@ describe('ResultPage period', () => {
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(true, true)
-      expect(container.querySelector('.range-picker__note')).toHaveTextContent(
-        "Your last 12 weeks don't hold both sports, so this shows all time. Latest activity 17 months ago",
+      expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
+        "Your last 12 weeks don't hold both sports, so this shows all time · Same 2 activities as 6 weeks · Latest activity 17 months ago",
       )
     } finally {
       vi.useRealTimers()
@@ -628,8 +629,9 @@ describe('ResultPage period', () => {
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(true)
-      expect(container.querySelector('.range-picker__note')).toHaveTextContent(
-        /^Latest activity 17 months ago$/,
+      // A longer period that holds nothing a shorter one does not says so, in place of repeating itself.
+      expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
+        /^Same 1 activity as 6 weeks · Latest activity 17 months ago$/,
       )
     } finally {
       vi.useRealTimers()

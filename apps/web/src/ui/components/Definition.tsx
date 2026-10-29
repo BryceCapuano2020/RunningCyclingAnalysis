@@ -11,13 +11,19 @@ export interface DefinitionProps {
 
 /** How far a panel keeps from the window's edge, px. */
 const EDGE = 8
+/** The gap between a term and its note, px; the stylesheet's `--space-1`. */
+const NOTE_GAP = 4
+
+/** Where a note opens: under its term, or over it when the window has no room under it and has above. */
+type Placement = 'below' | 'above'
 
 /** Each open-able definition's way to close itself, so that opening one can close the rest. */
 const closers = new Set<() => void>()
 
 /**
  * A term that carries the answer, with its meaning one press away: a button that opens a short note under
- * it. The note shows while the term is pressed or a pointer rests on it or on the note, which touches the term
+ * it, or over it where there is no room under. On a phone the note is a sheet at the foot of the window, which
+ * covers nothing of the sentence it explains. The note shows while the term is pressed or a pointer rests on it or on the note, which touches the term
  * with no gap, so the pointer can cross to it. A press stays open until it is pressed again, Escape is pressed,
  * the page is pressed elsewhere, or focus leaves the term. Opening one definition closes the others. The note
  * is moved inward when it would run past the window's edge, so a term at the right of a line on a phone does
@@ -27,6 +33,7 @@ export function Definition({ children, meaning }: DefinitionProps) {
   const [pressed, setPressed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const open = pressed || hovered
+  const [placement, setPlacement] = useState<Placement>('below')
   const root = useRef<HTMLSpanElement>(null)
   const panel = useRef<HTMLSpanElement>(null)
   const id = useId()
@@ -63,7 +70,8 @@ export function Definition({ children, meaning }: DefinitionProps) {
     }
   }, [open, close])
 
-  // Measured with no shift, then shifted so the whole note is inside the window.
+  // Measured with no shift, then shifted so the whole note is inside the window, and put over the term when it
+  // would run off the foot of the window and there is more room above.
   useLayoutEffect(() => {
     const note = panel.current
     if (note === null) return
@@ -72,6 +80,12 @@ export function Definition({ children, meaning }: DefinitionProps) {
     const box = note.getBoundingClientRect()
     const room = document.documentElement.clientWidth
     if (box.width === 0) return
+    const term = root.current?.querySelector('button')?.getBoundingClientRect()
+    if (term !== undefined) {
+      const below = window.innerHeight - term.bottom
+      const need = box.height + NOTE_GAP + EDGE
+      setPlacement(below < need && term.top > below ? 'above' : 'below')
+    }
     if (box.right > room - EDGE) {
       note.style.setProperty('--definition-shift', `${room - EDGE - box.right}px`)
     } else if (box.left < EDGE) {
@@ -84,6 +98,7 @@ export function Definition({ children, meaning }: DefinitionProps) {
       className="definition"
       ref={root}
       data-open={open}
+      data-placement={placement}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onBlur={(event) => {

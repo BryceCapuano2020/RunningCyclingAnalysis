@@ -38,7 +38,7 @@ describe('BalanceChanges', () => {
   it('is named by what it compares with', () => {
     render(
       <BalanceChanges
-        changes={{ items: [LEAN], compared: true }}
+        changes={{ items: [LEAN], notes: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -50,7 +50,7 @@ describe('BalanceChanges', () => {
   it('lists each change with its title, its line and its tag, in order', () => {
     render(
       <BalanceChanges
-        changes={{ items: [LEAN, RIDE, RUN], compared: true }}
+        changes={{ items: [LEAN, RIDE, RUN], notes: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -65,7 +65,7 @@ describe('BalanceChanges', () => {
   it('words each tag as the change warrants, never beyond or within for an estimate with no range', () => {
     render(
       <BalanceChanges
-        changes={{ items: [GUESS], compared: true }}
+        changes={{ items: [GUESS], notes: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -77,7 +77,7 @@ describe('BalanceChanges', () => {
   it('draws an arrow for each change, hidden from assistive technology, up or down by its direction', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [LEAN, RIDE], compared: true }}
+        changes={{ items: [LEAN, RIDE], notes: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -90,16 +90,19 @@ describe('BalanceChanges', () => {
 
   it('says in one line that nothing moved, naming the period, when there is nothing to list', () => {
     const { container } = render(
-      <BalanceChanges changes={{ items: [], compared: true }} previousLabel="Previous 12 weeks" />,
+      <BalanceChanges
+        changes={{ items: [], notes: [], compared: true }}
+        previousLabel="Previous 12 weeks"
+      />,
     )
-    expect(screen.getByText('Nothing changed since the previous 12 weeks.')).toBeInTheDocument()
+    expect(screen.getByText('No clear change since the previous 12 weeks.')).toBeInTheDocument()
     expect(container.querySelector('ul')).toBeNull()
   })
 
   it('marks a recorded best with a check, so the tag is more than a word', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [RIDE], compared: true }}
+        changes={{ items: [RIDE], notes: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -108,17 +111,37 @@ describe('BalanceChanges', () => {
 
   it('says there is not enough to compare, not that nothing changed, when the previous period lacks the efforts', () => {
     const { container } = render(
-      <BalanceChanges changes={{ items: [], compared: false }} previousLabel="Previous 12 weeks" />,
+      <BalanceChanges
+        changes={{ items: [], notes: [], compared: false }}
+        previousLabel="Previous 12 weeks"
+      />,
     )
     expect(screen.getByText('Not enough in the previous 12 weeks to compare.')).toBeInTheDocument()
-    expect(screen.queryByText(/Nothing changed/)).toBeNull()
+    expect(screen.queryByText(/No clear change/)).toBeNull()
     expect(container.querySelector('ul')).toBeNull()
+  })
+
+  it('says in a line, in place of an item, that a best was not compared', () => {
+    const { container } = render(
+      <BalanceChanges
+        changes={{
+          items: [RIDE],
+          notes: ['No comparable hard 20 min of running in the previous 12 weeks.'],
+          compared: true,
+        }}
+        previousLabel="Previous 12 weeks"
+      />,
+    )
+    expect(container.querySelectorAll('li')).toHaveLength(1)
+    expect(
+      screen.getByText('No comparable hard 20 min of running in the previous 12 weeks.'),
+    ).toBeInTheDocument()
   })
 
   it('never says a change is not a real change', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [LEAN, RIDE, RUN, GUESS], compared: true }}
+        changes={{ items: [LEAN, RIDE, RUN, GUESS], notes: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )

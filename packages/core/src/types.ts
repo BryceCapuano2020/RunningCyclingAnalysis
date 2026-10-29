@@ -392,4 +392,9 @@ export interface SportCurves {
   runCurve: Curve
   /** Best mechanical power while riding, W. */
   rideCurve: Curve
+  /**
+   * How hard the best efforts at the headline duration were, by heart rate, judged against the library's reference
+   * heart rates as a period's own `effort` is. Present only when the caller passed the references; absent otherwise.
+   */
+  headlineEffort?: EffortCheck
 }

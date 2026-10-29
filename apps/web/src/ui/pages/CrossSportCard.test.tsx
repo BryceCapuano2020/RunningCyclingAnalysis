@@ -119,6 +119,46 @@ describe('CrossSportCard', () => {
     ).toBeInTheDocument()
   })
 
+  describe('a short estimated ride', () => {
+    const SHORT = { durationS: 300, ridePowerW: 280 }
+
+    it('is not priced as a pace: it asks for a ride of 10 min or more instead', () => {
+      const { container } = renderCard(
+        makeResult({
+          activities: [rideWith('virtual')],
+          rideCurve: [curvePoint(300, 280, 'ride-1')],
+          equivalents: [makeEquivalence(SHORT)],
+        }),
+      )
+      expect(screen.getByText('Needs a ride of 10 min or more.')).toBeInTheDocument()
+      expect(container.querySelector('.stat-tile__figure')).toBeNull()
+      expect(screen.queryByText('Equivalent')).toBeNull()
+    })
+
+    it('still gives the pace of a short ride a power meter measured', () => {
+      const { container } = renderCard(
+        makeResult({
+          activities: [rideWith('measured')],
+          rideCurve: [curvePoint(300, 280, 'ride-1')],
+          equivalents: [makeEquivalence(SHORT)],
+        }),
+      )
+      expect(container.querySelector('.stat-tile__figure')).not.toBeNull()
+      expect(screen.queryByText(/Needs a ride/)).toBeNull()
+    })
+
+    it('gives the pace of an estimated ride of 10 min or more', () => {
+      const { container } = renderCard(
+        makeResult({
+          activities: [rideWith('virtual')],
+          rideCurve: [curvePoint(600, 260, 'ride-1')],
+          equivalents: [makeEquivalence({ durationS: 600, ridePowerW: 260 })],
+        }),
+      )
+      expect(container.querySelector('.stat-tile__figure')).not.toBeNull()
+    })
+  })
+
   it('tags the watts estimated when the ride that set the effort had virtual power', () => {
     renderCard(
       makeResult({

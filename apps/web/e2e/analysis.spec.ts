@@ -280,44 +280,49 @@ test('at 1440 by 900 the level scale is on the first screen, whole', async ({ pa
   expect(first).toContain('balance-scale__svg')
 })
 
-// A phone holds the scale in its first 600 px. At 390 by 844 both marks are above the tabs fixed to the window's
-// foot; at 320 by 640, with the sample notice's two lines above, the run's mark is, and the ride's is just below.
-test('at 390 by 844 the level scale starts in the first 600 px, with both marks above the section tabs', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await openSample(page)
-  const tabs = await tabBarTop(page)
-  expect((await edgesOf(page.locator(SCALE))).top).toBeLessThanOrEqual(600)
-  expect((await edgesOf(page.locator(RUN_DOT))).bottom).toBeLessThanOrEqual(tabs)
-  expect((await edgesOf(page.locator(RIDE_RING))).bottom).toBeLessThanOrEqual(tabs)
-  const scale = await edgesOf(page.locator(SCALE))
-  for (const mark of [RUN_DOT, RIDE_RING]) {
-    const box = await edgesOf(page.locator(mark))
-    expect(box.top).toBeGreaterThanOrEqual(scale.top)
-    expect(box.bottom).toBeLessThanOrEqual(scale.bottom)
-  }
-})
+// A phone holds the whole scale on its first screen, the sample notice and all: at 390 by 844 and at 320 by 640 both
+// lanes' marks, their headers and the axis end above the section tabs fixed to the window's foot.
+const TICKS = '.balance-scale__tick'
+const LANE_NAMES = '.balance-scale__lane-name'
 
-test('at 320 by 640 the level scale starts in the first 600 px, with the run’s mark above the section tabs and both marks inside its box', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 640 })
-  await openSample(page)
-  const tabs = await tabBarTop(page)
-  const scale = await edgesOf(page.locator(SCALE))
-  const run = await edgesOf(page.locator(RUN_DOT))
-  const ride = await edgesOf(page.locator(RIDE_RING))
-  expect(scale.top).toBeLessThanOrEqual(600)
-  expect(run.bottom).toBeLessThanOrEqual(tabs)
-  // Both lanes' marks are drawn inside the drawing's own box, whether or not the foot bar covers one.
-  for (const mark of [run, ride]) {
-    expect(mark.top).toBeGreaterThanOrEqual(scale.top)
-    expect(mark.bottom).toBeLessThanOrEqual(scale.bottom)
-  }
-  // The ride's lane is below the run's, and the drawing is tall enough to hold both.
-  expect(ride.top).toBeGreaterThan(run.bottom)
-})
+for (const [width, height] of [
+  [390, 844],
+  [320, 640],
+] as const) {
+  test(`at ${width} by ${height} both lanes and the axis of the level scale are above the section tabs`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await openSample(page)
+    await expect(page.getByText('Sample athlete', { exact: false }).first()).toBeVisible()
+    const tabs = await tabBarTop(page)
+    const scale = await edgesOf(page.locator(SCALE))
+    const run = await edgesOf(page.locator(RUN_DOT))
+    const ride = await edgesOf(page.locator(RIDE_RING))
+    // Both marks are drawn inside the drawing's own box, the ride's lane below the run's.
+    for (const mark of [run, ride]) {
+      expect(mark.top).toBeGreaterThanOrEqual(scale.top)
+      expect(mark.bottom).toBeLessThanOrEqual(scale.bottom)
+    }
+    expect(ride.top).toBeGreaterThan(run.bottom)
+    // Each lane's name, which sits in the lane's header, is on the screen, and so is the whole of the axis.
+    for (const name of await page.locator(LANE_NAMES).all()) {
+      expect((await edgesOf(name)).bottom).toBeLessThanOrEqual(tabs)
+    }
+    const ticks = await page.locator(TICKS).all()
+    expect(ticks.length).toBeGreaterThan(3)
+    for (const tick of ticks) expect((await edgesOf(tick)).bottom).toBeLessThanOrEqual(tabs)
+    expect(scale.bottom).toBeLessThanOrEqual(tabs)
+    // The period control is directly under the answer and above the scale it redraws.
+    const period = await edgesOf(page.getByRole('group', { name: 'Period' }))
+    const answer = await edgesOf(page.getByRole('heading', { level: 1 }))
+    expect(period.top).toBeGreaterThanOrEqual(answer.bottom)
+    expect(period.bottom).toBeLessThanOrEqual(scale.top)
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+    ).toBeLessThanOrEqual(0)
+  })
+}
 
 // On a wide screen the headline runs the answer's full width, the lede keeps its 62 character measure, and the
 // scale and the tiles span the same width.

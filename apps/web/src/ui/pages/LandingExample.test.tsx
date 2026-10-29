@@ -58,7 +58,7 @@ describe('LandingExample', () => {
     expect(scale).not.toBeNull()
     expect(
       screen.getByRole('img', {
-        name: /^Age-grade level of your best 20 min\. Run 67 percent, Local, recorded\. Ride 56 percent, Recreational to Local, estimated, range 51 to 61 percent\./,
+        name: /^Age-grade level of your best 20 min\. Run 67 percent, Local, recorded\. Ride 56 percent, Recreational to Local, power measured, level via the run equivalent, range 51 to 61 percent\./,
       }),
     ).toBeInTheDocument()
     const drawing = within(container.querySelector('svg') as unknown as HTMLElement)
@@ -66,7 +66,7 @@ describe('LandingExample', () => {
     expect(drawing.getByText('56%')).toBeInTheDocument()
     expect(screen.getByText(/^Local · 3:56 \/km on your best 20 min$/)).toBeInTheDocument()
     expect(screen.getByText(/^Recreational to Local · 243 W/)).toBeInTheDocument()
-    expect(screen.getByText('11 pts')).toBeInTheDocument()
+    expect(screen.getByText(/^11 pts toward running · 90% range/)).toBeInTheDocument()
     // A recorded grade is a dot, an estimate a ring over a bracketed band, as on Balance.
     expect(container.querySelector('.balance-scale__dot')).not.toBeNull()
     expect(container.querySelector('.balance-scale__ring')).not.toBeNull()

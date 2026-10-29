@@ -122,6 +122,22 @@ describe('leanItem', () => {
     expect(leanItem(gap(6, 1, 12), gap(9, 9, 9))?.tag).toBe('estimated')
   })
 
+  it('writes no range where the range now rounds to one value, and says nothing of a range that is not there', () => {
+    const item = leanItem(gap(3, 3, 3), gap(9, 9, 9))
+    expect(item?.body).toBe('From 9 pts toward running to 3 pts toward running.')
+    expect(item?.body).not.toMatch(/range|0 to 0|9 to 9/)
+    expect(item?.tag).toBe('estimated')
+    expect(leanItem(gap(-6, -6, -6), gap(1, 1, 1))?.body).not.toMatch(/range/)
+  })
+
+  it('says still in balance, not that the lean moved, between two readings both inside the level band', () => {
+    // +2 and -2 both read as level, though they round to opposite sides.
+    const item = leanItem(gap(-2, -8, 4), gap(2, -4, 8))
+    expect(item?.title).toBe('Still in balance')
+    // A reading outside the band is a move.
+    expect(leanItem(gap(-6, -9, -3), gap(2, -4, 8))?.title).toBe('Lean moved toward cycling')
+  })
+
   it('lists nothing when the gap is the same in whole points', () => {
     expect(leanItem(gap(6.2, 1, 12), gap(5.8, 2, 11))).toBeNull()
   })
@@ -203,6 +219,17 @@ describe('balanceChanges', () => {
     })
   })
 
+  it('lists a best only where the curve would call it a change: a move under the floor is no clear change', () => {
+    const { input, scaled } = measured()
+    // 0.1% of a pace is well under the curve's floor of 1% and 2 s/km, and of 1% and 2 W for watts.
+    const tiny = balanceChanges(input(scaled(0.999, 0.999)))
+    expect(tiny?.items.map((item) => item.key)).toEqual([])
+    expect(tiny?.compared).toBe(true)
+    // 5% is a change on both, so the strip lists both bests.
+    const clear = balanceChanges(input(scaled(0.95, 0.95)))
+    expect(clear?.items.map((item) => item.key).sort()).toEqual(['ride-best', 'run-best'])
+  })
+
   it('gets the direction of a best from the figures, not from the words written for it', () => {
     const { input, scaled } = measured()
     const up = balanceChanges(input(scaled(1, 0.9)))?.items.find((item) => item.key === 'ride-best')
@@ -260,14 +287,14 @@ describe('balanceChanges', () => {
 
   it('says nothing changed, having compared, when the bests are the same as the page shows them', () => {
     const { input, scaled } = sample()
-    expect(balanceChanges(input(scaled(1, 1)))).toEqual({ items: [], compared: true })
-    expect(noChangeText('Previous 12 weeks')).toBe('Nothing changed since the previous 12 weeks.')
+    expect(balanceChanges(input(scaled(1, 1)))).toEqual({ items: [], notes: [], compared: true })
+    expect(noChangeText('Previous 12 weeks')).toBe('No clear change since the previous 12 weeks.')
   })
 
   it('says there is not enough to compare, apart from nothing changing, when the previous period lacks the efforts', () => {
     const { input } = sample()
     const nothing = balanceChanges(input({ runCurve: [], rideCurve: [] }))
-    expect(nothing).toEqual({ items: [], compared: false })
+    expect(nothing).toEqual({ items: [], notes: [], compared: false })
     expect(notComparedText('Previous 12 weeks')).toBe(
       'Not enough in the previous 12 weeks to compare.',
     )
@@ -288,6 +315,70 @@ describe('balanceChanges', () => {
     const out = balanceChanges(input(scaled(0.9, 0.8), { gap: now, grading }))
     expect(out?.items.map((item) => item.key)).toEqual(['lean', 'ride-best', 'run-best'])
     expect(out?.items.length).toBeLessThanOrEqual(4)
+  })
+})
+
+describe('balanceChanges and how hard the bests were', () => {
+  /** An effort check at the headline duration, by each sport's share of its reference heart rate. */
+  const check = (run: number | null, ride: number | null) => ({
+    durationS: 1200,
+    runHrFraction: run,
+    rideHrFraction: ride,
+  })
+  const runBest = (out: ReturnType<typeof balanceChanges>) =>
+    out?.items.find((item) => item.key === 'run-best')
+
+  it('compares a best with the period before when both were hard efforts', () => {
+    const { input, scaled, result } = measured()
+    const hard = { ...result, effort: [check(0.95, 0.95)] }
+    const previous = { ...scaled(0.95, 1), headlineEffort: check(0.93, 0.93) }
+    const out = balanceChanges(input(previous, { result: hard }))
+    expect(runBest(out)).toBeDefined()
+    expect(out?.notes).toEqual([])
+  })
+
+  it('says there is no comparable hard effort, and lists no change, when the previous best was easy', () => {
+    const { input, scaled, result } = measured()
+    const hard = { ...result, effort: [check(0.95, 0.95)] }
+    const previous = { ...scaled(0.95, 1), headlineEffort: check(0.7, 0.95) }
+    const out = balanceChanges(input(previous, { result: hard }))
+    expect(runBest(out)).toBeUndefined()
+    expect(out?.notes).toEqual(['No comparable hard 20 min of running in the previous 12 weeks.'])
+    // The ride's bests were both hard, so it is still compared.
+    expect(out?.items.some((item) => item.key === 'ride-best')).toBe(false)
+    expect(out?.compared).toBe(true)
+  })
+
+  it('says so, in its own words, when this period’s best was the easy one', () => {
+    const { input, scaled, result } = measured()
+    const easy = { ...result, effort: [check(0.6, 0.95)] }
+    const previous = { ...scaled(0.95, 0.9), headlineEffort: check(0.95, 0.95) }
+    const out = balanceChanges(input(previous, { result: easy }))
+    expect(runBest(out)).toBeUndefined()
+    expect(out?.notes).toEqual([
+      'Your best 20 min of running in this period was not a hard effort, so it is not compared.',
+    ])
+    expect(out?.items.some((item) => item.key === 'ride-best')).toBe(true)
+  })
+
+  it('judges each sport on its own heart rate, so an easy ride leaves the run compared', () => {
+    const { input, scaled, result } = measured()
+    const mixed = { ...result, effort: [check(0.95, 0.95)] }
+    const previous = { ...scaled(0.95, 0.9), headlineEffort: check(0.95, 0.6) }
+    const out = balanceChanges(input(previous, { result: mixed }))
+    expect(runBest(out)).toBeDefined()
+    expect(out?.items.some((item) => item.key === 'ride-best')).toBe(false)
+    expect(out?.notes).toEqual(['No comparable hard 20 min of cycling in the previous 12 weeks.'])
+  })
+
+  it('still compares where heart rate does not say, since nothing shows a best was easy', () => {
+    const { input, scaled, result } = measured()
+    const none = { ...result, effort: [check(null, null)] }
+    const out = balanceChanges(
+      input({ ...scaled(0.95, 1), headlineEffort: check(null, null) }, { result: none }),
+    )
+    expect(runBest(out)).toBeDefined()
+    expect(out?.notes).toEqual([])
   })
 })
 

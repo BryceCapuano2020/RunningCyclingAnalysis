@@ -241,7 +241,7 @@ describe('LandingPage', () => {
 
     const example = exampleFigure()
     expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
-    expect(within(example).getByText('11 pts')).toBeInTheDocument()
+    expect(within(example).getByText(/^11 pts toward running · 90% range/)).toBeInTheDocument()
     expect(within(example).getByText(/^Local · 3:56 \/km on your best 20 min$/)).toBeInTheDocument()
     expect(within(example).getByText(/^Recreational to Local · 243 W/)).toBeInTheDocument()
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()

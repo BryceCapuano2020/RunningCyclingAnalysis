@@ -14,6 +14,7 @@ import { ChartYAxis } from './ChartYAxis'
 import { AxisBreaks } from './AxisBreaks'
 import { ChartAbout } from './ChartAbout'
 import { ChartAnnotations } from './ChartAnnotations'
+import { idleFrom } from './idleReadout'
 import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import { useChartHeight } from './chartHeight'
 import type { ChartSize, TooltipContent } from './chartTypes'
@@ -165,6 +166,8 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
   ]
   const view: View = { sport, units }
   const latest = rows.findLastIndex(hasValue)
+  // A phone's readout row says the latest week's value until a point is selected.
+  const idle = hasData ? idleFrom(tooltipFor(data, latest, 0, 0, { sport, units })) : undefined
   const height = useChartHeight()
   const layoutOf = sizedOnce((size: ChartSize) => sportTrendLayout(data, sport, units, size))
   const described = describedAs(sport, units, effort, windowText)
@@ -182,6 +185,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
     <div className="takeaway-chart">
       <ChartFrame
         height={height}
+        idleReadout={idle}
         plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
         plotRightMargin={() => sportGutter(latestText(rows, sport, units))}
         title={hasData && takeaway !== null ? takeaway : described}

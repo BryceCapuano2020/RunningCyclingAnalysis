@@ -20,16 +20,19 @@ function subjects(reading: BalanceReading) {
 }
 
 /**
- * The answer in two plain sentences under the headline. The first states the gap and the effort it is taken
+ * The answer in two plain sentences under the headline (on a phone, the first clause of the first). The first states the gap and the effort it is taken
  * at, with "age grade" defined in place; the second gives the 90% range, defined too, and says whether the lead
  * holds across it. An energy balance, which has no grades, keeps its one sentence.
  */
 export function BalanceLede({
   reading,
   durationS,
+  compact = false,
 }: {
   reading: BalanceReading
   durationS: number
+  /** A phone's line: the first clause alone, since the scale's caption gives the range and what it says. */
+  compact?: boolean
 }) {
   if (reading.unit === 'percent') return <>{balanceSummary(reading, durationS)}</>
   const centre = wholeCentre(reading.lead)
@@ -37,6 +40,15 @@ export function BalanceLede({
   const grade = <Definition meaning={DEFINITIONS.ageGrade}>age grade</Definition>
   const verdict = rangeVerdictText(reading)
   const { lead, other } = subjects(reading)
+  if (compact) {
+    return centre === 0 ? (
+      <>Running and cycling have the same {grade}.</>
+    ) : (
+      <>
+        {lead} {grade} is {plural(Math.abs(centre), 'point')} higher.
+      </>
+    )
+  }
   return (
     <>
       {centre === 0 ? (

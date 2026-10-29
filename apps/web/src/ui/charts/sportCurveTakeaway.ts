@@ -50,6 +50,25 @@ export const RIDE_FLOOR_W = 2
 export const RUN_FLOOR_S_PER_KM = 2
 export const RUN_FLOOR_S_PER_MI = 3
 
+/**
+ * Whether a move between two readings of the same effort is a change, by the one floor every page reads: the curve's
+ * title, Balance's what-changed strip and the import summary's records all call it, so the same pair of values gets
+ * the same verdict everywhere. `now` and `before` are in the sport's own unit (a running flat speed in m/s, or
+ * watts); the move must round to a whole plotted unit and exceed both the sport's floor and 1% of the earlier value.
+ */
+export function isClearChange(
+  sport: Sport,
+  now: number,
+  before: number,
+  units: UnitSystem,
+): boolean {
+  if (!Number.isFinite(now) || !Number.isFinite(before)) return false
+  const plottedBefore = plottedValue(sport, before, units)
+  const change = Math.abs(plottedValue(sport, now, units) - plottedBefore)
+  const floor = Math.max(WORDING[sport].floor(units), Math.abs(plottedBefore) * MIN_RELATIVE_CHANGE)
+  return change > floor && Math.round(change) >= 1
+}
+
 export interface TakeawayInput {
   sport: Sport
   units: UnitSystem
@@ -105,11 +124,9 @@ function comparison({
   const wording = WORDING[sport]
   const change =
     plottedValue(sport, compared.value, units) - plottedValue(sport, compared.previous, units)
-  const before = plottedValue(sport, compared.previous, units)
   const amount = Math.round(Math.abs(change))
-  const floor = Math.max(wording.floor(units), Math.abs(before) * MIN_RELATIVE_CHANGE)
   const against = `the ${lowerFirst(previousLabel)}`
-  if (!(Math.abs(change) > floor) || amount < 1) {
+  if (!isClearChange(sport, compared.value, compared.previous, units)) {
     return { text: `No clear change against ${against}`, durationS: null }
   }
   const better = wording.lowerIsBetter ? change < 0 : change > 0

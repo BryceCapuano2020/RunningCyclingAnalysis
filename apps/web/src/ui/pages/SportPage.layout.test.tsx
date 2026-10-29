@@ -127,7 +127,7 @@ describe('the answer: threshold and level in one card', () => {
       }),
     )
     const chip = screen.getByRole('button', {
-      name: 'Hard efforts on file · 97% of reference heart rate',
+      name: 'Hard effort · 97%',
     })
     expect(chip.closest('.chip')).toHaveClass('chip--good')
     expect(chip.closest('.chip')?.querySelector('svg')).not.toBeNull()

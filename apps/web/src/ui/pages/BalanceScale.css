@@ -34,7 +34,33 @@
   grid-area: figure;
 }
 
-/* Where the target's label has no room beside its ring, the drawing says it in a line under it. */
+/* Under the drawing: the gap, then what the lower sport would need to level. One line each where they fit. */
+.balance-scale__caption {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.balance-scale__lean,
+.balance-scale__target {
+  margin: 0;
+}
+
+.balance-scale__lean > span {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.balance-scale__lean {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .balance-scale__target {
   display: flex;
   flex-wrap: wrap;
@@ -52,52 +78,6 @@
   font-weight: 700;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-}
-
-.balance-scale__legend {
-  grid-area: legend;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
-.balance-scale__key {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* The key's shapes are the drawing's own, in neutral ink: a dot, a ring and a band. */
-.balance-scale__swatch {
-  display: inline-block;
-  box-sizing: border-box;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.balance-scale__swatch--dot {
-  background: var(--neutral-mark);
-}
-
-.balance-scale__swatch--ring {
-  border: 2.5px solid var(--neutral-mark);
-  background: var(--surface-1);
-}
-
-.balance-scale__swatch--ghost {
-  border: 1.5px solid var(--neutral-mark);
-  background: var(--surface-1);
-  opacity: 0.7;
-}
-
-.balance-scale__swatch--band {
-  width: 18px;
-  border-radius: 3px;
-  background: var(--neutral-band);
-  box-shadow: inset 0 0 0 1px var(--neutral-mark);
 }
 
 .balance-scale__figure {
@@ -201,6 +181,10 @@
 
 .balance-scale__range {
   fill: var(--sport-colour-soft);
+  /* An outline keeps the range visible over the darker bands, in dark as in light. */
+  stroke: var(--sport-colour);
+  stroke-opacity: 0.7;
+  stroke-width: 1;
 }
 
 .balance-scale__cap {
@@ -223,17 +207,20 @@
   stroke-width: 1;
 }
 
-.balance-scale__bracket {
+/* The gap: a stem from each mark and a bar between them, in ink, with no label of its own. */
+.balance-scale__connector {
   fill: none;
   stroke: var(--text-primary);
-  stroke-width: 1.5;
+  stroke-width: 2;
   stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* The lane's name sits over the plot's left, in HTML so the sport glyph is the app's own icon. */
 .balance-scale__lane-name {
   /* The size is set from the layout, which places the name's box from it. */
   line-height: 1.25;
+  white-space: nowrap;
   position: absolute;
   display: flex;
   align-items: center;
@@ -291,11 +278,11 @@
 }
 
 /*
- * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the sentence moves under the drawing,
- * so both marks are above the section tabs at 320 x 640. The same words, read in the same order; only their place
- * on screen changes. A short desktop window keeps its layout: the query asks for a finger or a phone-width window.
+ * On a phone, under 480 px, the sentence moves under the drawing and the title shrinks to a label, so the drawing's
+ * two lanes and its axis are on the first screen above the section tabs at 390 x 844 and 320 x 640, sample notice
+ * and all. The same words, read in the same order; only their place on screen changes.
  */
-@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
+@media (max-width: 479px) {
   .balance-scale {
     grid-template-areas:
       'title'
@@ -303,6 +290,11 @@
       'lede'
       'legend';
     gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .balance-scale__title {
+    font-size: var(--text-md);
   }
 
   .balance-scale__lede {
@@ -310,13 +302,48 @@
   }
 }
 
-/* In forced colours the washes go, so each band keeps a system edge and the marks take system colours. */
+/*
+ * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the title is spoken, not shown: the drawing
+ * is the answer under it, and its lanes and axis need the 30 px at 320 x 640. It still names the section.
+ */
+@media (max-width: 479px) and (max-height: 700px) {
+  .balance-scale__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .balance-scale {
+    padding-top: var(--space-2);
+  }
+}
+
+/*
+ * In forced colours the washes go, so each band keeps a system edge, drawn light so it never strikes through a label,
+ * and every label has a Canvas halo that clears whatever line passes under it. The marks take system colours.
+ */
 @media (forced-colors: active) {
   .balance-scale__band,
   .balance-scale__band[data-level] {
     fill: Canvas;
     stroke: CanvasText;
-    stroke-width: 1;
+    stroke-width: 0.5;
+    stroke-opacity: 0.6;
+  }
+
+  .balance-scale svg text {
+    fill: CanvasText;
+    paint-order: stroke;
+    stroke: Canvas;
+    stroke-width: 4px;
+    stroke-linejoin: round;
+  }
+
+  .balance-scale__lane-name {
+    background: Canvas;
   }
 
   .balance-scale__dot {
@@ -332,11 +359,12 @@
   .balance-scale__range {
     fill: Canvas;
     stroke: CanvasText;
+    stroke-opacity: 1;
   }
 
   .balance-scale__ghost,
   .balance-scale__guide,
-  .balance-scale__bracket {
+  .balance-scale__connector {
     stroke: CanvasText;
   }
 }

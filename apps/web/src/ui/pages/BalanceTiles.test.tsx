@@ -114,11 +114,12 @@ describe('BalanceTiles', () => {
 
   it('says each sport’s level and grade on its tile, with the effort it rests on', () => {
     renderTiles()
-    expect(screen.getByRole('article', { name: 'Run threshold' })).toHaveTextContent(
-      /\w+ · \d+% on your best 20 min, \d+:\d{2} \/km\./,
-    )
+    // The run's best 20 min is faster than its threshold, so its figure has its own line, said once.
+    const run = screen.getByRole('article', { name: 'Run threshold' })
+    expect(run).toHaveTextContent(/Your best 20 min was faster: \d+:\d{2} \/km/)
+    expect(run).toHaveTextContent(/\w+ · \d+% on your best 20 min\./)
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
-      /\d+% \(\d+–\d+%\) on your best 20 min, \d+ W/,
+      /Your best 20 min was higher: \d+ W.*\d+% \(\d+–\d+%\) on your best 20 min\./,
     )
   })
 
@@ -130,7 +131,9 @@ describe('BalanceTiles', () => {
     expect(tile.querySelector('.stat-tile__unit')).toHaveTextContent('pts')
     expect(tile.querySelector('.stat-tile__side')).toHaveTextContent('toward running')
     expect(within(tile).getByText('90% range')).toBeInTheDocument()
-    expect(within(tile).getByText('Estimated')).toBeInTheDocument()
+    // The sample's rides have power meters, so its lean rests on measured power read through the run equivalent.
+    expect(within(tile).getByText('Equivalent')).toBeInTheDocument()
+    expect(within(tile).queryByText('Estimated')).toBeNull()
   })
 
   it('does not repeat the level target on the lean tile, which the scale shows', () => {
@@ -200,8 +203,26 @@ describe('BalanceTiles', () => {
 
   it('names each tile’s evidence with a chip: a ring for an estimate, an equivalent for the ride on foot', () => {
     const { container } = renderTiles()
-    expect(container.querySelectorAll('.stat-tile__basis--estimated')).toHaveLength(3)
-    expect(container.querySelectorAll('.stat-tile__basis--equivalent')).toHaveLength(1)
+    expect(container.querySelectorAll('.stat-tile__basis--estimated')).toHaveLength(2)
+    expect(container.querySelectorAll('.stat-tile__basis--equivalent')).toHaveLength(2)
+  })
+})
+
+describe('LeanTile chip', () => {
+  const lean = (basis: 'recorded' | 'estimated' | 'equivalent') =>
+    render(
+      <LeanTile
+        reading={{ unit: 'points', lean: 'run', lead: { centre: 6, low: 1, high: 12 } }}
+        basis={basis}
+      />,
+    ).container.querySelector('.stat-tile__basis')
+
+  it('says Estimated, Equivalent or Recorded, so measured power is never called estimated', () => {
+    expect(lean('estimated')).toHaveTextContent('Estimated')
+    cleanup()
+    expect(lean('equivalent')).toHaveTextContent('Equivalent')
+    cleanup()
+    expect(lean('recorded')).toHaveTextContent('Recorded')
   })
 })
 
@@ -214,14 +235,14 @@ describe('LeanTile caption', () => {
     }) as const
 
   it('says how far the run’s grade sits above the ride’s for a lean toward running', () => {
-    render(<LeanTile reading={reading(6, 1, 12)} estimated />)
+    render(<LeanTile reading={reading(6, 1, 12)} basis="estimated" />)
     expect(
       screen.getByText('How far your running grade sits above cycling’s, at your best 20 min.'),
     ).toBeInTheDocument()
   })
 
   it('reads a lean toward cycling from cycling’s side', () => {
-    render(<LeanTile reading={reading(-6, -12, -1)} estimated />)
+    render(<LeanTile reading={reading(-6, -12, -1)} basis="estimated" />)
     expect(
       screen.getByText('How far your cycling grade sits above running’s, at your best 20 min.'),
     ).toBeInTheDocument()
@@ -229,14 +250,14 @@ describe('LeanTile caption', () => {
   })
 
   it('names no side for a gap of nothing', () => {
-    render(<LeanTile reading={reading(0, -3, 3)} estimated />)
+    render(<LeanTile reading={reading(0, -3, 3)} basis="estimated" />)
     expect(
       screen.getByText('How far apart your running and cycling grades sit, at your best 20 min.'),
     ).toBeInTheDocument()
   })
 
   it('never says ahead of', () => {
-    const { container } = render(<LeanTile reading={reading(6, 1, 12)} estimated />)
+    const { container } = render(<LeanTile reading={reading(6, 1, 12)} basis="estimated" />)
     expect(container.textContent).not.toMatch(/ahead of/i)
   })
 })

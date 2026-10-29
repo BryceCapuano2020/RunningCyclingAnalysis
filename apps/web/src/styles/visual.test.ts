@@ -451,15 +451,12 @@ describe('balance hero, meter and evidence', () => {
     expect(rulesWith(balancePage, '.balance-hero__head h1')).toMatch(/text-wrap:\s*balance/)
   })
 
-  it('gives the quiet evidence card a gap between its chip, sentence and link', () => {
-    const quiet = rulesWith(balancePage, '.balance__cards .evidence-card--quiet')
-    expect(quiet).toMatch(/display:\s*grid/)
-    expect(quiet).toMatch(/gap:\s*var\(--space-2\)/)
-    expect(quiet).toMatch(/justify-items:\s*start/)
-  })
-
-  it('takes the card heading’s paragraph up to the heading', () => {
-    expect(rulesWith(balancePage, '.balance__cards .card > h2 + p')).toMatch(/margin-top:\s*0/)
+  it('sets the evidence line as one wrapping row with a gap between its chip, definition and link, never a card', () => {
+    const line = rulesWith(balancePage, '.evidence-line')
+    expect(line).toMatch(/display:\s*flex/)
+    expect(line).toMatch(/flex-wrap:\s*wrap/)
+    expect(line).toMatch(/gap:\s*var\(--space-2\) var\(--space-3\)/)
+    expect(balancePage).not.toMatch(/evidence-card/)
   })
 
   it('gives the meter’s value flag room above the track, clear of the even line', () => {
@@ -535,7 +532,6 @@ describe('balance tiles', () => {
 
   it('stretches the tiles to one height in a row', () => {
     expect(rulesWith(balanceTiles, '.balance-tiles')).toMatch(/align-items:\s*stretch/)
-    expect(rulesWith(balancePage, '.balance__cards')).toMatch(/display:\s*grid/)
   })
 
   it('sets a tile’s figure at display size in the display face, and its name as an eyebrow', () => {

@@ -230,3 +230,64 @@
     font-size: 2.75rem;
   }
 }
+
+/*
+ * ChartFrame's own readout is one line at rest, 2 rem tall, saying the chart's latest or headline value (or how to
+ * read one): a phone's plot keeps the room the fullest reading would take. A point's full reading draws over the
+ * row, growing upward from its foot over the lines above the plot, so the plot is never pushed down under a finger.
+ * Another chart's readout row (the activity timeline's) keeps the base rules above.
+ */
+.chart-frame__readout--compact {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  padding-block: var(--space-1);
+}
+
+.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {
+  content: attr(data-idle);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-frame__readout--compact .chart-tooltip {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+/* An empty tooltip stays in the page, as the live region a screen reader hears, with no box of its own. */
+.chart-frame__readout--compact .chart-tooltip:has(.chart-tooltip__title) {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chart-frame__readout--compact .chart-tooltip:has(.chart-tooltip__title) {
+    animation: chart-readout-open 140ms ease-out;
+  }
+
+  @keyframes chart-readout-open {
+    from {
+      max-height: 2rem;
+    }
+
+    to {
+      max-height: 8rem;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .chart-frame__readout--compact .chart-tooltip:has(.chart-tooltip__title) {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+}

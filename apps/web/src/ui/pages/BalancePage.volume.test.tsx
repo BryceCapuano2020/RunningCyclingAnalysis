@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DAY_MS } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
 import { makeActivity, makeResult } from '../components/fixtures'
@@ -58,10 +59,10 @@ function inWeek(week: number, sport: 'run' | 'ride', movingS: number) {
   })
 }
 
-function renderPage(result: AnalysisResult, trend: TrendPoint[]) {
+function renderPage(result: AnalysisResult, trend: TrendPoint[], period?: SessionState['period']) {
   return render(
     <BalancePage
-      analysis={analysisStub({ state: { trend } })}
+      analysis={analysisStub({ state: { trend, ...(period === undefined ? {} : { period }) } })}
       result={result}
       settings={SETTINGS}
       units="metric"
@@ -121,6 +122,33 @@ describe('the weekly volume under the Balance trend', () => {
     expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(3)
     // A week with no training is no bar and no mark on the axis: there is no comb of empty weeks.
     expect(container.querySelectorAll('[data-testid="trend-gap"]')).toHaveLength(0)
+  })
+
+  it('spans the whole period, though the trend begins later: the hours of its first weeks are bars too', () => {
+    // The period starts three weeks before the trend's first point, as a period does when the trend's window cannot
+    // reach back before it.
+    const activities = [
+      inWeek(-3, 'run', 3600 * 2),
+      inWeek(-2, 'ride', 3600 * 3),
+      inWeek(-1, 'run', 3600 * 2),
+      inWeek(0, 'run', 3600 * 5),
+      inWeek(1, 'ride', 3600),
+      inWeek(2, 'run', 3600 * 4),
+    ]
+    const period = {
+      choice: 'default' as const,
+      startMs: FIRST_END - 3 * 7 * DAY_MS - 5 * DAY_MS,
+      endMs: FIRST_END + 3 * 7 * DAY_MS,
+      days: 84,
+      fellBack: false,
+    }
+    const { container } = renderPage(makeResult({ activities }), trendOf(4), period)
+    expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(6)
+    // The table twin lists them from the week the period starts in, three weeks before the trend's first.
+    const rows = within(figureNamed(VOLUME)).getAllByRole('row')
+    expect(rows[1]).toHaveTextContent('Sun 14 Dec 2025')
+    expect(rows[1]).toHaveTextContent('2.0')
+    expect(rows).toHaveLength(7)
   })
 
   it('folds away when fewer than three weeks have training', () => {

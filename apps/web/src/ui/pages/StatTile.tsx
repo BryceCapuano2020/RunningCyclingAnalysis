@@ -24,6 +24,8 @@ export interface StatTileProps {
   heading: string
   /** A word in the heading to define in place, such as "threshold", and what it means. */
   definition?: { term: string; meaning: string }
+  /** One line under the heading that says what the figure is, such as how long it could be held. */
+  gloss?: string
   /** What kind of evidence the figure is; left out where the tile has no figure to give evidence for. */
   basis?: TileBasis
   /** The tile's figure, set large, with its unit and a second reading beside it. */
@@ -55,6 +57,7 @@ export function StatTile({
   sport,
   heading,
   definition,
+  gloss,
   basis,
   figure,
   track,
@@ -69,6 +72,7 @@ export function StatTile({
         </h3>
         {basis === undefined ? null : <BasisChip basis={basis} />}
       </div>
+      {gloss === undefined ? null : <p className="stat-tile__gloss">{gloss}</p>}
       {figure === undefined ? null : (
         <p className="stat-tile__figure">
           <span className="stat-tile__number">{figure.number}</span>

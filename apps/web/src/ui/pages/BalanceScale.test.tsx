@@ -17,6 +17,7 @@ const RUN: ScaleLane = {
   high: null,
   level: 'Local',
   basis: 'recorded',
+  basisText: 'recorded',
   effort: '6:37 /mi',
   pct: '64%',
   sub: 'Local · 6:37 /mi on your best 20 min',
@@ -31,6 +32,7 @@ const RIDE: ScaleLane = {
   high: 63,
   level: 'Recreational to Local',
   basis: 'estimated',
+  basisText: 'estimated',
   effort: '246 W',
   pct: '58%',
   sub: 'Recreational to Local · 246 W on your best 20 min',
@@ -45,6 +47,8 @@ const MODEL: ScaleModel = {
     note: 'toward running · 90% range 1 to 12 points',
     noteShort: 'range 1 to 12 points',
     noteTiny: 'range 1 to 12',
+    side: 'toward running',
+    rangeValue: '1 to 12 points',
   },
   target: {
     sport: 'ride',
@@ -98,14 +102,83 @@ describe('BalanceScale', () => {
     expect(ride?.querySelectorAll('.balance-scale__cap')).toHaveLength(2)
   })
 
-  it('prints each lane’s grade large with its level and figure, the gap in points, and the range ends', () => {
+  it('prints each lane’s grade large with its level and figure and the range ends, and nothing of the gap or the target in the drawing', () => {
     measureAt(1000)
     const { container } = render(<BalanceScale model={MODEL} />)
     const text = Array.from(container.querySelectorAll('svg text')).map((node) => node.textContent)
-    expect(text).toEqual(expect.arrayContaining(['64%', '58%', '6 pts', '52', '63%']))
+    expect(text).toEqual(expect.arrayContaining(['64%', '58%', '52', '63%']))
     expect(text).toContain('Local · 6:37 /mi on your best 20 min')
-    expect(text).toContain('To level with running')
-    expect(text).toContain('about 270 W (245 to 295 W) · now 246 W')
+    // The drawing's rows hold one label for each dot: the gap and the target are said under it.
+    expect(text).not.toContain('6 pts')
+    expect(text).not.toContain('To level with running')
+    expect(text.filter((node) => /^\d+%$/.test(node ?? '') && node !== '63%')).toEqual(
+      expect.arrayContaining(['64%', '58%']),
+    )
+  })
+
+  it('says the gap in one caption line under the drawing, and the level target in another', () => {
+    measureAt(1000)
+    const { container } = render(<BalanceScale model={MODEL} />)
+    expect(container.querySelector('.balance-scale__lean')).toHaveTextContent(
+      '6 pts toward running · 90% range 1 to 12 points',
+    )
+    expect(container.querySelector('.balance-scale__target')).toHaveTextContent(
+      'To level with runningabout 270 W (245 to 295 W) · now 246 W',
+    )
+    expect(container.querySelector('svg .balance-scale__connector')).not.toBeNull()
+  })
+
+  it('words a gap of no points as the same grade, with no figure', () => {
+    const level = { ...MODEL.gap!, figure: '0 pts', side: 'same grade' }
+    const { container } = render(<BalanceScale model={{ ...MODEL, gap: level }} />)
+    expect(container.querySelector('.balance-scale__lean')).toHaveTextContent(
+      'Same grade · 90% range 1 to 12 points',
+    )
+  })
+
+  it('keys the ring as "Estimated" for estimated watts, and as measured power with the level via the run equivalent otherwise', () => {
+    const measured = {
+      ...MODEL,
+      lanes: [RUN, { ...RIDE, basisText: 'via run equivalent' }] as ScaleModel['lanes'],
+    }
+    const { container, unmount } = render(<BalanceScale model={MODEL} />)
+    expect(screen.getByRole('button', { name: 'Estimated' })).toBeInTheDocument()
+    unmount()
+    const again = render(<BalanceScale model={measured} />)
+    expect(screen.queryByRole('button', { name: 'Estimated' })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Power measured · level via run equivalent' }),
+    ).toBeInTheDocument()
+    expect(
+      Array.from(again.container.querySelectorAll('.balance-scale__basis')).map(
+        (n) => n.textContent,
+      ),
+    ).toEqual(['recorded', 'via run equivalent'])
+    expect(container).toBeDefined()
+  })
+
+  it('writes the gap with no range clause where the range rounds to one value', () => {
+    const point = { ...MODEL.gap!, note: 'toward running', rangeValue: '' }
+    const { container } = render(<BalanceScale model={{ ...MODEL, gap: point }} />)
+    expect(container.querySelector('.balance-scale__lean')).toHaveTextContent(
+      /^6 pts toward running$/,
+    )
+  })
+
+  it('names the figure, so a screen reader finds it by its own name as well as the heading’s', () => {
+    render(<BalanceScale model={MODEL} />)
+    expect(
+      screen.getByRole('figure', {
+        name: 'Level scale: age-graded level of your best 20 min, by sport',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('writes the plain-words edges of the levels it shows in the sentence over the drawing', () => {
+    const { container } = render(<BalanceScale model={MODEL} />)
+    expect(container.querySelector('.balance-scale__lede')?.textContent).toMatch(
+      /Recreational below 60%, Local from 60%, Regional from 70%\.$/,
+    )
   })
 
   it('names the level bands the axis shows, from Recreational on', () => {
@@ -163,30 +236,11 @@ describe('BalanceScale', () => {
     )
   })
 
-  it('says the level target in a line under the drawing when the plot is too narrow to label the ring', () => {
-    measureAt(300)
-    const { container } = render(<BalanceScale model={MODEL} />)
-    expect(container.querySelector('svg')).toHaveAttribute('data-compact', 'true')
-    const caption = container.querySelector('.balance-scale__target')
-    expect(caption).toHaveTextContent('To level with runningabout 270 W (245 to 295 W) · now 246 W')
-    // The ring is still drawn; only its words moved out of the drawing.
-    expect(container.querySelector('.balance-scale__ghost')).not.toBeNull()
-    expect(
-      Array.from(container.querySelectorAll('svg text')).map((node) => node.textContent),
-    ).not.toContain('To level with running')
-  })
-
-  it('writes the level target inside the drawing where it has room, and not under it', () => {
-    measureAt(1000)
-    const { container } = render(<BalanceScale model={MODEL} />)
-    expect(container.querySelector('.balance-scale__target')).toBeNull()
-    expect(container.querySelector('svg')).toHaveAttribute('data-compact', 'false')
-  })
-
   it('draws no ghost ring when the model has no target', () => {
     const { container } = render(<BalanceScale model={{ ...MODEL, target: null }} />)
     expect(container.querySelector('.balance-scale__ghost')).toBeNull()
     expect(container.querySelector('.balance-scale__target')).toBeNull()
+    expect(container.querySelector('.balance-scale__lean')).not.toBeNull()
   })
 
   it('puts the level target’s sentence in the table twin, so the target is not in the drawing alone', () => {

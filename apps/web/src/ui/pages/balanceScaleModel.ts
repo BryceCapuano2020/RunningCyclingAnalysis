@@ -1,7 +1,7 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { readFrom, rangeText } from '../components/headlineText'
+import { isPoint, readFrom, rangeText } from '../components/headlineText'
 import type { BalanceReading } from '../components/balanceScale'
 import { plural } from '../components/plural'
 import { wholeCentre } from '../../domain/lean'
@@ -9,7 +9,7 @@ import type { LevelTarget } from '../levelTarget'
 import { gradeLevelText, HEADLINE_LABEL } from '../grades'
 import type { GradeOutcome, SportGrade } from '../grades'
 import { wholeGrade } from '../gradeFormat'
-import { headlineEffort, sportRecords } from '../records'
+import { headlineEffort, headlineWattsEstimated, sportRecords } from '../records'
 import { SPORT_LABEL, SPORT_NOUN, SPORT_ORDER, SPORT_TITLE } from '../sports'
 
 /** One sport's mark on the level scale, in whole percent, with every string the drawing prints for it. */
@@ -24,6 +24,11 @@ export interface ScaleLane {
   level: string
   /** "recorded" for a dot, "estimated" for a ring and its band. */
   basis: 'recorded' | 'estimated'
+  /**
+   * What the lane's name says of its grade: "recorded"; "estimated" where the watts themselves were estimated; and
+   * "via run equivalent" where a power meter measured them and only the level goes through the run equivalent.
+   */
+  basisText: string
   /** The best effort's own figure the grade rests on, "6:37 /mi" or "246 W"; null without one. */
   effort: string | null
   /** The grade as printed large: "64%". */
@@ -37,9 +42,9 @@ export interface ScaleLane {
   rangeHigh: string | null
 }
 
-/** The gap between the two marks and the words that label its bracket. */
+/** The gap between the two marks and the words that say it, in the caption under the drawing. */
 export interface ScaleGap {
-  /** "6 pts", set large beside the bracket. */
+  /** "6 pts". */
   figure: string
   /** The direction and the 90% range: "toward running · 90% range 1 to 12 points". */
   note: string
@@ -47,6 +52,10 @@ export interface ScaleGap {
   noteShort: string
   /** The range's two ends alone, for a plot too narrow for the unit: "range 1 to 12". */
   noteTiny: string
+  /** Which way the gap goes, for the caption line under the drawing: "toward running", or "same grade". */
+  side: string
+  /** The 90% range's words, for that line: "1 to 12 points". */
+  rangeValue: string
 }
 
 /** The level target as a ghost ring: the lane it sits in, the grade it sits at, and its two lines. */
@@ -74,24 +83,57 @@ export interface ScaleModel {
 
 export const SCALE_TABLE_COLUMNS = ['Sport', 'Basis', 'Age grade', 'Level', 'Best 20 min', 'Range']
 
+/** What a lane's name says of an estimate whose watts a power meter measured. */
+export const VIA_EQUIVALENT = 'via run equivalent'
+
+/** The side a gap of no points is given, which the caption under the drawing words as "Same grade". */
+export const SAME_GRADE = 'same grade'
+
 const NO_BREAK = ' '
 
 /**
  * A sport's best effort at the headline duration as the grade line names it: "6:37 /mi", or "246 W (estimated)" for
- * a ride whose watts no power meter measured. Null when it has none.
+ * a ride whose watts no power meter measured, and whether those watts are an estimate. The figure is null when the
+ * sport has no such effort.
  */
-function effortFigure(
+function effortOf(
   result: AnalysisResult,
   sport: Sport,
   massKg: number,
   units: UnitSystem,
-): string | null {
-  const text = headlineEffort(sport, sportRecords(result, sport, massKg, units))
-  return text === null ? null : text.replace(', estimated', ' (estimated)')
+): { figure: string | null; wattsEstimated: boolean } {
+  const records = sportRecords(result, sport, massKg, units)
+  const text = headlineEffort(sport, records)
+  return {
+    figure: text === null ? null : text.replace(', estimated', ' (estimated)'),
+    wattsEstimated: headlineWattsEstimated(sport, records),
+  }
 }
 
-/** One sport's lane from its grade and the figure of the best effort it rests on, or null without one. */
-export function laneOf(sport: Sport, grade: SportGrade, effort: string | null): ScaleLane {
+/** The arguments `laneOf` takes from an effort. */
+function effortArgs({
+  figure,
+  wattsEstimated,
+}: ReturnType<typeof effortOf>): [string | null, boolean] {
+  return [figure, wattsEstimated]
+}
+
+/** The words a lane's name wears for its basis: an estimate says "estimated" only of watts that were. */
+function basisTextOf(recorded: boolean, wattsEstimated: boolean): string {
+  if (recorded) return 'recorded'
+  return wattsEstimated ? 'estimated' : VIA_EQUIVALENT
+}
+
+/**
+ * One sport's lane from its grade and the figure of the best effort it rests on, or null without one. A ride's
+ * watts are taken as measured unless `wattsEstimated` says no power meter measured them.
+ */
+export function laneOf(
+  sport: Sport,
+  grade: SportGrade,
+  effort: string | null,
+  wattsEstimated = false,
+): ScaleLane {
   const { centre, range } = grade
   const level = gradeLevelText(grade)
   const pct = `${wholeGrade(centre.grade)}%`
@@ -102,6 +144,7 @@ export function laneOf(sport: Sport, grade: SportGrade, effort: string | null): 
     high: range === null ? null : wholeGrade(range.high.grade),
     level,
     basis: range === null ? 'recorded' : 'estimated',
+    basisText: basisTextOf(range === null, wattsEstimated),
     pct,
     effort,
     sub: `${effort === null ? level : `${level} · ${effort}`} on your best ${HEADLINE_LABEL}`,
@@ -114,13 +157,18 @@ export function laneOf(sport: Sport, grade: SportGrade, effort: string | null): 
 /** The lead's side and size as the bracket labels it: "6 pts", toward the sport the estimate favours. */
 function gapOf(reading: BalanceReading): ScaleGap {
   const size = Math.abs(wholeCentre(reading.lead))
-  const side = size === 0 ? 'same grade' : `toward ${SPORT_NOUN[readFrom(reading)]}`
-  const range = `range ${rangeText(reading)}`
+  const side = size === 0 ? SAME_GRADE : `toward ${SPORT_NOUN[readFrom(reading)]}`
+  // A range that rounds to one value says nothing the figure does not, so no range is written.
+  const point = isPoint(reading)
+  const rangeValue = point ? '' : rangeText(reading)
+  const range = point ? '' : `range ${rangeValue}`
   return {
     figure: plural(size, 'pt'),
-    note: `${side} · 90% ${range}`,
-    noteShort: range,
-    noteTiny: range.replace(/\u00a0?points$/, ''),
+    note: point ? side : `${side} · 90% ${range}`,
+    side,
+    rangeValue,
+    noteShort: point ? side : range,
+    noteTiny: point ? side : range.replace(/\u00a0?points$/, ''),
   }
 }
 
@@ -137,17 +185,29 @@ function targetOf(target: LevelTarget, lanes: ScaleLane[]): ScaleTarget | null {
   }
 }
 
+/** What a screen reader hears for the one basis that needs more words than its label has room for. */
+const SPOKEN_BASIS: Record<string, string> = {
+  [VIA_EQUIVALENT]: 'power measured, level via the run equivalent',
+}
+
 /** The words a screen reader hears for one lane. */
 function spoken(lane: ScaleLane): string {
   const range = lane.low === null ? '' : `, range ${lane.low} to ${lane.high} percent`
-  return `${SPORT_LABEL[lane.sport]} ${lane.centre} percent, ${lane.level}, ${lane.basis}${range}.`
+  return `${SPORT_LABEL[lane.sport]} ${lane.centre} percent, ${lane.level}, ${SPOKEN_BASIS[lane.basisText] ?? lane.basisText}${range}.`
+}
+
+/** The table's words for each basis a lane can wear. */
+const TABLE_BASIS: Record<string, string> = {
+  recorded: 'Recorded',
+  estimated: 'Estimated',
+  [VIA_EQUIVALENT]: 'Power measured, level via run equivalent',
 }
 
 /** The rows of the table twin: sport, basis, grade, level, figure, range. */
 function rowsOf(lanes: ScaleLane[]): string[][] {
   return lanes.map((lane) => [
     SPORT_LABEL[lane.sport],
-    lane.basis === 'recorded' ? 'Recorded' : 'Estimated',
+    TABLE_BASIS[lane.basisText] ?? 'Estimated',
     `${lane.centre}%`,
     lane.level,
     lane.effort ?? 'None',
@@ -173,7 +233,7 @@ export function scaleModel(input: {
   const lanes = SPORT_ORDER.flatMap((sport) => {
     const outcome = grades[sport]
     return outcome?.kind === 'graded'
-      ? [laneOf(sport, outcome.grade, effortFigure(result, sport, massKg, units))]
+      ? [laneOf(sport, outcome.grade, ...effortArgs(effortOf(result, sport, massKg, units)))]
       : []
   })
   return modelOf(lanes, reading, target)
@@ -210,7 +270,7 @@ export function modelOf(
     lanes,
     gap,
     target: target === null ? null : targetOf(target, lanes),
-    description: `${intro} ${lanes.map(spoken).join(' ')} ${leadText}, ${gap.noteShort}.${
+    description: `${intro} ${lanes.map(spoken).join(' ')} ${leadText}${gap.rangeValue === '' ? '' : `, ${gap.noteShort}`}.${
       target === null ? '' : ` ${target.sentence}`
     }`,
     rows: rowsOf(lanes),
