@@ -100,6 +100,11 @@ export type WorkerRequest =
   /** `forgetDevice` also empties the library kept in this browser. */
   | { type: 'clear'; forgetDevice?: boolean }
   | { type: 'deleteActivity'; id: string; userId: string; settings: AthleteSettings }
+  /**
+   * Keeps in this browser the activities that provisional imports analysed, without reading their files
+   * again. Sent when the account turns out to be nobody's.
+   */
+  | { type: 'keepProvisional'; settings: AthleteSettings }
   /** Removes one workout from the library kept in this browser; `id` is a SavedActivity id. */
   | { type: 'deleteDeviceActivity'; id: string; settings: AthleteSettings }
   /** Builds the account's data export from its library. The account, profile and dated settings come from the page. */

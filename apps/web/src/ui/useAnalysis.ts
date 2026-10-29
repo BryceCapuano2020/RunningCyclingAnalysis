@@ -350,6 +350,8 @@ export function useAnalysis(
     addFiles: importActions.addFiles,
     loadLibrary: libraryActions.loadLibrary,
     loadDeviceOnce,
+    keepProvisional: () => sendToWorker({ type: 'keepProvisional', settings: settingsRef.current }),
+    deviceLoaded: () => deviceLoadedRef.current,
     clearQueues,
     clearSession,
   })

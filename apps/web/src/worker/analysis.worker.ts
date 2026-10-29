@@ -10,6 +10,7 @@ import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { accountSaver } from './accountSave'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
+import { deviceKeeper } from './deviceKeeper'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
@@ -30,6 +31,8 @@ const post = (message: WorkerResponse) => self.postMessage(message)
 const missingOriginals = new Set<string>()
 const savedRecords = new Map<string, ActivityRecord>()
 const workbench = new Workbench()
+/** The activities provisional imports analysed, by workout, with no file bytes. See keepProvisional. */
+const provisionalItems = new Map<string, SyncItem>()
 /** The exact library scope this worker is currently allowed to answer details for. */
 let activeScope: TraceScope | null = null
 
@@ -119,26 +122,20 @@ async function addFiles(
   if (sync === null && request.saveToDevice && !device.inSession())
     await device.load(request.settings)
   showingSample = false
-  // Workouts this browser refused to keep, or left to a newer version's copy, counted once however
-  // many copies of one were turned away, and not at all when another copy of it was kept. The
-  // results still show; the page is told the counts.
-  const refused = new Set<string>()
-  const leftToNewer = new Set<string>()
-  const keptKeys = new Set<string>()
-  const keepOnDevice = async (item: SyncItem) => {
-    const key = activityKey(item.digest)
-    const saved = await device.save(item)
-    if (saved === 'kept') keptKeys.add(key)
-    else (saved === 'newer' ? leftToNewer : refused).add(key)
+  const keeper = deviceKeeper(device, post)
+  // While the account is unknown, the activities are held for the device without their files, to be
+  // kept as they are if nobody turns out to be signed in.
+  const holdForDevice = async (item: SyncItem) => {
+    provisionalItems.set(activityKey(item.digest), { ...item, bytes: new Uint8Array() })
   }
-  const notKept = (keys: Set<string>) => [...keys].filter((key) => !keptKeys.has(key)).length
   let state: SessionState
   try {
     state = await session.addFiles(
       request.files,
       request.settings,
       (count) => reporter.filesReadSoFar(count),
-      save ?? (request.saveToDevice ? keepOnDevice : undefined),
+      save ??
+        (request.provisional ? holdForDevice : request.saveToDevice ? keeper.keep : undefined),
       sync?.keepFiles === true,
       ({ added, ...completed }) => {
         for (const digest of added) addedIds.add(digest.id)
@@ -173,10 +170,7 @@ async function addFiles(
     reportLibrary()
   } else if (request.saveToDevice) {
     await device.report()
-    const count = notKept(refused)
-    const newer = notKept(leftToNewer)
-    if (count > 0 || newer > 0)
-      post({ type: 'deviceIssue', issue: 'notSaved', count, ...(newer > 0 ? { newer } : {}) })
+    keeper.report()
   }
   if (stoppedBy !== null) post({ type: 'accountIssue', issue: stoppedBy })
   return { state, outcome, ...(sync ? { saved: reporter.savedCount } : {}) }
@@ -186,7 +180,17 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
   switch (request.type) {
     case 'addFiles':
       return (await addFiles(request)).state
+    case 'keepProvisional': {
+      const keeper = deviceKeeper(device, post)
+      const held = [...provisionalItems.values()]
+      provisionalItems.clear()
+      for (const item of held) await keeper.keep(item)
+      await device.report()
+      keeper.report()
+      return session.setSettings(request.settings)
+    }
     case 'loadSample':
+      provisionalItems.clear()
       workbench.clearMemory()
       activeScope = { kind: 'device' }
       showingSample = true
@@ -194,6 +198,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       session.choosePeriod(periodChoiceOf(request.choice))
       return session.loadSample(request.settings)
     case 'loadServer':
+      provisionalItems.clear()
       workbench.clearMemory()
       activeScope = { kind: 'account', userId: request.userId }
       await workbench.reopenScope(activeScope)
@@ -207,7 +212,6 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'rebuildStale':
       workbench.clearMemory()
       activeScope = { kind: 'account', userId: request.userId }
-      await workbench.reopenScope(activeScope)
       return (await rebuildStale(libraryContext, request.settings, request.userId)).state
     case 'setSettings':
       return session.setSettings(request.settings)
@@ -222,11 +226,13 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await device.report()
         return session.setSettings(request.settings)
       }
+      provisionalItems.clear()
       workbench.clearMemory()
       activeScope = { kind: 'device' }
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
+      provisionalItems.clear()
       showingSample = false
       workbench.clearMemory()
       routes.clear()

@@ -51,6 +51,10 @@ interface AccountTransitionDeps {
   loadLibrary: (userId: string) => void
   /** Loads the library kept in this browser into the worker, once per worker, when signed out. */
   loadDeviceOnce: () => void
+  /** Keeps in this browser the activities analysed while the account was unknown, without reading them again. */
+  keepProvisional: () => void
+  /** Whether this worker has been asked to load the library kept in this browser. */
+  deviceLoaded: () => boolean
   /** Empties every queue, so nothing the previous account started can run for the next one. */
   clearQueues: () => void
   /** Empties the session, keeping the period the visitor chose. Used before a library load. */
@@ -64,7 +68,12 @@ interface AccountTransitionDeps {
  * worker generation changes.
  */
 export function useAccountTransitions(deps: AccountTransitionDeps): void {
-  const { status: accountStatus, me, sessionExpired } = deps.account
+  const { me, sessionExpired } = deps.account
+  const lookupPending = deps.account.lookupPending === true
+  // While the account cannot be reached but will be asked again, nobody is known to be signed in or
+  // out, so it counts as still loading for what is kept and what is sent.
+  const unreachable = deps.account.status === 'unavailable' && lookupPending
+  const accountStatus = unreachable ? 'loading' : deps.account.status
   const { workerGeneration } = deps.transport
   const latest = useLatest(deps)
   // A restarted worker has no account state, so its first pass must count as a load. The worker
@@ -84,6 +93,14 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
     const previousUserId = current.previousUserIdRef.current
     current.previousStatusRef.current = accountStatus
     current.previousUserIdRef.current = userId
+    // The kept library is shown at once, so a visitor with no API is not left waiting for it. What
+    // the account turns out to be decides what happens to the files analysed meanwhile.
+    if (unreachable && !current.deviceLoaded()) {
+      current.library.libraryWaitRef.current.push(
+        ...drainBatches(current.imports.provisionalImportsRef),
+      )
+      current.loadDeviceOnce()
+    }
     const accountChanged =
       before === 'signed-in' && (accountStatus !== 'signed-in' || userId !== previousUserId)
     if (accountChanged && accountStatus === 'signed-out' && sessionExpired) {
@@ -100,12 +117,17 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
       // Nobody is signed in: the files analysed while the account loaded are saved once the kept
       // library has loaded, so each is compared with it. The reply to that load adds them. The
       // analysis queued ahead of the load is repeated, since a worker restart would re-enter here.
-      current.library.libraryWaitRef.current.push(
-        ...drainBatches(current.imports.provisionalImportsRef),
-      )
-      current.loadDeviceOnce()
+      const batches = drainBatches(current.imports.provisionalImportsRef)
+      if (current.deviceLoaded()) {
+        // The kept library was loaded while the account was out of reach, and the files were analysed
+        // with it. They are kept as they are: no second read, no second analysis.
+        if (batches.length > 0) current.keepProvisional()
+      } else {
+        current.library.libraryWaitRef.current.push(...batches)
+        current.loadDeviceOnce()
+      }
     }
-  }, [accountStatus, me, sessionExpired, workerGeneration, latest])
+  }, [accountStatus, unreachable, me, sessionExpired, workerGeneration, latest])
 }
 
 /**
@@ -190,10 +212,24 @@ function loadSignedInLibrary(deps: AccountTransitionDeps, userId: string): void 
   // The analysis queued ahead of this load means each file is analysed twice. Restarting the worker
   // would avoid that, but a restart re-enters this transition, so the repeat is left as it is.
   const batches = drainBatches(deps.imports.provisionalImportsRef)
+  // The kept library was shown while the account was out of reach. It is not this account's, and
+  // nothing analysed since was written to it, so it goes from the page before the account loads.
+  const keptShown = deps.deviceLoaded()
   deps.library.dropNotSaved()
-  if (batches.length > 0) {
+  if (batches.length > 0 || keptShown) {
     deps.clearSession()
     deps.library.libraryWaitRef.current.push(...batches)
+  }
+  if (keptShown) {
+    // As when the account changes: an import that cannot be carried over is cancelled, in words.
+    const cancelled = deps.transport.pendingRepliesRef.current.some(
+      (pending) => pending.kind === 'addFiles' && !pending.ignored && pending.provisional !== true,
+    )
+    deps.accountEpochRef.current += 1
+    deps.imports.setProgress(null)
+    deps.imports.setUploading(null)
+    if (cancelled)
+      deps.setError('An import was cancelled because you signed in. Select the files again.')
   }
   deps.loadLibrary(userId)
 }

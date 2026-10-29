@@ -170,6 +170,7 @@ function rememberKeptLibrary(
   else if (
     pending.kind === 'loadDevice' ||
     pending.kind === 'deleteDeviceActivity' ||
+    pending.kind === 'keepProvisional' ||
     (pending.kind === 'addFiles' && pending.saveToDevice === true)
   ) {
     setKeptLibraryHinted(kept)

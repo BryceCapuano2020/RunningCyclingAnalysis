@@ -13,6 +13,7 @@ function retriesDevice(request: WorkerRequest): boolean {
   return (
     (request.type === 'addFiles' && request.saveToDevice === true) ||
     request.type === 'deleteDeviceActivity' ||
+    request.type === 'keepProvisional' ||
     (request.type === 'clear' && request.forgetDevice === true)
   )
 }

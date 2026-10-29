@@ -14,6 +14,7 @@ export function isQuietRequest(kind: Pending['kind']): boolean {
     kind === 'activitySplits' ||
     kind === 'activityTrace' ||
     kind === 'loadDevice' ||
+    kind === 'keepProvisional' ||
     kind === 'routeShape' ||
     kind === 'forgetRoutes' ||
     kind === 'setRange' ||

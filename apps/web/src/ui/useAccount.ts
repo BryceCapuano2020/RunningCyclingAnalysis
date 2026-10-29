@@ -32,6 +32,11 @@ export interface AccountController {
   refresh: () => Promise<Me | null>
   /** The last account action's failure, or why the account is unavailable. */
   error: string | null
+  /**
+   * True while the account is unavailable but the lookup will be tried again, so the visitor may yet
+   * turn out to be signed in. Nothing is kept on this device until it is false.
+   */
+  lookupPending: boolean
 }
 
 /** Waits before each retry of a failed account lookup: 1 s, 3 s, then 10 s. */
@@ -70,6 +75,7 @@ export function useAccount(): AccountController {
   const [me, setMe] = useState<Me | null>(null)
   const [sessionExpired, setSessionExpired] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lookupPending, setLookupPending] = useState(false)
   const meRef = useRef<Me | null>(null)
   const profileWriteFailureRef = useRef<unknown>(null)
   // Profile writes replace the whole profile on the server, so keep them in call order.
@@ -111,6 +117,7 @@ export function useAccount(): AccountController {
         (found) => {
           if (!current) return
           adopt(found)
+          setLookupPending(false)
           // A retry that got through takes back the account's earlier "unavailable".
           if (failed) setError(null)
         },
@@ -125,6 +132,7 @@ export function useAccount(): AccountController {
           setStatus('unavailable')
           setError(messageOf(failure))
           const delay = LOOKUP_RETRY_DELAYS_MS[retries]
+          setLookupPending(delay !== undefined)
           if (delay !== undefined) {
             retries++
             retryTimer = setTimeout(lookup, delay)
@@ -253,6 +261,7 @@ export function useAccount(): AccountController {
       refresh,
       flushProfileWrites,
       error,
+      lookupPending,
     }),
     [
       status,
@@ -266,6 +275,7 @@ export function useAccount(): AccountController {
       refresh,
       flushProfileWrites,
       error,
+      lookupPending,
     ],
   )
 }
