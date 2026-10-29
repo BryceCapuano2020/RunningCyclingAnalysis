@@ -1,5 +1,5 @@
 import { MIB } from '../constants'
-import type { Activity } from '../types'
+import type { Activity, Sport } from '../types'
 
 /** The result contract every activity parser (FIT, GPX, TCX) returns, and the limits they enforce. */
 
@@ -62,7 +62,7 @@ export interface ParseOptions {
    * its activities by start time rather than by file, such as Garmin's. Asked with each activity's own
    * start. The file's `activityName`, when it has one, wins.
    */
-  nameAt?: (startMs: number) => string | undefined
+  nameAt?: (startMs: number, sport: Sport) => string | undefined
   /**
    * The type the file's export gives the activity, such as Strava's "Trail Run" or "Virtual Ride". It
    * fills in a sport the file does not say: a GPX track with no type or only a number the app does not

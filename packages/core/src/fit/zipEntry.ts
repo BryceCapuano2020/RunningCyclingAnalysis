@@ -39,40 +39,75 @@ export async function readZipEntry(
       (a, b) => (a === undefined || depthOf(b.name) < depthOf(a.name) ? b : a),
       undefined,
     )
-    return best === undefined ? null : await readFound(source, best, limits)
+    const read = best === undefined ? null : await readFound(source, best, limits)
+    return read === 'over' ? null : read
   } catch {
     return null
   }
 }
 
+/** What visiting a zip's wanted entries took and found. */
+export interface EntriesVisited {
+  /** The bytes inflated for the entries, plus the most an entry could have taken when it was refused for size. */
+  inflatedBytes: number
+  /** Entries visited. */
+  read: number
+  /** Directory headers left unread because they point at an entry an earlier header already did. */
+  repeated: number
+}
+
 /**
- * The entries `isWanted` accepts, each read as readZipEntry reads one, in the order the zip lists them. An
- * entry that cannot be read is left out. Reading stops before an entry that would take the bytes read past
- * `maxBytes`, or after `maxEntries` entries, so the rest are not read. Never throws.
+ * Calls `visit` with each entry `isWanted` accepts, read as readZipEntry reads one, in the order the zip
+ * lists them, and lets go of its bytes before the next is read, so one entry is held at a time. The
+ * entries together inflate to at most `maxBytes`, and one to what is left of that, of
+ * limits.maxEntryBytes, and of a third of the buffer less what it was compressed to (read, inflated, and
+ * decoded as text each take its size). An entry that would pass its share is left out, and the most it
+ * could have taken is counted, so a directory of such entries cannot make the read run on. A header
+ * that names the data of an entry already read is not read again, whatever it is called: a zip of a few
+ * kilobytes could otherwise list one large entry thousands of times. At most `maxEntries` entries are
+ * read. Never throws.
  */
-export async function readZipEntries(
+export async function visitZipEntries(
   source: RangedSource,
   isWanted: (name: string) => boolean,
   limits: ExtractLimits,
-  maxBytes: number,
-  maxEntries: number,
-): Promise<ZipEntryBytes[]> {
-  const read: ZipEntryBytes[] = []
+  share: { maxBytes: number; maxEntries: number },
+  visit: (entry: ZipEntryBytes) => void,
+): Promise<EntriesVisited> {
+  const visited: EntriesVisited = { inflatedBytes: 0, read: 0, repeated: 0 }
   try {
-    let bytes = 0
-    for (const found of (await wantedEntries(source, isWanted, limits))?.slice(0, maxEntries) ??
-      []) {
-      const entry = await readFound(source, found, limits)
-      if (entry === null) continue
-      bytes += entry.bytes.length
-      if (bytes > maxBytes) break
-      read.push(entry)
+    const offsets = new Set<number>()
+    for (const found of (await wantedEntries(source, isWanted, limits)) ?? []) {
+      if (offsets.has(found.entry.localOffset)) {
+        visited.repeated++
+        continue
+      }
+      offsets.add(found.entry.localOffset)
+      const left = share.maxBytes - visited.inflatedBytes
+      const buffered = Math.floor(
+        (limits.maxBufferedBytes - found.entry.compressedSize) / BUFFER_COPIES,
+      )
+      const cap = Math.min(limits.maxEntryBytes, left, buffered)
+      if (visited.read >= share.maxEntries || left <= 0) break
+      if (cap <= 0 || found.entry.size > cap) {
+        visited.inflatedBytes += Math.max(0, Math.min(cap, found.entry.size))
+        continue
+      }
+      const entry = await readFound(source, found, limits, cap)
+      if (entry === 'over') visited.inflatedBytes += cap
+      if (entry === null || entry === 'over') continue
+      visited.inflatedBytes += entry.bytes.length
+      visited.read++
+      visit(entry)
     }
   } catch {
-    // What was read stays.
+    // What was visited stays.
   }
-  return read
+  return visited
 }
+
+/** The times an entry's size is held at once when it is read as text: compressed aside, inflated twice, decoded. */
+const BUFFER_COPIES = 4
 
 /** The entries of the zip's central directory that `isWanted` accepts. Null when it has no readable directory. */
 async function wantedEntries(
@@ -100,7 +135,8 @@ async function readFound(
   source: RangedSource,
   { name, entry }: Found,
   limits: ExtractLimits,
-): Promise<ZipEntryBytes | null> {
+  maxInflated = limits.maxEntryBytes,
+): Promise<ZipEntryBytes | 'over' | null> {
   const head = await readBytes(source, entry.localOffset, LOCAL_HEADER_BYTES)
   if (head === null) return null
   const view = new DataView(head.buffer)
@@ -113,8 +149,9 @@ async function readFound(
   const dataStart = entry.localOffset + LOCAL_HEADER_BYTES + nameLength + view.getUint16(28, true)
   const data = await readBytes(source, dataStart, entry.compressedSize)
   if (data === null) return null
-  const bytes = decompress(entry.method, data, limits.maxEntryBytes)
-  return bytes === null ? null : { name, bytes }
+  const bytes = decompress(entry.method, data, maxInflated)
+  if (bytes === null) return entry.method === DEFLATED || entry.method === STORED ? 'over' : null
+  return { name, bytes }
 }
 
 /** Folders in an entry's name: the nearer the root, the fewer. */
@@ -139,7 +176,7 @@ function decompress(
   data: Uint8Array<ArrayBuffer>,
   limit: number,
 ): Uint8Array<ArrayBuffer> | null {
-  if (method === STORED) return data
+  if (method === STORED) return data.length > limit ? null : data
   if (method !== DEFLATED) return null
   return inflateWithin(data, limit)
 }

@@ -34,14 +34,14 @@ function swim(startMs: number): Uint8Array {
 }
 
 /** The summary file Garmin writes: a list holding an object with the list of activities. */
-function summaries(...activities: { name: string; startMs: number }[]): Uint8Array {
+function summaries(...activities: { name: string; startMs: number; type?: string }[]): Uint8Array {
   return strToU8(
     JSON.stringify([
       {
-        summarizedActivitiesExport: activities.map(({ name, startMs }, i) => ({
+        summarizedActivitiesExport: activities.map(({ name, startMs, type }, i) => ({
           activityId: 1_000_000 + i,
           name,
-          activityType: 'running',
+          activityType: type ?? 'running',
           beginTimestamp: startMs,
           startTimeGmt: startMs,
         })),
@@ -50,7 +50,7 @@ function summaries(...activities: { name: string; startMs: number }[]): Uint8Arr
   )
 }
 
-function zipBytes(entries: Record<string, Uint8Array>): Uint8Array {
+function zipBytes(entries: Record<string, Uint8Array>): Uint8Array<ArrayBuffer> {
   return new Uint8Array(zipSync(entries))
 }
 
@@ -142,6 +142,23 @@ describe('AnalysisSession reading a Garmin Connect export', () => {
     ])
   })
 
+  it('names a file by the summary of its own sport when two start together, and by none when it cannot tell', async () => {
+    const together = summaries(
+      { name: 'Wrong sport', startMs: run.startMs + 100, type: 'cycling' },
+      { name: 'Lakeside Run', startMs: run.startMs + 700, type: 'trail_running' },
+      { name: 'Hill Ride', startMs: ride.startMs, type: 'road_biking' },
+      { name: 'Twin ride', startMs: ride.startMs + 200, type: 'road_biking' },
+    )
+    const { state } = await importFiles([garminExport(UPLOADED, together)])
+
+    const names = Object.fromEntries(
+      state.result!.activities.map((activity) => [activity.sport, activity.name]),
+    )
+    expect(names.run).toBe('Lakeside Run')
+    // Two rides start together, with different names: not guessed, so the ride is named as any other.
+    expect(names.ride).toMatch(/ Ride$/)
+  })
+
   it('still imports every activity when the summaries are unreadable', async () => {
     const { state, outcome } = await importFiles([garminExport(UPLOADED, strToU8('{ not json'))])
 
@@ -199,11 +216,11 @@ describe('a Garmin Connect export keeps every zip guard', () => {
   })
 
   it('counts the entries of the nested zip toward the archive entry limit', async () => {
-    // The top zip has 4 entries, the nested one 2 more: 6 headers, so a limit of 5 stops inside it.
-    const { state } = await importFiles([garminExport(UPLOADED)], small({ maxArchiveEntries: 5 }))
+    // The summaries are the first entry, the nested zip the second, its two files the third and fourth.
+    const { state } = await importFiles([garminExport(UPLOADED)], small({ maxArchiveEntries: 3 }))
 
-    expect(state.rejected.some((file) => file.reason.includes('5-entry limit'))).toBe(true)
-    expect(state.result?.activities.length ?? 0).toBeLessThan(2)
+    expect(state.rejected.map((file) => file.reason)).toEqual(['Archive exceeds the 3-entry limit'])
+    expect(state.result!.activities).toHaveLength(1)
   })
 
   it('counts the activity files of the nested zip toward the activity file limit', async () => {
@@ -250,13 +267,27 @@ describe('a Garmin Connect export keeps every zip guard', () => {
     )
   })
 
-  it('refuses a nested zip larger than one archive entry may be', async () => {
+  it('reads a nested zip larger than one archive entry may be, since it is not held whole', async () => {
+    const nested = new Uint8Array(zipSync(UPLOADED, { level: 0 }))
+    const biggestFile = Math.max(...Object.values(UPLOADED).map((bytes) => bytes.length))
+    const file = zipFile({ [SUMMARIES]: summaries(), [UPLOADS]: nested })
+    // The limit holds each file, not the zip around them, and the buffer holds one file at a time.
+    const limits = small({ maxEntryBytes: biggestFile + 1, maxBufferedBytes: biggestFile * 3 })
+    const { state } = await importFiles([file], limits)
+
+    expect(nested.length).toBeGreaterThan(limits.maxEntryBytes)
+    expect(state.rejected).toEqual([])
+    expect(state.result!.activities).toHaveLength(2)
+  })
+
+  it('still refuses an activity file larger than one archive entry may be', async () => {
     const { state } = await importFiles(
       [garminExport(UPLOADED)],
-      small({ maxEntryBytes: zipBytes(UPLOADED).length - 1 }),
+      small({
+        maxEntryBytes: Math.min(...Object.values(UPLOADED).map((bytes) => bytes.length)) - 1,
+      }),
     )
 
-    expect(state.result).toBeNull()
-    expect(state.rejected.map((rejected) => rejected.code)).toContain('too-large')
+    expect(state.rejected.map((rejected) => rejected.code)).toEqual(['too-large', 'too-large'])
   })
 })

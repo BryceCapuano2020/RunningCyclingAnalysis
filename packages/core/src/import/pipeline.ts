@@ -152,7 +152,7 @@ interface Context {
   /** The name the file's export gives, which wins over a title in the file. */
   activityName?: string
   /** The name the export gives an activity by its start, used when the file has no name of its own. */
-  nameAt?: (startMs: number) => string | undefined
+  nameAt?: (startMs: number, sport: Sport) => string | undefined
   /** The upload's id, which the legs of one upload share as their session key. */
   sessionKey?: string
   /** The export tags the file's activities as races. */
@@ -310,7 +310,7 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
   // An export that names activities by their start names each leg of a multisport file on its own, so
   // the name does not carry the sport as one name shared by the legs does.
   const nameByStart =
-    context.activityName === undefined ? context.nameAt?.(resampled.startMs) : undefined
+    context.activityName === undefined ? context.nameAt?.(resampled.startMs, sport) : undefined
   const name = nameOfLeg({
     exportName: context.activityName ?? nameByStart,
     title: unit.title,

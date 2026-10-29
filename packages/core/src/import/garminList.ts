@@ -1,14 +1,19 @@
 import { DEFAULT_EXTRACT_LIMITS } from '../fit/archive'
 import type { ExtractLimits } from '../fit/archive'
-import { readZipEntries } from '../fit/zipEntry'
+import { visitZipEntries } from '../fit/zipEntry'
 import type { RangedSource } from '../fit/zipDirectory'
 import { ZIP } from '../fit/zipDirectory'
+import type { Sport } from '../types'
+import { cleanTitle } from './names'
 
 /**
- * The most one of a Garmin export's activity summaries may hold once inflated. A summary of a few
- * thousand activities is a few megabytes; it bounds the text one file inflates to.
+ * The most one of a Garmin export's activity summaries may inflate to. A summary of a few thousand
+ * activities is a few megabytes. The text is parsed whole, which takes several times its size, so this
+ * is also what bounds that parse.
  */
-export const MAX_GARMIN_SUMMARY_BYTES = 32 * 1024 * 1024
+export const MAX_GARMIN_SUMMARY_BYTES = 16 * 1024 * 1024
+/** The most all of an export's summaries may inflate to together. They are read one at a time. */
+export const MAX_GARMIN_SUMMARIES_BYTES = 64 * 1024 * 1024
 /** The most summary files read from one export. Garmin splits a large account's summaries into a few. */
 const MAX_SUMMARY_FILES = 32
 /**
@@ -16,6 +21,8 @@ const MAX_SUMMARY_FILES = 32
  * activity's start to the millisecond; the file's first record is within a second or two of it.
  */
 export const START_TOLERANCE_MS = 5000
+/** Summaries starting this close together can be told apart only by their sport. */
+export const TIE_MS = 1000
 /** Epoch values below this are seconds, not milliseconds (it is the year 1973 in milliseconds). */
 const SECONDS_BELOW = 1e11
 
@@ -27,18 +34,24 @@ const SECONDS_BELOW = 1e11
  */
 const SUMMARY_PATH = /(^|[\\/])DI-Connect-Fitness[\\/][^\\/]*summarizedActivities[^\\/]*\.json$/i
 
-/** What a Garmin export's summary says about one activity. A blank name is left out. */
+/** What a Garmin export's summary says about one activity. A blank name and an unknown type are left out. */
 export interface GarminActivity {
   startMs: number
   name?: string
+  /** The sport its activityType names, when it names a run or a ride. */
+  sport?: Sport
 }
 
 /** A Garmin export's activities by start time, to name the files of the export by theirs. */
 export interface GarminList {
-  /** In start order. */
+  /** In start order, and for the same start in name order, whatever order the summaries came in. */
   activities: readonly GarminActivity[]
-  /** The name of the activity that started within START_TOLERANCE_MS of `startMs`, the nearest first. */
-  nameAt(startMs: number): string | undefined
+  /**
+   * The name of the activity that started within START_TOLERANCE_MS of `startMs`, the nearest first. When
+   * more than one started that close to each other (TIE_MS), the one whose type is the file's sport; when
+   * that still leaves two with different names, none.
+   */
+  nameAt(startMs: number, sport: Sport): string | undefined
   /** The bytes the summaries inflated to. They count against the export's decompressed-bytes budget. */
   decompressedBytes: number
 }
@@ -47,7 +60,7 @@ export interface GarminList {
  * The activities a summary file lists. The file is a list holding an object with a `summarizedActivitiesExport`
  * list of activities, as Garmin writes it; the object alone or the bare list of activities are read too.
  * The start is `startTimeGmt`, else `beginTimestamp`, in epoch milliseconds. An entry with no start is left
- * out. Null when the text is not JSON.
+ * out. A name is cut to a title as any is (cleanTitle). Null when the text is not JSON.
  */
 export function parseGarminSummaries(text: string): GarminActivity[] | null {
   let root: unknown
@@ -60,8 +73,13 @@ export function parseGarminSummaries(text: string): GarminActivity[] | null {
   for (const entry of activityEntries(root)) {
     const startMs = startOf(entry)
     if (startMs === undefined) continue
-    const name = typeof entry.name === 'string' ? entry.name.trim() : ''
-    activities.push(name === '' ? { startMs } : { startMs, name })
+    const name = cleanTitle(typeof entry.name === 'string' ? entry.name : undefined)
+    const sport = sportOf(entry.activityType)
+    activities.push({
+      startMs,
+      ...(name === undefined ? {} : { name }),
+      ...(sport === undefined ? {} : { sport }),
+    })
   }
   return activities
 }
@@ -90,37 +108,70 @@ function startOf(entry: Record<string, unknown>): number | undefined {
   return undefined
 }
 
+/**
+ * The sport a Garmin activityType names: a string such as "running" or "indoor_cycling", or an object
+ * holding it as `typeKey`. Only a run or a ride is a sport here, and an e-bike ride is neither.
+ */
+function sportOf(type: unknown): Sport | undefined {
+  const key = isRecord(type) ? type.typeKey : type
+  if (typeof key !== 'string') return undefined
+  const words = key.toLowerCase().replace(/[\s_-]+/g, ' ')
+  if (/\be ?bike|\bebike/.test(words)) return undefined
+  if (/\brun/.test(words)) return 'run'
+  if (/\b(cycling|biking|bike|ride)\b/.test(words)) return 'ride'
+  return undefined
+}
+
 /** A list of activities, searched by start. Pass the activities of every summary of the export. */
 export function garminList(activities: GarminActivity[], decompressedBytes = 0): GarminList {
-  const sorted = [...activities].sort((a, b) => a.startMs - b.startMs)
+  const sorted = [...activities].sort(
+    (a, b) =>
+      a.startMs - b.startMs ||
+      (a.name ?? '').localeCompare(b.name ?? '') ||
+      (a.sport ?? '').localeCompare(b.sport ?? ''),
+  )
   return {
     activities: sorted,
     decompressedBytes,
-    nameAt(startMs) {
-      // Binary search for the first activity at or after the start, then the nearer of it and the one before.
-      let low = 0
-      let high = sorted.length
-      while (low < high) {
-        const mid = (low + high) >> 1
-        if (sorted[mid]!.startMs < startMs) low = mid + 1
-        else high = mid
-      }
-      const near = [sorted[low - 1], sorted[low]].filter(
-        (a): a is GarminActivity =>
-          a !== undefined && Math.abs(a.startMs - startMs) <= START_TOLERANCE_MS,
-      )
-      near.sort((a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs))
-      return near[0]?.name
+    nameAt(startMs, sport) {
+      const near = nearTo(sorted, startMs)
+      const best = near[0]
+      if (best === undefined) return undefined
+      // The summaries too close to the nearest to be told from it by their time.
+      const tied = near.filter((a) => Math.abs(a.startMs - best.startMs) <= TIE_MS)
+      if (tied.length === 1) return best.name
+      const ofSport = tied.filter((a) => a.sport === sport)
+      // The sport picks among them when it can. Several that agree on the name are not ambiguous.
+      const names = new Set((ofSport.length > 0 ? ofSport : tied).map((a) => a.name))
+      return names.size === 1 ? [...names][0] : undefined
     },
   }
+}
+
+/** The activities that started within the tolerance of an instant, nearest first, then in list order. */
+function nearTo(sorted: readonly GarminActivity[], startMs: number): GarminActivity[] {
+  let low = 0
+  let high = sorted.length
+  while (low < high) {
+    const mid = (low + high) >> 1
+    if (sorted[mid]!.startMs < startMs - START_TOLERANCE_MS) low = mid + 1
+    else high = mid
+  }
+  const near: GarminActivity[] = []
+  for (let i = low; i < sorted.length && sorted[i]!.startMs <= startMs + START_TOLERANCE_MS; i++) {
+    near.push(sorted[i]!)
+  }
+  // A stable sort, so equal distances stay in list order.
+  return near.sort((a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs))
 }
 
 /**
  * The activity summaries of a Garmin Connect export zip, read without reading the activity files, so the
  * names are known before any file is parsed. Null when the source is not a zip, is larger than
- * limits.maxSourceBytes, or holds no readable summary. A summary that is not JSON, or that inflates past
- * MAX_GARMIN_SUMMARY_BYTES or past the export's decompressed-bytes budget, is left out, but the bytes it
- * inflated to are still counted. Never throws.
+ * limits.maxSourceBytes, or holds no summary. The summaries are read one at a time, each parsed and let
+ * go before the next is inflated, and together they inflate to at most MAX_GARMIN_SUMMARIES_BYTES, of
+ * the export's decompressed-bytes budget, and of its buffer (see visitZipEntries). A summary past its
+ * share or not JSON is left out; what it took is still counted. Never throws.
  */
 export async function readGarminList(
   source: RangedSource,
@@ -131,24 +182,25 @@ export async function readGarminList(
     ...limits,
     maxEntryBytes: Math.min(limits.maxEntryBytes, MAX_GARMIN_SUMMARY_BYTES),
   }
-  const files = await readZipEntries(
+  const share = {
+    maxBytes: Math.min(MAX_GARMIN_SUMMARIES_BYTES, limits.maxTotalDecompressedBytes),
+    maxEntries: MAX_SUMMARY_FILES,
+  }
+  const activities: GarminActivity[] = []
+  const visited = await visitZipEntries(
     source,
     (name) => SUMMARY_PATH.test(name),
     summaryLimits,
-    limits.maxTotalDecompressedBytes,
-    MAX_SUMMARY_FILES,
+    share,
+    ({ bytes }) => {
+      const listed = parseGarminSummaries(new TextDecoder().decode(bytes))
+      // A summary can list no more activities than the export may hold files.
+      for (const activity of listed ?? []) {
+        if (activities.length < limits.maxArchiveEntries) activities.push(activity)
+      }
+    },
   )
-  if (files.length === 0) return null
-  const activities: GarminActivity[] = []
-  let decompressedBytes = 0
-  for (const { bytes } of files) {
-    decompressedBytes += bytes.length
-    const listed = parseGarminSummaries(new TextDecoder().decode(bytes))
-    if (listed === null) continue
-    // A summary can list no more activities than the export may hold files.
-    for (const activity of listed) {
-      if (activities.length < limits.maxArchiveEntries) activities.push(activity)
-    }
-  }
-  return garminList(activities, decompressedBytes)
+  return visited.inflatedBytes === 0 && visited.read === 0
+    ? null
+    : garminList(activities, visited.inflatedBytes)
 }
