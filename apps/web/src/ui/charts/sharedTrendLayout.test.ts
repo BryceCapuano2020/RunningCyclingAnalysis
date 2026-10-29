@@ -202,6 +202,7 @@ function sizeAt(width: number, height = 320): ChartSize {
     plot: plotBoxOf(width, height, PLOT_MARGIN.right, PLOT_BOTTOM_WITHOUT_X_TITLE),
     tooltipId: 'tooltip',
     hintId: 'hint',
+    titleId: 'title',
   }
 }
 

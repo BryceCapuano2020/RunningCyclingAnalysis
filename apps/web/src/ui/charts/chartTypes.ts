@@ -14,6 +14,8 @@ export interface ChartSize {
   tooltipId: string
   /** Id of the arrow-key hint, which describes the plot surface. */
   hintId: string
+  /** Id of the figure's title, which names the plot surface. */
+  titleId: string
 }
 
 export interface Point {
