@@ -135,6 +135,11 @@ export function TimeSeriesStack({
       ),
     [startS, endS],
   )
+  // The chip goes once it has been used, so focus goes to the plot, where it would have been: not to the page's start.
+  const reset = () => {
+    onReset?.()
+    svgRef.current?.querySelector<SVGGElement>('.plot-surface')?.focus()
+  }
   const onBlur = useCallback(() => {
     setCursor(null)
     setKeyboardFocus(false)
@@ -169,11 +174,15 @@ export function TimeSeriesStack({
       {onSelect !== undefined && (
         <div className="ts-stack__tools">
           <p className="ts-stack__hint">
-            <span className="ts-stack__hint--fine">Drag to zoom</span>
-            <span className="ts-stack__hint--coarse">Hold, then drag, to zoom</span>
+            <span className="ts-stack__hint--fine">
+              Drag to zoom, or use the range sliders below
+            </span>
+            <span className="ts-stack__hint--coarse">
+              Hold, then drag, to zoom, or use the range below
+            </span>
           </p>
           {zoomed && onReset !== undefined && (
-            <button type="button" className="ts-stack__reset" onClick={onReset}>
+            <button type="button" className="ts-stack__reset" onClick={reset}>
               Reset
             </button>
           )}

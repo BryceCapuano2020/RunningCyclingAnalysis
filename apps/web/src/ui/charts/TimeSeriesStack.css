@@ -133,6 +133,9 @@
 }
 
 .ts-stack__stage {
+  /* A held finger selects: it must not select text or open the system's callout under it. */
+  -webkit-touch-callout: none;
+  user-select: none;
   /* The plot has its own horizontal drags, so the page scrolls by the plot only vertically. */
   touch-action: pan-y pinch-zoom;
 }
@@ -150,81 +153,6 @@
   min-height: 3rem;
   overflow: visible;
   padding: 6px var(--space-2);
-}
-
-/*
- * On a phone the readout stays under the header while the rows scroll past, so a touch on a lower row is still
- * read. Under 360 px its cells take two lines of a screen that is 640 px tall, so it scrolls with the rows there.
- */
-@media (min-width: 360px) and (max-width: 760px) {
-  .ts-stack > .ts-stack__readout {
-    position: sticky;
-    top: var(--header-height);
-    z-index: 5;
-    box-shadow: 0 1px 0 var(--border);
-  }
-}
-
-.ts-readout {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--column-readout), 1fr));
-  gap: var(--space-1);
-  min-width: 0;
-  align-content: start;
-}
-
-.ts-readout__cell {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-}
-
-.ts-readout__label {
-  display: flex;
-  line-height: 1.2;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  white-space: nowrap;
-}
-
-.ts-readout__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ts-readout__swatch {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ch);
-}
-
-.ts-readout__value {
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.ts-readout__value--none {
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: 400;
-}
-
-.ts-readout__unit {
-  line-height: 1.2;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  white-space: nowrap;
 }
 
 .ts-stack__lap {

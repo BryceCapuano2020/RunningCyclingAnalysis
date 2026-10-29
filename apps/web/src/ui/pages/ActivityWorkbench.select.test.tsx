@@ -40,7 +40,7 @@ describe('dragging across the plot', () => {
     show(steadyTrace(600))
     const svg = await stack()
     expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
-    expect(screen.getByText('Drag to zoom')).toBeInTheDocument()
+    expect(screen.getByText(/^Drag to zoom, or use the range sliders below/)).toBeInTheDocument()
     fireEvent.pointerDown(svg, {
       clientX: xOf(150),
       clientY: 40,
@@ -68,6 +68,25 @@ describe('dragging across the plot', () => {
     expect(svg.querySelector('.ts-stack__selection')).toBeNull()
     fireEvent.click(await screen.findByRole('button', { name: 'Reset' }))
     expect(range()).toEqual([0, 600])
+    // The chip is gone, and focus went to the plot, not to the start of the page.
+    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
+    expect(document.activeElement).toBe(svg.querySelector('.plot-surface'))
+  })
+
+  it('zooms to where the pointer last was, even when the release comes in the same frame as the last move', async () => {
+    show(steadyTrace(600))
+    const svg = await stack()
+    const mouse = { clientY: 40, pointerId: 1, pointerType: 'mouse' }
+    fireEvent.pointerDown(svg, { ...mouse, clientX: xOf(100) })
+    fireEvent.pointerMove(svg, { ...mouse, clientX: xOf(150) })
+    // The state of the render before this move has the range at 150 s; the release is at 400 s.
+    act(() => {
+      fireEvent.pointerMove(svg, { ...mouse, clientX: xOf(400) })
+      fireEvent.pointerUp(svg, { ...mouse, clientX: xOf(400) })
+    })
+    const [from, to] = range()
+    expect(Math.abs(from - 100)).toBeLessThanOrEqual(1)
+    expect(Math.abs(to - 400)).toBeLessThanOrEqual(1)
   })
 
   it('drags either way, and a press that barely moves is a click that zooms nothing', async () => {
@@ -138,6 +157,21 @@ describe('dragging across the plot', () => {
 })
 
 describe('a finger on the plot', () => {
+  it('selects nothing when it is held and lifted again without moving', async () => {
+    show(steadyTrace(600))
+    const svg = await stack()
+    vi.useFakeTimers()
+    const touch = { pointerId: 3, pointerType: 'touch', clientY: 40, clientX: xOf(200) }
+    fireEvent.pointerDown(svg, touch)
+    act(() => {
+      vi.advanceTimersByTime(450)
+    })
+    expect(svg.querySelector('.ts-stack__selection')).not.toBeNull()
+    fireEvent.pointerUp(svg, touch)
+    expect(range()).toEqual([0, 600])
+    expect(svg.querySelector('.ts-stack__selection')).toBeNull()
+  })
+
   const touch = (id: number) => ({ pointerId: id, pointerType: 'touch', clientY: 40 })
 
   it('scrubs as it did when it moves at once, and selects only after it has been held and then dragged', async () => {

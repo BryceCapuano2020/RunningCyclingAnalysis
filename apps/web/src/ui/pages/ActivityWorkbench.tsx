@@ -51,9 +51,10 @@ type LoadState =
   | { status: 'failed' }
 
 /**
- * What a measure holds: `varies` when it has readings that differ, `empty` when every reading is missing or
- * they are all one value (a flat terrain, a power meter that read zero throughout), which draws no line worth a
- * row, and null when the file has no such measure at all.
+ * What a measure holds: `varies` when it has readings worth a row, `empty` when it has none to draw: every reading
+ * missing, a power meter that read zero throughout, or a terrain that never changes height. A measure held at one
+ * other value (an ERG ride at 200 W, a stuck cadence sensor) is a finding, so it keeps its row. Null for a measure
+ * the file does not have at all.
  */
 type ChannelContent = 'varies' | 'empty'
 
@@ -61,12 +62,19 @@ function channelContent(trace: ActivityTrace, metric: TraceMetric): ChannelConte
   const stream = readableTrace(trace).streams[metric]
   if (stream === undefined) return null
   let first = Number.NaN
+  let differs = false
   for (const value of stream) {
     if (!Number.isFinite(value)) continue
     if (Number.isNaN(first)) first = value
-    else if (value !== first) return 'varies'
+    else if (value !== first) {
+      differs = true
+      break
+    }
   }
-  return 'empty'
+  if (Number.isNaN(first)) return 'empty'
+  if (differs) return 'varies'
+  // One value throughout: nothing to draw for a flat terrain or a power of zero, and a row for any other.
+  return metric === 'altitude' || (metric === 'power' && first === 0) ? 'empty' : 'varies'
 }
 
 function useTrace(activityId: string, loadTrace: ActivityWorkbenchProps['loadTrace']) {

@@ -23,6 +23,8 @@ interface Press {
   /** The second under the pointer when it went down, as a fraction. */
   at: number
   active: boolean
+  /** The furthest the pointer has been from where it went down, px, so a hold that is lifted again is not a drag. */
+  travel: number
   timer: ReturnType<typeof setTimeout> | null
 }
 
@@ -50,6 +52,12 @@ export function useStackSelection({
 }) {
   const press = useRef<Press | null>(null)
   const [range, setRange] = useState<SecondRange | null>(null)
+  // The range as the last move left it: the release reads this, not a render's state, which can be a move behind.
+  const live = useRef<SecondRange | null>(null)
+  const show = (next: SecondRange | null) => {
+    live.current = next
+    setRange(next)
+  }
   const span = Math.max(1, endS - startS)
 
   const secondAt = (clientX: number): number | null => {
@@ -63,13 +71,14 @@ export function useStackSelection({
   const clear = useCallback(() => {
     if (press.current?.timer) clearTimeout(press.current.timer)
     press.current = null
+    live.current = null
     setRange(null)
   }, [])
 
   const begin = (current: Press, event: { pointerId: number; clientX: number }) => {
     current.active = true
     svg.current?.setPointerCapture?.(event.pointerId)
-    setRange({ from: Math.floor(current.at), to: Math.ceil(current.at) })
+    show({ from: Math.floor(current.at), to: Math.ceil(current.at) })
   }
 
   const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -84,6 +93,7 @@ export function useStackSelection({
       y: event.clientY,
       at,
       active: false,
+      travel: 0,
       timer: null,
     }
     if (touch) {
@@ -106,10 +116,11 @@ export function useStackSelection({
       if (current.touch || moved < DRAG_PX) return
       begin(current, event)
     }
+    current.travel = Math.max(current.travel, moved)
     const here = secondAt(event.clientX)
     const to = here ?? (event.clientX < current.x ? startS : endS)
     const [low, high] = current.at < to ? [current.at, to] : [to, current.at]
-    setRange({
+    show({
       from: Math.max(startS, Math.floor(low)),
       to: Math.min(endS, Math.max(Math.ceil(high), Math.floor(low) + 1)),
     })
@@ -118,7 +129,8 @@ export function useStackSelection({
   const onPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const current = press.current
     if (current === null || current.id !== event.pointerId) return
-    const chosen = current.active ? range : null
+    // A finger held and then lifted without moving selects nothing: it is not a range, and must not zoom a second.
+    const chosen = current.active && current.travel >= DRAG_PX ? live.current : null
     clear()
     if (chosen !== null && chosen.to - chosen.from >= 1) onSelect?.(chosen.from, chosen.to)
   }
@@ -134,19 +146,32 @@ export function useStackSelection({
     return () => node.removeEventListener('touchmove', hold)
   }, [svg])
 
+  // Escape drops the range being dragged, and only that: the plot's own Escape (which clears the cursor) is not also pressed.
   useEffect(() => {
     if (range === null) return
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') clear()
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      clear()
     }
-    window.addEventListener('keydown', escape)
-    return () => window.removeEventListener('keydown', escape)
+    window.addEventListener('keydown', escape, true)
+    return () => window.removeEventListener('keydown', escape, true)
   }, [range, clear])
+
+  // A hold that has not fired when the plot goes away must not fire after it.
+  useEffect(
+    () => () => {
+      if (press.current?.timer) clearTimeout(press.current.timer)
+    },
+    [],
+  )
+
+  const selecting = useCallback(() => press.current?.active === true, [])
 
   return {
     range,
     /** Whether a selection is being dragged, so the cursor stays where it was and does not chase the pointer. */
-    selecting: () => press.current?.active === true,
+    selecting,
     handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: clear },
   }
 }

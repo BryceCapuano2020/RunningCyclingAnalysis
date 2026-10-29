@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import type { DigestSplits } from '@rca/core/types'
+import type { ActivityTrace } from '@rca/core/workbench'
 import { METRES_PER_KM, METRES_PER_MILE } from '@rca/core/units'
 import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/fixtures'
 import { MAN_BORN_1986, makeActivity, makeEquivalence, makeResult } from '../components/fixtures'
@@ -1252,5 +1253,59 @@ describe('ActivityPage layout around the timeline', () => {
     expect(screen.getByRole('button', { name: "Add this activity's file again" })).not.toHaveClass(
       'btn-primary',
     )
+  })
+
+  it('leads an estimated-power ride with its speed, and gives the estimate to the tiles below', () => {
+    renderPage({ ...powerRide, powerSource: 'virtual', avgPowerW: 180 })
+    const key = document.querySelector('.activity-page__stats--key') as HTMLElement
+    expect(
+      within(key)
+        .getAllByRole('term')
+        .map((t) => t.textContent),
+    ).toEqual(['Distance', 'Average speed'])
+    expect(
+      within(document.querySelector('.activity-page__stats--more') as HTMLElement).getByText(
+        'Average power',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('gives the whole-activity readout the header’s average pace on a run with a pause in it', async () => {
+    // Ten minutes at 3 m/s with a hundred seconds paused: 500 s moving, 1,497 m to the last sample.
+    const seconds = 600
+    const paused = Uint8Array.from({ length: seconds }, (_, i) => (i >= 200 && i < 300 ? 1 : 0))
+    let metres = 0
+    const distance = Float64Array.from({ length: seconds }, (_, i) => {
+      const here = metres
+      if (paused[i] !== 1) metres += 3
+      return here
+    })
+    const trace: ActivityTrace = {
+      version: 1,
+      activityId: 'activity-1',
+      sport: 'run',
+      durationS: seconds,
+      distance,
+      paused,
+      unrecorded: new Uint8Array(seconds),
+      streams: { speed: Float32Array.from({ length: seconds }, (_, i) => 3 + (i % 2) * 0.0001) },
+      laps: [],
+    }
+    renderPage(
+      { ...morningRun, durationS: seconds, movingS: 500, distanceM: distance[seconds - 1]! },
+      undefined,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { loadTrace: async () => ({ kind: 'trace', trace }) },
+    )
+    await waitFor(() => expect(document.querySelector('.ts-readout')).not.toBeNull())
+    const readout = document.querySelector('.ts-readout') as HTMLElement
+    expect(readout).toHaveTextContent('SelectionAverage')
+    const key = document.querySelector('.activity-page__stats--key') as HTMLElement
+    const header = within(key).getByText(/\/km$/).textContent!
+    expect(readout).toHaveTextContent(`Pace${header.replace(' ', '')}`)
   })
 })

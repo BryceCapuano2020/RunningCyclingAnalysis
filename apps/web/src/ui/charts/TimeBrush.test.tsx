@@ -2,7 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { TimeBrush } from './TimeBrush'
-import { HANDLE_HIT_PX, draggedRange, handleOffsets } from './timeBrushModel'
+import { HANDLE_HIT_PX, draggedRange, handleBoxes, handleOffsets } from './timeBrushModel'
 import type { BrushRange } from './timeBrushModel'
 
 describe('draggedRange', () => {
@@ -107,6 +107,25 @@ describe('TimeBrush', () => {
     expect(onChange).not.toHaveBeenCalled()
     fireEvent.pointerMove(track, { clientX: 450, pointerId: 2 })
     expect(onChange).toHaveBeenLastCalledWith({ startS: 400, endS: 450 })
+  })
+})
+
+describe('the handles at the ends of the track', () => {
+  const inset = 8
+  const inside = (box: number, lane: number) => box >= -inset && box + HANDLE_HIT_PX <= lane + inset
+
+  it('holds both hit areas inside the track, whole, whether the window is at the start, the end or the middle', () => {
+    for (const [a, b] of [
+      [0, 6],
+      [594, 600],
+      [300, 306],
+      [0, 600],
+    ]) {
+      const { start, end } = handleBoxes(a!, b!, 600, inset)
+      expect(inside(start, 600), `${a},${b} start`).toBe(true)
+      expect(inside(end, 600), `${a},${b} end`).toBe(true)
+      expect(start + HANDLE_HIT_PX, `${a},${b} overlap`).toBeLessThanOrEqual(end)
+    }
   })
 })
 

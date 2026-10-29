@@ -54,11 +54,14 @@ export function ActivityStats({
   const speed = hasSpeed
     ? tile('Average speed', formatSpeed(activity.distanceM / moving, units))
     : null
+  const leadsWithPower =
+    hasPower && (!isEstimatedRecord(activity.sport, activity) || speed === null)
   const key = [
     hasDistance && tile('Distance', formatDistance(activity.distanceM, units)),
     hasDistance && isRun && tile('Average pace', formatPace(activity.distanceM / moving, units)),
-    // A ride's power leads where it has one; its speed then follows below the timeline.
-    hasPower ? power : speed,
+    // A ride's measured power leads where it has one, its speed then following below the timeline; an estimated
+    // power is worked out from the speed, so the speed leads and the estimate follows.
+    leadsWithPower ? power : speed,
   ].filter(Boolean)
   const more = [
     activity.elevationGainM > 0 && tile('Climb', formatElevation(activity.elevationGainM, units)),
@@ -70,7 +73,7 @@ export function ActivityStats({
           ? `Peak heart rate (30 s) ${Math.round(activity.maxHeartRate)} bpm`
           : undefined,
       ),
-    hasPower && speed,
+    hasPower && (leadsWithPower ? speed : power),
   ].filter(Boolean)
   return (
     <div className="activity-page__summary">

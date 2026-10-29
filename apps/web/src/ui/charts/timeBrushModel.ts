@@ -67,3 +67,28 @@ export function handleOffsets(gapPx: number): { start: number; end: number } {
   const slide = Math.min(HANDLE_HIT_PX / 2, Math.max(0, (HANDLE_HIT_PX - gapPx) / 2))
   return { start: 0 - slide, end: slide }
 }
+
+/**
+ * The left edge of each handle's hit area, in px along the lane, which is `inset` px short of the track on each
+ * side. The areas slide apart as above, and are then held inside the track, so a handle at either end of the
+ * activity is whole; where that leaves them overlapping (a short window at an end), the other one moves along
+ * until they only touch.
+ */
+export function handleBoxes(
+  startPx: number,
+  endPx: number,
+  lanePx: number,
+  inset: number,
+): { start: number; end: number } {
+  const slide = handleOffsets(endPx - startPx)
+  const lowest = 0 - inset
+  const highest = lanePx + inset - HANDLE_HIT_PX
+  const held = (left: number) => Math.min(highest, Math.max(lowest, left))
+  let start = held(startPx - HANDLE_HIT_PX / 2 + slide.start)
+  let end = held(endPx - HANDLE_HIT_PX / 2 + slide.end)
+  if (end < start + HANDLE_HIT_PX) {
+    end = held(start + HANDLE_HIT_PX)
+    start = held(end - HANDLE_HIT_PX)
+  }
+  return { start, end }
+}
