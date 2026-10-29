@@ -2,6 +2,7 @@ import type { Sport } from '@rca/core/types'
 import { DAY_MS } from '@rca/core/constants'
 import { plural } from './components/plural'
 import { DEFAULT_PERIOD_DAYS } from '@rca/core/period'
+import { windowEnding } from '@rca/core/period'
 import type { Period } from '@rca/core/period'
 import { SIX_WEEKS_DAYS, lengthOf, periodDates } from './components/rangeOptions'
 import type { Span } from './components/rangeOptions'
@@ -68,4 +69,16 @@ export function periodBestText(period: Period): string | null {
     return period.days === 1 ? `Best on ${periodDates(period)}` : `Best ${betweenClause(period)}`
   }
   return `Best in the last ${lengthOf(choice === 'default' ? DEFAULT_PERIOD_DAYS : choice)}`
+}
+
+/**
+ * What a strip or heading says the period was: "across all time", "in the last 6 weeks", or, once the newest
+ * activity is more than six weeks old and "last" would read as now, the dates the period counted over,
+ * "between 21 Apr and 1 Jun 2026". The clock is a parameter, so it is tested at a fixed day.
+ */
+export function periodClause(days: number | null, newestMs: number, nowMs = Date.now()): string {
+  if (days === null) return 'across all time'
+  if (latestActivityText(newestMs, nowMs) !== null)
+    return betweenClause(windowEnding(newestMs, days))
+  return `in the last ${lengthOf(days)}`
 }

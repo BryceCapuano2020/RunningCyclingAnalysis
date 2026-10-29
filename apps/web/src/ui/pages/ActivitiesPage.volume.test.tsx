@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { makeActivity } from '../components/fixtures'
@@ -29,7 +30,7 @@ function page() {
 
 const names = () =>
   screen
-    .getAllByRole('link')
+    .queryAllByRole('link')
     .map((link) => link.textContent)
     .filter((name) => /^(Alpha|Bravo|Charlie|Delta)/.test(name ?? ''))
 
@@ -48,7 +49,7 @@ describe('the volume strip on the Activities page', () => {
     await user.click(screen.getByRole('button', { name: /^Week of 9 Jun 2025/ }))
     expect(names()).toEqual(['Alpha run', 'Bravo ride'])
     expect(window.location.hash).toBe('#/activities?bucket=w%3A2025-5-9')
-    expect(screen.getByText('Showing week of 9 Jun 2025')).toBeInTheDocument()
+    expect(screen.getByText('Showing week of 9 Jun 2025: 2 activities')).toBeInTheDocument()
     // The strip keeps drawing the whole period, so another week can be picked.
     await user.click(screen.getByRole('button', { name: /^Week of 2 Jun 2025/ }))
     expect(names()).toEqual(['Charlie run'])
@@ -81,13 +82,41 @@ describe('the volume strip on the Activities page', () => {
     ).toBeInTheDocument()
   })
 
-  it('counts a period in its own words, and only the sport chosen', async () => {
-    const user = userEvent.setup()
+  it('says the period in its own words while the newest activity is recent', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(at(2025, 5, 14))
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      page()
+      await user.click(screen.getByRole('radio', { name: '6 weeks' }))
+      expect(
+        screen.getByRole('heading', { name: '3 runs and 1 ride, 4.0 h, in the last 6 weeks' }),
+      ).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('dates the period once the newest activity is old, so "last 6 weeks" is not read as now', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(at(2026, 5, 14))
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      page()
+      await user.click(screen.getByRole('radio', { name: '6 weeks' }))
+      expect(
+        screen.getByRole('heading', {
+          name: '3 runs and 1 ride, 4.0 h, between 1 May and 11 Jun 2025',
+        }),
+      ).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('has no count line under the title: the strip heading is the summary', () => {
     page()
-    await user.click(screen.getByRole('radio', { name: '6 weeks' }))
-    expect(
-      screen.getByRole('heading', { name: '3 runs and 1 ride, 4.0 h, in the last 6 weeks' }),
-    ).toBeInTheDocument()
+    expect(screen.queryByText(/^4 activities/)).not.toBeInTheDocument()
   })
 
   it('shows month totals for the listed activities, beside each month heading', () => {
@@ -129,5 +158,57 @@ describe('the Activities page with 2,000 activities', () => {
       .map((el) => Number(/^(\d+)/.exec(el.textContent ?? '')?.[1] ?? 0))
       .reduce((sum, n) => sum + n, 0)
     expect(shown).toBeGreaterThan(22)
+  })
+})
+
+describe('a week or month with nothing in it', () => {
+  it('says so, in the sport chosen, and clears from the empty state', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState(null, '', '#/activities?bucket=w:2025-5-16')
+    page()
+    expect(screen.getByText('No activities in the week of 16 Jun 2025.')).toBeInTheDocument()
+    expect(names()).toEqual([])
+    await user.click(screen.getByRole('button', { name: 'Clear week' }))
+    expect(names()).toHaveLength(4)
+    expect(window.location.hash).toBe('#/activities')
+  })
+
+  it('names a month or a sport the same way', () => {
+    window.history.replaceState(null, '', '#/activities?bucket=m:2024-0&sport=run')
+    page()
+    expect(screen.getByText('No runs in Jan 2024.')).toBeInTheDocument()
+  })
+
+  it('moves focus to the empty state when a removal empties the week', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState(null, '', '#/activities?bucket=w:2025-5-2')
+    const only = SET.filter((a) => a.id === 'c')
+    function Host() {
+      const [activities, setActivities] = useState(SET)
+      return (
+        <ActivitiesPage
+          signedIn={false}
+          activities={activities}
+          units="metric"
+          records={new Map()}
+          keptIds={new Map(SET.map((a) => [a.id, `saved-${a.id}`]))}
+          onDelete={(savedId) =>
+            setActivities((now) => now.filter((a) => `saved-${a.id}` !== savedId))
+          }
+        />
+      )
+    }
+    render(<Host />)
+    expect(names()).toEqual(only.map((a) => a.name))
+    await user.click(screen.getByRole('button', { name: 'Delete Charlie run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    const empty = screen.getByText('No activities in the week of 2 Jun 2025.').closest('div')
+    expect(empty).toHaveFocus()
+  })
+
+  it('leaves the period message alone when the period itself is empty', () => {
+    window.history.replaceState(null, '', '#/activities?period=1&sport=ride&bucket=w:2025-5-2')
+    page()
+    expect(screen.queryByText(/in the week of/)).not.toBeInTheDocument()
   })
 })

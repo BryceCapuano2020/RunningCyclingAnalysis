@@ -194,7 +194,7 @@ describe('ActivityList rows', () => {
     ])
     const row = within(rowFor('Zwift ride'))
     expect(row.getByText('180 W')).toBeInTheDocument()
-    expect(row.getByText('Estimated')).toBeInTheDocument()
+    expect(row.getByText('Estimated power')).toBeInTheDocument()
   })
 
   it('uses miles and minutes per mile in imperial units', () => {

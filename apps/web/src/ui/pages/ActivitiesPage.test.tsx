@@ -45,7 +45,9 @@ describe('ActivitiesPage', () => {
         records={new Map()}
       />,
     )
-    expect(screen.getByText('14 activities: 8 runs, 6 rides')).toBeInTheDocument()
+    // The strip's heading is the summary, so the page has no count line of its own.
+    expect(screen.queryByText(/^14 activities/)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^8 runs and 6 rides, / })).toBeInTheDocument()
   })
 
   it('uses the singular for one activity of a sport', () => {
@@ -57,7 +59,7 @@ describe('ActivitiesPage', () => {
         records={new Map()}
       />,
     )
-    expect(screen.getByText('1 activity: 1 run, 0 rides')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^1 run, / })).toBeInTheDocument()
   })
 
   it('lists the activities, each linking to its page', () => {

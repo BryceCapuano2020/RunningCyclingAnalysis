@@ -124,6 +124,34 @@
   cursor: pointer;
 }
 
+/* A skipped stretch is 28 px wide, as the trend's axis draws one: a faint hairline and two slashes at the foot. */
+.volume-strip__gap {
+  position: relative;
+  flex: 0 0 28px;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+}
+
+.volume-strip__gap::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 50%;
+  border-left: 1px solid var(--text-muted);
+  opacity: 0.3;
+}
+
+.volume-strip__gap svg {
+  position: relative;
+  width: 14px;
+  height: 12px;
+  margin-bottom: -6px;
+  background: var(--surface-1);
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
 .volume-strip__bar:hover {
   background: var(--surface-2);
 }
@@ -140,12 +168,12 @@
   gap: 2px;
   width: 100%;
   max-width: 56px;
-  height: 100%;
 }
 
 /* Parts stack from the foot, in the order sports sit everywhere; the top part has the rounded data end. */
 .volume-strip__part {
-  flex: none;
+  /* flex-grow is the part's seconds, so the parts share the stack's height after its 2 px gaps. */
+  flex: 1 1 0;
   min-height: 2px;
   background: var(--sport-colour);
 }
@@ -225,7 +253,7 @@
     background: Highlight;
   }
 
-  .volume-strip__part[data-sport='run'] {
+  .volume-strip__part[data-slot='0'] {
     background: CanvasText;
   }
 
@@ -233,11 +261,20 @@
     background: Highlight;
   }
 
-  .volume-strip__key li[data-sport='run']::before {
+  .volume-strip__key li[data-slot='0']::before {
     background: CanvasText;
   }
 
   .volume-strip__bar[aria-pressed='true'] {
     outline: 2px solid Highlight;
+  }
+
+  .volume-strip__gap::before {
+    border-color: GrayText;
+    opacity: 1;
+  }
+
+  .volume-strip__gap svg {
+    stroke: GrayText;
   }
 }

@@ -28,10 +28,22 @@ describe('a week or month in the address', () => {
   it('reads the week or month the strip named', () => {
     expect(viewFromQuery(query('bucket=w:2025-5-2')).bucket).toBe('w:2025-5-2')
     expect(viewFromQuery(query('bucket=m:2025-5')).bucket).toBe('m:2025-5')
+    expect(viewFromQuery(query('bucket=q:2025-1')).bucket).toBe('q:2025-1')
   })
 
   it('drops a key that names no week or month', () => {
-    for (const bad of ['w:soon', 'm:2025-13', 'x:1', 'w:2025-5', 'm:-1-2', '']) {
+    for (const bad of [
+      'w:soon',
+      'm:2025-13',
+      'x:1',
+      'w:2025-5',
+      'm:-1-2',
+      '',
+      'm:99999999-0',
+      'w:275760-11-31',
+      'w:2025--',
+      'q:2025-9',
+    ]) {
       expect(viewFromQuery(query(`bucket=${bad}`)).bucket).toBeNull()
     }
   })

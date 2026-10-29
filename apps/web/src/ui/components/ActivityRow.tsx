@@ -147,7 +147,7 @@ export function ActivityRow({
         <div className="activity-list__sub">
           <span className="activity-list__when">{`${day}, ${formatTimeOfDay(activity.startMs)}`}</span>
           <div className="activity-list__tags">
-            {hero?.estimated && <span className="chip">Estimated</span>}
+            {hero?.estimated && <span className="chip">Estimated power</span>}
             {activity.indoor && <span className="chip">Indoor</span>}
             {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
             {skipped > 0 && (

@@ -1,3 +1,11 @@
+/*
+ * The strip, the filters and the list are one working surface, so they sit a section closer than the
+ * page's usual gap: the title, the strip and the controls are 24 px apart.
+ */
+.activities {
+  gap: var(--space-5);
+}
+
 .activities__controls {
   display: grid;
   gap: var(--space-4);

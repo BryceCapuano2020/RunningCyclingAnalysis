@@ -32,6 +32,7 @@ export function ActivityMonthHead({ label, totals, units }: ActivityMonthHeadPro
                   className={`activity-list__icon activity-list__icon--${sport}`}
                 />
                 {`${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])}${distance}`}
+                <span className="sr-only">; </span>
               </span>
             )
           })}

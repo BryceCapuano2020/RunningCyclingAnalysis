@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { makeActivity } from './components/fixtures'
 import {
   WEEKLY_MAX_WEEKS,
+  bucketInPhrase,
   bucketLabel,
   bucketSpan,
   countOf,
@@ -12,6 +13,7 @@ import {
   monthTotals,
   secondsOf,
   volumeBuckets,
+  volumeColumns,
 } from './activitiesVolume'
 
 /** A local date and hour, so the weeks and months these tests count do not depend on the zone running them. */
@@ -119,6 +121,19 @@ describe('bucket keys', () => {
     }
   })
 
+  it('names a quarter by its first month, and labels it with its months', () => {
+    expect(bucketSpan('q:2025-1')).toEqual({
+      kind: 'quarter',
+      startMs: at(2025, 3, 1, 0),
+      endMs: at(2025, 6, 1, 0),
+    })
+    expect(bucketLabel({ kind: 'quarter', startMs: at(2025, 3, 1, 0) })).toBe('Apr to Jun 2025')
+    expect(bucketInPhrase({ kind: 'week', startMs: at(2025, 5, 2, 0) })).toBe(
+      'the week of 2 Jun 2025',
+    )
+    expect(bucketInPhrase({ kind: 'month', startMs: at(2025, 5, 1, 0) })).toBe('Jun 2025')
+  })
+
   it('narrows a list to the span a key names, and leaves it whole without one', () => {
     const items = [
       run(at(2025, 5, 1)),
@@ -166,5 +181,111 @@ describe('text', () => {
     expect(countsText(bucket!.totals)).toBe('2 runs and 1 ride')
     const [runsOnly] = volumeBuckets([run(at(2025, 5, 2))])
     expect(countsText(runsOnly!.totals)).toBe('1 run')
+  })
+})
+
+describe('quarters on a phone', () => {
+  it('draws a stretch longer than 26 weeks by the quarter when asked, and a short one by the week', () => {
+    const long = [run(at(2024, 10, 20)), run(at(2025, 5, 2))]
+    const quarters = volumeBuckets(long, true)
+    expect(quarters.map((bucket) => bucket.key)).toEqual(['q:2024-3', 'q:2025-0', 'q:2025-1'])
+    expect(countOf(quarters[0]!.totals)).toBe(1)
+    expect(volumeBuckets(long, false)[0]?.kind).toBe('month')
+    expect(volumeBuckets([run(at(2025, 5, 2)), run(at(2025, 5, 20))], true)[0]?.kind).toBe('week')
+  })
+})
+
+describe('volumeColumns', () => {
+  it('folds a year or more with no training into one gap, and keeps shorter quiet stretches', () => {
+    const buckets = volumeBuckets([
+      run(at(2019, 0, 10)),
+      run(at(2019, 5, 10)),
+      run(at(2021, 0, 10)),
+    ])
+    const columns = volumeColumns(buckets)
+    // Jan 2019 has training, Feb to May are four quiet months that stay, Jun 2019 has training, then Jul 2019
+    // to Dec 2020 (18 months) is one gap, then Jan 2021.
+    expect(columns.map((column) => column.kind)).toEqual([
+      'bucket',
+      'bucket',
+      'bucket',
+      'bucket',
+      'bucket',
+      'bucket',
+      'gap',
+      'bucket',
+    ])
+    const gap = columns[6]
+    expect(gap).toEqual({ kind: 'gap', fromMs: at(2019, 6, 1, 0), toMs: at(2021, 0, 1, 0) })
+  })
+
+  it('does not fold a stretch just under a year, and never folds the ends', () => {
+    const columns = volumeColumns(volumeBuckets([run(at(2019, 0, 10)), run(at(2019, 11, 10))]))
+    expect(columns.every((column) => column.kind === 'bucket')).toBe(true)
+    expect(columns).toHaveLength(12)
+  })
+
+  it('folds the stretch between a stray 1970 date and the real library, in few columns and little time', () => {
+    const activities = [
+      run(0),
+      ...Array.from({ length: 300 }, (_, i) => run(at(2024, 0, 1) + i * 86_400_000)),
+    ]
+    const start = performance.now()
+    const columns = volumeColumns(volumeBuckets(activities))
+    expect(performance.now() - start).toBeLessThan(50)
+    expect(columns[0]?.kind).toBe('bucket')
+    expect(columns[1]?.kind).toBe('gap')
+    expect(columns.length).toBeLessThan(20)
+  })
+})
+
+describe('weeks across a change of clock', () => {
+  beforeAll(() => {
+    vi.stubEnv('TZ', 'America/New_York')
+  })
+  afterAll(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('keeps Monday to Sunday whole across the spring change, a 167 hour week', () => {
+    // The clocks go forward at 02:00 on Sun 9 Mar 2025.
+    const buckets = volumeBuckets([
+      run(at(2025, 2, 3, 6)),
+      run(at(2025, 2, 9, 23)),
+      run(at(2025, 2, 10, 0)),
+      run(at(2025, 2, 16, 20)),
+    ])
+    expect(buckets.map((bucket) => bucket.key)).toEqual(['w:2025-2-3', 'w:2025-2-10'])
+    expect(buckets.map((bucket) => countOf(bucket.totals))).toEqual([2, 2])
+    expect(buckets[0]?.startMs).toBe(new Date(2025, 2, 3).getTime())
+    expect(buckets[0]?.endMs).toBe(buckets[1]?.startMs)
+    expect((buckets[0]!.endMs - buckets[0]!.startMs) / 3_600_000).toBe(167)
+    expect(bucketSpan('w:2025-2-3')?.endMs).toBe(buckets[0]?.endMs)
+  })
+
+  it('keeps the week whole across the autumn change, a 169 hour week, with no week skipped or doubled', () => {
+    // The clocks go back at 02:00 on Sun 2 Nov 2025.
+    const buckets = volumeBuckets([
+      run(at(2025, 9, 27, 7)),
+      run(at(2025, 10, 3, 0)),
+      run(at(2025, 10, 10, 7)),
+    ])
+    expect(buckets.map((bucket) => bucket.key)).toEqual([
+      'w:2025-9-27',
+      'w:2025-10-3',
+      'w:2025-10-10',
+    ])
+    expect(buckets.map((bucket) => countOf(bucket.totals))).toEqual([1, 1, 1])
+    expect((buckets[0]!.endMs - buckets[0]!.startMs) / 3_600_000).toBe(169)
+  })
+
+  it('counts a month by its local days across the change', () => {
+    const [march] = volumeBuckets([
+      run(at(2024, 0, 15)),
+      run(at(2025, 2, 1, 0)),
+      run(at(2025, 2, 31, 23)),
+      run(at(2025, 3, 1, 1)),
+    ]).filter((bucket) => bucket.key === 'm:2025-2')
+    expect(march && countOf(march.totals)).toBe(2)
   })
 })

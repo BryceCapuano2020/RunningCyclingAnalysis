@@ -763,7 +763,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   figures ("Choose All time on the Run page to see their figures", or "See the Run page for their figures" when the
   period is already all time), and never says its bests are "not counted".
 - **A list row reads the same figures.** The sport's glyph in a disc of its colour (its word is for
-  screen readers), the name, the day and start time, with the **Indoor**, **Estimated** and
+  screen readers), the name, the day and start time, with the **Indoor**, **Estimated power** and
   skipped-readings chips and the record chips, then the figures in the display face in columns at the
   right: the moving time, distance and climb, labelled, and the pace for a run, the speed for a ride, or
   the average power of an indoor ride with a power meter, set larger. A ride's record chips wait for the
@@ -781,12 +781,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   drops them, and at a page break a month heading repeats, so each page names its months. Above the list
   the volume strip draws the activities left by the period and sport: one column of stacked hours (run
   below, ride above) for each week, Monday to Sunday, or for each month when the set spans more than 26
-  weeks, with the counts, hours and period as its heading ("38 runs and 12 rides, 61 h, in the last 12
-  weeks"). A column is a button: it narrows the list to that week or month (kept in the address as
-  `bucket`), the others fade, a "Showing week of 3 Jun 2025" chip with Clear says so, and pressing the
-  column again lets go. Changing the period or sport lets go of it; a sort keeps it. The columns are one
-  tab stop moved by the arrow keys, Home and End, and a fixed line under the strip reads the column under
-  the pointer, or the busiest one, so nothing floats over the bars. The strip is built from the summaries
+  weeks (each quarter on a phone, where a month's column would be a few pixels wide), with the counts,
+  hours and period as its heading ("38 runs and 12 rides, 61 h, in the last 12 weeks"; once the newest
+  activity is over six weeks old the period is dated, "between 1 May and 11 Jun 2025", so "last" is not
+  read as now). The page has no count line under its title: the heading is the summary. A year or more
+  with no training is folded into one 28 px column with a break mark, as the trend's time axis skips it,
+  so a stray early date does not take the width. A column is a button: it narrows the list to that week,
+  month or quarter (kept in the address as `bucket`), the others fade, a "Showing week of 3 Jun 2025: 3
+  activities" chip with Clear says so, and pressing the column again lets go. A tap beside a thin column
+  picks the nearest one with training. Changing the period or sport lets go of it; a sort keeps it. A
+  week or month that holds nothing, because it is outside the period or a removal emptied it, says "No
+  activities in the week of 2 Jun 2025." with Clear week; after a removal that empties the list, focus
+  goes to that message. The columns are one tab stop moved by the arrow keys, Home and End, and a fixed
+  line under the strip reads the column under the pointer, or the busiest one, so nothing floats over the
+  bars. The strip is built from the summaries
   the list holds, so it loads no trace. The page is counted over rows, so a session
   is never split across two pages, and the summary counts its activities. The pages are numbered
   beside Previous and Next: the first and last, and the pages either side of the one shown. A single

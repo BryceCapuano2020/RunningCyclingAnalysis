@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { COMPACT_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
+import { formatSpan } from '../format/date'
+import { useMatchMedia } from '../useMatchMedia'
 import {
   bucketLabel,
   bucketSpan,
@@ -10,9 +13,11 @@ import {
   formatHoursText,
   secondsOf,
   volumeBuckets,
+  volumeColumns,
 } from '../activitiesVolume'
-import type { VolumeBucket } from '../activitiesVolume'
+import type { VolumeBucket, VolumeColumn } from '../activitiesVolume'
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
+import { plural } from './plural'
 import './VolumeStrip.css'
 
 export interface VolumeStripProps {
@@ -38,13 +43,54 @@ function edgeLabel(bucket: VolumeBucket): string {
   return capitalised(bucketLabel(bucket).replace(/^week of /, ''))
 }
 
+/** The index of the column a screen x falls in, or -1 between them. The group's children are its columns. */
+function columnAt(group: Element, clientX: number): number {
+  return [...group.children].findIndex((element) => {
+    const box = element.getBoundingClientRect()
+    return clientX >= box.left && clientX < box.right
+  })
+}
+
+/** The key of the column with training nearest a screen x, or null when the strip has none. */
+function nearestTrained(group: Element, columns: readonly VolumeColumn[], clientX: number) {
+  let best: { key: string; distance: number } | null = null
+  columns.forEach((column, index) => {
+    if (column.kind !== 'bucket' || countOf(column.bucket.totals) === 0) return
+    const box = group.children[index]?.getBoundingClientRect()
+    if (box === undefined) return
+    const distance = Math.abs(clientX - (box.left + box.right) / 2)
+    if (best === null || distance < best.distance) best = { key: column.bucket.key, distance }
+  })
+  return (best as { key: string } | null)?.key ?? null
+}
+
+/** A year or more with no training, folded to a narrow column with a break mark, as the trend's axis skips one. */
+function SkippedStretch({ column }: { column: Extract<VolumeColumn, { kind: 'gap' }> }) {
+  const span = formatSpan(column.fromMs, column.toMs - 1).replace(' – ', ' to ')
+  return (
+    <span
+      className="volume-strip__gap"
+      role="img"
+      aria-label={`The strip skips ${span}, with no training`}
+      title={`The strip skips ${span}`}
+    >
+      <svg viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+        <line x1="2" y1="11" x2="6" y2="1" />
+        <line x1="8" y1="11" x2="12" y2="1" />
+      </svg>
+    </span>
+  )
+}
+
 /**
- * Hours trained in each week, or each month for a long stretch, stacked by sport, for the activities the
+ * Hours trained in each week, each month for a long stretch, or each quarter on a phone, stacked by sport, for the activities the
  * list is narrowed to. Its heading says what the stretch held. A column is a button: it narrows the list to
  * that week or month, and pressing it again lets go. The columns are one tab stop, moved by the arrow keys.
  */
 export function VolumeStrip({ activities, periodText, selected, onSelect }: VolumeStripProps) {
-  const buckets = useMemo(() => volumeBuckets(activities), [activities])
+  const phone = useMatchMedia(`(max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
+  const buckets = useMemo(() => volumeBuckets(activities, phone), [activities, phone])
+  const columns = useMemo(() => volumeColumns(buckets), [buckets])
   const totals = useMemo(() => {
     const all = emptyTotals()
     for (const bucket of buckets) {
@@ -56,7 +102,7 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
     return all
   }, [buckets])
   const [pointed, setPointed] = useState<string | null>(null)
-  const buttons = useRef(new Map<string, HTMLButtonElement>())
+  const groupRef = useRef<HTMLDivElement>(null)
   const first = buckets[0]
   const last = buckets.at(-1)
   if (first === undefined || last === undefined) return null
@@ -85,7 +131,8 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
               : undefined
     if (target === undefined) return
     event.preventDefault()
-    buttons.current.get(target.key)?.focus()
+    const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('button[data-key]')
+    ;[...(buttons ?? [])].find((button) => button.dataset.key === target.key)?.focus()
   }
 
   const shown = buckets.find((bucket) => bucket.key === (pointed ?? selected)) ?? null
@@ -103,7 +150,7 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
         </h2>
         <ul className="volume-strip__key" aria-label="Sports">
           {SPORT_ORDER.filter((sport) => totals[sport].count > 0).map((sport) => (
-            <li key={sport} data-sport={sport}>
+            <li key={sport} data-sport={sport} data-slot={SPORT_ORDER.indexOf(sport)}>
               {SPORT_LABEL[sport]}
             </li>
           ))}
@@ -112,28 +159,33 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
       <div
         className={`volume-strip__bars${pickedBucket ? ' volume-strip__bars--picked' : ''}`}
         role="group"
+        ref={groupRef}
+        onPointerUp={(event) => {
+          // A tap that lands beside a thin column, not on a button, picks the nearest column that has training.
+          if ((event.target as Element).closest('button') !== null) return
+          const near = nearestTrained(event.currentTarget, columns, event.clientX)
+          if (near !== null) onSelect(near === selected ? null : near)
+        }}
         onPointerMove={(event) => {
           // A column may be a couple of pixels wide, so the readout follows the pointer across the strip.
-          const box = event.currentTarget.getBoundingClientRect()
-          const at = Math.floor(((event.clientX - box.left) / box.width) * buckets.length)
-          const over = buckets[Math.min(buckets.length - 1, Math.max(0, at))]
-          setPointed(over !== undefined && countOf(over.totals) > 0 ? over.key : null)
+          const over = columns[columnAt(event.currentTarget, event.clientX)]
+          setPointed(
+            over?.kind === 'bucket' && countOf(over.bucket.totals) > 0 ? over.bucket.key : null,
+          )
         }}
         onPointerLeave={() => setPointed(null)}
         aria-label={`Hours trained each ${first.kind}, by sport. Press one to list only that ${first.kind}.`}
       >
-        {buckets.map((bucket) => {
-          const seconds = secondsOf(bucket.totals)
-          if (seconds === 0 && countOf(bucket.totals) === 0) {
+        {columns.map((column) => {
+          if (column.kind === 'gap') return <SkippedStretch key={column.fromMs} column={column} />
+          const { bucket } = column
+          if (countOf(bucket.totals) === 0) {
             return <span key={bucket.key} className="volume-strip__slot" aria-hidden="true" />
           }
           return (
             <button
               key={bucket.key}
-              ref={(element) => {
-                if (element === null) buttons.current.delete(bucket.key)
-                else buttons.current.set(bucket.key, element)
-              }}
+              data-key={bucket.key}
               type="button"
               className="volume-strip__bar"
               aria-pressed={bucket.key === selected}
@@ -144,14 +196,18 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
               onFocus={() => setPointed(bucket.key)}
               onBlur={() => setPointed(null)}
             >
-              <span className="volume-strip__stack">
+              <span
+                className="volume-strip__stack"
+                style={{ height: `${(secondsOf(bucket.totals) / tallest) * 100}%` }}
+              >
                 {SPORT_ORDER.filter((sport) => bucket.totals[sport].seconds > 0).map((sport) => (
                   <span
                     key={sport}
                     className="volume-strip__part"
                     data-sport={sport}
+                    data-slot={SPORT_ORDER.indexOf(sport)}
                     data-testid="volume-part"
-                    style={{ height: `${(bucket.totals[sport].seconds / tallest) * 100}%` }}
+                    style={{ flexGrow: bucket.totals[sport].seconds }}
                   />
                 ))}
               </span>
@@ -163,7 +219,7 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
         <span aria-hidden="true">{edgeLabel(first)}</span>
         {pickedSpan !== null && (pointed === null || pointed === selected) ? (
           <p className="volume-strip__chip">
-            <span>{`Showing ${bucketLabel(pickedSpan)}`}</span>
+            <span>{`Showing ${bucketLabel(pickedSpan)}${pickedBucket ? `: ${plural(countOf(pickedBucket.totals), 'activity', 'activities')}` : ''}`}</span>
             <button type="button" className="volume-strip__clear" onClick={() => onSelect(null)}>
               Clear
             </button>
