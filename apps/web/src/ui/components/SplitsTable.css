@@ -141,3 +141,9 @@
     background: Highlight;
   }
 }
+
+/* The fold of a long table: a button as wide as its words, under the rows and clear of what follows. */
+.splits-more {
+  justify-self: start;
+  margin-top: var(--space-2);
+}

@@ -39,38 +39,59 @@
  * figures stand in a column beside it, kept in view as the long timeline scrolls past.
  */
 @media (min-width: 1100px) {
-  .page-stack > .activity-page__main {
+  .page-stack > .activity-page__main--detail {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 19rem;
     gap: var(--space-6);
     align-items: start;
   }
 
-  .activity-page__main > .activity-page__top {
+  .activity-page__main--detail > .activity-page__top {
     grid-column: 2;
     grid-row: 1;
     position: sticky;
-    top: var(--space-4);
+    top: calc(var(--header-height) + var(--space-4));
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: var(--space-4);
   }
 
-  .activity-page__main > .activity-workbench {
+  .activity-page__main--detail > .activity-workbench {
     grid-column: 1;
     grid-row: 1;
   }
 
-  .activity-page__main .activity-page__summary {
+  .activity-page__main--detail .activity-page__summary {
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: var(--space-3);
   }
 
   /* A display size with no type token; the column is narrower than the page, so the time sets a step smaller. */
-  .activity-page__main .hero-number {
+  .activity-page__main--detail .activity-page__hero .hero-number {
     font-size: 3rem;
   }
+}
+
+/*
+ * With no recorded detail to show the page is its figures, splits and bests. The timeline's section gives up its
+ * place beside the figures and sits after the bests, where it says why and offers the file again.
+ */
+.activity-page__main--summary-only {
+  display: contents;
+}
+
+.activity-page__main--summary-only > .activity-workbench {
+  order: 10;
+}
+
+.activity-page__remove {
+  order: 11;
+}
+
+/* The interval's figures, drawn here from 1100 px; empty (and unseen) on a narrower page, where they sit under the timeline. */
+.activity-page__selection:empty {
+  display: none;
 }
 
 /* Without a route the figures are the page's own; with one they take the width beside it. */
@@ -81,7 +102,7 @@
 }
 
 @media (min-width: 761px) {
-  .activity-page__main {
+  .activity-page__main--detail {
     gap: var(--space-7);
   }
 
@@ -96,38 +117,6 @@
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     gap: var(--space-5);
-  }
-}
-
-/*
- * On a phone the time and the route share a row and the tiles follow, so the timeline starts as high as it can.
- * The summary gives its parts to the header's own grid to do it.
- */
-@media (max-width: 760px) {
-  .activity-page__top--route {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      'hero route'
-      'stats stats';
-    align-items: center;
-    gap: var(--space-3) var(--space-4);
-  }
-
-  .activity-page__top--route .activity-page__summary {
-    display: contents;
-  }
-
-  .activity-page__top--route .activity-page__hero {
-    grid-area: hero;
-  }
-
-  .activity-page__top--route .activity-page__stats {
-    grid-area: stats;
-  }
-
-  .activity-page__top--route .route-shape {
-    --route-height: 112px;
-    grid-area: route;
   }
 }
 
@@ -147,13 +136,35 @@
   margin: 0;
 }
 
-/* The figures are tiles: two to a row on a phone, with a label that stays on one line at 390 px. */
-.activity-page__stats {
+/* The time is one line at any width: it steps down with the screen rather than wrapping ("3 h 21" over "min"). */
+.activity-page__hero .hero-number {
+  white-space: nowrap;
+  font-size: clamp(2.25rem, 12vw, 4.5rem);
+}
+
+/*
+ * The figures are tiles: two to a row on a phone, with a label that stays on one line at 390 px. Wider, the two
+ * lists are one grid of tiles, and each list gives its tiles to it.
+ */
+.activity-page__tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-stat)), 1fr));
   gap: var(--space-2);
   min-width: 0;
+}
+
+.activity-page__stats {
+  display: contents;
   margin: 0;
+}
+
+@media (max-width: 760px) {
+  .activity-page__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-stat)), 1fr));
+    gap: var(--space-2);
+    min-width: 0;
+  }
 }
 
 .activity-page__stat {
@@ -182,7 +193,7 @@
 
 /* On a phone the stats sit two to a row, so a lone last one spans both columns. */
 @media (max-width: 479px) {
-  .activity-page__stat:last-child:nth-child(odd) {
+  .activity-page__stats--more .activity-page__stat:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
 }
@@ -248,4 +259,131 @@
 
 .activity-page__outcome {
   margin: var(--space-2) 0 0;
+}
+
+/*
+ * On a phone the timeline is the first thing under the title. The moving time and the two key figures are one
+ * strip of three, then the timeline, then the other tiles, then the route. The summary and the lists of tiles
+ * give their parts to the grid that holds them to do it: the page's main grid where there is a timeline, the
+ * header's own grid where there is none.
+ */
+@media (max-width: 760px) {
+  .activity-page__top,
+  .activity-page__summary,
+  .activity-page__tiles {
+    display: contents;
+  }
+
+  .activity-page__main--detail {
+    grid-template-columns: auto repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-2);
+    align-items: stretch;
+  }
+
+  .activity-page__main--detail > .activity-workbench {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  /* The moving time is the strip's first cell, set as a tile like the two beside it, in the same size. */
+  .activity-page__main--detail .activity-page__hero {
+    grid-column: 1;
+    grid-row: 1;
+    align-content: start;
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .activity-page__main--detail .activity-page__hero .hero-number {
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+
+  .activity-page__main--detail .activity-page__stats--key {
+    display: contents;
+  }
+
+  .activity-page__main--detail .activity-page__stats--key .stat-number {
+    font-size: 1.375rem;
+    white-space: nowrap;
+  }
+
+  /* A label may take two lines here, so three cells fit 288 px. */
+  .activity-page__main--detail .activity-page__stats--key dt {
+    white-space: normal;
+  }
+
+  .activity-page__main--detail .activity-page__stats--more {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .activity-page__main--detail .route-shape {
+    --route-height: 96px;
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: start;
+  }
+
+  /* On the narrowest phones the time takes a row of its own, and the two tiles share the one under it. */
+  @media (max-width: 400px) {
+    .activity-page__main--detail {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .activity-page__main--detail .activity-page__hero {
+      grid-column: 1 / -1;
+    }
+
+    .activity-page__main--detail > .activity-workbench {
+      grid-row: 3;
+    }
+
+    .activity-page__main--detail .activity-page__stats--more {
+      grid-row: 4;
+    }
+
+    .activity-page__main--detail .route-shape {
+      grid-row: 5;
+    }
+  }
+
+  /* With no timeline the figures are the whole header: the time and the route share a row, then the tiles. */
+  .activity-page__top-only {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'hero'
+      'key'
+      'more';
+    gap: var(--space-3) var(--space-4);
+  }
+
+  .activity-page__top-only.activity-page__top--route {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'hero route'
+      'key key'
+      'more more';
+    align-items: center;
+  }
+
+  .activity-page__top-only .activity-page__hero {
+    grid-area: hero;
+    align-self: center;
+  }
+
+  .activity-page__top-only .activity-page__stats--key {
+    grid-area: key;
+  }
+
+  .activity-page__top-only .activity-page__stats--more {
+    grid-area: more;
+  }
+
+  .activity-page__top-only .route-shape {
+    --route-height: 80px;
+    grid-area: route;
+  }
 }

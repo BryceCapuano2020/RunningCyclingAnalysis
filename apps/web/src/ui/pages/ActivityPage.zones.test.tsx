@@ -84,7 +84,7 @@ describe('the activity page zones', () => {
     show(run, makeResult({ runCp: null, runMaxHeartRate: 200 }), settings(), true, ['run-e'])
     expect(
       await screen.findByText(
-        'Heart rate is set aside for this activity, so it is left out of zones.',
+        'Heart rate is set aside for this activity: it read too low for the effort, as a working sensor would not, so it is left out of zones.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/heart rate zone/)).toBeNull()

@@ -53,7 +53,8 @@ test('an imported activity supports keyboard selection and restores its details 
   await end.press('Enter')
   await start.fill('0:10')
   await start.press('Enter')
-  await expect(workbench.getByText('Elapsed time').locator('..')).toContainText('20 s')
+  // At 1100 px and wider the interval's figures sit in the column beside the timeline, outside its section.
+  await expect(page.getByText('Elapsed time').locator('..')).toContainText('20 s')
   await expect(brushStart).toHaveAttribute('aria-valuenow', '10')
   await brushStart.focus()
   await page.keyboard.press('ArrowRight')
@@ -253,6 +254,10 @@ test('the timeline of an activity stays under 700 px at 390 px wide, and the bru
     const pad = (n: number) => String(n).padStart(2, '0')
     return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`
   }
+  // The plot now sits where the link was pressed, and a pointer resting on it reads a second of its own: move it off first,
+  // so the keyboard starts from no cursor, as the test means it to.
+  await page.mouse.move(0, 0)
+  await expect(readout).toContainText('Average')
   await plot.focus()
   await page.keyboard.press('ArrowRight')
   await expect(readout).toContainText('Elapsed')

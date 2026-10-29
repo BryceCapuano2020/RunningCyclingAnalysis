@@ -1,5 +1,5 @@
 import type { PlotBox } from './chartTypes'
-import { STACK_MARGIN } from './timeSeriesModel'
+import { STACK_MARGIN, axisShare } from './timeSeriesModel'
 import { NARROW_WIDTH } from './ticks'
 import type { StackChannel } from './timeSeriesTypes'
 
@@ -15,8 +15,14 @@ const LANE_GAP_PX = 6
 /** The room under the lane for the time labels. */
 const AXIS_PX = 26
 
+/** On a phone the gap above each row is deep enough to hold the row's name, and the first row has room for its own. */
+const LABEL_GAP_PX = 18
+const LABEL_TOP_PX = 14
+
 export interface StackLayout {
   height: number
+  /** Whether each row's name sits in the gap above it (a phone's rows are too short for it over the line). */
+  labelAbove: boolean
   /** The box the cursor reads: every row and the lane. */
   plot: PlotBox
   rows: { top: number; bottom: number }[]
@@ -26,22 +32,26 @@ export interface StackLayout {
 
 /** Where each row sits for a stack this wide, with real pixels per second and per unit: nothing is stretched. */
 export function layoutOf(width: number, channels: readonly StackChannel[]): StackLayout {
-  const base = width < NARROW_WIDTH ? BASE_ROW_PX.phone : BASE_ROW_PX.wide
-  let top = TOP_PX
+  const phone = width < NARROW_WIDTH
+  const base = phone ? BASE_ROW_PX.phone : BASE_ROW_PX.wide
+  const gap = phone ? LABEL_GAP_PX : ROW_GAP_PX
+  const first = phone ? LABEL_TOP_PX : TOP_PX
+  let top = first
   const rows = channels.map((channel) => {
     const height = Math.round(base * channel.weight)
     const row = { top, bottom: top + height }
-    top = row.bottom + ROW_GAP_PX
+    top = row.bottom + gap
     return row
   })
   const laneTop = (rows.at(-1)?.bottom ?? TOP_PX) + LANE_GAP_PX
   const laneBottom = laneTop + LANE_PX
   return {
     height: laneBottom + AXIS_PX,
+    labelAbove: phone,
     plot: {
       left: STACK_MARGIN.left,
       right: Math.max(STACK_MARGIN.left + 1, width - STACK_MARGIN.right),
-      top: TOP_PX,
+      top: first,
       bottom: laneBottom,
     },
     rows,
@@ -52,9 +62,6 @@ export function layoutOf(width: number, channels: readonly StackChannel[]): Stac
 
 /** A reading's pixel row, clamped to it so one past the axis sits on its edge. */
 export function valueMap(channel: StackChannel, row: { top: number; bottom: number }) {
-  const span = channel.high - channel.low || 1
-  return (value: number) => {
-    const share = Math.min(1, Math.max(0, (value - channel.low) / span))
-    return row.bottom - share * (row.bottom - row.top)
-  }
+  return (value: number) =>
+    row.bottom - axisShare(channel.scale, channel.low, channel.high, value) * (row.bottom - row.top)
 }

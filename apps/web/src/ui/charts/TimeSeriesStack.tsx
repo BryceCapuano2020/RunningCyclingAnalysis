@@ -14,6 +14,7 @@ import { STACK_MARGIN, stepCursor } from './timeSeriesModel'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
 import type { CursorHead } from './timeSeriesTypes'
 import { useSize } from './useSize'
+import { useStackSelection } from './useStackSelection'
 import './ChartFrame.css'
 import './TimeSeriesStack.css'
 
@@ -36,6 +37,13 @@ export interface TimeSeriesStackProps {
   head: (second: number) => CursorHead
   /** The text twin, shown under "View as table". */
   tables: ReactNode
+  /** Zooms to a stretch the pointer dragged across, in whole seconds. Absent: the plot does not select. */
+  onSelect?: (startS: number, endS: number) => void
+  /** Whether the window is a part of the activity, so there is something to reset. */
+  zoomed?: boolean
+  onReset?: () => void
+  /** Drawn directly under the plot, before its note: the overview. */
+  below?: ReactNode
 }
 
 /** The hint a keyboard reader hears with the plot's name. */
@@ -57,6 +65,10 @@ export function TimeSeriesStack({
   marks,
   head,
   tables,
+  onSelect,
+  zoomed = false,
+  onReset,
+  below,
 }: TimeSeriesStackProps) {
   const [stageRef, width] = useSize()
   const id = useId()
@@ -66,6 +78,7 @@ export function TimeSeriesStack({
   // first step of the arrow is heard too, and not while a pointer sweeps or the averages change.
   const [keyboardFocus, setKeyboardFocus] = useState(false)
   const pressed = useRef(false)
+  const svgRef = useRef<SVGSVGElement | null>(null)
   const channels = useMemo(
     () =>
       build(
@@ -89,15 +102,26 @@ export function TimeSeriesStack({
   // The window can move under a cursor, as when a lap is chosen, so it is kept inside it.
   const inside = cursor === null ? null : Math.max(startS, Math.min(cursor, endS - 1))
   const { left, right } = layout.plot
+  const selection = useStackSelection({
+    svg: svgRef,
+    width,
+    plot: layout.plot,
+    startS,
+    endS,
+    onSelect,
+  })
+  const { selecting } = selection
   const onPoint = useCallback(
     (point: Point | null) => {
+      // While a range is dragged out the cursor stays where it was, and the highlight is what moves.
+      if (selecting()) return
       if (point === null) return setCursor(null)
       const second = Math.floor(
         startS + ((point.x - left) / (right - left)) * Math.max(1, endS - startS),
       )
       setCursor(Math.max(startS, Math.min(second, endS - 1)))
     },
-    [startS, endS, left, right],
+    [startS, endS, left, right, selecting],
   )
   const onKey = useCallback(
     (key: NavigationKey) =>
@@ -111,6 +135,11 @@ export function TimeSeriesStack({
       ),
     [startS, endS],
   )
+  // The chip goes once it has been used, so focus goes to the plot, where it would have been: not to the page's start.
+  const reset = () => {
+    onReset?.()
+    svgRef.current?.querySelector<SVGGElement>('.plot-surface')?.focus()
+  }
   const onBlur = useCallback(() => {
     setCursor(null)
     setKeyboardFocus(false)
@@ -142,14 +171,36 @@ export function TimeSeriesStack({
           head={head}
         />
       </ReadoutContext.Provider>
+      {onSelect !== undefined && (
+        <div className="ts-stack__tools">
+          <p className="ts-stack__hint">
+            <span className="ts-stack__hint--fine">
+              Drag to zoom, or use the range sliders below
+            </span>
+            <span className="ts-stack__hint--coarse">
+              Hold, then drag, to zoom, or use the range below
+            </span>
+          </p>
+          {zoomed && onReset !== undefined && (
+            <button type="button" className="ts-stack__reset" onClick={reset}>
+              Reset
+            </button>
+          )}
+        </div>
+      )}
       <div ref={stageRef} className="chart-frame__stage ts-stack__stage">
         <svg
+          ref={svgRef}
           className="chart-frame__svg"
           width={width}
           height={layout.height}
           viewBox={`0 0 ${width} ${layout.height}`}
           onFocus={onFocus}
           onPointerDownCapture={onPress}
+          onPointerDown={selection.handlers.onPointerDown}
+          onPointerMove={selection.handlers.onPointerMove}
+          onPointerUp={selection.handlers.onPointerUp}
+          onPointerCancel={selection.handlers.onPointerCancel}
         >
           <g role="img" aria-label={description}>
             <TimeSeriesRows
@@ -173,17 +224,37 @@ export function TimeSeriesStack({
               />
             )}
           </g>
+          {selection.range !== null && (
+            <rect
+              className="ts-stack__selection"
+              aria-hidden="true"
+              x={
+                left +
+                ((selection.range.from - startS) / Math.max(1, endS - startS)) * (right - left)
+              }
+              y={layout.plot.top}
+              width={Math.max(
+                2,
+                ((selection.range.to - selection.range.from) / Math.max(1, endS - startS)) *
+                  (right - left),
+              )}
+              height={layout.plot.bottom - layout.plot.top}
+            />
+          )}
           <PlotSurface size={size} onPoint={onPoint} onKey={onKey} onBlur={onBlur} />
         </svg>
         <p id={size.hintId} className="sr-only">
           {HINT}
         </p>
       </div>
-      <TimeSeriesNote channels={channels} marks={marks} startS={startS} endS={endS} />
-      <details className="chart-frame__details">
-        <summary>View as table</summary>
-        {tables}
-      </details>
+      {below}
+      <div className="ts-stack__foot">
+        <TimeSeriesNote channels={channels} marks={marks} startS={startS} endS={endS} />
+        <details className="chart-frame__details">
+          <summary>View as table</summary>
+          {tables}
+        </details>
+      </div>
     </figure>
   )
 }

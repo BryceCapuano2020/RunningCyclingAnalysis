@@ -1,3 +1,4 @@
+import { axisPosition } from './timeSeriesModel'
 import type { PixelMap } from './timeSeriesModel'
 import type { StackChannel } from './timeSeriesTypes'
 
@@ -13,10 +14,11 @@ const TICK_HEIGHT_PX = 3
 
 /** Which columns reach well past the axis at the top and at the bottom. */
 export function clippedColumns(channel: StackChannel): { top: boolean[]; bottom: boolean[] } {
-  const margin = (channel.high - channel.low) * CLIP_SHARE
+  // Read as the axis is drawn, so a pace's margin is a share of its height in pace and not in speed.
+  const at = (value: number) => axisPosition(channel.scale, channel.low, channel.high, value)
   return {
-    top: channel.columns.hi.map((value) => value > channel.high + margin),
-    bottom: channel.columns.lo.map((value) => value < channel.low - margin),
+    top: channel.columns.hi.map((value) => at(value) > 1 + CLIP_SHARE),
+    bottom: channel.columns.lo.map((value) => at(value) < -CLIP_SHARE),
   }
 }
 

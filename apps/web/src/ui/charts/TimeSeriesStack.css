@@ -29,30 +29,113 @@
   --ch-fill: var(--ch-elevation-soft);
 }
 
-/*
- * The note and the table's disclosure share the last row while the table is closed, so they cost one line;
- * open, the table takes a row of its own, as wide as the plot.
- */
-.ts-stack {
-  grid-template-columns: minmax(0, 1fr) auto;
+/* The note and the table's disclosure share a row while the table is closed; open, the table takes the row. */
+.ts-stack__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
+  min-width: 0;
 }
 
-.ts-stack > * {
-  grid-column: 1 / -1;
+.ts-stack__foot > .ts-stack__note {
+  flex: 1 1 16rem;
 }
 
-.ts-stack > .ts-stack__note {
-  grid-column: 1;
-  align-self: center;
+.ts-stack__foot > .chart-frame__details {
+  flex: 0 0 auto;
 }
 
-.ts-stack > .chart-frame__details:not([open]) {
-  grid-column: 2;
-  grid-row: 4;
+.ts-stack__foot > .chart-frame__details[open] {
+  flex: 1 0 100%;
+}
+
+/* The hint and the reset chip share a thin row over the plot, so the plot stays where it is whether or not they show. */
+.ts-stack__tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 24px;
+  min-width: 0;
+}
+
+.ts-stack__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* A mouse drags straight across; a finger holds first. Each reader is told its own way. */
+.ts-stack__hint--coarse {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .ts-stack__hint--fine {
+    display: none;
+  }
+
+  .ts-stack__hint--coarse {
+    display: inline;
+  }
+}
+
+.ts-stack__reset {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ts-stack__reset:hover {
+  background: var(--surface-2);
+}
+
+.ts-stack__reset:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* A finger's chip is 44 px tall; its row grows to hold it only while it shows. */
+@media (pointer: coarse) {
+  .ts-stack__reset {
+    min-height: 44px;
+  }
+}
+
+/* The range being dragged out: a wash over every row, with its ends drawn so it reads in forced colours too. */
+.ts-stack__selection {
+  fill: var(--selected);
+  fill-opacity: 0.08;
+  stroke: var(--selected);
+  stroke-opacity: 0.6;
+  stroke-width: 1px;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .ts-stack__selection {
+    fill: Highlight;
+    stroke: Highlight;
+  }
+
+  .ts-stack__reset {
+    border-color: ButtonText;
+  }
 }
 
 .ts-stack__stage {
+  /* A held finger selects: it must not select text or open the system's callout under it. */
+  -webkit-touch-callout: none;
+  user-select: none;
   /* The plot has its own horizontal drags, so the page scrolls by the plot only vertically. */
   touch-action: pan-y pinch-zoom;
 }
@@ -60,7 +143,9 @@
 /* The fixed row above the plot: it is as tall for one value as for five, so the plot never moves. */
 /* The readout row is the chart system's; it is as tall for one value as for five, so the plot never moves. */
 .ts-stack .chart-frame__details summary {
-  min-height: 40px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .ts-stack > .ts-stack__readout {
@@ -68,68 +153,6 @@
   min-height: 3rem;
   overflow: visible;
   padding: 6px var(--space-2);
-}
-
-.ts-readout {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--column-readout), 1fr));
-  gap: var(--space-1);
-  min-width: 0;
-  align-content: start;
-}
-
-.ts-readout__cell {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-}
-
-.ts-readout__label {
-  display: flex;
-  line-height: 1.2;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  white-space: nowrap;
-}
-
-.ts-readout__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ts-readout__swatch {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ch);
-}
-
-.ts-readout__value {
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.ts-readout__value--none {
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: 400;
-}
-
-.ts-readout__unit {
-  line-height: 1.2;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  white-space: nowrap;
 }
 
 .ts-stack__lap {

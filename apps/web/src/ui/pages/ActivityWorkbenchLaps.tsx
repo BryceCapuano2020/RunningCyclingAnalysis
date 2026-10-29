@@ -144,11 +144,30 @@ export function LapChoices({
           })}
         </div>
         {bar && (
-          <p id={lineId} className="lap-strip__line secondary">
-            {chosen < 0
-              ? `${laps.length} ${recorded ? 'laps' : 'intervals'}. Choose one to zoom to it.`
-              : lapLine(trace, laps[chosen]!, `${name} ${chosen + 1}`, units, max)}
-          </p>
+          <div className="lap-strip__choose">
+            <p id={lineId} className="lap-strip__line secondary">
+              {chosen < 0
+                ? `${laps.length} ${recorded ? 'laps' : 'intervals'}. Choose one to zoom to it.`
+                : lapLine(trace, laps[chosen]!, `${name} ${chosen + 1}`, units, max)}
+            </p>
+            {/* The bar's segments can be a few px wide, so every lap is also a plain list, which a finger and a keyboard can use. */}
+            <select
+              className="lap-strip__list"
+              aria-label={`Choose ${name.toLowerCase()}`}
+              value={chosen < 0 ? '' : String(chosen)}
+              onChange={(event) => {
+                if (event.currentTarget.value !== '')
+                  onSelect(boundsOf(laps[Number(event.currentTarget.value)]!))
+              }}
+            >
+              {chosen < 0 && <option value="">{name}…</option>}
+              {laps.map((lap, index) => (
+                <option key={`${lap.startS}-${lap.endS}`} value={index}>
+                  {`${name} ${index + 1} · from ${formatRecordTime(lap.startS)} · ${formatTotalTime(lap.endS - lap.startS)}`}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
     </div>

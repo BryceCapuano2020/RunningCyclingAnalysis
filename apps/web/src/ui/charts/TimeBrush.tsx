@@ -1,10 +1,9 @@
 import { useCallback, useRef } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
-import { areaPath, linePath } from './timeSeriesModel'
-import type { SeriesColumns } from './timeSeriesModel'
-import { STACK_MARGIN } from './timeSeriesModel'
+import { STACK_MARGIN, areaPath, axisShare, linePath } from './timeSeriesModel'
+import type { AxisScale, SeriesColumns } from './timeSeriesModel'
 import type { ChannelColour } from './timeSeriesTypes'
-import { clamp, draggedRange } from './timeBrushModel'
+import { HANDLE_HIT_PX, draggedRange, handleBoxes } from './timeBrushModel'
 import type { BrushRange, Drag, Part } from './timeBrushModel'
 import { useSize } from './useSize'
 import './TimeBrush.css'
@@ -14,6 +13,7 @@ export interface BrushOverview {
   columns: SeriesColumns
   low: number
   high: number
+  scale?: AxisScale
   colour: ChannelColour
 }
 
@@ -27,7 +27,9 @@ export interface TimeBrushProps {
   spokenTime: (seconds: number) => string
 }
 
-const HEIGHT = 40
+const HEIGHT = 48
+/** How far the track runs past the lane on each side, px (the lane's inset in TimeBrush.css). */
+const LANE_INSET_PX = 8
 /** A drag that has not moved this far is a click, which changes nothing. */
 const DRAG_THRESHOLD_PX = 3
 /** Presses of an arrow that cross the whole activity. */
@@ -98,6 +100,7 @@ export function TimeBrush({ max, selection, onChange, overview, spokenTime }: Ti
     onChange(draggedRange(part, selection, edge, next, max))
   }
 
+  const boxes = handleBoxes(x(startS), x(endS), width, LANE_INSET_PX)
   const path = overview === null || width === 0 ? null : overviewPaths(overview, width, max)
   return (
     <div
@@ -132,7 +135,8 @@ export function TimeBrush({ max, selection, onChange, overview, spokenTime }: Ti
           <Handle
             part="start"
             label="Selection start"
-            left={x(startS)}
+            edge={x(startS)}
+            box={boxes.start}
             value={startS}
             min={0}
             max={endS - 1}
@@ -142,7 +146,8 @@ export function TimeBrush({ max, selection, onChange, overview, spokenTime }: Ti
           <Handle
             part="end"
             label="Selection end"
-            left={x(endS)}
+            edge={x(endS)}
+            box={boxes.end}
             value={endS}
             min={startS + 1}
             max={max}
@@ -158,7 +163,8 @@ export function TimeBrush({ max, selection, onChange, overview, spokenTime }: Ti
 function Handle({
   part,
   label,
-  left,
+  edge,
+  box,
   value,
   min,
   max,
@@ -167,7 +173,9 @@ function Handle({
 }: {
   part: 'start' | 'end'
   label: string
-  left: number
+  /** Where the edge it moves is, and the left of its hit area, in px along the lane: the grip stays on the edge. */
+  edge: number
+  box: number
   value: number
   min: number
   max: number
@@ -185,20 +193,24 @@ function Handle({
       aria-valuemax={max}
       aria-valuenow={value}
       aria-valuetext={text}
-      style={{ left }}
+      style={{ left: box, width: HANDLE_HIT_PX }}
       onKeyDown={onKeyDown}
     >
-      <span className="ts-brush__grip" aria-hidden="true" />
+      <span
+        className="ts-brush__grip"
+        aria-hidden="true"
+        style={{ transform: `translateX(${edge - box - HANDLE_HIT_PX / 2}px)` }}
+      />
     </div>
   )
 }
 
 /** The overview's line and area at the track's width, from the activity's first second to its last. */
 function overviewPaths(overview: BrushOverview, width: number, max: number) {
-  const span = overview.high - overview.low || 1
   const map = {
     x: (timeS: number) => (timeS / max) * width,
-    y: (value: number) => HEIGHT - 4 - clamp((value - overview.low) / span, 0, 1) * (HEIGHT - 8),
+    y: (value: number) =>
+      HEIGHT - 4 - axisShare(overview.scale, overview.low, overview.high, value) * (HEIGHT - 8),
   }
   return {
     line: linePath(overview.columns, map),

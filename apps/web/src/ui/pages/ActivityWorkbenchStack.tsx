@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo } from 'react'
+import type { ReactNode } from 'react'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { TimeSeriesStack } from '../charts/TimeSeriesStack'
@@ -32,12 +33,22 @@ export const ActivityWorkbenchStack = memo(function ActivityWorkbenchStack({
   metrics,
   startS,
   endS,
+  onSelect,
+  zoomed,
+  onReset,
+  below,
 }: {
   trace: ActivityTrace
   units: UnitSystem
   metrics: readonly TraceMetric[]
   startS: number
   endS: number
+  /** Zooms to a range the pointer dragged across the plot. */
+  onSelect: (startS: number, endS: number) => void
+  zoomed: boolean
+  onReset: () => void
+  /** The overview, drawn directly under the plot. */
+  below: ReactNode
 }) {
   const present = useMemo(
     () => metrics.filter((metric) => axisFor(trace, metric, startS, endS) !== null),
@@ -64,6 +75,10 @@ export const ActivityWorkbenchStack = memo(function ActivityWorkbenchStack({
           laps={laps}
           marks={marks}
           head={head}
+          onSelect={onSelect}
+          zoomed={zoomed}
+          onReset={onReset}
+          below={below}
           tables={present.map((metric) => (
             <ChannelTable
               key={metric}

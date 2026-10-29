@@ -96,8 +96,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  /* A chip is 40 px, a touch target that still lets five of them take two rows of a phone. */
-  min-height: 40px;
+  /* A chip is 44 px, a finger's target, and five of them still take two rows of a phone. */
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
@@ -135,6 +135,27 @@
   background: var(--ch);
 }
 
+/* A measure with nothing to draw is not a choice: its chip is quiet, says so, and does not take a tap. */
+.metric-chip--empty {
+  background: transparent;
+  border-style: dashed;
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+.metric-chip--empty .metric-chip__input {
+  cursor: default;
+}
+
+.metric-chip--empty .metric-chip__box {
+  border-color: var(--text-muted);
+}
+
+.metric-chip__note {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
 .metric-chip:has(:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -156,6 +177,7 @@
 
 .activity-workbench__laps h3,
 .activity-workbench__reps h3,
+.activity-workbench__stats h2,
 .activity-workbench__stats h3 {
   margin: 0;
   font-size: 1.05rem;
@@ -171,6 +193,18 @@
 .activity-workbench__laps h3 {
   max-width: 7rem;
   font-size: var(--text-sm);
+}
+
+/* On a phone the strip takes the whole width under its name, so a rep is never squeezed to a sliver. */
+@media (max-width: 479px) {
+  .activity-workbench__laps {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-1);
+  }
+
+  .activity-workbench__laps h3 {
+    max-width: none;
+  }
 }
 
 /* A rep's button and its lap's name stay on one line, so five columns still fit a phone. */

@@ -22,7 +22,11 @@ export function runTrace(): ActivityTrace {
   }
 }
 
-/** A steady run of `seconds` whole seconds with every second recorded and moving. */
+/**
+ * A steady run of `seconds` whole seconds with every second recorded and moving. Its readings differ by less than
+ * anything shows (a recorder never reads one value to the last bit), so none of its rows is a constant, which the
+ * page leaves out as "no data".
+ */
 export function steadyTrace(seconds: number, speed = 3): ActivityTrace {
   return {
     version: 1,
@@ -33,8 +37,8 @@ export function steadyTrace(seconds: number, speed = 3): ActivityTrace {
     paused: new Uint8Array(seconds),
     unrecorded: new Uint8Array(seconds),
     streams: {
-      speed: new Float32Array(seconds).fill(speed),
-      heartRate: new Float32Array(seconds).fill(140),
+      speed: Float32Array.from({ length: seconds }, (_, i) => speed + (i % 2) * 0.001),
+      heartRate: Float32Array.from({ length: seconds }, (_, i) => 140 + (i % 2) * 0.01),
     },
     laps: [],
   }

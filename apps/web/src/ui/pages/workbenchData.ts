@@ -61,6 +61,16 @@ export function selectionOf(trace: ActivityTrace, startS: number, endS: number):
 }
 
 /**
+ * The average speed the page gives for a selection, in m/s: the distance over the moving time, which for the
+ * whole activity is the header's own figure. Null where the distance or the moving time is unknown or none.
+ */
+export function movingAverageSpeed(summary: SelectionSummary): number | null {
+  return summary.distanceM !== null && summary.distanceM > 0 && summary.movingS > 0
+    ? summary.distanceM / summary.movingS
+    : null
+}
+
+/**
  * What range a measure's readings span over a selection, and the moving seconds beyond each end. The
  * description of the plot and the stack's own axis read it; the axis then fits the smoothed line (smoothedBand).
  * A trimmed measure leaves out its few extreme readings; any other spans all of them. Null with no readings.
@@ -78,6 +88,38 @@ export function axisFor(
       return { low: stats.min, high: stats.max, below: 0, above: 0 }
     }
     return readingBand(readableTrace(trace), metric, startS, endS)
+  })
+}
+
+/** The share of a selection's readings cut from each end of its typical range. */
+const TYPICAL_CUT = 0.05
+
+/**
+ * The span most of a measure's readings in a selection lie in, its 5th to 95th percentile, or null with none.
+ * A lowest and a highest are set by one stray second (a dropout to zero watts, a pace while stopped), so the
+ * page reads this instead. It is a presentation of the readings, not an analysis figure, and leaves every
+ * other number as it was.
+ */
+export function typicalBand(
+  trace: ActivityTrace,
+  metric: TraceMetric,
+  startS: number,
+  endS: number,
+): { low: number; high: number } | null {
+  return remembered(trace, `typical:${metric}:${startS}:${endS}`, () => {
+    const stream = plottedStream(trace, metric)
+    if (stream === null) return null
+    const seen: number[] = []
+    for (let i = Math.max(0, startS); i < Math.min(endS, stream.values.length); i += 1) {
+      const value = stream.values[i]!
+      if (Number.isFinite(value)) seen.push(value)
+    }
+    if (seen.length === 0) return null
+    seen.sort((a, b) => a - b)
+    return {
+      low: seen[Math.floor(seen.length * TYPICAL_CUT)]!,
+      high: seen[Math.max(0, Math.ceil(seen.length * (1 - TYPICAL_CUT)) - 1)]!,
+    }
   })
 }
 
@@ -135,6 +177,9 @@ const DOMAIN_CUT = 0.01
  */
 const DOMAIN_MIN_SHARE = 0.2
 
+/** The share of an axis's span past which the smoothed line is a spike, which the axis does not stretch to. */
+const DOMAIN_KEEP_SHARE = 0.25
+
 /** The value a share of the way up ascending numbers. */
 function atShare(sorted: readonly number[], share: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * share))]!
@@ -160,6 +205,11 @@ export function smoothedBand(
     if (means.length === 0) return null
     let low = atShare(means, DOMAIN_CUT)
     let high = atShare(means, 1 - DOMAIN_CUT)
+    // The top and bottom hundredth are cut so a spike does not set the axis; an excursion of a quarter of the span or
+    // less is not a spike, and is kept, so the line does not nick the edge where it peaks.
+    const reach = (high - low) * DOMAIN_KEEP_SHARE
+    low = means[0]! >= low - reach ? means[0]! : low
+    high = means.at(-1)! <= high + reach ? means.at(-1)! : high
     const rawLow = atShare(sorted(series.lo), DOMAIN_CUT)
     const rawHigh = atShare(sorted(series.hi), 1 - DOMAIN_CUT)
     const least = (rawHigh - rawLow) * DOMAIN_MIN_SHARE

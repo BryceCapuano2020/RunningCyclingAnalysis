@@ -7,7 +7,7 @@ import {
   skippedStretches,
   timelineMarks,
 } from './workbenchChannels'
-import { selectionOf } from './workbenchData'
+import { movingAverageSpeed, selectionOf } from './workbenchData'
 import { repsTrace, runTrace, steadyTrace } from './workbenchFixtures'
 import { readingOf } from './workbenchScale'
 
@@ -77,9 +77,9 @@ describe('channelsFor', () => {
     const heart = channels.find((channel) => channel.key === 'heartRate')!
     expect(heart.colour).toBe('heartrate')
     expect(heart.shape).toBe('line')
-    // The readings run 120 to 139, and the axis leaves a margin of 8% beyond each.
-    expect(heart.low).toBeLessThan(120)
-    expect(heart.high).toBeGreaterThan(139)
+    // The readings run 120 to 139, their 3 s averages 121 to 138, and the axis leaves a margin beyond those.
+    expect(heart.low).toBeLessThan(121)
+    expect(heart.high).toBeGreaterThan(138)
     expect(heart.at(10)).toMatchObject({ unit: 'bpm' })
     expect(heart.average).toEqual({ value: '130', unit: 'bpm' })
     expect(channels[0]!.colour).toBe('pace')
@@ -146,7 +146,10 @@ describe('the reading at a second', () => {
       )
       for (const channel of channels) {
         const metric = channel.key as 'speed' | 'heartRate' | 'cadence'
-        const mean = stats[metric]!.mean!
+        // A speed's average is the distance over the moving time, as the header's is; the others are the readings' mean.
+        const mean =
+          (metric === 'speed' ? movingAverageSpeed(selectionOf(trace, startS, endS)) : null) ??
+          stats[metric]!.mean!
         expect(channel.average, metric).toEqual(
           readingOf(metric, mean, trace.sport, 'metric', trace.cadenceUnit),
         )
@@ -174,6 +177,7 @@ describe('a run’s pace axis', () => {
   it('keeps a ride’s speed axis to zero, where a stop is a real reading', () => {
     const trace = steadyTrace(60, 0.1)
     trace.sport = 'ride'
+    trace.streams.speed = new Float32Array(60).fill(0.1)
     expect(plotDomain(trace, 'speed', 0, 60)?.low).toBe(0)
   })
 })
@@ -224,11 +228,22 @@ describe('plotDomain', () => {
 })
 
 describe('overviewOf', () => {
-  it('prefers the terrain, then the first measure with readings', () => {
-    expect(overviewOf(steadyTrace(300), 300)?.colour).toBe('pace')
-    const hilly = steadyTrace(300)
-    hilly.streams.altitude = Float32Array.from({ length: 300 }, (_, i) => i)
-    expect(overviewOf(hilly, 300)?.colour).toBe('elevation')
+  it('draws the sport’s own measure, pace for a run and power for a ride, and the terrain only when nothing else moves', () => {
+    const run = steadyTrace(300)
+    run.streams.altitude = Float32Array.from({ length: 300 }, (_, i) => i)
+    run.streams.speed = Float32Array.from({ length: 300 }, (_, i) => 3 + (i % 20) / 20)
+    expect(overviewOf(run, 300)?.colour).toBe('pace')
+    expect(overviewOf(run, 300)?.scale).toBe('pace')
+    const ride = steadyTrace(300)
+    ride.sport = 'ride'
+    ride.streams.power = Float32Array.from({ length: 300 }, (_, i) => 150 + (i % 30))
+    expect(overviewOf(ride, 300)?.colour).toBe('power')
+    // A measure that never moves is passed over.
+    const flat = steadyTrace(300)
+    flat.streams.speed = new Float32Array(300).fill(3)
+    flat.streams.heartRate = new Float32Array(300).fill(140)
+    flat.streams.altitude = Float32Array.from({ length: 300 }, (_, i) => i)
+    expect(overviewOf(flat, 300)?.colour).toBe('elevation')
   })
 
   it('has none for a trace with no readings to draw', () => {

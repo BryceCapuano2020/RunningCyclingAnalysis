@@ -1,6 +1,7 @@
 import { useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { ReadoutContext } from './readoutContext'
+import './TimeSeriesReadout.css'
 import type { StackChannel } from './timeSeriesTypes'
 import type { CursorHead } from './timeSeriesTypes'
 
