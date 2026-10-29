@@ -54,7 +54,14 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const references = { referenceHr: judgement.referenceHr, observedMaxHr: judgement.observedMaxHr }
   const analysis =
     athlete !== null && visible.length > 0
-      ? periods.analysis(selected, athlete, setAside, judgement.calibration, references)
+      ? periods.analysis(
+          selected,
+          athlete,
+          setAside,
+          judgement.calibration,
+          references,
+          judgement.rideGate,
+        )
       : null
   // The references that zones are cut from are the library's, not the period's: one activity has the same zones
   // under every period, and Profile, the activity page and the time in zones all read them.
@@ -68,7 +75,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const efforts =
     athlete === null
       ? NO_TRENDS
-      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, hr)
+      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, hr, judgement.rideGate)
   const sameHeartRate =
     analysis === null
       ? NO_SAME_HEART_RATE
@@ -88,7 +95,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         : zoneTimes.get(selected, previous, athlete, zoneEstimates, setAside),
     previous:
       athlete !== null && bikeModel !== undefined && previous.length > 0
-        ? periods.previousCurves(selected, previous, athlete, bikeModel)
+        ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate)
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,
@@ -104,6 +111,6 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     records:
       athlete === null
         ? new Map<string, EarnedRecord[]>()
-        : recordsCache.holders(analysed, athlete),
+        : recordsCache.holders(analysed, athlete, judgement.rideGate),
   }
 }

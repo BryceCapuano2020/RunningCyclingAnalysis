@@ -1,4 +1,5 @@
 import type { CriticalPowerFit, HrCalibration, Sport } from '../types'
+import type { EstimatedRideGate } from './estimatedRide'
 
 /**
  * Whose heart rate is set aside, judged over a whole library, with what it was judged against. A period's
@@ -25,6 +26,12 @@ export interface HeartRateJudgement {
    * enough heart rate in both sports.
    */
   calibration: HrCalibration | null
+  /**
+   * What the library's measured rides show of heart rate against watts, which decides whether a ride without a
+   * power meter counts toward a best (see ESTIMATED_RIDE). Every period, trend and record reads it, so they agree.
+   * Null with too few measured rides with heart rate, when every estimated point counts as before.
+   */
+  rideGate: EstimatedRideGate | null
 }
 
 /** Nothing judged: no library, or none with a heart rate. */
@@ -35,4 +42,5 @@ export const NO_HEART_RATE_JUDGEMENT: HeartRateJudgement = {
   threshold: { run: null, ride: null },
   fit: { run: null, ride: null },
   calibration: null,
+  rideGate: null,
 }

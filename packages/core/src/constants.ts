@@ -230,6 +230,15 @@ export const PRIORS = {
 
 export const DEFAULT_BIKE_MODEL = { cda: 0.32, crr: 0.005 } as const
 
+/**
+ * The share of the heart rate that the athlete's power-meter rides show at a ride's estimated watts that its
+ * window must show for the estimate to count toward a best (see ESTIMATED_RIDE in digest/estimatedRide).
+ */
+export const ESTIMATED_RIDE_MIN_SHARE = 0.9
+
+/** The measured rides with heart rate it takes to judge an estimated ride's heart rate (see ESTIMATED_RIDE). */
+export const ESTIMATED_RIDE_MIN_RIDES = 6
+
 /** Virtual power is trusted only where gravity dominates aero drag. */
 export const MIN_CLIMB_GRADE = 0.03
 

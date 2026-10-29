@@ -1178,7 +1178,25 @@ The grade chart's extra durations and the level target use it too, so the ride's
 share one conversion. Because it is the library's, adding files can shift older equivalents (the calibration
 refits over everything), where a period's own check moved only with that period. A ride without a power meter is
 the exception to period independence: its watts come from a bike model fitted over the period's own
-power-meter rides, so those watts, and the pace they are worth, can still differ by period.
+power-meter rides, so those watts, and the pace they are worth, can still differ by period. Whether such a ride's
+point counts at all is the library's call (`HeartRateJudgement.rideGate`, built by `rideGateOf` in
+`digest/estimatedRide.ts`): for each curve duration a robust line (Theil-Sen, refitted without the points under
+the tolerance, never read beyond the fitted watts) of the heart rate of the trusted power-meter rides on their
+watts, and an estimated window counts toward the bests, curves, thresholds, records and trends only if its mean
+heart rate is at least `ESTIMATED_RIDE.minShare` (90%) of the line at its watts. A window with no heart rate, or
+at a duration with no line, is unbacked: it drops at a duration the library has measured (a measured point makes
+every shorter duration measured, since the envelope copies it down), and elsewhere it stands at its own duration
+only. The monotone envelope is built from measured and backed points alone, and an unbacked one is placed on the
+finished curve where it beats what is there, so it never fills a shorter duration, and it is kept only at or under the finished curve at the nearest shorter duration
+with a value (the records likewise), so the curve stays non-increasing and an estimate never reads higher than a
+measured effort, whatever the unit (W/kg with dated masses) or the period. The trend and the records read it the same way. Fewer than 6 power-meter rides with heart rate give no
+gate and nothing changes. The line is in absolute watts, so a change in mass moves a virtual ride's watts against
+it slightly. A virtual ride's own heart rate is taken as recorded: neither set-aside path judges a ride whose watts
+are the estimate in doubt. Only measured rides' set-aside heart rate is left out of the line. The judgement and
+`combine` fit the gate once, without the rides whose heart rate reads low across the whole activity, judge against
+it, and rebuild it once more (and the curves) if that set more aside: one rebuild, not a fixed point, and the gate
+is null if too few rides are left. It is a combine-time rule on the digest's `terms`, so `MODEL_REVISION` is
+unchanged. Periods, trends, the previous period and records all take the library's gate, so they agree.
 Changing the period does not judge again. The reference it was judged against is the library's, which can differ from a
 period's own figure, so the notes on a set-aside heart rate cite it ("under 70% of your reference heart rate across all your
 activities (200 bpm running)", on How sure is this? and on the activity), and cannot seem to contradict the period's. With too

@@ -15,6 +15,8 @@ import { fitBikeModel } from '../virtualPower'
 import { bestOf, bestOfEach, isMeasured, plainCurve } from './bestCurve'
 import { CalibrationPool, calibratedOf } from './calibration'
 import { effortsCount } from './effortTrust'
+import { estimatedStanding, ownRideGate } from './estimatedRide'
+import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
@@ -52,15 +54,20 @@ export function fitBikeModelOver(ordered: ActivityDigest[], masses: Masses) {
   return fitBikeModel(pool.stats())
 }
 
-/** A ride point priced as gross metabolic W/kg at the mass of its activity. */
-function rideWkgAt(
+/**
+ * One ride point priced: its mechanical watts, NaN when it is an estimate the athlete's heart rate does not back
+ * (see ESTIMATED_RIDE), and whether it stands at its own duration only, as an unbacked estimate does.
+ */
+export function ridePriced(
   point: DigestCurvePoint,
   digest: ActivityDigest,
   masses: Masses,
   model: BikeModel,
-): number {
+  standing: EstimatedStanding,
+): { watts: number; alone: boolean } {
   const watts = rideWattsAt(point, masses.totalKg(digest), model)
-  return centralWkgFromWatts(watts, masses.bodyKg(digest))
+  const how = standing(point, watts)
+  return { watts: how === 'drops' ? Number.NaN : watts, alone: how === 'stands' }
 }
 
 /** The run and ride curves a combine works from, with the ride in each unit it needs. */
@@ -85,7 +92,8 @@ export interface BestCurves {
 }
 
 /**
- * The best run and ride values at each duration. Rides are priced with bikeModel. A treadmill run holds
+ * The best run and ride values at each duration. Rides are priced with bikeModel, and an estimated ride point
+ * counts only if `gate` lets it (see ESTIMATED_RIDE); null leaves every point, as with too few measured rides. A treadmill run holds
  * no best (see effortsCount), so it is left out of both curves.
  */
 export function bestCurves(
@@ -93,14 +101,25 @@ export function bestCurves(
   masses: Masses,
   bikeModel: BikeModel,
   todayKg: number,
+  gate: EstimatedRideGate | null,
 ): BestCurves {
   const ordered = all.filter(effortsCount)
   const runBest = bestOf(ordered, 'run', runCentralWkg)
+  const standing = estimatedStanding(gate)
+  // Without a gate every point holds, so none stands alone.
+  const aloneFor =
+    gate === null
+      ? undefined
+      : (digest: ActivityDigest) => (point: DigestCurvePoint) =>
+          ridePriced(point, digest, masses, bikeModel, standing).alone
   if (!masses.dated) {
-    const rideBest = bestOfEach(ordered, 'ride', (digest) => {
-      const total = masses.totalKg(digest)
-      return (point) => rideWattsAt(point, total, bikeModel)
-    })
+    const rideBest = bestOfEach(
+      ordered,
+      'ride',
+      (digest) => (point) => ridePriced(point, digest, masses, bikeModel, standing).watts,
+      undefined,
+      aloneFor,
+    )
     const rideCurve = plainCurve(rideBest)
     const rideMetabolic = rideCurve.map((p) => ({
       ...p,
@@ -112,7 +131,13 @@ export function bestCurves(
   const wkgBest = bestOfEach(
     ordered,
     'ride',
-    (digest) => (point) => rideWkgAt(point, digest, masses, bikeModel),
+    (digest) => (point) =>
+      centralWkgFromWatts(
+        ridePriced(point, digest, masses, bikeModel, standing).watts,
+        masses.bodyKg(digest),
+      ),
+    undefined,
+    aloneFor,
   )
   const bodyKgById = new Map(ordered.map((digest) => [digest.id, masses.bodyKg(digest)]))
   const efficiency = PRIORS.grossEfficiency.mean
@@ -134,19 +159,22 @@ export function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
 /**
  * The run and ride curves of a set of digests, without the rest of the analysis. Rides are priced
  * with bikeModel, passed in so that two periods share one model and a change of model cannot read
- * as a change of fitness.
+ * as a change of fitness. `gate` is the library's (see ESTIMATED_RIDE); absent, it is read from these digests.
  */
 export function sportCurves(
   digests: ActivityDigest[],
   settings: AthleteSettings,
   bikeModel: BikeModel,
+  gate?: EstimatedRideGate | null,
 ): SportCurves {
   const masses = massesOf(settings)
+  const ordered = orderedCurrent(digests)
   const { runBest, rideBest } = bestCurves(
-    orderedCurrent(digests),
+    ordered,
     masses,
     bikeModel,
     settings.massKg,
+    gate === undefined ? ownRideGate(ordered) : gate,
   )
   return { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
 }

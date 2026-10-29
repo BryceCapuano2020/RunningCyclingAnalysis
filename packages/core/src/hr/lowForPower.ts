@@ -1,3 +1,4 @@
+import { memoByDigests } from '../digestMemo'
 import { quantile } from '../math'
 import type { ActivityDigest, Sport } from '../types'
 import { MEASURED_EFFORT } from './setAside'
@@ -22,7 +23,7 @@ export const HR_LOW_FOR_POWER = {
 } as const
 
 /** One activity's level: its median heart rate and its median output over the 5 min blocks, in its sport's unit. */
-interface Level {
+export interface Level {
   id: string
   output: number
   heartRate: number
@@ -66,13 +67,13 @@ function levelFrom(digest: ActivityDigest): Level | null {
 }
 
 /** A line heart rate = intercept + slope * output, by the median of the pairwise slopes (Theil-Sen). */
-interface Line {
+export interface Line {
   intercept: number
   slope: number
 }
 
 /** The robust line through the levels, or null when its slope is not positive: a heart rate that does not rise with output. */
-function fitLine(levels: Level[]): Line | null {
+export function fitLine(levels: Level[]): Line | null {
   // Ordered by output, then id, before subsampling, so the line does not depend on the order digests arrive in.
   const ordered = levels.slice().sort((a, b) => a.output - b.output || (a.id < b.id ? -1 : 1))
   const stride = Math.max(1, Math.ceil(ordered.length / HR_LOW_FOR_POWER.maxFitPoints))
@@ -119,7 +120,7 @@ function lowAgainst(levels: Level[], line: Line): Set<string> {
  * it first set aside so they do not pull it down; the verdict is taken against the second line. A sport with too
  * few activities to fit gives no verdict.
  */
-export function lowForPowerSetAside(digests: ActivityDigest[]): Set<string> {
+function judgeLowForPower(digests: ActivityDigest[]): Set<string> {
   const bySport = new Map<Sport, Level[]>()
   for (const digest of digests) {
     const level = levelOf(digest)
@@ -140,4 +141,18 @@ export function lowForPowerSetAside(digests: ActivityDigest[]): Set<string> {
     for (const id of lowAgainst(levels, line)) out.add(id)
   }
   return out
+}
+
+/**
+ * The same judgement, remembered for the last few libraries: it reads no body mass, so a change of mass finds it.
+ * Each call has a set of its own, since callers add to it.
+ */
+const judged = memoByDigests(
+  judgeLowForPower,
+  () => true,
+  (ids) => new Set(ids),
+)
+
+export function lowForPowerSetAside(digests: ActivityDigest[]): Set<string> {
+  return judged(digests, undefined)
 }

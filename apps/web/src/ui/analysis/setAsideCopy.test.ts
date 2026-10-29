@@ -12,6 +12,7 @@ const JUDGED: HeartRateJudgement = {
   fit: { run: null, ride: null },
   threshold: { run: 5, ride: 4 },
   calibration: null,
+  rideGate: null,
 }
 
 describe('set-aside heart rate copy', () => {
