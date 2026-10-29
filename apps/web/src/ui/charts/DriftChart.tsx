@@ -5,7 +5,7 @@ import type { Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 import { formatDay, formatDayMonth } from '../format/date'
 import { DECOUPLING_REFERENCE, driftChange } from '../lateInEffort'
-import { SPORT_PLURAL } from '../sports'
+import { SPORT_ACTIVITY, SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
@@ -89,6 +89,12 @@ function changeCell(point: DriftPoint): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 }
 
+/** What a screen reader hears for the drawing. The reference is the key's sentence, set mid-sentence. */
+export function driftDescription(sport: Sport): string {
+  const reference = `${DECOUPLING_REFERENCE.charAt(0).toLowerCase()}${DECOUPLING_REFERENCE.slice(1)}`
+  return `One dot for each steady ${SPORT_ACTIVITY[sport]} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks ${reference}.`
+}
+
 /**
  * A dot for each steady effort: how much its output per heartbeat changed from the first half to the
  * second, by date, a fall below zero. A dashed line at the common 5% fall reference is named in the key. No line joins the
@@ -102,7 +108,7 @@ export function DriftChart({ sport, points, names, note }: DriftChartProps) {
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={`Change in output per heartbeat on steady ${SPORT_PLURAL[sport]}, first half to second`}
-      description={`One dot for each steady ${SPORT_PLURAL[sport]} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks ${DECOUPLING_REFERENCE}.`}
+      description={driftDescription(sport)}
       legend={[{ label: DECOUPLING_REFERENCE, kind: 'neutral', swatch: 'dashed' }]}
       note={note}
       table={{

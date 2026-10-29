@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { driftPoints } from '../lateFixtures'
 import { DECOUPLING_REFERENCE } from '../lateInEffort'
-import { DriftChart } from './DriftChart'
+import { DriftChart, driftDescription } from './DriftChart'
 
 const NOTE = 'How a dot is made.'
 const POINTS = driftPoints([1, 2, 3, 6, 4])
@@ -43,6 +43,15 @@ describe('DriftChart', () => {
     expect(container.querySelectorAll('[data-testid="drift-dot"]')).toHaveLength(5)
     expect(container.querySelector('path.chart-series__line--run')).toBeNull()
   })
+
+  it.each(['run', 'ride'] as const)(
+    'describes %s drift in grammatical sentences, with the reference in lower case mid-sentence',
+    (sport) => {
+      expect(driftDescription(sport)).toBe(
+        `One dot for each steady ${sport} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks a fall of 5%: under this is usually read as well-built endurance.`,
+      )
+    },
+  )
 
   it('draws the 5% reference as a dashed line named plainly in the key', () => {
     const { container } = renderChart()
