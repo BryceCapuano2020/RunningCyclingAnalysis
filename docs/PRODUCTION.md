@@ -289,7 +289,10 @@ activities at a time with accessible paging.
   bests, power-meter rides and splits; optional distributions, durability and drift evidence; best
   windows need at least 90% of their seconds moving, a sustained speed above a per-sport ceiling is
   flagged `implausible-speed`, and a distance best up to 1% short of a record distance is scaled to it;
-  splits are over moving time less rests; `walkingPace` marks a run at walking pace; and the
+  splits are over moving time less rests; a first session whose device distance starts far from zero
+  counts from its own first sample; altitude outside -1000 to 10,000 m is dropped on import;
+  the activity page's time in zones leaves out the seconds the quality assessment flagged, as the sport
+  page does; `walkingPace` marks a run at walking pace; and the
   `hr-implausible-for-power` flag compares a stretch with the same activity's heart rate at similar
   power instead of a fixed floor. (The whole-activity check against the library is applied when the
   library is judged, not stored in the digest.) Missing revision means

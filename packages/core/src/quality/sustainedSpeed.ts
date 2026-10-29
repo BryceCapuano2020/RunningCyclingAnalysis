@@ -9,6 +9,9 @@ const SUSTAINED_SPEED_TABLE: Record<Sport, readonly CeilingEntry[]> = {
   ride: RIDE_SUSTAINED_SPEEDS,
 }
 
+/** Relative slack on the shortcut's bound, far above the rounding of a prefix sum of a week of samples. */
+const SKIP_MARGIN = 1e-6
+
 /** The fastest mean speed, m/s, a person in this sport holds for durationS seconds. */
 export function sustainedSpeedCeiling(sport: Sport, durationS: number): number {
   return interpolatedCeiling(SUSTAINED_SPEED_TABLE[sport], durationS)
@@ -21,6 +24,9 @@ export function sustainedSpeedCeiling(sport: Sport, durationS: number): number {
  * assessQuality cannot see this: a GPS track that reads 9 m/s for three minutes has no jump in it,
  * and a file whose speed is derived from its positions has no second source to disagree with it.
  * Windows with an unknown speed are not checked. Stretches are merged and in order.
+ *
+ * A duration whose ceiling the activity's fastest sample cannot reach, over any window, is skipped without a
+ * scan: a mean cannot exceed the maximum. That is every long duration of most activities.
  */
 export function implausibleSpeedStretches(
   activity: Pick<Activity, 'n' | 'speed' | 'sport'>,
@@ -28,9 +34,11 @@ export function implausibleSpeedStretches(
   const { n, speed, sport } = activity
   const sum = new Float64Array(n + 1)
   const unknown = new Int32Array(n + 1)
+  let fastest = 0
   for (let i = 0; i < n; i++) {
     const v = speed[i]!
     const known = Number.isFinite(v)
+    if (known && v > fastest) fastest = v
     sum[i + 1] = sum[i]! + (known ? v : 0)
     unknown[i + 1] = unknown[i]! + (known ? 0 : 1)
   }
@@ -39,6 +47,8 @@ export function implausibleSpeedStretches(
   for (const durationS of DURATIONS_S) {
     if (durationS > n) break
     const limit = sustainedSpeedCeiling(sport, durationS) * durationS
+    // The margin absorbs the rounding of the running sums, so a skipped duration is one the scan flags nothing for.
+    if (fastest * durationS * (1 + SKIP_MARGIN) <= limit) continue
     for (let start = 0; start + durationS <= n; start++) {
       const end = start + durationS
       if (unknown[end]! - unknown[start]! > 0 || sum[end]! - sum[start]! <= limit) continue

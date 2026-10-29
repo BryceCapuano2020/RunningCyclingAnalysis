@@ -12,6 +12,7 @@ import { nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
 import { cleanRecord } from './cleanRecord'
 import { lapsForSegment } from './laps'
+import { subtractDistance, unexplainedStart } from './distanceStart'
 
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
@@ -52,7 +53,8 @@ export interface PipelineUnit {
   /**
    * The device's running distance when this unit began, in metres. Subtracted from the unit's
    * distance, so a session that follows another counts from where that one ended. Undefined
-   * leaves the device's own count, which is the case for a file's first session.
+   * keeps the device's own count unless it starts beyond a plausible head start, which is the
+   * case for a file's first session.
    */
   distanceOrigin?: number
   /** The source marks this unit indoor, e.g. a FIT treadmill or spin sub-sport. */
@@ -284,8 +286,13 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     return DATE_OUTCOME
   }
   // A part after a gap of over four hours counts from its own first sample, and a unit that follows
-  // another in the same file counts from where the device's running total stood.
-  const origin = part === 0 ? (unit.distanceOrigin ?? 0) : (resampled.distance[0] ?? 0)
+  // another in the same file counts from where the device's running total stood. A first unit keeps
+  // the few metres a device counts before its first distance, but a larger first distance is an
+  // earlier count of the file's own, so it counts from its own first sample.
+  const origin =
+    part === 0
+      ? (unit.distanceOrigin ?? unexplainedStart(segment, resampled, maxSpeed))
+      : (resampled.distance[0] ?? 0)
   subtractDistance(resampled.distance, origin)
   const indoor = unit.indoor || (!unit.hasPosition && isIndoorWithoutPositions(resampled, sport))
   // A speed derived from distance can still exceed the sport's limit; such samples are missing.
@@ -352,12 +359,6 @@ function mostlySparse(segment: RawRecord[]): boolean {
     if ((segment[i]!.tMs - segment[i - 1]!.tMs) / 1000 > MAX_INTERPOLATED_GAP_S) long++
   }
   return segment.length > 1 && long * 2 >= segment.length - 1
-}
-
-/** Subtracts `origin` from every distance. Distances stay non-decreasing. */
-function subtractDistance(distance: Float64Array, origin: number): void {
-  if (!Number.isFinite(origin) || origin === 0) return
-  for (let i = 0; i < distance.length; i++) distance[i] = distance[i]! - origin
 }
 
 /** Marks speeds above the limit as missing. Returns how many were marked. */

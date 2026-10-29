@@ -5,7 +5,7 @@ import {
   AGREEMENT_WINDOW_S,
 } from '../constants'
 import { travelledDistance } from '../metabolic/grade'
-import type { Activity } from '../types'
+import type { Activity, Sport } from '../types'
 
 /**
  * Where a file's speed and its recorded distance disagree, and the streams that credit only what
@@ -102,4 +102,12 @@ function disagree(a: number, b: number): boolean {
     high - low >= AGREEMENT_MIN_DIFFERENCE_M &&
     high > AGREEMENT_MAX_RATIO * low
   )
+}
+
+/** Whether a sport's power-meter files keep their own speed under the stream-agreement filter. */
+const POWER_METER_KEEPS_SPEED: Record<Sport, boolean> = { run: false, ride: true }
+
+/** Whether the digest reads this activity's own speed rather than the lowered one. */
+export function keepsOwnSpeed(activity: Pick<Activity, 'sport' | 'hasPower'>): boolean {
+  return POWER_METER_KEEPS_SPEED[activity.sport] && activity.hasPower
 }

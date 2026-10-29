@@ -13,8 +13,8 @@ import { mean } from '../math'
 import { MIN_RUN_SPEED_MS, runMetabolicPower, smoothGrade, travelledDistance } from '../metabolic'
 import { runSplits } from '../splits/splits'
 import { airDensityStream } from '../physics/air'
-import { assessQuality } from '../quality'
-import { agreedStreams } from '../quality/agreement'
+import { assessQuality, rememberTraceQuality } from '../quality'
+import { agreedStreams, keepsOwnSpeed } from '../quality/agreement'
 import type {
   Activity,
   ActivityDigest,
@@ -26,7 +26,6 @@ import type {
   QualityFlag,
   QualityKind,
   QualityReport,
-  Sport,
 } from '../types'
 import { MODEL_REVISION } from './modelRevision'
 import { climbMask, estimatePower, findSegments, splitSegment } from '../virtualPower'
@@ -59,9 +58,6 @@ interface Parts {
   /** The stream the curve is built from; null when it is an estimate (rides without a power meter). */
   output: OutputStream | null
 }
-
-/** Whether a sport's power-meter files keep their own speed under the stream-agreement filter. */
-const POWER_METER_KEEPS_SPEED: Record<Sport, boolean> = { run: false, ride: true }
 
 /** A curve point together with the length of the window its value came from. */
 type WindowedPoint = CurvePoint & { windowS: number }
@@ -304,7 +300,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
   // because its measured power does not follow the lowering: its calibration and climb sections
   // leave out the disagreeing seconds instead.
   const agreed = agreedStreams(activity)
-  const measured = POWER_METER_KEEPS_SPEED[activity.sport] && activity.hasPower
+  const measured = keepsOwnSpeed(activity)
   const streams: Activity = measured
     ? activity
     : { ...activity, speed: agreed.speed, distance: agreed.distance }
@@ -320,6 +316,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
     activity.paused,
     streams.speed,
   )
+  rememberTraceQuality(activity, quality, streams.speed)
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.
   const grade = rawGrade.map((g) => (Number.isNaN(g) ? 0 : g))

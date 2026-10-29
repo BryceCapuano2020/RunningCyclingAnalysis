@@ -1,5 +1,5 @@
 import { HR_BLOCK_S, HR_SKIP_S } from '../constants'
-import { quantile, rollingMean } from '../math'
+import { medianInPlace, quantile, rollingMean } from '../math'
 import type { Activity } from '../types'
 import type { Range } from './runs'
 import { runsWhere } from './runs'
@@ -36,6 +36,11 @@ export const HR_IMPLAUSIBLE_FOR_POWER = {
   minRunS: 90,
 } as const
 
+/** The settings of the judgement, with any numbers: the defaults are literal types. */
+export type HeartRateForPowerSettings = {
+  readonly [K in keyof typeof HR_IMPLAUSIBLE_FOR_POWER]: number
+}
+
 /**
  * The stretches where heart rate is far below the athlete's own level elsewhere in the activity at about the
  * same power (see HR_IMPLAUSIBLE_FOR_POWER). A strap that drops out or locks onto cadence in the middle of an
@@ -45,7 +50,7 @@ export const HR_IMPLAUSIBLE_FOR_POWER = {
 export function implausiblyLowHeartRate(
   a: Activity,
   minValidBpm: number,
-  t: typeof HR_IMPLAUSIBLE_FOR_POWER = HR_IMPLAUSIBLE_FOR_POWER,
+  t: HeartRateForPowerSettings = HR_IMPLAUSIBLE_FOR_POWER,
 ): Range[] {
   const { n, power, heartRate, paused } = a
   const watts: number[] = []
@@ -65,19 +70,39 @@ export function implausiblyLowHeartRate(
     if (powerMean[i]! >= minPowerW && hrMean[i]! >= minValidBpm) probes.push(i)
   }
 
+  // The probes ordered by power, so those within a probe's power band are one run of this order.
+  const byPower = probes.slice().sort((x, y) => powerMean[x]! - powerMean[y]!)
+  const sortedPower = Float64Array.from(byPower, (i) => powerMean[i]!)
+  const sortedHr = Float64Array.from(byPower, (i) => hrMean[i]!)
+  const scratch = new Float64Array(byPower.length)
   const low = new Uint8Array(n)
   for (const i of probes) {
-    const comparable: number[] = []
-    for (const j of probes) {
-      const near = Math.abs(powerMean[j]! - powerMean[i]!) <= t.powerBand * powerMean[i]!
-      if (near && Math.abs(j - i) >= t.windowS) comparable.push(hrMean[j]!)
+    const centre = powerMean[i]!
+    const band = t.powerBand * centre
+    const from = firstWhere(sortedPower, (v) => v - centre >= -band)
+    const to = firstWhere(sortedPower, (v) => v - centre > band)
+    let count = 0
+    for (let k = from; k < to; k++) {
+      if (Math.abs(byPower[k]! - i) >= t.windowS) scratch[count++] = sortedHr[k]!
     }
-    if (comparable.length < t.minComparable) continue
-    if (hrMean[i]! < t.maxShare * quantile(comparable, 0.5)) {
+    if (count < t.minComparable) continue
+    if (hrMean[i]! < t.maxShare * medianInPlace(scratch.subarray(0, count))) {
       low.fill(1, i - stepS / 2, i + stepS / 2)
     }
   }
   return runsWhere(n, (i) => low[i] === 1).filter(
     (run) => run.end - run.start >= Math.max(t.minRunS, 3 * stepS),
   )
+}
+
+/** The first index of an ascending array where `test` holds, or its length when it never does. `test` must only turn true once. */
+function firstWhere(sorted: Float64Array, test: (value: number) => boolean): number {
+  let lo = 0
+  let hi = sorted.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (test(sorted[mid]!)) hi = mid
+    else lo = mid + 1
+  }
+  return lo
 }

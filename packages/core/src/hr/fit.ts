@@ -1,4 +1,4 @@
-import { linearRegression, quantile } from '../math'
+import { linearRegression, quantileSorted } from '../math'
 import type { HrPoint, LinearFit } from '../types'
 import { clusterSlopeSe } from './clusterSe'
 
@@ -14,7 +14,8 @@ export function fitHr(points: HrPoint[]): LinearFit | null {
   if (points.length < MIN_POINTS) return null
   const power = points.map((p) => p.metabolicPower)
   const heartRate = points.map((p) => p.heartRate)
-  const spread = quantile(power, 0.95) - quantile(power, 0.05)
+  const sorted = Float64Array.from(power).sort()
+  const spread = quantileSorted(sorted, 0.95) - quantileSorted(sorted, 0.05)
   if (!(spread >= MIN_POWER_SPREAD)) return null
   const fit = linearRegression(power, heartRate)
   if (fit === null || fit.slope <= 0) return null
