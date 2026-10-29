@@ -879,7 +879,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   `flagKindSentence` and `flagSpanText` on the page, and the row's count is `skippedReadingsText`, all in
   `apps/web/src/ui/analysis/flagCopy.ts`. The activity page uses them, so the core's English is never
   shown. The words say what happened, never "impossible". An activity whose heart rate the analysis set
-  aside gets one more note, last, even with no flags: `SET_ASIDE_ACTIVITY_TEXT` in
+  aside gets one more note, last, even with no flags: `setAsideActivityText(sport, judgement)` in
   `apps/web/src/ui/analysis/setAsideCopy.ts`.
 - **Times are the viewer's own.** A limit's reset reads in local time: "It resets at 4:00 PM, your
   time.", never UTC.
@@ -1118,8 +1118,9 @@ and 10% was hard (zones 4 and up)."). The shares are of the time with a reading,
 "with measured power" or "with a pace reading". Easy is zones 1 and 2 and hard is zone 4 and up for every measure
 (`EASY_THROUGH`, `HARD_FROM`). The period before is cut by the same estimated zones as the period on screen, so the two are
 compared in the same zones. An entered setting that changed between the periods means the zones differ (an estimate is the same in both, and a
-dated weight moving an estimated ride threshold does not stop the comparison), as does one period using an estimate for
-some activities and the other not; then no change is claimed: the lede falls back to easy and hard, the previous column is left
+dated weight moving an estimated ride threshold does not stop the comparison), as would one period using an estimate for
+some activities and the other not (a guard for a future back-fill policy; today the earliest entry applies before its own date, so a
+sport's measure is all entered or all estimated); then no change is claimed: the lede falls back to easy and hard, the previous column is left
 out (it is also left out when the period before has no label), and a line says "Heart rate zones changed since the previous period, so the two are not compared." View as table
 adds a column with the previous period's share of each zone, headed by its label, where the periods can be compared.
 Under the bars, a muted line for each measure that left activities out ("2 of 12 runs had no heart rate to count.": no

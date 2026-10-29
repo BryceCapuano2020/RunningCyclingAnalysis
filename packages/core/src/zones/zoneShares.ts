@@ -93,6 +93,12 @@ function usedEstimate(time: MeasureTime): boolean {
  * is an entered setting that changed between the periods, one entered for one period and not the other, or
  * one period using an estimate for some of its activities and the other not: the zones then moved, and a
  * change in shares may be the zones and not the athlete.
+ *
+ * The estimate clause is a guard against a future back-fill policy, and cannot fire today. The earliest entry
+ * of a kind and sport applies before its own date (`entryAt`), so a sport's measure is entered for every
+ * activity or for none, in both periods alike, and `entered` is `counted` or 0. Were an entry to stop
+ * applying before its date, a period could mix entered and estimated zones, and this clause would stop the
+ * comparison.
  */
 export function sameEnteredReferences(a: MeasureTime, b: MeasureTime): boolean {
   return (

@@ -99,9 +99,11 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
   are applied on the dates they were in effect. Zones are summed by level, which every date shares. A period is compared
   with the one before it in the same estimated zones, because the references of an analysis belong to the period on
   screen; entered settings are dated, so they apply on their own dates in both. When an entered setting changed between
-  the periods (`MeasureTime.enteredReferences` differ, or one period used an estimate for some activities and the other did not), the zones moved, so a change in shares could be the zones and not the
+  the periods (`MeasureTime.enteredReferences` differ), the zones moved, so a change in shares could be the zones and not the
   athlete: no change is claimed and the page says the zones changed. An estimated reference is the same in both, and a
-  dated weight moving an estimated ride threshold is the app's own figure, so neither stops the comparison.
+  dated weight moving an estimated ride threshold is the app's own figure, so neither stops the comparison. One period using an estimate for some activities and the other not would also stop it,
+  but this cannot happen today, since the earliest entry applies before its own date, so a sport's measure is all entered or
+  all estimated; the check is a guard for a future back-fill policy.
 - **Left out.** An activity is counted for a measure only with a distribution of it (digests from before distributions were
   kept have none), zones in effect on its date, and, for heart rate, a sensor the analysis did not set aside. The set-aside is
   one judgement over every visible activity (`judgeHeartRate`, the analysis' own rule without the rest of it), so the period
