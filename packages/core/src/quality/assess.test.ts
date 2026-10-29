@@ -187,7 +187,7 @@ describe('assessQuality: clean and degenerate activities', () => {
         start: 0,
         end: 1,
         message:
-          'No altitude was recorded for 1 second, so grade-based running cost, virtual power and calibration are left out',
+          'No altitude was recorded for 1 second, so slope-based running cost, virtual power and calibration are left out',
       },
     ])
   })
@@ -714,7 +714,7 @@ describe('assessQuality: altitude-jump and missing-altitude', () => {
         start: 0,
         end: 120,
         message:
-          'No altitude was recorded for 120 seconds, so grade-based running cost, virtual power and calibration are left out',
+          'No altitude was recorded for 120 seconds, so slope-based running cost, virtual power and calibration are left out',
       },
     ])
     expect(zeroIndices(report.validMotion)).toEqual([])

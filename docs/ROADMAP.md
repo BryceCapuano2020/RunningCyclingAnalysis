@@ -6,8 +6,8 @@ design is in [ARCHITECTURE.md](ARCHITECTURE.md). Open review findings are in [RE
 
 ## Phase 1: Foundations
 
-- **Dated body measurements.** A mass history, so W/kg and relative strength use the mass on each
-  activity's date.
+- **Dated body measurements.** Shipped in #133: dated weight, max heart rate and threshold, so each
+  activity uses the setting in effect on its day. Relative strength waits for lifting.
 - **Evidence and Estimate types.** One shared shape that every importer and discipline model uses.
 - **Demonstrated versus estimated.** Running and cycling report recorded best efforts separately
   from capability, and the UI never blurs the two.

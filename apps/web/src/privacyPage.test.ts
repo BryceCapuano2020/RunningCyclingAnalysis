@@ -228,9 +228,9 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain(
       'Account recordings are kept separately from signed-out recordings and other accounts.',
     )
-    expect(text).toContain(
-      'They can survive sign-out, but the app reads them only for their account.',
-    )
+    expect(text).toContain('They are removed from this browser when you sign out.')
+    expect(text).toContain('and the app reads them only for their account.')
+    expect(text).not.toContain('survive sign-out')
     expect(text).toContain('reports a local cleanup failure separately')
   })
 
