@@ -1,4 +1,5 @@
 import { ACTIVITY_SORTS, type ActivitySort } from './activitySort'
+import { bucketSpan } from './activitiesVolume'
 import { hashQuery } from './route'
 
 export type SportFilter = 'all' | 'run' | 'ride'
@@ -9,12 +10,20 @@ export interface ActivitiesView {
   sort: ActivitySort
   /** A period in days, or 'all' for the whole library. */
   period: 'all' | number
+  /** The week or month the list is narrowed to, by its key (see activitiesVolume.ts), or null for the whole period. */
+  bucket: string | null
   /** The page shown, counted from zero. */
   page: number
 }
 
 /** The whole library, newest first, on its first page. */
-export const DEFAULT_VIEW: ActivitiesView = { sport: 'all', sort: 'newest', period: 'all', page: 0 }
+export const DEFAULT_VIEW: ActivitiesView = {
+  sport: 'all',
+  sort: 'newest',
+  period: 'all',
+  bucket: null,
+  page: 0,
+}
 
 const SPORTS: readonly SportFilter[] = ['all', 'run', 'ride']
 
@@ -26,6 +35,11 @@ function oneOf<T extends string>(value: string | null, options: readonly T[], fa
 function periodOf(value: string | null): 'all' | number {
   const days = Number(value)
   return value !== null && Number.isInteger(days) && days > 0 ? days : 'all'
+}
+
+/** A week or month key the strip could have made; anything else is no narrowing. */
+function bucketOf(value: string | null): string | null {
+  return value !== null && bucketSpan(value) !== null ? value : null
 }
 
 /** The page in the address counts from one, as a reader would; anything else is the first page. */
@@ -40,6 +54,7 @@ export function viewFromQuery(query: URLSearchParams): ActivitiesView {
     sport: oneOf(query.get('sport'), SPORTS, DEFAULT_VIEW.sport),
     sort: oneOf(query.get('sort'), ACTIVITY_SORTS, DEFAULT_VIEW.sort),
     period: periodOf(query.get('period')),
+    bucket: bucketOf(query.get('bucket')),
     page: pageOf(query.get('page')),
   }
 }
@@ -50,6 +65,7 @@ export function queryFromView(view: ActivitiesView): string {
   if (view.sport !== DEFAULT_VIEW.sport) query.set('sport', view.sport)
   if (view.sort !== DEFAULT_VIEW.sort) query.set('sort', view.sort)
   if (view.period !== DEFAULT_VIEW.period) query.set('period', String(view.period))
+  if (view.bucket !== null) query.set('bucket', view.bucket)
   if (view.page > 0) query.set('page', String(view.page + 1))
   return query.toString()
 }

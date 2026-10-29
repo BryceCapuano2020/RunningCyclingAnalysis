@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import { startedWithin, windowEnding } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
 import { ACTIVITY_SORTS, SORT_LABELS, sortActivities } from '../activitySort'
+import { bucketInPhrase, bucketSpan, inBucket } from '../activitiesVolume'
 import { DEFAULT_VIEW, hasRemovedMark, queryFromView, viewFromQuery } from '../activitiesView'
 import type { ActivitiesView, SportFilter } from '../activitiesView'
 import { ActivityList } from '../components/ActivityList'
-import { plural } from '../components/plural'
 import { LIBRARY_RANGE_OPTIONS } from '../components/rangeOptions'
-import { listEmptyText } from '../periodCopy'
+import { listEmptyText, periodClause } from '../periodCopy'
+import { SPORT_PLURAL } from '../sports'
 import { RangePicker } from '../components/RangePicker'
+import { VolumeStrip } from '../components/VolumeStrip'
 import { SegmentedControl } from '../components/SegmentedControl'
 import type { SegmentedControlOption } from '../components/SegmentedControl'
 import { countSport } from '../records'
@@ -70,9 +72,13 @@ export function ActivitiesPage({
   // A page that removed an activity sends the list here marked, so the list announces the outcome.
   const [arrivedAfterRemoval] = useState(() => hasRemovedMark(window.location.hash))
   const removal = useDeleteOutcome(libraryNotice, libraryError, arrivedAfterRemoval)
+  // Set by a removal from this list, so a list it empties takes focus: the row that had it is gone.
+  const removedRef = useRef(false)
+  const emptyRef = useRef<HTMLDivElement>(null)
   const removeHere =
     onDelete &&
     ((savedId: string) => {
+      removedRef.current = true
       removal.begin()
       onDelete(savedId)
     })
@@ -81,25 +87,30 @@ export function ActivitiesPage({
   const [view, setView] = useState<ActivitiesView>(() =>
     viewFromQuery(hashQuery(window.location.hash)),
   )
-  const { sport, sort, period, page } = view
+  const { sport, sort, period, bucket, page } = view
 
   // The view follows the address, so a link to the list, which changes only the hash, resets it.
   useEffect(() => {
-    const follow = () => setView(viewFromQuery(hashQuery(window.location.hash)))
+    const follow = () => {
+      removedRef.current = false
+      setView(viewFromQuery(hashQuery(window.location.hash)))
+    }
     window.addEventListener('hashchange', follow)
     return () => window.removeEventListener('hashchange', follow)
   }, [])
   const days = typeof period === 'number' ? period : null
+  // What the period and sport leave, before a week or month is picked: the volume strip draws this set.
+  const inPeriod = useMemo(
+    () =>
+      startedWithin(activities, days).filter(
+        (activity) => sport === 'all' || activity.sport === sport,
+      ),
+    [activities, days, sport],
+  )
   // Memoised, so a re-render with the same activities keeps the pager on the page it is on.
   const shown = useMemo(
-    () =>
-      sortActivities(
-        startedWithin(activities, days).filter(
-          (activity) => sport === 'all' || activity.sport === sport,
-        ),
-        sort,
-      ),
-    [activities, days, sport, sort],
+    () => sortActivities(inBucket(inPeriod, bucket), sort),
+    [inPeriod, bucket, sort],
   )
   // Written without a new history entry, so Back still leaves the page the visitor came from.
   useEffect(() => {
@@ -112,28 +123,45 @@ export function ActivitiesPage({
     (high, activity) => Math.max(high, activity.startMs),
     -Infinity,
   )
-  const runs = countSport(activities, 'run')
-  const rides = countSport(activities, 'ride')
   // The period counts the library, or the one sport the list is narrowed to, in that sport's own words.
   const counted = sport === 'all' ? activities.length : countSport(activities, sport)
   // A new filter or sort is a new list, so it starts on its first page.
   const narrow = (patch: Partial<ActivitiesView>) => {
+    removedRef.current = false
     removal.clear()
     setView((current) => ({ ...current, ...patch, page: 0 }))
   }
-  const showAll = () => narrow({ period: DEFAULT_VIEW.period, sport: DEFAULT_VIEW.sport })
+  useEffect(() => {
+    if (shown.length > 0 || !removedRef.current) {
+      // A list that still has rows, after a removal, kept its focus where it was; the flag is spent.
+      if (shown.length > 0) removedRef.current = false
+      return
+    }
+    removedRef.current = false
+    // The last activity gone leaves no empty state to focus, so focus goes to the page heading.
+    ;(emptyRef.current ?? document.getElementById(PAGE_HEADING_ID))?.focus()
+  }, [shown.length])
+  const span = bucket === null ? null : bucketSpan(bucket)
+  // A week or month with nothing in it, beside a period that has something: the bucket is why the list is empty.
+  const emptiedByBucket = span !== null && inPeriod.length > 0
+  const showAll = () =>
+    narrow({ period: DEFAULT_VIEW.period, sport: DEFAULT_VIEW.sport, bucket: DEFAULT_VIEW.bucket })
   return (
-    <div className="page-stack">
+    <div className="page-stack activities">
       <div className="page-title">
         <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
           Activities
         </h1>
-        <p className="secondary">
-          {activities.length === 0
-            ? 'No activities yet'
-            : `${plural(activities.length, 'activity', 'activities')}: ${plural(runs, 'run')}, ${plural(rides, 'ride')}`}
-        </p>
+        {activities.length === 0 && <p className="secondary">No activities yet</p>}
       </div>
+      {inPeriod.length > 0 && (
+        <VolumeStrip
+          activities={inPeriod}
+          periodText={periodClause(days, newestMs)}
+          selected={bucket}
+          onSelect={(next) => narrow({ bucket: next })}
+        />
+      )}
       {activities.length > 0 && (
         <div className="activities__controls">
           <RangePicker
@@ -143,7 +171,7 @@ export function ActivitiesPage({
             total={counted}
             noun={sport === 'all' ? 'activity' : sport}
             onChange={(next, answered) => {
-              narrow({ period: periodFromChoice(next) })
+              narrow({ period: periodFromChoice(next), bucket: null })
               answered(null)
             }}
           />
@@ -152,7 +180,7 @@ export function ActivitiesPage({
               legend="Sport"
               options={SPORT_OPTIONS}
               selected={sport}
-              onSelect={(next) => narrow({ sport: next })}
+              onSelect={(next) => narrow({ sport: next, bucket: null })}
             />
             <label className="activities__sort">
               <span>Sort by</span>
@@ -189,6 +217,7 @@ export function ActivitiesPage({
           units={units}
           records={records}
           dateOrder={sort === 'newest' || sort === 'oldest'}
+          climbFirst={sort === 'climb'}
           initialPage={page}
           onPageChange={(next) => {
             removal.clear()
@@ -202,15 +231,30 @@ export function ActivitiesPage({
         />
       ) : (
         activities.length > 0 && (
-          <div className="activities__empty">
-            <p className="secondary">
-              {listEmptyText(sport, days === null ? null : windowEnding(newestMs, days))}
-            </p>
-            <p>
-              <button type="button" className="btn" onClick={showAll}>
-                Show all activities
-              </button>
-            </p>
+          <div className="activities__empty" ref={emptyRef} tabIndex={-1}>
+            {emptiedByBucket ? (
+              <>
+                <p className="secondary">
+                  {`No ${sport === 'all' ? 'activities' : SPORT_PLURAL[sport]} in ${bucketInPhrase(span)}.`}
+                </p>
+                <p>
+                  <button type="button" className="btn" onClick={() => narrow({ bucket: null })}>
+                    {`Clear ${span.kind}`}
+                  </button>
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="secondary">
+                  {listEmptyText(sport, days === null ? null : windowEnding(newestMs, days))}
+                </p>
+                <p>
+                  <button type="button" className="btn" onClick={showAll}>
+                    Show all activities
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         )
       )}

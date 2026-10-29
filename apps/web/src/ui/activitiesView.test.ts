@@ -13,6 +13,7 @@ describe('viewFromQuery', () => {
       sport: 'run',
       sort: 'distance',
       period: 42,
+      bucket: null,
       page: 2,
     })
   })
@@ -20,6 +21,31 @@ describe('viewFromQuery', () => {
   it('falls back to the default for any value it does not know', () => {
     expect(viewFromQuery(query('sport=swim&sort=weight&period=soon&page=-4'))).toEqual(DEFAULT_VIEW)
     expect(viewFromQuery(query('page=many'))).toEqual(DEFAULT_VIEW)
+  })
+})
+
+describe('a week or month in the address', () => {
+  it('reads the week or month the strip named', () => {
+    expect(viewFromQuery(query('bucket=w:2025-5-2')).bucket).toBe('w:2025-5-2')
+    expect(viewFromQuery(query('bucket=m:2025-5')).bucket).toBe('m:2025-5')
+    expect(viewFromQuery(query('bucket=q:2025-1')).bucket).toBe('q:2025-1')
+  })
+
+  it('drops a key that names no week or month', () => {
+    for (const bad of [
+      'w:soon',
+      'm:2025-13',
+      'x:1',
+      'w:2025-5',
+      'm:-1-2',
+      '',
+      'm:99999999-0',
+      'w:275760-11-31',
+      'w:2025--',
+      'q:2025-9',
+    ]) {
+      expect(viewFromQuery(query(`bucket=${bad}`)).bucket).toBeNull()
+    }
   })
 })
 
@@ -33,7 +59,19 @@ describe('queryFromView', () => {
   })
 
   it('reads back what it wrote', () => {
-    const view = { sport: 'ride' as const, sort: 'oldest' as const, period: 84, page: 4 }
+    const view = {
+      sport: 'ride' as const,
+      sort: 'oldest' as const,
+      period: 84,
+      bucket: 'w:2025-5-2',
+      page: 4,
+    }
+    expect(viewFromQuery(query(queryFromView(view)))).toEqual(view)
+  })
+
+  it('writes a quarter, and reads it back', () => {
+    const view = { ...DEFAULT_VIEW, bucket: 'q:2025-1' }
+    expect(queryFromView(view)).toBe('bucket=q%3A2025-1')
     expect(viewFromQuery(query(queryFromView(view)))).toEqual(view)
   })
 })

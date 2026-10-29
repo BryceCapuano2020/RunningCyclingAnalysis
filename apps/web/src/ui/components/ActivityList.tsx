@@ -3,11 +3,13 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import { formatTotalTime } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
+import { monthTotals } from '../activitiesVolume'
 import { groupByMonth } from '../activitySort'
 import { movingTimeOf } from '../activityFigures'
 import { firstActivityOf, rowEntries } from '../sessions'
 import type { ListEntry } from '../sessions'
 import { plural } from './plural'
+import { ActivityMonthHead } from './ActivityMonthHead'
 import { ActivityRow } from './ActivityRow'
 import { Pager } from './Pager'
 import { PAGE_SIZE, usePagination } from './usePagination'
@@ -23,6 +25,8 @@ export interface ActivityListProps {
    * as a session. Other sorts list each activity as its own row.
    */
   dateOrder?: boolean
+  /** The list is sorted by climb, so a phone's row shows its climb, which it leaves out of its line otherwise. */
+  climbFirst?: boolean
   /** The page to start on, counted from zero, and told each page change, so an address can keep it. */
   initialPage?: number
   onPageChange?: (page: number) => void
@@ -65,6 +69,7 @@ export function ActivityList({
   units,
   records,
   dateOrder = false,
+  climbFirst = false,
   initialPage,
   onPageChange,
   keptIds = NO_KEPT,
@@ -74,6 +79,11 @@ export function ActivityList({
   onDelete,
 }: ActivityListProps) {
   const collectionId = activityCollectionId(activities)
+  // Each month's totals count every activity listed, not only the rows of this page.
+  const months = useMemo(
+    () => (dateOrder ? monthTotals(activities) : null),
+    [activities, dateOrder],
+  )
   const entries = useMemo(() => rowEntries(activities, dateOrder), [activities, dateOrder])
   const { page, pageCount, visible, firstItemRef, changePage } = usePagination<
     ListEntry,
@@ -161,11 +171,14 @@ export function ActivityList({
   const onPage = visible.reduce((sum, entry) => sum + activitiesIn(entry), 0)
 
   return (
-    <div className="activity-list" ref={listRef}>
+    <div
+      className={climbFirst ? 'activity-list activity-list--climb-first' : 'activity-list'}
+      ref={listRef}
+    >
       {dateOrder ? (
         groupByMonth(visible).map((group) => (
           <section key={group.key} className="activity-list__month">
-            <h2 className="activity-list__heading">{group.label}</h2>
+            <ActivityMonthHead label={group.label} totals={months?.get(group.key)} units={units} />
             <ul className="activity-list__items">{entryRows(group.items)}</ul>
           </section>
         ))

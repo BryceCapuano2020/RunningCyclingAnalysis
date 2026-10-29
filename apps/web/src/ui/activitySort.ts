@@ -1,4 +1,5 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { monthKeyOf } from './activitiesVolume'
 import { movingTimeOf } from './activityFigures'
 import { formatMonth } from './format/date'
 
@@ -46,8 +47,7 @@ export interface MonthGroup<T> {
 export function groupByMonth<T extends { startMs: number }>(items: readonly T[]): MonthGroup<T>[] {
   const groups: MonthGroup<T>[] = []
   for (const item of items) {
-    const date = new Date(item.startMs)
-    const key = `${date.getFullYear()}-${date.getMonth()}`
+    const key = monthKeyOf(item.startMs)
     const last = groups.at(-1)
     if (last?.key === key) {
       last.items.push(item)

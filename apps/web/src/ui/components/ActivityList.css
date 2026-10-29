@@ -9,8 +9,40 @@
   min-width: 0;
 }
 
+/* A month's heading and its totals share a line, and the totals drop under the month when the line is short. */
+.activity-list__month-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  margin-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
 .activity-list__heading {
-  margin: var(--space-2) 0 0;
+  margin: 0;
+}
+
+.activity-list__totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-list__total {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.activity-list__total--hours {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .activity-list__items {
@@ -38,24 +70,62 @@
   box-shadow: inset 3px 0 0 var(--text-secondary);
 }
 
+/*
+ * A wide row: the sport's glyph, then the name over when it started and its chips, then the figures in
+ * columns that line up from row to row, then the chevron. A figure a row lacks leaves its column empty.
+ */
 .activity-list__main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto 1rem;
+  grid-template-areas:
+    'glyph name stats chevron'
+    'glyph sub stats chevron';
   align-items: center;
-  gap: var(--space-3);
+  column-gap: var(--space-3);
+  row-gap: 2px;
   min-width: 0;
 }
 
-/* A grid column may shrink below its content, so a long name or figure wraps inside the row. */
-.activity-list__body {
+/* The sport's glyph in a soft disc of its colour; the word is for screen readers. */
+.activity-list__glyph {
+  grid-area: glyph;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-1);
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--sport-colour-soft);
+}
+
+/* An icon is sized by --icon-size (icons.css), since a glyph's own box is cropped to its ink. */
+.activity-list__icon {
+  --icon-size: 1.5rem;
+  color: var(--sport-colour);
+}
+
+/* Beside a month's totals the glyph is text-sized. */
+.activity-list__total .activity-list__icon {
+  --icon-size: 1.1em;
+}
+
+/* The name, and Delete at its end for a kept activity. The question Delete opens takes a line of its own. */
+.activity-list__head {
+  grid-area: name;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-3);
   min-width: 0;
+}
+
+.activity-list__head > .activity-delete__question {
+  flex: 1 1 100%;
 }
 
 /* Names wrap at spaces. A single word too long for the line wraps inside it, to keep the row narrow. */
 .activity-list__name {
+  flex: 1 1 0;
+  min-width: 0;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -66,44 +136,89 @@
   inset: 0;
 }
 
-.activity-list__icon {
-  color: var(--sport-colour);
-}
-
-.activity-list__sport {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.activity-list__meta,
-.activity-list__stats {
+/* A grid column may shrink below its content, so a long chip line wraps inside the row. */
+.activity-list__sub {
+  grid-area: sub;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-3);
-  margin: 0;
+  min-width: 0;
   color: var(--text-secondary);
 }
 
-.activity-list__stats {
+.activity-list__when {
   font-variant-numeric: tabular-nums;
 }
 
-.activity-list__stat {
-  display: inline-flex;
-  gap: var(--space-1);
+.activity-list__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
   min-width: 0;
-  overflow-wrap: anywhere;
 }
 
-.activity-list__stat dt {
-  color: var(--text-muted);
+.activity-list__tags:empty {
+  display: none;
 }
 
-.activity-list__stat dd {
+.activity-list__stats {
+  grid-area: stats;
+  display: grid;
+  grid-template-columns: 5.5rem 5.5rem 4.5rem 6.5rem;
+  gap: var(--space-2);
   margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A figure sits in its own column, so the columns hold when a row has no distance or no climb. */
+.activity-list__stat {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.activity-list__stat--time {
+  grid-column: 1;
+}
+
+.activity-list__stat--distance {
+  grid-column: 2;
+}
+
+.activity-list__stat--climb {
+  grid-column: 3;
+}
+
+.activity-list__stat--hero {
+  grid-column: 4;
+}
+
+.activity-list__stats dd {
+  margin: 0;
+}
+
+.activity-list__label {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  order: 2;
+}
+
+/* Figures are set as stats: the display face, heavy, in ink, with the headline one larger. */
+.activity-list__value {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.1;
   white-space: nowrap;
+}
+
+.activity-list__value--hero {
+  font-size: 1.5rem;
+  font-weight: 800;
 }
 
 /* In a row, Delete is a quiet text button: no border or fill at rest, and the same 40 px target. */
@@ -121,67 +236,80 @@
   color: var(--text-primary);
 }
 
-.activity-list__hero {
-  display: grid;
-  justify-items: end;
-  margin: 0;
-  min-width: 0;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 .activity-list__chevron {
+  grid-area: chevron;
   width: 1rem;
   height: 1rem;
   color: var(--text-muted);
 }
 
 /*
- * Below 560 px, which is COMPACT_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the row is one line of
- * blocks that wrap. The name takes a line, and the meta line takes about half the row, with the hero
- * beside it. A hero too wide to sit beside about half the meta line wraps onto a line of its own, at
- * the right, so the meta keeps about half the row. The chevron goes: the whole row is the link, so it only decorates.
+ * Up to 760 px, which is PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, a row is two lines of blocks that
+ * wrap: the glyph and the name, then when it started with the figures, then the chips if it has any. The
+ * figures lose their labels, which stay for screen readers, since a unit or a clock reads as what it is.
  */
-@media (max-width: 560px) {
+@media (max-width: 760px) {
   .activity-list__main {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     column-gap: var(--space-3);
     row-gap: var(--space-1);
   }
 
-  .activity-list__body {
+  .activity-list__glyph {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .activity-list__icon {
+    --icon-size: 1.15rem;
+  }
+
+  .activity-list__head {
+    flex: 1 1 calc(100% - 2.5rem);
+  }
+
+  /* Delete keeps its 44 px target but not its height in the row, so a kept activity still has two lines. */
+  .activity-list__head > .activity-delete__open {
+    margin-block: -10px;
+  }
+
+  .activity-list__sub {
     display: contents;
   }
 
-  .activity-list__body > * {
+  .activity-list__when {
+    order: 1;
+    font-size: var(--text-sm);
+  }
+
+  .activity-list__stats {
     order: 2;
-    flex: 1 1 100%;
-    min-width: 0;
-  }
-
-  .activity-list__body > .activity-list__name {
-    order: 0;
-  }
-
-  .activity-list__body > .activity-list__meta {
-    order: 1;
-    flex: 1 1 45%;
-  }
-
-  .activity-list__body > .activity-delete__open {
-    flex: 0 0 auto;
-  }
-
-  .activity-list__hero {
     display: flex;
-    align-items: baseline;
-    justify-content: flex-end;
-    gap: var(--space-1);
-    order: 1;
-    flex: 0 1 auto;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
     margin-left: auto;
+  }
+
+  .activity-list__tags {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .activity-list__label,
+  .activity-list:not(.activity-list--climb-first) .activity-list__stat--climb {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  .activity-list__value,
+  .activity-list__value--hero {
+    font-size: var(--text-md);
   }
 
   .activity-list__chevron {
@@ -189,8 +317,42 @@
   }
 }
 
+/*
+ * Below 560 px, which is COMPACT_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the figures start their own
+ * line, at the left, so the date and the figures do not crowd each other on the narrowest screens.
+ */
+@media (max-width: 560px) {
+  .activity-list__stats {
+    margin-left: 0;
+  }
+
+  .activity-list__item {
+    padding-inline: var(--space-1);
+  }
+}
+
+/* The narrowest phones set the date and figures a step smaller, so a 320 px row keeps them on one line. */
+@media (max-width: 359px) {
+  .activity-list__main {
+    column-gap: var(--space-2);
+  }
+
+  .activity-list__when {
+    font-size: var(--text-xs);
+  }
+
+  .activity-list__stats {
+    gap: var(--space-1) var(--space-2);
+  }
+
+  .activity-list__value,
+  .activity-list__value--hero {
+    font-size: var(--text-label);
+  }
+}
+
 .activity-list__records {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);

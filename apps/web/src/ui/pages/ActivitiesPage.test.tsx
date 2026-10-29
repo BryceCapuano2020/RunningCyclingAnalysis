@@ -45,7 +45,9 @@ describe('ActivitiesPage', () => {
         records={new Map()}
       />,
     )
-    expect(screen.getByText('14 activities: 8 runs, 6 rides')).toBeInTheDocument()
+    // The strip's heading is the summary, so the page has no count line of its own.
+    expect(screen.queryByText(/^14 activities/)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^8 runs and 6 rides, / })).toBeInTheDocument()
   })
 
   it('uses the singular for one activity of a sport', () => {
@@ -57,7 +59,7 @@ describe('ActivitiesPage', () => {
         records={new Map()}
       />,
     )
-    expect(screen.getByText('1 activity: 1 run, 0 rides')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^1 run, / })).toBeInTheDocument()
   })
 
   it('lists the activities, each linking to its page', () => {
@@ -249,13 +251,14 @@ describe('ActivitiesPage sort, months and address', () => {
     render(
       <ActivitiesPage signedIn={false} activities={trips} units="metric" records={new Map()} />,
     )
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
-      'Jun 2026',
-      'May 2026',
-      'Apr 2026',
-    ])
+    const monthHeadings = () =>
+      screen
+        .queryAllByRole('heading', { level: 2 })
+        .filter((heading) => heading.className.includes('activity-list__heading'))
+        .map((heading) => heading.textContent)
+    expect(monthHeadings()).toEqual(['Jun 2026', 'May 2026', 'Apr 2026'])
     await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'climb')
-    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+    expect(monthHeadings()).toEqual([])
   })
 
   it('keeps the sport, sort and page in the address, so the list opened again is the same one', async () => {
