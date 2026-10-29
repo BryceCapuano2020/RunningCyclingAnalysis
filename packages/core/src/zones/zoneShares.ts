@@ -33,7 +33,9 @@ export interface EffortSplit {
 }
 
 /** The share of a measure's time that was easy, in between and hard. All zeros without time. */
-export function effortSplit(time: MeasureTime): EffortSplit {
+export function effortSplit(
+  time: Pick<MeasureTime, 'measure' | 'seconds' | 'totalSeconds'>,
+): EffortSplit {
   const split = { easy: 0, middle: 0, hard: 0 }
   zoneShares(time).forEach((share, i) => {
     const level = i + 1
