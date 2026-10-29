@@ -49,6 +49,14 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
   },
   { name: 'Balance', open: openSample },
   {
+    name: 'Balance, a definition open',
+    open: async (page) => {
+      await openSample(page)
+      await page.getByRole('button', { name: 'age grade', exact: true }).click()
+      await expect(page.getByRole('note').first()).toBeVisible()
+    },
+  },
+  {
     name: 'Run',
     open: async (page) => {
       await openSample(page)

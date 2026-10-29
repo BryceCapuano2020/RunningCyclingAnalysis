@@ -11,7 +11,6 @@ const app = await read('../App.css')
 const dropzone = await read('../ui/components/Dropzone.css')
 const balanceMeter = await read('../ui/components/BalanceMeter.css')
 const ladder = await read('../ui/components/LevelLadder.css')
-const sportCard = await read('../ui/pages/SportCard.css')
 const sportPage = await read('../ui/pages/SportPage.css')
 const balancePage = await read('../ui/pages/BalancePage.css')
 const chartFrame = await read('../ui/charts/ChartFrame.css')
@@ -33,7 +32,8 @@ const ladderTsx = await read('../ui/components/LevelLadder.tsx')
 const sportRecords = await read('../ui/components/SportRecords.css')
 const googleSignIn = await read('../ui/components/GoogleSignInButton.css')
 const emptySportCard = await read('../ui/pages/EmptySportCard.css')
-const balanceStrip = await read('../ui/pages/BalanceStrip.css')
+const statTile = await read('../ui/pages/StatTile.css')
+const balanceTiles = await read('../ui/pages/BalanceTiles.css')
 const equivalenceCss = await read('../ui/components/EquivalenceTable.css')
 const weightNote = await read('../ui/components/WeightNote.css')
 
@@ -405,7 +405,7 @@ describe('type scale', () => {
     ['Header.css', header],
     ['BalanceMeter.css', balanceMeter],
     ['LevelLadder.css', ladder],
-    ['SportCard.css', sportCard],
+    ['StatTile.css', statTile],
     ['SportPage.css', sportPage],
     ['BalancePage.css', balancePage],
     ['ChartFrame.css', chartFrame],
@@ -434,14 +434,14 @@ describe('shared layout', () => {
     expect(tokens).toMatch(/--column-landing:\s*360px/)
   })
 
-  it('wraps a long activity name in the cross-sport idea, so the page does not widen', () => {
-    expect(rulesWith(crossSport, '.cross-sport')).toMatch(/min-width:\s*0/)
-    expect(rulesWith(crossSport, '.cross-sport')).toMatch(/overflow-wrap:\s*anywhere/)
+  it('wraps a long activity name in the ride on foot tile, so the page does not widen', () => {
+    expect(rulesWith(statTile, '.stat-tile')).toMatch(/min-width:\s*0/)
+    expect(rulesWith(crossSport, '.cross-sport__link')).toMatch(/overflow-wrap:\s*anywhere/)
   })
 })
 
 describe('balance hero, meter and evidence', () => {
-  it('stacks the share button under the lede, so the headline is a block, and balances its line', () => {
+  it('sets the headline as a block, and balances its line', () => {
     expect(rulesWith(balancePage, '.balance-hero__head')).not.toMatch(/flex/)
     expect(rulesWith(balancePage, '.balance-hero__head h1')).toMatch(/text-wrap:\s*balance/)
   })
@@ -455,16 +455,6 @@ describe('balance hero, meter and evidence', () => {
 
   it('takes the card heading’s paragraph up to the heading', () => {
     expect(rulesWith(balancePage, '.balance__cards .card > h2 + p')).toMatch(/margin-top:\s*0/)
-  })
-
-  it('insets the cross-sport idea past a boxed card’s border, only where the cards sit side by side', () => {
-    expect(
-      rulesWith(
-        mediaOf(balancePage, '(min-width: 45.5rem)'),
-        '.balance__cards > .card + .cross-sport',
-      ),
-    ).toMatch(/padding-inline:\s*calc\(var\(--space-5\) \+ 1px\)/)
-    expect(rulesWith(outsideMedia(balancePage), '.balance__cards > .card + .cross-sport')).toBe('')
   })
 
   it('gives the meter’s value flag room above the track, clear of the even line', () => {
@@ -499,12 +489,6 @@ describe('balance hero, meter and evidence', () => {
     }
   })
 
-  it('keeps each grade on the phone strip in the secondary colour, at the body weight', () => {
-    expect(rulesWith(balanceStrip, '.balance-strip')).toMatch(/font-weight:\s*400/)
-    expect(rulesWith(balanceStrip, '.balance-strip')).toMatch(/color:\s*var\(--text-secondary\)/)
-    expect(rulesWith(balanceStrip, '.balance-strip__sport')).toMatch(/white-space:\s*nowrap/)
-  })
-
   it('gives the held note’s Profile link and the Set on link the control height on a phone', () => {
     const phone = '(max-width: 760px), (pointer: coarse)'
     expect(mediaOf(weightNote, phone)).toMatch(
@@ -515,8 +499,8 @@ describe('balance hero, meter and evidence', () => {
     )
   })
 
-  it('sets the Set on link at the body size, as the other inline source links are', () => {
-    expect(rulesWith(crossSport, '.cross-sport__link')).toMatch(/font-size:\s*var\(--text-md\)/)
+  it('sets the Set on link at the small size of the tile’s text, so it reads as part of it', () => {
+    expect(rulesWith(crossSport, '.cross-sport__link')).toMatch(/font-size:\s*var\(--text-sm\)/)
   })
 
   it('sets the phone list’s labels once, above the rows, in the same columns as each row', () => {
@@ -531,16 +515,29 @@ describe('balance hero, meter and evidence', () => {
   })
 })
 
-describe('balance sport cards', () => {
-  it('stretches the sport cards to one height, so their links sit on one line at the foot', () => {
-    expect(rulesWith(balancePage, '.balance__sports')).toMatch(/align-items:\s*stretch/)
-    expect(rulesWith(balancePage, '.balance__cards')).toMatch(/align-items:\s*start/)
+describe('balance tiles', () => {
+  it('lays the tiles one across on a phone, two on a tablet, and all in a row from 64rem', () => {
+    expect(rulesWith(outsideMedia(balanceTiles), '.balance-tiles')).toMatch(
+      /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+    )
+    expect(rulesWith(mediaOf(balanceTiles, '(min-width: 38rem)'), '.balance-tiles')).toMatch(
+      /repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+    )
+    expect(
+      rulesWith(mediaOf(balanceTiles, '(min-width: 64rem)'), ".balance-tiles[data-tiles='4']"),
+    ).toMatch(/repeat\(4,\s*minmax\(0,\s*1fr\)\)/)
   })
 
-  it('lets a sport card fill its height, with its link pushed to the foot', () => {
-    expect(rulesWith(sportCard, '.sport-card')).toMatch(/align-content:\s*normal/)
-    expect(rulesWith(sportCard, '.sport-card')).not.toMatch(/align-content:\s*start/)
-    expect(rulesWith(sportCard, '.sport-card > .link-arrow')).toMatch(/margin-top:\s*auto/)
+  it('stretches the tiles to one height in a row', () => {
+    expect(rulesWith(balanceTiles, '.balance-tiles')).toMatch(/align-items:\s*stretch/)
+    expect(rulesWith(balancePage, '.balance__cards')).toMatch(/display:\s*grid/)
+  })
+
+  it('sets a tile’s figure at display size in the display face, and its name as an eyebrow', () => {
+    expect(rulesWith(statTile, '.stat-tile__number')).toMatch(
+      /font-family:\s*var\(--font-display\)/,
+    )
+    expect(rulesWith(statTile, '.stat-tile__name')).toMatch(/text-transform:\s*uppercase/)
   })
 })
 
@@ -760,29 +757,6 @@ describe('sport records, on the card and the page', () => {
     )
     expect(rulesWith(sportRecords, '.records__shared .records__link')).toMatch(
       /overflow:\s*visible/,
-    )
-  })
-
-  it('sets the sub-line on the numeral’s baseline, beside it, and not indented below', () => {
-    const hero = rulesWith(sportCard, '.sport-card__hero > p:has(.hero-number)')
-    expect(hero).toMatch(/display:\s*flex/)
-    expect(hero).toMatch(/align-items:\s*baseline/)
-    expect(hero).toMatch(/column-gap:\s*var\(--space-3\)/)
-    expect(rulesWith(sportCard, '.sport-card__sub')).toMatch(/margin-left:\s*0/)
-  })
-
-  it('sets the best efforts summary as a label, in the eyebrow’s display face and caps', () => {
-    const summary = rulesWith(sportCard, '.sport-card summary')
-    expect(summary).toMatch(/font-family:\s*var\(--font-display\)/)
-    expect(summary).toMatch(/font-weight:\s*700/)
-    expect(summary).toMatch(/font-size:\s*var\(--text-sm\)/)
-    expect(summary).toMatch(/text-transform:\s*uppercase/)
-    expect(summary).toMatch(/letter-spacing:\s*var\(--tracking-caps\)/)
-  })
-
-  it('sets a gap above the shared line on the Balance card, so it reads apart from the rows', () => {
-    expect(rulesWith(sportCard, '.sport-card__records > .records__shared')).toMatch(
-      /margin-top:\s*var\(--space-3\)/,
     )
   })
 

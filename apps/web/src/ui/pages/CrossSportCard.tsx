@@ -6,6 +6,7 @@ import { PACE_UNIT, formatDuration, formatPaceValue, formatPower } from '@rca/co
 import { EquivalenceTable } from '../components'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
+import { StatTile } from './StatTile'
 import { formatDayMonth } from '../format/date'
 import { hrefFor } from '../route'
 import { countSport, effortLabel, featuredEquivalence, isEstimatedRecord } from '../records'
@@ -45,56 +46,58 @@ function needsRideText(period: Period, withPower: boolean): string {
 }
 
 /**
- * What your ride fitness is worth on foot: the app's most relatable idea, as a headline, with a
- * glyph pair that shows ride becoming run. It names the ride that set the effort, tags its watts
- * estimated when no power meter measured them, and opens to every duration. A file with no ride has
- * no such idea, so the slot is left out; without a weight the ride's figures wait for it.
+ * What your ride fitness is worth on foot: the app's most relatable idea, as a tile. Its figure is the flat
+ * pace the best 20 minutes on the bike is worth, with the watts and the pace as a glyph pair that shows ride
+ * becoming run. It names the ride that set the effort, tags its watts estimated when no power meter measured
+ * them, and opens to every duration. A file with no ride has no such idea, so the slot is left out; without a
+ * weight the ride's figures wait for it.
  */
 export function CrossSportCard({ result, units, weighted, period }: CrossSportCardProps) {
   if (countSport(result.activities, 'ride') === 0) return null
   if (!weighted) {
     return (
-      <section className="cross-sport" aria-labelledby="cross-sport-card">
-        <span className="chip">Across sports</span>
-        <h2 id="cross-sport-card">Your ride on foot</h2>
+      <StatTile heading="Ride on foot">
         <WeightNote />
-      </section>
+      </StatTile>
     )
   }
   const featured = featuredEquivalence(result.equivalents)
   if (!featured || !(featured.runSpeed.p50 > 0 && Number.isFinite(featured.runSpeed.p50))) {
     return (
-      <section className="cross-sport" aria-labelledby="cross-sport-card">
-        <h2 id="cross-sport-card">Your ride on foot</h2>
-        <p className="secondary">
+      <StatTile heading="Ride on foot">
+        <p className="stat-tile__line">
           {needsRideText(period, featured === null && hasLongRide(result))}
         </p>
-      </section>
+      </StatTile>
     )
   }
   const paceNumber = formatPaceValue(featured.runSpeed.p50, units)
   const source = rideAt(result, featured.durationS)
-  const watts = `${formatPower(featured.ridePowerW)}${isEstimatedRecord('ride', source) ? ' (estimated)' : ''}`
+  const estimated = isEstimatedRecord('ride', source)
+  const duration = effortLabel(featured.durationS)
   return (
-    <section className="cross-sport" aria-labelledby="cross-sport-card">
-      <span className="chip">Across sports</span>
+    <StatTile
+      sport="ride"
+      heading="Ride on foot"
+      basis="equivalent"
+      figure={{ number: paceNumber, unit: PACE_UNIT[units] }}
+    >
       <p className="cross-sport__pair" aria-hidden="true">
-        <SportIcon sport="ride" />
+        <span className="cross-sport__chip" data-sport="ride">
+          <SportIcon sport="ride" />
+          {formatPower(featured.ridePowerW)}
+        </span>
         <ArrowRightIcon />
-        <SportIcon sport="run" />
+        <span className="cross-sport__chip" data-sport="run">
+          <SportIcon sport="run" />
+          on foot
+        </span>
       </p>
-      <h2 id="cross-sport-card">
-        {`On foot, your ride is worth ${paceNumber}`}
-        {/* A non-breaking space keeps the unit on its figure's line. The unit is set apart, so the
-            upper-case heading does not turn it into capitals. */}
-        {'\u00a0'}
-        <span className="unit">{PACE_UNIT[units]}</span>
-      </h2>
-      <p className="secondary">
-        {`Your best ${effortLabel(featured.durationS)} on the bike, ${watts}, takes the same effort as running on the flat.`}
+      <p className="stat-tile__line">
+        {`Your best ${duration} on the bike, ${formatPower(featured.ridePowerW)}${estimated ? ' (estimated)' : ''}, takes the same effort as running this pace on the flat.`}
       </p>
       {source && (
-        <p>
+        <p className="stat-tile__line">
           <a className="cross-sport__link" href={hrefFor({ page: 'activity', id: source.id })}>
             {`Set on ${source.name}, ${formatDayMonth(source.startMs)}`}
           </a>
@@ -109,6 +112,6 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
           estimated={(durationS) => isEstimatedRecord('ride', rideAt(result, durationS))}
         />
       </details>
-    </section>
+    </StatTile>
   )
 }

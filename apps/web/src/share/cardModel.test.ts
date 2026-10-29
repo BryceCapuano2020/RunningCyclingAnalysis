@@ -234,6 +234,45 @@ describe('buildShareCard', () => {
     expect(card?.magnitude).toBeNull()
   })
 
+  describe('with both sports graded', () => {
+    const gap: BalanceGap = { centre: 3, low: -1, high: 7, lean: 'run' }
+    const both = { run: RUN_GRADE, ride: RIDE_GRADE }
+    const graded = () => cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap, both)
+
+    it('carries the page’s level scale: each sport’s whole percent, dot or ring, and the gap', () => {
+      const scale = graded()?.scale
+      expect(scale?.lanes.map((lane) => [lane.sport, lane.basis, lane.centre])).toEqual([
+        ['run', 'recorded', 64],
+        ['ride', 'estimated', 61],
+      ])
+      expect(scale?.lanes[1]).toMatchObject({ low: 55, high: 67, level: 'Recreational to Local' })
+      expect(scale?.gap.figure).toBe('3 pts')
+    })
+
+    it('draws the scale in place of the magnitude line, which the bracket says, and of the hero grade lines', () => {
+      const card = graded()
+      expect(card?.magnitude).toBeNull()
+      expect(card?.heroes.map((hero) => hero.grade)).toEqual([null, null])
+      // The meter's reading is still the balance, as the headline is taken from it.
+      expect(card?.meter).toEqual(gapReading(gap))
+      expect(card?.footnote).toBe(GRADED_FOOTNOTE)
+    })
+
+    it('carries no level target: the card says the gap, not what to do about it', () => {
+      expect(graded()?.scale?.target).toBeNull()
+    })
+
+    it('has no scale while a sport has no grade, and keeps the magnitude and the grade lines then', () => {
+      const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap, {
+        run: RUN_GRADE,
+        ride: null,
+      })
+      expect(card?.scale).toBeNull()
+      expect(card?.magnitude).toBe(leadSentence(gapReading(gap)))
+      expect(card?.heroes[0]?.grade).toBe('Local · 64% on best 20 min')
+    })
+  })
+
   it('returns nothing when there is no comparison and no threshold, so the button is hidden', () => {
     const card = cardFor(
       makeResult({
@@ -324,6 +363,7 @@ describe('buildShareCard', () => {
         'name',
         'origin',
         'period',
+        'scale',
         'title',
       ].sort(),
     )

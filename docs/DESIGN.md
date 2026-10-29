@@ -14,7 +14,7 @@ Hash routes, so the static host needs no fallback rules.
 
 | Route              | Page              | Holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, the grade by duration for both sports, evidence and cross-sport cards, one fitness trend for both sports on one scale with weekly training hours by sport under it, share sheet                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `#/`               | Balance           | The answer as a scoreboard (a headline, a plain first sentence and the gap as a display figure), the level scale for both sports (Where you stand), what changed since the previous period, four tiles (each sport's threshold, the lean, the ride on foot), evidence, the grade by duration at the page's width, one fitness trend for both sports on one scale with weekly training hours by sport under it, share sheet                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, the best 20 min's heart-rate share, a line of recent form, records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, the best-effort curve in pace or watts under the records (previous period dashed) with where the bests stand out as its caption, race predictions (runs), a weekly trend for 5, 20 or 60 minutes, output at the same heart rate, late in long sessions, time in zones, and one "Not enough yet" list for any section with nothing to show                                                                                                                                                                       |
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `#/activities/:id` | Activity          | Moving time and the figures beside it (beside the route shape from 761 px, under it on a phone), In detail (timelines, laps, intervals and how your reps held up, and time in zones), a Walking pace chip for a run at walking pace, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -582,27 +582,21 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   no point for that sport, and the finding counts only the durations both sports are graded at. Drawing follows the age-grade
   trend: a run is a solid line with a dot, a ride is estimated, so it is dashed with a ring and its 90% range
   is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min, log scale)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
-  The finding is the chart's lede, a sentence under its title, and the chart supports it. It is read from the
+  The finding is the chart's title, one plain clause, and the chart supports it. It is read from the
   grades the headline uses: the ride's heart-rate-adjusted equivalence, through the balance's own `balanceGap`,
   so its gap at 20 minutes is the headline's. The headline leans by the estimate (`leanOfLead`) and states the
   range beside it; the chart separates by the range alone (`leanOfRange`), so a duration can be inside the other
   sport's range while the headline names the estimate's lead, with that range. A sport is higher at a duration only where its grade is outside the other's
-  range, in whole percents; a duration inside the range is level. The line speaks only of ranges, so it never
-  reads as contradicting the headline's estimate. When no duration is outside it: "At every duration from 10 to
-  90 min the range of the gap reaches zero."
-  When one sport is outside the range at every shared duration it says by how much and how that changes:
-  "Your running grades about 5 points higher than your cycling at every duration from 10 to 90 min, by a steady
-  margin." The points are the median of the centre differences, in whole points. A shape clause is added when
-  the gap changes by 4 points or more from the shortest shared duration to the longest: ", and the gap widens
-  toward longer efforts" or ", and the gap narrows toward longer efforts"; below that it is ", by a steady
-  margin". Otherwise it names only the stretches where a sport is higher, with the other durations said once:
-  "Your running grades higher from 15 to 45 min, apart from 30 min; elsewhere the range of the gap reaches zero." A
-  sport's leads that only level durations separate are one stretch, naming the level durations inside it, so a
-  grade at the edge of a range does not break the sentence into pieces. When the higher sport changes: "Your
-  cycling grades higher up to 7 min, your running from 10 min on."; with more than one change it walks through
-  each. When no duration separates the sports the chart is folded behind **Show by duration** (**Hide by
+  range, in whole percents; a duration inside the range is level. The clause speaks only of ranges, so it never
+  reads as contradicting the headline's estimate, and it carries no figure: "Running grades higher at 15 to 45 min",
+  "Running grades higher at every length", or "Running and cycling grade alike" when no duration is outside the range.
+  A lead at a single duration is noise and is not mentioned, nor is a dip inside a lead: a sport's leads that level or
+  isolated durations separate are one stretch ("at 15 to 45 min"), and "at most lengths" says a lead that spans every duration
+  has such exceptions ("Running and cycling grade alike at most lengths" where the only leads are single durations). When the lead
+  changes hands, each sport named has a stretch of two durations or more: "Cycling grades higher at 3 to 7 min, running at 10 to 60 min".
+  When no duration separates the sports the chart is folded behind **Show by duration** (**Hide by
   duration** while open), with the sentence visible above it; it mounts when first opened. When a duration
-  separates them the chart is open, with the sentence as its lede. A ride's range is a band only over the
+  separates them the chart is open, with the sentence as its title. A ride's range is a band only over the
   durations both sports share: a duration where one sport has no grade shows its line and ring, not a band.
   The section is left out without a year of birth and sex,
   without a weight (a ride's grade waits for it), and with fewer than two durations graded in both sports,
@@ -612,24 +606,50 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   has values, and otherwise its key row says there were none. A trend with one week of values keeps its title
   and says so in a line beneath it: "Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend
   needs two weeks with values."
-- On a short screen (SHORT_PHONE_MAX_HEIGHT_PX, for a finger or a window 760 px wide or less) the page's
-  header, notices and sections sit closer, the answer sits closer to its meter, and the meter's plot, ends and
-  key sit closer still. At 320 x 568 the meter's scale and its key are above the section tabs, which are the
-  bar at the foot of the screen there. The sample banner is two lines at that width, and its padding tightens on a
-  short phone, which brings the key up. At 320 x 640 the key is above the bar too. In landscape the answer sits
-  beside its meter: at 667 x 375 the meter is above the foot bar, and at 844 x 390 it is on the first screen,
-  where the tabs sit in the header.
-- The Balance headline runs the answer's full width, so on a wide screen it is one measure across the card row.
-  The lede and the lines under it keep a 62 character measure. The balance meter spans the card row, so its centre
-  is the gap between the two cards. Running is
-  on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`):
-  the cards, the meter, the landing example and the share card all follow it. The meter plots the
+- **The Balance first screen is one picture.** At 1440 x 900 the whole level scale ends above the fold, and at 390 px wide
+  it starts in the first 600 px with both marks above the section tabs. It is the first graphic on the page.
+  At 320 x 640, with the sample banner's two lines above it, the run's mark is above the tabs, and the ride's is just
+  below. On a short screen (SHORT_PHONE_MAX_HEIGHT_PX, for a finger or a window 760 px wide or less) the page's header, notices
+  and sections sit closer, the figure is smaller, and the scale's sentence sits under the drawing. A landscape phone has too
+  little height for a headline and a drawing: the headline and the gap figure are above the foot bar at 667 x 375.
+- The Balance headline runs the answer's full width and names the sport the balance leans toward, underlined in that
+  sport's colour (a shape; the text stays ink). The lede and the lines under it keep a 62 character measure. On a wide screen the
+  gap is a display figure at the right of the headline ("+6 PTS", with "toward running · 90% range 1 to 12 points" under it);
+  on a phone it sits under the headline. The level scale, the tiles and the charts span the same width. Running is
+  on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`): the lanes' order, the tiles, the
+  landing example and the share card all follow it. The balance meter now draws only where there are no grades (no year of birth or sex),
+  on the landing example, and as the energy fallback. It plots the
   age-grade gap in whole points, with the range as a band and the best estimate as a dot. Ticks sit at
   10, 20 and 30 points either side of the centre, and a lead past 30 is drawn at the end, marked "30+"
   ("30%+" in percent). The best estimate is printed over the dot as "6 pts". Its scale is the gap in
   points when both sports are graded, and the energy ratio in percent when they are not. The track has
   a 3:1 outline, the band a solid edge in its sport's colour, and the end labels name each sport with
   its glyph. The key under it gives the range in words and reads the same on both scales: "Dot: best estimate. Band: 90% range, 2 to 10 points. Scale: age-grade points.", or "Scale: energy per kilogram." when the scale is the energy ratio. When the heart-rate check adjusted the range, the key says so in place of the points scale: "Dot: best estimate. Band: 90% range, 2 to 10 points. Adjusted by heart rate."; on the energy ratio the note follows the scale: "Scale: energy per kilogram. Adjusted by heart rate.".
+- **Where you stand is the hero.** One scale, 40 to 100% fitted to the data (`fitAxis`: whole tens, one ten below the lowest mark to the
+  next level above the highest, never under 40 points), with the five levels as neutral bands (`--level-1` to `--level-5`, see Level bands) named at the
+  top where their name fits. Each sport has a lane: a recorded grade is a solid dot, an estimate is a hollow ring over a
+  translucent band for its 90% range, bracketed at both ends and with its two ends printed under it; the grade is set large
+  beside the mark with its level and the figure it rests on ("Local · 6:37 /mi on your best 20 min"), and the lane is named
+  with the sport's glyph and "recorded" or "estimated". A bracket between the lanes labels the gap in points
+  ("6 pts, toward running · 90% range 1 to 12 points"). A ghost ring in the lower sport's lane, at the higher sport's grade, is the
+  level target: "To level with running: about 270 W (245 to 295 W) · now 246 W". Where its label has no room beside it (a phone), the
+  same words sit in a line under the drawing. Text is placed by `scaleLayout`, which keeps every box inside the drawing and clear
+  of the others; a test sweeps it across widths. The drawing is one image named by its sentence, with its table twin under it
+  ("View as table"). With one sport in the period, that sport has the scale to itself: one lane, no gap and no target.
+- **What changed** compares with the previous period (it is left out under All time). At most four items, each with an arrow, a title, a line and a
+  tag: the lean first, then the ride's best 20 min, then the run's. A change is tagged "Beyond its range" only when the two periods' 90% ranges do not
+  overlap, and "Within its range" when they do (the data cannot tell the figures apart; the strip never says "not a real change"). A best states no range, so it
+  is tagged "Recorded" only when the best was measured in both periods, and "Estimated" otherwise (a ride's watts that were estimated, in either period). The lean's arrow says whether it
+  grew or eased, whichever sport it favours, and its range is written from the side it leans to, as the headline writes it. A best's title says what moved against the period before ("Faster 20 min run than the previous 12 weeks"), as
+  it is not a personal record. The previous period's grades are worked out from its curves the way this period's are, the ride at the mass it was ridden at.
+  Previous thresholds are not in the session state, so thresholds are not listed. With nothing to list the strip says
+  "Nothing changed since the previous 12 weeks." when something could be compared (a move within its range is listed as an item, so this means none), and "Not enough in the previous 12 weeks to compare." when the previous period lacks the efforts; where only some could be compared it lists those.
+- **Four tiles** give the headline numbers: each sport's threshold ("threshold" is a defined term, with the plain-words meaning the sport page gives; the figure at display size, the fit's spread as a slim track labelled "fit spread", lighter than a 90% range and left out where its ends print the same, a chip saying Estimated or At least, and the grade line), the lean (the gap in points with its 90% range as a track), and the ride on foot
+  (the pace, the watts and the pace as a pair of chips, the activity that set it, and the equivalence table folded under it). A tile with no
+  figure to give, one held for a weight or waiting for an effort, has no chip and no track.
+- **Terms that carry the answer are defined in place** (`Definition`): age grade and the 90% range in the first sentence, level in the scale's
+  sentence, estimated in its key. Each is a button that opens a short note under it, which closes on a second press, Escape or a press elsewhere, and a pointer
+  resting on it shows the note too.
 - The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
   the drawing and fills its column, with no fixed width. Its bar is the same height at every width,
   and its marker a fixed size, so the labels stay on the bar as the column narrows. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
@@ -641,14 +661,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **The key sits under every ladder**, as a paragraph, in words: "Solid dot: the grade of one
   recorded effort." for a run, and "Ring: estimated, with its 90% range in brackets." for a ride. The
   shape is never the only cue. The landing example has no key, since it is illustrative.
-- **A Balance card reads top to bottom:** the sport's name, the threshold as the hero number (its
-  unit set at about 40% of the numeral), the threshold in plain words ("About the pace you could
-  hold for a long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line,
-  the ladder with its key, then the best efforts, with the Flat note under them on a run. A card
-  names no age or standard: the source line under the cards does. On a phone, 560 px and below, the
-  best efforts sit in a closed disclosure titled "Best efforts", so the answer and the ladder read
-  first; from wider screens it is open. A visitor's own choice holds across a resize. The grade line
-  gives the level and its percent. The effort it grades sits on a line of its own under it: "on your
+- **A sport's page card reads top to bottom:** the sport's name, the threshold as the hero number (its
+  unit set at about 40% of the numeral), the threshold in plain words, the grade line, the
+  ladder with its key, then the best efforts. Balance no longer carries these cards: its tiles carry the threshold and the level.
+  The grade line gives the level and its percent. The effort it grades sits on a line of its own under it: "on your
   best 20 min, 6:37 /mi". A ride's line starts "Estimated", and its watts carry "estimated" when
   they did not come from a power meter. A run card that shows a Flat mark says what it means under
   its records, on every run card that has records, with or without a grade: "Flat pace: your pace
@@ -787,9 +803,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   so the date stays whole. Otherwise each record links to its own activity, with its own count on the
   link's line. A long activity name is cut short with an ellipsis, and its full name is the link's
   title and accessible name.
-- **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
-  ride is worth 4:10 /km", with a no-break space), and the ride's watts marked estimated when no power meter measured them.
-  Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
+- **The ride on foot is a tile:** a ride-to-run pair of chips (the watts, then "on foot"), the flat pace as the tile's figure ("4:10 /km", the unit in its own span), and one sentence ("Your best 20 min on the bike, 250 W (estimated), takes the same effort as running this pace on the flat."), with the watts marked estimated when no power meter measured them.
+  Its ride figures and its table wait for the weight, as the tiles' do, and its needs-a-ride line names
   the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The evidence card is a card
   only for a gap with an action, and its how-to links to the 20 minute effort under How sure is this?'s heart-rate
   check; good news is a quiet line with no heading.
@@ -797,7 +812,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   its figures at the body size in each sport's line, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
 - **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this?, not on Balance or the sport pages.
-- **On a phone, the two grades sit under the meter**, in the meter's own group so they keep its gap, as "Run 64% Local / Ride est. 58% (52–63%) Recreational to Local": a ride is an estimate, so it says "est." and gives its range and levels as its card does. Each sport's name, mark and figures are kept whole and only its level wraps, so the line reads at 320 px. The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
+- **The phone has no grade strip.** The level scale shows both grades at every width, so the strip that repeated them under the meter is gone.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
@@ -829,13 +844,14 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - The card holds the brand mark, in the two sport colours, and the app name in words, in volt. When the
   visitor has typed a name for the card, it sits small in secondary text at the right of that top row, before
   the sample badge, cut with an ellipsis where it would reach the app name. Under the
-  headline sits the lead in one line, "Running grades 6 points higher than cycling", the same words
-  the meter reads. Then the balance meter, each sport's threshold, "Threshold flat pace, estimated from your
+  headline sits the level scale, drawn from the page's own scale model (the same whole percents), in place of the meter, the lead line and
+  the hero grade lines it would repeat: the bands, a dot or a ring and band for each sport with its grade and level, and the bracket and its gap. Without a grade the card draws the meter and the lead line, as before. Then each sport's threshold, "Threshold flat pace, estimated from your
   best 3 to 20 min" for a run, with its W/kg and its level, such as "Local · 64% on best 20 min", under
   the figure, and a glyph beside each label for its sport; the period; the heart-rate caveat as a starred line when there is one; the footnote; and the
   site's host when it is public.
 - Figures are drawn in text colour. Sport colour appears only on the brand mark, the edge of each
-  column, and the meter's band, dot and outline. It never colours text.
+  column, and the scale's or the meter's band, dot, ring and outline. It never colours text. The scale's five level
+  washes are copies of the level tokens, pinned by `cardColors.test.ts`.
 - The card is offered only once both sports have a threshold, a balance can be stated and a weight is
   entered. A card never asks the reader for anything, so there is no prompt on it: while a sport has no
   threshold, or no weight is entered, the share button is not shown.
@@ -872,15 +888,14 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   with the same figures as the sentence and the meter: "Ride against Run, 90% range: 11% to 33%." on How sure
   is this?, and "Run against Ride, 90% range: -2% to +4%." only when the two are level. The lede names no
   dates: the period control's caption under the meter gives them when the period is not All time.
-- **The level target says what would level the balance.** When the balance leans, one muted line under the
-  meter, below the grades, names what the lower sport's best effort at the headline length would need to grade
-  level with the higher sport's whole-percent grade, in its own unit, rounded toward the side that levels (watts up to the next 5 W, a pace to the faster 5 s), and a ride's range is the watts at the 5th and 95th percentile of its equivalence, rounded outward to 5 W: "To grade level
-  with your running at 20 min, your best ride would need about 270 W (roughly 245 to 295 W; now 246 W)." The target inverts the age grade at the lower sport's
+- **The level target says what would level the balance.** When the balance leans, a ghost ring on the level scale, in the lower sport's lane at the
+  higher sport's whole-percent grade, names what the lower sport's best effort at the headline length would need to grade
+  level with the higher sport's, in its own unit, rounded toward the side that levels (watts up to the next 5 W, a pace to the faster 5 s), and a ride's range is the watts at the 5th and 95th percentile of its equivalence, rounded outward to 5 W: "To level with running: about 270 W (245 to 295 W) · now 246 W." (`levelTarget` gives the pieces; `levelTargetText` still words the sentence "To grade level
+  with your running at 20 min, your best ride would need about 270 W (roughly 245 to 295 W; now 246 W).") The target inverts the age grade at the lower sport's
   age, and a ride's watts invert the same equivalence its page grade is read from, with its heart-rate weights, so the
-  words say "would need", never a prediction. It is left off when the
+  words say "about" and "now", never a prediction. It is left off when the
   balance is even, when either grade is not on screen (a ride's waits for the weight), and when the rounded target
-  does not beat the figure the page shows for the lower sport, in whole watts or whole seconds of pace. It sits under the meter rather than the lede, so the meter stays above the section
-  tabs on a phone. The share card does not carry it, so the card keeps the layout it had.
+  does not beat the figure the page shows for the lower sport, in whole watts or whole seconds of pace. It is not repeated as text elsewhere on the page. The share card does not carry it.
 - **Grades read as whole percents, floored.** `formatGrade` in `apps/web/src/ui/gradeFormat.ts` writes
   every grade on the cards, the ladder and the balance gap, so 64.5% reads as 64%, and a grade never
   reads above its level band: 89.6% is 89%. The gap is the difference of these whole percents.
@@ -1320,3 +1335,24 @@ below it, a fifth of its seconds, and a bin of one beat is never split. A readin
 and below the ceiling of, as on the activity page, and the Profile ranges are written from the same edges, so they agree. A speed bin that straddles an edge is shared in proportion to the width each side. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
 digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms
 (`periodTime.perf.test.ts`).
+
+## Level bands
+
+The level scale on Balance and the share card draws the five age-grade levels (Recreational, Local, Regional,
+National, World) as neutral bands on one x-scale. The bands are the canvas, so sport colour only ever means
+"this sport": a dot or a ring in the sport colour sits on the neutral bands. Each band is the ink at a rising alpha,
+so every step is a deeper wash than the one below it, in light and dark, and a band is named in words as well as
+tinted. `levelTokens.test.ts` pins the values and the order.
+
+| Token       | Light       | Dark        | Use               |
+| ----------- | ----------- | ----------- | ----------------- |
+| `--level-1` | `#0e111606` | `#eef0f306` | Recreational band |
+| `--level-2` | `#0e11160d` | `#eef0f30d` | Local band        |
+| `--level-3` | `#0e111614` | `#eef0f314` | Regional band     |
+| `--level-4` | `#0e11161d` | `#eef0f31d` | National band     |
+| `--level-5` | `#0e111626` | `#eef0f326` | World band        |
+
+**Shape language.** A recorded grade is a solid dot ringed in the card colour. An estimated grade is a hollow ring
+with a translucent band for its 90% range, bracketed at both ends, never a dashed line. A level target is a ghost
+ring in neutral ink. The axis is fitted to the data, a whole number of tens that holds every mark and the next
+level above the highest, and never narrower than 40 points.

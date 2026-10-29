@@ -264,6 +264,18 @@ const BEYOND_SHOWN: Record<Sport, (levelled: number, now: number, units: UnitSys
   ride: (target, now) => Math.round(target) > Math.round(now),
 }
 
+/** A levelled centre as the sport's own figure with its unit: "270 W" or "6:50 /mi". */
+const OWN_TEXT: Record<Sport, (centre: number, units: UnitSystem) => string> = {
+  run: (centre, units) => `${formatClock(paceSeconds(centre, units))} ${PACE_UNIT[units]}`,
+  ride: (centre) => `${formatWatts(centre)} W`,
+}
+
+/** A ride's levelled range as its low and high watts. A run has one pace, so it names no range. */
+const RANGE_TEXT: Record<Sport, (levelled: NativeRange) => string> = {
+  run: () => '',
+  ride: (levelled) => `${formatWatts(levelled.low)} to ${formatWatts(levelled.high)} W`,
+}
+
 /** The best effort as a noun in a sentence: "your best run", "your best ride". */
 const BEST_NOUN: Record<Sport, string> = { run: 'run', ride: 'ride' }
 
@@ -284,12 +296,30 @@ export interface LevelTargetInput {
 }
 
 /**
- * The lower sport's best effort at the headline duration, as the sentence that says what it would
- * need to grade level with the higher sport's whole-percent grade: rounded toward the levelling side, and
- * for a ride with the range its estimate carries. Null when the balance is even, when either grade is not
- * on screen, or when the levelled centre is not strictly beyond the figure the page already shows.
+ * What the lower sport would need to grade level with the higher sport's whole-percent grade, as
+ * the pieces a sentence or a drawing uses: the sports, the levelled figure, the range a ride's estimate
+ * carries, and the figure the page shows now.
  */
-export function levelTargetText(input: LevelTargetInput): string | null {
+export interface LevelTarget {
+  higher: Sport
+  lower: Sport
+  /** The levelled centre as the sport's own text: "270 W" or "6:50 /mi". */
+  centre: string
+  /** A ride's range as text, "245 to 295 W"; null for a run, which has one pace. */
+  range: string | null
+  /** The figure the page shows for the lower sport's best effort, with today's weight beside it when it differs. */
+  now: string
+  /** The target's sentence, as the page words it. */
+  sentence: string
+}
+
+/**
+ * The lower sport's best effort at the headline duration, as what it would need to grade level with the
+ * higher sport's whole-percent grade: rounded toward the levelling side, and for a ride with the range its
+ * estimate carries. Null when the balance is even, when either grade is not on screen, or when the levelled
+ * centre is not strictly beyond the figure the page already shows.
+ */
+export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   const { lean, grades, result, sex, massKg, units, calibration } = input
   if (lean === 'even') return null
   const higher = lean
@@ -318,5 +348,18 @@ export function levelTargetText(input: LevelTargetInput): string | null {
   const nowText = reweighted
     ? `${shownText}, ${SPORT_FORMAT[lower].formatted(now, units)} at today’s weight`
     : shownText
-  return `${level}, your best ${BEST_NOUN[lower]} would need ${SHOWN_TEXT[lower](levelled, nowText, units)}.`
+  const sentence = `${level}, your best ${BEST_NOUN[lower]} would need ${SHOWN_TEXT[lower](levelled, nowText, units)}.`
+  return {
+    higher,
+    lower,
+    centre: OWN_TEXT[lower](levelled.centre, units),
+    range: levelled.low === levelled.high ? null : RANGE_TEXT[lower](levelled),
+    now: nowText,
+    sentence,
+  }
+}
+
+/** The target's sentence for the page, or null when there is no target. */
+export function levelTargetText(input: LevelTargetInput): string | null {
+  return levelTarget(input)?.sentence ?? null
 }

@@ -14,9 +14,12 @@ import {
   uploadFixtures,
 } from './helpers.js'
 
-/** The charts by their figure titles. The balance meter is named by its sentence. */
+/**
+ * The charts by their figure titles. Balance's level scale is named by its sentence; its energy meter, which
+ * stands in while the grades are missing, by the balance's own.
+ */
 const BALANCE_METER =
-  /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
+  /^Age-grade level of your best 20 min\.|^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
 /**
  * The Balance trend: one chart for both sports, as age grades when the age and sex are known. Its title says
  * what it found, so it is found by the line under it that names the measure.
@@ -85,13 +88,13 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   expect(errors).toEqual([])
 })
 
-test('the cross-sport card names the ride behind its effort and opens to every duration', async ({
+test('the ride on foot tile names the ride behind its effort and opens to every duration', async ({
   page,
   isMobile,
 }) => {
   await openSample(page)
 
-  const card = page.getByRole('region', { name: /^On foot, your ride is worth / })
+  const card = page.getByRole('article', { name: 'Ride on foot' })
   await expect(card.getByRole('link', { name: /^Set on / })).toBeVisible()
 
   const details = card.locator('details')
@@ -140,7 +143,7 @@ test('the weight entered in the setup dialog is the one the results use', async 
   await expect(defaults.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
     timeout: 30_000,
   })
-  const defaultRide = await defaults.getByRole('region', { name: 'Ride', exact: true }).innerText()
+  const defaultRide = await defaults.getByRole('article', { name: 'Ride threshold' }).innerText()
   await baseline.close()
 
   await page.goto('/')
@@ -154,7 +157,7 @@ test('the weight entered in the setup dialog is the one the results use', async 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
     timeout: 30_000,
   })
-  const ride = page.getByRole('region', { name: 'Ride', exact: true })
+  const ride = page.getByRole('article', { name: 'Ride threshold' })
   await expect(ride).toContainText('W/kg')
   await expect.poll(() => ride.innerText()).not.toBe(defaultRide)
   await goTo(page, 'Profile')
@@ -178,7 +181,7 @@ test('skipping the weight holds the balance until one is entered, and asks for i
   await expect(
     page.locator('p.lede', { hasText: 'Add your weight on Profile to compare a ride with a run.' }),
   ).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Run', exact: true })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Run threshold' })).toBeVisible()
 })
 
 test('skipping the setup dialog keeps a weight typed before it, as a valid answer', async ({
@@ -247,14 +250,14 @@ test('uploading a GPX ride and a TCX run shows the results', async ({ page }) =>
   // The 12 min run has no 20 min effort or threshold to set against the ride, so the balance is held.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Not enough to compare yet')
   await expect(page.getByText(/^From 1 run and 1 ride\./)).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Run', exact: true })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Ride', exact: true })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Run threshold' })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Ride threshold' })).toBeVisible()
   await expect(await activitiesRows(page)).toHaveCount(2)
   await expect(page.getByText(/^[\d,]+ files?: /)).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toHaveCount(0)
 })
 
-test('uploading a single run names cycling as the missing sport and keeps the run card', async ({
+test('uploading a single run names cycling as the missing sport and keeps the run tile', async ({
   page,
 }) => {
   await page.goto('/')
@@ -263,9 +266,9 @@ test('uploading a single run names cycling as the missing sport and keeps the ru
   await expect(
     page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
   ).toBeVisible()
-  const run = page.getByRole('region', { name: 'Run', exact: true })
+  const run = page.getByRole('article', { name: 'Run threshold' })
   await expect(run).toBeVisible()
-  await expect(run.getByText('Threshold pace, estimated')).toBeVisible()
+  await expect(run.getByText('Estimated', { exact: true })).toBeVisible()
 })
 
 test('uploading a file that is not FIT lists it as unusable and keeps the landing page', async ({
@@ -340,7 +343,7 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
 
 /**
  * The top of the section tabs at a phone width. There they are fixed to the foot of the window and cover
- * what is under them, so a meter is on the first screen only when it ends above this line. The test fails
+ * what is under them, so a mark is on the first screen only when it ends above this line. The test fails
  * if they are not fixed there, since the line would then be wrong.
  */
 async function tabBarTop(page: Page): Promise<number> {
@@ -349,42 +352,79 @@ async function tabBarTop(page: Page): Promise<number> {
   return (await edgesOf(tabs)).top
 }
 
-// A landscape phone is a touch screen, so it takes the short-screen layout the touch emulation selects.
-// At 844 wide the tabs sit in the header, not at the foot, so the window's bottom is the first screen's.
-test.describe('on a short landscape phone', () => {
-  test.use({ hasTouch: true })
+/** The level scale's drawing, and the two sports' marks on it. */
+const SCALE = '.balance-scale__svg'
+const RUN_DOT = '.balance-scale [data-sport="run"] .balance-scale__dot'
+const RIDE_RING = '.balance-scale [data-sport="ride"] .balance-scale__ring'
 
-  test('the meter is on the first screen, beside the answer', async ({ page }) => {
-    await page.setViewportSize({ width: 844, height: 390 })
-    await openSample(page)
-    const meter = await edgesOf(page.locator('.balance-meter'))
-    expect(meter.bottom).toBeLessThanOrEqual(390)
-  })
+// The answer's one picture is on the first screen: at 1440 by 900 the whole drawing ends above the fold, and
+// the first chart is the level scale, not the trend 1,900 px down.
+test('at 1440 by 900 the level scale is on the first screen, whole', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openSample(page)
+  const scale = await edgesOf(page.locator(SCALE))
+  expect(scale.bottom).toBeLessThanOrEqual(900)
+  expect((await edgesOf(page.locator(RUN_DOT))).bottom).toBeLessThanOrEqual(900)
+  expect((await edgesOf(page.locator(RIDE_RING))).bottom).toBeLessThanOrEqual(900)
+  // It is the first graphic on the page: nothing drawn comes before it.
+  const first = await page.evaluate(
+    () => document.querySelector('main svg:not(.icon)')?.getAttribute('class') ?? '',
+  )
+  expect(first).toContain('balance-scale__svg')
 })
 
-test('at 320 by 568 the meter scale and its key are above the section tabs', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 568 })
+// A phone holds the scale in its first 600 px. At 390 by 844 both marks are above the tabs fixed to the window's
+// foot; at 320 by 640, with the sample notice's two lines above, the run's mark is, and the ride's is just below.
+test('at 390 by 844 the level scale starts in the first 600 px, with both marks above the section tabs', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   await openSample(page)
   const tabs = await tabBarTop(page)
-  expect((await edgesOf(page.locator('.balance-meter__band'))).bottom).toBeLessThanOrEqual(tabs)
-  expect((await edgesOf(page.locator('.balance-meter__dot'))).bottom).toBeLessThanOrEqual(tabs)
-  expect((await edgesOf(page.locator('.balance-meter__key'))).bottom).toBeLessThanOrEqual(tabs)
+  expect((await edgesOf(page.locator(SCALE))).top).toBeLessThanOrEqual(600)
+  expect((await edgesOf(page.locator(RUN_DOT))).bottom).toBeLessThanOrEqual(tabs)
+  expect((await edgesOf(page.locator(RIDE_RING))).bottom).toBeLessThanOrEqual(tabs)
+  const scale = await edgesOf(page.locator(SCALE))
+  for (const mark of [RUN_DOT, RIDE_RING]) {
+    const box = await edgesOf(page.locator(mark))
+    expect(box.top).toBeGreaterThanOrEqual(scale.top)
+    expect(box.bottom).toBeLessThanOrEqual(scale.bottom)
+  }
+})
+
+test('at 320 by 640 the level scale starts in the first 600 px, with the run’s mark above the section tabs and both marks inside its box', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  await openSample(page)
+  const tabs = await tabBarTop(page)
+  const scale = await edgesOf(page.locator(SCALE))
+  const run = await edgesOf(page.locator(RUN_DOT))
+  const ride = await edgesOf(page.locator(RIDE_RING))
+  expect(scale.top).toBeLessThanOrEqual(600)
+  expect(run.bottom).toBeLessThanOrEqual(tabs)
+  // Both lanes' marks are drawn inside the drawing's own box, whether or not the foot bar covers one.
+  for (const mark of [run, ride]) {
+    expect(mark.top).toBeGreaterThanOrEqual(scale.top)
+    expect(mark.bottom).toBeLessThanOrEqual(scale.bottom)
+  }
+  // The ride's lane is below the run's, and the drawing is tall enough to hold both.
+  expect(ride.top).toBeGreaterThan(run.bottom)
 })
 
 // On a wide screen the headline runs the answer's full width, the lede keeps its 62 character measure, and the
-// meter spans the sport cards below with Even on the gutter between them.
-test('at 1280 the headline runs the full width, the lede keeps its measure, and the meter spans the cards', async ({
+// scale and the tiles span the same width.
+test('at 1280 the headline runs the full width, the lede keeps its measure, and the scale spans the tiles', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await openSample(page)
   const headline = await page.getByRole('heading', { level: 1 }).boundingBox()
   const lede = await page.locator('.balance-hero .lede').boundingBox()
-  const cards = await page.locator('.balance__sports').boundingBox()
-  const meter = await page.locator('.balance-meter').boundingBox()
-  const even = await page.locator('.balance-meter__even').boundingBox()
-  if (headline === null || lede === null || cards === null || meter === null || even === null) {
-    throw new Error('no box for the headline, lede, cards, meter or even tick')
+  const tiles = await page.locator('.balance-tiles').boundingBox()
+  const scale = await page.locator('.balance-scale').boundingBox()
+  if (headline === null || lede === null || tiles === null || scale === null) {
+    throw new Error('no box for the headline, lede, tiles or scale')
   }
   // The lede keeps its own 62 character measure, which a probe in the lede's font measures.
   const sixtyTwoCh = await page.locator('.balance-hero .lede').evaluate((el) => {
@@ -398,22 +438,49 @@ test('at 1280 the headline runs the full width, the lede keeps its measure, and 
   })
   expect(headline.width).toBeGreaterThan(lede.width)
   expect(lede.width).toBeLessThanOrEqual(sixtyTwoCh + 1)
-  expect(meter.y).toBeGreaterThanOrEqual(lede.y + lede.height)
-  expect(meter.x).toBeCloseTo(cards.x, 0)
-  expect(meter.x + meter.width).toBeCloseTo(cards.x + cards.width, 0)
-  expect(Math.abs(even.x + even.width / 2 - (cards.x + cards.width / 2))).toBeLessThanOrEqual(2)
+  expect(scale.y).toBeGreaterThanOrEqual(lede.y + lede.height)
+  expect(scale.x).toBeCloseTo(tiles.x, 0)
+  expect(scale.x + scale.width).toBeCloseTo(tiles.x + tiles.width, 0)
 })
 
-test('at 667 by 375 the meter is above the section tabs', async ({ page }) => {
+// A landscape phone has too little height for the headline and a drawing: the answer is what is on screen.
+test('at 667 by 375 the headline and the gap figure are above the section tabs', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 667, height: 375 })
   await openSample(page)
-  const meter = await edgesOf(page.locator('.balance-meter'))
-  expect(meter.bottom).toBeLessThanOrEqual(await tabBarTop(page))
+  const tabs = await tabBarTop(page)
+  expect((await edgesOf(page.getByRole('heading', { level: 1 }))).bottom).toBeLessThanOrEqual(tabs)
 })
 
-test('at 320 by 640 the key under the meter is above the section tabs', async ({ page }) => {
+test('the level scale defines its terms in place, by press and by Enter', async ({ page }) => {
+  await openSample(page)
+  const level = page.getByRole('button', { name: 'level', exact: true })
+  await expect(level).toHaveAttribute('aria-expanded', 'false')
+  await level.click()
+  await expect(level).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('note').filter({ hasText: /Recreational below 60%/ })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(level).toHaveAttribute('aria-expanded', 'false')
+  await level.focus()
+  await page.keyboard.press('Enter')
+  await expect(level).toHaveAttribute('aria-expanded', 'true')
+})
+
+test('the level scale has its figures as a table, and no text on it is under 11 px', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
-  const key = await edgesOf(page.locator('.balance-meter__key'))
-  expect(key.bottom).toBeLessThanOrEqual(await tabBarTop(page))
+  const sizes = await page
+    .locator('.balance-scale svg text')
+    .evaluateAll((labels) => labels.map((label) => parseFloat(getComputedStyle(label).fontSize)))
+  expect(sizes.length).toBeGreaterThan(5)
+  expect(Math.min(...sizes)).toBeGreaterThanOrEqual(11)
+  const details = page.locator('.balance-scale__details')
+  await details.locator('summary').click()
+  await expect(details.getByRole('cell', { name: 'Recorded' })).toBeVisible()
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+  ).toBeLessThanOrEqual(0)
 })

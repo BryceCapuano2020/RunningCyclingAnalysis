@@ -215,12 +215,21 @@ describe('BalancePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('puts both grades under the meter on a phone, hidden from assistive technology', () => {
-    renderPage(GRADED_RUN, {}, MAN_BORN_1986)
+  it('draws the level scale under the answer once both sports are graded, named for a screen reader', () => {
+    renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
 
-    const strip = document.querySelector('.balance-strip')
-    expect(strip).toHaveAttribute('aria-hidden', 'true')
-    expect(strip?.textContent).toMatch(/^Run \d+% \w+$/)
+    const scale = screen.getByRole('img', {
+      name: /^Age-grade level of your best 20 min\. Run \d+ percent/,
+    })
+    expect(scale).toHaveAccessibleName(/Ride \d+ percent, .*, estimated, range \d+ to \d+ percent/)
+    expect(screen.getByRole('heading', { level: 2, name: 'Where you stand' })).toBeInTheDocument()
+  })
+
+  it('keeps the scale to the answer’s own figures: one dot for the run, a ring and band for the ride', () => {
+    const { container } = renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
+    expect(container.querySelector('[data-sport="run"][data-kind="dot"]')).not.toBeNull()
+    expect(container.querySelector('[data-sport="ride"][data-kind="ring"]')).not.toBeNull()
+    expect(container.querySelector('.balance-scale__range')).not.toBeNull()
   })
 
   it('leaves the sample chip off the answer, since the banner above every page says so once', () => {
@@ -228,17 +237,21 @@ describe('BalancePage', () => {
     expect(screen.queryByText('Sample athlete')).not.toBeInTheDocument()
   })
 
-  it('shows a card for each sport, named by the sport', () => {
+  it('shows a threshold tile for each sport, named by the sport', () => {
     renderPage()
-    expect(screen.getByRole('region', { name: 'Run' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Ride' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Run threshold' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Ride threshold' })).toBeInTheDocument()
   })
 
-  it('lays the cards out in the sport order, so the first sport is on the left, as on the meter', () => {
-    renderPage()
-    const [left, right] = screen.getAllByRole('region', { name: /^(Run|Ride)$/ })
-    expect(left).toHaveAccessibleName(SPORT_LABEL[SPORT_ORDER[0]])
-    expect(right).toHaveAccessibleName(SPORT_LABEL[SPORT_ORDER[1]])
+  it('lays the tiles out in the sport order, then the lean and the ride on foot', () => {
+    renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
+    const names = screen.getAllByRole('article').map((tile) => tile.getAttribute('aria-label'))
+    expect(names).toEqual([
+      `${SPORT_LABEL[SPORT_ORDER[0]]} threshold`,
+      `${SPORT_LABEL[SPORT_ORDER[1]]} threshold`,
+      'Lean',
+      'Ride on foot',
+    ])
   })
 
   it('shows the evidence for the duration the answer is about', () => {
@@ -275,14 +288,16 @@ describe('BalancePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the bike on foot in the cross-sport card, which opens to every duration', () => {
+  it('folds the equivalence table into the ride on foot tile, closed under its figure', () => {
     renderPage(makeResult({ equivalents: [makeEquivalence()] }))
 
-    const card = screen.getByRole('region', { name: 'On foot, your ride is worth 4:10\u00a0/km' })
-    expect(within(card).getByText('See the pace curve')).toBeInTheDocument()
+    const tile = screen.getByRole('article', { name: 'Ride on foot' })
+    expect(within(tile).getByText('See the pace curve')).toBeInTheDocument()
+    expect(tile.querySelector('details')).not.toHaveAttribute('open')
+    // The table is not a section of its own any more: one table, inside the tile.
     expect(
-      screen.queryByRole('region', { name: 'Your ride on foot, at every duration' }),
-    ).not.toBeInTheDocument()
+      document.querySelectorAll('.equivalence-table, .equivalence-list').length,
+    ).toBeLessThanOrEqual(2)
   })
 
   it('names the trend section by the chart’s own title, so the section and the chart cannot drift apart', () => {
@@ -322,29 +337,49 @@ describe('BalancePage', () => {
     expect(heading).toHaveClass('sr-only')
   })
 
-  it('puts the grading source directly under the cards, ahead of the trend', () => {
-    renderPage(GRADED_RUN, { state: { trend: trendWithWeeks(2) } }, MAN_BORN_1986)
+  it('puts the grading source right under the tiles it explains, ahead of the charts', () => {
+    const { container } = renderPage(
+      GRADED_RUN,
+      { state: { trend: trendWithWeeks(2) } },
+      MAN_BORN_1986,
+    )
     const source = screen.getByText(/^Graded for a/)
+    const tiles = container.querySelector('.balance-tiles') as HTMLElement
     const trend = screen.getByRole('region', { name: /of your best 20 min, trailing/ })
+    expect(tiles.nextElementSibling).toBe(source)
     expect(source.compareDocumentPosition(trend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('puts the grade by duration after the cards and the grading source, ahead of the evidence', () => {
+  it('puts the grade by duration after the tiles, with the width of the page to itself', () => {
     const durations = [600, 1200, 3600]
     const result = makeResult({
       runCurve: durations.map((d) => curvePoint(d, FIVE_K_IN_20_MIN_WKG, 'run-1')),
       rideCurve: durations.map((d) => curvePoint(d, 400, 'ride-1')),
       equivalents: durations.map((d) => makeEquivalence({ durationS: d })),
     })
-    renderPage(result, {}, MAN_BORN_1986)
+    const { container } = renderPage(result, {}, MAN_BORN_1986)
     const chart = screen.getByRole('region', { name: 'Grade by duration' })
-    const source = screen.getByText(/^Graded for a/)
-    expect(source.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const cards = screen.getByRole('heading', { name: SPORT_LABEL.run }).closest('.balance__sports')
-    expect(cards).not.toBeNull()
+    const tiles = container.querySelector('.balance-tiles')
     expect(
-      (cards?.compareDocumentPosition(chart) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
+      (tiles?.compareDocumentPosition(chart) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+    // Not in a pair with the hours: the trend and the hours are their own block below it.
+    expect(chart.parentElement).not.toHaveClass('balance__pair')
+    expect(container.querySelector('.balance__pair')).toBeNull()
+  })
+
+  it('leaves the trend and the hours to their own full-width block, after the grade by duration', () => {
+    const durations = [600, 1200, 3600]
+    const result = makeResult({
+      runCurve: durations.map((d) => curvePoint(d, FIVE_K_IN_20_MIN_WKG, 'run-1')),
+      rideCurve: durations.map((d) => curvePoint(d, 400, 'ride-1')),
+      equivalents: durations.map((d) => makeEquivalence({ durationS: d })),
+    })
+    renderPage(result, { state: { trend: trendWithRides(4) } }, MAN_BORN_1986)
+    const chart = screen.getByRole('region', { name: 'Grade by duration' })
+    const trend = screen.getByRole('region', { name: /of your best 20 min, trailing/ })
+    expect(chart.compareDocumentPosition(trend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(trend.querySelector('.balance__trends')).not.toBeNull()
   })
 
   it('leaves the grade by duration out when only one duration is graded in both sports', () => {
@@ -359,12 +394,10 @@ describe('BalancePage', () => {
     expect(screen.queryByRole('link', { name: PROFILE_PROMPT })).not.toBeInTheDocument()
   })
 
-  it('keeps the grade strip in the meter’s group, so it takes the meter’s gap', () => {
-    const { container } = renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
-    const group = container.querySelector('.balance-hero__meter')
-    expect(group).not.toBeNull()
-    expect(group?.querySelector('.balance-meter')).not.toBeNull()
-    expect(group?.querySelector('.balance-strip')).not.toBeNull()
+  it('draws the energy meter, not the scale, while the age and sex are unknown', () => {
+    const { container } = renderPage(BOTH_SPORTS)
+    expect(container.querySelector('.balance-meter')).not.toBeNull()
+    expect(container.querySelector('.balance-scale')).toBeNull()
   })
 
   it('waits for the age and sex, and says so, rather than drawing an energy rate', () => {
@@ -475,17 +508,14 @@ describe('BalancePage', () => {
 })
 
 describe('BalancePage age grades', () => {
-  it('shows the run’s estimate on its card, at the age on its date', () => {
+  it('shows the run’s grade on its tile, at the age on its date', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
 
-    const grade = screen.getByRole('region', { name: 'Run' }).querySelector('.age-grade__line')
-    expect(grade).toHaveTextContent(/^Local · 67%$/)
-    expect(
-      screen.getByRole('region', { name: 'Run' }).querySelector('.age-grade__effort'),
-    ).toHaveTextContent(/^on your best 20 min/)
+    const tile = screen.getByRole('article', { name: 'Run threshold' })
+    expect(tile).toHaveTextContent(/Local · 67% on your best 20 min, \d+:\d{2} \/(mi|km)\./)
   })
 
-  it('drops the standards line from each card, since the source line under the cards names it', () => {
+  it('drops the standards line from each tile, since the source line at the foot names it', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
     expect(screen.queryByText(/^Graded at age/)).not.toBeInTheDocument()
     expect(screen.getByText(/^Graded for a \d+-year-old man/)).toBeInTheDocument()
@@ -550,9 +580,10 @@ describe('BalancePage age grades', () => {
     ).toBeInTheDocument()
   })
 
-  it('holds the cross-sport idea without a weight, with the same prompt as the cards', () => {
+  it('holds the ride on foot tile without a weight, with the same prompt as the other tiles', () => {
     renderPage(makeResult({ equivalents: [makeEquivalence()] }), {}, null, false)
-    expect(screen.getByRole('heading', { level: 2, name: 'Your ride on foot' })).toBeInTheDocument()
+    const tile = screen.getByRole('article', { name: 'Ride on foot' })
+    expect(within(tile).getByText(/Add your weight on/)).toBeInTheDocument()
     expect(screen.queryByText(/4:10/)).not.toBeInTheDocument()
   })
 
@@ -604,7 +635,7 @@ describe('BalancePage with no weight entered', () => {
     const prompts = screen.getAllByRole('link', { name: 'Profile' })
     expect(prompts.length).toBeGreaterThanOrEqual(1)
     for (const prompt of prompts) expect(prompt).toHaveAttribute('href', '#/profile')
-    expect(screen.getByRole('region', { name: 'Ride' })).toHaveTextContent(
+    expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
       'Add your weight on Profile to see ride figures.',
     )
   })
@@ -663,5 +694,129 @@ describe('BalancePage with no weight entered', () => {
     renderPage(makeResult(), {}, null, false)
     expect(screen.queryByRole('button', { name: 'Share image' })).not.toBeInTheDocument()
     expect(renderShareCard).not.toHaveBeenCalled()
+  })
+})
+
+describe('BalancePage concept budget', () => {
+  /** A both-sports page with a profile and a trend: every part the page can show. */
+  function full() {
+    return renderPage(BOTH_SPORTS, { state: { trend: trendWithRides(3) } }, MAN_BORN_1986)
+  }
+
+  it('draws the level scale in place of the meter and both ladders', () => {
+    const { container } = full()
+    expect(container.querySelectorAll('.balance-scale')).toHaveLength(1)
+    for (const gone of ['.balance-meter', '.level-ladder', '.balance-strip', '.sport-card']) {
+      expect(container.querySelector(gone), gone).toBeNull()
+    }
+  })
+
+  it('states the level target once, in the scale, and not again as grey body text', () => {
+    const { container } = full()
+    expect(screen.queryByText(/^To grade level with your/)).toBeNull()
+    const text = container.textContent ?? ''
+    expect(
+      text.match(/To level with running|To level with cycling/g)?.length ?? 0,
+    ).toBeLessThanOrEqual(1)
+  })
+
+  it('has no across-sports section and no second table of the ride on foot at every duration', () => {
+    full()
+    expect(screen.queryByText('Across sports')).toBeNull()
+    expect(
+      screen.queryByRole('region', { name: /Your ride on foot, at every duration/ }),
+    ).toBeNull()
+    // The one table of equivalents is the tile's, folded under its figure.
+    expect(
+      screen
+        .getAllByText('See the pace curve')
+        .every((summary) => summary.closest('.stat-tile') !== null),
+    ).toBe(true)
+  })
+
+  it('keeps the energy rate and the metabolic wording off Balance while the grades are on it', () => {
+    const { container } = full()
+    expect(container.textContent).not.toMatch(/energy rate|energy per kilogram|metabolic/i)
+  })
+
+  it('holds to a handful of headed parts above the charts, and no more', () => {
+    const { container } = full()
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    const chartsAt = container.querySelector('.balance__panel, [aria-labelledby="balance-trend"]')
+    const before = Array.from(container.querySelectorAll('h2, h3'))
+      .filter(
+        (heading) =>
+          chartsAt !== null &&
+          heading.compareDocumentPosition(chartsAt) & Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+      .map((heading) => {
+        // A defined term's note sits in its heading's markup, shown on a press: it is not the heading's text.
+        const copy = heading.cloneNode(true) as HTMLElement
+        copy.querySelectorAll('.definition__note').forEach((note) => note.remove())
+        return copy.textContent
+      })
+    // The scale, the share sheet's heading, the four tiles, and the one prompt for heart rate: nothing else.
+    expect(before).toEqual([
+      'Where you stand',
+      'Share image',
+      'Headline numbers',
+      'Run threshold',
+      'Ride threshold',
+      'Lean',
+      'Ride on foot',
+      'Add heart rate to sharpen this',
+    ])
+  })
+
+  it('states the gap in points in the figure, the scale and the lean tile, and writes it as a sentence once', () => {
+    const { container } = full()
+    const lede = container.querySelector('.balance-hero__lede')?.cloneNode(true) as HTMLElement
+    lede.querySelectorAll('.definition__note').forEach((note) => note.remove())
+    expect(lede.textContent).toMatch(/age grade is \d+ points? higher than cycling’s at 20.min\./)
+    const sentences = (container.textContent ?? '').match(/points? higher than/g) ?? []
+    // Once in the lede; the description of the drawing words it as "grades", not as the lede does.
+    expect(sentences).toHaveLength(1)
+  })
+
+  it('explains the trend’s latest point against the period’s best, in the trend’s own note', () => {
+    full()
+    expect(
+      screen.getByText(
+        /The latest point covers only the last .*, so it can differ from your best over the whole period\./,
+      ),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('BalancePage with one sport', () => {
+  it('draws the one sport’s level as a lane of its own under the line that asks for the other', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    const result = makeResult({
+      activities: [run],
+      runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      comparison: { prior: [], calibrated: null },
+    })
+    const { container } = renderPage(result, { state: { library: [run] } }, MAN_BORN_1986)
+    expect(
+      screen.getByRole('heading', { level: 1, name: /^Your running is at Local level\./ }),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('.balance-scale')).toHaveLength(1)
+    expect(container.querySelector('[data-sport="run"][data-kind="dot"]')).not.toBeNull()
+    expect(container.querySelector('.balance-scale [data-sport="ride"]')).toBeNull()
+    expect(container.querySelector('.balance-scale__bracket')).toBeNull()
+    expect(
+      screen.getByRole('img', { name: /^Age-grade level of your best 20 min\. Run \d+ percent/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('draws no scale for the one sport while its grade is missing', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    const { container } = renderPage(
+      makeResult({ activities: [run], comparison: { prior: [], calibrated: null } }),
+      {
+        state: { library: [run] },
+      },
+    )
+    expect(container.querySelector('.balance-scale')).toBeNull()
   })
 })

@@ -5,6 +5,7 @@ import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
 import { Crosshair } from './Crosshair'
+import { SportLabels } from './GradeProfileLabels'
 import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import type { ChartSize } from './chartTypes'
 import { DURATION_AXIS_TITLE, profileLayout, rowsOf } from './gradeProfileLayout'
@@ -29,9 +30,10 @@ export interface GradeProfileChartProps {
 }
 
 /**
- * Each sport's age grade at every duration from 3 min to 3 h, on one scale. A recorded grade is a solid
- * line with dots. An estimate, as a ride's is, is dashed with a ring at each duration and a band for its
- * range. The 20 minute grade, the one the balance is taken at, is the larger mark.
+ * Each sport's age grade at every duration from 3 min to 3 h, on one scale, titled by its finding. A recorded
+ * grade is a solid line with dots. An estimate, as a ride's is, is a line with a ring at each duration and a
+ * band for its range, drawn under the run. The 20 minute grade, the one the balance is taken at, is the larger
+ * mark, and is labelled directly.
  */
 export function GradeProfileChart({ profile, finding }: GradeProfileChartProps) {
   const rows = rowsOf(profile)
@@ -44,8 +46,7 @@ export function GradeProfileChart({ profile, finding }: GradeProfileChartProps) 
 
   return (
     <ChartFrame
-      title={GRADE_PROFILE_TITLE}
-      lede={finding}
+      title={finding ?? GRADE_PROFILE_TITLE}
       description={descriptionOf(profile)}
       legend={hasData ? legendOf(profile) : undefined}
       note={hasData && anyRange ? GRADE_PROFILE_NOTE : undefined}
@@ -101,9 +102,11 @@ export function GradeProfileChart({ profile, finding }: GradeProfileChartProps) 
                   d={gappedBandPath(marks.high, marks.low)}
                 />
               ))}
-            {m.marks.map((marks) => (
+            {/* The run is the recorded line, so it is drawn last, over the estimate and its band. */}
+            {[...m.marks].reverse().map((marks) => (
               <SportLayer key={marks.sport} marks={marks} radiusAt={radiusAt} />
             ))}
+            <SportLabels labels={m.labels} />
           </>
         )
       }}
@@ -124,7 +127,7 @@ function SportLayer({ marks, radiusAt }: SportLayerProps) {
       <path
         data-testid="profile-line"
         data-sport={sport}
-        className={`chart-series__line chart-series__line--${sport}${ranged ? ' chart-series__line--estimate' : ''}`}
+        className={`chart-series__line chart-series__line--${sport}`}
         d={linePath(marks.centre)}
       />
       {marks.centre.map((point, index) =>

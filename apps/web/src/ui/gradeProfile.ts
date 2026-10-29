@@ -8,7 +8,7 @@ import { balanceGap } from './balanceGap'
 import { sportGrade } from './grades'
 import type { AgeProfile, SportGrade } from './grades'
 import { effortLabel } from './records'
-import { SPORT_NOUN, SPORT_ORDER } from './sports'
+import { SPORT_NOUN, SPORT_ORDER, SPORT_TITLE } from './sports'
 
 /** A sport's age grade at one duration: a run is a point, and a ride carries its range. */
 export interface ProfilePoint {
@@ -109,21 +109,17 @@ export function profileSeparated(profile: GradeProfile): boolean {
   return profileLeans(profile).some((pairing) => pairing.lean !== 'even')
 }
 
-/** The sport that is not this one, among the two the page compares. */
-function otherThan(sport: Sport): Sport {
-  return SPORT_ORDER[0] === sport ? SPORT_ORDER[1] : SPORT_ORDER[0]
-}
-
 /**
  * Durations over which one sport leads, from the first to the last of them. Durations where the two are
  * even between them are not a break, since a grade at the edge of a range flips with a rounding; they are
- * listed in `apart`.
+ * listed in `apart`, and `led` counts the durations the sport leads at.
  */
 interface Stretch {
   sport: Sport
   fromS: number
   toS: number
   apart: number[]
+  led: number
 }
 
 /** The stretches where each sport leads, merging a sport's leads that only even durations separate. */
@@ -139,111 +135,71 @@ function stretchesOf(pairings: readonly Lean[]): Stretch[] {
     if (last !== undefined && last.sport === lean) {
       last.apart.push(...even)
       last.toS = durationS
-    } else stretches.push({ sport: lean, fromS: durationS, toS: durationS, apart: [] })
+      last.led += 1
+    } else stretches.push({ sport: lean, fromS: durationS, toS: durationS, apart: [], led: 1 })
     even = []
   }
   return stretches
 }
 
-/** The middle of the gaps' sizes in whole points, and never under one: a sport that leads does so by a point. */
-function medianGap(pairings: readonly Lean[]): number {
-  const sizes = pairings.map((pairing) => Math.abs(pairing.gap)).sort((a, b) => a - b)
-  const middle = sizes.length / 2
-  const median = ((sizes[Math.floor(middle)] ?? 0) + (sizes[Math.ceil(middle) - 1] ?? 0)) / 2
-  return Math.max(1, Math.round(median))
+/**
+ * The stretches a finding may name: one that a sport leads at two durations or more. A lead at one duration
+ * is noise, since a grade at the edge of a range flips with a rounding, so it is not named and does not break
+ * the stretch around it: the sport's stretches either side of it are one.
+ */
+function namedStretches(pairings: readonly Lean[]): Stretch[] {
+  const merged: Stretch[] = []
+  for (const stretch of stretchesOf(pairings).filter((each) => each.led >= 2)) {
+    const last = merged.at(-1)
+    if (last !== undefined && last.sport === stretch.sport) {
+      // What lay between the two, a dropped lead of the other sport or a duration within range, is an exception.
+      const between = pairings
+        .map((pairing) => pairing.durationS)
+        .filter((durationS) => durationS > last.toS && durationS < stretch.fromS)
+      last.apart.push(...between, ...stretch.apart)
+      last.toS = stretch.toS
+      last.led += stretch.led
+    } else merged.push({ ...stretch })
+  }
+  return merged
 }
 
-/** The gap must change by this many points from the shortest shared duration to the longest to count as a shape. */
-const SHAPE_POINTS = 4
-
-/** How the gap changes from the shortest shared duration to the longest, as a clause. */
-function shapeText(pairings: readonly Lean[]): string {
-  const size = (pairing: Lean | undefined) => Math.abs(pairing?.gap ?? 0)
-  const change = size(pairings.at(-1)) - size(pairings[0])
-  if (change >= SHAPE_POINTS) return ', and the gap widens toward longer efforts'
-  if (change <= -SHAPE_POINTS) return ', and the gap narrows toward longer efforts'
-  return ', by a steady margin'
-}
-
-/** Durations in words: "30 min", "30 and 45 min", "20, 30 and 45 min". */
-function listText(durations: readonly number[]): string {
-  const [only, ...rest] = durations
-  if (only !== undefined && rest.length === 0) return effortLabel(only)
-  const minutes = durations.map((durationS) => durationS / 60)
-  return `${minutes.slice(0, -1).join(', ')} and ${minutes.at(-1)} min`
-}
-
-/** Where a stretch is, in words: up to its end, from its start on, at one, or between two; its dips named. */
+/** Where a stretch is, in words: the whole range of durations, or its first to its last: "15 to 45 min". */
 function whereText(stretch: Stretch, firstS: number, lastS: number): string {
   const { fromS, toS, apart } = stretch
-  let where = `from ${fromS / 60} to ${effortLabel(toS)}`
-  if (fromS === firstS) where = `up to ${effortLabel(toS)}`
-  else if (toS === lastS) where = `from ${effortLabel(fromS)} on`
-  else if (fromS === toS) where = `at ${effortLabel(fromS)}`
-  return apart.length === 0 ? where : `${where}, apart from ${listText(apart)}`
+  if (fromS === firstS && toS === lastS) return apart.length === 0 ? 'every length' : 'most lengths'
+  return `${fromS / 60} to ${effortLabel(toS)}`
 }
 
-/** The sport that leads at every shared duration, with how far and how the gap changes, as one sentence. */
-function steadyText(sport: Sport, pairings: readonly Lean[]): string {
-  const points = medianGap(pairings)
-  const firstS = pairings[0]?.durationS ?? 0
-  const lastS = pairings.at(-1)?.durationS ?? 0
-  const span = `at every duration from ${firstS / 60} to ${effortLabel(lastS)}`
-  const unit = points === 1 ? 'point' : 'points'
-  const how = `grades about ${points} ${unit} higher than your ${SPORT_NOUN[otherThan(sport)]}`
-  return `Your ${SPORT_NOUN[sport]} ${how} ${span}${shapeText(pairings)}.`
-}
-
-/** Said after the stretches that lead, so the durations they leave out are not left unsaid. */
-const ELSEWHERE_WITHIN = '; elsewhere the range of the gap reaches zero'
-
-/**
- * The stretches where a sport leads, such as "Your cycling grades higher up to 7 min, your running from 10
- * min on". A sport's stretches that only even durations separate are one, naming the durations between.
- */
-function stretchesText(stretches: readonly Stretch[], firstS: number, lastS: number): string {
-  return stretches
-    .map((stretch, index) => {
-      const noun = SPORT_NOUN[stretch.sport]
-      const lead = index === 0 ? `Your ${noun} grades higher` : `your ${noun}`
-      return `${lead} ${whereText(stretch, firstS, lastS)}`
-    })
-    .join(', ')
-}
-
-/** The sport whose grades are estimates, drawn with a range: a ride's, graded through its running equivalent. */
-function estimatedSport(profile: GradeProfile): Sport | null {
-  return (
-    SPORT_ORDER.find((sport) => profile[sport].some((point) => point.grade.range !== null)) ?? null
-  )
-}
-
-/** The sentence for sports that no duration separates: at every duration the range of the gap reaches zero. */
-function noneSeparate(profile: GradeProfile, firstS: number, lastS: number): string {
-  const estimated = estimatedSport(profile)
-  const span = `at every duration from ${firstS / 60} to ${effortLabel(lastS)}`
-  const reason = estimated === null ? 'the two grade the same' : 'the range of the gap reaches zero'
-  return `${span[0]!.toUpperCase()}${span.slice(1)} ${reason}.`
+/** A sport's name as the subject of a title: "Running", "Cycling". */
+function subject(sport: Sport): string {
+  return SPORT_TITLE[sport]
 }
 
 /**
- * One plain sentence on how the sports compare across durations, from the grades the headline uses at
- * the durations both have, or null when fewer than two are graded in both, which is too few to say
- * anything the balance at 20 min does not. A sport is higher at a duration only where its grade is
- * outside the other's range, by the range alone; at the rest the range of the gap reaches zero. The headline
- * leads by its estimate and states its range, so this line speaks only of ranges. When one sport is outside
- * the range at every duration it says by how much and how the gap changes. Otherwise it names the
- * stretches where a sport is higher, and that the range of the gap reaches zero elsewhere.
+ * One plain clause on how the sports compare across durations, from the grades the headline uses at the
+ * durations both have, or null when fewer than two are graded in both, which is too few to say anything the
+ * balance at 20 min does not. A sport is higher at a duration only where its grade is outside the other's range,
+ * by the range alone. A lead at a single duration is noise and is not mentioned, nor is a dip inside a lead.
+ * With no sport higher at two durations or more the sports "grade alike", at most lengths where a lead was
+ * dropped as noise. Otherwise the clause names where a sport is higher, and a second sport after it where it is
+ * higher at two durations too: "Running grades higher at 15 to 45 min".
  */
 export function profileFinding(profile: GradeProfile): string | null {
   const pairings = profileLeans(profile)
   const firstS = pairings[0]?.durationS
   const lastS = pairings.at(-1)?.durationS
   if (pairings.length < 2 || firstS === undefined || lastS === undefined) return null
-  const stretches = stretchesOf(pairings)
-  const [only] = stretches
-  if (only === undefined) return noneSeparate(profile, firstS, lastS)
-  const everyOutside = pairings.every((pairing) => pairing.lean !== 'even')
-  if (everyOutside && stretches.length === 1) return steadyText(only.sport, pairings)
-  return `${stretchesText(stretches, firstS, lastS)}${everyOutside ? '' : ELSEWHERE_WITHIN}.`
+  const named = namedStretches(pairings)
+  const [first, ...rest] = named
+  if (first === undefined) {
+    const anyLead = pairings.some((pairing) => pairing.lean !== 'even')
+    const [one, other] = SPORT_ORDER
+    return `${SPORT_TITLE[one]} and ${SPORT_NOUN[other]} grade alike${anyLead ? ' at most lengths' : ''}`
+  }
+  const later = rest.map(
+    (stretch) => `${SPORT_NOUN[stretch.sport]} at ${whereText(stretch, firstS, lastS)}`,
+  )
+  const lead = `${subject(first.sport)} grades higher at ${whereText(first, firstS, lastS)}`
+  return [lead, ...later].join(', ')
 }

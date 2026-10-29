@@ -43,15 +43,41 @@ function rangeOf(
   return `Range ${from} to ${to}`
 }
 
+/** A threshold's range as numbers: the critical power at each end and at the centre, for a drawing. */
+interface RangeCps {
+  low: number
+  centre: number
+  high: number
+  /** True for the fit's standard-error spread either side of the threshold; false for the run to an uneven fit. */
+  spread: boolean
+}
+
+/**
+ * The critical powers a threshold's range spans, or null where it has none. When the sport has an uneven
+ * fit, the range runs from the main threshold to the uneven one, since the bests that were left out only
+ * set a floor. With the main threshold refused, its low end is that floor, the lowest bests left out.
+ * Otherwise it is the standard error of the critical-power fit either side of the critical power, a rough
+ * spread of the fit rather than a confidence interval. Null without a fit or a floor; when the low end is
+ * not above resting metabolic rate, since a work rate that low is no estimate of a threshold; and, for a
+ * ride's standard-error range only, when its fit draws on an effort whose watts are estimated.
+ */
+function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
+  const fit = { run: result.runCp, ride: result.rideCp }[sport]
+  const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
+  if (uneven) {
+    const low = fit ? fit.cp : uneven.floor
+    if (!(low > RESTING_W_PER_KG) || !(uneven.fit.cp > low)) return null
+    return { low, centre: low, high: uneven.fit.cp, spread: false }
+  }
+  if (!fit || (sport === 'ride' && fitRestsOnEstimate(result))) return null
+  if (!(fit.cp - fit.cpSe > RESTING_W_PER_KG)) return null
+  return { low: fit.cp - fit.cpSe, centre: fit.cp, high: fit.cp + fit.cpSe, spread: true }
+}
+
 /**
  * The threshold's range as a line, in the sport's own unit, such as "Range 22:58 to 23:49 /km" or
- * "Range 48 to 49 W", or "About 48 W" when both ends print the same. When the
- * sport has an uneven fit, the range runs from the main threshold to the uneven one, since the bests that were
- * left out only set a floor. With the main threshold refused, its low end is that floor, the lowest bests left
- * out. Otherwise it is the standard error of the critical-power fit either side of the critical power, a rough
- * spread of the fit rather than a confidence interval. Null without a fit or a floor; when the low end is not
- * above resting metabolic rate, since a work rate that low is no estimate of a threshold; and, for a ride's
- * standard-error range only, when its fit draws on an effort whose watts are estimated.
+ * "Range 48 to 49 W", or "About 48 W" when both ends print the same. What the range is, and when it is
+ * left out, is `rangeCps`.
  */
 export function thresholdRange(
   result: AnalysisResult,
@@ -59,14 +85,42 @@ export function thresholdRange(
   massKg: number,
   units: UnitSystem,
 ): string | null {
-  const fit = { run: result.runCp, ride: result.rideCp }[sport]
-  const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
-  if (uneven) {
-    const low = fit ? fit.cp : uneven.floor
-    if (!(low > RESTING_W_PER_KG) || !(uneven.fit.cp > low)) return null
-    return rangeOf(sport, low, uneven.fit.cp, massKg, units)
-  }
-  if (!fit || (sport === 'ride' && fitRestsOnEstimate(result))) return null
-  if (!(fit.cp - fit.cpSe > RESTING_W_PER_KG)) return null
-  return rangeOf(sport, fit.cp - fit.cpSe, fit.cp + fit.cpSe, massKg, units)
+  const cps = rangeCps(result, sport)
+  return cps === null ? null : rangeOf(sport, cps.low, cps.high, massKg, units)
+}
+
+/**
+ * The threshold's range as a track to draw: its two ends in reading order, each with the figure printed
+ * there and the critical power it sits at, and where the threshold itself sits between them. A running
+ * range reads from its faster end, so its first end is the higher critical power. Null where the range is.
+ */
+export interface ThresholdSpan {
+  ends: [first: { text: string; cp: number }, second: { text: string; cp: number }]
+  /** The threshold's critical power, between the two ends. */
+  centreCp: number
+  /**
+   * Whether the range is the fit's standard-error spread, a rough spread of the fit and not a confidence
+   * interval, so a drawing labels it "fit spread" and keeps it lighter than a 90% range.
+   */
+  spread: boolean
+}
+
+export function thresholdSpan(
+  result: AnalysisResult,
+  sport: Sport,
+  massKg: number,
+  units: UnitSystem,
+): ThresholdSpan | null {
+  const cps = rangeCps(result, sport)
+  if (cps === null) return null
+  const figure = (cp: number) =>
+    ({
+      run: paceFigure(cp, units),
+      ride: powerFigure(metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean)),
+    })[sport]
+  const low = { text: figure(cps.low).number, cp: cps.low }
+  const high = { text: figure(cps.high).number, cp: cps.high }
+  // A faster pace is the higher work rate, so a running range reads from its faster end.
+  const ends = { run: [high, low], ride: [low, high] } as const
+  return { ends: [...ends[sport]], centreCp: cps.centre, spread: cps.spread }
 }
