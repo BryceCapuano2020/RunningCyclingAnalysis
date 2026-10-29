@@ -7,6 +7,13 @@ import { TOUCH_QUERY } from '../useMediaQuery'
 import { HISTORY_ADVICE } from '../exportGuides'
 import { LandingPage } from './LandingPage'
 
+/** A row's words as read, without the notes its defined terms keep in the markup. */
+function spoken(row: Element): string {
+  const copy = row.cloneNode(true) as HTMLElement
+  copy.querySelectorAll('.definition__note').forEach((note) => note.remove())
+  return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
+}
+
 afterEach(() => {
   cleanup()
   noMatchMedia()
@@ -39,7 +46,7 @@ describe('LandingPage on a touch screen', () => {
   it('puts the two actions directly under the pitch, ahead of the example, the sample first', () => {
     touchScreen()
     const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+      <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
     const start = container.querySelector('.landing__start')
     expect(start).toHaveClass('landing__start--touch')
@@ -60,7 +67,7 @@ describe('LandingPage on a touch screen', () => {
   it('offers only Add files, as the primary action, to a signed-in visitor', () => {
     touchScreen()
     const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn units="metric" onFiles={vi.fn()} />,
+      <LandingPage analysis={analysisStub()} signedIn onFiles={vi.fn()} />,
     )
     const zone = container.querySelector('.dropzone--touch') as HTMLElement
     expect(within(zone).getByRole('button', { name: 'Add files' })).toHaveClass('btn-primary')
@@ -70,9 +77,7 @@ describe('LandingPage on a touch screen', () => {
 
 describe('LandingPage', () => {
   it('asks which sport the visitor is better at, as the focusable page heading', () => {
-    render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
-    )
+    render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
 
     const heading = screen.getByRole('heading', {
       level: 1,
@@ -83,9 +88,7 @@ describe('LandingPage', () => {
   })
 
   it('says what to bring and what comes back in one sentence, ending on the privacy promise', () => {
-    render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
-    )
+    render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
     expect(
       screen.getByText(
         'Drop in your Strava or Garmin export or watch files to see your level in each sport for your age, with honest ranges. Nothing leaves your device.',
@@ -94,7 +97,7 @@ describe('LandingPage', () => {
   })
 
   it('does not promise that nothing leaves the device to a signed-in visitor, whose summaries are stored', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn units="metric" onFiles={vi.fn()} />)
+    render(<LandingPage analysis={analysisStub()} signedIn onFiles={vi.fn()} />)
     expect(screen.queryByText(/Nothing leaves your device/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
@@ -105,7 +108,7 @@ describe('LandingPage', () => {
 
   it('puts the example before the drop zone on a pointer, where they sit side by side', () => {
     const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+      <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
     const [first, second] = Array.from(container.querySelector('.landing__start')?.children ?? [])
     expect(first).toHaveClass('landing-example')
@@ -118,7 +121,7 @@ describe('LandingPage', () => {
       <LandingPage
         analysis={analysisStub({ loadSample })}
         signedIn={false}
-        units="metric"
+
         onFiles={vi.fn()}
       />,
     )
@@ -133,7 +136,7 @@ describe('LandingPage', () => {
       <LandingPage
         analysis={analysisStub({ busy: true })}
         signedIn={false}
-        units="metric"
+
         onFiles={vi.fn()}
       />,
     )
@@ -142,7 +145,7 @@ describe('LandingPage', () => {
   })
 
   it('leaves the sample out for a signed-in user', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn units="metric" onFiles={vi.fn()} />)
+    render(<LandingPage analysis={analysisStub()} signedIn onFiles={vi.fn()} />)
     expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Try the sample while you wait' }),
@@ -155,7 +158,7 @@ describe('LandingPage', () => {
       <LandingPage
         analysis={analysisStub({ loadSample })}
         signedIn={false}
-        units="metric"
+
         onFiles={vi.fn()}
       />,
     )
@@ -168,7 +171,7 @@ describe('LandingPage', () => {
 
   it('lists the three steps in order, each with its explanation', () => {
     const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+      <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
 
     const list = container.querySelector('.app__steps')
@@ -193,7 +196,7 @@ describe('LandingPage', () => {
 
   it('says in step 2 what the app asks for, and why each answer is needed', () => {
     const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+      <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
     const list = container.querySelector('.app__steps')
     if (!list) throw new Error('No steps list')
@@ -207,7 +210,7 @@ describe('LandingPage', () => {
 
   it('says how much history to bring once, in the drop zone, and not again in step 1', () => {
     const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+      <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
     const list = container.querySelector('.app__steps')
     if (!list) throw new Error('No steps list')
@@ -218,9 +221,7 @@ describe('LandingPage', () => {
   })
 
   it('moves focus to the export guides from the drop zone, without changing the hash route', () => {
-    render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
-    )
+    render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
     const hash = window.location.hash
     fireEvent.click(screen.getByRole('button', { name: 'No files yet? How to get them' }))
     expect(screen.getByRole('heading', { level: 2, name: 'How to get your files' })).toHaveFocus()
@@ -228,43 +229,29 @@ describe('LandingPage', () => {
   })
 
   it('offers how to get the files after the steps, in a section of its own', () => {
-    render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
-    )
+    render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
     expect(screen.getByRole('region', { name: 'How to get your files' })).toBeInTheDocument()
   })
 
-  it('shows the example result as Balance’s level scale: the lean, each sport’s level and best 20 minutes', () => {
-    render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
-    )
+  it('shows the example result as Balance’s meter and levels: the lean, its range, and each sport’s grade and level', () => {
+    render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
 
     const example = exampleFigure()
     expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
-    expect(within(example).getByText(/^11 pts toward running · 90% range/)).toBeInTheDocument()
-    expect(within(example).getByText(/^Local · 3:56 \/km on your best 20 min$/)).toBeInTheDocument()
-    expect(within(example).getByText(/^Recreational to Local · 243 W/)).toBeInTheDocument()
+    expect(example.querySelector('.balance-meter__value')?.textContent).toBe('+11pts')
+    expect(example.querySelector('.balance-meter__edges')?.textContent).toBe('6 to 16')
+    const rows = [...example.querySelectorAll('.balance-levels__row')].map(spoken)
+    expect(rows).toEqual(['Running 67% Local', 'Cycling 56% Recreational to Local'])
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()
-    // The drawing is named for a screen reader, and its marks are the sports': a dot, and a ring over a band.
+    // The line is named for a screen reader.
     expect(
-      within(example).getByRole('img', { name: /^Age-grade level of your best 20 min\./ }),
-    ).toBeInTheDocument()
-    expect(example.querySelector('.balance-scale__dot')).not.toBeNull()
-    expect(example.querySelector('.balance-scale__ring')).not.toBeNull()
-  })
-
-  it('gives the example pace per mile for imperial', () => {
-    render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="imperial" onFiles={vi.fn()} />,
-    )
-    expect(
-      within(exampleFigure()).getByText(/^Local · 6:19 \/mi on your best 20 min$/),
+      within(example).getByRole('img', { name: /^Running grades 11 points higher than cycling/ }),
     ).toBeInTheDocument()
   })
 
   it('explains the result in three plain sentences, with a link to the full method', () => {
     const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+      <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
     const section = container.querySelector('.landing__method')
     if (!section) throw new Error('No method section')
@@ -276,7 +263,7 @@ describe('LandingPage', () => {
 
   it('says how the result is worked out in plain words, without the jargon', () => {
     const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+      <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
     const section = container.querySelector('.landing__method')
     if (!section) throw new Error('No method section')
@@ -286,9 +273,7 @@ describe('LandingPage', () => {
   })
 
   it('no longer opens the full methodology accordion on the landing page', () => {
-    render(
-      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
-    )
+    render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
     expect(
       screen.queryByRole('heading', { name: 'How this works and what it assumes' }),
     ).not.toBeInTheDocument()

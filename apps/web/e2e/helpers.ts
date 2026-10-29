@@ -102,6 +102,9 @@ export async function openSample(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE, {
     timeout: SAMPLE_READY_MS,
   })
+  // Test only: the pointer is left where the button was, and a mouse resting on a term defined in place opens its
+  // note, which would cover what the test clicks next. A phone has no resting pointer (Definition ignores touch).
+  await page.mouse.move(0, 0)
 }
 
 /** The setup dialog's name. It has one heading for every visitor. */

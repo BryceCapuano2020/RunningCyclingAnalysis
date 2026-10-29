@@ -4,7 +4,6 @@ import type { BalanceGap } from '../balanceGap'
 import { interval } from './fixtures'
 import {
   SCALE_SPAN,
-  SCALE_TICKS,
   balanceReading,
   bandSpan,
   cappedEnds,
@@ -54,13 +53,6 @@ describe('meterFraction', () => {
   it('draws a lead past the span at the same end as the span itself', () => {
     expect(meterFraction(45)).toBe(meterFraction(SCALE_SPAN))
     expect(meterFraction(-99)).toBe(meterFraction(-SCALE_SPAN))
-  })
-})
-
-describe('SCALE_TICKS', () => {
-  it('prints ticks at 10, 20 and 30, and the last one is the span itself', () => {
-    expect([...SCALE_TICKS]).toEqual([10, 20, 30])
-    expect(SCALE_TICKS.at(-1)).toBe(SCALE_SPAN)
   })
 })
 

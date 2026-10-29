@@ -44,7 +44,7 @@ export interface RangePickerProps {
   /** What is counted; the activities unless a sport page says otherwise. */
   noun?: keyof typeof NOUNS
   /**
-   * The compact form Balance sets under its scoreboard: the legend hidden (the group is still named), the chips
+   * The compact form Balance sets under its levels: the legend hidden (the group is still named), the chips
    * tight, and the dates, the count and the note on one line under them.
    */
   compact?: boolean

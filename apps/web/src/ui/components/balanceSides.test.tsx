@@ -28,7 +28,7 @@ describe('every surface writes a balance from the same side', () => {
     expect(balanceSummary(reading, 1200)).toContain(`within ${RANGE}`)
     expect(balanceSentence(reading)).toBe(`In balance: cycling 2 points higher, range ${RANGE}`)
     const { container } = render(<BalanceMeter reading={reading} />)
-    expect(container.querySelector('.balance-meter__key')?.textContent).toContain(RANGE)
+    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('−2 to +6')
   })
 
   it('writes it the same way in the import summary', () => {

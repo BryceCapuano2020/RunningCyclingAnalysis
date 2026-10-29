@@ -1,38 +1,44 @@
 import type { Sport } from '@rca/core/types'
-import type { UnitSystem } from '@rca/core/units'
-import { formatPace } from '@rca/core/units'
+import { BalanceMeter } from '../components/BalanceMeter'
 import { gapReading } from '../components/balanceScale'
 import { balanceTitle } from '../components/headlineText'
+import type { GradeOutcome } from '../grades'
 import { LANDING_EXAMPLE } from '../landingExample'
 import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
 import { SPORT_ORDER } from '../sports'
-import { BalanceScale } from './BalanceScale'
-import { laneOf, modelOf } from './balanceScaleModel'
+import { balanceLevels } from './levelsModel'
+import { BalanceLevels } from './BalanceLevels'
 import './LandingExample.css'
 
-/** The figure of each sport's best 20 minutes as its lane prints it: a pace in the reader's units, or watts. */
-const EFFORT: Record<Sport, (units: UnitSystem) => string> = {
-  run: (units) => formatPace(LANDING_EXAMPLE.best20.runSpeedMs, units),
-  ride: () => `${LANDING_EXAMPLE.best20.rideWatts} W`,
+/** The sample athlete's age on the newest effort, which the example's grades are taken at. */
+const SAMPLE_AGE = 37
+
+/** The example's grades as the page holds them: both graded, so the levels name each. */
+const GRADES: Record<Sport, GradeOutcome> = {
+  run: { kind: 'graded', age: SAMPLE_AGE, grade: LANDING_EXAMPLE.grades.run },
+  ride: { kind: 'graded', age: SAMPLE_AGE, grade: LANDING_EXAMPLE.grades.ride },
 }
 
 /**
- * An example of the Balance screen, drawn from the sample athlete: the answer's headline over the real level
- * scale, made from the sample's own figures with the same model and drawing Balance uses, so the example cannot
- * drift from the screen it stands for. It is the landing page's hero visual, labelled illustrative, and names
- * the sample.
+ * An example of the Balance screen, drawn from the sample athlete: the answer's headline over the real meter
+ * and the real levels line, made from the sample's own figures with the same components Balance uses, so the
+ * example cannot drift from the screen it stands for. It is the landing page's hero visual, labelled
+ * illustrative, and names the sample.
  */
-export function LandingExample({ units }: { units: UnitSystem }) {
+export function LandingExample() {
   const reading = gapReading(LANDING_EXAMPLE.gap)
-  const lanes = SPORT_ORDER.map((sport) =>
-    laneOf(sport, LANDING_EXAMPLE.grades[sport], EFFORT[sport](units)),
-  )
-  const model = modelOf(lanes, reading, null)
+  const levels = balanceLevels({
+    grades: GRADES,
+    sports: SPORT_ORDER,
+    inPeriod: { run: 1, ride: 1 },
+    missingAge: null,
+  })
   return (
     <figure className="landing-example">
       <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`}</figcaption>
       <p className="landing-example__title">{balanceTitle(reading)}</p>
-      {model === null ? null : <BalanceScale model={model} />}
+      <BalanceMeter reading={reading} />
+      <BalanceLevels model={levels} />
     </figure>
   )
 }

@@ -12,8 +12,6 @@ import { headlinePick } from '../ui/components/pickHeadline'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
 import { heroGradeLine, LEVEL_NOT_RANKING, type GradeOutcome } from '../ui/grades'
-import { scaleModel } from '../ui/pages/balanceScaleModel'
-import type { ShareScale } from './cardScale'
 import { countSport, threshold } from '../ui/records'
 import { SPORT_ORDER, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
 import { cardNameShown } from './cardName'
@@ -57,18 +55,10 @@ export interface ShareCardModel {
   title: string
   /** The answer in an athlete's words, as the page states it. */
   headline: string
-  /**
-   * The lead in one line under the headline, as the page's meter states it; null for an even balance, and
-   * null with a level scale, whose bracket states the lead.
-   */
+  /** The lead in one line under the headline, as the page's meter states it; null for an even balance. */
   magnitude: string | null
   /** The balance, or null when the card has no meter. */
   meter: ShareMeter | null
-  /**
-   * The level scale the page draws, with both sports' grades, or null when a sport has none; the card then
-   * draws the meter. It holds the page's own whole percents, so the card cannot disagree with the page.
-   */
-  scale: ShareScale | null
   /** Running first, then cycling. */
   heroes: ShareHero[]
   /** The selected period, such as "Last 6 weeks". */
@@ -150,7 +140,6 @@ function heroFor(
   settings: AthleteSettings,
   units: UnitSystem,
   outcome: GradeOutcome | null,
-  gradeShown: boolean,
 ): ShareHero | null {
   const estimate = threshold(result, sport, settings.massKg, units)
   if (estimate === null) return null
@@ -160,7 +149,7 @@ function heroFor(
     label: `${CARD_THRESHOLD_LABEL[sport]} from your best ${THRESHOLD_EFFORT_TEXT}`,
     figure: splitFigure(estimate.value),
     sub: estimate.sub,
-    grade: gradeShown && outcome?.kind === 'graded' ? heroGradeLine(outcome.grade) : null,
+    grade: outcome?.kind === 'graded' ? heroGradeLine(outcome.grade) : null,
   }
 }
 
@@ -170,11 +159,10 @@ function heroesFor(
   settings: AthleteSettings,
   units: UnitSystem,
   grades: Record<Sport, GradeOutcome | null>,
-  gradeShown: boolean,
 ): ShareHero[] | null {
   const heroes: ShareHero[] = []
   for (const sport of SPORT_ORDER) {
-    const hero = heroFor(result, sport, settings, units, grades[sport], gradeShown)
+    const hero = heroFor(result, sport, settings, units, grades[sport])
     if (hero === null) return null
     heroes.push(hero)
   }
@@ -206,13 +194,7 @@ export function buildShareCard(
   if (!hasShareableContent(result, gap, weightKnown)) return null
   const pick = headlinePick(result)
   const reading = balanceOfPick(gap, pick)
-  // The level scale names each grade and level, so a hero's own grade line would say them twice.
-  const built =
-    reading?.unit === 'points'
-      ? scaleModel({ grades, reading, target: null, result, massKg: settings.massKg, units })
-      : null
-  const scale = built === null || built.gap === null ? null : { ...built, gap: built.gap }
-  const heroes = heroesFor(result, settings, units, grades, scale === null)
+  const heroes = heroesFor(result, settings, units, grades)
   if (reading === null || heroes === null) return null
   const counts: Record<Sport, number> = {
     run: countSport(result.activities, 'run'),
@@ -222,16 +204,12 @@ export function buildShareCard(
   return {
     title: APP_WORDS,
     headline: balanceTitle(reading),
-    magnitude: scale === null ? leadSentence(reading) : null,
+    magnitude: leadSentence(reading),
     meter: reading,
-    scale,
     heroes,
     period: periodLine(period, counts),
     caveat: effortCaveat(effort)?.short ?? null,
-    footnote:
-      scale !== null || heroes.some((hero) => hero.grade !== null)
-        ? GRADED_FOOTNOTE
-        : ESTIMATE_FOOTNOTE,
+    footnote: heroes.some((hero) => hero.grade !== null) ? GRADED_FOOTNOTE : ESTIMATE_FOOTNOTE,
     origin: typeof window === 'undefined' ? '' : shareableHost(window.location.origin),
     badge: isSample ? 'Sample athlete' : null,
     name: cardNameShown(name ?? ''),

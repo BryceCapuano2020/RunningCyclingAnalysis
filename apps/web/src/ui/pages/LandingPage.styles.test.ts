@@ -62,7 +62,9 @@ describe('landing example', () => {
     expect(ruleBody(example, '.landing-example__sport')).toBe('')
   })
 
-  it('names the level scale it draws, in DESIGN.md', () => {
-    expect(design).toMatch(/landing example is drawn from the same sample[^.]*level scale/)
+  it('names the meter and levels it draws, in DESIGN.md', () => {
+    expect(design).toMatch(
+      /landing example is drawn from the same sample[^.]*meter and levels line/,
+    )
   })
 })

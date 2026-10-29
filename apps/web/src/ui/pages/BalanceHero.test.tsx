@@ -6,7 +6,8 @@ import type { BalanceGap } from '../balanceGap'
 import type { HeadlinePick } from '../components'
 import type { Interval } from '@rca/core/types'
 import { comparisonPoint, interval, makeActivity, makeResult } from '../components/fixtures'
-import { BalanceHero } from './BalanceHero'
+import { balanceOfPick } from '../components/balanceScale'
+import { BalanceHero, type BalanceHeroProps } from './BalanceHero'
 
 afterEach(() => {
   cleanup()
@@ -36,6 +37,17 @@ const ALL_TIME = {
   weightKnown: true,
 }
 
+type HeroProps = Omit<BalanceHeroProps, 'reading'> & { gap?: BalanceGap | null }
+
+/**
+ * The hero as the page renders it: the page works the balance out once, from the grade gap and the headline's
+ * comparison, and hands the hero the reading. The tests give the two and let the same rule decide.
+ */
+function Hero({ gap = null, ...props }: HeroProps) {
+  const reading = props.weightKnown ? balanceOfPick(gap, props.pick) : null
+  return <BalanceHero {...props} reading={reading} />
+}
+
 function pickFor(ratio: Interval): HeadlinePick {
   return { point: comparisonPoint({ ratio }), calibrated: false }
 }
@@ -57,7 +69,7 @@ function gradedGap(overrides: Partial<BalanceGap> = {}): BalanceGap {
 describe('BalanceHero answer on the energy ratio', () => {
   it('is the focusable page heading, titled with which way the balance leans', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -75,7 +87,7 @@ describe('BalanceHero answer on the energy ratio', () => {
 
   it('summarises the energy gap in one sentence under the heading', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -91,7 +103,7 @@ describe('BalanceHero answer on the energy ratio', () => {
 
   it('draws the energy gap as a meter named by the balance sentence', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -107,7 +119,7 @@ describe('BalanceHero answer on the energy ratio', () => {
 
   it('titles the balance as leaning toward cycling when cycling leads', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(0.75, 0.8, 0.9))}
@@ -129,7 +141,7 @@ describe('BalanceHero answer on the energy ratio', () => {
 
   it('draws a cycling lead as positive percentages of cycling, with the range from the inverse', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(0.75, 0.8, 0.9))}
@@ -145,7 +157,7 @@ describe('BalanceHero answer on the energy ratio', () => {
 
   it('says the two are in balance when the range spans 1', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(0.95, 1, 1.05))}
@@ -167,7 +179,7 @@ describe('BalanceHero answer on the energy ratio', () => {
 
   it('draws no card of its own, since the page supplies the card', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -179,7 +191,7 @@ describe('BalanceHero answer on the energy ratio', () => {
 
   it('never states a categorical superiority such as the best sport or all-out efforts', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(0.75, 0.8, 0.9))}
@@ -191,68 +203,70 @@ describe('BalanceHero answer on the energy ratio', () => {
 })
 
 describe('BalanceHero visual', () => {
-  it('draws the scale it is given under the answer, in place of the energy meter', () => {
-    const { container } = render(
-      <BalanceHero
+  it('draws the meter for a grade gap and for an energy balance alike, and nothing but the meter', () => {
+    const { container, rerender } = render(
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
         gap={gradedGap()}
-        scale={<figure data-testid="scale" />}
       />,
     )
-    expect(screen.getByTestId('scale')).toBeInTheDocument()
-    expect(container.querySelector('.balance-meter')).toBeNull()
+    expect(container.querySelectorAll('.balance-meter')).toHaveLength(1)
+    rerender(<Hero {...ALL_TIME} result={makeResult()} pick={pickFor(interval(1.05, 1.12, 1.2))} />)
+    expect(container.querySelectorAll('.balance-meter')).toHaveLength(1)
+    expect(container.querySelector('.balance-scale, .balance-hero__gap')).toBeNull()
   })
 
-  it('falls back to the meter when there is no scale, as with an energy balance', () => {
+  it('sets the meter under the lede, then the levels, then the period control, then the action', () => {
     const { container } = render(
-      <BalanceHero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={null}
-      />,
-    )
-    expect(container.querySelector('.balance-meter')).not.toBeNull()
-  })
-
-  it('sets the action under the visual, so the share button sits with what it shares', () => {
-    render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
         gap={gradedGap()}
-        scale={<figure data-testid="scale" />}
+        levels={<p data-testid="levels" />}
+        controls={<div data-testid="controls" />}
         action={<button type="button">Share image</button>}
       />,
     )
-    const action = screen.getByRole('button', { name: 'Share image' })
-    expect(action.previousElementSibling).toBe(screen.getByTestId('scale'))
+    const order = [
+      container.querySelector('.balance-hero__lede'),
+      container.querySelector('.balance-meter'),
+      screen.getByTestId('levels'),
+      screen.getByTestId('controls'),
+      screen.getByRole('button', { name: 'Share image' }),
+    ]
+    for (const [index, node] of order.entries()) {
+      const next = order[index + 1]
+      if (node === null || next === undefined || next === null) continue
+      expect(
+        node.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING,
+        `${index}`,
+      ).toBeTruthy()
+    }
+    expect(container.querySelector('.balance-hero__lede')).not.toBeNull()
   })
 })
 
-describe('BalanceHero scoreboard', () => {
-  it('sets the gap as a display figure, signed and labelled with its direction and range', () => {
+describe('BalanceHero answer', () => {
+  it('writes the gap once, in the meter at the dot: no separate scoreboard figure', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
         gap={gradedGap()}
       />,
     )
-    expect(container.querySelector('.balance-hero__number')).toHaveTextContent('+6')
-    expect(container.querySelector('.balance-hero__unit')).toHaveTextContent('pts')
-    expect(
-      container.querySelector('.balance-hero__note')?.textContent?.replaceAll('\u00a0', ' '),
-    ).toBe('toward running 90% range 2 to 10 points')
+    expect(container.querySelector('.balance-hero__number, .balance-hero__unit')).toBeNull()
+    expect(container.querySelector('.balance-meter__value')).toHaveTextContent('+6pts')
+    expect(container.querySelector('.balance-meter__edges')).toHaveTextContent('2 to 10')
   })
 
   it('underlines the sport the balance leans toward, in that sport’s colour, and no word when level', () => {
     const { container, rerender } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -263,7 +277,7 @@ describe('BalanceHero scoreboard', () => {
     expect(marked).toHaveTextContent('cycling')
     expect(marked).toHaveAttribute('data-sport', 'ride')
     rerender(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -275,7 +289,7 @@ describe('BalanceHero scoreboard', () => {
 
   it('names the period in the eyebrow: its length and its dates', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         period={SIX_WEEKS}
         result={makeResult()}
@@ -286,16 +300,16 @@ describe('BalanceHero scoreboard', () => {
     expect(container.querySelector('.eyebrow')?.textContent).toMatch(/^Balance · 6 weeks · 12 May/)
   })
 
-  it('defines age grade and the 90% range in place, each as a button with its note', () => {
+  it('defines age grade and the range in place, each as a button with its note', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
         gap={gradedGap()}
       />,
     )
-    for (const term of ['age grade', '90% range']) {
+    for (const term of ['age grade', 'range']) {
       const button = screen.getByRole('button', { name: term })
       expect(button).toHaveAttribute('aria-expanded', 'false')
       fireEvent.click(button)
@@ -310,7 +324,7 @@ describe('BalanceHero scoreboard', () => {
 describe('BalanceHero on the age-grade gap', () => {
   it('titles the answer from the gap, and says the gap in points for the headline duration', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -321,13 +335,13 @@ describe('BalanceHero on the age-grade gap', () => {
       screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
     ).toBeInTheDocument()
     expect(ledeOf(container)).toBe(
-      'Running’s age grade is 6 points higher than cycling’s at 20 min. The 90% range is 2 to 10 points, so the lead holds across the range.',
+      'Running’s age grade is 6 points higher than cycling’s at 20 min.',
     )
   })
 
   it('draws the gap as the meter, named by the gap and its range', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -341,7 +355,7 @@ describe('BalanceHero on the age-grade gap', () => {
 
   it('answers from the gap, not the energy ratio, when both are there', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(0.75, 0.8, 0.9))}
@@ -355,7 +369,7 @@ describe('BalanceHero on the age-grade gap', () => {
   })
 
   it('holds the answer, gap and all, while nothing picks a headline comparison', () => {
-    render(<BalanceHero {...ALL_TIME} result={makeResult()} pick={null} gap={gradedGap()} />)
+    render(<Hero {...ALL_TIME} result={makeResult()} pick={null} gap={gradedGap()} />)
     expect(
       screen.getByRole('heading', { level: 1, name: 'Not enough to compare yet' }),
     ).toBeInTheDocument()
@@ -364,7 +378,7 @@ describe('BalanceHero on the age-grade gap', () => {
 
   it('leans on a 9 point estimate whose range reaches below zero, with the range stated and no word of balance', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -375,7 +389,7 @@ describe('BalanceHero on the age-grade gap', () => {
       screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
     ).toBeInTheDocument()
     expect(ledeOf(container)).toBe(
-      'Running’s age grade is 9 points higher than cycling’s at 20 min. The 90% range is −4 to +18 points, so the two could be level.',
+      'Running’s age grade is 9 points higher than cycling’s at 20 min.',
     )
     expect(screen.queryByText(/in balance/)).toBeNull()
     expect(screen.getByRole('img', { name: /Running grades 9 points/ })).toHaveAccessibleName(
@@ -385,7 +399,7 @@ describe('BalanceHero on the age-grade gap', () => {
 
   it('says the two are in balance in the title, and gives the best estimate and its range under it', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -396,13 +410,13 @@ describe('BalanceHero on the age-grade gap', () => {
       screen.getByRole('heading', { level: 1, name: 'Your running and cycling are in balance' }),
     ).toBeInTheDocument()
     expect(ledeOf(container)).toBe(
-      'Running’s age grade is 2 points higher than cycling’s at 20 min. The 90% range is −2 to +6 points, so the two could be level.',
+      'Running’s age grade is 2 points higher than cycling’s at 20 min.',
     )
   })
 
   it('never says ahead of, limiter, weak or strength', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -416,7 +430,7 @@ describe('BalanceHero on the age-grade gap', () => {
 describe('BalanceHero without a comparison yet', () => {
   it('asks for a run and a ride when the files have neither', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult({ activities: [], comparison: { prior: [], calibrated: null } })}
         pick={null}
@@ -434,7 +448,7 @@ describe('BalanceHero without a comparison yet', () => {
   it('answers with the run level when the run is graded, and asks for a ride', () => {
     const run = makeActivity({ sport: 'run' })
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         library={[run]}
         runLevel="Local"
@@ -455,7 +469,7 @@ describe('BalanceHero without a comparison yet', () => {
   it('asks for a ride when only runs are present, and points down to the running', () => {
     const run = makeActivity({ sport: 'run' })
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         library={[run]}
         result={makeResult({ activities: [run], comparison: { prior: [], calibrated: null } })}
@@ -472,7 +486,7 @@ describe('BalanceHero without a comparison yet', () => {
   it('leaves the file chooser to the empty sport card, so the answer offers none', () => {
     const run = makeActivity({ sport: 'run' })
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         library={[run]}
         result={makeResult({ activities: [run], comparison: { prior: [], calibrated: null } })}
@@ -486,7 +500,7 @@ describe('BalanceHero without a comparison yet', () => {
   it('asks for a run when only rides are present, and points down to the cycling', () => {
     const ride = makeActivity({ sport: 'ride' })
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         library={[ride]}
         result={makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })}
@@ -505,7 +519,7 @@ describe('BalanceHero without a comparison yet', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const rides = [1, 2].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult({
           activities: [run, ...rides],
@@ -529,7 +543,7 @@ describe('BalanceHero without a comparison yet', () => {
       ...[1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
     ]
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         runLevel="Local"
         rideLevel="Recreational"
@@ -556,7 +570,7 @@ describe('BalanceHero without a comparison yet', () => {
       makeActivity({ id: `ride-${n}`, sport: 'ride' }),
     ])
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult({ activities, comparison: { prior: [], calibrated: null } })}
         pick={null}
@@ -577,7 +591,7 @@ describe('BalanceHero without a comparison yet', () => {
       ...[1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
     ]
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult({ activities, comparison: { prior: [], calibrated: null } })}
         pick={null}
@@ -600,7 +614,7 @@ describe('BalanceHero without a comparison yet', () => {
       makeActivity({ id: 'run-3', sport: 'run' }),
     ]
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         period={SIX_WEEKS}
         library={library}
@@ -628,7 +642,7 @@ describe('BalanceHero without a comparison yet', () => {
       makeActivity({ id: 'ride-3', sport: 'ride', durationS: 600 }),
     ]
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult({ activities })}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -648,7 +662,7 @@ describe('BalanceHero without a comparison yet', () => {
     ]
     const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult({ activities: [...runs, ...rides] })}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -664,7 +678,7 @@ describe('BalanceHero without a comparison yet', () => {
     const runs = [1, 2, 3].map((n) => makeActivity({ id: `run-${n}`, sport: 'run' }))
     const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult({ activities: [...runs, ...rides] })}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -674,23 +688,25 @@ describe('BalanceHero without a comparison yet', () => {
     expect(screen.queryByText(/steadier answer/)).not.toBeInTheDocument()
   })
 
-  it('tells the meter the range was informed by heart rate, when the check used it', () => {
-    const { container } = render(
-      <BalanceHero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={{ point: comparisonPoint({ ratio: interval(1.05, 1.12, 1.2) }), calibrated: true }}
-        gap={gradedGap()}
-      />,
+  it('says under an energy balance’s range that heart rate informed it, when the check used it', () => {
+    const calibrated = {
+      point: comparisonPoint({ ratio: interval(1.05, 1.12, 1.2) }),
+      calibrated: true,
+    }
+    const { container, rerender } = render(
+      <Hero {...ALL_TIME} result={makeResult()} pick={calibrated} />,
     )
-    expect(container.querySelector('.balance-meter__key')?.textContent).toMatch(
-      /Range informed by heart rate\.$/,
+    expect(container.querySelector('.balance-meter__basis')?.textContent).toBe(
+      'informed by heart rate',
     )
+    // A grade gap's range is the grades', and says nothing of heart rate.
+    rerender(<Hero {...ALL_TIME} result={makeResult()} pick={calibrated} gap={gradedGap()} />)
+    expect(container.querySelector('.balance-meter__basis')).toBeNull()
   })
 
   it('leaves the dates out of the lede when the period is not all time, since the caption names them', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         period={SIX_WEEKS}
         result={makeResult()}
@@ -704,7 +720,7 @@ describe('BalanceHero without a comparison yet', () => {
 
   it('leaves the dates out of the lede under all time', () => {
     const { container } = render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -717,7 +733,7 @@ describe('BalanceHero without a comparison yet', () => {
 
   it('sets the action under the lede, on the text column, so the share button sits with the answer', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         action={<button type="button">Download square image</button>}
         result={makeResult({ activities: [], comparison: { prior: [], calibrated: null } })}
@@ -742,7 +758,7 @@ describe('BalanceHero without a comparison yet, in a period', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         period={SIX_WEEKS}
         library={[ride, run]}
@@ -764,7 +780,7 @@ describe('BalanceHero without a comparison yet, in a period', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         period={SIX_WEEKS}
         library={[run, ride]}
@@ -784,7 +800,7 @@ describe('BalanceHero without a comparison yet, in a period', () => {
 
   it('asks for the sport with no period and offers no period button when the period is all time', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         library={[makeActivity({ sport: 'ride' })]}
         result={makeResult({
@@ -805,7 +821,7 @@ describe('BalanceHero without a comparison yet, in a period', () => {
 describe('BalanceHero while no weight is entered', () => {
   it('holds the balance and asks for the weight once both sports are on file', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -829,7 +845,7 @@ describe('BalanceHero while no weight is entered', () => {
 
   it('names the run level as the title while the ride waits, so the page leads with what it can show', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         runLevel="Local"
         result={makeResult()}
@@ -848,7 +864,7 @@ describe('BalanceHero while no weight is entered', () => {
   it('still names the missing ride when only runs are on file, since a ride is needed first', () => {
     const run = makeActivity({ sport: 'run' })
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         library={[run]}
         result={makeResult({
@@ -867,7 +883,7 @@ describe('BalanceHero while no weight is entered', () => {
 
   it('answers the balance once a weight is entered', () => {
     render(
-      <BalanceHero
+      <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
@@ -881,7 +897,7 @@ describe('BalanceHero while no weight is entered', () => {
   })
 })
 
-describe('BalanceHero period control and phone lede', () => {
+describe('BalanceHero sentence on a phone', () => {
   const GAPPED = {
     ...ALL_TIME,
     result: makeResult(),
@@ -889,35 +905,19 @@ describe('BalanceHero period control and phone lede', () => {
     gap: gradedGap(),
   }
 
-  it('puts the period control between the scoreboard and the scale it redraws', () => {
-    const { container } = render(
-      <BalanceHero
-        {...GAPPED}
-        controls={<div data-testid="controls" />}
-        scale={<div data-testid="scale" />}
-      />,
-    )
-    const answer = container.querySelector('.balance-hero--answer') as Node
-    const controls = screen.getByTestId('controls')
-    const scale = screen.getByTestId('scale')
-    expect(answer.compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(controls.compareDocumentPosition(scale) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  it('cuts the sentence to its first clause on a phone, with age grade still defined, and keeps both clauses elsewhere', () => {
-    const { container, unmount } = render(<BalanceHero {...GAPPED} />)
-    expect(ledeOf(container)).toMatch(/90% range/)
-    unmount()
+  it('says the one whole sentence at every width, with age grade defined and the range left to the meter', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query === '(max-width: 479px)',
       addEventListener: () => undefined,
       removeEventListener: () => undefined,
     }))
     try {
-      const phone = render(<BalanceHero {...GAPPED} />)
-      expect(ledeOf(phone.container)).toBe('Running’s age grade is 6 points higher.')
+      const { container } = render(<Hero {...GAPPED} />)
+      expect(ledeOf(container)).toBe(
+        'Running’s age grade is 6 points higher than cycling’s at 20 min.',
+      )
       expect(screen.getByRole('button', { name: 'age grade' })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: '90% range' })).toBeNull()
+      expect(container.querySelector('.balance-meter__edges')).toHaveTextContent('2 to 10')
     } finally {
       vi.unstubAllGlobals()
     }

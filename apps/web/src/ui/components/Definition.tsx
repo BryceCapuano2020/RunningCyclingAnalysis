@@ -17,6 +17,16 @@ const NOTE_GAP = 4
 /** Where a note opens: under its term, or over it when the window has no room under it and has above. */
 type Placement = 'below' | 'above'
 
+/**
+ * Whether a pointer can hover: a mouse or pen on a device that has one. A touch screen has no hover, and iOS
+ * leaves one stuck after a tap, so a resting touch never opens a note on its own. Without matchMedia (a test
+ * environment) the device is taken to hover.
+ */
+function canHover(pointerType: string): boolean {
+  if (pointerType !== 'mouse' && pointerType !== 'pen') return false
+  return typeof window.matchMedia !== 'function' || window.matchMedia('(hover: hover)').matches
+}
+
 /** Each open-able definition's way to close itself, so that opening one can close the rest. */
 const closers = new Set<() => void>()
 
@@ -99,8 +109,10 @@ export function Definition({ children, meaning }: DefinitionProps) {
       ref={root}
       data-open={open}
       data-placement={placement}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onPointerEnter={(event) => {
+        if (canHover(event.pointerType)) setHovered(true)
+      }}
+      onPointerLeave={() => setHovered(false)}
       onBlur={(event) => {
         // Focus moving out of the term closes a press; focus moving to the note's own text does not.
         if (!root.current?.contains(event.relatedTarget as Node | null)) setPressed(false)

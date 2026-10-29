@@ -428,7 +428,7 @@ describe('RangePicker custom range', () => {
   })
 })
 
-describe('RangePicker compact, as Balance sets it under its scoreboard', () => {
+describe('RangePicker compact, as Balance sets it under its levels', () => {
   it('hides the legend but still names the group, and marks the control compact', () => {
     const { container } = render(picker({ compact: true }))
     expect(screen.getByRole('group', { name: 'Period' })).toBeInTheDocument()

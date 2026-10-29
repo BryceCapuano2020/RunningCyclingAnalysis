@@ -176,7 +176,6 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
     headline: 'Your balance leans toward running',
     magnitude: MAGNITUDE,
     meter: energyReading(interval(1.05, 1.12, 1.2)),
-    scale: null,
     heroes: [
       {
         sport: 'run',

@@ -242,10 +242,11 @@ describe('page chrome', () => {
 })
 
 describe('forced colours', () => {
-  it('keeps the meter track and band edged in the system colours', () => {
+  it('keeps the meter line, its caps and the band in the system colours', () => {
     const forced = mediaOf(balanceMeter, FORCED)
-    expect(rulesWith(forced, '.balance-meter__track')).toMatch(/border-color:\s*CanvasText/)
-    expect(rulesWith(forced, '.balance-meter__band')).toMatch(/border-color:\s*Highlight/)
+    expect(rulesWith(forced, '.balance-meter__track::before')).toMatch(/background:\s*CanvasText/)
+    expect(rulesWith(forced, '.balance-meter__track::after')).toMatch(/border-color:\s*CanvasText/)
+    expect(rulesWith(forced, '.balance-meter__band')).toMatch(/border:\s*1px solid Highlight/)
   })
 
   it('keeps the level ladder track, current band and chevrons in the system colours', () => {
@@ -459,22 +460,54 @@ describe('balance hero, meter and evidence', () => {
     expect(balancePage).not.toMatch(/evidence-card/)
   })
 
-  it('gives the meter’s value flag room above the track, clear of the even line', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/padding-top:\s*1\.75rem/)
+  it('gives the value room under the track, clear of the line, for the number and its range', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/padding-bottom:\s*5rem/)
+    expect(rulesWith(balanceMeter, '.balance-meter__reading')).toMatch(/top:\s*2\.25rem/)
   })
 
-  it('sets the meter ticks a step below the track', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__ticks')).toMatch(
-      /margin-top:\s*var\(--space-1\)/,
+  it('clamps the dot and the value to an edge inside the plot, so each stays whole at either end of the scale', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--dot-edge:\s*0\.75rem/)
+    expect(rulesWith(balanceMeter, '.balance-meter__dot')).toMatch(
+      /left:\s*clamp\(var\(--dot-edge\),\s*var\(--at\),\s*calc\(100% - var\(--dot-edge\)\)\)/,
+    )
+    const reading = rulesWith(balanceMeter, '.balance-meter__reading')
+    expect(reading).toMatch(
+      /left:\s*clamp\(var\(--edge-left\),\s*var\(--at\),\s*calc\(100% - var\(--edge-right\)\)\)/,
+    )
+    // The room each side comes from the reading's own characters, so a long range keeps clear of the gutter.
+    expect(reading).toMatch(/--edge-left:[^;]*var\(--number-chars[^;]*var\(--range-chars/)
+    expect(reading).toMatch(/--edge-right:[^;]*var\(--unit-chars[^;]*var\(--range-chars/)
+  })
+
+  it('centres the value with a zero-width anchor and flex, never a transform, which would trap a definition’s fixed sheet on a phone', () => {
+    const reading = rulesWith(balanceMeter, '.balance-meter__reading')
+    expect(reading).toMatch(/width:\s*0;/)
+    expect(reading).toMatch(/align-items:\s*center/)
+    for (const selector of [
+      '.balance-meter',
+      '.balance-meter__plot',
+      '.balance-meter__reading',
+      '.balance-meter__value',
+      '.balance-meter__range',
+    ]) {
+      expect(rulesWith(balanceMeter, selector), selector).not.toMatch(
+        /(^|[;{\s])(transform|filter|backdrop-filter|perspective|contain|will-change|container-type):/,
+      )
+    }
+  })
+
+  it('gives "range" a little room, since it sits against the figures, and prose terms none', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__range .definition__term')).toMatch(
+      /margin:\s*0 2px/,
     )
   })
 
-  it('clamps the flag and the dot to one edge inside the plot, so they stay centred together', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--meter-edge:\s*2rem/)
-    const clamp =
-      /left:\s*clamp\(var\(--meter-edge\),\s*var\(--at\),\s*calc\(100% - var\(--meter-edge\)\)\)/
-    expect(rulesWith(balanceMeter, '.balance-meter__flag')).toMatch(clamp)
-    expect(rulesWith(balanceMeter, '.balance-meter__dot')).toMatch(clamp)
+  it('sets the value in the display face, tabular, with its unit quieter beside it', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__value')).toMatch(
+      /font-family:\s*var\(--font-display\)/,
+    )
+    expect(rulesWith(balanceMeter, '.balance-meter__number')).toMatch(/tabular-nums/)
+    expect(rulesWith(balanceMeter, '.balance-meter__unit')).toMatch(/color:\s*var\(--text-muted\)/)
   })
 
   it('draws the dot in the system text colour in forced colours, past the sport colour rule', () => {

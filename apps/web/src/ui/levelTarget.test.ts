@@ -188,6 +188,28 @@ describe('levelTargetText', () => {
     expect(line).toMatch(/now 300 W, 240 W at today’s weight\)\.$/)
   })
 
+  it('says nothing of weight when the lower sport is a run, whose pace has no mass, even with dated masses', () => {
+    // The run was recorded on a day the dated mass was 70 kg; today's is 75 kg. A pace is the same either way.
+    const dated = makeResult({
+      activities: [
+        makeActivity({ id: 'run-1', sport: 'run', massKg: 70 }),
+        makeActivity({ id: 'ride-1', sport: 'ride', massKg: 70 }),
+      ],
+      runCurve: result.runCurve,
+      rideCurve: result.rideCurve,
+    })
+    const line = levelTargetText({
+      ...base,
+      result: dated,
+      lean: 'ride',
+      grades: { run: graded(0.6), ride: graded(0.67) },
+    })
+    expect(line).toMatch(
+      /your best run would need a flat pace of about \d+:\d\d \/km \(now \d+:\d\d \/km\)\.$/,
+    )
+    expect(line).not.toContain('today’s weight')
+  })
+
   it('names no line when the balance is even', () => {
     expect(levelTargetText({ ...base, lean: 'even' })).toBeNull()
   })

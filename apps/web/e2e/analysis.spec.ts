@@ -14,11 +14,11 @@ import {
 } from './helpers.js'
 
 /**
- * The charts by their figure titles. Balance's level scale is named by its sentence; its energy meter, which
- * stands in while the grades are missing, by the balance's own.
+ * The charts by their figure titles. Balance's meter is named by the balance's own sentence, in points when both
+ * sports are graded and in percent of energy while the grades are missing.
  */
 const BALANCE_METER =
-  /^Age-grade level of your best 20 min\.|^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
+  /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
 /**
  * The Balance trend: one chart for both sports, as age grades when the age and sex are known. Its title says
  * what it found, so it is found by the line under it that names the measure.
@@ -261,65 +261,75 @@ async function tabBarTop(page: Page): Promise<number> {
   return (await edgesOf(tabs)).top
 }
 
-/** The level scale's drawing, and the two sports' marks on it. */
-const SCALE = '.balance-scale__svg'
-const RUN_DOT = '.balance-scale [data-sport="run"] .balance-scale__dot'
-const RIDE_RING = '.balance-scale [data-sport="ride"] .balance-scale__ring'
+/** The meter's track, its value under the dot, and the two sports' level lines. */
+const TRACK = '.balance-meter [role="img"]'
+const VALUE = '.balance-meter__value'
+const LEVEL_ROWS = '.balance-levels__row'
 
-// The answer's one picture is on the first screen: at 1440 by 900 the whole drawing ends above the fold, and
-// the first chart is the level scale, not the trend 1,900 px down.
-test('at 1440 by 900 the level scale is on the first screen, whole', async ({ page }) => {
+// The answer's one picture is on the first screen: at 1440 by 900 the meter, its value and both levels end above
+// the fold, and the meter is the first graphic on the page, not the trend 1,900 px down.
+test('at 1440 by 900 the meter, its value and both levels are on the first screen, whole', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openSample(page)
-  const scale = await edgesOf(page.locator(SCALE))
-  expect(scale.bottom).toBeLessThanOrEqual(900)
-  expect((await edgesOf(page.locator(RUN_DOT))).bottom).toBeLessThanOrEqual(900)
-  expect((await edgesOf(page.locator(RIDE_RING))).bottom).toBeLessThanOrEqual(900)
+  expect((await edgesOf(page.locator(TRACK))).bottom).toBeLessThanOrEqual(900)
+  expect((await edgesOf(page.locator(VALUE))).bottom).toBeLessThanOrEqual(900)
+  const rows = await page.locator(LEVEL_ROWS).all()
+  expect(rows).toHaveLength(2)
+  for (const row of rows) expect((await edgesOf(row)).bottom).toBeLessThanOrEqual(900)
   // It is the first graphic on the page: nothing drawn comes before it.
   const first = await page.evaluate(
-    () => document.querySelector('main svg:not(.icon)')?.getAttribute('class') ?? '',
+    () =>
+      document.querySelector('main [role="img"], main svg:not(.icon)')?.parentElement?.className ??
+      '',
   )
-  expect(first).toContain('balance-scale__svg')
+  expect(first).toContain('balance-meter')
+  // The answer is a line: no scale drawing, no ladder.
+  await expect(page.locator('.balance-meter__value')).toHaveText('+11pts')
+  // The line is HTML, not a drawing: nothing in the answer's stack is an SVG but the sport glyphs.
+  await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
+  await expect(page.locator('.balance-hero__pair svg:not(.icon)')).toHaveCount(0)
 })
 
-// A phone holds the whole scale on its first screen, the sample notice and all: at 390 by 844 and at 320 by 640 both
-// lanes' marks, their headers and the axis end above the section tabs fixed to the window's foot.
-const TICKS = '.balance-scale__tick'
-const LANE_NAMES = '.balance-scale__lane-name'
-
+// A phone holds the whole line on its first screen, the sample notice and all: at 390 by 844 and at 320 by 640 the
+// meter, its value and both levels end above the section tabs fixed to the window's foot, with the period control
+// under the levels.
 for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} both lanes and the axis of the level scale are above the section tabs`, async ({
+  test(`at ${width} by ${height} the meter, its value and both levels are above the section tabs`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
     await openSample(page)
     await expect(page.getByText('Sample athlete', { exact: false }).first()).toBeVisible()
     const tabs = await tabBarTop(page)
-    const scale = await edgesOf(page.locator(SCALE))
-    const run = await edgesOf(page.locator(RUN_DOT))
-    const ride = await edgesOf(page.locator(RIDE_RING))
-    // Both marks are drawn inside the drawing's own box, the ride's lane below the run's.
-    for (const mark of [run, ride]) {
-      expect(mark.top).toBeGreaterThanOrEqual(scale.top)
-      expect(mark.bottom).toBeLessThanOrEqual(scale.bottom)
+    const track = await edgesOf(page.locator(TRACK))
+    const value = await edgesOf(page.locator(VALUE))
+    expect(value.top).toBeGreaterThanOrEqual(track.bottom)
+    expect(value.bottom).toBeLessThanOrEqual(tabs)
+    const rows = await page.locator(LEVEL_ROWS).all()
+    expect(rows).toHaveLength(2)
+    let previous = value.bottom
+    for (const row of rows) {
+      const box = await edgesOf(row)
+      expect(box.top).toBeGreaterThanOrEqual(previous)
+      expect(box.bottom).toBeLessThanOrEqual(tabs)
+      previous = box.bottom
     }
-    expect(ride.top).toBeGreaterThan(run.bottom)
-    // Each lane's name, which sits in the lane's header, is on the screen, and so is the whole of the axis.
-    for (const name of await page.locator(LANE_NAMES).all()) {
-      expect((await edgesOf(name)).bottom).toBeLessThanOrEqual(tabs)
-    }
-    const ticks = await page.locator(TICKS).all()
-    expect(ticks.length).toBeGreaterThan(3)
-    for (const tick of ticks) expect((await edgesOf(tick)).bottom).toBeLessThanOrEqual(tabs)
-    expect(scale.bottom).toBeLessThanOrEqual(tabs)
-    // The period control is directly under the answer and above the scale it redraws.
+    // The period control is directly under the levels, and the headline above the meter.
     const period = await edgesOf(page.getByRole('group', { name: 'Period' }))
     const answer = await edgesOf(page.getByRole('heading', { level: 1 }))
-    expect(period.top).toBeGreaterThanOrEqual(answer.bottom)
-    expect(period.bottom).toBeLessThanOrEqual(scale.top)
+    expect(period.top).toBeGreaterThanOrEqual(previous)
+    expect(track.top).toBeGreaterThanOrEqual(answer.bottom)
+    // Nothing collides: the end labels and the value sit inside the window, and the page does not scroll sideways.
+    for (const selector of ['.balance-meter__ends', VALUE, '.balance-meter__edges']) {
+      const box = await page.locator(selector).first().boundingBox()
+      expect(box === null ? -1 : box.x).toBeGreaterThanOrEqual(0)
+      expect(box === null ? width + 1 : box.x + box.width).toBeLessThanOrEqual(width)
+    }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
     ).toBeLessThanOrEqual(0)
@@ -327,8 +337,8 @@ for (const [width, height] of [
 }
 
 // On a wide screen the headline runs the answer's full width, the lede keeps its 62 character measure, and the
-// scale and the tiles span the same width.
-test('at 1280 the headline runs the full width, the lede keeps its measure, and the scale spans the tiles', async ({
+// meter and the tiles span the same width.
+test('at 1280 the headline runs the full width, the lede keeps its measure, and the meter spans the tiles', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -336,9 +346,9 @@ test('at 1280 the headline runs the full width, the lede keeps its measure, and 
   const headline = await page.getByRole('heading', { level: 1 }).boundingBox()
   const lede = await page.locator('.balance-hero .lede').boundingBox()
   const tiles = await page.locator('.balance-tiles').boundingBox()
-  const scale = await page.locator('.balance-scale').boundingBox()
-  if (headline === null || lede === null || tiles === null || scale === null) {
-    throw new Error('no box for the headline, lede, tiles or scale')
+  const meter = await page.locator('.balance-meter').boundingBox()
+  if (headline === null || lede === null || tiles === null || meter === null) {
+    throw new Error('no box for the headline, lede, tiles or meter')
   }
   // The lede keeps its own 62 character measure, which a probe in the lede's font measures.
   const sixtyTwoCh = await page.locator('.balance-hero .lede').evaluate((el) => {
@@ -352,24 +362,22 @@ test('at 1280 the headline runs the full width, the lede keeps its measure, and 
   })
   expect(headline.width).toBeGreaterThan(lede.width)
   expect(lede.width).toBeLessThanOrEqual(sixtyTwoCh + 1)
-  expect(scale.y).toBeGreaterThanOrEqual(lede.y + lede.height)
-  expect(scale.x).toBeCloseTo(tiles.x, 0)
-  expect(scale.x + scale.width).toBeCloseTo(tiles.x + tiles.width, 0)
+  expect(meter.y).toBeGreaterThanOrEqual(lede.y + lede.height)
+  expect(meter.x).toBeCloseTo(tiles.x, 0)
+  expect(meter.x + meter.width).toBeCloseTo(tiles.x + tiles.width, 0)
 })
 
 // A landscape phone has too little height for the headline and a drawing: the answer is what is on screen.
-test('at 667 by 375 the headline and the gap figure are above the section tabs', async ({
-  page,
-}) => {
+test('at 667 by 375 the headline is above the section tabs', async ({ page }) => {
   await page.setViewportSize({ width: 667, height: 375 })
   await openSample(page)
   const tabs = await tabBarTop(page)
   expect((await edgesOf(page.getByRole('heading', { level: 1 }))).bottom).toBeLessThanOrEqual(tabs)
 })
 
-test('the level scale defines its terms in place, by press and by Enter', async ({ page }) => {
+test('the meter defines its terms in place, by press and by Enter', async ({ page }) => {
   await openSample(page)
-  const level = page.getByRole('button', { name: 'level', exact: true })
+  const level = page.locator(LEVEL_ROWS).first().getByRole('button')
   await expect(level).toHaveAttribute('aria-expanded', 'false')
   await level.click()
   await expect(level).toHaveAttribute('aria-expanded', 'true')
@@ -379,22 +387,252 @@ test('the level scale defines its terms in place, by press and by Enter', async 
   await level.focus()
   await page.keyboard.press('Enter')
   await expect(level).toHaveAttribute('aria-expanded', 'true')
+  await page.keyboard.press('Escape')
+  await expect(level).toHaveAttribute('aria-expanded', 'false')
+  const range = page.getByRole('button', { name: 'range', exact: true })
+  await range.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('note').filter({ hasText: /nine times out of ten/ })).toBeVisible()
 })
 
-test('the level scale has its figures as a table, and no text on it is under 11 px', async ({
+test('the meter is named in words and its value and levels are text, none under 12 px', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
+  await expect(page.locator(TRACK)).toHaveAccessibleName(
+    /^Running grades 11 points higher than cycling \(range 6 to 16/,
+  )
+  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Running\s*67%\s*Local/)
+  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(
+    /Cycling\s*56%\s*Recreational to Local/,
+  )
   const sizes = await page
-    .locator('.balance-scale svg text')
-    .evaluateAll((labels) => labels.map((label) => parseFloat(getComputedStyle(label).fontSize)))
-  expect(sizes.length).toBeGreaterThan(5)
-  expect(Math.min(...sizes)).toBeGreaterThanOrEqual(11)
-  const details = page.locator('.balance-scale__details')
-  await details.locator('summary').click()
-  await expect(details.getByRole('cell', { name: 'Recorded' })).toBeVisible()
+    .locator(
+      '.balance-meter__value > *, .balance-meter__range, .balance-meter__ends, .balance-levels__row > *',
+    )
+    .evaluateAll((nodes) => nodes.map((node) => parseFloat(getComputedStyle(node).fontSize)))
+  expect(sizes.length).toBeGreaterThan(6)
+  expect(Math.min(...sizes)).toBeGreaterThanOrEqual(12)
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(0)
+})
+
+// On a phone a defined term's note is a sheet at the window's foot. It is fixed to the window, so no box around a
+// term may be transformed, filtered or contained, or the sheet would be squeezed into that box (it was, once, into a
+// 90 px column over the headline).
+for (const [width, height] of [
+  [390, 844],
+  [320, 640],
+] as const) {
+  test(`at ${width} by ${height} the range and level notes are sheets at the window's foot`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await openSample(page)
+    const terms = [
+      page.getByRole('button', { name: 'range', exact: true }),
+      page.locator(LEVEL_ROWS).first().getByRole('button'),
+    ]
+    for (const term of terms) {
+      await term.focus()
+      await page.keyboard.press('Enter')
+      await expect(term).toHaveAttribute('aria-expanded', 'true')
+      const id = await term.getAttribute('aria-controls')
+      const box = await page.locator(`[id="${id}"]`).boundingBox()
+      if (box === null) throw new Error('the note has no box')
+      expect(box.width).toBeGreaterThanOrEqual(width - 1)
+      expect(box.x).toBeLessThanOrEqual(1)
+      expect(box.y + box.height).toBeGreaterThanOrEqual(height - 1)
+      expect(box.y + box.height).toBeLessThanOrEqual(height + 1)
+      expect(box.height).toBeLessThan(height / 2)
+      // The note's words wrap inside it, whatever line the term sits in: none runs past its right edge.
+      expect(
+        await page.locator(`[id="${id}"]`).evaluate((note) => note.scrollWidth - note.clientWidth),
+      ).toBeLessThanOrEqual(0)
+      await page.keyboard.press('Escape')
+      await expect(term).toHaveAttribute('aria-expanded', 'false')
+    }
+  })
+}
+
+/**
+ * Every defined term on the page, and every box around one that is transformed, filtered, contained or promoted:
+ * any of them would trap the phone's fixed note sheet.
+ */
+function definedTermAncestors(page: Page): Promise<{ terms: number; bad: string[] }> {
+  return page.evaluate(() => {
+    const bad: string[] = []
+    const terms = document.querySelectorAll('.definition')
+    for (const term of terms) {
+      for (let node = term.parentElement; node !== null; node = node.parentElement) {
+        const style = getComputedStyle(node)
+        const risky = [
+          ['transform', style.transform, 'none'],
+          ['filter', style.filter, 'none'],
+          ['backdrop-filter', style.backdropFilter, 'none'],
+          ['perspective', style.perspective, 'none'],
+          ['contain', style.contain, 'none'],
+          ['container-type', style.containerType, 'normal'],
+          [
+            'will-change',
+            /transform|filter|perspective/.test(style.willChange) ? style.willChange : 'auto',
+            'auto',
+          ],
+        ].filter(([, value, fine]) => value !== fine)
+        for (const [name, value] of risky) bad.push(`${node.className} ${name}: ${value}`)
+      }
+    }
+    return { terms: terms.length, bad }
+  })
+}
+
+test('no box around a defined term is transformed, filtered or contained, on the landing page, Method, Balance or a sport page', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  // The landing example defines the range and both levels; Method defines its own term.
+  await page.goto('/')
+  await expect(page.locator('.landing-example .definition')).toHaveCount(3)
+  const landing = await definedTermAncestors(page)
+  expect(landing.terms).toBeGreaterThanOrEqual(3)
+  expect(landing.bad).toEqual([])
+  await page.goto('/#/method')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  const method = await definedTermAncestors(page)
+  expect(method.terms).toBeGreaterThanOrEqual(1)
+  expect(method.bad).toEqual([])
+  await openSample(page)
+  const balance = await definedTermAncestors(page)
+  expect(balance.terms).toBeGreaterThan(3)
+  expect(balance.bad).toEqual([])
+  for (const sport of ['Run', 'Ride'] as const) {
+    await goTo(page, sport)
+    const found = await definedTermAncestors(page)
+    expect(found.terms, sport).toBeGreaterThan(0)
+    expect(found.bad, sport).toEqual([])
+  }
+})
+
+/**
+ * Sets the meter's reading to a lead the sample does not give: where its dot sits, and the words and the character
+ * counts the stylesheet keeps clear of the track's ends, as the component sets them.
+ */
+async function setReading(
+  page: Page,
+  reading: { at: string; number: string; unit: string; range: string; basis?: boolean },
+): Promise<void> {
+  await page.evaluate((r) => {
+    const root = document.querySelector<HTMLElement>('.balance-meter__reading')
+    const dot = document.querySelector<HTMLElement>('.balance-meter__dot')
+    if (root === null || dot === null) throw new Error('no meter')
+    dot.style.setProperty('--at', r.at)
+    root.style.setProperty('--at', r.at)
+    root.style.setProperty('--number-chars', String(r.number.length))
+    root.style.setProperty('--unit-chars', String(r.unit.length))
+    root.style.setProperty('--range-chars', String(r.range === '' ? 0 : r.range.length + 6))
+    const text = 'informed by heart rate'
+    root.style.setProperty('--basis-chars', String(r.basis === true ? text.length : 0))
+    const set = (selector: string, value: string) => {
+      const node = root.querySelector(selector)
+      if (node !== null) node.textContent = value
+    }
+    set('.balance-meter__number', r.number)
+    set('.balance-meter__unit', r.unit)
+    set('.balance-meter__edges', r.range)
+    const range = root.querySelector<HTMLElement>('.balance-meter__range')
+    if (range !== null) range.style.display = r.range === '' ? 'none' : ''
+    let basis = root.querySelector<HTMLElement>('.balance-meter__basis')
+    if (basis === null) {
+      basis = document.createElement('p')
+      basis.className = 'balance-meter__basis'
+      basis.textContent = text
+      root.append(basis)
+    }
+    basis.style.display = r.basis === true ? '' : 'none'
+  }, reading)
+}
+
+// The reading under the dot stays whole inside the plot, and so inside the window, at either end of the scale, with a
+// long range, and with the heart-rate line alone: its number, its hanging unit, its range line and that line.
+for (const [width, height] of [
+  [1440, 900],
+  [390, 844],
+  [320, 640],
+] as const) {
+  test(`at ${width} the reading stays inside the window at the ends of the scale and with a long range`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await openSample(page)
+    const cases = [
+      { at: '2.5%', number: '+100', unit: 'pts', range: '84 to 120' },
+      { at: '97.5%', number: '+100', unit: 'pts', range: '84 to 120' },
+      { at: '2.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
+      { at: '97.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
+      { at: '50%', number: '+12', unit: '%', range: '-12.4% to +130.5%' },
+      // No range line, as when the range rounds to one value: the heart-rate line alone holds the clamp.
+      { at: '2.5%', number: '+12', unit: '%', range: '', basis: true },
+      { at: '97.5%', number: '+12', unit: '%', range: '', basis: true },
+      { at: '2.5%', number: '+12', unit: '%', range: '5% to 20%', basis: true },
+    ]
+    for (const reading of cases) {
+      await setReading(page, reading)
+      const found = await page.evaluate(() => {
+        const rect = (node: Element | null) => {
+          const box = node?.getBoundingClientRect()
+          return box === undefined || box.width === 0 ? null : { left: box.left, right: box.right }
+        }
+        const reading = document.querySelector('.balance-meter__reading')
+        return {
+          plot: rect(document.querySelector('.balance-meter__plot')),
+          parts: [
+            '.balance-meter__number',
+            '.balance-meter__unit',
+            '.balance-meter__range',
+            '.balance-meter__basis',
+          ].map((selector) => {
+            const node = reading?.querySelector(selector) ?? null
+            return node !== null && getComputedStyle(node).display === 'none' ? null : rect(node)
+          }),
+        }
+      })
+      if (found.plot === null) throw new Error('no plot')
+      // The plot runs from gutter to gutter: a part inside it is inside the window with the page's margin to spare.
+      expect(found.parts.filter((box) => box !== null).length).toBeGreaterThanOrEqual(2)
+      for (const box of found.parts) {
+        if (box === null) continue
+        expect(box.left, JSON.stringify(reading)).toBeGreaterThanOrEqual(found.plot.left - 0.5)
+        expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(found.plot.right + 0.5)
+        expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(width)
+      }
+      // Each line stays one line: the range does not wrap into a column, and the page does not scroll sideways.
+      const heights = await page.evaluate(() =>
+        ['.balance-meter__number', '.balance-meter__range'].map(
+          (selector) =>
+            (document.querySelector(selector)?.getBoundingClientRect().height ?? 0) /
+            parseFloat(getComputedStyle(document.querySelector(selector) as Element).lineHeight),
+        ),
+      )
+      for (const lines of heights) expect(lines, JSON.stringify(reading)).toBeLessThan(1.6)
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+        JSON.stringify(reading),
+      ).toBeLessThanOrEqual(0)
+    }
+  })
+}
+
+test('the number is centred under the dot, with its unit hanging off to the right', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openSample(page)
+  const dot = await page.locator('.balance-meter__dot').boundingBox()
+  const number = await page.locator('.balance-meter__number').boundingBox()
+  const unit = await page.locator('.balance-meter__unit').boundingBox()
+  if (dot === null || number === null || unit === null) throw new Error('no meter boxes')
+  expect(number.x + number.width / 2).toBeCloseTo(dot.x + dot.width / 2, 0)
+  expect(unit.x).toBeGreaterThanOrEqual(number.x + number.width)
 })

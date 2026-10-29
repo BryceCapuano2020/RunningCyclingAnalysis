@@ -345,12 +345,7 @@ export function App() {
             restoring={analysis.restoring}
           />
         ) : (
-          <LandingPage
-            analysis={analysis}
-            signedIn={signedIn}
-            units={units}
-            onFiles={setup.requestImport}
-          />
+          <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
         )}
       </main>
 

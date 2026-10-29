@@ -1,0 +1,90 @@
+/*
+ * The levels sit under the meter on one quiet line a sport: name, grade, level. Side by side each sport is under
+ * its own end of the meter; when they do not fit side by side they stack. A hairline above sets them apart from the measurement.
+ */
+.balance-levels {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.balance-levels__list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A fixed name column and a fixed grade column, so the grades line up when the rows stack. */
+.balance-levels__row {
+  display: grid;
+  grid-template-columns: 4.75rem auto minmax(0, auto);
+  align-items: baseline;
+  column-gap: var(--space-2);
+  min-width: 0;
+}
+
+.balance-levels__row > .balance-levels__missing {
+  grid-column: 2 / -1;
+}
+
+.balance-levels__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+/* The sport colour marks the glyph only; the name stays in ink. */
+.balance-levels__glyph {
+  color: var(--sport-colour);
+}
+
+.balance-levels__glyph.icon {
+  --icon-size: 1.125rem;
+  flex: none;
+}
+
+.balance-levels__grade {
+  /* The grade column is at least this wide, and grows for a grade of 100% or more, so it never meets the level. */
+  min-width: 3rem;
+  font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.balance-levels__level {
+  color: var(--text-secondary);
+  /* A defined term is a button, which centres its text: the level reads from the left, wrapped or not. */
+  text-align: start;
+}
+
+.balance-levels__level .definition__term {
+  text-align: start;
+}
+
+.balance-levels__missing {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 479px) {
+  .balance-levels {
+    padding-top: var(--space-3);
+  }
+
+  .balance-levels__list {
+    gap: var(--space-2) var(--space-6);
+  }
+}
