@@ -9,8 +9,12 @@ export const MIN_CHANGE_FRACTION = 0.03
 
 /** The look back a title judges the present by: a year. */
 export const RECENT_DAYS = 365
-/** The least a comparison may reach back to be called "over the last year": about ten months. */
-export const YEAR_BASELINE_DAYS = 300
+/**
+ * A comparison is called "over the last year" only when a reading lies within YEAR_TOLERANCE_DAYS of exactly
+ * 52 weeks before the latest one, and it is made against that reading. Any other is dated by its real start.
+ */
+export const YEAR_DAYS = 52 * 7
+export const YEAR_TOLERANCE_DAYS = 14
 /**
  * The least evidence a finding needs: a span of 12 weeks, and six readings in it. A shorter or thinner series
  * can swing by a week's effort alone, so it is described and not judged.
@@ -38,8 +42,8 @@ export interface Finding {
     from: Reading
     to: Reading
     /**
-     * True when the comparison reaches back under YEAR_BASELINE_DAYS, so a title names its real start ("since May");
-     * false when it reaches back far enough to be called "over the last year".
+     * True when no reading lies near a year before the latest, so a title names its real start ("since 28 Dec");
+     * false when the comparison is against that reading and is called "over the last year".
      */
     namesStart: boolean
   } | null
@@ -65,9 +69,9 @@ const NOTHING: Finding = { recent: null, peak: null, highest: false }
 /**
  * What a series of readings, oldest first, says about now. Each reading is a week, so the latest is compared with weeks and
  * never with a month's average. It needs MIN_SPAN_DAYS and MIN_READINGS, else it says nothing. The move is judged from
- * the first reading in the last year to the latest, or from the first reading of a shorter series, and is steady unless it
- * exceeds the range or the minimum; it is "over the last year" only if it reaches back YEAR_BASELINE_DAYS, else it names
- * its real start. The peak is the best reading, reported only when it is older than that year and the latest is clear of
+ * the reading a year before the latest (within YEAR_TOLERANCE_DAYS) to the latest, and is steady unless it exceeds the
+ * range or the minimum. With no reading near that year it is made from the first reading in the last year, or the first
+ * of a shorter series, and names its real start. The peak is the best reading, reported only when it is older than that year and the latest is clear of
  * it, and worse. Null parts where the series is too short to say.
  */
 export function findingOf(readings: readonly Reading[], better: Better): Finding {
@@ -79,7 +83,17 @@ export function findingOf(readings: readonly Reading[], better: Better): Finding
   }
   const windowStart = latest.endMs - RECENT_DAYS * DAY_MS
   const longSpan = first.endMs < windowStart
-  const from = longSpan ? readings.find((reading) => reading.endMs >= windowStart) : first
+  const yearAgo = latest.endMs - YEAR_DAYS * DAY_MS
+  const nearYear = readings
+    .slice(0, -1)
+    .filter((r) => Math.abs(r.endMs - yearAgo) <= YEAR_TOLERANCE_DAYS * DAY_MS)
+    .reduce<Reading | undefined>(
+      (top, r) =>
+        top === undefined || Math.abs(r.endMs - yearAgo) < Math.abs(top.endMs - yearAgo) ? r : top,
+      undefined,
+    )
+  const from =
+    nearYear ?? (longSpan ? readings.find((reading) => reading.endMs >= windowStart) : first)
   const reach = from === undefined ? 0 : (latest.endMs - from.endMs) / DAY_MS
   const inRange = readings.filter((r) => from !== undefined && r.endMs >= from.endMs).length
   const recent =
@@ -93,7 +107,7 @@ export function findingOf(readings: readonly Reading[], better: Better): Finding
               : ('worse' as const),
           from,
           to: latest,
-          namesStart: reach < YEAR_BASELINE_DAYS,
+          namesStart: nearYear === undefined,
         }
   const best = readings.reduce((top, reading) =>
     reading.raw * better > top.raw * better ? reading : top,

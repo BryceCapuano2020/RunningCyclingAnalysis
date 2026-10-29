@@ -254,3 +254,34 @@ describe('trendTakeaway for an estimated ride that is back after a break', () =>
     expect(trendTakeaway(afterABreak(0.5, 0.08), rideKnown)).toBeNull()
   })
 })
+
+describe('trendTakeaway across periods', () => {
+  /** Three years of weekly runs, rising for two years and falling after. */
+  const all = weekly(
+    160,
+    (i) => (i < 104 ? 0.5 + i * 0.002 : 0.708 - (i - 104) * 0.004),
+    undefined,
+    0.01,
+    JAN_2019,
+  )
+  const latest = all.at(-1)!.endMs
+  /** What a 12-months view plots: its trend line starts about 302 days before the latest reading. */
+  const twelveMonths = all.filter((row) => latest - row.endMs <= 302 * DAY)
+
+  it('says "over the last year" only where a reading lies a year back, and names a start otherwise', () => {
+    const wide = trendTakeaway(all, rideKnown)
+    const short = trendTakeaway(twelveMonths, rideKnown)
+    expect(wide).toMatch(/^Running fell \d+ points? over the last year/)
+    expect(short).toMatch(/^Running fell \d+ points? since \d+ \w{3}$/)
+    expect(short).not.toContain('last year')
+  })
+
+  it('gives both periods the same verdict where both compare against a year back', () => {
+    const wide = trendTakeaway(all, rideKnown)
+    const nearYear = trendTakeaway(
+      all.filter((row) => latest - row.endMs <= 400 * DAY),
+      rideKnown,
+    )
+    expect(nearYear).toBe(wide)
+  })
+})

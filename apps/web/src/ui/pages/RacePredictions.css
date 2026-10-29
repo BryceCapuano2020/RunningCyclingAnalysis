@@ -49,6 +49,14 @@
   font-size: var(--text-sm);
 }
 
+/* What was run, where it beat the prediction, sits with the name and pace. */
+.race-row__ran {
+  flex-basis: 100%;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .race-row__time {
   grid-area: time;
   margin: 0;
@@ -65,13 +73,14 @@
 .race-bar {
   grid-area: bar;
   position: relative;
-  height: 3.5rem;
+  height: 4rem;
   margin: 0 4.25rem;
 }
 
 .race-bar__band,
 .race-bar__cap,
 .race-bar__dot,
+.race-bar__ran,
 .race-bar__mark,
 .race-bar__end {
   position: absolute;
@@ -103,6 +112,27 @@
   background: var(--sport-colour);
   box-shadow: 0 0 0 1px var(--sport-colour);
   transform: translate(-50%, -50%);
+}
+
+/* A recorded run that beat the prediction is a smaller solid dot in the primary ink, its label just above it. */
+.race-bar__ran {
+  top: 50%;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: var(--text-primary);
+  transform: translate(-50%, -50%);
+}
+
+.race-bar__ran-label {
+  position: absolute;
+  bottom: calc(100% + 0.25rem);
+  left: 50%;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+  transform: translateX(-50%);
 }
 
 /* The two estimates are triangles in the secondary ink: down from above for runs, up from below for heart rate. */
@@ -176,6 +206,11 @@
   background: var(--text-secondary);
 }
 
+.race-key__shape--ran {
+  border-radius: 50%;
+  background: var(--text-primary);
+}
+
 .race-key__shape--above {
   clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
@@ -239,7 +274,9 @@
 
   .race-bar__cap,
   .race-bar__dot,
+  .race-bar__ran,
   .race-bar__mark,
+  .race-key__shape--ran,
   .race-key__shape--above,
   .race-key__shape--below,
   .race-key__shape--dot {

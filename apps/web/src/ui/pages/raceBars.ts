@@ -19,6 +19,8 @@ export interface RaceBarGeometry {
   prediction: number
   /** Each method's own time, in the order the prediction lists them. */
   methods: MethodMark[]
+  /** A recorded best faster than the prediction, or null: it sets the scale too, so it is drawn where it is. */
+  ran: number | null
 }
 
 /** The share of the scale kept clear either side of what is drawn, so a mark's size does not run off it. */
@@ -29,12 +31,16 @@ const MARGIN = 0.04
  * scale; the prediction is the geometric mean of the estimates, so it sits between them but not at the
  * middle of the spread, which is part of what the bar shows.
  */
-export function raceBar(prediction: RacePrediction): RaceBarGeometry {
+export function raceBar(
+  prediction: RacePrediction,
+  ranSeconds: number | null = null,
+): RaceBarGeometry {
   const times = [
     prediction.low,
     prediction.high,
     prediction.seconds,
     ...prediction.methods.map((method) => method.seconds),
+    ...(ranSeconds === null ? [] : [ranSeconds]),
   ]
   const lowest = Math.min(...times)
   const highest = Math.max(...times)
@@ -48,5 +54,6 @@ export function raceBar(prediction: RacePrediction): RaceBarGeometry {
       method: method.method,
       at: at(method.seconds),
     })),
+    ran: ranSeconds === null ? null : at(ranSeconds),
   }
 }

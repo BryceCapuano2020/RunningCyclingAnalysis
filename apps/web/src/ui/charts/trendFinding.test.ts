@@ -44,13 +44,14 @@ describe('findingOf', () => {
     expect(finding.peak).toBeNull()
   })
 
-  it('judges a longer span over its last year, from the first reading in it', () => {
+  it('judges a longer span over its last year, from the reading nearest a year back', () => {
     const readings = months(80, PEAK_THEN_DECLINE)
     const finding = findingOf(readings, 1)
     const latest = readings.at(-1)!
     expect(finding.recent?.namesStart).toBe(false)
-    expect(latest.endMs - finding.recent!.from.endMs).toBeLessThanOrEqual(365 * DAY)
-    expect(latest.endMs - finding.recent!.from.endMs).toBeGreaterThan(330 * DAY)
+    expect(Math.abs(latest.endMs - finding.recent!.from.endMs - 364 * DAY)).toBeLessThanOrEqual(
+      14 * DAY,
+    )
   })
 
   it('finds a peak then a decline: steady over the last year, and clear under an older peak', () => {
@@ -170,6 +171,64 @@ describe('phraseOf', () => {
   })
 })
 
+describe('findingOf across periods', () => {
+  /** Three years of weekly readings: a rise to a high, then a fall that continues to the latest. */
+  const weekly: Reading[] = Array.from({ length: 160 }, (_, i) => ({
+    endMs: START + i * 7 * DAY,
+    raw: i < 100 ? 0.5 + i * 0.002 : 0.7 - (i - 100) * 0.004,
+    low: null,
+    high: null,
+  }))
+  const latest = weekly.at(-1)!
+  /** The series as a period shows it: only readings from `days` before the latest, as a trend line that starts a window in. */
+  const view = (days: number) => weekly.filter((r) => latest.endMs - r.endMs <= days * DAY)
+
+  it('uses the same reading for "the last year" in every period that says it', () => {
+    const all = findingOf(weekly, 1).recent!
+    const wide = findingOf(view(400), 1).recent!
+    expect(all.namesStart).toBe(false)
+    expect(wide.namesStart).toBe(false)
+    expect(wide.from).toEqual(all.from)
+    expect(wide.kind).toBe(all.kind)
+  })
+
+  it('names its start, and judges from the first plotted reading, where a period has none near a year back', () => {
+    const shown = view(302)
+    const recent = findingOf(shown, 1).recent!
+    expect(recent.namesStart).toBe(true)
+    expect(recent.from).toEqual(shown[0])
+    // All time holds a reading a year back and says the year; the 302-day view must not borrow the wording.
+    expect(findingOf(weekly, 1).recent!.namesStart).toBe(false)
+    const tools: PhraseTools = {
+      words: {
+        better: (a) => `rose ${a}`,
+        worse: (a) => `fell ${a}`,
+        peak: (a) => a,
+        highest: 'is the highest on file',
+        peakAfter: (a) => a,
+        steady: 'has held steady',
+      },
+      amountOf: (from, to) => `${Math.round(Math.abs(to - from) * 100)} points`,
+      since: () => 'since 28 Dec',
+    }
+    expect(withTail(phraseOf('Running', findingOf(shown, 1), tools)!.lead)).toMatch(
+      /^Running fell \d+ points since 28 Dec$/,
+    )
+    expect(withTail(phraseOf('Running', findingOf(weekly, 1), tools)!.lead)).toMatch(
+      /^Running fell \d+ points over the last year$/,
+    )
+  })
+
+  it('judges a year back that falls in a gap from the first reading in the last year, dated by its start', () => {
+    const gap = weekly.filter(
+      (r) => latest.endMs - r.endMs < 340 * DAY || latest.endMs - r.endMs > 400 * DAY,
+    )
+    const recent = findingOf(gap, 1).recent!
+    expect(recent.namesStart).toBe(true)
+    expect(latest.endMs - recent.from.endMs).toBeLessThanOrEqual(340 * DAY)
+  })
+})
+
 describe('findingOf highest', () => {
   it('is true when the latest reading is the best of the series, and false when an earlier one beat it', () => {
     expect(
@@ -232,12 +291,15 @@ describe('findingOf evidence floor', () => {
     expect(findingOf(longer, 1).recent?.kind).toBe('better')
   })
 
-  it('names the real span, not the last year, where the baseline reaches back under 300 days', () => {
+  it('says "over the last year" only where a reading lies within two weeks of 52 weeks back', () => {
     const reach = (months: number) => findingOf(monthsFrom(months), 1).recent
     // Seven months of readings reach back 180 days: named by their start.
     expect(reach(7)?.namesStart).toBe(true)
-    // Twelve months reach back 330 days: the last year.
-    expect(reach(12)?.namesStart).toBe(false)
+    // Twelve months reach back 330 days, and none lies near 364: still named by their start.
+    expect(reach(12)?.namesStart).toBe(true)
+    // Thirteen months reach back 360 days, within two weeks of 364: the last year, from that reading.
+    expect(reach(13)?.namesStart).toBe(false)
+    expect(reach(13)?.from.endMs).toBe(START)
   })
 
   it('names the real start of a baseline that is only some months into the last year', () => {
