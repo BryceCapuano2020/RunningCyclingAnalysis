@@ -52,7 +52,14 @@ describe('HeartRateJudge', () => {
     expect(new HeartRateJudge().of(bare, settings)).toBe(NO_HEART_RATE_JUDGEMENT)
   })
 
-  it('refuses a mass that is not a positive number, as the analysis does', () => {
-    expect(() => new HeartRateJudge().of(digests, { ...settings, massKg: 0 })).toThrow(RangeError)
+  it.each([
+    ['massKg', 0],
+    ['massKg', Number.NaN],
+    ['bikeMassKg', 0],
+    ['bikeMassKg', Number.NaN],
+  ] as const)('refuses %s of %s, as the analysis does', (field, value) => {
+    expect(() => new HeartRateJudge().of(digests, { ...settings, [field]: value })).toThrow(
+      RangeError,
+    )
   })
 })

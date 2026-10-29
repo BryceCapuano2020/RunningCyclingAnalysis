@@ -5,6 +5,7 @@ import type { PeriodChoice } from './period'
 import type { AthleteSettings } from './types'
 import { copiedLibrary } from './test/libraryFixture'
 import { stateHashes } from './test/stateHashes'
+import { setAsideLibrary } from './zones/test/setAsideLibrary'
 
 /**
  * The session state for a library of 400 copied activities, ten a week from 4 January 2021, under four
@@ -35,6 +36,13 @@ const DATED: AthleteSettings = {
   measurements: [mass(82, '2021-01-01'), mass(76, '2021-04-01'), mass(71, '2021-08-01')],
 }
 const CHOICES: PeriodChoice[] = ['default', 'all', 42, { from: '2021-03-10', to: '2021-03-20' }]
+/** The set-aside library runs from March 2024 to June 2025, so its custom range is inside that span. */
+const SET_ASIDE_CHOICES: PeriodChoice[] = [
+  'default',
+  'all',
+  42,
+  { from: '2025-04-20', to: '2025-06-03' },
+]
 
 interface Setting {
   label: string
@@ -238,6 +246,198 @@ const PINNED: Record<string, Record<string, string>> = {
   },
 }
 
+/**
+ * The state for the library of `setAsideLibrary()` (fifteen activities, where the heart-rate judgement sets one
+ * activity aside whichever period is on screen), pinned when the library-wide set-aside was reviewed, at main
+ * 4f4ccecb, under the same four settings and four periods, the custom range being inside that library's span.
+ */
+const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
+  'fixed in UTC': {
+    '"default"/result': 'be6f9b442885b05a',
+    '"default"/trend': '85ed31114db3a588',
+    '"default"/effortTrends': 'c2d5174066f766a7',
+    '"default"/sameHeartRate': '83a614a6919cb65e',
+    '"default"/lateEvidence': 'c9a81e3d3ecb531f',
+    '"default"/heartRateJudgement': '710e2c83dd0ec4bd',
+    '"default"/timeInZones': 'f7953609ae383487',
+    '"default"/previous': '74234e98afe7498f',
+    '"default"/records': 'e210f2b0ab4e6347',
+    '"default"/library': '04134dea3e1ce408',
+    '"default"/period': '5c06f1b12de302f0',
+    '"all"/result': '3a05d6bc29324a37',
+    '"all"/trend': '49ac21090b6510ef',
+    '"all"/effortTrends': 'cb5906df17f981ea',
+    '"all"/sameHeartRate': '8cbaaa5aaaa348ee',
+    '"all"/lateEvidence': '9ea3868bf71dee78',
+    '"all"/heartRateJudgement': '710e2c83dd0ec4bd',
+    '"all"/timeInZones': '35f59588139e50ec',
+    '"all"/previous': '74234e98afe7498f',
+    '"all"/records': 'e210f2b0ab4e6347',
+    '"all"/library': '04134dea3e1ce408',
+    '"all"/period': '908d810a6805c001',
+    '42/result': '4c9660ec7891772b',
+    '42/trend': '5d14b247a6b2a5df',
+    '42/effortTrends': 'e112561254448835',
+    '42/sameHeartRate': 'd1965b6c30b122f7',
+    '42/lateEvidence': '4a14a7534c788c35',
+    '42/heartRateJudgement': '710e2c83dd0ec4bd',
+    '42/timeInZones': '087a6cab53a91a24',
+    '42/previous': '494f49d57b6e061c',
+    '42/records': 'e210f2b0ab4e6347',
+    '42/library': '04134dea3e1ce408',
+    '42/period': '9c5c63cd365ca2ab',
+    '{"from":"2025-04-20","to":"2025-06-03"}/result': 'be6f9b442885b05a',
+    '{"from":"2025-04-20","to":"2025-06-03"}/trend': 'b79645739dd0ed21',
+    '{"from":"2025-04-20","to":"2025-06-03"}/effortTrends': '432e255ae0c9441f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/sameHeartRate': 'd5dbb114b810d2cf',
+    '{"from":"2025-04-20","to":"2025-06-03"}/lateEvidence': 'c9a81e3d3ecb531f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/heartRateJudgement': '710e2c83dd0ec4bd',
+    '{"from":"2025-04-20","to":"2025-06-03"}/timeInZones': 'f7953609ae383487',
+    '{"from":"2025-04-20","to":"2025-06-03"}/previous': '74234e98afe7498f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/records': 'e210f2b0ab4e6347',
+    '{"from":"2025-04-20","to":"2025-06-03"}/library': '04134dea3e1ce408',
+    '{"from":"2025-04-20","to":"2025-06-03"}/period': '040ccc203beb436c',
+  },
+  'dated in UTC': {
+    '"default"/result': '76a3186383d77625',
+    '"default"/trend': 'c51a0df0da49f618',
+    '"default"/effortTrends': 'e1ea0b6b6ab812a4',
+    '"default"/sameHeartRate': '83a614a6919cb65e',
+    '"default"/lateEvidence': 'c9a81e3d3ecb531f',
+    '"default"/heartRateJudgement': 'c65123ac6bd40b27',
+    '"default"/timeInZones': 'f7953609ae383487',
+    '"default"/previous': '74234e98afe7498f',
+    '"default"/records': 'e210f2b0ab4e6347',
+    '"default"/library': '8b3122dd2e1b8dab',
+    '"default"/period': '5c06f1b12de302f0',
+    '"all"/result': '51a38f45c0747dc1',
+    '"all"/trend': 'e8a0640549e1824c',
+    '"all"/effortTrends': '5bbf9e67ba9d33a2',
+    '"all"/sameHeartRate': '8cbaaa5aaaa348ee',
+    '"all"/lateEvidence': '9ea3868bf71dee78',
+    '"all"/heartRateJudgement': 'c65123ac6bd40b27',
+    '"all"/timeInZones': '35f59588139e50ec',
+    '"all"/previous': '74234e98afe7498f',
+    '"all"/records': 'e210f2b0ab4e6347',
+    '"all"/library': '8b3122dd2e1b8dab',
+    '"all"/period': '908d810a6805c001',
+    '42/result': '17e150655442a0b1',
+    '42/trend': '22268ace1a6ed0d6',
+    '42/effortTrends': '698d0f5d6900ba92',
+    '42/sameHeartRate': 'd1965b6c30b122f7',
+    '42/lateEvidence': '4a14a7534c788c35',
+    '42/heartRateJudgement': 'c65123ac6bd40b27',
+    '42/timeInZones': '087a6cab53a91a24',
+    '42/previous': '494f49d57b6e061c',
+    '42/records': 'e210f2b0ab4e6347',
+    '42/library': '8b3122dd2e1b8dab',
+    '42/period': '9c5c63cd365ca2ab',
+    '{"from":"2025-04-20","to":"2025-06-03"}/result': '76a3186383d77625',
+    '{"from":"2025-04-20","to":"2025-06-03"}/trend': 'de88fad35d61c703',
+    '{"from":"2025-04-20","to":"2025-06-03"}/effortTrends': 'a4f29cee63b697cd',
+    '{"from":"2025-04-20","to":"2025-06-03"}/sameHeartRate': 'd5dbb114b810d2cf',
+    '{"from":"2025-04-20","to":"2025-06-03"}/lateEvidence': 'c9a81e3d3ecb531f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/heartRateJudgement': 'c65123ac6bd40b27',
+    '{"from":"2025-04-20","to":"2025-06-03"}/timeInZones': 'f7953609ae383487',
+    '{"from":"2025-04-20","to":"2025-06-03"}/previous': '74234e98afe7498f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/records': 'e210f2b0ab4e6347',
+    '{"from":"2025-04-20","to":"2025-06-03"}/library': '8b3122dd2e1b8dab',
+    '{"from":"2025-04-20","to":"2025-06-03"}/period': '040ccc203beb436c',
+  },
+  'dated in Los Angeles': {
+    '"default"/result': '76a3186383d77625',
+    '"default"/trend': 'c51a0df0da49f618',
+    '"default"/effortTrends': 'e1ea0b6b6ab812a4',
+    '"default"/sameHeartRate': '83a614a6919cb65e',
+    '"default"/lateEvidence': 'c9a81e3d3ecb531f',
+    '"default"/heartRateJudgement': 'c65123ac6bd40b27',
+    '"default"/timeInZones': 'f7953609ae383487',
+    '"default"/previous': '74234e98afe7498f',
+    '"default"/records': 'e210f2b0ab4e6347',
+    '"default"/library': '8b3122dd2e1b8dab',
+    '"default"/period': '99c03466e443beb7',
+    '"all"/result': '51a38f45c0747dc1',
+    '"all"/trend': 'e8a0640549e1824c',
+    '"all"/effortTrends': '5bbf9e67ba9d33a2',
+    '"all"/sameHeartRate': '8cbaaa5aaaa348ee',
+    '"all"/lateEvidence': '9ea3868bf71dee78',
+    '"all"/heartRateJudgement': 'c65123ac6bd40b27',
+    '"all"/timeInZones': '35f59588139e50ec',
+    '"all"/previous': '74234e98afe7498f',
+    '"all"/records': 'e210f2b0ab4e6347',
+    '"all"/library': '8b3122dd2e1b8dab',
+    '"all"/period': '6183491011d5d5b5',
+    '42/result': '17e150655442a0b1',
+    '42/trend': '22268ace1a6ed0d6',
+    '42/effortTrends': '698d0f5d6900ba92',
+    '42/sameHeartRate': 'd1965b6c30b122f7',
+    '42/lateEvidence': '4a14a7534c788c35',
+    '42/heartRateJudgement': 'c65123ac6bd40b27',
+    '42/timeInZones': '087a6cab53a91a24',
+    '42/previous': '494f49d57b6e061c',
+    '42/records': 'e210f2b0ab4e6347',
+    '42/library': '8b3122dd2e1b8dab',
+    '42/period': '4115668a63751e03',
+    '{"from":"2025-04-20","to":"2025-06-03"}/result': '76a3186383d77625',
+    '{"from":"2025-04-20","to":"2025-06-03"}/trend': 'de88fad35d61c703',
+    '{"from":"2025-04-20","to":"2025-06-03"}/effortTrends': 'a4f29cee63b697cd',
+    '{"from":"2025-04-20","to":"2025-06-03"}/sameHeartRate': 'd5dbb114b810d2cf',
+    '{"from":"2025-04-20","to":"2025-06-03"}/lateEvidence': 'c9a81e3d3ecb531f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/heartRateJudgement': 'c65123ac6bd40b27',
+    '{"from":"2025-04-20","to":"2025-06-03"}/timeInZones': 'f7953609ae383487',
+    '{"from":"2025-04-20","to":"2025-06-03"}/previous': '74234e98afe7498f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/records': 'e210f2b0ab4e6347',
+    '{"from":"2025-04-20","to":"2025-06-03"}/library': '8b3122dd2e1b8dab',
+    '{"from":"2025-04-20","to":"2025-06-03"}/period': '8d270473f6fc81d0',
+  },
+  'dated in Auckland': {
+    '"default"/result': '76a3186383d77625',
+    '"default"/trend': 'c51a0df0da49f618',
+    '"default"/effortTrends': 'e1ea0b6b6ab812a4',
+    '"default"/sameHeartRate': '83a614a6919cb65e',
+    '"default"/lateEvidence': 'c9a81e3d3ecb531f',
+    '"default"/heartRateJudgement': 'c65123ac6bd40b27',
+    '"default"/timeInZones': 'f7953609ae383487',
+    '"default"/previous': '74234e98afe7498f',
+    '"default"/records': 'e210f2b0ab4e6347',
+    '"default"/library': '8b3122dd2e1b8dab',
+    '"default"/period': '1d6877d85a5029bb',
+    '"all"/result': '51a38f45c0747dc1',
+    '"all"/trend': 'e8a0640549e1824c',
+    '"all"/effortTrends': '5bbf9e67ba9d33a2',
+    '"all"/sameHeartRate': '8cbaaa5aaaa348ee',
+    '"all"/lateEvidence': '9ea3868bf71dee78',
+    '"all"/heartRateJudgement': 'c65123ac6bd40b27',
+    '"all"/timeInZones': '35f59588139e50ec',
+    '"all"/previous': '74234e98afe7498f',
+    '"all"/records': 'e210f2b0ab4e6347',
+    '"all"/library': '8b3122dd2e1b8dab',
+    '"all"/period': 'c8bcf9bb00b45238',
+    '42/result': '17e150655442a0b1',
+    '42/trend': '22268ace1a6ed0d6',
+    '42/effortTrends': '698d0f5d6900ba92',
+    '42/sameHeartRate': 'd1965b6c30b122f7',
+    '42/lateEvidence': '4a14a7534c788c35',
+    '42/heartRateJudgement': 'c65123ac6bd40b27',
+    '42/timeInZones': '087a6cab53a91a24',
+    '42/previous': '494f49d57b6e061c',
+    '42/records': 'e210f2b0ab4e6347',
+    '42/library': '8b3122dd2e1b8dab',
+    '42/period': '380732de5220fc6a',
+    '{"from":"2025-04-20","to":"2025-06-03"}/result': '70838ddfc9253cbd',
+    '{"from":"2025-04-20","to":"2025-06-03"}/trend': '445c2499208249b5',
+    '{"from":"2025-04-20","to":"2025-06-03"}/effortTrends': '28948fb2aa6c2045',
+    '{"from":"2025-04-20","to":"2025-06-03"}/sameHeartRate': '7f2f17ef1a79b633',
+    '{"from":"2025-04-20","to":"2025-06-03"}/lateEvidence': 'b5699ccffdffe82d',
+    '{"from":"2025-04-20","to":"2025-06-03"}/heartRateJudgement': 'c65123ac6bd40b27',
+    '{"from":"2025-04-20","to":"2025-06-03"}/timeInZones': '661cb1a236ddedd2',
+    '{"from":"2025-04-20","to":"2025-06-03"}/previous': '74234e98afe7498f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/records': 'e210f2b0ab4e6347',
+    '{"from":"2025-04-20","to":"2025-06-03"}/library': '8b3122dd2e1b8dab',
+    '{"from":"2025-04-20","to":"2025-06-03"}/period': 'ece551b7dbacbdf5',
+  },
+}
+
 type Env = { env: Record<string, string | undefined> }
 const env = (globalThis as { process?: Env }).process!.env
 
@@ -255,6 +455,7 @@ async function inZone<T>(zone: string, run: () => Promise<T> | T): Promise<T> {
 
 describe('session state', () => {
   const library = copiedLibrary(400)
+  const setAside = setAsideLibrary().digests
 
   it.each(SETTINGS)(
     'is byte for byte the pinned state of 400 activities, $label',
@@ -264,6 +465,27 @@ describe('session state', () => {
         expect(await stateHashes(library, CHOICES, settings)).toEqual(PINNED[label])
       }),
   )
+
+  it.each(SETTINGS)(
+    'is byte for byte the pinned state of a library where heart rate is set aside, $label',
+    ({ label, zone, julyOffset, settings }) =>
+      inZone(zone, async () => {
+        expect(new Date(2021, 6, 1, 12).getTimezoneOffset()).toBe(julyOffset)
+        const hashes = await stateHashes(setAside, SET_ASIDE_CHOICES, settings)
+        expect(hashes).toEqual(PINNED_SET_ASIDE[label])
+      }),
+  )
+
+  it('sets heart rate aside in that library, under every period and setting', () => {
+    for (const { settings } of SETTINGS) {
+      for (const choice of SET_ASIDE_CHOICES) {
+        const session = new AnalysisSession()
+        session.choosePeriod(choice)
+        const state = session.loadDigests(setAside, settings)
+        expect(state.heartRateJudgement.setAside.length).toBeGreaterThan(0)
+      }
+    }
+  })
 
   it('has something in every field the hashes pin, so a field cannot be pinned empty', () => {
     const session = new AnalysisSession()
