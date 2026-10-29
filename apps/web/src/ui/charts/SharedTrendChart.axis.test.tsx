@@ -4,6 +4,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { SharedWeek } from './gradeTrend'
 import { SharedTrendChart } from './SharedTrendChart'
 import { week } from './sharedTrendFixtures'
+import { sharedTrendLayout } from './sharedTrendLayout'
+import { trendRowsOf } from './sharedTrendRows'
+import { PLOT_BOTTOM_WITHOUT_X_TITLE, plotBoxOf } from './plotBox'
 
 afterEach(cleanup)
 
@@ -123,5 +126,57 @@ describe('SharedTrendChart with a stretch of line cut off by breaks', () => {
     const { container } = renderChart(tail)
     const line = container.querySelector('[data-testid="trend-line"][data-sport="run"]')
     expect(line?.getAttribute('d')?.match(/M/g)).toHaveLength(2)
+  })
+})
+
+describe('SharedTrendChart where a sport ended before the others', () => {
+  /** Seventy weeks of riding, and a run in the first 56 of them: drawn by the month, with the run ending 14 weeks early. */
+  const ended = Array.from({ length: 70 }, (_, i) =>
+    week(i, i < 56 ? 0.6 + (i % 5) / 100 : null, 0.5 + (i % 3) / 100),
+  )
+
+  it('does not draw the run up to the latest week: its final month row has none, and its line ends at its own month', () => {
+    const data = trendRowsOf(ended)
+    expect(data.monthly).toBe(true)
+    expect(data.rows.at(-1)?.run).toBeNull()
+    expect(data.rows.at(-1)?.ride).not.toBeNull()
+    const lastRun = data.rows.findLastIndex((row) => row.run !== null)
+    expect(lastRun).toBeLessThan(data.rows.length - 1)
+    // The row it ends on is dated where its data is, months before the latest week.
+    expect(data.rows[lastRun]!.endMs).toBeLessThan(ended[55]!.endMs + 32 * 86_400_000)
+  })
+
+  it('sets the run’s end label at its own end, and the ride’s in the gutter', () => {
+    const size = {
+      width: 900,
+      height: 340,
+      plot: plotBoxOf(900, 340, 90, PLOT_BOTTOM_WITHOUT_X_TITLE),
+      tooltipId: 't',
+      hintId: 'h',
+      titleId: 'i',
+    }
+    const m = sharedTrendLayout(trendRowsOf(ended), size)!
+    const at = (id: string) => {
+      const found = m.annotations.find((a) => a.id === id)
+      return found?.kind === 'end' ? found.at : undefined
+    }
+    expect(at('end-run')!.x).toBeLessThan(size.plot.right - 50)
+    expect(at('end-ride')!.x).toBeCloseTo(size.plot.right)
+    // The line ends where its label is: no run stretch reaches the right edge.
+    expect(Math.max(...m.runLines.flat().map((p) => p.x))).toBeLessThan(size.plot.right - 50)
+  })
+
+  it('says when the run was last seen, in the notes, since the line no longer reaches the end', () => {
+    const { container } = render(
+      <SharedTrendChart
+        weeks={ended}
+        windowDays={42}
+        effortS={1200}
+        latestStartMs={{ run: ended[55]!.endMs - 2 * 86_400_000, ride: null }}
+      />,
+    )
+    expect(container.querySelector('.chart-about')).toHaveTextContent(
+      /No runs since \d+ [A-Z][a-z]{2}( \d{4})?\./,
+    )
   })
 })

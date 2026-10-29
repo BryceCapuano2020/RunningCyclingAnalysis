@@ -507,8 +507,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     than 9 px, and the line and its last point carry them.
   - **Time.** Up to 26 weeks drawn each week is a point; past it (counting the weeks drawn, not the time between them)
     each calendar month is one, the mean of its weeks' values dated at the month's last week, and the last point is the
-    latest reading itself: each of its fields is its last value in the final month, so a missing latest week blanks
-    nothing and the label is the current value. A month's row in the table has no count of activities, shows a dash
+    latest week itself, so its label is the current value. A sport with no value in that week has none on the final
+    row: its line ends at its own last month, dated where its data is, and the note says "No runs since 20 Jan". A month's row in the table has no count of activities, shows a dash
     for it, averages the W/kg of its weeks at each week's own body mass, and the caption says "Monthly rows are
     averages of their weeks' values."; the latest row, which is a week, has its count. A year or more (`COMPRESS_AFTER_WEEKS`) of weeks with nothing in them is not drawn at its length: the axis gives
     it 28 px and a break mark (a faint hairline and two slashes on the axis, titled with the skipped dates), and the weeks inside

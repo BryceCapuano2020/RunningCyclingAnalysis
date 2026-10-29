@@ -37,8 +37,11 @@ export interface Finding {
     kind: 'better' | 'worse' | 'steady'
     from: Reading
     to: Reading
-    /** Whether the comparison reaches back under YEAR_BASELINE_DAYS, so it is named by its real start and not "the last year". */
-    wholeSpan: boolean
+    /**
+     * True when the comparison reaches back under YEAR_BASELINE_DAYS, so a title names its real start ("since May");
+     * false when it reaches back far enough to be called "over the last year".
+     */
+    namesStart: boolean
   } | null
   /** The best reading, when it is older than the last year and the latest is clear of it, and the latest. */
   peak: { best: Reading; latest: Reading } | null
@@ -90,7 +93,7 @@ export function findingOf(readings: readonly Reading[], better: Better): Finding
               : ('worse' as const),
           from,
           to: latest,
-          wholeSpan: reach < YEAR_BASELINE_DAYS,
+          namesStart: reach < YEAR_BASELINE_DAYS,
         }
   const best = readings.reduce((top, reading) =>
     reading.raw * better > top.raw * better ? reading : top,
@@ -166,7 +169,7 @@ export function phraseOf(subject: string, finding: Finding, tools: PhraseTools):
   const tail =
     recent === null
       ? null
-      : recent.wholeSpan
+      : recent.namesStart
         ? since(recent.from.endMs, recent.to.endMs)
         : LAST_YEAR
   const amount = recent === null ? null : amountOf(recent.from.raw, recent.to.raw)

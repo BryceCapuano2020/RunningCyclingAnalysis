@@ -9,7 +9,7 @@ const MEANS = ['run', 'ride', 'rideLow', 'rideHigh'] as const
 
 /** What a shared trend draws: its rows, whether they are months, and where each sport's line breaks. */
 export interface TrendRows {
-  /** One row a week, or past 26 weeks one a month, the last always the latest reading itself. */
+  /** One row a week, or past 26 weeks one a month, the last always the latest week itself. */
   rows: SharedWeek[]
   /** The weeks the rows are made of, unthinned: what a title is judged on, so a week is compared with weeks. */
   weekly: SharedWeek[]

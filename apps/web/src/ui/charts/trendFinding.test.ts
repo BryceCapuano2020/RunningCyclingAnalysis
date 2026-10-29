@@ -39,7 +39,7 @@ describe('findingOf', () => {
       months(8, (m) => 0.5 + m * 0.01),
       1,
     )
-    expect(finding.recent).toMatchObject({ kind: 'better', wholeSpan: true })
+    expect(finding.recent).toMatchObject({ kind: 'better', namesStart: true })
     expect(finding.recent?.from.endMs).toBe(START)
     expect(finding.peak).toBeNull()
   })
@@ -48,7 +48,7 @@ describe('findingOf', () => {
     const readings = months(80, PEAK_THEN_DECLINE)
     const finding = findingOf(readings, 1)
     const latest = readings.at(-1)!
-    expect(finding.recent?.wholeSpan).toBe(false)
+    expect(finding.recent?.namesStart).toBe(false)
     expect(latest.endMs - finding.recent!.from.endMs).toBeLessThanOrEqual(365 * DAY)
     expect(latest.endMs - finding.recent!.from.endMs).toBeGreaterThan(330 * DAY)
   })
@@ -235,9 +235,9 @@ describe('findingOf evidence floor', () => {
   it('names the real span, not the last year, where the baseline reaches back under 300 days', () => {
     const reach = (months: number) => findingOf(monthsFrom(months), 1).recent
     // Seven months of readings reach back 180 days: named by their start.
-    expect(reach(7)?.wholeSpan).toBe(true)
+    expect(reach(7)?.namesStart).toBe(true)
     // Twelve months reach back 330 days: the last year.
-    expect(reach(12)?.wholeSpan).toBe(false)
+    expect(reach(12)?.namesStart).toBe(false)
   })
 
   it('names the real start of a baseline that is only some months into the last year', () => {
@@ -250,7 +250,7 @@ describe('findingOf evidence floor', () => {
       high: null,
     }))
     const finding = findingOf([...old, ...recent], 1)
-    expect(finding.recent?.wholeSpan).toBe(true)
+    expect(finding.recent?.namesStart).toBe(true)
     expect(finding.recent?.from.endMs).toBe(recent[0]!.endMs)
   })
 

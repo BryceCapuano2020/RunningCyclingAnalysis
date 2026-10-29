@@ -137,6 +137,19 @@ describe('WeeklyVolumeChart', () => {
     expect(mainRows(container)).toHaveLength(6)
     // The text view says which stretch the axis skips, in a small table of its own.
     expect(container.querySelector('caption')).toHaveTextContent('Stretches the time axis skips')
+    // Its row names the first and last week either side of the skipped stretch.
+    const skipped = Array.from(container.querySelectorAll('table')).find(
+      (table) => table.querySelector('caption')?.textContent === 'Stretches the time axis skips',
+    )
+    expect(Array.from(skipped?.querySelectorAll('thead th') ?? [], (th) => th.textContent)).toEqual(
+      ['Skipped from', 'Skipped to'],
+    )
+    const cells = Array.from(
+      skipped?.querySelectorAll('tbody th, tbody td') ?? [],
+      (c) => c.textContent,
+    )
+    expect(cells[0]).toBe('Sun 26 Jan 2025')
+    expect(cells[1]).toMatch(/^Sun 29 Mar( 2026)?$/)
     expect(
       container.querySelector('svg [role="img"], [role="img"]')?.getAttribute('aria-label'),
     ).toMatch(/The time axis skips .* to /)

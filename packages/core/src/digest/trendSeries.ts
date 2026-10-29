@@ -56,8 +56,9 @@ export interface ThinnedRow<T> {
  * The rows a trend draws. A span of MONTHLY_AFTER_DAYS or less keeps every week. A longer one keeps a
  * row a month: the mean, over the weeks of the month that have a value, of each field in `means`
  * (a field with no value in any of them stays null), the rest taken from the month's last week, dated at
- * that week. The final row is not averaged: each field of it is its last value in the final month, so the latest
- * reading is never averaged away, and a field the final week lacks is not blanked by it.
+ * that week. The final row is not averaged: it is the final week itself, so the latest reading is never averaged away,
+ * and a field the final week has no value for is null there, since a value from an earlier week of the month would be
+ * drawn as current.
  * `monthly` says which was done.
  */
 export function thinTrend<T extends { endMs: number }>(
@@ -71,15 +72,11 @@ export function thinTrend<T extends { endMs: number }>(
   const rows = groups.map((indices, g) => {
     const lastIndex = indices.at(-1)!
     const lastWeek = weeks[lastIndex]!
-    const isFinal = g === groups.length - 1
+    // The final row is the final week itself: a field it lacks is null there, so a line that ended earlier ends at its
+    // own last month and is not drawn up to today.
+    if (g === groups.length - 1) return { row: lastWeek, weeks: indices }
     const row = { ...lastWeek }
     for (const key of means) {
-      if (isFinal) {
-        // The final row is the latest reading, not an average: each field is its last value in the month.
-        const latest = indices.findLast((index) => typeof weeks[index]![key] === 'number')
-        row[key] = (latest === undefined ? null : weeks[latest]![key]) as T[keyof T]
-        continue
-      }
       const values = indices
         .map((index) => weeks[index]![key])
         .filter((value): value is T[keyof T] & number => typeof value === 'number')

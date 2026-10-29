@@ -101,8 +101,8 @@ describe('thinTrend', () => {
     expect(rows.at(-1)?.weeks.length).toBeGreaterThan(0)
   })
 
-  it('takes each field of the final row from its last value in the final month, so a missing latest week blanks nothing', () => {
-    // The last week has no value of a, but the one before it does; b has one in the last.
+  it('makes the final row the final week, so a field it lacks is null there and not an earlier week of the month', () => {
+    // The last week has no value of a, though the one before it, in the same month, does; b has one in the last.
     const gap = weeks.map((w, i) =>
       i === weeks.length - 1
         ? Object.assign({}, w, { a: null, b: 7 })
@@ -110,9 +110,10 @@ describe('thinTrend', () => {
     )
     const { rows } = thinTrend(gap, ['a', 'b'])
     const final = rows.at(-1)!.row
-    expect(final.a).toBe(gap.at(-2)!.a)
+    expect(final.a).toBeNull()
     expect(final.b).toBe(7)
-    // A month before it is still an average.
+    // The month before it is still an average, dated where its data is.
+    expect(rows.at(-2)?.row.a).not.toBeNull()
     expect(rows[0]?.row.b).toBeNull()
   })
 
