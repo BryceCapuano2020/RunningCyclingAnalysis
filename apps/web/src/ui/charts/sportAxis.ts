@@ -7,8 +7,8 @@ import type { AxisTick, PlotBox } from './chartTypes'
 import { linearScale, niceDomain, tickDecimals } from './scale'
 import type { Scale } from './scale'
 
-/** Pace steps in seconds: quarter, half and whole minutes, then two and five. */
-const PACE_STEPS_S = [15, 30, 60, 120, 300]
+/** Pace steps in seconds: five and ten seconds, quarter, half and whole minutes, then two and five. */
+const PACE_STEPS_S = [5, 10, 15, 30, 60, 120, 300]
 const INTERVALS = 4
 /** Absorbs floating-point noise in a span that should be exactly INTERVALS steps wide. */
 const SPAN_TOLERANCE = 1e-9
@@ -97,9 +97,10 @@ export function sportYAxis(
   values: number[],
   plot: PlotBox,
   tight = false,
+  minTightPaceSpanS = MIN_TIGHT_PACE_SPAN_S,
 ): { y: Scale; ticks: AxisTick[] } {
   if (sport === 'run') {
-    const { domain, ticks } = paceDomain(values, tight ? MIN_TIGHT_PACE_SPAN_S : MIN_PACE_SPAN_S)
+    const { domain, ticks } = paceDomain(values, tight ? minTightPaceSpanS : MIN_PACE_SPAN_S)
     const y = linearScale(domain, [plot.top, plot.bottom])
     return {
       y,
@@ -120,4 +121,46 @@ export function sportYAxis(
       label: groupThousands(watts.toFixed(decimals)),
     })),
   }
+}
+
+/** The least a fitted pace axis spans, seconds: a change of a few seconds shows, with ticks 10 s apart. */
+const FITTED_MIN_PACE_SPAN_S = 30
+/** The least a fitted power axis spans, as a fraction of its middle: a few watts in 250 are not a cliff. */
+const FITTED_MIN_POWER_SPAN = 0.08
+/** The least a fitted axis spans, by sport, given the middle of its values. */
+const FITTED_MIN_SPAN: Record<Sport, (middle: number) => number> = {
+  run: () => FITTED_MIN_PACE_SPAN_S,
+  ride: (middle) => FITTED_MIN_POWER_SPAN * middle,
+}
+
+/** The room above and below the data on a fitted axis, as a fraction of its span. */
+const FITTED_PAD = 0.15
+
+/** The values with a pair added that widen their range to at least minSpan, about the middle of it. */
+function widened(values: number[], minSpan: number): number[] {
+  const lo = Math.min(...values)
+  const hi = Math.max(...values)
+  if (hi - lo >= minSpan) return values
+  const mid = (lo + hi) / 2
+  return [...values, mid - minSpan / 2, mid + minSpan / 2]
+}
+
+/**
+ * The vertical scale of a trend, fitted to its own values with room round them rather than to a fixed span:
+ * a pace axis spans at least FITTED_MIN_PACE_SPAN_S and a power axis at least a few per cent of its middle,
+ * so a real change fills the plot and a small one still has an honest height. Neither starts at zero, so the
+ * area under a line is a wash, not a measure. `values` are plotted values, from plottedValue, and not empty.
+ */
+export function fittedYAxis(
+  sport: Sport,
+  values: number[],
+  plot: PlotBox,
+): { y: Scale; ticks: AxisTick[] } {
+  const middle = (Math.min(...values) + Math.max(...values)) / 2
+  const fat = widened(values, FITTED_MIN_SPAN[sport](middle))
+  const lo = Math.min(...fat)
+  const hi = Math.max(...fat)
+  const pad = (hi - lo) * FITTED_PAD
+  const padded = [lo - pad, hi + pad]
+  return sportYAxis(sport, padded, plot, true, FITTED_MIN_PACE_SPAN_S)
 }

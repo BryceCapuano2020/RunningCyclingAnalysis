@@ -105,8 +105,8 @@ test('the fitness over time card shows for sample data, and its table toggles', 
   })
   await expect(card).toBeVisible()
   await expect(
-    card.getByRole('figure', {
-      name: /^(Age grade|Energy rate) of your best 20 min, trailing/,
+    card.locator('figure').filter({
+      hasText: /(Age grade|Energy rate) of your best 20 min, trailing/,
     }),
   ).toBeAttached()
 

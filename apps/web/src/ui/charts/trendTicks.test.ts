@@ -1,7 +1,15 @@
 import { DAY_MS } from '@rca/core/constants'
 import { describe, expect, it } from 'vitest'
 import { linearScale } from './scale'
-import { shortDate, shortDateWithYear, trendDateTicks } from './trendTicks'
+import type { PlotBox } from './chartTypes'
+import { axisFontSize, rootScale } from './ticks'
+import {
+  labelExtent,
+  shortDate,
+  shortDateWithYear,
+  trendDateTicks,
+  trendXTicks,
+} from './trendTicks'
 
 /** Sunday 12 January 2025 and the Sundays that follow it, as the trend ends its weeks. */
 const FIRST = Date.UTC(2025, 0, 12, 23, 59, 59, 999)
@@ -49,8 +57,48 @@ describe('trendDateTicks', () => {
     expect(ticks.at(-1)?.position).toBe(x(ends.at(-1)!))
   })
 
+  it('names the first sample by its month and year once the span is past 26 weeks', () => {
+    const ends = weeks(40)
+    const ticks = trendDateTicks(ends, linearScale([ends[0]!, ends.at(-1)!], [0, 100]))
+    expect(ticks[0]?.label).toBe('Jan 2025')
+    expect(ticks.at(-1)?.label).toBe('12 Oct')
+  })
+
   it('gives no ticks to fewer than two samples', () => {
     expect(trendDateTicks(weeks(1), x)).toEqual([])
     expect(trendDateTicks([], x)).toEqual([])
+  })
+})
+
+describe('trendXTicks', () => {
+  /** Weekly ends over several years, as an all-time trend runs. */
+  const years = (count: number) =>
+    Array.from({ length: count * 52 }, (_, i) => Date.UTC(2015, 0, 4) + i * 7 * DAY_MS)
+
+  /** Whether any two labels meet as the axis draws them, with the 8 px they keep. */
+  function meets(ticks: { position: number; label: string }[], plot: PlotBox, width: number) {
+    const extents = ticks.map((tick) => labelExtent(tick, plot, axisFontSize(width), rootScale()))
+    return extents.some((extent, i) => i + 1 < extents.length && extent[1] + 8 > extents[i + 1]![0])
+  }
+
+  it('keeps no two labels touching, at a phone’s width and a desktop’s, over eleven years', () => {
+    for (const width of [320, 390, 640, 1000]) {
+      const plot: PlotBox = { left: 56, right: width - 70, top: 28, bottom: 200 }
+      const ends = years(11)
+      const x = linearScale([ends[0]!, ends.at(-1)!], [plot.left, plot.right])
+      const ticks = trendXTicks(ends, x, { width, plot })
+      expect(ticks.length).toBeGreaterThanOrEqual(2)
+      expect(meets(ticks, plot, width)).toBe(false)
+    }
+  })
+
+  it('keeps the first and last labels, which name the span, and drops an inner one that would touch them', () => {
+    const width = 390
+    const plot: PlotBox = { left: 56, right: 300, top: 28, bottom: 200 }
+    const ends = years(6)
+    const x = linearScale([ends[0]!, ends.at(-1)!], [plot.left, plot.right])
+    const ticks = trendXTicks(ends, x, { width, plot })
+    expect(ticks[0]?.label).toBe('Jan 2015')
+    expect(ticks.at(-1)?.position).toBe(x(ends.at(-1)!))
   })
 })

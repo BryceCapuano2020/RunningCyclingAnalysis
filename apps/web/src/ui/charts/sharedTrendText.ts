@@ -1,20 +1,16 @@
 import { levelOf } from '@rca/core/grade'
-import { ENERGY_RATE_UNIT, formatEnergyRate, formatEnergyRateValue } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
 import { WEIGHT_PROMPT_PARTS } from '../weightCopy'
 import type { SharedWeek } from './gradeTrend'
-import { STEPPED_LINE_TEXT, weekDay } from './trendText'
+import { weekDay } from './trendText'
 import { formatDayMonth } from '../format/date'
 import { SPORT_PLURAL } from '../sports'
 import type { Sport } from '@rca/core/types'
 import { DAY_MS } from '@rca/core/constants'
+import { BREAK_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
 
-/** Which measure a shared trend shows: each sport's age grade, or its energy rate in metabolic W/kg. */
-export type SharedMeasure = 'grade' | 'energy'
-
-/** The level a grade falls in, which the tooltip names, or nothing for an energy value. */
-export function levelNote(measure: SharedMeasure, value: number): string | undefined {
-  if (measure === 'energy') return undefined
+/** The level a grade falls in, which the tooltip names. */
+export function levelNote(value: number): string | undefined {
   const level = levelOf(value)
   return level === null ? undefined : level
 }
@@ -33,8 +29,31 @@ const LOW_POINT = 'A low point means even the best effort in those weeks was eas
 /** Says the trend's "now" is its last window, so it is not read as the best of the period a card shows. */
 const latestWindowNote = (windowText: string) =>
   `The latest point covers only the last ${windowText}, so it can differ from a card’s best over the period.`
-/** The line's steps, which the caption says, so that the note under the chart is one line of meaning. */
-const STEPS = STEPPED_LINE_TEXT
+/** What an age-graded ride is, said once in a chart's notes: the ring is the estimate and the band its range. */
+const ESTIMATE_NOTE =
+  'A ride is graded through its running equivalent, so it is an estimate: the ring is the estimate and the shaded band is its 90% range.'
+
+/**
+ * The notes a trend keeps behind "About this chart", in the order they are read: how the latest point differs from a
+ * card, what a low point is, and for an age grade what the ride's ring and band are. The notes about breaks, months
+ * and skipped years follow, as the chart has them.
+ */
+export function trendNotes(windowText: string): string[] {
+  return [latestWindowNote(windowText), LOW_POINT, ESTIMATE_NOTE]
+}
+
+/** How the line is drawn, which the table's caption says once. */
+const SMOOTHED = `The line is smoothed between weeks and breaks where ${BREAK_AFTER_WEEKS} weeks or more passed with no qualifying effort.`
+
+/** Said under a chart whose line has a break, so a gap is read as a gap in the athlete's efforts and not a gap in the chart. */
+export const BREAK_NOTE = `A line breaks where ${BREAK_AFTER_WEEKS} weeks or more passed with no qualifying effort.`
+
+/** Said once in a table's caption when its rows are months, so a row is not read as one week's value or count. */
+export const MONTHLY_ROWS = ' Monthly rows are averages of their weeks’ values.'
+
+/** Said under a trend drawn by the month, once, so the thinner line is not read as missing weeks. */
+export const MONTHLY_NOTE =
+  'Past 26 weeks each point is a month: the average of its weekly values, and the last point is the latest week.'
 
 /**
  * The dated note for a sport whose line stops before the window does, such as "No runs since 20 Jan": the
@@ -54,61 +73,41 @@ export function endedNote(
   return `No ${SPORT_PLURAL[sport]} since ${formatDayMonth(latestMs)}.`
 }
 
-/** A trend's note, then a dated note for each line that stops before the window does. */
-export function withEndedNotes(
-  note: string,
+/** The dated note for each line that stops before the window does, in the order of the sports. */
+export function endedNotes(
   weeks: readonly SharedWeek[],
   latestStartMs: Record<Sport, number | null>,
-): string {
-  const ended = (['run', 'ride'] as const).map((sport) =>
-    endedNote(weeks, sport, latestStartMs[sport]),
-  )
-  return [note, ...ended].filter((text): text is string => text !== null).join(' ')
+): string[] {
+  return (['run', 'ride'] as const).flatMap((sport) => {
+    const note = endedNote(weeks, sport, latestStartMs[sport])
+    return note === null ? [] : [note]
+  })
 }
 
-/** The words of each measure: the chart's name, its axis, its key, its table and its empty state. */
-export function copyOf(measure: SharedMeasure, effort: string, windowText: string) {
-  if (measure === 'grade') {
-    return {
-      title: `Age grade of your best ${effort}, trailing ${windowText}`,
-      description: `Run and ride age grades for the best ${effort} in each trailing ${windowText}, on one scale. Run is as recorded. Ride is estimated through its running equivalent, drawn dashed with rings and a band for its range.`,
-      note: `Each point is the best ${effort} in the ${windowText} to that Sunday. ${latestWindowNote(windowText)} ${LOW_POINT}`,
-      caption: `Each grade is the best ${effort} in the ${windowText} that end that week, at the age on the day of that effort. Ride grades are estimates, with their range. ${STEPS}`,
-      axisTitle: 'Age grade',
-      empty: 'Add runs or rides in more than one week to see your age grades',
-      runHeading: 'Run grade',
-      rideHeading: 'Ride grade, estimated',
-      runLegend: 'Run, as recorded',
-      rideLegend: 'Ride, estimated',
-    }
-  }
+/** The words of the trend: its name, its axis, its key, its table and its empty state. */
+export function copyOf(effort: string, windowText: string) {
   return {
-    title: `Energy rate of your best ${effort}, trailing ${windowText}`,
-    description: `Run and ride energy rate in ${ENERGY_RATE_UNIT} for the best ${effort} in each trailing ${windowText}, on one scale.`,
-    note: `Each point is the best ${effort} in the ${windowText} to that Sunday, in ${ENERGY_RATE_UNIT}. ${latestWindowNote(windowText)} ${LOW_POINT}`,
-    caption: `Each value is the best ${effort} in the ${windowText} that end that week, in ${ENERGY_RATE_UNIT}. ${STEPS}`,
-    axisTitle: `Energy rate (${ENERGY_RATE_UNIT})`,
-    empty: 'Add runs or rides in more than one week to see your energy rate',
-    runHeading: `Run (${ENERGY_RATE_UNIT})`,
-    rideHeading: `Ride (${ENERGY_RATE_UNIT})`,
-    runLegend: 'Run',
-    rideLegend: 'Ride',
+    title: `Age grade of your best ${effort}, trailing ${windowText}`,
+    description: `Run and ride age grades for the best ${effort} in each trailing ${windowText}, on one scale. Run is as recorded, with solid dots. Ride is estimated through its running equivalent, with hollow rings and a band for its 90% range.`,
+    what: `Each point is your best ${effort} of the ${windowText} to that Sunday; rides are estimated.`,
+    caption: `Each grade is the best ${effort} in the ${windowText} that end that week, at the age on the day of that effort. Ride grades are estimates, with their range. ${SMOOTHED}`,
+    axisTitle: 'Age grade',
+    empty: 'Add runs or rides in more than one week to see your age grades',
+    runHeading: 'Run grade',
+    rideHeading: 'Ride grade, estimated',
+    runLegend: 'Run, as recorded',
+    rideLegend: 'Ride, estimated',
   }
 }
 
-/** Grades are drawn in per cent, so the axis reads in whole steps. Energy stays in metabolic W/kg. */
-export function plotted(measure: SharedMeasure, value: number): number {
-  return measure === 'grade' ? value * 100 : value
+/** Grades are drawn in per cent, so the axis reads in whole steps. */
+export function plotted(value: number): number {
+  return value * 100
 }
 
-/** A value in words, for a tooltip, a note or an end label: an energy rate carries its unit. */
-export function formatValue(measure: SharedMeasure, value: number): string {
-  return measure === 'grade' ? formatGrade(value) : formatEnergyRate(value)
-}
-
-/** A table cell's value. An energy rate is a bare number, since its column heading names the unit. */
-export function tableValue(measure: SharedMeasure, value: number): string {
-  return measure === 'grade' ? formatGrade(value) : formatEnergyRateValue(value)
+/** A grade in words, for a tooltip, a note, a table cell or an end label. */
+export function formatValue(value: number): string {
+  return formatGrade(value)
 }
 
 /** A week with cycling held back: its run kept, and no ride value, range or count. */
@@ -128,14 +127,10 @@ export function withRideHeld(week: SharedWeek): SharedWeek {
  * The one line that stands in for a trend with a single week of values: what that week holds, and why
  * no line is drawn. A trend needs a second week before it can show a change.
  */
-export function singleValueText(
-  week: SharedWeek,
-  measure: SharedMeasure,
-  rideKnown: boolean,
-): string {
+export function singleValueText(week: SharedWeek, rideKnown: boolean): string {
   const parts = [
-    week.run === null ? null : `Run ${formatValue(measure, week.run)}`,
-    rideKnown && week.ride !== null ? `Ride ${formatValue(measure, week.ride)}` : null,
+    week.run === null ? null : `Run ${formatValue(week.run)}`,
+    rideKnown && week.ride !== null ? `Ride ${formatValue(week.ride)}` : null,
   ].flatMap((part) => (part === null ? [] : [part]))
   return `Only one week has a value: ${parts.join(' and ')}, week ending ${weekDay(week.endMs)}. A trend needs two weeks with values.`
 }

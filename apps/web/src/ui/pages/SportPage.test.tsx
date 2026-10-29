@@ -858,9 +858,7 @@ describe('SportPage fitness trend', () => {
     const choice = screen.getByRole('group', { name: 'Effort length' })
     expect(within(choice).getByRole('radio', { name: '20 min' })).toBeChecked()
     expect(
-      screen.getByRole('figure', {
-        name: /^Run flat pace per kilometre, best 20 min, trailing/,
-      }),
+      screen.getByText(/^Run flat pace per kilometre, best 20 min, trailing/),
     ).toBeInTheDocument()
   })
 
@@ -870,15 +868,13 @@ describe('SportPage fitness trend', () => {
 
     fireEvent.click(within(choice).getByRole('radio', { name: '5 min' }))
     expect(
-      screen.getByRole('figure', {
-        name: /^Run flat pace per kilometre, best 5 min, trailing/,
-      }),
+      screen.getByText(/^Run flat pace per kilometre, best 5 min, trailing/),
     ).toBeInTheDocument()
     expect(paceColumnOf('best 5 min')).toEqual(paceList(TRENDS[FIVE_MIN_S]))
-    expect(screen.queryByRole('figure', { name: /best 20 min/ })).toBeNull()
+    expect(screen.queryByText(/best 20 min, trailing/)).toBeNull()
 
     fireEvent.click(within(choice).getByRole('radio', { name: '60 min' }))
-    expect(screen.getByRole('figure', { name: /best 60 min, trailing/ })).toBeInTheDocument()
+    expect(screen.getByText(/best 60 min, trailing/)).toBeInTheDocument()
     expect(paceColumnOf('best 60 min')).toEqual(paceList(TRENDS[SIXTY_MIN_S]))
     expect(paceColumnOf('best 60 min')).not.toEqual(paceList(TRENDS[TWENTY_MIN_S]))
   })

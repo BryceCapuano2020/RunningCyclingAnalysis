@@ -1,0 +1,15 @@
+/*
+ * The wash under a sport's trend line: a soft tint of the sport's colour down to the foot of the plot. The
+ * axis is fitted to the data and does not start at zero, so the wash is shape and not a measure. It names its
+ * sport on data-sport, which sets --sport-colour-soft.
+ */
+.trend-wash {
+  fill: var(--sport-colour-soft);
+  stroke: none;
+}
+
+@media (forced-colors: active) {
+  .trend-wash {
+    fill: none;
+  }
+}

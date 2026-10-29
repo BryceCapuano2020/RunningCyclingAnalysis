@@ -1,0 +1,12 @@
+/* The notes of a chart, a short list under their disclosure, in the muted size of a chart's note. */
+.chart-about__notes {
+  max-width: 62ch;
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.chart-about__notes li + li {
+  margin-top: var(--space-1);
+}

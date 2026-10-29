@@ -107,7 +107,7 @@ function endCandidates(e: EndLabel, space: AnnotationSpace): Candidate[] {
   const { rootPx, width } = space
   const line = LABEL_LINE * scaleOf(rootPx)
   const w = Math.max(
-    smallWidth(e.text, rootPx),
+    smallWidth(e.glyph === undefined ? e.text : `${e.glyph} ${e.text}`, rootPx),
     e.sub === undefined ? 0 : smallWidth(e.sub, rootPx),
   )
   const h = line * (e.sub === undefined ? 1 : 2)
@@ -117,7 +117,16 @@ function endCandidates(e: EndLabel, space: AnnotationSpace): Candidate[] {
     const top = (roomRight ? e.at.y - line * 0.7 : e.at.y - 10 - h) + dy
     const anchor = roomRight ? 'start' : 'end'
     const x = roomRight ? left : left + w
-    const texts: PlacedText[] = [{ role: 'label', text: e.text, x, y: top + line - 3, anchor }]
+    const texts: PlacedText[] = [
+      {
+        role: 'label',
+        text: e.text,
+        x,
+        y: top + line - 3,
+        anchor,
+        ...(e.glyph === undefined ? {} : { glyph: e.glyph }),
+      },
+    ]
     if (e.sub !== undefined) {
       texts.push({ role: 'caption', text: e.sub, x, y: top + line * 2 - 3, anchor })
     }

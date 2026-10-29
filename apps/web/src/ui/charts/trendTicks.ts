@@ -1,7 +1,10 @@
 import { DAY_MS } from '@rca/core/constants'
+import { MONTHLY_AFTER_DAYS, inGap } from '@rca/core/digest/trendSeries'
+import type { QuietGap } from '@rca/core/digest/trendSeries'
 import { formatMonth } from '../format/date'
-import type { AxisTick } from './chartTypes'
+import type { AxisTick, PlotBox } from './chartTypes'
 import type { Scale } from './scale'
+import { axisFontSize, fitTicks, labelWidth, rootScale } from './ticks'
 
 /** Spans shorter than this many days label each sample's week; longer ones label month starts. */
 const WEEKLY_LABEL_SPAN_DAYS = 92
@@ -42,9 +45,14 @@ function monthStartsBetween(fromMs: number, toMs: number): number[] {
  * The date-axis ticks of a trend whose samples end at endsMs, in ascending order. A short span
  * labels every sample's week. A longer one labels the month starts between the first and last
  * samples, and always the first and last samples themselves. The month starts carry their year, so the
- * first sample, which has none before it to say which, carries its own.
+ * first sample, which has none before it to say which, carries its own: its day on a span of 26 weeks or
+ * less, and its month past that, where the chart is drawn by the month.
  */
-export function trendDateTicks(endsMs: readonly number[], x: Scale): AxisTick[] {
+export function trendDateTicks(
+  endsMs: readonly number[],
+  x: Scale,
+  gaps: readonly QuietGap[] = [],
+): AxisTick[] {
   const first = endsMs[0]
   const last = endsMs.at(-1)
   if (first === undefined || last === undefined || endsMs.length < 2) return []
@@ -53,10 +61,73 @@ export function trendDateTicks(endsMs: readonly number[], x: Scale): AxisTick[] 
   }
   const months = monthStartsBetween(first, last)
     .filter((ms) => ms - first >= END_CLEARANCE_MS && last - ms >= END_CLEARANCE_MS)
+    .filter((ms) => !inGap(gaps, ms))
     .map((ms) => ({ position: x(ms), label: formatMonth(utcDayLocal(ms), true) }))
+  // Past 26 weeks the chart is drawn by the month, so its first tick is named by its month, as the others are.
+  const firstLabel =
+    (last - first) / DAY_MS > MONTHLY_AFTER_DAYS
+      ? formatMonth(utcDayLocal(first), true)
+      : shortDateWithYear(first)
   return [
-    { position: x(first), label: shortDateWithYear(first) },
+    { position: x(first), label: firstLabel },
     ...months,
     { position: x(last), label: shortDate(last) },
   ]
+}
+
+/** The room kept between two tick labels, in px. */
+const TICK_LABEL_GAP_PX = 8
+
+/** The left and right edges of a tick's label as the axis sets it: centred, or against the plot's edge near either end. */
+export function labelExtent(
+  tick: AxisTick,
+  plot: PlotBox,
+  fontPx: number,
+  scale: number,
+): [left: number, right: number] {
+  const width = labelWidth(tick.label, fontPx, scale)
+  if (tick.position - width / 2 < plot.left) return [tick.position, tick.position + width]
+  if (tick.position + width / 2 > plot.right) return [tick.position - width, tick.position]
+  return [tick.position - width / 2, tick.position + width / 2]
+}
+
+/**
+ * Drops ticks until no two labels meet, measuring each label where the axis sets it: the first starts at its
+ * tick and the last ends at its, so two near one end can touch though their ticks are far enough apart for
+ * centred labels. An interior tick goes before an end one, so the span's two ends stay named.
+ */
+function apart(ticks: AxisTick[], plot: PlotBox, fontPx: number): AxisTick[] {
+  const scale = rootScale()
+  let kept = ticks
+  for (;;) {
+    const extents = kept.map((tick) => labelExtent(tick, plot, fontPx, scale))
+    const meets = extents.findIndex(
+      (extent, i) => i + 1 < extents.length && extent[1] + TICK_LABEL_GAP_PX > extents[i + 1]![0],
+    )
+    if (meets < 0) return kept
+    // The later of the two goes, unless it is the last tick, which stays: then the earlier one goes.
+    const drop = meets + 1 === kept.length - 1 && meets > 0 ? meets : meets + 1
+    kept = kept.filter((_, i) => i !== drop)
+  }
+}
+
+/**
+ * The date ticks of a trend's x axis at a chart size: the trend's date ticks, thinned to the width and then to
+ * where no two labels meet as the axis draws them.
+ */
+export function trendXTicks(
+  endsMs: readonly number[],
+  x: Scale,
+  size: { width: number; plot: PlotBox },
+  gaps: readonly QuietGap[] = [],
+): AxisTick[] {
+  const dated = trendDateTicks(endsMs, x, gaps)
+  const ends = new Set([dated[0], dated.at(-1)])
+  // The first and last ticks name the span, so thinning keeps them; `apart` then clears what touches them.
+  const fitted = fitTicks(dated, {
+    axis: 'x',
+    width: size.width,
+    keep: (tick) => ends.has(tick),
+  })
+  return apart(fitted, size.plot, axisFontSize(size.width))
 }

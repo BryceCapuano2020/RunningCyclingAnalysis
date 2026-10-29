@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
+import { sportGutter } from './sportTrend'
 import { TrendChart } from './TrendChart'
 
 const WEEK_MS = 7 * 86_400_000
@@ -73,7 +74,7 @@ describe('TrendChart', () => {
     vi.restoreAllMocks()
   })
 
-  it('titles the chart with its sport and its unit, and draws only that sport’s line', () => {
+  it('names its unit, effort and window, and draws only that sport’s line', () => {
     const { container } = render(
       <TrendChart
         sport="run"
@@ -84,12 +85,38 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
+    // Six weeks are too short a span to judge, so the figure keeps its descriptive name.
     expect(
       screen.getByRole('figure', {
         name: 'Run flat pace per kilometre, best 20 min, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="trend-line"]')).toHaveLength(1)
+  })
+
+  it('says what the line found once its span is long enough to judge', () => {
+    // Fourteen weeks, from 4.0 to 4.39 m/s: 4:10 to 3:48 per km, 22 s faster.
+    const points = Array.from({ length: 14 }, (_, week) =>
+      point(week, runWkgAt(4 + week * 0.03), null),
+    )
+    render(
+      <TrendChart
+        sport="run"
+        points={points}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={TWENTY_MINUTES_S}
+      />,
+    )
+    expect(
+      screen.getByRole('figure', {
+        name: 'Your best 20 min pace is 22 s per kilometre faster since 12 Jan',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Run flat pace per kilometre, best 20 min, trailing 2 weeks'),
+    ).toBeInTheDocument()
   })
 
   it('labels the vertical axis in pace, faster up, and the weeks by their end dates', () => {
@@ -105,14 +132,21 @@ describe('TrendChart', () => {
     )
     const ticks = Array.from(container.querySelectorAll('.chart-y-axis__tick'))
     const labels = ticks.map((tick) => tick.textContent)
-    expect(labels).toContain('4:00')
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
       'Flat pace (/km), faster up',
     )
-    // A faster pace sits higher, so the 3:30 tick is above the 4:30 one.
-    const yOf = (label: string) =>
-      Number(ticks.find((tick) => tick.textContent === label)?.getAttribute('y'))
-    expect(yOf('3:30')).toBeLessThan(yOf('4:30'))
+    // The axis is fitted to 3:53 to 4:10 per km, not a fixed span: its ticks are ten seconds apart and
+    // within a minute of the data, and a faster pace sits higher on the page.
+    const seconds = labels.map((label) => {
+      const [m, s] = (label ?? '').split(':').map(Number)
+      return m! * 60 + s!
+    })
+    expect(Math.max(...seconds) - Math.min(...seconds)).toBeLessThanOrEqual(60)
+    expect(seconds.every((value, i) => i === 0 || value - seconds[i - 1]! === 10)).toBe(true)
+    expect(Math.min(...seconds)).toBeLessThanOrEqual(233)
+    expect(Math.max(...seconds)).toBeGreaterThanOrEqual(250)
+    const ys = ticks.map((tick) => Number(tick.getAttribute('y')))
+    expect(ys.every((y, i) => i === 0 || y > ys[i - 1]!)).toBe(true)
     expect(
       Array.from(container.querySelectorAll('.chart-x-axis__tick')).map((t) => t.textContent),
     ).toEqual(['12 Jan', '19 Jan', '26 Jan', '2 Feb', '9 Feb', '16 Feb'])
@@ -120,7 +154,9 @@ describe('TrendChart', () => {
     // only for them: they sit 18 px below the plot, which ends the untitled margin above the chart's foot.
     expect(container.querySelector('.chart-x-axis__title')).toBeNull()
     expect(Number(container.querySelector('.chart-x-axis__tick')?.getAttribute('y'))).toBe(
-      320 - PLOT_BOTTOM_WITHOUT_X_TITLE + 18,
+      Number(container.querySelector('svg')?.getAttribute('height')) -
+        PLOT_BOTTOM_WITHOUT_X_TITLE +
+        18,
     )
   })
 
@@ -139,54 +175,10 @@ describe('TrendChart', () => {
     expect(screen.getAllByTestId('trend-marker')).toHaveLength(3)
     expect(screen.getByTestId('trend-latest')).toBeInTheDocument()
     // The latest run is 4.3 m/s, which is 3:53 /km. Its label gives the value alone, since the title names the window.
-    expect(container.querySelector('.chart-series__label')?.textContent).toBe('3:53 /km')
+    expect(container.querySelector('.annot--end .annot__text--label')?.textContent).toBe('3:53 /km')
   })
 
-  it('places the latest label above its point where the stepped line would run under it, below', () => {
-    // A week-10 dip, which the step back up at week 11 draws through the place a label below would take.
-    const dip = Array.from({ length: 13 }, (_, week) =>
-      point(week, runWkgAt(week === 10 ? 3.85 : 4), null),
-    )
-    const { container } = render(
-      <TrendChart
-        sport="run"
-        points={dip}
-        massKg={MASS_KG}
-        units="metric"
-        windowDays={TWO_WEEKS}
-        effortS={TWENTY_MINUTES_S}
-      />,
-    )
-    const latestY = Number(screen.getByTestId('trend-latest').getAttribute('cy'))
-    const labelY = Number(container.querySelector('.chart-series__label')?.getAttribute('y'))
-    expect(labelY).toBeLessThan(latestY)
-  })
-
-  it('sets the latest label to the right of its point when the step line crosses both the spots below and above', () => {
-    // A week-8 rise and a week-9 fall: the step at week 9 runs through the places above and below the
-    // latest point, which is short of the plot's right edge, so there is room beside it.
-    const steps = Array.from({ length: 13 }, (_, week) => {
-      if (week > 10) return point(week, null, null)
-      const speed = week === 8 ? 4.15 : week === 9 ? 3.85 : 4
-      return point(week, runWkgAt(speed), null)
-    })
-    const { container } = render(
-      <TrendChart
-        sport="run"
-        points={steps}
-        massKg={MASS_KG}
-        units="metric"
-        windowDays={TWO_WEEKS}
-        effortS={TWENTY_MINUTES_S}
-      />,
-    )
-    const label = container.querySelector('.chart-series__label')
-    const latest = screen.getByTestId('trend-latest')
-    expect(label?.getAttribute('text-anchor')).toBe('start')
-    expect(Number(label?.getAttribute('x'))).toBeGreaterThan(Number(latest.getAttribute('cx')))
-  })
-
-  it('breaks the line at a gap instead of bridging it', () => {
+  it('sets the latest label in the gutter right of the plot, level with its point', () => {
     const { container } = render(
       <TrendChart
         sport="run"
@@ -197,12 +189,96 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    // Runs in weeks 0 and 1, week 3 alone, and week 5: three pieces, so three moveto commands.
-    const line = container.querySelector('[data-testid="trend-line"]')
-    expect(line?.getAttribute('d')?.match(/M/g)).toHaveLength(3)
+    const label = container.querySelector('.annot--end .annot__text--label')
+    const latest = screen.getByTestId('trend-latest')
+    expect(label?.getAttribute('text-anchor')).toBe('start')
+    expect(Number(label?.getAttribute('x'))).toBeGreaterThan(Number(latest.getAttribute('cx')))
+    expect(
+      Math.abs(Number(label?.getAttribute('y')) - Number(latest.getAttribute('cy'))),
+    ).toBeLessThan(12)
   })
 
-  it('fills the area under the line in the sport’s soft colour', () => {
+  it('bridges a gap of a week or two in one smooth line', () => {
+    const { container } = render(
+      <TrendChart
+        sport="run"
+        points={RUN_POINTS}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={TWENTY_MINUTES_S}
+      />,
+    )
+    // Weeks 2 and 4 have no value, but each is short of eight weeks: one piece, and no steps.
+    const d = container.querySelector('[data-testid="trend-line"]')?.getAttribute('d') ?? ''
+    expect(d.match(/M/g)).toHaveLength(1)
+    expect(d).toMatch(/C/)
+    expect(d).not.toMatch(/[HV]/)
+  })
+
+  it('breaks the line where eight weeks or more had no run, and notes where', () => {
+    const gap = Array.from({ length: 24 }, (_, week) =>
+      point(week, week >= 5 && week < 15 ? null : runWkgAt(4 + (week % 4) / 20), null),
+    )
+    const { container } = render(
+      <TrendChart
+        sport="run"
+        points={gap}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={TWENTY_MINUTES_S}
+      />,
+    )
+    const line = container.querySelector('[data-testid="trend-line"]')
+    expect(line?.getAttribute('d')?.match(/M/g)).toHaveLength(2)
+    expect(container.querySelector('.chart-about')).toHaveTextContent(
+      /The line breaks from .* no runs of 20 min or longer in that time\./,
+    )
+  })
+
+  it('draws no year without a ride as a flat line: the weeks before the first ride and after the last are left off', () => {
+    const rides = Array.from({ length: 30 }, (_, week) =>
+      point(week, null, week >= 10 && week < 20 ? rideWkgAt(240 + week) : null),
+    )
+    const { container } = render(
+      <TrendChart
+        sport="ride"
+        points={rides}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={TWENTY_MINUTES_S}
+      />,
+    )
+    expect(tableOf(container).rows).toHaveLength(10)
+    expect(container.querySelector('.chart-about')).toHaveTextContent(
+      /Covers 23 Mar to 25 May 2025, from your first to your last ride of 20 min or longer with power\./,
+    )
+    expect(container.innerHTML).not.toMatch(/NaN|Infinity/)
+  })
+
+  it('washes the area under a line of four weeks or more in the sport’s soft colour', () => {
+    const rides = Array.from({ length: 6 }, (_, week) =>
+      point(week, null, rideWkgAt(250 + week * 5)),
+    )
+    const { container } = render(
+      <TrendChart
+        sport="ride"
+        points={rides}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={TWENTY_MINUTES_S}
+      />,
+    )
+    const wash = container.querySelector('.trend-wash')
+    // The wash takes its colour from --sport-colour-soft, which data-sport sets for the ride.
+    expect(wash).toHaveAttribute('data-sport', 'ride')
+    expect(wash?.getAttribute('d')).toMatch(/Z/)
+  })
+
+  it('leaves a short stretch of weeks as markers on a line, with no wash under it', () => {
     const { container } = render(
       <TrendChart
         sport="ride"
@@ -213,10 +289,8 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    const area = container.querySelector('.chart-series__area--ride')
-    // The area takes its colour from --sport-colour-soft, which data-sport sets for the ride.
-    expect(area).toHaveAttribute('data-sport', 'ride')
-    expect(area?.getAttribute('d')).toMatch(/Z/)
+    expect(container.querySelector('.trend-wash')?.getAttribute('d')).toBe('')
+    expect(screen.getAllByTestId('trend-marker').length).toBeGreaterThanOrEqual(2)
   })
 
   it('names each week by its UTC Sunday, whatever the viewer zone', () => {
@@ -332,9 +406,9 @@ describe('TrendChart', () => {
     )
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual(['Week ending', 'Power', 'W/kg', 'Rides'])
-    expect(rows).toHaveLength(4)
-    expect(rows[1]).toEqual(['Sun 19 Jan 2025', '250 W', '3.3 W/kg', '1'])
-    expect(rows[0]).toEqual(['Sun 12 Jan 2025', '—', '—', '0'])
+    // The first week has no ride, so the table starts at the first week that has one.
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toEqual(['Sun 19 Jan 2025', '250 W', '3.3 W/kg', '1'])
     expect(container.querySelector('caption')?.textContent).toMatch(/best 20 min in the 2 weeks/)
   })
 
@@ -349,13 +423,11 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    expect(
-      screen.getByRole('figure', { name: /best 20 min, trailing 30 days$/ }),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/best 20 min, trailing 30 days$/)).toBeInTheDocument()
   })
 
-  it('says under the chart only how each line steps to the next Sunday, since the caption names the window', () => {
-    render(
+  it('says no step note under the chart: the line is smooth, and the caption names the window', () => {
+    const { container } = render(
       <TrendChart
         sport="run"
         points={RUN_POINTS}
@@ -365,13 +437,15 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    expect(
-      screen.getByText(
-        'Each line steps from one Sunday to the next, and breaks where a week has no value.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/Each point is/)).toBeNull()
-    expect(screen.queryByText(/holds/)).toBeNull()
+    // One short sentence says what a point is; the rest is behind About this chart, and a plain trend has none.
+    expect(container.querySelector('.chart-frame__note')).toHaveTextContent(
+      'Each point is your best 20 min of the 2 weeks to that Sunday.',
+    )
+    expect(container.querySelector('.chart-about')).toBeNull()
+    expect(screen.queryByText(/steps/)).toBeNull()
+    expect(container.querySelector('caption')).toHaveTextContent(
+      'The line is smoothed between weeks.',
+    )
   })
 
   it('shows an empty state with fewer than two weeks of a sport', () => {
@@ -405,7 +479,7 @@ describe('TrendChart', () => {
     expect(headers).toEqual(['Week ending', 'Flat pace', 'Runs'])
   })
 
-  it('fills no area under a pace line, and leaves no NaN or Infinity for a zero effort', () => {
+  it('draws no wash for a zero effort, and leaves no NaN or Infinity', () => {
     const { container } = render(
       <TrendChart
         sport="run"
@@ -420,7 +494,7 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    expect(container.querySelector('.chart-series__area')).toBeNull()
+    expect(container.querySelector('.trend-wash')).toBeNull()
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/)
     expect(tableOf(container).rows.flat().join(' ')).not.toMatch(/NaN|Infinity/)
   })
@@ -437,9 +511,7 @@ describe('TrendChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', {
-        name: 'Run flat pace per kilometre, best 5 min, trailing 2 weeks',
-      }),
+      screen.getByText('Run flat pace per kilometre, best 5 min, trailing 2 weeks'),
     ).toBeInTheDocument()
     expect(container.querySelector('caption')?.textContent).toMatch(/best 5 min in the 2 weeks/)
   })
@@ -456,11 +528,11 @@ describe('TrendChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', { name: 'Ride power in watts, best 60 min, trailing 2 weeks' }),
+      screen.getByText('Ride power in watts, best 60 min, trailing 2 weeks'),
     ).toBeInTheDocument()
   })
 
-  it('reads the week before the pointer, since a stepped line holds that week’s value to the next', () => {
+  it('reads the week nearest the pointer, as a smooth line is drawn through its weeks', () => {
     const { container } = render(
       <TrendChart
         sport="run"
@@ -471,12 +543,13 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    // The chart is 640 px wide (the fallback width), with the plot from 56 to 624 px. Weeks 1 and 2
-    // are 113.6 px apart, and 70% of the way from week 1 to week 2 is nearer to week 2.
-    const x = 56 + 0.2 * 568 + 0.7 * 113.6
+    // The chart is 640 px wide (the fallback width), with the plot from 56 px to the gutter that holds the
+    // latest label. Six weeks stand a fifth of the plot apart; 70% of the way from week 1 to week 2 is nearer 2.
+    const right = 640 - sportGutter('3:53 /km')
+    const step = (right - 56) / 5
     const surface = screen.getByTestId('plot-surface')
-    fireEvent.pointerMove(surface, { clientX: x, clientY: 100 })
-    expect(screen.getByRole('status')).toHaveTextContent('Week ending Sun 19 Jan 2025')
+    fireEvent.pointerMove(surface, { clientX: 56 + step + 0.7 * step, clientY: 100 })
+    expect(screen.getByRole('status')).toHaveTextContent('Week ending Sun 26 Jan 2025')
     expect(container.querySelectorAll('[data-testid="plot-surface"]')).toHaveLength(1)
   })
 })

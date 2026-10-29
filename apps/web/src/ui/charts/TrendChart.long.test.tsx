@@ -52,32 +52,49 @@ describe('TrendChart over years', () => {
     vi.restoreAllMocks()
   })
 
-  it('draws a point a month past a year, instead of a point a week', () => {
+  it('draws a point a month past 26 weeks, instead of a point a week', () => {
     const { container } = renderRide(rideWeeks(260, null))
-    const marked = container.querySelectorAll('[data-testid="trend-marker"]').length + 1
-    expect(marked).toBeGreaterThanOrEqual(60)
-    expect(marked).toBeLessThanOrEqual(62)
+    const rows = container.querySelectorAll('tbody tr').length
+    expect(rows).toBeGreaterThanOrEqual(60)
+    expect(rows).toBeLessThanOrEqual(62)
     expect(
-      screen.getByText(/Past 13 months, each point is the last week of its month\./),
+      screen.getByText(/Past 26 weeks each point is a month: the average of its weekly values/),
     ).toBeInTheDocument()
-    // The table holds the same months, not the 260 weeks.
-    expect(container.querySelectorAll('tbody tr').length).toBe(marked)
+    expect(container.querySelector('thead th')?.textContent).toBe('Month to')
   })
 
-  it('keeps a point a week up to a year, with no note about months', () => {
-    const { container } = renderRide(rideWeeks(52, null))
-    expect(container.querySelectorAll('tbody tr')).toHaveLength(52)
-    expect(screen.queryByText(/last week of its month/)).not.toBeInTheDocument()
+  it('keeps a point a week up to 26 weeks, with no note about months, and a month past them', () => {
+    const weekly = renderRide(rideWeeks(27, null))
+    expect(weekly.container.querySelectorAll('tbody tr')).toHaveLength(27)
+    expect(screen.queryByText(/each point is a month/)).not.toBeInTheDocument()
+    cleanup()
+    const monthly = renderRide(rideWeeks(28, null))
+    expect(monthly.container.querySelectorAll('tbody tr').length).toBeLessThan(10)
+    expect(screen.getByText(/each point is a month/)).toBeInTheDocument()
   })
 
-  it('carries the year on the first date of the axis', () => {
+  it('draws all eleven years of weeks: no cap cuts the start, and the table is by month', () => {
+    const { container } = renderRide(rideWeeks(570, null))
+    const rows = Array.from(container.querySelectorAll('tbody tr'))
+    expect(rows.length).toBeGreaterThanOrEqual(130)
+    expect(rows.length).toBeLessThanOrEqual(133)
+    // The first month is January 2018, the library's first, not one 260 weeks back from the last.
+    expect(rows[0]?.textContent).toMatch(/Jan 2018/)
+    expect(container.querySelector('.chart-x-axis__tick')?.textContent).toBe('Jan 2018')
+  })
+
+  it('carries the month and year on the first date of the axis past 26 weeks', () => {
     const { container } = renderRide(rideWeeks(260, null))
     const first = container.querySelector('.chart-x-axis__tick')
-    expect(first?.textContent).toBe('7 Jan 2018')
+    expect(first?.textContent).toBe('Jan 2018')
   })
 
   it('says where the longest stretch with no ride with power lay, which the line shows only as a blank', () => {
-    renderRide(rideWeeks(260, [100, 140]))
+    const { container } = renderRide(rideWeeks(260, [100, 140]))
+    // The line is two pieces, not one bridged across the gap.
+    expect(
+      container.querySelector('[data-testid="trend-line"]')?.getAttribute('d')?.match(/M/g),
+    ).toHaveLength(2)
     // The first empty week is 12 weeks after the window opened: nothing was ridden from 12 weeks before it.
     const from = new Date(endOf(100) - 84 * DAY_MS)
     expect(from.getUTCFullYear()).toBe(2019)
@@ -86,6 +103,47 @@ describe('TrendChart over years', () => {
         /^The line breaks from \d+ \w+ 2019 to \d+ \w+ 2020: no rides of 20 min or longer with power in that time\./,
       ),
     ).toBeInTheDocument()
+  })
+
+  it('skips a year or more with no ride, with a break mark and the dates in About this chart, not a flat run of empty years', () => {
+    const { container } = renderRide(rideWeeks(260, [30, 100]))
+    expect(container.querySelectorAll('[data-testid="axis-break"]')).toHaveLength(1)
+    expect(container.querySelector('.chart-about')).toHaveTextContent(/The axis skips .* to .*/)
+    // 260 weeks less the 69 skipped, by month: far fewer rows than the whole span would give.
+    expect(container.querySelectorAll('tbody tr').length).toBeLessThan(50)
+    expect(container.querySelectorAll('[data-testid="trend-gap"]')).toHaveLength(0)
+  })
+
+  it('draws a stretch of one or two rides cut off by breaks as one marker, not a dumbbell', () => {
+    const points = rideWeeks(60, null).map((point, week) =>
+      week >= 2 && week < 30 ? Object.assign(point, { rideWkg: null, rideCount: 0 }) : point,
+    )
+    const { container } = renderRide(points)
+    expect(
+      container.querySelectorAll('[data-testid="trend-marker"][data-isolated="true"]'),
+    ).toHaveLength(1)
+    const line = container.querySelector('[data-testid="trend-line"]')
+    expect(line?.getAttribute('d')?.match(/M/g)).toHaveLength(1)
+  })
+
+  it('gives a month’s table row an average W/kg of its weeks, at each week’s own body mass, and no count', () => {
+    // The same 3 W/kg every week, ridden at 60 kg and 90 kg in turn: the watts differ, the W/kg does not.
+    const points = rideWeeks(60, null).map((point, week) =>
+      Object.assign(point, { rideMassKg: week % 2 === 0 ? 60 : 90 }),
+    )
+    const { container } = renderRide(points)
+    const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
+      Array.from(tr.querySelectorAll('th, td')).map((cell) => cell.textContent),
+    )
+    const [first, second] = rows
+    // Power, W/kg, count: the month's W/kg is the weeks' own, though its last week was at the other mass.
+    expect(first?.[2]).toBe(second?.[2])
+    expect(first?.[3]).toBe('—')
+    // The latest row is the latest week itself, so it states its count.
+    expect(rows.at(-1)?.[3]).toBe('1')
+    expect(container.querySelector('caption')).toHaveTextContent(
+      'Monthly rows are averages of their weeks’ values.',
+    )
   })
 
   it('names the effort length of the trend, so a gap at 60 min is not read as a gap in riding', () => {
@@ -116,34 +174,53 @@ function sharedWeeks(count: number): SharedWeek[] {
 describe('SharedTrendChart over years', () => {
   afterEach(cleanup)
 
-  it('draws a point a month past a year, and says so once', () => {
-    const { container } = render(
+  const renderShared = (count: number) =>
+    render(
       <SharedTrendChart
-        weeks={sharedWeeks(260)}
-        measure="grade"
+        weeks={sharedWeeks(count)}
         windowDays={84}
         effortS={1200}
         latestStartMs={{ run: null, ride: null }}
       />,
     )
-    const runMarkers = container.querySelectorAll('[data-testid="trend-marker"][data-sport="run"]')
-    expect(runMarkers.length).toBeGreaterThanOrEqual(60)
-    expect(runMarkers.length).toBeLessThanOrEqual(62)
-    expect(screen.getAllByText(/last week of its month/)).toHaveLength(1)
+
+  it('draws a point a month past 26 weeks, and says so once', () => {
+    const { container } = renderShared(260)
+    const rows = container.querySelectorAll('tbody tr').length
+    expect(rows).toBeGreaterThanOrEqual(60)
+    expect(rows).toBeLessThanOrEqual(62)
+    expect(screen.getAllByText(/Past 26 weeks each point is a month/)).toHaveLength(1)
   })
 
-  it('keeps every week of a year or less', () => {
-    const { container } = render(
-      <SharedTrendChart
-        weeks={sharedWeeks(40)}
-        measure="grade"
-        windowDays={84}
-        effortS={1200}
-        latestStartMs={{ run: null, ride: null }}
-      />,
+  it('gives a month’s row no count of activities, says its rows are averages, and counts the latest week', () => {
+    const { container } = renderShared(60)
+    const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
+      Array.from(tr.querySelectorAll('th, td')).map((cell) => cell.textContent),
     )
+    expect(rows[0]?.slice(-2)).toEqual(['—', '—'])
+    expect(rows.at(-1)?.slice(-2)).toEqual(['1', '1'])
+    expect(container.querySelector('caption')).toHaveTextContent(
+      'Monthly rows are averages of their weeks’ values.',
+    )
+  })
+
+  it('keeps every week of 26 weeks or less', () => {
+    const { container } = renderShared(27)
     expect(
       container.querySelectorAll('[data-testid="trend-marker"][data-sport="run"]'),
-    ).toHaveLength(40)
+    ).toHaveLength(27)
+    expect(screen.queryByText(/each point is a month/)).not.toBeInTheDocument()
+  })
+
+  it('draws all of eleven years, from the first month, with a table by month', () => {
+    const { container } = renderShared(570)
+    const rows = Array.from(container.querySelectorAll('tbody tr'))
+    expect(rows.length).toBeGreaterThanOrEqual(130)
+    expect(rows.length).toBeLessThanOrEqual(133)
+    expect(container.querySelector('.chart-x-axis__tick')?.textContent).toBe('Jan 2018')
+    // Dense months carry no marker each; the line and its last point do.
+    expect(
+      container.querySelectorAll('[data-testid="trend-marker"][data-sport="run"]').length,
+    ).toBeLessThan(5)
   })
 })

@@ -9,7 +9,7 @@ import type { AthleteSettings, Sport } from '@rca/core/types'
 import { headlineGrades } from '../grades'
 import type { AgeProfile } from '../grades'
 import { wholeGrade } from '../gradeFormat'
-import { energyWeeks, gradeWeeks } from './gradeTrend'
+import { gradeWeeks } from './gradeTrend'
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const PROFILE: AgeProfile = { birthYear: 1989, sex: 'male' }
@@ -141,31 +141,5 @@ describe('gradeWeeks against the cards', () => {
       runCount: 0,
       rideCount: 0,
     })
-  })
-})
-
-describe('energyWeeks', () => {
-  it('gives each week’s metabolic W/kg for each sport, unchanged', () => {
-    const point: TrendPoint = {
-      endMs: JAN_12_2025,
-      runWkg: 17,
-      rideWkg: 14,
-      runCount: 1,
-      rideCount: 2,
-      runAtMs: null,
-      rideAtMs: null,
-      rideRunSpeed: null,
-    }
-    expect(energyWeeks([point])).toEqual([
-      {
-        endMs: JAN_12_2025,
-        run: 17,
-        ride: 14,
-        rideLow: null,
-        rideHigh: null,
-        runCount: 1,
-        rideCount: 2,
-      },
-    ])
   })
 })

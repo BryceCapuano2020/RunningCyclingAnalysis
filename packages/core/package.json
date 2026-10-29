@@ -17,6 +17,7 @@
     "./digest/sameHeartRateTypes": "./src/digest/sameHeartRateTypes.ts",
     "./digest/setAsideTypes": "./src/digest/setAsideTypes.ts",
     "./digest/trendPoints": "./src/digest/trendPoints.ts",
+    "./digest/trendSeries": "./src/digest/trendSeries.ts",
     "./duplicates": "./src/duplicates.ts",
     "./math": "./src/math.ts",
     "./pipeline": "./src/pipeline.ts",

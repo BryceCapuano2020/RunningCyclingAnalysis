@@ -1,0 +1,28 @@
+/*
+ * The ride's 90% range on an age-graded trend: a soft wash in the ride colour with no outline, under both
+ * lines. In forced colours, where tints go, it keeps an outline so it is still a shape.
+ */
+.trend-band {
+  fill: var(--series-ride-soft);
+  stroke: none;
+}
+
+@media (forced-colors: active) {
+  .trend-band {
+    fill: Canvas;
+    stroke: Highlight;
+  }
+}
+
+/* The ride's 90% range through an isolated estimate: a short bar in the ride colour, under its ring. */
+.trend-interval {
+  stroke: var(--sport-colour);
+  stroke-width: 2px;
+  stroke-linecap: round;
+}
+
+@media (forced-colors: active) {
+  .trend-interval {
+    stroke: Highlight;
+  }
+}

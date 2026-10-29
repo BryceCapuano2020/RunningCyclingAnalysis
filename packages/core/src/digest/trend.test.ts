@@ -253,12 +253,25 @@ describe('fitnessTrend', () => {
     expect(fitnessTrend([stale], settings)).toEqual([])
   })
 
-  it('keeps only the most recent 260 weeks', () => {
+  it('returns every week of a library longer than five years, to its first', () => {
     const digests = Array.from({ length: 300 }, (_, week) => run(MONDAY + week * WEEK, 10))
     const points = fitnessTrend(digests, settings)
-    expect(points).toHaveLength(260)
-    expect(points[0]?.endMs).toBe(FIRST_SUNDAY_END + 40 * WEEK)
+    expect(points).toHaveLength(300)
+    expect(points[0]?.endMs).toBe(FIRST_SUNDAY_END)
     expect(points.at(-1)?.endMs).toBe(FIRST_SUNDAY_END + 299 * WEEK)
+  })
+
+  it('covers fifteen years of weeks, each one a week after the last', () => {
+    const years = 15
+    const digests = [run(MONDAY, 12), run(MONDAY + years * 52 * WEEK, 14)]
+    const points = fitnessTrend(digests, settings)
+    expect(points).toHaveLength(years * 52 + 1)
+    expect(points[0]?.runWkg).not.toBeNull()
+    // The weeks between the two activities are empty once the window has passed.
+    expect(points[200]?.runWkg).toBeNull()
+    expect(points.every((point, i) => i === 0 || point.endMs - points[i - 1]!.endMs === WEEK)).toBe(
+      true,
+    )
   })
 
   it('starts at the first week whose whole window fits after fromMs', () => {

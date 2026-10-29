@@ -116,8 +116,8 @@ export const heavyChartStubs = {
 export async function trendCharts() {
   const { TrendChart } = await import('../ui/charts/TrendChart')
   const { SharedTrendChart } = await import('../ui/charts/SharedTrendChart')
-  const { energyWeeks, gradeWeeks } = await import('../ui/charts/gradeTrend')
-  return { TrendChart, SharedTrendChart, energyWeeks, gradeWeeks }
+  const { gradeWeeks } = await import('../ui/charts/gradeTrend')
+  return { TrendChart, SharedTrendChart, gradeWeeks }
 }
 
 /** Signs the test user in (with the given options), out, or marks the account unavailable. */

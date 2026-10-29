@@ -20,7 +20,6 @@ import { centralWkgFromWatts, fitBikeModelOver, ridePriced, runCentralWkg } from
 import { firstStartingAfter } from './startOrder'
 import { DEFAULT_WINDOW_DAYS, weekEndMs } from './trendPoints'
 
-const MAX_POINTS = 260
 const WEEK_MS = 7 * DAY_MS
 
 export interface TrendPoint {
@@ -137,8 +136,10 @@ function bestAtOrAbove(
  * Weekly rolling best of running and riding metabolic W/kg. Each point covers the trailing
  * windowDays window that ends at the point. Values use the same prior-mean conversion as combine,
  * with the bike model fitted to the same set. Digests of other model revisions are ignored. The
- * caller passes the set the analysis sees, after near-duplicates are hidden. Only the most recent
- * 260 weeks are returned. Each point also names the start of the activity that set each value,
+ * caller passes the set the analysis sees, after near-duplicates are hidden. Every week from the
+ * first activity (or the period's start) to the last is returned, however long the library: a week costs
+ * a binary search and the readings in its window, so a decade is a few hundred points. Each point also
+ * names the start of the activity that set each value,
  * and, when asked, converts the best ride to its running equivalent once per distinct power.
  */
 export function fitnessTrend(
@@ -185,7 +186,7 @@ export function fitnessTrend(
   const lastEnd = weekEndMs(last.startMs)
   const earliest =
     opts.fromMs === undefined ? first.startMs : Math.max(first.startMs, opts.fromMs + windowMs)
-  const firstEnd = Math.max(weekEndMs(earliest), lastEnd - (MAX_POINTS - 1) * WEEK_MS)
+  const firstEnd = weekEndMs(earliest)
   const points: TrendPoint[] = []
   for (let endMs = firstEnd; endMs <= lastEnd; endMs += WEEK_MS) {
     const windowStart = endMs - windowMs

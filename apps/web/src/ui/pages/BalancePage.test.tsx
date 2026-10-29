@@ -138,6 +138,15 @@ function trendWithWeeks(weeks: number): TrendPoint[] {
   })
 }
 
+/** The trend's figure, found by the line that names its measure, since its title says what it found. */
+function trendFigure(): HTMLElement {
+  const figure = screen
+    .getAllByRole('figure')
+    .find((candidate) => /of your best 20 min, trailing/.test(candidate.textContent ?? ''))
+  if (figure === undefined) throw new Error('no trend figure')
+  return figure
+}
+
 describe('BalancePage', () => {
   it('opens on the answer, with the period control under it and no eyebrow above', () => {
     renderPage()
@@ -278,8 +287,11 @@ describe('BalancePage', () => {
 
   it('names the trend section by the chart’s own title, so the section and the chart cannot drift apart', () => {
     renderPage(makeResult(), { state: { trend: trendWithWeeks(2) } })
-    const figure = screen.getByRole('figure', { name: /of your best 20 min, trailing/ })
-    const title = figure.querySelector('.chart-frame__title')?.textContent ?? ''
+    const figure = trendFigure()
+    // The chart's title is what it found; the line under it names the measure, which the section is named by.
+    const named =
+      figure.querySelector('.chart-frame__lede') ?? figure.querySelector('.chart-frame__title')
+    const title = named?.textContent ?? ''
     expect(title).not.toBe('')
     expect(screen.getByRole('region', { name: title })).toBeInTheDocument()
   })
@@ -291,13 +303,16 @@ describe('BalancePage', () => {
     ).not.toBeInTheDocument()
     unmount()
 
-    renderPage(makeResult(), { state: { trend: trendWithWeeks(1) } })
+    const running = trendWithWeeks(1).map((week) =>
+      Object.assign(week, { runWkg: flatSpeedToMetabolic(4) }),
+    )
+    renderPage(makeResult(), { state: { trend: running } }, MAN_BORN_1986)
     expect(
       screen.getByRole('region', { name: /of your best 20 min, trailing/ }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/^Only one week has a value: Run /)).toBeInTheDocument()
+    expect(screen.getByText(/^Only one week has a value: Run \d+%/)).toBeInTheDocument()
     expect(
-      screen.getByRole('figure', { name: /^Energy rate of your best 20 min, trailing/ }),
+      screen.getByRole('figure', { name: /^Age grade of your best 20 min, trailing/ }),
     ).toBeInTheDocument()
   })
 
@@ -352,16 +367,14 @@ describe('BalancePage', () => {
     expect(group?.querySelector('.balance-strip')).not.toBeNull()
   })
 
-  it('shows one energy trend for both sports while the age or sex is unknown', () => {
+  it('waits for the age and sex, and says so, rather than drawing an energy rate', () => {
     renderPage(makeResult(), { state: { trend: trendWithWeeks(2) } })
     const section = screen.getByRole('region', { name: /of your best 20 min, trailing/ })
     expect(
-      within(section).getByRole('figure', {
-        name: 'Energy rate of your best 20 min, trailing 6 weeks',
-      }),
+      within(section).getByText('Add your year of birth and sex to see how your grade has moved.'),
     ).toBeInTheDocument()
-    // Only running has a value, so its one line is named alone in the key.
-    expect(within(section).getByRole('list', { name: 'Legend' })).toHaveTextContent('Run')
+    expect(within(section).queryByText(/metabolic|Energy rate/)).toBeNull()
+    expect(section.querySelector('[data-testid="trend-line"]')).toBeNull()
   })
 
   it('holds cycling on the age-grade trend while no weight is entered, and draws it when one is', () => {
@@ -371,7 +384,7 @@ describe('BalancePage', () => {
     expect(held.container.querySelector('[data-testid="trend-ring"]')).toBeNull()
     expect(held.container.querySelector('[data-testid="trend-band"]')).toBeNull()
     const heldSection = screen.getByRole('region', { name: /of your best 20 min, trailing/ })
-    expect(within(heldSection).queryByText('Ride, estimated')).toBeNull()
+    expect(within(heldSection).queryByText(/^Ride \d+%$/)).toBeNull()
     expect(within(heldSection).queryByText('Cycling grade, estimated')).toBeNull()
     expect(
       within(heldSection).getByText(/Cycling is held until a weight is added/),
@@ -384,7 +397,8 @@ describe('BalancePage', () => {
     ).not.toBeNull()
     expect(known.container.querySelector('[data-testid="trend-band"]')).not.toBeNull()
     const section = screen.getByRole('region', { name: /of your best 20 min, trailing/ })
-    expect(within(section).getByText('Ride, estimated')).toBeInTheDocument()
+    // The end label names the ride, so the chart draws no key beside it.
+    expect(within(section).getByText(/^Ride \d+%$/)).toBeInTheDocument()
   })
 
   it('gates the grade trend on each effort’s date, not on the Sunday that ends its week', () => {
@@ -426,11 +440,9 @@ describe('BalancePage', () => {
     renderPage(makeResult(), { state: { trend: running } }, MAN_BORN_1986)
     const section = screen.getByRole('region', { name: /of your best 20 min, trailing/ })
     expect(
-      within(section).getByRole('figure', {
-        name: 'Age grade of your best 20 min, trailing 6 weeks',
-      }),
+      within(trendFigure()).getByText('Age grade of your best 20 min, trailing 6 weeks'),
     ).toBeInTheDocument()
-    expect(within(section).getByText(/^Each point is the best 20 min in/)).toBeInTheDocument()
+    expect(within(section).getByText(/^Each point is your best 20 min of the/)).toBeInTheDocument()
   })
 
   it('links to the method page once, from the evidence card, whatever the card says to do', () => {

@@ -21,7 +21,7 @@ export interface WeekByWeekSectionProps {
 
 /**
  * A sport's best effort of one length in each week. Each point is the best in a trailing window, so a
- * step down can be an old best leaving the window and not a change in the athlete, which the line under
+ * dip can be an old best leaving the window and not a change in the athlete, which the line under
  * the chart says.
  */
 export function WeekByWeekSection({
@@ -53,7 +53,7 @@ export function WeekByWeekSection({
         effortS={effort}
       />
       <p className="muted">
-        {`A step down can be a best leaving the ${windowCompound(windowDays)} window, not a change in you.`}
+        {`A dip can be a best leaving the ${windowCompound(windowDays)} window, not a change in you.`}
       </p>
     </section>
   )
