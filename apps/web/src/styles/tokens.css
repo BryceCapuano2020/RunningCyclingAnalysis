@@ -37,7 +37,28 @@
   --neutral-mark: #474f5c;
   --neutral-band: #474f5c24;
   --previous-mark: #838a97;
-  --grid: #e9ecf1;
+  --grid: #d0d5de;
+  /*
+   * The zone ramp: five steps for each sport, lowest effort first. In light the steps darken with effort; in
+   * dark they lighten. Each step keeps 3:1 against the card, a neighbour is at least 7 apart in CIEDE2000
+   * under every colour vision, and its ink (--zone-ink-n, one per step for both sports) keeps 4.5:1.
+   * styles/zoneRamp.test.ts checks all of it from these values.
+   */
+  --zone-run-1: #e16265;
+  --zone-run-2: #d0293d;
+  --zone-run-3: #a90227;
+  --zone-run-4: #750017;
+  --zone-run-5: #410008;
+  --zone-ride-1: #6589d3;
+  --zone-ride-2: #3c67c9;
+  --zone-ride-3: #1844b9;
+  --zone-ride-4: #082c91;
+  --zone-ride-5: #041b5d;
+  --zone-ink-1: #0e1116;
+  --zone-ink-2: #ffffff;
+  --zone-ink-3: #ffffff;
+  --zone-ink-4: #ffffff;
+  --zone-ink-5: #ffffff;
 
   --status-good: #17753a;
   --status-good-bg: #e3f4e8;
@@ -93,11 +114,21 @@
 [data-sport='run'] {
   --sport-colour: var(--series-run);
   --sport-colour-soft: var(--series-run-soft);
+  --zone-1: var(--zone-run-1);
+  --zone-2: var(--zone-run-2);
+  --zone-3: var(--zone-run-3);
+  --zone-4: var(--zone-run-4);
+  --zone-5: var(--zone-run-5);
 }
 
 [data-sport='ride'] {
   --sport-colour: var(--series-ride);
   --sport-colour-soft: var(--series-ride-soft);
+  --zone-1: var(--zone-ride-1);
+  --zone-2: var(--zone-ride-2);
+  --zone-3: var(--zone-ride-3);
+  --zone-4: var(--zone-ride-4);
+  --zone-5: var(--zone-ride-5);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -131,7 +162,22 @@
     --neutral-mark: #b6bcc6;
     --neutral-band: #b6bcc629;
     --previous-mark: #737b89;
-    --grid: #232830;
+    --grid: #343b47;
+    --zone-run-1: #b63943;
+    --zone-run-2: #f04c5a;
+    --zone-run-3: #ff7d81;
+    --zone-run-4: #ffafae;
+    --zone-run-5: #fedbda;
+    --zone-ride-1: #4269be;
+    --zone-ride-2: #5989f6;
+    --zone-ride-3: #85acfe;
+    --zone-ride-4: #b1cbfe;
+    --zone-ride-5: #dde8fe;
+    --zone-ink-1: #ffffff;
+    --zone-ink-2: #0e1116;
+    --zone-ink-3: #0e1116;
+    --zone-ink-4: #0e1116;
+    --zone-ink-5: #0e1116;
     --status-good: #4ac26b;
     --status-good-bg: #10301b;
     --status-warning: #f2b544;

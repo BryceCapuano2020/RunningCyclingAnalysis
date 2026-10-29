@@ -200,6 +200,41 @@ describe('the band fill on the ratio chart’s tints', () => {
   )
 })
 
+/**
+ * Gridlines are visible but recessive: far enough from the card to see in either scheme (they were 1.2:1,
+ * and gone in dark), and well under the 3:1 of a mark that carries data.
+ */
+const GRID_MIN = 1.4
+const GRID_MAX = 2
+
+describe('chart gridlines and axis text', () => {
+  it.each([
+    ['light', light],
+    ['dark', dark],
+  ] as const)(
+    '%s: --grid is visible on the card and on the page, and stays recessive',
+    (_theme, tokens) => {
+      for (const surface of ['surface-0', 'surface-1'] as const) {
+        const ratio = contrast(colour(tokens, 'grid'), colour(tokens, surface))
+        expect(ratio, surface).toBeGreaterThanOrEqual(GRID_MIN - 0.05)
+        expect(ratio, surface).toBeLessThanOrEqual(GRID_MAX)
+      }
+      expect(contrast(colour(tokens, 'grid'), colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(
+        GRID_MIN,
+      )
+    },
+  )
+
+  it('sets axis text at 12 px or more, in the muted ink that reads 4.5:1 on the card', () => {
+    expect(LABEL_REM * 16).toBeGreaterThanOrEqual(12)
+    for (const tokens of [light, dark]) {
+      expect(
+        contrast(colour(tokens, 'text-muted'), colour(tokens, 'surface-1')),
+      ).toBeGreaterThanOrEqual(TEXT)
+    }
+  })
+})
+
 describe('contrast', () => {
   it('computes the WCAG ratio, from 1:1 to 21:1', () => {
     expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5)

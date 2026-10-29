@@ -179,46 +179,61 @@ A sport's figure is set in ink, and its shape carries the colour. A surface of o
 a chip or a route takes its own sport's colour. Status
 colours always come with an icon and a label, so a warning never relies on red beside the run coral.
 
-| Token                  | Light       | Dark        | Use                                                                        |
-| ---------------------- | ----------- | ----------- | -------------------------------------------------------------------------- |
-| `--surface-0`          | `#f5f6f8`   | `#0f1115`   | Page (paper)                                                               |
-| `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs                                                              |
-| `--surface-2`          | `#eceff3`   | `#1e232c`   | Hover, tiles, tracks                                                       |
-| `--surface-pressed`    | `#dde2ea`   | `#101318`   | A button's fill while it is pressed                                        |
-| `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                                       |
-| `--grid`               | `#e9ecf1`   | `#232830`   | Chart gridlines                                                            |
-| `--control-border`     | `#7f8694`   | `#6b7380`   | Input and button outlines (3:1 or better)                                  |
-| `--text-primary`       | `#0e1116`   | `#eef0f3`   | Ink                                                                        |
-| `--text-secondary`     | `#474f5c`   | `#b6bcc6`   | Supporting text                                                            |
-| `--text-muted`         | `#5f6774`   | `#8d95a2`   | Captions, axis labels (4.5:1 or better)                                    |
-| `--neutral-mark`       | `#474f5c`   | `#b6bcc6`   | Neutral data and reference marks                                           |
-| `--neutral-band`       | `#474f5c24` | `#b6bcc629` | Neutral band fill                                                          |
-| `--previous-mark`      | `#838a97`   | `#737b89`   | The previous period's line: a thin dashed mid grey, under the current line |
-| `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                              |
-| `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                     |
-| `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                         |
-| `--accent-hover`       | `#474f5c`   | `#a9d62c`   | Primary button fill on hover, a visible change in both schemes             |
-| `--accent-pressed`     | `#000000`   | `#8fb81c`   | Primary button fill while it is pressed, with a 1 px drop                  |
-| `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                  |
-| `--mark-ring`          | `#0e1116`   | `#6b7380`   | The ring round the brand mark's tile, so the tile shows on the dark page   |
-| `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                                    |
-| `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                                         |
-| `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                   |
-| `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                 |
-| `--series-run`         | `#e5304f`   | `#f0435f`   | Running data                                                               |
-| `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                               |
-| `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                   |
-| `--series-run-soft`    | `#e5304f26` | `#f0435f33` | Running band and area fill                                                 |
-| `--series-ride-soft`   | `#2f56e826` | `#4d6ef533` | Cycling band and area fill                                                 |
-| `--series-swim-soft`   | `#0f9fb026` | `#14a0b033` | Swimming band and area fill (reserved)                                     |
-| `--ladder-run-band`    | `#e5304f26` | `#f0435f26` | Run band behind the level ladder's range, low enough alpha for the outline |
-| `--ladder-ride-band`   | `#2f56e826` | `#4d6ef526` | Ride band behind the level ladder's range, low enough alpha for the ring   |
-| `--status-warning`     | `#8a5300`   | `#f2b544`   | Warning icon and label                                                     |
-| `--status-warning-bg`  | `#fbf2d9`   | `#33290c`   | Warning chip background                                                    |
-| `--status-critical`    | `#b3261e`   | `#ff8a80`   | Error icon and label; destructive button background                        |
-| `--status-critical-bg` | `#fde8e6`   | `#3a1714`   | Error chip background                                                      |
-| `--status-good`        | `#17753a`   | `#4ac26b`   | Success icon and label                                                     |
-| `--status-good-bg`     | `#e3f4e8`   | `#10301b`   | Success chip background                                                    |
+| Token                  | Light       | Dark        | Use                                                                                           |
+| ---------------------- | ----------- | ----------- | --------------------------------------------------------------------------------------------- |
+| `--surface-0`          | `#f5f6f8`   | `#0f1115`   | Page (paper)                                                                                  |
+| `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs                                                                                 |
+| `--surface-2`          | `#eceff3`   | `#1e232c`   | Hover, tiles, tracks                                                                          |
+| `--surface-pressed`    | `#dde2ea`   | `#101318`   | A button's fill while it is pressed                                                           |
+| `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                                                          |
+| `--grid`               | `#d0d5de`   | `#343b47`   | Chart gridlines: about 1.5:1 on the card, visible but recessive                               |
+| `--control-border`     | `#7f8694`   | `#6b7380`   | Input and button outlines (3:1 or better)                                                     |
+| `--text-primary`       | `#0e1116`   | `#eef0f3`   | Ink                                                                                           |
+| `--text-secondary`     | `#474f5c`   | `#b6bcc6`   | Supporting text                                                                               |
+| `--text-muted`         | `#5f6774`   | `#8d95a2`   | Captions, axis labels (4.5:1 or better)                                                       |
+| `--neutral-mark`       | `#474f5c`   | `#b6bcc6`   | Neutral data and reference marks                                                              |
+| `--neutral-band`       | `#474f5c24` | `#b6bcc629` | Neutral band fill                                                                             |
+| `--previous-mark`      | `#838a97`   | `#737b89`   | The previous period's line: a thin dashed mid grey, under the current line                    |
+| `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                                                 |
+| `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                                        |
+| `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                                            |
+| `--accent-hover`       | `#474f5c`   | `#a9d62c`   | Primary button fill on hover, a visible change in both schemes                                |
+| `--accent-pressed`     | `#000000`   | `#8fb81c`   | Primary button fill while it is pressed, with a 1 px drop                                     |
+| `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                                     |
+| `--mark-ring`          | `#0e1116`   | `#6b7380`   | The ring round the brand mark's tile, so the tile shows on the dark page                      |
+| `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                                                       |
+| `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                                                            |
+| `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                                      |
+| `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                                    |
+| `--series-run`         | `#e5304f`   | `#f0435f`   | Running data                                                                                  |
+| `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                                                  |
+| `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                                      |
+| `--series-run-soft`    | `#e5304f26` | `#f0435f33` | Running band and area fill                                                                    |
+| `--series-ride-soft`   | `#2f56e826` | `#4d6ef533` | Cycling band and area fill                                                                    |
+| `--series-swim-soft`   | `#0f9fb026` | `#14a0b033` | Swimming band and area fill (reserved)                                                        |
+| `--ladder-run-band`    | `#e5304f26` | `#f0435f26` | Run band behind the level ladder's range, low enough alpha for the outline                    |
+| `--ladder-ride-band`   | `#2f56e826` | `#4d6ef526` | Ride band behind the level ladder's range, low enough alpha for the ring                      |
+| `--zone-run-1`         | `#e16265`   | `#b63943`   | Running zone 1, the lowest effort; the ramp darkens with effort in light and lightens in dark |
+| `--zone-run-2`         | `#d0293d`   | `#f04c5a`   | Running zone 2, lowest effort first                                                           |
+| `--zone-run-3`         | `#a90227`   | `#ff7d81`   | Running zone 3, lowest effort first                                                           |
+| `--zone-run-4`         | `#750017`   | `#ffafae`   | Running zone 4, lowest effort first                                                           |
+| `--zone-run-5`         | `#410008`   | `#fedbda`   | Running zone 5, lowest effort first                                                           |
+| `--zone-ride-1`        | `#6589d3`   | `#4269be`   | Cycling zone 1, the lowest effort; the ramp darkens with effort in light and lightens in dark |
+| `--zone-ride-2`        | `#3c67c9`   | `#5989f6`   | Cycling zone 2, lowest effort first                                                           |
+| `--zone-ride-3`        | `#1844b9`   | `#85acfe`   | Cycling zone 3, lowest effort first                                                           |
+| `--zone-ride-4`        | `#082c91`   | `#b1cbfe`   | Cycling zone 4, lowest effort first                                                           |
+| `--zone-ride-5`        | `#041b5d`   | `#dde8fe`   | Cycling zone 5, lowest effort first                                                           |
+| `--zone-ink-1`         | `#0e1116`   | `#ffffff`   | Text on zone 1 of either sport (4.5:1 or better)                                              |
+| `--zone-ink-2`         | `#ffffff`   | `#0e1116`   | Text on zone 2 of either sport (4.5:1 or better)                                              |
+| `--zone-ink-3`         | `#ffffff`   | `#0e1116`   | Text on zone 3 of either sport (4.5:1 or better)                                              |
+| `--zone-ink-4`         | `#ffffff`   | `#0e1116`   | Text on zone 4 of either sport (4.5:1 or better)                                              |
+| `--zone-ink-5`         | `#ffffff`   | `#0e1116`   | Text on zone 5 of either sport (4.5:1 or better)                                              |
+| `--status-warning`     | `#8a5300`   | `#f2b544`   | Warning icon and label                                                                        |
+| `--status-warning-bg`  | `#fbf2d9`   | `#33290c`   | Warning chip background                                                                       |
+| `--status-critical`    | `#b3261e`   | `#ff8a80`   | Error icon and label; destructive button background                                           |
+| `--status-critical-bg` | `#fde8e6`   | `#3a1714`   | Error chip background                                                                         |
+| `--status-good`        | `#17753a`   | `#4ac26b`   | Success icon and label                                                                        |
+| `--status-good-bg`     | `#e3f4e8`   | `#10301b`   | Success chip background                                                                       |
 
 Spacing, radius, font and shadow tokens live in `apps/web/src/styles/tokens.css`, beside the colours.
 
