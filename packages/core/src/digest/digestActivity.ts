@@ -26,7 +26,6 @@ import type {
   QualityFlag,
   QualityKind,
   QualityReport,
-  Sport,
 } from '../types'
 import { MODEL_REVISION } from './modelRevision'
 import { climbMask, estimatePower, findSegments, splitSegment } from '../virtualPower'
