@@ -179,11 +179,12 @@ function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): 
     }
   })
 }
+
 /** Whether a sport's digests can be at walking pace: a ride is not judged against one. */
-const HAS_WALKING_PACE: Record<'run' | 'ride', boolean> = { run: true, ride: false }
+const HAS_WALKING_PACE: Record<z.infer<typeof sport>, boolean> = { run: true, ride: false }
 
 function checkWalkingPace(
-  digest: { sport: 'run' | 'ride'; walkingPace?: true },
+  digest: { sport: z.infer<typeof sport>; walkingPace?: true },
   ctx: z.RefinementCtx,
 ): void {
   if (digest.walkingPace === true && !HAS_WALKING_PACE[digest.sport]) {
