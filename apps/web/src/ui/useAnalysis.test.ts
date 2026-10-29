@@ -831,6 +831,30 @@ describe('useAnalysis account handling', () => {
         expect(before.posted.filter((request) => request.type === 'loadDevice')).toHaveLength(1)
       })
 
+      it('sends the files again to a worker that restarted, so giving up still keeps them', () => {
+        const { rerender } = importWhileUnreachable()
+        const crashed = worker()
+
+        act(() => crashed.onerror?.(new ErrorEvent('error', { message: 'boom' })))
+        const restarted = worker()
+        expect(restarted).not.toBe(crashed)
+        expect(restarted.posted).toEqual([DEVICE_LOAD])
+
+        // The restarted worker has none of the analysis: it loads the kept library, then gets the files.
+        finishDeviceLoad()
+        expect(restarted.posted.at(-1)).toEqual({
+          type: 'addFiles',
+          files: [FILE],
+          settings: SETTINGS,
+          sync: null,
+          provisional: true,
+        })
+        settle()
+
+        rerender({ account: UNAVAILABLE, current: SETTINGS })
+        expect(restarted.posted.at(-1)).toEqual({ type: 'keepProvisional', settings: SETTINGS })
+      })
+
       it('sends nothing to keep when no file was analysed meanwhile', () => {
         const { rerender } = setup(UNREACHABLE)
         finishDeviceLoad()

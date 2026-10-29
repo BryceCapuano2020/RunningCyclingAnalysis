@@ -83,7 +83,8 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
 
   useEffect(() => {
     const current = latest()
-    if (accountGenerationRef.current !== workerGeneration) {
+    const restarted = accountGenerationRef.current !== workerGeneration
+    if (restarted) {
       accountGenerationRef.current = workerGeneration
       current.previousStatusRef.current = 'loading'
       current.previousUserIdRef.current = null
@@ -94,8 +95,9 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
     current.previousStatusRef.current = accountStatus
     current.previousUserIdRef.current = userId
     // The kept library is shown at once, so a visitor with no API is not left waiting for it. What
-    // the account turns out to be decides what happens to the files analysed meanwhile.
-    if (unreachable && !current.deviceLoaded()) {
+    // the account turns out to be decides what happens to the files analysed meanwhile. A worker that
+    // restarted has lost them whatever it loaded, so they are sent to it again, as provisional.
+    if (unreachable && (restarted || !current.deviceLoaded())) {
       current.library.libraryWaitRef.current.push(
         ...drainBatches(current.imports.provisionalImportsRef),
       )
