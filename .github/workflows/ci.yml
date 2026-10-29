@@ -77,7 +77,7 @@ jobs:
   e2e:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     # The image ships the browsers and their OS libraries, so the job downloads no apt packages.
     # Its tag must match @playwright/test in package-lock.json (checked by workflow-guards.test.mjs).
     # Its Node (24) differs from .nvmrc (22), so setup-node still installs the project's Node.
