@@ -5,7 +5,8 @@ import type { ActivityDigest } from './types'
  * when the digests are the same objects in the same order and the other input is the same by `sameInput`, however
  * the list was made, so a change of body mass or settings, which the function does not read, does not redo it.
  * Answers are kept by the first digest of the list, so they go when the library does. They are shared, so a
- * function whose answer a caller changes should return a copy (`copy`).
+ * function whose answer a caller changes should return a copy (`copy`). The list is copied, so a caller that later
+ * changes its own array cannot make a stale answer match.
  */
 export function memoByDigests<I, R>(
   compute: (digests: ActivityDigest[], input: I) => R,
@@ -31,7 +32,10 @@ export function memoByDigests<I, R>(
     )
     if (hit !== undefined) return copy(hit.answer)
     const answer = compute(digests, input)
-    entries.set(first, [{ digests, input, answer: copy(answer) }, ...own].slice(0, kept))
+    entries.set(
+      first,
+      [{ digests: digests.slice(), input, answer: copy(answer) }, ...own].slice(0, kept),
+    )
     return answer
   }
 }
