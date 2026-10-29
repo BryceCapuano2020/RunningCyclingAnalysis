@@ -21,9 +21,16 @@ describe('typicalWeeklyDistance', () => {
       const daily = Array.from({ length: weeks * 7 }, (_, d) => run(100 + d, 1))
       expect(typicalWeeklyDistance(daily)).toBeCloseTo(7_000, 6)
     }
-    // Runs at different times of day on the first and last day are still the same whole days apart.
-    const morning = { startMs: 100 * DAY_MS + 7 * 3_600_000, distanceM: 10_000 }
-    const evening = { startMs: 127 * DAY_MS + 17 * 3_600_000, distanceM: 10_000 }
-    expect(typicalWeeklyDistance([morning, evening])).toBeCloseTo(5_000, 6)
+    // Days are local dates: the hour of a run does not stretch or shrink the span.
+    const at = (day: number, hour: number) => ({
+      startMs: new Date(2026, 0, 1 + day, hour).getTime(),
+      distanceM: 10_000,
+    })
+    // Late on the first day, early on the 29th: 29 calendar days, five weeks, though 27 days and 2 hours apart.
+    expect(typicalWeeklyDistance([at(0, 23), at(28, 1)])).toBeCloseTo(4_000, 6)
+    // Early on the first day, late on the 28th: 28 calendar days, four weeks, though 27 days and 22 hours apart.
+    expect(typicalWeeklyDistance([at(0, 1), at(27, 23)])).toBeCloseTo(5_000, 6)
+    // 23:00 and 01:00 the next morning are two days, still within the one week.
+    expect(typicalWeeklyDistance([at(0, 23), at(1, 1)])).toBeCloseTo(20_000, 6)
   })
 })

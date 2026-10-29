@@ -16,10 +16,17 @@ export function typicalWeeklyDistance(
   const from = newest - VOLUME_WEEKS * 7 * DAY_MS
   const recent = runs.filter((r) => r.startMs > from)
   const earliest = Math.min(...recent.map((r) => r.startMs))
-  // The calendar days from the first run's day to the newest run's day, both counted, in whole weeks rounded
-  // up: runs a week apart cover two weeks, and a run every day for four weeks covers four, not five.
-  const days = Math.round((newest - earliest) / DAY_MS) + 1
+  // The local calendar days from the first run's day to the newest run's day, both counted, in whole weeks
+  // rounded up: runs a week apart cover two weeks, and a run every day for four weeks covers four, not five.
+  // Days are counted by date, not by hours, so a late run and an early one the next day are two days.
+  const days = localDay(newest) - localDay(earliest) + 1
   const spanned = Math.ceil(days / 7)
   const weeks = Math.max(1, Math.min(VOLUME_WEEKS, spanned))
   return recent.reduce((sum, r) => sum + Math.max(0, r.distanceM), 0) / weeks
+}
+
+/** The number of the local calendar day that holds `ms`, in the zone the code runs in. */
+function localDay(ms: number): number {
+  const date = new Date(ms)
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS
 }
