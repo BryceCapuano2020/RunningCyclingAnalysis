@@ -14,7 +14,7 @@ import { deviceKeeper } from './deviceKeeper'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
-import { originalsReport } from './originalsReport'
+import { outdatedWithOriginal } from './outdatedOriginals'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import { ImportReporter } from './importReporter'
@@ -31,11 +31,19 @@ const post = (message: WorkerResponse) => self.postMessage(message)
 /** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
 const missingOriginals = new Set<string>()
 const savedRecords = new Map<string, ActivityRecord>()
+/** Ids of saved records whose original a rebuild could not match to the record. Cleared on a library load. */
+const unmatchedOriginals = new Set<string>()
 const workbench = new Workbench()
 /** The activities provisional imports analysed, by workout, with no file bytes. See keepProvisional. */
 const provisionalItems = new Map<string, SyncItem>()
 /** The exact library scope this worker is currently allowed to answer details for. */
 let activeScope: TraceScope | null = null
+
+/** The outdated saved activities Update now can rebuild, for the replies that carry the state. */
+const rebuildable = (): { outdatedWithOriginal?: number } => {
+  const count = outdatedWithOriginal(session, savedRecords, unmatchedOriginals)
+  return count > 0 ? { outdatedWithOriginal: count } : {}
+}
 
 /** Newest first; records that start together are ordered by id so the list is stable. */
 function reportLibrary() {
@@ -56,6 +64,7 @@ const libraryContext: LibraryContext = {
   device,
   savedRecords,
   missingOriginals,
+  unmatchedOriginals,
   post,
   reportLibrary,
   reportUnreadable,
@@ -169,11 +178,12 @@ async function addFiles(
     // Counted once it is in storage: a recording held in memory alone is gone after a reload.
     for (const id of restoreCandidates) if (stored.has(id)) restored.add(id)
     reporter.end()
+    // On a failure too, so the page does not keep the count from before the import.
+    if (sync !== null) post({ type: 'missingOriginals', count: missingOriginals.size })
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }
   if (sync !== null) {
-    post(originalsReport(missingOriginals, savedRecords))
     reportLibrary()
   } else if (request.saveToDevice) {
     await device.report()
@@ -290,7 +300,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       if (!traceCleared || !deviceTraceCleared || !keptDropped)
         post({ type: 'deviceIssue', issue: 'notForgotten' })
       reportLibrary()
-      post(originalsReport(missingOriginals, savedRecords))
+      post({ type: 'missingOriginals', count: missingOriginals.size })
       return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)
     }
   }
@@ -341,11 +351,16 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
       if (event.data.type === 'addFiles') {
-        post({ type: 'state', ...(await addFiles(event.data)) })
+        post({
+          type: 'state',
+          ...(await addFiles(event.data)),
+          ...rebuildable(),
+        })
       } else if (event.data.type === 'rebuildStale') {
         post({
           type: 'rebuildComplete',
           ...(await rebuildStale(libraryContext, event.data.settings, event.data.userId)),
+          ...rebuildable(),
         })
       } else if (event.data.type === 'exportData') {
         post({ type: 'exportReady', file: await exportAccount(event.data) })
@@ -360,7 +375,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       } else if (event.data.type === 'activityTrace') {
         post({ type: 'activityTrace', reply: await activityTraceReply(event.data) })
       } else {
-        post({ type: 'state', state: await handle(event.data) })
+        post({
+          type: 'state',
+          state: await handle(event.data),
+          ...rebuildable(),
+        })
       }
     } catch (error) {
       post({

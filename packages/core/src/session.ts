@@ -140,6 +140,11 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
+  /** Whether a saved workout is held out of the analysis for being made by an older model. */
+  hasOutdated(sport: Sport, startMs: number): boolean {
+    return this.outdatedKeys.has(dedupeKey(sport, startMs))
+  }
+
   /** Replaces the whole library with digests that were stored elsewhere (the server). */
   loadDigests(digests: ActivityDigest[], settings: AthleteSettings): SessionState {
     // Sync issues stay: those activities are still unsaved, whatever the library now holds.

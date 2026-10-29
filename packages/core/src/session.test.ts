@@ -531,6 +531,27 @@ describe('AnalysisSession', () => {
     expect(refreshed.incompatibleActivities).toBe(0)
   })
 
+  it('says which workouts are held out as outdated, and not one a current copy covers', async () => {
+    const session = new AnalysisSession()
+    const current = digestActivity(run)
+    session.loadDigests([{ ...current, modelRevision: 1 }], SETTINGS)
+    expect(session.hasOutdated(current.sport, current.startMs)).toBe(true)
+    expect(session.hasOutdated(current.sport, current.startMs + 86_400_000)).toBe(false)
+
+    session.loadDigests(
+      [
+        { ...current, modelRevision: 1 },
+        { ...current, id: 'copy' },
+      ],
+      SETTINGS,
+    )
+    expect(session.hasOutdated(current.sport, current.startMs)).toBe(false)
+
+    session.loadDigests([{ ...current, modelRevision: 1 }], SETTINGS)
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    expect(session.hasOutdated(current.sport, current.startMs)).toBe(false)
+  })
+
   it('treats revision 3 digests, from before air density followed altitude, as outdated', async () => {
     const session = new AnalysisSession()
     const previous = { ...digestActivity(run), modelRevision: 3 }

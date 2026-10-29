@@ -93,7 +93,6 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       }
       if (message.type === 'missingOriginals') {
         current.library.setMissingOriginals(message.count)
-        current.library.setOutdatedWithOriginal(message.outdatedWithOriginal)
         return
       }
       if (message.type === 'libraryActivities') {
@@ -259,6 +258,8 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
   // A rebuild replaces the session, and with it the files the last import skipped, so its summary goes.
   if (pending?.kind === 'rebuildStale') imports.setImportOutcome(null)
   imports.setState(message.state)
+  // Set with the state, in one update, so the notice never counts one against the other's old value.
+  library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)
   if (message.type === 'state') {
     imports.setSavedCount(message.saved ?? null)
     noteProvisionalOutcome(imports, pending, message)
