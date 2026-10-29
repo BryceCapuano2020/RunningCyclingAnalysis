@@ -778,13 +778,12 @@ describe('BalancePage concept budget', () => {
     expect(sentences).toHaveLength(1)
   })
 
-  it('explains the trend’s latest point against the period’s best, in the trend’s own note', () => {
-    full()
-    expect(
-      screen.getByText(
-        /The latest point covers only the last .*, so it can differ from your best over the whole period\./,
-      ),
-    ).toBeInTheDocument()
+  it('explains the trend’s latest point against the period’s best, in the trend’s own notes', () => {
+    const { container } = full()
+    const notes = container.querySelector('.balance__trends')?.textContent ?? ''
+    expect(notes).toMatch(
+      /The latest point covers only the last .*, so it can differ from your best over the whole period\./,
+    )
   })
 })
 

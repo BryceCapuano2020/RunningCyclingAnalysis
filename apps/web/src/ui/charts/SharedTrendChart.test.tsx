@@ -427,7 +427,7 @@ describe('SharedTrendChart', () => {
     expect(about).not.toHaveAttribute('open')
     // The latest point is only the last window, not the card's period, and a low point is one where even the best was easy.
     expect(about).toHaveTextContent(
-      'The latest point covers only the last 2 weeks, so it can differ from a card’s best over the period.',
+      'The latest point covers only the last 2 weeks, so it can differ from your best over the whole period.',
     )
     expect(about).toHaveTextContent(
       'A low point means even the best effort in those weeks was easy.',

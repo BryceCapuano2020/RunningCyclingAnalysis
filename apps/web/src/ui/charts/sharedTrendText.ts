@@ -28,7 +28,7 @@ export const HELD_NOTE = 'Cycling is held until a weight is added.'
 const LOW_POINT = 'A low point means even the best effort in those weeks was easy.'
 /** Says the trend's "now" is its last window, so it is not read as the best of the period a card shows. */
 const latestWindowNote = (windowText: string) =>
-  `The latest point covers only the last ${windowText}, so it can differ from a card’s best over the period.`
+  `The latest point covers only the last ${windowText}, so it can differ from your best over the whole period.`
 /** What an age-graded ride is, said once in a chart's notes: the ring is the estimate and the band its range. */
 const ESTIMATE_NOTE =
   'A ride is graded through its running equivalent, so it is an estimate: the ring is the estimate and the shaded band is its 90% range.'
