@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ChartSize, Point } from './chartTypes'
 import type { NavigationKey } from './PlotSurface'
@@ -61,11 +61,11 @@ export function TimeSeriesStack({
   const [stageRef, width] = useSize()
   const id = useId()
   const [readoutHost, setReadoutHost] = useState<HTMLElement | null>(null)
-  // The cursor, and whether the keys put it there: only a key's step is announced, not a pointer sweeping.
-  const [cursor, setCursor] = useState<{ second: number | null; byKey: boolean }>({
-    second: null,
-    byKey: false,
-  })
+  const [cursor, setCursor] = useState<number | null>(null)
+  // Whether the plot has keyboard focus, from when it gains it: the readout is read out while it does, so the
+  // first step of the arrow is heard too, and not while a pointer sweeps or the averages change.
+  const [keyboardFocus, setKeyboardFocus] = useState(false)
+  const pressed = useRef(false)
   const channels = useMemo(
     () =>
       build(
@@ -87,33 +87,44 @@ export function TimeSeriesStack({
     [width, layout, id],
   )
   // The window can move under a cursor, as when a lap is chosen, so it is kept inside it.
-  const inside = cursor.second === null ? null : Math.max(startS, Math.min(cursor.second, endS - 1))
+  const inside = cursor === null ? null : Math.max(startS, Math.min(cursor, endS - 1))
   const { left, right } = layout.plot
   const onPoint = useCallback(
     (point: Point | null) => {
-      if (point === null) return setCursor({ second: null, byKey: false })
+      if (point === null) return setCursor(null)
       const second = Math.floor(
         startS + ((point.x - left) / (right - left)) * Math.max(1, endS - startS),
       )
-      setCursor({ second: Math.max(startS, Math.min(second, endS - 1)), byKey: false })
+      setCursor(Math.max(startS, Math.min(second, endS - 1)))
     },
     [startS, endS, left, right],
   )
   const onKey = useCallback(
     (key: NavigationKey) =>
-      setCursor((now) => {
-        const second = stepCursor(
-          now.second === null ? null : Math.max(startS, Math.min(now.second, endS - 1)),
+      setCursor((now) =>
+        stepCursor(
+          now === null ? null : Math.max(startS, Math.min(now, endS - 1)),
           key,
           startS,
           endS,
-        )
-        // Clearing the cursor (Escape) is a return to the averages, which is not read out.
-        return { second, byKey: second !== null }
-      }),
+        ),
+      ),
     [startS, endS],
   )
-  const onBlur = useCallback(() => setCursor({ second: null, byKey: false }), [])
+  const onBlur = useCallback(() => {
+    setCursor(null)
+    setKeyboardFocus(false)
+    pressed.current = false
+  }, [])
+  // Focus that a press on the plot gives is not keyboard focus, which every other focus is. A press comes
+  // first, so it is remembered until the focus it causes has been seen.
+  const onPress = useCallback(() => {
+    pressed.current = true
+  }, [])
+  const onFocus = useCallback(() => {
+    setKeyboardFocus(!pressed.current)
+    pressed.current = false
+  }, [])
 
   return (
     <figure className="chart-frame ts-stack" aria-labelledby={size.titleId}>
@@ -127,7 +138,7 @@ export function TimeSeriesStack({
           id={size.tooltipId}
           channels={channels}
           cursor={inside}
-          announce={cursor.byKey}
+          announce={keyboardFocus}
           head={head}
         />
       </ReadoutContext.Provider>
@@ -137,6 +148,8 @@ export function TimeSeriesStack({
           width={width}
           height={layout.height}
           viewBox={`0 0 ${width} ${layout.height}`}
+          onFocus={onFocus}
+          onPointerDownCapture={onPress}
         >
           <g role="img" aria-label={description}>
             <TimeSeriesRows

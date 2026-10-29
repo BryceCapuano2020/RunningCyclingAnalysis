@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
@@ -52,7 +52,7 @@ describe('the stack’s crosshair and readout', () => {
     expect(svgOf(plot).querySelector('.ts-stack__crosshair')).toBeNull()
   })
 
-  it('announces a key’s step to a screen reader, and keeps quiet for a pointer and for the idle averages', async () => {
+  it('reads the readout out from when the plot gains keyboard focus, so the first step is heard, and not before', async () => {
     const user = userEvent.setup()
     show(steadyTrace(600, 3))
     const plot = await surface()
@@ -60,10 +60,19 @@ describe('the stack’s crosshair and readout', () => {
     expect(status).toHaveAttribute('aria-live', 'off')
     fireEvent.pointerMove(plot, { clientX: 300, clientY: 40, pointerType: 'mouse' })
     expect(status).toHaveAttribute('aria-live', 'off')
-    plot.focus()
+    fireEvent.pointerLeave(plot, { pointerType: 'mouse' })
+    // A press on the plot focuses it, but that is not keyboard focus.
+    fireEvent.pointerDown(plot, { clientX: 300, clientY: 40, pointerType: 'mouse' })
+    act(() => plot.focus())
+    expect(status).toHaveAttribute('aria-live', 'off')
+    act(() => plot.blur())
+    // Tabbing to the plot is keyboard focus: the readout is live before any arrow is pressed.
+    for (let i = 0; i < 40 && document.activeElement !== plot; i += 1) await user.tab()
+    expect(plot).toHaveFocus()
+    expect(status).toHaveAttribute('aria-live', 'polite')
     await user.keyboard('{ArrowRight}')
     expect(status).toHaveAttribute('aria-live', 'polite')
-    await user.keyboard('{Escape}')
+    act(() => plot.blur())
     expect(status).toHaveAttribute('aria-live', 'off')
   })
 
@@ -188,7 +197,7 @@ describe('the stack’s laps and notes on the timeline', () => {
     show(steadyTrace(3600))
     await surface()
     expect(screen.getByRole('figure')).toHaveTextContent(
-      'Lines show 21 s averages; bands show the full range.',
+      'Lines show 21 s averages; bands show the usual spread (10th to 90th percentile).',
     )
   })
 

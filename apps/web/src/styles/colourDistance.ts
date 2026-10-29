@@ -55,3 +55,38 @@ export function deltaE2000(first: string, second: string): number {
   const rt = -Math.sin(rad(60 * Math.exp(-(((meanH - 275) / 25) ** 2)))) * rc
   return Math.sqrt((dL / sl) ** 2 + (dC / sc) ** 2 + (dH / sh) ** 2 + rt * (dC / sc) * (dH / sh))
 }
+
+/** Machado et al. (2009) matrices for full colour-vision deficiency, applied to linear RGB. */
+const CVD: Record<'protan' | 'deutan' | 'tritan', number[][]> = {
+  protan: [
+    [0.152286, 1.052583, -0.204868],
+    [0.114503, 0.786281, 0.099216],
+    [-0.003882, -0.048116, 1.051998],
+  ],
+  deutan: [
+    [0.367322, 0.860646, -0.227968],
+    [0.280085, 0.672501, 0.047413],
+    [-0.01182, 0.04294, 0.968881],
+  ],
+  tritan: [
+    [1.255528, -0.076749, -0.178779],
+    [-0.078411, 0.930809, 0.147602],
+    [0.004733, 0.691367, 0.3039],
+  ],
+}
+
+const encode = (value: number) => {
+  const clamped = Math.max(0, Math.min(1, value))
+  const srgb = clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * clamped ** (1 / 2.4) - 0.055
+  return Math.round(255 * srgb)
+    .toString(16)
+    .padStart(2, '0')
+}
+
+/** An opaque #rrggbb colour as a person with this kind of colour-vision deficiency sees it. */
+export function simulateCvd(hex: string, kind: keyof typeof CVD): string {
+  const linearRgb = [1, 3, 5].map((start) => linear(parseInt(hex.slice(start, start + 2), 16)))
+  return `#${CVD[kind].map((row) => encode(row[0]! * linearRgb[0]! + row[1]! * linearRgb[1]! + row[2]! * linearRgb[2]!)).join('')}`
+}
+
+export const CVD_KINDS = ['protan', 'deutan', 'tritan'] as const

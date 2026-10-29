@@ -178,6 +178,24 @@ describe('a run’s pace axis', () => {
   })
 })
 
+describe('plotDomain below zero', () => {
+  it('never widens a measure that cannot be negative below zero, and keeps the width', () => {
+    // A power meter that mostly reads 0 with a spike now and then: the trend sits near 3 W, the band at the
+    // spikes' 100 W, and a fifth of that span, 20 W, centred on 3 would reach -7.
+    const trace = steadyTrace(3600)
+    trace.streams.power = Float32Array.from({ length: 3600 }, (_, i) => (i % 33 === 0 ? 100 : 0))
+    const domain = plotDomain(trace, 'power', 0, 3600)!
+    expect(domain.low).toBeGreaterThanOrEqual(0)
+    expect(domain.high - domain.low).toBeGreaterThan(20)
+  })
+
+  it('still lets elevation, which can be below sea level, go below zero', () => {
+    const trace = steadyTrace(600)
+    trace.streams.altitude = Float32Array.from({ length: 600 }, (_, i) => -20 + i / 100)
+    expect(plotDomain(trace, 'altitude', 0, 600)!.low).toBeLessThan(-20)
+  })
+})
+
 describe('plotDomain', () => {
   it('fits the axis to the smoothed trend, so a few spikes clip at the edge and do not squeeze the rest', () => {
     const trace = steadyTrace(3600)

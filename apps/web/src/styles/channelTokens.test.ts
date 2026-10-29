@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readStylesheet } from '../ui/components/stylesheet'
 import { contrast } from './contrastMath'
-import { deltaE2000 } from './colourDistance'
+import { CVD_KINDS, deltaE2000, simulateCvd } from './colourDistance'
 import { colour, declared, resolved } from './tokenSheet'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
@@ -53,5 +53,43 @@ describe('activity channel colours', () => {
         expect(tokens.get(`ch-${channel}-soft`), channel).toMatch(/^#[0-9a-f]{8}$/)
       }
     }
+  })
+})
+
+/** The route tile's ramp: its slow end is the neutral `--text-secondary` and its fast end `--ch-pace`. */
+describe('the route tile’s pace ramp', () => {
+  it.each(THEMES)(
+    '%s: its two ends are told apart, and each reaches 3:1 on the card',
+    (_theme, tokens) => {
+      const slow = colour(tokens, 'text-secondary')
+      const fast = colour(tokens, 'ch-pace')
+      expect(contrast(slow, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
+      expect(contrast(fast, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
+      expect(deltaE2000(slow, fast)).toBeGreaterThanOrEqual(DISTINCT)
+    },
+  )
+
+  it.each(THEMES)(
+    '%s: its two ends are still told apart with protan, deutan and tritan vision',
+    (_theme, tokens) => {
+      const slow = colour(tokens, 'text-secondary')
+      const fast = colour(tokens, 'ch-pace')
+      for (const kind of CVD_KINDS) {
+        expect(
+          deltaE2000(simulateCvd(slow, kind), simulateCvd(fast, kind)),
+          kind,
+        ).toBeGreaterThanOrEqual(DISTINCT)
+      }
+    },
+  )
+
+  it('is not the stone of elevation, which deutan vision cannot tell from the pace green', () => {
+    const [, light] = THEMES[0]
+    expect(
+      deltaE2000(
+        simulateCvd(colour(light, 'ch-elevation'), 'deutan'),
+        simulateCvd(colour(light, 'ch-pace'), 'deutan'),
+      ),
+    ).toBeLessThan(DISTINCT)
   })
 })

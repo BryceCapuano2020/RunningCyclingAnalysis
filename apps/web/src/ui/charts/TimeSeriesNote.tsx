@@ -29,7 +29,8 @@ export function TimeSeriesNote({
     <p className="chart-frame__note ts-stack__note">
       {windowS !== undefined && (
         <>
-          Lines show {windowText(windowS)} averages{bands ? '; bands show the full range.' : '.'}
+          Lines show {windowText(windowS)} averages
+          {bands ? '; bands show the usual spread (10th to 90th percentile).' : '.'}
         </>
       )}
       {clipped && (

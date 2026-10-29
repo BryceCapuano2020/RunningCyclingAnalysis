@@ -85,4 +85,24 @@ describe('many laps', () => {
     expect(buttons[0]).toHaveFocus()
     expect(buttons[0]!.tabIndex).toBe(0)
   })
+
+  it('leave Up and Down to scroll the page, and tie the chosen lap to the line that measures it', async () => {
+    const user = userEvent.setup()
+    show(lapped(12))
+    const group = await screen.findByRole('group', { name: 'Laps' })
+    const buttons = within(group).getAllByRole('button')
+    // The group is named by the heading, not by a label of its own that says the same.
+    expect(group).not.toHaveAttribute('aria-label')
+    expect(document.getElementById(group.getAttribute('aria-labelledby')!)).toHaveTextContent(
+      'Laps',
+    )
+    expect(buttons.some((button) => button.hasAttribute('aria-describedby'))).toBe(false)
+    await user.click(buttons[4]!)
+    await user.keyboard('{ArrowDown}{ArrowUp}')
+    expect(buttons[4]).toHaveAttribute('aria-pressed', 'true')
+    expect(buttons[4]).toHaveFocus()
+    const line = document.getElementById(buttons[4]!.getAttribute('aria-describedby')!)
+    expect(line).toHaveTextContent(/^Lap 5 · from 4:00/)
+    expect(buttons.filter((button) => button.hasAttribute('aria-describedby'))).toHaveLength(1)
+  })
 })

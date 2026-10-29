@@ -167,6 +167,11 @@ export function smoothedBand(
       const middle = (low + high) / 2
       low = middle - least / 2
       high = middle + least / 2
+      // A measure that is never negative (power, heart rate, cadence, speed) is not widened below zero.
+      if (rawLow >= 0 && low < 0) {
+        high -= low
+        low = 0
+      }
     }
     return { low, high }
   })

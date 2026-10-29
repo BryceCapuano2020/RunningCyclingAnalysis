@@ -21,7 +21,7 @@ export function TimeSeriesReadout({
   id: string
   channels: readonly StackChannel[]
   cursor: number | null
-  /** Whether a change is read out: a key's step is, and a pointer sweeping or an idle update is not. */
+  /** Whether a change is read out: while the plot has keyboard focus it is, and a pointer sweeping or an idle update is not. */
   announce: boolean
   head: (second: number) => CursorHead
 }) {

@@ -84,7 +84,7 @@
   flex: 1 1 auto;
   height: 4px;
   border-radius: 2px;
-  background: linear-gradient(to right, var(--ch-heartrate), var(--ch-pace));
+  background: linear-gradient(to right, var(--text-secondary), var(--ch-pace));
 }
 
 @media (forced-colors: active) {

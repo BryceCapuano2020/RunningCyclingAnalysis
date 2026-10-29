@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useId, useRef } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { ActivityLap, ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
@@ -6,7 +6,7 @@ import { formatRecordTime, formatTotalTime } from '@rca/core/units'
 import { useSize } from '../charts/useSize'
 import { lapChoicesOf } from './workbenchChannels'
 import { selectionOf } from './workbenchData'
-import { SPORT_READING } from './workbenchFormat'
+import { SPORT_READING, displayValue } from './workbenchFormat'
 import type { Selection } from './workbenchTime'
 import './ActivityWorkbenchLaps.css'
 
@@ -32,7 +32,9 @@ function lapLine(
     parts.push(reading.speedText(summary.distanceM / summary.movingS, units))
   }
   const heart = summary.metrics.heartRate?.mean
-  if (heart !== null && heart !== undefined) parts.push(`${Math.round(heart)} bpm`)
+  if (heart !== null && heart !== undefined) {
+    parts.push(displayValue('heartRate', heart, trace.sport, units))
+  }
   return parts.join(' · ')
 }
 
@@ -57,6 +59,8 @@ export function LapChoices({
 }) {
   const [barRef, barWidth] = useSize()
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
+  const titleId = useId()
+  const lineId = useId()
   const { recorded, laps } = lapChoicesOf(trace)
   if (laps.length === 0) return null
   const name = recorded ? 'Lap' : 'Interval'
@@ -76,10 +80,11 @@ export function LapChoices({
     buttons.current[at]?.focus()
   }
   const keyed = (index: number) => (event: KeyboardEvent<HTMLButtonElement>) => {
+    // Up and Down are left to scroll the page, as the bar is a row and not a column.
     const next =
-      event.key === 'ArrowRight' || event.key === 'ArrowDown'
+      event.key === 'ArrowRight'
         ? index + 1
-        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+        : event.key === 'ArrowLeft'
           ? index - 1
           : event.key === 'Home'
             ? 0
@@ -95,13 +100,13 @@ export function LapChoices({
 
   return (
     <div className="activity-workbench__laps">
-      <h3>{recorded ? 'Laps' : 'Suggested intervals'}</h3>
+      <h3 id={titleId}>{recorded ? 'Laps' : 'Suggested intervals'}</h3>
       <div className="lap-strip-wrap">
         <div
           ref={barRef}
           className={bar ? 'lap-strip lap-strip--bar' : 'lap-strip'}
           role={bar ? 'group' : undefined}
-          aria-label={bar ? (recorded ? 'Laps' : 'Suggested intervals') : undefined}
+          aria-labelledby={bar ? titleId : undefined}
         >
           {laps.map((lap, index) => {
             const active = isActive(lap)
@@ -128,6 +133,7 @@ export function LapChoices({
                 aria-pressed={active}
                 aria-label={label}
                 title={label}
+                aria-describedby={bar && index === chosen ? lineId : undefined}
                 tabIndex={bar ? (index === tabbable ? 0 : -1) : undefined}
                 onClick={() => onSelect(boundsOf(lap))}
                 onKeyDown={bar ? keyed(index) : undefined}
@@ -138,7 +144,7 @@ export function LapChoices({
           })}
         </div>
         {bar && (
-          <p className="lap-strip__line secondary" aria-live="off">
+          <p id={lineId} className="lap-strip__line secondary">
             {chosen < 0
               ? `${laps.length} ${recorded ? 'laps' : 'intervals'}. Choose one to zoom to it.`
               : lapLine(trace, laps[chosen]!, `${name} ${chosen + 1}`, units, max)}
