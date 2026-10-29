@@ -1,8 +1,8 @@
 import type { Sport } from '../types'
 
 /**
- * Whether an indoor activity's efforts can hold a best, by sport. A treadmill's belt speed or footpod
- * pace is not a distance covered, so a run held indoors is kept in volume, time and heart-rate zones
+ * Whether an indoor activity's efforts can hold a best, by sport. A treadmill's belt speed, a footpod's
+ * pace, or the speed of an indoor-track, virtual or GPS-off run is not a distance covered, so a run held indoors is kept in volume, time and heart-rate zones
  * but never in a curve, a record, a threshold or a prediction. A trainer ride's power comes from its
  * meter, so it counts as an outdoor ride's does.
  */

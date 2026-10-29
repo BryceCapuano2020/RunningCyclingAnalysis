@@ -144,13 +144,13 @@ describe('the change on the period before', () => {
   })
 })
 
-describe('a treadmill run on the sport page', () => {
+describe('an indoor run on the sport page', () => {
   it('holds no distance record, so the slower outdoor run holds the 10 km', () => {
     const indoor = makeActivity({
       id: 'run-1',
       sport: 'run',
       indoor: true,
-      name: 'Dreadmill',
+      name: 'Indoor run',
       distanceBests: [{ distanceM: 10000, seconds: 2250 }],
     })
     const outdoor = makeActivity({
@@ -163,15 +163,15 @@ describe('a treadmill run on the sport page', () => {
 
     const item = recordNamed('10 km')
     expect(within(item).getByText('40:00')).toBeInTheDocument()
-    expect(within(item).queryByText('Treadmill')).toBeNull()
+    expect(within(item).queryByText('Indoor')).toBeNull()
   })
 
-  it('leaves the 10 km without a record when only the treadmill ran it', () => {
+  it('leaves the 10 km without a record when only an indoor run ran it', () => {
     const indoor = makeActivity({
       id: 'run-1',
       sport: 'run',
       indoor: true,
-      name: 'Dreadmill',
+      name: 'Indoor run',
       distanceBests: [{ distanceM: 10000, seconds: 2250 }],
     })
     renderPage('run', makeResult({ activities: [indoor] }))

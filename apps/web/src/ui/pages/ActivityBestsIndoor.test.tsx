@@ -34,13 +34,13 @@ function bestNamed(label: string): HTMLElement {
   return item
 }
 
-describe('the activity page of a treadmill run', () => {
+describe('the activity page of an indoor run', () => {
   it('shows its distance time without a Best label, mark or grade, under a line saying it is no best', () => {
     const indoor = makeActivity({
       id: 'run-1',
       sport: 'run',
       indoor: true,
-      name: 'Dreadmill',
+      name: 'Indoor run',
       distanceBests: [{ distanceM: 10000, seconds: 2250 }],
     })
     renderBests(indoor, makeResult({ activities: [indoor] }))
@@ -49,16 +49,16 @@ describe('the activity page of a treadmill run', () => {
     const item = screen.getByText('10 km').closest('li')
     expect(item).not.toBeNull()
     expect(within(item!).getByText('37:30')).toBeInTheDocument()
-    expect(within(item!).queryByText(/Flat|Treadmill|record|period/)).toBeNull()
+    expect(within(item!).queryByText(/Flat|Indoor|record|period/)).toBeNull()
     expect(screen.queryByText('Best 10 km')).toBeNull()
-    expect(screen.getByText('Treadmill pace is not used for bests.')).toBeInTheDocument()
+    expect(screen.getByText('Indoor pace is not used for bests.')).toBeInTheDocument()
   })
 
   it('says the line alone when it has no distance time', () => {
-    const indoor = makeActivity({ id: 'run-1', sport: 'run', indoor: true, name: 'Dreadmill' })
+    const indoor = makeActivity({ id: 'run-1', sport: 'run', indoor: true, name: 'Indoor run' })
     renderBests(indoor, makeResult({ activities: [indoor] }))
 
-    expect(screen.getByText('Treadmill pace is not used for bests.')).toBeInTheDocument()
+    expect(screen.getByText('Indoor pace is not used for bests.')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Best efforts set here' })).toBeNull()
   })
 
@@ -72,6 +72,6 @@ describe('the activity page of a treadmill run', () => {
     renderBests(outdoor, makeResult({ activities: [outdoor] }))
 
     expect(within(bestNamed('Best 10 km')).getByText('37:30')).toBeInTheDocument()
-    expect(screen.queryByText('Treadmill pace is not used for bests.')).toBeNull()
+    expect(screen.queryByText('Indoor pace is not used for bests.')).toBeNull()
   })
 })

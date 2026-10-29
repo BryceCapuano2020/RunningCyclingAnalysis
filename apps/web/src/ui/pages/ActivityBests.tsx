@@ -3,7 +3,7 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { EarnedRecord } from '@rca/core/records'
 import type { UnitSystem } from '@rca/core/units'
-import { TREADMILL_NOTE } from '../analysis/treadmillCopy'
+import { INDOOR_NOTE } from '../analysis/indoorCopy'
 import { GradingLink } from '../components/GradingLink'
 import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
@@ -80,7 +80,7 @@ const ALL_TIME_MARK = 'All-time record'
  * one that is the best of the period says which period; an activity outside the period has no period
  * bests, and its all-time records are named even though the period holds no figure for them. Each is
  * graded at its own date and linked to How is this graded?. The list says nothing when it has no best,
- * so an activity without one is not told it has none. A treadmill run holds no best: its own distance
+ * so an activity without one is not told it has none. An indoor run holds no best: its own distance
  * times show, ungraded and unmarked, under a line that says its pace is not used for bests.
  */
 export function ActivityBests({
@@ -97,7 +97,7 @@ export function ActivityBests({
   splitsView,
 }: ActivityBestsProps) {
   const sport = activity.sport
-  // A treadmill run's times are shown as run, but they are no best and carry no grade.
+  // An indoor run's times are shown as run, but they are no best and carry no grade.
   const counts = effortsCount(activity)
   const periodMark = period === undefined ? null : periodBestText(period)
   // A period of all time already holds every record, so the sport page has nothing to switch to.
@@ -118,7 +118,7 @@ export function ActivityBests({
     (label) => !bests.some((record) => `Best ${effortLabel(record.durationS)}` === label),
   )
   if (bests.length === 0 && distances.length === 0 && unfigured.length === 0) {
-    if (!counts) return <p className="secondary">{TREADMILL_NOTE}</p>
+    if (!counts) return <p className="secondary">{INDOOR_NOTE}</p>
     // A ride with no measured power has no power curve, and the page says why rather than leaving it out.
     const reason =
       sport === 'ride' && activity.powerSource !== 'measured'
@@ -203,7 +203,7 @@ export function ActivityBests({
       {flatNoteHere(sport, splitsLoad, splitsView, units, rows) && (
         <p className="muted">{FLAT_PACE_NOTE}</p>
       )}
-      {!counts && <p className="muted">{TREADMILL_NOTE}</p>}
+      {!counts && <p className="muted">{INDOOR_NOTE}</p>}
       {anyGraded && <GradingLink />}
     </section>
   )

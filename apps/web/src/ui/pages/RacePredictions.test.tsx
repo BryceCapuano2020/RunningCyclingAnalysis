@@ -55,7 +55,7 @@ describe('RacePredictions', () => {
     ).toBeInTheDocument()
   })
 
-  it('carries a race from the outdoor run, not from a faster treadmill run', () => {
+  it('carries a race from the outdoor run, not from a faster indoor run', () => {
     const treadmill = makeActivity({
       id: 'r2',
       sport: 'run',

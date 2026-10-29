@@ -199,7 +199,7 @@ describe('ActivityPage', () => {
     renderPage(
       makeActivity({
         id: 'activity-1',
-        name: 'Treadmill run',
+        name: 'Indoor run',
         hasHeartRate: false,
         elevationGainM: 0,
       }),
