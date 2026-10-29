@@ -173,9 +173,7 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await expect(await activitiesRows(page)).toHaveCount(14)
 })
 
-test('How sure is this? keeps the disclaimer that hard best efforts do not prove either was the hardest', async ({
-  page,
-}) => {
+test('How sure is this? says that both best efforts were hard efforts', async ({ page }) => {
   await openSample(page)
   // The sample's best 20 minute efforts both reach 90% of their reference heart rate, so the
   // Evidence card reports real efforts and the method page says they were hard efforts.

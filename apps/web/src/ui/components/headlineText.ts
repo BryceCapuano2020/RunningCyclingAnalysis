@@ -100,27 +100,25 @@ function leaderRange(reading: BalanceReading, leader: Sport): string {
 /**
  * A grade gap on the headline duration: the best estimate first, then the range it sits within, from
  * the leading sport's side so the signs agree with the sentence. "Running’s age grade is 9 points
- * higher than cycling’s, within −4 to +18 points, on your best 20 min in each." A range that rounds to
- * one value leaves the range out, since the estimate already says it. Only an estimate within
- * LEVEL_BAND of zero says the two are level.
+ * higher than cycling’s at 20 min, within −4 to +18 points." A range that rounds to one value leaves
+ * the range out, since the estimate already says it. Only an estimate within LEVEL_BAND of zero says
+ * the two are level.
  */
 function gradeSummary(reading: BalanceReading): string {
   const centre = Math.round(reading.lead.centre)
-  const duration = formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)
+  const at = `at ${formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)}`
   const level = reading.lean === 'even' ? ', so the two are level' : ''
   if (centre === 0) {
     // A range that is not symmetric about zero has a side, so it names the one it is read from.
     const lopsided = Math.round(reading.lead.low) !== -Math.round(reading.lead.high)
     const side = lopsided ? ' (running minus cycling)' : ''
-    return `On your best ${duration} in each, running and cycling have the same age grade, within ${rangeText(reading)}${side}${level}.`
+    return `Running and cycling have the same age grade ${at}, within ${rangeText(reading)}${side}${level}.`
   }
   const leading: Sport = centre > 0 ? 'run' : 'ride'
   const { other } = leaderOf(leading)
-  const lead = `${SPORT_TITLE[leading]}’s age grade is ${points(Math.abs(centre))} higher than ${other}’s`
+  const lead = `${SPORT_TITLE[leading]}’s age grade is ${points(Math.abs(centre))} higher than ${other}’s ${at}`
   const within = isPoint(reading) ? '' : `, within ${leaderRange(reading, leading)}`
-  if (reading.lean === 'even')
-    return `On your best ${duration} in each, ${lead.toLowerCase()}${within}${level}.`
-  return `${lead}${within}, on your best ${duration} in each.`
+  return `${lead}${within}${level}.`
 }
 
 /** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */

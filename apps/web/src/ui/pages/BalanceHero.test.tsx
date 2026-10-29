@@ -229,7 +229,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Running’s age grade is 6 points higher than cycling’s, within 2 to 10 points, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s at 20 min, within 2 to 10 points.',
       ),
     ).toBeInTheDocument()
   })
@@ -285,7 +285,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Running’s age grade is 9 points higher than cycling’s, within −4 to +18 points, on your best 20 min in each.',
+        'Running’s age grade is 9 points higher than cycling’s at 20 min, within −4 to +18 points.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/in balance|level/)).toBeNull()
@@ -308,7 +308,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'On your best 20 min in each, running’s age grade is 2 points higher than cycling’s, within −2 to +6 points, so the two are level.',
+        'Running’s age grade is 2 points higher than cycling’s at 20 min, within −2 to +6 points, so the two are level.',
       ),
     ).toBeInTheDocument()
   })
@@ -566,7 +566,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'Running’s age grade is 6 points higher than cycling’s, within 2 to 10 points, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s at 20 min, within 2 to 10 points.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/12 May/)).not.toBeInTheDocument()
@@ -583,7 +583,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'Running’s age grade is 6 points higher than cycling’s, within 2 to 10 points, on your best 20 min in each.',
+        'Running’s age grade is 6 points higher than cycling’s at 20 min, within 2 to 10 points.',
       ),
     ).toBeInTheDocument()
   })

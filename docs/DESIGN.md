@@ -505,8 +505,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min, log scale)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
   The finding is the chart's lede, a sentence under its title, and the chart supports it. It is read from the
   grades the headline uses: the ride's heart-rate-adjusted equivalence, through the balance's own `balanceGap`,
-  so at 20 minutes its lean is the headline's, and the chart never says "within their range" where the headline
-  says it leans, or the reverse. A sport is higher at a duration only where its grade is outside the other's
+  so its gap at 20 minutes is the headline's. The headline leans by the estimate (`leanOfLead`) and states the
+  range beside it; the chart separates by the range alone (`leanOfRange`), so a duration can be inside the other
+  sport's range while the headline names the estimate's lead, with that range. A sport is higher at a duration only where its grade is outside the other's
   range, in whole percents; a duration inside the range is level. When no duration is outside it: "No duration
   separates your running and cycling: at every duration from 10 to 90 min the gap is within cycling's range."
   When one sport is outside the range at every shared duration it says by how much and how that changes:
@@ -765,17 +766,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Balance is neutral.** Say which way it leans ("Your balance leans toward running"), never
   that a sport is a limiter, a weakness or holding you back.
 - **The balance is stated as a grade gap, led by its best estimate.** With both grades: "Running's age grade
-  is 9 points higher than cycling's, within −4 to +18 points, on your best 20 min in each." The estimate
+  is 9 points higher than cycling's at 20 min, within −4 to +18 points." The estimate
   decides the title and the lean (`leanOfLead`): a lead of more than 2 whole points leans toward the sport it
   favours, "Your balance leans toward running", whether or not its range reaches zero. The range is stated
   beside the estimate, from the leading sport's side so a cycling lead reads "cycling's age grade is 9 points
   higher than running's, within −4 to +18 points"; a range wholly on the leader's side is plain ("within 2 to
   10 points"), and one that reaches zero or the other side is signed with true minus signs. A range that
-  rounds to a single value is left out: "Running's age grade is 6 points higher than cycling's, on your best 20
-  min in each." Only an estimate within 2 whole points (`LEVEL_BAND`), however wide its range, is called level,
-  under the title "Your running and cycling are in balance": "On your best 20 min in each, running's age grade
-  is 2 points higher than cycling's, within −2 to +6 points, so the two are level." Exactly zero reads "running
-  and cycling have the same age grade, within −2 to +2 points, so the two are level.", and a lopsided range
+  rounds to a single value is left out: "Running's age grade is 6 points higher than cycling's at 20 min."
+  Only an estimate within 2 whole points (`LEVEL_BAND`), however wide its range, is called level, under the
+  title "Your running and cycling are in balance": "Running's age grade is 2 points higher than cycling's at
+  20 min, within −2 to +6 points, so the two are level." Exactly zero reads "Running and cycling have the same
+  age grade at 20 min, within −2 to +2 points, so the two are level.", and a lopsided range
   names its side: "within −1 to +3 points (running minus cycling)". The page, the meter, its spoken name and the
   share card all read the one `BalanceReading`, so they cannot disagree. The grade profile keeps its own rule,
   by range alone (`leanOfRange`): a sport leads at a duration only where its grade is outside the other's range.

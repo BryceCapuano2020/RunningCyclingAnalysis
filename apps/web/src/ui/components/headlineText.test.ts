@@ -189,7 +189,7 @@ describe('balanceTitle', () => {
 describe('balanceSummary', () => {
   it('leads with the grade gap’s best estimate and states its range, on the headline duration', () => {
     expect(balanceSummary(gapReading(gap({ centre: 6, lean: 'run' })), 1200)).toBe(
-      'Running’s age grade is 6 points higher than cycling’s, within 2 to 10\u00a0points, on your best 20\u00a0min in each.',
+      'Running’s age grade is 6 points higher than cycling’s at 20\u00a0min, within 2 to 10\u00a0points.',
     )
   })
 
@@ -197,7 +197,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: -6, low: -10, high: -2, lean: 'ride' })), 1200),
     ).toBe(
-      'Cycling’s age grade is 6 points higher than running’s, within 2 to 10\u00a0points, on your best 20\u00a0min in each.',
+      'Cycling’s age grade is 6 points higher than running’s at 20\u00a0min, within 2 to 10\u00a0points.',
     )
   })
 
@@ -205,23 +205,23 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 9, low: -4, high: 18, lean: 'run' })), 1200),
     ).toBe(
-      'Running’s age grade is 9 points higher than cycling’s, within −4 to +18\u00a0points, on your best 20\u00a0min in each.',
+      'Running’s age grade is 9 points higher than cycling’s at 20\u00a0min, within −4 to +18\u00a0points.',
     )
     expect(
       balanceSummary(gapReading(gap({ centre: -9, low: -18, high: 4, lean: 'ride' })), 1200),
     ).toBe(
-      'Cycling’s age grade is 9 points higher than running’s, within −4 to +18\u00a0points, on your best 20\u00a0min in each.',
+      'Cycling’s age grade is 9 points higher than running’s at 20\u00a0min, within −4 to +18\u00a0points.',
     )
   })
 
   it('uses the singular for a gap of one point, and leaves out a range that is one value', () => {
     expect(balanceSummary(gapReading(gap({ centre: 3, low: 3, high: 3 })), 1200)).toBe(
-      'Running’s age grade is 3 points higher than cycling’s, on your best 20\u00a0min in each.',
+      'Running’s age grade is 3 points higher than cycling’s at 20\u00a0min.',
     )
     expect(
       balanceSummary(gapReading(gap({ centre: 1, low: 1, high: 3, lean: 'even' })), 1200),
     ).toMatch(
-      /is 1 point higher than cycling’s, within 1 to 3\u00a0points, so the two are level\.$/,
+      /is 1 point higher than cycling’s at 20\u00a0min, within 1 to 3\u00a0points, so the two are level\.$/,
     )
   })
 
@@ -229,7 +229,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 2, low: -2, high: 6, lean: 'even' })), 1200),
     ).toBe(
-      'On your best 20\u00a0min in each, running’s age grade is 2 points higher than cycling’s, within −2 to +6\u00a0points, so the two are level.',
+      'Running’s age grade is 2 points higher than cycling’s at 20\u00a0min, within −2 to +6\u00a0points, so the two are level.',
     )
   })
 
@@ -237,7 +237,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 0, low: -2, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On your best 20\u00a0min in each, running and cycling have the same age grade, within −2 to +2\u00a0points, so the two are level.',
+      'Running and cycling have the same age grade at 20\u00a0min, within −2 to +2\u00a0points, so the two are level.',
     )
   })
 
@@ -245,7 +245,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 0.2, low: -1, high: 3, lean: 'even' })), 1200),
     ).toBe(
-      'On your best 20\u00a0min in each, running and cycling have the same age grade, within −1 to +3\u00a0points (running minus cycling), so the two are level.',
+      'Running and cycling have the same age grade at 20\u00a0min, within −1 to +3\u00a0points (running minus cycling), so the two are level.',
     )
   })
 
@@ -253,7 +253,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: -2, low: -6, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On your best 20\u00a0min in each, cycling’s age grade is 2 points higher than running’s, within −2 to +6\u00a0points, so the two are level.',
+      'Cycling’s age grade is 2 points higher than running’s at 20\u00a0min, within −2 to +6\u00a0points, so the two are level.',
     )
   })
 
