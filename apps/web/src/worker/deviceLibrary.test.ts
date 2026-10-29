@@ -264,32 +264,30 @@ describe('device library in IndexedDB', () => {
     vi.stubGlobal('indexedDB', fakeIndexedDb(options).indexedDB)
     const library = openDeviceLibrary()
 
-    await expect(library.all()).resolves.toEqual([])
     await expect(library.get('run-1')).resolves.toBeNull()
     await expect(library.put('run-1', MEASURED)).rejects.toThrow()
     await expect(library.remove('run-1')).rejects.toThrow()
     await expect(library.clear()).rejects.toThrow()
   })
 
-  it('reads strictly as it reads otherwise, and lists nothing for storage that cannot be opened', async () => {
+  it('lists what is kept, and nothing for storage that cannot be opened', async () => {
     vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
     const library = openDeviceLibrary()
     await library.put('run-1', MEASURED)
-    await expect(library.allStrict()).resolves.toEqual(await library.all())
-    await expect(library.allStrict()).resolves.toHaveLength(1)
+    await expect(library.all()).resolves.toHaveLength(1)
 
     for (const open of ['throw', 'error'] as const) {
       vi.stubGlobal('indexedDB', fakeIndexedDb({ open }).indexedDB)
-      await expect(openDeviceLibrary().allStrict()).resolves.toEqual([])
+      await expect(openDeviceLibrary().all()).resolves.toEqual([])
     }
   })
 
-  it('rejects a strict read that fails on a database that opened, while the plain read lists nothing', async () => {
+  it('rejects a listing that fails on a database that opened, while a single read gives nothing', async () => {
     vi.stubGlobal('indexedDB', fakeIndexedDb({ transaction: true }).indexedDB)
     const library = openDeviceLibrary()
 
-    await expect(library.all()).resolves.toEqual([])
-    await expect(library.allStrict()).rejects.toThrow('Transactions are refused')
+    await expect(library.get('run-1')).resolves.toBeNull()
+    await expect(library.all()).rejects.toThrow('Transactions are refused')
   })
 
   it('rejects a lookup that fails on a database that opened, so it is not taken for no kept copy', async () => {

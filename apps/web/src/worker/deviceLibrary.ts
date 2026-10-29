@@ -10,16 +10,12 @@ import type { ActivityDigest } from '@rca/core/types'
  */
 export interface DeviceLibrary {
   /**
-   * Every readable entry. A row that does not read, such as one a newer version of the app wrote,
-   * is skipped and kept, so a tab on an older build never deletes it.
+   * Every readable entry. A row that does not read, such as one a newer version of the app wrote, is
+   * skipped and kept, so a tab on an older build never deletes it. A read that fails on a database that
+   * did open rejects, so an unread library is not taken for an empty one; storage that cannot be opened
+   * at all lists nothing, since nothing could have been kept there.
    */
   all(): Promise<DeviceEntry[]>
-  /**
-   * Every readable entry, as `all` lists them, except that a read that fails on a database that did
-   * open rejects instead of listing nothing. Storage that cannot be opened at all lists nothing, since
-   * nothing could have been kept there. For a caller that must tell an empty library from an unread one.
-   */
-  allStrict(): Promise<DeviceEntry[]>
   get(workoutKey: string): Promise<ActivityDigest | null>
   /**
    * As `get`, but says why a row does not read. 'newer' is a digest written in a format later than this
@@ -182,7 +178,7 @@ export function openDeviceLibrary(): DeviceLibrary {
       undefined,
     )
 
-  async function entries(strict: boolean): Promise<DeviceEntry[]> {
+  async function entries(): Promise<DeviceEntry[]> {
     const rows = await withStore(
       'readonly',
       async (store) => {
@@ -190,7 +186,7 @@ export function openDeviceLibrary(): DeviceLibrary {
         return keys.map((key, index) => ({ key, row: readRow(values[index]) }))
       },
       [],
-      strict,
+      true,
     )
     return rows.flatMap(({ key, row }) =>
       typeof key === 'string' && row !== null ? [{ workoutKey: key, digest: row.digest }] : [],
@@ -198,8 +194,7 @@ export function openDeviceLibrary(): DeviceLibrary {
   }
 
   return {
-    all: () => entries(false),
-    allStrict: () => entries(true),
+    all: entries,
     get: async (workoutKey) => (await readOne(workoutKey))?.digest ?? null,
     lookup: (workoutKey) =>
       withStore(

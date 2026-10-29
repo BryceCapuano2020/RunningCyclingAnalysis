@@ -61,13 +61,12 @@ describe('device library actions', () => {
   })
 
   describe('when the kept library cannot be read', () => {
-    /** A library whose reads fail on an open database: the plain read lists nothing, the strict one rejects. */
+    /** A library whose reads fail on an open database. */
     function unreadable(): DeviceLibrary {
       const library = memoryDeviceLibrary()
       return {
         ...library,
-        all: async () => [],
-        allStrict: async () => {
+        all: async () => {
           throw new Error('Connection to Indexed Database server lost')
         },
         lookup: async () => {
@@ -244,7 +243,7 @@ describe('device library actions', () => {
     const unreadable: DeviceLibrary = {
       ...memoryDeviceLibrary(),
       clear: () => Promise.reject(new Error('Device storage failed')),
-      allStrict: () => Promise.reject(new Error('Device storage failed')),
+      all: () => Promise.reject(new Error('Device storage failed')),
     }
     const { actions, posted } = setup(unreadable)
 
@@ -276,9 +275,7 @@ describe('device library actions', () => {
   it('report posts nothing when the library cannot be read, and does not throw', async () => {
     const unreadable: DeviceLibrary = {
       ...memoryDeviceLibrary(),
-      // The plain read lists nothing for a failed read; the report must not show that as the library.
-      all: async () => [],
-      allStrict: () => Promise.reject(new Error('Device storage failed')),
+      all: () => Promise.reject(new Error('Device storage failed')),
     }
     const { actions, posted } = setup(unreadable)
 

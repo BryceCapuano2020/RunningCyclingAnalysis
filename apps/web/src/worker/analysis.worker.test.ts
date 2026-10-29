@@ -646,8 +646,7 @@ describe('analysis worker', () => {
   it('answers with an error, not an empty library, when the kept library cannot be read', async () => {
     kept.library = {
       ...memoryDeviceLibrary(),
-      all: async () => [],
-      allStrict: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+      all: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
     }
     const { send } = await startWorker()
     const messages = await send({ type: 'loadDevice', settings: SETTINGS })
@@ -1518,7 +1517,6 @@ function refusingLibrary(): DeviceLibrary {
   const refused = () => Promise.reject(new Error('Device storage is unavailable'))
   return {
     all: async () => [],
-    allStrict: async () => [],
     get: async () => null,
     lookup: async () => null,
     route: async () => null,

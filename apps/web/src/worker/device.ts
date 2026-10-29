@@ -80,15 +80,15 @@ export function deviceActions(
   let held = false
   const report = async () => {
     try {
-      // Strict, so a failed read leaves the list on screen as it is instead of replacing it with none.
-      post({ type: 'libraryActivities', activities: newestFirst(await device.allStrict()) })
+      // A failed read rejects, which leaves the list on screen as it is instead of replacing it with none.
+      post({ type: 'libraryActivities', activities: newestFirst(await device.all()) })
     } catch {
       // The list is shown again after the next change.
     }
   }
   return {
     async load(settings) {
-      const entries = await device.allStrict().catch(() => {
+      const entries = await device.all().catch(() => {
         throw new Error(KEPT_NOT_READ)
       })
       post({ type: 'libraryActivities', activities: newestFirst(entries) })
@@ -149,7 +149,7 @@ export function deviceActions(
         // what remains reloads next visit, so the page shows that and says so. The page still starts
         // over, and the next read loads what remains into the session. A read that fails after the
         // refusal leaves it unknown what remains, so that is said too.
-        const remaining = await device.allStrict().catch(() => null)
+        const remaining = await device.all().catch(() => null)
         if (remaining === null || remaining.length > 0) {
           held = false
           if (remaining !== null)
