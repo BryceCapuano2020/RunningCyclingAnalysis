@@ -56,6 +56,8 @@ export function curveMarks(
       kind: 'callout',
       id: `best-${row.durationS}`,
       tone: sport,
+      // The headline 20 minutes is always drawn; the others give way where a phone's plot has no room.
+      optional: row.durationS !== HEADLINE_DURATION_S,
       at,
       value: formatNative(sport, row.value, units),
       label: effortLabel(row.durationS),
@@ -70,6 +72,7 @@ export function curveMarks(
     annotations.push({
       kind: 'end',
       id: 'end',
+      optional: true,
       tone: sport,
       at: lastAt,
       text: formatNative(sport, last.value, units),

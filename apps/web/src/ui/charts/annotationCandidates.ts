@@ -55,7 +55,7 @@ function calloutCandidates(c: Callout, space: AnnotationSpace): Candidate[] {
   const w = Math.max(...widths)
   const h = label + px * 0.9 + caption
   const sides = c.prefer === 'below' ? (['below', 'above'] as const) : (['above', 'below'] as const)
-  const shifts = [0, -0.6, 0.6]
+  const shifts = [0, -0.6, 0.6, -1.1, 1.1]
   const out: Candidate[] = []
   for (const length of LEADER_LENGTHS) {
     for (const side of sides) {

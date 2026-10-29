@@ -145,6 +145,40 @@ describe('a reference line', () => {
   })
 })
 
+describe('an optional annotation', () => {
+  const everywhere = [{ left: 0, right: 2000, top: 0, bottom: 2000 }]
+
+  it('is left out, not drawn over another mark, where it has no clear place', () => {
+    const placed = layoutAnnotations([callout('a', 400, 200, { optional: true })], {
+      ...SPACE,
+      obstacles: everywhere,
+    })
+    expect(placed).toEqual([])
+  })
+
+  it('is still drawn where there is a place, and a required one is drawn crowded rather than dropped', () => {
+    expect(
+      layoutAnnotations([callout('a', 400, 200, { optional: true })], SPACE).map((each) => each.id),
+    ).toEqual(['a'])
+    const [required] = layoutAnnotations([callout('a', 400, 200)], {
+      ...SPACE,
+      obstacles: everywhere,
+    })
+    expect(required?.crowded).toBe(true)
+  })
+
+  it('is placed after the required ones of its kind, so the headline keeps its place and the others give way', () => {
+    // Both want the same spot: the one listed first is optional, but the required one is placed first.
+    const placed = layoutAnnotations(
+      [callout('optional', 400, 200, { optional: true }), callout('required', 405, 200)],
+      SPACE,
+    )
+    expect(boxOf(placed, 'required').preferred).toBe(true)
+    expect(boxOf(placed, 'optional').preferred).toBe(false)
+    expect(placed.map((each) => each.id)).toEqual(['optional', 'required'])
+  })
+})
+
 describe('an end label', () => {
   const end: Annotation = {
     kind: 'end',

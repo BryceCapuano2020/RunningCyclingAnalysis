@@ -563,6 +563,25 @@ describe('the series’ end label', () => {
 
   it('moves left of its point on a chart with no margin to hold it', () => {
     chartWidth(300)
+    // No 5, 20 or 60 minute effort, so nothing else is called out and the label has the room.
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={[
+          curvePoint(60, 400, 'ride-1'),
+          curvePoint(120, 360, 'ride-1'),
+          curvePoint(1800, 230, 'ride-1'),
+        ]}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(endOf(container)?.querySelector('text')?.getAttribute('text-anchor')).toBe('end')
+  })
+
+  it('is left out, with the other bests it would crowd, where a phone’s plot has no room, and the headline stays', () => {
+    chartWidth(300)
     const { container } = render(
       <SportCurveChart
         sport="ride"
@@ -572,7 +591,8 @@ describe('the series’ end label', () => {
         units="metric"
       />,
     )
-    expect(endOf(container)?.querySelector('text')?.getAttribute('text-anchor')).toBe('end')
+    expect(container.querySelector('[data-annotation="best-1200"]')).not.toBeNull()
+    expect(container.querySelectorAll('[data-crowded]')).toHaveLength(0)
   })
 
   it('stays above the plot’s floor, clear of the x tick labels, wherever its point is', () => {

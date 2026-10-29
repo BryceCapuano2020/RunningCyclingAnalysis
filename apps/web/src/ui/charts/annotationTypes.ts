@@ -16,6 +16,8 @@ interface Mark {
   /** Stable name: the key of its elements, and what a test finds it by. */
   id: string
   tone?: AnnotationTone
+  /** Left out, rather than drawn over another mark, where it finds no clear place. The value is still in the tooltip and the table. */
+  optional?: boolean
 }
 
 /** A series' name or value at its last point, to the right of it where the margin has room. */

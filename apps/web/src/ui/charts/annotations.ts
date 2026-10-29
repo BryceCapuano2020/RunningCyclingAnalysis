@@ -43,8 +43,8 @@ function costOf(box: Box, taken: readonly Box[]): number {
 /**
  * Where each annotation's text goes. In priority order, an annotation takes its first candidate place that
  * stays in the plot and keeps CLEARANCE from every box already placed and from the data's obstacles; where
- * none does, it takes the place that overlaps least, and says so in `crowded`. The result is in the order
- * of the input.
+ * none does, an optional annotation is left out and another takes the place that overlaps least, and says so in
+ * `crowded`. The result is in the order of the input, without the annotations left out.
  */
 export function layoutAnnotations(
   annotations: readonly Annotation[],
@@ -52,7 +52,9 @@ export function layoutAnnotations(
 ): PlacedAnnotation[] {
   const taken: Box[] = [...(space.obstacles ?? [])]
   const placed = new Map<string, PlacedAnnotation>()
-  const order = [...annotations].sort((a, b) => PRIORITY[a.kind] - PRIORITY[b.kind])
+  // Within a kind, what must be drawn is placed before what may be left out.
+  const rank = (a: Annotation) => PRIORITY[a.kind] * 2 + (a.optional === true ? 1 : 0)
+  const order = [...annotations].sort((a, b) => rank(a) - rank(b))
   for (const annotation of order) {
     const candidates = (
       CANDIDATES[annotation.kind] as (a: Annotation, s: AnnotationSpace) => Candidate[]
@@ -66,6 +68,7 @@ export function layoutAnnotations(
     const free = candidates.findIndex(
       (candidate, i) => fits[i] === true && !meetsBoxes(candidate.box, taken, CLEARANCE),
     )
+    if (free < 0 && annotation.optional === true) continue
     const choice = free >= 0 ? free : cheapest(candidates, fits, taken)
     const picked = candidates[choice]
     if (picked === undefined) continue
