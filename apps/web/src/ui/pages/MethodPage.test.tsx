@@ -405,13 +405,26 @@ describe('MethodPage energy view', () => {
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
       within(section).getByText(
-        'The comparison is held until there is an effort of 20 min or more in each sport.',
+        'The comparison is held. A hard 20 min run or ride would let them be compared.',
       ),
     ).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/this view is that ratio|cross-check|90% model range/)
     expect(screen.queryByText(/^Run against Ride, 90% range/)).not.toBeInTheDocument()
     expect(section.querySelector('details.method__evidence')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
+  })
+
+  it('names the activities a sport lacks in the period when that is why the comparison is held', () => {
+    const activities = [
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      ...[1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
+    ]
+    renderPage(makeResult({ activities, ...CONTRIBUTING }), null, DATED_SIX_WEEKS)
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(
+      within(section).getByText('The comparison is held. Needs 2 more runs in this period.'),
+    ).toBeInTheDocument()
   })
 
   it('says a ride-only library needs a run to compare, with no ratio, facts or evidence', () => {

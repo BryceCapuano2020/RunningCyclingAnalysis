@@ -45,6 +45,11 @@ function hasEvidence(result: AnalysisResult, sport: Sport): boolean {
   return threshold !== null || reachesHeadline(curve)
 }
 
+/** Whether both sports have the evidence the headline needs: an effort of its length, or a fitted threshold. */
+export function hasHeadlineEvidence(result: AnalysisResult): boolean {
+  return hasEvidence(result, 'run') && hasEvidence(result, 'ride')
+}
+
 /** Each sport's best curve and fitted threshold in a result. */
 const EVIDENCE_OF: Record<Sport, (result: AnalysisResult) => { curve: Curve; threshold: unknown }> =
   {
@@ -74,7 +79,7 @@ export function headlineShortfall(activities: ActivitySummary[]): Record<Sport, 
  * what is missing instead of a gap taken from a few minutes, or a few days, of one sport.
  */
 export function headlinePick(result: AnalysisResult): HeadlinePick | null {
-  if (!hasEvidence(result, 'run') || !hasEvidence(result, 'ride')) return null
+  if (!hasHeadlineEvidence(result)) return null
   const short = headlineShortfall(result.activities)
   if (short.run > 0 || short.ride > 0) return null
   return pickHeadline(result.comparison)

@@ -455,6 +455,25 @@ describe('BalanceHero without a comparison yet', () => {
     ).toBeInTheDocument()
   })
 
+  it('counts the outdoor runs the rule counts, and says so when treadmill runs are on file', () => {
+    const activities = [
+      ...[1, 2, 3].map((n) => makeActivity({ id: `tread-${n}`, sport: 'run', indoor: true })),
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      ...[1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
+    ]
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult({ activities, comparison: { prior: [], calibrated: null } })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(
+      screen.getByText('From 1 outdoor run and 3 rides. Needs 2 more outdoor runs.'),
+    ).toBeInTheDocument()
+  })
+
   it('names the period in the need, and offers All time when it holds enough', () => {
     const inPeriod = [
       makeActivity({ id: 'run-1', sport: 'run' }),
