@@ -649,6 +649,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   left out of the run analysis instead), the skipped readings, and Delete. A ride with no power curve says why in a line: an estimate is made only on
   climbs, and a ride with no power data has none. A ride's bests and chips wait for the weight. An
   activity from before moving time was kept shows its elapsed time, and says so.
+  A run's distance times and its splits are timed differently on purpose: a distance time is race-like, from the clock
+  including stops, and a split is moving time. When both are on the page, a line under the best efforts says so in
+  these words: "Distance times include stops. Splits are moving time." It is left out while the splits load or when
+  they are missing, and when the run has no distance time.
   The best efforts set here do not follow a period the athlete picked elsewhere without saying so: a best that is an
   all-time record is marked "All-time record" exactly when it has a chip above (a ride's one-minute best has none), and
   one that is only the best of the period on screen says which, such as "Best in the last 12 months" (a custom range
