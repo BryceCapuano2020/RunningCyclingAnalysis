@@ -82,15 +82,31 @@ export function useAccount(): AccountController {
   const profileWritesRef = useRef<Promise<unknown>>(Promise.resolve())
   const endingSessionRef = useRef(false)
 
-  /** Adopts the server's view of the account. A saved view supersedes a failed write. */
-  const adopt = useCallback((found: Me | null) => {
-    const wasSignedIn = meRef.current !== null
-    meRef.current = found
-    profileWriteFailureRef.current = null
-    setMe(found)
-    setStatus(found ? 'signed-in' : 'signed-out')
-    setSessionExpired(found === null && wasSignedIn)
+  /**
+   * Clears an account's detail recordings from this browser once the account is no longer this
+   * browser's, as an explicit sign-out does. Only that account's scope: the signed-out library stays.
+   */
+  const forgetEnded = useCallback((userId: string) => {
+    void forgetAccountDetails(userId).then((notice) => {
+      if (notice !== null) setError((earlier) => (earlier ? `${earlier} ${notice}` : notice))
+    })
   }, [])
+
+  /** Adopts the server's view of the account. A saved view supersedes a failed write. */
+  const adopt = useCallback(
+    (found: Me | null) => {
+      const previous = meRef.current
+      const wasSignedIn = previous !== null
+      meRef.current = found
+      // The session ended, or another account signed in, without a sign-out here.
+      if (previous !== null && previous.user.id !== found?.user.id) forgetEnded(previous.user.id)
+      profileWriteFailureRef.current = null
+      setMe(found)
+      setStatus(found ? 'signed-in' : 'signed-out')
+      setSessionExpired(found === null && wasSignedIn)
+    },
+    [forgetEnded],
+  )
 
   const refresh = useCallback(async () => {
     const found = await api.getMe()
@@ -99,13 +115,15 @@ export function useAccount(): AccountController {
   }, [adopt])
 
   const expireSession = useCallback(() => {
-    if (meRef.current === null) return
+    const ended = meRef.current
+    if (ended === null) return
     meRef.current = null
     setMe(null)
     setStatus('signed-out')
     setSessionExpired(true)
     setError('Your session ended. Sign in to keep saving your activities.')
-  }, [])
+    forgetEnded(ended.user.id)
+  }, [forgetEnded])
 
   useEffect(() => {
     let current = true
