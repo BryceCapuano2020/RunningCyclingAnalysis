@@ -1,18 +1,10 @@
-import { MAX_FILE_SAMPLES } from '../../constants'
 import { scanFit } from './reader'
 import type { FitMessage } from './reader'
 import { FIELD, MESG, eventTypeName, fitTimeToEpochMs, sportName, subSportName } from './profile'
 import type { FitEventType, FitSportName, FitSubSportName } from './profile'
 
-/** The records one file may hold: the seconds of the longest activity the grid takes, one record a second. */
-export const DEFAULT_MAX_RECORDS = MAX_FILE_SAMPLES
-
-/**
- * The data messages of every kind one file may hold. A real file has records plus a few other messages a
- * record (heart-rate variability, device information, events); this leaves room for several of each and
- * stops a file of nothing but small messages from costing time and memory in proportion to its size.
- */
-export const DEFAULT_MAX_MESSAGES = 500_000
+/** The record messages `decodeFit` reads when the caller sets no limit. The importer sets its own. */
+export const DEFAULT_MAX_RECORDS = 2_000_000
 
 export interface DecodedFileId {
   /** The FILE_TYPE enum value, for example 4 for an activity. */
@@ -91,7 +83,11 @@ export interface DecodedMessages {
 export interface DecodeOptions {
   /** Decoding stops with an error once more record messages than this have been seen. */
   maxRecords?: number
-  /** Decoding stops with an error once more data messages of any kind than this have been seen. */
+  /**
+   * Decoding stops with an error once more data messages of any kind than this have been seen: a real file
+   * has records and a few other messages a record, and a file of small messages of no use is not decoded
+   * to its end. Twice `maxRecords` when not given.
+   */
   maxMessages?: number
 }
 
@@ -116,7 +112,7 @@ type Values = Map<number, number | string>
  */
 export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeResult {
   const maxRecords = opts.maxRecords ?? DEFAULT_MAX_RECORDS
-  const maxMessages = opts.maxMessages ?? DEFAULT_MAX_MESSAGES
+  const maxMessages = opts.maxMessages ?? 2 * maxRecords
   const messages: DecodedMessages = { sports: [], sessions: [], laps: [], records: [], events: [] }
   const errors: string[] = []
   const compressed = compressedReader()
@@ -194,13 +190,19 @@ function collect(messages: DecodedMessages, message: FitMessage): void {
         totalTimerTime: scaled(v, 8, 1000),
       })
       return
-    case MESG.event:
-      messages.events.push({
-        timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
-        event: numberOf(v, 0) === 0 ? 'timer' : undefined,
-        eventType: eventTypeName(numberOf(v, 1) ?? -1),
-      })
+    case MESG.event: {
+      // Only a timer event with a known type and a time shapes an activity (`timerEventsOf`); the others,
+      // battery and alerts and the rest, are not kept.
+      const eventType = eventTypeName(numberOf(v, 1) ?? -1)
+      if (numberOf(v, 0) === 0 && eventType !== undefined) {
+        messages.events.push({
+          timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
+          event: 'timer',
+          eventType,
+        })
+      }
       return
+    }
     default:
       return
   }

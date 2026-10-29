@@ -3,9 +3,6 @@ import { METRES_PER_KM, METRES_PER_MILE } from './units/convert'
 
 /** Binary sizes, for byte limits and for telling people how large a file may be. */
 export const MIB = 1024 ** 2
-
-/** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */
-export const MAX_FILE_SAMPLES = 172_800
 export const GIB = 1024 ** 3
 
 /** Durations, in seconds, at which every duration curve is evaluated. */

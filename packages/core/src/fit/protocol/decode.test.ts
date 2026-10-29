@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { definition, fitFile, int } from './fitBytes'
-import { decodeFit, DEFAULT_MAX_MESSAGES, DEFAULT_MAX_RECORDS } from './decode'
+import { decodeFit, DEFAULT_MAX_RECORDS } from './decode'
 import { FIELD, MESG } from './profile'
 
 const FIT_EPOCH_S = 631_065_600
@@ -107,19 +107,48 @@ describe('decodeFit records', () => {
     expect(result.messages.records.length).toBe(5)
   })
 
-  it('uses the limit of the 48-hour grid for records by default', () => {
-    expect(DEFAULT_MAX_RECORDS).toBe(172_800)
+  it('uses the two-million record limit by default', () => {
+    expect(DEFAULT_MAX_RECORDS).toBe(2_000_000)
   })
 
   it('counts messages of every kind against their own limit', () => {
-    const data = [...definition(1, MESG.event, [[0, 1, 0x00]])]
-    for (let i = 0; i < 10; i++) data.push(0x01, 0)
+    const data = [
+      ...definition(1, MESG.event, [
+        [0, 1, 0x00],
+        [1, 1, 0x00],
+      ]),
+    ]
+    for (let i = 0; i < 10; i++) data.push(0x01, 0, 0)
     const result = decodeFit(fitFile(data), { maxMessages: 4 })
     expect(result.ok).toBe(false)
     expect(result.errors).toEqual(['Message count exceeds the 4-message limit'])
     expect(result.messageCount).toBe(5)
     expect(result.messages.events.length).toBe(4)
-    expect(DEFAULT_MAX_MESSAGES).toBeGreaterThan(DEFAULT_MAX_RECORDS)
+  })
+
+  it('allows twice as many messages as records when no message limit is given', () => {
+    const data = [
+      ...definition(1, MESG.event, [
+        [0, 1, 0x00],
+        [1, 1, 0x00],
+      ]),
+    ]
+    for (let i = 0; i < 12; i++) data.push(0x01, 0, 0)
+    const result = decodeFit(fitFile(data), { maxRecords: 5 })
+    expect(result.errors).toEqual(['Message count exceeds the 10-message limit'])
+    expect(result.messageCount).toBe(11)
+  })
+
+  it('keeps only the timer events that have a type, as nothing else reads them', () => {
+    const data = [
+      ...definition(1, MESG.event, [
+        [0, 1, 0x00],
+        [1, 1, 0x00],
+      ]),
+    ]
+    data.push(0x01, 0, 0, 0x01, 0, 4, 0x01, 3, 0, 0x01, 0, 99)
+    const { events } = decodeFit(fitFile(data)).messages
+    expect(events.map((each) => each.eventType)).toEqual(['start', 'stopAll'])
   })
 
   it('reads a message whose definition has fields of no bytes as before', () => {
