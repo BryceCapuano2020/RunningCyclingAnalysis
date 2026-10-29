@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ChartSize, Point } from './chartTypes'
 import { PlotSurface } from './PlotSurface'
+import { ReadoutContext } from './readoutContext'
 import { TimeSeriesNote } from './TimeSeriesNote'
 import { TimeSeriesReadout } from './TimeSeriesReadout'
 import { TimeSeriesRows } from './TimeSeriesRows'
@@ -60,6 +61,7 @@ export function TimeSeriesStack({
 }: TimeSeriesStackProps) {
   const [stageRef, width] = useSize()
   const id = useId()
+  const [readoutHost, setReadoutHost] = useState<HTMLElement | null>(null)
   const [cursor, setCursorState] = useState<number | null>(null)
   const setCursor = (second: number | null) => {
     setCursorState(second)
@@ -95,7 +97,11 @@ export function TimeSeriesStack({
       <figcaption id={size.titleId} className="chart-frame__title sr-only">
         {title}
       </figcaption>
-      <TimeSeriesReadout id={size.tooltipId} channels={channels} cursor={inside} head={head} />
+      {/* The chart system's readout row, kept at every width; the readout draws into it. */}
+      <div ref={setReadoutHost} className="chart-frame__readout ts-stack__readout" />
+      <ReadoutContext.Provider value={readoutHost}>
+        <TimeSeriesReadout id={size.tooltipId} channels={channels} cursor={inside} head={head} />
+      </ReadoutContext.Provider>
       <div ref={stageRef} className="chart-frame__stage ts-stack__stage">
         <svg
           className="chart-frame__svg"

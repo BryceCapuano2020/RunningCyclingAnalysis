@@ -58,15 +58,19 @@
 }
 
 /* The fixed row above the plot: it is as tall for one value as for five, so the plot never moves. */
+/* The readout row is the chart system's; it is as tall for one value as for five, so the plot never moves. */
+.ts-stack > .ts-stack__readout {
+  height: auto;
+  min-height: 3.25rem;
+  overflow: visible;
+  padding: var(--space-2);
+}
+
 .ts-readout {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--column-readout), 1fr));
   gap: var(--space-1);
-  min-height: 3.25rem;
   min-width: 0;
-  padding: var(--space-2);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
   align-content: start;
 }
 
