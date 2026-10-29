@@ -35,7 +35,11 @@ function gradedResult(rideSpeedMs: number) {
   return makeResult({
     activities: [
       makeActivity({ id: 'run-1', sport: 'run' }),
+      makeActivity({ id: 'run-2', sport: 'run' }),
+      makeActivity({ id: 'run-3', sport: 'run' }),
       makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride', startMs: RIDE_START }),
+      makeActivity({ id: 'ride-2', sport: 'ride' }),
+      makeActivity({ id: 'ride-3', sport: 'ride' }),
     ],
     runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
     rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],

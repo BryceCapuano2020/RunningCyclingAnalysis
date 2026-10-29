@@ -1,5 +1,6 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import type { AnalysisResult } from '@rca/core/pipeline'
+import { effortsCount } from '@rca/core/digest'
+import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Comparison, ComparisonPoint, Curve, Sport } from '@rca/core/types'
 
 export interface HeadlinePick {
@@ -51,11 +52,30 @@ const EVIDENCE_OF: Record<Sport, (result: AnalysisResult) => { curve: Curve; thr
     ride: (result) => ({ curve: result.rideCurve, threshold: result.rideCp }),
   }
 
+/** The analysed activities each sport needs in the period before the headline sets one against the other. */
+export const HEADLINE_MIN_ACTIVITIES = 3
+
 /**
- * The headline's comparison point, or null when either sport lacks the evidence for it (see hasEvidence):
- * the page then says what is missing instead of a gap taken from a few minutes of one sport.
+ * How many more analysed activities each sport needs in the period before the headline can compare them,
+ * 0 for a sport that has enough. One run set against three rides is a comparison of a day against a month.
+ * A treadmill run is in the period's volume but is not counted here, since its pace holds no best.
+ */
+export function headlineShortfall(activities: ActivitySummary[]): Record<Sport, number> {
+  const missing = (sport: Sport) => {
+    const have = activities.filter((a) => a.sport === sport && effortsCount(a)).length
+    return Math.max(0, HEADLINE_MIN_ACTIVITIES - have)
+  }
+  return { run: missing('run'), ride: missing('ride') }
+}
+
+/**
+ * The headline's comparison point, or null when either sport lacks the evidence for it: a hard enough
+ * effort (see hasEvidence) or enough activities in the period (see headlineShortfall). The page then says
+ * what is missing instead of a gap taken from a few minutes, or a few days, of one sport.
  */
 export function headlinePick(result: AnalysisResult): HeadlinePick | null {
   if (!hasEvidence(result, 'run') || !hasEvidence(result, 'ride')) return null
+  const short = headlineShortfall(result.activities)
+  if (short.run > 0 || short.ride > 0) return null
   return pickHeadline(result.comparison)
 }

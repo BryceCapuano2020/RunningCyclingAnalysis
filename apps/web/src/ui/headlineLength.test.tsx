@@ -49,13 +49,15 @@ const TREND: TrendPoint[] = [
 
 describe('the headline length', () => {
   it('is named from HEADLINE_LABEL in the balance hero, the trend heading and the method topic', () => {
-    const run = makeActivity({ sport: 'run' })
-    const ride = makeActivity({ sport: 'ride' })
+    const activities = [1, 2, 3].flatMap((n) => [
+      makeActivity({ id: `run-${n}`, sport: 'run' }),
+      makeActivity({ id: `ride-${n}`, sport: 'ride' }),
+    ])
     render(
       <BalancePage
         analysis={analysisStub({ state: { trend: TREND } })}
         result={makeResult({
-          activities: [run, ride],
+          activities,
           comparison: { prior: [], calibrated: null },
         })}
         settings={SETTINGS}

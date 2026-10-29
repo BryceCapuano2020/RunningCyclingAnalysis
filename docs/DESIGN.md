@@ -916,10 +916,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   as the secondary file chooser. The answer itself offers none, so there is one.
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
-  ride would let them be compared." beneath it.
+  ride would let them be compared." beneath it. When a sport has fewer than three analysed activities in the
+  period (a treadmill run is not counted), it says what is missing instead: "From 1 run and 3 rides. Needs 2
+  more runs in this period." (without "in this period" for All time), with **Show all time** when All time holds
+  enough.
 - **The headline needs evidence on both sides.** Each sport needs a fitted threshold or an effort as long as
   the headline's (20 min). A sport known only from shorter efforts, such as one estimated 5 min ride, is not set
-  against the other: the answer reads "Not enough to compare yet" (`headlinePick`), on the page, the share card
+  against the other, and neither is a sport with fewer than three analysed activities in the period
+  (`HEADLINE_MIN_ACTIVITIES`): the answer reads "Not enough to compare yet" (`headlinePick`, which
+  `balanceOfPick` follows, so the grade gap is held with it), on the page, the share card
   and the import summary alike. How sure is this? holds its energy view the same way: "The comparison is held until there is an effort
   of 20 min or more in each sport.", with no ratio chart and no energy-ratio copy.
 - **A run at walking pace is not a run.** A run whose moving pace is slower than 15:00 a mile for 10 min or more

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Comparison } from '@rca/core/types'
-import { comparisonPoint, interval, makeResult } from './fixtures'
-import { headlinePick, pickHeadline } from './pickHeadline'
+import { comparisonPoint, interval, makeActivity, makeResult } from './fixtures'
+import { headlinePick, headlineShortfall, pickHeadline } from './pickHeadline'
 
 describe('pickHeadline', () => {
   it('returns null when there are no comparison points', () => {
@@ -74,5 +74,40 @@ describe('headlinePick', () => {
   it('does not count an effort with no value as evidence', () => {
     const blank = [{ durationS: 1200, value: Number.NaN, activityId: null, startIndex: -1 }]
     expect(headlinePick(result({ rideCurve: blank }))).toBeNull()
+  })
+})
+
+describe('headlinePick with few activities in the period', () => {
+  const curve = [{ durationS: 1200, value: 5, activityId: 'a', startIndex: 0 }]
+  const sports = (runs: number, rides: number, indoorRuns = 0) => [
+    ...Array.from({ length: runs }, (_, n) => makeActivity({ id: `run-${n}`, sport: 'run' })),
+    ...Array.from({ length: indoorRuns }, (_, n) =>
+      makeActivity({ id: `tread-${n}`, sport: 'run', indoor: true }),
+    ),
+    ...Array.from({ length: rides }, (_, n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
+  ]
+  const result = (activities: ReturnType<typeof sports>) =>
+    makeResult({ activities, runCurve: curve, rideCurve: curve })
+
+  it('holds a week of one run and three rides, and says the run needs two more', () => {
+    const week = result(sports(1, 3))
+    expect(headlinePick(week)).toBeNull()
+    expect(headlineShortfall(week.activities)).toEqual({ run: 2, ride: 0 })
+  })
+
+  it('holds a day of one run and one ride', () => {
+    const day = result(sports(1, 1))
+    expect(headlinePick(day)).toBeNull()
+    expect(headlineShortfall(day.activities)).toEqual({ run: 2, ride: 2 })
+  })
+
+  it('picks the headline from three of each', () => {
+    expect(headlinePick(result(sports(3, 3)))?.point.durationS).toBe(1200)
+  })
+
+  it('does not count a treadmill run, which holds no best', () => {
+    const only = result(sports(2, 3, 5))
+    expect(headlinePick(only)).toBeNull()
+    expect(headlineShortfall(only.activities)).toEqual({ run: 1, ride: 0 })
   })
 })

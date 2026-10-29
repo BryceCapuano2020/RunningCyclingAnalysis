@@ -303,8 +303,8 @@ describe('calendar days from today', () => {
 describe('countSport', () => {
   it('counts activities of one sport', () => {
     const { activities } = makeResult()
-    expect(countSport(activities, 'run')).toBe(1)
-    expect(countSport(activities, 'ride')).toBe(1)
+    expect(countSport(activities, 'run')).toBe(3)
+    expect(countSport(activities, 'ride')).toBe(3)
   })
 })
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BalanceGap } from '../ui/balanceGap'
-import { makeResult } from '../ui/components/fixtures'
+import { makeActivity, makeResult } from '../ui/components/fixtures'
 import { hasShareableContent } from './hasShareableContent'
 
 const NO_COMPARISON = { prior: [], calibrated: null }
@@ -11,8 +11,22 @@ describe('hasShareableContent', () => {
     expect(hasShareableContent(makeResult(), null, true)).toBe(true)
   })
 
-  it('is true with a grade gap, without an energy comparison', () => {
-    expect(hasShareableContent(makeResult({ comparison: NO_COMPARISON }), GAP, true)).toBe(true)
+  it('is true with a grade gap and a headline comparison', () => {
+    expect(hasShareableContent(makeResult(), GAP, true)).toBe(true)
+  })
+
+  it('is false when the headline is held, however the grade gap reads', () => {
+    expect(hasShareableContent(makeResult({ comparison: NO_COMPARISON }), GAP, true)).toBe(false)
+  })
+
+  it('is false while a sport has fewer than three activities in the period, even with a gap', () => {
+    const thin = makeResult({
+      activities: [
+        makeActivity({ id: 'run-1', sport: 'run' }),
+        ...[1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
+      ],
+    })
+    expect(hasShareableContent(thin, GAP, true)).toBe(false)
   })
 
   it('is false while no weight is entered, since the balance waits for it', () => {

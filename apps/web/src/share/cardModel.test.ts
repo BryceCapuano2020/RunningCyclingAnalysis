@@ -247,12 +247,15 @@ describe('buildShareCard', () => {
       fellBack: false,
     }
     const result = makeResult({
-      activities: [makeActivity({ id: 'run-1' }), makeActivity({ id: 'ride-1', sport: 'ride' })],
+      activities: [1, 2, 3].flatMap((n) => [
+        makeActivity({ id: `run-${n}` }),
+        makeActivity({ id: `ride-${n}`, sport: 'ride' }),
+      ]),
     })
     expect(
       buildShareCard(result, SETTINGS, 'metric', period, false, null, true, null, NO_GRADES)
         ?.period,
-    ).toBe('Based on 12 May – 3 Aug 2025, 1 run, 1 ride')
+    ).toBe('Based on 12 May – 3 Aug 2025, 3 runs, 3 rides')
   })
 
   it('carries the name the card is given, and none when there is no name', () => {

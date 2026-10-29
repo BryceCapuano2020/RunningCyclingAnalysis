@@ -41,14 +41,28 @@ const LATER = Date.UTC(2026, 0, 9, 7, 30)
 const NEW_RUN = makeActivity({ id: 'run-2', sport: 'run', name: 'Tempo run', startMs: LATER })
 const NEW_RIDE = makeActivity({ id: 'ride-2', sport: 'ride', name: 'Long ride', startMs: LATER })
 
+/**
+ * Two more runs and two more rides on file, earlier than the rest, so each sport has the three activities the
+ * headline needs. They carry no bests and set none, and every result below holds them.
+ */
+const FILLER = [1, 2].flatMap((n) => [
+  makeActivity({
+    id: `run-f${n}`,
+    sport: 'run',
+    startMs: Date.UTC(2025, 11, n),
+    distanceBests: [],
+  }),
+  makeActivity({ id: `ride-f${n}`, sport: 'ride', startMs: Date.UTC(2025, 11, n, 12) }),
+])
+
 /** A result with a 7:12 /mi running threshold, a 250 W cycling threshold and a 12% run lead. */
 function resultWith(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
   return makeResult({
-    activities: [RUN, RIDE],
     runCp: fit(15.749),
     rideCp: rideFit(250),
     comparison: balance(interval(1.05, 1.12, 1.2)),
     ...overrides,
+    activities: [...(overrides.activities ?? [RUN, RIDE]), ...FILLER],
   })
 }
 
@@ -513,7 +527,6 @@ function gradedResult(
   overrides: Partial<AnalysisResult> = {},
 ): AnalysisResult {
   return makeResult({
-    activities: [RUN, RIDE],
     runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
     rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
     equivalents: [
@@ -524,6 +537,7 @@ function gradedResult(
     ],
     comparison: balance(interval(1.05, 1.12, 1.2)),
     ...overrides,
+    activities: [...(overrides.activities ?? [RUN, RIDE]), ...FILLER],
   })
 }
 

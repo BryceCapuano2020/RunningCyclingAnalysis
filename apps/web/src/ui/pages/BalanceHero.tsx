@@ -2,8 +2,10 @@ import type { ReactNode } from 'react'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
+import type { Sport } from '@rca/core/types'
 import type { BalanceGap } from '../balanceGap'
 import type { HeadlinePick } from '../components'
+import { headlineShortfall } from '../components/pickHeadline'
 import { BalanceMeter } from '../components/BalanceMeter'
 import { balanceOfPick } from '../components/balanceScale'
 import { HARDER_EFFORTS_TITLE, balanceSummary, balanceTitle } from '../components/headlineText'
@@ -12,6 +14,7 @@ import { betweenClause } from '../periodCopy'
 import { plural } from '../components/plural'
 import { countEfforts, countSport } from '../records'
 import { HEADLINE_LABEL } from '../grades'
+import { SPORT_ACTIVITY, SPORT_ORDER, SPORT_PLURAL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
 
 export interface BalanceHeroProps {
@@ -55,6 +58,17 @@ interface Missing {
   detail: string
   /** Whether All time would show something the period leaves out. */
   canShowAll: boolean
+}
+
+/** The activities each sport still needs in the period, such as "2 more rides in this period". */
+function needLine(short: Record<Sport, number>, period: Period): string | null {
+  const parts = SPORT_ORDER.filter((sport) => short[sport] > 0).map(
+    (sport) =>
+      `${short[sport]} more ${short[sport] === 1 ? SPORT_ACTIVITY[sport] : SPORT_PLURAL[sport]}`,
+  )
+  if (parts.length === 0) return null
+  // All time names no period; a dated one is the period on screen.
+  return `Needs ${parts.join(' and ')}${period.days === null ? '' : ' in this period'}.`
 }
 
 /** What is missing before the two sports can be compared, in the period on screen. */
@@ -117,10 +131,14 @@ function missingText(
       canShowAll: false,
     }
   }
+  const needs = needLine(headlineShortfall(result.activities), period)
+  // A dated period short of activities may find enough in All time.
+  const allTimeEnough =
+    needs !== null && period.days !== null && needLine(headlineShortfall(library), period) === null
   return {
     title: HARDER_EFFORTS_TITLE,
-    detail: `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. A hard ${HEADLINE_LABEL} run or ride would let them be compared.`,
-    canShowAll: false,
+    detail: `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. ${needs ?? `A hard ${HEADLINE_LABEL} run or ride would let them be compared.`}`,
+    canShowAll: allTimeEnough,
   }
 }
 
