@@ -317,8 +317,7 @@ export function MethodPage({
           {hardEfforts && (
             <li>
               Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each
-              sport&rsquo;s reference heart rate. That makes them hard, but does not prove either
-              was your hardest.
+              sport&rsquo;s reference heart rate, so both were hard efforts.
             </li>
           )}
         </ul>

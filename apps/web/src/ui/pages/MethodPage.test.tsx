@@ -523,12 +523,12 @@ describe('MethodPage energy view', () => {
     ).toBeInTheDocument()
   })
 
-  it('says both best efforts were hard, but not that either was your hardest', () => {
+  it('says both best efforts were hard efforts, with no hedge after it', () => {
     renderPage(withEffort({ durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 }))
 
     expect(
       screen.getByText(
-        'Both best efforts reached at least 90% of each sport’s reference heart rate. That makes them hard, but does not prove either was your hardest.',
+        'Both best efforts reached at least 90% of each sport’s reference heart rate, so both were hard efforts.',
       ),
     ).toBeInTheDocument()
   })
@@ -536,7 +536,7 @@ describe('MethodPage energy view', () => {
   it('leaves out the hard-efforts fact when either best effort was below 90%', () => {
     renderPage(withEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 }))
 
-    expect(screen.queryByText(/does not prove either was your hardest/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/so both were hard efforts/)).not.toBeInTheDocument()
   })
 
   it('shows no facts when there is no comparison to check', () => {
@@ -919,7 +919,7 @@ describe('MethodPage without a weight', () => {
     expect(
       within(section).getByText(/Best efforts are judged against running 188 bpm/),
     ).toBeInTheDocument()
-    expect(within(section).getByText(/does not prove either was your hardest/)).toBeInTheDocument()
+    expect(within(section).getByText(/so both were hard efforts/)).toBeInTheDocument()
     // The reference heart rate is defined in one sentence, where the heart-rate check is explained.
     expect(
       within(section).getByText(
