@@ -3,14 +3,20 @@ import type { UnzipFile } from 'fflate'
 import { concat } from '../bytes'
 import { StreamTail } from './streamTail'
 import type { Rejection } from '../import/result'
-import { DECOMPRESS_INPUT_CHUNK_BYTES, deliver, MAX_NESTED_ARCHIVE_DEPTH } from './zipRun'
-import type { ZipRun } from './zipRun'
+import { checkStream } from './zipCheck'
+import {
+  DECOMPRESS_INPUT_CHUNK_BYTES,
+  deliver,
+  discard,
+  MAX_NESTED_ARCHIVE_DEPTH,
+  withPrefix,
+} from './zipRun'
+import type { PendingEntry, ZipRun } from './zipRun'
 import {
   activityCountTooLarge,
   ARCHIVE_FAILED,
   bufferedTooLarge,
   corrupt,
-  DAMAGED_DIRECTORY,
   decompressedTooLarge,
   DECOMPRESS_FAILED,
   entryCountTooLarge,
@@ -21,17 +27,7 @@ import {
   unreadable,
   UNSUPPORTED_COMPRESSION,
 } from './archiveReasons'
-import { ACTIVITY, isEmptyZip, isIgnored, listedEntries, OTHER_ACTIVITY, ZIP } from './zipDirectory'
-
-interface PendingEntry {
-  name: string
-  state: 'open' | 'done' | 'failed'
-  chunks: Uint8Array[]
-  bytes: number
-  terminate?: () => void
-  /** The zip this entry is, read as its bytes arrive instead of being held whole. */
-  child?: ZipReader
-}
+import { ACTIVITY, isIgnored, OTHER_ACTIVITY, ZIP } from './zipDirectory'
 
 /**
  * One zip being read as a stream: the top-level source, or a zip inside it, whose bytes come from the
@@ -45,7 +41,8 @@ export class ZipReader {
   private readonly owned: boolean
   private readonly unzip: Unzip
   private readonly prefix: string
-  private readonly started: PendingEntry[] = []
+  /** The entries still being read. One that is done or failed is let go, with the zip it held. */
+  private readonly open = new Set<PendingEntry>()
   private archivePrefix = new Uint8Array(0)
   private sawEntry = false
   private seenEntries = 0
@@ -74,19 +71,14 @@ export class ZipReader {
   /** Pushes at most DECOMPRESS_INPUT_CHUNK_BYTES. False when the zip cannot be read on. */
   push(piece: Uint8Array): boolean {
     if (this.dead) return false
-    this.tail.push(this.owned ? piece : piece.slice())
-    if (this.archivePrefix.length < 4) {
-      const take = Math.min(4 - this.archivePrefix.length, piece.length)
-      const grown = new Uint8Array(this.archivePrefix.length + take)
-      grown.set(this.archivePrefix)
-      grown.set(piece.subarray(0, take), this.archivePrefix.length)
-      this.archivePrefix = grown
-    }
+    this.holdTail(piece)
+    this.archivePrefix = withPrefix(this.archivePrefix, piece)
     try {
       this.unzip.push(piece, false)
     } catch {
       this.streamFailure ??= corrupt(ARCHIVE_FAILED)
       this.dead = true
+      this.releaseTail()
       // The top-level source learns it from the refusal its read callback gives; a nested zip is told here.
       if (!this.owned) this.interruption = this.streamFailure
       return false
@@ -126,51 +118,66 @@ export class ZipReader {
    */
   closeOpen(): void {
     const { budget } = this.run
-    for (const pending of this.started) {
-      if (pending.state !== 'open') continue
+    for (const pending of [...this.open]) {
       if (pending.child !== undefined && budget.abort !== null) this.dropQuietly(pending)
       else this.failEntry(pending, budget.abort ?? this.interruption ?? corrupt(INCOMPLETE))
     }
   }
 
-  /** Reports a stream that failed, or whose entries the central directory lists more of than were read. */
+  /**
+   * Reports a stream that failed, or whose entries the central directory lists more of than were read.
+   * The zip is finished with after this, and lets go of what it held.
+   */
   async verify(): Promise<void> {
-    const { sink, budget } = this.run
-    if (this.streamFailure !== null) {
-      sink.onError(this.name, this.streamFailure)
-    } else if (!this.sawEntry && !isEmptyZip(this.archivePrefix)) {
-      sink.onError(this.name, corrupt(ARCHIVE_FAILED))
+    try {
+      await this.check()
+    } finally {
+      this.releaseTail()
+      this.open.clear()
     }
-    // A corrupt local header ends fflate's scan silently, so compare with the central directory.
-    if (
-      budget.abort === null &&
-      this.interruption === null &&
-      (this.sawEntry || isEmptyZip(this.archivePrefix))
-    ) {
-      const tail = this.tail.bytes()
-      const listed = await listedEntries(tail, this.tail.streamed - tail.length)
-      if (listed === null) {
-        sink.onError(this.name, corrupt(DAMAGED_DIRECTORY))
-      } else if (listed > this.seenEntries) {
-        const lost = listed - this.seenEntries
-        sink.onError(
-          this.name,
-          corrupt(`${lost} entries could not be read because the archive is damaged`, lost),
-        )
-      }
-    }
+  }
+
+  private check(): Promise<void> {
+    return checkStream(this.run, {
+      name: this.name,
+      streamFailure: this.streamFailure,
+      interruption: this.interruption,
+      sawEntry: this.sawEntry,
+      archivePrefix: this.archivePrefix,
+      seenEntries: this.seenEntries,
+      tail: this.tail,
+    })
   }
 
   /** Stops reading a zip whose holder failed, and says nothing: the holder has reported itself. */
   private abandon(): void {
     this.dead = true
-    for (const pending of this.started) if (pending.state === 'open') this.dropQuietly(pending)
+    for (const pending of [...this.open]) this.dropQuietly(pending)
+    this.releaseTail()
+  }
+
+  /** Keeps the end of the stream. What a nested zip keeps is a copy, and counts against the buffer. */
+  private holdTail(piece: Uint8Array): void {
+    const net = this.tail.push(this.owned ? piece : piece.slice())
+    if (!this.owned) this.run.budget.bufferedBytes += net
+  }
+
+  private releaseTail(): void {
+    const held = this.tail.release()
+    if (!this.owned) this.run.budget.bufferedBytes -= held
+  }
+
+  /** An entry that is no longer being read: its zip, if it was one, is let go with it. */
+  private settle(pending: PendingEntry): void {
+    this.open.delete(pending)
+    pending.child = undefined
   }
 
   private dropQuietly(pending: PendingEntry): void {
     pending.state = 'failed'
     pending.terminate?.()
     pending.child?.abandon()
+    this.settle(pending)
     this.run.budget.bufferedBytes -= pending.bytes
     pending.chunks = []
     pending.bytes = 0
@@ -190,6 +197,7 @@ export class ZipReader {
     pending.state = 'failed'
     pending.terminate?.()
     pending.child?.abandon()
+    this.settle(pending)
     this.run.budget.bufferedBytes -= pending.bytes
     pending.chunks = []
     pending.bytes = 0
@@ -203,24 +211,13 @@ export class ZipReader {
     this.failEntry(pending, rejection)
   }
 
-  // fflate keeps the compressed input of an entry that is never started, so a skipped entry is
-  // started with its output discarded. Otherwise a large skipped file (a photo, say) stays in memory.
-  private discard(file: UnzipFile): void {
-    file.ondata = () => undefined
-    try {
-      file.start()
-    } catch {
-      // Nothing is retained for an entry that cannot start.
-    }
-  }
-
   private onEntry(file: UnzipFile): void {
     const { sink, budget } = this.run
     const { limits } = sink
     this.sawEntry = true
     this.seenEntries++
     // Once the archive has stopped, its remaining entries are covered by the archive-wide reason.
-    if (budget.abort !== null) return this.discard(file)
+    if (budget.abort !== null) return discard(file)
     budget.archiveEntries++
     const entry = file.name
     const name = this.prefix + entry
@@ -229,35 +226,35 @@ export class ZipReader {
       const rejection = entryCountTooLarge(limits.maxArchiveEntries)
       this.reportEntryError(name, rejection)
       budget.abort ??= rejection
-      return this.discard(file)
+      return discard(file)
     }
-    if (isIgnored(entry)) return this.discard(file)
+    if (isIgnored(entry)) return discard(file)
     // A file of the zip that its list leaves out is not an activity, in a format the app reads or not.
     const unlisted = this.depth === 0 && sink.listed?.(entry) === false
     if (OTHER_ACTIVITY.test(entry)) {
       sink.summary[unlisted ? 'notActivities' : 'otherActivityFiles']++
-      return this.discard(file)
+      return discard(file)
     }
     const nested = ZIP.test(entry)
-    if (!nested && !ACTIVITY.test(entry)) return this.discard(file)
+    if (!nested && !ACTIVITY.test(entry)) return discard(file)
     if (unlisted && !nested) {
       sink.summary.notActivities++
-      return this.discard(file)
+      return discard(file)
     }
     if (nested && this.depth >= MAX_NESTED_ARCHIVE_DEPTH) {
       this.reportEntryError(name, unreadable(TOO_DEEP))
-      return this.discard(file)
+      return discard(file)
     }
     if (!nested) {
       budget.fitEntries++
       if (budget.fitEntries > limits.maxFitFiles) {
         this.reportEntryError(name, activityCountTooLarge(limits.maxFitFiles))
-        return this.discard(file)
+        return discard(file)
       }
       // A zip is not held whole, so only an activity file is held to the size of one entry.
       if (file.originalSize !== undefined && file.originalSize > limits.maxEntryBytes) {
         this.reportEntryError(name, entryTooLarge(limits.maxEntryBytes))
-        return this.discard(file)
+        return discard(file)
       }
     }
 
@@ -266,7 +263,7 @@ export class ZipReader {
       file.terminate()
     }
     if (nested) pending.child = new ZipReader(name, this.depth + 1, this.run, false)
-    this.started.push(pending)
+    this.open.add(pending)
     if (file.compression !== 0 && file.compression !== 8) {
       this.failEntry(pending, unreadable(UNSUPPORTED_COMPRESSION))
       return
@@ -366,6 +363,7 @@ export class ZipReader {
     }
     budget.bufferedBytes += pending.bytes // Bound the temporary concat copy as well as retained chunks.
     pending.state = 'done'
+    this.settle(pending)
     const bytes = concat(pending.chunks, pending.bytes)
     budget.bufferedBytes -= pending.bytes
     pending.chunks = []
@@ -377,17 +375,21 @@ export class ZipReader {
 
   /** Feeds a nested zip the bytes of the entry that holds it, and closes it, after its files, at the entry's end. */
   private passOn(pending: PendingEntry, child: ZipReader, data: Uint8Array, final: boolean): void {
-    const { budget } = this.run
+    const { budget, sink } = this.run
+    const { maxBufferedBytes } = sink.limits
     for (let offset = 0; offset < data.length; offset += DECOMPRESS_INPUT_CHUNK_BYTES) {
-      if (
-        budget.abort !== null ||
-        !child.push(data.subarray(offset, offset + DECOMPRESS_INPUT_CHUNK_BYTES))
-      ) {
-        break
+      if (budget.abort !== null) break
+      const piece = data.subarray(offset, offset + DECOMPRESS_INPUT_CHUNK_BYTES)
+      // The zip keeps the end of what it is given, which the buffer must have room for.
+      if (piece.length > maxBufferedBytes - budget.bufferedBytes) {
+        this.failEntry(pending, bufferedTooLarge(maxBufferedBytes))
+        return
       }
+      if (!child.push(piece)) break
     }
     if (!final || pending.state !== 'open') return
     pending.state = 'done'
+    this.settle(pending)
     // Once the archive has stopped, a zip inside it is not read on: the abort reason covers it.
     if (budget.abort === null) child.end()
     this.run.tasks.push(async () => {

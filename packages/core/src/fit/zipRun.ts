@@ -1,5 +1,7 @@
+import type { UnzipFile } from 'fflate'
 import type { Rejection } from '../import/result'
 import type { ExtractLimits } from './extractLimits'
+import type { ZipReader } from './zipReader'
 import type { EntryFilter } from './zipDirectory'
 
 /** Compressed input is fed to the decompressors this many bytes at a time, so their output stays bounded. */
@@ -71,4 +73,38 @@ export class ZipRun {
     this.handlerFailed = true
     this.handlerError = error
   }
+}
+
+// fflate keeps the compressed input of an entry that is never started, so a skipped entry is
+// started with its output discarded. Otherwise a large skipped file (a photo, say) stays in memory.
+export function discard(file: UnzipFile): void {
+  file.ondata = () => undefined
+  try {
+    file.start()
+  } catch {
+    // Nothing is retained for an entry that cannot start.
+  }
+}
+
+export interface PendingEntry {
+  name: string
+  state: 'open' | 'done' | 'failed'
+  chunks: Uint8Array[]
+  bytes: number
+  terminate?: () => void
+  /** The zip this entry is, read as its bytes arrive instead of being held whole. */
+  child?: ZipReader
+}
+
+/** The first four bytes of a stream, to tell an empty zip, grown by the next piece. */
+export function withPrefix(
+  prefix: Uint8Array<ArrayBuffer>,
+  piece: Uint8Array,
+): Uint8Array<ArrayBuffer> {
+  if (prefix.length >= 4) return prefix
+  const take = Math.min(4 - prefix.length, piece.length)
+  const grown = new Uint8Array(prefix.length + take)
+  grown.set(prefix)
+  grown.set(piece.subarray(0, take), prefix.length)
+  return grown
 }

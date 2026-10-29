@@ -317,8 +317,8 @@ activities at a time with accessible paging.
   import. Activities already in the library do not gain it, and importing the same export again keeps
   the held digest, so it does not add it either; they gain it only by being deleted and imported
   again. A rebuild of a stale digest keeps the tag its saved digest has (`originalActivity.ts`), and a
-  digest without the field has no tag. Older servers reject a digest that carries it, so deploy the API
-  before the web app.
+  digest without the field has no tag. A server that does not know the field drops it when it parses the
+  digest (the schema strips unknown keys), so the digest it stores has no tag.
 - Upgrades require the same sport/start dedupe identity and SHA-256 of the exact original bytes.
   They retain the activity id and stored-file metadata. Different file contents conflict rather
   than silently replacing an activity, and older clients cannot downgrade newer stored summaries.

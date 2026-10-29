@@ -77,6 +77,7 @@ export async function visitZipEntries(
   const visited: EntriesVisited = { inflatedBytes: 0, read: 0, repeated: 0 }
   try {
     const offsets = new Set<number>()
+    let attempts = 0
     for (const found of (await wantedEntries(source, isWanted, limits)) ?? []) {
       if (offsets.has(found.entry.localOffset)) {
         visited.repeated++
@@ -89,6 +90,8 @@ export async function visitZipEntries(
       )
       const cap = Math.min(limits.maxEntryBytes, left, buffered)
       if (visited.read >= share.maxEntries || left <= 0) break
+      // Entries that cannot be read count too, so a directory of them cannot make the walk read on.
+      if (++attempts > share.maxEntries * ATTEMPTS_PER_ENTRY) break
       if (cap <= 0 || found.entry.size > cap) {
         visited.inflatedBytes += Math.max(0, Math.min(cap, found.entry.size))
         continue
@@ -105,6 +108,9 @@ export async function visitZipEntries(
   }
   return visited
 }
+
+/** Entries tried for each one that may be read, readable or not. */
+const ATTEMPTS_PER_ENTRY = 4
 
 /** The times an entry's size is held at once when it is read as text: compressed aside, inflated twice, decoded. */
 const BUFFER_COPIES = 4

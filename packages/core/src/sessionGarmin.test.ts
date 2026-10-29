@@ -191,6 +191,17 @@ describe('AnalysisSession reading a Garmin Connect export', () => {
     expect(outcome).toEqual({ activities: 3, filesAdded: 2, rejected: 2, notActivities: 0 })
   })
 
+  it('has no file total before the nested zips are read, and counts the files read as they come', async () => {
+    const session = new AnalysisSession()
+    const file = garminExport(UPLOADED)
+    const progress: number[] = []
+    // The page shows the count alone for an unknown total, so it cannot stall short of one.
+    expect(await session.countFiles([file])).toBeNull()
+    await session.addFiles([file], SETTINGS, (filesRead) => progress.push(filesRead))
+
+    expect(progress).toEqual([1, 2])
+  })
+
   it('reads a zip of uploaded files dropped on its own, as it did before', async () => {
     const { state } = await importFiles([zipFile(UPLOADED, 'UploadedFiles_0-_Part1.zip')])
 

@@ -11,7 +11,13 @@ import { cleanTitle } from './names'
  * activities is a few megabytes. The text is parsed whole, which takes several times its size, so this
  * is also what bounds that parse.
  */
-export const MAX_GARMIN_SUMMARY_BYTES = 16 * 1024 * 1024
+export const MAX_GARMIN_SUMMARY_BYTES = 8 * 1024 * 1024
+/**
+ * The most objects one summary may hold, counted before it is parsed. A real summary has a few dozen for
+ * each activity, but a crafted list of empty objects is a few bytes for each, and a parsed object takes
+ * about a hundred.
+ */
+export const MAX_GARMIN_SUMMARY_OBJECTS = 500_000
 /** The most all of an export's summaries may inflate to together. They are read one at a time. */
 export const MAX_GARMIN_SUMMARIES_BYTES = 64 * 1024 * 1024
 /** The most summary files read from one export. Garmin splits a large account's summaries into a few. */
@@ -63,6 +69,7 @@ export interface GarminList {
  * out. A name is cut to a title as any is (cleanTitle). Null when the text is not JSON.
  */
 export function parseGarminSummaries(text: string): GarminActivity[] | null {
+  if (objectsIn(text) > MAX_GARMIN_SUMMARY_OBJECTS) return []
   let root: unknown
   try {
     root = JSON.parse(text)
@@ -82,6 +89,15 @@ export function parseGarminSummaries(text: string): GarminActivity[] | null {
     })
   }
   return activities
+}
+
+/** How many objects the text opens, at most one more than the limit. */
+function objectsIn(text: string): number {
+  let count = 0
+  for (let at = text.indexOf('{'); at >= 0; at = text.indexOf('{', at + 1)) {
+    if (++count > MAX_GARMIN_SUMMARY_OBJECTS) break
+  }
+  return count
 }
 
 /** The objects that may be activities: those under `summarizedActivitiesExport`, else the list's own. */

@@ -1,10 +1,12 @@
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS } from '../fit/archive'
+import { streamedZip, toZip64 } from '../fit/zipTestFiles'
 import { MAX_TITLE_CHARS } from './names'
 import {
   garminList,
   MAX_GARMIN_SUMMARIES_BYTES,
+  MAX_GARMIN_SUMMARY_OBJECTS,
   MAX_GARMIN_SUMMARY_BYTES,
   parseGarminSummaries,
   readGarminList,
@@ -74,6 +76,13 @@ describe('parseGarminSummaries', () => {
       },
     ])
     expect(parseGarminSummaries(text)).toEqual([{ startMs: START, name: 'Seconds' }])
+  })
+
+  it('reads none of a summary with more objects than a summary can hold, before it parses it', () => {
+    const many = `[${Array.from({ length: MAX_GARMIN_SUMMARY_OBJECTS + 1 }, () => '{}').join(',')}]`
+    expect(parseGarminSummaries(many)).toEqual([])
+    const fewer = `[{"summarizedActivitiesExport":[{"name":"A","startTimeGmt":${START}}]}]`
+    expect(parseGarminSummaries(fewer)).toEqual([{ startMs: START, name: 'A' }])
   })
 
   it('is null for text that is not JSON, and empty for JSON of another shape', () => {
@@ -225,6 +234,19 @@ describe('readGarminList', () => {
     )
   })
 
+  it('reads summaries from zips written with data descriptors or with ZIP64 records', async () => {
+    const files = { [`${FOLDER}a_0_summarizedActivities.json`]: strToU8(summary('One', START)) }
+    for (const bytes of [
+      streamedZip(files),
+      toZip64(zipSync(files)),
+      toZip64(streamedZip(files)),
+    ]) {
+      const list = await readGarminList(new File([bytes], 'export.zip'))
+
+      expect(list?.activities).toEqual([{ startMs: START, name: 'One' }])
+    }
+  })
+
   it('is null for a zip with no summary, a source that is not a zip, and one past the source limit', async () => {
     expect(await readGarminList(zip({ 'activities.csv': 'x' }))).toBeNull()
     expect(await readGarminList(new File([strToU8('x')], 'run.fit'))).toBeNull()
@@ -278,6 +300,36 @@ describe('readGarminList', () => {
     expect(list?.activities).toEqual([])
     expect(list?.decompressedBytes).toBeGreaterThan(0)
     expect(list?.decompressedBytes).toBeLessThanOrEqual(limits.maxTotalDecompressedBytes)
+  })
+
+  it('stops trying entries after a few for each it may read, whether or not they can be read', async () => {
+    const entries: Record<string, Uint8Array> = {}
+    for (let i = 0; i < 400; i++) {
+      entries[`${FOLDER}a_${i}_summarizedActivities.json`] = strToU8(summary('x', START + i))
+    }
+    const bytes = new Uint8Array(zipSync(entries))
+    // Mark every entry encrypted in the directory, so none can be read and none costs inflating.
+    const view = new DataView(bytes.buffer)
+    for (let at = 0; at + 46 < bytes.length; at++) {
+      if (view.getUint32(at, true) === 0x02014b50)
+        view.setUint16(at + 8, view.getUint16(at + 8, true) | 1, true)
+    }
+    let slices = 0
+    const counted = {
+      name: 'export.zip',
+      size: bytes.length,
+      stream: () => new Blob([bytes]).stream(),
+      arrayBuffer: () => new Blob([bytes]).arrayBuffer(),
+      slice: (start: number, end: number) => {
+        slices++
+        return new Blob([bytes]).slice(start, end)
+      },
+    }
+    const list = await readGarminList(counted)
+
+    expect(list).toBeNull()
+    // The directory, then one read of a local header for each of at most 4 x 32 tries.
+    expect(slices).toBeLessThan(4 * 32 + 20)
   })
 
   it('reads no summary once a third of the buffer cannot hold what it would take', async () => {
