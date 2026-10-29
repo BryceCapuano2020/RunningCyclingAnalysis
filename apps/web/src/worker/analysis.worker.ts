@@ -210,9 +210,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         periodChoiceOf(request.choice),
       )
     case 'rebuildStale':
-      workbench.clearMemory()
-      activeScope = { kind: 'account', userId: request.userId }
-      return (await rebuildStale(libraryContext, request.settings, request.userId)).state
+      // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
+      throw new Error('A rebuild is not a session request')
     case 'setSettings':
       return session.setSettings(request.settings)
     case 'setGradeTrend':
