@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AthleteValues } from '../profilePatch'
-import { WEIGHT_PROMPT_TEXT } from '../weightCopy'
+import { WEIGHT_DIALOG_TEXT } from '../weightCopy'
 import { SetupDialog } from './SetupDialog'
 import type { SetupDialogProps } from './SetupDialog'
 
@@ -14,7 +14,7 @@ afterEach(() => {
 
 const TITLE = 'A few details'
 const NUMBER_ERROR = 'Enter a number, such as 75 or 165.5'
-const SKIP_NOTE = WEIGHT_PROMPT_TEXT
+const SKIP_NOTE = WEIGHT_DIALOG_TEXT
 const INITIAL: AthleteValues = {
   settings: { massKg: 75, bikeMassKg: 9 },
   units: 'metric',
@@ -48,7 +48,7 @@ describe('SetupDialog', () => {
     expect(screen.getByRole('heading', { level: 2, name: TITLE })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Your year of birth and sex set your level in each sport. They stay on this device unless you sign in.',
+        'Everything here is optional. Your year of birth and sex set your level in each sport, and your weight lets rides be compared with runs. They stay on this device unless you sign in.',
       ),
     ).toBeInTheDocument()
   })

@@ -33,6 +33,11 @@ export interface WorkbenchStore {
    * The trace is the app's own (from activityTraceOf), so it is not validated; `get` validates what it reads.
    */
   put(scope: TraceScope, trace: ActivityTrace, startMs: number): Promise<PutResult>
+  /**
+   * The recordings stored for the scope: each one's activity id and when the activity started. Null when
+   * storage cannot say. Reads only the metadata, never a trace.
+   */
+  list(scope: TraceScope): Promise<StoredEntry[] | null>
   /** Whether a trace is stored, without reading it. Null when storage cannot say. */
   has(scope: TraceScope, activityId: string): Promise<boolean | null>
   /**
@@ -54,6 +59,12 @@ export interface WorkbenchStore {
   deleteScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean>
   /** Lets a signed-in account's scope be written again. A deleted account stays blocked. */
   reopenScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean>
+}
+
+/** One stored recording, as `list` names it. */
+export interface StoredEntry {
+  activityId: string
+  startMs: number
 }
 
 /** What closed an account scope. Deletion is for good; a sign-out ends at the next sign-in. */
@@ -192,6 +203,38 @@ export function openWorkbenchStore(): WorkbenchStore {
         )
         await transactionDone(transaction)
         return row !== undefined
+      } catch {
+        resetWorkbenchDatabase()
+        return null
+      }
+    },
+
+    async list(scope) {
+      try {
+        const db = await workbenchDatabase()
+        const transaction = db.transaction(ENTRIES, 'readonly')
+        const found: StoredEntry[] = []
+        const request = transaction
+          .objectStore(ENTRIES)
+          .index('scopeKey')
+          .openCursor(IDBKeyRange.only(scopeKey(scope)))
+        await new Promise<void>((resolve, reject) => {
+          request.onerror = () => reject(request.error ?? new Error('Workbench storage failed'))
+          request.onsuccess = () => {
+            try {
+              const cursor = request.result
+              if (!cursor) return resolve()
+              const row: unknown = cursor.value
+              if (validTraceMetadata(row))
+                found.push({ activityId: row.activityId, startMs: row.startMs })
+              cursor.continue()
+            } catch (error) {
+              reject(error)
+            }
+          }
+        })
+        await transactionDone(transaction)
+        return found
       } catch {
         resetWorkbenchDatabase()
         return null

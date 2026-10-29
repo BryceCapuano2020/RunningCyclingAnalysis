@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ImportOutcome } from '../../worker/protocol'
 import type { MovedItem } from '../analysis/whatMoved'
+import { openDisclosures } from '../test/openDisclosures'
 import { ImportNotice } from './ImportNotice'
 import type { ImportNoticeProps } from './ImportNotice'
 
@@ -89,18 +90,24 @@ describe('ImportNotice: the summary of an import', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 
-  it('shows the first skipped file inline, so its reason is not hidden in the disclosure', () => {
+  it('keeps the skipped files to one line and a disclosure, each file listed once inside it', () => {
     render(
       <ImportNotice
         {...noticeProps({
-          outcome: { activities: 800, rejected: 1, duplicates: [] },
-          rejected: [{ fileName: 'notes.txt', reason: 'x', code: 'not-activity' }],
+          outcome: { activities: 800, rejected: 2, duplicates: [] },
+          rejected: [
+            { fileName: 'notes.txt', reason: 'x', code: 'not-activity' },
+            { fileName: 'more.txt', reason: 'x', code: 'not-activity' },
+          ],
         })}
       />,
     )
-    expect(document.querySelector('.rejected-files__first')).toHaveTextContent(
-      'Not a FIT, GPX or TCX file, so it cannot be read.',
-    )
+    expect(screen.getByText('2 files need a look')).toBeInTheDocument()
+    expect(screen.queryByText(/notes\.txt/)).not.toBeInTheDocument()
+
+    openDisclosures()
+    expect(screen.getAllByText(/notes\.txt: Not a FIT, GPX or TCX file/)).toHaveLength(1)
+    expect(screen.getAllByText(/more\.txt: Not a FIT, GPX or TCX file/)).toHaveLength(1)
   })
 })
 
@@ -164,9 +171,10 @@ describe('ImportNotice: skipped files', () => {
         })}
       />,
     )
+    openDisclosures()
     expect(
       screen.getByText(
-        '1,121 files: 799 added, 1 already added, 1 needs a look, 320 not listed as activities.',
+        '1,121 files, 801 of them activity files: 799 added, 1 already added, 1 needs a look, 320 not listed as activities.',
       ),
     ).toBeInTheDocument()
   })

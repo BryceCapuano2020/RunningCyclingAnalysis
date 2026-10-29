@@ -58,7 +58,7 @@ function Library({ rebuildStarts = true }: { rebuildStarts?: boolean }) {
 
 /** The region the rebuild outcome goes in. It is focusable and has no name of its own. */
 function rebuildRegion(): HTMLElement {
-  const region = document.querySelector<HTMLElement>('[role="status"][tabindex="-1"]')
+  const region = document.querySelector<HTMLElement>('[tabindex="-1"]')
   if (!region) throw new Error('no rebuild notice region')
   return region
 }
@@ -124,7 +124,40 @@ describe('LibraryNotices: focus after a rebuild', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Start an import' }))
     fireEvent.click(screen.getByRole('button', { name: 'End the import' }))
-    expect(rebuildRegion()).not.toHaveFocus()
+    expect(document.querySelector('[tabindex="-1"]')).toBeNull()
+  })
+})
+
+describe('LibraryNotices: one line with Details', () => {
+  it('shows a notice as a few words, with the full sentence under a Details disclosure', () => {
+    const { container } = render(
+      <LibraryNotices
+        analysis={analysisStub({ missingOriginals: 3 })}
+        signedIn
+        keepFiles
+        fileRetentionAvailable
+        onRetry={vi.fn()}
+      />,
+    )
+    const line = container.querySelector('summary')!
+    expect(line).toHaveTextContent('3 activities missing the original file')
+    expect(container.querySelector('details')).not.toHaveAttribute('open')
+    // The decoration is hidden from readers, so the line's name is its words.
+    expect(line.querySelector('[aria-hidden="true"]')).toHaveTextContent('Details')
+    expect(screen.getByText(/3 activities are missing their original file/)).toBeInTheDocument()
+  })
+
+  it('renders no region at all when there is nothing to say', () => {
+    const { container } = render(
+      <LibraryNotices
+        analysis={analysisStub()}
+        signedIn
+        keepFiles
+        fileRetentionAvailable
+        onRetry={vi.fn()}
+      />,
+    )
+    expect(container).toBeEmptyDOMElement()
   })
 })
 
@@ -325,44 +358,5 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
 
     rerender(shown({ issue: 'notForgotten' }))
     expect(screen.getByRole('region', { name: 'Kept in this browser' })).toBeInTheDocument()
-  })
-})
-
-describe('LibraryNotices: runs at walking pace', () => {
-  function withWalkingRuns(walkingPaceRuns: number, walkingNote = true) {
-    return render(
-      <LibraryNotices
-        analysis={analysisStub({ state: { walkingPaceRuns } })}
-        signedIn
-        keepFiles
-        fileRetentionAvailable
-        walkingNote={walkingNote}
-        onRetry={vi.fn()}
-      />,
-    )
-  }
-
-  it('is left off the pages that do not list or analyse runs', () => {
-    withWalkingRuns(52, false)
-    expect(screen.queryByText(/walking pace/)).not.toBeInTheDocument()
-  })
-
-  it('says where they went, and says nothing when there are none', () => {
-    withWalkingRuns(0)
-    expect(screen.queryByText(/walking pace/)).not.toBeInTheDocument()
-    cleanup()
-    withWalkingRuns(1)
-    expect(
-      screen.getByText(
-        '1 saved run is at walking pace, so it stays in your activities and is left out of your run analysis.',
-      ),
-    ).toBeInTheDocument()
-    cleanup()
-    withWalkingRuns(52)
-    expect(
-      screen.getByText(
-        '52 saved runs are at walking pace, so they stay in your activities and are left out of your run analysis.',
-      ),
-    ).toBeInTheDocument()
   })
 })

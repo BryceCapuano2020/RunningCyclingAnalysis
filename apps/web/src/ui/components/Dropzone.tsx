@@ -1,10 +1,8 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import type { DragEvent as ReactDragEvent, ReactNode } from 'react'
 import { HISTORY_ADVICE } from '../exportGuides'
-import { useDelayedFlag } from '../useDelayedFlag'
 import { useTouchFirst } from '../useMediaQuery'
 import { UploadIcon } from './icons'
-import { STRIP_DELAY_MS } from './ImportStatus'
 import { SampleButton } from './SampleButton'
 import { isFileDrag, useFilePicker } from './useFilePicker'
 import './Dropzone.css'
@@ -20,54 +18,39 @@ export interface DropzoneProps {
 }
 
 interface SampleActionsProps {
-  busy: boolean
   onSample: () => void
-  /** The id of the reason line, which the sample button describes itself by while it shows. */
-  hintId: string
-  hintShown: boolean
   /** The sample leads, so it is the primary button. */
   primary: boolean
   /** Another action in the same row, after the sample button. */
   after?: ReactNode
 }
 
-/** The sample button, and beside it the reason it is off while an import runs. */
-function SampleActions({ busy, onSample, hintId, hintShown, primary, after }: SampleActionsProps) {
+/** The sample button, with another action beside it when the row has one. */
+function SampleActions({ onSample, primary, after }: SampleActionsProps) {
   return (
     <div className="dropzone__actions">
-      <SampleButton
-        busy={busy}
-        onSample={onSample}
-        describedBy={hintShown ? hintId : undefined}
-        primary={primary}
-      >
+      <SampleButton busy={false} onSample={onSample} primary={primary}>
         See a sample athlete
       </SampleButton>
       {after}
-      {hintShown && (
-        <p id={hintId} className="dropzone__busy muted">
-          Available when the current import finishes.
-        </p>
-      )}
     </div>
   )
 }
 
 /**
  * The landing page's drop target. Files are accepted even while busy: the analysis worker handles
- * requests in order, so a file chosen during a load is queued rather than lost. Only the sample
- * stays off while busy. The window drop listeners and the progress live in ImportStatus.
+ * requests in order, so a file chosen during a load is queued rather than lost. The sample is left
+ * off the page while an import runs: it could not start then, and a greyed button only invites a press. The window drop listeners and the progress live in ImportStatus.
  */
 export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: DropzoneProps) {
   const picker = useFilePicker(onFiles)
   // On a touch screen the actions sit directly under the pitch as a compact row, the sample leading, and
   // nothing says to drag: a finger cannot drop a file here.
   const touch = useTouchFirst()
-  const touchFirst = touch && !signedIn
+  // The sample cannot start while an import runs, so it is not offered then.
+  const showSample = !signedIn && !busy
+  const touchFirst = touch && showSample
   const [dragging, setDragging] = useState(false)
-  const busyHintId = useId()
-  // The reason the sample is off waits for the busy strip's delay, so a quick import shows nothing.
-  const hintShown = useDelayedFlag(busy, STRIP_DELAY_MS)
 
   function handleDragOver(event: ReactDragEvent<HTMLDivElement>) {
     // Always prevent the default, or the browser navigates to the dropped file.
@@ -92,14 +75,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
     return (
       <div className="dropzone dropzone--touch">
         {touchFirst ? (
-          <SampleActions
-            busy={busy}
-            onSample={onSample}
-            hintId={busyHintId}
-            hintShown={hintShown}
-            primary
-            after={addFiles(false)}
-          />
+          <SampleActions onSample={onSample} primary after={addFiles(false)} />
         ) : (
           <div className="dropzone__actions">{addFiles(true)}</div>
         )}
@@ -138,15 +114,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
           No files yet? How to get them
         </button>
       </p>
-      {signedIn ? null : (
-        <SampleActions
-          busy={busy}
-          onSample={onSample}
-          hintId={busyHintId}
-          hintShown={hintShown}
-          primary={false}
-        />
-      )}
+      {showSample ? <SampleActions onSample={onSample} primary={false} /> : null}
       {picker.input}
     </div>
   )

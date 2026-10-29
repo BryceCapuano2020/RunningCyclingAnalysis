@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import type { ReactNode } from 'react'
 import type { RejectedFile } from '@rca/core/session'
 import {
   adviceCarriers,
@@ -10,9 +12,10 @@ import {
   unreadFormatsCopy,
 } from '../analysis/rejectCopy'
 import { skippedTotal, tallyOf, tallySentence } from '../analysis/skipTally'
-import type { Counted } from '../analysis/skipTally'
+import type { Counted, SkipTally } from '../analysis/skipTally'
 import { keyByContent } from '../contentKeys'
 import { formatCount } from '../format/count'
+import { plural } from './plural'
 import { HowToGetFilesButton } from './HowToGetFiles'
 import './RejectedFiles.css'
 
@@ -28,11 +31,43 @@ export interface RejectedFilesProps {
 type Carriers = ReadonlySet<RejectedFile>
 
 /**
- * What an import did with its files: one headline that adds up to all of them, which opens the
- * groups, with the first file that needs a look under it in both states. The files that need a look
- * are listed, one line each. The other sports are one line each with their count, and their files sit
- * behind Show the files. The files the export does not list, such as saved routes, are one line. When
- * no group would have a line to show, the headline and that first file are text, with nothing to open.
+ * A disclosure that holds nothing while it is shut. A shut `details` still has its list in the page,
+ * and a list of hundreds of files copied from it pastes as hundreds of empty bullets, so the list
+ * is made when the disclosure opens and gone when it shuts.
+ */
+function Disclosure({
+  summary,
+  className,
+  children,
+}: {
+  summary: ReactNode
+  className?: string
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details className={className} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary>{summary}</summary>
+      {open && children}
+    </details>
+  )
+}
+
+/** The summary's few words: what needs a look first, and otherwise what was left out. */
+function summaryLabel(tally: SkipTally): string {
+  const { needLook, otherSports, alreadyAdded } = tally
+  if (needLook > 0) return `${plural(needLook, 'file')} ${needLook === 1 ? 'needs' : 'need'} a look`
+  if (otherSports > 0) return `${plural(otherSports, 'file')} of other sports left out`
+  return `${plural(alreadyAdded, 'copy', 'copies')} already added`
+}
+
+/**
+ * What an import did with its files, as one line with a disclosure. The line says what needs a look, or
+ * else what was left out. Under it, the headline adds up to all of the files, then each group lists
+ * its files once: the ones that need a look, one line each, then the other sports, one line each with
+ * their count and their files behind Show the files, then the copies already added. The files the
+ * export does not list, such as saved routes, are one line. When no group would have a line to show,
+ * the headline is text with nothing to open.
  */
 export function RejectedFiles({ outcome, rejected, unsupportedFiles }: RejectedFilesProps) {
   const tally = tallyOf(outcome, rejected)
@@ -40,27 +75,18 @@ export function RejectedFiles({ outcome, rejected, unsupportedFiles }: RejectedF
   const groups = groupRejected([...rejected, ...outcome.duplicates])
   const problems = groups['need-a-look']
   const carriers = adviceCarriers(problems)
-  const first = problems[0]
-  // The first file is shown under the headline, so the group's list leaves it out.
-  const beneath = problems.filter((file) => file !== first)
-  const lines = beneath.length + unsupportedFiles
   const headline = tallySentence(tally)
-  const firstLine = first === undefined ? null : fileLine(first, carriers)
   // The headline already says the files the export does not list, so they alone are nothing to open.
-  const detailed = lines + tally.otherSports + tally.alreadyAdded > 0
-  const guides = tally.needLook + tally.otherSports + tally.alreadyAdded > 0
+  const detailed = problems.length + unsupportedFiles + tally.otherSports + tally.alreadyAdded > 0
   return (
     <div className="rejected-files">
       {detailed ? (
-        <details>
-          <summary>
-            <span>{headline}</span>
-            {firstLine !== null && <span className="rejected-files__first">{firstLine}</span>}
-          </summary>
-          {lines > 0 && (
+        <Disclosure summary={summaryLabel(tally)}>
+          <p className="rejected-files__tally">{headline}</p>
+          {problems.length + unsupportedFiles > 0 && (
             <NeedALook
               count={tally.needLook}
-              files={beneath}
+              files={problems}
               carriers={carriers}
               unsupportedFiles={unsupportedFiles}
               namesNotActivity={problems.some((file) => file.code === 'not-activity')}
@@ -77,14 +103,11 @@ export function RejectedFiles({ outcome, rejected, unsupportedFiles }: RejectedF
               <p className="rejected-files__title">{unlistedTitle(tally.unlisted)}</p>
             </div>
           )}
-        </details>
+          <HowToGetFilesButton />
+        </Disclosure>
       ) : (
-        <>
-          <p className="rejected-files__tally">{headline}</p>
-          {firstLine !== null && <p className="rejected-files__first">{firstLine}</p>}
-        </>
+        <p className="rejected-files__tally">{headline}</p>
       )}
-      {guides && <HowToGetFilesButton />}
     </div>
   )
 }
@@ -148,12 +171,11 @@ function OtherSports({ count, files }: { count: number; files: RejectedFile[] })
           <li key={label}>{`${label}: ${formatCount(members.length)}`}</li>
         ))}
       </ul>
-      <details className="rejected-files__files">
-        <summary>Show the files</summary>
+      <Disclosure summary="Show the files" className="rejected-files__files">
         <ul className="rejected-files__list">
           <FileList files={sports.flatMap((sport) => sport.files)} carriers={NO_CARRIERS} />
         </ul>
-      </details>
+      </Disclosure>
     </div>
   )
 }

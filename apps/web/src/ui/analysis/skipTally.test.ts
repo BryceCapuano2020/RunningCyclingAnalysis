@@ -98,7 +98,7 @@ describe('tallySentence: a headline that adds up to the files read', () => {
       notActivities: 320,
     }
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      '3,018 files: 1,915 added, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities.',
+      '3,018 files, 2,698 of them activity files: 1,915 added, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities.',
     )
   })
 
@@ -117,7 +117,7 @@ describe('tallySentence: a headline that adds up to the files read', () => {
       notActivities: 320,
     }
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      '3,018 files: 1,947 added, 2 need a look, 749 other sports left out on purpose, 320 not listed as activities.',
+      '3,018 files, 2,698 of them activity files: 1,947 added, 2 need a look, 749 other sports left out on purpose, 320 not listed as activities.',
     )
   })
 
@@ -137,7 +137,7 @@ describe('tallySentence: a headline that adds up to the files read', () => {
     }
     const rejected = [file('a.gpx', 'empty'), file('b.fit', 'unsupported-sport', 'hiking')]
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      '6 files: 2 added, 1 already added, 1 needs a look, 1 other sport left out on purpose, 1 not listed as activities.',
+      '6 files, 5 of them activity files: 2 added, 1 already added, 1 needs a look, 1 other sport left out on purpose, 1 not listed as activities.',
     )
   })
 

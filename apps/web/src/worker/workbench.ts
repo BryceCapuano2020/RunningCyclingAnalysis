@@ -3,6 +3,7 @@ import { traceQualityOf } from '@rca/core/quality'
 import { activityTraceOf } from '@rca/core/workbench'
 import type { Activity } from '@rca/core/types'
 import { openWorkbenchStore } from './workbenchStore'
+import { activityFitsEntry } from './workbenchFit'
 import { activityTraceBytes, WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES } from './workbenchStore'
 import type { PutResult, TraceScope, WorkbenchStore } from './workbenchStore'
 
@@ -21,40 +22,6 @@ const MEMORY_ENTRIES = 4
  */
 function traceOf(activity: Activity): ActivityTrace {
   return activityTraceOf(activity, traceQualityOf(activity))
-}
-
-/** Estimates output size before activityTraceOf clones any of the source streams. */
-function activityFitsEntry(activity: Activity): boolean {
-  const n = activity.n
-  if (
-    !Number.isInteger(n) ||
-    n < 0 ||
-    activity.distance.length !== n ||
-    activity.paused.length !== n
-  )
-    return false
-  if (
-    activity.speed.length !== n ||
-    activity.altitude.length !== n ||
-    activity.heartRate.length !== n ||
-    activity.power.length !== n ||
-    (activity.cadence !== undefined && activity.cadence.length !== n) ||
-    (activity.temperature !== undefined && activity.temperature.length !== n) ||
-    (activity.unrecorded !== undefined && activity.unrecorded.length !== n)
-  )
-    return false
-  const streamCount =
-    3 + (activity.hasPower ? 1 : 0) + (activity.cadence ? 1 : 0) + (activity.temperature ? 1 : 0)
-  const bytes =
-    activity.distance.byteLength +
-    activity.paused.byteLength +
-    n +
-    n * 4 * streamCount +
-    // The left-out masks and the speed pace zones read, at most.
-    7 * n +
-    (activity.cadenceUnit?.length ?? 0) * 2 +
-    (activity.laps ?? []).reduce((sum, lap) => sum + 32 + (lap.label?.length ?? 0) * 2, 0)
-  return bytes <= WORKBENCH_ENTRY_BYTES
 }
 
 function memoryKey(scope: TraceScope, activityId: string): string {
@@ -268,6 +235,22 @@ export class Workbench {
     if (cached !== undefined && cached.home !== 'stored') return true
     const stored = await this.store.has(scope, activityId).catch(() => null)
     return cached === undefined ? stored === true : stored !== false
+  }
+
+  /**
+   * The ids of the activities whose recordings storage holds for the scope, and when the oldest of them
+   * started. Null when storage cannot say, which a page reads as unknown rather than as none.
+   */
+  async coverage(
+    scope: TraceScope,
+  ): Promise<{ ids: string[]; oldestStartMs: number | null } | null> {
+    const entries = await this.store.list(scope).catch(() => null)
+    if (entries === null) return null
+    const oldestStartMs =
+      entries.length === 0
+        ? null
+        : entries.reduce((oldest, e) => Math.min(oldest, e.startMs), Infinity)
+    return { ids: entries.map((entry) => entry.activityId), oldestStartMs }
   }
 
   /** Whether the activity's recording is in storage, as the last write or read left it, so it survives a reload. */

@@ -13,10 +13,24 @@
   min-width: 0;
 }
 
-.zone-tables__table caption {
-  padding-bottom: var(--space-2);
-  color: var(--text-secondary);
-  text-align: left;
+.zone-tables__table h3 {
+  margin: 0;
+}
+
+.zone-tables__detail {
+  margin: 0;
+}
+
+/* The cells wrap, so a range that is wide for a phone runs onto a second line and the table keeps its box. */
+.zone-tables__rows th,
+.zone-tables__rows td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The zone's number is narrow and the range, the widest text, takes the room that is left. */
+.zone-tables__rows th:first-child {
+  width: 3.5rem;
 }
 
 .zone-tables__citation {

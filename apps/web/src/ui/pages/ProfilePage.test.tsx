@@ -994,17 +994,17 @@ describe('ProfilePage zones and dated settings', () => {
     const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
     renderProfile({}, { state: { result, zoneEstimates: result } })
     for (const name of [
-      /^Run heart rate zones\./,
-      /^Run pace zones\./,
-      /^Ride heart rate zones\./,
-      /^Ride power zones\./,
+      /^Run heart rate zones/,
+      /^Run pace zones/,
+      /^Ride heart rate zones/,
+      /^Ride power zones/,
     ]) {
       expect(screen.getByRole('table', { name })).toBeInTheDocument()
     }
-    expect(screen.getByRole('table', { name: /^Run pace zones\./ })).toHaveAccessibleName(
+    expect(screen.getByRole('table', { name: /^Run pace zones/ })).toHaveAccessibleName(
       /From your runs: threshold pace/,
     )
-    expect(screen.getByRole('table', { name: /^Ride power zones\./ })).toHaveAccessibleName(
+    expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
       /From your rides: threshold power/,
     )
   })
@@ -1013,10 +1013,10 @@ describe('ProfilePage zones and dated settings', () => {
     const period = makeResult({ runMaxHeartRate: 187, rideMaxHeartRate: 181 })
     const library = makeResult({ runMaxHeartRate: 192, rideMaxHeartRate: 186 })
     renderProfile({}, { state: { result: period, zoneEstimates: library } })
-    expect(screen.getByRole('table', { name: /^Run heart rate zones\./ })).toHaveAccessibleName(
+    expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toHaveAccessibleName(
       /max heart rate 192 bpm/,
     )
-    expect(screen.getByRole('table', { name: /^Ride heart rate zones\./ })).toHaveAccessibleName(
+    expect(screen.getByRole('table', { name: /^Ride heart rate zones/ })).toHaveAccessibleName(
       /max heart rate 186 bpm/,
     )
   })
@@ -1032,7 +1032,7 @@ describe('ProfilePage zones and dated settings', () => {
       },
       { state: { result: makeResult(), zoneEstimates: makeResult() } },
     )
-    const table = screen.getByRole('table', { name: /^Ride power zones\./ })
+    const table = screen.getByRole('table', { name: /^Ride power zones/ })
     expect(table).toHaveAccessibleName(/You entered: threshold power 250 W/)
     expect(within(table).getByText('375 W or more')).toBeInTheDocument()
     expect(within(table).getByText('Lactate threshold')).toBeInTheDocument()
@@ -1062,10 +1062,10 @@ describe('ProfilePage zones and dated settings', () => {
       { settings: { massKg: null, bikeMassKg: 9 } },
       { state: { result, zoneEstimates: result } },
     )
-    expect(screen.queryByRole('table', { name: /^Ride power zones\./ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /^Ride power zones/ })).not.toBeInTheDocument()
     expect(screen.getByText(/Add your body weight to see ride power zones/)).toBeInTheDocument()
     // The zones that do not need a weight are still there.
-    expect(screen.getByRole('table', { name: /^Run pace zones\./ })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: /^Run pace zones/ })).toBeInTheDocument()
   })
 
   it('still shows an entered threshold power without a weight', () => {
@@ -1079,32 +1079,64 @@ describe('ProfilePage zones and dated settings', () => {
       },
       { state: { result: makeResult(), zoneEstimates: makeResult() } },
     )
-    expect(screen.getByRole('table', { name: /^Ride power zones\./ })).toHaveAccessibleName(
+    expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
       /You entered/,
     )
   })
 
-  it('does not mix the sample athlete’s estimates with the visitor’s own dated settings', () => {
-    const entries: Measurement[] = [
-      { kind: 'maxHeartRate', sport: 'run', value: 188, from: '2020-01-01' },
-    ]
-    renderProfile(
-      {
-        athlete: { ...SETTINGS, measurements: entries },
-        dated: { entries, state: 'ready', elsewhere: 0, retry: vi.fn() },
-      },
-      {
-        state: {
-          result: makeResult({ runMaxHeartRate: 170, rideMaxHeartRate: 160 }),
-          isSample: true,
+  describe('with the sample athlete on screen', () => {
+    const sample = (
+      zoneEstimates = makeResult({ runMaxHeartRate: 170, rideMaxHeartRate: 160 }),
+    ) => ({
+      state: { result: makeResult(), isSample: true, zoneEstimates },
+    })
+
+    it('shows the sample’s settings read-only, with a line that says whose they are', () => {
+      const { onSaveProfile } = renderProfile({ birthYear: null, sex: null }, sample())
+
+      expect(
+        screen.getByText(
+          "These are the sample athlete's settings. Add your files to use your own.",
+        ),
+      ).toBeInTheDocument()
+      const list = screen.getByRole('heading', { name: 'Sample athlete' }).closest('section')!
+      expect(within(list).getByText('Year of birth').nextElementSibling).toHaveTextContent('1988')
+      expect(within(list).getByText('Sex').nextElementSibling).toHaveTextContent('Man')
+      expect(within(list).getByText('Body weight').nextElementSibling).toHaveTextContent('75 kg')
+      expect(screen.queryByRole('textbox', { name: 'Year of birth' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Settings over time' })).not.toBeInTheDocument()
+      expect(onSaveProfile).not.toHaveBeenCalled()
+    })
+
+    it('keeps the units editable, since they are how the visitor reads every figure', () => {
+      const { onSaveProfile } = renderProfile({}, sample())
+      fireEvent.click(screen.getByRole('radio', { name: 'Imperial' }))
+      expect(onSaveProfile).toHaveBeenCalledWith({ units: 'imperial' })
+    })
+
+    it('shows the sample’s zones, not the visitor’s own dated settings', () => {
+      const entries: Measurement[] = [
+        { kind: 'maxHeartRate', sport: 'run', value: 188, from: '2020-01-01' },
+      ]
+      renderProfile(
+        {
+          athlete: { ...SETTINGS, measurements: entries },
+          dated: { entries, state: 'ready', elsewhere: 0, retry: vi.fn() },
         },
-      },
-    )
-    // Only what the visitor entered: the sample's heart rates and thresholds supply nothing.
-    expect(screen.getAllByRole('table', { name: /zones\./ })).toHaveLength(1)
-    expect(screen.getByRole('table', { name: /^Run heart rate zones\./ })).toHaveAccessibleName(
-      /You entered: max heart rate 188 bpm/,
-    )
+        sample(),
+      )
+      expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toHaveAccessibleName(
+        /max heart rate 170 bpm/,
+      )
+      expect(screen.queryByText(/188 bpm/)).not.toBeInTheDocument()
+    })
+
+    it('has no read-only list once the visitor’s own files are on screen', () => {
+      renderProfile({}, { state: { result: makeResult(), isSample: false } })
+      expect(screen.queryByRole('heading', { name: 'Sample athlete' })).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'About you' })).toBeInTheDocument()
+    })
   })
 
   it('says when dated settings kept in this browser are not the account’s', () => {

@@ -29,6 +29,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     libraryStatus: 'idle',
     restoring: false,
     retryLibrary: vi.fn(),
+    detail: null,
     missingOriginals: 0,
     outdatedWithOriginal: 0,
     libraryUnreadable: 0,

@@ -274,26 +274,25 @@ export function App() {
         onStop={(control) => runThenFocus(analysis.stop, control)}
       />
 
-      <AppNotices
-        analysis={analysis}
-        signedIn={signedIn}
-        moved={moved}
-        keepFiles={keepFiles}
-        fileRetentionAvailable={fileRetentionAvailable}
-        accountsUnavailable={!accountsAvailable}
-        accountError={account.error}
-        runThenFocus={runThenFocus}
-        atBalance={route.page === 'balance'}
-        activitiesPage={route.page === 'activities'}
-        walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
-      />
-
       <main className="app__main">
-        <p role="status" className="app__notice">
-          {accountDeleted && route.page === 'balance'
-            ? 'Your account and data were deleted.'
-            : coldNotice}
-        </p>
+        <AppNotices
+          analysis={analysis}
+          signedIn={signedIn}
+          moved={moved}
+          keepFiles={keepFiles}
+          fileRetentionAvailable={fileRetentionAvailable}
+          accountsUnavailable={!accountsAvailable}
+          accountError={account.error}
+          runThenFocus={runThenFocus}
+          atBalance={route.page === 'balance'}
+          page={route.page}
+          pageNotice={
+            accountDeleted && route.page === 'balance'
+              ? 'Your account and data were deleted.'
+              : (coldNotice ?? '')
+          }
+          walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
+        />
         {route.page === 'profile' ? (
           <ProfilePage
             analysis={analysis}

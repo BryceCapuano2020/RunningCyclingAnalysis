@@ -138,7 +138,9 @@ describe('library failure', () => {
       screen.getByText(
         '2 activities were not fully saved because the connection dropped. Add them again to retry.',
       ),
-    ).toHaveAttribute('role', 'status')
+    ).toBeInTheDocument()
+    // Added to the notice region that is already mounted, which announces it.
+    expect(screen.getByText(/connection dropped/).closest('[role="status"]')).not.toBeNull()
   })
 })
 
@@ -146,7 +148,9 @@ describe('rebuild, error and wait messages', () => {
   it('keeps the rebuild outcome in a status region', () => {
     app.analysis.rebuildNotice = 'Rebuilt 2 saved activities.'
     render(<App />)
-    expect(screen.getByText('Rebuilt 2 saved activities.')).toHaveAttribute('role', 'status')
+    expect(
+      screen.getByText('Rebuilt 2 saved activities.').closest('[role="status"]'),
+    ).not.toBeNull()
   })
 
   it('shows a daily-limit error without the generic "Something went wrong" prefix', () => {

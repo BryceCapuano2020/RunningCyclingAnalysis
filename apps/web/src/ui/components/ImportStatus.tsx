@@ -63,7 +63,9 @@ function statusText(progress: ImportProgress | null): string {
   if (total === null) return `Read ${plural(progress.filesRead, 'file')} so far`
   // The total counts the files an export lists as activities, so it is named so: the summary's own
   // count of files also holds the ones an export does not list, and the two are then not the same.
-  const noun = total === 1 ? 'activity file' : 'activity files'
+  // Every file is read, and the run is not over: the activities are then analysed together.
+  if (progress.filesRead === total) return 'Analysing your activities'
+  const noun = 'activity files'
   const [read, all] = [progress.filesRead, total].map((count) => formatCount(count))
   return `Reading ${read} of ${all} ${noun}`
 }

@@ -18,3 +18,34 @@
     padding-block: var(--space-1);
   }
 }
+
+/* The notices are the top of the main area. With none showing the block takes no room, and with any it
+   sits a section's gap above the page. The block's own grid is in App.css. */
+.app__notices:has(> .app__live > *),
+.app__notices:has(> :not(.app__live)) {
+  margin-bottom: var(--space-5);
+}
+
+/* The sample athlete, after its banner: a small pill that opens the sentence again. */
+.sample-pill {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.sample-pill__button {
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.sample-pill__text {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-label);
+}

@@ -163,10 +163,13 @@ test('uploading a file that is not FIT lists it as unusable and keeps the landin
   await page.goto('/')
   await uploadFixtures(page, ['not-a-fit.fit'])
 
+  // The summary is one line. Its list is made when it opens, and names the file once.
+  const line = page.getByText('1 file needs a look', { exact: true })
+  await expect(line).toBeVisible()
+  await expect(page.getByText(/not-a-fit\.fit/)).toHaveCount(0)
+  await line.click()
   await expect(page.getByText('1 file: 1 needs a look.', { exact: true })).toBeVisible()
-  // The first skipped file is named under the headline. A lone file is the group's only line, so
-  // the group has no title and nothing to open, and the file is named once.
-  await expect(page.getByText('Need a look: 1 file')).toHaveCount(0)
+  await expect(page.getByText('Need a look: 1 file')).toBeVisible()
   await expect(page.getByText(/not-a-fit\.fit/)).toHaveCount(1)
   await expect(page.getByText(/not-a-fit\.fit/)).toBeVisible()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()

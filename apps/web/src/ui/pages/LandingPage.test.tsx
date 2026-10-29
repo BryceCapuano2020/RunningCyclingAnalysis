@@ -128,21 +128,17 @@ describe('LandingPage', () => {
     expect(loadSample).toHaveBeenCalledOnce()
   })
 
-  it('holds the sample while an analysis is busy, and ignores a click on it', () => {
-    const loadSample = vi.fn()
+  it('leaves the sample off the page while an analysis is busy', () => {
     render(
       <LandingPage
-        analysis={analysisStub({ busy: true, loadSample })}
+        analysis={analysisStub({ busy: true })}
         signedIn={false}
         units="metric"
         onFiles={vi.fn()}
       />,
     )
 
-    const sample = screen.getByRole('button', { name: 'See a sample athlete' })
-    expect(sample).toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(sample)
-    expect(loadSample).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
   })
 
   it('leaves the sample out for a signed-in user', () => {

@@ -35,6 +35,11 @@ export interface ActivityListProps {
   /** False while no body weight is entered, which holds a ride's record chips. */
   weightKnown?: boolean
   busy?: boolean
+  /**
+   * The activities this browser holds detailed readings for. An activity outside it is tagged. Null while
+   * that is not known, so no activity is called detail-less early.
+   */
+  detailIds?: ReadonlySet<string> | null
   /** Whether the visitor is signed in, which says where a removal takes the activity from. */
   signedIn: boolean
   /** Removes a kept activity by its saved copy. Without it, no row offers Delete. */
@@ -75,6 +80,7 @@ export function ActivityList({
   keptIds = NO_KEPT,
   weightKnown = true,
   busy = false,
+  detailIds = null,
   signedIn,
   onDelete,
 }: ActivityListProps) {
@@ -142,6 +148,7 @@ export function ActivityList({
         keptId={keptIds.get(activity.id) ?? null}
         weightKnown={weightKnown}
         busy={busy}
+        noDetail={detailIds !== null && !detailIds.has(activity.id)}
         signedIn={signedIn}
         onDelete={remove}
       />

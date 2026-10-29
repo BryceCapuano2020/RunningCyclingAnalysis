@@ -52,6 +52,7 @@ type ReplyResponse = Exclude<
     type:
       | 'progress'
       | 'missingOriginals'
+      | 'detailCoverage'
       | 'libraryActivities'
       | 'libraryUnreadable'
       | 'accountIssue'
@@ -93,6 +94,13 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       }
       if (message.type === 'missingOriginals') {
         current.library.setMissingOriginals(message.count)
+        return
+      }
+      if (message.type === 'detailCoverage') {
+        current.library.setDetail({
+          ids: new Set(message.ids),
+          oldestStartMs: message.oldestStartMs,
+        })
         return
       }
       if (message.type === 'libraryActivities') {

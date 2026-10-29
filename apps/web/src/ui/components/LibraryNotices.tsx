@@ -1,24 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { deviceIssueText, ORIGINALS_UNAVAILABLE } from '../analysis/copy'
-import { walkingPaceText } from '../analysis/walkingPaceCopy'
+import { NoticeLine } from './NoticeLine'
 import { plural } from './plural'
 import type { AnalysisController } from '../useAnalysis'
+import type { DeviceIssue } from '../../worker/protocol'
 
 /**
  * 'requested': clicked, and not yet known to have started. 'started': running. 'finished': it has
  * ended, so focus moves to its outcome.
  */
 type RebuildPhase = 'idle' | 'requested' | 'started' | 'finished'
-
-/** Note for saved activities left out of the analysis because another file holds their workout. */
-function hiddenCopiesText(count: number): string {
-  const copies = count === 1 ? 'is a copy' : 'are copies'
-  const counted = count === 1 ? 'is' : 'are'
-  return (
-    `${plural(count, 'saved activity', 'saved activities')} ${copies} of the same workout ` +
-    `from another file and ${counted} not counted twice.`
-  )
-}
 
 /** Saved activities that are rebuilt from their stored original files. */
 function updateText(count: number): string {
@@ -55,23 +46,41 @@ function outdatedText(rebuildable: number, needFiles: number): string {
     .join(' ')
 }
 
+/** The notice in a few words, for its one line. The full sentence sits under Details. */
+const SHORT = {
+  missing: (count: number) =>
+    `${plural(count, 'activity', 'activities')} missing the original file`,
+  incompatible: (count: number) =>
+    `${plural(count, 'saved activity', 'saved activities')} need a newer app`,
+  device: (issue: DeviceIssue) =>
+    issue.issue === 'notSaved' ? 'Not kept in this browser' : 'Could not remove from this browser',
+  outdated: (rebuildable: number, needFiles: number) => {
+    const count = rebuildable + needFiles
+    const what = plural(count, 'saved activity', 'saved activities')
+    return needFiles === 0
+      ? `${what} ${count === 1 ? 'needs' : 'need'} an update`
+      : `${what} ${count === 1 ? 'is' : 'are'} out of date`
+  },
+}
+
 export interface LibraryNoticesProps {
   analysis: AnalysisController
   signedIn: boolean
   keepFiles: boolean
   fileRetentionAvailable: boolean
-  /** Whether this page says how many saved runs are at walking pace: Run and Activities, not every page. */
-  walkingNote?: boolean
   onRetry: () => void
 }
 
-/** The library's status messages. It stays mounted so that each message is announced when it appears. */
+/**
+ * The library's status messages, each one line with its sentence under Details. They render only while
+ * they hold text, inside the notice region (AppNotices), which is always mounted and announces them as
+ * they are added.
+ */
 export function LibraryNotices({
   analysis,
   signedIn,
   keepFiles,
   fileRetentionAvailable,
-  walkingNote = false,
   onRetry,
 }: LibraryNoticesProps) {
   const originalsMissing = analysis.missingOriginals
@@ -93,7 +102,7 @@ export function LibraryNotices({
     `${incompatibleCount === 1 ? 'is' : 'are'} left out. Reload the page to update the app.`
 
   // The rebuild button goes once nothing is outdated, so when a rebuild ends, focus moves to the
-  // notice region, which is always mounted. A request the app refuses without starting a rebuild
+  // outcome of the rebuild, which is shown by then. A request the app refuses without starting a rebuild
   // must not leave a later import's end to move focus, so only a started rebuild counts. Focus
   // that the user has moved elsewhere is left alone.
   const [rebuildPhase, setRebuildPhase] = useState<RebuildPhase>('idle')
@@ -102,13 +111,20 @@ export function LibraryNotices({
   else if (rebuildPhase === 'started' && !analysis.busy) setRebuildPhase('finished')
   const rebuildNoticeRef = useRef<HTMLDivElement>(null)
   const updateRef = useRef<HTMLButtonElement>(null)
+  // The outcome may be shown a render after the rebuild ends, so the effect waits for it, and moves focus once.
+  const focusMoved = useRef(false)
+  const outcomeShown = Boolean(analysis.rebuildNotice)
   useEffect(() => {
-    if (rebuildPhase !== 'finished') return
-    const active = document.activeElement
-    if (active === null || active === document.body || active === updateRef.current) {
-      rebuildNoticeRef.current?.focus()
+    if (rebuildPhase !== 'finished') {
+      focusMoved.current = false
+      return
     }
-  }, [rebuildPhase])
+    const outcome = rebuildNoticeRef.current
+    if (!outcomeShown || outcome === null || focusMoved.current) return
+    focusMoved.current = true
+    const active = document.activeElement
+    if (active === null || active === document.body || active === updateRef.current) outcome.focus()
+  }, [rebuildPhase, outcomeShown])
 
   return (
     <>
@@ -120,71 +136,65 @@ export function LibraryNotices({
           </button>
         </section>
       )}
-      {/* Always mounted, so a refusal from this browser's storage is announced when it appears. */}
-      <section
-        className={analysis.deviceIssue ? 'notice' : 'sr-only'}
-        aria-label={analysis.deviceIssue ? 'Kept in this browser' : undefined}
-      >
-        <p role="status">
-          {analysis.deviceIssue ? deviceIssueText(analysis.deviceIssue, signedIn) : ''}
-        </p>
-      </section>
-      <section
-        className={missingShown ? 'notice' : 'sr-only'}
-        aria-label={missingShown ? 'Missing original files' : undefined}
-      >
-        <p role="status">{missingShown ? missingText : ''}</p>
-      </section>
-      <section
-        className={outdatedShown ? 'notice' : 'sr-only'}
-        aria-label={outdatedShown ? 'Saved activity updates' : undefined}
-      >
-        <p role="status">
-          {outdatedShown
-            ? signedIn
-              ? outdatedText(rebuildable, outdatedCount - rebuildable)
-              : addFilesText(outdatedCount, false)
-            : ''}
-        </p>
-        {rebuildable > 0 && !fileRetentionAvailable && <p>{ORIGINALS_UNAVAILABLE}</p>}
-        {rebuildable > 0 && (
-          <button
-            ref={updateRef}
-            type="button"
-            className="btn"
-            onClick={() => {
-              // aria-disabled while busy, not disabled: a disabled button drops the focus it holds.
-              if (analysis.busy) return
-              setRebuildPhase('requested')
-              analysis.rebuildSavedActivities()
-            }}
-            disabled={!fileRetentionAvailable}
-            aria-disabled={analysis.busy}
-          >
-            {analysis.busy ? 'Updating…' : 'Update now'}
-          </button>
-        )}
-      </section>
-      {/* Always mounted, so the outcome of a rebuild is announced and stays after the notice above unmounts. */}
-      <div
-        role="status"
-        ref={rebuildNoticeRef}
-        tabIndex={-1}
-        className={analysis.rebuildNotice ? undefined : 'sr-only'}
-      >
-        {analysis.rebuildNotice}
-      </div>
-      <section
-        className={incompatibleShown ? 'notice' : 'sr-only'}
-        aria-label={incompatibleShown ? 'Incompatible saved activities' : undefined}
-      >
-        <p role="status">{incompatibleShown ? incompatibleText : ''}</p>
-      </section>
-      {analysis.state.hiddenDuplicates > 0 && (
-        <p className="secondary">{hiddenCopiesText(analysis.state.hiddenDuplicates)}</p>
+      {analysis.deviceIssue && (
+        <section className="notice" aria-label="Kept in this browser">
+          <NoticeLine short={SHORT.device(analysis.deviceIssue)}>
+            {deviceIssueText(analysis.deviceIssue, signedIn)}
+          </NoticeLine>
+        </section>
       )}
-      {walkingNote && analysis.state.walkingPaceRuns > 0 && (
-        <p className="secondary">{walkingPaceText(analysis.state.walkingPaceRuns)}</p>
+      {missingShown && (
+        <section className="notice" aria-label="Missing original files">
+          <NoticeLine short={SHORT.missing(originalsMissing)}>{missingText}</NoticeLine>
+        </section>
+      )}
+      {outdatedShown && (
+        <section className="notice" aria-label="Saved activity updates">
+          <NoticeLine
+            short={SHORT.outdated(
+              rebuildable,
+              signedIn ? outdatedCount - rebuildable : outdatedCount,
+            )}
+          >
+            {signedIn
+              ? outdatedText(rebuildable, outdatedCount - rebuildable)
+              : addFilesText(outdatedCount, false)}
+            {rebuildable > 0 && !fileRetentionAvailable && (
+              <>
+                {' '}
+                <span>{ORIGINALS_UNAVAILABLE}</span>
+              </>
+            )}
+          </NoticeLine>
+          {rebuildable > 0 && (
+            <button
+              ref={updateRef}
+              type="button"
+              className="btn"
+              onClick={() => {
+                // aria-disabled while busy, not disabled: a disabled button drops the focus it holds.
+                if (analysis.busy) return
+                setRebuildPhase('requested')
+                analysis.rebuildSavedActivities()
+              }}
+              disabled={!fileRetentionAvailable}
+              aria-disabled={analysis.busy}
+            >
+              {analysis.busy ? 'Updating…' : 'Update now'}
+            </button>
+          )}
+        </section>
+      )}
+      {/* The outcome of a rebuild stays after the notice above unmounts, and takes focus when it is shown. */}
+      {analysis.rebuildNotice && (
+        <div ref={rebuildNoticeRef} tabIndex={-1}>
+          {analysis.rebuildNotice}
+        </div>
+      )}
+      {incompatibleShown && (
+        <section className="notice" aria-label="Incompatible saved activities">
+          <NoticeLine short={SHORT.incompatible(incompatibleCount)}>{incompatibleText}</NoticeLine>
+        </section>
       )}
     </>
   )

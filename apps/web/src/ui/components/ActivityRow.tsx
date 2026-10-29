@@ -43,6 +43,8 @@ export interface ActivityRowProps {
   /** False while no body weight is entered: a ride's record chips wait for it, as its page's do. */
   weightKnown: boolean
   busy: boolean
+  /** This browser holds no detailed readings for the activity, which its page then cannot draw. */
+  noDetail?: boolean
   /** Whether the visitor is signed in, which says where a removal takes the activity from. */
   signedIn: boolean
   /** Removes the kept copy. Without it, the row offers no Delete. */
@@ -108,6 +110,7 @@ export function ActivityRow({
   keptId,
   weightKnown,
   busy,
+  noDetail = false,
   signedIn,
   onDelete,
 }: ActivityRowProps) {
@@ -150,6 +153,7 @@ export function ActivityRow({
             {hero?.estimated && <span className="chip">Estimated power</span>}
             {activity.indoor && <span className="chip">Indoor</span>}
             {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
+            {noDetail && <span className="chip">No detail</span>}
             {skipped > 0 && (
               <span className="chip chip--warning">
                 <WarningIcon />

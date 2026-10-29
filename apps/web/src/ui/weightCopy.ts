@@ -17,3 +17,6 @@ export const WEIGHT_PROMPT_PARTS = {
 
 /** The request as plain text, for a note where a link would leave the dialog it is in. */
 export const WEIGHT_PROMPT_TEXT = `${WEIGHT_PROMPT_PARTS.lead} ${WEIGHT_PROMPT_PARTS.page} ${WEIGHT_PROMPT_PARTS.purpose}`
+
+/** The note in the setup dialog, where the weight field is on the same screen, so it points at that field. */
+export const WEIGHT_DIALOG_TEXT = `Optional. Add your weight above ${WEIGHT_PURPOSE}`

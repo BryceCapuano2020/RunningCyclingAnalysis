@@ -19,6 +19,7 @@ import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
 import type { Account, ErrorNotice, ImportProgress, LibraryStatus, Pending } from './analysis/model'
+import type { DetailCoverage } from './analysis/model'
 import { drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
@@ -56,6 +57,8 @@ export interface AnalysisController {
   restoring: boolean
   /** Reads the signed-in library again. Imports are not held for a failed load; they must be added again. */
   retryLibrary: () => void
+  /** Which activities this browser holds detailed readings for; null until storage has said, and for a sample. */
+  detail: DetailCoverage | null
   /** Saved activities whose original file is not in the library. */
   missingOriginals: number
   /** Outdated saved activities whose original file is held, which Update now can rebuild. */
@@ -364,6 +367,7 @@ export function useAnalysis(
     libraryStatus: library.libraryStatus,
     restoring: library.restoring,
     retryLibrary: libraryActions.retryLibrary,
+    detail: library.detail,
     missingOriginals: library.missingOriginals,
     outdatedWithOriginal: library.outdatedWithOriginal,
     libraryUnreadable: library.libraryUnreadable,

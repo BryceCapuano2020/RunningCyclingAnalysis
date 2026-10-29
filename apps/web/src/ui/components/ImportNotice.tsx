@@ -6,6 +6,7 @@ import { addedSentence, importSentence } from '../analysis/copy'
 import type { MovedItem } from '../analysis/whatMoved'
 import { PAGE_HEADING_ID } from '../pages/pageHeading'
 import { hrefFor } from '../route'
+import { NoticeLine } from './NoticeLine'
 import { RejectedFiles } from './RejectedFiles'
 import './ImportNotice.css'
 
@@ -21,6 +22,8 @@ export interface ImportNoticeProps {
   moved: MovedItem[]
   /** On the Balance page the link to it would point at the page it is already on, so it is left out. */
   atBalance: boolean
+  /** Where detailed readings stop for the older activities, when they do; null when every activity has them. */
+  detailLine?: { short: string; full: string } | null
   /** Called when the summary is dismissed, so the page can drop what moved with it. */
   onDismiss: () => void
 }
@@ -47,6 +50,7 @@ export function ImportNotice({
   unsupportedFiles,
   moved,
   atBalance,
+  detailLine = null,
   onDismiss,
 }: ImportNoticeProps) {
   const [dismissed, setDismissed] = useState<ImportOutcome | null>(null)
@@ -73,6 +77,11 @@ export function ImportNotice({
               <li key={item.text}>{movedText(item)}</li>
             ))}
           </ul>
+        )}
+        {detailLine !== null && (
+          <div className="import-notice__detail">
+            <NoticeLine short={detailLine.short}>{detailLine.full}</NoticeLine>
+          </div>
         )}
         <RejectedFiles outcome={outcome} rejected={rejected} unsupportedFiles={unsupportedFiles} />
       </div>

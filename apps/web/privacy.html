@@ -185,10 +185,11 @@
       <p>
         Error logs hold a request ID, the error type and, for a saved activity that cannot be read,
         its ID. They never hold request bodies, files, tokens or query strings. Cloudflare's request
-        logs may include each request's network address, approximate location and browser user
-        agent, and request URLs with the one-time Google sign-in code, which cannot be reused. The
-        address is used only as a rate-limit key. Request and error logs are kept three days on
-        Cloudflare's Free plan; retention depends on the plan.
+        logs may include each request's network address, approximate location, browser user agent
+        and the address of the request (URL), which can carry the one-time Google sign-in code and
+        state, and the code cannot be reused. The network address is used only as a rate-limit key.
+        Request and error logs are kept three days on Cloudflare's Free plan; retention depends on
+        the plan.
       </p>
       <p>
         Cookies are strictly necessary only: the sign-in cookie, and two cookies that last ten

@@ -1,4 +1,10 @@
+import { ALL_OUT_FRACTION } from '@rca/core/effort'
+import { formatPercent } from '@rca/core/units'
+import { Definition } from '../components/Definition'
 import { HEADLINE_LABEL } from '../grades'
+
+/** What the reference heart rate is, in a note beside the term. */
+const REFERENCE_MEANING = `The highest heart rate you hold for a sustained effort in each sport. An effort counts as hard when it reaches ${formatPercent(ALL_OUT_FRACTION)} of it.`
 
 /** The id of the 20 minute effort's heading on How sure is this?, which the evidence card's link names. */
 export const TWENTY_MINUTE_ID = 'method-twenty'
@@ -14,7 +20,9 @@ export function TwentyMinuteEffort() {
         The 20 min effort
       </h3>
       <p className="secondary">
-        {`Balance uses your best ${HEADLINE_LABEL} in each sport. The heart-rate check judges that effort against your reference heart rate, and says whether it was hard. A steady ${HEADLINE_LABEL} run or ridden hard, with heart rate on, is what narrows the check.`}
+        {`Balance uses your best ${HEADLINE_LABEL} in each sport. The heart-rate check judges that effort against your `}
+        <Definition meaning={REFERENCE_MEANING}>reference heart rate</Definition>
+        {`, and says whether it was hard. A steady ${HEADLINE_LABEL} run or ridden hard, with heart rate on, is what narrows the check.`}
       </p>
     </>
   )

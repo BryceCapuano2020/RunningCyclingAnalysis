@@ -125,3 +125,9 @@ export const EMPTY_SESSION: SessionState = {
   timeInZones: NO_ZONE_TIMES,
   records: new Map(),
 }
+
+/** Which activities this browser holds detailed readings for, and when the oldest of them started. */
+export interface DetailCoverage {
+  ids: ReadonlySet<string>
+  oldestStartMs: number | null
+}

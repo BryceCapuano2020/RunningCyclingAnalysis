@@ -46,8 +46,9 @@ export function skippedTotal(tally: SkipTally): number {
 }
 
 /**
- * The headline over the groups, which adds up to every file: "3,018 files: 1,915 added, 35 need a look,
- * ...". A part with no files is left out.
+ * The headline over the groups, which adds up to every file: "3,018 files, 2,698 of them activity files:
+ * 1,915 added, 35 need a look, ...". The activity files are the count the import's progress shows, so the
+ * two agree; without files the export does not list, every file is one. A part with no files is left out.
  */
 export function tallySentence(tally: SkipTally): string {
   const { added, needLook, otherSports, alreadyAdded, unlisted } = tally
@@ -60,5 +61,8 @@ export function tallySentence(tally: SkipTally): string {
   ]
   const files = added + skippedTotal(tally)
   const shown = parts.filter(([count]) => count > 0).map(([, text]) => text)
-  return `${plural(files, 'file')}: ${shown.join(', ')}.`
+  // The progress bar counts activity files, which the files the export does not list are not.
+  const activityFiles =
+    unlisted > 0 ? `, ${formatCount(files - unlisted)} of them activity files` : ''
+  return `${plural(files, 'file')}${activityFiles}: ${shown.join(', ')}.`
 }

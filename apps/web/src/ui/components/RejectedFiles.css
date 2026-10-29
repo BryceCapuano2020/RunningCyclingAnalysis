@@ -14,24 +14,11 @@
   color: var(--text-primary);
 }
 
-/*
- * The triangle and the headline share the first row. The grid replaces the base flex row, so the first
- * file's reason takes the row under the headline. The nested Show the files keeps the base row.
- */
+/* One line: what needs a look, with the triangle that opens the groups under it. */
 .rejected-files > details > summary {
+  min-height: 28px;
   cursor: pointer;
   color: var(--text-primary);
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0 var(--space-2);
-}
-
-/* The first file's reason sits under the headline, inside the summary, so it shows in both states. */
-.rejected-files__first {
-  grid-column: 2;
-  margin: 0;
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
 }
 
 .rejected-files__group {
@@ -64,11 +51,4 @@
   margin: var(--space-2) 0 0;
   padding-left: var(--space-5);
   overflow-wrap: anywhere;
-}
-
-/* The summary computes to the link colour in forced colours, so the first file's reason takes the text colour. */
-@media (forced-colors: active) {
-  .rejected-files__first {
-    color: CanvasText;
-  }
 }
