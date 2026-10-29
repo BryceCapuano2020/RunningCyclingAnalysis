@@ -66,7 +66,7 @@ same shapes. Everything below runs in the worker; nothing in it is on the main t
 The real export gives the same picture: a change of body mass 61 to 26 ms, all time 135 to 84 ms,
 `combine` 44 to 20 ms, `sameHeartRate` 47 to 36 ms.
 
-What did not change, and what it costs. Digesting is 2.8 ms an activity. Reading 2,000 digests back from
+What did not change, and what it costs. Digesting is 2.8 ms an activity (measured at aaf79118, before the later digest changes). Reading 2,000 digests back from
 storage with `parseDigest` is 54 ms (76 ms for the real ones), and the schema check each stored digest passes
 when the account's library is listed adds 130 ms, both while the page waits for the network. Importing is linear, 5.7 ms an activity
 from FIT files at 400 and at 2,000, and a real export of 2,698 files took 15 to 24 s of wall time and about
@@ -87,7 +87,10 @@ switch to a long period, but changes what the page shows while it waits.
 
 `npm run test:perf` holds the 2,000-activity loads and the mass change (`sessionLibrary.perf.test.ts`:
 300, 80 and 80 ms), late-effort evidence (20 ms), the distribution merge (15 ms), a 48-hour trace (6 ms to
-build, 50 ms to check), 200 workbench captures (30 ms), the weekly volume strip (15 ms), and that the radix
+build, 50 ms to check), 200 workbench captures (30 ms), the weekly volume strip (15 ms), the heart-rate set-aside of 2,000 activities (`setAside.perf.test.ts`, 400 ms),
+the low-heart-rate test of the longest file (`lowHeartRate.perf.test.ts`, 120 ms), the heart rate that reads low
+for the power across 2,000 activities (`lowForPower.perf.test.ts`, 60 ms), time in zones for 2,000 activities
+(`periodTime.perf.test.ts`, 50 ms), and that the radix
 order takes under two thirds of the comparison's time. Each is the fastest of several runs, three to twenty
 times the local figure.
 

@@ -10,7 +10,7 @@ import { stateHashes } from './test/stateHashes'
  * The session state for a library of 400 copied activities, ten a week from 4 January 2021, under four
  * periods, first taken from main at 379c9458, before the draws were sorted by their bits, the trend and
  * same-heart-rate windows were found by search, and a summary was made once. The heart-rate judgement and the
- * time in zones were pinned when they were added, at 379c9458 plus that change; the judgement is the same under every period. A change that only makes
+ * time in zones were pinned when they were added, the heart-rate judgement at 379c9458 plus that change and the time in zones at #134; the judgement is the same under every period. A change that only makes
  * the analysis faster must leave every hash as it is. A change that means to alter the analysis copies
  * the received hashes from this test's failure, and says in its description which field moved and why.
  * Re-pinned for the record-distance tolerance: two of the 24 templates are 9.9 km runs and gain a 10 km

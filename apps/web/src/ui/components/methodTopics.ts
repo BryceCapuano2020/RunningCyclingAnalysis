@@ -120,7 +120,7 @@ const TOPIC_LIST = [
       'A ride’s W/kg, and the watts estimated for a ride without a power meter, use the body and ' +
       'bike weight in effect on that ride’s local day, so a ride from last year does not use ' +
       'today’s weight. With dated weights the best ride at a duration is the one with the most watts ' +
-      'per kilogram on its day, and that one ride supplies its watts, grade and running equivalent. Your current weight is the dated weight in effect today, and setting it once ' +
+      'per kilogram on its day, and that one ride supplies its watts, slope and running equivalent. Your current weight is the dated weight in effect today, and setting it once ' +
       'weights are dated adds an entry from today. The saved summary of an activity holds no weight, ' +
       'so changing a dated weight changes results without reading any file again.',
   },
@@ -151,7 +151,7 @@ const TOPIC_LIST = [
     title: 'Limits',
     plain: [
       'Best efforts are only as good as the hardest efforts on file. Heat, altitude and fatigue shift heart rate. Treadmill and indoor data have no gradient, so they are treated as flat.',
-      `Running bests by time start at ${effortLabel(RECORD_DURATIONS_S.run[0]!)} and the running curve at ${effortLabel(CURVE_START_S.run)}, because shorter grade-adjusted windows mostly measure the slope reading rather than the runner.`,
+      `Running bests by time start at ${effortLabel(RECORD_DURATIONS_S.run[0]!)} and the running curve at ${effortLabel(CURVE_START_S.run)}, because shorter slope-adjusted windows mostly measure the slope reading rather than the runner.`,
     ],
   },
 ] as const

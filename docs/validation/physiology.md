@@ -5,8 +5,10 @@ Status: validation note. The executable checks are in
 against the primary text. The model described here is revision 6 (`MODEL_REVISION` 6), whose cost
 curves are those of revision 5. Sections 4 and 8 record the revision 4 results as they were before
 the correction. Section 10 gives the revision 4 and revision 5 results side by side. Revision 6
-changed only the gradient fed to these costs, which is now taken over the distance the speed stream
-implies so that gradient times speed is the recorded climb rate; every result here is unchanged.
+changed what feeds these costs and which seconds count, not the cost curves: the gradient is taken over
+the distance the speed stream implies, so that gradient times speed is the recorded climb rate; a
+stretch where speed and distance disagree is lowered to the slower of the two; implausible climbs and
+speeds, and sparse or mostly stopped windows, are left out; every result here is unchanged.
 
 ## 1. Question
 

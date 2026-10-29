@@ -313,6 +313,20 @@ the server stores only that. A digest holds:
   Digests made before splits were kept have none, and rides never do. Splits are stored in each digest
   and load with the library. They are kept out of activity summaries and SessionState, and the activity
   page reads them from the session on demand.
+- **Speed, distance and grade** (`quality/agreement.ts`, `metabolic/grade.ts`): a watch writes speed and
+  distance from different sources, and over a stretch of about 30 s they can disagree, as on stairs or
+  between tall buildings. Where both streams are recorded and one covers more than twice the other (and
+  they differ by at least 30 m), each second of the stretch takes the lower of the two rates, and the
+  stretch is flagged `stream-disagreement`. Files whose two streams are one (GPX, or a file with only
+  one of them) are never touched. The lowered streams feed the curves, splits, durability, drift and the
+  run speed distribution, and recorded distance still decides distance bests, which are timed on the
+  lowered stream and fall back to the file's own distance for a distance the lowered one cannot reach.
+  A ride with a power meter keeps its own speed. The grade is taken over the distance the speed stream
+  implies (`travelledDistance`), so grade times speed is the climb rate the altitude recorded, and a
+  stretch where altitude, lightly smoothed, rises at 1 m/s or more over 30 s is flagged
+  `implausible-climb` and leaves out its altitude and grade. A run whose moving speed is under 15:00 a
+  mile for ten minutes or more, with neither the cadence nor the share of running-speed seconds of a
+  slow run, carries `walkingPace`; it stays in the library, marked, and is left out of run analysis.
 - **Evidence for zones, durability and drift** (all optional, absent on older digests; see
   `docs/research/durability.md`): moving-time distributions of heart rate, measured power (rides with a
   power meter only) and run speed, as sparse offset and counts in 1 bpm, 5 W and 0.05 m/s bins; the best
@@ -327,8 +341,8 @@ needed to fit the bike model against power-meter rides, so it can be refitted wi
 
 The trade-off: a model change that needs a per-sample quantity the digest does not hold requires
 re-digesting the original. Each digest carries a `modelRevision` inside its JSON; this is separate
-from the `digest_version` column, which remains the schema version. Digests at `MODEL_REVISION`
-(currently 6, in `packages/core/src/digest/modelRevision.ts`) are analysed on their own, while older
+from the `digest_version` column, which remains the schema version. Digests at the current `MODEL_REVISION`
+(`packages/core/src/digest/modelRevision.ts`) are analysed on their own, while older
 digests are shown as outdated and excluded until the original activity file is re-imported. If its hash matches the stored activity, the API atomically replaces only the
 derived digest and preserves the activity id, original-file metadata and quota reservation. Retained
 R2 files can be downloaded by the browser to drive that recovery; no database migration is needed.

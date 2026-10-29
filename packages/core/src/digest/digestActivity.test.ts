@@ -459,7 +459,7 @@ describe('digestActivity: altitude steps and missing altitude', () => {
     expect(d.curve.every((p) => Number.isNaN(p.value))).toBe(true)
     expect(d.hrBlocks).toEqual([])
     const flag = d.flags.find((f) => f.kind === 'missing-altitude')!
-    expect(flag.message).toContain('grade-based')
+    expect(flag.message).toContain('slope-based')
   })
 
   it('keeps a power-meter ride without altitude on measured power, but out of calibration', () => {

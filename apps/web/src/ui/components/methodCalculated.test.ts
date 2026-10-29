@@ -5,6 +5,7 @@ import {
   STATE_ORDER,
   type CalculationState,
 } from './methodCalculated'
+import type { SectionId } from '../pages/sportSections'
 
 const namesIn = (state: CalculationState) =>
   CALCULATION_ITEMS.filter((item) => item.state === state).map((item) => item.name)
@@ -25,6 +26,7 @@ describe('What is calculated', () => {
       /Thresholds/,
       /Best efforts and curves/,
       /Race predictions/,
+      /Best effort week by week/,
       /same heart rate/,
       /Level target/,
       /Grade by duration/,
@@ -34,10 +36,32 @@ describe('What is calculated', () => {
       /Time at each pace/,
       /Time in zones/,
       /Heart-rate set-aside/,
+      /Late in long sessions/,
+      /reps held up/,
+      /Weekly hours by sport/,
+      /Runs at walking pace/,
+      /Dated settings and estimated zones/,
+      /Equivalence across sports/,
     ]) {
       expect(calculated).toMatch(feature)
     }
     expect(namesIn('read').join(' | ')).toMatch(/Heart rate.*Power from a power meter.*In detail/)
+  })
+
+  it('has an entry for every section a sport page can show', () => {
+    // Typed by SectionId, so a new section fails to compile here until it is listed.
+    const entryFor: Record<SectionId, RegExp> = {
+      bestEfforts: /Best efforts and curves/,
+      racePredictions: /Race predictions/,
+      weekByWeek: /Best effort week by week/,
+      sameHeartRate: /same heart rate/,
+      lateInEffort: /Late in long sessions/,
+      timeInZones: /Time in zones/,
+    }
+    const calculated = namesIn('calculated')
+    for (const id of Object.keys(entryFor) as SectionId[]) {
+      expect(calculated.some((name) => entryFor[id].test(name))).toBe(true)
+    }
   })
 
   it('puts readiness scores and vendor tests where they cannot be worked out', () => {

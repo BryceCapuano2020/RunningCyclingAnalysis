@@ -275,7 +275,7 @@ function messageFor(kind: QualityKind, durationS: number): string {
       return `Speed and distance disagreed for ${seconds}`
     case 'missing-altitude':
       return (
-        `No altitude was recorded for ${seconds}, so grade-based running cost, virtual power ` +
+        `No altitude was recorded for ${seconds}, so slope-based running cost, virtual power ` +
         'and calibration are left out'
       )
   }

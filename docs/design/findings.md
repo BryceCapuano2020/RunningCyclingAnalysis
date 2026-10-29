@@ -90,7 +90,7 @@ No detector compares the levels of different sports or restates volume. Speak if
   earlier (6-12). Intervals do not overlap (z >= 2.2), at least 4 reported weeks between, |relative
   change| >= 2.5% for runs and >= 3% for rides; outdoor runs, measured power. "At 150 bpm you now run
   5:30/km, 15 s/km faster than 8 weeks ago (5:45)."
-- **flat-run-hr-at-pace** (efficiency): flat km splits (grade-adjusted time within 2% of clock time,
+- **flat-run-hr-at-pace** (efficiency): flat km splits (slope-adjusted time within 2% of clock time,
   climb under 5 m) in the most-populated 10 s/km pace band of the last 26 weeks with HR; last 6 weeks
   against the prior 6; per-run median HR; at least 6 runs per side; effect >= 4 bpm; cluster-bootstrap
   95% excludes 0. "Running 5:30 to 5:40/km on flat ground, your heart rate is 5 bpm lower than in

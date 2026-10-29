@@ -281,9 +281,20 @@ activities at a time with accessible paging.
   `MODEL_REVISION` in `packages/core/src/digest/modelRevision.ts`. Revision 3 contains the corrected
   sensor validity/timer handling and preserves long run efforts across short unpaused stops.
   Revision 4 uses altitude-dependent air density. Revision 5 adds the running level correction
-  (+0.3 J/kg/m) and widens the efficiency and running-economy priors. Missing revision means legacy revision 1. Older
-  analyses are excluded and can be rebuilt from retained original files; missing originals need
-  re-importing. Newer revisions are excluded with a separate compatibility notice.
+  (+0.3 J/kg/m) and widens the efficiency and running-economy priors.
+  Revision 6 changes what a digest holds, relative to release 28889c4: (0,0) GPS placeholders are
+  ignored, so a trainer file with only those is indoor; the grade is taken over the distance the speed
+  stream implies, with the stream-agreement filter (the lower of speed and recorded distance where they
+  disagree), the `stream-disagreement` and `implausible-climb` flags, and the filter applied to distance
+  bests, power-meter rides and splits; optional distributions, durability and drift evidence; best
+  windows need at least 90% of their seconds moving, a sustained speed above a per-sport ceiling is
+  flagged `implausible-speed`, and a distance best up to 1% short of a record distance is scaled to it;
+  splits are over moving time less rests; and `walkingPace` marks a run at walking pace, with
+  an athlete-relative check that sets aside heart rate reading low for the power. Missing revision means
+  legacy revision 1. Older analyses are excluded and can be rebuilt from retained original files;
+  missing originals need re-importing. Newer revisions are excluded with a separate compatibility
+  notice, so rolling the Worker back to a revision 5 build makes every library already upgraded to
+  revision 6 show as incompatible until the revision 6 Worker is deployed again.
 - Upgrades require the same sport/start dedupe identity and SHA-256 of the exact original bytes.
   They retain the activity id and stored-file metadata. Different file contents conflict rather
   than silently replacing an activity, and older clients cannot downgrade newer stored summaries.

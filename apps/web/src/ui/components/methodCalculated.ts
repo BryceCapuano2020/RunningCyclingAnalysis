@@ -49,6 +49,11 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'The best pace or power you held for each length of time, taken from every activity in the period.',
   },
   {
+    name: 'Best effort week by week',
+    state: 'calculated',
+    line: 'Your best effort of one length in each week, taken over a trailing window, so you see how it moved.',
+  },
+  {
     name: 'Race predictions',
     state: 'calculated',
     line: 'Times for the usual road races, up to the marathon, carried from your best runs, your heart-rate VO2max and your weekly running distance, with a likely range.',
@@ -97,6 +102,36 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     name: 'Time in zones',
     state: 'calculated',
     line: 'How long you spent in each training zone over a period, or a stretch you select, from heart rate, power meter and run pace, by each day’s zones.',
+  },
+  {
+    name: 'Late in long sessions',
+    state: 'calculated',
+    line: 'Your best 5 and 20 minute output after the first hour or two of a session, and how output per heart rate drifts across a steady effort of an hour or more.',
+  },
+  {
+    name: 'How your reps held up',
+    state: 'calculated',
+    line: 'For laps of about one length, how the output of each rep moved from the first to the last, with the recoveries between them left out.',
+  },
+  {
+    name: 'Weekly hours by sport',
+    state: 'calculated',
+    line: 'Moving time each week for each sport, under the Balance trend, so you see how the hours were shared.',
+  },
+  {
+    name: 'Runs at walking pace',
+    state: 'calculated',
+    line: 'A run slower than 15:00 a mile with no runner’s cadence or jogging is marked as walking pace and left out of your run analysis.',
+  },
+  {
+    name: 'Dated settings and estimated zones',
+    state: 'calculated',
+    line: 'Weight, max heart rate and threshold apply from their dates. With none entered they are estimated from your activities, and zones are cut from them.',
+  },
+  {
+    name: 'Equivalence across sports',
+    state: 'calculated',
+    line: 'A ride’s power is converted to the running pace that costs the same energy, adjusted by your heart rate in both sports, so the two share one unit.',
   },
   {
     name: 'Heart-rate set-aside',

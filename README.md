@@ -74,6 +74,16 @@ they state the uncertainty and the evidence still missing. The plan is in
   your newest activity.
 - **Data-quality checks.** Sensor dropouts, spikes and physiologically implausible readings (for
   example 103 bpm while holding 322 W) are detected, excluded and listed per activity.
+- **Dated settings and zones.** On Profile you can date a weight, a max heart rate or a threshold.
+  Each activity uses the setting in effect on its own day, and zones are cut from them by published
+  schemes, or estimated from your activities when none is entered.
+- **Time in zones.** How long you spent in each heart-rate, power or run-pace zone over a period or
+  a stretch you select, by each day's zones.
+- **Activity detail.** Each activity shows its timelines, laps and suggested intervals, splits on
+  moving time, how your reps held up, and time at each pace, power or heart rate, read from a
+  recording kept on your device. Runs at walking pace are marked and left out of run analysis.
+- **Durability and drift.** Your best 5 and 20 minute output late in long sessions, and how output
+  per heart rate drifts across a steady effort of an hour or more.
 - **Accounts and sync.** Sign in with Google to keep your profile and activity library on
   Cloudflare. Per-activity digests are stored in D1; original files are not kept by default.
   Users can opt in to R2 retention subject to per-user and application-wide limits. Direct bucket
@@ -172,6 +182,10 @@ packages/core/       @rca/core: analysis library, pure TypeScript, no DOM
   quality/           sensor data-quality rules
   workbench/         recorded timelines, elapsed selections, moving-time summaries and interval ranges
   digest/            per-activity digests, combining digests, serialisation and the fitness trend
+  athlete/           dated weight, max heart rate and threshold settings
+  zones/             training zones from those settings, and time in each zone
+  splits/            kilometre and mile splits on moving time, and the rests they leave out
+  records/           distance bests and the activities that hold each record
   physics/           air density for the aerodynamic terms
   units/             unit conversion and formatting for imperial and metric
   metabolic/         gradient smoothing, Minetti cost, metabolic power
