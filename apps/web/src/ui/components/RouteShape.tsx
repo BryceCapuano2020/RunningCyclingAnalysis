@@ -70,7 +70,7 @@ export function RouteShape({
               d={`M ${item.from[0]} ${item.from[1]} L ${item.to[0]} ${item.to[1]}`}
               vectorEffect="non-scaling-stroke"
               style={{
-                stroke: `color-mix(in oklab, var(--ch-pace) ${Math.round(item.share * 100)}%, var(--ch-elevation))`,
+                stroke: `color-mix(in oklab, var(--ch-pace) ${Math.round(item.share * 100)}%, var(--ch-heartrate))`,
                 strokeWidth: SLOW_WIDTH_PX + item.share * (FAST_WIDTH_PX - SLOW_WIDTH_PX),
               }}
             />

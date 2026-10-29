@@ -24,7 +24,7 @@ const results = new WeakMap<ActivityTrace, Map<string, unknown>>()
 /**
  * The trace as the page reads it. A run's speed below a walking pace is dropped, since standing still
  * has no pace; it counts as moving time with no reading. Everything below reads this trace, so
- * the plot, the table and the histogram agree.
+ * the plot, the readout and the tables agree.
  */
 export function readableTrace(trace: ActivityTrace): ActivityTrace {
   const cached = readable.get(trace)
@@ -61,7 +61,8 @@ export function selectionOf(trace: ActivityTrace, startS: number, endS: number):
 }
 
 /**
- * What a measure's plot axis and histogram span over a selection, and the moving seconds beyond each end.
+ * What range a measure's readings span over a selection, and the moving seconds beyond each end. The
+ * description of the plot and the stack's own axis read it; the axis then fits the smoothed line (smoothedBand).
  * A trimmed measure leaves out its few extreme readings; any other spans all of them. Null with no readings.
  */
 export function axisFor(
@@ -73,7 +74,7 @@ export function axisFor(
   return remembered(trace, `axis:${metric}:${startS}:${endS}`, () => {
     const stats = selectionOf(trace, startS, endS).metrics[metric]
     if (stats === undefined || stats.min === null || stats.max === null) return null
-    if (TRIMMED_METRICS[metric] === undefined) {
+    if (!TRIMMED_METRICS.includes(metric)) {
       return { low: stats.min, high: stats.max, below: 0, above: 0 }
     }
     return readingBand(readableTrace(trace), metric, startS, endS)
@@ -120,6 +121,53 @@ export function seriesFor(
   return remembered(trace, `series:${metric}:${startS}:${endS}:${columns}`, () => {
     const stream = plottedStream(trace, metric)
     return stream === null ? null : reduceSeries(stream, startS, endS, columns)
+  })
+}
+
+/** How many columns the plot's axis is read from, whatever the plot's width, so the table and the plot agree. */
+const DOMAIN_COLUMNS = 480
+/** The share of the smoothed line cut from each end of a plot's axis. */
+const DOMAIN_CUT = 0.01
+/**
+ * The least an axis spans, as a share of the raw readings' own span. A trend that hardly moves is drawn flat,
+ * not stretched across the row until its jitter looks like a signal.
+ */
+const DOMAIN_MIN_SHARE = 0.2
+
+/** The value a share of the way up ascending numbers. */
+function atShare(sorted: readonly number[], share: number): number {
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * share))]!
+}
+
+/**
+ * The span of a measure's smoothed line over a window, without the top and bottom hundredth: a spike or a
+ * dropout is in the band and is marked on the row's edge, but does not set the axis the trend is read on.
+ * Null with no readings.
+ */
+export function smoothedBand(
+  trace: ActivityTrace,
+  metric: TraceMetric,
+  startS: number,
+  endS: number,
+): { low: number; high: number } | null {
+  return remembered(trace, `smoothed:${metric}:${startS}:${endS}`, () => {
+    const series = seriesFor(trace, metric, startS, endS, DOMAIN_COLUMNS)
+    if (series === null) return null
+    const sorted = (values: readonly number[]) =>
+      values.filter(Number.isFinite).sort((a, b) => a - b)
+    const means = sorted(series.mean)
+    if (means.length === 0) return null
+    let low = atShare(means, DOMAIN_CUT)
+    let high = atShare(means, 1 - DOMAIN_CUT)
+    const rawLow = atShare(sorted(series.lo), DOMAIN_CUT)
+    const rawHigh = atShare(sorted(series.hi), 1 - DOMAIN_CUT)
+    const least = (rawHigh - rawLow) * DOMAIN_MIN_SHARE
+    if (high - low < least) {
+      const middle = (low + high) / 2
+      low = middle - least / 2
+      high = middle + least / 2
+    }
+    return { low, high }
   })
 }
 

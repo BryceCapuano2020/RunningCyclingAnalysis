@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   areaPath,
   bandPath,
+  hasReadingNear,
   linePath,
   meanAround,
   reduceSeries,
@@ -23,11 +24,19 @@ describe('smoothedStream', () => {
 })
 
 describe('smoothingWindowS', () => {
-  it('widens with the zoom out, from 3 s to a minute, and never past the window', () => {
-    expect(smoothingWindowS(600, 600)).toBe(3)
-    expect(smoothingWindowS(3600, 600)).toBe(12)
-    expect(smoothingWindowS(21_600, 600)).toBe(60)
-    expect(smoothingWindowS(2, 2)).toBe(2)
+  it('is about a hundred and seventy-fifth of the window: two minutes on six hours, 3 s on a lap', () => {
+    expect(smoothingWindowS(21_600)).toBe(123)
+    expect(smoothingWindowS(3600)).toBe(21)
+    expect(smoothingWindowS(600)).toBe(3)
+    expect(smoothingWindowS(300)).toBe(3)
+  })
+
+  it('grows with the window, and never passes it', () => {
+    const spans = [30, 120, 600, 3600, 7200, 21_600]
+    const windows = spans.map(smoothingWindowS)
+    expect([...windows].sort((a, b) => a - b)).toEqual(windows)
+    expect(smoothingWindowS(2)).toBe(2)
+    expect(smoothingWindowS(1)).toBe(1)
   })
 })
 
@@ -61,15 +70,65 @@ describe('reduceSeries', () => {
     expect(linePath(columns, identity).match(/M /g)).toHaveLength(2)
   })
 
-  it('reads the same mean at a cursor as the line draws there', () => {
-    const values = Float32Array.from({ length: 900 }, (_, i) => 100 + (i % 7))
+  it('reads exactly the mean at a cursor that the line draws there, a column to the second', () => {
+    const values = Float32Array.from({ length: 900 }, (_, i) => 100 + (i % 7) + (i % 3) * 5)
     const stream = smoothedStream(values)
-    const columns = reduceSeries(stream, 0, 900, 300)
-    const k = 120
-    expect(meanAround(stream, Math.floor(columns.x[k]!), columns.windowS)).toBeCloseTo(
-      columns.mean[k]!,
-      0,
-    )
+    // As many columns as seconds: each column is one second, and the cursor's second is its column.
+    const columns = reduceSeries(stream, 0, 900, 900)
+    for (const k of [0, 1, 2, 120, 449, 897, 898, 899]) {
+      expect(meanAround(stream, k, columns.windowS)).toBe(columns.mean[k])
+    }
+  })
+
+  it('cuts a window at the ends of the activity, and does not slide it inward', () => {
+    // A ramp of one a second: the mean of a window centred on second 0 with only its later half is 2, not 5.
+    const stream = smoothedStream(Float32Array.from({ length: 100 }, (_, i) => i))
+    expect(meanAround(stream, 0, 5)).toBe(1)
+    expect(meanAround(stream, 99, 5)).toBe(98)
+    expect(meanAround(stream, 50, 5)).toBe(50)
+  })
+
+  it('reads a window given before the start or past the end as the seconds it holds', () => {
+    const stream = smoothedStream(Float32Array.from({ length: 60 }, (_, i) => i))
+    const columns = reduceSeries(stream, -30, 90, 60)
+    expect(columns.x[0]).toBeGreaterThan(0)
+    expect(columns.x.at(-1)).toBeLessThan(60)
+    expect(columns.x).toHaveLength(60)
+    expect(columns.lo[0]).toBe(0)
+    expect(columns.hi.at(-1)).toBe(59)
+    expect(reduceSeries(stream, 59, 60, 10).x).toHaveLength(1)
+    expect(reduceSeries(stream, 0, 1, 10).lo).toEqual([0])
+  })
+
+  it('bridges a gap of a second or two, and breaks the line across a longer one', () => {
+    const values = new Float32Array(200).fill(100)
+    values[40] = Number.NaN
+    values.fill(Number.NaN, 100, 102)
+    values.fill(Number.NaN, 150, 160)
+    const columns = reduceSeries(smoothedStream(values), 0, 200, 200)
+    // The one-second and two-second hiccups keep their columns on the line; the ten-second gap has none.
+    expect(Number.isFinite(columns.mean[40]!)).toBe(true)
+    expect(Number.isFinite(columns.mean[100]!)).toBe(true)
+    expect(Number.isFinite(columns.mean[101]!)).toBe(true)
+    expect(columns.mean.slice(151, 159).every(Number.isNaN)).toBe(true)
+    expect(linePath(columns, identity).match(/M /g)).toHaveLength(2)
+    // A third second missing is a gap.
+    values.fill(Number.NaN, 100, 103)
+    const longer = reduceSeries(smoothedStream(values), 0, 200, 200)
+    expect(Number.isNaN(longer.mean[101]!)).toBe(true)
+  })
+
+  it('knows a second inside a gap has no reading, and one in a hiccup does', () => {
+    const values = new Float32Array(100).fill(1)
+    values[10] = Number.NaN
+    values.fill(Number.NaN, 50, 60)
+    const stream = smoothedStream(values)
+    expect(hasReadingNear(stream, 5)).toBe(true)
+    expect(hasReadingNear(stream, 10)).toBe(true)
+    expect(hasReadingNear(stream, 55)).toBe(false)
+    expect(hasReadingNear(stream, 0)).toBe(true)
+    expect(hasReadingNear(stream, 99)).toBe(true)
+    expect(hasReadingNear(stream, 100)).toBe(false)
   })
 
   it('reads a window inside a long ride from the same sums, without touching the rest', () => {

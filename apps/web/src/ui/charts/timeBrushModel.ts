@@ -29,8 +29,21 @@ export function draggedRange(
   max: number,
 ): BrushRange {
   const at = Math.round(secondS)
-  if (part === 'start') return { startS: clamp(at, 0, origin.endS - 1), endS: origin.endS }
-  if (part === 'end') return { startS: origin.startS, endS: clamp(at, origin.startS + 1, max) }
+  // An end moves by how far the pointer has moved since it took hold, not to where the pointer is: a handle
+  // grabbed off its centre does not jump.
+  const moved = secondS - anchorS
+  if (part === 'start') {
+    return {
+      startS: clamp(Math.round(origin.startS + moved), 0, origin.endS - 1),
+      endS: origin.endS,
+    }
+  }
+  if (part === 'end') {
+    return {
+      startS: origin.startS,
+      endS: clamp(Math.round(origin.endS + moved), origin.startS + 1, max),
+    }
+  }
   if (part === 'move') {
     const length = origin.endS - origin.startS
     const startS = clamp(Math.round(origin.startS + secondS - anchorS), 0, max - length)

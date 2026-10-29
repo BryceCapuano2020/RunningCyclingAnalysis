@@ -9,10 +9,10 @@ import { ActivityWorkbench } from './ActivityWorkbench'
  * and three seconds of a fast burst from 8 m/s up: the standing start is an artifact the axis must not stretch
  * over; the fast end is cut only by half a percent, so just the three fastest seconds of the burst are.
  */
-function runWithArtifacts(): ActivityTrace {
-  const speed = Float32Array.from({ length: 600 }, (_, i) => {
-    if (i < 6) return 0.6
-    if (i >= 597) return 8 + (i - 597) / 10
+function runWithArtifacts(seconds = 600, standing = 6, burst = 3): ActivityTrace {
+  const speed = Float32Array.from({ length: seconds }, (_, i) => {
+    if (i < standing) return 0.6
+    if (i >= seconds - burst) return 8 + (i - (seconds - burst)) / 10
     return i % 2 === 0 ? 3 : 4
   })
   let metres = 0
@@ -25,13 +25,21 @@ function runWithArtifacts(): ActivityTrace {
     version: 1,
     activityId: 'run-axis',
     sport: 'run',
-    durationS: 600,
+    durationS: seconds,
     distance,
-    paused: new Uint8Array(600),
-    unrecorded: new Uint8Array(600),
+    paused: new Uint8Array(seconds),
+    unrecorded: new Uint8Array(seconds),
     streams: { speed },
     laps: [],
   }
+}
+
+/**
+ * Twenty minutes with three seconds of standing start and three of a fast burst: each is a quarter of a
+ * percent of the run, under the hundredth the axis leaves out of each end of the smoothed line.
+ */
+function runWithBriefArtifacts(): ActivityTrace {
+  return runWithArtifacts(1200, 3, 3)
 }
 
 function show(trace: ActivityTrace) {
@@ -57,23 +65,20 @@ function row(figure: HTMLElement, metric: string): Element {
 }
 
 describe('ActivityWorkbench: a pace row and its artifacts', () => {
-  it('spans the axis over the pace the run held, and says what lay past each end', async () => {
-    show(runWithArtifacts())
+  it('reads the axis on the pace the run held, and says what lay past each end', async () => {
+    show(runWithBriefArtifacts())
     const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
-    const drawing = within(figure).getByRole('img', { name: /^From 0:00 to 10:00: Pace between/ })
-    expect(drawing).toHaveAccessibleName('From 0:00 to 10:00: Pace between 4:10 /km and 5:33 /km')
+    const drawing = within(figure).getByRole('img', { name: /^From 0:00 to 20:00: Pace between/ })
+    expect(drawing).toHaveAccessibleName('From 0:00 to 20:00: Pace between 4:10 /km and 5:33 /km')
     // Neither artifact is on the axis: its ticks name the pace the run held, not 27:47 or 2:02.
     const ticks = [...row(figure, 'speed').querySelectorAll('.ts-stack__tick')].map(
       (tick) => tick.textContent,
     )
-    expect(ticks.length).toBeGreaterThan(1)
-    expect(ticks).not.toContain('27:47')
-    expect(
-      within(figure).getByText(
-        'Past the axis, marked at its edge: 6 s slower than 5:33 /km, 3 s faster than 4:10 /km.',
-      ),
-    ).toBeInTheDocument()
-    // The clipped readings are arrowheads on the row's top and bottom edges, and the line never leaves the row.
+    // The run swung between 3 and 4 m/s a second; its trend sits near 3.5 m/s, 4:46 a kilometre, and the axis
+    // is read there, on round paces, with neither the standing start (27:47) nor the burst (2:02) on it.
+    expect(ticks).toEqual(['4:40', '4:45', '4:50', '4:55'])
+    // The clipped readings are bars on the row's top and bottom edges, keyed under the plot, and the line never leaves the row.
+    expect(figure).toHaveTextContent('Reading past the axis')
     const edge = row(figure, 'speed').querySelector('.ts-stack__edge')?.getAttribute('d') ?? ''
     expect(edge).toMatch(/M [\d.-]+ 6 L/)
     expect(edge).toMatch(/M [\d.-]+ 102 L/)
@@ -82,25 +87,48 @@ describe('ActivityWorkbench: a pace row and its artifacts', () => {
     expect(Math.max(...ys)).toBe(102)
   })
 
-  it('draws the raw spread as a band wider than the smoothed line it surrounds', async () => {
-    show(runWithArtifacts())
+  it('draws the raw spread as a band much rougher than the smoothed line it surrounds', async () => {
+    const trace = runWithBriefArtifacts()
+    // A slow swell with a second-by-second jitter on it, the way a watch's pace reads.
+    trace.streams.speed = Float32Array.from(
+      { length: 1200 },
+      (_, i) => 3.5 + 0.6 * Math.sin(i / 120) + (i % 3 === 0 ? 0.35 : i % 3 === 1 ? -0.3 : 0),
+    )
+    show(trace)
     const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
     const speed = row(figure, 'speed')
     const line = yOf(speed.querySelector('.ts-stack__line')?.getAttribute('d'))
-    const band = yOf(speed.querySelector('.ts-stack__band')?.getAttribute('d'))
-    // The readings alternate between two paces each second; the line is their average, so it moves less.
-    const middle = (values: number[]) => values.slice(40, 560)
-    const spread = (values: number[]) => Math.max(...values) - Math.min(...values)
-    expect(spread(middle(line))).toBeLessThan(spread(middle(band)) / 2)
+    const band = yOf(speed.querySelector('.ts-stack__band')?.getAttribute('d')).slice(
+      0,
+      line.length,
+    )
+    const roughness = (values: number[]) =>
+      values.slice(1).reduce((sum, value, i) => sum + Math.abs(value - values[i]!), 0) /
+      values.length
+    expect(roughness(line)).toBeLessThan(roughness(band) / 3)
+  })
+
+  it('does not let a spike set the axis: a rare spike is clipped at the edge and the trend keeps the row', async () => {
+    const trace = runWithBriefArtifacts()
+    trace.streams.speed = new Float32Array(1200).fill(3.5)
+    trace.streams.speed[600] = 9
+    show(trace)
+    const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
+    const speed = row(figure, 'speed')
+    expect(speed.querySelector('.ts-stack__edge')?.getAttribute('d')).toMatch(/M [\d.-]+ 6 L/)
+    // The axis spans the steady 3.5 m/s with room, not the spike: the tick labels are paces near 4:46.
+    const labels = [...speed.querySelectorAll('.ts-stack__tick')].map((tick) => tick.textContent)
+    expect(labels.length).toBeGreaterThan(1)
+    expect(labels.every((label) => /^[3-7]:\d\d$/.test(label ?? ''))).toBe(true)
   })
 
   it('leaves a row with no artifacts exactly as it was', async () => {
-    const trace = runWithArtifacts()
-    trace.streams.speed = Float32Array.from({ length: 600 }, (_, i) => (i % 2 === 0 ? 3 : 4))
+    const trace = runWithBriefArtifacts()
+    trace.streams.speed = new Float32Array(1200).fill(3.5)
     show(trace)
     const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
     expect(row(figure, 'speed').querySelector('.ts-stack__edge')?.getAttribute('d')).toBe('')
-    expect(figure).not.toHaveTextContent('Past the axis')
+    expect(figure).not.toHaveTextContent('Reading past the axis')
   })
 })
 

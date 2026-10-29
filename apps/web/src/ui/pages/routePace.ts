@@ -5,8 +5,8 @@ import type { ActivityTrace } from '@rca/core/workbench'
 const SLOW_QUANTILE = 0.1
 const FAST_QUANTILE = 0.9
 
-/** The share of the fast speed that the fast and slow ends may differ by before the route reads as one even pace. */
-const FLAT_SPREAD = 0.02
+/** A route whose fast and slow ends differ by less than this share of the fast speed is one even pace, and is not coloured. */
+const FLAT_SPREAD = 0.05
 
 /** The value at a quantile of ascending numbers. */
 function quantile(sorted: readonly number[], share: number): number {
@@ -15,7 +15,7 @@ function quantile(sorted: readonly number[], share: number): number {
 
 /**
  * How fast the athlete went along each segment of the route outline, from 0 (among the slowest) to 1 (among
- * the fastest), or null when the trace cannot say. The outline carries no time or distance, by design, so
+ * the fastest), or null when the trace cannot say or the pace hardly varied (under 5% from the 10th to the 90th percentile). The outline carries no time or distance, by design, so
  * the length of the path stands in for the distance: each segment covers the same share of the distance as
  * of the path, and its speed is that distance over the moving time the trace spent there. The outline is
  * simplified, so this is a guide to where the pace was high or low, not a measurement. It reads only the
@@ -73,10 +73,9 @@ export function routeSegmentPace(
   if (sorted.length < 2) return null
   const slow = quantile(sorted, SLOW_QUANTILE)
   const fast = quantile(sorted, FAST_QUANTILE)
-  // A spread under 2% of the pace is rounding, not a difference to colour.
-  const level = fast - slow <= fast * FLAT_SPREAD
+  if (fast - slow < fast * FLAT_SPREAD) return null
   return speeds.map((speed) => {
-    if (!Number.isFinite(speed) || level) return 0.5
+    if (!Number.isFinite(speed)) return 0.5
     return Math.min(1, Math.max(0, (speed - slow) / (fast - slow)))
   })
 }

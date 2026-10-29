@@ -3,10 +3,13 @@ import {
   channelsFor,
   lapChoicesOf,
   overviewOf,
+  plotDomain,
   skippedStretches,
   timelineMarks,
 } from './workbenchChannels'
+import { selectionOf } from './workbenchData'
 import { repsTrace, runTrace, steadyTrace } from './workbenchFixtures'
+import { readingOf } from './workbenchScale'
 
 describe('timelineMarks', () => {
   it('marks each pause and each gap, and lets a gap outrank a pause it overlaps', () => {
@@ -85,7 +88,7 @@ describe('channelsFor', () => {
   it('draws elevation as an area on its own colour, and never lets a power axis go below zero', () => {
     const trace = steadyTrace(120)
     trace.streams.altitude = Float32Array.from({ length: 120 }, (_, i) => 100 + i / 10)
-    trace.streams.power = Float32Array.from({ length: 120 }, (_, i) => 2 + (i % 3) * 100)
+    trace.streams.power = Float32Array.from({ length: 120 }, (_, i) => 2 + i / 2)
     const [power, altitude] = channelsFor(trace, ['power', 'altitude'], 'metric', 0, 120, 120, 3)
     expect(power!.low).toBe(0)
     expect(altitude).toMatchObject({ colour: 'elevation', shape: 'area' })
@@ -106,6 +109,99 @@ describe('channelsFor', () => {
     const [altitude] = channelsFor(trace, ['altitude'], 'imperial', 0, 120, 120, 3)
     expect(altitude!.unit).toBe('ft')
     expect(altitude!.at(60)).toMatchObject({ unit: 'ft', value: '525' })
+  })
+})
+
+describe('the reading at a second', () => {
+  it('is nothing in a paused or unrecorded stretch, though the average round it has a value', () => {
+    const trace = steadyTrace(300)
+    trace.paused.fill(1, 100, 130)
+    trace.unrecorded.fill(1, 200, 205)
+    trace.streams.heartRate![50] = Number.NaN
+    const [pace, heart] = channelsFor(trace, ['speed', 'heartRate'], 'metric', 0, 300, 300, 3)
+    expect(pace!.at(99)).not.toBeNull()
+    expect(pace!.at(110)).toBeNull()
+    expect(pace!.at(202)).toBeNull()
+    expect(pace!.at(130)).not.toBeNull()
+    // A single second the watch dropped is a hiccup: the reading carries across it.
+    expect(heart!.at(50)).not.toBeNull()
+  })
+
+  it('has the average of the selection the summary has for the same seconds', () => {
+    const trace = runTrace()
+    for (const [startS, endS] of [
+      [0, 10],
+      [2, 6],
+      [6, 10],
+    ] as const) {
+      const stats = selectionOf(trace, startS, endS).metrics
+      const channels = channelsFor(
+        trace,
+        ['speed', 'heartRate', 'cadence'],
+        'metric',
+        startS,
+        endS,
+        100,
+        3,
+      )
+      for (const channel of channels) {
+        const metric = channel.key as 'speed' | 'heartRate' | 'cadence'
+        const mean = stats[metric]!.mean!
+        expect(channel.average, metric).toEqual(
+          readingOf(metric, mean, trace.sport, 'metric', trace.cadenceUnit),
+        )
+      }
+    }
+  })
+})
+
+describe('a run’s pace axis', () => {
+  it('never reaches zero speed, whatever the selection, and so always ends', () => {
+    // A brush of one second on a walking stretch: a flat 0.7 m/s, which padding would take past zero.
+    const trace = steadyTrace(60, 0.7)
+    for (const [startS, endS] of [
+      [0, 1],
+      [10, 11],
+      [0, 60],
+    ] as const) {
+      const domain = plotDomain(trace, 'speed', startS, endS)
+      expect(domain?.low).toBeGreaterThanOrEqual(0.5)
+      const [pace] = channelsFor(trace, ['speed'], 'metric', startS, endS, 100, 3)
+      expect(pace!.ticks.every((tick) => Number.isFinite(tick.value))).toBe(true)
+    }
+  })
+
+  it('keeps a ride’s speed axis to zero, where a stop is a real reading', () => {
+    const trace = steadyTrace(60, 0.1)
+    trace.sport = 'ride'
+    expect(plotDomain(trace, 'speed', 0, 60)?.low).toBe(0)
+  })
+})
+
+describe('plotDomain', () => {
+  it('fits the axis to the smoothed trend, so a few spikes clip at the edge and do not squeeze the rest', () => {
+    const trace = steadyTrace(3600)
+    // A steady 200 W with four one-second spikes to 900 W, a ninth of a percent of the ride.
+    trace.streams.power = Float32Array.from({ length: 3600 }, (_, i) =>
+      i % 900 === 0 ? 900 : 200 + (i % 7),
+    )
+    const domain = plotDomain(trace, 'power', 0, 3600)!
+    expect(domain.high).toBeLessThan(260)
+    expect(domain.low).toBeGreaterThan(150)
+    const [power] = channelsFor(trace, ['power'], 'metric', 0, 3600, 600, 3)
+    // The raw spike is still in the band, past the axis, which the row marks.
+    expect(Math.max(...power!.columns.hi.filter(Number.isFinite))).toBe(900)
+    expect(power!.high).toBe(domain.high)
+  })
+
+  it('takes every reading of an area, which has no spikes, and none of a measure with no readings', () => {
+    const trace = steadyTrace(600)
+    trace.streams.altitude = Float32Array.from({ length: 600 }, (_, i) => i)
+    const area = plotDomain(trace, 'altitude', 0, 600)!
+    expect(area.low).toBeLessThan(0)
+    expect(area.high).toBeGreaterThan(599)
+    trace.streams.cadence = new Float32Array(600).fill(Number.NaN)
+    expect(plotDomain(trace, 'cadence', 0, 600)).toBeNull()
   })
 })
 

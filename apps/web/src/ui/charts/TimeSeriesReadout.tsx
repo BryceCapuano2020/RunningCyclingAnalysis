@@ -15,17 +15,20 @@ export function TimeSeriesReadout({
   id,
   channels,
   cursor,
+  announce,
   head,
 }: {
   id: string
   channels: readonly StackChannel[]
   cursor: number | null
+  /** Whether a change is read out: a key's step is, and a pointer sweeping or an idle update is not. */
+  announce: boolean
   head: (second: number) => CursorHead
 }) {
   const host = useContext(ReadoutContext)
   const at = cursor === null ? null : head(cursor)
   const readout = (
-    <div id={id} role="status" className="ts-readout">
+    <div id={id} role="status" aria-live={announce ? 'polite' : 'off'} className="ts-readout">
       {/* The title class is what the readout row looks for to know it holds a reading, not its hint. */}
       <div className="ts-readout__cell chart-tooltip__title">
         <span className="ts-readout__label">{at === null ? 'Selection' : 'Elapsed'}</span>
@@ -55,5 +58,6 @@ export function TimeSeriesReadout({
       })}
     </div>
   )
-  return host === null ? readout : createPortal(readout, host)
+  // Drawn once the row exists, so it mounts once and not twice.
+  return host === null ? null : createPortal(readout, host)
 }

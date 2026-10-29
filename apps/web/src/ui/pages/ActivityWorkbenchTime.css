@@ -6,6 +6,10 @@
   gap: var(--space-2);
 }
 
+.activity-workbench__exact summary {
+  min-height: 40px;
+}
+
 .activity-workbench__exact {
   flex: 1 1 auto;
   min-width: 0;

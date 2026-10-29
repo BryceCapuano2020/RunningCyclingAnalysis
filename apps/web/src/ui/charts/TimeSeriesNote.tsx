@@ -1,3 +1,4 @@
+import { windowText } from './timeSeriesModel'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
 
 /**
@@ -21,13 +22,24 @@ export function TimeSeriesNote({
   const kinds = (['paused', 'unrecorded'] as const).filter((kind) =>
     marks.some((mark) => mark.kind === kind && inWindow(mark.startS, mark.endS)),
   )
+  const clipped = channels.some((channel) =>
+    channel.columns.x.some(
+      (_, i) => channel.columns.hi[i]! > channel.high || channel.columns.lo[i]! < channel.low,
+    ),
+  )
   const bands = channels.some((channel) => channel.shape === 'line')
   return (
     <p className="chart-frame__note ts-stack__note">
       {windowS !== undefined && (
         <>
-          Lines show {windowS} s averages{bands ? '; bands show the full range.' : '.'}
+          Lines show {windowText(windowS)} averages{bands ? '; bands show the full range.' : '.'}
         </>
+      )}
+      {clipped && (
+        <span className="ts-key">
+          <span className="ts-key__swatch ts-key__swatch--edge" aria-hidden="true" />
+          Reading past the axis
+        </span>
       )}
       {skipped && (
         <span className="ts-key">

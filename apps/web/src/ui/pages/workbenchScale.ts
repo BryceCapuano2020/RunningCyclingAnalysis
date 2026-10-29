@@ -18,6 +18,9 @@ export function readingParts(text: string): { value: string; unit: string } {
   return match === null ? { value: text, unit: '' } : { value: match[1]!, unit: match[2]! }
 }
 
+/** The most ticks an axis is given, whatever its span: no loop here runs on a span it was not meant for. */
+const MAX_TICKS = 12
+
 /** The steps a pace axis counts in, in seconds: a tick falls on a round pace, never on 4:52. */
 const PACE_STEPS_S = [5, 10, 15, 20, 30, 60, 120, 300]
 
@@ -74,14 +77,18 @@ export function valueTicks(
 ): ValueTick[] {
   const scale = scaleOf(metric, sport, units)
   const [a, b] = [scale.show(low), scale.show(high)]
+  // A pace at zero speed is infinite, and a span that is not a number has no ticks.
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return []
   const [min, max] = a < b ? [a, b] : [b, a]
   let shown: number[]
   if (isPaceReading(metric, sport)) {
     const step = PACE_STEPS_S.find((candidate) => (max - min) / candidate <= count + 1) ?? 300
     shown = []
-    for (let s = Math.ceil(min / step) * step; s <= max; s += step) shown.push(s)
+    for (let s = Math.ceil(min / step) * step; s <= max && shown.length < MAX_TICKS; s += step) {
+      shown.push(s)
+    }
   } else {
-    shown = niceTicks(min, max, count)
+    shown = niceTicks(min, max, count).slice(0, MAX_TICKS)
     // A step is the nearest round one, which can leave more ticks than a row has room for.
     for (let wanted = count - 1; shown.length > count + 1 && wanted >= 1; wanted -= 1) {
       shown = niceTicks(min, max, wanted)

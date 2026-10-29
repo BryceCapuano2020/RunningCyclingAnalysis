@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { TimeSeriesStack } from '../charts/TimeSeriesStack'
@@ -26,7 +26,7 @@ function titleOf(labels: readonly string[]): string {
  * The chosen measures as one aligned stack over the interval, each with its own colour and a text twin,
  * with a line for each chosen measure that has no reading in it.
  */
-export function ActivityWorkbenchStack({
+export const ActivityWorkbenchStack = memo(function ActivityWorkbenchStack({
   trace,
   units,
   metrics,
@@ -83,4 +83,4 @@ export function ActivityWorkbenchStack({
       ))}
     </>
   )
-}
+})

@@ -1233,38 +1233,46 @@ sport's period. The maths is `packages/core/src/zones` (`timeInZones.ts`, `trace
 
 **Activity page, In detail: the timeline.** The measures stand in one figure, each in its own row at true pixel proportions
 (never a stretched SVG), all on one time axis and under one crosshair, in `ui/charts/TimeSeriesStack.tsx` (the arithmetic is
-`timeSeriesModel.ts`, which knows nothing of activities). Each row draws a smoothed line, a rolling mean as wide as two
-pixels of the window (3 to 60 s, so a close view shows nearly each reading and a six-hour ride averages a minute), and a
-light band from the lowest to the highest raw reading of each pixel, so a spike survives the smoothing. Elevation is an area.
-Each measure has its own colour (the `--ch-*` tokens: pace green, power amber, heart rate magenta, cadence olive, elevation
-stone), which reaches 3:1 on the card in both schemes and stays at least 15 CIEDE2000 from the others and from the run, ride
-and swim hues (`channelTokens.test.ts`); the sport hue still only means a sport. A row's axis holds the readings the
-run held, not the artifacts at its ends. A pace (or a ride's speed) spans its 2nd to 99.5th percentile of moving readings, the
-slow end cut harder since a start, a stop or a dropout is slow and a stride or a descent is real (`readingBand` in
-`packages/core/src/workbench/band.ts`), with 8% of room round it; a cut removes nothing from a selection too short for it
-(under fifty readings at the slow end, two hundred at the fast end), and a band a cut would collapse to a single value is
-left whole. What lies past an end is an arrowhead on the row's edge, and a line in the table ("Past the axis, marked at its
-edge: 24 s slower than 6:39 /km, 28 s faster than 4:25 /km."); the interval summary keeps the true extremes. A pace is
-read faster upward, and its ticks fall on round paces (4:30, not 4:32). There is no histogram: the time in zones says how time was spread, with its own table.
-The readout above the plot is a fixed row: at the cursor it gives the elapsed time, the distance and each measure's value
-(the line's), and with no cursor the selection's averages. Arrow keys move the cursor by a hundredth of the window (a second
-at least), Home and End jump to the ends, Escape clears it; on a phone a touch scrubs and keeps its reading after the finger lifts. Pauses and
+`timeSeriesModel.ts`, which knows nothing of activities). Each row draws a smoothed line, a rolling mean as wide as a
+hundred and seventy-fifth of what is in view (3 s at least, so a lap shows its detail, and two minutes over a six-hour ride,
+which reads as a trend), and a light band from the lowest to the highest raw reading of each pixel, so a spike survives the
+smoothing. The line breaks across a gap of more than two seconds, the recorders' sample rate, and bridges a hiccup of one
+or two. Elevation is an area. Each measure has its own colour (the `--ch-*` tokens: pace green, power amber, heart rate
+magenta, cadence olive, elevation stone), which reaches 3:1 on the card in both schemes and stays at least 15 CIEDE2000 from
+the others and from the run, ride and swim hues (`channelTokens.test.ts`); the sport hue still only means a sport. A row's
+axis is fitted to its smoothed line, from the 1st to the 99th percentile, with 8% of room round it and never narrower than a
+fifth of the raw readings' own span (so a flat trend is drawn flat), and a pace axis never reaches zero speed, which would be an
+infinite pace. A raw reading past the axis (a power spike, a standing start) clips at the row's edge, where a short bar marks it,
+keyed "Reading past the axis" under the plot; the table twin and the interval summary keep the true lowest and highest. A
+pace is read faster upward, and its ticks fall on round paces (4:30, not 4:32). There is no histogram: the time in zones says how
+time was spread, with its own table.
+The readout above the plot is the chart system's readout row, kept at every width (five measures at once would cover the plot
+if they floated): at the cursor it gives the elapsed time, the distance and each measure's value (the line's, and nothing in a
+paused or unrecorded stretch), and with no cursor the selection's averages, the same as the interval summary's. Arrow keys
+move the cursor by a hundredth of the window (a second at least), Home and End jump to the ends, Escape clears it, and only a
+key's step is announced to a screen reader; on a phone a touch scrubs and keeps its reading after the finger lifts. Pauses and
 gaps in the recording are marks on a lane under the rows (a pause solid grey, a gap hatched), and the readings the analysis
-left out are ticks on their own row, keyed in a line under the plot only for the kinds the window holds. Every second lap is
-shaded behind the rows. The laps, or the intervals found in the readings, are one strip above the plot: a segment each as wide as the lap
-was long, at least a finger wide (the strip scrolls past that), and choosing one zooms the timeline to it. The interval is set by a brush
-over a small overview of the whole activity (elevation where there is any): drag an end, the window or the empty track; each
-end is a slider with named values ("Start 12 min 30 s"), and a disclosure under it sets either end by typed time. The timeline keeps its pointer
-work off the page's scroll only on the brush; the plot lets a vertical drag scroll. The summary's extremes read Fastest and Slowest for a pace
+left out are ticks on their own row, each keyed under the plot only for the kinds the window holds. Every second lap is
+shaded behind the rows. The laps, or the intervals found in the readings, are one strip above the plot. Up to eight are
+numbered buttons as wide as the lap was long, at least a finger wide; more are a proportional bar (a number in a segment only
+where it fits) with the chosen lap's name, duration, pace or speed and heart rate in a line under it, one stop in the tab order
+with the arrows stepping from lap to lap. Choosing a lap zooms the timeline to it. The interval is set by a brush
+over a small overview of the whole activity (elevation where there is any): drag an end (by how far it moves, so a grab
+off its centre does not jump), the window or the empty track; each end is a slider with named values ("Start 12 min 30 s"),
+and a disclosure under it ("0:00 to 6:13:37 · Set by time") sets either end by typed time. The plot lets a vertical drag
+scroll the page; only the brush takes the touch. The summary's extremes read Fastest and Slowest for a pace
 and Lowest and Highest otherwise, so a pace is a table of its own, which says it leaves out stops; beside the elapsed time and
-distance it gives the average pace, or speed, as the header does: distance over moving time. A 6-hour ride at 1 Hz reduces five measures in
-about a millisecond a step (`timeSeriesModel.perf.test.ts`), and the heavy figures follow the brush through `useDeferredValue`.
+distance it gives the average pace, or speed, as the header does: distance over moving time. Opening a 6-hour ride at 1 Hz with
+five measures, building every row's columns and paths, takes about 15 ms here (budget 40), a brush step about 10 (budget 25) and a
+cursor step a fraction of a millisecond (`workbenchChannels.perf.test.ts`, `timeSeriesModel.perf.test.ts`); the heavy figures
+follow the brush through `useDeferredValue`, and the rows are not redrawn when the cursor moves.
 
 **Activity page: the route tile.** The route is a tile about 160 px tall, drawn at the track's true aspect, with the start a ring and the
-finish a dot (shapes, not colours). Where the activity's readings are on the device the line is coloured by pace, a ramp from stone to pace
-green with a thicker stroke the faster it was, and keyed "Slower, Faster". The outline carries no time or distance by design, so each
+finish a dot (shapes, not colours). Where the activity's readings are on the device and the pace varied (the 10th to the 90th percentile
+differ by 5% or more) the line is coloured by pace on a diverging ramp from magenta (slow) to green (fast) with a thicker stroke the faster it
+was, and keyed "Slower, Faster"; a route that held one pace is the sport's colour with no key. The outline carries no time or distance by design, so each
 segment stands for the share of the distance that the path's length gives it (`routePace.ts`): a guide to where the pace was high or low,
-read from the trace already on the device, and nothing is sent. Without readings the line is the sport's colour.
+read from the trace already on the device, and nothing is sent.
 
 **Activity page, In detail.** Under the interval summary, a **Time in zones** block follows the interval the
 athlete selects: one stacked bar for each of power (rides with a power meter), pace (runs) and heart rate that the interval

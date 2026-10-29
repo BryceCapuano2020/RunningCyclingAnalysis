@@ -7,9 +7,16 @@
 /** The plot's left and right margins in px. The lap strip and the brush take the same, so they line up. */
 export const STACK_MARGIN = { left: 44, right: 12 }
 
-/** The shortest and longest rolling mean, in seconds. */
+/** The shortest rolling mean, in seconds: a close view still averages out a second's jitter. */
 const MIN_WINDOW_S = 3
-const MAX_WINDOW_S = 60
+/** The rolling mean is this fraction of the window: a trend at overview, and detail once zoomed. */
+const WINDOW_SPAN_SHARE = 1 / 175
+
+/**
+ * The most seconds with no reading that a line is drawn across, as the sample rate of the recorders: a
+ * second or two missing is a hiccup and is bridged; a longer stretch is a gap, and the line breaks.
+ */
+export const BRIDGED_GAP_S = 2
 
 /** A stream with its running sums, so that the mean of any window is two lookups, however long the ride. */
 export interface SmoothedStream {
@@ -47,12 +54,48 @@ export interface SeriesColumns {
 }
 
 /**
- * The rolling mean's width for a window drawn over `columns` pixels: twice a pixel's seconds, so a
- * wider view smooths more and a close one shows nearly each reading, within 3 to 60 s.
+ * The rolling mean's width for a window of `spanS` seconds: a hundred and seventy-fifth of it, so a six-hour
+ * ride reads as a trend (two minutes) and a lap of five minutes shows its detail (3 s, the least), never
+ * more than the window itself.
  */
-export function smoothingWindowS(spanS: number, columns: number): number {
-  const raw = Math.round((2 * spanS) / Math.max(1, columns))
-  return Math.max(1, Math.min(spanS, Math.max(MIN_WINDOW_S, Math.min(MAX_WINDOW_S, raw))))
+export function smoothingWindowS(spanS: number): number {
+  return Math.max(1, Math.min(spanS, Math.max(MIN_WINDOW_S, Math.round(spanS * WINDOW_SPAN_SHARE))))
+}
+
+const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value))
+
+/** The mean of the `windowS` seconds centred on `centre`, cut short at the ends of the stream, or NaN with no reading in it. */
+function windowMean(stream: SmoothedStream, centre: number, windowS: number): number {
+  const length = stream.values.length
+  const start = Math.round(centre - windowS / 2)
+  // A window past an end is cut there, not slid inward, so the mean there stays about its own centre.
+  const i0 = clamp(start, 0, length)
+  const i1 = clamp(start + windowS, 0, length)
+  const seen = stream.count[i1]! - stream.count[i0]!
+  return seen > 0 ? (stream.sum[i1]! - stream.sum[i0]!) / seen : Number.NaN
+}
+
+/** Whether a reading lies within `radius` seconds either side of [first, last): the stretch is no gap if so. */
+function bridged(stream: SmoothedStream, first: number, last: number, radius: number): boolean {
+  const length = stream.values.length
+  const before =
+    stream.count[clamp(first, 0, length)]! - stream.count[clamp(first - radius, 0, length)]!
+  const after =
+    stream.count[clamp(last + radius, 0, length)]! - stream.count[clamp(last, 0, length)]!
+  return before > 0 && after > 0 && last - first <= radius
+}
+
+/** Whether second t has a reading, or one within the bridged gap either side: the cursor reads nothing in a real gap. */
+export function hasReadingNear(stream: SmoothedStream, second: number): boolean {
+  return (
+    Number.isFinite(stream.values[second] ?? Number.NaN) ||
+    bridged(stream, second, second + 1, BRIDGED_GAP_S)
+  )
+}
+
+/** A rolling mean's width in words: whole minutes from a minute, else seconds. */
+export function windowText(seconds: number): string {
+  return seconds >= 60 ? `${Math.round(seconds / 60)} min` : `${seconds} s`
 }
 
 /** The stream over [startS, endS) as at most `columns` columns, in one pass over the seconds it spans. */
@@ -67,7 +110,7 @@ export function reduceSeries(
   const to = Math.min(length, Math.ceil(endS))
   const span = Math.max(1, to - from)
   const count = Math.max(1, Math.min(Math.floor(columns), span))
-  const windowS = smoothingWindowS(span, count)
+  const windowS = smoothingWindowS(span)
   const out: SeriesColumns = { x: [], mean: [], lo: [], hi: [], windowS }
   for (let k = 0; k < count; k += 1) {
     const first = from + Math.floor((k * span) / count)
@@ -81,11 +124,10 @@ export function reduceSeries(
       if (value > hi) hi = value
     }
     const centre = (first + last) / 2
-    const i0 = Math.max(0, Math.min(length, Math.round(centre - windowS / 2)))
-    const i1 = Math.max(i0, Math.min(length, i0 + windowS))
-    const seen = stream.count[i1]! - stream.count[i0]!
+    // A column with no reading in it is on the line only across a gap of a second or two; a longer one breaks it.
+    const gap = lo === Infinity && !bridged(stream, first, last, BRIDGED_GAP_S)
     out.x.push(centre)
-    out.mean.push(seen > 0 ? (stream.sum[i1]! - stream.sum[i0]!) / seen : Number.NaN)
+    out.mean.push(gap ? Number.NaN : windowMean(stream, centre, windowS))
     out.lo.push(lo === Infinity ? Number.NaN : lo)
     out.hi.push(hi === -Infinity ? Number.NaN : hi)
   }
@@ -94,11 +136,7 @@ export function reduceSeries(
 
 /** The mean of the window around second t, or NaN with no reading in it. */
 export function meanAround(stream: SmoothedStream, t: number, windowS: number): number {
-  const length = stream.values.length
-  const i0 = Math.max(0, Math.min(length, Math.round(t + 0.5 - windowS / 2)))
-  const i1 = Math.max(i0, Math.min(length, i0 + windowS))
-  const seen = stream.count[i1]! - stream.count[i0]!
-  return seen > 0 ? (stream.sum[i1]! - stream.sum[i0]!) / seen : Number.NaN
+  return windowMean(stream, t + 0.5, windowS)
 }
 
 /** Maps seconds and values to pixels. The value scale is clamped to the row, so a reading past the axis sits on its edge. */

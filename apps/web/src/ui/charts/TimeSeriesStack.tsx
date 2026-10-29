@@ -1,8 +1,10 @@
-import { useId, useMemo, useState } from 'react'
+import { useCallback, useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ChartSize, Point } from './chartTypes'
+import type { NavigationKey } from './PlotSurface'
 import { PlotSurface } from './PlotSurface'
 import { ReadoutContext } from './readoutContext'
+import { TimeSeriesCursor } from './TimeSeriesCursor'
 import { TimeSeriesNote } from './TimeSeriesNote'
 import { TimeSeriesReadout } from './TimeSeriesReadout'
 import { TimeSeriesRows } from './TimeSeriesRows'
@@ -34,8 +36,6 @@ export interface TimeSeriesStackProps {
   head: (second: number) => CursorHead
   /** The text twin, shown under "View as table". */
   tables: ReactNode
-  /** Told the cursor's second, so a neighbour can follow it. Null when it leaves. */
-  onCursor?: (second: number | null) => void
 }
 
 /** The hint a keyboard reader hears with the plot's name. */
@@ -57,16 +57,15 @@ export function TimeSeriesStack({
   marks,
   head,
   tables,
-  onCursor,
 }: TimeSeriesStackProps) {
   const [stageRef, width] = useSize()
   const id = useId()
   const [readoutHost, setReadoutHost] = useState<HTMLElement | null>(null)
-  const [cursor, setCursorState] = useState<number | null>(null)
-  const setCursor = (second: number | null) => {
-    setCursorState(second)
-    onCursor?.(second)
-  }
+  // The cursor, and whether the keys put it there: only a key's step is announced, not a pointer sweeping.
+  const [cursor, setCursor] = useState<{ second: number | null; byKey: boolean }>({
+    second: null,
+    byKey: false,
+  })
   const channels = useMemo(
     () =>
       build(
@@ -75,22 +74,46 @@ export function TimeSeriesStack({
       ),
     [build, width],
   )
-  const layout = layoutOf(width, channels)
-  const size: ChartSize = {
-    width,
-    height: layout.height,
-    plot: layout.plot,
-    tooltipId: `${id}-readout`,
-    hintId: `${id}-hint`,
-    titleId: `${id}-title`,
-  }
-  const span = Math.max(1, endS - startS)
+  const layout = useMemo(() => layoutOf(width, channels), [width, channels])
+  const size: ChartSize = useMemo(
+    () => ({
+      width,
+      height: layout.height,
+      plot: layout.plot,
+      tooltipId: `${id}-readout`,
+      hintId: `${id}-hint`,
+      titleId: `${id}-title`,
+    }),
+    [width, layout, id],
+  )
   // The window can move under a cursor, as when a lap is chosen, so it is kept inside it.
-  const inside = cursor === null ? null : Math.max(startS, Math.min(cursor, endS - 1))
-  const secondAt = (point: Point) =>
-    Math.floor(
-      startS + ((point.x - layout.plot.left) / (layout.plot.right - layout.plot.left)) * span,
-    )
+  const inside = cursor.second === null ? null : Math.max(startS, Math.min(cursor.second, endS - 1))
+  const { left, right } = layout.plot
+  const onPoint = useCallback(
+    (point: Point | null) => {
+      if (point === null) return setCursor({ second: null, byKey: false })
+      const second = Math.floor(
+        startS + ((point.x - left) / (right - left)) * Math.max(1, endS - startS),
+      )
+      setCursor({ second: Math.max(startS, Math.min(second, endS - 1)), byKey: false })
+    },
+    [startS, endS, left, right],
+  )
+  const onKey = useCallback(
+    (key: NavigationKey) =>
+      setCursor((now) => {
+        const second = stepCursor(
+          now.second === null ? null : Math.max(startS, Math.min(now.second, endS - 1)),
+          key,
+          startS,
+          endS,
+        )
+        // Clearing the cursor (Escape) is a return to the averages, which is not read out.
+        return { second, byKey: second !== null }
+      }),
+    [startS, endS],
+  )
+  const onBlur = useCallback(() => setCursor({ second: null, byKey: false }), [])
 
   return (
     <figure className="chart-frame ts-stack" aria-labelledby={size.titleId}>
@@ -100,7 +123,13 @@ export function TimeSeriesStack({
       {/* The chart system's readout row, kept at every width; the readout draws into it. */}
       <div ref={setReadoutHost} className="chart-frame__readout ts-stack__readout" />
       <ReadoutContext.Provider value={readoutHost}>
-        <TimeSeriesReadout id={size.tooltipId} channels={channels} cursor={inside} head={head} />
+        <TimeSeriesReadout
+          id={size.tooltipId}
+          channels={channels}
+          cursor={inside}
+          announce={cursor.byKey}
+          head={head}
+        />
       </ReadoutContext.Provider>
       <div ref={stageRef} className="chart-frame__stage ts-stack__stage">
         <svg
@@ -118,20 +147,20 @@ export function TimeSeriesStack({
               endS={endS}
               laps={laps}
               marks={marks}
-              cursor={inside}
               hatchId={`${id}-hatch`}
             />
+            {inside !== null && (
+              <TimeSeriesCursor
+                size={size}
+                layout={layout}
+                channels={channels}
+                startS={startS}
+                endS={endS}
+                cursor={inside}
+              />
+            )}
           </g>
-          <PlotSurface
-            size={size}
-            onPoint={(point) =>
-              setCursor(
-                point === null ? null : Math.max(startS, Math.min(secondAt(point), endS - 1)),
-              )
-            }
-            onKey={(key) => setCursor(stepCursor(inside, key, startS, endS))}
-            onBlur={() => setCursor(null)}
-          />
+          <PlotSurface size={size} onPoint={onPoint} onKey={onKey} onBlur={onBlur} />
         </svg>
         <p id={size.hintId} className="sr-only">
           {HINT}

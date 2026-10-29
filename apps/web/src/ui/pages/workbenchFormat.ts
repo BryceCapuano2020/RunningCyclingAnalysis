@@ -17,13 +17,10 @@ export const METRIC_ORDER: readonly TraceMetric[] = [
 export const DEFAULT_METRICS: readonly TraceMetric[] = ['speed', 'power', 'heartRate', 'altitude']
 
 /**
- * The measures whose plot axis and histogram leave out the few extreme readings at either end, and the
- * words for a reading beyond each end. A standing start or a stop leaves a handful of readings that would
- * otherwise stretch the axis over space nothing else uses.
+ * The measures whose range leaves out the few extreme readings at either end. A standing start or a stop
+ * leaves a handful of readings that would otherwise stretch the range over space nothing else uses.
  */
-export const TRIMMED_METRICS: Partial<Record<TraceMetric, { below: string; above: string }>> = {
-  speed: { below: 'slower than', above: 'faster than' },
-}
+export const TRIMMED_METRICS: readonly TraceMetric[] = ['speed']
 
 /** What differs between the sports in an activity's readings, in one place and keyed by Sport. */
 interface SportReading {
@@ -33,7 +30,7 @@ interface SportReading {
   speedText: (speedMs: number, units: UnitSystem) => string
   /**
    * Whether speed is shown as a pace, so a faster reading is a lower number. Its range then runs
-   * from the fastest reading to the slowest, and so do its histogram bins.
+   * from the fastest reading to the slowest.
    */
   speedIsPace: boolean
   /** The slowest speed, in m/s, that still counts as a reading. Below it the athlete has stopped. */

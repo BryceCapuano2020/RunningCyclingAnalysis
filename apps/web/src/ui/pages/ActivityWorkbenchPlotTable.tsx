@@ -2,9 +2,9 @@ import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { formatRecordTime } from '@rca/core/units'
 import { ChartTable } from '../charts/ChartTable'
-import { axisFor, selectionOf } from './workbenchData'
+import { selectionOf } from './workbenchData'
 import { displayValue, metricLabel, rangeHeadings, readingRange } from './workbenchFormat'
-import { beyondAxis, beyondNote, noReadingLabel } from './workbenchText'
+import { noReadingLabel } from './workbenchText'
 
 /** The most sections the interval is cut into for the table. */
 const SECTIONS = 10
@@ -19,8 +19,8 @@ function sectionsOf(startS: number, endS: number): [number, number][] {
 }
 
 /**
- * The text twin of one row of the stack: the measure over the interval section by section, then what the
- * drawing marks without words: moving time with no reading, and readings past the axis.
+ * The text twin of one row of the stack: the measure over the interval section by section, with the
+ * lowest and highest raw readings of each, then the moving time with no reading, which the line breaks for.
  */
 export function ChannelTable({
   trace,
@@ -47,8 +47,6 @@ export function ChannelTable({
   })
   const selection = selectionOf(trace, startS, endS)
   const missing = Math.max(0, selection.movingS - (selection.metrics[metric]?.seconds ?? 0))
-  const axis = axisFor(trace, metric, startS, endS)
-  const beyond = axis === null ? null : beyondNote(beyondAxis(metric, trace, units, axis))
   return (
     <div className="activity-workbench__channel-table">
       <ChartTable
@@ -61,7 +59,6 @@ export function ChannelTable({
           {noReadingLabel(metric, trace.sport)} for {missing} s of moving time.
         </p>
       )}
-      {beyond !== null && <p className="muted">{beyond}</p>}
     </div>
   )
 }

@@ -3,15 +3,18 @@ import { ChartXAxis } from './ChartXAxis'
 import { axisFontRem } from './ticks'
 import { areaPath, bandPath, linePath, timeTicks } from './timeSeriesModel'
 import type { PixelMap } from './timeSeriesModel'
+import { valueMap } from './timeSeriesLayout'
 import type { StackLayout } from './timeSeriesLayout'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
 import { formatRecordTime } from '@rca/core/units'
+import { memo } from 'react'
 import './TimeSeriesStack.css'
 
 /** The widest a time label is, in px, so ticks keep clear of each other. */
 const TICK_GAP_PX = 64
-const MARKER_R = 4
-const EDGE_MARK_PX = 5
+const EDGE_MARK_PX = 3
+/** A bar for a single column is at least this wide, so it is seen. */
+const EDGE_MIN_PX = 5
 const SKIPPED_PX = 5
 
 export interface TimeSeriesRowsProps {
@@ -22,44 +25,51 @@ export interface TimeSeriesRowsProps {
   endS: number
   laps: readonly { startS: number; endS: number }[]
   marks: readonly StackMark[]
-  /** The cursor's whole second, or null. */
-  cursor: number | null
   hatchId: string
 }
 
-/** A reading's pixel row, clamped to it so one past the axis sits on its edge. */
-function valueMap(channel: StackChannel, row: { top: number; bottom: number }) {
-  const span = channel.high - channel.low || 1
-  return (value: number) => {
-    const share = Math.min(1, Math.max(0, (value - channel.low) / span))
-    return row.bottom - share * (row.bottom - row.top)
-  }
-}
-
-/** A small arrowhead on a row's edge for each stretch where a reading went past the axis. */
+/**
+ * A short bar on a row's top or bottom edge for each stretch where the raw readings went past the axis, so a
+ * spike the axis leaves out is seen where it happened. Neighbouring columns share one bar, and a lone one is
+ * at least a few px wide.
+ */
 function edgeMarks(
   channel: StackChannel,
   row: { top: number; bottom: number },
   x: PixelMap['x'],
 ): string {
   const { columns } = channel
+  const half = columns.x.length > 1 ? (x(columns.x[1]!) - x(columns.x[0]!)) / 2 : 2
+  const bar = (from: number, to: number, edge: 'top' | 'bottom') => {
+    const left = Math.round(x(columns.x[from]!) - Math.max(half, EDGE_MIN_PX / 2))
+    const right = Math.round(x(columns.x[to]!) + Math.max(half, EDGE_MIN_PX / 2))
+    const [near, far] =
+      edge === 'top' ? [row.top, row.top + EDGE_MARK_PX] : [row.bottom, row.bottom - EDGE_MARK_PX]
+    return `M ${left} ${near} L ${right} ${near} L ${right} ${far} L ${left} ${far} Z`
+  }
   const marks: string[] = []
-  columns.x.forEach((t, i) => {
-    const px = Math.round(x(t))
-    if (columns.hi[i]! > channel.high)
-      marks.push(
-        `M ${px - 3} ${row.top} L ${px + 3} ${row.top} L ${px} ${row.top + EDGE_MARK_PX} Z`,
-      )
-    if (columns.lo[i]! < channel.low)
-      marks.push(
-        `M ${px - 3} ${row.bottom} L ${px + 3} ${row.bottom} L ${px} ${row.bottom - EDGE_MARK_PX} Z`,
-      )
-  })
+  for (const [edge, past] of [
+    ['top', (i: number) => columns.hi[i]! > channel.high],
+    ['bottom', (i: number) => columns.lo[i]! < channel.low],
+  ] as const) {
+    let from = -1
+    for (let i = 0; i <= columns.x.length; i += 1) {
+      const here = i < columns.x.length && past(i)
+      if (here && from < 0) from = i
+      if (!here && from >= 0) {
+        marks.push(bar(from, i - 1, edge))
+        from = -1
+      }
+    }
+  }
   return marks.join(' ')
 }
 
-/** The static drawing of the stack: laps behind, then each channel's row, the lane of pauses and gaps, and the time axis. */
-export function TimeSeriesRows({
+/**
+ * The static drawing of the stack: laps behind, then each channel's row, the lane of pauses and gaps, and the time axis. It does not
+ * know the cursor, so moving the cursor does not redraw it (it is memoised on what it draws).
+ */
+export const TimeSeriesRows = memo(function TimeSeriesRows({
   size,
   layout,
   channels,
@@ -67,7 +77,6 @@ export function TimeSeriesRows({
   endS,
   laps,
   marks,
-  cursor,
   hatchId,
 }: TimeSeriesRowsProps) {
   const { plot } = size
@@ -172,48 +181,6 @@ export function TimeSeriesRows({
           />
         ) : null,
       )}
-      {cursor !== null && (
-        <line
-          className="chart-crosshair ts-stack__crosshair"
-          x1={x(cursor + 0.5)}
-          x2={x(cursor + 0.5)}
-          y1={plot.top}
-          y2={plot.bottom}
-        />
-      )}
-      {/* The dots sit above the crosshair, so each reads against it. */}
-      {cursor !== null &&
-        channels.map((channel, index) => (
-          <g key={channel.key} className={`ts-ch ts-ch--${channel.colour}`}>
-            <CursorDot
-              channel={channel}
-              cursor={cursor}
-              map={{ x, y: valueMap(channel, layout.rows[index]!) }}
-            />
-          </g>
-        ))}
     </>
   )
-}
-
-/** The ringed marker where the cursor crosses a channel's line, or nothing where the channel has no reading. */
-function CursorDot({
-  channel,
-  cursor,
-  map,
-}: {
-  channel: StackChannel
-  cursor: number
-  map: PixelMap
-}) {
-  const reading = channel.at(cursor)
-  if (reading === null) return null
-  return (
-    <circle
-      className="ts-stack__dot"
-      cx={map.x(cursor + 0.5)}
-      cy={map.y(reading.raw)}
-      r={MARKER_R}
-    />
-  )
-}
+})

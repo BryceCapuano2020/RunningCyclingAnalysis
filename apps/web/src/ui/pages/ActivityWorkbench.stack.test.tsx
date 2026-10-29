@@ -52,6 +52,30 @@ describe('the stack’s crosshair and readout', () => {
     expect(svgOf(plot).querySelector('.ts-stack__crosshair')).toBeNull()
   })
 
+  it('announces a key’s step to a screen reader, and keeps quiet for a pointer and for the idle averages', async () => {
+    const user = userEvent.setup()
+    show(steadyTrace(600, 3))
+    const plot = await surface()
+    const status = within(screen.getByRole('figure')).getByRole('status')
+    expect(status).toHaveAttribute('aria-live', 'off')
+    fireEvent.pointerMove(plot, { clientX: 300, clientY: 40, pointerType: 'mouse' })
+    expect(status).toHaveAttribute('aria-live', 'off')
+    plot.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    await user.keyboard('{Escape}')
+    expect(status).toHaveAttribute('aria-live', 'off')
+  })
+
+  it('draws the readout once, into the row the stack keeps, and not first inline', async () => {
+    show(steadyTrace(600, 3))
+    await surface()
+    const rows = document.querySelectorAll('.chart-frame__readout')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.querySelectorAll('[role="status"]')).toHaveLength(1)
+    expect(document.querySelectorAll('[role="status"].ts-readout')).toHaveLength(1)
+  })
+
   it('puts a ringed dot on each measure’s line at the cursor, and none where it has no reading', async () => {
     const trace = steadyTrace(600, 3)
     trace.streams.heartRate!.fill(Number.NaN, 0, 100)
@@ -85,6 +109,25 @@ describe('the stack’s crosshair and readout', () => {
     fireEvent.pointerDown(plot, { clientX: 44 + 146, clientY: 40, pointerType: 'touch' })
     fireEvent.pointerLeave(plot, { pointerType: 'touch' })
     expect(within(screen.getByRole('figure')).getByRole('status')).toHaveTextContent('Elapsed2:30')
+  })
+})
+
+describe('the readout and the interval summary', () => {
+  it('give the same average for the same seconds, whole and for a lap', async () => {
+    const user = userEvent.setup()
+    show(runTrace())
+    const status = within(await screen.findByRole('figure')).getByRole('status')
+    const tableAverage = async (name: RegExp, row: RegExp) =>
+      within(
+        within(await screen.findByRole('table', { name })).getByRole('row', { name: row }),
+      ).getAllByRole('cell')[0]!.textContent
+    for (const lap of [null, /^Lap 1/, /^Lap 2/]) {
+      if (lap !== null) await user.click(screen.getByRole('button', { name: lap }))
+      const pace = await tableAverage(/pace in the selected interval/i, /^Pace/)
+      const heart = await tableAverage(/while moving in the selected interval/i, /^Heart rate/)
+      expect(status).toHaveTextContent(`Pace${pace!.replace(' ', '')}`)
+      expect(status).toHaveTextContent(`Heart rate${heart!.replace(' ', '')}`)
+    }
   })
 })
 
@@ -145,7 +188,7 @@ describe('the stack’s laps and notes on the timeline', () => {
     show(steadyTrace(3600))
     await surface()
     expect(screen.getByRole('figure')).toHaveTextContent(
-      'Lines show 12 s averages; bands show the full range.',
+      'Lines show 21 s averages; bands show the full range.',
     )
   })
 
@@ -176,6 +219,6 @@ describe('the stack’s layout', () => {
     const { rows } = layoutOf(1200, [1, 0.6].map(channel))
     expect(rows[0]!.bottom - rows[0]!.top).toBe(96)
     expect(rows[1]!.bottom - rows[1]!.top).toBe(58)
-    expect(rows[1]!.top - rows[0]!.bottom).toBe(12)
+    expect(rows[1]!.top - rows[0]!.bottom).toBe(10)
   })
 })

@@ -2,11 +2,18 @@ import type { ActivityLap, ActivityTrace, MaskedMetric, TraceMetric } from '@rca
 import type { UnitSystem } from '@rca/core/units'
 import { formatDistance, formatRecordTime } from '@rca/core/units'
 import type { BrushOverview } from '../charts/TimeBrush'
-import { meanAround } from '../charts/timeSeriesModel'
+import { hasReadingNear, meanAround } from '../charts/timeSeriesModel'
 import type { ChannelColour, CursorHead, StackChannel, StackMark } from '../charts/timeSeriesTypes'
 import { MIN_LAPS } from '../components/lapRows'
-import { axisFor, plottedStream, selectionOf, seriesFor, suggestedIntervals } from './workbenchData'
-import { metricLabel, metricUnit, readingRange } from './workbenchFormat'
+import {
+  axisFor,
+  plottedStream,
+  selectionOf,
+  seriesFor,
+  smoothedBand,
+  suggestedIntervals,
+} from './workbenchData'
+import { SPORT_READING, metricLabel, metricUnit, readingRange } from './workbenchFormat'
 import { readingOf, valueTicks } from './workbenchScale'
 
 /** How each measure is drawn: its colour, whether its area is filled, and its row's height against a pace's. */
@@ -35,13 +42,42 @@ const PAD = 0.08
 /** An area has this much of its span beneath its lowest reading, so its lowest point still has height. */
 const AREA_FLOOR = 0.3
 
-/** The axis's lowest and highest reading with room around them. A reading that cannot be negative never goes below zero. */
-function paddedAxis(low: number, high: number, shape: 'line' | 'area') {
+/**
+ * The axis's lowest and highest reading with room around them. A reading that cannot be negative never goes
+ * below zero, and never below `least`, the least that still counts as a reading: a pace axis reaching zero
+ * speed would be an infinite pace.
+ */
+function paddedAxis(
+  low: number,
+  high: number,
+  shape: 'line' | 'area',
+  least = Number.NEGATIVE_INFINITY,
+) {
   const span = high - low
   const pad = span > 0 ? span * PAD : Math.max(1, Math.abs(high) * 0.05)
-  const floor = shape === 'area' ? Math.max(span, pad) * AREA_FLOOR : pad
-  const paddedLow = low >= 0 && low - floor < 0 && shape === 'line' ? 0 : low - floor
-  return { low: paddedLow, high: high + pad }
+  const room = shape === 'area' ? Math.max(span, pad) * AREA_FLOOR : pad
+  const paddedLow = low >= 0 && low - room < 0 && shape === 'line' ? 0 : low - room
+  return { low: Math.max(least, paddedLow), high: high + pad }
+}
+
+/**
+ * The axis a measure is plotted on, with room round it, or null with no readings. A line is read on the span
+ * of its own smoothed trend, so a spike clips at the row's edge instead of squeezing the rest; an area (the
+ * terrain, which has no spikes) takes all its readings.
+ */
+export function plotDomain(
+  trace: ActivityTrace,
+  metric: TraceMetric,
+  startS: number,
+  endS: number,
+): { low: number; high: number } | null {
+  const shape = STYLE[metric].shape
+  const band =
+    shape === 'area'
+      ? axisFor(trace, metric, startS, endS)
+      : smoothedBand(trace, metric, startS, endS)
+  const floor = metric === 'speed' ? SPORT_READING[trace.sport].minSpeedMs : undefined
+  return band === null ? null : paddedAxis(band.low, band.high, shape, floor)
 }
 
 /** Seconds in runs of 1s in a mask, as [from, to) pairs. */
@@ -108,12 +144,12 @@ export function channelsFor(
 ): StackChannel[] {
   const summary = selectionOf(trace, startS, endS)
   return metrics.flatMap((metric): StackChannel[] => {
-    const axis = axisFor(trace, metric, startS, endS)
+    const domain = plotDomain(trace, metric, startS, endS)
     const series = seriesFor(trace, metric, startS, endS, columns)
     const stream = plottedStream(trace, metric)
-    if (axis === null || series === null || stream === null) return []
+    if (domain === null || series === null || stream === null) return []
     const style = STYLE[metric]
-    const { low, high } = paddedAxis(axis.low, axis.high, style.shape)
+    const { low, high } = domain
     const read = (raw: number) => readingOf(metric, raw, trace.sport, units, trace.cadenceUnit)
     const mean = summary.metrics[metric]?.mean
     return [
@@ -128,6 +164,8 @@ export function channelsFor(
         ticks: valueTicks(metric, trace.sport, units, low, high, tickCount),
         columns: series,
         at: (second) => {
+          // A paused or unrecorded second reads nothing, though the average round it has a value.
+          if (!hasReadingNear(stream, second)) return null
           const raw = meanAround(stream, second, series.windowS)
           return Number.isFinite(raw) ? { raw, ...read(raw) } : null
         },
@@ -193,11 +231,10 @@ const OVERVIEW_COLUMNS = 360
 /** One measure over the whole activity, small, for the brush to sit over. Null when the trace holds none to draw. */
 export function overviewOf(trace: ActivityTrace, max: number): BrushOverview | null {
   for (const metric of OVERVIEW_ORDER) {
-    const axis = axisFor(trace, metric, 0, max)
+    const domain = plotDomain(trace, metric, 0, max)
     const columns = seriesFor(trace, metric, 0, max, OVERVIEW_COLUMNS)
-    if (axis === null || columns === null) continue
-    const style = STYLE[metric]
-    return { columns, colour: style.colour, ...paddedAxis(axis.low, axis.high, style.shape) }
+    if (domain === null || columns === null) continue
+    return { columns, colour: STYLE[metric].colour, ...domain }
   }
   return null
 }

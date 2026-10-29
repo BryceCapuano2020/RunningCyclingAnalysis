@@ -250,7 +250,13 @@ function ReadyWorkbench({
         visible={visible}
         onChange={setVisible}
       />
-      <LapChoices trace={trace} max={max} selection={selection} onSelect={setChosen} />
+      <LapChoices
+        trace={trace}
+        max={max}
+        selection={selection}
+        units={units}
+        onSelect={setChosen}
+      />
       {visible.length > 0 ? (
         <ActivityWorkbenchStack
           trace={trace}

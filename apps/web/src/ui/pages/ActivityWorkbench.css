@@ -3,7 +3,7 @@
  * set small to fit. The gap is closer than a page section's: the controls, the stack and its brush read as
  * one instrument.
  */
-.activity-workbench {
+.section.activity-workbench {
   min-width: 0;
   gap: var(--space-3);
   grid-template-columns: auto minmax(0, 1fr);
@@ -32,7 +32,7 @@
 }
 
 @media (max-width: 760px) {
-  .activity-workbench {
+  .section.activity-workbench {
     gap: var(--space-2);
   }
 }
@@ -75,7 +75,7 @@
 .activity-workbench__metrics {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
+  gap: var(--space-1);
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -95,10 +95,10 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
   /* A chip is 40 px, a touch target that still lets five of them take two rows of a phone. */
   min-height: 40px;
-  padding: 0 var(--space-3);
+  padding: 0 10px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--surface-1);

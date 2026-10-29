@@ -8,11 +8,19 @@ import type { BrushRange } from './timeBrushModel'
 describe('draggedRange', () => {
   const origin = { startS: 100, endS: 200 }
 
-  it('moves one end and stops it a second short of the other', () => {
-    expect(draggedRange('start', origin, 0, 150, 600)).toEqual({ startS: 150, endS: 200 })
-    expect(draggedRange('start', origin, 0, 500, 600)).toEqual({ startS: 199, endS: 200 })
-    expect(draggedRange('end', origin, 0, 50, 600)).toEqual({ startS: 100, endS: 101 })
-    expect(draggedRange('end', origin, 0, 900, 600)).toEqual({ startS: 100, endS: 600 })
+  it('moves one end by how far the pointer moved, and stops it a second short of the other', () => {
+    expect(draggedRange('start', origin, 100, 150, 600)).toEqual({ startS: 150, endS: 200 })
+    expect(draggedRange('start', origin, 100, 500, 600)).toEqual({ startS: 199, endS: 200 })
+    expect(draggedRange('end', origin, 200, 50, 600)).toEqual({ startS: 100, endS: 101 })
+    expect(draggedRange('end', origin, 200, 900, 600)).toEqual({ startS: 100, endS: 600 })
+  })
+
+  it('does not jump an end grabbed off its centre: the pointer five seconds inside it keeps that offset', () => {
+    // Grabbed at 105, five seconds inside the start; the pointer then moves to 155.
+    expect(draggedRange('start', origin, 105, 155, 600)).toEqual({ startS: 150, endS: 200 })
+    expect(draggedRange('start', origin, 105, 105, 600)).toEqual({ startS: 100, endS: 200 })
+    // Grabbed at 195, five seconds inside the end; the pointer moves to 250.
+    expect(draggedRange('end', origin, 195, 250, 600)).toEqual({ startS: 100, endS: 255 })
   })
 
   it('pans the window with its length kept, and stops at either end of the activity', () => {
@@ -87,8 +95,9 @@ describe('TimeBrush', () => {
   it('drags an end with the pointer, and a click that does not move changes nothing', () => {
     const { onChange, track } = show({ startS: 100, endS: 200 })
     const end = screen.getByRole('slider', { name: 'Selection end' })
-    fireEvent.pointerDown(end, { clientX: 200, pointerId: 1 })
-    fireEvent.pointerMove(track, { clientX: 260, pointerId: 1 })
+    // Grabbed ten seconds inside the end (at 190), and dragged to 250: the end follows by sixty seconds.
+    fireEvent.pointerDown(end, { clientX: 190, pointerId: 1 })
+    fireEvent.pointerMove(track, { clientX: 250, pointerId: 1 })
     expect(onChange).toHaveBeenLastCalledWith({ startS: 100, endS: 260 })
     fireEvent.pointerUp(track, { pointerId: 1 })
     onChange.mockClear()

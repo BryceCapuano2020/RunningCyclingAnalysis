@@ -230,17 +230,35 @@ test('the timeline of an activity stays under 700 px at 390 px wide, and the bru
   }
   // From the measure chips to the foot of the brush: everything that sets and shows the interval.
   const top = (await edges(workbench.locator('.activity-workbench__metrics'))).top
-  const bottom = (await edges(workbench.locator('.ts-brush'))).bottom
+  const bottom = (await edges(workbench.locator('.activity-workbench__foot'))).bottom
   expect(bottom - top).toBeLessThanOrEqual(700)
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
   ).toBeLessThanOrEqual(0)
 
+  const readout = workbench.locator('.ts-readout')
+  const lastSecond =
+    Number(
+      await workbench.getByRole('slider', { name: 'Selection end' }).getAttribute('aria-valuemax'),
+    ) - 1
+  const clock = (seconds: number) => {
+    const [h, m, sec] = [
+      Math.floor(seconds / 3600),
+      Math.floor((seconds % 3600) / 60),
+      seconds % 60,
+    ]
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`
+  }
   await plot.focus()
   await page.keyboard.press('ArrowRight')
-  await expect(workbench.getByRole('status').first()).toContainText('Elapsed')
+  await expect(readout).toContainText('Elapsed')
+  await expect(readout).toContainText('Elapsed0:00')
   await page.keyboard.press('End')
-  await expect(workbench.getByRole('status').first()).not.toContainText('Elapsed0:00')
+  // End is the activity's last second, not the first, and reads a value for each measure.
+  await expect(readout).toContainText(`Elapsed${clock(lastSecond)}`)
+  await page.keyboard.press('Home')
+  await expect(readout).toContainText('Elapsed0:00')
   await page.keyboard.press('Escape')
-  await expect(workbench.getByRole('status').first()).toContainText('Average')
+  await expect(readout).toContainText('Average')
 })

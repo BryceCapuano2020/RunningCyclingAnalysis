@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { areaPath, linePath } from './timeSeriesModel'
 import type { SeriesColumns } from './timeSeriesModel'
@@ -40,6 +40,14 @@ const PRESSES_ACROSS = 200
 export function TimeBrush({ max, selection, onChange, overview, spokenTime }: TimeBrushProps) {
   const [lane, width] = useSize()
   const laneRef = useRef<HTMLDivElement | null>(null)
+  // One callback for the life of the brush: a new one each render would be called again, with null then the node.
+  const laneNode = useCallback(
+    (node: HTMLDivElement | null) => {
+      laneRef.current = node
+      lane(node)
+    },
+    [lane],
+  )
   const drag = useRef<Drag | null>(null)
   const { startS, endS } = selection
   const x = (seconds: number) => (seconds / max) * width
@@ -105,10 +113,7 @@ export function TimeBrush({ max, selection, onChange, overview, spokenTime }: Ti
         onPointerCancel={end}
       >
         <div
-          ref={(node) => {
-            laneRef.current = node
-            lane(node)
-          }}
+          ref={laneNode}
           className={`ts-brush__lane ts-ch ts-ch--${overview?.colour ?? 'neutral'}`}
         >
           {path !== null && (

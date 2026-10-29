@@ -59,11 +59,15 @@
 
 /* The fixed row above the plot: it is as tall for one value as for five, so the plot never moves. */
 /* The readout row is the chart system's; it is as tall for one value as for five, so the plot never moves. */
+.ts-stack .chart-frame__details summary {
+  min-height: 40px;
+}
+
 .ts-stack > .ts-stack__readout {
   height: auto;
-  min-height: 3.25rem;
+  min-height: 3rem;
   overflow: visible;
-  padding: var(--space-2);
+  padding: 6px var(--space-2);
 }
 
 .ts-readout {
@@ -151,7 +155,7 @@
 .ts-stack__band {
   fill: var(--ch-fill);
   stroke: var(--ch);
-  stroke-opacity: 0.35;
+  stroke-opacity: 0.22;
   stroke-width: 1;
 }
 
@@ -171,6 +175,7 @@
 /* A reading past the axis: an arrowhead on the row's edge, in the line's colour. */
 .ts-stack__edge {
   fill: var(--ch);
+  fill-opacity: 0.75;
 }
 
 /* A left-out reading: a short tick on the row's floor. */
@@ -243,6 +248,11 @@
   background: var(--text-muted);
 }
 
+.ts-key__swatch--edge {
+  height: 3px;
+  background: var(--text-secondary);
+}
+
 .ts-key__swatch--skipped {
   width: 3px;
   background: var(--text-primary);
@@ -261,20 +271,24 @@
 @media (forced-colors: active) {
   .ts-stack__line,
   .ts-stack__band,
-  .ts-stack__area,
   .ts-stack__edge {
     stroke: CanvasText;
   }
 
-  .ts-stack__area,
   .ts-stack__edge,
   .ts-stack__dot,
   .ts-stack__skipped {
     fill: CanvasText;
   }
 
-  .ts-stack__band {
+  /* A wash would become a solid block of text colour: the area and the band are an outline instead. */
+  .ts-stack__band,
+  .ts-stack__area {
     fill: none;
+  }
+
+  .ts-stack__area {
+    stroke: GrayText;
   }
 
   .ts-stack__mark--paused {

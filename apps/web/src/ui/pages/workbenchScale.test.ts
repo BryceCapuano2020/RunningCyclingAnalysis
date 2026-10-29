@@ -16,6 +16,14 @@ describe('readingParts', () => {
 })
 
 describe('valueTicks', () => {
+  it('ends on a pace axis that reaches zero speed, which is an infinite pace, and has no ticks for it', () => {
+    expect(valueTicks('speed', 'run', 'metric', 0, 3, 3)).toEqual([])
+    expect(valueTicks('speed', 'run', 'imperial', 0, 0.3, 2)).toEqual([])
+    // A slow walking pace and a wide span stay bounded.
+    expect(valueTicks('speed', 'run', 'metric', 0.05, 8, 3).length).toBeLessThanOrEqual(12)
+    expect(valueTicks('speed', 'run', 'metric', Number.NaN, 3, 3)).toEqual([])
+  })
+
   it('puts a pace on round times, in the order it sits on the axis, from the speed it is at', () => {
     // 3.3 to 3.9 m/s is 5:03 to 4:16 a kilometre: ticks fall on 4:30, 4:45 and 5:00, not on the ends.
     const ticks = valueTicks('speed', 'run', 'metric', 3.3, 3.9, 3)

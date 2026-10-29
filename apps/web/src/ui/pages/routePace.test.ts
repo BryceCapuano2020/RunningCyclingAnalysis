@@ -61,8 +61,17 @@ describe('routeSegmentPace', () => {
     ).toBeNull()
   })
 
-  it('says every stretch is middling when the activity held one pace', () => {
-    const shares = routeSegmentPace(LINE, steadyTrace(300))!
-    expect(new Set(shares)).toEqual(new Set([0.5]))
+  it('does not colour a route that held one pace, where the colours would only be rounding', () => {
+    expect(routeSegmentPace(LINE, steadyTrace(300))).toBeNull()
+    // Two paces 4% apart are still one pace; 10% apart are two.
+    const near = twoSpeeds()
+    let metres = 0
+    near.distance = Float64Array.from({ length: 300 }, (_, i) => {
+      const here = metres
+      metres += i < 200 ? 3 : 3.12
+      return here
+    })
+    expect(routeSegmentPace(LINE, near)).toBeNull()
+    expect(routeSegmentPace(LINE, twoSpeeds())).not.toBeNull()
   })
 })

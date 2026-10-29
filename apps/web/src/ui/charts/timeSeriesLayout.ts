@@ -6,7 +6,7 @@ import type { StackChannel } from './timeSeriesTypes'
 /** A row's height in px for a weight of one: a phone's rows are shorter so the whole stack stays under a screen. */
 const BASE_ROW_PX = { phone: 56, wide: 96 }
 /** The air between two rows, where the lower one's top label and the upper one's lowest tick sit. */
-export const ROW_GAP_PX = 12
+export const ROW_GAP_PX = 10
 /** The room above the first row. */
 const TOP_PX = 6
 /** The strip under the rows that holds the pauses and gaps. */
@@ -47,5 +47,14 @@ export function layoutOf(width: number, channels: readonly StackChannel[]): Stac
     rows,
     laneTop,
     laneBottom,
+  }
+}
+
+/** A reading's pixel row, clamped to it so one past the axis sits on its edge. */
+export function valueMap(channel: StackChannel, row: { top: number; bottom: number }) {
+  const span = channel.high - channel.low || 1
+  return (value: number) => {
+    const share = Math.min(1, Math.max(0, (value - channel.low) / span))
+    return row.bottom - share * (row.bottom - row.top)
   }
 }
