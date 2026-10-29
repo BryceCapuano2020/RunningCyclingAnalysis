@@ -70,15 +70,18 @@ describe('the sample athlete fills every section of the app', () => {
 describe('the sample gives one result on every day of a week, and in every week', () => {
   const DAY_MS = 86_400_000
 
-  /** The headline result of the sample loaded `day` days after the reference day. */
-  function headlineOn(day: number) {
-    const state = new AnalysisSession().loadSample(SETTINGS, {
-      nowMs: SAMPLE_REFERENCE_NOW_MS + day * DAY_MS,
-    })
+  /**
+   * The headline result of the sample loaded on a clock, with the year of its newest effort. Each distinct clock
+   * draws a season, which takes seconds on a slow machine, so the results are made once here, as the file is
+   * collected, and no test pays for a drawing.
+   */
+  function headlineOn(clock: { nowMs: number }) {
+    const state = new AnalysisSession().loadSample(SETTINGS, clock)
     const result = state.result!
     const newest = state.library[0]!.startMs
     const grades = headlineGrades(result, sampleProfileAt(newest))
     return {
+      newestYear: new Date(newest).getUTCFullYear(),
       gap: gapOfHeadline(grades),
       run: grades.run,
       ride: grades.ride,
@@ -88,13 +91,16 @@ describe('the sample gives one result on every day of a week, and in every week'
   }
 
   // The season ends on a Sunday that moves by a week at day 1 and day 8 (the reference day is a Sunday). These
-  // are the first day of each new week and the far end, each drawing one uncached season. The plan itself is
-  // checked over all fourteen days in core.
+  // are the first day of each new week and the far end. The plan itself is checked over all fourteen days in core.
   const days = [1, 8, 13]
-  const reference = headlineOn(0)
+  const reference = headlineOn({ nowMs: SAMPLE_REFERENCE_NOW_MS })
+  const later = new Map(
+    days.map((day) => [day, headlineOn({ nowMs: SAMPLE_REFERENCE_NOW_MS + day * DAY_MS })]),
+  )
+  const january = headlineOn({ nowMs: Date.UTC(2027, 0, 6, 12) })
 
   it.each(days)('gives the same headline result %i days after the reference day', (day) => {
-    expect(headlineOn(day)).toEqual(reference)
+    expect(later.get(day)).toEqual(reference)
   })
 
   it('is the result the landing example and the share card show', () => {
@@ -112,21 +118,14 @@ describe('the sample gives one result on every day of a week, and in every week'
   // efforts the grade rests on are in the last, a year younger, so the grades move a little. The plan, the
   // sessions and the figures of each effort do not: only the age they are graded at.
   it('moves the grades only by the age across New Year, and nothing else', () => {
-    const january = new AnalysisSession().loadSample(SETTINGS, {
-      nowMs: Date.UTC(2027, 0, 6, 12),
-    })
-    const newest = january.library[0]!.startMs
-    // The newest effort is in the new year, so the persona turns a year older on it: the efforts of the last year, which
-    // the grades rest on, are graded at the age he was.
-    expect(new Date(newest).getUTCFullYear()).toBe(2027)
-    const grades = headlineGrades(january.result!, sampleProfileAt(newest))
-    const effort = (sport: 'run' | 'ride') =>
-      headlineEffort(sport, sportRecords(january.result!, sport, SETTINGS.massKg, 'metric'))
+    // The newest effort is in the new year, so the persona turns a year older on it: the efforts of the last year,
+    // which the grades rest on, are graded at the age he was.
+    expect(january.newestYear).toBe(2027)
     // The efforts are the same ones, at the same figures.
-    expect(effort('run')).toBe(reference.runBest20)
-    expect(effort('ride')).toBe(reference.rideBest20)
+    expect(january.runBest20).toBe(reference.runBest20)
+    expect(january.rideBest20).toBe(reference.rideBest20)
     for (const sport of ['run', 'ride'] as const) {
-      const [then, now] = [reference[sport], grades[sport]]
+      const [then, now] = [reference[sport], january[sport]]
       if (then.kind !== 'graded' || now.kind !== 'graded') throw new Error('The sample is graded')
       expect(Math.abs(now.grade.centre.grade - then.grade.centre.grade)).toBeLessThan(0.03)
     }
