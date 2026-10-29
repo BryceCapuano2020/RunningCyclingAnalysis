@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { BALANCE_TITLE, LANDING_TITLE, activitiesRows, goTo, openSample } from './helpers.js'
+import {
+  BALANCE_TITLE,
+  LANDING_TITLE,
+  LIST_PAGE_SIZE,
+  activitiesRows,
+  goTo,
+  openSample,
+} from './helpers.js'
 
 test('the Activities period narrows its own rows and All time restores them all, and a Balance pick hides none', async ({
   page,
@@ -7,20 +14,24 @@ test('the Activities period narrows its own rows and All time restores them all,
   await openSample(page)
   // Activities has its own period control, so a pick on Balance leaves every activity listed.
   await page.getByRole('group', { name: 'Period' }).getByText('6 weeks', { exact: true }).click()
-  await expect(await activitiesRows(page)).toHaveCount(14)
+  // The sample's season is far longer than a page of the list, so a full list shows one page of rows.
+  await expect(await activitiesRows(page)).toHaveCount(LIST_PAGE_SIZE)
   await expect(page.locator('.range-picker__count')).toHaveCount(0)
 
   const period = page.getByRole('group', { name: 'Period' })
   await period.getByText('6 weeks', { exact: true }).click()
-  await expect(page.locator('.range-picker__count')).toHaveText(/^\d+ of 14 activities$/)
+  const count = page.locator('.range-picker__count')
+  await expect(count).toHaveText(/^\d+ of \d+ activities$/)
+  const [, inPeriod, total] =
+    /^(\d+) of (\d+) activities$/.exec((await count.textContent()) ?? '') ?? []
+  expect(Number(inPeriod)).toBeGreaterThan(0)
+  expect(Number(inPeriod)).toBeLessThan(Number(total))
   const rows = page.locator('.activity-list__items > li')
-  const shown = await rows.count()
-  expect(shown).toBeGreaterThan(0)
-  expect(shown).toBeLessThan(14)
+  await expect(rows).toHaveCount(Math.min(Number(inPeriod), LIST_PAGE_SIZE))
 
   await period.getByText('All time', { exact: true }).click()
   await expect(page.locator('.range-picker__count')).toHaveCount(0)
-  await expect(rows).toHaveCount(14)
+  await expect(rows).toHaveCount(LIST_PAGE_SIZE)
 })
 
 test('Custom applies the two days entered, and the caption dates the period they name', async ({
@@ -36,7 +47,7 @@ test('Custom applies the two days entered, and the caption dates the period they
   await expect(page.locator('.range-picker__dates')).not.toHaveText('1 Jan – 2 Jan 2000')
   await form.getByRole('button', { name: 'Apply' }).click()
   await expect(page.locator('.range-picker__dates')).toHaveText('1 Jan – 2 Jan 2000')
-  await expect(page.locator('.range-picker__count')).toHaveText('0 of 14 activities')
+  await expect(page.locator('.range-picker__count')).toHaveText(/^0 of \d+ activities$/)
   await expect(period.getByRole('radio', { name: 'Custom' })).toBeChecked()
 })
 
@@ -85,12 +96,13 @@ test('a six-week period compares the best efforts with the six weeks before it',
 }) => {
   await openSample(page)
   await goTo(page, 'Run')
-  await expect(page.getByRole('list', { name: 'Legend' })).toHaveCount(0)
+  // The default 12 weeks have a 12 weeks before them in the sample's long season.
+  const legend = page.getByRole('list', { name: 'Legend' })
+  await expect(legend.getByText('Previous 12 weeks')).toBeVisible()
 
   await page.getByRole('group', { name: 'Period' }).getByText('6 weeks', { exact: true }).click()
-  await expect(
-    page.getByRole('list', { name: 'Legend' }).getByText('Previous 6 weeks'),
-  ).toBeVisible()
+  await expect(legend.getByText('Previous 6 weeks')).toBeVisible()
+  await expect(legend.getByText('Previous 12 weeks')).toHaveCount(0)
 })
 
 test('the fitness over time card shows for sample data, and its table toggles', async ({
@@ -150,11 +162,11 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await page.addStyleTag({ content: ':root { font-size: 20px; }' })
   const period = page.getByRole('group', { name: 'Period' })
   await period.getByText('6 weeks', { exact: true }).click()
-  await expect(page.getByText(/^\d+ of 14 activities$/)).toBeVisible()
+  await expect(page.getByText(/^\d+ of \d+ activities$/)).toBeVisible()
   await period.getByText('All time', { exact: true }).click()
   // The count leaves the caption once the pick is answered; a slow runner can still be applying it.
-  await expect(page.getByText(/^\d+ of 14 activities$/)).toHaveCount(0)
-  await expect(await activitiesRows(page)).toHaveCount(14)
+  await expect(page.getByText(/^\d+ of \d+ activities$/)).toHaveCount(0)
+  await expect(await activitiesRows(page)).toHaveCount(LIST_PAGE_SIZE)
 })
 
 test('How sure is this? says that both best efforts were hard efforts', async ({ page }) => {

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Page not found · Running Cycling Analysis</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      /* Self-contained: served for any unknown path, at any depth, so it uses no relative URL and no script. */
+      :root {
+        --surface: #f5f6f8;
+        --text: #0e1116;
+        --muted: #474f5c;
+        --brand: #c8f03c;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --surface: #0f1115;
+          --text: #eef0f3;
+          --muted: #b6bcc6;
+        }
+      }
+      body {
+        display: grid;
+        min-height: 100svh;
+        margin: 0;
+        place-items: center;
+        padding: 24px 16px;
+        box-sizing: border-box;
+        background: var(--surface);
+        color: var(--text);
+        font-family:
+          'Barlow',
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        line-height: 1.5;
+      }
+      main {
+        max-width: 32rem;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-family: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+        font-size: clamp(2.5rem, 12vw, 4rem);
+        font-weight: 800;
+        line-height: 0.95;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0 0 24px;
+        color: var(--muted);
+        font-size: 1.125rem;
+      }
+      a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 20px;
+        border-radius: 6px;
+        background: #0e1116;
+        color: var(--brand);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      @media (prefers-color-scheme: dark) {
+        a {
+          background: var(--brand);
+          color: #0e1116;
+        }
+      }
+      a:focus-visible {
+        outline: 3px solid var(--text);
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Page not found</h1>
+      <p>There is nothing at this address. The app, with your results, is on the home page.</p>
+      <a href="/">Go to the app</a>
+    </main>
+  </body>
+</html>

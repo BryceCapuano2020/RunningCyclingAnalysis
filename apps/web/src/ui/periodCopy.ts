@@ -6,7 +6,7 @@ import type { Period } from '@rca/core/period'
 import { SIX_WEEKS_DAYS, lengthOf, periodDates } from './components/rangeOptions'
 import type { Span } from './components/rangeOptions'
 import { agoText } from './format/ago'
-import { SPORT_PLURAL } from './sports'
+import { SPORT_NOUN, SPORT_PLURAL } from './sports'
 
 /**
  * The clause that names a span's dates, "between 12 May and 3 Aug 2025", or "on 20 Oct 2026" for a span
@@ -32,11 +32,21 @@ export function listEmptyText(sport: Sport | 'all', window: Span | null): string
 /**
  * What a sport's page says when it has nothing in the period on screen. It names the period and the
  * count in All time, so the athlete knows the switch is one tap away. With no activities at all in
- * the sport, it says so and asks for files.
+ * the sport, it says so and asks for files: to see its records, or on Balance, to compare it with the other sport.
  */
-export function sportEmptyText(sport: Sport, period: Period, inLibrary: number): string {
+export function sportEmptyText(
+  sport: Sport,
+  period: Period,
+  inLibrary: number,
+  compareWith?: Sport,
+): string {
   const noun = SPORT_PLURAL[sport]
-  if (inLibrary === 0) return `Your files have no ${noun} yet. Add ${noun} to see your records.`
+  // On the balance page the other sport is on screen, so the ask is to compare with it.
+  const purpose =
+    compareWith === undefined
+      ? 'see your records'
+      : `compare them with your ${SPORT_NOUN[compareWith]}`
+  if (inLibrary === 0) return `Your files have no ${noun} yet. Add ${noun} to ${purpose}.`
   const when = period.days === null ? '' : ` ${betweenClause(period)}`
   return `No ${noun}${when}. You have ${plural(inLibrary, sport)} in All time.`
 }

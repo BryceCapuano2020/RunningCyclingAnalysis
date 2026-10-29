@@ -43,8 +43,8 @@ all fit, the bar scrolls and fades at its edge. On a phone the brand and actions
 the brand and the actions, since one row would need more width than the 1,080 px page holds. Every tab has a glyph from 561 px: a balance
 beam for Balance, the runner, the rider and a list for Activities. The current tab is marked by a flat
 bar along its foot (its top edge on a phone) and by its colour. An activity's section tab (Run, Ride or Activities) is marked the same way and carries `aria-current="true"`, since the activity is a page of that section; only the page's own tab carries `aria-current="page"`. The method page marks Balance by its class alone, so a screen reader is not told that Balance is the page. Sign-in stays
-one tap away on a phone as the Google mark alone, 44 px square, named **Sign in with Google** for
-screen readers. Below 420 px **Add files** shows its plus only; its name is kept for screen readers and
+one tap away on a phone as the Google mark and the visible words **Sign in**, 44 px tall, named **Sign in with Google**
+for screen readers (the tail "with Google" is visually hidden, so the name is the same at every width). Below 420 px **Add files** shows its plus only; its name is kept for screen readers and
 is its title, so a pointer shows it on hover. The account menu holds the email and Sign out; downloading data and deleting the account
 are on the Profile page. A file dropped anywhere on the page is imported. A drop with no file the import can read, such as a
 .txt, asks nothing: its files go straight to the skipped list. On a short page the footer
@@ -109,10 +109,13 @@ above end on that day. The note says why the default is all time too, when it is
 holds both sports, and an empty note takes no line. A stored pick the control no longer offers, such
 as the 3 months of an earlier version, reads as the default.
 
-**The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
+**The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. Its season is drawn relative to the day it is loaded (`sampleSeason` in `packages/core/src/synthetic`): a full training week for the last 12 weeks, a lighter one before that, and one session a week back past a year, so 12 weeks, 12 months and All time each show something different and the newest activity is the day before. Start times vary through the day (weekday mornings, lunchtimes and evenings, weekend long sessions), in the visitor's own zone, and the ride threshold, bike efficiency and running economy rise through the season, so the trend, volume, same-heart-rate, durability, drift and stand-out sections all have something to show. It is deterministic for a clock and a seed: tests use the fixed reference clock (`SAMPLE_CLOCK`) and the small fixed `sampleDataset` fixture, and the app passes the device's clock. The birth year follows the year of the newest effort, so he is 37 on it. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the lean as a display figure with its range, the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
 
-The landing page is the promise, the drop zone with **Add files** (its one primary action) and
-**See a sample athlete**, the example result, three steps, three sentences on how the result is worked
+The landing page asks "Are you a better runner or a better cyclist?" and answers in one sentence that
+ends on the privacy promise ("nothing leaves your device", or, signed in, "your files are analysed on your device"). The example result is the hero visual and the drop zone sits beside it from 900 px; below that they stack,
+the example first. On a touch screen (`(pointer: coarse), (hover: none)`) the sample leads: **See a sample athlete** is the first
+button and the primary one, **Add files** follows as a secondary action, and nothing says to drag. On a pointer **Add files** is the one
+primary action, then **See a sample athlete**. Below them come three steps, three sentences on how the result is worked
 out with a **Full method** link, and the export guides. On a short phone (SHORT_PHONE_MAX_HEIGHT_PX, 700 px
 tall, and a finger or a window 760 px wide or less) the pitch and the drop zone sit closer, so
 **Add files** is on the first screen at 320 x 568; in landscape the pitch sits beside the drop zone, so
@@ -381,7 +384,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     heartbeat fell 3% from the first half to the second (median of 12 runs)." (or "rose", or "held level" when
     it rounds to under 1%). The chart is a dot for each steady effort by date, its change in output per
     heartbeat in percent (a fall is below zero), with no line between them, and a dashed line at a 5% fall
-    named in the key as "A fall of 5%: under this is usually read as well-built endurance". That is a coaching
+    named in the key as "A fall of 5%: a common coaching reference line". That is a coaching
     convention (`docs/research/durability.md`), a light reference and not a verdict, and the note says that
     heat, hydration and tiredness also move heart rate, so a change is not fitness. An activity whose heart
     rate is set aside has no drift. A half with too few activities is left out and named in the "Not enough
@@ -397,7 +400,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     The list is left out when every section has content, and on a page with no activities.
   - **A threshold the fit refused, shown as its floor, is labelled "Threshold pace, at least"** (or "power"),
     not "estimated", since the floor is a held best. A range whose two ends would print the same reads
-    "About 48 W" in place of "Range 48 to 48 W".
+    "About 48 W" in place of "Fit spread 48 to 48 W".
     The threshold carries no count: the period control under
     the answer names the dates the efforts come from. A sport the library has no activities for has no
     period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
@@ -624,7 +627,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ("30%+" in percent). The best estimate is printed over the dot as "6 pts". Its scale is the gap in
   points when both sports are graded, and the energy ratio in percent when they are not. The track has
   a 3:1 outline, the band a solid edge in its sport's colour, and the end labels name each sport with
-  its glyph. The key under it gives the range in words and reads the same on both scales: "Dot: best estimate. Band: 90% range, 2 to 10 points. Scale: age-grade points.", or "Scale: energy per kilogram." when the scale is the energy ratio. When the heart-rate check adjusted the range, the key says so in place of the points scale: "Dot: best estimate. Band: 90% range, 2 to 10 points. Adjusted by heart rate."; on the energy ratio the note follows the scale: "Scale: energy per kilogram. Adjusted by heart rate.".
+  its glyph. The key under it gives the range in words and reads the same on both scales: "Dot: best estimate. Band: 90% range, 2 to 10 points. Scale: age-grade points.", or "Scale: energy per kilogram." when the scale is the energy ratio. When the heart-rate check informed the range, the key says so in place of the points scale: "Dot: best estimate. Band: 90% range, 2 to 10 points. Range informed by heart rate."; on the energy ratio the note follows the scale: "Scale: energy per kilogram. Range informed by heart rate.".
 - **Where you stand is the hero.** One scale, 40 to 100% fitted to the data (`fitAxis`: whole tens, one ten below the lowest mark to the
   next level above the highest, never under 40 points), with the five levels as neutral bands (`--level-1` to `--level-5`, see Level bands) named at the
   top where their name fits. Each sport has a lane: a recorded grade is a solid dot, an estimate is a hollow ring over a
@@ -683,10 +686,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
   ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, and every column reserves the rows of the tallest label, so the two figures line up even where one label wraps to a single line. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
-- **A threshold has its range under it, in small text.** It reads "Range 22:58 to 23:49 /km" for a
-  run and "Range 48 to 49 W" for a ride, or "About 48 W" when both ends would print the same. The method is the standard error of the critical-power fit: one
+- **A threshold has its range under it, in small text.** It reads "Fit spread 22:58 to 23:49 /km" for a
+  run and "Fit spread 48 to 49 W" for a ride, or "About 48 W" when both ends would print the same. The method is the standard error of the critical-power fit: one
   standard error either side of the critical power, a rough spread of the fit rather than a confidence
-  interval. A range is left out when its low end is not above resting metabolic rate, which
+  interval, so it is not called a range. A range is left out when its low end is not above resting metabolic rate, which
   would be no estimate of a threshold; when a ride's fit draws on an effort whose watts are estimated from
   virtual power, since that range would be an estimate of an estimate; and for a refused threshold.
 - **An uneven best sets only a floor, so the range runs up to a second threshold.** A best of 10 minutes
@@ -808,6 +811,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The evidence card is a card
   only for a gap with an action, and its how-to links to the 20 minute effort under How sure is this?'s heart-rate
   check; good news is a quiet line with no heading.
+- **A held comparison leads with what it can show.** While Balance cannot set the sports against each other, its title names the levels the files do give ("Running is at Local level, cycling at Recreational", or "Your running is at Local level"), and the line under it is one action: "Add one run of 20 min or more to compare them.", "Add 2 more rides in this period to compare them." or "Add your weight on Profile to grade your rides and compare them with your runs." "Not enough to compare yet" is the title only when no sport has a level. With only one sport on file, the other sport's card asks for files to compare it with the first ("Add rides to compare them with your running."). A ride card held for the weight says how many rides there are, how long they ran and when the latest was, none of which needs a weight, then asks for it.
+- **The app-wide error boundary is friendly and plain.** It says "Something went wrong" and "The page stopped working. Reload to try again; your saved activities are untouched." with a **Reload** button. The error's own message is never shown; React logs it to the console.
+- **Share metadata, the manifest and the 404 page.** `index.html` carries the canonical link, Open Graph and Twitter tags and a theme colour for each colour scheme. The image is `public/social-card.png` (1200 x 630, drawn from the sample athlete's numbers by `scripts/make-social-card.ts`, which also writes the app icons). `public/manifest.webmanifest` names the app and its icons; there is no service worker. An unknown path is answered with `public/404.html` and a 404 status (`not_found_handling = "404-page"`), which a browser navigation gets without invoking the Worker; `/api/*` keeps its JSON 404 under the rate limiter.
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
   its figures at the body size in each sport's line, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
@@ -915,7 +921,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   judged on the percent it shows, so a share that rounds to 90% is hard.
 - **Race predictions sit in the middle.** The Run page predicts the 5 km, 10 km, half marathon and
   marathon after Best efforts, in two columns that fit 320 px. The first column holds the race with its
-  pace under it. The second holds the predicted time, "range" its 10th to 90th percentile, and the two
+  pace under it. The second holds the predicted time, "assumed spread" its 10th to 90th percentile of an assumed error (the marathon's is a published validation figure, the shorter races' a judgement, so it is not called a range), and the two
   estimates it sits between ("runs 20:25 · heart rate 18:13"). Each is the geometric mean of the runner's
   bests and the races their heart-rate VO2max would run, both carried by Riegel's law at 1.07 and, for the
   marathon, Vickers & Vertosick's mileage-corrected model. The note says how many hard runs the heart-rate
@@ -1118,7 +1124,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   unanswered, and Profile
   shows it as not entered. Without it, a ride's figures wait: the ride's threshold, its W/kg and
   watts, its grade, its records and its trend are held, and the card, the cross-sport idea and the
-  Ride page say "Add your weight on Profile to see ride figures." with a link to Profile. A run's
+  Ride page say "Add your weight on Profile to grade your rides and see their figures." with a link to Profile. A run's
   figures still show, and the balance waits, so the share sheet is not offered, while no weight is
   entered. The Balance cards, the Ride page, the cross-sport idea and How sure is this? show no ride
   figure worked out from the placeholder weight. How sure is this? holds its energy view and its
@@ -1127,7 +1133,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   running, and asks for no weight. With a run and no ride, or a ride and no run, the energy view names
   the sport it needs and draws no ratio, so the ratio and its chart appear only with both. The request
   for a weight is written once, in weightCopy: the linked prompt Balance and
-  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests and record chips the same way, and says "Add your weight on Profile to see ride figures." in their place.
+  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests and record chips the same way, and says "Add your weight on Profile to grade your rides and see their figures." in their place.
 - **A body weight outside 45 to 160 kg is confirmed before it is kept.** The API accepts a wider range,
   but a kilogram figure typed into a pound field would otherwise pass as a headline. Setup asks again
   when Analyse my files is pressed once more. Profile shows the question with a "Save 34.0 kg" control

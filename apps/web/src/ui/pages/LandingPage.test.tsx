@@ -2,43 +2,114 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { analysisStub } from '../../test/analysisStub'
+import { noMatchMedia } from '../../test/viewport'
+import { TOUCH_QUERY } from '../useMediaQuery'
 import { HISTORY_ADVICE } from '../exportGuides'
 import { LandingPage } from './LandingPage'
 
 afterEach(() => {
   cleanup()
+  noMatchMedia()
 })
 
 /** The example result's figure, found by its caption. */
 function exampleFigure(): HTMLElement {
-  const figure = screen.getByText('Illustrative: the sample athlete').closest('figure')
+  const figure = screen
+    .getByText('Illustrative: the sample athlete, a 37-year-old man at 75 kg')
+    .closest('figure')
   if (!figure) throw new Error('No example figure')
   return figure
 }
 
+/** A touch screen: the touch query matches, and no other does. */
+function touchScreen() {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: query === TOUCH_QUERY,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }),
+  })
+}
+
+describe('LandingPage on a touch screen', () => {
+  it('puts the two actions directly under the pitch, ahead of the example, the sample first', () => {
+    touchScreen()
+    const { container } = render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
+    const start = container.querySelector('.landing__start')
+    expect(start).toHaveClass('landing__start--touch')
+    const [first, second] = Array.from(start?.children ?? [])
+    expect(first).toHaveClass('dropzone--touch')
+    expect(second).toHaveClass('landing-example')
+    const pitch = container.querySelector('.app__pitch')!
+    expect(pitch.compareDocumentPosition(first!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const buttons = within(first as HTMLElement).getAllByRole('button')
+    expect(buttons.slice(0, 2).map((button) => button.textContent)).toEqual([
+      'See a sample athlete',
+      'Add files',
+    ])
+    expect(buttons[0]).toHaveClass('btn-primary')
+    expect(buttons[1]).not.toHaveClass('btn-primary')
+  })
+
+  it('offers only Add files, as the primary action, to a signed-in visitor', () => {
+    touchScreen()
+    const { container } = render(
+      <LandingPage analysis={analysisStub()} signedIn units="metric" onFiles={vi.fn()} />,
+    )
+    const zone = container.querySelector('.dropzone--touch') as HTMLElement
+    expect(within(zone).getByRole('button', { name: 'Add files' })).toHaveClass('btn-primary')
+    expect(within(zone).queryByRole('button', { name: 'See a sample athlete' })).toBeNull()
+  })
+})
+
 describe('LandingPage', () => {
-  it('asks how balanced the visitor is, as the focusable page heading', () => {
+  it('asks which sport the visitor is better at, as the focusable page heading', () => {
     render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
     )
 
     const heading = screen.getByRole('heading', {
       level: 1,
-      name: 'How balanced are you as an athlete?',
+      name: 'Are you a better runner or a better cyclist?',
     })
     expect(heading).toHaveAttribute('id', 'page-heading')
     expect(heading).toHaveAttribute('tabindex', '-1')
   })
 
-  it('names running and cycling plainly in the lede, and what the visitor gets back', () => {
+  it('says what to bring and what comes back in one sentence, ending on the privacy promise', () => {
     render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
     )
     expect(
       screen.getByText(
-        'Add your runs and rides. See how your running and cycling compare, as your level for your age, and which way your balance leans.',
+        'Drop in your Strava export or watch files to see your level in each sport for your age, with honest ranges. Nothing leaves your device.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('does not promise that nothing leaves the device to a signed-in visitor, whose summaries are stored', () => {
+    render(<LandingPage analysis={analysisStub()} signedIn units="metric" onFiles={vi.fn()} />)
+    expect(screen.queryByText(/Nothing leaves your device/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Drop in your Strava export or watch files to see your level in each sport for your age, with honest ranges. Your files are analysed on your device.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('puts the example before the drop zone on a pointer, where they sit side by side', () => {
+    const { container } = render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
+    const [first, second] = Array.from(container.querySelector('.landing__start')?.children ?? [])
+    expect(first).toHaveClass('landing-example')
+    expect(second).toHaveClass('dropzone')
   })
 
   it('offers the sample athlete to a signed-out visitor and loads it on click', () => {
@@ -167,32 +238,35 @@ describe('LandingPage', () => {
     expect(screen.getByRole('region', { name: 'How to get your files' })).toBeInTheDocument()
   })
 
-  it('shows the example result with its meter and the example pace and power', () => {
+  it('shows the example result: the lean and its range, each sport’s level on its bar, and the pace and power', () => {
     render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
     )
 
     const example = exampleFigure()
     expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
-    expect(
-      within(example).getByRole('img', {
-        name: 'Running grades 6 points higher than cycling (range 1 to 12\u00a0points)',
-      }),
-    ).toBeInTheDocument()
-    expect(within(example).getByText('Run · Local · 64%')).toBeInTheDocument()
-    expect(within(example).getByText('Pace 4:29 /km')).toBeInTheDocument()
-    expect(within(example).getByText('Power 225 W')).toBeInTheDocument()
+    expect(within(example).getByText('+11')).toBeInTheDocument()
+    expect(within(example).getByText('range 6 to 16 points')).toBeInTheDocument()
+    expect(within(example).getByText('Run · Local · 67%')).toBeInTheDocument()
+    expect(within(example).getByText('Pace 4:17 /km')).toBeInTheDocument()
+    expect(within(example).getByText('Power 222 W')).toBeInTheDocument()
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()
+    // Each bar is named for a screen reader, and its mark is the sport's own: a dot, or a ring over a band.
+    expect(within(example).getAllByRole('img')).toHaveLength(2)
+    expect(example.querySelector('.level-ladder__dot')).not.toBeNull()
+    expect(example.querySelector('.level-ladder__ring')).not.toBeNull()
   })
 
-  it('puts running on the left end of the example meter, as the sport cards do', () => {
+  it('leaves out the explanatory key, the scale numbers and the level-name row, which the lines above the bars replace', () => {
     render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
     )
-    const leftEnd = exampleFigure().querySelector('.balance-meter__end--left')
-    const rightEnd = exampleFigure().querySelector('.balance-meter__end--right')
-    expect(leftEnd).toHaveAttribute('data-sport', 'run')
-    expect(rightEnd).toHaveAttribute('data-sport', 'ride')
+    const example = exampleFigure()
+    expect(within(example).queryByText(/Dot: best estimate/)).not.toBeInTheDocument()
+    expect(within(example).queryByText(/Scale:/)).not.toBeInTheDocument()
+    expect(example.querySelector('.balance-meter')).toBeNull()
+    expect(example.querySelector('.level-ladder__scale')).toBeNull()
+    expect(example.querySelector('.level-ladder__names')).toBeNull()
   })
 
   it('gives the example pace per mile for imperial', () => {
@@ -200,7 +274,7 @@ describe('LandingPage', () => {
       <LandingPage analysis={analysisStub()} signedIn={false} units="imperial" onFiles={vi.fn()} />,
     )
     // The sample's own Balance reads the same pace.
-    expect(within(exampleFigure()).getByText('Pace 7:12 /mi')).toBeInTheDocument()
+    expect(within(exampleFigure()).getByText('Pace 6:53 /mi')).toBeInTheDocument()
   })
 
   it('explains the result in three plain sentences, with a link to the full method', () => {

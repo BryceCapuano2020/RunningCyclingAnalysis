@@ -211,7 +211,9 @@ describe('BalancePage', () => {
 
     const card = screen.getByRole('region', { name: 'Ride' })
     expect(
-      within(card).getByText('Your files have no rides yet. Add rides to see your records.'),
+      within(card).getByText(
+        'Your files have no rides yet. Add rides to compare them with your running.',
+      ),
     ).toBeInTheDocument()
   })
 
@@ -636,7 +638,7 @@ describe('BalancePage with no weight entered', () => {
     expect(prompts.length).toBeGreaterThanOrEqual(1)
     for (const prompt of prompts) expect(prompt).toHaveAttribute('href', '#/profile')
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
-      'Add your weight on Profile to see ride figures.',
+      'Add your weight on Profile to grade your rides and see their figures.',
     )
   })
 

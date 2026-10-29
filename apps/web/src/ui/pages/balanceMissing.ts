@@ -1,8 +1,8 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import { countedPhrase, heldReason, needLine } from '../components/headlineNeed'
+import { countedPhrase, heldAction, needLine } from '../components/headlineNeed'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
-import { HARDER_EFFORTS_TITLE } from '../components/headlineText'
+import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
 import { betweenClause } from '../periodCopy'
 import { countEfforts, countSport } from '../records'
@@ -64,11 +64,11 @@ export function missingText(
         canShowAll: true,
       }
     }
+    // One sport: its level is the title, and the one thing to do is the line under it.
+    const title = levelsTitle({ run: levels.run })
     return {
-      title: levels.run
-        ? `Your running is at ${levels.run} level. Add a ride to see your balance.`
-        : 'Add a ride to see your balance',
-      detail: 'Your run results are below.',
+      title: title ?? 'Add a ride to see your balance',
+      detail: title ? 'Add a ride to compare it with your running.' : 'Your run results are below.',
       canShowAll: false,
     }
   }
@@ -80,24 +80,28 @@ export function missingText(
         canShowAll: true,
       }
     }
+    const title = levelsTitle({ ride: levels.ride })
     return {
-      title: levels.ride
-        ? `Your cycling is at ${levels.ride} level. Add a run to see your balance.`
-        : 'Add a run to see your balance',
-      detail: 'Your ride results are below.',
+      title: title ?? 'Add a run to see your balance',
+      detail: title ? 'Add a run to compare it with your cycling.' : 'Your ride results are below.',
       canShowAll: false,
     }
   }
   if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when)
-  return heldMissing(result, library, period)
+  return heldMissing(result, library, period, levels)
 }
 
 /**
  * The two sports are both on file but cannot be compared: the counts the headline's rule counts, then what is missing.
  * A dated period short of activities may find enough in All time.
  */
-function heldMissing(result: AnalysisResult, library: ActivitySummary[], period: Period): Missing {
-  const reason = heldReason(result, period)
+function heldMissing(
+  result: AnalysisResult,
+  library: ActivitySummary[],
+  period: Period,
+  levels: { run: string | null; ride: string | null },
+): Missing {
+  const action = heldAction(result, period)
   const allTimeEnough =
     needLine(headlineShortfall(result.activities), period, result.activities) !== null &&
     period.days !== null &&
@@ -105,8 +109,9 @@ function heldMissing(result: AnalysisResult, library: ActivitySummary[], period:
   const runs = countedPhrase(result.activities, 'run')
   const rides = countedPhrase(result.activities, 'ride')
   return {
-    title: HARDER_EFFORTS_TITLE,
-    detail: `From ${runs} and ${rides}. ${reason}`,
+    // The levels the files do show are the title; "not enough" is the title only when there is none to show.
+    title: levelsTitle(levels) ?? HARDER_EFFORTS_TITLE,
+    detail: `From ${runs} and ${rides}. ${action}`,
     canShowAll: allTimeEnough,
   }
 }

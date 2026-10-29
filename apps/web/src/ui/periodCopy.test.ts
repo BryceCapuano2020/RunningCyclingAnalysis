@@ -51,6 +51,15 @@ describe('sportEmptyText', () => {
     )
   })
 
+  it('asks to compare with the other sport when the page holds that sport', () => {
+    expect(sportEmptyText('ride', SIX_WEEKS, 0, 'run')).toBe(
+      'Your files have no rides yet. Add rides to compare them with your running.',
+    )
+    expect(sportEmptyText('run', SIX_WEEKS, 0, 'ride')).toBe(
+      'Your files have no runs yet. Add runs to compare them with your cycling.',
+    )
+  })
+
   it('uses the singular for one activity in All time', () => {
     expect(sportEmptyText('run', SIX_WEEKS, 1)).toBe(
       'No runs between 12 May and 3 Aug 2025. You have 1 run in All time.',

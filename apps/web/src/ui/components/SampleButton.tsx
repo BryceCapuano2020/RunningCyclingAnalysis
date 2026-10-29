@@ -5,6 +5,8 @@ export interface SampleButtonProps {
   onSample: () => void
   /** The id of the line that says why the sample is off, while it is. */
   describedBy?: string
+  /** The one primary action, as it is on a touch screen, where the sample leads. */
+  primary?: boolean
   children: ReactNode
 }
 
@@ -12,11 +14,17 @@ export interface SampleButtonProps {
  * Starts the sample athlete. It is aria-disabled, not disabled, while an import is busy: a disabled
  * button drops the focus it holds, so the click is guarded instead.
  */
-export function SampleButton({ busy, onSample, describedBy, children }: SampleButtonProps) {
+export function SampleButton({
+  busy,
+  onSample,
+  describedBy,
+  primary = false,
+  children,
+}: SampleButtonProps) {
   return (
     <button
       type="button"
-      className="btn"
+      className={primary ? 'btn btn-primary' : 'btn'}
       onClick={() => {
         if (!busy) onSample()
       }}

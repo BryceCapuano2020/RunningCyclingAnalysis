@@ -1,6 +1,8 @@
 # Applied by Workers Static Assets to static responses. API responses set their own headers in the
-# Worker (apps/api/src/app.ts). A missing /assets/ path matches no file, so it falls through to the
-# Worker's JSON 404, which these rules do not touch; immutable caching applies only to real files.
+# Worker (apps/api/src/app.ts). A missing path matches no file and is answered with 404.html and a 404
+# status (not_found_handling = "404-page"), or by the Worker's own 404 where Cloudflare invokes it. The
+# year-long cache rules for /assets are appended by the build, one for each emitted file, because a pattern
+# would also cover the 404 for a missing file (vite.config.ts, scripts/assetHeaders.ts).
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
   Cross-Origin-Opener-Policy: same-origin
@@ -10,9 +12,6 @@
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=31536000
-
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
 
 /.well-known/security.txt
   Content-Type: text/plain; charset=utf-8

@@ -18,6 +18,8 @@ describe('WeightPrompt', () => {
 
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
     expect(container.querySelector('p')).toHaveTextContent(WEIGHT_PROMPT_TEXT)
-    expect(WEIGHT_PROMPT_TEXT).toBe('Add your weight on Profile to compare a ride with a run.')
+    expect(WEIGHT_PROMPT_TEXT).toBe(
+      'Add your weight on Profile to grade your rides and compare them with your runs.',
+    )
   })
 })

@@ -49,9 +49,10 @@ flowchart LR
 The app is deployed as a single Worker with Workers Static Assets, not as a Cloudflare Pages
 project. `apps/api/wrangler.toml` points `[assets]` at `apps/web/dist`. Requests under `/api` run
 the Worker first. Every other request is served from the built files when a file matches. A path that
-matches no file falls through to the Worker, which returns a JSON 404 (plain text under `/assets/`).
-The web app has no client-side routes and `not_found_handling = "none"`, so nothing falls back to
-`index.html`. The web app and API therefore share
+matches no file is answered with the built `404.html` and a 404 status (`not_found_handling =
+"404-page"`); a browser navigation to it does not invoke the Worker, while a non-navigation request
+(curl, a script, a bot) still reaches the Worker, which returns a JSON 404 (plain text under `/assets/`).
+The web app uses hash routes, so nothing falls back to `index.html`. The web app and API therefore share
 one origin, `https://rca-api.nutritioncoachapp.workers.dev`, so the session cookie is first-party
 and `SameSite=Lax` applies. `npm run build` must run before a deploy, because the assets come from
 the build output.

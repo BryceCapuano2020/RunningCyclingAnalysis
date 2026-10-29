@@ -25,7 +25,7 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument()
   })
 
-  it('shows a card with the error message when a child throws', () => {
+  it('shows a friendly card with a reload action, and keeps the error’s own message out of the page', () => {
     // React logs caught render errors to the console; keep the test output clean.
     vi.spyOn(console, 'error').mockImplementation(() => {})
     render(
@@ -34,7 +34,11 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     )
     expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument()
-    expect(screen.getByText('Chart data was malformed')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The page stopped working. Reload to try again; your saved activities are untouched.',
+    )
+    expect(screen.queryByText(/Chart data was malformed/)).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('malformed')
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
   })
 

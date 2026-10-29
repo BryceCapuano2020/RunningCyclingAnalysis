@@ -74,7 +74,11 @@ const TOPIC_LIST = [
     detail:
       `Efficiency varies between people by about ${spreadPercent(PRIORS.grossEfficiency)}%, and ` +
       `running economy by about ${spreadPercent(PRIORS.runEconomyScale)}%. Those spreads are the ` +
-      'model’s assumptions behind the range.',
+      'model’s assumptions behind the range. Two other spreads are not that range. A threshold’s ' +
+      '“fit spread” is one standard error of the fit either side of the threshold; it shows how ' +
+      'loosely the fit was pinned down, not where your capability lies. A race prediction’s ' +
+      '“assumed spread” is a typical prediction error for that distance: the marathon’s comes from ' +
+      'a published validation, and the shorter races’ are a judgement, scaled down with distance.',
   },
   {
     id: 'trend',
@@ -95,7 +99,7 @@ const TOPIC_LIST = [
     id: 'heart',
     title: 'Heart-rate check',
     plain: [
-      'Heart rate is used to check the model, not to measure fitness. If the data support an adjustment, the range is adjusted to match; if they do not, the population range is kept.',
+      'Heart rate is used to check the model, not to measure fitness. If the data are consistent enough to inform the range, it is shifted to match; if not, the population range is kept. The step is a consistency check on your own data, not a validated correction.',
     ],
     detail:
       'The model assumes heart rate responds to energy rate in a similar way in both sports, so ' +

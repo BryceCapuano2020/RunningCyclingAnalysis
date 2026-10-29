@@ -446,9 +446,10 @@ describe('BalanceHero without a comparison yet', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Your running is at Local level. Add a ride to see your balance.',
+        name: 'Your running is at Local level',
       }),
     ).toBeInTheDocument()
+    expect(screen.getByText('Add a ride to compare it with your running.')).toBeInTheDocument()
   })
 
   it('asks for a ride when only runs are present, and points down to the running', () => {
@@ -518,7 +519,34 @@ describe('BalanceHero without a comparison yet', () => {
       screen.getByRole('heading', { level: 1, name: 'Not enough to compare yet' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('From 1 run and 2 rides. Needs 2 more runs and 1 more ride.'),
+      screen.getByText('From 1 run and 2 rides. Add 2 more runs and 1 more ride to compare them.'),
+    ).toBeInTheDocument()
+  })
+
+  it('leads with the levels it can show, not with what is missing, when both sports are graded', () => {
+    const activities = [
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      ...[1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' })),
+    ]
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        runLevel="Local"
+        rideLevel="Recreational"
+        result={makeResult({ activities, comparison: { prior: [], calibrated: null } })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Running is at Local level, cycling at Recreational',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Not enough to compare yet')).toBeNull()
+    expect(
+      screen.getByText('From 1 run and 3 rides. Add 2 more runs to compare them.'),
     ).toBeInTheDocument()
   })
 
@@ -537,7 +565,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'From 3 runs and 3 rides. A hard 20 min run or ride would let them be compared.',
+        'From 3 runs and 3 rides. Add one run or ride of 20 min or more to compare them.',
       ),
     ).toBeInTheDocument()
   })
@@ -557,7 +585,7 @@ describe('BalanceHero without a comparison yet', () => {
       />,
     )
     expect(
-      screen.getByText('From 1 outdoor run and 3 rides. Needs 2 more outdoor runs.'),
+      screen.getByText('From 1 outdoor run and 3 rides. Add 2 more outdoor runs to compare them.'),
     ).toBeInTheDocument()
   })
 
@@ -585,7 +613,7 @@ describe('BalanceHero without a comparison yet', () => {
       screen.getByRole('heading', { level: 1, name: 'Not enough to compare yet' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('From 1 run and 3 rides. Needs 2 more runs in this period.'),
+      screen.getByText('From 1 run and 3 rides. Add 2 more runs in this period to compare them.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show all time' })).toBeInTheDocument()
   })
@@ -646,7 +674,7 @@ describe('BalanceHero without a comparison yet', () => {
     expect(screen.queryByText(/steadier answer/)).not.toBeInTheDocument()
   })
 
-  it('tells the meter the range was adjusted by heart rate, when the check used it', () => {
+  it('tells the meter the range was informed by heart rate, when the check used it', () => {
     const { container } = render(
       <BalanceHero
         {...ALL_TIME}
@@ -656,7 +684,7 @@ describe('BalanceHero without a comparison yet', () => {
       />,
     )
     expect(container.querySelector('.balance-meter__key')?.textContent).toMatch(
-      /Adjusted by heart rate\.$/,
+      /Range informed by heart rate\.$/,
     )
   })
 
@@ -792,10 +820,29 @@ describe('BalanceHero while no weight is entered', () => {
       screen.getByText(
         (_, node) =>
           node?.tagName === 'P' &&
-          node.textContent === 'Add your weight on Profile to compare a ride with a run.',
+          node.textContent ===
+            'Add your weight on Profile to grade your rides and compare them with your runs.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('img')).toBeNull()
+  })
+
+  it('names the run level as the title while the ride waits, so the page leads with what it can show', () => {
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        runLevel="Local"
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={null}
+        weightKnown={false}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Your running is at Local level' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Your balance waits for your weight')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument()
   })
 
   it('still names the missing ride when only runs are on file, since a ride is needed first', () => {

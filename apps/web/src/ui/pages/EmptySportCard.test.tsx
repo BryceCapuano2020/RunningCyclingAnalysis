@@ -30,7 +30,7 @@ describe('EmptySportCard', () => {
   it('says the files have none, when the library has none of the sport', () => {
     render(<EmptySportCard sport="run" inLibrary={0} period={SIX_WEEKS} onAddFiles={vi.fn()} />)
     expect(
-      screen.getByText('Your files have no runs yet. Add runs to see your records.'),
+      screen.getByText('Your files have no runs yet. Add runs to compare them with your cycling.'),
     ).toBeInTheDocument()
   })
 

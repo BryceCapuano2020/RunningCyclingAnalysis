@@ -46,7 +46,7 @@ vi.mock('./ui/charts', async () => {
   return { ...heavyChartStubs, ...(await trendCharts()) }
 })
 
-const LANDING_HEADING = 'How balanced are you as an athlete?'
+const LANDING_HEADING = 'Are you a better runner or a better cyclist?'
 
 /** A weekly trend point ending at week (0 = the first week) with the given run and ride values. */
 const week = (index: number, runWkg: number | null, rideWkg: number | null): TrendPoint => ({

@@ -1,8 +1,11 @@
+import { appendFileSync, readFileSync, readdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { configDefaults } from 'vitest/config'
 import type { Connect, Plugin } from 'vite'
+import { RULES_MARKER, immutableAssetRules } from './scripts/assetHeaders.ts'
 import { e2eApiPort } from './e2e/ports.ts'
 
 /** Workers Assets serves /privacy.html at /privacy; the Vite servers do the same for parity. */
@@ -20,9 +23,26 @@ function cleanUrls(): Plugin {
   }
 }
 
+/** Appends one cache rule for each built asset to dist/_headers; see scripts/assetHeaders.ts for why not a pattern. */
+function immutableAssets(): Plugin {
+  let outDir = ''
+  return {
+    name: 'rca-immutable-assets',
+    apply: 'build',
+    configResolved: (config) => {
+      outDir = resolve(config.root, config.build.outDir)
+    },
+    closeBundle: () => {
+      const headers = join(outDir, '_headers')
+      if (readFileSync(headers, 'utf8').includes(RULES_MARKER)) return
+      appendFileSync(headers, immutableAssetRules(readdirSync(join(outDir, 'assets'))))
+    },
+  }
+}
+
 export default defineConfig({
   base: './',
-  plugins: [react(), cleanUrls()],
+  plugins: [react(), cleanUrls(), immutableAssets()],
   worker: { format: 'es' },
   build: {
     rollupOptions: {

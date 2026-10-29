@@ -329,10 +329,16 @@ file downloads. Both surfaces set nosniff, framing and referrer controls. Header
 covered by the Worker browser smoke test. See Cloudflare's
 [static-asset headers documentation](https://developers.cloudflare.com/workers/static-assets/headers/).
 
-Cloudflare's `_headers` syntax allows only a trailing `*`, so the `/assets/*` rule also matches
-missing `/assets/` paths. Such a path is not answered with `index.html`: the web app has no
-client-side routes and `not_found_handling` is `none`. The Worker answers it with a plain-text 404
-that sends `Cache-Control: no-store` (`apps/api/src/app.ts`).
+A rule in `_headers` applies by the path asked for, so a pattern such as `/assets/*` would also tell a
+browser to cache the 404 page served for a missing `/assets/` file for a year. The year-long
+`Cache-Control: public, max-age=31536000, immutable` is therefore written one rule for each emitted file
+by the build (`apps/web/vite.config.ts`, `apps/web/scripts/assetHeaders.ts`), after the hand-written rules
+in `apps/web/public/_headers`; a missing path matches none, and the Worker smoke test checks that its 404
+carries no such header. A missing path is not answered with `index.html`: the web app uses hash routes and
+`not_found_handling` is `404-page`, so it gets the built `404.html` with a 404 status. Cloudflare's docs say a
+non-navigation request there still invokes the Worker, whose plain-text 404 for `/assets/` sends
+`Cache-Control: no-store` (`apps/api/src/app.ts`). A `_headers` file holds at most 100 rules; the build
+fails when the assets alone need more than 90.
 
 API responses include `X-Request-ID`. Unexpected-error logs contain that id and the exception
 class; they do not include request bodies, query strings, original files, tokens, or raw database

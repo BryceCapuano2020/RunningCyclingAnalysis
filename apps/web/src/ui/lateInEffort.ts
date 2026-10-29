@@ -188,7 +188,7 @@ function driftReading(sport: Sport, points: readonly DriftPoint[]): DriftReading
 }
 
 /** The line a drift chart draws at the common reference, in words. */
-export const DECOUPLING_REFERENCE = `A fall of ${referenceDecouplingPct}%: under this is usually read as well-built endurance`
+export const DECOUPLING_REFERENCE = `A fall of ${referenceDecouplingPct}%: a common coaching reference line`
 
 /** What a screen reader hears for the drawing. The reference is the key's sentence, set mid-sentence. */
 export function driftDescription(sport: Sport): string {

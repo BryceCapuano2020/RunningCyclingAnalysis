@@ -19,8 +19,17 @@ function narrowBody(maxWidth: string): string {
 }
 
 describe('landing start', () => {
-  it('stretches the drop zone to the height of the example beside it', () => {
-    expect(ruleBody(app, '.landing__start')).toMatch(/align-items:\s*stretch/)
+  it('sizes the drop zone and the example to their own content and centres the pair, so neither is a tall empty box', () => {
+    expect(ruleBody(app, '.landing__start')).toMatch(/align-items:\s*center/)
+  })
+
+  it('stacks the actions and the example in one column on a touch screen, with the pitch close above them', () => {
+    expect(ruleBody(app, '.landing__start--touch')).toMatch(
+      /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+    )
+    expect(ruleBody(app, '.landing__hero:has(.landing__start--touch)')).toMatch(
+      /gap:\s*var\(--space-4\)/,
+    )
   })
 })
 

@@ -150,7 +150,10 @@ test('an account original is read only on request, and account deletion removes 
   await dialog.getByLabel('Email address').fill(email)
   await dialog.getByRole('button', { name: 'Delete account', exact: true }).click()
   await expect(
-    page.getByRole('heading', { name: 'How balanced are you as an athlete?', exact: true }),
+    page.getByRole('heading', {
+      name: 'Are you a better runner or a better cyclist?',
+      exact: true,
+    }),
   ).toBeVisible()
   const cache = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {

@@ -39,9 +39,9 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: `Each sport’s best ${HEADLINE_LABEL} is graded for your age and sex on published standards, and the two grades give the balance. Rides are graded through a running equivalent.`,
   },
   {
-    name: 'Thresholds and their ranges',
+    name: 'Thresholds and their fit spread',
     state: 'calculated',
-    line: `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts, with a range from the fit.`,
+    line: `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts, with the spread of the fit, which is not a range your threshold lies in.`,
   },
   {
     name: 'Best efforts and curves',
@@ -56,7 +56,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Race predictions',
     state: 'calculated',
-    line: 'Times for the usual road races, up to the marathon, carried from your best runs, your heart-rate VO2max and your weekly running distance, with a range.',
+    line: 'Times for the usual road races, from your best runs, heart-rate VO2max and weekly running distance, with a spread assumed from typical prediction error.',
   },
   {
     name: 'Output at the same heart rate',
@@ -131,7 +131,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Equivalence across sports',
     state: 'calculated',
-    line: 'A ride’s power is converted to the running pace that costs the same energy, adjusted by your heart rate in both sports, so the two share one unit.',
+    line: 'A ride’s power is converted to the running pace that costs the same energy, with your heart rate used to check that conversion in both sports, so the two share one unit.',
   },
   {
     name: 'Heart-rate set-aside',

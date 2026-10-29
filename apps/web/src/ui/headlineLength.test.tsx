@@ -71,7 +71,7 @@ describe('the headline length', () => {
     )
 
     expect(
-      screen.getByText(/A hard 45 min run or ride would let them be compared\./),
+      screen.getByText(/Add one run or ride of 45 min or more to compare them\./),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('region', { name: /of your best 45 min, trailing/ }),

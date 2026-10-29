@@ -19,7 +19,7 @@ vi.mock('./ui/charts', async () => {
   return { ...heavyChartStubs, ...(await trendCharts()) }
 })
 
-const LANDING_HEADING = 'How balanced are you as an athlete?'
+const LANDING_HEADING = 'Are you a better runner or a better cyclist?'
 
 beforeEach(() => {
   resetAppMocks()

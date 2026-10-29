@@ -18,9 +18,7 @@ describe('the copy keeps to the constants', () => {
     expect(DRIFT.minMovingS).toBe(3600)
     expect(DURABILITY_AFTER_S[0]).toBe(3600)
     expect(LATE_IN_EFFORT.minActivities).toBe(3)
-    expect(DECOUPLING_REFERENCE).toBe(
-      'A fall of 5%: under this is usually read as well-built endurance',
-    )
+    expect(DECOUPLING_REFERENCE).toBe('A fall of 5%: a common coaching reference line')
   })
 })
 

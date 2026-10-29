@@ -2,7 +2,7 @@
 import type { ActivityRecord } from '@rca/contract'
 import { periodChoiceOf } from '@rca/core/period'
 import { AnalysisSession } from '@rca/core/session'
-import { sampleDataset } from '@rca/core/synthetic'
+import type { SampleClock } from '@rca/core/synthetic'
 import type { SyncIssueCode, SyncItem } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import type { Activity } from '@rca/core/types'
@@ -20,6 +20,7 @@ import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import { ImportReporter } from './importReporter'
 import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { summarizeAdded } from './importSummary'
+import { deviceClock, sampleActivityById } from './sampleClock'
 import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
@@ -75,6 +76,8 @@ const libraryContext: LibraryContext = {
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // The sample is shown in place of the library kept in this browser, never added to it.
 let showingSample = false
+// The clock the sample on screen was drawn with, so a recording drawn later is of the same activity.
+let sampleClock: SampleClock = deviceClock()
 
 /** Runs one import: each new activity is saved, and its file uploaded when files are kept. */
 async function addFiles(
@@ -212,9 +215,10 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       workbench.clearMemory()
       activeScope = { kind: 'device' }
       showingSample = true
+      sampleClock = deviceClock()
       device.replaced()
       session.choosePeriod(periodChoiceOf(request.choice))
-      return session.loadSample(request.settings)
+      return session.loadSample(request.settings, sampleClock)
     case 'loadServer':
       provisionalItems.clear()
       workbench.clearMemory()
@@ -322,7 +326,7 @@ async function activityTraceReply(
   if (cached !== null) return { kind: 'trace', trace: cached }
   if (request.userId === undefined) {
     if (!showingSample) return { kind: 'missing' }
-    const activity = sampleDataset().activities.find((candidate) => candidate.id === request.id)
+    const activity = sampleActivityById(sampleClock, request.id)
     if (activity === undefined) return { kind: 'missing' }
     workbench.captureMemory(activity, scope)
     const trace = await workbench.get(scope, request.id)

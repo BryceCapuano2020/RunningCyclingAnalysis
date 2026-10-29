@@ -233,7 +233,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       }),
     ).toBe(
-      'To grade level with your running at 20 min, your best ride would need about 270 W (roughly 245 to 295 W; now 246 W).',
+      'To grade level with your running at 20 min, your best ride would need about 285 W (roughly 260 to 305 W; now 243 W).',
     )
   }, 60_000)
 
@@ -286,13 +286,16 @@ describe('the levelled target, rounded toward the side that levels', () => {
       massKg: SAMPLE_SETTINGS.massKg,
       calibration,
     }
+    const grades = headlineGrades(result, SAMPLE_PROFILE)
+    // The ride levels with the sample's own run grade, whatever the season has made it.
+    const runGrade = grades.run.kind === 'graded' ? grades.run.grade.centre.grade : Number.NaN
+    expect(runGrade).not.toBeNaN()
     const levelled = levelledNative(
       'ride',
-      nativeAtGrade('ride', 0.64, HEADLINE_DURATION_S, athlete)!,
+      nativeAtGrade('ride', wholeGrade(runGrade) / 100, HEADLINE_DURATION_S, athlete)!,
       'metric',
     )
     const rideId = result.activities.find((activity) => activity.sport === 'ride')!.id
-    const grades = headlineGrades(result, SAMPLE_PROFILE)
     const withRideAt = (watts: number) => ({
       ...result,
       rideCurve: [curvePoint(HEADLINE_DURATION_S, watts, rideId)],

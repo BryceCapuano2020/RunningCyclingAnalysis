@@ -41,7 +41,7 @@ describe('LandingExample', () => {
       )
     }
     render(<LandingExample units="imperial" />)
-    expect(screen.getByText('Pace 7:12 /mi')).toBeInTheDocument()
+    expect(screen.getByText('Pace 6:53 /mi')).toBeInTheDocument()
   })
 
   it('carries each grade exactly as the sample athlete’s analysis gives it, with its range', () => {
@@ -55,12 +55,13 @@ describe('LandingExample', () => {
 
   it('is labelled illustrative, names the sample, and shows each sport’s level and grade', () => {
     render(<LandingExample units="metric" />)
-    expect(screen.getByText('Illustrative: the sample athlete')).toBeInTheDocument()
-    expect(screen.getByText('The sample is a 37-year-old man at 75 kg.')).toBeInTheDocument()
-    expect(screen.getByText('Run · Local · 64%')).toBeInTheDocument()
-    expect(screen.getByText('Ride · Recreational · 58%')).toBeInTheDocument()
-    expect(screen.getByText('Pace 4:29 /km')).toBeInTheDocument()
-    expect(screen.getByText('Power 225 W')).toBeInTheDocument()
+    expect(
+      screen.getByText('Illustrative: the sample athlete, a 37-year-old man at 75 kg'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Run · Local · 67%')).toBeInTheDocument()
+    expect(screen.getByText('Ride · Recreational · 56%')).toBeInTheDocument()
+    expect(screen.getByText('Pace 4:17 /km')).toBeInTheDocument()
+    expect(screen.getByText('Power 222 W')).toBeInTheDocument()
   })
 
   it('leaves the ladder keys out, since the example is illustrative and says so', () => {

@@ -16,6 +16,8 @@ const LAG_S = 10
 const RAMP_S = 30
 const WARMUP_S = 600
 const COOLDOWN_S = 300
+/** A race is run above critical power, which only a short effort can hold. */
+const RACE_LEVEL = 1.1
 const INTERVAL_CYCLE_S = 420
 const INTERVAL_HARD_S = 240
 const TEST_WARMUP_S = 900
@@ -84,6 +86,12 @@ export function rawTarget(
         const inCycle = (t - WARMUP_S) % INTERVAL_CYCLE_S
         out[t] = inCycle < INTERVAL_HARD_S ? 1.05 * cp : 0.5 * cp
       }
+      fill(out, 0, WARMUP_S, 0.6 * cp)
+      fill(out, n - COOLDOWN_S, n, 0.55 * cp)
+      break
+    }
+    case 'race': {
+      fill(out, 0, n, RACE_LEVEL * cp)
       fill(out, 0, WARMUP_S, 0.6 * cp)
       fill(out, n - COOLDOWN_S, n, 0.55 * cp)
       break

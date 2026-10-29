@@ -134,7 +134,11 @@ const SAMPLE_ENTRIES: readonly SampleEntry[] = [
   },
 ]
 
-/** Sample activities for the "Try sample data" button. Deterministic for a given seed. */
+/**
+ * A small fixed library: fourteen activities in the eight weeks before a fixed instant in 2025. Tests and
+ * the committed fixtures read it because it is quick to draw and never moves. The sample athlete the app
+ * shows is `sampleSeason`, drawn relative to the day it is loaded. Deterministic for a given seed.
+ */
 export function sampleDataset(seed = 1): { athlete: SyntheticAthlete; activities: Activity[] } {
   const rand = mulberry32(seed)
   const activities = SAMPLE_ENTRIES.map((entry, index) =>

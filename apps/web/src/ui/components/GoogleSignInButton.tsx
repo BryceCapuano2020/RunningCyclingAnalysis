@@ -42,7 +42,10 @@ export function GoogleSignInButton({ onClick, buttonRef }: GoogleSignInButtonPro
   return (
     <button ref={buttonRef} type="button" className="google-sign-in" onClick={onClick}>
       <GoogleMark />
-      <span className="google-sign-in__label">Sign in with Google</span>
+      {/* A phone shows "Sign in" beside the mark; the rest stays in the name for screen readers. */}
+      <span className="google-sign-in__label">
+        Sign in <span className="google-sign-in__rest">with Google</span>
+      </span>
     </button>
   )
 }

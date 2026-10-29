@@ -3,11 +3,20 @@ import type { UnitSystem } from '@rca/core/units'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
 import { HEADLINE_LABEL } from '../grades'
+import { useTouchFirst } from '../useMediaQuery'
 import type { AnalysisController } from '../useAnalysis'
 import { LandingExample } from './LandingExample'
 import { PAGE_HEADING_ID } from './pageHeading'
 
 const METHOD_HEADING_ID = 'landing-method-heading'
+
+/**
+ * The privacy promise that ends the hero's subline. Signed out, nothing is uploaded. Signed in, the
+ * summaries are stored in the private library, so it says the analysis stays on the device and no more.
+ */
+function privacyLine(signedIn: boolean): string {
+  return signedIn ? 'Your files are analysed on your device.' : 'Nothing leaves your device.'
+}
 
 export interface LandingPageProps {
   analysis: AnalysisController
@@ -20,33 +29,38 @@ export interface LandingPageProps {
 /** Shown while there is no result: the promise, the drop target, an example and how it works. */
 export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageProps) {
   const guidesHeading = useRef<HTMLHeadingElement>(null)
+  // On a touch screen the actions come straight after the pitch, ahead of the example, so they are on the first screen.
+  const touch = useTouchFirst()
 
   // Focus moves to the guides, which scrolls to them. A fragment link would break the hash routes.
   function showExportGuides() {
     guidesHeading.current?.focus()
   }
 
+  const dropzone = (
+    <Dropzone
+      onFiles={onFiles}
+      onSample={analysis.loadSample}
+      onShowGuides={showExportGuides}
+      busy={analysis.busy}
+      signedIn={signedIn}
+    />
+  )
+
   return (
     <div className="page-stack">
       <div className="landing__hero">
         <section className="app__pitch">
           <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-            How balanced are you as an athlete?
+            Are you a better runner or a better cyclist?
           </h1>
-          <p className="lede secondary">
-            Add your runs and rides. See how your running and cycling compare, as your level for
-            your age, and which way your balance leans.
-          </p>
+          <p className="lede secondary">{`Drop in your Strava export or watch files to see your level in each sport for your age, with honest ranges. ${privacyLine(signedIn)}`}</p>
         </section>
-        <div className="landing__start">
-          <Dropzone
-            onFiles={onFiles}
-            onSample={analysis.loadSample}
-            onShowGuides={showExportGuides}
-            busy={analysis.busy}
-            signedIn={signedIn}
-          />
+        {/* A pointer sees the example first, with the drop zone beside it; a touch screen sees the actions first. */}
+        <div className={touch ? 'landing__start landing__start--touch' : 'landing__start'}>
+          {touch && dropzone}
           <LandingExample units={units} />
+          {!touch && dropzone}
         </div>
       </div>
       <ol className="app__steps">

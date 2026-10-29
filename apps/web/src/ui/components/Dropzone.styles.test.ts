@@ -21,6 +21,15 @@ describe('Dropzone stylesheet', () => {
   })
 })
 
+describe('Dropzone on a touch screen', () => {
+  it('is not drawn as a drop box: no dashed outline, no fill, no padding, just the row of actions', () => {
+    const rule = ruleBody(css, '.dropzone--touch')
+    expect(rule).toMatch(/border:\s*0/)
+    expect(rule).toMatch(/background:\s*none/)
+    expect(rule).toMatch(/padding:\s*0/)
+  })
+})
+
 describe('Dropzone target', () => {
   it('draws no fill on hover, since the drop area is not a control', () => {
     expect(ruleBody(css, '.dropzone__target:hover')).toBe('')

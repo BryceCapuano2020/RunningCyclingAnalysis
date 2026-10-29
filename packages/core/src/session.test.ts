@@ -8,6 +8,7 @@ import { MODEL_REVISION } from './digest/modelRevision'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import { parseActivityFile } from './import'
 import { generatedName } from './import/names'
+import { windowEnding } from './period'
 import { AnalysisSession, SyncFailure } from './session'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
@@ -15,12 +16,14 @@ import { NO_TRENDS } from './digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_ZONE_TIMES } from './zones'
 import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
-import { DEFAULT_ATHLETE, generateActivity, sampleDataset } from './synthetic'
+import { DEFAULT_ATHLETE, generateActivity, sampleDataset, sampleSeason } from './synthetic'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
 const sample = sampleDataset().activities
+// What loadSample shows: the season on the fixed reference clock.
+const season = sampleSeason().activities
 
 function firstOf(sport: Sport): Activity {
   const found = sample.find((activity) => activity.sport === sport)
@@ -356,7 +359,8 @@ describe('AnalysisSession', () => {
     const state = session.loadSample(SETTINGS)
 
     expect(state.isSample).toBe(true)
-    expect(state.result?.activities).toHaveLength(sample.length)
+    expect(state.totalActivities).toBe(season.length)
+    expect(state.library).toHaveLength(season.length)
     expect(state.rejected).toEqual([])
   })
 
@@ -430,14 +434,15 @@ describe('AnalysisSession', () => {
     session.loadSample(SETTINGS)
     const state = session.setRange(42, SETTINGS)
 
-    const newest = Math.max(...sample.map((activity) => activity.startMs))
-    const cutoff = newest - 42 * 86_400_000
-    const inside = sample.filter((activity) => activity.startMs >= cutoff)
+    const newest = Math.max(...season.map((activity) => activity.startMs))
+    // Periods count whole local days, so the window starts at the first moment of its first day.
+    const cutoff = windowEnding(newest, 42).startMs
+    const inside = season.filter((activity) => activity.startMs >= cutoff)
     expect(inside.length).toBeGreaterThan(0)
-    expect(inside.length).toBeLessThan(sample.length)
+    expect(inside.length).toBeLessThan(season.length)
     expect(state.result?.activities).toHaveLength(inside.length)
     expect(state.result?.activities.every((activity) => activity.startMs >= cutoff)).toBe(true)
-    expect(state.totalActivities).toBe(sample.length)
+    expect(state.totalActivities).toBe(season.length)
     expect(state.period).toMatchObject({ choice: 42, days: 42, fellBack: false })
   })
 
@@ -447,8 +452,8 @@ describe('AnalysisSession', () => {
     session.setRange(42, SETTINGS)
     const state = session.setRange('all', SETTINGS)
 
-    expect(state.result?.activities).toHaveLength(sample.length)
-    expect(state.totalActivities).toBe(sample.length)
+    expect(state.result?.activities).toHaveLength(season.length)
+    expect(state.totalActivities).toBe(season.length)
     expect(state.period).toMatchObject({ choice: 'all', days: null })
   })
 
@@ -457,9 +462,9 @@ describe('AnalysisSession', () => {
     session.loadSample(SETTINGS)
     const state = session.setRange(42, SETTINGS)
 
-    expect(state.result?.activities.length).toBeLessThan(sample.length)
-    expect(state.library).toHaveLength(sample.length)
-    expect(state.library[0]?.startMs).toBe(Math.max(...sample.map((a) => a.startMs)))
+    expect(state.result?.activities.length).toBeLessThan(season.length)
+    expect(state.library).toHaveLength(season.length)
+    expect(state.library[0]?.startMs).toBe(Math.max(...season.map((a) => a.startMs)))
   })
 
   it('analyses only the newest activity for a one-day period, and keeps the library whole', () => {
@@ -468,15 +473,19 @@ describe('AnalysisSession', () => {
     const state = session.setRange(1, SETTINGS)
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.library).toHaveLength(sample.length)
+    expect(state.library).toHaveLength(season.length)
   })
 
-  it('analyses the default period, which covers the sample when it is under 12 weeks long', () => {
+  it('analyses the sample on the default 12 weeks, which hold both sports and not the whole season', () => {
     const session = new AnalysisSession()
     const state = session.loadSample(SETTINGS)
 
-    expect(state.period).toMatchObject({ choice: 'default', fellBack: false })
-    expect(state.result?.activities).toHaveLength(sample.length)
+    expect(state.period).toMatchObject({ choice: 'default', days: 84, fellBack: false })
+    const analysed = state.result?.activities ?? []
+    expect(analysed.length).toBeGreaterThan(0)
+    expect(analysed.length).toBeLessThan(season.length)
+    expect(new Set(analysed.map((activity) => activity.sport))).toEqual(new Set(['run', 'ride']))
+    expect(state.library).toHaveLength(season.length)
   })
 
   it('analyses the sample with its own body and bike masses, whatever the visitor entered', () => {
@@ -988,7 +997,7 @@ describe('AnalysisSession', () => {
 
     const next = session.loadSample(SETTINGS)
     expect(next.period.choice).toBe(42)
-    expect(next.result?.activities.length).toBeLessThan(sample.length)
+    expect(next.result?.activities.length).toBeLessThan(season.length)
   })
 
   it('stops calling the sink after a sign-out but still analyses the rest of the import', async () => {

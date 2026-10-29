@@ -29,6 +29,15 @@ describe('rawTarget', () => {
     expect(out[2700]).toBeCloseTo(5.5, 12)
   })
 
+  it('race holds 1.1 cp, above critical power, between a 10 min warm-up and a 5 min cool-down', () => {
+    const out = rawTarget('race', cp, wPrime, 2100, constant)
+    expect(out[0]).toBeCloseTo(6, 12)
+    expect(out[599]).toBeCloseTo(6, 12)
+    expect(out[600]).toBeCloseTo(11, 12)
+    expect(out[1799]).toBeCloseTo(11, 12)
+    expect(out[1800]).toBeCloseTo(5.5, 12)
+  })
+
   it('test effort places efforts at cp + wPrime/duration with 10 min recoveries', () => {
     const out = rawTarget('test', 15, wPrime, 3600, constant)
     expect(out[0]).toBeCloseTo(9, 12)

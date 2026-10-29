@@ -217,25 +217,26 @@ html {
     justify-content: flex-start;
   }
 
-  /* While the account loads or cannot be reached, the status holds the Google mark's 44 px square,
-     and its words stay for screen readers, so the header keeps one row on a phone. */
+  /* While the account loads or cannot be reached, the status holds the width of the "Sign in" button,
+     and its words stay for screen readers, so the header keeps one row on a phone and does not move. */
   .header__account .account-menu__pending {
-    width: var(--control-height);
+    /* The width "Sign in" settles at on a phone, measured: its words and the mark, with the button's padding. */
+    width: 6.05rem;
     min-width: 0;
     /* Hidden text, read by a screen reader and not seen, so it takes no size. */
     font-size: 0;
     overflow: hidden;
   }
 
-  /* Sign-in stays one tap away as the Google mark alone; its name is kept for screen readers. */
+  /* Sign-in stays one tap away as the Google mark and "Sign in"; "with Google" is kept for screen readers,
+     so the button's name is the same as on a wide screen. */
   .header__account .google-sign-in {
-    width: var(--control-height);
-    min-width: 0;
-    padding: 0;
+    min-width: 6rem;
+    padding: 0 var(--space-3);
     justify-content: center;
   }
 
-  .header__account .google-sign-in__label {
+  .header__account .google-sign-in__rest {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -309,6 +310,18 @@ html {
 
   .header__profile {
     padding: 0 var(--space-2);
+  }
+
+  /* The plus, Profile and "Sign in" share one row down to 320 px, so sign-in gives up its minimum width and
+     some padding; the pending status holds the width it settles at. */
+  .header__account .google-sign-in {
+    min-width: 0;
+    gap: var(--space-1);
+    padding: 0 var(--space-2);
+  }
+
+  .header__account .account-menu__pending {
+    width: 5.3rem;
   }
 }
 

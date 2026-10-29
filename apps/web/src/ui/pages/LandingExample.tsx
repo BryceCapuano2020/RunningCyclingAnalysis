@@ -1,9 +1,8 @@
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace } from '@rca/core/units'
-import { BalanceMeter } from '../components/BalanceMeter'
 import { gapReading } from '../components/balanceScale'
-import { balanceTitle } from '../components/headlineText'
+import { balanceTitle, rangeText } from '../components/headlineText'
 import { LevelLadder } from '../components/LevelLadder'
 import { SportIcon } from '../components/icons'
 import { formatGrade } from '../gradeFormat'
@@ -28,29 +27,36 @@ function SportLine({ sport, units }: { sport: Sport; units: UnitSystem }) {
         <SportIcon sport={sport} />
         {`${SPORT_LABEL[sport]} · ${grade.centre.level} · ${formatGrade(grade.centre.grade)}`}
       </p>
-      <LevelLadder sport={sport} grade={grade} showKey={false} />
+      <LevelLadder sport={sport} grade={grade} showKey={false} showScale={false} />
       <p className="secondary">{measure}</p>
     </div>
   )
 }
 
 /**
- * A small example of the Balance screen, drawn from the sample athlete: the balance meter, and each
- * sport's level and grade with its band. It is labelled illustrative and names the sample.
+ * An example of the Balance screen, drawn from the sample athlete: the lean as a display figure with its
+ * range, then each sport's level and grade on its bar, with its pace or power. It is the landing page's
+ * hero visual, labelled illustrative, and names the sample. It carries no key and no scale labels: the
+ * lines above the bars name the levels.
  */
 export function LandingExample({ units }: { units: UnitSystem }) {
   const reading = gapReading(LANDING_EXAMPLE.gap)
   return (
     <figure className="landing-example">
-      <figcaption className="eyebrow">Illustrative: the sample athlete</figcaption>
-      <p className="landing-example__title">{balanceTitle(reading)}</p>
-      <BalanceMeter reading={reading} />
+      <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`}</figcaption>
+      <div className="landing-example__lead">
+        <p className="landing-example__title">{balanceTitle(reading)}</p>
+        <p className="landing-example__figure">
+          <span className="landing-example__number">{`+${Math.round(reading.lead.centre)}`}</span>
+          <span className="landing-example__unit">pts toward running</span>
+          <span className="landing-example__range secondary">{`range ${rangeText(reading)}`}</span>
+        </p>
+      </div>
       <div className="landing-example__stats">
         {SPORT_ORDER.map((sport) => (
           <SportLine key={sport} sport={sport} units={units} />
         ))}
       </div>
-      <p className="secondary landing-example__sample">{`The sample is ${SAMPLE_DESCRIPTION}.`}</p>
     </figure>
   )
 }
