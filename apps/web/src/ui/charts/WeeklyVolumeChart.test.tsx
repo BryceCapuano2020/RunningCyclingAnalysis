@@ -3,10 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { DAY_MS } from '@rca/core/constants'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { VolumeWeek } from '../weeklyVolume'
-import { readStylesheet } from '../components/stylesheet'
 import { WeeklyVolumeChart } from './WeeklyVolumeChart'
-
-const css = await readStylesheet(import.meta.url, './WeeklyVolumeChart.css')
 
 const FIRST_END = Date.UTC(2025, 0, 12, 23, 59, 59, 999)
 const HOUR = 3600
@@ -50,17 +47,54 @@ function chartWidth(width: number) {
   vi.stubGlobal('ResizeObserver', SizedObserver)
 }
 
+/** The rows of the chart's own table, not the small table that names the skipped stretches before it. */
+const mainRows = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll('table')).at(-1)?.querySelectorAll('tbody tr') ?? []
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
 
 describe('WeeklyVolumeChart', () => {
-  it('is named once, by its title, and says its finding under it', () => {
+  it('is titled by its finding, and names what it measures under it', () => {
     renderChart()
-    const figure = screen.getByRole('figure', { name: 'Training hours per week' })
-    expect(within(figure).getByText(LEDE)).toBeInTheDocument()
-    expect(screen.getAllByText('Training hours per week')).toHaveLength(1)
+    const figure = screen.getByRole('figure', { name: LEDE })
+    expect(within(figure).getByText('Training hours per week')).toBeInTheDocument()
+    expect(screen.getAllByText(LEDE)).toHaveLength(1)
+  })
+
+  it('labels the tallest bar with its hours', () => {
+    const { container } = renderChart()
+    expect(container.querySelector('[data-testid="volume-peak"]')).toHaveTextContent('6.5 h')
+  })
+
+  it('rounds the top of each bar and keeps its parts a gap apart', () => {
+    const { container } = renderChart()
+    const [first] = container.querySelectorAll('[data-testid="volume-bar"]')
+    expect(first?.getAttribute('d')).toContain('A')
+  })
+
+  it('draws a span past 26 weeks as bars a month, in hours a week, and says so', () => {
+    const long = weeksOf(...Array.from({ length: 60 }, (): [number, number] => [3, 1]))
+    const { container } = renderChart(long)
+    expect(container.querySelectorAll('[data-testid="volume-bar"]').length).toBeLessThan(50)
+    expect(container.querySelector('.chart-frame__note')).toHaveTextContent(
+      'Each bar is a month: its average hours a week.',
+    )
+    const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
+    expect(headers[0]).toBe('Month to')
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    expect(screen.getByRole('status')).toHaveTextContent('Average of 3 weeks')
+    expect(screen.getByRole('status')).toHaveTextContent('3.0 h Run')
+  })
+
+  it('keeps a bar a week up to 26 weeks, with no note about months', () => {
+    const { container } = renderChart(
+      weeksOf(...Array.from({ length: 26 }, (): [number, number] => [3, 1])),
+    )
+    expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(52)
+    expect(container.querySelector('.chart-frame__note')).toBeNull()
   })
 
   it('draws one part of a bar for each sport that trained, in the sport it names', () => {
@@ -77,19 +111,48 @@ describe('WeeklyVolumeChart', () => {
     ])
   })
 
-  it('rounds the data end of each bar, the top part only, and keeps a 2 px gap between stacked parts', () => {
-    chartWidth(900)
-    const { container } = renderChart(weeksOf([4, 0], [3.5, 1]))
-    const parts = [...container.querySelectorAll('[data-testid="volume-bar"]')]
-    // The first week is run alone, the second run under ride: the top part of each bar is the rounded one.
-    expect(parts.map((part) => part.getAttribute('rx'))).toEqual(['2', null, '2'])
-    expect(parts[0]).toHaveClass('volume-bar--edged')
-    expect(css).toMatch(/\.volume-bar--edged \{[^}]*stroke-width: 2;/)
+  it('draws a week with no training as no bar, and no mark on the axis for it', () => {
+    const { container } = renderChart()
+    expect(container.querySelectorAll('[data-testid="trend-gap"]')).toHaveLength(0)
+    expect(container.querySelectorAll('[data-testid="axis-break"]')).toHaveLength(0)
+    // Five weeks, one of them empty, give seven parts of bars.
+    expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(7)
   })
 
-  it('leaves a week with no training as a gap, marked on the date axis', () => {
-    const { container } = renderChart()
-    expect(container.querySelectorAll('[data-testid="trend-gap"]')).toHaveLength(1)
+  it('starts at the first week with real volume, so near-empty early weeks leave no sliver', () => {
+    const slivers = weeksOf([0.1, 0], [0.05, 0], [0.1, 0], [3, 1], [4, 0], [2, 2])
+    const { container } = renderChart(slivers)
+    const rows = Array.from(container.querySelectorAll('tbody tr'))
+    expect(rows).toHaveLength(3)
+    expect(rows[0]?.textContent).toMatch(/Sun 2 Feb 2025/)
+  })
+
+  it('skips a year or more with no training, with one break mark and a note of its dates', () => {
+    const quiet = Array.from({ length: 60 }, (): [number, number] => [0, 0])
+    const weeks = weeksOf([3, 1], [3, 1], [3, 1], ...quiet, [4, 0], [4, 0], [4, 0])
+    const { container } = renderChart(weeks)
+    expect(container.querySelectorAll('[data-testid="axis-break"]')).toHaveLength(1)
+    expect(container.querySelector('.chart-about')).toHaveTextContent(/The axis skips .* to .*/)
+    // The skipped weeks are not rows of the table: the six that remain are six weeks drawn, though a year apart.
+    expect(mainRows(container)).toHaveLength(6)
+    // The text view says which stretch the axis skips, in a small table of its own.
+    expect(container.querySelector('caption')).toHaveTextContent('Stretches the time axis skips')
+    expect(
+      container.querySelector('svg [role="img"], [role="img"]')?.getAttribute('aria-label'),
+    ).toMatch(/The time axis skips .* to /)
+  })
+
+  it('shares the axis a caller gives it, so it skips what the trend above it skips', () => {
+    const weeks = weeksOf(...Array.from({ length: 10 }, (): [number, number] => [3, 1]))
+    const axis = {
+      startMs: weeks[0]!.endMs,
+      endMs: weeks[9]!.endMs,
+      gaps: [{ fromMs: weeks[3]!.endMs, toMs: weeks[7]!.endMs }],
+    }
+    const { container } = render(<WeeklyVolumeChart weeks={weeks} lede={LEDE} axis={axis} />)
+    expect(container.querySelectorAll('[data-testid="axis-break"]')).toHaveLength(1)
+    // The three weeks inside the gap are not rows.
+    expect(mainRows(container)).toHaveLength(7)
   })
 
   it('keys the sports that trained, and leaves the key out for one', () => {
@@ -160,9 +223,9 @@ describe('WeeklyVolumeChart', () => {
     const svg = container.querySelector('svg.chart-frame__svg')
     expect(svg?.getAttribute('width')).toBe('320')
     for (const bar of container.querySelectorAll('[data-testid="volume-bar"]')) {
-      const left = Number(bar.getAttribute('x'))
+      const left = Number(bar.getAttribute('data-left'))
       expect(left).toBeGreaterThanOrEqual(0)
-      expect(left + Number(bar.getAttribute('width'))).toBeLessThanOrEqual(320)
+      expect(left + Number(bar.getAttribute('data-width'))).toBeLessThanOrEqual(320)
     }
   })
 })

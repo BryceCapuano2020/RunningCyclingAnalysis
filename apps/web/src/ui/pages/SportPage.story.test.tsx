@@ -165,11 +165,11 @@ describe('a sport page with everything to show', () => {
     expect(screen.getByText(/^Your bests are in line with each other/)).toBeInTheDocument()
   })
 
-  it('says under the week-by-week chart that a step down can be a best leaving the window', () => {
+  it('says under the week-by-week chart that a dip can be a best leaving the window', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'Week by week' })
     const line = within(section).getByText(
-      'A step down can be a best leaving the 4-week window, not a change in you.',
+      'A dip can be a best leaving the 4-week window, not a change in you.',
     )
     expect(line).toHaveClass('muted')
     expect(follows(section.querySelector('figure')!, line)).toBe(true)

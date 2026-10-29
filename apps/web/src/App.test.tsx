@@ -335,24 +335,20 @@ describe('fitness over time', () => {
     ).toBeNull()
     unmountEmpty()
 
-    setSession({ trend: [week(0, null, null), week(1, 15, null), week(2, null, null)] })
-    const { unmount } = render(<App />)
-    expect(screen.getByText(/^Only one week has a value: Run /)).toBeInTheDocument()
-    unmount()
-
+    // The Balance trend is an age grade, so with no year of birth or sex it says what it waits for, as the cards do,
+    // and never falls back to an energy rate.
     setSession({ trend: [week(0, null, null), week(1, 15, null), week(2, 15.2, 14)] })
     render(<App />)
     expect(
       screen.getByRole('heading', {
         level: 2,
-        name: /^Energy rate of your best 20 min, trailing/,
+        name: /^Age grade of your best 20 min, trailing/,
       }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('figure', {
-        name: /^Energy rate of your best 20 min, trailing/,
-      }),
+      screen.getByText('Add your year of birth and sex to see how your grade has moved.'),
     ).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/metabolic/)
   })
 })
 

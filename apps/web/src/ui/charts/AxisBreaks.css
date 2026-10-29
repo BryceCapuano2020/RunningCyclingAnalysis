@@ -1,0 +1,21 @@
+/* A skipped stretch of the time axis: a faint hairline through the plot, and two slashes across the axis. */
+.axis-break__line {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-opacity: 0.3;
+}
+
+.axis-break__slash {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* In forced colours the hairline and the slashes take a system colour, so the break stays marked. */
+@media (forced-colors: active) {
+  .axis-break__line,
+  .axis-break__slash {
+    stroke: GrayText;
+    stroke-opacity: 1;
+  }
+}

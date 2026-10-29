@@ -374,7 +374,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     kilometre by duration") names it.
     Under the curve is the stand-out finding as its caption (below), then **See your runs**, which opens
     Activities filtered to that sport.
-  - **Week by week** is the trend for 5, 20 or 60 minutes, with one muted line under the chart: "A step down
+  - **Week by week** is the trend for 5, 20 or 60 minutes, with one muted line under the chart: "A dip
     can be a best leaving the 4-week window, not a change in you." The window is the one the chart uses.
   - **Late in long sessions** is the last section. It holds two readings, each with its own sentence, chart and
     note, and each shown only once 3 activities stand behind it (`LATE_IN_EFFORT` in
@@ -456,18 +456,23 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   as any distance is. An effort's length reads the same in every record, trend and headline line, in whole minutes, so an hour is "60 min", never "1 h"; a length under a minute reads in seconds. A ride's grade is not given a distance, because it goes through its running equivalent.
 - Sport pages use the athlete's units. Running is pace per km or mile, faster up; cycling is
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
-  one scale: the age grade in per cent when the age and sex are known, else the energy rate in
-  metabolic W/kg.
-- **The weekly volume sits under the Balance trend.** A stacked bar chart, "Training hours per week", with
-  one bar for each week of the trend above it: the moving time of the period's activities, in each sport's
-  colour, stacked in the order of `SPORT_ORDER`. It shares the trend's weeks and x scale (`weekEndMs`, the
-  UTC Sunday that ends each week), so a bar stands under the trend's point for that week; a week with no
-  training is a gap, marked on the axis as the trend marks one. Its one line under the title is chosen in
-  `volumeCaption.ts`: with more than one sport, the sport whose share of the hours moved most between the
+  one scale: the age grade in per cent. Without a year of birth and sex it draws nothing and says what
+  it waits for, as the cards do; Balance never shows an energy rate.
+- **The weekly volume sits under the Balance trend.** A stacked bar chart of the hours trained, titled by
+  its finding and named "Training hours per week" under it, with one bar for each week of the trend above it:
+  the moving time of the period's activities, in each sport's colour, stacked in the order of
+  `SPORT_ORDER`, each part 2 px clear of the one beneath and the top of the bar rounded. It shares the trend's
+  weeks and x scale (`weekEndMs`, the UTC Sunday that ends each week), so a bar stands under the trend's
+  point for that week; a week with no training is a gap, marked on the axis as the trend marks one. Past 26
+  weeks it draws a bar a month, as the trend draws a point a month, dated at the month's last week and
+  holding the average hours a week of the weeks the month has in the span (its note says "Each bar is a
+  month: its average hours a week."). A week counts as training, for where the chart starts and what ends a skipped
+  stretch, from an hour; the axis is the trend's, so the quiet early years of a library are not drawn. The tallest bar carries its hours ("4.8 h"). The title is chosen in
+  `volumeCaption.ts`, from the weeks and not the months: with more than one sport, the sport whose share of the hours moved most between the
   first and second half of the weeks, when it moved by 15 points or more ("Cycling rose from 22% of your
   running and riding hours in the first half to 82% in the second."), else the share of the sport with most hours; with one
   sport, how its weekly hours moved between the halves when they changed by a quarter from at least half an hour a week, else what they
-  averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week, hours of each
+  averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week or month, hours of each
   sport, total). It is not shown when fewer than three of the weeks have training.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest
   activity's day, when they hold a run and a ride. A day is counted in the device's local zone and
@@ -487,19 +492,61 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   have no period comparison: each already spans the selected period.
 - A trend is the best effort of the chosen length (5, 20 or 60 minutes; Balance uses 20) in a
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a
-  six-week period uses two-week windows. Every point's window lies inside the period. The title
-  names the effort as its segment labels it, such as "best 60 min", and the window. Each line steps from one Sunday to the next and breaks at a week
-  with no value, and each Sunday has a marker. Past 13 months (400 days) a trend keeps the last week of each month, and its first and last
-  week as its ends, so five years are sixty dots, not two hundred and sixty; its note says "Past 13 months, each point is the last week of its
-  month." The first date of the axis carries its year, as the month ticks do. A sport's week-by-week chart also names its longest stretch
-  of eight weeks or more with no value inside the trend ("The line breaks from 30 Oct 2022 to 24 Sep 2023: no rides of 20 min or longer with power in that time."), naming the trend's effort length, since a gap at 60 min is not a gap in training. On a wide chart the
-  Balance trend's end labels sit in a gutter right of the plot, level with each line's last point, and the volume strip under it keeps the
-  same margin so the two time axes line up; a narrow chart sets them over the plot, clear of both lines. The latest value is labelled with its value alone, and the
-  title names its effort and window, so it can differ from a card's best, which covers the whole period.
-  When a sport's line stops before the window does, the note under the chart dates that sport's latest
-  activity of any length, as long as it is before the last week: "No runs since 20 Jan 2025." (or "No rides
-  since"), the activity's own local day. A short run counts, though it gives the trend no value. The note is
-  left off while the line reaches the last week, and when the latest activity is in the last week.
+  six-week period uses two-week windows. Every point's window lies inside the period. The series is not
+  capped: all time is every week from the first activity to the last, however long the library
+  (`fitnessTrend`), and the chart draws it as follows.
+  - **Title.** It says what the trend found about now (`trendFinding.ts`, `trendTakeaway.ts`, `sportTakeaway.ts`), in at
+    most two clauses, and the line under it names the effort and the window. It is judged on the weeks, never on the
+    monthly means the line may be drawn from, so the latest week is compared with weeks. A series needs 12 weeks of span
+    and six readings before it is judged at all (`MIN_SPAN_DAYS`, `MIN_READINGS`); a shorter or thinner one keeps its
+    descriptive title, since a week's effort alone can swing it. Each sport is judged from its first reading in the
+    last year to the latest, or from its first reading when the series is shorter. The comparison is called "over the
+    last year" only if it reaches back 300 days or more (`YEAR_BASELINE_DAYS`); otherwise it names its real start, "since
+    May". A change counts only when it is at least 3% of where it started (`MIN_CHANGE_FRACTION`) and, for an estimated
+    ride, when its 90% range at the end no longer overlaps its range at the start; otherwise the sport "has held
+    steady". A sport whose best reading is older than that year, and well above the latest by the same test, says so:
+    "Running is 3 points under its 2022 peak; steady over the last year" (one sport has room for both clauses; with two
+    sports each gets one, the move when it moved, else the peak). A latest that beats every earlier reading by that 3%
+    says it "is the highest on file", which for an estimate also needs its 90% range clear above the previous best
+    (its low end above that best); otherwise it says nothing of a high. The whole-span change from the first reading is
+    never the finding, since it can be true and say nothing about now. A trend point is the best of a window, and a week
+    with more or fewer activities in it can move it with no change in the athlete; the title does not allow for that.
+  - **Line.** Smoothed (a monotone curve, which never rises above a value it did not reach), 3 px, and broken, not
+    bridged, where eight weeks or more passed with no value (`BREAK_AFTER_WEEKS`); a shorter gap is drawn through.
+    A stretch of two points or fewer, cut off by breaks, is not a line: it is one marker at its mean (with the ride's 90%
+    range as a short bar through its ring), except the last stretch, which ends at the latest value and stays a line. A
+    line of fewer than four points keeps a marker on each point and no wash. Markers are left off where points are closer
+    than 9 px, and the line and its last point carry them.
+  - **Time.** Up to 26 weeks drawn each week is a point; past it (counting the weeks drawn, not the time between them)
+    each calendar month is one, the mean of its weeks' values dated at the month's last week, and the last point is the
+    latest reading itself: each of its fields is its last value in the final month, so a missing latest week blanks
+    nothing and the label is the current value. A month's row in the table has no count of activities, shows a dash
+    for it, averages the W/kg of its weeks at each week's own body mass, and the caption says "Monthly rows are
+    averages of their weeks' values."; the latest row, which is a week, has its count. A year or more (`COMPRESS_AFTER_WEEKS`) of weeks with nothing in them is not drawn at its length: the axis gives
+    it 28 px and a break mark (a faint hairline and two slashes on the axis, titled with the skipped dates), and the weeks inside
+    are not rows of the table. The axis also starts at the first week with something to draw and stops at the last
+    (`timeAxisOf`). The skipped stretches are also in the figure's description and in a small table before the chart's own table.
+    The Balance trend and the hours strip share one axis, built from the weeks in which the trend has a
+    value or the athlete trained at least an hour, so both skip the same years. The first date of the axis carries its day up
+    to 26 weeks and its month and year past that; the date ticks keep the first and last label and drop any inner one
+    that would touch them, measured where the axis sets each.
+  - **Scale.** The Balance trend's y axis is fitted to every value drawn, bands included, with a little room, from a multiple of ten under the data to one over it (never under 0), with a tick every ten points and at least twenty points of span.
+  - **Honesty.** On the Balance trend a run is solid and as recorded; an estimated ride has a hollow ring at each point
+    and a translucent 90% band, never dashes. A sport's week-by-week chart fits its y axis to its own values with room round them (a
+    pace axis spans at least 30 s and ticks 10 s apart; a power axis at least 8% of its middle) and draws a soft wash under a
+    line of four or more weeks, and leaves off the weeks before the sport's first value and after its last.
+  - **Labels.** Every trend's end label sits in a gutter right of the plot, level with the line's last point, the labels
+    spread apart and kept inside the plot; the strip under the Balance trend keeps the same margin so the axes line up. A line
+    that stops before the right edge is labelled beside its own last point. Where the labels name their lines there is no
+    key. Below 420 px a label is its value led by the mark of its line (a dot, or a ring for an estimate), and the key is
+    drawn (the window is 500 px or less). The plot is about 190 px tall on a phone and 280 px on a wide screen.
+  - **Words.** One short sentence stays under the chart, which says what a point is ("Each point is your best 20 min of
+    the 6 weeks to that Sunday; rides are estimated."). The rest is behind "About this chart", set under "View as table": that
+    the latest point covers only the last window, so it can differ from a card's best over the period; what a low point is; what the
+    ride's ring and band are; the breaks and the monthly averaging; the skipped years and their dates; the longest stretch with no value ("The line breaks from
+    30 Oct 2022 to 24 Sep 2023: no rides of 20 min or longer with power in that time."), which names the trend's effort length, since a gap at 60 min is not
+    a gap in training; what a sport's chart covers; and, when a sport's line stops before the window does, the day of its latest activity
+    of any length: "No runs since 20 Jan 2025.", left off while the line reaches the last week.
 - **"At the same heart rate"** follows "Week by week" on each sport page and reads the one signal built from
   easy and steady efforts (`docs/research/same-heart-rate.md`). A sentence sits above the chart and says one of
   three things. With a real change: "At 145 bpm you now run 5:52 /km, against 6:10 /km 8 weeks ago." (or

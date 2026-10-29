@@ -74,6 +74,19 @@ function renderPage(result: AnalysisResult, trend: TrendPoint[]) {
   )
 }
 
+/** A chart's figure, found by the line under its title that names its measure; its title says what it found. */
+function figureNamed(measure: string | RegExp): HTMLElement {
+  const figure = screen
+    .getAllByRole('figure')
+    .find((candidate) =>
+      typeof measure === 'string'
+        ? candidate.textContent?.includes(measure)
+        : measure.test(candidate.textContent ?? ''),
+    )
+  if (figure === undefined) throw new Error(`no figure for ${String(measure)}`)
+  return figure
+}
+
 describe('the weekly volume under the Balance trend', () => {
   it('shows the hours of each sport under the trend, with a line that says what moved', () => {
     const activities = [
@@ -85,8 +98,8 @@ describe('the weekly volume under the Balance trend', () => {
       inWeek(3, 'ride', 3600 * 6),
     ]
     const { container } = renderPage(makeResult({ activities }), trendOf(4))
-    const trend = screen.getByRole('figure', { name: /of your best 20 min, trailing/ })
-    const volume = screen.getByRole('figure', { name: VOLUME })
+    const trend = figureNamed(/of your best 20 min, trailing/)
+    const volume = figureNamed(VOLUME)
     expect(trend.compareDocumentPosition(volume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(
       within(volume).getByText(
@@ -106,15 +119,14 @@ describe('the weekly volume under the Balance trend', () => {
     const { container } = renderPage(makeResult({ activities }), trendOf(5))
     // The fifth week is the last the trend draws, so the activity ten weeks on is not counted.
     expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(3)
-    expect(container.querySelectorAll('[data-testid="trend-gap"]').length).toBeGreaterThanOrEqual(2)
+    // A week with no training is no bar and no mark on the axis: there is no comb of empty weeks.
+    expect(container.querySelectorAll('[data-testid="trend-gap"]')).toHaveLength(0)
   })
 
   it('folds away when fewer than three weeks have training', () => {
     const activities = [inWeek(0, 'run', 3600), inWeek(3, 'ride', 3600)]
     renderPage(makeResult({ activities }), trendOf(5))
-    expect(screen.queryByRole('figure', { name: VOLUME })).toBeNull()
-    expect(
-      screen.getByRole('figure', { name: /of your best 20 min, trailing/ }),
-    ).toBeInTheDocument()
+    expect(screen.queryByText(VOLUME)).toBeNull()
+    expect(figureNamed(/of your best 20 min, trailing/)).toBeInTheDocument()
   })
 })

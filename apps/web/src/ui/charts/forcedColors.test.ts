@@ -7,6 +7,9 @@ const scatterCss = await readStylesheet(import.meta.url, './HrScatter.css')
 const legendCss = await readStylesheet(import.meta.url, './ChartLegend.css')
 const tooltipCss = await readStylesheet(import.meta.url, './ChartTooltip.css')
 const volumeCss = await readStylesheet(import.meta.url, './WeeklyVolumeChart.css')
+const sharedTrendCss = await readStylesheet(import.meta.url, './SharedTrendChart.css')
+const sportTrendCss = await readStylesheet(import.meta.url, './TrendChart.css')
+const breakCss = await readStylesheet(import.meta.url, './AxisBreaks.css')
 const splitsCss = await readStylesheet(import.meta.url, '../components/SplitsTable.css')
 
 /** The rules inside a stylesheet's forced-colours block, which the browser applies in place of the tints. */
@@ -66,6 +69,22 @@ describe('forced colours keep the chart marks visible', () => {
     expect(key).toMatch(/\.swatch-ride,\s*\.chart-legend__key--ride \{[^}]*background: Highlight/)
     expect(bars).toMatch(/\.volume-bar \{[^}]*fill: Highlight/)
     expect(bars).toMatch(/\.volume-bar\[data-sport='run'\] \{[^}]*fill: CanvasText/)
+  })
+
+  it('outlines the ride’s range band, and draws the sport trend’s wash as nothing, in forced colours', () => {
+    expect(forcedBody(sharedTrendCss)).toMatch(/\.trend-band \{[^}]*stroke: Highlight/)
+    expect(forcedBody(sharedTrendCss)).toMatch(/\.trend-end-label__glyph \{[^}]*fill: CanvasText/)
+    expect(forcedBody(sportTrendCss)).toMatch(/\.trend-wash \{[^}]*fill: none/)
+  })
+
+  it('keeps the break mark of a skipped stretch of the axis visible, in a system colour', () => {
+    expect(forcedBody(breakCss)).toMatch(
+      /\.axis-break__line,\s*\.axis-break__slash \{[^}]*stroke: GrayText/,
+    )
+  })
+
+  it('outlines the stacked volume bars in the page colour, so the parts stay apart without a gap of tint', () => {
+    expect(forcedBody(volumeCss)).toMatch(/\.volume-bar \{[^}]*stroke: Canvas/)
   })
 
   it('outlines the splits pace track and fills the bar with the highlight, since both fills are dropped', () => {

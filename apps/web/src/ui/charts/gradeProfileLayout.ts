@@ -74,7 +74,7 @@ function percentsOf(rows: readonly ProfileRow[]): number[] {
   return rows.flatMap((row) =>
     Object.values(row.grades).flatMap((grade) =>
       [grade.centre, grade.range?.low, grade.range?.high].flatMap((end) =>
-        end === undefined ? [] : [plotted('grade', end.grade)],
+        end === undefined ? [] : [plotted(end.grade)],
       ),
     ),
   )
@@ -120,7 +120,7 @@ export function profileLayout(
       rows.map((row, i): Point | null => {
         const grade = row.grades[sport]
         const value = grade === undefined || (onlyShared && !shared[i]) ? undefined : pick(grade)
-        return value === undefined ? null : { x: x(row.durationS), y: y(plotted('grade', value)) }
+        return value === undefined ? null : { x: x(row.durationS), y: y(plotted(value)) }
       })
     return {
       sport,

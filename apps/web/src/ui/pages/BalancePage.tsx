@@ -6,9 +6,11 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { SharedTrendChart, WeeklyVolumeChart, energyWeeks, gradeWeeks } from '../charts'
+import { SharedTrendChart, WeeklyVolumeChart, gradeWeeks } from '../charts'
+import { hasRealVolume } from '../charts/monthlyVolume'
+import { timeAxisOf } from '@rca/core/digest/trendSeries'
 import { trendGutter } from '../charts/sharedTrendGutter'
-import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
+import { copyOf } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, headlinePick } from '../components'
 import { gapOfHeadline } from '../balanceGap'
@@ -74,18 +76,13 @@ function gradesCoverAge(trend: readonly TrendPoint[], profile: AgeProfile | null
   )
 }
 
-/** The trend's measure: each sport's age grade when the age and sex are known, else its energy rate. */
-function trendMeasureOf(profile: AgeProfile | null): SharedMeasure {
-  return profile === null ? 'energy' : 'grade'
-}
-
 /**
  * The fitness trend's name: the chart's own title, from the same measure, effort and window it draws
  * with, so the section and the chart name it in the same words.
  */
-function trendTitleOf(profile: AgeProfile | null, period: Period): string {
+function trendTitleOf(period: Period): string {
   const windowText = windowPhrase(trendWindowDays(period.days))
-  return copyOf(trendMeasureOf(profile), HEADLINE_LABEL, windowText).title
+  return copyOf(HEADLINE_LABEL, windowText).title
 }
 
 /** The level a sport's grade names, or null when the grade is not shown. */
@@ -164,13 +161,31 @@ export function BalancePage({
       ),
     [result.activities, trend],
   )
-  // The trend's weeks, which the volume strip's margin is sized from as the trend's own is.
-  const trendWeeks =
-    weeksWithValue(trend) === 0
-      ? []
-      : profile === null
-        ? energyWeeks(trend)
-        : gradeWeeks(trend, profile)
+  // The trend's weeks, which the volume strip's margin is sized from as the trend's own is. Without an age and sex
+  // there is no grade to draw, so the trend has no weeks and says what it waits for.
+  const trendWeeks = useMemo(
+    () => (weeksWithValue(trend) === 0 || profile === null ? [] : gradeWeeks(trend, profile)),
+    [trend, profile],
+  )
+  // The time axis the trend and the hours share: a week counts if the trend has a value or the athlete trained.
+  const axis = useMemo(
+    () =>
+      timeAxisOf(
+        trend.map((point) => point.endMs),
+        trend.map(
+          (point, i) =>
+            point.runWkg !== null ||
+            point.rideWkg !== null ||
+            (volume?.[i] !== undefined && hasRealVolume(volume[i])),
+        ),
+      ),
+    [trend, volume],
+  )
+  // The strip's margin is the trend's, from the weeks the trend draws, so the two axes line up.
+  const gutter = useMemo(
+    () => trendGutter(trendWeeks, weightKnown, axis),
+    [trendWeeks, weightKnown, axis],
+  )
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
@@ -284,16 +299,22 @@ export function BalancePage({
         <section className="section" aria-labelledby="balance-trend">
           {/* The chart's own title, shown once by the chart; the heading names the section the same way. */}
           <h2 id="balance-trend" className="sr-only">
-            {trendTitleOf(profile, period)}
+            {trendTitleOf(period)}
           </h2>
           <div className="balance__trends">
             {/* One trend for both sports, on one scale: age grades when the age and sex are known. */}
             <SharedTrendChart
               weeks={trendWeeks}
-              measure={trendMeasureOf(profile)}
+              axis={axis}
               windowDays={trendWindowDays(period.days)}
               effortS={HEADLINE_DURATION_S}
-              emptyText={gradesCoverAge(trend, profile) ? undefined : AGE_RANGE_TEXT}
+              emptyText={
+                profile === null
+                  ? `Add your ${missingAge ?? 'year of birth and sex'} to see how your grade has moved.`
+                  : gradesCoverAge(trend, profile)
+                    ? undefined
+                    : AGE_RANGE_TEXT
+              }
               rideKnown={weightKnown}
               latestStartMs={{
                 run: latestStartOf(library, 'run'),
@@ -305,7 +326,8 @@ export function BalancePage({
               <WeeklyVolumeChart
                 weeks={volume}
                 lede={volumeCaption(volume)}
-                plotRightMargin={trendGutter(trendWeeks, trendMeasureOf(profile), weightKnown)}
+                plotRightMargin={gutter}
+                axis={axis}
               />
             )}
           </div>

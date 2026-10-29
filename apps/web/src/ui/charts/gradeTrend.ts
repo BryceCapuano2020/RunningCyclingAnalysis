@@ -5,9 +5,8 @@ import type { AgeProfile, Grade } from '../grades'
 import { ageAndSexAt, gradeAtSpeed } from '../grades'
 
 /**
- * One week of a shared trend: each sport's value that week, or null where it has none. In a grade
- * trend the values are grade fractions, and a ride also has the grade at the low and high ends of
- * its model range. In an energy trend they are metabolic W/kg, with no range.
+ * One week of a shared trend: each sport's age grade that week, as a fraction, or null where it has none. A ride
+ * also has the grade at the low and high ends of its model range.
  */
 export interface SharedWeek {
   endMs: number
@@ -74,17 +73,4 @@ export function gradeWeeks(points: readonly TrendPoint[], profile: AgeProfile): 
       rideCount: point.rideCount,
     }
   })
-}
-
-/** Each week's energy rate for each sport, in metabolic W/kg, as the trend gives it. */
-export function energyWeeks(points: readonly TrendPoint[]): SharedWeek[] {
-  return points.map((point) => ({
-    endMs: point.endMs,
-    run: point.runWkg,
-    ride: point.rideWkg,
-    rideLow: null,
-    rideHigh: null,
-    runCount: point.runCount,
-    rideCount: point.rideCount,
-  }))
 }

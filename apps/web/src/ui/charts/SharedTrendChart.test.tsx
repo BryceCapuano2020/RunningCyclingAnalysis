@@ -42,7 +42,6 @@ const TWENTY_MINUTES_S = 1200
 function renderChart(overrides: Partial<SharedTrendChartProps> = {}) {
   const props: SharedTrendChartProps = {
     weeks: GRADE_WEEKS,
-    measure: 'grade',
     windowDays: TWO_WEEKS,
     effortS: TWENTY_MINUTES_S,
     latestStartMs: { run: null, ride: null },
@@ -72,48 +71,34 @@ function chartWidth(width: number) {
   vi.stubGlobal('ResizeObserver', SizedObserver)
 }
 
+/** A window narrow enough that the end labels are values and a mark, so the key that names the lines is drawn. */
+function narrowWindow() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('500px'),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+}
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
 
 describe('SharedTrendChart', () => {
-  it('titles an age-grade trend with its effort and its window, in one scale for both sports', () => {
+  it('says what it measures under its title: the effort and the window, in one scale for both sports', () => {
     renderChart()
-    expect(
-      screen.getByRole('figure', {
-        name: 'Age grade of your best 20 min, trailing 2 weeks',
-      }),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Age grade of your best 20 min, trailing 2 weeks')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /Run and ride age grades/ })).toBeInTheDocument()
   })
 
-  it('titles an energy trend in metabolic W/kg, when there is no age to grade by', () => {
-    renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
-    expect(
-      screen.getByRole('figure', {
-        name: 'Energy rate of your best 20 min, trailing 2 weeks',
-      }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Energy rate (metabolic W/kg)')).toBeInTheDocument()
-  })
-
-  it('heads the energy trend’s run and ride columns in metabolic W/kg', () => {
-    const { container } = renderChart({
-      measure: 'energy',
-      weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)],
-    })
-    const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
-    expect(headers).toContain('Run (metabolic W/kg)')
-    expect(headers).toContain('Ride (metabolic W/kg)')
-  })
-
-  it('draws running as a solid line with a dot per week, and cycling as a dashed line with rings', () => {
+  it('draws running as a solid line with a dot per week, and cycling as a line with rings, never dashed', () => {
     const { container } = renderChart()
     const lines = Array.from(container.querySelectorAll('[data-testid="trend-line"]'))
     expect(lines.map((line) => line.getAttribute('data-sport'))).toEqual(['run', 'ride'])
-    expect(lines[1]).toHaveClass('chart-series__line--estimate')
-    expect(lines[0]).not.toHaveClass('chart-series__line--estimate')
+    expect(container.querySelector('.chart-series__line--estimate')).toBeNull()
+    // Smoothed: each line is a curve, with cubic segments between its points.
+    expect(lines[0]?.getAttribute('d')).toMatch(/C/)
     expect(
       container.querySelectorAll('[data-testid="trend-marker"][data-sport="run"]'),
     ).toHaveLength(4)
@@ -122,33 +107,20 @@ describe('SharedTrendChart', () => {
     ).toHaveLength(4)
   })
 
-  it('draws cycling as measured in an energy trend: a solid line and dots, not an estimate', () => {
-    const { container } = renderChart({
-      measure: 'energy',
-      weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false), week(2, 4.1, null, false)],
-    })
-    const ride = container.querySelector('[data-testid="trend-line"][data-sport="ride"]')
-    expect(ride).not.toHaveClass('chart-series__line--estimate')
-    expect(container.querySelectorAll('[data-testid="trend-ring"]')).toHaveLength(0)
-    expect(
-      container.querySelectorAll('[data-testid="trend-marker"][data-sport="ride"]'),
-    ).toHaveLength(2)
-    const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(legend).toHaveTextContent('Ride')
-    expect(legend).not.toHaveTextContent('estimated')
-  })
-
-  it('reads the week before the pointer, as a stepped line is drawn', () => {
+  it('reads the week nearest the pointer, as a smoothed line is drawn', () => {
     renderChart()
-    // Weeks 1 and 2 are 113.6 px apart on the 640 px fallback chart; 70% of the way is nearer week 2.
+    // The weeks are about 100 px apart on the fallback chart; 70% of the way between two is nearer the later.
+    const { left, right } = { left: 56, right: 640 - 16 }
+    const step = (right - left) / 5
     fireEvent.pointerMove(screen.getByTestId('plot-surface'), {
-      clientX: 56 + 0.2 * 568 + 0.7 * 113.6,
+      clientX: left + step + 0.7 * step,
       clientY: 100,
     })
-    expect(screen.getByRole('status')).toHaveTextContent('Sun 19 Jan')
+    expect(screen.getByRole('status')).toHaveTextContent('Sun 26 Jan')
   })
 
   it('keeps one label per sport when both latest values read the same, and warns about no key', () => {
+    chartWidth(640)
     const warnings = vi.spyOn(console, 'error').mockImplementation(() => {})
     const weeks = [week(0, 0.64, 0.64, true), week(1, 0.66, 0.66, true)]
     const { rerender } = renderChart({ weeks })
@@ -157,7 +129,6 @@ describe('SharedTrendChart', () => {
     rerender(
       <SharedTrendChart
         weeks={weeks}
-        measure="grade"
         windowDays={TWO_WEEKS}
         effortS={TWENTY_MINUTES_S}
         latestStartMs={{ run: null, ride: null }}
@@ -210,23 +181,50 @@ describe('SharedTrendChart', () => {
     expect(screen.getByRole('status')).toHaveTextContent('No rides in the window')
   })
 
-  it('draws the cycling range as a band in an age-grade trend, and no band in an energy trend', () => {
-    const grades = renderChart()
-    expect(grades.container.querySelector('[data-testid="trend-band"]')?.getAttribute('d')).toMatch(
-      /^M/,
-    )
-    grades.unmount()
-    const energy = renderChart({ measure: 'energy', weeks: [week(0, 4, 3, true)] })
-    expect(energy.container.querySelector('[data-testid="trend-band"]')).toBeNull()
+  it('draws each line as one smooth curve through its weeks, never as steps', () => {
+    const { container } = renderChart({
+      weeks: [week(0, 0.6, null), week(1, 0.62, null), week(2, 0.61, null)],
+    })
+    const line = container.querySelector('[data-testid="trend-line"]')
+    expect(line?.getAttribute('d')).toMatch(/^M[\d.]+ [\d.]+(C[\d. ]+){2}$/)
+    expect(line?.getAttribute('d')).not.toMatch(/[HV]/)
   })
 
-  it('draws each line as steps, holding each week’s value until the next Sunday', () => {
-    const { container } = renderChart({ weeks: [week(0, 0.6, null), week(1, 0.62, null)] })
-    const line = container.querySelector('[data-testid="trend-line"]')
-    expect(line?.getAttribute('d')).toMatch(/^M[\d.]+ [\d.]+H[\d.]+V[\d.]+$/)
+  it('breaks the line where eight weeks or more had no effort, and says so under the chart', () => {
+    const gap = Array.from({ length: 24 }, (_, i) =>
+      week(i, i >= 6 && i < 14 ? null : 0.6 + (i % 5) / 100, null),
+    )
+    const { container } = renderChart({ weeks: gap })
+    const d = container.querySelector('[data-testid="trend-line"]')?.getAttribute('d') ?? ''
+    expect(d.match(/M/g)).toHaveLength(2)
+    expect(container.querySelector('.chart-about')).toHaveTextContent(
+      'A line breaks where 8 weeks or more passed with no qualifying effort.',
+    )
+    // Seven empty weeks are bridged, and the note is left out.
+    const short = Array.from({ length: 24 }, (_, i) => week(i, i >= 6 && i < 13 ? null : 0.6, null))
+    cleanup()
+    const bridged = renderChart({ weeks: short })
+    expect(
+      bridged.container.querySelector('[data-testid="trend-line"]')?.getAttribute('d')?.match(/M/g),
+    ).toHaveLength(1)
+    expect(bridged.container.querySelector('.chart-about')).not.toHaveTextContent('breaks')
+  })
+
+  it('draws a span past 26 weeks by the month, says so, and heads the table by month', () => {
+    const long = Array.from({ length: 60 }, (_, i) => week(i, 0.6 + (i % 7) / 100, 0.5))
+    const { container } = renderChart({ weeks: long })
+    expect(container.querySelector('.chart-about')).toHaveTextContent(
+      'Past 26 weeks each point is a month',
+    )
+    const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
+    expect(headers[0]).toBe('Month to')
+    expect(container.querySelectorAll('tbody tr').length).toBeLessThan(20)
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    expect(screen.getByRole('status')).toHaveTextContent('Average of 3 weeks')
   })
 
   it('names the two sports in a legend, with cycling marked as an estimate, when both have values', () => {
+    narrowWindow()
     renderChart()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Run, as recorded')).toBeInTheDocument()
@@ -234,6 +232,7 @@ describe('SharedTrendChart', () => {
   })
 
   it('shows the cycling key alone, as a one-entry legend, when only cycling has values', () => {
+    narrowWindow()
     renderChart({
       weeks: [week(0, null, 0.52), week(1, null, null), week(2, null, 0.54), week(3, null, 0.56)],
     })
@@ -243,6 +242,7 @@ describe('SharedTrendChart', () => {
   })
 
   it('shows the running key alone when only running has values, so the one line is named', () => {
+    narrowWindow()
     renderChart({
       weeks: [week(0, 0.6, null), week(1, 0.62, null), week(2, null, null), week(3, 0.64, null)],
     })
@@ -252,6 +252,7 @@ describe('SharedTrendChart', () => {
   })
 
   it('holds cycling while a weight is missing: no ride line, ring, band, key or column, and it says so', () => {
+    narrowWindow()
     const { container } = renderChart({ rideKnown: false })
     expect(container.querySelector('[data-testid="trend-line"][data-sport="ride"]')).toBeNull()
     expect(container.querySelector('[data-testid="trend-ring"]')).toBeNull()
@@ -263,8 +264,8 @@ describe('SharedTrendChart', () => {
     expect(screen.getByText(/Cycling is held until a weight is added/)).toBeInTheDocument()
   })
 
-  it('labels the latest values with their sport and value at every width, since the title names the effort and window', () => {
-    chartWidth(340)
+  it('labels the latest values with their sport and value on a wide chart', () => {
+    chartWidth(640)
     const { container } = renderChart()
     const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
       (label) => label.textContent,
@@ -272,8 +273,26 @@ describe('SharedTrendChart', () => {
     expect(labels).toEqual(['Run 66%', 'Ride 58%'])
   })
 
-  it('sets a run label at the plot’s left edge to the right of its point, clear of the y tick labels', () => {
+  it('labels a narrow chart’s latest values with the mark of their line, a dot for run and a ring for ride', () => {
     chartWidth(340)
+    const { container } = renderChart()
+    const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
+      (label) => label.textContent,
+    )
+    expect(labels).toEqual(['● 66%', '○ 58%'])
+    expect(container.querySelectorAll('.trend-end-label__glyph')).toHaveLength(2)
+  })
+
+  it('keeps the two end labels apart where both lines end on the same value', () => {
+    chartWidth(640)
+    const { container } = renderChart({ weeks: [week(0, 0.6, 0.6), week(1, 0.6, 0.6)] })
+    const [run, ride] = Array.from(container.querySelectorAll('.chart-series__label'))
+    const gap = Math.abs(Number(run?.getAttribute('y')) - Number(ride?.getAttribute('y')))
+    expect(gap).toBeGreaterThanOrEqual(12)
+  })
+
+  it('names a run that stops at the first week beside its own end, not in the gutter', () => {
+    chartWidth(640)
     const { container } = renderChart({
       weeks: [week(0, 0.6, 0.52), week(1, null, 0.54), week(2, null, 0.56)],
     })
@@ -281,21 +300,11 @@ describe('SharedTrendChart', () => {
       (label) => label.textContent === 'Run 60%',
     )
     expect(run?.getAttribute('text-anchor')).toBe('start')
-  })
-
-  it('names an energy end label with its sport and full unit', () => {
-    chartWidth(480)
-    const { container } = renderChart({
-      measure: 'energy',
-      weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)],
-    })
-    const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
-      (label) => label.textContent,
-    )
-    expect(labels).toEqual(['Run 4.2 metabolic W/kg', 'Ride 3.1 metabolic W/kg'])
+    expect(Number(run?.getAttribute('x'))).toBeLessThan(200)
   })
 
   it('labels each latest value with its sport and value, as the table and tooltip name the sport', () => {
+    chartWidth(640)
     renderChart()
     expect(screen.getByText('Run 66%')).toBeInTheDocument()
     expect(screen.getByText('Ride 58%')).toBeInTheDocument()
@@ -307,16 +316,18 @@ describe('SharedTrendChart', () => {
     expect(container.querySelector('.chart-x-axis__title')).toBeNull()
     // With no x title the plot leaves room only for the tick labels, as TrendChart's does.
     expect(Number(container.querySelector('.chart-x-axis__tick')?.getAttribute('y'))).toBe(
-      320 - PLOT_BOTTOM_WITHOUT_X_TITLE + 18,
+      Number(container.querySelector('svg')?.getAttribute('height')) -
+        PLOT_BOTTOM_WITHOUT_X_TITLE +
+        18,
     )
   })
 
-  it('says how each line steps in the table caption, and not beneath the chart', () => {
+  it('says how each line is drawn in the table caption, and not beneath the chart', () => {
     const { container } = renderChart()
     expect(container.querySelector('caption')).toHaveTextContent(
-      'Each line steps from one Sunday to the next, and breaks where a week has no value.',
+      'The line is smoothed between weeks and breaks where 8 weeks or more passed with no qualifying effort.',
     )
-    expect(container.querySelector('.chart-frame__note')).not.toHaveTextContent('steps')
+    expect(container.querySelector('.chart-frame__note')).not.toHaveTextContent('smoothed')
   })
 
   it('marks the run and ride count columns as phone-hidden, so a phone shows the grades alone', () => {
@@ -362,14 +373,6 @@ describe('SharedTrendChart', () => {
     expect(tooltip).toHaveTextContent('National')
   })
 
-  it('says each line steps from one Sunday to the next, and breaks where a week has no value', () => {
-    renderChart()
-    expect(
-      screen.getByText(/steps from one Sunday to the next, and breaks where a week has no value/),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/holds/)).toBeNull()
-  })
-
   it('shows each week’s values in a table, with cycling as an estimate', () => {
     const { container } = renderChart()
     const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
@@ -412,14 +415,33 @@ describe('SharedTrendChart', () => {
     expect(screen.getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
   })
 
-  it('says the latest point is only the last window, not the card’s period, and explains a low point as one where even the best effort was easy', () => {
-    renderChart()
-    expect(
-      screen.getByText(
-        'Each point is the best 20 min in the 2 weeks to that Sunday. The latest point covers only the last 2 weeks, so it can differ from a card’s best over the period. A low point means even the best effort in those weeks was easy.',
-      ),
-    ).toBeInTheDocument()
+  it('keeps one short sentence under the chart, and the rest behind About this chart', () => {
+    const { container } = renderChart()
+    expect(container.querySelector('.chart-frame__note')).toHaveTextContent(
+      'Each point is your best 20 min of the 2 weeks to that Sunday; rides are estimated.',
+    )
+    expect(container.querySelector('.chart-frame__note')?.textContent).not.toMatch(/low point/)
+    const about = container.querySelector('.chart-about')
+    expect(about?.querySelector('summary')).toHaveTextContent('About this chart')
+    expect(about).not.toHaveAttribute('open')
+    // The latest point is only the last window, not the card's period, and a low point is one where even the best was easy.
+    expect(about).toHaveTextContent(
+      'The latest point covers only the last 2 weeks, so it can differ from a card’s best over the period.',
+    )
+    expect(about).toHaveTextContent(
+      'A low point means even the best effort in those weeks was easy.',
+    )
+    expect(about).toHaveTextContent('the ring is the estimate and the shaded band is its 90% range')
     expect(screen.queryByText(/easy runs/)).toBeNull()
+  })
+
+  it('draws no key where the end labels name the lines, and a key where they are values alone', () => {
+    renderChart()
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    cleanup()
+    narrowWindow()
+    renderChart()
+    expect(screen.getByRole('list', { name: 'Legend' })).toHaveTextContent('Run, as recorded')
   })
 
   it('dates a line that stops before the window does by its latest run, in the note under the chart', () => {
@@ -429,10 +451,8 @@ describe('SharedTrendChart', () => {
       weeks: [...runStops, ...rideLasts],
       latestStartMs: { run: new Date(2025, 0, 20, 12).getTime(), ride: null },
     })
-    const note = container.querySelector('.chart-frame__note')
-    expect(note?.textContent).toMatch(
-      /A low point means even the best effort in those weeks was easy\. No runs since 20 Jan/,
-    )
+    const note = container.querySelector('.chart-about')
+    expect(note?.textContent).toMatch(/No runs since 20 Jan/)
     expect(note?.textContent).not.toMatch(/26 Jan/)
     expect(screen.queryByText(/No rides since/)).toBeNull()
   })
@@ -444,9 +464,7 @@ describe('SharedTrendChart', () => {
       weeks: [...runStops, ...rideLasts],
       latestStartMs: { run: new Date(2025, 0, 29, 12).getTime(), ride: null },
     })
-    expect(container.querySelector('.chart-frame__note')?.textContent).toMatch(
-      /No runs since 29 Jan/,
-    )
+    expect(container.querySelector('.chart-about')?.textContent).toMatch(/No runs since 29 Jan/)
   })
 
   it('adds no dated note when the latest run falls in the last week, which the line would show', () => {
@@ -461,32 +479,6 @@ describe('SharedTrendChart', () => {
 
   it('adds no dated note while both lines reach the last week', () => {
     const { container } = renderChart()
-    expect(container.textContent).not.toMatch(/since \d/)
-  })
-
-  it('explains a low energy point the same way, in the energy measure', () => {
-    renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
-    expect(
-      screen.getByText(/A low point means even the best effort in those weeks was easy\./),
-    ).toBeInTheDocument()
-  })
-
-  it('names the single value in the unit the chart draws it in: per cent for an age grade, metabolic W/kg for an energy trend', () => {
-    renderChart({ measure: 'energy', weeks: [week(0, 4, null, false)] })
-    expect(
-      screen.getByText(/^Only one week has a value: Run \d+(\.\d+)? metabolic W\/kg, week ending/),
-    ).toBeInTheDocument()
-  })
-
-  it('gives an energy table its values as bare numbers, under headings that name the unit', () => {
-    const { container } = renderChart({
-      measure: 'energy',
-      weeks: [week(0, 4, 3, false), week(1, 4.2, null, false)],
-    })
-    const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
-      Array.from(tr.querySelectorAll('th, td')).map((cell) => cell.textContent),
-    )
-    expect(rows[0]?.slice(1, 3)).toEqual(['4.0', '3.0'])
-    expect(rows[1]?.slice(1, 2)).toEqual(['4.2'])
+    expect(container.querySelector('.chart-about')?.textContent).not.toMatch(/since \d/)
   })
 })

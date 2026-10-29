@@ -1,0 +1,24 @@
+/*
+ * The headings of the trend and volume charts. Their title says what the chart found, so it is set a step
+ * above the line under it, which names the measure. The wrapper groups the chart and its disclosure, so the page's grid
+ * sees one item, the chart with its "About this chart" disclosure under its table.
+ */
+.takeaway-chart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.takeaway-chart .chart-frame__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: 40ch;
+}
+
+.takeaway-chart .chart-frame__lede {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

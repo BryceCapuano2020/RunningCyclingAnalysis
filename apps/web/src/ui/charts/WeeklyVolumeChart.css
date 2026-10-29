@@ -1,27 +1,16 @@
 /*
- * A sport's part of a week's bar, in the sport's colour (set once for each data-sport in tokens.css). The order
+ * A sport's part of a bar, in the sport's colour (set once for each data-sport in tokens.css). The order
  * of the stack, the key and the table say which part is which, so the colour is never the only cue.
  */
 .volume-bar {
   fill: var(--sport-colour);
 }
 
-/*
- * A 2 px gap in the page colour between two stacked parts, when the part is wide and tall enough to keep its
- * fill. A bar's top part has a rounded data end (the rx is set on the element); the foot stays square.
- */
-.volume-bar--edged {
-  stroke: var(--surface-0);
-  stroke-width: 2;
-}
-
 /* In forced colours the sport tints go: running is the text colour and the other sports the highlight. */
 @media (forced-colors: active) {
+  /* An edge in the page colour keeps the parts apart where their tints, and so their gap, are gone. */
   .volume-bar {
     fill: Highlight;
-  }
-
-  .volume-bar--edged {
     stroke: Canvas;
   }
 

@@ -17,8 +17,11 @@ import {
 /** The charts by their figure titles. The balance meter is named by its sentence. */
 const BALANCE_METER =
   /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
-/** The Balance trend: one chart for both sports, as age grades when the age and sex are known. */
-const BALANCE_TREND = /^(Age grade|Energy rate) of your best 20 min, trailing/
+/**
+ * The Balance trend: one chart for both sports, as age grades when the age and sex are known. Its title says
+ * what it found, so it is found by the line under it that names the measure.
+ */
+const BALANCE_TREND = /(Age grade|Energy rate) of your best 20 min, trailing/
 const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
 /** The section that compares each best with the athlete's other bests. */
@@ -42,7 +45,7 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toBeVisible()
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
-  await expect(page.getByRole('figure', { name: BALANCE_TREND })).toBeVisible()
+  await expect(page.locator('figure').filter({ hasText: BALANCE_TREND })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
   await goTo(page, 'Run')

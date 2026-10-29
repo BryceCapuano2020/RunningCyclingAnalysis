@@ -5,12 +5,8 @@ import type { ChartSize } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, plotBoxOf } from './plotBox'
 import { sharedTrendLayout } from './sharedTrendLayout'
-import {
-  MAX_BAR_PX,
-  MIN_EDGED_BAR_PX,
-  MIN_EDGED_PART_PX,
-  weeklyVolumeLayout,
-} from './weeklyVolumeLayout'
+import { trendRowsOf } from './sharedTrendRows'
+import { MAX_BAR_PX, STACK_GAP_PX, weeklyVolumeLayout } from './weeklyVolumeLayout'
 
 const FIRST_END = Date.UTC(2025, 0, 12, 23, 59, 59, 999)
 const HOUR = 3600
@@ -34,6 +30,39 @@ function weeksOf(...hours: [number, number][]): VolumeWeek[] {
   }))
 }
 
+describe('weeklyVolumeLayout over months with a partial final month', () => {
+  /** Month rows dated at the last Sunday of each, then a final row one week after the last. */
+  const monthly = (): VolumeWeek[] => {
+    const ends = [0, 4, 8, 13, 17, 21, 26, 30, 34, 39, 43, 47, 48]
+    return ends.map((week) => ({
+      endMs: FIRST_END + week * 7 * DAY_MS,
+      seconds: { run: 3 * HOUR, ride: HOUR },
+    }))
+  }
+
+  it('sizes bars by the usual spacing, the median, and not by the closest pair', () => {
+    const size = sizeOf(640)
+    const layout = weeklyVolumeLayout(monthly(), size)
+    const gaps = layout!.xs.slice(1).map((x, i) => x - layout!.xs[i]!)
+    const usual = [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)]!
+    const widest = Math.max(...layout!.bars.map((bar) => bar.width))
+    expect(widest).toBeCloseTo(Math.min(MAX_BAR_PX, usual * 0.7), 5)
+    // The closest pair, the partial month, is a quarter of the usual space: sized by it every bar would be a sliver.
+    expect(Math.min(...gaps)).toBeLessThan(usual / 2)
+  })
+
+  it('keeps the partial month’s bar and its neighbour from overlapping', () => {
+    const layout = weeklyVolumeLayout(monthly(), sizeOf(640))!
+    const bars = layout.bars
+    for (let i = 1; i < bars.length; i++) {
+      const before = bars[i - 1]!
+      expect(before.left + before.width).toBeLessThanOrEqual(bars[i]!.left + 1e-9)
+    }
+    // The final bar is narrower than the others, for the room it has.
+    expect(bars.at(-1)!.width).toBeLessThan(bars[0]!.width)
+  })
+})
+
 describe('weeklyVolumeLayout', () => {
   it('stands each bar at the x the trend gives the same week, at any width', () => {
     const volume = weeksOf([3, 0], [0, 0], [2, 4], [5, 1], [0, 6])
@@ -49,7 +78,7 @@ describe('weeklyVolumeLayout', () => {
     for (const width of [320, 640, 1000]) {
       // The strip is shorter than the trend; only the plot's left and right edges must agree.
       const bars = weeklyVolumeLayout(volume, sizeOf(width, 200))
-      const line = sharedTrendLayout(trend, 'grade', sizeOf(width, 320))
+      const line = sharedTrendLayout(trendRowsOf(trend), sizeOf(width, 320))
       expect(bars?.xs).toEqual(line?.xs)
       expect(bars?.xTicks).toEqual(line?.xTicks)
     }
@@ -62,8 +91,9 @@ describe('weeklyVolumeLayout', () => {
     expect(stacked?.segments.map((segment) => segment.sport)).toEqual(['run', 'ride'])
     const [run, ride] = stacked?.segments ?? []
     expect(run?.y).toBeCloseTo(size.plot.bottom - (run?.height ?? 0))
-    expect(ride?.y).toBeCloseTo((run?.y ?? 0) - (ride?.height ?? 0))
-    expect((ride?.height ?? 0) / (run?.height ?? 1)).toBeCloseTo(2)
+    // The ride stops STACK_GAP_PX short of the run, and the bar still reaches the height of its hours.
+    expect((run?.y ?? 0) - ((ride?.y ?? 0) + (ride?.height ?? 0))).toBeCloseTo(STACK_GAP_PX)
+    expect(((ride?.height ?? 0) + STACK_GAP_PX) / (run?.height ?? 1)).toBeCloseTo(2)
     expect(plain?.segments.map((segment) => segment.sport)).toEqual(['run'])
   })
 
@@ -111,16 +141,43 @@ describe('weeklyVolumeLayout', () => {
     }
   })
 
-  it('edges a part only when it is wide and tall enough to keep its fill', () => {
-    const wide = weeklyVolumeLayout(weeksOf([4, 4], [4, 0.01], [1, 0]), sizeOf(640))
-    expect(wide?.bars[0]?.segments.map((segment) => segment.edged)).toEqual([true, true])
-    const thin = wide?.bars[1]?.segments.find((segment) => segment.sport === 'ride')
-    expect(thin?.height).toBeLessThan(MIN_EDGED_PART_PX)
-    expect(thin?.edged).toBe(false)
-    const many = Array.from({ length: 260 }, (): [number, number] => [3, 1])
-    const narrow = weeklyVolumeLayout(weeksOf(...many), sizeOf(320))
-    expect(narrow?.bars[0]?.width).toBeLessThan(MIN_EDGED_BAR_PX)
-    expect(narrow?.bars.every((bar) => bar.segments.every((segment) => !segment.edged))).toBe(true)
+  it('rounds the top of a bar and no other corner, however many sports it stacks', () => {
+    const layout = weeklyVolumeLayout(weeksOf([4, 4], [4, 0], [1, 0]), sizeOf(640))
+    const [stacked, single] = layout?.bars ?? []
+    const [run, ride] = stacked?.segments ?? []
+    expect(run?.path).not.toContain('A')
+    expect(ride?.path).toContain('A')
+    expect(single?.segments[0]?.path).toContain('A')
+  })
+
+  it('keeps a sliver of a sport as a flat piece, with no gap taken from it', () => {
+    const layout = weeklyVolumeLayout(weeksOf([4, 0.01], [4, 0], [1, 0]), sizeOf(640))
+    const [run, ride] = layout?.bars[0]?.segments ?? []
+    expect(ride?.height).toBeLessThan(STACK_GAP_PX)
+    expect(ride?.height).toBeGreaterThan(0)
+    expect((run?.y ?? 0) - ((ride?.y ?? 0) + (ride?.height ?? 0))).toBeCloseTo(0)
+  })
+
+  it('labels the tallest bar with its hours, centred over it', () => {
+    const size = sizeOf(640)
+    const layout = weeklyVolumeLayout(weeksOf([2, 0], [3, 1.84], [1, 0], [2, 0]), size)
+    expect(layout?.peak).toMatchObject({ text: '4.8 h', anchor: 'middle', index: 1 })
+    expect(layout?.peak?.x).toBe(layout?.xs[1])
+    expect(layout?.peak?.y).toBeLessThan(layout?.ys[1] ?? 0)
+  })
+
+  it('keeps the peak label inside the chart when the peak is the first or the last bar', () => {
+    const size = sizeOf(320)
+    const first = weeklyVolumeLayout(weeksOf([9, 0], [1, 0], [1, 0]), size)
+    expect(first?.peak?.anchor).toBe('start')
+    expect(first?.peak?.x).toBeGreaterThanOrEqual(size.plot.left)
+    const last = weeklyVolumeLayout(weeksOf([1, 0], [1, 0], [9, 0]), size)
+    expect(last?.peak?.anchor).toBe('end')
+    expect(last?.peak?.x).toBeLessThanOrEqual(size.width)
+  })
+
+  it('has no peak label where no week trained', () => {
+    expect(weeklyVolumeLayout(weeksOf([0, 0], [0, 0], [0, 0]), sizeOf(640))?.peak).toBeNull()
   })
 
   it('has no layout with fewer than two weeks', () => {
