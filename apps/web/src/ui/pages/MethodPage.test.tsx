@@ -405,7 +405,7 @@ describe('MethodPage energy view', () => {
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
       within(section).getByText(
-        'The comparison is held until each sport has a harder 20 min effort.',
+        'The comparison is held until there is an effort of 20 min or more in each sport.',
       ),
     ).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/this view is that ratio|cross-check|90% model range/)
@@ -675,7 +675,7 @@ describe('MethodPage heart-rate check', () => {
     await openEvidence(disclosureFor('heart-rate check'))
     expect(
       within(section).getByText(
-        'Each dot is a 5 min block of steady effort from your files, taken after the first 10 min of each activity. The two lines show how fast heart rate rises with energy rate in each sport.',
+        'Each dot is a 5 min block of steady effort from this period’s files, taken after the first 10 min of each activity. The two lines show how fast heart rate rises with energy rate in each sport.',
       ),
     ).toBeInTheDocument()
   })

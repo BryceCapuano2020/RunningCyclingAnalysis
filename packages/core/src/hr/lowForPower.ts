@@ -1,7 +1,25 @@
-import { HR_LOW_FOR_POWER } from '../constants'
 import { quantile } from '../math'
 import type { ActivityDigest, Sport } from '../types'
 import { MEASURED_EFFORT } from './setAside'
+
+/**
+ * Heart rate that reads low for the power across a whole activity is set aside too, which the best-effort test
+ * cannot see in an endurance ride whose strap failed from minute 25. An activity of at least minMovingS with at
+ * least minBlocks heart-rate blocks is judged by its median heart rate at its median output against the
+ * library's heart rate at that output for its sport: a robust line fitted over all of them (at most maxFitPoints,
+ * for cost). An activity is judged only if its output lies from the judgedFrom to the judgedTo quantile of those
+ * fitted, so the line is never extrapolated. Under maxShare of that heart rate sets it aside. A sport with fewer
+ * than minActivities such activities is not judged.
+ */
+export const HR_LOW_FOR_POWER = {
+  minMovingS: 1200,
+  minBlocks: 3,
+  minActivities: 12,
+  maxShare: 0.75,
+  maxFitPoints: 150,
+  judgedFrom: 0.05,
+  judgedTo: 0.95,
+} as const
 
 /** One activity's level: its median heart rate and its median output over the 5 min blocks, in its sport's unit. */
 interface Level {
@@ -55,8 +73,10 @@ interface Line {
 
 /** The robust line through the levels, or null when its slope is not positive: a heart rate that does not rise with output. */
 function fitLine(levels: Level[]): Line | null {
-  const stride = Math.max(1, Math.ceil(levels.length / HR_LOW_FOR_POWER.maxFitPoints))
-  const used = levels.filter((_, i) => i % stride === 0)
+  // Ordered by output, then id, before subsampling, so the line does not depend on the order digests arrive in.
+  const ordered = levels.slice().sort((a, b) => a.output - b.output || (a.id < b.id ? -1 : 1))
+  const stride = Math.max(1, Math.ceil(ordered.length / HR_LOW_FOR_POWER.maxFitPoints))
+  const used = ordered.filter((_, i) => i % stride === 0)
   const slopes: number[] = []
   for (let i = 0; i < used.length; i++) {
     for (let j = i + 1; j < used.length; j++) {
@@ -74,10 +94,18 @@ function fitLine(levels: Level[]): Line | null {
   return { intercept, slope }
 }
 
-/** The ids whose level is under maxShare of the line's heart rate at their output. */
+/**
+ * The ids whose level is under maxShare of the line's heart rate at their output. Only an output within the
+ * 5th to 95th percentile of those the line was fitted to is judged: beyond them the line is extrapolated, and a
+ * low-output easy ride at its true heart rate would read low against a line steepened by the rest.
+ */
 function lowAgainst(levels: Level[], line: Line): Set<string> {
+  const outputs = levels.map((level) => level.output)
+  const from = quantile(outputs, HR_LOW_FOR_POWER.judgedFrom)
+  const to = quantile(outputs, HR_LOW_FOR_POWER.judgedTo)
   const low = new Set<string>()
   for (const level of levels) {
+    if (level.output < from || level.output > to) continue
     const expected = line.intercept + line.slope * level.output
     if (expected > 0 && level.heartRate < HR_LOW_FOR_POWER.maxShare * expected) low.add(level.id)
   }
@@ -95,14 +123,18 @@ export function lowForPowerSetAside(digests: ActivityDigest[]): Set<string> {
   const bySport = new Map<Sport, Level[]>()
   for (const digest of digests) {
     const level = levelOf(digest)
-    if (level !== null) bySport.set(digest.sport, [...(bySport.get(digest.sport) ?? []), level])
+    if (level === null) continue
+    const own = bySport.get(digest.sport)
+    if (own === undefined) bySport.set(digest.sport, [level])
+    else own.push(level)
   }
   const out = new Set<string>()
   for (const levels of bySport.values()) {
     if (levels.length < HR_LOW_FOR_POWER.minActivities) continue
     const first = fitLine(levels)
     if (first === null) continue
-    const kept = levels.filter((level) => !lowAgainst(levels, first).has(level.id))
+    const firstLow = lowAgainst(levels, first)
+    const kept = levels.filter((level) => !firstLow.has(level.id))
     const line = kept.length >= HR_LOW_FOR_POWER.minActivities ? fitLine(kept) : first
     if (line === null) continue
     for (const id of lowAgainst(levels, line)) out.add(id)

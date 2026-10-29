@@ -21,7 +21,12 @@ function shareAtOrOver(speed: Float64Array, moving: Uint8Array, speedMs: number)
  * The median cadence, steps/min, over the moving samples that have one and run at least `minSpeedMs` (all of
  * them at 0), or null when the file has no steps a minute or too few such samples to say.
  */
-function medianCadence(activity: Activity, moving: Uint8Array, minSpeedMs: number): number | null {
+function medianCadence(
+  activity: Activity,
+  moving: Uint8Array,
+  minSpeedMs: number,
+  minSamples: number,
+): number | null {
   const { cadence, cadenceUnit, speed } = activity
   // GPX cadence of unknown unit, or revolutions, is not read as steps.
   if (cadence === undefined || (cadenceUnit !== undefined && cadenceUnit !== 'steps/min')) {
@@ -31,7 +36,7 @@ function medianCadence(activity: Activity, moving: Uint8Array, minSpeedMs: numbe
   for (let i = 0; i < cadence.length; i++) {
     if (moving[i] === 1 && cadence[i]! > 0 && speed[i]! >= minSpeedMs) values.push(cadence[i]!)
   }
-  return values.length >= WALKING_PACE.minCadenceSamples ? quantile(values, 0.5) : null
+  return values.length >= minSamples ? quantile(values, 0.5) : null
 }
 
 /** Whether a median cadence, when there is one, is a runner's. */
@@ -51,7 +56,14 @@ export function atWalkingPace(activity: Activity, moving: Uint8Array, movingS: n
   if (!(distanceM > 0 && distanceM / movingS < w.maxMovingSpeedMs)) return false
   if (shareAtOrOver(activity.speed, moving, w.runningSpeedMs) >= w.runningShare) return false
   return !(
-    runsAt(medianCadence(activity, moving, 0)) ||
-    runsAt(medianCadence(activity, moving, w.maxMovingSpeedMs))
+    runsAt(medianCadence(activity, moving, 0, w.minCadenceSamples)) ||
+    runsAt(
+      medianCadence(
+        activity,
+        moving,
+        w.maxMovingSpeedMs,
+        Math.max(w.minCadenceSamples, w.minFasterShare * movingS),
+      ),
+    )
   )
 }

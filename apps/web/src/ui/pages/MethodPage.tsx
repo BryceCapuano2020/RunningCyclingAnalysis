@@ -71,7 +71,8 @@ const ENERGY_FALLBACK =
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
 /** The energy view when a sport has no 20 min effort or fitted threshold yet: Balance holds its headline too. */
-const HELD_COMPARISON = 'The comparison is held until each sport has a harder 20 min effort.'
+const HELD_COMPARISON =
+  'The comparison is held until there is an effort of 20 min or more in each sport.'
 /** The energy view with no ride to compare a run with, so a weight would not change what it shows. */
 const NEEDS_RIDE = 'Needs a ride to compare with running.'
 /** The energy view with no run to compare a ride with: the run-equivalent of NEEDS_RIDE. */
@@ -331,8 +332,8 @@ export function MethodPage({
             )}
             <EvidenceDisclosure section="the heart-rate check">
               <p className="secondary">
-                Each dot is a {formatDuration(HR_BLOCK_S)} block of steady effort from your files,
-                taken after the first {formatDuration(HR_SKIP_S)} of each activity.{' '}
+                Each dot is a {formatDuration(HR_BLOCK_S)} block of steady effort from this period’s
+                files, taken after the first {formatDuration(HR_SKIP_S)} of each activity.{' '}
                 {weightKnown
                   ? 'The two lines show how fast heart rate rises with energy rate in each sport.'
                   : 'The line shows how fast heart rate rises with energy rate in running.'}

@@ -805,3 +805,31 @@ describe('assessQuality: missing altitude', () => {
     expect(zeroIndices(report.validGrade)).toEqual([])
   })
 })
+
+describe('assessQuality: hr-implausible-for-power on a very long file', () => {
+  /** A 12 h ride at 220 W whose heart rate is 140 bpm, with `edit` applied to the heart rate. */
+  function longRide(edit: (heartRate: Float64Array) => void): Activity {
+    const n = 12 * 3600
+    const heartRate = new Float64Array(n).fill(140)
+    edit(heartRate)
+    return makeActivity(n, {
+      sport: 'ride',
+      hasPower: true,
+      power: new Float64Array(n).fill(220),
+      heartRate: eased(heartRate),
+    })
+  }
+  const flags = (a: Activity) =>
+    assessQuality(a).flags.filter((f) => f.kind === 'hr-implausible-for-power')
+
+  it('does not let one low probe make a run, where the probes are spaced wider than 30 s', () => {
+    // A 200 s fault: at about 105 s between probes, one or two of them read low.
+    expect(flags(longRide((hr) => hr.fill(35, 20_000, 20_200)))).toEqual([])
+  })
+
+  it('still flags an hour of it', () => {
+    const found = flags(longRide((hr) => hr.fill(35, 20_000, 23_600)))
+    expect(found).toHaveLength(1)
+    expect(found[0]!.end - found[0]!.start).toBeGreaterThan(3000)
+  })
+})

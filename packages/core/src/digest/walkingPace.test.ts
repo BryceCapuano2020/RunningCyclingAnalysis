@@ -91,6 +91,15 @@ describe('a run at walking pace', () => {
     expect(digestActivity(shuffle).walkingPace).toBeUndefined()
   })
 
+  it('marks a 2 h hike with a 90 s jog at 150 steps a minute, too few fast seconds to say it ran', () => {
+    const hike = runAt(WALK, 7200, (a) => {
+      segment(a, 0, 7200, 1.2, 105)
+      segment(a, 3000, 3090, 2.0, 150)
+    })
+    // 90 s is over the 60 sample floor, but under 5% of the moving time.
+    expect(digestActivity(hike).walkingPace).toBe(true)
+  })
+
   it('marks a walk with a short GPS burst and a walker’s cadence', () => {
     const burst = runAt(WALK, 1800, (a) => {
       segment(a, 0, 1800, WALK, 108)

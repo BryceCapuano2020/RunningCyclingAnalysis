@@ -29,7 +29,9 @@ export const HR_IMPLAUSIBLE_FOR_POWER = {
   minPowerShare: 0.5,
   /**
    * A flagged run shorter than this, s, is dropped: heart rate lags power by a minute or two, so the start of a
-   * hard interval reads low for a few seconds of the rolling mean, while a strap that fails does so for minutes.
+   * hard interval reads low for a few seconds of the rolling mean, while a strap that fails does so for minutes. On a
+   * file long enough for the probes to be spaced wider than 30 s it is three probe steps at least, so one low probe
+   * never makes a run.
    */
   minRunS: 90,
 } as const
@@ -75,5 +77,7 @@ export function implausiblyLowHeartRate(
       low.fill(1, i - stepS / 2, i + stepS / 2)
     }
   }
-  return runsWhere(n, (i) => low[i] === 1).filter((run) => run.end - run.start >= t.minRunS)
+  return runsWhere(n, (i) => low[i] === 1).filter(
+    (run) => run.end - run.start >= Math.max(t.minRunS, 3 * stepS),
+  )
 }

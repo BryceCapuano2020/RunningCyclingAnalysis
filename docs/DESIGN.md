@@ -821,7 +821,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   (`packages/core/src/hr/lowForPower.ts`, `HR_LOW_FOR_POWER`): an outdoor run, or a ride with a power meter,
   of 20 min or more moving with at least three 5 min heart-rate blocks, is compared by its median heart rate at
   its median output with the library's heart rate at that output for its sport, a robust (Theil-Sen) line
-  fitted over the other activities and refitted without the ones it first set aside. Under 75% of that sets it
+  fitted over all of them and refitted without the ones it first set aside, and only an activity whose output lies
+  within the 5th to 95th percentile of the fitted outputs is judged, so the line is never extrapolated. Under 75% of that sets it
   aside. A sport with fewer than 12 such activities has no line, so it gets no verdict.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
@@ -908,8 +909,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **The headline needs evidence on both sides.** Each sport needs a fitted threshold or an effort as long as
   the headline's (20 min). A sport known only from shorter efforts, such as one estimated 5 min ride, is not set
   against the other: the answer reads "Not enough to compare yet" (`headlinePick`), on the page, the share card
-  and the import summary alike. How sure is this? holds its energy view the same way: "The comparison is held until each sport has a
-  harder 20 min effort.", with no ratio chart and no energy-ratio copy.
+  and the import summary alike. How sure is this? holds its energy view the same way: "The comparison is held until there is an effort
+  of 20 min or more in each sport.", with no ratio chart and no energy-ratio copy.
 - **A run at walking pace is not a run.** A run whose moving pace is slower than 15:00 a mile for 10 min or more
   is a hike recorded as a run, unless its cadence is a runner's (130 steps a minute or more) or, without
   cadence, a tenth of its moving time was at a jog (`WALKING_PACE`, `digest/walkingPace.ts`). Either signal
