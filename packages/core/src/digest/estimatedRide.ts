@@ -144,10 +144,11 @@ export function estimatedHolds(
   return (digest, point, watts) => {
     if (point.terms === null || !(watts > 0)) return true
     const heartRate = gate.untrusted.has(digest.id) ? null : point.heartRate
-    if (heartRate === null || !(heartRate > 0)) return !measured.has(point.durationS)
     const line = gate.lines.get(point.durationS)
-    return (
-      line === undefined || heartRate >= ESTIMATED_RIDE.minShare * expectedHeartRate(line, watts)
-    )
+    // With no heart rate, or no line at this duration to judge it by, the window is unbacked.
+    if (heartRate === null || !(heartRate > 0) || line === undefined) {
+      return !measured.has(point.durationS)
+    }
+    return heartRate >= ESTIMATED_RIDE.minShare * expectedHeartRate(line, watts)
   }
 }

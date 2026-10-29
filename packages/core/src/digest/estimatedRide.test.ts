@@ -102,6 +102,26 @@ describe('an estimated ride against the measured ones', () => {
     expect(best(library, 3600).value).toBeCloseTo(180, 6)
   })
 
+  it('reads a duration with no line as unbacked: it cannot outrank a measurement there', () => {
+    // 30 s has measured windows but too few with heart rate to fit, so a drafted 30 s estimate has no line to pass.
+    const sprints = LIBRARY.map((d, i) =>
+      ride(d.id, i, 'measured', {
+        30: { watts: 600 + 10 * i, heartRate: i < 3 ? 120 : null },
+        60: { watts: 300 + 15 * i, heartRate: hr1(300 + 15 * i, i) },
+        300: { watts: 200 + 10 * i, heartRate: hr5(200 + 10 * i, i) },
+      }),
+    )
+    const drafted = estimated('drafted-30', { 30: { watts: 1200, heartRate: 150 } })
+    expect(rideGateOf(orderedCurrent(sprints), new Set())!.lines.has(30)).toBe(false)
+    const withDrafted = [...sprints, drafted]
+    expect(best(withDrafted, 30).activityId).toBe('measured-13')
+    expect(best(withDrafted, 30).value).toBe(600 + 130)
+    // Without a gate it wins, and where nothing was measured at 30 s it stands.
+    expect(best(withDrafted, 30, { rideGate: null }).activityId).toBe('drafted-30')
+    const alone = [...LIBRARY, drafted]
+    expect(best(alone, 30).activityId).toBe('drafted-30')
+  })
+
   it('reads heart rate that is set aside as no heart rate', () => {
     const backed = estimated('backed', { 300: { watts: 420, heartRate: hr5(BEST_5, 0) } })
     const library = [...LIBRARY, backed]
