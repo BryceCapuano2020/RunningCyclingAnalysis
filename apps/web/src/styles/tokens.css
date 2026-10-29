@@ -108,6 +108,24 @@
   --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --shadow: 0 1px 2px #0000000d, 0 4px 16px #0000000a;
+
+  /*
+   * Activity channels: one colour for each signal on the activity page's stack, so heart rate, power
+   * and pace are told apart without the sport hue, which only ever means a sport. Each reaches 3:1
+   * on the card and stays clear of the run, ride and swim hues and of the others (channelTokens.test.ts).
+   */
+  --ch-pace: #1b8a4d;
+  --ch-power: #b86400;
+  --ch-heartrate: #b02e9a;
+  --ch-cadence: #8c8210;
+  --ch-elevation: #6e675c;
+  --ch-pace-soft: #1b8a4d26;
+  --ch-power-soft: #b8640026;
+  --ch-heartrate-soft: #b02e9a26;
+  --ch-cadence-soft: #8c821026;
+  --ch-elevation-soft: #6e675c33;
+  /* The narrowest a measure's cell in the activity timeline's readout is, so five fit a phone. */
+  --column-readout: 3.9rem;
 }
 
 /* A surface of one sport reads --sport-colour, which is set here once for each sport. */
@@ -185,6 +203,17 @@
     --status-critical: #ff8a80;
     --status-critical-bg: #3a1714;
     --shadow: 0 1px 2px #00000040;
+
+    --ch-pace: #3fc27a;
+    --ch-power: #f0a030;
+    --ch-heartrate: #e072cc;
+    --ch-cadence: #e2e25a;
+    --ch-elevation: #a39c90;
+    --ch-pace-soft: #3fc27a33;
+    --ch-power-soft: #f0a03033;
+    --ch-heartrate-soft: #e072cc33;
+    --ch-cadence-soft: #e2e25a2e;
+    --ch-elevation-soft: #a39c9040;
   }
 }
 

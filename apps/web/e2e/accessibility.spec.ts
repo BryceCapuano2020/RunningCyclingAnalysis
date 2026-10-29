@@ -109,7 +109,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
       const rows = await activitiesRows(page)
       await rows.first().getByRole('link').click()
       await expect(page.getByRole('link', { name: 'Back to activities' })).toBeVisible()
-      await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
+      await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible()
     },
   },
   {
@@ -146,7 +146,7 @@ test('the activity workbench fits a 320 px screen with its tables expanded', asy
   await openSample(page)
   const rows = await activitiesRows(page)
   await rows.first().getByRole('link').click()
-  await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
+  await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible()
   const workbench = page.getByRole('region', { name: 'In detail', exact: true })
   for (const summary of await workbench.locator('details > summary').all()) await summary.click()
   expect(

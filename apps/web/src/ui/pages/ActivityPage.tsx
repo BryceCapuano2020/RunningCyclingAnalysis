@@ -36,6 +36,7 @@ import { ActivityIssues } from './ActivityIssues'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
 import { ActivityWorkbench } from './ActivityWorkbench'
+import { routeSegmentPace } from './routePace'
 import { PAGE_HEADING_ID } from './pageHeading'
 import './ActivityPage.css'
 
@@ -190,6 +191,9 @@ export function ActivityPage({
   const detail = loadTrace === undefined ? NO_DETAIL : report.id === activityId ? report : AWAITED
   const trace = detail.trace?.activityId === activityId ? detail.trace : null
   const splitsView = useSplitsView(runId, { trace, settled: detail.settled })
+  // The outline is coloured by pace where this device holds the activity's readings, and plain without them.
+  const routeShape = route.kind === 'shape' ? route.route : null
+  const segmentPace = useMemo(() => routeSegmentPace(routeShape, trace), [routeShape, trace])
   // Once the library has removed the activity, the list replaces this page in the history, so Back never
   // lands on an activity that is gone. A failed removal stays here, with its reason beside Delete.
   const removed = removal.outcome !== null && !removal.outcome.failed
@@ -218,6 +222,35 @@ export function ActivityPage({
   // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
   const earned = activity.sport === 'ride' && !weightKnown ? [] : (records.get(activity.id) ?? [])
   const chips = chipLabels(earned)
+  // With a route, the figures sit beside it on a wide screen, so the header has no blank half.
+  const figures = (
+    <div
+      className={
+        route.kind === 'shape'
+          ? 'activity-page__top activity-page__top--route'
+          : 'activity-page__top'
+      }
+    >
+      <RouteOutline
+        shape={route.kind === 'shape' ? route.route : null}
+        sport={activity.sport}
+        takeFocus={route.kind === 'shape' && route.fromRequest}
+        segmentPace={segmentPace}
+      />
+      <ActivityStats activity={activity} units={units} />
+    </div>
+  )
+  const timeline = loadTrace ? (
+    <ActivityWorkbench
+      activityId={activity.id}
+      units={units}
+      indoor={activity.indoor}
+      loadTrace={loadTrace}
+      zoneSets={zoneSets}
+      heartRateSetAside={setAsideIds.includes(activity.id)}
+      onTrace={onTrace}
+    />
+  ) : null
   return (
     <div className="page-stack">
       <div className="page-title">
@@ -237,31 +270,14 @@ export function ActivityPage({
 
       {route.kind === 'offer' && <RouteOffer status={route.status} onShow={show} />}
 
-      {/* With a route, the figures sit beside it on a wide screen, so the header has no blank half. */}
-      <div
-        className={
-          route.kind === 'shape'
-            ? 'activity-page__top activity-page__top--route'
-            : 'activity-page__top'
-        }
-      >
-        <RouteOutline
-          shape={route.kind === 'shape' ? route.route : null}
-          sport={activity.sport}
-          takeFocus={route.kind === 'shape' && route.fromRequest}
-        />
-        <ActivityStats activity={activity} units={units} />
-      </div>
-      {loadTrace && (
-        <ActivityWorkbench
-          activityId={activity.id}
-          units={units}
-          indoor={activity.indoor}
-          loadTrace={loadTrace}
-          zoneSets={zoneSets}
-          heartRateSetAside={setAsideIds.includes(activity.id)}
-          onTrace={onTrace}
-        />
+      {/* From 1100 px the timeline takes the left and the figures stand beside it, so the plot is on the first screen. */}
+      {timeline === null ? (
+        figures
+      ) : (
+        <div className="activity-page__main">
+          {figures}
+          {timeline}
+        </div>
       )}
       {activity.powerSource === 'virtual' && (
         <p className="secondary">
