@@ -281,6 +281,9 @@ export class Workbench {
       this.traces.delete(key)
       return null
     }
+    // Held for storage at the end of an import, or for the device if the account is nobody's.
+    const waiting = this.deferred.get(key)
+    if (waiting !== undefined) return waiting.trace
     const cached = this.traces.get(key)
     if (cached) {
       if (cached.home === 'pending') await this.writePending((other) => other === key)

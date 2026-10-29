@@ -142,7 +142,12 @@ async function addFiles(
         outcome = { ...completed, ...summarizeAdded(added) }
       },
       async (activity, { held }) => {
-        if (traceScope === null) return workbench.captureMemory(activity, { kind: 'device' })
+        if (traceScope === null) {
+          // Held for the device if the account turns out to be nobody's (see keepProvisional).
+          if (request.provisional) workbench.captureDeferred(activity, { kind: 'device' })
+          else workbench.captureMemory(activity, { kind: 'device' })
+          return
+        }
         // Only a workout the library already held can have its recording restored.
         const had = held && (await workbench.holds(traceScope, activity.id))
         // Stored when the import ends, newest first, so the ones the cache cannot hold are not written.
@@ -158,7 +163,8 @@ async function addFiles(
     )
   } finally {
     // On a failure too: what was read is stored, and the page learns how many were saved.
-    const stored = await workbench.storeDeferred()
+    // A provisional import's recordings wait for keepProvisional, or for the account.
+    const stored = traceScope === null ? new Set<string>() : await workbench.storeDeferred()
     // Counted once it is in storage: a recording held in memory alone is gone after a reload.
     for (const id of restoreCandidates) if (stored.has(id)) restored.add(id)
     reporter.end()
@@ -185,6 +191,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       const held = [...provisionalItems.values()]
       provisionalItems.clear()
       for (const item of held) await keeper.keep(item)
+      await workbench.storeDeferred()
       await device.report()
       keeper.report()
       return session.setSettings(request.settings)

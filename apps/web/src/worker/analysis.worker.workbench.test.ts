@@ -161,6 +161,53 @@ describe('where an import keeps recordings', () => {
     })
   })
 
+  it('keeps those of a provisional import once it is kept for the device, and serves them after a restart', async () => {
+    const { send } = await startWorker()
+    const file = fitFile()
+    const id = idOf(file, new Uint8Array(await file.arrayBuffer()))
+    await send({
+      type: 'addFiles',
+      files: [file],
+      settings: SETTINGS,
+      sync: null,
+      provisional: true,
+    })
+    expect(spy.store.put).not.toHaveBeenCalled()
+
+    await send({ type: 'keepProvisional', settings: SETTINGS })
+
+    expect(spy.store.put).toHaveBeenCalledTimes(1)
+    expect(spy.store.put).toHaveBeenCalledWith(
+      { kind: 'device' },
+      expect.objectContaining({ activityId: id }),
+      expect.any(Number),
+    )
+    vi.resetModules()
+    const restarted = await startWorker()
+    await restarted.send({ type: 'loadDevice', settings: SETTINGS })
+    const [reply] = await restarted.send({ type: 'activityTrace', id })
+    expect(reply).toEqual({
+      type: 'activityTrace',
+      reply: { kind: 'trace', trace: expect.objectContaining({ activityId: id }) },
+    })
+  })
+
+  it('stores no recording of a provisional import that is carried to the account instead', async () => {
+    const { send } = await startWorker()
+    await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      provisional: true,
+    })
+
+    await send({ type: 'clear', forgetDevice: false })
+    await send({ type: 'keepProvisional', settings: SETTINGS })
+
+    expect(spy.store.put).not.toHaveBeenCalled()
+  })
+
   it('keeps those of a signed-out import that is kept in this browser in the device cache', async () => {
     const { send } = await startWorker()
 
