@@ -87,17 +87,7 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
 /**
  * One line on a sport's best effort at the headline duration, by heart rate, such as "Your best 20 min
  * running reached 70% of your running reference heart rate (set from your highest heart rates on file).
- * A hard 20 min effort would raise this". Null when heart rate does not say, or the check is missing.
- */
-export function effortShareLine(
-  sport: Sport,
-  effort: EffortCheck | null | undefined,
-): string | null {
-  return effortShare(sport, effort)?.line ?? null
-}
-
-/**
- * The same line, with whether the effort was hard and the share as the whole percent the line shows, which a sport
+ * A hard 20 min effort would raise this", with whether the effort was hard and the share as the whole percent the line shows, which a sport
  * page's chip says beside its label.
  */
 export function effortShare(

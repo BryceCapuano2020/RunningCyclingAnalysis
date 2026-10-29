@@ -24,5 +24,3 @@ export const DEFINITIONS = {
     'Your power was measured. Its level is worked out through the running pace of equal effort, so it comes with a range, drawn as a ring over a band.',
   level: `A band of the age grade: ${LEVELS_TEXT}. A level, not a ranking.`,
 } as const
-
-export type DefinedTerm = keyof typeof DEFINITIONS

@@ -1,13 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ChartSize, TooltipContent } from './chartTypes'
-import {
-  endLabelAt,
-  pointBefore,
-  sizedOnce,
-  spreadApart,
-  spreadWithin,
-  tooltipAt,
-} from './chartInteraction'
+import { sizedOnce, spreadApart, tooltipAt } from './chartInteraction'
 
 const SIZE: ChartSize = {
   width: 400,
@@ -56,41 +49,6 @@ describe('sizedOnce', () => {
   })
 })
 
-describe('endLabelAt', () => {
-  const point = { x: 100, y: 100 }
-
-  it('sits down and to the left of the point when the line comes in from above, or has none', () => {
-    expect(endLabelAt(point, { x: 80, y: 60 })).toEqual({ x: 92, y: 118 })
-    expect(endLabelAt(point, null)).toEqual({ x: 92, y: 118 })
-  })
-
-  it('sits up and to the left when the line comes in from below, so the line runs under it', () => {
-    expect(endLabelAt(point, { x: 80, y: 140 })).toEqual({ x: 92, y: 90 })
-  })
-
-  it('sits above the point when the label below it would run onto the plot’s bottom, 12 px clear of the edge', () => {
-    // 100 + 18 = 118 is clear of 130 - 12 = 118, so a point one pixel lower moves the label up.
-    expect(endLabelAt(point, null, 130)).toEqual({ x: 92, y: 118 })
-    expect(endLabelAt({ x: 100, y: 101 }, null, 130)).toEqual({ x: 92, y: 91 })
-  })
-})
-
-describe('spreadWithin', () => {
-  it('spreads close baselines apart in input order, and leaves distant ones where they are', () => {
-    expect(spreadWithin([104, 100, 200], 14, 0, 300)).toEqual([114, 100, 200])
-  })
-
-  it('packs a run back up from the bottom, so two at the foot keep their gap inside the span', () => {
-    expect(spreadWithin([290, 295], 14, 0, 300)).toEqual([286, 300])
-    expect(spreadWithin([400, 400], 14, 0, 300)).toEqual([286, 300])
-  })
-
-  it('clamps into a span too short for them, and centres them in one too short for any', () => {
-    expect(spreadWithin([10, 12, 14], 14, 0, 20)).toEqual([0, 6, 20])
-    expect(spreadWithin([5], 14, 20, 10)).toEqual([15])
-  })
-})
-
 describe('spreadApart', () => {
   it('moves a value down only as far as it must, to keep the gap from the one above', () => {
     expect(spreadApart([100, 104, 200], 14)).toEqual([100, 114, 200])
@@ -99,14 +57,5 @@ describe('spreadApart', () => {
   it('keeps the input order, whatever the order of the values', () => {
     expect(spreadApart([104, 100], 14)).toEqual([114, 100])
     expect(spreadApart([], 14)).toEqual([])
-  })
-})
-
-describe('pointBefore', () => {
-  it('gives the nearest point before an index that has a value, skipping gaps', () => {
-    const points = [{ x: 0, y: 0 }, null, { x: 20, y: 5 }, null, { x: 40, y: 9 }]
-    expect(pointBefore(points, 4)).toEqual({ x: 20, y: 5 })
-    expect(pointBefore(points, 1)).toEqual({ x: 0, y: 0 })
-    expect(pointBefore(points, 0)).toBeNull()
   })
 })

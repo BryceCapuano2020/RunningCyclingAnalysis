@@ -99,13 +99,6 @@
   fill-opacity: 0.14;
 }
 
-/* A week's 90% interval: a thin bar under its marker, in the colour of the sport it names on data-sport. */
-.chart-series__interval {
-  stroke: var(--sport-colour);
-  stroke-width: 2px;
-  stroke-linecap: round;
-}
-
 /* A week with no value: a short mark on the date axis, in the muted text colour. */
 .chart-series__gap {
   stroke: var(--text-muted);
@@ -141,14 +134,6 @@
   }
 
   .chart-series__line--ride {
-    stroke: Highlight;
-  }
-
-  .chart-series__interval {
-    stroke: CanvasText;
-  }
-
-  .chart-series__interval[data-sport='ride'] {
     stroke: Highlight;
   }
 

@@ -3,7 +3,7 @@ import type { KeyboardEvent } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { COMPACT_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { formatSpan } from '../format/date'
-import { useMatchMedia } from '../useMatchMedia'
+import { useNarrowScreen } from '../useNarrowScreen'
 import {
   bucketLabel,
   bucketSpan,
@@ -97,7 +97,7 @@ function SkippedStretch({ column }: { column: Extract<VolumeColumn, { kind: 'gap
  * that week or month, and pressing it again lets go. The columns are one tab stop, moved by the arrow keys.
  */
 export function VolumeStrip({ activities, periodText, selected, onSelect }: VolumeStripProps) {
-  const phone = useMatchMedia(`(max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
+  const phone = useNarrowScreen(COMPACT_PHONE_MAX_WIDTH_PX)
   const buckets = useMemo(() => volumeBuckets(activities, phone), [activities, phone])
   const columns = useMemo(() => volumeColumns(buckets), [buckets])
   const totals = useMemo(() => {

@@ -1,4 +1,4 @@
-import { COMPRESS_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
+import { COMPRESS_AFTER_WEEKS, MONTHLY_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { movingTimeOf } from './activityFigures'
@@ -12,9 +12,6 @@ import { SPORT_ACTIVITY, SPORT_ORDER, SPORT_PLURAL } from './sports'
  * or month, as time and distance by sport. It reads the summaries the list already holds, so no trace is
  * loaded, and it never changes a figure: it only sums what each row shows.
  */
-
-/** A set of up to this many weeks is drawn week by week; a longer one month by month. */
-export const WEEKLY_MAX_WEEKS = 26
 
 const DAY_MS = 86_400_000
 const SECONDS_PER_HOUR = 3600
@@ -127,7 +124,7 @@ function keyOf(kind: BucketKind, startMs: number): string {
  * quarter, since a month's column would be a couple of pixels wide there.
  */
 export function bucketKindFor(oldestMs: number, newestMs: number, phone = false): BucketKind {
-  if ((newestMs - oldestMs) / (7 * DAY_MS) <= WEEKLY_MAX_WEEKS) return 'week'
+  if ((newestMs - oldestMs) / (7 * DAY_MS) <= MONTHLY_AFTER_WEEKS) return 'week'
   return phone ? 'quarter' : 'month'
 }
 

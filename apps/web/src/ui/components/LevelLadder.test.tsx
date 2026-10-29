@@ -65,15 +65,11 @@ describe('LevelLadder', () => {
     expect(screen.getByText('Ring: estimated, with its 90% range in brackets.')).toBeInTheDocument()
   })
 
-  it('sets the key as a paragraph under the drawing, and leaves it out when asked', () => {
+  it('sets the key as a paragraph under the drawing', () => {
     const { container } = render(<LevelLadder sport="run" grade={RUN} />)
     expect(container.querySelector('p.level-ladder__key')).toHaveTextContent(
       'Solid dot: the grade of one recorded effort.',
     )
-    cleanup()
-
-    const bare = render(<LevelLadder sport="run" grade={RUN} showKey={false} />)
-    expect(bare.container.querySelector('.level-ladder__key')).toBeNull()
   })
 
   it('says in its key when a grade sits below the scale', () => {

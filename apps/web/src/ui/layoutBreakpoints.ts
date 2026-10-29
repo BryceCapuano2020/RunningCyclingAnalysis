@@ -60,3 +60,6 @@ export const SPLIT_FILTERS_MIN_WIDTH_PX = PHONE_MAX_WIDTH_PX + 1
  * sentence moves under its drawing (BalancePage.css, BalanceScale.css, BalanceHero.tsx).
  */
 export const BALANCE_PHONE_MAX_WIDTH_PX = 479
+
+/** At or below this width a chart's end labels are values alone, which a key explains. */
+export const NARROW_CHART_MAX_WIDTH_PX = 500

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { effortCaveat, effortShare, effortShareLine, hardEffortsOnFile } from './effortCaveat'
+import { effortCaveat, effortShare, hardEffortsOnFile } from './effortCaveat'
 
 describe('effortCaveat', () => {
   it('gives the card wording and a one-line version when the cycling effort was low', () => {
@@ -72,7 +72,12 @@ describe('hardEffortsOnFile', () => {
   })
 })
 
-describe('effortShareLine', () => {
+/** The line of the share, or null when heart rate does not say. */
+function effortShareLine(...args: Parameters<typeof effortShare>): string | null {
+  return effortShare(...args)?.line ?? null
+}
+
+describe('effortShare line', () => {
   it('says how far a run reached its reference, and what a hard effort would do', () => {
     expect(
       effortShareLine('run', { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }),
@@ -175,10 +180,5 @@ describe('effortShare', () => {
       effortShare('run', { durationS: 1200, runHrFraction: null, rideHrFraction: 0.9 }),
     ).toBeNull()
     expect(effortShare('run', null)).toBeNull()
-  })
-
-  it('says the same line as effortShareLine', () => {
-    const effort = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }
-    expect(effortShare('run', effort)?.line).toBe(effortShareLine('run', effort))
   })
 })
