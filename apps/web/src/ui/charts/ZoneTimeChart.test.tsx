@@ -5,7 +5,7 @@ import { readStylesheet } from '../components/stylesheet'
 import { ZoneTimeChart } from './ZoneTimeChart'
 import type { ZoneChartRow } from './ZoneTimeChart'
 import { FALLBACK_WIDTH } from './useSize'
-import { percentFits, segmentsOf, takeawayText } from './zoneBars'
+import { percentFits, segmentsOf, takeawayText, underLabels } from './zoneBars'
 
 afterEach(cleanup)
 
@@ -79,13 +79,13 @@ describe('ZoneTimeChart', () => {
     expect(percents).toEqual(['98%'])
   })
 
-  it('names a zone under its segment where the segment can hold the name, and numbers it where it cannot', () => {
+  it('names every zone under its segment where the segment can hold the name', () => {
     const { container } = chart([1, 60, 24, 14, 1], { names: NAMES })
     const under = [...container.querySelectorAll('.zone-time__number')]
       .map((text) => text.textContent)
       .filter((text) => text !== 'Easy' && text !== 'Hard')
-    // 60% and 24% hold their names; 14% holds only its number; 1% is too narrow for either.
-    expect(under).toEqual(['2 Endurance', '3 Tempo', '4'])
+    // Every segment wide enough holds its number and name; the 1% slivers are too narrow for either.
+    expect(under).toEqual(['2 Endurance', '3 Tempo', '4 Threshold'])
   })
 
   it('numbers every zone that is wide enough when the row has no names', () => {
@@ -161,6 +161,69 @@ describe('percentFits', () => {
   })
 })
 
+describe('underLabels', () => {
+  const NAMES = ['Recovery', 'Endurance', 'Tempo', 'Threshold', 'Maximum']
+  const plan = (seconds: number[], width = 640, names: readonly string[] | null = NAMES) =>
+    underLabels(segmentsOf(seconds, width), names ?? undefined, width, 16)
+
+  it('names every segment that can hold its number and name, and numbers the rest where a number fits', () => {
+    const labels = plan([30, 30, 30, 5, 5], 900)
+    expect(labels.map((label) => label.text).slice(0, 3)).toEqual([
+      '1 Recovery',
+      '2 Endurance',
+      '3 Tempo',
+    ])
+    // Two 5% segments are 45 px each: "Maximum" fits its room, "Threshold" is longer than the room, so it shows its number.
+    expect(labels.map((label) => label.text).slice(3)).toEqual(['4', '5 Maximum'])
+  })
+
+  it('shows a number alone where the name does not fit, and the same rule for every segment', () => {
+    // 320 px: 2 of 10 percent is 32 px, too narrow for "4 Threshold" but wide enough for "4".
+    const labels = plan([40, 30, 20, 8, 2], 320)
+    const byLevel = Object.fromEntries(labels.map((label) => [label.level, label.text]))
+    expect(byLevel[1]).toBe('1 Recovery')
+    expect(byLevel[2]).toBe('2 Endurance')
+    expect(byLevel[3]).toBe('3 Tempo')
+    expect(byLevel[4]).toBe('4')
+    expect(byLevel[5]).toBeUndefined()
+  })
+
+  it('lets a name reach into the room a narrow neighbour leaves empty, and no further', () => {
+    // Zone 2 is 6 px wide, too narrow to label, so zone 3's name may overhang it by a little.
+    const labels = plan([40, 1, 18, 40, 1], 300)
+    expect(labels.map((label) => label.level)).toEqual([1, 3, 4])
+  })
+
+  it('never lets two labels touch, or one leave the bar', () => {
+    for (const seconds of [
+      [20, 20, 20, 20, 20],
+      [5, 45, 5, 40, 5],
+      [1, 1, 96, 1, 1],
+      [33, 2, 30, 3, 32],
+    ]) {
+      const labels = plan(seconds, 360)
+      const half = (text: string) => (text.length * 12 * 0.52) / 2
+      for (const [i, label] of labels.entries()) {
+        expect(label.x - half(label.text)).toBeGreaterThanOrEqual(-0.001)
+        expect(label.x + half(label.text)).toBeLessThanOrEqual(360.001)
+        const next = labels[i + 1]
+        if (next) expect(next.x - half(next.text)).toBeGreaterThan(label.x + half(label.text))
+      }
+    }
+  })
+
+  it('numbers every zone, with no names, where the row gives none', () => {
+    expect(plan([40, 40, 20, 0, 0], 640, null).map((label) => label.text)).toEqual(['1', '2', '3'])
+  })
+
+  it('needs more room at a larger root font, which sets the text larger', () => {
+    const wide = underLabels(segmentsOf([10, 10, 10, 10, 10], 400), NAMES, 400, 16)
+    const large = underLabels(segmentsOf([10, 10, 10, 10, 10], 400), NAMES, 400, 32)
+    const named = (labels: typeof wide) => labels.filter((label) => label.text.length > 1).length
+    expect(named(large)).toBeLessThan(named(wide))
+  })
+})
+
 describe('takeawayText', () => {
   it('reads the easy and hard shares as whole percents', () => {
     expect(takeawayText({ easy: 0.314, hard: 0.2791 })).toBe('31% easy · 28% hard')
@@ -172,9 +235,10 @@ describe('ZoneTimeChart styles', () => {
   it.each([1, 2, 3, 4, 5])(
     'colours zone %i from the sport ramp, and its percent from that step’s ink',
     (zone) => {
+      // A chart outside a sport's surface falls back to the running ramp, so no segment is left unpainted.
       expect(css).toMatch(
         new RegExp(
-          `\\.zone-time__segment\\[data-zone='${zone}'\\][^{]*\\{[^}]*fill: var\\(--zone-${zone}\\)`,
+          `\\.zone-time__segment\\[data-zone='${zone}'\\][^{]*\\{[^}]*fill: var\\(--zone-${zone}, var\\(--zone-run-${zone}\\)\\)`,
         ),
       )
       expect(css).toMatch(

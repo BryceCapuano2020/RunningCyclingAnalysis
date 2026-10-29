@@ -64,8 +64,13 @@ const hueOf = (b: number, a: number) => {
 
 /** CIEDE2000 between two opaque colours: about 2 is the least a trained eye sees, 7 or more is plain. */
 export function deltaE(first: string, second: string): number {
-  const [l1, a1, b1] = lab(first)
-  const [l2, a2, b2] = lab(second)
+  return deltaELab(lab(first), lab(second))
+}
+
+/** CIEDE2000 between two colours given in CIELAB, as the published reference pairs are. */
+export function deltaELab(first: readonly number[], second: readonly number[]): number {
+  const [l1 = 0, a1 = 0, b1 = 0] = first
+  const [l2 = 0, a2 = 0, b2 = 0] = second
   const meanC = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2
   const g = 0.5 * (1 - Math.sqrt(meanC ** 7 / (meanC ** 7 + 25 ** 7)))
   const a1p = a1 * (1 + g)
@@ -102,4 +107,18 @@ export function deltaE(first: string, second: string): number {
   const sh = 1 + 0.015 * meanCp * t
   const rt = -Math.sin(2 * rotation * RAD) * rc
   return Math.sqrt((dL / sl) ** 2 + (dC / sc) ** 2 + (dH / sh) ** 2 + rt * (dC / sc) * (dH / sh))
+}
+
+/** The colour in OKLCH: its lightness, 0 to 1, and its chroma, about 0 for a grey and 0.3 for the most vivid. */
+export function oklch(hex: string): { lightness: number; chroma: number } {
+  const [r, g, b] = linear(hex)
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  return {
+    lightness: 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    chroma: Math.hypot(a, bb),
+  }
 }

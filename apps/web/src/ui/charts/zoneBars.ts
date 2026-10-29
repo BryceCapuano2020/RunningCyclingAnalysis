@@ -43,3 +43,60 @@ export function percentFits(text: string, segmentWidth: number, rootPx: number):
 export function takeawayText({ easy, hard }: { easy: number; hard: number }): string {
   return `${percentText(easy)} easy · ${percentText(hard)} hard`
 }
+
+/** A label under a bar: the zone's number, or its number and name, centred on x. */
+export interface UnderLabel {
+  level: number
+  text: string
+  x: number
+}
+
+/** The gap kept between two labels under a bar, px. */
+const LABEL_GAP = 6
+/** How far a label may reach past its own segment on each side, px, so it still reads as that segment's. */
+const OVERHANG = 8
+/** A segment narrower than this, px, has no label: its number would be taken for a neighbour's. */
+const LABEL_MIN_SEGMENT = 10
+const LABEL_GLYPH_EM = 0.52
+
+/**
+ * The labels under a bar. Every segment that can show its number and name does: the widest are placed first,
+ * a label may reach a little past its segment into room a neighbour leaves empty, and a segment that cannot
+ * hold its name shows its number alone, where that fits, rather than nothing or a clipped name. No two labels
+ * touch. `rootPx` sets the text's size, which follows the reader's own.
+ */
+export function underLabels(
+  segments: readonly Segment[],
+  names: readonly string[] | undefined,
+  width: number,
+  rootPx: number,
+): UnderLabel[] {
+  const size = 0.75 * rootPx
+  const widthOf = (text: string) => text.length * size * LABEL_GLYPH_EM
+  const taken: { left: number; right: number }[] = []
+  const placed: UnderLabel[] = []
+  const free = (left: number, right: number) =>
+    left >= 0 &&
+    right <= width &&
+    taken.every((box) => right + LABEL_GAP <= box.left || left >= box.right + LABEL_GAP)
+  for (const segment of [...segments].sort((a, b) => b.width - a.width)) {
+    if (segment.width < LABEL_MIN_SEGMENT) continue
+    const name = names?.[segment.level - 1]
+    const options = [
+      ...(name === undefined ? [] : [`${segment.level} ${name}`]),
+      String(segment.level),
+    ]
+    const centre = segment.left + segment.width / 2
+    for (const text of options) {
+      const w = widthOf(text)
+      if (w > segment.width + 2 * OVERHANG) continue
+      // Near an end of the bar the label slides in to stay on it.
+      const left = Math.min(Math.max(centre - w / 2, 0), width - w)
+      if (!free(left, left + w)) continue
+      taken.push({ left, right: left + w })
+      placed.push({ level: segment.level, text, x: left + w / 2 })
+      break
+    }
+  }
+  return placed.sort((a, b) => a.level - b.level)
+}

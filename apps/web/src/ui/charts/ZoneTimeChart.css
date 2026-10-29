@@ -1,31 +1,32 @@
 /*
- * A zone's colours: the sport's five-step ramp (--zone-1 to --zone-5, which tokens.css sets for each data-sport)
+ * A zone's colours: the sport's five-step ramp (--zone-1 to --zone-5, which tokens.css sets for each data-sport;
+ * a chart outside a sport's surface falls back to the running ramp, so its segments are never unpainted)
  * and the ink that keeps 4.5:1 on each step. The steps differ in lightness as well as in tint, and the
  * percent, the number under the bar and the table say which zone is which, so colour is never the only cue.
  */
 .zone-time__segment[data-zone='1'],
 .zone-time__chip[data-zone='1'] {
-  fill: var(--zone-1);
+  fill: var(--zone-1, var(--zone-run-1));
 }
 
 .zone-time__segment[data-zone='2'],
 .zone-time__chip[data-zone='2'] {
-  fill: var(--zone-2);
+  fill: var(--zone-2, var(--zone-run-2));
 }
 
 .zone-time__segment[data-zone='3'],
 .zone-time__chip[data-zone='3'] {
-  fill: var(--zone-3);
+  fill: var(--zone-3, var(--zone-run-3));
 }
 
 .zone-time__segment[data-zone='4'],
 .zone-time__chip[data-zone='4'] {
-  fill: var(--zone-4);
+  fill: var(--zone-4, var(--zone-run-4));
 }
 
 .zone-time__segment[data-zone='5'],
 .zone-time__chip[data-zone='5'] {
-  fill: var(--zone-5);
+  fill: var(--zone-5, var(--zone-run-5));
 }
 
 .zone-time__percent[data-zone='1'] {

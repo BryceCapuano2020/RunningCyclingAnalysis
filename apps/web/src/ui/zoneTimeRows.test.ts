@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { effortSplit } from '@rca/core/zones'
 import { measureTime } from './test/zoneTimeFixtures'
 import { barSummary, easyHardShares, periodTables, zoneBar } from './zoneTimeRows'
 
@@ -63,6 +64,20 @@ describe('periodTables', () => {
       noZones: 3,
     })
     expect(periodTables([row]).summary.rows[0]![3]).toBe('6')
+  })
+})
+
+describe('easyHardShares and the sentence above the bars', () => {
+  it('are one split, so the bar and the lede can never round differently', () => {
+    for (const seconds of [
+      [3600, 21_600, 7200, 3600, 0],
+      [1, 2, 3, 4, 5],
+      [333, 333, 1, 333, 0],
+    ]) {
+      const time = measureTime('run', 'heartRate', seconds)
+      const split = effortSplit(time)
+      expect(easyHardShares('heartRate', time)).toEqual({ easy: split.easy, hard: split.hard })
+    }
   })
 })
 

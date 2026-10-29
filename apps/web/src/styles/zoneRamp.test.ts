@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readStylesheet } from '../ui/components/stylesheet'
-import { DEFICIENCIES, deltaE, simulate } from './colourDifference'
+import { DEFICIENCIES, deltaE, oklch, simulate } from './colourDifference'
 import { contrast } from './contrastMath'
 import { colour, declared, resolved } from './tokenSheet'
 import type { Tokens } from './tokenSheet'
@@ -17,8 +17,16 @@ const schemes: [string, Tokens][] = [
 const GRAPHIC = 3
 /** The least contrast of the text inside a step. */
 const TEXT = 4.5
-/** The least CIEDE2000 between neighbouring steps, to a reader with normal colour vision and with each deficiency. */
-const NEIGHBOUR = 7
+/**
+ * The least CIEDE2000 between neighbouring steps, to a reader with normal colour vision and with each
+ * deficiency. Light darkens with effort, which gives it room. Dark has to keep every step saturated and
+ * rising in luminance, never paling to pink or ice, so its steps sit closer; 5 is still plainly two colours,
+ * and each step is also numbered.
+ */
+const NEIGHBOUR: Record<string, number> = { light: 7, dark: 5 }
+/** In dark, the least chroma (OKLCH) of any step, and the lightest a step may be: effort never fades to pale. */
+const DARK_MIN_CHROMA = 0.12
+const DARK_MAX_LIGHTNESS = 0.8
 const STEPS = [1, 2, 3, 4, 5] as const
 const SPORTS = ['run', 'ride'] as const
 
@@ -44,18 +52,33 @@ describe('the zone ramp', () => {
         })
       })
 
-      it(`keeps neighbouring ${sport} steps ${NEIGHBOUR} apart in ${name}, for every colour vision`, () => {
+      it(`keeps neighbouring ${sport} steps ${NEIGHBOUR[name]} apart in ${name}, for every colour vision`, () => {
         for (let i = 1; i < steps.length; i += 1) {
           const [before, after] = [steps[i - 1]!, steps[i]!]
-          expect(deltaE(before, after), `${i} to ${i + 1}`).toBeGreaterThanOrEqual(NEIGHBOUR)
+          expect(deltaE(before, after), `${i} to ${i + 1}`).toBeGreaterThanOrEqual(NEIGHBOUR[name]!)
           for (const deficiency of DEFICIENCIES) {
             expect(
               deltaE(simulate(before, deficiency), simulate(after, deficiency)),
               `${i} to ${i + 1} as ${deficiency}`,
-            ).toBeGreaterThanOrEqual(NEIGHBOUR)
+            ).toBeGreaterThanOrEqual(NEIGHBOUR[name]!)
           }
         }
       })
+
+      if (name === 'dark') {
+        it(`keeps every ${sport} step saturated and no step pale in dark: hard is not faded`, () => {
+          const found = steps.map(oklch)
+          for (const [i, step] of found.entries()) {
+            expect(step.chroma, `zone ${i + 1} chroma`).toBeGreaterThanOrEqual(DARK_MIN_CHROMA)
+            expect(step.lightness, `zone ${i + 1} lightness`).toBeLessThanOrEqual(
+              DARK_MAX_LIGHTNESS,
+            )
+          }
+          // The hardest zone is at least as saturated as the easiest, and more luminous.
+          expect(found[4]!.chroma).toBeGreaterThanOrEqual(found[0]!.chroma - 0.02)
+          expect(found[4]!.lightness).toBeGreaterThan(found[0]!.lightness)
+        })
+      }
 
       it(`orders the ${sport} steps by effort in ${name}: darker with effort in light, lighter in dark`, () => {
         const against = steps.map((step) => contrast(step, '#000000'))

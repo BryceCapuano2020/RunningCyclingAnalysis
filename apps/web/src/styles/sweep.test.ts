@@ -179,6 +179,7 @@ const BOTH_SPORTS: Record<string, readonly string[]> = {
     '.chart-series__line--ride',
     '.chart-series__band--ride',
     '.chart-series__ring--ride',
+    '.chart-series__ring--run',
     '.chart-series__marker--run',
     '.chart-series__marker--ride',
   ],

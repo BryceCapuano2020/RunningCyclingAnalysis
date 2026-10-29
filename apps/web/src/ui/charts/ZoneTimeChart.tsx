@@ -2,8 +2,8 @@ import { useId } from 'react'
 import { percentText } from '../zoneTimeCopy'
 import { ChartFrame } from './ChartFrame'
 import type { ChartSize, ChartTableData } from './chartTypes'
-import { labelWidthPx, rootFontPx } from './rootFont'
-import { percentFits, segmentsOf, takeawayText } from './zoneBars'
+import { rootFontPx } from './rootFont'
+import { percentFits, segmentsOf, takeawayText, underLabels } from './zoneBars'
 import './ZoneTimeChart.css'
 
 /** One measure's stacked bar: the seconds in each zone, lowest effort first. */
@@ -41,8 +41,6 @@ const KEY_CHIP = { width: 34, height: 22, gap: 6 }
 const BAR_RADIUS = 8
 /** The gap kept between two segments, px. */
 const SEGMENT_GAP = 2
-/** A zone's number is drawn under its segment when the segment is at least this wide, px. */
-const NUMBER_MIN_WIDTH = 20
 
 const ROW_HEIGHT = BAR_TOP + BAR_HEIGHT + NAME_GAP + ROW_GAP
 
@@ -120,27 +118,17 @@ function Bar({
           )
         })}
       </g>
-      {segments.map((segment) => {
-        const name = row.names?.[segment.level - 1]
-        const named = name === undefined ? '' : `${segment.level} ${name}`
-        const label =
-          named !== '' && segment.width >= labelWidthPx(named, rootPx) + 8
-            ? named
-            : segment.width >= NUMBER_MIN_WIDTH
-              ? String(segment.level)
-              : ''
-        return label === '' ? null : (
-          <text
-            key={segment.level}
-            className="zone-time__number"
-            x={segment.left + segment.width / 2}
-            y={barTop + barHeight + NAME_GAP - 2}
-            textAnchor="middle"
-          >
-            {label}
-          </text>
-        )
-      })}
+      {underLabels(segments, row.names, size.width, rootPx).map((label) => (
+        <text
+          key={label.level}
+          className="zone-time__number"
+          x={label.x}
+          y={barTop + barHeight + NAME_GAP - 2}
+          textAnchor="middle"
+        >
+          {label.text}
+        </text>
+      ))}
     </g>
   )
 }

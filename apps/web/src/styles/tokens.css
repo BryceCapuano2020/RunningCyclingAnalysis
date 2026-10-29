@@ -40,8 +40,9 @@
   --grid: #d0d5de;
   /*
    * The zone ramp: five steps for each sport, lowest effort first. In light the steps darken with effort; in
-   * dark they lighten. Each step keeps 3:1 against the card, a neighbour is at least 7 apart in CIEDE2000
-   * under every colour vision, and its ink (--zone-ink-n, one per step for both sports) keeps 4.5:1.
+   * dark they get more luminous at full saturation, never paler. Each step keeps 3:1 against the card, its ink
+   * (--zone-ink-n, one per step for both sports) keeps 4.5:1, and a neighbour is at least 7 apart in CIEDE2000
+   * under every colour vision in light and 5 in dark, where the steps stay saturated.
    * styles/zoneRamp.test.ts checks all of it from these values.
    */
   --zone-run-1: #e16265;
@@ -163,18 +164,18 @@
     --neutral-band: #b6bcc629;
     --previous-mark: #737b89;
     --grid: #343b47;
-    --zone-run-1: #b63943;
-    --zone-run-2: #f04c5a;
-    --zone-run-3: #ff7d81;
-    --zone-run-4: #ffafae;
-    --zone-run-5: #fedbda;
-    --zone-ride-1: #4269be;
-    --zone-ride-2: #5989f6;
-    --zone-ride-3: #85acfe;
-    --zone-ride-4: #b1cbfe;
-    --zone-ride-5: #dde8fe;
+    --zone-run-1: #b43d52;
+    --zone-run-2: #ca4556;
+    --zone-run-3: #de555d;
+    --zone-run-4: #ee716e;
+    --zone-run-5: #ff897f;
+    --zone-ride-1: #5061b3;
+    --zone-ride-2: #4f70d6;
+    --zone-ride-3: #4a81f4;
+    --zone-ride-4: #5196ff;
+    --zone-ride-5: #67acfe;
     --zone-ink-1: #ffffff;
-    --zone-ink-2: #0e1116;
+    --zone-ink-2: #ffffff;
     --zone-ink-3: #0e1116;
     --zone-ink-4: #0e1116;
     --zone-ink-5: #0e1116;

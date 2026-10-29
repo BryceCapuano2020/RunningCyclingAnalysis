@@ -1,11 +1,5 @@
 import type { MeasureTime } from '@rca/core/zones'
-import {
-  EASY_THROUGH,
-  HARD_FROM,
-  hasEnoughZoneTime,
-  sameEnteredReferences,
-  zoneShares,
-} from '@rca/core/zones'
+import { effortSplit, hasEnoughZoneTime, sameEnteredReferences, zoneShares } from '@rca/core/zones'
 import type { ZoneMeasure } from '@rca/core/zones'
 import type { ChartTableData } from './charts/chartTypes'
 import type { ZoneChartRow } from './charts/ZoneTimeChart'
@@ -19,18 +13,13 @@ export function barSummary(time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>):
     .join(', ')
 }
 
-/** The shares of a measure's time that were easy and hard, by the same zones as the sentence above the bars. */
+/** The shares of a measure's time that were easy and hard, from the same split as the sentence above the bars. */
 export function easyHardShares(
   measure: ZoneMeasure,
   time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>,
 ): { easy: number; hard: number } {
-  const shares = zoneShares(time)
-  const sum = (keep: (level: number) => boolean) =>
-    shares.reduce((total, share, i) => (keep(i + 1) ? total + share : total), 0)
-  return {
-    easy: sum((level) => level <= EASY_THROUGH[measure]),
-    hard: sum((level) => level >= HARD_FROM[measure]),
-  }
+  const { easy, hard } = effortSplit({ measure, ...time })
+  return { easy, hard }
 }
 
 /** One measure's bar: its label, the time in each zone, its text reading, its zone names and its easy and hard shares. */
