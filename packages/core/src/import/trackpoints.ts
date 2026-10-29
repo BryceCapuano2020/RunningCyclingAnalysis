@@ -27,15 +27,36 @@ export interface TimedPoint {
   position?: LatLon | undefined
 }
 
-const DECIMAL = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/
+/**
+ * A decimal. Each digit run is matched one way only (the dot is part of the one group that may follow the
+ * integer digits), so a long run of digits ending in a letter fails in one pass and not by trying every split.
+ */
+const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/
+
+/** The most characters a number's text may have once trimmed: a double needs under 25. */
+const MAX_NUMBER_CHARS = 64
+
+/**
+ * The most characters kept of a text field while reading a file. A value, a name or a time is far shorter;
+ * a longer one is cut here, so a hostile field cannot grow with the file. It is also what `readNumber` reads
+ * in full, so an overlong number text is refused whatever its cut.
+ */
+export const MAX_FIELD_CHARS = 1024
+
+/** `text` after `more`, held to MAX_FIELD_CHARS (one more character stays, so an overlong field is still seen as such). */
+export function appendField(text: string, more: string): string {
+  return text.length > MAX_FIELD_CHARS ? text : (text + more).slice(0, MAX_FIELD_CHARS + 1)
+}
 
 /**
  * A finite decimal number from XML text, or undefined. Blank text and hexadecimal are not numbers,
  * although Number() reads hexadecimal.
  */
 export function readNumber(text: string | undefined): number | undefined {
-  const trimmed = text?.trim() ?? ''
-  if (!DECIMAL.test(trimmed)) return undefined
+  // The padding of indented XML is whitespace, so a text this long is not a number whatever it holds.
+  if (text === undefined || text.length > MAX_FIELD_CHARS) return undefined
+  const trimmed = text.trim()
+  if (trimmed.length > MAX_NUMBER_CHARS || !DECIMAL.test(trimmed)) return undefined
   const value = Number(trimmed)
   return Number.isFinite(value) ? value : undefined
 }

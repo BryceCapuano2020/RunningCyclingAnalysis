@@ -177,7 +177,9 @@ function readDefinition(
   for (let i = 0; i < count; i++) {
     // The top bit of the base type byte is the endian flag; the architecture byte decides.
     const field = { num: bytes[cursor]!, size: bytes[cursor + 1]!, base: bytes[cursor + 2]! & 0x1f }
-    fields.push(field)
+    // A field of no bytes holds no value, so it is not kept: a definition of 255 of them would otherwise
+    // cost 255 reads in every one-byte message that follows it.
+    if (field.size > 0) fields.push(field)
     size += field.size
     cursor += 3
   }

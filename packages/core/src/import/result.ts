@@ -1,4 +1,4 @@
-import { MIB } from '../constants'
+import { MAX_FILE_SAMPLES, MIB } from '../constants'
 import type { Activity } from '../types'
 
 /** The result contract every activity parser (FIT, GPX, TCX) returns, and the limits they enforce. */
@@ -73,8 +73,7 @@ export interface ParseOptions {
   sessionKey?: string
 }
 
-/** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */
-export const MAX_FILE_SAMPLES = 172_800
+export { MAX_FILE_SAMPLES }
 
 export const DEFAULT_PARSE_LIMITS: Readonly<ParseLimits> = {
   maxFileBytes: 64 * MIB,

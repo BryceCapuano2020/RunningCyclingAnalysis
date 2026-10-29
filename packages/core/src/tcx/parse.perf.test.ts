@@ -47,3 +47,17 @@ describe('parseTcx performance', () => {
     expect(elapsed).toBeLessThan(4_000)
   }, 120_000)
 })
+
+describe('parseTcx on hostile numbers', () => {
+  it('reads a megabyte of digits that ends in a letter in linear time', () => {
+    const junk = '1'.repeat(1_000_000) + 'x'
+    const hostile =
+      `<Trackpoint><Time>${isoAt(0)}</Time><AltitudeMeters>${junk}</AltitudeMeters>` +
+      `<Position><LatitudeDegrees>${junk}</LatitudeDegrees><LongitudeDegrees>-0.12</LongitudeDegrees></Position>` +
+      '<DistanceMeters>0</DistanceMeters></Trackpoint>'
+    const file = documentOf([hostile, point(1)])
+    const start = performance.now()
+    parseTcx(file, 'junk.tcx')
+    expect(performance.now() - start).toBeLessThan(1_000)
+  })
+})

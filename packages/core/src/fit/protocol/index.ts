@@ -1,6 +1,6 @@
 export { BASE } from './baseTypes'
 export { crc16 } from './crc'
-export { decodeFit, DEFAULT_MAX_RECORDS } from './decode'
+export { decodeFit, DEFAULT_MAX_MESSAGES, DEFAULT_MAX_RECORDS } from './decode'
 export type {
   DecodedEvent,
   DecodedFileId,

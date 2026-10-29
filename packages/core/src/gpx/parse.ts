@@ -7,6 +7,7 @@ import { parseIsoTime } from '../import/time'
 import { fileTitle } from '../import/names'
 import { sportOfType } from '../import/sportType'
 import {
+  appendField,
   fixesOf,
   hasUsablePosition,
   readNonNegative,
@@ -168,7 +169,8 @@ class GpxReader implements XmlHandler {
 
   text(text: string): void {
     const frame = this.frames.at(-1)
-    if (frame !== undefined && TEXT_ROLES.has(frame.role)) frame.text += text
+    if (frame !== undefined && TEXT_ROLES.has(frame.role))
+      frame.text = appendField(frame.text, text)
   }
 
   close(): void {

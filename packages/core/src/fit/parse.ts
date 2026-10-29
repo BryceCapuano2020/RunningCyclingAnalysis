@@ -4,7 +4,7 @@ import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult, Rejection } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { E_BIKE_REASON, E_BIKE_SKIPPED, isEBikeType } from '../import/sportType'
-import { decodeFit } from './protocol/decode'
+import { decodeFit, DEFAULT_MAX_MESSAGES, DEFAULT_MAX_RECORDS } from './protocol/decode'
 import type { DecodedRecord, DecodedSession } from './protocol/decode'
 import type { FitSportName, FitSubSportName } from './protocol/profile'
 import { isFitFile, TRUNCATED_ERROR } from './protocol/reader'
@@ -64,11 +64,17 @@ function parseUnchecked(
   }
   if (!isFitFile(bytes)) return failure(fileName, NOT_FIT, 'corrupt')
 
-  const decoded = decodeFit(bytes, { maxRecords: limits.maxRecordMessages })
-  if (decoded.recordCount > limits.maxRecordMessages) {
+  // A FIT file with more records than the grid has seconds is refused whatever its timestamps, so it
+  // stops at that many rather than after the whole file is decoded.
+  const maxRecords = Math.min(limits.maxRecordMessages, DEFAULT_MAX_RECORDS)
+  const decoded = decodeFit(bytes, { maxRecords })
+  if (decoded.recordCount > maxRecords) {
+    return failure(fileName, `FIT file exceeds the ${maxRecords}-record limit`, 'too-much-data')
+  }
+  if (decoded.messageCount > DEFAULT_MAX_MESSAGES) {
     return failure(
       fileName,
-      `FIT file exceeds the ${limits.maxRecordMessages}-record limit`,
+      `FIT file exceeds the ${DEFAULT_MAX_MESSAGES}-message limit`,
       'too-much-data',
     )
   }

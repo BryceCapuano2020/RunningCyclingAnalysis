@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { definition, fitFile, int } from './fitBytes'
-import { decodeFit, DEFAULT_MAX_RECORDS } from './decode'
+import { decodeFit, DEFAULT_MAX_MESSAGES, DEFAULT_MAX_RECORDS } from './decode'
 import { FIELD, MESG } from './profile'
 
 const FIT_EPOCH_S = 631_065_600
@@ -107,8 +107,31 @@ describe('decodeFit records', () => {
     expect(result.messages.records.length).toBe(5)
   })
 
-  it('uses the two-million record limit by default', () => {
-    expect(DEFAULT_MAX_RECORDS).toBe(2_000_000)
+  it('uses the limit of the 48-hour grid for records by default', () => {
+    expect(DEFAULT_MAX_RECORDS).toBe(172_800)
+  })
+
+  it('counts messages of every kind against their own limit', () => {
+    const data = [...definition(1, MESG.event, [[0, 1, 0x00]])]
+    for (let i = 0; i < 10; i++) data.push(0x01, 0)
+    const result = decodeFit(fitFile(data), { maxMessages: 4 })
+    expect(result.ok).toBe(false)
+    expect(result.errors).toEqual(['Message count exceeds the 4-message limit'])
+    expect(result.messageCount).toBe(5)
+    expect(result.messages.events.length).toBe(4)
+    expect(DEFAULT_MAX_MESSAGES).toBeGreaterThan(DEFAULT_MAX_RECORDS)
+  })
+
+  it('reads a message whose definition has fields of no bytes as before', () => {
+    const data = [
+      ...definition(0, MESG.record, [[0, 0, 0x02], HEART_RATE, [9, 0, 0x02], POWER]),
+      0,
+      ...[110],
+      ...int(250, 2),
+    ]
+    const [r] = decodeFit(fitFile(data)).messages.records
+    expect(r?.heartRate).toBe(110)
+    expect(r?.power).toBe(250)
   })
 
   it('reports a truncated file and an unchecked CRC', () => {

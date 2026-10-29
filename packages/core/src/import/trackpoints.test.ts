@@ -19,6 +19,22 @@ describe('readNumber', () => {
   )
 })
 
+describe('readNumber on long text', () => {
+  it('refuses a very long run of digits without trying every split of it', () => {
+    const start = performance.now()
+    expect(readNumber('1'.repeat(50_000) + 'x')).toBeUndefined()
+    expect(readNumber('1'.repeat(50_000))).toBeUndefined()
+    expect(readNumber(' '.repeat(5_000) + '7')).toBeUndefined()
+    expect(performance.now() - start).toBeLessThan(500)
+  })
+
+  it('reads a number with its padding and a long fraction', () => {
+    expect(readNumber('\n      12.5\n    ')).toBe(12.5)
+    expect(readNumber('0.' + '0'.repeat(30) + '1')).toBeCloseTo(1e-31, 40)
+    expect(readNumber('5.')).toBe(5)
+  })
+})
+
 describe('readNonNegative', () => {
   it('keeps zero and positive values and drops negative ones', () => {
     expect(readNonNegative('0')).toBe(0)

@@ -43,6 +43,22 @@ describe('parseGpx performance', () => {
   }, 120_000)
 })
 
+describe('parseGpx on hostile numbers', () => {
+  it('reads a megabyte of digits that ends in a letter in linear time, and keeps no field of it', () => {
+    const junk = '1'.repeat(1_000_000) + 'x'
+    const file = bytes(
+      HEADER +
+        '<trk><trkseg>' +
+        `<trkpt lat="51.5" lon="-0.1"><ele>${junk}</ele><time>${new Date(START_MS).toISOString()}</time></trkpt>` +
+        `<trkpt lat="${junk}" lon="-0.1"><ele>5</ele><time>${new Date(START_MS + 1000).toISOString()}</time></trkpt>` +
+        '</trkseg></trk></gpx>',
+    )
+    const start = performance.now()
+    parseGpx(file, 'junk.gpx')
+    expect(performance.now() - start).toBeLessThan(1_000)
+  })
+})
+
 /** A GPX file of `count` trackpoints over 172,000 s, with heart rate, cadence and power, about 50 MB. */
 function bigGpx(count: number): Uint8Array {
   const parts = [HEADER, '<trk><type>running</type><trkseg>']
