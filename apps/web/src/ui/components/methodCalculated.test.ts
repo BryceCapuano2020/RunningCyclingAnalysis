@@ -45,7 +45,9 @@ describe('What is calculated', () => {
     ]) {
       expect(calculated).toMatch(feature)
     }
-    expect(namesIn('read').join(' | ')).toMatch(/Heart rate.*Power from a power meter.*Timelines and laps/)
+    expect(namesIn('read').join(' | ')).toMatch(
+      /Heart rate.*Power from a power meter.*Timelines and laps/,
+    )
   })
 
   it('has an entry for every section a sport page can show', () => {

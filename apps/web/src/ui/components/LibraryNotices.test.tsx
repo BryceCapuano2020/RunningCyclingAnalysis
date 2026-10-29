@@ -252,17 +252,23 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
 })
 
 describe('LibraryNotices: runs at walking pace', () => {
-  function withWalkingRuns(walkingPaceRuns: number) {
+  function withWalkingRuns(walkingPaceRuns: number, walkingNote = true) {
     return render(
       <LibraryNotices
         analysis={analysisStub({ state: { walkingPaceRuns } })}
         signedIn
         keepFiles
         fileRetentionAvailable
+        walkingNote={walkingNote}
         onRetry={vi.fn()}
       />,
     )
   }
+
+  it('is left off the pages that do not list or analyse runs', () => {
+    withWalkingRuns(52, false)
+    expect(screen.queryByText(/walking pace/)).not.toBeInTheDocument()
+  })
 
   it('says where they went, and says nothing when there are none', () => {
     withWalkingRuns(0)

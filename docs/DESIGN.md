@@ -924,7 +924,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   or the jogging share, so a run/walk session or a hilly ultra with a low median cadence is still a run. It
   stays in the library with a Walking pace mark on its row and its page, where a line takes the place of its
   best efforts, is left out of every run analysis, volume and best, and a line under the import notices counts
-  them. Every count and date the pages give of what is analysed leaves them out (a library of hikes alone asks
+  them on Run and Activities, the pages that list or analyse runs, and on no other. Every count and date the pages give of what is analysed leaves them out (a library of hikes alone asks
   for a run and a ride), while the activity list and the activity pages keep them.
 - **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
   period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run

@@ -4,6 +4,7 @@ import './App.css'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
 import { AppNotices } from './ui/components/AppNotices'
+import { WALKING_NOTE_PAGES } from './ui/analysis/walkingPaceCopy'
 import { ImportStatus } from './ui/components/ImportStatus'
 import { SetupDialog } from './ui/components/SetupDialog'
 import { SkipLink } from './ui/components/SkipLink'
@@ -284,6 +285,7 @@ export function App() {
         runThenFocus={runThenFocus}
         atBalance={route.page === 'balance'}
         activitiesPage={route.page === 'activities'}
+        walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
       />
 
       <main className="app__main">

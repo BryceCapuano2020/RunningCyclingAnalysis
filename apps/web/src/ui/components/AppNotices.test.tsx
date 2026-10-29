@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
+import { WALKING_NOTE_PAGES } from '../analysis/walkingPaceCopy'
 import { AppNotices } from './AppNotices'
 import type { AppNoticesProps } from './AppNotices'
 import { makeRejectedFile, makeResult } from './fixtures'
@@ -34,6 +35,23 @@ function noticesProps(
 function statusRegions(): Element[] {
   return Array.from(document.querySelectorAll('[role="status"]'))
 }
+
+describe('the walking pace line', () => {
+  const WALKING = /saved runs are at walking pace/
+
+  it('shows on the pages that list or analyse runs, and on no other', () => {
+    const analysis = { state: { walkingPaceRuns: 3 } }
+    const run = render(<AppNotices {...noticesProps(analysis, { walkingNote: true })} />)
+    expect(screen.getByText(WALKING)).toBeInTheDocument()
+    run.unmount()
+    render(<AppNotices {...noticesProps(analysis)} />)
+    expect(screen.queryByText(WALKING)).not.toBeInTheDocument()
+  })
+
+  it('is for the Run and Activities pages', () => {
+    expect([...WALKING_NOTE_PAGES].sort()).toEqual(['activities', 'run'])
+  })
+})
 
 describe('AppNotices live regions', () => {
   it('keeps every status region mounted and empty when there is nothing to say', () => {
