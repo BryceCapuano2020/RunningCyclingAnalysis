@@ -151,7 +151,7 @@ describe('a treadmill run on the sport page', () => {
       sport: 'run',
       indoor: true,
       name: 'Dreadmill',
-      distanceBests: [{ distanceM: 10000, seconds: 2192 }],
+      distanceBests: [{ distanceM: 10000, seconds: 2250 }],
     })
     const outdoor = makeActivity({
       id: 'run-2',
@@ -172,7 +172,7 @@ describe('a treadmill run on the sport page', () => {
       sport: 'run',
       indoor: true,
       name: 'Dreadmill',
-      distanceBests: [{ distanceM: 10000, seconds: 2192 }],
+      distanceBests: [{ distanceM: 10000, seconds: 2250 }],
     })
     renderPage('run', makeResult({ activities: [indoor] }))
 

@@ -41,14 +41,14 @@ describe('the activity page of a treadmill run', () => {
       sport: 'run',
       indoor: true,
       name: 'Dreadmill',
-      distanceBests: [{ distanceM: 10000, seconds: 2192 }],
+      distanceBests: [{ distanceM: 10000, seconds: 2250 }],
     })
     renderBests(indoor, makeResult({ activities: [indoor] }))
 
     expect(screen.getByRole('heading', { name: 'Distance times' })).toBeInTheDocument()
     const item = screen.getByText('10 km').closest('li')
     expect(item).not.toBeNull()
-    expect(within(item!).getByText('36:32')).toBeInTheDocument()
+    expect(within(item!).getByText('37:30')).toBeInTheDocument()
     expect(within(item!).queryByText(/Flat|Treadmill|record|period/)).toBeNull()
     expect(screen.queryByText('Best 10 km')).toBeNull()
     expect(screen.getByText('Treadmill pace is not used for bests.')).toBeInTheDocument()
@@ -67,11 +67,11 @@ describe('the activity page of a treadmill run', () => {
       id: 'run-1',
       sport: 'run',
       name: 'Morning run',
-      distanceBests: [{ distanceM: 10000, seconds: 2192 }],
+      distanceBests: [{ distanceM: 10000, seconds: 2250 }],
     })
     renderBests(outdoor, makeResult({ activities: [outdoor] }))
 
-    expect(within(bestNamed('Best 10 km')).getByText('36:32')).toBeInTheDocument()
+    expect(within(bestNamed('Best 10 km')).getByText('37:30')).toBeInTheDocument()
     expect(screen.queryByText('Treadmill pace is not used for bests.')).toBeNull()
   })
 })
