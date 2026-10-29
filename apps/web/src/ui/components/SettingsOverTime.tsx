@@ -7,6 +7,7 @@ import { MEASUREMENT_YEARS, isMeasurementYear } from '@rca/contract'
 import { messageOf } from '../../api/messageOf'
 import { SPORT_ACTIVITY } from '../sports'
 import { useNow } from '../useNow'
+import { useScrollRegion } from '../useScrollRegion'
 import { plural } from './plural'
 import { formatDay } from '../format/date'
 import {
@@ -61,6 +62,8 @@ export function SettingsOverTime({
   retry,
 }: SettingsOverTimeProps) {
   const baseId = useId()
+  // At 320 px the table is wider than the page, so it scrolls and a keyboard reader can reach it.
+  const tableRegion = useScrollRegion('Your dated settings')
   const [choiceId, setChoiceId] = useState(FIRST_CHOICE.id)
   const [text, setText] = useState('')
   // The date the athlete picked. Until one is picked the form starts from today, and rolls over at midnight.
@@ -229,7 +232,7 @@ export function SettingsOverTime({
         </div>
       )}
       {rows.length > 0 && (
-        <div className="table-scroll">
+        <div className="table-scroll" {...tableRegion}>
           <table className="settings-over-time__table">
             <caption>Your dated settings</caption>
             <thead>

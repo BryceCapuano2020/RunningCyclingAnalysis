@@ -1,30 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react'
-import type { RefObject } from 'react'
 import { keyByContent } from '../contentKeys'
+import { useScrollRegion } from '../useScrollRegion'
 import './ChartTable.css'
 
 /** Above this many rows the table is a scroll region with a height cap, so a long one does not run the page on. */
 const LONG_ROWS = 12
 const NO_COLUMNS: number[] = []
-
-/**
- * Whether the table is wider than its scroll region, so that a keyboard reader must reach the region to
- * read its columns. A closed disclosure measures nothing, so the region is measured again when it opens.
- */
-function useOverflows(ref: RefObject<HTMLDivElement | null>): boolean {
-  const [overflows, setOverflows] = useState(false)
-  // No dependencies: the table's rows and columns change what it draws, so it is measured after each render.
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (el === null || typeof ResizeObserver === 'undefined') return
-    const measure = () => setOverflows(el.scrollWidth > el.clientWidth)
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    measure()
-    return () => observer.disconnect()
-  })
-  return overflows
-}
 
 export interface ChartTableProps {
   columns: string[]
@@ -55,19 +35,11 @@ export function ChartTable({
   textColumns = NO_COLUMNS,
   phoneHidden = NO_COLUMNS,
 }: ChartTableProps) {
-  const ref = useRef<HTMLDivElement>(null)
   // A long table, or one that overflows a narrow page, is a scroll region a keyboard reader can reach.
   const long = rows.length > LONG_ROWS
-  const overflows = useOverflows(ref)
-  const scrolls = long || overflows
+  const region = useScrollRegion(caption ?? 'Table', long)
   return (
-    <div
-      ref={ref}
-      className={long ? 'table-scroll table-scroll--long' : 'table-scroll'}
-      role={scrolls ? 'region' : undefined}
-      aria-label={scrolls ? (caption ?? 'Table') : undefined}
-      tabIndex={scrolls ? 0 : undefined}
-    >
+    <div className={long ? 'table-scroll table-scroll--long' : 'table-scroll'} {...region}>
       <table>
         {caption ? <caption>{caption}</caption> : null}
         <thead>
