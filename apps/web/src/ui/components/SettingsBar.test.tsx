@@ -259,6 +259,31 @@ describe('SettingsBar', () => {
     expect(await screen.findByText(SAVED)).toBeInTheDocument()
   })
 
+  it('keeps what is typed in the bike weight while the body weight is still saving', async () => {
+    const user = userEvent.setup()
+    let finish: () => void = () => undefined
+    const onChange = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    render(<SettingsBar settings={SETTINGS} units="metric" onChange={onChange} />)
+    const body = screen.getByLabelText('Body weight')
+    const bike = screen.getByLabelText('Bike and gear weight')
+    await user.clear(body)
+    await user.type(body, '76')
+    await user.tab()
+    await user.clear(bike)
+    await user.type(bike, '9.5')
+    finish()
+    expect(await screen.findByText(SAVED)).toBeInTheDocument()
+
+    expect(bike).toHaveValue('9.5')
+    await user.tab()
+    expect(onChange).toHaveBeenLastCalledWith({ bikeMassKg: 9.5 })
+  })
+
   it('keeps the typed weight, and says so, when the change cannot be stored', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn(() => Promise.reject(new Error('offline')))

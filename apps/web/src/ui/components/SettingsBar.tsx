@@ -82,9 +82,10 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
     const change = field === 'body' ? { massKg: kg } : { bikeMassKg: kg }
     try {
       await onChange(change)
-      setError(null)
-      setUnusual(null)
-      setDraft(null)
+      // Only this field's: the other may have been typed in while the save was away.
+      setError((earlier) => (earlier?.field === field ? null : earlier))
+      if (field === 'body') setUnusual(null)
+      setDraft((earlier) => (earlier?.field === field ? null : earlier))
       setPartial(null)
       setStatus('saved')
     } catch (failure) {
