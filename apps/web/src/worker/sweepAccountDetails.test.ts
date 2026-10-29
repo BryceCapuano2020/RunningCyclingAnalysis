@@ -56,3 +56,50 @@ describe('sweeping the accounts that are no longer this browser’s', () => {
     await expect(sweepAccountDetails(null)).resolves.toBeUndefined()
   })
 })
+
+describe('sweeping a browser that never stored a recording', () => {
+  /** A factory that lists databases only through `list`, as a browser without `databases()` does not. */
+  function withoutListing() {
+    const factory = new IDBFactory()
+    const listing = factory.databases.bind(factory)
+    const list = () => listing().then((all) => all.map((database) => database.name))
+    Object.defineProperty(factory, 'databases', { value: undefined })
+    vi.stubGlobal('indexedDB', factory)
+    return { list }
+  }
+
+  it('does not create the recordings database', async () => {
+    const factory = new IDBFactory()
+    vi.stubGlobal('indexedDB', factory)
+    vi.resetModules()
+    const { sweepAccountDetails } = await import('./sweepAccountDetails')
+
+    await sweepAccountDetails(null)
+
+    expect(await factory.databases()).toEqual([])
+  })
+
+  it('does not create it where the browser cannot list databases', async () => {
+    const { list } = withoutListing()
+    vi.resetModules()
+    const { sweepAccountDetails } = await import('./sweepAccountDetails')
+    const { workbenchExists } = await import('./workbenchExists')
+
+    expect(await workbenchExists()).toBe(false)
+    await sweepAccountDetails(null)
+
+    expect(await list()).toEqual([])
+  })
+
+  it('finds a database that was made, by either route', async () => {
+    await fresh()
+    const { workbenchExists } = await import('./workbenchExists')
+    expect(await workbenchExists()).toBe(true)
+
+    vi.stubGlobal(
+      'indexedDB',
+      Object.create(indexedDB, { databases: { value: undefined } }) as IDBFactory,
+    )
+    expect(await workbenchExists()).toBe(true)
+  })
+})
