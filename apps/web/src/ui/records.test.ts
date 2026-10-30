@@ -65,16 +65,16 @@ describe('threshold', () => {
 })
 
 describe('thresholdRange', () => {
-  it('calls a running threshold’s one-standard-error spread a fit spread, not a range, from the faster pace to the slower', () => {
-    // The fixture’s critical power is 4.0 W/kg, with a standard error of 0.05 W/kg either side.
-    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Fit spread 22:58 to 23:49 /km')
+  it('calls a running threshold’s spread a fit spread, not a range, from the faster pace to the slower', () => {
+    // The fixture’s critical power is 4.0 W/kg, with a standard error of 0.05 W/kg, and the model error floor widens it.
+    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Fit spread 21:46 to 25:15 /km')
     expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe(
-      'Fit spread 36:58 to 38:19 /mi',
+      'Fit spread 35:02 to 40:39 /mi',
     )
   })
 
   it('gives a cycling threshold’s fit spread in watts, from the lower to the higher', () => {
-    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('Fit spread 48 to 49 W')
+    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('Fit spread 46 to 51 W')
   })
 
   it('is null without a fit, and when the low end would not be a positive work rate', () => {
@@ -111,19 +111,23 @@ describe('thresholdRange', () => {
     const outside = [curvePoint(3600, 2.5, 'ride-1'), curvePoint(600, 3.0, 'ride-2')]
     expect(
       thresholdRange(makeResult({ activities, rideCurve: outside }), 'ride', 75, 'metric'),
-    ).toBe('Fit spread 48 to 49 W')
+    ).toBe('Fit spread 46 to 51 W')
   })
 })
 
 describe('thresholdRange when both ends print the same', () => {
   it('says "About" and the one figure rather than "A to A", on either sport', () => {
-    // A standard error this small moves neither end by a displayed second or watt.
-    const tight = { cp: 4.0, wPrime: 20, cpSe: 0.0001, r2: 0.99, nPoints: 6 }
-    const tightRide = { cp: 3.0, wPrime: 15, cpSe: 0.0001, r2: 0.98, nPoints: 6 }
-    expect(thresholdRange(makeResult({ runCp: tight }), 'run', 70, 'metric')).toBe(
+    // The fit spread always carries a model error floor, so only a range between two fits can collapse: here the
+    // second fit sits a hair above the main one, and neither end moves a displayed second or watt.
+    const hair = (cp: number) => ({
+      fit: { cp: cp + 1e-6, wPrime: 20, cpSe: 0.01, r2: 0.99, nPoints: 6 },
+      leftOutS: [900],
+      floor: cp - 0.5,
+    })
+    expect(thresholdRange(makeResult({ runCpUneven: hair(4.0) }), 'run', 70, 'metric')).toBe(
       'About 23:23 /km',
     )
-    expect(thresholdRange(makeResult({ rideCp: tightRide }), 'ride', 75, 'metric')).toBe(
+    expect(thresholdRange(makeResult({ rideCpUneven: hair(3.0) }), 'ride', 75, 'metric')).toBe(
       'About 48 W',
     )
   })

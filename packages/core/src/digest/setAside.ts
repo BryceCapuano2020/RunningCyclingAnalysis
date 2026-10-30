@@ -1,4 +1,6 @@
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
+import { effortGateOf } from '../effort'
+import type { EffortGate } from '../effort'
 import { requirePositiveFinite } from '../math'
 import type { ActivityDigest, AthleteSettings, CriticalPowerFit, Sport } from '../types'
 import { plainCurve } from './bestCurve'
@@ -9,16 +11,24 @@ import { judgedCurves } from './judgedCurves'
 import { bestCurves, fitBikeModelOver } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
+import { gatedThreshold } from './effortGating'
 import { thresholdTimeline } from './thresholdTimeline'
+import { withoutSetAside } from './trustedHeartRate'
 
-/** Each sport's threshold fit of a library as the analysis reports it, null where it has none or refuses it. */
+/**
+ * Each sport's threshold fit of a library as the analysis reports it, null where it has none, refuses it, or the
+ * effort gate (when given) says its best 20 minutes was not hard.
+ */
 function reportedFits(
   { runBest, rideMetabolic }: BestCurves,
   massKg: number,
+  gates?: Record<Sport, EffortGate>,
 ): Record<Sport, CriticalPowerFit | null> {
+  const run = criticalPowerOutcome(plainCurve(runBest), { minWPrime: wPrimeFloor('run', massKg) })
+  const ride = criticalPowerOutcome(rideMetabolic, { minWPrime: wPrimeFloor('ride', massKg) })
   return {
-    run: criticalPowerOutcome(plainCurve(runBest), { minWPrime: wPrimeFloor('run', massKg) }).fit,
-    ride: criticalPowerOutcome(rideMetabolic, { minWPrime: wPrimeFloor('ride', massKg) }).fit,
+    run: gates === undefined ? run.fit : gatedThreshold(gates.run, run, null).fit,
+    ride: gates === undefined ? ride.fit : gatedThreshold(gates.ride, ride, null).fit,
   }
 }
 
@@ -67,15 +77,33 @@ export function judgeHeartRate(
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   const { curves, fits, heart, gate } = judgedCurves(ordered, masses, bikeModel, settings.massKg)
-  const { setAside, reference, observedMax, observedSource, trusted } = heart
+  const { setAside, reference, observedMax, observedSource, reading, trusted } = heart
   const { kappa, lnKappaSe } = heartRateCrossCheck(trusted, masses, bikeModel, fits)
   return {
     setAside: [...setAside].sort(),
     referenceHr: { run: reference.run, ride: reference.ride },
     observedMaxHr: { run: observedMax.run, ride: observedMax.ride },
     observedMaxSource: { run: observedSource.run, ride: observedSource.ride },
-    fit: reportedFits(curves, settings.massKg),
-    thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, gate),
+    referenceReading: { run: reading.run, ride: reading.ride },
+    fit: reportedFits(curves, settings.massKg, {
+      run: effortGateOf(
+        withoutSetAside(curves.runBest, setAside),
+        plainCurve(curves.runBest),
+        reference.run,
+        reading.run,
+      ),
+      ride: effortGateOf(
+        withoutSetAside(curves.rideBest, setAside),
+        curves.rideMetabolic,
+        reference.ride,
+        reading.ride,
+      ),
+    }),
+    thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, gate, {
+      referenceHr: reference,
+      referenceReading: reading,
+      setAside,
+    }),
     threshold: { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null },
     calibration: kappa === null ? null : { kappa, lnKappaSe },
     rideGate: gate,

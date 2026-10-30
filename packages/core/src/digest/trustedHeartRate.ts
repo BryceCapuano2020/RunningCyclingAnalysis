@@ -1,9 +1,9 @@
-import type { EffortPoint, MaxHeartRates } from '../effort'
-import { referenceMaxHeartRates } from '../effort'
+import type { EffortPoint, MaxHeartRates, ReferenceReading } from '../effort'
+import { readReferences, referenceMaxHeartRates } from '../effort'
 import { lowForPowerSetAside, worstSetAside } from '../hr'
 import type { ActivityDigest, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
 import { memoByDigests } from '../digestMemo'
-import { newestHeartRateMs, referenceMaxOf } from './referenceMax'
+import { maximumAndTypicalDay, newestHeartRateMs, referenceMaxOf } from './referenceMax'
 import type { ReferenceMax } from './referenceMax'
 
 /** How many answers the references keep for one first activity: the steps of a set-aside iteration. */
@@ -22,6 +22,8 @@ export interface TrustedHeartRate {
   /** What each sport's maximum rests on: how many days reached it, and since when. */
   observedSource: Record<Sport, ReferenceMax | null>
   reference: MaxHeartRates
+  /** What each sport's reference can certify (`readReferences`); null without one. */
+  reading: Record<Sport, ReferenceReading | null>
 }
 
 interface References {
@@ -29,25 +31,30 @@ interface References {
   observedSource: Record<Sport, ReferenceMax | null>
   maxHr: number | null
   reference: MaxHeartRates
+  reading: Record<Sport, ReferenceReading | null>
 }
 
 function computeReferences(digests: ActivityDigest[]): References {
   const endMs = newestHeartRateMs(digests)
-  const maxOf = (sport: Sport) =>
-    referenceMaxOf(
+  const perSport = (sport: Sport) =>
+    maximumAndTypicalDay(
       digests.filter((d) => d.sport === sport),
       endMs,
     )
-  const observedSource = { run: maxOf('run'), ride: maxOf('ride') }
+  const found = { run: perSport('run'), ride: perSport('ride') }
+  const observedSource = { run: found.run.max, ride: found.ride.max }
   const observedMax = {
     run: observedSource.run?.bpm ?? null,
     ride: observedSource.ride?.bpm ?? null,
   }
+  const reference = referenceMaxHeartRates(observedMax.run, observedMax.ride)
+  const typical = { run: found.run.typical, ride: found.ride.typical }
   return {
     observedMax,
     observedSource,
     maxHr: referenceMaxOf(digests, endMs)?.bpm ?? null,
-    reference: referenceMaxHeartRates(observedMax.run, observedMax.ride),
+    reference,
+    reading: readReferences(reference, observedMax, typical),
   }
 }
 
@@ -58,6 +65,7 @@ function copyOfReferences(found: References): References {
     observedSource: { ...found.observedSource },
     maxHr: found.maxHr,
     reference: { ...found.reference },
+    reading: { ...found.reading },
   }
 }
 

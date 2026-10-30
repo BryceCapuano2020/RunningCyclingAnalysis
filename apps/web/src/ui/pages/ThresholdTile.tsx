@@ -11,6 +11,7 @@ import { floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { bestBeyondThresholdLine } from '../thresholdBest'
 import { thresholdSpan } from '../thresholdRange'
+import { thresholdWithheldLine } from '../thresholdWithheld'
 import { EffortChip } from './EffortChip'
 import { effortChipText } from '../effortCaveat'
 import { RangeTrack } from './RangeTrack'
@@ -83,6 +84,7 @@ export function ThresholdTile({
   const chip = effortChipText(sport, effortCheck)
   // Where the best 20 minutes has its own line, the grade line leaves its figure out rather than say it twice.
   const bestLine = fitted === null ? null : bestBeyondThresholdLine(result, sport, effort)
+  const withheld = thresholdWithheldLine(result, sport)
   const line = gradeLine(sport, grade, bestLine === null ? effort : null)
   if (hero === null) {
     return (
@@ -127,6 +129,7 @@ export function ThresholdTile({
       }
     >
       {bestLine === null ? null : <p className="stat-tile__line">{bestLine}</p>}
+      {withheld === null ? null : <p className="stat-tile__line">{withheld}</p>}
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
       {chip === null ? null : (
         <p className="stat-tile__effort">

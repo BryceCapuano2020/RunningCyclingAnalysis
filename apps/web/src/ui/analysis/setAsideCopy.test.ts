@@ -10,6 +10,7 @@ const JUDGED: HeartRateJudgement = {
   referenceHr: { run: 200.4, ride: 194 },
   observedMaxHr: { run: 200.4, ride: 188 },
   observedMaxSource: { run: null, ride: null },
+  referenceReading: { run: 'trusted', ride: 'trusted' },
   fit: { run: null, ride: null },
   thresholdTimeline: { run: [], ride: [] },
   threshold: { run: 5, ride: 4 },

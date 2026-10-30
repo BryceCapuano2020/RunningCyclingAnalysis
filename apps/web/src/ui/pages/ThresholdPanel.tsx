@@ -9,6 +9,7 @@ import { THRESHOLD_HEADING, THRESHOLD_MEANING } from '../sports'
 import { floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { thresholdSpan } from '../thresholdRange'
+import { thresholdWithheldLine } from '../thresholdWithheld'
 import { unevenNote } from '../unevenNote'
 import { EffortChip } from './EffortChip'
 import { RangeTrack } from './RangeTrack'
@@ -41,6 +42,7 @@ export function ThresholdPanel({
   const hero = fitted ?? floorThreshold(result, sport, massKg, units)
   const span = thresholdSpan(result, sport, massKg, units)
   const floorNote = unevenNote(result, sport)
+  const withheld = thresholdWithheldLine(result, sport)
   const effortChip = effortChipText(
     sport,
     result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
@@ -95,6 +97,7 @@ export function ThresholdPanel({
         </div>
       )}
       {hero && floorNote && <p className="muted">{floorNote}</p>}
+      {hero && withheld && <p className="muted">{withheld}</p>}
       {fitted && <p className="sport-hero__meaning">{THRESHOLD_MEANING[sport]}</p>}
     </section>
   )

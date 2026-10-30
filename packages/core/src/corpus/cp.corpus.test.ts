@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { combine } from '../digest/combine'
+import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { digestActivity } from '../digest/digestActivity'
 import { parseActivityFile } from '../import'
 import { corpusReader } from './helpers'
@@ -31,8 +32,10 @@ describe('critical-power refusals on real files', () => {
   it('keeps the thresholds of the two real runs with the least work capacity, 8.0 and 7.1 kJ', () => {
     for (const name of ['developer-types-sample.fit', 'sample_mulitple_header.fit']) {
       const result = analyse(name, 75)
-      expect(result.runCp, name).not.toBeNull()
-      expect(result.runCpRefusal, name).toBeNull()
+      // The fit's own rules keep it; whether the run was hard enough to report it is the effort gate's, tested apart.
+      const outcome = criticalPowerOutcome(result.runCurve, { minWPrime: wPrimeFloor('run', 75) })
+      expect(outcome.fit, name).not.toBeNull()
+      expect(outcome.refusal, name).toBeNull()
     }
   })
 

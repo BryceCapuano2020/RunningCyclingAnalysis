@@ -1,6 +1,7 @@
 import { HALF_MARATHON_M, MARATHON_M, RUN_RACE_DISTANCES_M } from '@rca/core/constants'
 import { effortsCount } from '@rca/core/digest'
-import type { AnalysisResult } from '@rca/core/pipeline'
+import { sessionEffort } from '@rca/core/effort'
+import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { predictRunRaces, typicalWeeklyDistance } from '@rca/core/predict'
 import type { PredictionMethod, RunPredictions } from '@rca/core/predict'
 import type { Sport } from '@rca/core/types'
@@ -14,17 +15,33 @@ const RUN: Sport = 'run'
  * page shows its predictions with the same table; a sport without one shows none.
  */
 
+/**
+ * The runs whose bests may be carried to a race. A treadmill's pace is no best, and a run that heart rate shows never
+ * reached a hard effort (its peak under the hard line of the reference, or a reference that cannot certify a
+ * maximum) carries its easy pace to a race as if it were a hard one: a library of easy runs predicts an easy 5 km.
+ * A run without a heart rate, or with it set aside, counts, since nothing says it was easy.
+ */
+function anchorRuns(result: AnalysisResult): ActivitySummary[] {
+  const setAside = new Set(result.heartRateSetAside)
+  const { reference } = result.effortGate[RUN]
+  return result.activities.filter(
+    (activity) =>
+      activity.sport === RUN &&
+      effortsCount(activity) &&
+      (setAside.has(activity.id) ||
+        sessionEffort(activity.maxHeartRate, result.runMaxHeartRate, reference) !== 'notHard'),
+  )
+}
+
 /** Each sport's predictor from its period's result, where it has one. */
 export const RACE_PREDICTORS: Partial<Record<Sport, (result: AnalysisResult) => RunPredictions>> = {
   run: (result) => {
     const runs = result.activities.filter((activity) => activity.sport === RUN)
     return predictRunRaces({
-      // A best shorter than the mile is too short to carry to a race, and a treadmill's pace is no best.
-      bests: runs
-        .filter(effortsCount)
-        .flatMap((run) =>
-          (run.distanceBests ?? []).filter((best) => best.distanceM >= METRES_PER_MILE),
-        ),
+      // A best shorter than the mile is too short to carry to a race.
+      bests: anchorRuns(result).flatMap((run) =>
+        (run.distanceBests ?? []).filter((best) => best.distanceM >= METRES_PER_MILE),
+      ),
       vo2max: result.runVo2max,
       weeklyM: typicalWeeklyDistance(runs),
     })
@@ -60,6 +77,21 @@ export const RACE_PREDICTIONS_NAME = 'Race predictions'
  */
 export const RACE_PREDICTION_NEED: Partial<Record<Sport, string>> = {
   run: `Needs a best of a ${raceName(METRES_PER_MILE)} or more, or runs with heart rate`,
+}
+
+/** Where a sport's bests are all left out for their effort, what it needs; null where some are kept or none are held. */
+const HARD_NEED: Partial<Record<Sport, (result: AnalysisResult) => string | null>> = {
+  run: (result) => {
+    const holding = result.activities.some((a) => a.sport === RUN && effortsCount(a))
+    return holding && anchorRuns(result).length === 0
+      ? 'Needs a hard run. Your runs on file never reached a hard heart rate, so their times are not carried to a race'
+      : null
+  },
+}
+
+/** What a sport's predictions need now: a hard effort where its bests were all left out for theirs, else the usual need. */
+export function racePredictionNeed(sport: Sport, result: AnalysisResult): string | undefined {
+  return HARD_NEED[sport]?.(result) ?? RACE_PREDICTION_NEED[sport]
 }
 
 /** Each method's name where a prediction's origin is told. */

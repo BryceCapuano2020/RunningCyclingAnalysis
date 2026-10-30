@@ -212,11 +212,11 @@ describe('AnalysisSession analysis cache', () => {
     const state = session.setRange(21, SETTINGS)
     const { selected } = splitPeriods(SAMPLE_DIGESTS, 21)
     // The period is read with the library's calibration and reference heart rates, which it has no say in.
-    const { calibration, referenceHr, observedMaxHr } = state.heartRateJudgement
+    const { calibration, referenceHr, observedMaxHr, referenceReading } = state.heartRateJudgement
     expect(state.result).toEqual(
       combineDigests(selected, SETTINGS, {
         calibration,
-        references: { referenceHr, observedMaxHr },
+        references: { referenceHr, observedMaxHr, referenceReading },
       }),
     )
   })

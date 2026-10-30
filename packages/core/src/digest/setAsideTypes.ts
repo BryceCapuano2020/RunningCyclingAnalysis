@@ -1,3 +1,4 @@
+import type { ReferenceReading } from '../effort'
 import type { CriticalPowerFit, HrCalibration, Sport } from '../types'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { ReferenceMax } from './referenceMax'
@@ -21,6 +22,11 @@ export interface HeartRateJudgement {
   observedMaxHr: Record<Sport, number | null>
   /** What each sport's maximum rests on: the days that reached it and the date it counts from. Null without one. */
   observedMaxSource: Record<Sport, ReferenceMax | null>
+  /**
+   * What each sport's reference can certify (see `ReferenceReading`): a share of a reference that is low or habitual
+   * does not show an effort was hard. The library's, so every period reads the same. Null without a reference.
+   */
+  referenceReading: Record<Sport, ReferenceReading | null>
   /**
    * Each sport's threshold fit over the whole library, as an analysis of it would report it: null when there are too
    * few efforts or the fit is refused. The zones' threshold references are these, so they are the library's.
@@ -53,6 +59,7 @@ export const NO_HEART_RATE_JUDGEMENT: HeartRateJudgement = {
   referenceHr: { run: null, ride: null },
   observedMaxHr: { run: null, ride: null },
   observedMaxSource: { run: null, ride: null },
+  referenceReading: { run: null, ride: null },
   threshold: { run: null, ride: null },
   fit: { run: null, ride: null },
   thresholdTimeline: NO_THRESHOLD_TIMELINE,

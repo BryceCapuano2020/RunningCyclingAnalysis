@@ -49,11 +49,21 @@ export function needLine(
 /** What a sport lacking an effort of the headline's length needs. */
 const NEEDS_EFFORT = `A hard ${HEADLINE_LABEL} run or ride would let them be compared.`
 
+/** The sports whose best 20 minutes heart rate does not show hard, which hold the headline back. */
+function notHardSports(result: AnalysisResult): Sport[] {
+  return SPORT_ORDER.filter((sport) => result.effortGate[sport].verdict === 'notHard')
+}
+
+/** A hard effort asked of the sports named, such as "A hard 20 min run would let them be compared." */
+function needsHard(sports: readonly Sport[]): string {
+  const named = sports.map((sport) => SPORT_ACTIVITY[sport]).join(' and a hard ')
+  return `A hard ${HEADLINE_LABEL} ${named} would let them be compared.`
+}
+
 /**
  * What to do to lift the hold, as one action: add the activities a sport is short of ("Add 2 more rides in
- * this period to compare them."), or else one run or ride of the headline's length. The same facts as
- * heldReason, said as an instruction. It does not say "hard": the evidence rule (hasEvidence) asks for a best
- * of at least the headline's length, which any activity that long gives however easy, or a fitted threshold.
+ * this period to compare them."), or else one run or ride of the headline's length, or a hard effort of it where
+ * heart rate shows the best 20 minutes was not one. The same facts as heldReason, said as an instruction.
  */
 export function heldAction(result: AnalysisResult, period: Period | undefined): string {
   const { parts, inPeriod } = shortfallOf(
@@ -63,6 +73,8 @@ export function heldAction(result: AnalysisResult, period: Period | undefined): 
   )
   if (parts.length > 0) return `Add ${parts.join(' and ')}${inPeriod} to compare them.`
   const lacking = SPORT_ORDER.filter((sport) => !hasEvidence(result, sport))
+  const notHard = notHardSports(result)
+  if (notHard.length > 0 && notHard.length === lacking.length) return needsHard(notHard)
   const one = lacking.map((sport) => `one ${SPORT_ACTIVITY[sport]}`).join(' and ')
   return lacking.length === 0
     ? `Add one run or ride of ${HEADLINE_LABEL} or more to compare them.`
@@ -70,10 +82,14 @@ export function heldAction(result: AnalysisResult, period: Period | undefined): 
 }
 
 /**
- * Why the headline is held, as the sentence that says what is missing: too few activities in the period, or no
- * effort of the headline's length in a sport. The activities come first, since an effort cannot be asked of a
- * sport with too little on file. For a headline that is held; one with enough of both says the effort.
+ * Why the headline is held, as the sentence that says what is missing: too few activities in the period, no
+ * effort of the headline's length in a sport, or a best 20 minutes that was not hard. The activities come first,
+ * since an effort cannot be asked of a sport with too little on file. For a headline that is held; one with
+ * enough of both says the effort.
  */
 export function heldReason(result: AnalysisResult, period: Period | undefined): string {
-  return needLine(headlineShortfall(result.activities), period, result.activities) ?? NEEDS_EFFORT
+  const short = needLine(headlineShortfall(result.activities), period, result.activities)
+  if (short !== null) return short
+  const notHard = notHardSports(result)
+  return notHard.length > 0 ? needsHard(notHard) : NEEDS_EFFORT
 }

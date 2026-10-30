@@ -9,6 +9,8 @@ Decisions section. Status is one of designed, in progress or built.
   supported. Status: in progress.
 - [fitness.md](fitness.md): fitness at the same effort per sport, slipping to back, with its evidence. Status:
   built (release 96043823); stage D adds episode closing, a seasonal term and ride fitness.
+- [effort-gate.md](effort-gate.md): a best becomes a capability only when it was a hard effort, with the reference checked
+  against itself. Status: built.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
 - [architecture-1.md](architecture-1.md): a local originals store, an analysis-module registry and a

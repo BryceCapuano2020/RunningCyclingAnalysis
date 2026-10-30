@@ -1,4 +1,5 @@
 import { CP_FIT_MAX_S, CP_FIT_MIN_S, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
+import { cpSpread } from '@rca/core/cp'
 import { metabolicToRidePower } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
@@ -66,8 +67,8 @@ interface RangeCps {
  * The critical powers a threshold's range spans, or null where it has none. When the sport has an uneven
  * fit, the range runs from the main threshold to the uneven one, since the bests that were left out only
  * set a floor. With the main threshold refused, its low end is that floor, the lowest bests left out.
- * Otherwise it is the standard error of the critical-power fit either side of the critical power, a rough
- * spread of the fit rather than a confidence interval. Null without a fit or a floor; when the low end is
+ * Otherwise it is the fit's spread either side of the critical power: the regression error and the model error
+ * floor (`cpSpread`), a rough spread of the fit rather than a confidence interval. Null without a fit or a floor; when the low end is
  * not above resting metabolic rate, since a work rate that low is no estimate of a threshold; and, for a
  * ride's standard-error range only, when its fit draws on an effort whose watts are estimated.
  */
@@ -80,8 +81,9 @@ function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
     return { low, centre: low, high: uneven.fit.cp, spread: false }
   }
   if (!fit || (sport === 'ride' && fitRestsOnEstimate(result))) return null
-  if (!(fit.cp - fit.cpSe > RESTING_W_PER_KG)) return null
-  return { low: fit.cp - fit.cpSe, centre: fit.cp, high: fit.cp + fit.cpSe, spread: true }
+  const half = cpSpread(fit)
+  if (!(fit.cp - half > RESTING_W_PER_KG)) return null
+  return { low: fit.cp - half, centre: fit.cp, high: fit.cp + half, spread: true }
 }
 
 /**

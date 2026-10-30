@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { criticalPowerOutcome, fitCriticalPowerUnchecked } from '../cp'
+import { criticalPowerOutcome, fitCriticalPowerUnchecked, wPrimeFloor } from '../cp'
 import { generateActivity, sampleDataset, DEFAULT_ATHLETE } from '../synthetic'
 import type { AthleteSettings } from '../types'
 import { combine } from './combine'
@@ -60,8 +60,14 @@ describe('the threshold on the sample', () => {
   it('keeps the sample’s Morning Run alone, whose work capacity is above the run floor', () => {
     // Its work capacity is 79 J per kg, about 20 m of running, above the 15 m floor.
     const result = combine([digestNamed('Morning Run')], SETTINGS)
-    expect(result.runCp).not.toBeNull()
-    expect(result.runCpRefusal).toBeNull()
+    const outcome = criticalPowerOutcome(result.runCurve, {
+      minWPrime: wPrimeFloor('run', SETTINGS.massKg),
+    })
+    expect(outcome.fit).not.toBeNull()
+    expect(outcome.refusal).toBeNull()
+    // An easy run is not a hard effort: the fit is the rules', and the effort gate withholds it.
+    expect(result.runCp).toBeNull()
+    expect(result.runCpRefusal).toBe('effort')
   })
 
   it('refuses the sample’s Saturday Long Ride alone by the ride floor and by nothing else', () => {

@@ -1,5 +1,6 @@
 import { DRIFT, LATE_IN_EFFORT, PRIORS } from '@rca/core/constants'
 import type { DriftPoint, LateEvidence, PeriodDurabilityRow } from '@rca/core/digest'
+import type { EffortRuler } from '@rca/core/digest/lateEvidenceTypes'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Sport } from '@rca/core/types'
 import { plural } from './components/plural'
@@ -17,6 +18,18 @@ export const LATE_BESTS_NAME = 'Best efforts late in long sessions'
 export const DRIFT_NAME = 'Output per heartbeat over an hour'
 
 const { minActivities, referenceDecouplingPct } = LATE_IN_EFFORT
+
+/** A range of shares of the reference heart rate in whole percent, "92% to 99%", or one figure when they print the same. */
+function shareRange(low: number, high: number): string {
+  const [a, b] = [Math.round(low * 100), Math.round(high * 100)]
+  return a === b ? `${a}%` : `${a}% to ${b}%`
+}
+
+/** The ruler of the sessions behind a late best: how near the reference heart rate their peak reached. */
+function rulerSentence(sport: Sport, ruler: EffortRuler | null | undefined): string {
+  if (ruler === null || ruler === undefined) return ''
+  return ` ${plural(ruler.sessions, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])} reached ${shareRange(ruler.lowShare, ruler.highShare)} of your reference heart rate.`
+}
 
 /** A late best in the sport's own number: speed in m/s for a run, watts for a ride. */
 export interface LateCell {
@@ -174,6 +187,7 @@ function ledeCell(groups: readonly LateGroup[]): { group: LateGroup; cell: LateC
 function durabilityReading(
   sport: Sport,
   rows: readonly PeriodDurabilityRow[],
+  ruler: EffortRuler | null | undefined,
 ): DurabilityReading | null {
   const groups = groupsOf(sport, rows)
   if (groups.length === 0) return null
@@ -184,7 +198,7 @@ function durabilityReading(
     lede: durabilityLede(cell.afterS, group.durationS, cell.retention),
     stat: durabilityStat(group.durationS, cell.afterS, cell.retention),
     groups,
-    note: `${support} ${limit}${COUNTS[sport]}`,
+    note: `${support}${rulerSentence(sport, ruler)} ${limit}${COUNTS[sport]}`,
   }
 }
 
@@ -209,6 +223,13 @@ export function driftLede(sport: Sport, medianPct: number, count: number): strin
   return `On steady ${SPORT_PLURAL[sport]} over an hour, your output per heartbeat ${driftChange(medianPct)} from the first half to the second (median of ${efforts}).`
 }
 
+/** How hard the steady efforts were, as the share of the reference heart rate their average reached; '' without one. */
+function driftRuler(points: readonly DriftPoint[]): string {
+  const shares = points.flatMap((p) => (p.share === null || p.share === undefined ? [] : [p.share]))
+  if (shares.length === 0) return ''
+  return ` Their average heart rate was ${shareRange(Math.min(...shares), Math.max(...shares))} of your reference heart rate.`
+}
+
 function driftReading(sport: Sport, points: readonly DriftPoint[]): DriftReading | null {
   if (points.length < minActivities) return null
   const median = medianOf(points.map((p) => p.decouplingPct))
@@ -217,7 +238,7 @@ function driftReading(sport: Sport, points: readonly DriftPoint[]): DriftReading
     lede: driftLede(sport, median, points.length),
     medianPct: median,
     points: [...points],
-    note: `Each dot is one steady ${SPORT_ACTIVITY[sport]}: output per heartbeat in the first half of its moving time against the second, after a ${warmup}-minute warm-up. Only ${SPORT_PLURAL[sport]} that stayed even count. Heat, hydration and tiredness also move heart rate, so a change is not fitness.`,
+    note: `Each dot is one steady ${SPORT_ACTIVITY[sport]}: output per heartbeat in the first half of its moving time against the second, after a ${warmup}-minute warm-up. Only ${SPORT_PLURAL[sport]} that stayed even count.${driftRuler(points)} Heat, hydration and tiredness also move heart rate, so a change is not fitness.`,
   }
 }
 
@@ -240,7 +261,7 @@ const DRIFT_NEEDS_DEVICE: Record<Sport, string> = {
 function durabilityNeed(sport: Sport, evidence: LateEvidence): string {
   const have = Math.max(0, ...evidence.durability.map((row) => row.after[0]?.best?.supporters ?? 0))
   const count = Math.max(1, minActivities - have)
-  return `Add ${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])} longer than an hour${NEEDS_DEVICE[sport]}.`
+  return `Add ${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])} longer than an hour${NEEDS_DEVICE[sport]} that reach a hard heart rate.`
 }
 
 /** What drift needs: steady efforts, each over an hour, with the readings it compares. */
@@ -267,7 +288,7 @@ function needsOf(
  * never shows a figure one activity stands behind.
  */
 export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort {
-  const durability = durabilityReading(sport, evidence.durability)
+  const durability = durabilityReading(sport, evidence.durability, evidence.ruler)
   const drift = driftReading(sport, evidence.drift)
   return { durability, drift, needs: needsOf(sport, evidence, durability !== null, drift !== null) }
 }

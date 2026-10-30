@@ -109,6 +109,13 @@ export const CP_FIT_MAX_S = 1200
  */
 export const CP_FIT_REACH_TOLERANCE = 0.05
 /**
+ * How long, s, the pace or power of a critical-power fit is said to be held: half an hour. The fit rests on efforts of 3
+ * to 20 minutes and does not reach an hour; on noise-free curves that fall with duration it sat at about the value of a
+ * 40 minute effort (0.98 to 1.05 times it, in the simulations of the exhaustive audit, 30 Oct 2026). Half an hour, between
+ * the longest effort the fit uses and that, is a stated convention, not a measurement. The tile's gloss reads this.
+ */
+export const THRESHOLD_HOLD_S = 1800
+/**
  * The least work a critical-power fit may show. The floors sit well below published work capacities,
  * even for untrained athletes: the review brief quotes cycling W' of about 10 to 25 kJ and running D'
  * of about 100 to 300 m, from the model in Jones et al. (2010) and Skiba et al. (2012), cited in

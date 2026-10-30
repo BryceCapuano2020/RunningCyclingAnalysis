@@ -4,9 +4,12 @@ import {
   CP_FIT_REACH_TOLERANCE,
   DAY_MS,
   DURATIONS_S,
+  HEADLINE_DURATION_S,
 } from '../constants'
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { ENVELOPE_TIE_TOLERANCE } from '../curves/monotoneEnvelope'
+import { isHardShare } from '../effort'
+import type { MaxHeartRates, ReferenceReading } from '../effort'
 import type { ActivityDigest, BikeModel, CriticalPowerFit, Curve, Sport } from '../types'
 import { memoByDigests } from '../digestMemo'
 import { effortsCount } from './effortTrust'
@@ -34,12 +37,26 @@ interface Entry {
   backed: Float64Array
   standing: Float64Array | null
   effort: boolean
+  /** Its best 20 minutes' heart rate over the sport's reference: null without a heart rate, or with it set aside. */
+  share: number | null
 }
+
+/** What a window's efforts are judged by: the library's reference, what it can certify, and whose heart rate is set aside. */
+export interface TimelineEffort {
+  referenceHr: MaxHeartRates
+  referenceReading: Record<Sport, ReferenceReading | null>
+  setAside: ReadonlySet<string>
+}
+
+/** The index of the best 20 minutes among the durations. */
+const HEADLINE_INDEX = DURATIONS_S.indexOf(HEADLINE_DURATION_S)
 
 /** A digest's points priced in gross metabolic W/kg, as the library's best curves price them. */
 function entryOf(
   digest: ActivityDigest,
   price: (digest: ActivityDigest, index: number) => { wkg: number; alone: boolean },
+  referenceBpm: number | null,
+  setAside: ReadonlySet<string>,
 ): Entry {
   const backed = new Float64Array(DURATIONS).fill(NONE)
   let standing: Float64Array | null = null
@@ -52,7 +69,19 @@ function entryOf(
     if (alone) (standing ??= new Float64Array(DURATIONS).fill(NONE))[i] = wkg
     else backed[i] = wkg
   })
-  return { weekEnd: weekEndMs(digest.startMs), startMs: digest.startMs, backed, standing, effort }
+  const heartRate = setAside.has(digest.id) ? null : digest.curve[HEADLINE_INDEX]?.heartRate
+  const share =
+    referenceBpm !== null && referenceBpm > 0 && typeof heartRate === 'number'
+      ? heartRate / referenceBpm
+      : null
+  return {
+    weekEnd: weekEndMs(digest.startMs),
+    startMs: digest.startMs,
+    backed,
+    standing,
+    effort,
+    share,
+  }
 }
 
 /**
@@ -169,10 +198,34 @@ function changeWeeks(entries: readonly Entry[]): number[] {
   return [...weeks].sort((a, b) => a - b)
 }
 
-/** The steps of one sport. `fitOf` fits a window's curve the way the analysis reports a fit. */
+/**
+ * Whether a window's best 20 minutes was a hard effort, as the analysis's gate judges its own: the entry of the window
+ * with the highest value at 20 minutes, its heart rate over the reference. A window with no heart rate there cannot
+ * be judged and is not held back.
+ */
+function windowHard(
+  entries: readonly Entry[],
+  lo: number,
+  hi: number,
+  reading: ReferenceReading | null,
+): boolean {
+  let best: Entry | null = null
+  for (let i = lo; i < hi; i++) {
+    const entry = entries[i]!
+    if (entry.backed[HEADLINE_INDEX]! > (best?.backed[HEADLINE_INDEX] ?? NONE)) best = entry
+  }
+  if (best === null || best.share === null || reading === null) return true
+  return reading === 'trusted' && isHardShare(best.share)
+}
+
+/**
+ * The steps of one sport. `fitOf` fits a window's curve the way the analysis reports a fit; a window whose best
+ * 20 minutes was not hard (`windowHard`, with the sport's reference `reading`) has none, as the analysis has none.
+ */
 function stepsOf(
   entries: readonly Entry[],
   fitOf: (values: Float64Array) => CriticalPowerFit | null,
+  reading: ReferenceReading | null,
 ): ThresholdStep[] {
   const steps: ThresholdStep[] = []
   const window = new WindowMax(entries.map((entry) => entry.backed))
@@ -188,7 +241,8 @@ function stepsOf(
     window.pushTo(hi)
     window.popTo(lo)
     const alone = standingAt.filter((i) => i >= lo && i < hi).map((i) => entries[i]!.standing!)
-    const fit = lo < hi ? fitOf(windowCurve(window, alone)) : null
+    const fit =
+      lo < hi && windowHard(entries, lo, hi, reading) ? fitOf(windowCurve(window, alone)) : null
     if (fit !== null) lastFit = steps.length
     let newest = hi - 1
     while (newest >= lo && !entries[newest]!.effort) newest--
@@ -209,26 +263,48 @@ const priceRun = (digest: ActivityDigest, i: number) => ({
 const RUN_FIT = fitterOf(wPrimeFloor('run', 1))
 
 /**
- * A run's steps, kept for the last runs asked for: they read nothing but the runs, so a change of body mass, bike model
- * or estimated-ride gate takes the steps already worked out for the same runs.
+ * A run's steps, kept for the last runs asked for: they read nothing but the runs and what judges their efforts, so a
+ * change of body mass, bike model or estimated-ride gate takes the steps already worked out for the same runs.
  */
 const runSteps = memoByDigests(
-  (runs: ActivityDigest[]) =>
+  (runs: ActivityDigest[], effort: RunEffort) =>
     stepsOf(
-      runs.map((run) => entryOf(run, priceRun)),
+      runs.map((run) => entryOf(run, priceRun, effort.referenceBpm, effort.setAside)),
       RUN_FIT,
+      effort.reading,
     ),
-  () => true,
+  (a, b) =>
+    a.referenceBpm === b.referenceBpm && a.reading === b.reading && sameIds(a.setAside, b.setAside),
   undefined,
   2,
 )
 
+/** What judges a run's window: the run reference, what it can certify, and whose heart rate is set aside. */
+interface RunEffort {
+  referenceBpm: number | null
+  reading: ReferenceReading | null
+  setAside: ReadonlySet<string>
+}
+
+function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false
+  for (const id of a) if (!b.has(id)) return false
+  return true
+}
+
+const NOT_JUDGED: TimelineEffort = {
+  referenceHr: { run: null, ride: null },
+  referenceReading: { run: null, ride: null },
+  setAside: new Set(),
+}
+
 /**
  * Each sport's threshold over time: for every week, the fit over the efforts of the trailing
- * `THRESHOLD_WINDOW_WEEKS` weeks that end with it (see `ThresholdStep`). The points are priced as the library's
- * best curves are (the library's bike model and estimated-ride gate, each ride at its own day's body mass), so the
+ * `THRESHOLD_WINDOW_WEEKS` weeks that end with it (see `ThresholdStep`). The points are priced as the library's best
+ * curves are (the library's bike model and estimated-ride gate, each ride at its own day's body mass), so the
  * fit over a window that holds the whole library is the library's `fit`, to float noise. Each digest is priced once
  * and the window's best moves with it as the weeks pass, so the cost is the library's pricing plus a fit a week.
+ * With `effort`, a window whose best 20 minutes was not a hard effort has no fit, as the analysis's has none.
  */
 export function thresholdTimeline(
   ordered: readonly ActivityDigest[],
@@ -236,6 +312,7 @@ export function thresholdTimeline(
   bikeModel: BikeModel,
   todayKg: number,
   gate: EstimatedRideGate | null,
+  effort: TimelineEffort = NOT_JUDGED,
 ): ThresholdTimeline {
   const standing = estimatedStanding(gate)
   const priceRide = (digest: ActivityDigest, i: number) => {
@@ -247,9 +324,14 @@ export function thresholdTimeline(
   }
   const counted = (sport: Sport) =>
     ordered.filter((digest) => digest.sport === sport && effortsCount(digest))
-  const rides = counted('ride').map((ride) => entryOf(ride, priceRide))
+  const { referenceHr, referenceReading, setAside } = effort
+  const rides = counted('ride').map((ride) => entryOf(ride, priceRide, referenceHr.ride, setAside))
   return {
-    run: runSteps(counted('run'), null),
-    ride: stepsOf(rides, fitterOf(wPrimeFloor('ride', todayKg))),
+    run: runSteps(counted('run'), {
+      referenceBpm: referenceHr.run,
+      reading: referenceReading.run,
+      setAside,
+    }),
+    ride: stepsOf(rides, fitterOf(wPrimeFloor('ride', todayKg)), referenceReading.ride),
   }
 }

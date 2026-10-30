@@ -243,11 +243,11 @@ describe('SportPage', () => {
     expect(within(section).queryByText(/Based on/)).not.toBeInTheDocument()
   })
 
-  it('shows the running threshold’s range, from the fit’s standard error, under its figure', () => {
+  it('shows the running threshold’s fit spread, with its model error floor, under its figure', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(rangeTrack(section)).toEqual({ ends: ['22:58', '23:49'], label: 'fit spread, /km' })
+    expect(rangeTrack(section)).toEqual({ ends: ['21:46', '25:15'], label: 'fit spread, /km' })
   })
 
   it('shows the cycling threshold’s range in watts under its figure', () => {
@@ -255,7 +255,7 @@ describe('SportPage', () => {
     renderPage('ride', makeResult({ activities: [ride] }))
 
     const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    expect(rangeTrack(section)).toEqual({ ends: ['48', '49'], label: 'fit spread, W' })
+    expect(rangeTrack(section)).toEqual({ ends: ['46', '51'], label: 'fit spread, W' })
   })
 
   it('says under the range that the best 15 and 20 min were uneven, when the threshold has an uneven fit', () => {

@@ -14,9 +14,11 @@ describe('the session state: late-effort evidence', () => {
     const session = new AnalysisSession()
     session.loadDigests(digests(), SETTINGS)
     const state = session.setRange('all', SETTINGS)
+    const { referenceHr, referenceReading } = state.heartRateJudgement
     const expected = lateEvidence(
       digests(),
       new Set(combine(digests(), SETTINGS).heartRateSetAside),
+      { referenceHr, referenceReading },
     )
     expect(state.lateEvidence).toEqual(expected)
   })

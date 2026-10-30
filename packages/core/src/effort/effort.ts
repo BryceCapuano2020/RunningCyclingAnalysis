@@ -1,5 +1,6 @@
 import { rollingMean } from '../math'
-import type { Activity, CurvePoint, EffortCheck } from '../types'
+import type { Activity, CurvePoint, EffortCheck, Sport } from '../types'
+import type { ReferenceReading } from './gate'
 
 export interface HeartRateSource {
   activity: Activity
@@ -95,7 +96,10 @@ function findPoint(curve: EffortPoint[], durationS: number): EffortPoint | undef
   return curve.find((p) => p.durationS === durationS)
 }
 
-function heartRateFraction(point: EffortPoint | undefined, maxHr: number | null): number | null {
+export function heartRateFraction(
+  point: EffortPoint | undefined,
+  maxHr: number | null,
+): number | null {
   if (maxHr === null || !(maxHr > 0) || point === undefined) return null
   if (Number.isNaN(point.value) || point.activityId === null || point.heartRate === null) {
     return null
@@ -125,17 +129,20 @@ function highest(a: number | null, b: number | null): number | null {
   return Math.max(a, b)
 }
 
-/** One check per requested duration, in the order given. */
+/** One check per requested duration, in the order given. `readings` is what each reference can certify. */
 export function checkEfforts(
   runCurve: EffortPoint[],
   rideCurve: EffortPoint[],
   maxHr: MaxHeartRates,
   durations: readonly number[],
+  readings: Record<Sport, ReferenceReading | null>,
 ): EffortCheck[] {
   return durations.map((durationS) => ({
     durationS,
     runHrFraction: heartRateFraction(findPoint(runCurve, durationS), maxHr.run),
     rideHrFraction: heartRateFraction(findPoint(rideCurve, durationS), maxHr.ride),
+    runReference: readings.run,
+    rideReference: readings.ride,
   }))
 }
 

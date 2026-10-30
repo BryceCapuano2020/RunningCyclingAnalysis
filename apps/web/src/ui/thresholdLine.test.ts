@@ -1,3 +1,4 @@
+import { cpSpread } from '@rca/core/cp'
 import { describe, expect, it } from 'vitest'
 import { PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
@@ -16,8 +17,11 @@ describe('thresholdLine', () => {
     const result = makeResult()
     const line = thresholdLine(result, 'run', 70, 'metric')
     expect(line?.value).toBeCloseTo(metabolicToFlatSpeed(4.0), 9)
-    expect(line?.low).toBeCloseTo(metabolicToFlatSpeed(4.0 - 0.05), 9)
-    expect(line?.high).toBeCloseTo(metabolicToFlatSpeed(4.0 + 0.05), 9)
+    // The fixture's standard error is 0.05; the band adds the model error floor (cpSpread).
+    const half = cpSpread({ cp: 4.0, cpSe: 0.05 })
+    expect(half).toBeGreaterThan(0.05)
+    expect(line?.low).toBeCloseTo(metabolicToFlatSpeed(4.0 - half), 9)
+    expect(line?.high).toBeCloseTo(metabolicToFlatSpeed(4.0 + half), 9)
     expect(line?.detail).toBe(thresholdRange(result, 'run', 70, 'metric'))
   })
 

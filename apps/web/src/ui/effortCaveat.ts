@@ -1,7 +1,9 @@
-import { ALL_OUT_FRACTION as ALL_OUT } from '@rca/core/effort'
+import { isHardShare } from '@rca/core/effort'
+import type { ReferenceReading } from '@rca/core/effort'
 import type { EffortCheck, Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 import { HEADLINE_LABEL } from './grades'
+import { SPORT_NOUN, SPORT_ORDER } from './sports'
 
 /*
  * What a best effort's heart rate says about how hard it was. A domain rule rather than copy,
@@ -29,9 +31,27 @@ function percentOf(fraction: number): number {
   return Math.round(fraction * 100)
 }
 
-/** Whether a best effort was hard: its share, as shown, reaches the 90% line, so "90%" is always hard. */
+/**
+ * Whether a best effort was hard: its share, as shown, reaches the 90% line, so "90%" is always hard. The line is
+ * the core effort gate's (`isHardShare`), so the chip, the gate and the Method page judge alike.
+ */
 function isHard(fraction: number): boolean {
-  return percentOf(fraction) >= Math.round(ALL_OUT * 100)
+  return isHardShare(fraction)
+}
+
+/** What a sport's reference can certify in a check; absent reads as trusted, as for a check made without a reading. */
+function referenceOf(effort: EffortCheck, sport: Sport): ReferenceReading | null {
+  const reading = { run: effort.runReference, ride: effort.rideReference }[sport]
+  return reading === undefined ? 'trusted' : reading
+}
+
+/**
+ * Why a share of a reference that cannot be a maximum shows nothing, in words that follow "so a share of it cannot
+ * show your best 20 min was hard": the reference is too low to be a maximum, or sits where a typical day does.
+ */
+const UNCONFIRMED_WHY: Record<Exclude<ReferenceReading, 'trusted'>, (noun: string) => string> = {
+  low: (noun) => `The highest heart rate on file for your ${noun} is too low to be a maximum`,
+  habitual: (noun) => `Your ${noun} heart rate on file never rises far above a typical day's`,
 }
 
 /**
@@ -57,6 +77,19 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   if (!effort) return null
   const { durationS, runHrFraction: run, rideHrFraction: ride } = effort
   const duration = formatDuration(durationS)
+  const fractions = { run, ride }
+  const unconfirmed = SPORT_ORDER.some(
+    (sport) => fractions[sport] !== null && referenceOf(effort, sport) !== 'trusted',
+  )
+  if (unconfirmed) {
+    return {
+      title: 'Heart rate cannot show how hard your best efforts were',
+      text:
+        `The highest heart rates on file sit too near a typical day's, or too low, to mark a hard effort, ` +
+        `so a share of them cannot show a best ${duration} was hard. A hard ${duration} effort would settle it.`,
+      short: `Heart rate does not show the best efforts over ${duration} were hard.`,
+    }
+  }
   if (run !== null && !isHard(run) && ride !== null && !isHard(ride)) {
     return {
       title: 'Neither best effort reached a hard heart rate',
@@ -93,34 +126,39 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
 export function effortShare(
   sport: Sport,
   effort: EffortCheck | null | undefined,
-): { line: string; hard: boolean; percent: number } | null {
+): { line: string; hard: boolean; percent: number; confirmed: boolean } | null {
   if (!effort) return null
   const fraction = { run: effort.runHrFraction, ride: effort.rideHrFraction }[sport]
   if (fraction === null) return null
+  const reading = referenceOf(effort, sport)
+  if (reading !== null && reading !== 'trusted') {
+    const why = UNCONFIRMED_WHY[reading](SPORT_NOUN[sport])
+    return {
+      line: `${why}, so a share of it cannot show your best ${HEADLINE_LABEL} was hard. A hard ${HEADLINE_LABEL} effort would settle it.`,
+      hard: false,
+      percent: percentOf(fraction),
+      confirmed: false,
+    }
+  }
   const hard = isHard(fraction)
   const verdict = hard ? VERDICT.hard : VERDICT.notHard(HEADLINE_LABEL)
   return {
     line: `${reachedText(sport, HEADLINE_LABEL, fraction)}${verdict}`,
     hard,
     percent: percentOf(fraction),
+    confirmed: true,
   }
 }
 
 /** True when heart rate shows both best efforts were hard: 90% of each reference, as the percent shows. */
 export function hardEffortsOnFile(effort: EffortCheck | null | undefined): boolean {
-  return (
-    effort !== null &&
-    effort !== undefined &&
-    effort.runHrFraction !== null &&
-    effort.rideHrFraction !== null &&
-    isHard(effort.runHrFraction) &&
-    isHard(effort.rideHrFraction)
-  )
+  return effortShare('run', effort)?.hard === true && effortShare('ride', effort)?.hard === true
 }
 
 /**
  * Whether a sport's best effort at the headline duration was hard by heart rate, by the same 90% line the
- * caveats use: true or false, or null where heart rate does not say, as without a heart-rate stream.
+ * caveats use: true or false, or null where heart rate does not say, as without a heart-rate stream. A share of a
+ * reference that cannot certify a maximum is false: the effort is not shown hard.
  */
 export function hardEffort(sport: Sport, effort: EffortCheck | null | undefined): boolean | null {
   return effortShare(sport, effort)?.hard ?? null
@@ -145,6 +183,9 @@ export function effortChipText(
 ): EffortChipText | null {
   const share = effortShare(sport, effort)
   if (share === null) return null
+  if (!share.confirmed) {
+    return { hard: false, label: 'Effort not confirmed', detail: share.line }
+  }
   return {
     hard: share.hard,
     label: `${share.hard ? 'Hard effort' : 'Not a hard effort'} · ${share.percent}%`,

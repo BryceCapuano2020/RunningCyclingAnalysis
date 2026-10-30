@@ -1,7 +1,7 @@
 import { HEADLINE_DURATION_S, HR_BLOCK_S, PRIORS, RESTING_W_PER_KG } from '../constants'
 import { possibleRunWkg } from '../curves'
 import { checkEfforts } from '../effort'
-import type { EffortPoint, MaxHeartRates } from '../effort'
+import type { EffortPoint, MaxHeartRates, ReferenceReading } from '../effort'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -11,6 +11,7 @@ import type {
   DigestHrBlock,
   HrPoint,
   SportCurves,
+  Sport,
 } from '../types'
 import { fitBikeModel } from '../virtualPower'
 import { bestOf, bestOfEach, isMeasured, plainCurve } from './bestCurve'
@@ -185,7 +186,11 @@ export function sportCurves(
   settings: AthleteSettings,
   bikeModel: BikeModel,
   gate?: EstimatedRideGate | null,
-  hardness?: { reference: MaxHeartRates; setAside: ReadonlySet<string> },
+  hardness?: {
+    reference: MaxHeartRates
+    reading: Record<Sport, ReferenceReading | null>
+    setAside: ReadonlySet<string>
+  },
 ): SportCurves {
   const masses = massesOf(settings)
   const ordered = orderedCurrent(digests)
@@ -203,6 +208,7 @@ export function sportCurves(
     withoutSetAside(rideBest, new Set(hardness.setAside)),
     hardness.reference,
     [HEADLINE_DURATION_S],
+    hardness.reading,
   )
   return { ...curves, headlineEffort: effort! }
 }
