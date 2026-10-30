@@ -36,6 +36,22 @@
   color: var(--text-primary);
 }
 
+/*
+ * Below the desktop the row is not held in place, so it may be as tall as it needs: the pills go on a second row
+ * rather than run past the screen, and a pill's own words wrap at a large text size (WCAG 1.4.4, 1.4.10).
+ */
+@media not all and (min-width: 1081px) {
+  .section-nav__list {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .section-nav__button {
+    padding-block: var(--space-1);
+    white-space: normal;
+  }
+}
+
 /* The header is a sticky bar of its own on a desktop; the row holds its place right under it. */
 @media (min-width: 1081px) {
   .section-nav {
