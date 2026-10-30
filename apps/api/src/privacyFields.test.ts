@@ -127,6 +127,10 @@ const DISCLOSED: Record<string, string> = {
     'short-lived rows for uploads in progress and for account deletions not yet finished',
   'upload_slots.expires_at':
     'short-lived rows for uploads in progress and for account deletions not yet finished',
+  'account_tombstones.user_id':
+    'a random account id and the time are kept for 100 days, so that restoring the database from an older copy does not bring your account back',
+  'account_tombstones.deleted_at':
+    'a random account id and the time are kept for 100 days, so that restoring the database from an older copy does not bring your account back',
   'pending_account_deletions.user_id':
     'short-lived rows for uploads in progress and for account deletions not yet finished',
   'pending_account_deletions.requested_at':
