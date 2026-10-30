@@ -21,8 +21,9 @@ shifting, and it says plainly how uncertain each estimate is and what evidence i
    athlete can do at least that much. Models treat it as a lower bound, not as a measurement of
    capability.
 3. **Missing data costs precision, not function.** No power meter, no heart rate, a sparse GPS
-   track, no RPE or an old body-mass entry each widen the interval. None of them removes the
-   analysis.
+   track, no RPE or an old body-mass entry each widen the interval. Where the evidence cannot
+   support an estimate, the demonstrated value is still shown, as a floor, with the evidence that
+   would complete it. No activity leaves the library for missing data.
 4. **Evidence ages.** Capability drifts between observations, so uncertainty grows with time since
    the last good evidence, at rates taken from published detraining evidence.
 5. **One model per sport, no universal score.** Each discipline is reported in its own natural
@@ -55,7 +56,9 @@ RCA does not become a coach. It makes the athlete's own assistant accurate:
 4. **Review.** After the week, RCA reports the plan against what was done and what changed.
 5. **Learn.** Experiments turn "did it work?" into an answer. The athlete follows A and B weeks,
    and RCA reports the difference with an interval, or says the effect is too small to detect at
-   that size.
+   that size. Ordinary training data is noisy: one athlete's weeks resolve only large effects, and
+   a protocol pooled across athletes resolves smaller ones, so each experiment states up front the
+   smallest effect it can detect.
 
 Every step is measured. An eval scores whether the assistant's stated numbers match the evidence.
 A benchmark built on synthetic athletes with planted changes (a slip, a recovery, a device change,
@@ -95,16 +98,16 @@ not a rewrite.
 
 ## Phases
 
-Each phase ships on its own and leaves the app more useful.
+The phases describe capabilities. The order of work is the stage plan in
+[design/README.md](design/README.md), which also records what has shipped.
 
-1. **Foundations.**
-   - Dated body measurements: mass history, with W/kg taken at the activity's date.
-   - Shared `Evidence` and `Estimate` types.
-   - Running and cycling report demonstrated values separately from capability.
-   - Best efforts are treated as lower bounds.
-2. **Evolving capability.** The shared timeline engine replaces the per-period rolling best (a
-   window of a third of the period, between one week and 42 days) with a capability trajectory and
-   intervals. Each card lists its evidence gaps.
+1. **Foundations.** Shipped: dated body measurements (W/kg at the activity's date), and
+   demonstrated values reported separately from capability. In stage D: best efforts count as
+   capability only with evidence of a hard effort, and are otherwise shown as a floor. The shared
+   `Evidence` and `Estimate` types are superseded by the evidence ledger (stage E).
+2. **Evolving capability.** Fitness at the same heart rate per sport (stage C) and one calibrated
+   change test (stage D) replace the per-period rolling best. Still to come: a capability trajectory
+   whose interval widens between observations, and an evidence-gap line on every card.
 3. **Strength, the third dimension.** Simple lifting logs (an in-app logger first, then earlier
    notes, common app CSV exports and FIT strength sets) and estimated one-rep max per lift, with
    intervals, using body mass for relative strength. Lifting sits beside running and riding in one
