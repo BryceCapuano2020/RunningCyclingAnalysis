@@ -4,8 +4,9 @@ import type { SavedActivity } from '../../worker/protocol'
 
 /**
  * The library id of the saved copy the analysis keeps for each activity, by activity id. Among the saved
- * copies that start in the same second as an activity (the stored identity of a workout, `workoutKey`), the one that outranks the others by the analysis's own rule. An
- * activity with no saved copy, as with the sample, is absent.
+ * copies that start in the same second as an activity (the stored identity of a workout, `workoutKey`),
+ * the one that outranks the others by the analysis's own rule. An activity with no saved copy, as with
+ * the sample, is absent.
  */
 export function keptIdsOf(library: ActivitySummary[], saved: SavedActivity[]): Map<string, string> {
   const kept = new Map<string, SavedActivity>()

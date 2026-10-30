@@ -54,9 +54,11 @@ export interface DeviceLibrary {
   ): Promise<void>
   /**
    * Gives a row that has no file hash the name and hash of the file its digest was made from, keeping its
-   * digest and route as they are. A row that already has one, and a workout kept nowhere, are left alone.
+   * digest and route as they are. Only the row whose digest is `digestId` is changed, checked in the same
+   * transaction that writes it, so a row replaced in between does not take another file's hash. A row that
+   * already has a hash, and a workout kept nowhere, are left alone.
    */
-  backfillFile(workoutKey: string, file: DeviceFile): Promise<void>
+  backfillFile(workoutKey: string, digestId: string, file: DeviceFile): Promise<void>
   remove(workoutKey: string): Promise<void>
   clear(): Promise<void>
 }
@@ -335,21 +337,19 @@ export function openDeviceLibrary(): DeviceLibrary {
       write((store) =>
         store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey),
       ),
-    backfillFile: (workoutKey, file) =>
+    backfillFile: (workoutKey, digestId, file) =>
       withStore(
         'readwrite',
         async (store) => {
           const stored: unknown = await done(store.get(workoutKey))
-          if (stored === undefined || stored === null) return
-          if (typeof stored === 'string') {
-            store.put({ digest: stored, route: null, ...file }, workoutKey)
-          } else if (
-            typeof stored === 'object' &&
-            'digest' in stored &&
-            readFile(stored) === null
-          ) {
-            store.put({ ...stored, ...file }, workoutKey)
-          }
+          const row = readRow(stored)
+          if (row === null || row.digest.id !== digestId || row.file !== null) return
+          store.put(
+            typeof stored === 'string'
+              ? { digest: stored, route: null, ...file }
+              : { ...(stored as object), ...file },
+            workoutKey,
+          )
         },
         undefined,
       ),

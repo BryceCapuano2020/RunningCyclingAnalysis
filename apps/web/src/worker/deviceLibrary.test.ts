@@ -271,8 +271,8 @@ describe('device library in IndexedDB', () => {
       await library.put('run-1', MEASURED, route)
       fake.rows.set('run-2', serializeDigest(MEASURED))
 
-      await library.backfillFile('run-1', FILE)
-      await library.backfillFile('run-2', FILE)
+      await library.backfillFile('run-1', MEASURED.id, FILE)
+      await library.backfillFile('run-2', MEASURED.id, FILE)
 
       expect(await library.route('run-1')).toEqual(route)
       const entries = await library.all()
@@ -281,13 +281,31 @@ describe('device library in IndexedDB', () => {
       expect(fake.rows.get('run-1')).toMatchObject({ route })
     })
 
+    it('does not give the hash to a digest that replaced the one the file was made from', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      const replacement = { ...MEASURED, id: `${MEASURED.id}-other` }
+      await library.put('run-1', MEASURED)
+      // A second save of the workout writes its digest, with no file, before the first save's backfill.
+      await library.put('run-1', replacement)
+
+      await library.backfillFile('run-1', MEASURED.id, FILE)
+
+      const [entry] = await library.all()
+      expect(entry?.digest.id).toBe(replacement.id)
+      expect(entry?.file).toBeUndefined()
+    })
+
     it('leaves a row that has a hash alone, and does nothing for a workout kept nowhere', async () => {
       vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
       const library = openDeviceLibrary()
       await library.put('run-1', MEASURED, null, FILE)
 
-      await library.backfillFile('run-1', { fileName: 'other.fit', fileHash: OTHER_HASH })
-      await library.backfillFile('run-9', FILE)
+      await library.backfillFile('run-1', MEASURED.id, {
+        fileName: 'other.fit',
+        fileHash: OTHER_HASH,
+      })
+      await library.backfillFile('run-9', MEASURED.id, FILE)
 
       expect((await library.all()).map((entry) => entry.file)).toEqual([FILE])
     })

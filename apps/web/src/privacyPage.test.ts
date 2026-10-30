@@ -260,9 +260,12 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('reports a local cleanup failure separately')
   })
 
-  it('says each summary kept in this browser keeps a SHA-256 hash of its file, for adding it to an account later', () => {
+  it('says a summary keeps a SHA-256 hash of its file when the file yields several summaries, and from now on for every summary kept here', () => {
     expect(text).toContain(
-      'Each summary keeps a SHA-256 hash of the file it came from, so that signing in later can add it to your account, and so that the summaries of one file, including a split activity, are shown together.',
+      'When one file yields several summaries, including a split activity, each keeps a SHA-256 hash of that file, so they are shown together.',
+    )
+    expect(text).toContain(
+      'Summaries kept from now on also keep the file name and a SHA-256 hash of the file, for adding them to an account later.',
     )
     expect(importPipeline).toContain('(multi || parts > 1) && context.sessionKey !== undefined')
   })

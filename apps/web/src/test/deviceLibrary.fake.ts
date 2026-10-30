@@ -26,9 +26,11 @@ export function memoryDeviceLibrary(): DeviceLibrary {
     put: async (workoutKey, digest, route = null, file = null) => {
       entries.set(workoutKey, { digest, route, file })
     },
-    backfillFile: async (workoutKey, file) => {
+    backfillFile: async (workoutKey, digestId, file) => {
       const row = entries.get(workoutKey)
-      if (row !== undefined && row.file === null) entries.set(workoutKey, { ...row, file })
+      if (row !== undefined && row.file === null && row.digest.id === digestId) {
+        entries.set(workoutKey, { ...row, file })
+      }
     },
     remove: async (workoutKey) => {
       entries.delete(workoutKey)

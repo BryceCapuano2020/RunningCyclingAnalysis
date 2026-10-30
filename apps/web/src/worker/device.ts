@@ -143,7 +143,7 @@ export function deviceActions(
           kept.id === digest.id
         ) {
           // The same file again: a row kept before files were recorded gets its hash now.
-          await device.backfillFile(key, file)
+          await device.backfillFile(key, digest.id, file)
         }
         return 'kept'
       } catch {
