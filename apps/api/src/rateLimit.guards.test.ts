@@ -5,6 +5,17 @@ import { createHarness } from './test/harness.ts'
  * Guards on the limiters that the default-path tests in rateLimit.test.ts do not reach: every write
  * method is limited, not only PUT, and anything but an explicit development environment keeps the limits on.
  */
+/** What the three write routes below would change, read straight from the database. */
+async function footprint(h: ReturnType<typeof createHarness>) {
+  return await h.env.DB.prepare(
+    `SELECT (SELECT COUNT(*) FROM activities) AS activities,
+            (SELECT COUNT(*) FROM daily_budget) AS dailyRows,
+            (SELECT COALESCE(SUM(used), 0) FROM daily_budget) AS dailyUsed,
+            (SELECT COALESCE(MAX(updated_at), 0) FROM profiles) AS profileUpdated,
+            (SELECT COUNT(*) FROM users WHERE deleting_at IS NOT NULL) AS deleting`,
+  ).first()
+}
+
 describe('the per-account write limiter', () => {
   it.each([
     ['POST', '/api/activities'],
@@ -17,9 +28,12 @@ describe('the per-account write limiter', () => {
       const h = createHarness({}, { WRITE_RATE_LIMITER: { limit: write } })
       const token = await h.signIn()
       h.env.ENVIRONMENT = 'production'
+      const before = await footprint(h)
       const res = await h.send({ method, path, cookies: { '__Host-rca_session': token }, json: {} })
       expect(res.status).toBe(429)
       expect(write).toHaveBeenCalledTimes(1)
+      // The route did not run: no activity, profile or daily count was written, and the account was not marked deleting.
+      expect(await footprint(h)).toEqual(before)
     },
   )
 

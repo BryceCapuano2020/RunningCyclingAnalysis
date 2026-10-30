@@ -28,9 +28,13 @@ const doc = (await readStylesheet(import.meta.url, '../../../docs/ARCHITECTURE.m
 )
 const MIB = 1024 * 1024
 
+/** Said when a pin fails: the page and the code disagree, and either may be the one that is wrong. */
+const HINT =
+  'docs/ARCHITECTURE.md and the code disagree: update the doc, or the code if the doc is right.'
+
 describe('architecture doc: the Garmin export summaries', () => {
   it('gives the file, byte, object and depth caps as the reader sets them', () => {
-    expect(doc).toContain(
+    expect(doc, HINT).toContain(
       `at most ${MAX_SUMMARY_FILES} files, ${MAX_GARMIN_SUMMARY_BYTES / MIB} MiB inflated each (checked before parsing: at most ${MAX_GARMIN_SUMMARY_OBJECTS.toLocaleString('en-US')} objects and ${MAX_GARMIN_SUMMARY_DEPTH} levels of nesting) and ${MAX_GARMIN_SUMMARIES_BYTES / MIB} MiB together`,
     )
   })
@@ -45,17 +49,17 @@ describe('architecture doc: run distance bests', () => {
       10_000,
       HALF_MARATHON_M,
     ])
-    expect(doc).toContain('(1 km, 1 mi, 5 km, 10 km and the half marathon)')
+    expect(doc, HINT).toContain('(1 km, 1 mi, 5 km, 10 km and the half marathon)')
   })
 
   it('gives the tolerance for a run that falls a little short of a distance', () => {
-    expect(doc).toContain(`\`DISTANCE_BEST_TOLERANCE\` (${DISTANCE_BEST_TOLERANCE * 100}%)`)
+    expect(doc, HINT).toContain(`\`DISTANCE_BEST_TOLERANCE\` (${DISTANCE_BEST_TOLERANCE * 100}%)`)
   })
 })
 
 describe('architecture doc: heart-rate blocks', () => {
   it('gives the block length and the warm-up the digest skips', () => {
-    expect(doc).toContain(
+    expect(doc, HINT).toContain(
       `all ${HR_BLOCK_S / 60}-minute blocks after the ${HR_SKIP_S / 60}-minute warm-up`,
     )
   })
@@ -64,7 +68,7 @@ describe('architecture doc: heart-rate blocks', () => {
 describe('architecture doc: near-duplicate activities', () => {
   // The window itself is pinned in duplicates.test.ts; this holds the page to the same numbers.
   it('says start within 60 seconds and durations within 10% or 60 seconds', () => {
-    expect(doc).toContain('start within 60 seconds of each other')
-    expect(doc).toContain('durations within 10% or within 60 seconds of each other')
+    expect(doc, HINT).toContain('start within 60 seconds of each other')
+    expect(doc, HINT).toContain('durations within 10% or within 60 seconds of each other')
   })
 })

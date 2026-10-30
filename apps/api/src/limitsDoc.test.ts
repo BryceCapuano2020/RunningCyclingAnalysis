@@ -64,6 +64,10 @@ function tableRows(heading: string): string[][] {
   return rows.slice(1)
 }
 
+/** Said when a pin fails: the page and the code disagree, and either may be the one that is wrong. */
+const HINT =
+  'apps/api/LIMITS.md and the code disagree: update the doc, or the code if the doc is right.'
+
 describe('the per-minute rate limit table', () => {
   const rows = tableRows('## Per-minute rate limits')
 
@@ -116,9 +120,9 @@ describe('the daily budget table', () => {
   })
 
   it('says creates are capped at the library limit, and uploads at their own', () => {
-    expect(text).toContain(`(\`MAX_ACTIVITIES_PER_USER\`, ${n(MAX_ACTIVITIES_PER_USER)})`)
-    expect(text).toContain(`Uploads are capped at ${n(DAILY_LIMITS.fileUpload)}`)
-    expect(text).toContain(`**${n(DAILY_LIMITS.read)} per UTC day**`)
+    expect(text, HINT).toContain(`(\`MAX_ACTIVITIES_PER_USER\`, ${n(MAX_ACTIVITIES_PER_USER)})`)
+    expect(text, HINT).toContain(`Uploads are capped at ${n(DAILY_LIMITS.fileUpload)}`)
+    expect(text, HINT).toContain(`**${n(DAILY_LIMITS.read)} per UTC day**`)
   })
 })
 
@@ -138,41 +142,41 @@ describe('the per-user limits table', () => {
   })
 
   it('says an upload slot expires after the lease the code grants', () => {
-    expect(text).toContain(`A slot expires after ${UPLOAD_SLOT_LEASE_MS / 60_000} minutes`)
+    expect(text, HINT).toContain(`A slot expires after ${UPLOAD_SLOT_LEASE_MS / 60_000} minutes`)
   })
 })
 
 describe('the activity list figures', () => {
   it('gives the page size and the digest budget', () => {
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `at most ${MAX_PAGE_SIZE} activities (\`MAX_PAGE_SIZE\`) and at most ${MAX_PAGE_DIGEST_BYTES / 1024} KiB of digest JSON (\`MAX_PAGE_DIGEST_BYTES\`)`,
     )
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `A single digest is at most ${MAX_DIGEST_BYTES / 1024} KiB (\`MAX_DIGEST_BYTES\`)`,
     )
   })
 
   it('gives the response cap and the record envelope', () => {
-    expect(text).toContain(`(${n(MAX_RECORD_ENVELOPE_BYTES)} bytes)`)
-    expect(text).toContain(`${n(MAX_PAGE_BODY_BYTES)} bytes in all`)
+    expect(text, HINT).toContain(`(${n(MAX_RECORD_ENVELOPE_BYTES)} bytes)`)
+    expect(text, HINT).toContain(`${n(MAX_PAGE_BODY_BYTES)} bytes in all`)
   })
 
   it('gives the bound parameters of a page read', () => {
-    expect(text).toContain(`${MAX_PAGE_SIZE + 1} of the 100 bound parameters`)
+    expect(text, HINT).toContain(`${MAX_PAGE_SIZE + 1} of the 100 bound parameters`)
   })
 })
 
 describe('read charging and the account caps', () => {
   it('gives the rows-listed meter, and the loads it allows, as the contract sets them', () => {
-    expect(text).toContain(`\`LIST_ROWS_PER_DAY\`, **${n(LIST_ROWS_PER_DAY)} per UTC day**`)
-    expect(text).toContain(
+    expect(text, HINT).toContain(`\`LIST_ROWS_PER_DAY\`, **${n(LIST_ROWS_PER_DAY)} per UTC day**`)
+    expect(text, HINT).toContain(
       `about ${Math.floor(LIST_ROWS_PER_DAY / 2700)} cold loads of a 2,700 library or ${Math.floor(LIST_ROWS_PER_DAY / 5000)} of a 5,000 library`,
     )
-    expect(text).toContain(`is charged \`max(limit, ${MAX_PAGE_SIZE})\` up front`)
+    expect(text, HINT).toContain(`is charged \`max(limit, ${MAX_PAGE_SIZE})\` up front`)
   })
 
   it('gives the account creations an identity may make in a day', () => {
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `**${MAX_ACCOUNT_CREATES_PER_DAY} per Google identity per UTC day** (\`MAX_ACCOUNT_CREATES_PER_DAY\`)`,
     )
   })
@@ -181,8 +185,10 @@ describe('read charging and the account caps', () => {
     const words: Record<number, string> = { 10: 'ten' }
     const word = words[MAX_SESSIONS_PER_USER]
     expect(word, 'name the new session cap in this test').toBeDefined()
-    expect(text).toContain(`**${MAX_SESSIONS_PER_USER} per user** (\`MAX_SESSIONS_PER_USER\`)`)
-    expect(text).toContain(`beyond the ${word} most recently created`)
+    expect(text, HINT).toContain(
+      `**${MAX_SESSIONS_PER_USER} per user** (\`MAX_SESSIONS_PER_USER\`)`,
+    )
+    expect(text, HINT).toContain(`beyond the ${word} most recently created`)
     expect(read('../../web/privacy.html').replace(/\s+/g, ' ')).toContain(
       `At most ${word} are kept`,
     )
@@ -191,50 +197,50 @@ describe('read charging and the account caps', () => {
 
 describe('the deployment ledger and the database guard', () => {
   it('gives the operation caps', () => {
-    expect(text).toContain(`${n(MAX_GLOBAL_R2_MONTHLY_OPERATIONS)} per month hard cap`)
-    expect(text).toContain(`${n(MAX_GLOBAL_R2_STANDARD_OPERATIONS)} for ordinary traffic`)
-    expect(text).toContain(
+    expect(text, HINT).toContain(`${n(MAX_GLOBAL_R2_MONTHLY_OPERATIONS)} per month hard cap`)
+    expect(text, HINT).toContain(`${n(MAX_GLOBAL_R2_STANDARD_OPERATIONS)} for ordinary traffic`)
+    expect(text, HINT).toContain(
       `Cleanup keeps ${n(MAX_GLOBAL_R2_MONTHLY_OPERATIONS - MAX_GLOBAL_R2_STANDARD_OPERATIONS)} headroom`,
     )
   })
 
   it('gives the deep-health probe caps', () => {
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `${n(MAX_HEALTH_PROBES_PER_DAY)} per UTC day and ${n(MAX_HEALTH_PROBES_PER_MONTH)} per UTC month`,
     )
   })
 
   it('gives the PUT byte caps and the minimum charge', () => {
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `${MAX_MONTHLY_R2_PUT_BYTES / GIB} GiB per month**, \`MAX_MONTHLY_R2_PUT_BYTES\``,
     )
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `${MAX_GLOBAL_R2_WRITE_BYTES / GIB} GiB lifetime total**, \`MAX_GLOBAL_R2_WRITE_BYTES\``,
     )
-    expect(text).toContain(`at least ${MIN_GLOBAL_R2_PUT_CHARGE_BYTES / 1024} KiB`)
+    expect(text, HINT).toContain(`at least ${MIN_GLOBAL_R2_PUT_CHARGE_BYTES / 1024} KiB`)
   })
 
   it('gives the database soft limit', () => {
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `\`DATABASE_SOFT_LIMIT_BYTES\` is ${DATABASE_SOFT_LIMIT_BYTES / MIB} MiB`,
     )
-    expect(text).toContain(`Database over ${DATABASE_SOFT_LIMIT_BYTES / MIB} MiB`)
+    expect(text, HINT).toContain(`Database over ${DATABASE_SOFT_LIMIT_BYTES / MIB} MiB`)
   })
 })
 
 describe('the scheduled job', () => {
   it('runs on the cron expression of wrangler.toml', () => {
     const cron = /crons = \["([^"]+)"\]/.exec(wrangler)![1]
-    expect(text).toContain(`\`[triggers] crons = ["${cron}"]\``)
+    expect(text, HINT).toContain(`\`[triggers] crons = ["${cron}"]\``)
   })
 
   it('states its per-run bounds as the code sets them', () => {
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `\`MAX_MAINTENANCE_OPERATIONS\`, which is **${MAX_MAINTENANCE_OPERATIONS}** per run`,
     )
-    expect(text).toContain(`Finishes up to two interrupted account deletions`)
+    expect(text, HINT).toContain(`Finishes up to two interrupted account deletions`)
     expect(PENDING_DELETIONS_PER_RUN).toBe(2)
-    expect(text).toContain(`Sweeps two pages of`)
+    expect(text, HINT).toContain(`Sweeps two pages of`)
     expect(ORPHAN_PAGES_PER_RUN).toBe(2)
   })
 })

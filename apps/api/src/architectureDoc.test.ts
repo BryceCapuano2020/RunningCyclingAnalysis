@@ -32,6 +32,10 @@ function documentedColumns(): Map<string, string[]> {
   return rows
 }
 
+/** Said when a pin fails: the page and the code disagree, and either may be the one that is wrong. */
+const HINT =
+  'docs/ARCHITECTURE.md and the code disagree: update the doc, or the code if the doc is right.'
+
 describe('architecture doc: the data model table', () => {
   const documented = documentedColumns()
   const tables = Object.values(schema).map((table) => getTableConfig(table))
@@ -63,19 +67,19 @@ describe('architecture doc: the data model table', () => {
       name.startsWith('0009_'),
     )
     expect(file).toBe('0009_athlete_measurements.sql')
-    expect(text).toContain('(migration 0009)')
+    expect(text, HINT).toContain('(migration 0009)')
   })
 })
 
 describe('architecture doc: sessions and pages', () => {
   it('gives the session lifetime, the refresh window and the absolute end', () => {
-    expect(text).toContain(
+    expect(text, HINT).toContain(
       `A session lasts ${SESSION_TTL_MS / DAY_MS} days and is extended when it is used with less than ${SESSION_REFRESH_WITHIN_MS / DAY_MS} days left, but never beyond ${SESSION_ABSOLUTE_MS / DAY_MS} days after it was created`,
     )
-    expect(text).toContain(`starts the absolute ${SESSION_ABSOLUTE_MS / DAY_MS}-day lifetime`)
+    expect(text, HINT).toContain(`starts the absolute ${SESSION_ABSOLUTE_MS / DAY_MS}-day lifetime`)
   })
 
   it('gives the page size of the activity list', () => {
-    expect(text).toContain(`The page size is at most ${MAX_PAGE_SIZE}.`)
+    expect(text, HINT).toContain(`The page size is at most ${MAX_PAGE_SIZE}.`)
   })
 })

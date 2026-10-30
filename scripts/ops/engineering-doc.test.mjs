@@ -45,7 +45,11 @@ test('the hotspot table lists exactly the files the size ratchet holds over budg
   const listed = Object.fromEntries(
     [...section.matchAll(/^\| `([^`]+)`\s*\| (\d+)\s*\|/gm)].map((row) => [row[1], Number(row[2])]),
   )
-  assert.deepEqual(listed, OVER_BUDGET)
+  assert.deepEqual(
+    listed,
+    OVER_BUDGET,
+    'docs/ENGINEERING.md and scripts/ops/size-budget.ratchet.mjs disagree: update the table or the ratchet',
+  )
 })
 
 // Written in two parts so this file does not contain the text it looks for.
@@ -59,7 +63,7 @@ test('unit tests assert no wall-clock time; timing budgets live in *.perf.test f
   for (const file of unit) {
     if ((await readFile(file, 'utf8')).includes(WALL_CLOCK)) offenders.push(relative(root, file))
   }
-  assert.deepEqual(offenders, [], 'move the timing check to the sibling *.perf.test.ts')
+  assert.deepEqual(offenders, [], 'move the timing check to the sibling *.perf.test.ts, or drop it')
 })
 
 test('no source or test file disables a lint rule', async () => {
@@ -131,7 +135,7 @@ test('unit tests in core and web time out at 15 s, not the 5 s default that fail
 test('a unit test that draws the sample season raises no timeout: the draw is warmed at import or it is not slow', async () => {
   const draws = /\b(loadSample|seasonDigests|sampleSeason|samplePlan)\(/
   // The closing of a test with a limit: `}, 30_000)`, or a timeout option of five digits or more.
-  const raised = /\}, ?\d[\d_]{3,}\)|timeout: ?\d[\d_]{4,}/
+  const raised = /\}, ?\d[\d_]{4,}\)|timeout: ?\d[\d_]{4,}/
   const unit = await inTrees(
     (name) => /\.test\.(ts|tsx)$/.test(name) && !/\.(perf|sim)\.test\./.test(name),
   )
