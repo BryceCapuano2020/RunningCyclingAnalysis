@@ -7,7 +7,7 @@
 
 /* The sentence the chart would have as its lede, on the page's reading measure. */
 .grade-profile__finding {
-  max-width: 62ch;
+  max-width: var(--measure);
   margin: 0;
   color: var(--text-primary);
   font-size: var(--text-md);
@@ -25,7 +25,7 @@
 
 /* The finding is the chart's title, at the lead size in ink, so the chart is named by what it found. */
 .grade-profile .chart-frame__title {
-  max-width: 62ch;
+  max-width: var(--measure);
   font-size: var(--text-lead);
   font-weight: 600;
   line-height: 1.3;

@@ -2,6 +2,7 @@ import { CURVE_START_S, durationProfile, profileNeeds } from '@rca/core/profile'
 import type { DurationProfile, ProfileGap, ProfilePoint } from '@rca/core/profile'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
+import { countSport } from './records'
 
 /**
  * The curve a sport's profile reads, in the sport's own unit. A ride's is its measured watts alone:
@@ -42,7 +43,12 @@ export function profileOf(result: AnalysisResult, sport: Sport): DurationProfile
   const known = PROFILES.get(result) ?? new Map<Sport, DurationProfile>()
   PROFILES.set(result, known)
   const profile =
-    known.get(sport) ?? durationProfile(profilePoints(result, sport), CURVE_START_S[sport])
+    known.get(sport) ??
+    durationProfile(
+      profilePoints(result, sport),
+      CURVE_START_S[sport],
+      countSport(result.activities, sport),
+    )
   known.set(sport, profile)
   return profile
 }

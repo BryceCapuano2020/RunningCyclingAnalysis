@@ -1,4 +1,5 @@
 import type { ActivityTrace } from '@rca/core/workbench'
+import { noteWork } from './workerWire'
 import { traceQualityOf } from '@rca/core/quality'
 import { activityTraceOf } from '@rca/core/workbench'
 import type { Activity } from '@rca/core/types'
@@ -141,6 +142,7 @@ export class Workbench {
     this.deferredBytes = 0
     const stored = new Set<string>()
     for (const { scope, trace, bytes, startMs } of items) {
+      noteWork()
       const kept = await this.keep(scope, trace, bytes, startMs).catch(() => null)
       if (kept === 'stored') stored.add(trace.activityId)
     }

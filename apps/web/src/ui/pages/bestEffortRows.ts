@@ -1,3 +1,5 @@
+import type { ChangeEvidence } from '@rca/core/change/types'
+import { callAt } from '@rca/core/change/types'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
@@ -28,6 +30,8 @@ export interface BestEffortInput {
   previous: SportCurves | null
   /** The label of that period, such as "Previous 6 weeks". */
   previousLabel: string | null
+  /** Whether each best differs from that period's by more than chance; null for all time. */
+  change: ChangeEvidence | null
   massKg: number
   units: UnitSystem
   /** The grades' age and sex, or null while either is missing. */
@@ -98,6 +102,7 @@ function changeOf(
     valueAt(earlier, record.durationS) * atNewerWeight,
     units,
     previousLabel,
+    callAt(input.change, sport, record.durationS),
   )
 }
 

@@ -15,6 +15,9 @@ Hard rules:
 
 - Never put the owner's real activity data (exports, paces, dates, heart rates, names) in the
   repository, tests, commits or pull request text. Use synthetic values.
+- Auto-merge is always on: right after opening a pull request that is ready for review (or marking
+  a draft ready), run `gh pr merge --auto --squash <number>`. Never merge by hand after waiting on
+  CI.
 - No production deploy, remote Wrangler or `--remote` unless the owner asks.
 - Node 22 and npm workspaces. CI runs the full gate on every pull request; locally, run the tests
   for what you touched.

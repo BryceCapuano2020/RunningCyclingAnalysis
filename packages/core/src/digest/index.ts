@@ -20,7 +20,6 @@ export type {
   Lack,
   SameHeartRate,
   SameHeartRateBySport,
-  SameHeartRateChange,
   SameHeartRateWeek,
 } from './sameHeartRateTypes'
 export { periodDurability } from './durabilityPeriod'

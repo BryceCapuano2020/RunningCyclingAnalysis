@@ -86,11 +86,14 @@ shown back, including one after a shallow dip, can be spoken.
    hits; the sample athlete keeps the sample season's own day), and a break of four weeks or more, or fewer than
    four steady runs in eight weeks, makes the status line "not enough recent evidence" without changing the
    monitor's state. The monitor is evaluated at completed week ends only, so a week still going joins at its end.
-4. Known gaps, measured (Stage D, five years, three steady runs a week; the table below has the rest): a season of 3% gives
-   0.44 alarms an athlete-year against 0.83 before (budget 0.25 on the quiet athlete); every nuisance at once 0.47 against
-   0.64; a slow wander of 3% 0.38 against 0.46. A watch or strap change of 3 to 5% still reads as a real slip, since the data
-   cannot tell them apart, but it now closes as holding at the new level instead of staying open (0.25 alarms, 27% of
-   libraries ending not holding, against 45%). Year 1 of a library behaves as before and year 2 is half protected (see "The first two years" below).
+4. Known gaps, measured: its budget is 0.2 alarms an athlete-year on quiet libraries (`alarmBudget`; the family of detectors shares 0.5). A seasonal
+   swing of 3% amplitude is over that budget, a known gap: its simulation holds it to 0.65 an athlete-year, a strap change
+   to 0.5, and the whole registry with season, strap change and spikes together to the same 0.65; a watch or strap change of 3 to 5% reads as a real slip, since the data cannot
+   tell them apart.
+   Stage D (D2), five years, three steady runs a week; the tables below have the rest: a season of 3% gives 0.44 alarms an
+   athlete-year against 0.83 before; every nuisance at once 0.47 against 0.64; a slow wander of 3% 0.38 against 0.46; a strap change
+   0.25 against 0.32, and it now closes as holding at the new level instead of staying open. Year 1 of a library behaves as before
+   and year 2 is half protected (see "The first two years" below).
 5. "Recovering" is a headline claim, so it is held to a stricter bar than a slip. Before tuning, about 1 in 9
    persistent-loss libraries was called recovering within a year and 1 in 3 within 2.5 years (on harness libraries,
    with a wider wander, 1 in 5 and 1 in 2). The contrast and the trend now have to agree, and the trough rule, which

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { CHANGE } from '@rca/core/change'
 import { DEFAULT_WINDOW_DAYS, MIN_WINDOW_DAYS } from '@rca/core/digest/trendPoints'
 import { Methodology } from './Methodology'
 
@@ -39,7 +39,7 @@ describe('Methodology', () => {
     const opened = render(<Methodology open />)
     expect(opened.container.querySelector('details.methodology__disclosure')).toBeNull()
     expect(screen.queryByText('Show the assumptions')).toBeNull()
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(9)
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(10)
   })
 
   it('lists every topic when no list is given, in order', () => {
@@ -51,7 +51,8 @@ describe('Methodology', () => {
     expect(headings).toEqual([
       'One unit for both sports',
       'Why there is a range',
-      'Best 20 min, week by week',
+      'Best efforts over time',
+      'How a change is called',
       'Heart-rate check',
       'Virtual power meter',
       'Dated settings and zones',
@@ -66,7 +67,7 @@ describe('Methodology', () => {
 
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2)
     expect(
-      screen.getByRole('heading', { level: 3, name: 'Best 20 min, week by week' }),
+      screen.getByRole('heading', { level: 3, name: 'Best efforts over time' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Heart-rate check' })).not.toBeInTheDocument()
   })
@@ -97,35 +98,53 @@ describe('Methodology', () => {
     expect(section).toHaveTextContent('Short best efforts under about 30 s')
   })
 
-  it('explains the fitness trend in three plain facts, in durations written one way', () => {
+  it('explains the dated bests in plain facts, with no line and no window in the plain text', () => {
     render(<Methodology topics={['trend']} />)
 
-    const section = plainOf('Best 20 min, week by week')
-    expect(section).toHaveTextContent('one week, ending on a Sunday in UTC')
+    const section = plainOf('Best efforts over time')
+    expect(section).toHaveTextContent(
+      'an effort that was the best of its stretch, on the day it was done',
+    )
     expect(section).toHaveTextContent('5 min, 20 min or 60 min')
-    expect(section).toHaveTextContent(`Balance uses ${HEADLINE_DURATION_S / 60} min.`)
-    expect(section).toHaveTextContent(`All time uses ${DEFAULT_WINDOW_DAYS} days.`)
     expect(section).toHaveTextContent(
-      `a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days`,
+      'Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts.',
     )
-    // The example periods are the picker's own options, with the window the trend really uses.
-    expect(section).toHaveTextContent('6 weeks uses 14 days and 12 months uses 42 days.')
-    expect(section).toHaveTextContent('Each window lies inside the period you chose.')
-    expect(section).toHaveTextContent(
-      'A gap means no run or ride of that length fell inside the window.',
-    )
-    expect(section.querySelectorAll(':scope > p')).toHaveLength(3)
+    expect(section).toHaveTextContent('There is no line.')
+    // Wherever a sport has a fitness status that is the trend, so the sentence reads right with or without a ride status.
+    expect(section).toHaveTextContent('Where a sport has a fitness status')
+    expect(section.querySelectorAll(':scope > p')).toHaveLength(2)
   })
 
-  it('keeps the technical trend detail, with the median and the bike model, behind the disclosure', () => {
+  it('keeps the window and the bike model behind the disclosure', () => {
     render(<Methodology topics={['trend']} />)
 
-    const detail = plainOf('Best 20 min, week by week').querySelector('details')
-    expect(detail).toHaveTextContent('the median, the middle of the model’s simulated answers')
+    const detail = plainOf('Best efforts over time').querySelector('details')
+    expect(detail).toHaveTextContent(
+      `a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days`,
+    )
+    expect(detail).toHaveTextContent('6 weeks uses 14 days and 12 months uses 42 days.')
     expect(detail).toHaveTextContent('period’s one bike model')
     expect(detail).not.toHaveTextContent('running economy')
-    expect(plainOf('Best 20 min, week by week')).toHaveTextContent(
-      'Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts.',
+  })
+
+  it('says how a change is called, with the numbers from the test’s own constants', () => {
+    render(<Methodology topics={['change']} />)
+
+    const section = plainOf('How a change is called')
+    expect(section).toHaveTextContent(
+      'bigger than your own efforts would put between two periods by chance',
+    )
+    expect(section).toHaveTextContent(
+      `With fewer than ${CHANGE.minPerSide} efforts of a length in either period, the app says nothing about it.`,
+    )
+    expect(section.querySelector('details')).toHaveTextContent(
+      `${CHANGE.draws.toLocaleString('en-US')} times`,
+    )
+    // The false-call rate is the simulations' own at a real library's spread, not "one time in ten at most".
+    expect(section.querySelector('details')).toHaveTextContent('3% to 8% of pairs on a record row')
+    expect(section.querySelector('details')).not.toHaveTextContent('one time in ten')
+    expect(section.querySelector('details')).toHaveTextContent(
+      'A swing in how many hard efforts a period holds is not allowed for',
     )
   })
 

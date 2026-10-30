@@ -20,33 +20,16 @@ export interface SameHeartRateWeek {
   activities: number
 }
 
-/** The first and last reported weeks. A change is real only when their intervals do not overlap. */
-export interface SameHeartRateChange {
-  fromEndMs: number
-  toEndMs: number
-  /** Output at the reference heart rate in each, in the sport's unit: m/s for a run, W for a ride. */
-  from: number
-  to: number
-  /** Whole weeks between the two, nearest. */
-  weeksApart: number
-  /** to / from - 1. */
-  relative: number
-  real: boolean
-}
-
 export interface SameHeartRate {
   /** Fixed for the whole period, bpm, rounded to 5; null without a block. */
   referenceHeartRate: number | null
   /** Every week from the first that can be reported to the last, reporting or not. */
   weeks: SameHeartRateWeek[]
-  /** Null with fewer than two reported weeks. */
-  change: SameHeartRateChange | null
-  /** What is missing, when there is no change to give. */
+  /** How many of the weeks report. The weeks claim no change: the fitness status is the sport's voice on that. */
+  reportedWeeks: number
+  /** What is missing, when fewer than two weeks report. */
   lacks: Lack | null
-  /**
-   * The end of the period's last week: the Sunday of its newest activity, of either sport. A change
-   * reaching it is "now"; one ending earlier is of an earlier week. Null without a block.
-   */
+  /** The end of the period's last week: the Sunday of its newest activity, of either sport. Null without a block. */
   latestWeekEndMs: number | null
 }
 
@@ -55,7 +38,7 @@ export type SameHeartRateBySport = Record<Sport, SameHeartRate>
 const NOTHING: SameHeartRate = {
   referenceHeartRate: null,
   weeks: [],
-  change: null,
+  reportedWeeks: 0,
   lacks: 'blocks',
   latestWeekEndMs: null,
 }

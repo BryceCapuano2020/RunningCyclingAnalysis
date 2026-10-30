@@ -1,15 +1,6 @@
 import { DAY_MS, HEADLINE_DURATION_S } from '../constants'
 import { requirePositiveFinite } from '../math'
-import type {
-  ActivityDigest,
-  AthleteSettings,
-  BikeModel,
-  DigestCurvePoint,
-  HrCalibration,
-  Interval,
-  Sport,
-} from '../types'
-import { equivalenceFor } from './combine'
+import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
 import { effortsCount } from './effortTrust'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
@@ -38,13 +29,6 @@ export interface TrendPoint {
   /** Start of the ride that set rideWkg; null without a ride. */
   rideAtMs: number | null
   /**
-   * The running equivalent of the best ride in the window: the flat running speed, in m/s, that
-   * costs the same metabolic power, with the range of the heart-rate model. At the headline duration
-   * it is the speed combine gives the same ride. Null without a ride, or unless the trend was asked
-   * for it through `equivalence`.
-   */
-  rideRunSpeed: Interval | null
-  /**
    * The body mass, kg, of the ride that set rideWkg. Present only when the athlete has dated body
    * masses, since otherwise it is the one mass every ride is priced at.
    */
@@ -66,11 +50,6 @@ export interface TrendOptions {
    * it does in the analysis. Built from the digests when absent; null counts every estimated point.
    */
   rideGate?: EstimatedRideGate | null
-  /**
-   * When given, each point's best ride is also converted to its running equivalent, with the
-   * heart-rate model of the analysis of the same digests, as the cards convert it.
-   */
-  equivalence?: { hr: HrCalibration | null }
 }
 
 export { weekEndMs }
@@ -137,8 +116,7 @@ function bestAtOrAbove(
  * caller passes the set the analysis sees, after near-duplicates are hidden. Every week from the
  * first activity (or the period's start) to the last is returned, however long the library: a week costs
  * a binary search and the readings in its window, so a decade is a few hundred points. Each point also
- * names the start of the activity that set each value,
- * and, when asked, converts the best ride to its running equivalent once per distinct power.
+ * names the start of the activity that set each value.
  */
 export function fitnessTrend(
   digests: ActivityDigest[],
@@ -167,20 +145,6 @@ export function fitnessTrend(
     if (best !== null) readings.push({ startMs: digest.startMs, sport: digest.sport, best })
   }
 
-  const equivalenceAt = opts.equivalence ? equivalenceFor(opts.equivalence.hr) : null
-  // The speed depends on the power and the body mass it was ridden at, so both key the cache.
-  const speedByRide = new Map<string, Interval>()
-  const speedOf = ({ watts, massKg }: Best): Interval | null => {
-    if (equivalenceAt === null) return null
-    const key = `${watts}|${massKg}`
-    let speed = speedByRide.get(key)
-    if (speed === undefined) {
-      speed = equivalenceAt(watts, massKg)
-      speedByRide.set(key, speed)
-    }
-    return speed
-  }
-
   const lastEnd = weekEndMs(last.startMs)
   const earliest =
     opts.fromMs === undefined ? first.startMs : Math.max(first.startMs, opts.fromMs + windowMs)
@@ -207,7 +171,6 @@ export function fitnessTrend(
       rideCount: count.ride,
       runAtMs: top.run?.startMs ?? null,
       rideAtMs: ride?.startMs ?? null,
-      rideRunSpeed: ride ? speedOf(ride.best) : null,
       ...(masses.dated && ride ? { rideMassKg: ride.best.massKg } : {}),
     })
   }

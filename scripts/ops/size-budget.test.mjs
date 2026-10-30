@@ -14,9 +14,7 @@ const LINE_BUDGET = 400
  * whenever a change shrinks its file, and remove it once the file is within budget. Never raise
  * one; split the file instead.
  */
-const OVER_BUDGET = {
-  'packages/core/src/xml/parse.ts': 438,
-}
+const OVER_BUDGET = {}
 
 const SOURCE = /\.(ts|tsx|mjs|css)$/
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'test-results', 'test-corpus'])

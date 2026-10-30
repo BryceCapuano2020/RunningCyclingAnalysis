@@ -1,17 +1,16 @@
-import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { limitReached, listingLimitReached } from '../limitCopy'
 import type { WorkerResponse } from '../../worker/protocol'
 import { DEVICE_NOT_LOADED, deleteFailureText, LIBRARY_NOT_LOADED, rebuildNoticeText } from './copy'
 import type { ErrorReply } from './copy'
 import { setKeptLibraryHinted } from './keptLibrary'
-import { baselineOf } from './importState'
+import { baselineOf, comparableBefore } from './importState'
 import { mergeOutcomes } from './mergeOutcomes'
 import { isOvertaken } from './staleReplies'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
-import type { Account, Box, Pending, SetError } from './model'
+import type { Account, Baseline, Box, Pending, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 
 export interface WorkerEventDeps {
@@ -21,7 +20,7 @@ export interface WorkerEventDeps {
   setError: SetError
   refreshBusy: () => void
   failLibrary: () => boolean
-  addFiles: (files: File[], baseline?: AnalysisResult | null) => void
+  addFiles: (files: File[], baseline?: Baseline | null) => void
   handleAccountIssue: (issue: SyncIssueCode) => void
   accountRef: Box<Account>
   previousStatusRef: Box<Account['status']>
@@ -31,17 +30,13 @@ export interface WorkerEventDeps {
   loadDeviceOnce: () => void
 }
 
-/** The requests a route reply answers. A forgotten route is answered with the same reply. */
-const ROUTE_KINDS: ReadonlySet<Pending['kind']> = new Set<Pending['kind']>([
-  'routeShape',
-  'forgetRoutes',
-])
-
 /** The responses that answer a request, as opposed to ones the worker sends on its own. */
 export type ReplyResponse = Exclude<
   WorkerResponse,
   {
     type:
+      | 'started'
+      | 'heartbeat'
       | 'progress'
       | 'missingOriginals'
       | 'detailCoverage'
@@ -113,15 +108,11 @@ function settleOvertaken(deps: WorkerEventDeps, pending: Pending, message: Reply
 }
 
 /** Shows what a reply reports, and settles the request it answers. */
-export function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
+export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pending: Pending): void {
   const { transport, imports, library, handleAccountIssue, refreshBusy } = deps
-  // A route reply answers only a route request. One that comes out of turn is dropped before the
-  // pending request is taken, so that request still gets its own reply.
-  const front = transport.pendingRepliesRef.current[0]
-  if (message.type === 'routeShape' && (front === undefined || !ROUTE_KINDS.has(front.kind))) return
-  if (message.type === 'activityTrace' && front?.kind !== 'activityTrace') return
-  // Replies arrive in request order; the first pending request is the one this answers.
-  const pending = transport.pendingRepliesRef.current.shift()
+  // The reply names its request, so it settles that request whatever order replies arrive in.
+  const waiting = transport.pendingRepliesRef.current
+  waiting.splice(waiting.indexOf(pending), 1)
   // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
   if (pending?.kind === 'setRange') pending.settle?.(message)
   refreshBusy()
@@ -172,7 +163,7 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void
       imports.setImportOutcome(message.outcome)
       imports.setImportChange({
         outcome: message.outcome,
-        before: pending?.baseline ?? null,
+        before: comparableBefore(pending?.baseline, message.state),
         after: message.state.result,
       })
     }

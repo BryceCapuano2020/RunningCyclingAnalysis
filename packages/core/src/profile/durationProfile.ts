@@ -8,9 +8,11 @@ import {
   PROFILE_MIN_SESSIONS,
   shortEndOf,
   PROFILE_ALPHA,
+  PROFILE_IN_LINE_MIN_ACTIVITIES,
 } from './constants'
 import { fitCurve } from './morton'
 import { studentTQuantile } from './studentT'
+import { conditionalEstimate } from './winnersCurse'
 
 /** One duration's best, in the sport's own unit, and the session it was set in. */
 export interface ProfilePoint {
@@ -44,6 +46,8 @@ export interface ReadyProfile {
   anchored: boolean
   /** The shortest duration the profile reads, s: 5 s for a ride, 3 min for a run. */
   startS: number
+  /** The athlete's activities of the sport behind the bests, which the sentence needs PROFILE_IN_LINE_MIN_ACTIVITIES of to say they agree. */
+  activities: number
 }
 
 /**
@@ -116,23 +120,67 @@ function leaveOneOut(points: readonly ProfilePoint[], pmax: boolean): Held[] {
 }
 
 /**
- * A row from a held duration. Its interval is the log ratio plus and minus a Student's t quantile times
- * its own spread, so a duration the others pin down poorly has a wide one. The level is PROFILE_ALPHA over
- * all the rows (Bonferroni), so that a profile of pure noise stands out somewhere that rarely. The bounds
- * are put back from logs to fractions.
+ * The level a profile is judged at, spread over its rows. PROFILE_ALPHA is for a library of
+ * PROFILE_IN_LINE_MIN_ACTIVITIES activities or more; a smaller one has fewer efforts behind each best, whose spread
+ * the fit's few points and the meter's floor understate, so its level is cut in proportion and a stand-out in a
+ * small library is rarer and surer.
  */
-function rowOf(held: Held, rows: number, quantiles: Map<number, number>): ProfileRow {
-  const t = quantiles.get(held.df) ?? studentTQuantile(1 - PROFILE_ALPHA / (2 * rows), held.df)
+function levelFor(activities: number): number {
+  return PROFILE_ALPHA * Math.min(1, Math.max(activities, 1) / PROFILE_IN_LINE_MIN_ACTIVITIES)
+}
+
+/** The least a stand-out's drawn half-width may be, as a share of its interval's half-width. */
+const MIN_BAR_HALF_SHARE = 0.25
+
+/**
+ * A row from a held duration. Its interval is the log ratio plus and minus a Student's t quantile times its own
+ * spread, so a duration the others pin down poorly has a wide one. The level is `levelFor` over all the rows
+ * (Bonferroni), so that a profile of pure noise stands out somewhere that rarely.
+ *
+ * A duration that stands out was picked for standing out, so the size it states is corrected for that
+ * (`conditionalEstimate`: the size the flagged draws are centred on), never within a quarter of the interval's half-width of its near end and never
+ * above the draw. The bar drawn is then centred on the stated size, from the near end to its mirror, so the point and
+ * its bar agree and the bar still excludes zero. A duration in line states its ratio and the interval as they are.
+ */
+function rowOf(
+  held: Held,
+  rows: number,
+  quantiles: Map<number, number>,
+  level: number,
+): ProfileRow {
+  const t = quantiles.get(held.df) ?? studentTQuantile(1 - level / (2 * rows), held.df)
   quantiles.set(held.df, t)
   const half = t * held.sd
-  const low = Math.expm1(held.logRatio - half)
-  const high = Math.expm1(held.logRatio + half)
+  const lowLog = held.logRatio - half
+  const highLog = held.logRatio + half
+  const standsOut: StandsOut | null = lowLog > 0 ? 'above' : highLog < 0 ? 'below' : null
+  if (standsOut === null) {
+    return {
+      durationS: held.durationS,
+      residual: Math.expm1(held.logRatio),
+      low: Math.expm1(lowLog),
+      high: Math.expm1(highLog),
+      standsOut,
+    }
+  }
+  const sign = standsOut === 'above' ? 1 : -1
+  const nearLog = sign * Math.min(Math.abs(lowLog), Math.abs(highLog))
+  const estimated = sign * held.sd * conditionalEstimate(Math.abs(held.logRatio) / held.sd, t)
+  // A draw just past the cut would state its size at the near end and draw a bar of no width: the stated size is kept at least
+  // a quarter of the interval's half-width inside it, so the bar is always there to read.
+  const stated =
+    sign *
+    Math.min(
+      Math.abs(held.logRatio),
+      Math.max(Math.abs(nearLog) + half * MIN_BAR_HALF_SHARE, Math.abs(estimated)),
+    )
+  const far = stated + (stated - nearLog)
   return {
     durationS: held.durationS,
-    residual: Math.expm1(held.logRatio),
-    low,
-    high,
-    standsOut: low > 0 ? 'above' : high < 0 ? 'below' : null,
+    residual: Math.expm1(stated),
+    low: Math.expm1(Math.min(nearLog, far)),
+    high: Math.expm1(Math.max(nearLog, far)),
+    standsOut,
   }
 }
 
@@ -150,6 +198,7 @@ function rowOf(held: Held, rows: number, quantiles: Map<number, number>): Profil
 export function durationProfile(
   curve: readonly ProfilePoint[],
   startS: number = PROFILE_MIN_S,
+  activities: number = PROFILE_IN_LINE_MIN_ACTIVITIES,
 ): DurationProfile {
   const points = curve.filter(inRange(startS)).sort((a, b) => a.durationS - b.durationS)
   const anchored = points.some((point) => point.durationS <= PROFILE_ANCHOR_S)
@@ -159,10 +208,12 @@ export function durationProfile(
   const held = leaveOneOut(shown, anchored)
   if (held.length < PROFILE_MIN_DURATIONS) return { status: 'unfit' }
   const quantiles = new Map<number, number>()
+  const level = levelFor(activities)
   return {
     status: 'ready',
-    rows: held.map((one) => rowOf(one, held.length, quantiles)),
+    rows: held.map((one) => rowOf(one, held.length, quantiles, level)),
     anchored,
     startS,
+    activities,
   }
 }

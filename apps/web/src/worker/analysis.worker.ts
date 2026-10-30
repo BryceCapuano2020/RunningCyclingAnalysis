@@ -14,7 +14,9 @@ import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
 import { outdatedWithOriginal } from './outdatedOriginals'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
-import type { WorkerRequest, WorkerResponse } from './protocol'
+import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
+import { observeRequests } from '../api/requestActivity'
+import { beginRequest, noteWork, stamped } from './workerWire'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
 import { newWorkerView } from './workerView'
@@ -27,7 +29,7 @@ import { Workbench } from './workbench'
 import type { ActivityTraceReply } from './workbench'
 
 const session = new AnalysisSession()
-const post = (message: WorkerResponse) => self.postMessage(message)
+const post = (message: WorkerResponse) => self.postMessage(stamped(message))
 /** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
 const missingOriginals = new Set<string>()
 const savedRecords = new Map<string, ActivityRecord>()
@@ -71,6 +73,8 @@ const libraryContext: LibraryContext = {
   },
 }
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
+// A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
+observeRequests(noteWork)
 const view = newWorkerView()
 const importContext: ImportRunContext = {
   session,
@@ -128,8 +132,6 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       throw new Error('A rebuild is not a session request')
     case 'setSettings':
       return session.setSettings(request.settings)
-    case 'setGradeTrend':
-      return session.setGradeTrend(request.on, request.settings)
     case 'setRange':
       return session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':
@@ -245,7 +247,9 @@ function reportUnreadable(count: number) {
 // Requests are handled strictly in order so a settings change cannot overtake a file import.
 let queue: Promise<void> = Promise.resolve()
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+  const requestId = (event.data as Partial<WireRequest>).requestId
   queue = queue.then(async () => {
+    const endRequest = beginRequest(requestId, (message) => self.postMessage(message))
     try {
       if (event.data.type === 'addFiles') {
         const imported = await runImport(importContext, event.data)
@@ -266,9 +270,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         }
         post(await routes.reply(event.data))
       } else if (event.data.type === 'activityTrace') {
-        post({ type: 'activityTrace', reply: await activityTraceReply(event.data) })
-        // Reading a trace back from an original stores it, which may push an older one out.
+        const reply = await activityTraceReply(event.data)
+        // Reading a trace back from an original stores it, which may push an older one out. The page
+        // hears of that before the reply: nothing the worker says after its reply is attributed.
         if (event.data.fromOriginal === true) await reportDetail()
+        post({ type: 'activityTrace', reply })
       } else {
         const state = await handle(event.data)
         const { type } = event.data
@@ -281,6 +287,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         message: messageOf(error),
         ...(error instanceof ApiRequestError ? { issue: syncIssueFor(error) } : {}),
       })
+    } finally {
+      endRequest()
     }
   })
 }

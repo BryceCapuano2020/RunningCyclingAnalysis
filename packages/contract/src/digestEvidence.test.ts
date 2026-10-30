@@ -43,26 +43,31 @@ describe('digest evidence', () => {
     expect(parsed.drift).toBeNull()
   })
 
-  const rejected: [string, Wire][] = [
+  /** Each is refused on a create. A stored row is read without the part, since it names no activity. */
+  type Parsed = ReturnType<typeof StoredActivityDigestSchema.parse>
+  const repaired: [string, Wire, (stored: Parsed) => boolean][] = [
     [
       'a speed distribution on a ride',
       { ...ride, distributions: { speed: { offset: 1, counts: [1] } } },
+      (p) => p.distributions?.speed === undefined,
     ],
     [
       'a power distribution on a run',
       { ...run, distributions: { power: { offset: 1, counts: [1] } } },
+      (p) => p.distributions?.power === undefined,
     ],
-    ['a bin past the last', { ...run, distributions: { heartRate: { offset: 300, counts: [1] } } }],
+    [
+      'a bin past the last',
+      { ...run, distributions: { heartRate: { offset: 300, counts: [1] } } },
+      (p) => p.distributions?.heartRate === undefined,
+    ],
     [
       'a distribution longer than its bins',
       {
         ...run,
         distributions: { heartRate: { offset: 0, counts: new Array<number>(257).fill(0) } },
       },
-    ],
-    [
-      'a fractional count',
-      { ...run, distributions: { heartRate: { offset: 100, counts: [1.5] } } },
+      (p) => p.distributions?.heartRate === undefined,
     ],
     [
       'more seconds than the digest holds',
@@ -70,14 +75,17 @@ describe('digest evidence', () => {
         ...run,
         distributions: { heartRate: { offset: 100, counts: [run.durationS as number, 1] } },
       },
+      (p) => p.distributions?.heartRate === undefined,
     ],
     [
       'an unknown durability time',
       { ...run, durability: [{ afterS: 60, durationS: 300, value: 5 }] },
+      (p) => p.durability?.length === 0,
     ],
     [
       'a zero durability value',
       { ...run, durability: [{ afterS: 3600, durationS: 300, value: 0 }] },
+      (p) => p.durability?.length === 0,
     ],
     [
       'a repeated durability point',
@@ -88,25 +96,33 @@ describe('digest evidence', () => {
           { afterS: 3600, durationS: 300, value: 5 },
         ],
       },
+      (p) => p.durability?.length === 1,
     ],
     [
       'more durability points than there are pairs',
       { ...run, durability: new Array(7).fill({ afterS: 3600, durationS: 300, value: 5 }) },
+      (p) => p.durability?.length === 1,
     ],
     [
       'a drift that is not positive',
       { ...run, drift: { firstRatio: 0, secondRatio: 1, durationS: 3000 } },
+      (p) => p.drift === null,
     ],
     [
       'a drift on a digest without heart rate',
       { ...run, hasHeartRate: false, drift: { firstRatio: 1, secondRatio: 1, durationS: 3000 } },
+      (p) => p.drift === null,
     ],
   ]
-  it.each(
-    SCHEMAS.flatMap(([label, schema]) =>
-      rejected.map(([name, wire]) => [`${label}: ${name}`, schema, wire] as const),
-    ),
-  )('%s', (_label, schema, wire) => {
+  it.each(repaired)('create refuses %s, and a stored row is read without it', (_n, wire, left) => {
+    expect(ActivityDigestSchema.safeParse(wire).success).toBe(false)
+    const stored = StoredActivityDigestSchema.safeParse(wire)
+    expect(stored.success).toBe(true)
+    expect(stored.success && left(stored.data)).toBe(true)
+  })
+
+  it.each(SCHEMAS)('%s schema refuses a fractional count, which is damage', (_l, schema) => {
+    const wire = { ...run, distributions: { heartRate: { offset: 100, counts: [1.5] } } }
     expect(schema.safeParse(wire).success).toBe(false)
   })
 

@@ -1,5 +1,6 @@
 import { ApiErrorSchema, MAX_PAGE_BODY_BYTES } from '@rca/contract'
 import { ApiRequestError } from './apiError'
+import { noteRequestActivity } from './requestActivity'
 
 const PAGE_BODY_LIMIT = MAX_PAGE_BODY_BYTES
 const ERROR_BODY_LIMIT = 64 * 1024
@@ -71,6 +72,7 @@ async function readResponseBytes(response: Response, maxBytes: number): Promise<
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
+      noteRequestActivity()
       if (size > maxBytes) {
         await reader.cancel()
         throw new ApiRequestError(502, 'invalid_response', INVALID_RESPONSE_MESSAGE)

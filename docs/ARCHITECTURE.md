@@ -142,6 +142,23 @@ account original is fetched and reparsed only after an explicit request. Reimpor
 activity rebuilds its trace even when digest deduplication skips it. Cache failures never prevent
 digest analysis or saving. No server schema or model revision changes are required.
 
+**Worker messages**
+
+The page numbers every request it posts to the Web Worker (`requestId`). The worker stamps the number on
+its one reply (`replyTo`) and on every other message it sends while it runs the request (`during`), so
+a reply is matched to its request by number and never by arrival order. A message that names no request
+the page still waits for (late, repeated, or from before a clear) is counted and dropped. The worker
+announces each request when it begins it (`started`) and, every two seconds while it runs, reports a
+count of units of real work (`heartbeat`). The page's watchdog times the request being run from its
+`started`, and counts only headway: a reply, a progress message, or a heartbeat whose count moved (files
+read, activities saved, pages fetched, a chunk of a download, a rate-limit wait). After 90 s (30 s for
+short analysis) without headway it shows a neutral "still working" notice; after 180 s (60 s) it replaces
+the worker as it does for a script error (one automatic restart, then stopped) and does not send the
+stalled request again. A page that lost time itself (a suspended laptop, a frozen tab) starts every wait
+again instead of reading the gap as silence. Single reads (a route, splits, a detail trace) are let go as
+unread after 30 s (150 s from a kept original), say nothing, and never restart the worker. A request the
+browser cannot copy to the worker fails at once with a message.
+
 ## Data model
 
 The tables below mirror `apps/api/src/db/schema.ts`. Wrangler also keeps a `d1_migrations` table
@@ -225,7 +242,8 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    compressed bytes, its inflated bytes and their decoded text. Its inflated bytes count against the
    zip's decompressed-bytes budget, even when the list is malformed. No row may hold more than 256
    cells: a row of commas is a cell per byte, so the byte cap alone does not bound the cells a parse
-   builds.
+   builds. No field may hold more than 64 KiB (65,536 characters); a list with a longer field is
+   malformed, like one with a wider row.
    The first row wins for a file that appears twice. A row with a file and no name is kept, since its
    type still says what the file is. A list that ends inside a quoted field, or has a row of more than
    256 cells, is malformed and is ignored, so it names no files.
@@ -414,8 +432,10 @@ R2 files can be downloaded by the browser to drive that recovery; no database mi
 ## Limits
 
 Service limits (per-account quotas, byte caps, edge rate limits and the deployment-wide R2 budget)
-are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). Analysis limits, meaning what the
-statistics can and cannot show, are in the [README](../README.md#limits).
+are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). What a file, an archive or a digest may
+ask of the importer, and the bounds the one digest reader holds, are in [LIMITS.md](LIMITS.md).
+Analysis limits, meaning what the statistics can and cannot show, are in the
+[README](../README.md#limits).
 
 ## Client bundle
 

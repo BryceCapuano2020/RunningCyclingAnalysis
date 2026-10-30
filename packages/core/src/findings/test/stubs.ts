@@ -38,6 +38,7 @@ interface StubOptions {
   kind?: Kind
   sports?: readonly Sport[]
   minHistoryWeeks?: number
+  alarmBudget?: number
   /** What the detector says at an input; one clearing candidate always when not given. */
   says?: (input: FindingInput, sport: Sport) => Candidate[]
 }
@@ -49,6 +50,7 @@ export function stubDetector(id: string, options: StubOptions = {}): Detector {
     kind: options.kind ?? 'efficiency',
     sports: options.sports ?? ['run'],
     minHistoryWeeks: options.minHistoryWeeks ?? 0,
+    alarmBudget: options.alarmBudget ?? 0,
     run: options.says ?? ((input) => [stubCandidate({}, input)]),
   }
 }

@@ -7,9 +7,10 @@ design is in [ARCHITECTURE.md](ARCHITECTURE.md). Open review findings are in [RE
 The order of work is the stage plan in [design/README.md](design/README.md). Stage C shipped the
 fitness status at the same heart rate. Stage D (in progress) fixes the claims the 29 Oct audit found
 over-stated (effort evidence before a best counts as capability, one calibrated change test, capped
-ride levels, a screened max heart rate) and moves the front door to two jobs the data path can serve:
-a "your years" look-back at first import and a "since your last import" check-in, with incremental
-re-import. After stage D the order follows the coaching loop: stages E and F run in parallel, then
+ride levels, a screened max heart rate), turns on ride fitness, makes model revisions safe for saved
+libraries (then revision 7: temperature for the seasonal fitness term, the local day, a cadence-lock
+flag), and moves the front door to two jobs the data path can serve: a "your years" look-back at
+first import and a "since your last import" check-in, with incremental re-import. After stage D the order follows the coaching loop: stages E and F run in parallel, then
 G and H.
 
 Decided on 30 Oct 2026:
@@ -23,7 +24,10 @@ Decided on 30 Oct 2026:
   what works (stage H). The product still runs no language model.
 - **A fresh-data path is part of stage E:** a watched folder of new watch files with incremental
   import, because weekly planning needs last week's data. Weekly early warning follows from it;
-  until then the fitness status is read at each import.
+  until then the fitness status is read at each import. Browsers keep folder access only on
+  Chromium desktop today, and many watches sync to a phone without leaving a file on the computer,
+  so stage E starts by checking where testers' files actually land; where there is no local file,
+  the loop falls back to a periodic re-import.
 - **The MCP connector is built on the evidence ledger in stage E.** It runs on the Worker so it
   works from an assistant's phone, desktop and web apps: Google sign-in, allowlisted accounts, read
   tools plus saving a weekly plan, its own consent line, and off until the athlete connects it. The
@@ -35,27 +39,30 @@ Decided on 30 Oct 2026:
 
 ## Phase 1: Foundations
 
-- **Dated body measurements.** Shipped in #133: dated weight, max heart rate and threshold, so each
+- **Done: dated body measurements** (#133): dated weight, max heart rate and threshold, so each
   activity uses the setting in effect on its day. Relative strength waits for lifting.
-- **Evidence and Estimate types.** One shared shape that every importer and discipline model uses.
-- **Demonstrated versus estimated.** Running and cycling report recorded best efforts separately
-  from capability, and the UI never blurs the two.
-- **Lower-bound treatment.** An ordinary effort is a lower bound on capability, not a measurement
-  of it.
+- **Done: demonstrated versus estimated.** Running and cycling report recorded best efforts
+  separately from capability.
+- **Lower-bound treatment (stage D).** A best counts as capability only with evidence of a hard
+  effort; otherwise it is shown as a floor ("at least") with the effort that would complete it.
+- **Evidence and Estimate types.** Superseded by the evidence ledger (stage E), which every claim
+  passes through.
 
 ## Phase 2: Evolving capability
 
-Today the fitness trend is a rolling best over a window of a third of the selected period, between
-one week and 42 days; all time uses 42 days (PR #17).
-
-- **Timeline engine.** One engine turns dated Estimates into a trajectory with intervals that widen
-  between observations. It replaces the rolling best.
+- **Done: fitness at the same heart rate** (stage C): slipping, holding, recovering and back per
+  sport, with its evidence ([fitness.md](design/fitness.md)).
+- **One calibrated change test (stage D).** Every "this changed" sentence uses one test calibrated
+  on the athlete's own library, and the best-of-window weekly trend is retired.
+- **Timeline engine.** A capability trajectory whose interval widens between observations.
 - **Evidence gaps on every card**, in plain language, such as "no ride over 20 minutes in the last
   8 weeks". Research: [evolving-capability.md](research/evolving-capability.md) and
   [capability-from-field-data.md](research/capability-from-field-data.md).
 
 ## Phase 3: Strength, the third dimension
 
+- **Sport as data (stage F, first).** A capability record per sport replaces the run and ride
+  literals in shared code, so lifting adds a module rather than edits across the codebase.
 - **Lifting logs (stage F).** The in-app logger comes first, with optional session effort (RPE).
   Earlier history follows through a plain lifting CSV, which an athlete's assistant can fill from
   their notes and RCA validates on import, then common app CSV exports (Hevy first) and FIT
@@ -80,9 +87,10 @@ one week and 42 days; all time uses 42 days (PR #17).
 
 - **One page, a card per discipline**, each with its own trend, evidence and gaps. No composite
   score.
-- **Age-graded levels** (coming to the Run and Ride cards). Each run is graded against the USATF
+- **Done: age-graded levels** on the Run and Ride cards. Each run is graded against the USATF
   2025 road standards, and each ride through its equal-energy running equivalent. The ride level is
-  model-derived. Research: [age-grading.md](research/age-grading.md).
+  model-derived; in stage D a ride at the top of the age tables reads as the top of the scale.
+  Research: [age-grading.md](research/age-grading.md).
 - **Public links** (future, opt-in only). Today sharing is the downloaded image (PR #15).
 
 ## Coaching loop
@@ -105,7 +113,8 @@ The order is stages E, G and H in [design/README.md](design/README.md). Lifting 
   history and links the activities it used, for example "3 hard days; the most in any week this
   year was 2". No rest advice, readiness score or injury risk
   ([training-load.md](design/training-load.md) section 6).
-- **Experiments (stage H).** Templates (lower-body lift timing before long runs, an easy-volume
+- **Experiments (stage H).** Each experiment states the smallest effect it can detect from the
+  athlete's own noise before it starts. Templates (lower-body lift timing before long runs, an easy-volume
   block, easy-day discipline), the weeks needed from the athlete's own noise, A and B weeks
   scheduled through saved plans, adherence, and a result with an interval or "not detectable at
   this size". Friends can run the same protocol and pool summaries only.

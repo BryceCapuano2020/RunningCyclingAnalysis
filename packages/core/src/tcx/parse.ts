@@ -13,6 +13,7 @@ import {
   readNumber,
   readPosition,
   Refusal,
+  SPLIT_THE_FILE,
   trackFromPoints,
 } from '../import/trackpoints'
 import { sortAndDedupe } from './points'
@@ -21,6 +22,7 @@ import { isEBikeType, sportOfType } from '../import/sportType'
 import type { SportChoice } from '../import/sportType'
 import type { Sport } from '../types'
 import { SPORT_TRACE } from '../workbench/sportTrace'
+import { MAX_TCX_ACTIVITIES, MAX_TCX_LAPS } from '../import/limits'
 import { scanXmlBytes } from '../xml/parse'
 import type { XmlHandler } from '../xml/parse'
 import { recordedDistance, speedFromDistance } from './distance'
@@ -91,7 +93,7 @@ export function parseTcx(
   try {
     return parseUnchecked(bytes, fileName, limits, opts)
   } catch (error) {
-    if (error instanceof Refusal) return failure(fileName, error.reason, error.code)
+    if (error instanceof Refusal) return failure(fileName, error.reason, error.code, error.detail)
     return failure(fileName, DECODE_FAILED, 'corrupt')
   }
 }
@@ -129,6 +131,8 @@ class TcxScanner implements XmlHandler {
   /** The type the export's list gives the activity, for an Activity whose Sport is Other. */
   private readonly activityType: string | undefined
   private trackpoints = 0
+  private activities = 0
+  private laps = 0
   private activity: OpenActivity | undefined
   private trackpoint: RawTrackpoint | undefined
   private field: OpenField | undefined
@@ -144,8 +148,24 @@ class TcxScanner implements XmlHandler {
     if (depth === 1) {
       if (local !== 'TrainingCenterDatabase') throw new Refusal(NOT_TCX, 'corrupt')
     } else if (depth === 3 && local === 'Activity' && this.stack[1] === 'Activities') {
+      this.activities++
+      if (this.activities > MAX_TCX_ACTIVITIES) {
+        throw new Refusal(
+          `TCX file has more than ${MAX_TCX_ACTIVITIES} activities: split it`,
+          'too-much-data',
+          SPLIT_THE_FILE,
+        )
+      }
       this.activity = openActivity(attrs.Sport, this.activityType)
     } else if (depth === 4 && local === 'Lap' && this.activity !== undefined) {
+      this.laps++
+      if (this.laps > MAX_TCX_LAPS) {
+        throw new Refusal(
+          `TCX file has more than ${MAX_TCX_LAPS} laps: split it`,
+          'too-much-data',
+          SPLIT_THE_FILE,
+        )
+      }
       const startMs =
         attrs.StartTime === undefined ? undefined : parseIsoTime(attrs.StartTime, 'refuse')
       this.activity.openLap = {

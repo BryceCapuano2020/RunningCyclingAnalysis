@@ -10,6 +10,7 @@ import { originalActivity } from './originalActivity'
 import type { WorkerResponse } from './protocol'
 import { RATE_LIMIT_WINDOW_MS } from './rateLimitRetry'
 import { syncIssueFor } from './syncIssue'
+import { noteWork } from './workerWire'
 
 /** The first instant of the next UTC day, when the per-user daily limit resets. */
 function nextUtcMidnightMs(nowMs: number): number {
@@ -43,9 +44,15 @@ export async function loadServer(
   choice?: PeriodChoice,
 ): Promise<SessionState> {
   let unreadable = 0
-  const records = await listActivities(undefined, userId, (count) => {
-    unreadable += count
-  })
+  const records = await listActivities(
+    undefined,
+    userId,
+    (count) => {
+      unreadable += count
+    },
+    undefined,
+    noteWork,
+  )
   ctx.savedRecords.clear()
   for (const record of records) ctx.savedRecords.set(record.id, record)
   ctx.reportLibrary()
@@ -69,9 +76,15 @@ export async function loadServer(
 /** Rebuild stale digests only from their exact stored original file, retaining partial successes. */
 export async function rebuildStale(ctx: LibraryContext, settings: AthleteSettings, userId: string) {
   let unreadable = 0
-  const records = await listActivities(undefined, userId, (count) => {
-    unreadable += count
-  })
+  const records = await listActivities(
+    undefined,
+    userId,
+    (count) => {
+      unreadable += count
+    },
+    undefined,
+    noteWork,
+  )
   const stale = records.filter((record) => record.digest.modelRevision < MODEL_REVISION)
   let rebuilt = 0
   let missing = 0
@@ -82,6 +95,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   // Records whose stored original did not match them. They keep `hasFile`, but need the file again.
   const unmatched: ActivityRecord[] = []
   for (const record of stale) {
+    noteWork()
     if (!record.hasFile) {
       missing++
       continue
@@ -134,9 +148,15 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   try {
     // The refreshed listing is the library now shown, so its unreadable count replaces the first.
     let refreshedUnreadable = 0
-    refreshed = await listActivities(undefined, userId, (count) => {
-      refreshedUnreadable += count
-    })
+    refreshed = await listActivities(
+      undefined,
+      userId,
+      (count) => {
+        refreshedUnreadable += count
+      },
+      undefined,
+      noteWork,
+    )
     unreadable = refreshedUnreadable
   } catch {
     // Rebuild successes remain usable even if the final refresh is interrupted.

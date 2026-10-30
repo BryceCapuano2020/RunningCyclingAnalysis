@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isQuietRequest } from './quietRequests'
 
 describe('isQuietRequest', () => {
-  it('leaves the age grades’ trend request quiet, as a period pick is, so it never holds the page busy', () => {
-    expect(isQuietRequest('setGradeTrend')).toBe(true)
+  it('leaves a period pick quiet, so it never holds the page busy', () => {
     expect(isQuietRequest('setRange')).toBe(true)
   })
 

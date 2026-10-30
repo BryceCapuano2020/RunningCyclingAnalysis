@@ -5,7 +5,7 @@ import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { curvePoint } from './fixtures'
 import { SportCurveChart } from './SportCurveChart'
-import { TrendChart } from './TrendChart'
+import { BestsOverTimeChart } from './BestsOverTimeChart'
 
 afterEach(() => {
   cleanup()
@@ -47,7 +47,6 @@ const runPoint = (week: number, speed: number): TrendPoint => {
     rideCount: 0,
     runAtMs: endMs,
     rideAtMs: null,
-    rideRunSpeed: null,
   }
 }
 
@@ -64,6 +63,7 @@ describe('the sport pages’ charts on a phone', () => {
           curvePoint(3600, 3.5, 'run-2'),
         ]}
         previous={null}
+        change={null}
         massKg={75}
         units="metric"
       />,
@@ -72,32 +72,34 @@ describe('the sport pages’ charts on a phone', () => {
     expect(idle).toMatch(/^Best · 20 min: .*4:10/)
   })
 
-  it('says the latest week in the week-by-week readout row', () => {
+  it('says the latest best in the dated bests readout row', () => {
     chartWidth(340)
     render(
-      <TrendChart
+      <BestsOverTimeChart
         sport="run"
         points={[runPoint(0, 4), runPoint(1, 4.1), runPoint(2, 4.2)]}
         massKg={75}
         units="metric"
-        windowDays={14}
         effortS={1200}
+        takeaway={null}
+        comparedWith={null}
       />,
     )
     const idle = screen.getByTestId('chart-readout').getAttribute('data-idle')
-    expect(idle).toMatch(/^Latest · Week ending .*3:58/)
+    expect(idle).toMatch(/^Latest · 26 Jan 2025: Flat pace 3:58/)
   })
 
   it('has no readout row for a chart with no points', () => {
     chartWidth(340)
     render(
-      <TrendChart
+      <BestsOverTimeChart
         sport="run"
         points={[]}
         massKg={75}
         units="metric"
-        windowDays={14}
         effortS={1200}
+        takeaway={null}
+        comparedWith={null}
       />,
     )
     expect(screen.queryByTestId('chart-readout')).toBeNull()
