@@ -15,7 +15,11 @@ export default defineConfig({
         'packages/core/src/tcx/encode.ts',
         'packages/core/src/virtualPower/syntheticRides.ts',
       ],
-      thresholds: { lines: 90, functions: 90, branches: 85, statements: 90 },
+      // A CI shard (COVERAGE_SHARD set) only records its part; the merge step applies the thresholds
+      // to the whole run, so a shard's partial coverage never fails on its own.
+      thresholds: process.env.COVERAGE_SHARD
+        ? undefined
+        : { lines: 90, functions: 90, branches: 85, statements: 90 },
     },
   },
 })

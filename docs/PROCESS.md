@@ -81,6 +81,9 @@ timeout at random.
 
 - A documentation-only pull request (every changed file is Markdown, under `docs/` or `LICENSE`)
   takes a short lane: format, lint, the ops tests and the unit tests that read Markdown.
+- Unit tests run in two shards and end-to-end tests in three, so a code pull request finishes in
+  about the time of its slowest shard rather than the whole suite. Every push to `main` gets its
+  own run, and only pull request runs are cancelled by a newer push.
 - A flaky Playwright test fails CI by design (`failOnFlakyTests`). Fix it the same day, or move it
   out of the required run with an issue that names it. Rerun a failed job at most once.
 - A failed performance budget is a regression until shown otherwise.
