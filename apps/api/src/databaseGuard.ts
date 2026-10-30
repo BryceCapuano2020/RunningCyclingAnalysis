@@ -13,7 +13,8 @@ export const MAX_DATABASE_LIMIT_MIB = 9 * 1024
  * so a typo can only keep the safe cap, never remove it.
  */
 export function databaseSoftLimitBytes(env: { DATABASE_SOFT_LIMIT_MIB?: string }): number {
-  const raw = env.DATABASE_SOFT_LIMIT_MIB?.trim()
+  // A wrangler var written without quotes arrives as a number, so it is read as text first.
+  const raw = String(env.DATABASE_SOFT_LIMIT_MIB ?? '').trim()
   if (!raw || !/^\d{1,5}$/.test(raw)) return DATABASE_SOFT_LIMIT_BYTES
   const mib = Number(raw)
   if (mib < MIN_DATABASE_LIMIT_MIB || mib > MAX_DATABASE_LIMIT_MIB) return DATABASE_SOFT_LIMIT_BYTES

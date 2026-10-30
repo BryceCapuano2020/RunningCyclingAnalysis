@@ -26,8 +26,8 @@ describe('PUT /api/profile turning original files off', () => {
     const owner = await h.env.DB.prepare('SELECT id FROM users').first<{ id: string }>()
     const insert = h.env.DB.prepare(
       `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
-         digest_json, file_name, file_hash, created_at, file_key, file_size)
-       VALUES (?1, ?2, ?3, 'run', ?4, 'Run', 1, '{}', 'a.fit', ?5, 1, ?6, ?7)`,
+         digest_json, file_name, file_hash, created_at, file_key, file_size, file_reservation_token)
+       VALUES (?1, ?2, ?3, 'run', ?4, 'Run', 1, '{}', 'a.fit', ?5, 1, ?6, ?7, ?8)`,
     )
     await h.env.DB.batch(
       Array.from({ length: LIBRARY }, (_, i) =>
@@ -39,9 +39,14 @@ describe('PUT /api/profile turning original files off', () => {
           `hash-${i}`,
           i < 2 ? `users/${owner!.id}/a${i}` : null,
           i < 2 ? 10 : null,
+          i === 2 ? 'held-by-a-crashed-upload' : null,
         ),
       ),
     )
+    const before = await h.env.DB.prepare('SELECT file_bytes AS n FROM users').first<{
+      n: number
+    }>()
+    expect(before?.n).toBe(20)
     await h.env.DB.batch([
       h.env.DB.prepare('CREATE TABLE toggle_writes (id TEXT)'),
       h.env.DB.prepare(
@@ -59,12 +64,17 @@ describe('PUT /api/profile turning original files off', () => {
       const written = await h.env.DB.prepare('SELECT COUNT(*) AS n FROM toggle_writes').first<{
         n: number
       }>()
-      // Two rows had files; each is cleared once by the first pass, and the second pass finds none.
-      expect(written?.n).toBe(2)
+      // Two rows had files and one held only a reservation; each is cleared once by the first pass,
+      // and the second pass finds none.
+      expect(written?.n).toBe(3)
       const left = await h.env.DB.prepare(
-        'SELECT COUNT(*) AS n FROM activities WHERE file_key IS NOT NULL OR file_size IS NOT NULL',
+        'SELECT COUNT(*) AS n FROM activities WHERE file_key IS NOT NULL OR file_size IS NOT NULL OR file_reservation_token IS NOT NULL',
       ).first<{ n: number }>()
       expect(left?.n).toBe(0)
+      const bytes = await h.env.DB.prepare('SELECT file_bytes AS n FROM users').first<{
+        n: number
+      }>()
+      expect(bytes?.n).toBe(0)
     } finally {
       await h.env.DB.batch([
         h.env.DB.prepare('DROP TRIGGER IF EXISTS toggle_count'),

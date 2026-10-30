@@ -19,6 +19,17 @@ describe('databaseSoftLimitBytes', () => {
     }
   })
 
+  it('reads an unquoted wrangler var, which arrives as a number, without throwing', () => {
+    const numeric = { DATABASE_SOFT_LIMIT_MIB: 9000 } as unknown as {
+      DATABASE_SOFT_LIMIT_MIB: string
+    }
+    expect(databaseSoftLimitBytes(numeric)).toBe(9000 * MIB)
+    const tooBig = { DATABASE_SOFT_LIMIT_MIB: 99999 } as unknown as {
+      DATABASE_SOFT_LIMIT_MIB: string
+    }
+    expect(databaseSoftLimitBytes(tooBig)).toBe(DATABASE_SOFT_LIMIT_BYTES)
+  })
+
   it('takes a value in range, whitespace aside', () => {
     expect(databaseSoftLimitBytes({ DATABASE_SOFT_LIMIT_MIB: ' 4096 ' })).toBe(4096 * MIB)
     expect(
