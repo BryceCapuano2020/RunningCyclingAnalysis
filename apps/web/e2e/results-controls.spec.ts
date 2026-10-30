@@ -111,7 +111,9 @@ test('the weekly hours card shows for sample data, and its table toggles', async
     has: page.getByRole('heading', { level: 2, name: 'Training hours' }),
   })
   await expect(card).toBeVisible()
-  await expect(card.getByRole('figure', { name: /Training hours per week/ })).toBeAttached()
+  await expect(
+    card.getByRole('figure', { name: /of your running and riding hours/ }),
+  ).toBeAttached()
 
   // The hours have their own table view, which is checked here.
   const details = card.locator('details').first()
