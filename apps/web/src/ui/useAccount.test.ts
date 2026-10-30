@@ -750,7 +750,8 @@ describe('useAccount', () => {
         await vi.advanceTimersByTimeAsync(0)
       })
       expect(result.current.status).toBe('unavailable')
-      expect(result.current.error).toBe('Bad Gateway')
+      // The first miss is a slow moment the retry usually clears, so it raises no error.
+      expect(result.current.error).toBeNull()
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1_000)
@@ -761,6 +762,162 @@ describe('useAccount', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('reports the failure once a second lookup also misses', async () => {
+    vi.useFakeTimers()
+    try {
+      mocked.getMe.mockReset()
+      mocked.getMe.mockRejectedValue(new ApiRequestError(502, 'http_error', 'Bad Gateway'))
+      const { result } = renderHook(() => useAccount())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(result.current.error).toBeNull()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000)
+      })
+      expect(result.current.error).toBe('Bad Gateway')
+      expect(result.current.status).toBe('unavailable')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('asks for the account with a short deadline, and no second try after a timeout', async () => {
+    mocked.getMe.mockReset()
+    mocked.getMe.mockResolvedValue(null)
+    renderHook(() => useAccount())
+    await waitFor(() => expect(mocked.getMe).toHaveBeenCalled())
+    expect(mocked.getMe).toHaveBeenCalledWith({ timeoutMs: 5_000, retryWithinMs: 1_000 })
+  })
+
+  it('gives the last attempt the normal deadline, so a slow link is not signed out for good', async () => {
+    vi.useFakeTimers()
+    try {
+      mocked.getMe.mockReset()
+      mocked.getMe.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+      renderHook(() => useAccount())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000 + 3_000 + 10_000)
+      })
+      const options = mocked.getMe.mock.calls.map(([option]) => option)
+      expect(options).toEqual([
+        { timeoutMs: 5_000, retryWithinMs: 1_000 },
+        { timeoutMs: 5_000, retryWithinMs: 1_000 },
+        { timeoutMs: 5_000, retryWithinMs: 1_000 },
+        undefined,
+      ])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  describe('after the retries gave up', () => {
+    async function gaveUp() {
+      mocked.getMe.mockReset()
+      mocked.getMe.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+      const hook = renderHook(() => useAccount())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(14_000)
+      })
+      expect(hook.result.current.status).toBe('unavailable')
+      expect(hook.result.current.lookupPending).toBe(false)
+      return hook
+    }
+
+    it('asks once more when the browser comes back online, and signs the account in', async () => {
+      vi.useFakeTimers()
+      try {
+        const { result } = await gaveUp()
+        mocked.getMe.mockResolvedValue(ME)
+        await act(async () => {
+          window.dispatchEvent(new Event('online'))
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(result.current.status).toBe('signed-in')
+        // The "could not reach the server" the lookup left behind goes with it.
+        expect(result.current.error).toBeNull()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('asks once more when the tab becomes visible again', async () => {
+      vi.useFakeTimers()
+      try {
+        const { result } = await gaveUp()
+        mocked.getMe.mockResolvedValue(ME)
+        await act(async () => {
+          document.dispatchEvent(new Event('visibilitychange'))
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(result.current.status).toBe('signed-in')
+        expect(result.current.error).toBeNull()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('stays unavailable, quietly, when that last ask fails too', async () => {
+      vi.useFakeTimers()
+      try {
+        const { result } = await gaveUp()
+        const calls = mocked.getMe.mock.calls.length
+        await act(async () => {
+          window.dispatchEvent(new Event('online'))
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(mocked.getMe.mock.calls.length).toBe(calls + 1)
+        expect(result.current.status).toBe('unavailable')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
+  describe('the floor between asks', () => {
+    it('asks at most once in 30 seconds however often the browser comes back', async () => {
+      vi.useFakeTimers()
+      try {
+        mocked.getMe.mockReset()
+        mocked.getMe.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+        renderHook(() => useAccount())
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(14_000)
+        })
+        const calls = () => mocked.getMe.mock.calls.length
+        const before = calls()
+        const ask = async () => {
+          await act(async () => {
+            window.dispatchEvent(new Event('online'))
+            await vi.advanceTimersByTimeAsync(0)
+          })
+        }
+        await ask()
+        await ask()
+        expect(calls()).toBe(before + 1)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(30_000)
+        })
+        await ask()
+        expect(calls()).toBe(before + 2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
+  it('does not ask again on coming online while the account is signed in or still being looked up', async () => {
+    mocked.getMe.mockReset()
+    mocked.getMe.mockResolvedValue(ME)
+    const { result } = renderHook(() => useAccount())
+    await waitFor(() => expect(result.current.status).toBe('signed-in'))
+    const calls = mocked.getMe.mock.calls.length
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+    })
+    expect(mocked.getMe.mock.calls.length).toBe(calls)
   })
 
   it('becomes signed out, not expired, when a retry finds nobody signed in', async () => {

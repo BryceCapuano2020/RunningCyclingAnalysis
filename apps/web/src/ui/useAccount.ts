@@ -43,6 +43,19 @@ export interface AccountController {
 /** Waits before each retry of a failed account lookup: 1 s, 3 s, then 10 s. */
 const LOOKUP_RETRY_DELAYS_MS = [1_000, 3_000, 10_000]
 
+/**
+ * How one lookup attempt is made while later attempts remain: a short deadline, and an immediate
+ * second try only for a failure that came at once (a refused connection), never for a timeout, so a
+ * hung API costs one short wait and not two. A returning visitor's results do not wait on the lookup
+ * (the kept library loads after a short grace), so a slow API costs nothing but the account features.
+ * The last attempt uses the normal deadline, so a slow link that needs longer is not signed out for
+ * good.
+ */
+/** The least time between two asks made on coming back online or to the tab. */
+const RE_ASK_FLOOR_MS = 30_000
+
+const LOOKUP_ATTEMPT = { timeoutMs: 5_000, retryWithinMs: 1_000 } as const
+
 function isUnauthenticated(failure: unknown): boolean {
   return failure instanceof ApiRequestError && failure.status === 401
 }
@@ -136,7 +149,8 @@ export function useAccount(): AccountController {
     let retries = 0
     let failed = false
     const lookup = () => {
-      api.getMe().then(
+      const lastAttempt = retries >= LOOKUP_RETRY_DELAYS_MS.length
+      api.getMe(lastAttempt ? undefined : LOOKUP_ATTEMPT).then(
         (found) => {
           if (!current) return
           adopt(found)
@@ -149,12 +163,14 @@ export function useAccount(): AccountController {
           // Nobody is known to be signed in, so the visitor works as a signed-out one at once: the
           // browser's own library and files do not wait on the API. The lookup goes on in the
           // background, and a retry that finds an account signs it in as any later sign-in.
-          failed = true
+          const delay = LOOKUP_RETRY_DELAYS_MS[retries]
           meRef.current = null
           setMe(null)
           setStatus('unavailable')
-          setError(messageOf(failure))
-          const delay = LOOKUP_RETRY_DELAYS_MS[retries]
+          // The first miss is usually a slow moment the retry clears, so it says nothing; a second
+          // miss, or the last one, does.
+          if (failed || delay === undefined) setError(messageOf(failure))
+          failed = true
           setLookupPending(delay !== undefined)
           if (delay !== undefined) {
             retries++
@@ -169,6 +185,39 @@ export function useAccount(): AccountController {
       clearTimeout(retryTimer)
     }
   }, [adopt])
+
+  // A link that was down for the whole ladder leaves the account "unavailable" with nothing left to
+  // retry. Coming back online, or back to the tab, asks once more, so a signed-in athlete on a slow or
+  // flaky link is not left signed out until they reload.
+  const lapsedRef = useRef(false)
+  useEffect(() => {
+    lapsedRef.current = status === 'unavailable' && !lookupPending
+  }, [status, lookupPending])
+  useEffect(() => {
+    let asking = false
+    let askedAt = -Infinity
+    const askAgain = () => {
+      if (!lapsedRef.current || asking || Date.now() - askedAt < RE_ASK_FLOOR_MS) return
+      asking = true
+      askedAt = Date.now()
+      refresh()
+        // The answer takes back the "could not reach the server" the lookup left on screen.
+        .then(() => setError(null))
+        .catch(() => undefined)
+        .finally(() => {
+          asking = false
+        })
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') askAgain()
+    }
+    window.addEventListener('online', askAgain)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('online', askAgain)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [refresh])
 
   const signIn = useCallback(() => {
     location.assign(signInUrl)
