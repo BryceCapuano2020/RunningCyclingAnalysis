@@ -56,6 +56,11 @@ describe('held-out configurations', () => {
       'src/a.test.ts',
       "import { t } from './x.heldout.test'",
     ],
+    [
+      'a destructured name bound to something else',
+      'src/a.ts',
+      "const [a, b] = ['node:fs', './noise/heldOut']\nawait import(b)",
+    ],
     ['a string-built import', 'src/a.ts', "await import('./noise/' + name)"],
     ['a template import', 'src/a.ts', 'await import(`./noise/${name}.ts`)'],
     ['a glob over the folder', 'src/a.ts', "import.meta.glob('./noise/*.ts')"],
@@ -82,6 +87,11 @@ describe('held-out configurations', () => {
       'a node built-in read through a variable',
       'src/a.ts',
       "const specifier = 'node:fs'\nawait import(/* @vite-ignore */ specifier)",
+    ],
+    [
+      'node built-ins bound by destructuring',
+      'src/a.ts',
+      "const [fsName, zlibName] = ['node:fs', 'node:zlib']\nawait import(/* @vite-ignore */ zlibName)",
     ],
     ['a glob of fixtures', 'src/a.ts', "import.meta.glob('./fixtures/*.json')"],
     ['an ordinary import', 'src/a.ts', "import { x } from './noise/presets'"],

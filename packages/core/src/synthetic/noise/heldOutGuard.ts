@@ -45,10 +45,23 @@ function globReaches(pattern: string): boolean {
   return HELD_OUT_PATHS.some((p) => matcher.test(p))
 }
 
-/** True when `argument` is a bare name the file binds to a `node:` module, as the repo's fs reads do. */
+const NODE_MODULE = /^['"]node:[\w/]+['"]$/
+
+/**
+ * True when `argument` is a bare name the file binds to a `node:` module, as the repo's fs reads
+ * do: `const name = 'node:fs'` or `const [a, b] = ['node:fs', 'node:zlib']`.
+ */
 function isNodeBuiltin(text: string, argument: string): boolean {
   if (!/^[A-Za-z_$][\w$]*$/.test(argument)) return false
-  return new RegExp(`\\b(?:const|let)\\s+${argument}\\s*=\\s*['"]node:[\\w/]+['"]`).test(text)
+  const single = new RegExp(`\\b(?:const|let)\\s+${argument}\\s*=\\s*['"]node:[\\w/]+['"]`)
+  if (single.test(text)) return true
+  for (const m of text.matchAll(/\b(?:const|let)\s*\[([^\]]*)\]\s*=\s*\[([^\]]*)\]/g)) {
+    const names = m[1]!.split(',').map((n) => n.trim())
+    const values = m[2]!.split(',').map((v) => v.trim())
+    const at = names.indexOf(argument)
+    if (at >= 0 && NODE_MODULE.test(values[at] ?? '')) return true
+  }
+  return false
 }
 
 function reachesHeldOut(raw: string): boolean {
