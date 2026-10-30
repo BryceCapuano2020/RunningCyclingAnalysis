@@ -11,6 +11,30 @@ const TABBABLE =
 const PAST_EDGE_PX = 12
 
 /**
+ * Waits until the page has stopped scrolling: its scroll position is the same on several frames in a row. A
+ * scroll the browser starts (a focus, a key, smooth scrolling) can land a frame or two later, and positions read
+ * before then are the old ones.
+ */
+async function scrollSettled(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let last = scrollY
+        let still = 0
+        let frames = 0
+        const tick = () => {
+          frames += 1
+          still = scrollY === last ? still + 1 : 0
+          last = scrollY
+          if (still >= 3 || frames > 120) resolve()
+          else requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      }),
+  )
+}
+
+/**
  * Walks the page one control at a time in both directions. Before each press the page is scrolled so the
  * control the press reaches is just out of view (above for Shift+Tab, below for Tab) and its neighbour, where
  * focus is, is in view; the browser then scrolls the new control in to the edge of the scrollport, which is
@@ -47,8 +71,10 @@ async function obscuredPresses(page: Page): Promise<{ failures: string[]; scroll
         { selector: TABBABLE, index: i, key, past: PAST_EDGE_PX },
       )
       if (!ready) continue
+      await scrollSettled(page)
       const before = await page.evaluate(() => scrollY)
       await page.keyboard.press(key)
+      await scrollSettled(page)
       // Only a press that made the browser scroll tests the scroll padding.
       if ((await page.evaluate(() => scrollY)) !== before) scrolled += 1
       const hidden = await focusObscuredBy(page)
@@ -58,38 +84,55 @@ async function obscuredPresses(page: Page): Promise<{ failures: string[]; scroll
   return { failures, scrolled }
 }
 
-const ONLY_BROWSERS = 'Walks Chromium and WebKit; the bars are the same in the others'
-
 /** The presses on a page that must have scrolled it, so a walk that never scrolls cannot pass. */
 const MIN_SCROLLED = 15
+
+/** The sport and activity pages, with the stuck bars each width has: the section row at 1440, the tab bar at 390. */
+async function openPage(page: Page, destination: 'Run' | 'Ride' | 'Activity', width: number) {
+  await page.setViewportSize({ width, height: width > 760 ? 900 : 844 })
+  await openSample(page)
+  if (destination === 'Activity') {
+    const rows = await activitiesRows(page)
+    await rows.first().getByRole('link').click()
+    await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible()
+  } else {
+    await goTo(page, destination)
+  }
+}
+
+async function expectFocusClear(page: Page): Promise<void> {
+  // Each press waits for its scroll to settle, so a walk is a few hundred waits.
+  test.setTimeout(120_000)
+  const { failures, scrolled } = await obscuredPresses(page)
+  expect(scrolled).toBeGreaterThanOrEqual(MIN_SCROLLED)
+  expect(failures).toEqual([])
+}
 
 test.describe('focus clears the sticky bars', () => {
   for (const sport of ['Run', 'Ride'] as const) {
     test(`${sport} at 1440 px: section row and header leave focus in view`, async ({
       page,
     }, testInfo) => {
-      test.skip(!['desktop', 'mobile-webkit'].includes(testInfo.project.name), ONLY_BROWSERS)
-      await page.setViewportSize({ width: 1440, height: 900 })
-      await openSample(page)
-      await goTo(page, sport)
+      test.skip(testInfo.project.name !== 'desktop', 'A 1440 px window is a desktop case')
+      await openPage(page, sport, 1440)
       await expect(page.locator('.section-nav')).toBeVisible()
-      const { failures, scrolled } = await obscuredPresses(page)
-      expect(scrolled).toBeGreaterThanOrEqual(MIN_SCROLLED)
-      expect(failures).toEqual([])
+      await expectFocusClear(page)
+    })
+
+    test(`${sport} at 390 px: the header and the tab bar leave focus in view`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'mobile-webkit', 'The phone case, in WebKit')
+      await openPage(page, sport, 390)
+      await expectFocusClear(page)
     })
   }
 
   test('an activity at 390 px: the readout row and the tab bar leave focus in view', async ({
     page,
   }, testInfo) => {
-    test.skip(!['desktop', 'mobile-webkit'].includes(testInfo.project.name), ONLY_BROWSERS)
-    await page.setViewportSize({ width: 390, height: 844 })
-    await openSample(page)
-    const rows = await activitiesRows(page)
-    await rows.first().getByRole('link').click()
-    await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible()
-    const { failures, scrolled } = await obscuredPresses(page)
-    expect(scrolled).toBeGreaterThanOrEqual(MIN_SCROLLED)
-    expect(failures).toEqual([])
+    test.skip(!['desktop', 'mobile-webkit'].includes(testInfo.project.name), 'Chromium and WebKit')
+    await openPage(page, 'Activity', 390)
+    await expectFocusClear(page)
   })
 })
