@@ -51,9 +51,8 @@ export function needLine(
 type Need =
   | { kind: 'missing'; sport: Sport }
   | { kind: 'effort'; sport: Sport; reason: string; action: string; reference: boolean }
-  | { kind: 'unchecked'; sport: Sport; reason: string; action: string; reference: boolean }
 
-/** A sport's need, or null: it has the evidence, and its best 20 minutes was shown hard. */
+/** A sport's need, or null: it has the evidence, and its best 20 minutes was not shown to be easy. */
 function needOf(result: AnalysisResult, sport: Sport): Need | null {
   if (!hasEvidence(result, sport)) return { kind: 'missing', sport }
   const gate = result.effortGate[sport]
@@ -67,19 +66,25 @@ function needOf(result: AnalysisResult, sport: Sport): Need | null {
       reason: words.reference
         ? `Your best ${HEADLINE_LABEL} ${activity} cannot be called hard: ${words.why}.`
         : `Your best ${HEADLINE_LABEL} ${activity} was not a hard effort: ${words.why}.`,
-      action: words.reference ? words.action : `a hard ${HEADLINE_LABEL} ${activity}`,
+      action: words.reference ? words.action : `a ${HEADLINE_LABEL} ${activity}`,
     }
   }
-  const unchecked = gate.verdict === 'unknown' ? uncheckedWords(sport, gate) : null
-  if (unchecked === null) return null
-  // Too few days with heart rate is mended by the age or the maximum, a sentence; no heart rate by adding an activity.
-  return {
-    kind: 'unchecked',
-    sport,
-    reason: unchecked.why,
-    action: unchecked.add ?? unchecked.action,
-    reference: unchecked.add === null,
-  }
+  // A best that was not checked (no heart rate, too few days) holds nothing: it is shown with a note (`uncheckedNote`).
+  return null
+}
+
+/**
+ * The note that goes beside a comparison that rests on a sport whose best 20 minutes was not checked, because it has no heart
+ * rate or too few days with one to set a reference. The comparison is shown, not held: a rider with a power meter and no strap
+ * would otherwise never have one. Null when every sport it rests on was checked.
+ */
+export function uncheckedNote(result: AnalysisResult): string | null {
+  const notes = SPORT_ORDER.flatMap((sport) => {
+    const gate = result.effortGate[sport]
+    const words = gate.verdict === 'unknown' ? uncheckedWords(sport, gate) : null
+    return words === null || !hasEvidence(result, sport) ? [] : [`${words.why} ${words.action}`]
+  })
+  return notes.length === 0 ? null : notes.join(' ')
 }
 
 /**
@@ -105,20 +110,27 @@ function needsOf(result: AnalysisResult): Need[] {
   )
 }
 
-/** "a hard 20 min run and one ride of 20 min or more": the activities to add, said once for all the sports. */
+/** "a 20 min run reaching 90% of your reference heart rate and one ride of 20 min or more": the activities to add, said once for all the sports. */
 function addPhrase(needs: readonly Need[]): string {
   // Sports that only lack a 20 minute effort share the sentence: "one run and one ride of 20 min or more".
   const missing = needs.flatMap((need) => (need.kind === 'missing' ? [need.sport] : []))
-  const others = needs.flatMap((need) =>
-    need.kind === 'missing' || need.reference ? [] : [need.action],
-  )
   const lacking =
     missing.length === 0
       ? []
       : [
           `${missing.map((sport) => `one ${SPORT_ACTIVITY[sport]}`).join(' and ')} of ${HEADLINE_LABEL} or more`,
         ]
-  return [...others, ...lacking].join(' and ')
+  // Sports whose best was under the line are asked for an effort that reaches it, said once for all of them.
+  const efforts = needs.flatMap((need) =>
+    need.kind === 'effort' && !need.reference ? [need.action] : [],
+  )
+  const reaching =
+    efforts.length === 0
+      ? []
+      : [
+          `${efforts.join(' and ')}${efforts.length > 1 ? ', each' : ''} reaching 90% of your reference heart rate`,
+        ]
+  return [...reaching, ...lacking].join(' and ')
 }
 
 /** The sentence that says what to add, then the sentences that say how to set a reference that cannot be trusted. */

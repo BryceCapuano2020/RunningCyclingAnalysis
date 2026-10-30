@@ -34,7 +34,7 @@ describe('EffortChip', () => {
     const button = screen.getByRole('button', { name: 'Not a hard effort · 80%' })
     fireEvent.click(button)
     expect(document.getElementById(button.getAttribute('aria-controls') ?? '')).toHaveTextContent(
-      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). A hard 20 min effort would raise this.',
+      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
   })
 

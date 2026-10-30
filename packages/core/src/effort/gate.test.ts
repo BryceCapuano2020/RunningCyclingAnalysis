@@ -14,31 +14,46 @@ describe('isHardShare', () => {
 describe('judgedTwentyMinutes', () => {
   it('judges the best, or the effort with the highest heart rate among those within 5% of it', () => {
     const points = [
-      { value: 10, heartRate: 150 },
-      { value: 9.6, heartRate: 172 },
-      { value: 9, heartRate: 190 },
+      { value: 10, heartRate: 150, measured: true },
+      { value: 9.6, heartRate: 172, measured: true },
+      { value: 9, heartRate: 190, measured: true },
     ]
     // 9.6 is within 5% of 10; 9 is not. Of the two the higher heart rate is judged.
-    expect(judgedTwentyMinutes(points)).toEqual({ best: 10, heartRate: 172 })
+    expect(judgedTwentyMinutes(points)).toEqual({ best: 10, heartRate: 172, measured: true })
+  })
+
+  it('says whether the judged effort is a measurement, or the best where none has a heart rate', () => {
+    const points = [
+      { value: 10, heartRate: 150, measured: true },
+      { value: 9.8, heartRate: 172, measured: false },
+    ]
+    expect(judgedTwentyMinutes(points).measured).toBe(false)
+    expect(judgedTwentyMinutes([{ ...points[0]!, heartRate: null }, points[1]!]).measured).toBe(
+      false,
+    )
+    expect(judgedTwentyMinutes([{ ...points[0]!, heartRate: null }]).measured).toBe(true)
   })
 
   it('has no heart rate where the efforts near the best have none, and no best without a value', () => {
     expect(
       judgedTwentyMinutes([
-        { value: 10, heartRate: null },
-        { value: 8, heartRate: 180 },
+        { value: 10, heartRate: null, measured: true },
+        { value: 8, heartRate: 180, measured: true },
       ]),
     ).toEqual({
       best: 10,
       heartRate: null,
+      measured: true,
     })
-    expect(judgedTwentyMinutes([])).toEqual({ best: null, heartRate: null })
-    expect(judgedTwentyMinutes([{ value: Number.NaN, heartRate: 150 }]).best).toBeNull()
+    expect(judgedTwentyMinutes([])).toEqual({ best: null, heartRate: null, measured: false })
+    expect(
+      judgedTwentyMinutes([{ value: Number.NaN, heartRate: 150, measured: true }]).best,
+    ).toBeNull()
   })
 })
 
 describe('effortGateOf', () => {
-  const points = [{ value: 16, heartRate: 171 }]
+  const points = [{ value: 16, heartRate: 171, measured: true }]
   const floor = { durationS: 1800, value: 15 }
   const none = { hard: [], endurance: [] }
   const ref = (over: Partial<GateReference> = {}): GateReference => ({
@@ -81,7 +96,7 @@ describe('effortGateOf', () => {
   })
 
   it('cannot judge without a heart rate on the best, without a reference, or without a 20 minute best', () => {
-    const bare = effortGateOf([{ value: 16, heartRate: null }], floor, ref(), none)
+    const bare = effortGateOf([{ value: 16, heartRate: null, measured: true }], floor, ref(), none)
     expect([bare.verdict, bare.unchecked]).toEqual(['unknown', 'noHeartRate'])
     const open = effortGateOf(points, floor, ref({ bpm: null, reading: null }), none)
     expect([open.verdict, open.unchecked]).toEqual(['unknown', 'noHeartRate'])

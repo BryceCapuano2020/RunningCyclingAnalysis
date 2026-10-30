@@ -70,6 +70,8 @@ export const NO_EFFORT_GATE: EffortGate = {
 export interface TwentyMinutePoint {
   value: number
   heartRate: number | null
+  /** Whether the value is a power meter's measurement, not a model's estimate (a run's pace counts as measured). */
+  measured: boolean
 }
 
 /**
@@ -80,20 +82,26 @@ export interface TwentyMinutePoint {
 export function judgedTwentyMinutes(points: readonly TwentyMinutePoint[]): {
   best: number | null
   heartRate: number | null
+  /** Whether the judged effort is a measurement; where none has a heart rate, whether the best is. */
+  measured: boolean
 } {
   let best: number | null = null
   for (const { value } of points) {
     if (Number.isFinite(value) && (best === null || value > best)) best = value
   }
-  if (best === null) return { best: null, heartRate: null }
+  if (best === null) return { best: null, heartRate: null, measured: false }
   let heartRate: number | null = null
+  let measured = false
+  let bestMeasured = false
   for (const point of points) {
     const near = Number.isFinite(point.value) && point.value >= best * (1 - CP_FIT_REACH_TOLERANCE)
+    if (point.value === best) bestMeasured = point.measured
     if (near && point.heartRate !== null && (heartRate === null || point.heartRate > heartRate)) {
       heartRate = point.heartRate
+      measured = point.measured
     }
   }
-  return { best, heartRate }
+  return { best, heartRate, measured: heartRate === null ? bestMeasured : measured }
 }
 
 /** What a gate reads of a sport's reference. */

@@ -28,6 +28,8 @@ const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
 /** The section that compares each best with the athlete's other bests. */
 const NOT_ENOUGH_YET = 'Not enough yet'
+const LATE_IN_LONG_SESSIONS =
+  /^Best efforts late in long sessions: add \d+ (runs?|rides?)\b.*, each longer than an hour/
 /** The sport page's section that is open and needs a season of activities; the others sit behind closed rows. */
 const OPEN_SEASON_SECTION = 'Week by week'
 /** The closed sections that need a season: each row says its finding, and opens to a chart. */
@@ -61,8 +63,9 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.locator('figure').filter({ hasText: BALANCE_TREND })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
-  // The sample's season is long and varied enough to fill every section of a sport page, so none of them
-  // is left to the "Not enough yet" list: stand-out, week by week, same heart rate, late in long sessions.
+  // The sample's season is long and varied enough to fill every section of a sport page: stand-out, week by week,
+  // same heart rate, late in long sessions. The one exception is the late bests: the sample's
+  // long sessions are easy ones, which the effort gate does not count as a test of lasting, so the list says what is missing.
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
     await expect(
@@ -79,7 +82,11 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
       await region.locator('summary').click()
       await expect(region.getByRole('figure').first()).toBeVisible()
     }
-    await expect(page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })).toHaveCount(0)
+    const missing = page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })
+    await expect(missing).toHaveCount(1)
+    await expect(page.getByRole('listitem').filter({ hasText: LATE_IN_LONG_SESSIONS })).toHaveCount(
+      1,
+    )
   }
 
   await goTo(page, 'Balance')

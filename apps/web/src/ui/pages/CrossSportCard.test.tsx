@@ -136,6 +136,26 @@ describe('CrossSportCard', () => {
     )
   })
 
+  it('says a soft ride behind a shorter featured effort too, at the duration the pace is of', () => {
+    const { container } = renderCard(
+      makeResult({
+        equivalents: [makeEquivalence({ durationS: 600, ridePowerW: 300 })],
+        effort: [
+          {
+            durationS: 600,
+            runHrFraction: null,
+            rideHrFraction: 0.7,
+            runReference: null,
+            rideReference: 'trusted',
+          },
+        ],
+      }),
+    )
+    const chip = screen.getByRole('button', { name: 'Not a hard effort · 70%' })
+    expect(chip).toBeInTheDocument()
+    expect(container.textContent).toContain('Your best 10 min on the bike reached 70%')
+  })
+
   it('states the bike fitness as a flat running pace, with the cycling effort it comes from', () => {
     const { container } = renderCard(
       makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),

@@ -63,12 +63,6 @@ function computeReferences(digests: ActivityDigest[]): References {
   }
 }
 
-/** Whether a sport's digests have the power meter that lets the curve's shape judge their efforts. */
-const SHAPE_JUDGES: Record<Sport, (digest: ActivityDigest) => boolean> = {
-  run: () => false,
-  ride: (digest) => digest.powerSource === 'measured',
-}
-
 /** The year the references are read at, for the age band: the year of the newest heart rate. */
 function ageAt(endMs: number, birthYear: number | null): number | null {
   if (birthYear === null || !Number.isFinite(endMs)) return null
@@ -79,19 +73,15 @@ function ageAt(endMs: number, birthYear: number | null): number | null {
 /** What efforts are judged against and what it can certify: the references of the digests, read with the settings. */
 function effortReferenceOf(
   found: References,
-  digests: readonly ActivityDigest[],
   athlete: Pick<AthleteSettings, 'measurements' | 'birthYear'>,
 ): EffortReference {
   const settings = referenceSettingsOf(athlete, found.endMs)
-  const judges = (sport: Sport) => digests.some((d) => d.sport === sport && SHAPE_JUDGES[sport](d))
-  const shapeJudges = { run: judges('run'), ride: judges('ride') }
   return readReferences({
     reference: found.reference,
     observedMax: found.observedMax,
     typical: found.typical,
     settings,
     ageYears: ageAt(found.endMs, settings.birthYear),
-    shapeJudges,
   })
 }
 
@@ -150,7 +140,7 @@ export function trustedHeartRate(
       observedSource: found.observedSource,
       maxHr: found.maxHr,
       reference: found.reference,
-      effort: effortReferenceOf(found, trusted, athlete),
+      effort: effortReferenceOf(found, athlete),
     }
   }
   if (given !== undefined) {

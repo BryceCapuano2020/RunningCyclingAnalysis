@@ -9,6 +9,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { MeasureTime } from '@rca/core/zones'
 import { makeActivity, makeResult } from '../components/fixtures'
+import { NO_HEART_RATE, UNKNOWN } from '../effortGateFixtures'
 import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
 import { measureTime } from '../test/zoneTimeFixtures'
@@ -235,6 +236,26 @@ describe('a sport page with everything to show', () => {
     for (const word of ['limiter', 'weak', 'strength', 'holding you back', 'ahead of']) {
       expect(text).not.toContain(word)
     }
+  })
+})
+
+describe('race predictions where the effort could not be checked', () => {
+  it('says so under the predictions, which carry every run’s bests', () => {
+    const result = { ...fullRun(), effortGate: { run: NO_HEART_RATE, ride: UNKNOWN } }
+    renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    openSection('Race predictions')
+    // Once under the threshold, once under the predictions.
+    expect(
+      screen.getAllByText(
+        'Effort not checked: no heart rate on your best 20 min run. Add a run with heart rate to check it.',
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('says nothing of it where the effort was checked', () => {
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    openSection('Race predictions')
+    expect(screen.queryByText(/Effort not checked/)).toBeNull()
   })
 })
 

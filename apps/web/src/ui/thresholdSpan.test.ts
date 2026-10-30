@@ -2,7 +2,7 @@ import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import { SAMPLE_SETTINGS } from './sampleAthlete'
-import { thresholdRange, thresholdSpan } from './thresholdRange'
+import { bandShareOf, thresholdRange, thresholdSpan } from './thresholdRange'
 import { makeResult } from './components/fixtures'
 
 const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
@@ -35,5 +35,50 @@ describe('thresholdSpan', () => {
 
   it('is null without a fit', () => {
     expect(thresholdSpan(makeResult({ runCp: null }), 'run', 75, 'metric')).toBeNull()
+  })
+})
+
+describe('the band’s allowance', () => {
+  const fit = { cp: 4.0, wPrime: 20, cpSe: 0.05, r2: 0.99, nPoints: 6 }
+  const gate = (over: Partial<ReturnType<typeof makeResult>['effortGate']['run']>) => ({
+    ...makeResult().effortGate.run,
+    ...over,
+  })
+
+  it('takes the share of a gate that judged the effort hard, and the hard line’s allowance from any other', () => {
+    const hard = makeResult({
+      runCp: fit,
+      effortGate: { ...makeResult().effortGate, run: gate({ verdict: 'hard', share: 0.99 }) },
+    })
+    expect(bandShareOf(hard, 'run')).toBe(0.99)
+    // A gate that could not judge has worked out a share only by chance, with no heart rate on the best or a thin reference.
+    for (const unchecked of ['noHeartRate', 'thin'] as const) {
+      const unknown = makeResult({
+        runCp: fit,
+        effortGate: {
+          ...makeResult().effortGate,
+          run: gate({ verdict: 'unknown', unchecked, share: 0.99 }),
+        },
+      })
+      expect(bandShareOf(unknown, 'run')).toBeNull()
+    }
+  })
+
+  it('draws a wider top end for an unchecked effort than for one that reached the reference', () => {
+    const at = (verdict: 'hard' | 'unknown') =>
+      thresholdSpan(
+        makeResult({
+          runCp: fit,
+          effortGate: {
+            ...makeResult().effortGate,
+            run: gate({ verdict, share: 0.99, unchecked: verdict === 'hard' ? null : 'thin' }),
+          },
+        }),
+        'run',
+        70,
+        'metric',
+      )!
+    // A run's span reads from its faster end: the first end is the higher critical power.
+    expect(at('unknown').ends[0].cp).toBeGreaterThan(at('hard').ends[0].cp)
   })
 })

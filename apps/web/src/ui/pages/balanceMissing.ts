@@ -1,12 +1,7 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import {
-  countedPhrase,
-  heldAction,
-  effortHold,
-  needLine,
-  unconfirmedSports,
-} from '../components/headlineNeed'
+import { countedPhrase, needLine, unconfirmedSports } from '../components/headlineNeed'
+import { heldTexts } from '../resultHold'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
@@ -107,14 +102,9 @@ function heldMissing(
   period: Period,
   levels: { run: string | null; ride: string | null },
 ): Missing {
-  const action = heldAction(result, period)
-  // Why, when it is not the count of activities: a best 20 minutes that was not hard, or not checked, says so first.
-  const effort = effortHold(result)
-  const reason =
-    effort === null ||
-    needLine(headlineShortfall(result.activities), period, result.activities) !== null
-      ? ''
-      : `${effort.text} `
+  // The hold says why and what lifts it; without one the action alone says which activities or which 20 minute effort a sport lacks.
+  const { reason, action, hold } = heldTexts(result, period)
+  const why = hold === null ? '' : `${reason} `
   const allTimeEnough =
     needLine(headlineShortfall(result.activities), period, result.activities) !== null &&
     period.days !== null &&
@@ -124,7 +114,7 @@ function heldMissing(
   return {
     // The levels the files do show are the title; "not enough" is the title only when there is none to show.
     title: levelsTitle(levels, unconfirmedSports(result)) ?? HARDER_EFFORTS_TITLE,
-    detail: `From ${runs} and ${rides}. ${reason}${action}`,
+    detail: `From ${runs} and ${rides}. ${why}${action}`,
     canShowAll: allTimeEnough,
   }
 }

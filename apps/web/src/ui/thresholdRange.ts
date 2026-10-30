@@ -7,6 +7,16 @@ import type { UnitSystem } from '@rca/core/units'
 import { isEstimatedRecord, paceFigure, powerFigure } from './records'
 import type { Figure } from './records'
 
+/**
+ * The share of the reference that sets the band's allowance: the judged effort's, where the gate judged it hard. Where it could
+ * not judge (no heart rate, too few days) the share it worked out, if any, says nothing of how hard the effort was, so the
+ * band takes the allowance of an effort at the hard line.
+ */
+export function bandShareOf(result: AnalysisResult, sport: Sport): number | null {
+  const gate = result.effortGate[sport]
+  return gate.verdict === 'hard' ? gate.share : null
+}
+
 /** Whether a ride's fit draws on an effort in its window whose watts are estimated, from virtual power. */
 export function fitRestsOnEstimate(result: AnalysisResult): boolean {
   const byId = new Map(result.activities.map((activity) => [activity.id, activity]))
@@ -81,7 +91,7 @@ function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
     return { low, centre: low, high: uneven.fit.cp, spread: false }
   }
   if (!fit || (sport === 'ride' && fitRestsOnEstimate(result))) return null
-  const { low, high } = cpBand(fit, result.effortGate[sport].share)
+  const { low, high } = cpBand(fit, bandShareOf(result, sport))
   if (!(low > RESTING_W_PER_KG)) return null
   return { low, centre: fit.cp, high, spread: true }
 }

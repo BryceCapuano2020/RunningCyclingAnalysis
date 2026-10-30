@@ -5,7 +5,7 @@ import type { Period } from '@rca/core/period'
 import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import { BalanceMeter } from '../components/BalanceMeter'
-import { unconfirmedSports } from '../components/headlineNeed'
+import { uncheckedNote, unconfirmedSports } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
@@ -115,6 +115,8 @@ export function BalanceHero({
   }
   const { lead, sport, noun } = titleParts(reading)
   const few = fewEffortsText(result)
+  // A comparison that rests on a best nothing could check (no heart rate on it) is shown, with that said beside it.
+  const unchecked = uncheckedNote(result)
   return (
     <div className="balance-hero__pair">
       <section className="balance-hero balance-hero--answer">
@@ -138,6 +140,7 @@ export function BalanceHero({
             />
           </p>
           {few !== null && <p className="secondary">{few}</p>}
+          {unchecked !== null && <p className="secondary">{unchecked}</p>}
         </div>
       </section>
       <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />

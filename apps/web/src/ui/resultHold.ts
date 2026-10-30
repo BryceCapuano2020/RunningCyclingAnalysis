@@ -1,6 +1,8 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
-import { effortHold } from './components/headlineNeed'
+import type { Period } from '@rca/core/period'
+import { effortHold, heldAction, heldReason } from './components/headlineNeed'
+import { headlineShortfall } from './components/pickHeadline'
 import { headlinePick } from './components/pickHeadline'
 import type { HeadlinePick } from './components/pickHeadline'
 
@@ -47,4 +49,22 @@ export function heldPick(
 ): { hold: Hold | null; pick: HeadlinePick | null } {
   const hold = holdOf(result, inputs)
   return { hold, pick: hold === null ? headlinePick(result) : null }
+}
+
+/**
+ * What to tell a reader whose headline is not shown, and what lifts it: the hold's own text and action when there is one
+ * (so the precedence of `holdOf` applies), else the count of activities a sport is short of or the 20 minute effort it lacks.
+ * Too few activities comes first, since an effort cannot be asked of a sport with too little on file.
+ */
+export function heldTexts(
+  result: AnalysisResult,
+  period: Period | undefined,
+  inputs: HoldInputs = {},
+): { reason: string; action: string; hold: Hold | null } {
+  const hold = holdOf(result, inputs)
+  const short = headlineShortfall(result.activities)
+  if (hold !== null && short.run === 0 && short.ride === 0) {
+    return { reason: hold.text, action: hold.action, hold }
+  }
+  return { reason: heldReason(result, period), action: heldAction(result, period), hold: null }
 }

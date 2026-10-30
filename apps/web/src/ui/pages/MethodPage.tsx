@@ -8,9 +8,8 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
-import { heldPick } from '../resultHold'
+import { heldPick, heldTexts } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
-import { heldReason } from '../components/headlineNeed'
 import {
   headlineBasis,
   headlineText,
@@ -75,7 +74,7 @@ const ENERGY_FALLBACK =
   'When Balance has no age-grade gap to show, it shows the energy ratio instead: running’s energy rate as a percentage of cycling’s. This view is that ratio.'
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
-/** The energy view while Balance holds its headline: the reason is Balance's own (see heldReason). */
+/** The energy view while Balance holds its headline: the reason is Balance's own (see heldTexts). */
 const HELD_COMPARISON = 'The comparison is held.'
 /** The energy view with no ride to compare a run with, so a weight would not change what it shows. */
 const NEEDS_RIDE = 'Needs a ride to compare with running.'
@@ -145,7 +144,10 @@ export function MethodPage({
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
   const pick = result ? heldPick(result).pick : null
-  const reason = result ? heldReason(result, period) : ''
+  const held = result ? heldTexts(result, period) : null
+  // Under a hold the reason and what lifts it are the hold's; else the activities or the 20 minute effort a sport lacks.
+  const reason =
+    held === null ? '' : held.hold === null ? held.reason : `${held.reason} ${held.action}`
   const effort = result?.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   const reference = result ? referenceText(result) : null
   const setAside = result ? setAsideText(result, heartRateJudgement) : null

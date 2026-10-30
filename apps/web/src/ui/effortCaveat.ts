@@ -2,8 +2,7 @@ import { isHardShare } from '@rca/core/effort'
 import type { ReferenceReading, ReferenceSource } from '@rca/core/effort'
 import type { EffortCheck, Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
-import { HEADLINE_LABEL } from './grades'
-import { HIGH_ACTION, REFERENCE_ACTION, THIN_ACTION, THIN_WHY } from './effortWords'
+import { REFERENCE_ACTION, THIN_ACTION, THIN_WHY, referenceWords } from './effortWords'
 import { SPORT_NOUN, SPORT_ORDER } from './sports'
 
 /*
@@ -24,21 +23,23 @@ export interface EffortCaveat {
 const CLOSE_SHARE = 0.95
 
 /**
- * What follows a best effort's share, shared by the card's text and the sport page's line. Under the line the measured
- * fact is the share, so it says what would change it. At it, it says no more than the share shows: heart rate near the
+ * What follows a best effort's share, shared by the card's text and the sport page's line. Under the line it says so. At it, it says no more than the share shows: heart rate near the
  * athlete's highest is not proof of an all-out effort, and within 10% of it cannot tell a hard 20 minutes from an all-out one.
  */
 function verdictAfter(fraction: number, duration: string, top: string): string {
-  if (!isHardShare(fraction)) return `. A hard ${duration} effort would raise this.`
+  if (!isHardShare(fraction)) return `. That is under the 90% that marks a hard effort.`
   if (fraction >= CLOSE_SHARE) return `: close to your ${top}.`
   return `: within 10% of your ${top}. Heart rate cannot tell a hard ${duration} from an all-out one.`
 }
 
-/** What the reference is named after: the heart rate the athlete entered or the age gives a max, the activities a highest. */
+/**
+ * What the reference is named after: the activities give a highest heart rate, the athlete's entry a max, and the age only a
+ * predicted max that people differ from by about 10 bpm either way, so a share of it never says "close to your max".
+ */
 const TOP: Record<ReferenceSource, string> = {
   data: 'highest heart rate',
   entered: 'max heart rate',
-  age: 'max heart rate',
+  age: 'age-predicted max (±10 bpm)',
 }
 
 /** A share as the percent the text shows. The verdict is judged on this same figure. */
@@ -64,30 +65,6 @@ function referenceOf(effort: EffortCheck, sport: Sport): ReferenceReading | null
 function sourceOf(effort: EffortCheck, sport: Sport): ReferenceSource {
   const source = { run: effort.runReferenceSource, ride: effort.rideReferenceSource }[sport]
   return source ?? 'data'
-}
-
-/**
- * Why a share of a reference that cannot be a maximum shows nothing, in words that follow "so a share of it cannot
- * show your best 20 min was hard", and what to do: the reference is too low to be a maximum, sits where a typical day does,
- * or is far above the age band.
- */
-const UNCONFIRMED: Record<
-  Exclude<ReferenceReading, 'trusted' | 'thin'>,
-  { why: (noun: string) => string; action: string }
-> = {
-  low: {
-    why: (noun) => `The highest heart rate on file for your ${noun} is too low to be a maximum`,
-    action: REFERENCE_ACTION,
-  },
-  habitual: {
-    why: (noun) => `Your ${noun} heart rate on file never rises far above a typical day's`,
-    action: REFERENCE_ACTION,
-  },
-  high: {
-    why: (noun) =>
-      `Your highest ${noun} heart rate on file is far above the usual maximum for your age`,
-    action: HIGH_ACTION,
-  },
 }
 
 /** Where the reference heart rate is named, its one gloss, in words that hold for both sports. */
@@ -145,7 +122,7 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
       text:
         `Your best ${duration} reached ${percentOf(run)}% of your running reference heart rate ` +
         `and ${percentOf(ride)}% of your cycling one (both ${SOURCE_TEXT.data}). ` +
-        `A hard ${duration} effort in each sport would raise these.`,
+        `Both are under the 90% that marks a hard effort.`,
       short: `Best efforts over ${duration} did not reach a hard heart rate.`,
     }
   }
@@ -169,7 +146,7 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
 /**
  * One line on a sport's best effort at the headline duration, by heart rate, such as "Your best 20 min
  * running reached 70% of your running reference heart rate (set from your highest heart rates on file).
- * A hard 20 min effort would raise this", with whether the effort was hard and the share as the whole percent the line shows, which a sport
+ * That is under the 90% that marks a hard effort", with whether the effort was hard and the share as the whole percent the line shows, which a sport
  * page's chip says beside its label.
  */
 export function effortShare(
@@ -180,6 +157,7 @@ export function effortShare(
   const fraction = { run: effort.runHrFraction, ride: effort.rideHrFraction }[sport]
   if (fraction === null) return null
   const reading = referenceOf(effort, sport)
+  const duration = formatDuration(effort.durationS)
   if (reading === 'thin') {
     return {
       line: `${THIN_WHY} ${THIN_ACTION}`,
@@ -190,9 +168,10 @@ export function effortShare(
     }
   }
   if (reading !== null && reading !== 'trusted') {
-    const { why, action } = UNCONFIRMED[reading]
+    const noun = SPORT_NOUN[sport]
+    const { why, action } = referenceWords(reading, { noun, supplier: noun, bpm: null })
     return {
-      line: `${why(SPORT_NOUN[sport])}, so a share of it cannot show your best ${HEADLINE_LABEL} was hard. ${action}`,
+      line: `${why.charAt(0).toUpperCase()}${why.slice(1)}, so a share of it cannot show your best ${duration} was hard. ${action}`,
       hard: false,
       percent: percentOf(fraction),
       confirmed: false,
@@ -202,7 +181,7 @@ export function effortShare(
   const source = sourceOf(effort, sport)
   const hard = isHard(fraction)
   return {
-    line: `${reachedText(sport, HEADLINE_LABEL, fraction, source)}${verdictAfter(fraction, HEADLINE_LABEL, TOP[source])}`,
+    line: `${reachedText(sport, duration, fraction, source)}${verdictAfter(fraction, duration, TOP[source])}`,
     hard,
     percent: percentOf(fraction),
     confirmed: true,

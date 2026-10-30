@@ -180,6 +180,12 @@ export function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
   return bestOf(ordered, 'ride', (point) => point.value, isMeasured)
 }
 
+/** Whether a sport's 20 minute value is a measurement: a run's pace is, a ride's watts only from a power meter. */
+const MEASURED: Record<Sport, (digest: ActivityDigest) => boolean> = {
+  run: () => true,
+  ride: (digest) => digest.powerSource === 'measured',
+}
+
 /** The index of the 20 minute best among a digest's durations. */
 const HEADLINE_INDEX = DURATIONS_S.indexOf(HEADLINE_DURATION_S)
 
@@ -211,6 +217,7 @@ export function twentyMinutePoints(
     out[digest.sport].push({
       value,
       heartRate: setAside.has(digest.id) ? null : point.heartRate,
+      measured: MEASURED[digest.sport](digest),
     })
   }
   return out

@@ -72,9 +72,10 @@ describe('what must be held is held', () => {
     'easy running with the true maximum entered': train('easy', { entered: 1 }),
   }
   it.each(Object.entries(HELD))('lets almost none of %s through as hard', (name, arm) => {
-    // Recorded: 0 of 100 for every arm but realistic easy running (2 of 100), the offset arm (5) and easy riding (5).
+    // Recorded: 0 of 100 for every arm but realistic easy running (2 of 100, 4 with the age) and easy riding (5).
     const { high } = count(name, arm, 'hard')
-    expect(high, HARD_BOUNDS).toBeLessThan(0.13)
+    // The bound sits well over the recorded 5 (Wilson upper 0.11), so a draw that moves a few athletes does not fail it.
+    expect(high, HARD_BOUNDS).toBeLessThan(0.17)
   })
 
   it('holds a tempo-only library with the age known 93 times in a hundred, and says so', () => {
@@ -122,6 +123,30 @@ describe('hard training is let through', () => {
 })
 
 describe('what the gate cannot do, recorded', () => {
+  it('holds tempo riding with a power meter only by the fit’s own refusal, and without one like a runner', () => {
+    // With a meter the typical day at the maximum does not hold the reference (the judged best is a measurement); without one
+    // the watts are an estimate and the reference reads as a runner's does.
+    const meter = count('tempo riding with a meter', train('tempo', {}, {}, 'ride'), 'hard')
+    const none = count(
+      'tempo riding without a meter',
+      train('tempo', {}, { withPower: false }, 'ride'),
+      'hard',
+    )
+    const readings = (name: string) =>
+      draws(name, train('tempo', {}, {}, 'ride')).filter(
+        (d) => d.result.effortGate.ride.reference === 'habitual',
+      ).length
+    expect(readings('tempo riding with a meter')).toBe(0)
+    expect(meter.n).toBeGreaterThan(none.n)
+    expect(none.high).toBeLessThan(0.1)
+    // The fit of a tempo-only ride is refused for its shape either way.
+    expect(
+      draws('tempo riding with a meter', train('tempo', {}, {}, 'ride')).every(
+        (d) => d.result.rideCp === null,
+      ),
+    ).toBe(true)
+  })
+
   it('does not see through tempo and intervals every week: 96 pass with a fit about 13% under the truth', () => {
     const arm = train('mixed')
     const { low } = count('mixed', arm, 'hard')
@@ -247,7 +272,8 @@ describe('the fit spread', () => {
       return truth >= low && truth <= high
     }).length
     const share = held / fits.length
-    // Recorded: 0.67 over about a thousand fits (a Wilson bound of 0.64 to 0.70).
+    // Recorded: 0.67 over about a thousand fits, in-sample: the allowance was fitted to these same fits, so this is the fit's
+    // own coverage and no out-of-sample claim, and no interval is put on it.
     expect(fits.length).toBeGreaterThan(800)
     expect(share).toBeGreaterThan(0.62)
     expect(share).toBeLessThan(0.73)

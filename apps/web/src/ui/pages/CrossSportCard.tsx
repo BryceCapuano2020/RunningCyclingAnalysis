@@ -93,17 +93,18 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
   }
   const paceNumber = formatPaceValue(featured.runSpeed.p50, units)
   const duration = effortLabel(featured.durationS)
-  // The pace is worth what the ride was, so a ride that was not shown to be a hard effort says so beside it. A hard one is
-  // said on the ride's own tile, which sits beside this card, and is not said twice.
-  const atHeadline = featured.durationS === HEADLINE_DURATION_S
-  const found = atHeadline
-    ? effortChipText(
-        'ride',
-        result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
-      )
-    : null
+  // The pace is worth what the ride was, so a ride that was not shown to be a hard effort says so beside it, at whatever duration
+  // the pace is of. A hard one is said on the ride's own tile, beside this card, and is not said twice.
+  const found = effortChipText(
+    'ride',
+    result.effort.find((check) => check.durationS === featured.durationS),
+  )
   const chip = found !== null && !found.hard ? found : null
-  const unchecked = atHeadline && found === null ? thresholdUncheckedLine(result, 'ride') : null
+  // The gate judges the best 20 minutes, so only that carries a "not checked" line.
+  const unchecked =
+    featured.durationS === HEADLINE_DURATION_S && found === null
+      ? thresholdUncheckedLine(result, 'ride')
+      : null
   return (
     <StatTile
       sport="ride"

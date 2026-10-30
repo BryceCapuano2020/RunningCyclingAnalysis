@@ -5,7 +5,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { ThresholdLine } from './charts/sportCurveModel'
-import { fitRestsOnEstimate, thresholdRange } from './thresholdRange'
+import { bandShareOf, fitRestsOnEstimate, thresholdRange } from './thresholdRange'
 
 /** A fit's metabolic W/kg as the sport's own number: flat speed in m/s for running, watts for cycling. */
 type Native = (metabolicWkg: number, massKg: number) => number
@@ -38,7 +38,7 @@ export function thresholdLine(
   const detail = thresholdRange(result, sport, massKg, units) ?? undefined
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   const banded = detail !== undefined && !uneven
-  const band = cpBand(fit, result.effortGate[sport].share)
+  const band = cpBand(fit, bandShareOf(result, sport))
   return {
     value: native(fit.cp, massKg),
     low: banded ? native(band.low, massKg) : undefined,

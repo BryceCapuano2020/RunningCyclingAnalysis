@@ -1352,7 +1352,7 @@ describe('SportPage depth', () => {
         name: '',
       }),
     ).toHaveTextContent(
-      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). A hard 20 min effort would raise this.',
+      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
     expect(
       screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),

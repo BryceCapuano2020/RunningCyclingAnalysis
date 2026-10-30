@@ -210,17 +210,25 @@ function windowHard(
   reading: ReferenceReading | null,
 ): boolean {
   if (reading === null || reading === 'thin') return true
-  let best = NONE
-  for (let i = lo; i < hi; i++) best = Math.max(best, entries[i]!.backed[HEADLINE_INDEX]!)
+  const values = entries.slice(lo, hi).map(twentyMinuteValue)
+  const best = Math.max(NONE, ...values)
   if (best === NONE) return true
   let share: number | null = null
-  for (let i = lo; i < hi; i++) {
-    const entry = entries[i]!
-    const near = entry.backed[HEADLINE_INDEX]! >= best * (1 - CP_FIT_REACH_TOLERANCE)
+  values.forEach((value, i) => {
+    const entry = entries[lo + i]!
+    const near = value >= best * (1 - CP_FIT_REACH_TOLERANCE)
     if (near && entry.share !== null && (share === null || entry.share > share)) share = entry.share
-  }
+  })
   if (share === null) return true
   return reading === 'trusted' && isHardShare(share)
+}
+
+/**
+ * An entry's 20 minute value as the gate counts it: the best of the points that count at every duration and the one that
+ * stands at its own duration alone (an estimated ride's unbacked point), since the gate takes every ride's 20 minutes.
+ */
+function twentyMinuteValue(entry: Entry): number {
+  return Math.max(entry.backed[HEADLINE_INDEX]!, entry.standing?.[HEADLINE_INDEX] ?? NONE)
 }
 
 /**

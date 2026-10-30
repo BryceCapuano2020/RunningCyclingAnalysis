@@ -153,12 +153,20 @@ describe('the effort gate through the analysis', () => {
     expect(result.effortGate.run.neededS).toBeNull()
   })
 
-  it('does not hold a rider with a power meter for a typical day at the maximum: the curve’s shape judges', () => {
-    // Tempo-only riding has its typical day at its maximum. A runner is held for it; a rider with a meter is not.
-    const rides = combine(digestsOf('tempo', 'ride', 1), SETTINGS)
+  it('does not hold a rider for a typical day at the maximum when the judged best 20 minutes is a power meter’s measurement', () => {
+    // Tempo-only riding has its typical day at its maximum. A runner is held for it; a rider whose best 20 minutes is a
+    // measurement is not: the fit's own refusals answer for the curve. A rider without a meter is held like a runner.
+    const measured = combine(digestsOf('tempo', 'ride', 1), SETTINGS)
+    const estimated = combine(
+      libraryOf('tempo', athleteFor(1), 1, 'ride', { withPower: false }).map((a) =>
+        digestActivity(a),
+      ),
+      SETTINGS,
+    )
     const runs = combine(digestsOf('tempo', 'run', 1), SETTINGS)
-    expect(runs.effortGate.run.reference).not.toBe('trusted')
-    expect(rides.effortGate.ride.reference).not.toBe('habitual')
+    expect(runs.effortGate.run.reference).toBe('habitual')
+    expect(measured.effortGate.ride.reference).toBe('trusted')
+    expect(estimated.effortGate.ride.reference).not.toBe('trusted')
   })
 
   it('lists the hard sessions and the long sessions of high average heart rate that predictions may draw on', () => {
@@ -168,5 +176,16 @@ describe('the effort gate through the analysis', () => {
     expect(hard.length).toBeLessThan(result.activities.length)
     expect(endurance.length).toBeLessThan(result.activities.length)
     expect(combine(digestsOf('easy'), SETTINGS).effortGate.run.sessions.hard).toEqual([])
+  })
+
+  it('uses an entered cycling maximum as it is, not lifted by the running reference', () => {
+    const both = [
+      { kind: 'maxHeartRate' as const, sport: 'run' as const, value: 190, from: '2020-01-01' },
+      { kind: 'maxHeartRate' as const, sport: 'ride' as const, value: 172, from: '2020-01-01' },
+    ]
+    const library = [...digestsOf('hard'), ...digestsOf('hard', 'ride')]
+    const result = combine(library, { ...SETTINGS, measurements: both })
+    expect(result.effortGate.ride).toMatchObject({ referenceBpm: 172, referenceSource: 'entered' })
+    expect(result.effortGate.run).toMatchObject({ referenceBpm: 190, referenceSource: 'entered' })
   })
 })

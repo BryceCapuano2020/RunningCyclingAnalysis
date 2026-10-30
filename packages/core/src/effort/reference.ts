@@ -1,6 +1,6 @@
 import type { ReferenceSettings } from '../athlete/references'
 import type { Sport } from '../types'
-import { referenceMaxHeartRates } from './effort'
+import { RIDE_MAX_OFFSET_BPM } from './effort'
 import type { MaxHeartRates } from './effort'
 
 /*
@@ -86,6 +86,28 @@ export interface TypicalDayShare {
 
 const OTHER_SPORT: Record<Sport, Sport> = { run: 'ride', ride: 'run' }
 
+/**
+ * The references from the maxima the athlete entered, as entered: each sport's own is used as it is, never lifted by the other's.
+ * A sport with none takes the other's, cycling's less RIDE_MAX_OFFSET_BPM. Null for both when none was entered.
+ */
+export function enteredReferences(entered: Record<Sport, number | null>): MaxHeartRates {
+  return {
+    run: entered.run ?? entered.ride,
+    ride: entered.ride ?? (entered.run === null ? null : entered.run - RIDE_MAX_OFFSET_BPM),
+  }
+}
+
+/**
+ * A reference read with a sport's `habitual` lifted to `trusted`: for a ride whose judged best 20 minutes is a power meter's
+ * measurement. The typical-day check asks whether the athlete ever goes hard; a measured output lets the fit's own refusals (a
+ * curve that is flat, or whose work capacity is under the floor) answer that for a ride. It is no test of hardness itself, so
+ * `low` and `high` still hold, and an estimated ride, whose watts are a model's, is not exempt.
+ */
+export function exemptHabitual(reference: EffortReference, sport: Sport): EffortReference {
+  if (reference.reading[sport] !== 'habitual') return reference
+  return { ...reference, reading: { ...reference.reading, [sport]: 'trusted' } }
+}
+
 export interface ReferenceInput {
   /** The reference the activities give (`referenceMaxHeartRates`), with each sport's own maximum behind it. */
   reference: MaxHeartRates
@@ -94,8 +116,6 @@ export interface ReferenceInput {
   settings: ReferenceSettings
   /** The athlete's age at the newest heart rate, or null without a year of birth. */
   ageYears: number | null
-  /** Sports whose bests the curve's shape judges as well: a ride with a power meter, where the typical day proves nothing. */
-  shapeJudges: Record<Sport, boolean>
 }
 
 /**
@@ -104,11 +124,12 @@ export interface ReferenceInput {
  * - Under HABITUAL_MIN_DAYS with a heart rate the activities cannot set a reference: with the age known it is the
  *   age-predicted maximum, else the library is `thin` and nothing is judged.
  * - Otherwise it is the activities', read by the sport that supplied it: `low` under the floor, `high` over the age
- *   band, `habitual` when the typical day sits at it. A rider with a power meter is not held for `habitual`.
+ *   band, `habitual` when the typical day sits at it. (`exemptHabitual` lifts `habitual` for a ride whose judged best is
+ *   a power meter's measurement; see there.)
  */
 export function readReferences(input: ReferenceInput): EffortReference {
-  const { reference, observedMax, typical, settings, ageYears, shapeJudges } = input
-  const entered = referenceMaxHeartRates(settings.entered.run, settings.entered.ride)
+  const { reference, observedMax, typical, settings, ageYears } = input
+  const entered = enteredReferences(settings.entered)
   const predicted = ageYears === null ? null : predictedMaxHeartRate(ageYears)
   const readOne = (sport: Sport): One | null => {
     const bpm = entered[sport]
@@ -128,7 +149,6 @@ export function readReferences(input: ReferenceInput): EffortReference {
     else if (predicted !== null && own > predicted + HIGH_OVER_PREDICTED_BPM) reading = 'high'
     else if (
       day.share >= HABITUAL_PEAK_RATIO &&
-      !shapeJudges[sport] &&
       (predicted === null || own < predicted - HABITUAL_SLACK_BPM)
     ) {
       reading = 'habitual'

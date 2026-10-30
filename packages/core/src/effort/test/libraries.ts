@@ -144,6 +144,8 @@ export interface LibraryOptions {
   dayOffsetBpm?: number
   /** The share of easy sessions with strides: short bursts that lift the heart rate. */
   strides?: number
+  /** Rides only: false for a ride without a power meter (its watts are estimated from speed and grade). */
+  withPower?: boolean
 }
 
 /** A standard normal draw. */
@@ -208,6 +210,7 @@ export function libraryOf(
           durationS: minutes * 60,
           effort: session.effort,
           terrain: sport === 'run' ? 'flat' : 'rolling',
+          withPower: options.withPower,
         },
         Math.floor(rand() * 0x100000000),
       )

@@ -9,6 +9,8 @@ import {
   HIGH_OVER_PREDICTED_BPM,
   REFERENCE_FLOOR_BPM,
   predictedMaxHeartRate,
+  enteredReferences,
+  exemptHabitual,
   readReferences,
   referenceFloorBpm,
 } from './reference'
@@ -23,7 +25,6 @@ function input(over: Partial<ReferenceInput> = {}): ReferenceInput {
     typical: { run: days(0.8), ride: days(0.8) },
     settings: NO_REFERENCE_SETTINGS,
     ageYears: null,
-    shapeJudges: { run: false, ride: false },
     ...over,
   }
 }
@@ -96,16 +97,6 @@ describe('readReferences', () => {
     ).toBe('trusted')
   })
 
-  it('does not hold a rider with a power meter for a typical day at the line: the curve’s shape judges', () => {
-    const read = readReferences(
-      input({
-        typical: { run: days(0.95), ride: days(0.95) },
-        shapeJudges: { run: false, ride: true },
-      }),
-    )
-    expect(read.reading).toEqual({ run: 'habitual', ride: 'trusted' })
-  })
-
   it('does not hold a hard-heavy athlete whose reference is within the slack of the age-predicted maximum', () => {
     const typical = { run: days(0.95), ride: days(0.8) }
     // Age 40 predicts 180: a reference of 172 is within 10 bpm of it, 165 is not.
@@ -175,5 +166,30 @@ describe('readReferences', () => {
     const read = readReferences(input({ reference: none, observedMax: none, typical: none }))
     expect(read.reading).toEqual(none)
     expect(read.referenceHr).toEqual(none)
+  })
+})
+
+describe('exemptHabitual', () => {
+  it('lifts a sport’s habitual reading to trusted, and only that', () => {
+    const habitual = readReferences(input({ typical: { run: days(0.95), ride: days(0.95) } }))
+    expect(habitual.reading).toEqual({ run: 'habitual', ride: 'habitual' })
+    expect(exemptHabitual(habitual, 'ride').reading).toEqual({ run: 'habitual', ride: 'trusted' })
+    const low = readReferences(
+      input({ reference: { run: 140, ride: 140 }, observedMax: { run: 140, ride: 140 } }),
+    )
+    expect(exemptHabitual(low, 'ride')).toBe(low)
+  })
+})
+
+describe('enteredReferences', () => {
+  it('uses each sport’s entered maximum as it is, never lifted by the other’s', () => {
+    expect(enteredReferences({ run: 186, ride: 190 })).toEqual({ run: 186, ride: 190 })
+    expect(enteredReferences({ run: 186, ride: 170 })).toEqual({ run: 186, ride: 170 })
+  })
+
+  it('takes the other sport’s for one with none: cycling’s less 6 bpm, running’s as it is', () => {
+    expect(enteredReferences({ run: 186, ride: null })).toEqual({ run: 186, ride: 180 })
+    expect(enteredReferences({ run: null, ride: 176 })).toEqual({ run: 176, ride: 176 })
+    expect(enteredReferences({ run: null, ride: null })).toEqual({ run: null, ride: null })
   })
 })

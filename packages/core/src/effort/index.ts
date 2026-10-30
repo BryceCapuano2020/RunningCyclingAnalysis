@@ -10,6 +10,8 @@ export {
   HIGH_OVER_PREDICTED_BPM,
   NO_EFFORT_REFERENCE,
   REFERENCE_FLOOR_BPM,
+  enteredReferences,
+  exemptHabitual,
   predictedMaxHeartRate,
   readReferences,
   referenceFloorBpm,
