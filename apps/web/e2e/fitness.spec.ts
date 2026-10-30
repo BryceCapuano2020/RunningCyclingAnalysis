@@ -159,7 +159,12 @@ test('a tap on the lower third of a term opens it and not the term on the line b
   await page.getByText('See the evidence').click()
   await expect(page.locator('.fitness-evidence .definition__term').first()).toBeVisible()
   let pairs = 0
-  for (const scope of ['.fitness-card__headline', '.fitness-card__support', '.fitness-evidence']) {
+  for (const scope of [
+    '.fitness-card__headline',
+    '.fitness-card__support',
+    '.fitness-evidence',
+    '.balance-hero__lede',
+  ]) {
     const region = page.locator(scope)
     const boxes = await termBoxes(region)
     for (const upper of boxes) {
@@ -241,4 +246,71 @@ test('a forced-colours reader still sees the card’s edge and the track’s out
     .locator('.fitness-track__band')
     .evaluate((el) => getComputedStyle(el).backgroundColor)
   expect(band).not.toBe('rgba(0, 0, 0, 0)')
+})
+
+// The one thing in the evidence panel that moves is the phone's readout sheet, which opens with a short animation
+// unless the reader asks for less motion. The check reads it both ways, so it cannot pass because nothing moves.
+for (const [preference, animation] of [
+  ['no-preference', 'chart-readout-open'],
+  ['reduce', 'none'],
+] as const) {
+  test(`the chart's readout sheet animates for "${preference}" motion as ${animation}`, async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !['mobile', 'mobile-webkit'].includes(testInfo.project.name),
+      'The readout sheet is the phone’s',
+    )
+    await page.emulateMedia({ reducedMotion: preference })
+    await openSample(page)
+    await page.getByText('See the evidence').click()
+    const chart = page.getByRole('figure', { name: CHART })
+    await chart.locator('.plot-surface').focus()
+    await page.keyboard.press('ArrowRight')
+    const title = chart.locator('.chart-tooltip__title')
+    await expect(title).toContainText(/^The \d+ weeks to /)
+    const sheet = chart.locator('.chart-frame__readout--compact .chart-tooltip')
+    expect(await sheet.evaluate((el) => getComputedStyle(el).animationName)).toBe(animation)
+  })
+}
+
+// On a phone the level's labels sit inside the plot, where the reference line's label could land on one: no two of
+// the chart's texts may share ground, whatever the width.
+test('no label of the evidence chart is written over another', async ({ page }) => {
+  await openSample(page)
+  await page.getByText('See the evidence').click()
+  const chart = page.getByRole('figure', { name: CHART })
+  await expect(chart.locator('[data-annotation="before"]')).toBeVisible()
+  const boxes = await chart.evaluate((root) => {
+    const texts = [
+      ...root.querySelectorAll(
+        '.chart-y-axis__tick, .chart-x-axis__tick, [data-annotation] text, [data-testid="fitness-onset"] text',
+      ),
+    ]
+    return texts
+      .filter((t) => (t.textContent ?? '').trim() !== '')
+      .map((t) => {
+        const b = t.getBoundingClientRect()
+        return {
+          text: t.textContent ?? '',
+          left: b.left,
+          right: b.right,
+          top: b.top,
+          bottom: b.bottom,
+        }
+      })
+  })
+  expect(boxes.length).toBeGreaterThan(6)
+  for (const [i, a] of boxes.entries()) {
+    for (const b of boxes.slice(i + 1)) {
+      const apart =
+        a.right <= b.left + 1 ||
+        b.right <= a.left + 1 ||
+        a.bottom <= b.top + 1 ||
+        b.bottom <= a.top + 1
+      // The level's labels are drawn twice (under the marks and over them), at the same place.
+      const same = a.text === b.text && Math.abs(a.left - b.left) < 1 && Math.abs(a.top - b.top) < 1
+      expect(apart || same, `"${a.text}" and "${b.text}" overlap`).toBe(true)
+    }
+  }
 })

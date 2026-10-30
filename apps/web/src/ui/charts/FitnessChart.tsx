@@ -8,6 +8,7 @@ import { lineObstacles } from './annotations'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
+import { insideLabelBoxes } from './yAxisLabels'
 import { Crosshair } from './Crosshair'
 import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import type { ChartSize, TooltipContent } from './chartTypes'
@@ -207,7 +208,16 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
             />
             <ChartAnnotations
               size={size}
-              obstacles={lineObstacles(m.line, LINE_CLEARANCE_PX)}
+              obstacles={[
+                ...lineObstacles(m.line, LINE_CLEARANCE_PX),
+                // The level's labels, where a phone sets them inside the plot, are not to be written over.
+                ...insideLabelBoxes(
+                  m.yTicks,
+                  plot,
+                  axisTitle(sport, units),
+                  axisFontSize(size.width),
+                ),
+              ]}
               annotations={[
                 {
                   kind: 'reference',
