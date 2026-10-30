@@ -30,7 +30,9 @@ import { AWAITED, NO_DETAIL, useSplitsView, type TraceReport } from '../useSplit
 import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
 import { setAsideActivityText } from '../analysis/setAsideCopy'
-import { WALKING_PACE_CHIP, WALKING_PACE_NOTE } from '../analysis/walkingPaceCopy'
+import { WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
+import { WalkingPaceSection } from '../components/WalkingChoice'
+import type { WalkingChoice } from '../components/WalkingChoice'
 import { ActivityIssues } from './ActivityIssues'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
@@ -86,6 +88,8 @@ export interface ActivityPageProps {
   /** The library's notice and error, which say how a removal from this page ended. */
   libraryNotice?: string | null
   libraryError?: string | null
+  /** For a run at walking pace: whether the athlete counts it, and how to change that. Absent: no choice is offered. */
+  walkingChoice?: WalkingChoice
 }
 
 /**
@@ -137,6 +141,7 @@ export function ActivityPage({
   heartRateJudgement,
   weightKnown,
   profile,
+  walkingChoice,
   records,
   loadSplits,
   loadTrace,
@@ -269,7 +274,9 @@ export function ActivityPage({
           <span>{formatDay(activity.startMs)}</span>
           <span>{formatTimeOfDay(activity.startMs)}</span>
           {activity.indoor && <span className="chip">Indoor</span>}
-          {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
+          {(activity.walkingPace || walkingChoice?.counted) && (
+            <span className="chip">{WALKING_PACE_CHIP}</span>
+          )}
         </p>
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="activity-page__title">
           {activity.name}
@@ -329,10 +336,9 @@ export function ActivityPage({
         />
       )}
 
-      {/* A run at walking pace is outside the analysis, so there are no bests to give. */}
-      {activity.walkingPace ? (
-        <p className="secondary">{WALKING_PACE_NOTE}</p>
-      ) : (
+      {/* A run at walking pace is outside the analysis unless the athlete counts it, so there are no bests to give. */}
+      <WalkingPaceSection walkingPace={activity.walkingPace === true} choice={walkingChoice} />
+      {activity.walkingPace !== true && (
         <ActivityBests
           activity={activity}
           result={result}

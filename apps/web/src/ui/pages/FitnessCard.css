@@ -71,8 +71,8 @@
 .fitness-card__new strong {
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  background: var(--selected);
-  color: var(--selected-contrast);
+  background: var(--highlight);
+  color: var(--highlight-ink);
   font-family: var(--font-display);
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-caps);
@@ -170,9 +170,12 @@
 /* The state, as a word at display size and the shape that says it without colour. */
 .fitness-card__state {
   display: flex;
+  /* At a large text size the word and its shape stack, not widen the page. */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin: 0;
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   /* A display size with no type token; see DESIGN.md, Type. */
   font-size: clamp(2rem, 6.4vw, 2.75rem);
@@ -316,8 +319,10 @@
   min-width: 0;
 }
 
-.fitness-evidence__block h4 {
+.fitness-evidence__block h2 {
   margin: 0;
+  /* The eyebrow's own line, not the section heading's tight one. */
+  line-height: inherit;
 }
 
 .fitness-evidence__block p {

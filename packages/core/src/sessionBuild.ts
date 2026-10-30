@@ -4,6 +4,7 @@ import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_TRENDS } from './digest/trendPoints'
+import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
 import { splitPeriods } from './period'
@@ -30,6 +31,8 @@ export interface StateInputs {
   outdatedActivities: number
   incompatibleActivities: number
   syncIssues: SyncIssue[]
+  /** The workout keys of the walking-pace runs the athlete counts, for the state to name. */
+  countedWalkingRuns: string[]
   /** The wall clock (or the sample season's day), which the fitness status reads for how long ago the last run was. */
   nowMs: number
 }
@@ -63,6 +66,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
           judgement.calibration,
           references,
           judgement.rideGate,
+          judgedWorkOf(judgement),
         )
       : null
   // The references that zones are cut from are the library's, not the period's: one activity has the same zones
@@ -116,6 +120,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     incompatibleActivities: inputs.incompatibleActivities,
     hiddenDuplicates: hidden.size,
     walkingPaceRuns: visible.length - analysed.length,
+    countedWalkingRuns: inputs.countedWalkingRuns,
     period,
     library: athlete === null ? [] : activitySummaries(visible, athlete),
     syncIssues: inputs.syncIssues,

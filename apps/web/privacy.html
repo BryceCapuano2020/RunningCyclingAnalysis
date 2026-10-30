@@ -91,6 +91,19 @@
           holds no activity data.
         </li>
         <li>
+          A second flag, named rca.deviceKept.v1, says whether the summaries kept in this browser
+          were there at the last visit, so the app can tell you when the browser has cleared them.
+          It holds no activity data. After your first import is kept, the app also asks the browser
+          to keep this site's storage, which sends nothing anywhere. If the browser will not, the
+          app says so once and notes that in a third flag, rca.persistNote.v1.
+        </li>
+        <li>
+          If you choose to count a run that is at walking pace, the choice is kept in this browser's
+          local storage under rca.countedRuns.v1 as the run's sport and start time in seconds. It is
+          never uploaded, signed in or not. Signing out and deleting your account clear it, and so
+          does Remove all my activities, which is offered only when signed out.
+        </li>
+        <li>
           The name printed on a shared card stays in this browser: it is kept in local storage under
           rca.card-name.v1, and it is never uploaded, signed in or not. It is printed only on a card
           you share or save, and clearing this site's data removes it.
@@ -147,7 +160,7 @@
         <li>
           <strong>Dated settings:</strong> each weight, max heart rate, threshold power or threshold
           pace you add on Profile, with the date it takes effect, and for the heart rate and
-          thresholds the sport. At most 200.
+          thresholds the sport. Each also records when you last changed it. At most 200.
         </li>
         <li>
           <strong>Activity summaries:</strong> name (as in the summary kept in this browser), sport,

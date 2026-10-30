@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { analysisStub } from '../../test/analysisStub'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { analysisStub, countedRunsStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import { WALKING_NOTE_PAGES } from '../analysis/walkingPaceCopy'
 import { forgetSeenNotes } from '../aboutDataStore'
 import { AppNotices } from './AppNotices'
 import type { AppNoticesProps } from './AppNotices'
-import { makeRejectedFile, makeResult } from './fixtures'
+import type { CountedRunsController } from '../useCountedRuns'
+import { makeActivity, makeRejectedFile, makeResult } from './fixtures'
 
 afterEach(() => {
   cleanup()
@@ -51,6 +52,172 @@ describe('the walking pace line', () => {
 
   it('is for the Run and Activities pages', () => {
     expect([...WALKING_NOTE_PAGES].sort()).toEqual(['activities', 'run'])
+  })
+})
+
+describe('the import notice when every run it added is left out at walking pace', () => {
+  const ADDED = {
+    activities: 1,
+    rejected: 0,
+    duplicates: [],
+    runs: 1,
+    firstStartMs: Date.UTC(2025, 5, 14, 6),
+    lastStartMs: Date.UTC(2025, 5, 14, 6),
+  }
+  const LEFT_OUT = /1 run is at walking pace, so it is left out/
+  const hike = makeActivity({ id: 'hike', walkingPace: true })
+  const analysis = { importOutcome: ADDED, state: { library: [hike], walkingPaceRuns: 1 } }
+
+  it('says so under "Added 1 run", on a page that does not say it itself, and where to count it', () => {
+    render(<AppNotices {...noticesProps(analysis, { page: 'ride' })} />)
+    expect(screen.getByText(/^Added 1 run, on /)).toBeInTheDocument()
+    expect(screen.getByText(LEFT_OUT)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open Run to count them.' })).toHaveAttribute(
+      'href',
+      '#/run',
+    )
+  })
+
+  it('leaves it to Balance’s headline and to the Run and Activities note', () => {
+    const balance = render(<AppNotices {...noticesProps(analysis, { atBalance: true })} />)
+    expect(screen.queryByText(LEFT_OUT)).not.toBeInTheDocument()
+    balance.unmount()
+    render(<AppNotices {...noticesProps(analysis, { page: 'run', walkingNote: true })} />)
+    expect(screen.queryByText(LEFT_OUT)).not.toBeInTheDocument()
+  })
+
+  it('says nothing when a run was analysed, since the added sentence is then true', () => {
+    const kept = {
+      ...analysis,
+      state: { library: [hike, makeActivity({ id: 'run' })], walkingPaceRuns: 1 },
+    }
+    render(<AppNotices {...noticesProps(kept, { page: 'ride' })} />)
+    expect(screen.queryByText(LEFT_OUT)).not.toBeInTheDocument()
+  })
+})
+
+describe('the runs counted despite walking pace', () => {
+  function controller(overrides: Partial<CountedRunsController> = {}): CountedRunsController {
+    return { ...countedRunsStub(), ...overrides }
+  }
+
+  it('says what the last change did in a live region that stays mounted, for a screen reader', () => {
+    const { container } = render(
+      <AppNotices
+        {...noticesProps({}, { countedRuns: controller({ status: 'Counting 22 runs.' }) })}
+      />,
+    )
+    const spoken = screen.getByText('Counting 22 runs.')
+    expect(spoken).toHaveClass('sr-only')
+    expect(spoken.closest('[role="status"]')).toBe(container.querySelector('.app__live'))
+  })
+
+  it('keeps saying the browser would not keep the choice, wherever the swap left the page', () => {
+    render(
+      <AppNotices
+        {...noticesProps(
+          {},
+          { countedRuns: controller({ notKept: 'This browser would not keep that choice.' }) },
+        )}
+      />,
+    )
+    expect(screen.getByText('This browser would not keep that choice.')).toBeInTheDocument()
+  })
+
+  it('offers on Run and Activities to leave all of them out again', () => {
+    const stop = vi.fn()
+    const countedRuns = controller({ stop })
+    const keys = ['run-1', 'run-2']
+    render(
+      <AppNotices
+        {...noticesProps(
+          { state: { countedWalkingRuns: keys } },
+          { page: 'run', walkingNote: true, countedRuns },
+        )}
+      />,
+    )
+    expect(screen.getByText(/2 runs are counted despite walking pace\./)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Leave them out' }))
+    expect(stop).toHaveBeenCalledWith(keys)
+  })
+
+  it('runs the press through runThenFocus with the button, so focus lands on the page when it goes', () => {
+    const runThenFocus = vi.fn((action: () => void) => action())
+    render(
+      <AppNotices
+        {...noticesProps(
+          { state: { countedWalkingRuns: ['run-1', 'run-2'] } },
+          { page: 'run', walkingNote: true, countedRuns: controller(), runThenFocus },
+        )}
+      />,
+    )
+    const button = screen.getByRole('button', { name: 'Leave them out' })
+    fireEvent.click(button)
+    expect(runThenFocus).toHaveBeenCalledWith(expect.any(Function), button)
+  })
+
+  it('says it outside the live region, so a press is announced once, by the screen-reader line', () => {
+    const { container } = render(
+      <AppNotices
+        {...noticesProps(
+          { state: { countedWalkingRuns: ['run-1'] } },
+          {
+            page: 'run',
+            walkingNote: true,
+            countedRuns: controller({ status: 'Counting 1 run.' }),
+          },
+        )}
+      />,
+    )
+    const line = screen.getByText(/1 run is counted despite walking pace\./)
+    expect(line.closest('.app__live')).toBeNull()
+    expect(container.querySelector('.app__live')).toHaveTextContent('Counting 1 run.')
+  })
+
+  it('says it in the singular, and not on a page that lists no runs', () => {
+    const countedRuns = controller()
+    const state = { countedWalkingRuns: ['run-1'] }
+    const run = render(
+      <AppNotices {...noticesProps({ state }, { page: 'run', walkingNote: true, countedRuns })} />,
+    )
+    expect(screen.getByText(/1 run is counted despite walking pace\./)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Leave it out' })).toBeInTheDocument()
+    run.unmount()
+    render(<AppNotices {...noticesProps({ state }, { page: 'ride', countedRuns })} />)
+    expect(screen.queryByText(/counted despite walking pace/)).not.toBeInTheDocument()
+  })
+})
+
+describe('the Run page when every run is left out', () => {
+  // A note the visitor has seen is not shown again, so each test starts as a first visit.
+  beforeEach(() => forgetSeenNotes())
+
+  const hike = makeActivity({ id: 'hike', walkingPace: true })
+  const state = { library: [hike], walkingPaceRuns: 1 }
+
+  it('leaves out the offer to open one, since the page has the button; Activities keeps it', () => {
+    const run = render(
+      <AppNotices {...noticesProps({ state }, { page: 'run', walkingNote: true })} />,
+    )
+    expect(screen.getByText(/1 saved run is at walking pace/)).toBeInTheDocument()
+    expect(screen.queryByText(/Open it to count it as a run/)).not.toBeInTheDocument()
+    run.unmount()
+    forgetSeenNotes()
+    render(<AppNotices {...noticesProps({ state }, { page: 'activities', walkingNote: true })} />)
+    expect(screen.getByText(/Open it to count it as a run/)).toBeInTheDocument()
+  })
+
+  it('keeps the offer on Run when some runs are analysed, since the page has no button then', () => {
+    const library = [hike, makeActivity({ id: 'run' })]
+    render(
+      <AppNotices
+        {...noticesProps(
+          { state: { library, walkingPaceRuns: 1 } },
+          { page: 'run', walkingNote: true },
+        )}
+      />,
+    )
+    expect(screen.getByText(/Open it to count it as a run/)).toBeInTheDocument()
   })
 })
 

@@ -9,11 +9,42 @@ export const GLYPH_EM = 0.6
 /** The browser's default root font size, which the chart layouts are measured at. */
 export const DEFAULT_ROOT_PX = 16
 
+/**
+ * What the page's root sets for text, read in one call: the font size in px, and the reader's letter and word
+ * spacing in em of that size (WCAG 1.4.12 asks a page to survive 0.12 em between letters and 0.16 em between
+ * words). A spacing is computed in px at the root, so dividing by the root's size gives the em it was set in,
+ * which is the same em for text that sets its spacing in em. Without a window or styles, or with the spacing at
+ * its normal, the default size stands and nothing is added.
+ */
+export interface RootText {
+  px: number
+  letterEm: number
+  wordEm: number
+}
+
+const DEFAULT_ROOT: RootText = { px: DEFAULT_ROOT_PX, letterEm: 0, wordEm: 0 }
+
+export function readRoot(): RootText {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return DEFAULT_ROOT
+  const style = getComputedStyle(document.documentElement)
+  const px = Number.parseFloat(style.fontSize)
+  if (!(Number.isFinite(px) && px > 0)) return DEFAULT_ROOT
+  const em = (value: string) => {
+    const length = Number.parseFloat(value)
+    return Number.isFinite(length) ? length / px : 0
+  }
+  return { px, letterEm: em(style.letterSpacing), wordEm: em(style.wordSpacing) }
+}
+
 /** The root font size in px, read from the page. */
 export function rootFontPx(): number {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return DEFAULT_ROOT_PX
-  const px = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
-  return Number.isFinite(px) && px > 0 ? px : DEFAULT_ROOT_PX
+  return readRoot().px
+}
+
+/** A text's width in em of its own size: the average glyph for each character, plus the reader's spacing. */
+export function textEm(text: string, root: RootText = readRoot()): number {
+  const gaps = text.split(' ').length - 1
+  return text.length * (GLYPH_EM + root.letterEm) + gaps * root.wordEm
 }
 
 /** A chart label's font size in px, at the given root font size. */
@@ -29,5 +60,5 @@ export const LABEL_PAD_EM = 0.3
 
 /** A label's estimated width in px, from its length, at the given root font size, with its padding. */
 export function labelWidthPx(text: string, rootPx: number): number {
-  return (text.length * GLYPH_EM + LABEL_PAD_EM) * labelSizePx(rootPx)
+  return (textEm(text) + LABEL_PAD_EM) * labelSizePx(rootPx)
 }

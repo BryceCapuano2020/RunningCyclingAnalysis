@@ -19,6 +19,7 @@ import type { AxisTick, ChartSize } from './chartTypes'
 import { logScale, linearScale } from './scale'
 import { keyOf, scaleNote, scaleOf, signedPercent, tableOf, tooltipOf } from './standOutText'
 import { axisFontSize, fitTicks } from './ticks'
+import { geometryScale } from './plotBox'
 import { labelWidthPx, rootFontPx } from './rootFont'
 import './ChartSeries.css'
 import './StandOutChart.css'
@@ -153,7 +154,7 @@ export function StandOutChart({ sport, rows }: StandOutChartProps) {
     <ChartFrame
       title="Each best against your other bests, by duration"
       description={DESCRIPTION}
-      height={CHART_HEIGHT}
+      height={CHART_HEIGHT * geometryScale()}
       legend={keyOf(sport)}
       note={scaleNote(rows)}
       table={tableOf(rows, scaleNote(rows))}

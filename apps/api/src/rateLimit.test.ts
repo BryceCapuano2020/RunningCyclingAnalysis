@@ -35,6 +35,41 @@ describe('edge rate limits', () => {
     expect(auth).toHaveBeenCalledWith({ key: 'auth:unknown' })
   })
 
+  it('sends a browser that is rate limited on sign-in back to the app with the reason, not to raw JSON', async () => {
+    const auth = vi.fn(async () => ({ success: false }))
+    const h = createHarness({}, { ENVIRONMENT: 'production', AUTH_RATE_LIMITER: { limit: auth } })
+    const navigations: Record<string, string>[] = [
+      { 'Sec-Fetch-Mode': 'navigate' },
+      { Accept: 'text/html,*/*;q=0.8' },
+    ]
+    for (const headers of navigations) {
+      const response = await h.send({ path: '/api/auth/google', headers })
+      expect(response.status).toBe(302)
+      expect(response.headers.get('location')).toBe('http://localhost:5183/#/?signin=rate_limited')
+    }
+  })
+
+  it('sends the callback’s refusals back to the app too, with the code alone', async () => {
+    const h = createHarness({})
+    const response = await h.send({
+      path: '/api/auth/google/callback?error=access_denied',
+      headers: { 'Sec-Fetch-Mode': 'navigate' },
+    })
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('http://localhost:5183/#/?signin=oauth_denied')
+  })
+
+  it('keeps the JSON error for a script, and for every route that is not a sign-in page', async () => {
+    const auth = vi.fn(async () => ({ success: false }))
+    const h = createHarness({}, { ENVIRONMENT: 'production', AUTH_RATE_LIMITER: { limit: auth } })
+    const script = await h.send({ path: '/api/auth/google' })
+    expect(script.status).toBe(429)
+    expect(await script.json()).toMatchObject({ error: { code: 'rate_limited' } })
+
+    const other = await h.send({ path: '/api/me', headers: { 'Sec-Fetch-Mode': 'navigate' } })
+    expect(other.status).not.toBe(302)
+  })
+
   it('fails closed if a production binding is missing or unavailable', async () => {
     for (const limiter of [
       undefined,

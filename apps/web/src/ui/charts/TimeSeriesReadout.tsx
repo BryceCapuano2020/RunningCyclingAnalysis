@@ -1,4 +1,5 @@
 import { useContext } from 'react'
+import { useStickyExtra } from '../components/useStickyExtra'
 import { createPortal } from 'react-dom'
 import { ReadoutContext } from './readoutContext'
 import './TimeSeriesReadout.css'
@@ -27,6 +28,8 @@ export function TimeSeriesReadout({
   head: (second: number) => CursorHead
 }) {
   const host = useContext(ReadoutContext)
+  // The row sticks under the header on a phone, so the page's scroll padding clears it too.
+  useStickyExtra(host)
   const at = cursor === null ? null : head(cursor)
   const readout = (
     <div id={id} role="status" aria-live={announce ? 'polite' : 'off'} className="ts-readout">

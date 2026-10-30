@@ -52,6 +52,17 @@
   font-weight: 800;
 }
 
+/* The end names are anchored to the figure's edges, so a large text size cannot push them past it. */
+.level-ladder__name--first {
+  left: 0;
+  transform: none;
+}
+
+.level-ladder__name--last {
+  left: 100%;
+  transform: translateX(-100%);
+}
+
 /* Alternate names sit on two rows, so neighbouring names never touch on a narrow screen. */
 .level-ladder__name--top {
   top: 0;

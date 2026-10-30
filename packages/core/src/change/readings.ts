@@ -2,7 +2,7 @@ import { DURATIONS_S } from '../constants'
 import { estimatedStanding } from '../digest/estimatedRide'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import { massesOf } from '../digest/masses'
-import { orderedCurrent } from '../digest/ordered'
+import { orderedFor } from '../digest/consumers'
 import { EVERY_EFFORT } from '../digest/readingRule'
 import type { ReadingRule } from '../digest/readingRule'
 import { pointWkg } from '../digest/rideCurves'
@@ -49,7 +49,7 @@ export function readingsOf(
   const masses = massesOf(settings)
   const standing = estimatedStanding(gate ?? null)
   const out: Readings = { run: empty(), ride: empty() }
-  for (const digest of orderedCurrent(digests)) {
+  for (const digest of orderedFor('change', digests)) {
     if (!rule.activity(digest)) continue
     const points = digest.curve.map((point) =>
       rule.point(digest, point)

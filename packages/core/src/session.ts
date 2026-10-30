@@ -1,4 +1,5 @@
-import { MODEL_REVISION } from './digest/modelRevision'
+import { applyCountedRuns } from './countedRuns'
+import { revisionStatus } from './digest/revisions'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import type { ExtractLimits } from './fit'
@@ -165,12 +166,11 @@ export class AnalysisSession {
     const incompatibleKeys = new Set<string>()
     for (const digest of digests) {
       const key = dedupeKey(digest.sport, digest.startMs)
-      if (digest.modelRevision !== MODEL_REVISION) {
-        if (digest.modelRevision < MODEL_REVISION) outdatedKeys.add(key)
-        else incompatibleKeys.add(key)
-        continue
-      }
-      this.digests.set(key, digest)
+      const status = revisionStatus(digest.modelRevision)
+      if (status === 'newer') incompatibleKeys.add(key)
+      // Nothing is compatible while every revision is exclusive; a compatible digest is read in a later change.
+      else if (status !== 'current') outdatedKeys.add(key)
+      else this.digests.set(key, digest)
     }
     for (const key of keepUnsaved ? this.unsynced.keys() : []) {
       const digest = before.get(key)
@@ -249,7 +249,7 @@ export class AnalysisSession {
     this.isSample = false
   }
 
-  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones included. */
+  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones and counted runs. */
   private athleteFor(settings: AthleteSettings): AthleteSettings {
     if (!this.isSample) return settings
     return { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
@@ -257,9 +257,12 @@ export class AnalysisSession {
 
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
+    const athlete = settings === null ? null : this.athleteFor(settings)
+    const { digests, keys } = applyCountedRuns([...this.digests], athlete?.countedRuns)
     return buildState(
       {
-        digests: [...this.digests.values()],
+        digests,
+        countedWalkingRuns: keys,
         choice: this.choice,
         isSample: this.isSample,
         periods: this.periods,
@@ -273,7 +276,7 @@ export class AnalysisSession {
         syncIssues: countIssues(this.unsynced, this.latestUnsynced),
         nowMs: this.isSample ? this.sampleNowMs : this.clock(),
       },
-      settings === null ? null : this.athleteFor(settings),
+      athlete,
     )
   }
 }

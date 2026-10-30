@@ -78,6 +78,8 @@ function issueSentence(issue: SyncIssue, saved: number | null): string {
       return count === 1
         ? 'This workout is already saved from a different file. Delete the saved copy first to replace it.'
         : `${formatCount(count)} workouts are already saved from different files. Delete the saved copies first to replace them.`
+    case 'originals-off':
+      return `Original files are turned off in your profile, so ${originals} ${wereOrWas} not kept. ${summaries} Turn on Keep original files in my library on Profile to keep them.`
     case 'network':
       return `${activities} ${wereOrWas} not fully saved because the connection dropped. Add ${them} again to retry.`
     case 'server':

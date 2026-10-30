@@ -20,6 +20,8 @@ import {
 } from '../measurementInput'
 import type { SettingChoice } from '../measurementInput'
 import type { MeasurementsController } from '../useMeasurements'
+import { weightQuestion } from '../typicalWeight'
+import type { WeightReference } from '../typicalWeight'
 import { NumberField } from './NumberField'
 import './SettingsOverTime.css'
 
@@ -27,6 +29,8 @@ export interface SettingsOverTimeProps {
   entries: readonly Measurement[]
   state: MeasurementsController['state']
   units: UnitSystem
+  /** The weight saved on the profile, kg, which a dated weight is set against when no dated one is near. */
+  weightKg?: number | null
   /** Resolves once the entry is kept. Rejects with the reason when it is not. */
   onAdd: (entry: Measurement) => Promise<unknown>
   onRemove: (entry: Measurement) => Promise<unknown>
@@ -59,6 +63,23 @@ function dayText(date: string): string {
   return formatDay(localDayStartMs(date))
 }
 
+/** The earlier weight a new dated one is set against: the dated weight nearest its date, else the profile's. */
+function weightReference(
+  entries: readonly Measurement[],
+  from: string,
+  profileKg: number | null,
+): WeightReference | null {
+  const near = entries
+    .filter((entry) => entry.kind === 'massKg' && entry.from !== from)
+    .sort(
+      (a, b) =>
+        Math.abs(localDayStartMs(a.from) - localDayStartMs(from)) -
+        Math.abs(localDayStartMs(b.from) - localDayStartMs(from)),
+    )[0]
+  if (near !== undefined) return { kg: near.value, label: `your weight from ${dayText(near.from)}` }
+  return profileKg === null ? null : { kg: profileKg, label: 'your saved weight' }
+}
+
 /**
  * Dated settings: a body weight, a max heart rate or a threshold, in effect from a date. Each
  * activity uses the setting in effect on its own date, so a ride from last year is priced at last
@@ -68,6 +89,7 @@ export function SettingsOverTime({
   entries,
   state,
   units,
+  weightKg = null,
   onAdd,
   onRemove,
   elsewhere = 0,
@@ -90,6 +112,8 @@ export function SettingsOverTime({
   const [refusal, setRefusal] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  // The entry the athlete was asked about and has not answered, as setting, value and date. Add again answers it.
+  const [asked, setAsked] = useState<string | null>(null)
   const appliedNonce = useRef<number | null>(null)
   const focusedNonce = useRef<number | null>(null)
   // A request to set a figure opens the form to it, with the figure typed in for the athlete to confirm or change. The
@@ -117,6 +141,7 @@ export function SettingsOverTime({
   const unit = settingUnit(choice.kind, units)
 
   function clearErrors() {
+    setAsked(null)
     setValueError(null)
     setDateError(null)
     setRefusal(null)
@@ -133,6 +158,18 @@ export function SettingsOverTime({
     setValueError('error' in reading ? reading.error : null)
     setDateError(badDate)
     if ('error' in reading || badDate !== null) return
+    // A body weight that is out of the typical range, or far from the one before, is asked about first.
+    // Pressing Add again with the same setting, value and date answers the question.
+    const answer = `${choice.id}|${reading.value}|${from}`
+    const question =
+      choice.kind === 'massKg'
+        ? weightQuestion(reading.value, text, units, weightReference(entries, from, weightKg))
+        : null
+    if (question !== null && asked !== answer) {
+      setAsked(answer)
+      setValueError(`${question} Check the units, or press Add again to keep it.`)
+      return
+    }
     const entry: Measurement = {
       kind: choice.kind,
       ...(choice.sport === undefined ? {} : { sport: choice.sport }),

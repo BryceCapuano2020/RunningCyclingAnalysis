@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { mulberry32 } from '../math'
 import {
   confirmedOrder,
   sortedOrder,
@@ -114,5 +115,54 @@ describe('confirmedOrder', () => {
 
   it('takes -0 and 0 as equal, so they stay in index order', () => {
     expect(confirmedOrder([0, -0, 0], [1, 0, 2])).toEqual([0, 1, 2])
+  })
+})
+
+describe('weightedQuantilesAlong over several q', () => {
+  /** What one pass for each q gives, which one pass for all of them must equal. */
+  function onePassEach(
+    values: number[],
+    weights: number[],
+    order: number[],
+    qs: number[],
+  ): number[] {
+    const n = order.length
+    if (n === 0) return qs.map(() => Number.NaN)
+    let total = 0
+    for (const i of order) total += weights[i]!
+    if (total === 0) return qs.map(() => Number.NaN)
+    return qs.map((q) => {
+      const target = q * total
+      let cumulative = 0
+      let value = values[order[n - 1]!]!
+      for (const i of order) {
+        cumulative += weights[i]!
+        if (cumulative >= target) {
+          value = values[i]!
+          break
+        }
+      }
+      return value
+    })
+  }
+
+  it('gives what a pass for each q gives, for q in any order, repeated or out of range', () => {
+    const rand = mulberry32(5)
+    for (let round = 0; round < 200; round++) {
+      const n = Math.floor(rand() * 40)
+      const values = Array.from({ length: n }, () => Math.floor(rand() * 8))
+      const weights = Array.from({ length: n }, () => (rand() < 0.2 ? 0 : rand()))
+      const order = sortedOrder(values)
+      const qs = [0.95, 0.05, 0.5, 0.5, 0, 1, 1.5, -0.2].slice(0, 1 + Math.floor(rand() * 8))
+      expect(weightedQuantilesAlong(values, weights, order, qs)).toEqual(
+        onePassEach(values, weights, order, qs),
+      )
+    }
+  })
+
+  it('reads the last value at every q when a weight is not a number, as a pass for each q does', () => {
+    const values = [1, 2, 3]
+    const weights = [1, Number.NaN, 1]
+    expect(weightedQuantilesAlong(values, weights, [0, 1, 2], [0.1, 0.9])).toEqual([3, 3])
   })
 })

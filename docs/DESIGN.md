@@ -105,8 +105,8 @@ applies when the import finishes. How sure is this? names the dated period on on
 control. The period is a view preference: it is kept on this device, across Start over and sign-out.
 A period is counted back from the newest activity, not from today, so when that activity is more
 than six weeks old the note under the dates reads "Latest activity 17 months ago", and the dates
-above end on that day. The note says why the default is all time too, when it is and the library
-holds both sports, and an empty note takes no line. A stored pick the control no longer offers, such
+above end on that day. The note says why the default is all time too, when it is, and an empty note
+takes no line. A stored pick the control no longer offers, such
 as the 3 months of an earlier version, reads as the default.
 
 **The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. Its season is drawn relative to the day it is loaded (`sampleSeason` in `packages/core/src/synthetic`): a full training week for the last 12 weeks, a lighter one before that, and one session a week back past a year, so 12 weeks, 12 months and All time each show something different. The season ends on the most recent Sunday on or before yesterday and every draw is keyed to the days before that Sunday, so the plan and every figure from it are the same on every day of a week and in every week, and only the dates move; the newest activity is up to a week old. (The grades count age from the birth year against each effort's calendar year, so across New Year the figures differ by up to a week's worth of efforts' ages; a test notes it.) Start times vary through the day (weekday mornings, lunchtimes and evenings, weekend long sessions), in the visitor's own zone, and the ride threshold, bike efficiency and running economy rise through the season, so the trend, volume, same-heart-rate, durability, drift and stand-out sections all have something to show. It is deterministic for a clock and a seed: tests use the fixed reference clock (`SAMPLE_CLOCK`) and the small fixed `sampleDataset` fixture, and the app passes the device's clock. The birth year follows the year of the newest effort, so he is 37 on it. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the grade by duration shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the answer's headline over Balance's own meter and levels line (`BalanceMeter`, `BalanceLevels`), made from the sample's figures with the same components, so it cannot drift from the screen it stands for. A test pins its numbers to the sample's own analysis.
@@ -207,6 +207,8 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                                                                                              |
 | `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                                                                                     |
 | `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                                                                                         |
+| `--highlight`          | `#c8f03c`   | `#c8f03c`   | Volt as a fill behind ink: selected segment, current page, new marker                                                                      |
+| `--highlight-ink`      | `#0e1116`   | `#0e1116`   | Ink on the highlight fill (4.5:1 or better)                                                                                                |
 | `--accent-hover`       | `#474f5c`   | `#a9d62c`   | Primary button fill on hover, a visible change in both schemes                                                                             |
 | `--accent-pressed`     | `#000000`   | `#8fb81c`   | Primary button fill while it is pressed, with a 1 px drop                                                                                  |
 | `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                                                                                  |
@@ -215,19 +217,21 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                                                                                                         |
 | `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                                                                                   |
 | `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                                                                                 |
-| `--series-run`         | `#e5304f`   | `#f0435f`   | Running data                                                                                                                               |
+| `--series-run`         | `#e44f27`   | `#f56333`   | Running data                                                                                                                               |
+| `--run-ink`            | `#b83a12`   | `#f56333`   | Text in the run hue (4.5:1); staged with `--ride-ink` for sport-coloured text, a later D10 PR                                              |
+| `--ride-ink`           | `#2f56e8`   | `#5c7bf7`   | Text in the ride hue (4.5:1); staged, nothing reads it yet                                                                                 |
 | `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                                                                                               |
 | `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                                                                                   |
-| `--series-run-soft`    | `#e5304f26` | `#f0435f33` | Running band and area fill                                                                                                                 |
+| `--series-run-soft`    | `#e44f2726` | `#f5633333` | Running band and area fill                                                                                                                 |
 | `--series-ride-soft`   | `#2f56e826` | `#4d6ef533` | Cycling band and area fill                                                                                                                 |
 | `--series-swim-soft`   | `#0f9fb026` | `#14a0b033` | Swimming band and area fill (reserved)                                                                                                     |
-| `--ladder-run-band`    | `#e5304f26` | `#f0435f26` | Run band behind the level ladder's range, low enough alpha for the outline                                                                 |
+| `--ladder-run-band`    | `#e44f2714` | `#f5633326` | Run band behind the level ladder's range, low enough alpha for the outline                                                                 |
 | `--ladder-ride-band`   | `#2f56e826` | `#4d6ef526` | Ride band behind the level ladder's range, low enough alpha for the ring                                                                   |
-| `--zone-run-1`         | `#e16265`   | `#b43d52`   | Running zone 1, the lowest effort; the ramp darkens with effort in light and, in dark, grows more luminous at full saturation, never paler |
-| `--zone-run-2`         | `#d0293d`   | `#ca4556`   | Running zone 2, lowest effort first                                                                                                        |
-| `--zone-run-3`         | `#a90227`   | `#de555d`   | Running zone 3, lowest effort first                                                                                                        |
-| `--zone-run-4`         | `#750017`   | `#ee716e`   | Running zone 4, lowest effort first                                                                                                        |
-| `--zone-run-5`         | `#410008`   | `#ff897f`   | Running zone 5, lowest effort first                                                                                                        |
+| `--zone-run-1`         | `#d57029`   | `#b34f2c`   | Running zone 1, the lowest effort; the ramp runs orange into umber, losing chroma toward zone 5                                            |
+| `--zone-run-2`         | `#c94e0c`   | `#ce470d`   | Running zone 2, lowest effort first                                                                                                        |
+| `--zone-run-3`         | `#a63d02`   | `#f57e4d`   | Running zone 3, lowest effort first                                                                                                        |
+| `--zone-run-4`         | `#7d2d05`   | `#fba774`   | Running zone 4, lowest effort first                                                                                                        |
+| `--zone-run-5`         | `#552b14`   | `#fdc8a1`   | Running zone 5, lowest effort first                                                                                                        |
 | `--zone-ride-1`        | `#6589d3`   | `#5061b3`   | Cycling zone 1, the lowest effort; the ramp darkens with effort in light and, in dark, grows more luminous at full saturation, never paler |
 | `--zone-ride-2`        | `#3c67c9`   | `#4f70d6`   | Cycling zone 2, lowest effort first                                                                                                        |
 | `--zone-ride-3`        | `#1844b9`   | `#4a81f4`   | Cycling zone 3, lowest effort first                                                                                                        |
@@ -511,13 +515,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week or month, hours of each
   sport, total). It is not shown when fewer than three of the weeks have training.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest
-  activity's day, when they hold a run and a ride. A day is counted in the device's local zone and
+  activity's day, when they hold every sport the library has. A library of one sport always does, so a
+  run-only or ride-only library gets its 12 weeks and a previous period like any other. A day is counted in the device's local zone and
   runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same
-  day give the same window, and an older window never hides recent activities. It is clipped to the
-  first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12
-  weeks do not hold both sports, as with a 2015 run and a 2019 ride, the default is All time, and
-  the control says why: "Your last 12 weeks don't hold both sports, so this shows all time." It says
-  so only when the library holds both sports. The period is computed in
+  day give the same window, and an older window never hides recent activities. A library
+  shorter than 12 weeks has no previous period, so its default is All time, dated from its first
+  activity, with no note. When those 12
+  weeks lack a sport the library has, as with a 2015 run and a 2019 ride, the default is All time, the
+  control selects All time (the period in force, not the 12 weeks the stored choice names), and it
+  says why, naming the missing sport: "Your last 12 weeks hold no rides, so this shows all time." The
+  period is computed in
   `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the
   newest activity's day. A custom range is the first to the last day the athlete picks, both counted,
   with `periodOf` in `packages/core/src/period.ts` dating it from the first millisecond of its first
@@ -795,7 +802,33 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Its ride figures and its table wait for the weight, as the tiles' do, and its needs-a-ride line names
   the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The heart-rate check is never a card: it is a chip on the tile it qualifies, and for files with no heart rate one line
   under the tiles, with the link to How sure is this?.
-- **A held comparison leads with what it can show.** While Balance cannot set the sports against each other, its title names the levels the files do give ("Running is at Local level, cycling at Recreational", or "Your running is at Local level"), and the line under it is one action: "Add one run of 20 min or more to compare them.", "Add 2 more rides in this period to compare them." or "Add your weight on Profile to grade your rides and compare them with your runs." "Not enough to compare yet" is the title only when no sport has a level. With only one sport on file, the other sport's card asks for files to compare it with the first ("Add rides to compare them with your running."). A ride card held for the weight says how many rides there are, how long they ran and when the latest was, none of which needs a weight, then asks for it.
+- **A held comparison leads with what it can show.** While Balance cannot set the sports against each other, its title names the levels the files do give ("Running is at Local level, cycling at Recreational", or "Your running is at Local level"), and the line under it is one action: "Add one run of 20 min or more to compare them.", "Add 2 more rides in this period to compare them." or "Add your weight on Profile to grade your rides and compare them with your runs." For rides without a power meter the line names the climb instead, since a long ride is not what is missing: "Add one ride with a power meter, or with a climb of 3% or steeper that holds for 20 min without a break to compare them." (virtual power is trusted only on climbs, and a 20 min estimate needs one unbroken, `CLIMB_NEEDED`; the landing page and How sure is this? say the same). "Not enough to compare yet" is the title only when no sport has a level. With only one sport on file, the other sport's card asks for files to compare it with the first ("Add rides to compare them with your running."). A ride card held for the weight says how many rides there are, how long they ran and when the latest was, none of which needs a weight, then asks for it.
+- **The browser is asked to keep a signed-out library, and a lost one is told.** After a first import is kept in this browser it
+  asks the browser to keep the site's storage (`navigator.storage.persist()`). A browser that refuses gets the notice "This browser may clear
+  your results" once on a device (`rca.persistNote.v1`), not on every import, and a browser that already keeps its storage is told nothing.
+  A library marked as kept on an earlier visit that loads empty is told as gone ("Your kept results were cleared"): "The results you kept in this
+  browser are no longer in it. Clearing site data, low storage or, in Safari, a week away can remove them.", with the sign-in line only when
+  signed out. No cause is asserted. The mark (`rca.deviceKept.v1`) follows every list of the library kept in this browser and counts rows
+  it holds but could not read (a newer version's), so neither a removal nor such rows read as a loss. It lives in the storage a sweep of the
+  whole site also clears, so that loss cannot be told from a first visit.
+- **A library that will not open is not an empty one.** When it fails to open (full, blocked by another tab, or no answer in 10 s), a listing,
+  a lookup and a single read reject, so the page shows its error and Remove all my activities says it could not remove them; a signed-in delete does
+  not claim the copy kept here gone, and a removal says the kept results could not be read. An import is then analysed on its own and says so ("shown
+  on their own and are not added to them"); each save first reads what is kept under its workout, so nothing kept is written over. Only
+  storage the browser does not offer, as in a private window, reads as empty. A transaction refused on a database that opened still reads a single
+  workout or route as none, since only a listing or a lookup decides whether a copy is overwritten.
+- **A weight that looks like the wrong units is asked about.** Besides the 45 to 160 kg range, a body weight 1.4 times higher or lower than the
+  one already given is asked about before it is kept: in the setup dialog and Profile against the saved weight (on Profile, the dated weight in effect
+  today when there is one), and for a dated weight against the nearest dated one, else the saved one. With none to compare with, a first weight above 120 kg is
+  asked about too and, if typed in kilograms, says what it would be as pounds. "That is 150.0 kg, 121% higher than your saved weight, 68.0 kg. Check the units, or
+  press Analyse my files again to keep it." The setup dialog never switches units under digits the visitor has typed or units they have chosen, whenever
+  the account answers. A ride's best 20 min from a power meter shows without a weight, since a meter reads watts whatever the weight.
+- **Counted runs keep their state where it is seen.** Pressing "Count this run" or "Leave this run out" on an activity moves focus to the button that
+  replaces it; "Count these runs" on Balance or Run moves it to the page heading, which then says the new state. What a change did ("Counting 22 runs.") is
+  said in a screen-reader line in the notice region, which stays mounted, and a refusal by the browser to keep the choice stays in that region
+  ("This browser would not keep that choice…") until the next change. Run and Activities say "22 runs are counted despite walking pace" with "Leave them
+  out". The choices are forgotten with the library (Remove all my activities, once the library is known to be empty), on signing out and on deleting the
+  account, and follow a change made in another tab. An import notice that added only runs left out ends with a link: "Open Run to count them."
 - **The app-wide error boundary is friendly and plain.** It says "Something went wrong" and "The page stopped working. Reload to try again; your saved activities are untouched." with a **Reload** button. The error's own message is never shown; React logs it to the console.
 - **Share metadata, the manifest and the 404 page.** `index.html` carries the canonical link, Open Graph and Twitter tags and a theme colour for each colour scheme. The image is `public/social-card.png` (1200 x 630, drawn from the sample athlete's numbers by `scripts/make-social-card.ts`, which also writes the app icons). `public/manifest.webmanifest` names the app and its icons; there is no service worker. An unknown path is answered with `public/404.html` and a 404 status (`not_found_handling = "404-page"`), which a browser navigation gets without invoking the Worker; `/api/*` keeps its JSON 404 under the rate limiter.
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
@@ -1041,8 +1074,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   or the jogging share, so a run/walk session or a hilly ultra with a low median cadence is still a run. It
   stays in the library with a Walking pace mark on its row and its page, where a line takes the place of its
   best efforts, is left out of every run analysis, volume and best, and a line under the import notices counts
-  them on Run and Activities, the pages that list or analyse runs, and on no other. Every count and date the pages give of what is analysed leaves them out (a library of hikes alone asks
-  for a run and a ride), while the activity list and the activity pages keep them.
+  them on Run and Activities, the pages that list or analyse runs, and on no other. Every count and date the pages give of what is analysed leaves them out, while the activity list and the activity pages keep them.
+  The athlete can **count a run** that is at walking pace: the activity page offers "Count this run", and its page then says it is
+  counted and offers "Leave this run out". The choice is a list of workout keys (sport and start second) kept in this browser's local
+  storage (`rca.countedRuns.v1`), signed in or not, so it survives a reload and a re-import; it is carried in `AthleteSettings.countedRuns`,
+  and the session applies it when it builds its state (`countedRuns.ts`), so the digest is unchanged. Where every run is left out, no page says
+  there are none: Balance's headline reads "Your runs are at walking pace" with the count, and Run says "22 runs are at walking pace, so they
+  are left out. Count them as runs to include them.", each with a "Count these runs" button; the import notice says it too.
 - **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
   period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run
   and 1 ride. Add more runs or rides for a steadier answer." It is left off once each sport has three.
@@ -1406,8 +1444,8 @@ earlier level. The analysis is in [design/fitness.md](design/fitness.md); this i
 **Where.** A "Your fitness" section above the balance on Balance, and the same card above the threshold on a sport's page
 (without the sport's name, which the title says). One card for each sport that has a status; rides are not compared yet, so a
 library with runs has the run's card alone and the Ride page says nothing about it, rather than promising what cannot show. A
-sport with no steady run, or whose status is "not compared yet", has no card. The landing page's example leads with the same
-finding for the sample athlete (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
+sport with no steady run, or whose status is "not compared yet", has no card. The landing page's example shows the same
+finding for the sample athlete as its second panel, below the drop zone so Add files stays on the first screen, (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
 
 **The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness" and the card by its state). A sport edge on the left, the sport's name, and a **New** marker, "since the week of 12 Oct", when the state began to be
 shown in the last six weeks. The state is a word at display size (Slipping, Holding, Holding below, Recovering, Back,
