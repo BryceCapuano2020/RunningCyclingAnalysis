@@ -13,6 +13,7 @@ import type {
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { SAVES_PAUSED, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
+import { useKeptLibraryLoad } from './analysis/keptLibraryLoad'
 import { isQuietRequest, keepsError } from './analysis/quietRequests'
 import type { ImportChange } from './analysis/importState'
 import { baselineOf, useImportState } from './analysis/importState'
@@ -23,7 +24,6 @@ import type { DetailCoverage } from './analysis/model'
 import { drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
-import { storedPeriodRequest } from './periodPreference'
 import { replyOf } from './routeReply'
 import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
@@ -31,6 +31,7 @@ import { useGradeTrendRequest } from './analysis/useGradeTrendRequest'
 import { useActivityTraceRequest } from './analysis/useActivityTraceRequest'
 
 export type { LibraryStatus }
+export { DEVICE_GRACE_MS } from './analysis/keptLibraryLoad'
 
 export interface AnalysisController {
   state: SessionState
@@ -207,15 +208,13 @@ export function useAnalysis(
   const { automaticRestartCountRef, send: sendToWorker } = transport
   const loadTrace = useActivityTraceRequest(sendToWorker, accountRef)
 
-  // Signed out, each worker starts from the library kept in this browser, once. While the account
-  // is still loading it waits, so a signed-in account's page never shows the device library.
-  const deviceLoadedRef = useRef(false)
-  const loadDeviceOnce = useCallback(() => {
-    const { status } = accountRef.current
-    if (deviceLoadedRef.current || (status !== 'signed-out' && status !== 'unavailable')) return
-    deviceLoadedRef.current = true
-    sendToWorker({ type: 'loadDevice', settings: settingsRef.current, ...storedPeriodRequest() })
-  }, [sendToWorker])
+  const { deviceLoadedRef, loadDeviceOnce } = useKeptLibraryLoad({
+    accountRef,
+    settingsRef,
+    send: sendToWorker,
+    provisionalImportsRef,
+    libraryWaitRef,
+  })
 
   /** Asks the worker for a saved activity's route, under the signed-in account when there is one. */
   const loadRoute = useCallback(

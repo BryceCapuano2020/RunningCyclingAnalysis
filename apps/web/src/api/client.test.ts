@@ -233,6 +233,58 @@ describe('getMe', () => {
     vi.useRealTimers()
   })
 
+  describe('with retryWithinMs, as the account lookup asks', () => {
+    it('does not try again after a timeout, so a hung server costs one deadline', async () => {
+      vi.useFakeTimers()
+      const fetchMock = vi.fn(
+        (_: string, init: RequestInit) =>
+          new Promise<Response>((_, reject) => {
+            init.signal?.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            )
+          }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      const request = getMe({ timeoutMs: 5_000, retryWithinMs: 1_000 })
+      const failed = expect(request).rejects.toMatchObject({ status: 0, code: 'network_error' })
+      await vi.advanceTimersByTimeAsync(5_000)
+      await failed
+      // One attempt at the short deadline, where the default is two at fifteen seconds each.
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      vi.useRealTimers()
+    })
+
+    it('still tries again at once after a failure that came at once', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new TypeError('refused'))
+        .mockResolvedValueOnce(respond(200, ME))
+      vi.stubGlobal('fetch', fetchMock)
+      expect(await getMe({ timeoutMs: 5_000, retryWithinMs: 1_000 })).toEqual(ME)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('takes a deadline of its own', async () => {
+      vi.useFakeTimers()
+      const fetchMock = vi.fn(
+        (_: string, init: RequestInit) =>
+          new Promise<Response>((_, reject) => {
+            init.signal?.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            )
+          }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      const failed = expect(getMe({ timeoutMs: 2_000, retry: false })).rejects.toMatchObject({
+        status: 0,
+      })
+      await vi.advanceTimersByTimeAsync(2_000)
+      await failed
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      vi.useRealTimers()
+    })
+  })
+
   it('does not retry a 503 that advertises Retry-After', async () => {
     const fetchMock = stubFetch(
       new Response(JSON.stringify({ error: { code: 'service_unavailable', message: 'busy' } }), {
