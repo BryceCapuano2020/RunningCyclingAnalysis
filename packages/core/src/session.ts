@@ -17,7 +17,7 @@ import { countIssues } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
-import { considerActivity } from './sessionKeep'
+import { beginImportUnsynced, clearUnsynced, considerActivity, resetUnsynced } from './sessionKeep'
 import type { KeepState } from './sessionKeep'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import type { SaveBatch, SyncSink } from './sessionSync'
@@ -42,15 +42,16 @@ export type { SyncItem, SyncSink } from './sessionSync'
  * Lives inside the Web Worker.
  */
 export class AnalysisSession {
-  private digests = new Map<string, ActivityDigest>()
+  // Never replaced, only emptied: sessionKeep.ts holds the same collections (see `keeping`).
+  private readonly digests = new Map<string, ActivityDigest>()
   // Activities whose last sink call failed, and why. Re-importing the file tries them again.
-  private unsynced = new Map<string, SyncIssueCode>()
+  private readonly unsynced = new Map<string, SyncIssueCode>()
   // The keys the latest import left in `unsynced`, so its own failures can be told from earlier ones.
-  private latestUnsynced = new Set<string>()
-  private outdatedKeys = new Set<string>()
-  private incompatibleKeys = new Set<string>()
-  // The same maps, as sessionKeep.ts reads them.
-  private keeping: KeepState = {
+  private readonly latestUnsynced = new Set<string>()
+  private readonly outdatedKeys = new Set<string>()
+  private readonly incompatibleKeys = new Set<string>()
+  // The same collections, as sessionKeep.ts reads and changes them. Only its helpers change the two unsaved ones.
+  private readonly keeping: KeepState = {
     digests: this.digests,
     unsynced: this.unsynced,
     latestUnsynced: this.latestUnsynced,
@@ -107,7 +108,7 @@ export class AnalysisSession {
     // The rejected files are those of this import, so an earlier import's are not listed again.
     this.rejected.length = 0
     this.unsupported.files = 0
-    this.latestUnsynced.clear()
+    beginImportUnsynced(this.keeping)
     const batch: SaveBatch = { halt: null, networkStreak: 0, added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
@@ -140,7 +141,7 @@ export class AnalysisSession {
   removeActivity(sport: Sport, startMs: number, settings: AthleteSettings): SessionState {
     const key = dedupeKey(sport, startMs)
     this.digests.delete(key)
-    this.unsynced.delete(key)
+    clearUnsynced(this.keeping, key)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
     return this.state(settings)
@@ -179,8 +180,7 @@ export class AnalysisSession {
       if (digest === undefined) continue
       if (!this.digests.has(key)) this.digests.set(key, digest)
       else {
-        this.unsynced.delete(key)
-        this.latestUnsynced.delete(key)
+        clearUnsynced(this.keeping, key)
       }
     }
     for (const key of outdatedKeys) {
@@ -244,8 +244,7 @@ export class AnalysisSession {
   }
 
   private reset(): void {
-    this.unsynced.clear()
-    this.latestUnsynced.clear()
+    resetUnsynced(this.keeping)
     this.resetLibrary()
   }
 

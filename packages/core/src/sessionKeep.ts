@@ -100,7 +100,7 @@ async function keepActivity(
   if (batch.halt !== null) {
     // An activity already saved, offered again to keep its file, is not waiting for a save.
     if (held === undefined || replaces || state.unsynced.has(key)) {
-      leaveUnsynced(state, key, batch.halt)
+      markUnsynced(state, key, batch.halt)
     }
     return considered(false)
   }
@@ -110,11 +110,11 @@ async function keepActivity(
   if (probing) await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
   try {
     await sink({ digest, route: activity.route, ...file })
-    state.unsynced.delete(key)
+    clearUnsynced(state, key)
     batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
   } catch (error) {
     const code = error instanceof SyncFailure ? error.code : 'server'
-    leaveUnsynced(state, key, code)
+    markUnsynced(state, key, code)
     // The server answered when only the original file failed to upload, so the network is up.
     const answered = error instanceof SyncFailure && error.digestSaved
     batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
@@ -132,7 +132,25 @@ async function keepActivity(
   return considered(true)
 }
 
-function leaveUnsynced(state: KeepState, key: string, code: SyncIssueCode): void {
+/** Notes that the activity is not saved, and why, as a failure of the import in progress. */
+export function markUnsynced(state: KeepState, key: string, code: SyncIssueCode): void {
   state.unsynced.set(key, code)
   state.latestUnsynced.add(key)
+}
+
+/** Takes the activity off the unsaved list: it was saved, or it is gone. */
+export function clearUnsynced(state: KeepState, key: string): void {
+  state.unsynced.delete(key)
+  state.latestUnsynced.delete(key)
+}
+
+/** Empties the unsaved list, with the library it belongs to. */
+export function resetUnsynced(state: KeepState): void {
+  state.unsynced.clear()
+  state.latestUnsynced.clear()
+}
+
+/** A new import begins: the unsaved activities stay, but none counts as this import's own yet. */
+export function beginImportUnsynced(state: KeepState): void {
+  state.latestUnsynced.clear()
 }
