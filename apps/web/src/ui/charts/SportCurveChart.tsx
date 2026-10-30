@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ChangeEvidence } from '@rca/core/change/types'
 import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SPORT_FORMAT, SPORT_PLURAL } from '../sports'
@@ -62,6 +63,8 @@ export interface SportCurveChartProps {
   threshold?: ThresholdLine | null
   /** The level the best 20 minutes grades to, such as "Local", for the finding when there is no period before. */
   bestLevel?: string
+  /** The change test for the period before, which the finding reads; null where there is no period before. */
+  change: ChangeEvidence | null
 }
 
 /**
@@ -80,6 +83,7 @@ export function SportCurveChart({
   activityMasses,
   threshold = null,
   bestLevel,
+  change,
 }: SportCurveChartProps) {
   // Each is kept while its inputs are, so reading a point (which re-renders the chart) does not rebuild the layout.
   const rows = useMemo(
@@ -96,10 +100,11 @@ export function SportCurveChart({
       massKg,
       masses: activityMasses,
       previous: shown,
+      change,
       names: activityNames,
       shared: sharedSourceOf(rows.map((row) => row.activityId)),
     }),
-    [sport, units, massKg, activityMasses, shown, activityNames, rows],
+    [sport, units, massKg, activityMasses, shown, change, activityNames, rows],
   )
   const hasData = rows.filter((row) => Number.isFinite(row.value)).length >= 2
   const [active, setActive] = useState<number | null>(null)
@@ -145,6 +150,7 @@ export function SportCurveChart({
               rows,
               previousLabel: shown?.label ?? null,
               level: bestLevel,
+              change,
             }) ?? undefined)
           : undefined
       }

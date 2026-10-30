@@ -1,17 +1,16 @@
-import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { limitReached, listingLimitReached } from '../limitCopy'
 import { DEVICE_NOT_LOADED, deleteFailureText, LIBRARY_NOT_LOADED, rebuildNoticeText } from './copy'
 import type { ErrorReply } from './copy'
 import { rememberKeptLibrary } from './rememberKept'
 import type { ReplyResponse } from './rememberKept'
-import { baselineOf } from './importState'
+import { baselineOf, comparableBefore } from './importState'
 import { mergeOutcomes } from './mergeOutcomes'
 import { isOvertaken } from './staleReplies'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
-import type { Account, Box, Pending, SetError } from './model'
+import type { Account, Baseline, Box, Pending, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 
 export interface WorkerEventDeps {
@@ -21,7 +20,7 @@ export interface WorkerEventDeps {
   setError: SetError
   refreshBusy: () => void
   failLibrary: () => boolean
-  addFiles: (files: File[], baseline?: AnalysisResult | null) => void
+  addFiles: (files: File[], baseline?: Baseline | null) => void
   handleAccountIssue: (issue: SyncIssueCode) => void
   accountRef: Box<Account>
   previousStatusRef: Box<Account['status']>
@@ -115,7 +114,7 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
       imports.setImportOutcome(message.outcome)
       imports.setImportChange({
         outcome: message.outcome,
-        before: pending?.baseline ?? null,
+        before: comparableBefore(pending?.baseline, message.state),
         after: message.state.result,
       })
     }

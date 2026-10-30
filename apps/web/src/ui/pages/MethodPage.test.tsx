@@ -804,7 +804,7 @@ describe('MethodPage how this works', () => {
     expect(section.querySelector('details.methodology__disclosure')).toBeNull()
     expect(within(section).queryByText('Show the assumptions')).toBeNull()
     expect(
-      within(section).getByRole('heading', { level: 3, name: 'Best 20 min, week by week' }),
+      within(section).getByRole('heading', { level: 3, name: 'Best efforts over time' }),
     ).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { name: 'Heart-rate check' })).toHaveLength(1)
     expect(screen.getAllByRole('heading', { name: 'Virtual power meter accuracy' })).toHaveLength(1)
@@ -813,7 +813,8 @@ describe('MethodPage how this works', () => {
         .getAllByRole('heading', { level: 3 })
         .map((heading) => heading.textContent),
     ).toEqual([
-      'Best 20 min, week by week',
+      'Best efforts over time',
+      'How a change is called',
       'Dated settings and zones',
       'Data checks',
       'Where speed comes from',

@@ -60,6 +60,7 @@ function stateWith(totalActivities: number): SessionState {
     countedWalkingRuns: [],
     trend: [],
     previous: null,
+    change: null,
     effortTrends: NO_TRENDS,
     sameHeartRate: NO_SAME_HEART_RATE,
     lateEvidence: NO_LATE_EVIDENCE,
@@ -80,7 +81,7 @@ function worker(): FakeWorker {
 const types = () => worker().posted.map((request) => request.type)
 
 function setup() {
-  return renderHook(({ account }: { account: Account }) => useAnalysis(SETTINGS, account, false), {
+  return renderHook(({ account }: { account: Account }) => useAnalysis(SETTINGS, account), {
     initialProps: { account: LOADING },
   })
 }

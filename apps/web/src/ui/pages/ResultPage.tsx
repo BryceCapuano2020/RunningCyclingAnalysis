@@ -4,7 +4,6 @@ import { outranks } from '@rca/core/session'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { periodDays, sameChoice } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
-import { trendWindowDays } from '@rca/core/digest/trendPoints'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
@@ -215,8 +214,8 @@ export function ResultPage({
           result={result}
           previous={analysis.state.previous}
           previousLabel={previousPeriodLabel(period.days)}
+          change={analysis.state.change}
           trends={analysis.state.effortTrends}
-          windowDays={trendWindowDays(period.days)}
           sameHeartRate={analysis.state.sameHeartRate[route.page]}
           fitness={analysis.state.fitness}
           lateEvidence={analysis.state.lateEvidence[route.page]}

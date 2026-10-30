@@ -89,7 +89,7 @@ const UNREACHABLE: Account = { status: 'unavailable', me: null, lookupPending: t
 function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS) {
   return renderHook(
     ({ account, current }: { account: Account; current: AthleteSettings }) =>
-      useAnalysis(current, account, false),
+      useAnalysis(current, account),
     { initialProps: { account: initial, current: settings } },
   )
 }
@@ -144,6 +144,7 @@ const STATE = {
   countedWalkingRuns: [],
   trend: [],
   previous: null,
+  change: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
@@ -211,7 +212,7 @@ describe('useAnalysis account handling', () => {
   it('loads the stored activities into the active worker under StrictMode', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account, false),
+        useAnalysis(current, account),
       {
         initialProps: { account: SIGNED_IN_KEEP, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -1513,7 +1514,7 @@ describe('useAnalysis device library', () => {
   it('sends one device load to the surviving worker under StrictMode when signed out', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account, false),
+        useAnalysis(current, account),
       {
         initialProps: { account: SIGNED_OUT, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -1645,33 +1646,6 @@ describe('useAnalysis requests', () => {
     } finally {
       localStorage.removeItem(PERIOD_KEY)
     }
-  })
-
-  it('asks the worker to grade the trend once the athlete has an age and sex, and only then', () => {
-    const { rerender } = renderHook(
-      ({ grade }: { grade: boolean }) => useAnalysis(SETTINGS, SIGNED_OUT, grade),
-      { initialProps: { grade: false } },
-    )
-    expect(worker().posted).toEqual([DEVICE_LOAD])
-    rerender({ grade: true })
-    expect(worker().posted).toEqual([
-      DEVICE_LOAD,
-      { type: 'setGradeTrend', on: true, settings: SETTINGS },
-    ])
-    rerender({ grade: true })
-    expect(worker().posted).toHaveLength(2)
-    rerender({ grade: false })
-    expect(worker().posted.at(-1)).toEqual({ type: 'setGradeTrend', on: false, settings: SETTINGS })
-  })
-
-  it('asks the worker that replaces a stopped one to grade the trend too', () => {
-    const { result } = renderHook(() => useAnalysis(SETTINGS, SIGNED_OUT, true))
-    const first = worker()
-    expect(first.posted).toContainEqual({ type: 'setGradeTrend', on: true, settings: SETTINGS })
-    act(() => result.current.stop())
-
-    expect(worker()).not.toBe(first)
-    expect(worker().posted).toContainEqual({ type: 'setGradeTrend', on: true, settings: SETTINGS })
   })
 
   it('posts new settings only when the body or bike mass changes', () => {
@@ -1999,7 +1973,7 @@ describe('useAnalysis state', () => {
     // The sync status as the app renders it, fed by the hook.
     let analysisOf: ReturnType<typeof useAnalysis> | undefined
     function Status() {
-      const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP, false)
+      const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP)
       useEffect(() => {
         analysisOf = analysis
       })
@@ -2179,6 +2153,41 @@ describe('useAnalysis state', () => {
     act(() => result.current.addFiles([FILE]))
     act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
     expect(result.current.importChange?.before).toBeNull()
+  })
+
+  it('compares the import with nothing when it switched the period from 12 weeks to all time', () => {
+    const outcome = { activities: 1, rejected: 0, duplicates: [], runs: 0, rides: 1 }
+    const window12 = { ...STATE.period, days: 84, fellBack: false }
+    const allTime = { ...STATE.period, days: null, fellBack: true }
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: makeResult({ runCp: null }), period: window12 })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, result: makeResult(), period: allTime },
+        outcome,
+      }),
+    )
+    expect(result.current.importChange?.before).toBeNull()
+    expect(result.current.importChange?.after).not.toBeNull()
+  })
+
+  it('compares the import with the result on screen when the period stayed in its regime', () => {
+    const outcome = { activities: 1, rejected: 0, duplicates: [], runs: 0, rides: 1 }
+    const before = makeResult({ runCp: null })
+    const window12 = { ...STATE.period, days: 84, fellBack: false }
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: before, period: window12 })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, result: makeResult(), period: { ...window12, endMs: 5 } },
+        outcome,
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(before)
   })
 
   it('forgets what moved when the summary is cleared', () => {

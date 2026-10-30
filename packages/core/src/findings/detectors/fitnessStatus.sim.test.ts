@@ -93,7 +93,10 @@ describe('fitness status: silence', () => {
     nullLibraries({ perCell: 20, nuisances, ...NOISE })
 
   it('speaks under 0.2 findings an athlete-year when nothing changes', () => {
-    expectSilence(detector, grid(), { perAthleteYear: 0.2, minAthleteYears: 200 })
+    expectSilence(detector, grid(), {
+      perAthleteYear: detector.alarmBudget,
+      minAthleteYears: 200,
+    })
   })
 
   it('tolerates heart-rate spikes and missing heart rate', () => {
@@ -105,7 +108,7 @@ describe('fitness status: silence', () => {
     expectToleratesNuisance(detector, grid(['strap-change']), { perAthleteYear: 0.5, ...BUDGET })
   })
 
-  it('stays under 0.65, over the 0.4 budget and documented, through a season of 3% swing', () => {
+  it('stays under 0.65, over the 0.2 budget as a documented known gap, through a season of 3% swing', () => {
     expectToleratesNuisance(detector, grid(['seasonal']), { perAthleteYear: 0.65, ...BUDGET })
   })
 })

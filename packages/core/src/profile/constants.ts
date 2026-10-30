@@ -51,6 +51,12 @@ export const PROFILE_MEASUREMENT_ERROR = 0.03
  * judged at this over n, so the profile as a whole is judged at it.
  */
 export const PROFILE_ALPHA = 0.05
+/**
+ * The fewest activities of the sport that a profile needs before it says the bests are in line with each other. With
+ * fewer, a curve through a handful of efforts can match them by chance and each duration's best rests on a few
+ * efforts, so agreement is no finding; the sentence says how many are needed instead.
+ */
+export const PROFILE_IN_LINE_MIN_ACTIVITIES = 40
 /** The most durations the sentence names, the ones that stand out most. */
 export const PROFILE_MAX_NAMED = 3
 /**

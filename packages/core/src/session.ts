@@ -66,9 +66,6 @@ export class AnalysisSession {
   private isSample = false
   // The period the athlete picked. The default is the most recent window that holds both sports.
   private choice: PeriodChoice = 'default'
-  // Whether the headline trend carries each week's running equivalent, which only an age-graded
-  // Balance trend uses. Off until the page asks for it.
-  private gradeTrend = false
   private periods = new PeriodCache()
   private zoneTimes = new ZoneTimeCache()
   private judge = new HeartRateJudge()
@@ -214,12 +211,6 @@ export class AnalysisSession {
     return zonesAt(at, this.athleteFor(settings), this.state(settings).zoneEstimates)
   }
 
-  /** Asks for the headline trend's running equivalents, which an age-graded Balance trend needs. */
-  setGradeTrend(on: boolean, settings: AthleteSettings): SessionState {
-    this.gradeTrend = on
-    return this.state(settings)
-  }
-
   setRange(choice: PeriodChoice, settings: AthleteSettings): SessionState {
     this.choice = choice
     return this.state(settings)
@@ -274,7 +265,6 @@ export class AnalysisSession {
         digests,
         countedWalkingRuns: keys,
         choice: this.choice,
-        gradeTrend: this.gradeTrend,
         isSample: this.isSample,
         periods: this.periods,
         zoneTimes: this.zoneTimes,

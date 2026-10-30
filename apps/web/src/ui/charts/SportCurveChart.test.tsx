@@ -82,6 +82,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -96,6 +97,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="imperial"
       />,
@@ -110,6 +112,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -125,6 +128,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -150,6 +154,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="imperial"
       />,
@@ -167,6 +172,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -185,6 +191,7 @@ describe('SportCurveChart', () => {
           sport={sport}
           curve={curve}
           previous={null}
+          change={null}
           massKg={MASS_KG}
           units="metric"
         />,
@@ -205,6 +212,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -220,6 +228,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={[curvePoint(60, 400, 'ride-1'), curvePoint(300, 320, 'ride-1')]}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -236,6 +245,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={PREVIOUS_RUN}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -264,6 +274,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -278,6 +289,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={{ ...PREVIOUS_RUN, curve: [] }}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -292,6 +304,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -305,6 +318,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={PREVIOUS_RUN}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -315,7 +329,14 @@ describe('SportCurveChart', () => {
 
   it('reserves no key row for an empty chart, which shows only its message', () => {
     const { container } = render(
-      <SportCurveChart sport="run" curve={[]} previous={null} massKg={MASS_KG} units="metric" />,
+      <SportCurveChart
+        sport="run"
+        curve={[]}
+        previous={null}
+        change={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
     )
     expect(screen.getByText(/Add runs of 3 min or more/)).toBeInTheDocument()
     expect(container.querySelector('.chart-frame__legend')).toBeNull()
@@ -327,6 +348,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={{ curve: [], label: 'Previous 6 weeks' }}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -344,6 +366,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={PREVIOUS_RUN}
+        change={null}
         massKg={MASS_KG}
         units="metric"
         activityNames={NAMES}
@@ -367,6 +390,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
         activityNames={NAMES}
@@ -385,6 +409,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
         activityNames={NAMES}
@@ -401,6 +426,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={PREVIOUS_RUN}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -419,6 +445,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={[curvePoint(180, 5, 'run-1')]}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -433,6 +460,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={[curvePoint(60, 5.4, 'run-1'), curvePoint(120, 5.2, 'run-1'), ...RUN_SPEEDS]}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -449,6 +477,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -462,6 +491,7 @@ describe('SportCurveChart', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -475,6 +505,7 @@ describe('SportCurveChart', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -495,6 +526,7 @@ describe('SportCurveChart', () => {
           curvePoint(3600, 3.5, 'run-2'),
         ]}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -517,6 +549,7 @@ describe('SportCurveChart record marks', () => {
           curvePoint(3600, 210, 'ride-1'),
         ]}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -553,6 +586,7 @@ describe('the series’ end label', () => {
         sport="ride"
         curve={CURVE}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -577,6 +611,7 @@ describe('the series’ end label', () => {
           curvePoint(1800, 230, 'ride-1'),
         ]}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -591,6 +626,7 @@ describe('the series’ end label', () => {
         sport="ride"
         curve={CURVE}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -611,6 +647,7 @@ describe('the series’ end label', () => {
           curvePoint(1800, 3.2, 'run-1'),
         ]}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -635,6 +672,7 @@ describe('the curve’s key row, table and labels', () => {
         sport="run"
         curve={ONE_ACTIVITY}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
         activityNames={NAMES}
@@ -652,6 +690,7 @@ describe('the curve’s key row, table and labels', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
         activityNames={NAMES}
@@ -677,6 +716,7 @@ describe('the curve’s key row, table and labels', () => {
           curvePoint(3600, 3.5, 'run-1'),
         ]}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -693,6 +733,7 @@ describe('the curve’s key row, table and labels', () => {
         sport="run"
         curve={RUN_SPEEDS}
         previous={PREVIOUS_RUN}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -710,6 +751,7 @@ describe('the curve’s key row, table and labels', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={{ curve: [], label: 'Previous 6 weeks' }}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -726,6 +768,7 @@ describe('the curve’s key row, table and labels', () => {
         sport="ride"
         curve={RIDE_WATTS}
         previous={null}
+        change={null}
         massKg={MASS_KG}
         units="metric"
       />,

@@ -26,6 +26,7 @@ export const protoSameHeartRate: Detector = {
   kind: 'efficiency',
   sports: ['run', 'ride'],
   minHistoryWeeks: 20,
+  alarmBudget: 0,
   run(input, sport): Candidate[] {
     const fits = input.tables.sameHeartRate[sport]
     const last = fits.weeks.at(-1)

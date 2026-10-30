@@ -14,7 +14,9 @@ import { drawnSports, profileLayout } from './gradeProfileLayout'
 import type { ProfileLayout, ProfileRow } from './gradeProfileLayout'
 import { isPhoneWidth, plotBoxOf } from './plotBox'
 import { rootFontPx } from './rootFont'
-import { END_LABEL_MARGIN_PX } from './sharedTrendLayout'
+
+/** The room an end label needs beyond its text: 10 px from the plot and 4 px from the chart's edge. */
+const END_LABEL_MARGIN_PX = 14
 
 /**
  * From this chart width, px, a grade chart whose 20 minute labels cannot sit clear of its lines names each sport

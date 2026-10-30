@@ -3,9 +3,8 @@ import type { Lack, SameHeartRate, SameHeartRateWeek } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { plural } from '../components/plural'
-import { LACK_TEXT, sameHeartRateCopy, sameHeartRateTitle } from '../sameHeartRateCopy'
+import { LACK_TEXT, sameHeartRateTitle } from '../sameHeartRateCopy'
 import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL } from '../sports'
-import { ChartAnnotations } from './ChartAnnotations'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
@@ -20,10 +19,9 @@ import {
   tooltipOverlay,
 } from './chartInteraction'
 import type { ChartSize, TooltipContent } from './chartTypes'
-import { bandPath, linePath } from './paths'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { sameHeartRateLayout } from './sameHeartRateLayout'
-import { axisTitle, formatNative, formatPlotted, nativeLabel, plottedValue } from './sportAxis'
+import { axisTitle, formatNative, nativeLabel, plottedValue } from './sportAxis'
 import { axisFontSize } from './ticks'
 import { weekDay } from './trendText'
 import './ChartSeries.css'
@@ -35,13 +33,7 @@ export interface SameHeartRateChartProps {
   units: UnitSystem
   /** Muted text under the plot: how to read it, and what it does not count. */
   note: string
-  /** Whether the change is the chart's headline. Left out where another finding speaks for the sport. */
-  headline?: boolean
 }
-
-/** A chart at least this wide, px, keeps a right gutter for the line's end label. */
-const WIDE_CHART_PX = 640
-const GUTTER_PX = 96
 
 const weekHasFit = (week: SameHeartRateWeek): boolean => week.fit !== null
 
@@ -82,35 +74,25 @@ function tooltipFor(
 }
 
 /**
- * One sport's output at one heart rate: a light dot for each week that reports, a straight line fitted
- * through them with a band for how well the line is pinned down, and the finding as the chart's title. The
- * line is the trend and the dots are the evidence; a week with too little data has no dot and a mark on the
- * date axis. The finding names a change only when the trend's 90% band is clear of zero, so a line
- * that slopes within its band is drawn but not claimed. Rides are diamonds.
+ * One sport's output at one heart rate: a light dot for each week that reports, with its 90% interval in the tooltip
+ * and table, and a mark on the date axis for a week with too little data. There is no fitted line and no finding:
+ * the weekly windows overlap and the level wanders, so a line through them would claim a trend the data cannot
+ * show, and the fitness status is the sport's voice on change. Rides are diamonds.
  */
-export function SameHeartRateChart({
-  sport,
-  data,
-  units,
-  note,
-  headline = true,
-}: SameHeartRateChartProps) {
+export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const { weeks, referenceHeartRate: reference } = data
   const hasData = reference !== null && weeks.filter(weekHasFit).length >= 2
   const layoutOf = sizedOnce((size: ChartSize) => sameHeartRateLayout(weeks, sport, units, size))
   const diamond = SPORT_FORMAT[sport].glyph === 'diamond'
   const title = sameHeartRateTitle(sport, reference ?? 0, units)
-  const { text: takeaway } = sameHeartRateCopy(sport, data, units)
 
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={title}
-      takeaway={headline ? takeaway : undefined}
-      description={`Output at ${reference} bpm in each week, fitted to the steady stretches of the 4 weeks to that Sunday, as ${SPORT_FORMAT[sport].titleUnit(units)}, with a fitted line and its band.`}
+      description={`Output at ${reference} bpm in each week, fitted to the steady stretches of the 4 weeks to that Sunday, as ${SPORT_FORMAT[sport].titleUnit(units)}.`}
       note={note}
-      plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}
       table={{
         columns: ['Week ending', nativeLabel(sport), '90% range', 'Stretches'],
         rows: weeks.map((week) => [
@@ -159,20 +141,6 @@ export function SameHeartRateChart({
             />
             <GapMarks xs={m.xs} gaps={weeks.map((week) => week.fit === null)} plot={plot} />
             {activeX !== undefined ? <Crosshair x={activeX} plot={plot} /> : null}
-            {m.trend ? (
-              <>
-                <path
-                  data-testid="same-hr-band"
-                  className="chart-series__area chart-series__area--trend"
-                  d={bandPath(m.trend.upper, m.trend.lower)}
-                />
-                <path
-                  data-testid="same-hr-trend"
-                  className={`chart-series__line chart-series__line--${sport}`}
-                  d={linePath(m.trend.line)}
-                />
-              </>
-            ) : null}
             {m.dots.map((dot, i) => {
               const week = weeks[i]
               if (dot === null || week === undefined) return null
@@ -199,22 +167,6 @@ export function SameHeartRateChart({
                 </g>
               )
             })}
-            {m.trend ? (
-              <ChartAnnotations
-                size={size}
-                annotations={[
-                  {
-                    kind: 'end',
-                    id: 'trend-end',
-                    optional: true,
-                    tone: sport,
-                    at: m.trend.line[1],
-                    text: formatPlotted(sport, m.trend.endY, units),
-                    sub: `at ${reference} bpm`,
-                  },
-                ]}
-              />
-            ) : null}
           </g>
         )
       }}

@@ -9,9 +9,25 @@
  * expanded, so `&lol;` and any other entity that is not predefined is an XmlError. This blocks
  * billion-laughs and external-entity attacks by construction.
  *
+ * A document with structure no real file has (see XmlLimits) is refused before the text is copied or
+ * decoded, so a hostile file costs no more than its own bytes.
+ *
  * Two entry points share one scanner. `parseXml` builds a tree. `scanXml` emits events and keeps
  * no nodes, so its memory is O(depth) plus the source string.
  */
+
+import { decode, isNameChar, isNameStart, isSpace, localName, XmlError } from './decode'
+import {
+  MAX_XML_ATTRIBUTE_CHARS,
+  MAX_XML_ATTRIBUTES_PER_ELEMENT,
+  MAX_XML_DEPTH,
+  MAX_XML_NAME_CHARS,
+  MAX_XML_NODES,
+  MAX_XML_SCAN_NODES,
+  MAX_XML_TEXT_RUN_CHARS,
+} from '../import/limits'
+
+export { XmlError } from './decode'
 
 export interface XmlElement {
   name: string
@@ -27,6 +43,11 @@ export interface XmlLimits {
   maxDepth: number
   /** Maximum elements, attributes and non-blank text or CDATA runs. */
   maxNodes: number
+  /** The structure limits of import/limits.ts, per element, name, text run (before decoding) and attribute value. */
+  maxAttributes?: number
+  maxNameChars?: number
+  maxTextRunChars?: number
+  maxAttributeChars?: number
 }
 
 /**
@@ -43,25 +64,16 @@ export interface XmlHandler {
   close?(local: string, name: string, depth: number): void
 }
 
-export const DEFAULT_XML_LIMITS: Readonly<XmlLimits> = { maxDepth: 64, maxNodes: 3_000_000 }
-
-/** Streaming has no tree to hold, so only CPU bounds the work and the node limit is looser. */
-export const DEFAULT_SCAN_XML_LIMITS: Readonly<XmlLimits> = { maxDepth: 64, maxNodes: 20_000_000 }
-
-export class XmlError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'XmlError'
-  }
+export const DEFAULT_XML_LIMITS: Readonly<XmlLimits> = {
+  maxDepth: MAX_XML_DEPTH,
+  maxNodes: MAX_XML_NODES,
 }
 
-const PREDEFINED = new Map([
-  ['lt', '<'],
-  ['gt', '>'],
-  ['amp', '&'],
-  ['quot', '"'],
-  ['apos', "'"],
-])
+/** Streaming has no tree to hold, so only CPU bounds the work and the node limit is looser. */
+export const DEFAULT_SCAN_XML_LIMITS: Readonly<XmlLimits> = {
+  maxDepth: MAX_XML_DEPTH,
+  maxNodes: MAX_XML_SCAN_NODES,
+}
 
 /** Decodes UTF-8 bytes (a leading BOM is dropped by the decoder). */
 function decodeUtf8(bytes: Uint8Array): string {
@@ -112,6 +124,10 @@ export function scanXml(text: string, handler: XmlHandler, limits: Partial<XmlLi
   new Scanner(text, handler, {
     maxDepth: limits.maxDepth ?? DEFAULT_SCAN_XML_LIMITS.maxDepth,
     maxNodes: limits.maxNodes ?? DEFAULT_SCAN_XML_LIMITS.maxNodes,
+    maxAttributes: limits.maxAttributes ?? MAX_XML_ATTRIBUTES_PER_ELEMENT,
+    maxNameChars: limits.maxNameChars ?? MAX_XML_NAME_CHARS,
+    maxTextRunChars: limits.maxTextRunChars ?? MAX_XML_TEXT_RUN_CHARS,
+    maxAttributeChars: limits.maxAttributeChars ?? MAX_XML_ATTRIBUTE_CHARS,
   }).parse()
 }
 
@@ -122,85 +138,6 @@ export function scanXmlBytes(
   limits: Partial<XmlLimits> = {},
 ): void {
   scanXml(decodeUtf8(bytes), handler, limits)
-}
-
-function isSpace(c: number): boolean {
-  return c === 0x20 || c === 0x09 || c === 0x0a || c === 0x0d
-}
-
-function isNameStart(c: number): boolean {
-  return (
-    (c >= 0x61 && c <= 0x7a) || (c >= 0x41 && c <= 0x5a) || c === 0x5f || c === 0x3a || c >= 0x80
-  )
-}
-
-function isNameChar(c: number): boolean {
-  return isNameStart(c) || (c >= 0x30 && c <= 0x39) || c === 0x2d || c === 0x2e
-}
-
-function isDigit(c: number, hex: boolean): boolean {
-  if (c >= 0x30 && c <= 0x39) return true
-  return hex && ((c >= 0x61 && c <= 0x66) || (c >= 0x41 && c <= 0x46))
-}
-
-/** The XML 1.0 Char production: the code points a character reference may name. */
-function isXmlChar(code: number): boolean {
-  return (
-    code === 0x9 ||
-    code === 0xa ||
-    code === 0xd ||
-    (code >= 0x20 && code <= 0xd7ff) ||
-    (code >= 0xe000 && code <= 0xfffd) ||
-    (code >= 0x10000 && code <= 0x10ffff)
-  )
-}
-
-/** The part of a name before any namespace prefix. */
-function localName(name: string): string {
-  return name.slice(name.lastIndexOf(':') + 1)
-}
-
-/**
- * Replaces the predefined entities and character references in `raw`. Every scan is bounded by a
- * short window, so the work stays linear even for a run of stray '&' characters.
- */
-function decode(raw: string): string {
-  let out = ''
-  let from = 0
-  let amp = raw.indexOf('&')
-  while (amp !== -1) {
-    out += raw.slice(from, amp)
-    let i = amp + 1
-    let decoded: string
-    if (raw.charCodeAt(i) === 0x23) {
-      const hex = raw.charCodeAt(i + 1) === 0x78
-      const digits = hex ? i + 2 : i + 1
-      i = digits
-      while (i < raw.length && i - digits <= 8 && isDigit(raw.charCodeAt(i), hex)) i++
-      if (i === digits || raw.charCodeAt(i) !== 0x3b) {
-        throw new XmlError(`malformed character reference at ${amp}`)
-      }
-      const code = parseInt(raw.slice(digits, i), hex ? 16 : 10)
-      if (!isXmlChar(code)) {
-        throw new XmlError(`character reference at ${amp} is outside the XML character range`)
-      }
-      decoded = String.fromCodePoint(code)
-    } else {
-      const nameStart = i
-      while (i < raw.length && i - nameStart < 16 && isNameChar(raw.charCodeAt(i))) i++
-      const name = raw.slice(nameStart, i)
-      if (name === '' || raw.charCodeAt(i) !== 0x3b) {
-        throw new XmlError(`malformed entity reference at ${amp}`)
-      }
-      const value = PREDEFINED.get(name)
-      if (value === undefined) throw new XmlError(`unknown entity &${name};`)
-      decoded = value
-    }
-    out += decoded
-    from = i + 1
-    amp = raw.indexOf('&', from)
-  }
-  return out + raw.slice(from)
 }
 
 /** An open element, kept until its end tag so the names can be matched. */
@@ -214,16 +151,24 @@ class Scanner {
   private readonly handler: XmlHandler
   private readonly maxDepth: number
   private readonly maxNodes: number
+  private readonly maxAttributes: number
+  private readonly maxNameChars: number
+  private readonly maxTextRunChars: number
+  private readonly maxAttributeChars: number
   private pos = 0
   private nodes = 0
   private readonly stack: OpenElement[] = []
   private rootSeen = false
 
-  constructor(src: string, handler: XmlHandler, limits: XmlLimits) {
+  constructor(src: string, handler: XmlHandler, limits: Required<XmlLimits>) {
     this.src = src
     this.handler = handler
     this.maxDepth = limits.maxDepth
     this.maxNodes = limits.maxNodes
+    this.maxAttributes = limits.maxAttributes
+    this.maxNameChars = limits.maxNameChars
+    this.maxTextRunChars = limits.maxTextRunChars
+    this.maxAttributeChars = limits.maxAttributeChars
   }
 
   parse(): void {
@@ -248,6 +193,9 @@ class Scanner {
     if (depth === 0) {
       if (!this.isBlank(from, to)) throw new XmlError(`text outside the root element at ${from}`)
       return
+    }
+    if (to - from > this.maxTextRunChars) {
+      throw new XmlError(`text of more than ${this.maxTextRunChars} characters at ${from}`)
     }
     const raw = this.src.slice(from, to)
     if (raw.includes(']]>')) throw new XmlError(`']]>' in text at ${from}`)
@@ -295,6 +243,9 @@ class Scanner {
     if (end === -1) throw new XmlError(`unterminated CDATA at ${this.pos}`)
     const depth = this.stack.length
     if (depth === 0) throw new XmlError(`CDATA outside the root element at ${this.pos}`)
+    if (end - start > this.maxTextRunChars) {
+      throw new XmlError(`CDATA of more than ${this.maxTextRunChars} characters at ${this.pos}`)
+    }
     if (end > start) this.handler.text?.(this.src.slice(start, end), depth)
     if (!this.isBlank(start, end)) this.count(1)
     this.pos = end + 3
@@ -351,6 +302,7 @@ class Scanner {
     this.rootSeen = true
 
     const attrs: Record<string, string> = {}
+    let attributes = 0
     let selfClosing = false
     for (;;) {
       const spaced = this.skipSpace()
@@ -367,6 +319,10 @@ class Scanner {
         break
       }
       if (!spaced) throw new XmlError(`expected whitespace in <${name}> at ${this.pos}`)
+      if (attributes >= this.maxAttributes) {
+        throw new XmlError(`more than ${this.maxAttributes} attributes in <${name}>`)
+      }
+      attributes++
       const attr = this.name()
       if (attr === '') throw new XmlError(`malformed attribute in <${name}> at ${this.pos}`)
       this.skipSpace()
@@ -377,6 +333,9 @@ class Scanner {
       if (quote !== 0x22 && quote !== 0x27) throw new XmlError(`unquoted value for ${attr}`)
       const close = src.indexOf(quote === 0x22 ? '"' : "'", this.pos + 1)
       if (close === -1) throw new XmlError(`unterminated value for ${attr}`)
+      if (close - this.pos - 1 > this.maxAttributeChars) {
+        throw new XmlError(`value of ${attr} is more than ${this.maxAttributeChars} characters`)
+      }
       const raw = src.slice(this.pos + 1, close)
       if (raw.includes('<')) throw new XmlError(`'<' in the value of ${attr}`)
       if (Object.hasOwn(attrs, attr)) throw new XmlError(`duplicate attribute ${attr} in <${name}>`)
@@ -411,7 +370,10 @@ class Scanner {
     const start = this.pos
     if (start >= src.length || !isNameStart(src.charCodeAt(start))) return ''
     let i = start + 1
-    while (i < src.length && isNameChar(src.charCodeAt(i))) i++
+    while (i < src.length && i - start <= this.maxNameChars && isNameChar(src.charCodeAt(i))) i++
+    if (i - start > this.maxNameChars) {
+      throw new XmlError(`a name of more than ${this.maxNameChars} characters at ${start}`)
+    }
     this.pos = i
     return src.slice(start, i)
   }

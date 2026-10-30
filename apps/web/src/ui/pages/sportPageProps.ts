@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { ChangeEvidence } from '@rca/core/change/types'
 import type { LateEvidence, SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
@@ -17,10 +18,10 @@ export interface SportPageProps {
   previous: SportCurves | null
   /** The label of that period, such as "Previous 6 weeks". */
   previousLabel: string | null
+  /** Whether each best effort differs from that period's by more than chance; null for all time. */
+  change: ChangeEvidence | null
   /** The weekly trend of each effort length over the period. */
   trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
-  /** The trailing window of each trend point, in days. */
-  windowDays: number
   /** This sport's output at one heart rate, week by week over the period. */
   sameHeartRate: SameHeartRate
   /** Each sport's fitness at the same heart rate over the whole library, whatever the period: the page leads with its own sport's. */

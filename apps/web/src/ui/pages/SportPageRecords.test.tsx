@@ -10,6 +10,7 @@ import { curvePoint } from '../charts/fixtures'
 import { makeActivity, makeResult } from '../components/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { SportPage } from './SportPage'
+import { changeOf } from '../charts/changeFixtures'
 
 afterEach(() => {
   cleanup()
@@ -33,7 +34,7 @@ function renderPage(
       trends={NO_TRENDS}
       sameHeartRate={NO_SAME_HEART_RATE[sport]}
       lateEvidence={NO_LATE_EVIDENCE[sport]}
-      windowDays={14}
+      change={previous === null ? null : changeOf('higher')}
       units="metric"
       massKg={75}
       weighted

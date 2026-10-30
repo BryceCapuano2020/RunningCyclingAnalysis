@@ -1,13 +1,16 @@
 import { useCallback, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import { sameRegime } from '@rca/core/period'
 import type { SessionState } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
 import { EMPTY_SESSION } from './model'
-import type { ImportProgress } from './model'
+import type { Baseline, ImportProgress } from './model'
 
 /**
  * The analysis an import was added to, and the one it made, with the outcome it was reported with.
- * `before` is null for a first import or when the sample was on screen.
+ * `before` is null for a first import or when the sample was on screen, or when the two were made under different
+ * period regimes (`sameRegime`): the default period is 12 weeks until an import brings a sport it lacked, and then
+ * all time, and a figure of one against a figure of the other is a different stretch of the library, not a change.
  */
 export interface ImportChange {
   outcome: ImportOutcome
@@ -15,9 +18,23 @@ export interface ImportChange {
   after: AnalysisResult | null
 }
 
-/** The analysis an import is compared with: the result on screen, or nothing for the sample. */
-export function baselineOf(state: SessionState): AnalysisResult | null {
-  return state.isSample ? null : state.result
+/** The analysis an import is compared with, and the period it was made under: the result on screen, or nothing for the sample. */
+export function baselineOf(state: SessionState): Baseline | null {
+  return state.isSample || state.result === null
+    ? null
+    : { result: state.result, period: state.period }
+}
+
+/**
+ * What an import is compared with: the baseline's result when the import left the period in the regime it was
+ * in, else nothing.
+ */
+export function comparableBefore(
+  baseline: Baseline | null | undefined,
+  after: SessionState,
+): AnalysisResult | null {
+  if (baseline === null || baseline === undefined) return null
+  return sameRegime(baseline.period, after.period) ? baseline.result : null
 }
 
 /**
