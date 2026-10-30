@@ -94,6 +94,12 @@ export function useAccount(): AccountController {
   // Profile writes replace the whole profile on the server, so keep them in call order.
   const profileWritesRef = useRef<Promise<unknown>>(Promise.resolve())
   const endingSessionRef = useRef(false)
+  // The error the account lookup itself left, so only it is taken back when a later ask gets through.
+  const lookupErrorRef = useRef<string | null>(null)
+  const clearLookupError = useCallback(
+    () => setError((shown) => (shown !== null && shown === lookupErrorRef.current ? null : shown)),
+    [],
+  )
 
   /**
    * Clears an account's detail recordings from this browser once the account is no longer this
@@ -156,7 +162,7 @@ export function useAccount(): AccountController {
           adopt(found)
           setLookupPending(false)
           // A retry that got through takes back the account's earlier "unavailable".
-          if (failed) setError(null)
+          if (failed) clearLookupError()
         },
         (failure: unknown) => {
           if (!current) return
@@ -169,7 +175,10 @@ export function useAccount(): AccountController {
           setStatus('unavailable')
           // The first miss is usually a slow moment the retry clears, so it says nothing; a second
           // miss, or the last one, does.
-          if (failed || delay === undefined) setError(messageOf(failure))
+          if (failed || delay === undefined) {
+            lookupErrorRef.current = messageOf(failure)
+            setError(lookupErrorRef.current)
+          }
           failed = true
           setLookupPending(delay !== undefined)
           if (delay !== undefined) {
@@ -184,9 +193,9 @@ export function useAccount(): AccountController {
       current = false
       clearTimeout(retryTimer)
     }
-  }, [adopt])
+  }, [adopt, clearLookupError])
 
-  useAccountTabs({ status, lookupPending, refresh, meRef, setError })
+  useAccountTabs({ status, lookupPending, refresh, meRef, setError, clearLookupError })
 
   const signIn = useCallback(() => {
     location.assign(signInUrl)

@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { Me } from '@rca/contract'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/client'
+import { ApiRequestError } from '../api/client'
 import { FakeBroadcastChannel } from '../test/fakeBroadcastChannel'
 import { resetTabSync } from './tabSync'
 import { useAccount } from './useAccount'
@@ -151,8 +152,88 @@ describe('what this tab does when another tab speaks', () => {
   })
 })
 
+/** Makes the tab hidden or visible, as the browser reports it. */
+function setVisibility(state: 'hidden' | 'visible') {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
+}
+
+describe('a tab that is out of view', () => {
+  afterEach(() => setVisibility('visible'))
+
+  it('waits to read the account until it is in view, and then reads it once', async () => {
+    const { result } = await signedIn()
+    const calls = mocked.getMe.mock.calls.length
+    mocked.getMe.mockResolvedValue(null)
+    setVisibility('hidden')
+
+    act(() => otherTab.postMessage({ type: 'account', change: 'signed-out' }))
+    act(() => otherTab.postMessage({ type: 'account', change: 'signed-out' }))
+    expect(mocked.getMe.mock.calls.length).toBe(calls)
+
+    setVisibility('visible')
+    act(() => document.dispatchEvent(new Event('visibilitychange')))
+    await waitFor(() => expect(result.current.error).toMatch(/signed out in another tab/))
+    expect(mocked.getMe.mock.calls.length).toBe(calls + 1)
+  })
+
+  it('keeps the notice that another tab signed out when it comes back into view', async () => {
+    // The probe: the notice is set while the tab is out of view, and the check on coming back must not wipe it.
+    vi.useFakeTimers()
+    try {
+      mocked.getMe.mockResolvedValue(ME)
+      const { result } = renderHook(() => useAccount())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(result.current.status).toBe('signed-in')
+      mocked.getMe.mockResolvedValue(null)
+      setVisibility('hidden')
+      act(() => otherTab.postMessage({ type: 'account', change: 'signed-out' }))
+      setVisibility('visible')
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'))
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'))
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(result.current.status).toBe('signed-out')
+      expect(result.current.error).toMatch(/signed out in another tab/)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not read the account for a tab that holds none, however often others speak', async () => {
+    mocked.getMe.mockResolvedValue(null)
+    const { result } = renderHook(() => useAccount())
+    await waitFor(() => expect(result.current.status).toBe('signed-out'))
+    const calls = mocked.getMe.mock.calls.length
+
+    act(() => otherTab.postMessage({ type: 'account', change: 'signed-out' }))
+    act(() => otherTab.postMessage({ type: 'account', change: 'deleted' }))
+
+    expect(mocked.getMe.mock.calls.length).toBe(calls)
+  })
+
+  it('says so when it cannot confirm the account after another tab changed it', async () => {
+    const { result } = await signedIn()
+    mocked.getMe.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+
+    act(() => otherTab.postMessage({ type: 'profile' }))
+
+    await waitFor(() => expect(result.current.error).toMatch(/Could not confirm your account/))
+    expect(result.current.status).toBe('signed-in')
+  })
+})
+
 describe('coming back to a signed-out tab', () => {
-  it('shows a sign-in made in another tab, once per 30 seconds', async () => {
+  afterEach(() => setVisibility('visible'))
+
+  it('looks for a sign-in made elsewhere only once in view, and at most every 30 seconds', async () => {
     vi.useFakeTimers()
     try {
       mocked.getMe.mockResolvedValue(null)
@@ -161,13 +242,31 @@ describe('coming back to a signed-out tab', () => {
         await vi.advanceTimersByTimeAsync(0)
       })
       expect(result.current.status).toBe('signed-out')
-      mocked.getMe.mockResolvedValue(ME)
+      const calls = () => mocked.getMe.mock.calls.length
+      const before = calls()
+      const flip = async (state: 'hidden' | 'visible') => {
+        setVisibility(state)
+        await act(async () => {
+          document.dispatchEvent(new Event('visibilitychange'))
+          await vi.advanceTimersByTimeAsync(0)
+        })
+      }
+
+      await flip('hidden')
+      expect(calls()).toBe(before)
+      await flip('visible')
+      expect(calls()).toBe(before + 1)
+      await flip('hidden')
+      await flip('visible')
+      expect(calls()).toBe(before + 1)
 
       await act(async () => {
-        document.dispatchEvent(new Event('visibilitychange'))
-        await vi.advanceTimersByTimeAsync(0)
+        await vi.advanceTimersByTimeAsync(30_000)
       })
-
+      mocked.getMe.mockResolvedValue(ME)
+      await flip('hidden')
+      await flip('visible')
+      expect(calls()).toBe(before + 2)
       expect(result.current.status).toBe('signed-in')
     } finally {
       vi.useRealTimers()

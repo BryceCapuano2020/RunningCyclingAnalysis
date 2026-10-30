@@ -19,7 +19,13 @@ interface AccountTabsDeps {
   refresh: () => Promise<Me | null>
   meRef: { current: Me | null }
   setError: (message: string | null) => void
+  /** Takes back the "could not reach the server" the lookup left behind, and no other notice. */
+  clearLookupError: () => void
 }
+
+/** Said when an account held here could not be checked after another tab changed it. */
+const NOT_CONFIRMED =
+  'Could not confirm your account just now. If you changed it in another tab, that change may not show here.'
 
 /**
  * Keeps this tab's account in step with the other tabs and with the browser coming back.
@@ -29,7 +35,9 @@ interface AccountTabsDeps {
  * - Signed out, coming back to the tab asks once: the session cookie is shared, so a sign-in in another
  *   tab shows here without a reload.
  * - Another tab saving the profile, signing out, deleting the account or finding the session ended makes
- *   this tab read the account again. A tab left holding an account that is gone says why.
+ *   a tab that holds an account read it again, once it is in view (a hidden tab waits until it is). A tab
+ *   left holding an account that is gone says why, and one that could not check says so. A tab that holds
+ *   no account has nothing to update and does not ask.
  */
 export function useAccountTabs({
   status,
@@ -37,6 +45,7 @@ export function useAccountTabs({
   refresh,
   meRef,
   setError,
+  clearLookupError,
 }: AccountTabsDeps): void {
   const lapsedRef = useRef(false)
   const signedOutRef = useRef(false)
@@ -44,6 +53,22 @@ export function useAccountTabs({
     lapsedRef.current = status === 'unavailable' && !lookupPending
     signedOutRef.current = status === 'signed-out'
   }, [status, lookupPending])
+
+  // What another tab said that this tab has not yet acted on, kept while the tab is hidden.
+  const heardRef = useRef<TabMessage | null>(null)
+  const readHeard = useCallback(() => {
+    const heard = heardRef.current
+    heardRef.current = null
+    if (heard === null || meRef.current === null) return
+    refresh()
+      .then((found) => {
+        if (heard.type !== 'account' || found !== null) return
+        if (heard.change === 'signed-out') setError(SIGNED_OUT_ELSEWHERE)
+        else if (heard.change === 'deleted') setError(DELETED_ELSEWHERE)
+        else setError(SESSION_ENDED)
+      })
+      .catch(() => setError(NOT_CONFIRMED))
+  }, [meRef, refresh, setError])
 
   useEffect(() => {
     let asking = false
@@ -54,8 +79,8 @@ export function useAccountTabs({
       asking = true
       askedAt = Date.now()
       refresh()
-        // The answer takes back the "could not reach the server" the lookup left on screen.
-        .then(() => setError(null))
+        // The answer takes back the "could not reach the server" the lookup left on screen, and only that.
+        .then(clearLookupError)
         .catch(() => undefined)
         .finally(() => {
           asking = false
@@ -63,7 +88,9 @@ export function useAccountTabs({
     }
     const onOnline = () => askAgain(false)
     const onVisible = () => {
-      if (document.visibilityState === 'visible') askAgain(true)
+      if (document.visibilityState !== 'visible') return
+      readHeard()
+      askAgain(true)
     }
     window.addEventListener('online', onOnline)
     document.addEventListener('visibilitychange', onVisible)
@@ -71,22 +98,15 @@ export function useAccountTabs({
       window.removeEventListener('online', onOnline)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [refresh, setError])
+  }, [clearLookupError, readHeard, refresh])
 
   const onTabMessage = useCallback(
     (message: TabMessage) => {
-      const heldAccount = meRef.current !== null
-      if (message.type === 'profile' && !heldAccount) return
-      refresh()
-        .then((found) => {
-          if (message.type !== 'account' || !heldAccount || found !== null) return
-          if (message.change === 'signed-out') setError(SIGNED_OUT_ELSEWHERE)
-          else if (message.change === 'deleted') setError(DELETED_ELSEWHERE)
-          else if (message.change === 'expired') setError(SESSION_ENDED)
-        })
-        .catch(() => undefined)
+      if (message.type === 'measurements' || meRef.current === null) return
+      heardRef.current = message
+      if (document.visibilityState === 'visible') readHeard()
     },
-    [meRef, refresh, setError],
+    [meRef, readHeard],
   )
   useTabMessages(onTabMessage)
 }

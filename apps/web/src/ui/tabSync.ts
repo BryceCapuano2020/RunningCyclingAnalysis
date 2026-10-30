@@ -7,10 +7,24 @@ import { useEffect } from 'react'
 export type TabMessage =
   /** The profile was saved on the account. */
   | { type: 'profile' }
-  /** The session began or ended: signing in, signing out, a session that expired, a deleted account. */
-  | { type: 'account'; change: 'signed-in' | 'signed-out' | 'expired' | 'deleted' }
+  /** The session ended: signing out, a session that expired, a deleted account. */
+  | { type: 'account'; change: 'signed-out' | 'expired' | 'deleted' }
+  /** The account's dated settings were changed. */
+  | { type: 'measurements' }
 
 const CHANNEL = 'rca-sync-v1'
+
+const ACCOUNT_CHANGES: ReadonlySet<unknown> = new Set(['signed-out', 'expired', 'deleted'])
+
+/** What another tab sent, if it is a message this version knows. Anything else is ignored. */
+function asTabMessage(data: unknown): TabMessage | null {
+  if (typeof data !== 'object' || data === null || !('type' in data)) return null
+  if (data.type === 'profile' || data.type === 'measurements') return { type: data.type }
+  if (data.type === 'account' && 'change' in data && ACCOUNT_CHANGES.has(data.change)) {
+    return data as TabMessage
+  }
+  return null
+}
 
 type Listener = (message: TabMessage) => void
 
@@ -29,8 +43,9 @@ function shared(): BroadcastChannel | null {
   if (typeof BroadcastChannel === 'undefined') return channel
   try {
     channel = new BroadcastChannel(CHANNEL)
-    channel.onmessage = (event: MessageEvent<TabMessage>) => {
-      for (const listener of listeners) listener(event.data)
+    channel.onmessage = (event: MessageEvent<unknown>) => {
+      const message = asTabMessage(event.data)
+      if (message !== null) for (const listener of listeners) listener(message)
     }
   } catch {
     channel = null

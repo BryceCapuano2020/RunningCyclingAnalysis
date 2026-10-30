@@ -9,6 +9,8 @@ import {
   sortedMeasurements,
   storeMeasurements,
 } from './measurementStore'
+import { tellOtherTabs, useTabMessages } from './tabSync'
+import type { TabMessage } from './tabSync'
 import type { AccountStatus } from './useAccount'
 
 const NOT_KEPT = 'This browser would not keep the setting. Check that it may store site data.'
@@ -63,6 +65,12 @@ export function useMeasurements(
   const [failedFor, setFailedFor] = useState<string | null>(null)
   // Which try this is: the first, its automatic retry, then any the athlete asks for.
   const [attempt, setAttempt] = useState(0)
+  // Another tab changed the account's list: reading it again is one more try. A list already shown stays
+  // if that read fails.
+  const onTabMessage = useCallback((message: TabMessage) => {
+    if (message.type === 'measurements') setAttempt((tries) => tries + 1)
+  }, [])
+  useTabMessages(onTabMessage)
 
   useEffect(() => {
     if (!signedIn) return
@@ -146,6 +154,7 @@ export function useMeasurements(
         if (signedIn) {
           await write()
           setAccount({ userId, entries: sorted })
+          tellOtherTabs({ type: 'measurements' })
         } else {
           if (!storeMeasurements(sorted)) throw new Error(NOT_KEPT)
           setDevice(sorted)

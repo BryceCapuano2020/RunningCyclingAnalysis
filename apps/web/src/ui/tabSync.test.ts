@@ -41,6 +41,20 @@ describe('tab messages', () => {
     expect(heard).toHaveBeenCalledTimes(1)
   })
 
+  it('ignores what is not a message this version knows', () => {
+    const heard = vi.fn()
+    renderHook(() => useTabMessages(heard))
+    const other = FakeBroadcastChannel.other('rca-sync-v1')
+
+    other.postMessage(null)
+    other.postMessage('profile')
+    other.postMessage({ type: 'nonsense' })
+    other.postMessage({ type: 'account', change: 'signed-in' })
+    other.postMessage({ type: 'account' })
+
+    expect(heard).not.toHaveBeenCalled()
+  })
+
   it('does nothing where the browser has no channels', () => {
     vi.unstubAllGlobals()
     vi.stubGlobal('BroadcastChannel', undefined)
