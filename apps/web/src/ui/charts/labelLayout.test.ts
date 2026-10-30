@@ -106,3 +106,55 @@ describe('text size and spacing in the chart estimates', () => {
     expect(geometryScale()).toBe(1)
   })
 })
+
+describe('labelLayout, edge cases', () => {
+  const at = (id: string, left: number, priority = 0): LabelCandidate => ({
+    id,
+    priority,
+    box: { left, right: left + 60, top: 0, bottom: 10 },
+  })
+
+  it('has nothing to keep or drop for no labels', () => {
+    expect(labelLayout([], BOUNDS)).toEqual({ kept: [], dropped: [] })
+  })
+
+  it('lets input order break a tie between equal priorities: the earlier label is kept', () => {
+    const a = at('a', 100)
+    const b = at('b', 120)
+    expect(labelLayout([a, b], BOUNDS)).toEqual({ kept: ['a'], dropped: ['b'] })
+    expect(labelLayout([b, a], BOUNDS)).toEqual({ kept: ['b'], dropped: ['a'] })
+  })
+
+  it('keeps the same set however labels of different priority are ordered in the input', () => {
+    const labels = row(32)
+    const kept = (list: LabelCandidate[]) => [...labelLayout(list, BOUNDS).kept].sort()
+    const expected = kept(labels)
+    expect(kept([...labels].reverse())).toEqual(expected)
+    expect(kept([labels[3]!, labels[0]!, labels[4]!, labels[2]!, labels[1]!])).toEqual(expected)
+  })
+
+  it('moves an end label inside the bounds so it is not lost to them, and leaves a plain label to be dropped', () => {
+    const edge = (clamp: boolean): LabelCandidate => ({
+      id: 'end',
+      priority: 0,
+      clamp,
+      box: { left: 1080, right: 1140, top: 0, bottom: 10 },
+    })
+    expect(labelLayout([edge(true)], BOUNDS).kept).toEqual(['end'])
+    expect(labelLayout([edge(false)], BOUNDS).dropped).toEqual(['end'])
+    // Wider than the bounds: it keeps its left edge in and is still drawn.
+    const wide: LabelCandidate = {
+      id: 'wide',
+      priority: 0,
+      clamp: true,
+      box: { left: -50, right: 1200, top: 0, bottom: 10 },
+    }
+    expect(labelLayout([wide], BOUNDS).kept).toEqual(['wide'])
+  })
+
+  it('still drops an end label that meets one of higher priority once it is inside', () => {
+    const last: LabelCandidate = { ...at('last', 1060, 0), clamp: true }
+    const first: LabelCandidate = { ...at('first', 1050, 1), clamp: true }
+    expect(labelLayout([first, last], BOUNDS)).toEqual({ kept: ['last'], dropped: ['first'] })
+  })
+})

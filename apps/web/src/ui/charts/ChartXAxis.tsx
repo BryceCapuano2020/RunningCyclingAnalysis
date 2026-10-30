@@ -47,6 +47,7 @@ export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProp
       placed.map(({ left, width }, i) => ({
         id: String(i),
         priority: i === placed.length - 1 ? 0 : i === 0 ? 1 : 2,
+        clamp: i === 0 || i === placed.length - 1,
         box: {
           left,
           right: left + width,

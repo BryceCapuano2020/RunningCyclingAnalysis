@@ -120,3 +120,31 @@ for (const size of SIZES) {
     })
   }
 }
+
+test('the section pills stay one scrolling row at normal text on a phone', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Sets its own viewport')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openSample(page)
+  await goTo(page, 'Run')
+  const list = page.locator('.section-nav__list')
+  await expect(list).toBeVisible()
+  const box = await list.boundingBox()
+  // One row of pills (a control tall, with the list's padding), not several wrapped rows.
+  expect(box?.height ?? Infinity).toBeLessThanOrEqual(72)
+  expect(await list.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
+})
+
+test('the section pills wrap to more rows, and stay on screen, at 200% text on a phone', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Sets its own viewport')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await zoomText(page)
+  await openSample(page)
+  await goTo(page, 'Run')
+  const list = page.locator('.section-nav__list')
+  expect((await list.boundingBox())?.height ?? 0).toBeGreaterThan(72)
+  expect(await list.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+})
