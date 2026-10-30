@@ -25,7 +25,7 @@ import { summaryOf, type ActivitySummary } from './summary'
 import type { BikeModelSource } from '../virtualPower'
 import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
 import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
 import type { EstimatedRideGate } from './estimatedRide'
@@ -171,7 +171,7 @@ export function activitySummaries(
 ): ActivitySummary[] {
   const masses = settings === undefined ? null : massesOf(settings)
   const dated = masses !== null && masses.dated
-  return orderedCurrent(digests)
+  return orderedFor('listing', digests)
     .map((digest) => summaryOf(digest, dated ? masses.bodyKg(digest) : undefined))
     .sort((a, b) => b.startMs - a.startMs)
 }
@@ -215,7 +215,7 @@ export function combine(
 ): AnalysisResult {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('combine', digests)
   // The mass of today, which the threshold floors and the comparison are expressed at. Each activity
   // is priced at the body and bike mass in effect on its own date.
   const massKg = settings.massKg

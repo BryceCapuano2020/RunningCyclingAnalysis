@@ -1,4 +1,4 @@
-import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
+import { revisionStatus } from '@rca/core/digest/revisions'
 import { copyOfDigest, dedupeKey, outranks } from '@rca/core/duplicates'
 import type { AnalysisSession, SessionState, SyncItem } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
@@ -67,8 +67,10 @@ export function workoutKeyOf(digest: Pick<ActivityDigest, 'sport' | 'startMs'>):
  * session would prefer the new copy too.
  */
 function replaces(next: ActivityDigest, kept: ActivityDigest | null): boolean {
-  if (kept === null || kept.modelRevision < MODEL_REVISION) return true
-  if (kept.modelRevision > MODEL_REVISION) return false
+  if (kept === null) return true
+  const status = revisionStatus(kept.modelRevision)
+  if (status === 'newer') return false
+  if (status !== 'current') return true
   return outranks(copyOfDigest(next), copyOfDigest(kept))
 }
 

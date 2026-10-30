@@ -4,7 +4,7 @@ import type { ActivityDigest, AthleteSettings, CriticalPowerFit, Sport } from '.
 import { plainCurve } from './bestCurve'
 import type { HeartRateJudgement } from './setAsideTypes'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
 import { bestCurves, fitBikeModelOver } from './rideCurves'
 import type { BestCurves } from './rideCurves'
@@ -33,7 +33,7 @@ export function libraryThresholds(
 ): Pick<HeartRateJudgement, 'fit' | 'thresholdTimeline'> {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('setAside', digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   return {
@@ -63,7 +63,7 @@ export function judgeHeartRate(
 ): HeartRateJudgement {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('setAside', digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   const { curves, fits, heart, gate } = judgedCurves(ordered, masses, bikeModel, settings.massKg)
