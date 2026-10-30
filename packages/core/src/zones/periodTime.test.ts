@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 import type { Measurement } from '../athlete/measurements'
 import { combine } from '../digest/combine'
 import { digestActivity } from '../digest/digestActivity'
+import { judgeHeartRate } from '../digest/setAside'
 import { AnalysisSession } from '../session'
 import { sampleDataset } from '../synthetic'
 import type { AthleteSettings } from '../types'
 import { noTimeInZones, periodTimeInZones } from './periodTime'
 import { sameEnteredReferences } from './zoneShares'
 import { ZoneTimeCache } from './timeCache'
+import { zoneEstimatesOf } from './zones'
 import { estimatesOf } from './test/estimates'
 import { noon, zoneDigest } from './test/zoneDigests'
 
@@ -164,6 +166,21 @@ describe('periodTimeInZones', () => {
     const power = time.ride.find((row) => row.measure === 'power')!
     expect(power.counted).toBeGreaterThan(0)
     expect(power.enteredReferences).toEqual([])
+  })
+
+  it('shares a lookup across a week when nothing is dated, with the result a lookup for each day gives', () => {
+    const digests = sampleDataset().activities.map((activity) => digestActivity(activity))
+    const estimates = zoneEstimatesOf(judgeHeartRate(digests, settings))
+    const undated = periodTimeInZones(digests, settings, estimates)
+    // A dated mass that is the profile's: the zones are looked up for each day and come out the same.
+    const dated = periodTimeInZones(
+      digests,
+      withEntries([{ kind: 'massKg', value: settings.massKg, from: '2000-01-01' }]),
+      estimates,
+    )
+    expect(undated).toEqual(dated)
+    expect(undated.ride.find((row) => row.measure === 'power')!.counted).toBeGreaterThan(0)
+    expect(undated.run.find((row) => row.measure === 'pace')!.counted).toBeGreaterThan(0)
   })
 
   it('keeps a sport and a measure apart', () => {
