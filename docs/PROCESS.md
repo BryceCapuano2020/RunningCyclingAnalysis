@@ -19,9 +19,14 @@ tool limits, so a reviewer really cannot write. A session loads agent types when
 
 ## The coordinator never waits
 
-- No turn ends on "waiting for checks". Once review passes, open the pull request with auto-merge
-  (squash) and move to the next unblocked item. The app's CI monitor wakes the session when a check
-  fails, a conflict appears or a review comment arrives.
+- Auto-merge is always on. Every pull request that is ready for review gets squash auto-merge as
+  soon as it is opened (`gh pr merge --auto --squash <number>`), and a draft gets it when it is
+  marked ready, which happens once review has passed. GitHub has no default for this, and a workflow
+  cannot set it with the default token, because a merge made through `GITHUB_TOKEN` starts no CI
+  run on `main`; so whoever opens the pull request sets it.
+- No turn ends on "waiting for checks". After setting auto-merge, move to the next unblocked item.
+  The app's CI monitor wakes the session when a check fails, a conflict appears or a review comment
+  arrives.
 - Never poll CI (`gh pr checks`, `gh run watch`, sleep loops). Each poll re-reads the whole context.
 - Never end a turn on a question while queued work is unblocked. Ask, then carry on with the work
   the answer does not affect.
