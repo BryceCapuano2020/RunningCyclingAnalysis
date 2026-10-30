@@ -33,6 +33,7 @@ const STATE = {
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
   walkingPaceRuns: 0,
+  countedWalkingRuns: [],
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,

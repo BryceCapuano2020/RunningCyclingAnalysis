@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import {
@@ -307,5 +307,36 @@ describe('what the app noted about the data', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(app.account.signOut).toHaveBeenCalledOnce()
     expect(window.localStorage.getItem('rca.aboutDataSeen')).toBeNull()
+  })
+
+  it('forgets the runs counted at walking pace once the visitor is signed out, and not if signing out failed', async () => {
+    window.localStorage.setItem('rca.countedRuns.v1', '["run-5"]')
+    app.account.signOut = vi.fn(async () => {
+      throw new Error('offline')
+    })
+    const view = render(<App />)
+    fireEvent.click(document.querySelector('.account-menu__trigger')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    await waitFor(() => expect(app.account.signOut).toHaveBeenCalledOnce())
+    await Promise.resolve()
+    expect(window.localStorage.getItem('rca.countedRuns.v1')).not.toBeNull()
+    view.unmount()
+
+    app.account.signOut = vi.fn(async () => undefined)
+    render(<App />)
+    fireEvent.click(document.querySelector('.account-menu__trigger')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    await waitFor(() => expect(window.localStorage.getItem('rca.countedRuns.v1')).toBeNull())
+  })
+})
+
+describe('a sign-in the API refused', () => {
+  it('says why on arrival in the notice region, and takes the reason out of the address', () => {
+    window.history.replaceState(null, '', '#/?signin=rate_limited')
+    render(<App />)
+
+    const message = screen.getByText(/Too many sign-in attempts from this network/)
+    expect(message.closest('[role="status"]')).not.toBeNull()
+    expect(window.location.hash).toBe('#/')
   })
 })

@@ -31,6 +31,8 @@ export interface StateInputs {
   outdatedActivities: number
   incompatibleActivities: number
   syncIssues: SyncIssue[]
+  /** The workout keys of the walking-pace runs the athlete counts, for the state to name. */
+  countedWalkingRuns: string[]
   /** The wall clock (or the sample season's day), which the fitness status reads for how long ago the last run was. */
   nowMs: number
 }
@@ -115,6 +117,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     incompatibleActivities: inputs.incompatibleActivities,
     hiddenDuplicates: hidden.size,
     walkingPaceRuns: visible.length - analysed.length,
+    countedWalkingRuns: inputs.countedWalkingRuns,
     period,
     library: athlete === null ? [] : activitySummaries(visible, athlete),
     syncIssues: inputs.syncIssues,

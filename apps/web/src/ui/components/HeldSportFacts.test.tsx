@@ -50,3 +50,31 @@ describe('HeldSportFacts', () => {
     expect(empty.container).toBeEmptyDOMElement()
   })
 })
+
+describe('HeldSportFacts: a best the power meter measured', () => {
+  const ride = makeActivity({
+    id: 'r1',
+    sport: 'ride',
+    startMs: new Date(2026, 9, 24, 7).getTime(),
+    durationS: 3600,
+    powerSource: 'measured',
+  })
+  const best = [{ durationS: 1200, value: 250, activityId: 'r1', startIndex: 0 }]
+
+  it('is given in watts without a weight, since a meter reads them whatever the weight', () => {
+    render(<HeldSportFacts sport="ride" activities={[ride]} measured={best} nowMs={NOW} />)
+    expect(
+      screen.getByText(/Latest Sat 24 Oct\. Best 20 min 250 W from your power meter\./),
+    ).toBeInTheDocument()
+  })
+
+  it('is left out when no ride was measured, so an estimate is not shown before a weight is known', () => {
+    render(<HeldSportFacts sport="ride" activities={[ride]} measured={[]} nowMs={NOW} />)
+    expect(screen.queryByText(/power meter/)).not.toBeInTheDocument()
+  })
+
+  it('is left out when no curve is given, as for a sport without a meter', () => {
+    render(<HeldSportFacts sport="ride" activities={[ride]} nowMs={NOW} />)
+    expect(screen.queryByText(/power meter/)).not.toBeInTheDocument()
+  })
+})

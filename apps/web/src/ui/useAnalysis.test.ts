@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
-import { act, render, renderHook, waitFor } from '@testing-library/react'
+import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
@@ -141,6 +141,7 @@ const STATE = {
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
   walkingPaceRuns: 0,
+  countedWalkingRuns: [],
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,
@@ -1098,6 +1099,221 @@ describe('useAnalysis account handling', () => {
       expect(localStorage.getItem(KEPT_KEY)).toBeNull()
     })
 
+    describe('when the browser cleared results it kept', () => {
+      const MARK_KEY = 'rca.deviceKept.v1'
+
+      it('says the results are gone when a library marked as kept loads empty, once', () => {
+        localStorage.setItem(KEPT_KEY, '1')
+        localStorage.setItem(MARK_KEY, '1')
+        const { result } = setup(SIGNED_OUT)
+        reportKept(0)
+
+        finishDeviceLoad(STATE)
+
+        expect(result.current.deviceIssue).toEqual({ issue: 'evicted' })
+        expect(localStorage.getItem(MARK_KEY)).toBeNull()
+      })
+
+      it('does not call a library lost when rows it keeps could not be read, as with a newer version’s', () => {
+        localStorage.setItem(MARK_KEY, '1')
+        const { result } = setup(SIGNED_OUT)
+        act(() => worker().reply({ type: 'libraryActivities', activities: [], skipped: 3 }))
+        finishDeviceLoad(STATE)
+
+        expect(result.current.deviceIssue).toBeNull()
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+      })
+
+      it('follows every list of the library kept here, so Remove all is not a loss on the next visit', () => {
+        const { result } = setup(SIGNED_OUT)
+        // A list names the request it ran under, so it is sent while the load runs, as the worker does.
+        reportKept(2)
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+        finishDeviceLoad(STATE)
+
+        act(() => result.current.clear())
+        reportKept(0)
+        expect(localStorage.getItem(MARK_KEY)).toBeNull()
+      })
+
+      it('forgets the runs counted at walking pace when Remove all emptied the library, and only then', () => {
+        const COUNTED_KEY = 'rca.countedRuns.v1'
+        localStorage.setItem(COUNTED_KEY, JSON.stringify(['run-5']))
+        const { result } = setup(SIGNED_OUT)
+        reportKept(2)
+        finishDeviceLoad(WITH_RESULTS)
+
+        // The library refused to clear: what remains is listed, and the choices stay with it.
+        act(() => result.current.clear())
+        reportKept(2)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+        expect(localStorage.getItem(COUNTED_KEY)).not.toBeNull()
+
+        act(() => result.current.clear())
+        reportKept(0)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+        expect(localStorage.getItem(COUNTED_KEY)).toBeNull()
+      })
+
+      it('takes the mark off when a signed-in delete left nothing kept here, so the next sign-out is not a loss', () => {
+        localStorage.setItem(MARK_KEY, '1')
+        setup(SIGNED_IN_KEEP)
+        act(() => worker().reply({ type: 'deviceHolds', holds: true }))
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+        act(() => worker().reply({ type: 'deviceHolds', holds: false }))
+        expect(localStorage.getItem(MARK_KEY)).toBeNull()
+      })
+
+      it('does not take a signed-in visitor’s account list for the library kept here', () => {
+        localStorage.setItem(MARK_KEY, '1')
+        setup(SIGNED_IN_KEEP)
+        reportKept(0)
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+      })
+
+      it('says nothing on a first visit, where an empty library is simply new', () => {
+        const { result } = setup(SIGNED_OUT)
+        reportKept(0)
+
+        finishDeviceLoad(STATE)
+
+        expect(result.current.deviceIssue).toBeNull()
+      })
+
+      it('says nothing for a hint left by a signed-in library, which the device never held', () => {
+        localStorage.setItem(KEPT_KEY, '1')
+        const { result } = setup(SIGNED_OUT)
+        reportKept(0)
+
+        finishDeviceLoad(STATE)
+
+        expect(result.current.deviceIssue).toBeNull()
+      })
+
+      it('marks the device library once an import is kept in it, and keeps the mark while it loads full', () => {
+        const { result } = setup(SIGNED_OUT)
+        finishDeviceLoad(STATE)
+        act(() => result.current.addFiles([FILE]))
+        reportKept(2)
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+      })
+
+      it('does not call a library that Remove all emptied lost', () => {
+        localStorage.setItem(MARK_KEY, '1')
+        const { result } = setup(SIGNED_OUT)
+        reportKept(1)
+        finishDeviceLoad(WITH_RESULTS)
+        act(() => result.current.clear())
+        reportKept(0)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+
+        expect(localStorage.getItem(MARK_KEY)).toBeNull()
+        expect(result.current.deviceIssue).toBeNull()
+      })
+    })
+
+    describe('asking the browser to keep the results', () => {
+      afterEach(() => {
+        Reflect.deleteProperty(navigator, 'storage')
+      })
+
+      function stubStorage(persisted: boolean, persist: boolean) {
+        const storage = {
+          persisted: vi.fn(async () => persisted),
+          persist: vi.fn(async () => persist),
+        }
+        Object.defineProperty(navigator, 'storage', { configurable: true, value: storage })
+        return storage
+      }
+
+      async function importSavedToDevice() {
+        const hook = setup(SIGNED_OUT)
+        finishDeviceLoad(STATE)
+        act(() => hook.result.current.addFiles([FILE]))
+        reportKept(2)
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+        return hook.result
+      }
+
+      it('asks after the first import is kept, and says when the browser will not promise', async () => {
+        const storage = stubStorage(false, false)
+        const result = await importSavedToDevice()
+
+        await waitFor(() => expect(result.current.deviceIssue).toEqual({ issue: 'mayBeCleared' }))
+        expect(storage.persist).toHaveBeenCalledTimes(1)
+      })
+
+      it('says it once on a device, and still asks the browser on every import', async () => {
+        const storage = stubStorage(false, false)
+        const first = await importSavedToDevice()
+        await waitFor(() => expect(first.current.deviceIssue).toEqual({ issue: 'mayBeCleared' }))
+        expect(localStorage.getItem('rca.persistNote.v1')).toBe('1')
+        cleanup()
+
+        const second = await importSavedToDevice()
+        await Promise.resolve()
+        expect(second.current.deviceIssue).toBeNull()
+        // A browser that agreed later is found out; only the notice is gated by the flag.
+        await waitFor(() => expect(storage.persist).toHaveBeenCalledTimes(2))
+      })
+
+      it('says both when an import could not read what was kept and could not keep the new files', () => {
+        const { result } = setup(SIGNED_OUT)
+        finishDeviceLoad(STATE)
+        act(() => result.current.addFiles([FILE]))
+        act(() => worker().reply({ type: 'deviceIssue', issue: 'notRead' }))
+        act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }))
+
+        expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 2, unread: true })
+      })
+
+      it('says nothing when the browser agrees', async () => {
+        const storage = stubStorage(false, true)
+        const result = await importSavedToDevice()
+
+        await waitFor(() => expect(storage.persist).toHaveBeenCalled())
+        expect(result.current.deviceIssue).toBeNull()
+      })
+
+      it('does not ask again, or say anything, when the browser already keeps the storage', async () => {
+        const storage = stubStorage(true, false)
+        const result = await importSavedToDevice()
+
+        await waitFor(() => expect(storage.persisted).toHaveBeenCalled())
+        expect(storage.persist).not.toHaveBeenCalled()
+        expect(result.current.deviceIssue).toBeNull()
+      })
+
+      it('does not ask when every save was refused', async () => {
+        const storage = stubStorage(false, false)
+        const hook = setup(SIGNED_OUT)
+        reportKept(0)
+        finishDeviceLoad(STATE)
+        act(() => hook.result.current.addFiles([FILE]))
+        reportKept(0)
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+
+        expect(storage.persist).not.toHaveBeenCalled()
+      })
+
+      it('does not replace the news of an import that was not kept', async () => {
+        stubStorage(false, false)
+        const hook = setup(SIGNED_OUT)
+        finishDeviceLoad(STATE)
+        act(() => hook.result.current.addFiles([FILE]))
+        reportKept(1)
+        act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+        await Promise.resolve()
+
+        expect(hook.result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 1 })
+        // The notice was not placed, so the device has not been told: it is said at the next import.
+        expect(localStorage.getItem('rca.persistNote.v1')).toBeNull()
+      })
+    })
+
     it('ends the restoring state when the signed-in library loads', () => {
       localStorage.setItem(KEPT_KEY, '1')
       const { result } = setup(SIGNED_IN_KEEP)
@@ -1466,6 +1682,23 @@ describe('useAnalysis requests', () => {
     const changed = { massKg: 80, bikeMassKg: 9 }
     rerender({ account: SIGNED_OUT, current: changed })
     expect(worker().posted).toEqual([DEVICE_LOAD, { type: 'setSettings', settings: changed }])
+  })
+
+  it('posts new settings when the runs counted at walking pace change, in either direction', () => {
+    const { rerender } = setup(SIGNED_OUT, SETTINGS)
+    const counted = { ...SETTINGS, countedRuns: ['run-100'] }
+    rerender({ account: SIGNED_OUT, current: counted })
+    expect(worker().posted).toEqual([DEVICE_LOAD, { type: 'setSettings', settings: counted }])
+
+    // The same two runs in another order are the same choice, so nothing is posted.
+    const two = { ...SETTINGS, countedRuns: ['run-100', 'run-200'] }
+    rerender({ account: SIGNED_OUT, current: two })
+    expect(worker().posted).toHaveLength(3)
+    rerender({ account: SIGNED_OUT, current: { ...SETTINGS, countedRuns: ['run-200', 'run-100'] } })
+    expect(worker().posted).toHaveLength(3)
+
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setSettings', settings: SETTINGS })
   })
 
   it('stops the worker on unmount', () => {

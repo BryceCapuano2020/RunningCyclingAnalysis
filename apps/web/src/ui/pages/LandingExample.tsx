@@ -27,9 +27,9 @@ const SLIP = FITNESS_STATE.slipping
 const SLIP_TRACK = trackModel('run', fitness.change, null, { before: '', now: '' })
 
 /**
- * An example of the home screen, drawn from the sample athlete: the fitness finding above the answer's
- * headline over the real meter and the real levels line, made from the sample's own figures with the same components Balance uses, so the
- * example cannot drift from the screen it stands for. It is the landing page's hero visual, labelled
+ * An example of the home screen, drawn from the sample athlete: the answer's headline over the real meter and
+ * the real levels line first, then the fitness finding as a second panel, made from the sample's own figures
+ * with the same components Balance uses, so the example cannot drift from the screen it stands for. It is the landing page's hero visual, labelled
  * illustrative, and names the sample.
  */
 export function LandingExample() {
@@ -43,7 +43,11 @@ export function LandingExample() {
   return (
     <figure className="landing-example">
       <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`}</figcaption>
+      <p className="landing-example__title">{balanceTitle(reading)}</p>
+      <BalanceMeter reading={reading} />
+      <BalanceLevels model={levels} />
       <div className="landing-example__fitness" data-sport="run" data-state="slipping">
+        <p className="eyebrow">Fitness at the same heart rate</p>
         <p className="landing-example__state">
           <FitnessGlyph glyph={SLIP.glyph} />
           <span>{SLIP.label}</span>
@@ -53,9 +57,6 @@ export function LandingExample() {
         </p>
         <FitnessTrack track={SLIP_TRACK} />
       </div>
-      <p className="landing-example__title">{balanceTitle(reading)}</p>
-      <BalanceMeter reading={reading} />
-      <BalanceLevels model={levels} />
     </figure>
   )
 }

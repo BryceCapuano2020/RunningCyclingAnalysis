@@ -133,6 +133,14 @@ describe('SyncStatus', () => {
     )
   })
 
+  it('names the profile setting when originals are off, not a server error', () => {
+    render(<SyncStatus {...props({ issues: [issue('originals-off', 2)] })} />)
+    expect(message()).toHaveTextContent(
+      'Original files are turned off in your profile, so 2 originals were not kept. The summaries were saved. Turn on Keep original files in my library on Profile to keep them.',
+    )
+    expect(message()).not.toHaveTextContent(/server error/)
+  })
+
   it('keeps earlier issues visible while a new upload runs', () => {
     const { rerender } = render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
     rerender(<SyncStatus {...props({ uploading: 0, issues: [issue('server', 1)] })} />)

@@ -18,12 +18,23 @@ export interface SavedActivity {
 }
 
 /**
- * What this browser failed to do with the activities it keeps. `notSaved` counts activities of one
- * import that show but were not kept, and `newer` those it left because a newer version of the app
- * keeps a copy that this one cannot read; `notForgotten` is a delete or removal that left a copy behind.
+ * What the worker found this browser failed to do with the activities it keeps. `notSaved` counts
+ * activities of one import that show but were not kept, and `newer` those it left because a newer
+ * version of the app keeps a copy that this one cannot read; `notForgotten` is a delete or removal that
+ * left a copy behind; `notRead` is an import analysed without the library kept in this browser, because that
+ * could not be read. The page sets `unread` on a `notSaved` that follows a `notRead`, so both are said.
  */
-export type DeviceIssue =
-  { issue: 'notSaved'; count: number; newer?: number } | { issue: 'notForgotten' }
+export type WorkerDeviceIssue =
+  | { issue: 'notSaved'; count: number; newer?: number; unread?: true }
+  | { issue: 'notForgotten' }
+  | { issue: 'notRead' }
+
+/**
+ * What the page says about the activities kept in this browser: the worker's findings, and two the page
+ * finds itself. `evicted`: results were kept on an earlier visit and the browser no longer holds them.
+ * `mayBeCleared`: the browser would not promise to keep them (see storagePersistence).
+ */
+export type DeviceIssue = WorkerDeviceIssue | { issue: 'evicted' } | { issue: 'mayBeCleared' }
 
 export interface ImportOutcome {
   /** The activities the import read, which a file may hold several of. */
@@ -180,8 +191,14 @@ export type WorkerResponse =
   | { type: 'detailCoverage'; ids: string[] | null; oldestStartMs: number | null }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
-  /** The account's saved activities when signed in, or the ones kept in this browser when not. */
-  | { type: 'libraryActivities'; activities: SavedActivity[] }
+  /**
+   * The account's saved activities when signed in, or the ones kept in this browser when not. For this browser's
+   * library `skipped` counts the rows it keeps but could not read (a newer version's), so a list of none with
+   * some skipped is not an empty library.
+   */
+  | { type: 'libraryActivities'; activities: SavedActivity[]; skipped?: number }
+  /** Whether the library kept in this browser holds anything, after a removal that is not shown as a list. */
+  | { type: 'deviceHolds'; holds: boolean }
   /** The account's export, as the JSON file to save. */
   | { type: 'exportReady'; file: Blob }
   /** The splits of the activity asked for, or null when it is not held or its digest has none. */
@@ -195,7 +212,7 @@ export type WorkerResponse =
   /** Stored activities that could not be read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
   /** The library kept in this browser did not take a save or a removal. Sent before the state that ends the request. */
-  | ({ type: 'deviceIssue' } & DeviceIssue)
+  | ({ type: 'deviceIssue' } & WorkerDeviceIssue)
   /**
    * The import stopped saving: the account ended or changed, storage is full, or a limit was
    * reached. Sent before its state.

@@ -74,6 +74,11 @@ the build output.
    The API issues a 256-bit session token, stores only its SHA-256 hash with an expiry (a user keeps at
    most ten sessions), sets the token as a cookie, and redirects to `APP_URL`.
 
+When a browser navigation to either sign-in route is refused (a rate limit, a cancelled or expired sign-in), the
+API redirects to the app's home with the error's code in the hash (`#/?signin=rate_limited`) instead of answering
+with JSON. The app words the codes it knows itself and takes the code out of the address (`signInProblem.ts`). A
+script that asks for the same routes still gets the JSON error.
+
 **Import** (parse, digest, upload)
 
 1. A browser Web Worker parses the activity file with `@rca/core/import`, which picks FIT, GPX or

@@ -7,6 +7,7 @@ import type { UnitSystem } from '@rca/core/units'
 import type { BalanceReading } from '../components/balanceScale'
 import { countSport, headlineWattsEstimated, sportRecords } from '../records'
 import type { GradeOutcome } from '../grades'
+import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { SPORT_ORDER } from '../sports'
 import { CrossSportCard } from './CrossSportCard'
 import { EmptySportCard } from './EmptySportCard'
@@ -30,6 +31,8 @@ export interface BalanceTilesProps {
   /** What the lower sport would need to grade level, as a sentence, for the lean tile; null when nothing would. */
   target?: string | null
   onAddFiles: (files: File[]) => void
+  /** A sport whose runs are all at walking pace and left out: its prompt says so and offers to count them. */
+  leftOut?: LeftOutRuns
 }
 
 /**
@@ -48,6 +51,7 @@ export function BalanceTiles({
   reading,
   target = null,
   onAddFiles,
+  leftOut,
 }: BalanceTilesProps) {
   const both = SPORT_ORDER.every((sport) => countSport(result.activities, sport) > 0)
   const estimated = SPORT_ORDER.some((sport) => {
@@ -82,6 +86,7 @@ export function BalanceTiles({
           inLibrary={countSport(library, sport)}
           period={period}
           onAddFiles={onAddFiles}
+          leftOut={leftOut?.sport === sport ? leftOut : undefined}
         />
       ),
     ),

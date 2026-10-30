@@ -12,6 +12,7 @@ import { sessionRoutes } from './routes/sessions.ts'
 import { measurementRoutes } from './routes/measurements.ts'
 import { activityRoutes } from './routes/activities/index.ts'
 import { publicRateLimit } from './rateLimit.ts'
+import { isSignInNavigation, signInProblemUrl } from './signInProblem.ts'
 import { healthRoutes } from './routes/health.ts'
 import { BUILD_SHA } from './buildInfo.ts'
 import { accessLog } from './accessLog.ts'
@@ -53,6 +54,8 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
 
   app.onError((err, c) => {
     if (err instanceof HttpError) {
+      // A person whose sign-in is refused is sent back to the app with the reason, not left on raw JSON.
+      if (isSignInNavigation(c)) return c.redirect(signInProblemUrl(c.env.APP_URL, err), 302)
       if (err.retryAfter !== undefined) c.header('Retry-After', String(err.retryAfter))
       return c.json(apiError(err.code, err.message), err.status)
     }

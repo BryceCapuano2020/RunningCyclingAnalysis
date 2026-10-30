@@ -57,7 +57,7 @@ describe('LandingExample', () => {
     expect(headline).toContain(`${example.shown.size} (${example.shown.range}) slower`)
   })
 
-  it('leads with the finding: its state, one sentence and the change as a track', () => {
+  it('gives the finding as a second panel: its state, one sentence and the change as a track', () => {
     const { container } = render(<LandingExample />)
     expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
     expect(
@@ -67,10 +67,14 @@ describe('LandingExample', () => {
     const order = [
       ...container.querySelectorAll('.landing-example__fitness, .landing-example__title'),
     ]
+    // The answer comes first, as on the home screen's headline; the fitness finding is the panel under it.
     expect(order.map((node) => node.className)).toEqual([
-      'landing-example__fitness',
       'landing-example__title',
+      'landing-example__fitness',
     ])
+    const figure = container.querySelector('.landing-example')!
+    expect(figure.lastElementChild?.className).toBe('landing-example__fitness')
+    expect(screen.getByText('Fitness at the same heart rate')).toBeInTheDocument()
   })
 
   it('is labelled illustrative, names the sample, and gives the answer’s headline', () => {

@@ -865,7 +865,33 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Its ride figures and its table wait for the weight, as the tiles' do, and its needs-a-ride line names
   the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The heart-rate check is never a card: it is a chip on the tile it qualifies, and for files with no heart rate one line
   under the tiles, with the link to How sure is this?.
-- **A held comparison leads with what it can show.** While Balance cannot set the sports against each other, its title names the levels the files do give ("Running is at Local level, cycling at Recreational", or "Your running is at Local level"), and the line under it is one action: "Add one run of 20 min or more to compare them.", "Add 2 more rides in this period to compare them." or "Add your weight on Profile to grade your rides and compare them with your runs." "Not enough to compare yet" is the title only when no sport has a level. With only one sport on file, the other sport's card asks for files to compare it with the first ("Add rides to compare them with your running."). A ride card held for the weight says how many rides there are, how long they ran and when the latest was, none of which needs a weight, then asks for it.
+- **A held comparison leads with what it can show.** While Balance cannot set the sports against each other, its title names the levels the files do give ("Running is at Local level, cycling at Recreational", or "Your running is at Local level"), and the line under it is one action: "Add one run of 20 min or more to compare them.", "Add 2 more rides in this period to compare them." or "Add your weight on Profile to grade your rides and compare them with your runs." For rides without a power meter the line names the climb instead, since a long ride is not what is missing: "Add one ride with a power meter, or with a climb of 3% or steeper that holds for 20 min without a break to compare them." (virtual power is trusted only on climbs, and a 20 min estimate needs one unbroken, `CLIMB_NEEDED`; the landing page and How sure is this? say the same). "Not enough to compare yet" is the title only when no sport has a level. With only one sport on file, the other sport's card asks for files to compare it with the first ("Add rides to compare them with your running."). A ride card held for the weight says how many rides there are, how long they ran and when the latest was, none of which needs a weight, then asks for it.
+- **The browser is asked to keep a signed-out library, and a lost one is told.** After a first import is kept in this browser it
+  asks the browser to keep the site's storage (`navigator.storage.persist()`). A browser that refuses gets the notice "This browser may clear
+  your results" once on a device (`rca.persistNote.v1`), not on every import, and a browser that already keeps its storage is told nothing.
+  A library marked as kept on an earlier visit that loads empty is told as gone ("Your kept results were cleared"): "The results you kept in this
+  browser are no longer in it. Clearing site data, low storage or, in Safari, a week away can remove them.", with the sign-in line only when
+  signed out. No cause is asserted. The mark (`rca.deviceKept.v1`) follows every list of the library kept in this browser and counts rows
+  it holds but could not read (a newer version's), so neither a removal nor such rows read as a loss. It lives in the storage a sweep of the
+  whole site also clears, so that loss cannot be told from a first visit.
+- **A library that will not open is not an empty one.** When it fails to open (full, blocked by another tab, or no answer in 10 s), a listing,
+  a lookup and a single read reject, so the page shows its error and Remove all my activities says it could not remove them; a signed-in delete does
+  not claim the copy kept here gone, and a removal says the kept results could not be read. An import is then analysed on its own and says so ("shown
+  on their own and are not added to them"); each save first reads what is kept under its workout, so nothing kept is written over. Only
+  storage the browser does not offer, as in a private window, reads as empty. A transaction refused on a database that opened still reads a single
+  workout or route as none, since only a listing or a lookup decides whether a copy is overwritten.
+- **A weight that looks like the wrong units is asked about.** Besides the 45 to 160 kg range, a body weight 1.4 times higher or lower than the
+  one already given is asked about before it is kept: in the setup dialog and Profile against the saved weight (on Profile, the dated weight in effect
+  today when there is one), and for a dated weight against the nearest dated one, else the saved one. With none to compare with, a first weight above 120 kg is
+  asked about too and, if typed in kilograms, says what it would be as pounds. "That is 150.0 kg, 121% higher than your saved weight, 68.0 kg. Check the units, or
+  press Analyse my files again to keep it." The setup dialog never switches units under digits the visitor has typed or units they have chosen, whenever
+  the account answers. A ride's best 20 min from a power meter shows without a weight, since a meter reads watts whatever the weight.
+- **Counted runs keep their state where it is seen.** Pressing "Count this run" or "Leave this run out" on an activity moves focus to the button that
+  replaces it; "Count these runs" on Balance or Run moves it to the page heading, which then says the new state. What a change did ("Counting 22 runs.") is
+  said in a screen-reader line in the notice region, which stays mounted, and a refusal by the browser to keep the choice stays in that region
+  ("This browser would not keep that choice…") until the next change. Run and Activities say "22 runs are counted despite walking pace" with "Leave them
+  out". The choices are forgotten with the library (Remove all my activities, once the library is known to be empty), on signing out and on deleting the
+  account, and follow a change made in another tab. An import notice that added only runs left out ends with a link: "Open Run to count them."
 - **The app-wide error boundary is friendly and plain.** It says "Something went wrong" and "The page stopped working. Reload to try again; your saved activities are untouched." with a **Reload** button. The error's own message is never shown; React logs it to the console.
 - **Share metadata, the manifest and the 404 page.** `index.html` carries the canonical link, Open Graph and Twitter tags and a theme colour for each colour scheme. The image is `public/social-card.png` (1200 x 630, drawn from the sample athlete's numbers by `scripts/make-social-card.ts`, which also writes the app icons). `public/manifest.webmanifest` names the app and its icons; there is no service worker. An unknown path is answered with `public/404.html` and a 404 status (`not_found_handling = "404-page"`), which a browser navigation gets without invoking the Worker; `/api/*` keeps its JSON 404 under the rate limiter.
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
@@ -1111,8 +1137,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   or the jogging share, so a run/walk session or a hilly ultra with a low median cadence is still a run. It
   stays in the library with a Walking pace mark on its row and its page, where a line takes the place of its
   best efforts, is left out of every run analysis, volume and best, and a line under the import notices counts
-  them on Run and Activities, the pages that list or analyse runs, and on no other. Every count and date the pages give of what is analysed leaves them out (a library of hikes alone asks
-  for a run and a ride), while the activity list and the activity pages keep them.
+  them on Run and Activities, the pages that list or analyse runs, and on no other. Every count and date the pages give of what is analysed leaves them out, while the activity list and the activity pages keep them.
+  The athlete can **count a run** that is at walking pace: the activity page offers "Count this run", and its page then says it is
+  counted and offers "Leave this run out". The choice is a list of workout keys (sport and start second) kept in this browser's local
+  storage (`rca.countedRuns.v1`), signed in or not, so it survives a reload and a re-import; it is carried in `AthleteSettings.countedRuns`,
+  and the session applies it when it builds its state (`countedRuns.ts`), so the digest is unchanged. Where every run is left out, no page says
+  there are none: Balance's headline reads "Your runs are at walking pace" with the count, and Run says "22 runs are at walking pace, so they
+  are left out. Count them as runs to include them.", each with a "Count these runs" button; the import notice says it too.
 - **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
   period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run
   and 1 ride. Add more runs or rides for a steadier answer." It is left off once each sport has three.
@@ -1476,8 +1507,8 @@ earlier level. The analysis is in [design/fitness.md](design/fitness.md); this i
 **Where.** A "Your fitness" section above the balance on Balance, and the same card above the threshold on a sport's page
 (without the sport's name, which the title says). One card for each sport that has a status; rides are not compared yet, so a
 library with runs has the run's card alone and the Ride page says nothing about it, rather than promising what cannot show. A
-sport with no steady run, or whose status is "not compared yet", has no card. The landing page's example leads with the same
-finding for the sample athlete (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
+sport with no steady run, or whose status is "not compared yet", has no card. The landing page's example shows the same
+finding for the sample athlete as its second panel, under the balance headline, meter and levels (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
 
 **The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness" and the card by its state). A sport edge on the left, the sport's name, and a **New** marker, "since the week of 12 Oct", when the state began to be
 shown in the last six weeks. The state is a word at display size (Slipping, Holding, Holding below, Recovering, Back,

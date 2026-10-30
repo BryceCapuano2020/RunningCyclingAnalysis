@@ -144,8 +144,12 @@ export async function completeSetup(
   } catch {
     return
   }
+  // Typing freezes the units the dialog shows: until then an account that answers late can switch them, and
+  // the digits would be read in the other unit. So type something first, then read the units, then type the weight.
+  const field = dialog.getByLabel('Body weight')
+  await field.fill('1')
   const metric = await dialog.getByRole('radio', { name: 'Metric' }).isChecked()
-  await dialog.getByLabel('Body weight').fill(weightInShownUnits(pounds, metric))
+  await field.fill(weightInShownUnits(pounds, metric))
   await dialog.getByRole('button', { name: 'Analyse my files' }).click()
   await expect(dialog).toBeHidden()
 }

@@ -1,3 +1,4 @@
+import { applyCountedRuns } from './countedRuns'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
@@ -258,7 +259,7 @@ export class AnalysisSession {
     this.isSample = false
   }
 
-  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones included. */
+  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones and counted runs. */
   private athleteFor(settings: AthleteSettings): AthleteSettings {
     if (!this.isSample) return settings
     return { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
@@ -266,9 +267,12 @@ export class AnalysisSession {
 
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
+    const athlete = settings === null ? null : this.athleteFor(settings)
+    const { digests, keys } = applyCountedRuns([...this.digests], athlete?.countedRuns)
     return buildState(
       {
-        digests: [...this.digests.values()],
+        digests,
+        countedWalkingRuns: keys,
         choice: this.choice,
         gradeTrend: this.gradeTrend,
         isSample: this.isSample,
@@ -283,7 +287,7 @@ export class AnalysisSession {
         syncIssues: countIssues(this.unsynced, this.latestUnsynced),
         nowMs: this.isSample ? this.sampleNowMs : this.clock(),
       },
-      settings === null ? null : this.athleteFor(settings),
+      athlete,
     )
   }
 }

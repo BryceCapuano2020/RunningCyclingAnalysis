@@ -6,7 +6,7 @@ import { sampleDataset } from '@rca/core/synthetic'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import { describe, expect, it, vi } from 'vitest'
-import { deviceActions, workoutKeyOf } from './device'
+import { deviceActions, KEPT_NOT_READ_FOR_REMOVE, workoutKeyOf } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
 import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
 import type { SavedActivity, WorkerResponse } from './protocol'
@@ -347,13 +347,33 @@ describe('device library routes', () => {
 })
 
 describe('dropping a kept copy after a signed-in delete', () => {
-  it('removes the copy kept here without reporting the device list, which a signed-in visitor does not see', async () => {
+  it('removes the copy kept here without reporting the device list, only whether it still holds anything', async () => {
     const { actions, library, posted } = setup()
     await library.put(workoutKeyOf(FIRST), FIRST)
+    await library.put(workoutKeyOf(SECOND), SECOND)
     posted.length = 0
     await actions.dropKept(workoutKeyOf(FIRST))
     expect(await library.get(workoutKeyOf(FIRST))).toBeNull()
-    expect(posted).toEqual([])
+    expect(posted).toEqual([{ type: 'deviceHolds', holds: true }])
+
+    await actions.dropKept(workoutKeyOf(SECOND))
+    expect(posted.at(-1)).toEqual({ type: 'deviceHolds', holds: false })
+  })
+
+  it('counts rows it keeps but cannot read as the library still holding something', async () => {
+    const library: DeviceLibrary = { ...memoryDeviceLibrary(), skipped: () => 1 }
+    await library.put(workoutKeyOf(FIRST), FIRST)
+    const { actions, posted } = setup(library)
+    await actions.dropKept(workoutKeyOf(FIRST))
+    expect(posted).toEqual([{ type: 'deviceHolds', holds: true }])
+  })
+
+  it('removes a row this version cannot read too, which the lookup names rather than hides', async () => {
+    const library: DeviceLibrary = { ...memoryDeviceLibrary(), lookup: async () => 'newer' }
+    const remove = vi.spyOn(library, 'remove')
+    const { actions } = setup(library)
+    await actions.dropKept(workoutKeyOf(FIRST))
+    expect(remove).toHaveBeenCalledWith(workoutKeyOf(FIRST))
   })
 
   it('does nothing when no copy is kept here', async () => {
@@ -361,5 +381,63 @@ describe('dropping a kept copy after a signed-in delete', () => {
     await actions.dropKept(workoutKeyOf(FIRST))
     expect(await library.get(workoutKeyOf(FIRST))).toBeNull()
     expect(posted).toEqual([])
+  })
+})
+
+describe('when the library kept in this browser did not open', () => {
+  /** A library whose database failed to open: every read rejects, as the real one does. */
+  function notOpen(): DeviceLibrary {
+    const failed = () => Promise.reject(new Error('Device storage did not open: Storage is full'))
+    return {
+      ...memoryDeviceLibrary(),
+      all: failed,
+      get: failed,
+      lookup: failed,
+      route: failed,
+      put: failed,
+      remove: failed,
+      clear: failed,
+    }
+  }
+
+  it('dropKept rejects, so a signed-in delete never claims the copy kept here is gone', async () => {
+    const { actions } = setup(notOpen())
+    await expect(actions.dropKept(workoutKeyOf(FIRST))).rejects.toThrow('did not open')
+  })
+
+  it('a read that fails in passing is not taken for no copy: dropKept and remove both refuse', async () => {
+    // get answers none on a refused transaction, as it does; the strict lookup is what decides.
+    const flaky: DeviceLibrary = {
+      ...memoryDeviceLibrary(),
+      get: async () => null,
+      lookup: () => Promise.reject(new Error('Transactions are refused')),
+    }
+    const { actions } = setup(flaky)
+    await expect(actions.dropKept(workoutKeyOf(FIRST))).rejects.toThrow('Transactions are refused')
+    await expect(actions.remove(workoutKeyOf(FIRST), SETTINGS)).rejects.toThrow(
+      KEPT_NOT_READ_FOR_REMOVE,
+    )
+  })
+
+  it('remove names the real cause, not that the activity is no longer kept', async () => {
+    const { actions } = setup(notOpen())
+    await expect(actions.remove(workoutKeyOf(FIRST), SETTINGS)).rejects.toThrow(
+      KEPT_NOT_READ_FOR_REMOVE,
+    )
+  })
+})
+
+describe('the rows a library keeps but cannot read', () => {
+  it('are counted in the list posted to the page, and left out of it when there are none', async () => {
+    const library: DeviceLibrary = { ...memoryDeviceLibrary(), skipped: () => 2 }
+    const { actions, posted } = setup(library)
+
+    await actions.load(SETTINGS)
+    expect(posted).toEqual([{ type: 'libraryActivities', activities: [], skipped: 2 }])
+
+    posted.length = 0
+    const { actions: plain, posted: plainPosted } = setup()
+    await plain.load(SETTINGS)
+    expect(plainPosted).toEqual([{ type: 'libraryActivities', activities: [] }])
   })
 })
