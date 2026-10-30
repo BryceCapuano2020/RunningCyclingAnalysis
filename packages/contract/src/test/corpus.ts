@@ -31,29 +31,49 @@ function gappyRun(): Activity {
   }
 }
 
-let cached: DigestWire[] | undefined
+/** The activities of the corpus in order, each drawn only when it is asked for. */
+function* corpusActivities(): Generator<Activity> {
+  yield* sampleDataset().activities
+  yield* Object.values(oddLibraries()).flat()
+  yield* sampleSeason().activities.filter((_, i) => i % 5 === 0)
+  yield gappyRun()
+}
+
+const drawn: DigestWire[] = []
+const source = corpusActivities()
+let finished = false
+
+/** Digests of the corpus drawn so far, then further ones, in order. A test that needs one kind stops early. */
+function* corpusStream(): Generator<DigestWire> {
+  for (let i = 0; ; i++) {
+    if (i === drawn.length) {
+      const next = finished ? { done: true as const } : source.next()
+      if (next.done === true) {
+        finished = true
+        return
+      }
+      drawn.push(JSON.parse(serializeDigest(digestActivity(next.value))) as DigestWire)
+    }
+    yield drawn[i]!
+  }
+}
 
 /**
  * The digests of the synthetic corpus: the sample dataset, every odd library, every fifth activity
  * of the sample season, and a run with a missing distance. The same on every run.
  */
 export function corpusWires(): DigestWire[] {
-  if (cached !== undefined) return cached
-  const activities = [
-    ...sampleDataset().activities,
-    ...Object.values(oddLibraries()).flat(),
-    ...sampleSeason().activities.filter((_, i) => i % 5 === 0),
-    gappyRun(),
-  ]
-  cached = activities.map(
-    (activity) => JSON.parse(serializeDigest(digestActivity(activity))) as DigestWire,
-  )
-  return cached
+  for (const _wire of corpusStream()) {
+    // Drawing every one fills `drawn`.
+  }
+  return drawn
 }
 
-/** The first digest of the corpus that satisfies `wants`, or fails the test setup. */
+/**
+ * The first digest of the corpus that satisfies `wants`, or fails the test setup. Only as much of the
+ * corpus is made as it takes to find one.
+ */
 export function pick(wants: (wire: DigestWire) => boolean): DigestWire {
-  const found = corpusWires().find(wants)
-  if (found === undefined) throw new Error('the corpus has no digest of this kind')
-  return found
+  for (const wire of corpusStream()) if (wants(wire)) return wire
+  throw new Error('the corpus has no digest of this kind')
 }

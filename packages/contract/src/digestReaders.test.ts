@@ -99,15 +99,19 @@ describe('every reader of a digest gives the same verdict', () => {
     expect(all.length).toBeGreaterThan(5000)
   })
 
-  it('has the zod schemas carry the core reader, to the value and the first path', () => {
-    for (const [label, mutant] of all) {
-      const where = `${label}: ${mutant.name}`
-      expect(ofZod(ActivityDigestSchema, mutant.wire), where).toEqual(ofCore('create', mutant.wire))
-      expect(ofZod(StoredActivityDigestSchema, mutant.wire), where).toEqual(
-        ofCore('stored', mutant.wire),
-      )
-    }
-  })
+  it.each([
+    ['create', ActivityDigestSchema],
+    ['stored', StoredActivityDigestSchema],
+  ] as const)(
+    'has the %s zod schema carry the core reader, to the value and the first path',
+    (view, schema) => {
+      for (const [label, mutant] of all) {
+        expect(ofZod(schema, mutant.wire), `${label}: ${mutant.name}`).toEqual(
+          ofCore(view, mutant.wire),
+        )
+      }
+    },
+  )
 
   it('has a create take nothing the device library and a stored row refuse, and read it the same', () => {
     for (const [label, mutant] of all) {

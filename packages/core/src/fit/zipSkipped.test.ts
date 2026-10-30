@@ -71,15 +71,6 @@ describe('a skipped zip entry that inflates past its budget', () => {
     expect(files.map((f) => f.fileName)).toEqual(['a.fit'])
   })
 
-  it('is stopped by the limits a build ships with, at 100 MiB of zeros', async () => {
-    const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
-    const zip = zipSync({ 'media/zeros.bin': new Uint8Array(100 * MIB), 'a.fit': FIT })
-    expect(zip.length).toBeLessThan(1 * MIB)
-    const { files } = await extract(zip)
-    expect(stop).toHaveBeenCalledTimes(1)
-    expect(files.map((f) => f.fileName)).toEqual(['a.fit'])
-  })
-
   it('is left alone when it stays inside its free bytes, however well it compresses', async () => {
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
     const zip = zipSync({ 'media/zeros.bin': new Uint8Array(1 * MIB), 'a.fit': FIT })
@@ -330,6 +321,19 @@ describe('skipEntry', () => {
     expect(MAX_SKIPPED_INFLATE_RATIO).toBe(100)
     expect(DEFAULT_EXTRACT_LIMITS.maxSkippedEntryFreeBytes).toBe(MAX_SKIPPED_ENTRY_FREE_BYTES)
     expect(DEFAULT_EXTRACT_LIMITS.maxSkippedInflateRatio).toBe(MAX_SKIPPED_INFLATE_RATIO)
+  })
+
+  it('stops an entry at the limits a build ships with, one byte past its free bytes at a bomb ratio', () => {
+    // Output is only counted, so a length stands for 16 MiB of zeros without making them.
+    const bytes = (n: number) => ({ length: n }) as Uint8Array<ArrayBuffer>
+    const tail = new StreamTail()
+    const file = fakeFile()
+    skipEntry(file, run(), tail, () => undefined)
+    tail.push(new Uint8Array(20 * 1024))
+    file.ondata(null, bytes(MAX_SKIPPED_ENTRY_FREE_BYTES), false)
+    expect(file.terminate).not.toHaveBeenCalled()
+    file.ondata(null, bytes(1), false)
+    expect(file.terminate).toHaveBeenCalledTimes(1)
   })
 
   it('judges the ratio against the bytes the source streamed since the entry began, not before', () => {

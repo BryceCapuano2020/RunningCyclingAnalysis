@@ -223,11 +223,18 @@ describe('readCsvRows field cap', () => {
     expect(read(flood)).toEqual({ rows: [], wellFormed: false })
   })
 
-  it('refuses a 32 MiB field in a line, in a quoted field and as a last field with no line break', () => {
-    const huge = 'y'.repeat(32 * 1024 * 1024)
-    expect(read(`a,${huge}\n`)).toEqual({ rows: [], wellFormed: false })
-    expect(read(`a,"${huge}"\n`)).toEqual({ rows: [], wellFormed: false })
-    expect(read(`a,${huge}`)).toEqual({ rows: [], wellFormed: false })
+  it('refuses a field past a smaller cap the caller gives, however it is written', () => {
+    const huge = 'y'.repeat(4096)
+    const readWith = (text: string) => {
+      const rows: string[][] = []
+      const wellFormed = readCsvRows(text, 9, (f) => rows.push(f) > 0, 1024)
+      return { rows, wellFormed }
+    }
+    expect(readWith(`a,${huge}\n`)).toEqual({ rows: [], wellFormed: false })
+    expect(readWith(`a,"${huge}"\n`)).toEqual({ rows: [], wellFormed: false })
+    expect(readWith(`a,${huge}`)).toEqual({ rows: [], wellFormed: false })
+    // The same field is read under the cap it fits.
+    expect(readWith(`a,${'y'.repeat(1024)}\n`).wellFormed).toBe(true)
   })
 
   it('keeps the rows read before the field that is too long', () => {
