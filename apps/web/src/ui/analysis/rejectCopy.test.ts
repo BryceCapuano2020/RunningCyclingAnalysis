@@ -375,3 +375,17 @@ describe('groupRejected: every core code has a group and a sentence', () => {
     }
   })
 })
+
+describe('rejectionCopy: a file with too many tracks, activities or laps', () => {
+  it('says to split it when the core says so, and says only that it is too much otherwise', () => {
+    const many = file('collection.gpx', { code: 'too-much-data', detail: 'split' })
+    expect(rejectionCopy(many, false)).toBe(
+      'Too many tracks, activities or laps for one file: split it into one file for each activity.',
+    )
+    expect(rejectionCopy(file('heavy.fit', { code: 'too-much-data' }), false)).toBe(
+      'Too much data for one file.',
+    )
+    // The core's own English is never shown.
+    expect(rejectionCopy(many)).not.toContain('core reason')
+  })
+})
