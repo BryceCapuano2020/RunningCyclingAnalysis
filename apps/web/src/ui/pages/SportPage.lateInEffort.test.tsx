@@ -26,7 +26,7 @@ function renderPage(sport: Sport, lateEvidence: LateEvidence) {
       trends={NO_TRENDS}
       sameHeartRate={NO_SAME_HEART_RATE[sport]}
       lateEvidence={lateEvidence}
-      windowDays={28}
+      change={null}
       units="metric"
       massKg={75}
       weighted

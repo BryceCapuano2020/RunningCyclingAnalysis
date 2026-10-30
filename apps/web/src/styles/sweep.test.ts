@@ -173,7 +173,7 @@ const BOTH_SPORTS: Record<string, readonly string[]> = {
   ],
   // The brand mark draws both sport strokes.
   'ui/components/icons.css': ['.brand-mark__run', '.brand-mark__ride'],
-  // Balance's shared trend and Method's curves draw both sports on one plot.
+  // Method's curves and the grade by duration draw both sports on one plot.
   'ui/charts/ChartSeries.css': [
     '.chart-series__line--run',
     '.chart-series__line--ride',
@@ -183,8 +183,6 @@ const BOTH_SPORTS: Record<string, readonly string[]> = {
     '.chart-series__marker--run',
     '.chart-series__marker--ride',
   ],
-  // The Balance trend's ride range, a wash under both lines' ride.
-  'ui/charts/SharedTrendChart.css': ['.trend-band'],
   // The shared legend and tooltip keys, which those charts and Method's heart-rate check draw for both.
   'ui/charts/ChartTooltip.css': [
     '.chart-tooltip__key--run',

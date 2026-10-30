@@ -1,14 +1,8 @@
 import { useMemo, type ReactNode } from 'react'
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import type { TrendPoint } from '@rca/core/digest'
-import { trendWindowDays, weeksWithValue } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { SharedTrendChart, WeeklyVolumeChart } from '../charts'
-import { copyOf } from '../charts/sharedTrendText'
-import { windowPhrase } from '../charts/trendText'
+import { WeeklyVolumeChart } from '../charts'
 import { ShareImageButton } from '../components'
 import { levelBasis } from '../components/headlineNeed'
 import { heldPick } from '../resultHold'
@@ -17,17 +11,9 @@ import { previousPeriodLabel } from '../components/rangeOptions'
 import { gapOfHeadline } from '../balanceGap'
 import { levelTarget } from '../levelTarget'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
-import { countSport, latestStartOf } from '../records'
+import { countSport } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
-import {
-  AGE_RANGE_TEXT,
-  HEADLINE_LABEL,
-  LEVEL_NOT_RANKING,
-  ageAndSexAt,
-  gradedSexOf,
-  headlineGrades,
-  SEX_NOUN,
-} from '../grades'
+import { LEVEL_NOT_RANKING, gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { SPORT_ORDER } from '../sports'
@@ -41,7 +27,7 @@ import { BalanceLevels } from './BalanceLevels'
 import { BalanceTiles } from './BalanceTiles'
 import { EvidenceLine } from './EvidenceLine'
 import { FitnessSection } from './FitnessSection'
-import { useBalanceTrend } from './useBalanceTrend'
+import { useBalanceVolume } from './useBalanceVolume'
 import { GradeProfileSection } from './GradeProfileSection'
 import './BalancePage.css'
 
@@ -62,30 +48,6 @@ export interface BalancePageProps {
   footnote?: ReactNode
   /** Picks All time the way the period control does, so the choice is kept. */
   onShowAll: () => void
-}
-
-/**
- * Whether any week of the trend falls at an age the standards cover. When none does, the grade
- * trend has nothing to show, and the page says which ages the standards cover instead. Without a
- * profile there is no age to grade by, so there is nothing to say.
- */
-function gradesCoverAge(trend: readonly TrendPoint[], profile: AgeProfile | null): boolean {
-  if (profile === null) return true
-  // Each sport is graded at the age on its own best effort's day, so the test uses those days.
-  return trend.some((point) =>
-    [point.runAtMs, point.rideAtMs].some(
-      (atMs) => atMs !== null && ageAndSexAt(profile, atMs) !== null,
-    ),
-  )
-}
-
-/**
- * The fitness trend's name: the chart's own title, from the same measure, effort and window it draws
- * with, so the section and the chart name it in the same words.
- */
-function trendTitleOf(period: Period): string {
-  const windowText = windowPhrase(trendWindowDays(period.days))
-  return copyOf(HEADLINE_LABEL, windowText).title
 }
 
 /** The level a sport's grade names, or null when the grade is not shown. */
@@ -115,6 +77,7 @@ export function BalancePage({
     library: allActivities,
     trend,
     previous,
+    change,
     heartRateJudgement,
   } = analysis.state
   // What the analysis rests on: the runs at walking pace are in the lists, not in what this page counts and dates.
@@ -196,6 +159,7 @@ export function BalancePage({
         previous,
         library,
         previousLabel,
+        change,
         units,
         rideShown: weightKnown,
         gap: heldGap,
@@ -214,6 +178,7 @@ export function BalancePage({
       previous,
       library,
       previousLabel,
+      change,
       units,
       weightKnown,
       heldGap,
@@ -222,12 +187,10 @@ export function BalancePage({
       calibration,
     ],
   )
-  const { volume, trendWeeks, axis, gutter } = useBalanceTrend({
+  const { volume, axis } = useBalanceVolume({
     trend,
     activities: result.activities,
     periodStartMs: period.startMs,
-    profile,
-    weightKnown,
   })
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
@@ -321,42 +284,13 @@ export function BalancePage({
         calibration={calibration}
       />
 
-      {weeksWithValue(trend) >= 1 && (
-        <section className="section" aria-labelledby="balance-trend">
-          {/* The chart's own title, shown once by the chart; the heading names the section the same way. */}
-          <h2 id="balance-trend" className="sr-only">
-            {trendTitleOf(period)}
+      {volume === null ? null : (
+        <section className="section" aria-labelledby="balance-volume">
+          <h2 id="balance-volume" className="sr-only">
+            Training hours
           </h2>
-          <div className="balance__trends">
-            {/* One trend for both sports, on one scale: age grades when the age and sex are known. */}
-            <SharedTrendChart
-              weeks={trendWeeks}
-              axis={axis}
-              windowDays={trendWindowDays(period.days)}
-              effortS={HEADLINE_DURATION_S}
-              emptyText={
-                profile === null
-                  ? `Add your ${missingAge ?? 'year of birth and sex'} to see how your grade has moved.`
-                  : gradesCoverAge(trend, profile)
-                    ? undefined
-                    : AGE_RANGE_TEXT
-              }
-              rideKnown={weightKnown}
-              latestStartMs={{
-                run: latestStartOf(library, 'run'),
-                ride: latestStartOf(library, 'ride'),
-              }}
-            />
-            {/* The hours behind the trend, on its time axis: where the balance moved because training did. */}
-            {volume === null ? null : (
-              <WeeklyVolumeChart
-                weeks={volume}
-                lede={volumeCaption(volume)}
-                plotRightMargin={gutter}
-                axis={axis}
-              />
-            )}
-          </div>
+          {/* Hours are counted, not estimated, so this strip states what the weeks held and no change test is needed. */}
+          <WeeklyVolumeChart weeks={volume} lede={volumeCaption(volume)} axis={axis} />
         </section>
       )}
 

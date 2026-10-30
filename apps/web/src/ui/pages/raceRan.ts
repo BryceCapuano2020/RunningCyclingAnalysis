@@ -13,7 +13,7 @@ export interface RanBest {
 
 /**
  * The races whose period holds a recorded best at that distance faster than the predicted time. A prediction
- * is an estimate and a run is a fact, so where the athlete has already run quicker, the row says so beside it.
+ * is an estimate and a run is a fact, so where the athlete has already run faster, the row says so beside it.
  * `openedAt` fixes the year a date needs, so a later render does not move it.
  */
 export function ranBests(

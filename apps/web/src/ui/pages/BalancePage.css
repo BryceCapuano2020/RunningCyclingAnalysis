@@ -152,11 +152,6 @@
   }
 }
 
-.balance__trends {
-  display: grid;
-  gap: var(--space-5);
-}
-
 .balance__source {
   max-width: 62ch;
   font-size: var(--text-sm);

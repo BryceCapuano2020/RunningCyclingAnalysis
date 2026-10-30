@@ -41,13 +41,15 @@ describe('the sample athlete fills every section of the app', () => {
   })
 
   it.each(SPORTS)('reports %s output at the same heart rate, week after week', (sport) => {
-    const { weeks, change, referenceHeartRate } = at('default').sameHeartRate[sport]
+    const { weeks, reportedWeeks, referenceHeartRate } = at('default').sameHeartRate[sport]
     expect(referenceHeartRate).not.toBeNull()
     expect(weeks.filter((week) => week.fit !== null).length).toBeGreaterThanOrEqual(3)
-    expect(change).not.toBeNull()
+    expect(reportedWeeks).toBeGreaterThanOrEqual(2)
     // The ride's output at the same heart rate climbs with the season. The run's falls: the season's last weeks hold
     // the slip the fitness status finds (sessionSample.fitness.test.ts), which the weekly view reads too.
-    expect(Math.sign(change!.relative)).toBe(SAME_HEART_RATE_SIGN[sport])
+    const reported = weeks.filter((week) => week.fit !== null)
+    const relative = reported.at(-1)!.fit!.output / reported[0]!.fit!.output - 1
+    expect(Math.sign(relative)).toBe(SAME_HEART_RATE_SIGN[sport])
   })
 
   it.each(SPORTS)(

@@ -20,10 +20,10 @@ import {
 const BALANCE_METER =
   /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
 /**
- * The Balance trend: one chart for both sports, as age grades when the age and sex are known. Its title says
- * what it found, so it is found by the line under it that names the measure.
+ * The Balance page's last chart: the hours trained each week. Its title says what it found, so it is found by the
+ * name under it.
  */
-const BALANCE_TREND = /(Age grade|Energy rate) of your best 20 min, trailing/
+const BALANCE_HOURS = /Training hours per week/
 const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
 /** The section that compares each best with the athlete's other bests. */
@@ -31,16 +31,13 @@ const NOT_ENOUGH_YET = 'Not enough yet'
 const LATE_IN_LONG_SESSIONS =
   /^Best efforts late in long sessions: add \d+ (runs?|rides?)\b.*, each longer than an hour/
 /** The sport page's section that is open and needs a season of activities; the others sit behind closed rows. */
-const OPEN_SEASON_SECTION = 'Week by week'
+const OPEN_SEASON_SECTION = 'Best efforts over time'
 /** The closed sections that need a season: each row says its finding, and opens to a chart. */
-/** The same-heart-rate row is the weekly view where a fitness status speaks for the sport (the run), and has its own finding where none does. */
-const CLOSED_SEASON_SECTIONS = [
-  /^(At the same heart rate|Same heart rate, week by week)$/,
-  'Late in long sessions',
-]
+/** The same-heart-rate row is the weekly view: it says what is drawn and claims no change. */
+const CLOSED_SEASON_SECTIONS = ['Same heart rate, week by week', 'Late in long sessions']
 /** The closed row of the finding that compares each best with the athlete's other bests. */
 const STAND_OUT_SECTION = 'Where your bests stand out'
-const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|.*stand out)/
+const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|Nothing stands out|.*stand out)/
 const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
@@ -60,18 +57,24 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toBeVisible()
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
-  await expect(page.locator('figure').filter({ hasText: BALANCE_TREND })).toBeVisible()
+  await expect(page.locator('figure').filter({ hasText: BALANCE_HOURS })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
-  // The sample's season is long and varied enough to fill every section of a sport page: stand-out, week by week,
-  // same heart rate, late in long sessions. The one exception is the late bests: the sample's
-  // long sessions are easy ones, which the effort gate does not count as a test of lasting, so the list says what is missing.
+  // The sample's season is long and varied enough to fill every section of a sport page: stand-out, best efforts over
+  // time, same heart rate, late in long sessions. The one exception is the late bests: the sample's long sessions are
+  // easy ones, which the effort gate does not count as a test of lasting, so the list says what is missing.
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
     await expect(
       page.getByRole('figure', { name: sport === 'Run' ? RUN_CURVE : RIDE_CURVE }),
     ).toBeVisible()
     await expect(page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION })).toBeVisible()
+    // The dated bests are drawn: a figure named for the effort, with at least two dots in its plot.
+    const dated = page.locator('section').filter({
+      has: page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION }),
+    })
+    await expect(dated.getByRole('figure', { name: /20 min/ })).toBeVisible()
+    expect(await dated.locator('[data-testid^="bests-"]').count()).toBeGreaterThanOrEqual(2)
     // A closed row says what it found, so closed still tells the athlete something; it opens to its chart.
     const standOut = page.getByRole('region', { name: STAND_OUT_SECTION })
     await expect(standOut.locator('.sport-disclosure__finding')).toHaveText(STANDS_OUT_LINE)

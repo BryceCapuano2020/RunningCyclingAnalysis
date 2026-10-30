@@ -428,6 +428,7 @@ describe('AnalysisSession', () => {
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
+      change: null,
       records: new Map(),
     })
   })
@@ -523,6 +524,7 @@ describe('AnalysisSession', () => {
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
+      change: null,
       records: new Map(),
     })
   })

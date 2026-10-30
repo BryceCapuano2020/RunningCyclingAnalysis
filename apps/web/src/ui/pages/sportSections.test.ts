@@ -8,7 +8,7 @@ describe('SPORT_SECTIONS', () => {
       const sections = SPORT_SECTIONS[sport]
       expect(sections.slice(-4)).toEqual(['sameHeartRate', 'lateInEffort', 'standOut', 'evidence'])
       expect(sections.slice(0, 1)).toEqual(['bestEfforts'])
-      for (const open of ['timeInZones', 'weekByWeek'] as const) {
+      for (const open of ['timeInZones', 'bestsOverTime'] as const) {
         expect(sections.indexOf(open)).toBeLessThan(sections.indexOf('sameHeartRate'))
       }
     }

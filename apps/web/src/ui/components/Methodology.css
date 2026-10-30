@@ -10,7 +10,7 @@
 .methodology__sections {
   display: grid;
   gap: var(--space-4);
-  max-width: 68ch;
+  max-width: var(--measure);
 }
 
 /* Under the closed disclosure's summary only: shown open, the topics sit under the heading's grid gap. */

@@ -1,0 +1,20 @@
+/* An older dot is fainter (its fill opacity, set by its age) and has a lighter ring. */
+.chart-series__marker.bests-dot--old {
+  stroke-width: 1.5;
+}
+
+/*
+ * A dot's age is its opacity, which forced colours ignore, so an older dot is drawn hollow there, and an older ride's
+ * ring dashed: the age still reads when the tints go, and a ride is still told from a run by its ring.
+ */
+@media (forced-colors: active) {
+  .chart-series__marker.bests-dot--old {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 2px;
+  }
+
+  .chart-series__marker--ride.bests-dot--old {
+    stroke-dasharray: 2 2;
+  }
+}

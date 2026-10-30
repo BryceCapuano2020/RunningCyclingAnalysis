@@ -8,6 +8,12 @@ export const FINDING_SPORTS: readonly Sport[] = ['run', 'ride']
  * speaking bar is strict on purpose: a finding is rarer and more trusted than a number on a page.
  */
 export const FINDINGS = {
+  /**
+   * The findings an athlete-year, new ones, that every detector together may speak in a library where nothing
+   * changes. A bar per finding does not bound the number of false ones as detectors are added, so each declares a
+   * share (`Detector.alarmBudget`) and the registry refuses a set whose shares add to more than this.
+   */
+  familyBudgetPerYear: 0.5,
   /** Confidence at least this (see score.ts). */
   minConfidence: 0.8,
   /** Surprise at least this, before any damping, for a finding to be spoken for the first time. */

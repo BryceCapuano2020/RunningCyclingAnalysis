@@ -1,5 +1,8 @@
-import { HEADLINE_DURATION_S } from './constants'
 import { sameAnalysisSettings } from './athlete/references'
+import { changeEvidence } from './change/evidence'
+import type { ChangeEvidence } from './change/types'
+import { EVERY_EFFORT_KEYED } from './digest/readingRule'
+import type { KeyedReadingRule } from './digest/readingRule'
 import { combine, sportCurves } from './digest/combine'
 import type { CombineOptions } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
@@ -79,12 +82,17 @@ export class PeriodCache {
     Inputs & {
       rangeDays: number | null
       startMs: number | null
-      equivalence: boolean
-      calibration: string
       gate: string
       points: TrendPoint[]
     }
   >()
+  // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
+  private changeEntries: (Inputs & {
+    previous: ActivityDigest[]
+    gate: string
+    reading: string
+    evidence: ChangeEvidence
+  })[] = []
   private previousEntry:
     | (Inputs & { previous: ActivityDigest[]; gate: string; hardness: string; curves: SportCurves })
     | null = null
@@ -182,12 +190,16 @@ export class PeriodCache {
     this.sameEntries = this.sameEntries.filter((entry) =>
       entry.library.every((digest) => held.has(digest)),
     )
+    // The previous period's curves and the change test hold both periods' digests.
+    const heldBoth = (entry: { selected: ActivityDigest[]; previous: ActivityDigest[] }) =>
+      entry.selected.every((digest) => held.has(digest)) &&
+      entry.previous.every((digest) => held.has(digest))
+    if (this.previousEntry !== null && !heldBoth(this.previousEntry)) this.previousEntry = null
+    this.changeEntries = this.changeEntries.filter(heldBoth)
   }
 
   /**
-   * The weekly trend of each effort length over the selected period, reused while its inputs are the
-   * same. The headline trend also carries each week's running equivalent, with the heart-rate model
-   * of the selected analysis, when hr is given.
+   * The weekly trend of each effort length over the selected period, reused while its inputs are the same.
    */
   trends(
     selected: ActivityDigest[],
@@ -195,13 +207,12 @@ export class PeriodCache {
     rangeDays: number | null,
     startMs: number | null,
     bikeModel: BikeModel | undefined,
-    hr: HrCalibration | null | undefined,
     rideGate?: EstimatedRideGate | null,
   ): Record<EffortLengthS, TrendPoint[]> {
     return Object.fromEntries(
       EFFORT_LENGTHS_S.map((durationS) => [
         durationS,
-        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, hr, rideGate),
+        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, rideGate),
       ]),
     ) as Record<EffortLengthS, TrendPoint[]>
   }
@@ -214,17 +225,13 @@ export class PeriodCache {
     startMs: number | null,
     bikeModel: BikeModel | undefined,
     durationS: EffortLengthS,
-    hr: HrCalibration | null | undefined,
     rideGate: EstimatedRideGate | null | undefined,
   ): TrendPoint[] {
-    const equivalence = hr !== undefined && durationS === HEADLINE_DURATION_S
     const cached = this.trendEntries.get(durationS)
     if (
       cached &&
       cached.rangeDays === rangeDays &&
       cached.startMs === startMs &&
-      cached.equivalence === equivalence &&
-      cached.calibration === calibrationKey(hr) &&
       cached.gate === rideGateKey(rideGate) &&
       sameInputs(cached, selected, settings)
     ) {
@@ -236,15 +243,12 @@ export class PeriodCache {
       fromMs: startMs ?? undefined,
       bikeModel,
       rideGate,
-      equivalence: equivalence && hr !== undefined ? { hr } : undefined,
     })
     this.trendEntries.set(durationS, {
       selected,
       settings,
       rangeDays,
       startMs,
-      equivalence,
-      calibration: calibrationKey(hr),
       gate: rideGateKey(rideGate),
       points,
     })
@@ -344,5 +348,46 @@ export class PeriodCache {
     )
     this.previousEntry = { selected, settings, previous, gate, hardness, curves }
     return curves
+  }
+
+  /**
+   * Whether the selected period's bests differ from the previous period's by more than chance. Priced with the
+   * selected period's bike model, so its key is the same as the previous curves': the two period lists, the masses
+   * and the library's ride gate; and the reading rule the curves' bests are made through (`reading`, with the key that
+   * says what it was made from), so a hard-effort gate moves both together. The last few are kept, so going back to a
+   * period just shown costs nothing.
+   */
+  change(
+    selected: ActivityDigest[],
+    previous: ActivityDigest[],
+    settings: AthleteSettings,
+    bikeModel: BikeModel,
+    rideGate?: EstimatedRideGate | null,
+    reading: KeyedReadingRule = EVERY_EFFORT_KEYED,
+  ): ChangeEvidence {
+    const gate = rideGateKey(rideGate)
+    const hit = this.changeEntries.findIndex(
+      (entry) =>
+        entry.gate === gate &&
+        entry.reading === reading.key &&
+        sameInputs(entry, selected, settings) &&
+        sameDigests(entry.previous, previous),
+    )
+    if (hit >= 0) {
+      const [entry] = this.changeEntries.splice(hit, 1)
+      this.changeEntries.unshift(entry!)
+      return entry!.evidence
+    }
+    const evidence = changeEvidence(selected, previous, settings, bikeModel, rideGate, reading.rule)
+    this.changeEntries.unshift({
+      selected,
+      settings,
+      previous,
+      gate,
+      reading: reading.key,
+      evidence,
+    })
+    this.changeEntries.length = Math.min(this.changeEntries.length, ANALYSES_KEPT)
+    return evidence
   }
 }

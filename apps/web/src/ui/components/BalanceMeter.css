@@ -80,7 +80,7 @@
   left: 0;
   height: 3px;
   transform: translateY(-50%);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--control-border);
 }
 
@@ -103,7 +103,7 @@
   height: 1.5rem;
   min-width: 1.5rem;
   transform: translate(-50%, -50%);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--neutral-band);
 }
 

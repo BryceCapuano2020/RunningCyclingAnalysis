@@ -34,15 +34,7 @@ const RUN_SAME_HEART_RATE: SameHeartRate = {
   referenceHeartRate: 145,
   // Eight weeks, from 3.0 to 3.4 m/s: 5:33 to 4:54 a kilometre, a trend the weeks' own ranges leave no doubt of.
   weeks: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => week(i, 3.0 + i * (0.4 / 7))),
-  change: {
-    fromEndMs: week(0, 3.0).endMs,
-    toEndMs: week(7, 3.4).endMs,
-    from: 3.0,
-    to: 3.4,
-    weeksApart: 7,
-    relative: 0.133,
-    real: true,
-  },
+  reportedWeeks: 8,
   lacks: null,
   latestWeekEndMs: week(7, 3.4).endMs,
 }
@@ -70,7 +62,7 @@ function renderPage(
       sameHeartRate={sameHeartRate ?? NO_SAME_HEART_RATE[sport]}
       lateEvidence={lateEvidence}
       zoneTimes={zoneTimes}
-      windowDays={28}
+      change={null}
       units="metric"
       massKg={75}
       weighted
@@ -124,21 +116,21 @@ function fullRun(): AnalysisResult {
 }
 
 describe('a sport page with everything to show', () => {
-  it('reads answer, best efforts, race predictions, time in zones and week by week open, in that order', () => {
+  it('reads answer, best efforts, race predictions, time in zones and best efforts over time open, in that order', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(headings()).toEqual([
       'Threshold pace, estimated',
       'Best efforts',
       'Race predictions',
       'Time in zones',
-      'Week by week',
+      'Best efforts over time',
     ])
   })
 
   it('follows with the same heart rate, late in long sessions, stand-out and the full list, each closed', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const closed = [
-      'At the same heart rate',
+      'Same heart rate, week by week',
       'Late in long sessions',
       'Where your bests stand out',
       'All best efforts',
@@ -154,10 +146,9 @@ describe('a sport page with everything to show', () => {
 
   it('says its finding on every closed row, so closed still tells the athlete something', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    // 3.0 to 3.4 m/s is 5:33 to 4:54 a km, about 39 s faster; the first week's window is in December. The closed
-    // row names the heart rate, so "the same" is a number.
-    expect(closedRow('At the same heart rate')).toMatch(
-      /^At the same heart rateAt the same heart rate you run (3[89]|40) s\/km faster than in December \(145 bpm\)$/,
+    // The closed row says what is drawn and names the heart rate, so "the same" is a number. It claims no change.
+    expect(closedRow('Same heart rate, week by week')).toBe(
+      'Same heart rate, week by weekYour pace each week at 145 bpm.',
     )
     expect(closedRow('Late in long sessions')).toMatch(
       /Best 20 min held \d+% after 90 min; output per heartbeat fell 3%/,
@@ -214,14 +205,19 @@ describe('a sport page with everything to show', () => {
     expect(within(region).queryByRole('figure')).toBeNull()
   })
 
-  it('says under the week-by-week chart that a dip can be a best leaving the window', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    const section = screen.getByRole('region', { name: 'Week by week' })
-    const line = within(section).getByText(
-      'A dip can be a best leaving the 4-week window, not a change in you.',
+  it('draws the dated bests with no line and no wash, and no sentence about a dip in a window', () => {
+    const { container } = renderPage(
+      'run',
+      fullRun(),
+      RUN_SAME_HEART_RATE,
+      lateEvidenceFor('run'),
+      RUN_ZONES,
     )
-    expect(line).toHaveClass('muted')
-    expect(follows(section.querySelector('figure')!, line)).toBe(true)
+    const section = screen.getByRole('region', { name: 'Best efforts over time' })
+    expect(
+      section.querySelector('[data-testid="trend-line"], [data-testid="trend-wash"]'),
+    ).toBeNull()
+    expect(container.textContent).not.toMatch(/leaving the .*window/)
   })
 
   it('never uses the words the page has banned', () => {
@@ -267,12 +263,12 @@ describe('a sport page with sections that have nothing to show', () => {
     expect(headings()).toEqual([
       'Threshold pace, estimated',
       'Best efforts',
-      'Week by week',
+      'Best efforts over time',
       'Not enough yet',
     ])
     // Only the sections with something to show have a row.
     expect(regions()).not.toContain('Late in long sessions')
-    expect(regions()).not.toContain('At the same heart rate')
+    expect(regions()).not.toContain('Same heart rate, week by week')
     const section = screen.getByRole('region', { name: 'Not enough yet' })
     const items = within(section)
       .getAllByRole('listitem')
@@ -281,7 +277,7 @@ describe('a sport page with sections that have nothing to show', () => {
       'Race predictions: needs a best of a mile or more, or runs with heart rate.',
       'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
       expect.stringMatching(
-        /^At the same heart rate: needs at least \d+ steady 5-minute stretches/,
+        /^Same heart rate, week by week: needs at least \d+ steady 5-minute stretches/,
       ),
       'Best efforts late in long sessions: add 3 runs, each longer than an hour and reaching a hard heart rate.',
       'Output per heartbeat over an hour: needs 3 steady runs with heart rate.',
@@ -375,7 +371,7 @@ describe('a sport page’s fitness', () => {
         sameHeartRate={sameHeartRate}
         lateEvidence={NO_LATE_EVIDENCE[sport]}
         fitness={fitness}
-        windowDays={28}
+        change={null}
         units="metric"
         massKg={75}
         weighted
@@ -404,7 +400,7 @@ describe('a sport page’s fitness', () => {
     expect(screen.queryByRole('region', { name: 'Your fitness' })).not.toBeInTheDocument()
   })
 
-  it('defers the weekly same-heart-rate section to the status: retitled, and no change of its own that could disagree', () => {
+  it('claims no change in the weekly same-heart-rate section, and points to the status above it', () => {
     // The weekly data rise 13% while the status says slipping: the section must not say so beside the card.
     withFitness('run', fullRun(), { run: SLIPPING, ride: NO_FITNESS.ride }, RUN_SAME_HEART_RATE)
     expect(screen.queryByRole('region', { name: 'At the same heart rate' })).not.toBeInTheDocument()
@@ -418,16 +414,15 @@ describe('a sport page’s fitness', () => {
     expect(region.querySelector('.chart-frame__takeaway')).toBeNull()
   })
 
-  it('keeps the section’s own finding where the status has no state to give', () => {
+  it('claims no change in the weekly section where the status has no state to give either, and points nowhere', () => {
     withFitness(
       'run',
       fullRun(),
       { run: waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }), ride: NO_FITNESS.ride },
       RUN_SAME_HEART_RATE,
     )
-    expect(closedRow('At the same heart rate')).toMatch(/quicker|faster/i)
-    expect(
-      screen.queryByRole('region', { name: 'Same heart rate, week by week' }),
-    ).not.toBeInTheDocument()
+    expect(closedRow('Same heart rate, week by week')).toBe(
+      'Same heart rate, week by weekYour pace each week at 145 bpm.',
+    )
   })
 })

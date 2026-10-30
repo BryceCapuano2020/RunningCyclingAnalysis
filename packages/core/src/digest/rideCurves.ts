@@ -23,6 +23,8 @@ import { fitBikeModel } from '../virtualPower'
 import { bestOf, bestOfEach, isMeasured, plainCurve } from './bestCurve'
 import { CalibrationPool, calibratedOf } from './calibration'
 import { effortsCount } from './effortTrust'
+import { EVERY_EFFORT } from './readingRule'
+import type { ReadingRule } from './readingRule'
 import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import type { Masses } from './masses'
@@ -121,8 +123,9 @@ export interface BestCurves {
 
 /**
  * The best run and ride values at each duration. Rides are priced with bikeModel, and an estimated ride point
- * counts only if `gate` lets it (see ESTIMATED_RIDE); null leaves every point, as with too few measured rides. A treadmill run holds
- * no best (see effortsCount), so it is left out of both curves.
+ * counts only if `gate` lets it (see ESTIMATED_RIDE); null leaves every point, as with too few measured rides. What counts
+ * as a reading at all is `rule`'s (a treadmill run holds no best, see effortsCount): the change test reads efforts through
+ * the same rule.
  */
 export function bestCurves(
   all: ActivityDigest[],
@@ -130,9 +133,15 @@ export function bestCurves(
   bikeModel: BikeModel,
   todayKg: number,
   gate: EstimatedRideGate | null,
+  rule: ReadingRule = EVERY_EFFORT,
 ): BestCurves {
-  const ordered = all.filter(effortsCount)
-  const runBest = bestOf(ordered, 'run', runCentralWkg)
+  const ordered = all.filter(rule.activity)
+  // A point the rule leaves out is not found, as one the ceiling drops is not.
+  const counted =
+    (digest: ActivityDigest, value: (point: DigestCurvePoint) => number) =>
+    (point: DigestCurvePoint): number =>
+      rule.point(digest, point) ? value(point) : Number.NaN
+  const runBest = bestOfEach(ordered, 'run', (digest) => counted(digest, runCentralWkg))
   const standing = estimatedStanding(gate)
   // Without a gate every point holds, so none stands alone.
   const aloneFor =
@@ -144,7 +153,8 @@ export function bestCurves(
     const rideBest = bestOfEach(
       ordered,
       'ride',
-      (digest) => (point) => ridePriced(point, digest, masses, bikeModel, standing).watts,
+      (digest) =>
+        counted(digest, (point) => ridePriced(point, digest, masses, bikeModel, standing).watts),
       undefined,
       aloneFor,
     )
@@ -159,7 +169,8 @@ export function bestCurves(
   const wkgBest = bestOfEach(
     ordered,
     'ride',
-    (digest) => (point) => pointWkg(point, digest, masses, bikeModel, standing).wkg,
+    (digest) =>
+      counted(digest, (point) => pointWkg(point, digest, masses, bikeModel, standing).wkg),
     undefined,
     aloneFor,
   )

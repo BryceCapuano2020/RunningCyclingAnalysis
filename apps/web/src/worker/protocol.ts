@@ -94,8 +94,6 @@ export type WorkerRequest =
   | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
-  /** Whether the headline trend carries running equivalents: only an age-graded Balance trend uses them. */
-  | { type: 'setGradeTrend'; on: boolean; settings: AthleteSettings }
   | { type: 'setRange'; choice: PeriodChoice; settings: AthleteSettings }
   /** `forgetDevice` also empties the library kept in this browser. */
   | { type: 'clear'; forgetDevice?: boolean }

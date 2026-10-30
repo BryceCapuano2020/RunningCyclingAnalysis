@@ -35,6 +35,7 @@ function stateWith(totalActivities: number): SessionState {
     walkingPaceRuns: 0,
     trend: [],
     previous: null,
+    change: null,
     effortTrends: NO_TRENDS,
     sameHeartRate: NO_SAME_HEART_RATE,
     lateEvidence: NO_LATE_EVIDENCE,
@@ -50,7 +51,7 @@ const worker = (): FakeWorker => FakeWorker.instances.at(-1)!
 
 /** A signed-out page whose kept library has loaded, so the next request is the test's own. */
 function ready() {
-  const hook = renderHook(() => useAnalysis(SETTINGS, SIGNED_OUT, false))
+  const hook = renderHook(() => useAnalysis(SETTINGS, SIGNED_OUT))
   act(() => worker().reply({ type: 'state', state: stateWith(0) }))
   return hook
 }

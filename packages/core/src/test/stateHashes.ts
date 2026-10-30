@@ -34,6 +34,7 @@ const FIELDS = [
   'zoneEstimates',
   'timeInZones',
   'previous',
+  'change',
   'records',
   'library',
   'period',

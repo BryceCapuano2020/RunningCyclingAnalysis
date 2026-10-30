@@ -42,7 +42,6 @@ const RULES: Record<WorkerRequest['type'], StallRule> = {
   exportData: LONG,
   loadSample: SHORT,
   setSettings: SHORT,
-  setGradeTrend: SHORT,
   setRange: SHORT,
   clear: SHORT,
   keepProvisional: LONG,
