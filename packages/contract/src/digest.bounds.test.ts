@@ -66,12 +66,14 @@ describe('HR blocks follow the duration of the activity', () => {
 })
 
 describe('climb sections cannot outnumber the seconds of the activity', () => {
+  const inside = { ...climb, end: 1 }
+
   it('accepts one section a second and refuses one more', () => {
     expect(
-      accepts(ActivityDigestSchema, { ...base, durationS: 3, climbSections: times(3, climb) }),
+      accepts(ActivityDigestSchema, { ...base, durationS: 3, climbSections: times(3, inside) }),
     ).toBe(true)
     expect(
-      accepts(ActivityDigestSchema, { ...base, durationS: 3, climbSections: times(4, climb) }),
+      accepts(ActivityDigestSchema, { ...base, durationS: 3, climbSections: times(4, inside) }),
     ).toBe(false)
   })
 })
@@ -86,48 +88,38 @@ describe('the curve sits on the duration grid', () => {
 })
 
 describe('array bounds', () => {
-  it('holds a create to 50 flags and a stored row to 200', () => {
+  it('holds a create to 50 flags', () => {
     expect(accepts(ActivityDigestSchema, { ...base, flags: times(50, flag) })).toBe(true)
     expect(accepts(ActivityDigestSchema, { ...base, flags: times(51, flag) })).toBe(false)
-    expect(accepts(StoredActivityDigestSchema, { ...base, flags: times(200, flag) })).toBe(true)
-    expect(accepts(StoredActivityDigestSchema, { ...base, flags: times(201, flag) })).toBe(false)
   })
 
-  it('holds a stored row to 4 times the create bound for HR blocks and climb sections', () => {
+  // A stored row is read, not refused: a list past its cap is cut to it, so the activity stays listed.
+  it('cuts a stored row to 4 times the create bound for flags, HR blocks, climb sections and the curve', () => {
+    const kept = (field: string, item: unknown, count: number) =>
+      (
+        StoredActivityDigestSchema.parse({
+          ...base,
+          [field]: times(count, item),
+        }) as unknown as Record<string, unknown[]>
+      )[field]!.length
+    expect(kept('flags', flag, 200)).toBe(200)
+    expect(kept('flags', flag, 201)).toBe(200)
     // 7 days less the 600 s warm-up, in 300 s blocks: 2014 on a create. One section per 120 s: 5040.
-    expect(accepts(StoredActivityDigestSchema, { ...base, hrBlocks: times(8056, hrBlock) })).toBe(
-      true,
-    )
-    expect(accepts(StoredActivityDigestSchema, { ...base, hrBlocks: times(8057, hrBlock) })).toBe(
-      false,
-    )
-    expect(
-      accepts(StoredActivityDigestSchema, { ...base, climbSections: times(20_160, climb) }),
-    ).toBe(true)
-    expect(
-      accepts(StoredActivityDigestSchema, { ...base, climbSections: times(20_161, climb) }),
-    ).toBe(false)
+    expect(kept('hrBlocks', hrBlock, 8056)).toBe(8056)
+    expect(kept('hrBlocks', hrBlock, 8057)).toBe(8056)
+    expect(kept('climbSections', climb, 20_160)).toBe(20_160)
+    expect(kept('climbSections', climb, 20_161)).toBe(20_160)
+    const grid = DURATIONS_S.length * 4
+    expect(kept('curve', curve[0], grid)).toBe(grid)
+    expect(kept('curve', curve[0], grid + 1)).toBe(grid)
   })
 
-  it('holds a stored row to 4 times the duration grid for the curve', () => {
-    const points = (n: number) => times(n, curve[0]!)
-    expect(
-      accepts(StoredActivityDigestSchema, { ...base, curve: points(DURATIONS_S.length * 4) }),
-    ).toBe(true)
-    expect(
-      accepts(StoredActivityDigestSchema, { ...base, curve: points(DURATIONS_S.length * 4 + 1) }),
-    ).toBe(false)
-  })
-
-  it('keeps counts whole: moving time and each flag count are integers', () => {
+  it('keeps counts whole on a create: moving time and each flag count are integers', () => {
     expect(accepts(ActivityDigestSchema, { ...base, movingS: 3000 })).toBe(true)
     expect(accepts(ActivityDigestSchema, { ...base, movingS: 3000.5 })).toBe(false)
     expect(accepts(ActivityDigestSchema, { ...base, flagCounts: { 'power-spike': 1.5 } })).toBe(
       false,
     )
-    expect(
-      accepts(StoredActivityDigestSchema, { ...base, flagCounts: { 'power-spike': 1.5 } }),
-    ).toBe(false)
   })
 })
 
