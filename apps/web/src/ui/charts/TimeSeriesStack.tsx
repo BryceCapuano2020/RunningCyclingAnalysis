@@ -8,9 +8,10 @@ import { TimeSeriesCursor } from './TimeSeriesCursor'
 import { TimeSeriesNote } from './TimeSeriesNote'
 import { TimeSeriesReadout } from './TimeSeriesReadout'
 import { TimeSeriesRows } from './TimeSeriesRows'
+import { geometryScale } from './plotBox'
 import { layoutOf } from './timeSeriesLayout'
 import { NARROW_WIDTH } from './ticks'
-import { STACK_MARGIN, stepCursor } from './timeSeriesModel'
+import { stackMargin, stepCursor } from './timeSeriesModel'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
 import type { CursorHead } from './timeSeriesTypes'
 import { useSize } from './useSize'
@@ -79,14 +80,10 @@ export function TimeSeriesStack({
   const [keyboardFocus, setKeyboardFocus] = useState(false)
   const pressed = useRef(false)
   const svgRef = useRef<SVGSVGElement | null>(null)
-  const channels = useMemo(
-    () =>
-      build(
-        Math.max(1, width - STACK_MARGIN.left - STACK_MARGIN.right),
-        width < NARROW_WIDTH ? 2 : 3,
-      ),
-    [build, width],
-  )
+  const channels = useMemo(() => {
+    const margin = stackMargin(geometryScale())
+    return build(Math.max(1, width - margin.left - margin.right), width < NARROW_WIDTH ? 2 : 3)
+  }, [build, width])
   const layout = useMemo(() => layoutOf(width, channels), [width, channels])
   const size: ChartSize = useMemo(
     () => ({

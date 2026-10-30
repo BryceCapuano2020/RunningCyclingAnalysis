@@ -170,9 +170,12 @@
 /* The state, as a word at display size and the shape that says it without colour. */
 .fitness-card__state {
   display: flex;
+  /* At a large text size the word and its shape stack, not widen the page. */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin: 0;
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   /* A display size with no type token; see DESIGN.md, Type. */
   font-size: clamp(2rem, 6.4vw, 2.75rem);

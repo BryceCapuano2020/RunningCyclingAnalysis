@@ -145,7 +145,7 @@ export function LibraryNotices({
         </section>
       )}
       {analysis.deviceIssue && (
-        <section className="notice" aria-label="Kept in this browser">
+        <section className="notice" aria-label="Browser storage problem">
           <NoticeLine short={SHORT.device(analysis.deviceIssue)}>
             {deviceIssueText(analysis.deviceIssue, signedIn)}
           </NoticeLine>

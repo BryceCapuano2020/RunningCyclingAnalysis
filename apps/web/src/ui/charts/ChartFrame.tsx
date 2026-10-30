@@ -4,7 +4,7 @@ import { ChartLegend } from './ChartLegend'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartTable } from './ChartTable'
 import type { ChartSize, ChartTableData } from './chartTypes'
-import { PHONE_CHART_HEIGHT, isPhoneWidth, plotBoxOf } from './plotBox'
+import { PHONE_CHART_HEIGHT, geometryScale, isPhoneWidth, plotBoxOf } from './plotBox'
 import { ReadoutContext } from './readoutContext'
 import { useSize } from './useSize'
 import './ChartFrame.css'
@@ -28,8 +28,12 @@ export interface ChartFrameProps {
   takeaway?: string
   /** The chart's one figure at display size, beside the takeaway. */
   focal?: ChartFocal
-  /** Height of the whole SVG, axis labels included. A phone gets PHONE_CHART_HEIGHT when this is left out. */
-  height?: number
+  /**
+   * Height of the whole SVG in px, axis labels included, or a function of the chart's width for one whose rows
+   * stack when it is narrow. A given height is final, so it already holds the reader's text size (geometryScale).
+   * Left out, a phone gets PHONE_CHART_HEIGHT and a wide chart DEFAULT_HEIGHT, both grown with the text.
+   */
+  height?: number | ((width: number) => number)
   /**
    * Shown above the plot, in a row that is kept whenever the chart has a legend, so a key appearing
    * does not move the plot. An empty legend keeps the row, and then keyNote can take it. A chart that
@@ -124,7 +128,11 @@ export function ChartFrame({
   const takeawayId = `${id}-takeaway`
   const [readout, setReadout] = useState<HTMLElement | null>(null)
   const phone = isPhoneWidth(width)
-  const height = givenHeight ?? (phone ? PHONE_CHART_HEIGHT : DEFAULT_HEIGHT)
+  // The default is laid out for a 16 px root: larger text gets a taller chart, so bigger axis labels do not eat the plot.
+  const height =
+    typeof givenHeight === 'function'
+      ? givenHeight(width)
+      : (givenHeight ?? (phone ? PHONE_CHART_HEIGHT : DEFAULT_HEIGHT) * geometryScale())
   const rightMargin = plotRightMargin?.(width)
   // One object for a given size, so what is computed from it stays valid while a point is read.
   const size: ChartSize = useMemo(

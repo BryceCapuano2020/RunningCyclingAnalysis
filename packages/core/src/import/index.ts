@@ -5,6 +5,13 @@ import type { ParseLimits, ParseOptions, ParseResult } from './result'
 
 export { DEFAULT_PARSE_LIMITS } from './result'
 export { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from './activitiesCsv'
+export {
+  MAX_GARMIN_SUMMARIES_BYTES,
+  MAX_GARMIN_SUMMARY_BYTES,
+  MAX_GARMIN_SUMMARY_DEPTH,
+  MAX_GARMIN_SUMMARY_OBJECTS,
+  MAX_SUMMARY_FILES,
+} from './garminList'
 export type { ParseLimits, ParseOptions, ParseResult } from './result'
 
 const UNSUPPORTED = 'Not a FIT, GPX or TCX file'

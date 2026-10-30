@@ -777,10 +777,11 @@ describe('sport records, on the card and the page', () => {
     expect(rulesWith(sportRecords, '.records__source')).toMatch(/column-gap:\s*var\(--space-1\)/)
   })
 
-  it('gives the label column 6rem, so "Half marathon" fits beside its figure', () => {
+  it('gives the label column 6rem, but never more than a quarter of the row, so a large text size leaves the figure its room', () => {
     expect(rulesWith(sportRecords, '.records__row')).toMatch(
-      /grid-template-columns:\s*6rem minmax\(0, 1fr\)/,
+      /grid-template-columns:\s*min\(6rem, 25%\) minmax\(0, 1fr\)/,
     )
+    expect(rulesWith(sportRecords, '.records__label')).toMatch(/overflow-wrap:\s*anywhere/)
   })
 
   it('keeps every record link at least 24 px tall, for a pointer as for a finger', () => {
@@ -840,11 +841,14 @@ describe('sport records, on the card and the page', () => {
     ).toMatch(/grid-column:\s*3/)
   })
 
-  it('lets a record tile’s link shrink to its tile, so a long activity name is cut short and never widens a phone', () => {
+  it('lets a record tile’s link shrink to its tile, so a long activity name wraps whole and never widens a phone', () => {
     const link = rulesWith(recordTiles, '.record-tiles__link')
     expect(link).toMatch(/min-width:\s*0/)
     expect(link).toMatch(/justify-self:\s*stretch/)
-    expect(rulesWith(recordTiles, '.record-tiles__name')).toMatch(/text-overflow:\s*ellipsis/)
+    expect(link).toMatch(/flex-wrap:\s*wrap/)
+    const name = rulesWith(recordTiles, '.record-tiles__name')
+    expect(name).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(name).not.toMatch(/text-overflow|white-space:\s*nowrap/)
   })
 
   it('draws a race bar in the sport’s colour, with its two estimates as triangles above and below', () => {
