@@ -1309,3 +1309,59 @@ describe('ActivityPage layout around the timeline', () => {
     expect(readout).toHaveTextContent(`Pace${header.replace(' ', '')}`)
   })
 })
+
+describe('ActivityPage: a run at walking pace the athlete may count', () => {
+  const hike = makeActivity({
+    id: 'activity-1',
+    name: 'Slow loop',
+    sport: 'run',
+    walkingPace: true,
+  })
+
+  it('offers to count it, beside the line that says it is left out', () => {
+    const onCount = vi.fn(() => null)
+    renderPage(hike, undefined, undefined, undefined, undefined, undefined, undefined, {
+      walkingChoice: { counted: false, onCount, onStop: vi.fn(() => null) },
+    })
+    expect(
+      screen.getByText('This run is at walking pace, so it is left out of your run analysis.'),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Count this run' }))
+    expect(onCount).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a counted run with its bests, says it is counted, and offers the way back', () => {
+    const onStop = vi.fn(() => null)
+    const counted = { ...hike, walkingPace: undefined }
+    renderPage(counted, undefined, undefined, undefined, undefined, undefined, undefined, {
+      walkingChoice: { counted: true, onCount: vi.fn(() => null), onStop },
+    })
+    expect(
+      screen.getByText(/You count it as a run, so it is in your run analysis\./),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Walking pace')).toHaveClass('chip')
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Leave this run out' }))
+    expect(onStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers no choice on an ordinary run', () => {
+    renderPage(
+      makeActivity({ sport: 'run' }),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        walkingChoice: { counted: false, onCount: vi.fn(() => null), onStop: vi.fn(() => null) },
+      },
+    )
+    expect(
+      screen.queryByRole('button', { name: /Count this run|Leave this run out/ }),
+    ).not.toBeInTheDocument()
+  })
+})

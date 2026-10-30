@@ -30,6 +30,13 @@ export const NARROW_PHONE_MAX_WIDTH_PX = 420
  */
 export const SHORT_PHONE_MAX_HEIGHT_PX = 700
 
+/**
+ * From this width a short landscape screen sets the landing's pitch beside the drop zone. Below it (a 1280 px page
+ * at 400% zoom is 320 px wide and 256 tall) two columns are narrower than the drop zone's buttons and the page
+ * scrolls sideways, which WCAG 1.4.10 Reflow forbids. App.css writes 560 as a literal.
+ */
+export const LANDSCAPE_TWO_COLUMN_MIN_WIDTH_PX = 560
+
 /** At or below this width the tab labels shrink, so four equal tabs keep "ACTIVITIES" in one line. */
 export const SMALL_PHONE_MAX_WIDTH_PX = 360
 

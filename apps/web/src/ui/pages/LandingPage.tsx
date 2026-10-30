@@ -1,10 +1,11 @@
 import { useRef } from 'react'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
+import { CLIMB_NEEDED } from '../components/headlineNeed'
 import { HEADLINE_LABEL } from '../grades'
 import { useTouchFirst } from '../useMediaQuery'
 import type { AnalysisController } from '../useAnalysis'
-import { LandingExample } from './LandingExample'
+import { LandingExample, LandingFitnessExample } from './LandingExample'
 import { PAGE_HEADING_ID } from './pageHeading'
 
 const METHOD_HEADING_ID = 'landing-method-heading'
@@ -60,6 +61,8 @@ export function LandingPage({ analysis, signedIn, onFiles }: LandingPageProps) {
           <LandingExample />
           {!touch && dropzone}
         </div>
+        {/* The second panel follows the actions, so Add files stays on the first screen. */}
+        <LandingFitnessExample />
       </div>
       <ol className="app__steps">
         <li>
@@ -91,7 +94,7 @@ export function LandingPage({ analysis, signedIn, onFiles }: LandingPageProps) {
       <section className="landing__method" aria-labelledby={METHOD_HEADING_ID}>
         <h2 id={METHOD_HEADING_ID}>How the result is worked out</h2>
         <p className="secondary">
-          {`Each sport is judged on your best ${HEADLINE_LABEL}: running by its pace, allowing for hills, and cycling by its power, which is estimated from speed, gradient and weight when there is no power meter.`}
+          {`Each sport is judged on your best ${HEADLINE_LABEL}: running by its pace, allowing for hills, and cycling by its power. Without a power meter, power is estimated from speed, gradient and weight, and only on ${CLIMB_NEEDED}.`}
         </p>
         <p className="secondary">
           Each result is compared with the standard for your age and sex on the day of that effort.

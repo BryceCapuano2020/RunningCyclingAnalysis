@@ -56,7 +56,8 @@ function Block({
 }) {
   return (
     <section className="fitness-evidence__block" data-area={area}>
-      <h4 className="eyebrow">{title}</h4>
+      {/* An h2, not a deeper heading: the card above is no heading, so the next heading up the page is the h1. */}
+      <h2 className="eyebrow">{title}</h2>
       {children}
     </section>
   )

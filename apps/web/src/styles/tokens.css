@@ -15,6 +15,8 @@
   --brand: #c8f03c;
   --accent: #0e1116;
   --accent-contrast: var(--brand);
+  --highlight: var(--brand);
+  --highlight-ink: #0e1116;
   --accent-hover: #474f5c;
   --accent-pressed: #000000;
   /* The brand mark's tile is ink; its ring is ink too in light, where the tile needs none. */
@@ -26,13 +28,16 @@
   --focus: #0e1116;
 
   /* Sport identity: fixed everywhere in the app */
-  --series-run: #e5304f;
+  --series-run: #e44f27;
   --series-ride: #2f56e8;
   --series-swim: #0f9fb0;
-  --series-run-soft: #e5304f26;
+  /* Staged for sport-coloured text, which a later D10 PR brings; nothing reads the two inks yet. */
+  --run-ink: #b83a12;
+  --ride-ink: #2f56e8;
+  --series-run-soft: #e44f2726;
   --series-ride-soft: #2f56e826;
   --series-swim-soft: #0f9fb026;
-  --ladder-run-band: #e5304f26;
+  --ladder-run-band: #e44f2714;
   --ladder-ride-band: #2f56e826;
   --neutral-mark: #474f5c;
   --neutral-band: #474f5c24;
@@ -40,16 +45,17 @@
   --grid: #d0d5de;
   /*
    * The zone ramp: five steps for each sport, lowest effort first. In light the steps darken with effort; in
-   * dark they get more luminous at full saturation, never paler. Each step keeps 3:1 against the card, its ink
-   * (--zone-ink-n, one per step for both sports) keeps 4.5:1, and a neighbour is at least 7 apart in CIEDE2000
-   * under every colour vision in light and 5 in dark, where the steps stay saturated.
+   * dark they get more luminous. Each step keeps 3:1 against the card, its ink (--zone-ink-n, one per step for
+   * both sports) keeps 4.5:1, and a neighbour is at least 7 apart in CIEDE2000 under every colour vision in
+   * light and 5 in dark. The run ramp runs from orange into umber, and its chroma falls toward the strong end,
+   * so effort deepens into earth and never into the status red; ride is blue throughout.
    * styles/zoneRamp.test.ts checks all of it from these values.
    */
-  --zone-run-1: #e16265;
-  --zone-run-2: #d0293d;
-  --zone-run-3: #a90227;
-  --zone-run-4: #750017;
-  --zone-run-5: #410008;
+  --zone-run-1: #d57029;
+  --zone-run-2: #c94e0c;
+  --zone-run-3: #a63d02;
+  --zone-run-4: #7d2d05;
+  --zone-run-5: #552b14;
   --zone-ride-1: #6589d3;
   --zone-ride-2: #3c67c9;
   --zone-ride-3: #1844b9;
@@ -90,6 +96,8 @@
   /* The header is two rows on a wide screen and one row on a phone; the phone tab bar is 48 px. */
   --header-height: calc(var(--space-5) + var(--control-height) * 2 + var(--space-2) + 1px);
   --tab-bar-height: 48px;
+  /* The bars that stick under the header (section row, chart readout) add their height here while stuck; see useStickyExtra.ts. */
+  --sticky-extra: 0px;
   /* The type scale: the small sizes the app uses, each one value. */
   --text-sm: 0.875rem;
   --text-md: 1rem;
@@ -178,23 +186,25 @@
     --selected-contrast: #0e1116;
     --link: #eef0f3;
     --focus: #c8f03c;
-    --series-run: #f0435f;
+    --series-run: #f56333;
     --series-ride: #4d6ef5;
     --series-swim: #14a0b0;
-    --series-run-soft: #f0435f33;
+    --run-ink: #f56333;
+    --ride-ink: #5c7bf7;
+    --series-run-soft: #f5633333;
     --series-ride-soft: #4d6ef533;
     --series-swim-soft: #14a0b033;
-    --ladder-run-band: #f0435f26;
+    --ladder-run-band: #f5633326;
     --ladder-ride-band: #4d6ef526;
     --neutral-mark: #b6bcc6;
     --neutral-band: #b6bcc629;
     --previous-mark: #737b89;
     --grid: #343b47;
-    --zone-run-1: #b43d52;
-    --zone-run-2: #ca4556;
-    --zone-run-3: #de555d;
-    --zone-run-4: #ee716e;
-    --zone-run-5: #ff897f;
+    --zone-run-1: #b34f2c;
+    --zone-run-2: #ce470d;
+    --zone-run-3: #f57e4d;
+    --zone-run-4: #fba774;
+    --zone-run-5: #fdc8a1;
     --zone-ride-1: #5061b3;
     --zone-ride-2: #4f70d6;
     --zone-ride-3: #4a81f4;

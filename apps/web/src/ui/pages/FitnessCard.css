@@ -77,8 +77,8 @@
 .fitness-card__new strong {
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  background: var(--selected);
-  color: var(--selected-contrast);
+  background: var(--highlight);
+  color: var(--highlight-ink);
   font-family: var(--font-display);
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-caps);
@@ -322,8 +322,10 @@
   min-width: 0;
 }
 
-.fitness-evidence__block h4 {
+.fitness-evidence__block h2 {
   margin: 0;
+  /* The eyebrow's own line, not the section heading's tight one. */
+  line-height: inherit;
 }
 
 .fitness-evidence__block p {

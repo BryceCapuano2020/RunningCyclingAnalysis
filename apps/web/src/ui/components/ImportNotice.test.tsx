@@ -184,3 +184,22 @@ describe('ImportNotice: skipped files', () => {
     expect(screen.queryByText(/^[\d,]+ files?: /)).not.toBeInTheDocument()
   })
 })
+
+describe('ImportNotice: runs that were added but left out', () => {
+  it('says under the sentence that the runs are left out, so "Added 22 runs" does not stand alone', () => {
+    render(
+      <ImportNotice
+        {...noticeProps({ leftOutLine: '22 runs are at walking pace, so they are left out.' })}
+      />,
+    )
+    expect(screen.getByText(SENTENCE)).toBeInTheDocument()
+    expect(
+      screen.getByText('22 runs are at walking pace, so they are left out.'),
+    ).toBeInTheDocument()
+  })
+
+  it('adds nothing when no line is given', () => {
+    const { container } = render(<ImportNotice {...noticeProps()} />)
+    expect(container.querySelectorAll('.import-notice__body > p')).toHaveLength(1)
+  })
+})
