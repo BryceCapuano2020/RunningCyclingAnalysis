@@ -1,3 +1,4 @@
+import { MAX_RECORD_ID_CHARS } from '@rca/contract'
 import { HttpError } from './errors.ts'
 import { fromBase64UrlUtf8, toBase64Url } from './util.ts'
 
@@ -7,7 +8,10 @@ export interface Cursor {
   id: string
 }
 
-/** Opaque to clients: base64url of "createdAt:id". */
+/**
+ * Opaque to clients: base64url of "createdAt:id". Stateless: the server remembers nothing about a
+ * cursor it issued, so any number of tabs can page the same list independently.
+ */
 export function encodeCursor(cursor: Cursor): string {
   return toBase64Url(new TextEncoder().encode(`${cursor.createdAt}:${cursor.id}`))
 }
@@ -24,5 +28,7 @@ export function decodeCursor(value: string): Cursor {
   const match = /^(\d+):(.+)$/.exec(text)
   if (!match) throw invalid()
   const [, createdAt = '', id = ''] = match
-  return { createdAt: Number(createdAt), id }
+  const position = Number(createdAt)
+  if (!Number.isSafeInteger(position) || id.length > MAX_RECORD_ID_CHARS) throw invalid()
+  return { createdAt: position, id }
 }

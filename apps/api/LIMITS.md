@@ -48,17 +48,17 @@ exceed the limit. Over-budget requests return **429 `daily_limit`** with `Retry-
 seconds until the next 00:00 UTC. The per-minute limiter still returns `rate_limited`. The values are
 exported as `DAILY_LIMITS` from `@rca/contract`.
 
-| Action                                   | Limit per user per UTC day  | Notes                                                                                                     |
-| ---------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------- |
-| File downloads                           | 50                          | Refunded if R2 refuses the read before it starts.                                                         |
-| Profile writes                           | 50                          | Includes keepFiles toggles.                                                                               |
-| Dated-settings writes                    | 200                         | `PUT` and `DELETE /api/measurements`. Refunded when the write is refused (limit reached, entry missing).  |
-| Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.               |
-| Activity deletions                       | 50                          |                                                                                                           |
-| Activity creates                         | **5,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not. |
-| Original-file uploads                    | **2,000**                   | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                   |
-| Library listings (`GET /api/activities`) | 100                         | First page of each listing. Continuation pages are free once; see Read charging.                          |
-| Original-file bytes uploaded             | 1 GiB (1,073,741,824 bytes) | Summed over the declared length of each upload. Refunded when the upload is refused before R2 is called.  |
+| Action                                   | Limit per user per UTC day  | Notes                                                                                                                                                    |
+| ---------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File downloads                           | **5,000**                   | Equals the library limit, so a revision rebuild finishes in one UTC day; see Original downloads below. Refunded if R2 refuses the read before it starts. |
+| Profile writes                           | 50                          | Includes keepFiles toggles.                                                                                                                              |
+| Dated-settings writes                    | 200                         | `PUT` and `DELETE /api/measurements`. Refunded when the write is refused (limit reached, entry missing).                                                 |
+| Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.                                                              |
+| Activity deletions                       | 50                          |                                                                                                                                                          |
+| Activity creates                         | **5,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not.                                                |
+| Original-file uploads                    | **2,000**                   | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                                                                  |
+| Library listings (`GET /api/activities`) | 100                         | One unit per library load (a request with no cursor). Pages are metered in rows; see Read charging.                                                      |
+| Original-file bytes uploaded             | 1 GiB (1,073,741,824 bytes) | Summed over the declared length of each upload. Refunded when the upload is refused before R2 is called.                                                 |
 
 **Deviation from the owner's default of 50.** A first Strava export import is hundreds to thousands
 of activities, so activity creates and uploads need a higher daily allowance. Creates are capped at the
@@ -67,22 +67,88 @@ capped at 2,000. Use these figures only for those two actions.
 
 Daily rows older than seven UTC days are pruned by the scheduled job.
 
+**Original downloads.** The 5,000 a day equals `MAX_ACTIVITIES_PER_USER`, so rebuilding the largest allowed
+library from its stored originals after a `MODEL_REVISION` bump finishes inside one UTC day (an owner-sized
+library of about 2,700 takes about half of one). It was 50, which made a rebuild take weeks. Originals exist
+only for accounts that turned on `keepFiles` (off by default), and each download is one R2 operation against the
+deployment's 90,000 ordinary operations a month: one full rebuild of 5,000 originals is 5.6 percent of it.
+The sign-up list bounds who can spend it.
+
+_Worst case against the app's own R2 ledger._ That 90,000 (`MAX_GLOBAL_R2_STANDARD_OPERATIONS`, in
+`r2_storage_budget`) is this app's deliberately conservative share of R2, a tenth of the free Class A
+allowance and far below the free Class B one, not the free tier itself. One user downloading the daily
+maximum every day spends it in 18 days (90,000 / 5,000); six users doing so spend it in 3. When it is spent,
+ordinary R2 reads and writes for everyone are refused until the next month (digests keep syncing). A large
+library's rebuild after each `MODEL_REVISION` bump costs about 3 percent of the month (2,700 / 90,000), so
+several bumps in a month are affordable for one such user but add up across users.
+
+_No per-user monthly download meter._ A cap of 3 times `MAX_ACTIVITIES_PER_USER` a month was considered and
+not built, because it does not fit the existing design cheaply. `daily_budget` rows are keyed by a UTC day and
+pruned after seven days, so a month meter needs rows exempt from that prune and a month key; each download
+would write two more D1 rows on top of the two the daily charge writes (a 5,000-file rebuild: 10,000 more of the
+100,000 rows written a day); and deleting the account and signing up again would reset it, since the saved
+identity counts live about two days, not a month. The deployment-wide ledger already bounds the harm, and the
+sign-up list bounds who can reach it. Revisit with the ledger rather than per user.
+
+**Per-user counts survive deleting the account.** A budget is keyed by user id, and deleting the account
+removes its rows. So that delete-and-sign-in-again cannot reset today's counts, the deletion saves them in
+the same batch as the user delete, in `identity_budget`, under `HMAC-SHA256(SESSION_SIGNING_KEY,
+"identity:google:" + sub)` (never the subject or the email). Signing up again the same UTC day restores them
+into the new account; the next UTC day starts from zero exactly as for an account that was never deleted. Rows
+older than yesterday are pruned by the scheduled job, so the code lives at most about two days after a
+deletion. The same table counts account creations: **5 per Google identity per UTC day**
+(`MAX_ACCOUNT_CREATES_PER_DAY`), deleted accounts included. Rotating `SESSION_SIGNING_KEY` only forgets these.
+
 ## Read charging
 
-- A listing (`GET /api/activities`) charges one `read` unit for its first page. Only the continuation
-  cursor the server issued last is free, and only once: a page that presents it is not charged, and
-  presenting it again is charged as a fresh read. A malformed cursor returns 400 before any unit is taken.
-  Only same-origin requests are charged or rotate the cursor. A request whose `Sec-Fetch-Site` is
-  `cross-site`, `same-site` or any other value returns 403 `csrf_rejected` before anything is taken.
-  The same check guards file downloads. A request without `Sec-Fetch-Site` (old browsers, curl) is allowed.
-- `GET /api/me` is not charged: it reads a constant one or two rows, so the edge rate limiter bounds it.
-  Charging it would lock out someone who simply reloads the page often.
-- The read limit is **100 per UTC day** (`DAILY_LIMITS.read`), lowered from 1,000. A library of 5,000 rows
-  listed 100 times reads at most 500,000 D1 rows for one user in a day. At 1,000 the same user could read
-  about 5,000,000 rows, which is the whole free daily D1 allowance.
+The list cursor is stateless: it is `base64url("createdAt:id")`, a position in the caller's own list, and
+the server remembers nothing about cursors it issued. (`users.list_cursor` is no longer read or written; the
+column stays for the previous Worker.) A tab or device can therefore never spend, overwrite or invalidate
+another's cursor. Two meters bound what a user can read:
+
+- **Library loads** (`read`, `DAILY_LIMITS.read`, **100 per UTC day**). A request with no cursor starts a
+  load and takes one unit, whatever the number of tabs. Continuation pages take none, so a load of any length
+  is one unit, and the web client's "library loads" wording stays true.
+- **Rows listed** (`listRows`, `LIST_ROWS_PER_DAY`, **200,000 per UTC day**, held by the server and named in the web copy via its 429 message). Every page,
+  first or later, is charged `max(limit, 90)` up front (90 is `DEFAULT_PAGE_SIZE`), so replaying a cursor
+  cannot read for free and asking for one row at a time is no cheaper than a full page. A last short page is
+  charged in full, and so is any page the 512 KiB digest budget cut short of its `limit`. A page the rows meter
+  refuses is answered 429 `daily_limit` with its own message ("You have listed as many activity rows as today's
+  allowance covers...", `LIST_ROWS_LIMIT_MESSAGE`), which the web client shows as a limit on rows read from the
+  library, not as the 100 library loads. When this meter refuses a new load, the load's `read` unit is
+  given back. Over either limit the answer is **429 `daily_limit`**.
+
+A malformed cursor (not base64url, not `<integer>:<id>`, an unsafe integer, an id over 64 characters) returns
+400 before any unit is taken. Only same-origin requests are charged. A request whose `Sec-Fetch-Site` is
+`cross-site`, `same-site` or any other value returns 403 `csrf_rejected` before anything is taken. The same
+check guards file downloads. A request without `Sec-Fetch-Site` (old browsers, curl) is allowed.
+
+`GET /api/me` is not charged: it reads a constant one or two rows, so the edge rate limiter bounds it.
+Charging it would lock out someone who simply reloads the page often.
+
+**Numbers.** D1 Free bills rows read at 5,000,000 a day for everyone. With the page read pinned to the primary
+key and the keyset on `activities_user_created_id_idx` (see Activity list), a cold load of N activities reads
+about 4N rows: the metadata pass, about 2N, and the page read, about 2N. Before, with no table statistics, the
+page reads alone scanned the user's whole library once per page, about N squared over 90.
+
+| Library N | Rows read per cold load, before |  After |
+| --------: | ------------------------------: | -----: |
+|     1,000 |                          14,000 |  4,000 |
+|     2,700 |                          89,000 | 10,800 |
+|     5,000 |                         292,000 | 20,000 |
+
+At 200,000 rows listed a day a user can make about 74 cold loads of a 2,700 library or 40 of a 5,000 library.
+Worst case billed reads for one user at the cap are about 800,000 rows, so six users all at their cap would
+approach the shared allowance; this is a bound on one account, not on the whole deployment.
 
 ## Activity list
 
+- **Plan.** The metadata pass is one index range on `activities_user_created_id_idx (user_id, created_at, id)`
+  with the row-value test `(created_at, id) < (?, ?)`, in index order, with no sort. The page read is
+  `id IN (...) AND +user_id = ?`: the unary plus keeps the planner off the `user_id` index, which with no table
+  statistics it prefers and then scans the whole library once per page. Both plans are the same with and
+  without `ANALYZE`, and a test pins them (`activities.list.plan.test.ts`), so nothing depends on D1 having run
+  `ANALYZE`.
 - A page holds at most 90 activities (`MAX_PAGE_SIZE`) and at most 512 KiB of digest JSON
   (`MAX_PAGE_DIGEST_BYTES`). The page read binds the user id plus one id per row, so 90 rows is 91 of the 100
   bound parameters D1 allows a statement; a test pins `MAX_PAGE_SIZE + 1 <= 100`.
@@ -215,16 +281,31 @@ npx wrangler d1 execute rca --remote --command "$(node apps/api/scripts/reset-r2
 D1 writes are charged per row, including index rows. The 100,000 rows written per day are shared by
 all users. Rough per-request estimates from statement shape:
 
-- A read counted against the daily budget: about 2 rows.
-- An activity create: about 8 rows (activity row with its indexes, daily upsert, counter). A first
-  import at the 5,000 cap writes about 40,000 rows, of the free 100,000 a day.
+- A listing page: 2 rows (the `listRows` upsert and the primary-key index row it also writes). The
+  single cursor slot cost 2 rows a page as well (one update to spend it, one to set the next). A library load
+  adds 2 for its `read` unit. A cold load of a 2,700-activity library is 31 pages, so about 64 rows. Worst case
+  for one account at the `listRows` cap: 200,000 / 90 = 2,222 pages, about 4,444 rows, plus 200 for 100 loads,
+  about 4,650 rows a day, 4.6 percent of the allowance. Five accounts at their caps would write about 23,000;
+  about 21 accounts at their caps would use all of it.
+- An activity create: about 9 rows (activity row with its five indexes, daily upsert, counter). The five
+  indexes are the primary key, the dedupe key, start, created, and `activities_user_created_id_idx`; it was 8
+  before the last. A first import at the 5,000 cap writes about 45,000 rows, of the
+  free 100,000 a day. Each delete writes one row more for the same index.
 - An upload: about 6 rows, one of them the `users.file_bytes` row that the trigger moves.
 - Turning keep files off writes one `users` row per stored file, through the trigger, on top of the
   activity rows it clears.
 
-On Free, 100,000 writes a day supports only a small number of heavy users. Fifty users each at the
-100-read cap would write about 10,000 rows a day, a tenth of the allowance. Measure
-before launch, and plan for Workers Paid if usage grows.
+On Free, 100,000 writes a day supports only a small number of heavy users. Fifty users each doing the 74 cold
+loads of a 2,700-activity library that the `listRows` cap allows would write about 237,000 rows a day (74 loads
+of 2 plus 31 pages of 2 each, 4,736 a user, times fifty), more than twice the allowance; the per-user caps bound one account, not the deployment.
+The sign-up list is what keeps the number of accounts small. Measure before launch, and plan for Workers Paid
+if usage grows.
+
+**Index to drop later.** `activities_user_created_idx (user_id, created_at)` is a strict prefix of the new
+`activities_user_created_id_idx (user_id, created_at, id)`. It is no longer needed by the new Worker and costs one
+index write on every activity insert and delete. Migration 0010 does not drop it, because the previous Worker is
+still a rollback target and its queries may use it. Drop it in a later migration, after the rollback floor has
+moved past `3e17b541` and the production plans have been checked.
 
 ## Open risks and decisions
 
@@ -261,12 +342,31 @@ signature is refused before any D1 call. Production needs `wrangler secret put S
 The key must be at least 32 bytes, counted as the UTF-8 bytes of the secret string. The code checks only that length, so the key must be generated randomly, for example with `openssl rand -hex 32`, as [DEPLOY.md](../../docs/DEPLOY.md) recommends. A missing or shorter key fails closed: every request that needs a session returns 503 `service_unavailable`, and the key is never padded or replaced. Rotating it signs every user out. Before this change, unsigned
 cookies were valid, so existing users must sign in again after the first deploy.
 
+Sessions are capped at **10 per user** (`MAX_SESSIONS_PER_USER`). Signing in beyond that ends the sessions
+beyond the ten most recently created, in the same batch as the insert. `GET /api/sessions` lists a user's
+sessions (dates and which one is current, no identifiers) and `DELETE /api/sessions` ends them as a set: all
+of them, or with `?keep=current` all but this one.
+
+## Sign-up list
+
+Creating a new account needs the verified Google email to be in the Worker secret `ALLOWED_EMAILS`: comma
+separated, case-insensitive, exact addresses (no wildcards). Unset or blank, sign-up is closed everywhere but
+local development, where it is open. The list is read only when no account exists for the Google identity or
+the email, so an existing account signs in whatever the secret holds, and removing an address from the list
+does not sign that user out. A refusal at the OAuth callback is an HTML page (403 `not_on_list`, 429
+`signup_limit`, 409 `account_deleting` or `account_conflict`), not JSON.
+
+"Local development" means `ENVIRONMENT` is exactly `development`, `APP_URL` is a loopback origin and the
+request arrived on a loopback host (`isLocalDevelopment`). The same test decides dev-login, the rate-limit
+bypass, non-Secure cookies and the missing HSTS header, so a wrong `ENVIRONMENT` on a public Worker opens none
+of them.
+
 ## Scheduled job
 
 `[triggers] crons = ["17 3 * * *"]` runs `runMaintenance` (`src/maintenance.ts`), and each step is bounded:
 
 - Deletes sessions that have expired or passed their 90-day end, up to 500 per run. Its statement also records the database size (see the database guard).
-- Prunes expired upload slots and daily rows older than seven days.
+- Prunes expired upload slots, daily rows older than seven days and saved identity counts older than yesterday.
 - Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts.
 - Sweeps two pages of 90 keys per run for R2 objects with no activity row, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.

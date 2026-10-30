@@ -2,6 +2,9 @@ import type { Bindings } from './env.ts'
 import { HttpError } from './errors.ts'
 import type { Deps } from './deps.ts'
 import { recordDatabaseSize, sweepUserFiles } from './storage.ts'
+import { GOOGLE_PROVIDER } from './auth/accounts.ts'
+import { identityKeyFor } from './auth/signupGate.ts'
+import { saveCountsStatement } from './identityBudget.ts'
 
 /**
  * Starts an account deletion. The account stops accepting writes and sign-ins at once, and a
@@ -62,7 +65,7 @@ export async function finishAccountDeletion(
   const sweep = pending.sweep_pending === 1
 
   if (sweep) await sweepBeforeDelete(env, deps, userId)
-  await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
+  await deleteUserKeepingCounts(env, deps, userId)
 
   try {
     if (sweep) await sweepBeforeDelete(env, deps, userId)
@@ -78,6 +81,29 @@ export async function finishAccountDeletion(
     )
   }
   return true
+}
+
+/**
+ * Deletes the user row, which cascades to every table that references it. In the same batch, the
+ * counts the user spent today are saved under a keyed code of its Google identity, so signing up
+ * again the same UTC day does not start from zero (see identityBudget.ts). A user without a Google
+ * identity, or a deployment without a usable signing key, is deleted without the save.
+ */
+async function deleteUserKeepingCounts(env: Bindings, deps: Deps, userId: string): Promise<void> {
+  const db = env.DB
+  const link = await db
+    .prepare('SELECT provider_user_id FROM oauth_accounts WHERE user_id = ? AND provider = ?')
+    .bind(userId, GOOGLE_PROVIDER)
+    .first<{ provider_user_id: string }>()
+  const identityKey = link
+    ? await identityKeyFor(env.SESSION_SIGNING_KEY, link.provider_user_id)
+    : undefined
+  const remove = db.prepare('DELETE FROM users WHERE id = ?').bind(userId)
+  if (identityKey === undefined) {
+    await remove.run()
+    return
+  }
+  await db.batch([saveCountsStatement(db, identityKey, userId, deps.now()), remove])
 }
 
 async function sweepBeforeDelete(env: Bindings, deps: Deps, userId: string): Promise<void> {

@@ -1,6 +1,7 @@
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv } from './env.ts'
 import { HttpError } from './errors.ts'
+import { isLocalRequest } from './localDev.ts'
 
 /** Bindings use 60-second windows. Limits are approximate per Cloudflare location, not quotas. */
 async function admit(limiter: RateLimit | undefined, key: string): Promise<void> {
@@ -18,7 +19,7 @@ async function admit(limiter: RateLimit | undefined, key: string): Promise<void>
 
 /** Only Cloudflare's edge-supplied address is used; client forwarding headers are not trusted. */
 export const publicRateLimit = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.env.ENVIRONMENT === 'development') return next()
+  if (isLocalRequest(c)) return next()
   const address = c.req.header('CF-Connecting-IP') ?? 'unknown'
   c.header('Retry-After', '60')
   await admit(c.env.API_RATE_LIMITER, `ip:${address}`)
@@ -31,7 +32,7 @@ export const publicRateLimit = createMiddleware<AppEnv>(async (c, next) => {
 
 /** Account writes share one stable user key, rather than being bypassable with many sessions. */
 export const accountWriteLimit = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.env.ENVIRONMENT === 'development' || ['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)) {
+  if (isLocalRequest(c) || ['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)) {
     return next()
   }
   const user = c.var.user
@@ -44,7 +45,7 @@ export const accountWriteLimit = createMiddleware<AppEnv>(async (c, next) => {
 
 /** The deep health check does R2 work, so it has its own, much tighter, per-address limit. */
 export const healthRateLimit = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.env.ENVIRONMENT === 'development') return next()
+  if (isLocalRequest(c)) return next()
   const address = c.req.header('CF-Connecting-IP') ?? 'unknown'
   c.header('Retry-After', '60')
   await admit(c.env.HEALTH_RATE_LIMITER, `health:${address}`)

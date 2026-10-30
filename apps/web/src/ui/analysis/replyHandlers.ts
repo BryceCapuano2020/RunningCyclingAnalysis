@@ -1,6 +1,6 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
-import { limitReached } from '../limitCopy'
+import { limitReached, listingLimitReached } from '../limitCopy'
 import type { WorkerResponse } from '../../worker/protocol'
 import { DEVICE_NOT_LOADED, deleteFailureText, LIBRARY_NOT_LOADED, rebuildNoticeText } from './copy'
 import type { ErrorReply } from './copy'
@@ -222,8 +222,9 @@ function handleReplyError(
   if (pending?.kind === 'setRange') pending.settle?.(null)
   if (pending?.kind === 'loadServer') {
     const dropped = failLibrary()
-    if (message.issue === 'daily-limit') setError(limitReached('read'), 'daily-limit')
-    else if (dropped) setError(LIBRARY_NOT_LOADED)
+    if (message.issue === 'daily-limit') {
+      setError(listingLimitReached(message.message), 'daily-limit')
+    } else if (dropped) setError(LIBRARY_NOT_LOADED)
   } else if (pending?.kind === 'loadDevice') {
     // The kept results in this browser did not load, so the imports waiting for them are dropped.
     const dropped = drainBatches(library.libraryWaitRef).length > 0
@@ -234,7 +235,9 @@ function handleReplyError(
   } else if (message.issue === 'daily-limit') {
     // A rebuild fails outright only when its first library listing is refused.
     setError(
-      pending?.kind === 'rebuildStale' ? limitReached('read') : limitReached('activityCreate'),
+      pending?.kind === 'rebuildStale'
+        ? listingLimitReached(message.message)
+        : limitReached('activityCreate'),
       'daily-limit',
     )
   } else setError(message.message)

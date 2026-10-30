@@ -36,6 +36,13 @@ const backupWorkflow = await readStylesheet(
 )
 const accountDeletion = await readStylesheet(import.meta.url, '../../api/src/accountDeletion.ts')
 const budget = await readStylesheet(import.meta.url, '../../api/src/budget.ts')
+const identityBudget = await readStylesheet(import.meta.url, '../../api/src/identityBudget.ts')
+const identitySignIn = await readStylesheet(import.meta.url, '../../api/src/auth/signIn.ts')
+const signupGate = await readStylesheet(import.meta.url, '../../api/src/auth/signupGate.ts')
+const contractLimits = await readStylesheet(
+  import.meta.url,
+  '../../../packages/contract/src/limits.ts',
+)
 const storage = await readStylesheet(import.meta.url, '../../api/src/storage.ts')
 const activitiesCsvSource = await readStylesheet(
   import.meta.url,
@@ -49,6 +56,7 @@ const contractDigest = await readStylesheet(
 )
 const apiSchema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
 const rateLimit = await readStylesheet(import.meta.url, '../../api/src/rateLimit.ts')
+const apiList = await readStylesheet(import.meta.url, '../../api/src/routes/activities/list.ts')
 const productionNotes = await readStylesheet(import.meta.url, '../../../docs/PRODUCTION.md')
 const wrangler = await readStylesheet(import.meta.url, '../../api/wrangler.toml')
 const importPipeline = await readStylesheet(
@@ -255,7 +263,6 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('an upload reservation token while a file uploads')
     expect(apiSchema).toMatch(/activityCount: integer\('activity_count'\)/)
     expect(apiSchema).toMatch(/digestBytes: integer\('digest_bytes'\)/)
-    expect(apiSchema).toMatch(/listCursor: text\('list_cursor'\)/)
     expect(apiSchema).toMatch(/deletingAt: integer\('deleting_at'\)/)
     expect(apiSchema).toMatch(/fileReservationToken: text\('file_reservation_token'\)/)
     expect(apiSchema).toMatch(/dedupeKey: text\('dedupe_key'\)/)
@@ -458,6 +465,32 @@ describe('the code behind the page', () => {
 
   it('keeps daily counts for seven days', () => {
     expect(budget).toMatch(/DAILY_ROW_RETENTION_DAYS = 7/)
+  })
+
+  it('keeps no library page cursor: the cursor is a position, nothing is stored', () => {
+    expect(text).not.toContain('library page cursor')
+    expect(apiList).not.toContain('list_cursor')
+  })
+
+  it('keeps at most ten sessions per account', () => {
+    expect(contractLimits).toMatch(/MAX_SESSIONS_PER_USER = 10/)
+    expect(text).toContain('At most ten are kept')
+  })
+
+  it("keeps a deleted account's day counts under a keyed one-way code for two UTC days", () => {
+    expect(accountDeletion).toContain('saveCountsStatement')
+    expect(signupGate).toContain("name: 'HMAC'")
+    expect(signupGate).toContain('identity:google:${sub}')
+    // Rows from before yesterday are pruned, so a code lives at most two UTC days.
+    expect(identityBudget).toMatch(/utcDay\(now - DAY_MS\)/)
+    expect(contractLimits).toMatch(/MAX_ACCOUNT_CREATES_PER_DAY = 5/)
+    expect(text).toContain(
+      'When you create or delete an account, a one-way code made from your Google ID',
+    )
+    expect(text).toContain('These are kept about two days.')
+    // Written at creation (the account-create count) as well as at deletion (the saved counts).
+    expect(identitySignIn).toContain('takeAccountCreate')
+    expect(accountDeletion).toContain('saveCountsStatement')
   })
 
   it('keys original files by account and activity', () => {

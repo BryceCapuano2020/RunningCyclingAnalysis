@@ -21,7 +21,9 @@ Newest first. One row per `deploy:built`, including a deploy that was rolled bac
 A rollback floor only moves forward. It moves when a release applies a migration that older Workers
 cannot read, changes what a stored digest holds, or makes a browser storage upgrade one-way.
 `RCA_SAFE_ROLLBACK_VERSION` (see PRODUCTION.md) must never name a version older than the latest
-floor here.
+floor here. A rollback floor also does not protect the sign-up list: any Worker older than the release that
+carries `ALLOWED_EMAILS` ignores it, so rolling back to one reopens public sign-up (see PRODUCTION.md, Sign-up
+list).
 
 ## Releasing
 

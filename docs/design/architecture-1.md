@@ -12,7 +12,7 @@ Status: designed, deferred until findings need it (see the [stage plan](README.m
   - `rca-workbench-evidence` (v2) has `workbenchOpen.ts`, an `OWNERS` tombstone store and a ledger rebuild.
   - The parked `rca-courses` repeats the same pattern with a salt store.
   - `rca-findings` is designed to repeat it again.
-- No original is kept in the browser. A signed-in user can re-download only 50 originals a day, so recomputing a 2,000-activity library from R2 takes 40 days. A signed-out user must re-import.
+- No original is kept in the browser. A signed-in user could re-download only 50 originals a day, so recomputing a 2,000-activity library from R2 took 40 days; the allowance is now 5,000 a day (Stage D3), so it takes one. A signed-out user must re-import.
 - GPS positions exist only at parse time. Stored originals will be the first thing in the browser that holds exact locations, which is a new privacy exposure (see 1.7).
 
 ## 1. Local originals store
@@ -87,7 +87,7 @@ An original is one activity file as it came out of the import: the single entry 
 - **Digest** (all fields, `MODEL_REVISION` bumps): from the original. Signed-in users write the upgraded digest through `createActivity(...,record.id)` as today. Signed-out users write to the device library.
 - **Traces**: become a pure cache (`role: cache`). `activityTraceReply` order: memory, then store, then **local original (parse and capture)**, then the server original on explicit request.
   - This is the answer to "detail traces become a cache rebuildable from originals". The `missing` reply for the device scope disappears.
-- **Route shape and course fingerprint (stage C)**: build from the original with the salt in `meta`. Same-route's "bulk rebuild not offered, 50 downloads a day" becomes "offered for locally held originals".
+- **Route shape and course fingerprint (stage C)**: build from the original with the salt in `meta`. Same-route's "bulk rebuild not offered, 50 downloads a day" (the allowance is now 5,000 a day) becomes "offered for locally held originals".
   - `RouteMemory`'s server re-read is replaced by the local original.
   - The design record `same-route.md` section 2 and `training-load.md` decision 6 ("No re-digest from stored originals") need a one-line update.
 - **Findings** (stage D): they are a function of digests. When digests gain a field, the originals rebuild runs, then the ledger `replay()` recovers `firstSeen`. The ledger itself is never derived from originals.

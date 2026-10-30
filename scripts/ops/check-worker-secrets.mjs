@@ -7,7 +7,14 @@ const execFile = promisify(nodeExecFile)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const API_DIR = resolve(ROOT, 'apps/api')
 const WRANGLER_CONFIG = resolve(API_DIR, 'wrangler.toml')
-const REQUIRED_SECRETS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'SESSION_SIGNING_KEY']
+// ALLOWED_EMAILS is the sign-up list. Without it nobody new can create an account, so a deploy that
+// lacks it fails here instead of quietly closing sign-up (existing accounts keep working either way).
+const REQUIRED_SECRETS = [
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'SESSION_SIGNING_KEY',
+  'ALLOWED_EMAILS',
+]
 
 /** Validate only secret names; values must never be included in diagnostics. */
 export function validateWorkerSecrets(stdout) {

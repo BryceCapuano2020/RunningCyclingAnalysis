@@ -25,7 +25,11 @@ export const MAX_STORED_BYTES_PER_USER = 1024 * 1024 * 1024
  * import saves in one day; uploads stay at 2,000 a day. See apps/api/LIMITS.md.
  */
 export const DAILY_LIMITS = {
-  fileDownload: 50,
+  /**
+   * Equals the most activities a library may hold, so a rebuild of the largest library from its
+   * originals finishes within one UTC day. See apps/api/LIMITS.md for the R2 operation arithmetic.
+   */
+  fileDownload: MAX_ACTIVITIES_PER_USER,
   profileWrite: 50,
   activityDelete: 50,
   activityCreate: MAX_ACTIVITIES_PER_USER,
@@ -38,6 +42,27 @@ export const DAILY_LIMITS = {
   measurementRead: 300,
 } as const
 export type DailyLimitAction = keyof typeof DAILY_LIMITS
+
+/**
+ * Rows one user may list across all pages in a UTC day. Every page is charged its page size, so a
+ * replayed cursor cannot read for free. 74 cold loads of a 2,700-activity library; the worst billed
+ * D1 rows at the cap are about 800,000 against the 5,000,000 a day shared by everyone. Not a
+ * DAILY_LIMITS entry: the server holds the limit, and the web copy names it by LIST_ROWS_LIMIT_MESSAGE.
+ */
+export const LIST_ROWS_PER_DAY = 200_000
+
+/**
+ * The 429 message when the rows meter refuses a page. The web client recognises it to say so, rather
+ * than naming the library-load limit, which is a different allowance (a load takes one unit of 100).
+ */
+export const LIST_ROWS_LIMIT_MESSAGE =
+  "You have listed as many activity rows as today's allowance covers. Try again after midnight UTC"
+
+/** Most sessions one user keeps. Signing in beyond this ends the oldest ones. */
+export const MAX_SESSIONS_PER_USER = 10
+
+/** Accounts one Google identity may create per UTC day, counting ones it deleted again. */
+export const MAX_ACCOUNT_CREATES_PER_DAY = 5
 
 /**
  * Most dated settings (mass, maximum heart rate, thresholds) one user may keep. A few a year for

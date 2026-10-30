@@ -8,6 +8,7 @@ import {
   sqliteTable,
   text,
   unique,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 import { MEASUREMENT_KINDS } from '@rca/core/athlete'
 
@@ -44,6 +45,8 @@ export const oauthAccounts = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.provider, t.providerUserId] }),
     index('oauth_accounts_user_idx').on(t.userId),
+    /** One identity per user and provider, so linking cannot attach a second one. */
+    uniqueIndex('oauth_accounts_user_provider_unique').on(t.userId, t.provider),
   ],
 )
 
@@ -143,6 +146,8 @@ export const activities = sqliteTable(
     unique('activities_user_dedupe_unique').on(t.userId, t.dedupeKey),
     index('activities_user_start_idx').on(t.userId, t.startMs),
     index('activities_user_created_idx').on(t.userId, t.createdAt),
+    /** Serves the library listing's keyset (created_at, id) in order, with no sort and no sort step. */
+    index('activities_user_created_id_idx').on(t.userId, t.createdAt, t.id),
   ],
 )
 
@@ -181,6 +186,27 @@ export const dailyBudget = sqliteTable(
   (t) => [primaryKey({ columns: [t.userId, t.day, t.action] })],
 )
 
+/**
+ * A Google identity's daily counts, saved when its account is deleted and restored if it signs up
+ * again the same UTC day, so deleting and signing in again does not reset a budget. `identity_key`
+ * is an HMAC of the Google subject, never the subject. No foreign key: the user is gone. Rows older
+ * than yesterday are pruned. `accountCreate` rows count the accounts the identity has created.
+ */
+export const identityBudget = sqliteTable(
+  'identity_budget',
+  {
+    identityKey: text('identity_key').notNull(),
+    /** UTC calendar day, YYYY-MM-DD. */
+    day: text('day').notNull(),
+    action: text('action').notNull(),
+    used: integer('used').notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.identityKey, t.day, t.action] }),
+    index('identity_budget_day_idx').on(t.day),
+  ],
+)
+
 /** Concurrent original-file uploads. A slot expires so that a crashed request cannot hold it. */
 export const uploadSlots = sqliteTable(
   'upload_slots',
@@ -217,6 +243,7 @@ export const schema = {
   activities,
   r2StorageBudget,
   dailyBudget,
+  identityBudget,
   uploadSlots,
   pendingAccountDeletions,
 }

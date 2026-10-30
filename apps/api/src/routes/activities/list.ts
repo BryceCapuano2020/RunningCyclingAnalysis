@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono'
 import { zValidator } from '@hono/zod-validator'
-import { and, desc, eq, gte, inArray, lt, or, sql, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import {
   DEFAULT_PAGE_SIZE,
@@ -51,25 +51,28 @@ interface PageScan {
 }
 
 /**
- * Spends the cursor the server issued last. It is accepted once: the update clears it in the same
- * statement that matches it, so a replayed or forged cursor finds nothing to spend.
+ * Pays for one page. A request without a cursor starts a library load and takes one `read` unit, so
+ * a load costs one unit however many tabs or devices make it. Every page, first or later, is
+ * charged its size, but never less than a default page, against the day's `listRows`. So a replayed
+ * cursor cannot read for free, and asking for one row at a time cannot make a request cheap: the
+ * work and the rows written per request are about the same whatever the page size. A page cut short
+ * by the digest byte budget is charged in full too. Nothing is remembered between requests: a
+ * cursor is only a position in the caller's own list.
  */
-async function spendListCursor(db: D1Database, userId: string, cursor: string): Promise<boolean> {
-  const result = await db
-    .prepare('UPDATE users SET list_cursor = NULL WHERE id = ? AND list_cursor = ?')
-    .bind(userId, cursor)
-    .run()
-  return result.meta.changes === 1
-}
-
-/** The last cursor the server issued is free to continue; any other read takes a daily unit. */
-async function spendCursorOrCharge(
+async function chargePage(
   c: Context<AppEnv>,
   userId: string,
   cursor: string | undefined,
+  limit: number,
 ): Promise<void> {
-  const continuing = cursor !== undefined && (await spendListCursor(c.env.DB, userId, cursor))
-  if (!continuing) await chargeDaily(c.env.DB, userId, 'read', c.var.deps.now())
+  const now = c.var.deps.now()
+  const load = cursor === undefined ? await chargeDaily(c.env.DB, userId, 'read', now) : undefined
+  try {
+    await chargeDaily(c.env.DB, userId, 'listRows', now, Math.max(limit, DEFAULT_PAGE_SIZE))
+  } catch (error) {
+    await load?.refund()
+    throw error
+  }
 }
 
 /** Logs a skipped row by id, never by content. */
@@ -77,7 +80,11 @@ function logUnreadable(activityId: string): void {
   console.warn(JSON.stringify({ event: 'activity_digest_unreadable', activityId }))
 }
 
-/** The next metadata-only page of rows strictly older than `after`, newest first. */
+/**
+ * The next metadata-only page of rows strictly older than `after`, newest first. The row-value
+ * comparison and the order both follow activities_user_created_id_idx (user_id, created_at, id), so
+ * the page is one index range: no sort, and no dependence on table statistics.
+ */
 async function listCandidates(
   db: Db,
   filters: (SQL | undefined)[],
@@ -87,10 +94,7 @@ async function listCandidates(
   const pageFilters = [...filters]
   if (after !== undefined) {
     pageFilters.push(
-      or(
-        lt(activities.createdAt, after.createdAt),
-        and(eq(activities.createdAt, after.createdAt), lt(activities.id, after.id)),
-      ),
+      sql`(${activities.createdAt}, ${activities.id}) < (${after.createdAt}, ${after.id})`,
     )
   }
   return db
@@ -130,16 +134,19 @@ async function readSelected(
   selected: Candidate[],
   page: PageScan,
 ): Promise<void> {
+  // The unary plus keeps the planner off the user_id index, which with no table statistics it
+  // prefers and then scans the whole library once per page. The ids come from the primary key; the
+  // user_id test still applies to every row, so the read stays scoped to this user.
   const fetched = await db
     .select()
     .from(activities)
     .where(
       and(
-        eq(activities.userId, userId),
         inArray(
           activities.id,
           selected.map((r) => r.id),
         ),
+        sql`+${activities.userId} = ${userId}`,
       ),
     )
     .all()
@@ -215,12 +222,9 @@ async function scanPage(
   return page
 }
 
-/** Saves the next page's cursor, if there is one, and returns the page body as JSON text. */
-async function buildListing(db: D1Database, userId: string, page: PageScan): Promise<string> {
+/** The page body as JSON text, with the next page's cursor when there is one. */
+function buildListing(page: PageScan): string {
   const nextCursor = page.hasMore && page.examinedTo ? encodeCursor(page.examinedTo) : null
-  if (nextCursor !== null) {
-    await db.prepare('UPDATE users SET list_cursor = ? WHERE id = ?').bind(nextCursor, userId).run()
-  }
   return pageBody(page.items, {
     nextCursor,
     ...(page.unreadable > 0 ? { unreadable: page.unreadable } : {}),
@@ -240,13 +244,14 @@ listRoutes.get(
     const { db } = c.var
     const query = c.req.valid('query')
     const userId = currentUser(c).id
-    // A malformed cursor is refused before any read unit is taken.
+    const limit = query.limit ?? DEFAULT_PAGE_SIZE
+    // A malformed cursor is refused before any unit is taken.
     const resumeAfter = query.cursor === undefined ? undefined : decodeCursor(query.cursor)
-    await spendCursorOrCharge(c, userId, query.cursor)
+    await chargePage(c, userId, query.cursor, limit)
     const filters: (SQL | undefined)[] = [eq(activities.userId, userId)]
     if (query.since !== undefined) filters.push(gte(activities.createdAt, query.since))
-    const page = await scanPage(db, userId, filters, resumeAfter, query.limit ?? DEFAULT_PAGE_SIZE)
-    return c.body(await buildListing(c.env.DB, userId, page), 200, {
+    const page = await scanPage(db, userId, filters, resumeAfter, limit)
+    return c.body(buildListing(page), 200, {
       'content-type': 'application/json',
     })
   },

@@ -10,3 +10,8 @@ GOOGLE_CLIENT_SECRET=
 # HMAC key for session cookies. Production uses `wrangler secret put SESSION_SIGNING_KEY` with a
 # random value of at least 32 bytes. This fixed value is for local development only.
 SESSION_SIGNING_KEY=local-development-only-session-signing-key
+
+# Sign-up list: comma separated email addresses that may create a new account. Left empty, sign-up is
+# open here, in local development only (ENVIRONMENT=development on localhost). In production it is a
+# Worker secret (`wrangler secret put ALLOWED_EMAILS`); unset there, nobody new can sign up.
+ALLOWED_EMAILS=

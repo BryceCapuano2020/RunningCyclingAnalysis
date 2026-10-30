@@ -2,7 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { checkWorkerSecrets, validateWorkerSecrets } from './check-worker-secrets.mjs'
 
-const required = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'SESSION_SIGNING_KEY']
+const required = [
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'SESSION_SIGNING_KEY',
+  'ALLOWED_EMAILS',
+]
 
 test('worker secret validation accepts all required secret names without inspecting values', () => {
   const result = validateWorkerSecrets(
@@ -14,8 +19,21 @@ test('worker secret validation accepts all required secret names without inspect
 test('worker secret validation reports only missing names', () => {
   const result = validateWorkerSecrets(JSON.stringify([{ name: 'GOOGLE_CLIENT_ID' }]))
   assert.deepEqual(result, {
-    missing: ['GOOGLE_CLIENT_SECRET', 'SESSION_SIGNING_KEY'],
+    missing: ['GOOGLE_CLIENT_SECRET', 'SESSION_SIGNING_KEY', 'ALLOWED_EMAILS'],
   })
+})
+
+test('a deploy without the sign-up list fails loudly, naming it', async () => {
+  const withoutList = required.filter((name) => name !== 'ALLOWED_EMAILS')
+  assert.deepEqual(validateWorkerSecrets(JSON.stringify(withoutList.map((name) => ({ name })))), {
+    missing: ['ALLOWED_EMAILS'],
+  })
+  await assert.rejects(
+    checkWorkerSecrets(async () => ({
+      stdout: JSON.stringify(withoutList.map((name) => ({ name }))),
+    })),
+    /Missing required Worker secrets: ALLOWED_EMAILS\./,
+  )
 })
 
 test('worker secret validation rejects malformed Wrangler output', () => {

@@ -1,11 +1,12 @@
 import type { Context } from 'hono'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { eq } from 'drizzle-orm'
-import type { User } from '@rca/contract'
+import { MAX_SESSIONS_PER_USER, type User } from '@rca/contract'
 import type { AppEnv } from '../env.ts'
 import { HttpError } from '../errors.ts'
 import { sessions, users } from '../db/schema.ts'
 import { sha256Hex, toHex } from '../util.ts'
+import { isLocalRequest } from '../localDev.ts'
 import { toUser } from './accounts.ts'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -23,7 +24,7 @@ type Ctx = Context<AppEnv>
 
 /** Secure everywhere except local development, where the app runs on plain http. */
 export function isSecure(c: Ctx): boolean {
-  return c.env.ENVIRONMENT !== 'development'
+  return !isLocalRequest(c)
 }
 
 /** Outside development the __Host- prefix pins the cookie to this exact origin. */
@@ -101,8 +102,21 @@ async function verifiedToken(c: Ctx): Promise<string | undefined> {
 }
 
 /**
+ * The id of the session row the request's cookie names, when the cookie is signed and well formed.
+ * It does not check that the row exists.
+ */
+export async function currentSessionId(c: Ctx): Promise<string | undefined> {
+  const token = await verifiedToken(c)
+  return token === undefined ? undefined : sha256Hex(token)
+}
+
+/**
  * Creates a session row for the user and sets the signed cookie. The row stores only sha-256(token).
- * The token is signed before the row is written, so a signing failure leaves no orphan row.
+ * The token is signed before the row is written, so a signing failure leaves no orphan row. The
+ * same batch ends the user's sessions beyond the MAX_SESSIONS_PER_USER most recently inserted, so
+ * the count is exactly bounded however many sign-ins happen at once. Insertion order (rowid) is
+ * used instead of created_at because it is strictly increasing: the new row is always among the
+ * newest, whatever the clocks of two isolates say and however many share a millisecond.
  */
 export async function createSession(c: Ctx, userId: string): Promise<void> {
   const { deps, db } = c.var
@@ -110,7 +124,19 @@ export async function createSession(c: Ctx, userId: string): Promise<void> {
   const signature = await signToken(c, token)
   const createdAt = deps.now()
   const expiresAt = createdAt + SESSION_TTL_MS
-  await db.insert(sessions).values({ id: await sha256Hex(token), userId, expiresAt, createdAt })
+  const id = await sha256Hex(token)
+  const d1 = db.$client
+  await d1.batch([
+    d1
+      .prepare('INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)')
+      .bind(id, userId, expiresAt, createdAt),
+    d1
+      .prepare(
+        `DELETE FROM sessions WHERE user_id = ? AND id NOT IN (
+           SELECT id FROM sessions WHERE user_id = ? ORDER BY rowid DESC LIMIT ?)`,
+      )
+      .bind(userId, userId, MAX_SESSIONS_PER_USER),
+  ])
   setSessionCookie(c, token, signature, expiresAt)
 }
 

@@ -9,7 +9,7 @@ import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
 import { createElement, StrictMode } from 'react'
 import type { ReactNode } from 'react'
-import { DAILY_LIMITS } from '@rca/contract'
+import { DAILY_LIMITS, LIST_ROWS_LIMIT_MESSAGE } from '@rca/contract'
 import type { Me } from '@rca/contract'
 import type { SessionState } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
@@ -2156,7 +2156,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (50 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (5,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -2196,7 +2196,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toMatch(
-      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(50 per day\) was reached\. It resets at .+, your time\.$/,
+      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(5,000 per day\) was reached\. It resets at .+, your time\.$/,
     )
     expect(result.current.rebuildNotice).not.toMatch(/server is available/)
   })
@@ -2550,6 +2550,35 @@ describe('useAnalysis library messages', () => {
     expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
 
+  it('names the rows allowance, not the library loads, when it ends a library load part way', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() =>
+      worker().reply({ type: 'error', message: LIST_ROWS_LIMIT_MESSAGE, issue: 'daily-limit' }),
+    )
+
+    expect(result.current.libraryStatus).toBe('failed')
+    expect(result.current.errorIssue).toBe('daily-limit')
+    expect(result.current.error).toMatch(
+      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
+    )
+    expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
+  })
+
+  it('names the rows allowance when it refuses the listing a rebuild starts with', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.rebuildSavedActivities())
+    act(() =>
+      worker().reply({ type: 'error', message: LIST_ROWS_LIMIT_MESSAGE, issue: 'daily-limit' }),
+    )
+
+    expect(result.current.errorIssue).toBe('daily-limit')
+    expect(result.current.error).toMatch(
+      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
+    )
+    expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
+  })
+
   it('states the daily read limit when a rebuild cannot list the library', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
@@ -2620,6 +2649,28 @@ describe('useAnalysis account export', () => {
       new RegExp(
         `^You have reached today's limit on library loads \\(${DAILY_LIMITS.read} per day\\)\\. `,
       ),
+    )
+    expect((failure as Error).message).toMatch(RESET_AT_UTC_MIDNIGHT)
+  })
+
+  it('rejects naming the rows allowance when it refuses the listing part way through', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    let failure: unknown = null
+    let exported: Promise<Blob> = Promise.resolve(new Blob())
+    act(() => {
+      exported = result.current.exportData()
+    })
+    exported.catch((error: unknown) => {
+      failure = error
+    })
+    act(() =>
+      worker().reply({ type: 'error', message: LIST_ROWS_LIMIT_MESSAGE, issue: 'daily-limit' }),
+    )
+
+    await waitFor(() => expect(failure).toBeInstanceOf(Error))
+    expect((failure as Error).message).toMatch(
+      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
     )
     expect((failure as Error).message).toMatch(RESET_AT_UTC_MIDNIGHT)
   })

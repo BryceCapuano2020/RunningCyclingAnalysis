@@ -7,7 +7,6 @@ import {
   MAX_DIGEST_BYTES_PER_USER,
 } from '@rca/contract'
 import { utcDay } from '../budget.ts'
-import { encodeCursor } from '../cursor.ts'
 import {
   countingDb,
   createHarness,
@@ -639,48 +638,6 @@ describe('GET /api/activities read budget', () => {
     expect(fresh.body).toMatchObject({ error: { code: 'daily_limit' } })
   })
 
-  it('charges a reused cursor, so replaying one page cannot read it for free', async () => {
-    const h = createHarness()
-    const token = await h.signIn()
-    const uid = await userId(h, token)
-    for (let i = 0; i < 3; i += 1) {
-      await createActivity(h, token, {}, { startMs: START + i * 60_000 })
-    }
-    const baseline = await readsUsed(h, uid)
-    const first = await pageOf(h, token, '?limit=1')
-    const c1 = nextOf(first.body)
-    const second = await pageOf(h, token, `?limit=1&cursor=${c1}`)
-    expect((await readsUsed(h, uid)) - baseline).toBe(1)
-
-    const replay = await pageOf(h, token, `?limit=1&cursor=${c1}`)
-    expect(replay.status).toBe(200)
-    expect(itemsOf(replay.body)).toEqual(itemsOf(second.body))
-    expect((await readsUsed(h, uid)) - baseline).toBe(2)
-
-    await setDailyUsed(h, uid, 'read', DAILY_LIMITS.read)
-    const refused = await pageOf(h, token, `?limit=1&cursor=${c1}`)
-    expect(refused.status).toBe(429)
-    expect(refused.body).toMatchObject({ error: { code: 'daily_limit' } })
-  })
-
-  it('charges a forged cursor in the right format like a fresh listing', async () => {
-    const h = createHarness()
-    const token = await h.signIn()
-    const uid = await userId(h, token)
-    await createActivity(h, token, {}, { startMs: START })
-    const forged = encodeCursor({ createdAt: Number.MAX_SAFE_INTEGER, id: 'forged' })
-
-    await setDailyUsed(h, uid, 'read', DAILY_LIMITS.read)
-    const refused = await pageOf(h, token, `?cursor=${forged}`)
-    expect(refused.status).toBe(429)
-    expect(refused.body).toMatchObject({ error: { code: 'daily_limit' } })
-
-    await setDailyUsed(h, uid, 'read', 0)
-    const served = await pageOf(h, token, `?cursor=${forged}`)
-    expect(served.status).toBe(200)
-    expect(await readsUsed(h, uid)).toBe(1)
-  })
-
   it('refuses an undecodable cursor with 400 before any read unit is taken', async () => {
     const h = createHarness()
     const token = await h.signIn()
@@ -690,29 +647,6 @@ describe('GET /api/activities read budget', () => {
     const bad = await pageOf(h, token, '?cursor=not+valid')
     expect(bad.status).toBe(400)
     expect(await readsUsed(h, uid)).toBe(DAILY_LIMITS.read)
-  })
-
-  it("binds a cursor to the user it was issued to: another user's cursor is charged", async () => {
-    const h = createHarness()
-    const alice = await h.signIn('alice@example.com', 'Alice')
-    const bob = await h.signIn('bob@example.com', 'Bob')
-    const aliceId = await userId(h, alice)
-    const bobId = await userId(h, bob)
-    for (let i = 0; i < 3; i += 1) {
-      await createActivity(h, alice, {}, { startMs: START + i * 60_000 })
-      await createActivity(h, bob, {}, { startMs: START + i * 60_000 + 500_000 })
-    }
-    const aliceBaseline = await readsUsed(h, aliceId)
-    const aliceFirst = await pageOf(h, alice, '?limit=1')
-    const aliceCursor = nextOf(aliceFirst.body)
-
-    await setDailyUsed(h, bobId, 'read', DAILY_LIMITS.read)
-    const borrowed = await pageOf(h, bob, `?limit=1&cursor=${aliceCursor}`)
-    expect(borrowed.status).toBe(429)
-
-    const aliceSecond = await pageOf(h, alice, `?limit=1&cursor=${aliceCursor}`)
-    expect(aliceSecond.status).toBe(200)
-    expect((await readsUsed(h, aliceId)) - aliceBaseline).toBe(1)
   })
 
   it('refuses a cross-site request for a cursor without spending the cursor or a read unit', async () => {

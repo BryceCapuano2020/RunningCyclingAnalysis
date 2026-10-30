@@ -1,4 +1,4 @@
-import { DAILY_LIMITS } from '@rca/contract'
+import { DAILY_LIMITS, LIST_ROWS_LIMIT_MESSAGE, LIST_ROWS_PER_DAY } from '@rca/contract'
 import type { DailyLimitAction } from '@rca/contract'
 import { formatCount } from './format/count'
 
@@ -39,4 +39,18 @@ export function limitReached(
   nowMs = Date.now(),
 ): string {
   return `You have reached today's limit on ${NOUNS[action]} (${formatCount(DAILY_LIMITS[action])} per day). ${resetSentence(resetsAtMs, nowMs)}`
+}
+
+/**
+ * The sentence for a library listing that the day's row allowance refused part way through, which is
+ * a different allowance from the library loads that `limitReached('read')` names. The server marks it
+ * with LIST_ROWS_LIMIT_MESSAGE; any other daily-limit refusal of a listing is a library load.
+ */
+export function listingLimitReached(
+  serverMessage: string,
+  resetsAtMs: number | null = null,
+  nowMs = Date.now(),
+): string {
+  if (serverMessage !== LIST_ROWS_LIMIT_MESSAGE) return limitReached('read', resetsAtMs, nowMs)
+  return `You have reached today's limit on rows read from your library (${formatCount(LIST_ROWS_PER_DAY)} per day). ${resetSentence(resetsAtMs, nowMs)}`
 }

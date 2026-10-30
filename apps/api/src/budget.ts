@@ -1,4 +1,10 @@
-import { DAILY_LIMITS, MAX_CONCURRENT_UPLOADS_PER_USER, type DailyLimitAction } from '@rca/contract'
+import {
+  DAILY_LIMITS,
+  LIST_ROWS_LIMIT_MESSAGE,
+  LIST_ROWS_PER_DAY,
+  MAX_CONCURRENT_UPLOADS_PER_USER,
+  type DailyLimitAction,
+} from '@rca/contract'
 import { HttpError } from './errors.ts'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -18,52 +24,70 @@ export function nextUtcMidnight(now: number): number {
   return Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate() + 1)
 }
 
+/**
+ * Every metered action: the per-user daily budgets, and the server-side list meter, which counts
+ * rows listed and is not one of the web-visible allowances.
+ */
+export type BudgetAction = DailyLimitAction | 'listRows'
+
+const DEFAULT_LIMIT_MESSAGE = 'You have reached your daily limit. Try again after midnight UTC'
+
+/** What a refusal says for each action whose limit the web client does not name itself. */
+const LIMIT_MESSAGES: Partial<Record<BudgetAction, string>> = { listRows: LIST_ROWS_LIMIT_MESSAGE }
+
+const LIMITS: Record<BudgetAction, number> = { ...DAILY_LIMITS, listRows: LIST_ROWS_PER_DAY }
+
 export interface DailyCharge {
   /** Gives the unit back when the request ends before doing the work it paid for. */
   refund(): Promise<void>
 }
 
-function dailyLimitError(now: number): HttpError {
-  const seconds = Math.max(1, Math.ceil((nextUtcMidnight(now) - now) / 1000))
-  return new HttpError(
-    429,
-    'daily_limit',
-    'You have reached your daily limit. Try again after midnight UTC',
-    {
-      retryAfter: seconds,
-    },
-  )
+/** Whole seconds until the next 00:00 UTC, at least one: the Retry-After of a daily refusal. */
+export function secondsToNextUtcMidnight(now: number): number {
+  return Math.max(1, Math.ceil((nextUtcMidnight(now) - now) / 1000))
+}
+
+function dailyLimitError(now: number, message = DEFAULT_LIMIT_MESSAGE): HttpError {
+  return new HttpError(429, 'daily_limit', message, {
+    retryAfter: secondsToNextUtcMidnight(now),
+  })
 }
 
 /**
- * Takes one unit of a user's daily budget. The upsert succeeds only while the day's count is
- * below the limit, so concurrent requests cannot admit more than the limit between them.
- * Throws 429 daily_limit with a Retry-After to the next UTC midnight when the budget is spent.
+ * Takes `amount` units (one by default) of a user's daily budget. The upsert succeeds only while the
+ * day's count plus the amount stays within the limit, so concurrent requests cannot admit more than
+ * the limit between them. Throws 429 daily_limit with a Retry-After to the next UTC midnight when
+ * the budget cannot cover the amount. `refund` gives the whole amount back.
  */
 export async function chargeDaily(
   db: D1Database,
   userId: string,
-  action: DailyLimitAction,
+  action: BudgetAction,
   now: number,
+  amount = 1,
 ): Promise<DailyCharge> {
   const day = utcDay(now)
+  const limit = LIMITS[action]
+  if (!Number.isInteger(amount) || amount < 1 || amount > limit) {
+    throw new RangeError(`cannot charge ${amount} of ${action}`)
+  }
   const admitted = await db
     .prepare(
-      `INSERT INTO daily_budget (user_id, day, action, used) VALUES (?, ?, ?, 1)
-       ON CONFLICT(user_id, day, action) DO UPDATE SET used = used + 1
-       WHERE used < ?
+      `INSERT INTO daily_budget (user_id, day, action, used) VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, day, action) DO UPDATE SET used = used + ?
+       WHERE used + ? <= ?
        RETURNING used`,
     )
-    .bind(userId, day, action, DAILY_LIMITS[action])
+    .bind(userId, day, action, amount, amount, amount, limit)
     .first<{ used: number }>()
-  if (!admitted) throw dailyLimitError(now)
+  if (!admitted) throw dailyLimitError(now, LIMIT_MESSAGES[action])
   return {
     refund: async () => {
       await db
         .prepare(
-          'UPDATE daily_budget SET used = used - 1 WHERE user_id = ? AND day = ? AND action = ? AND used > 0',
+          'UPDATE daily_budget SET used = max(used - ?, 0) WHERE user_id = ? AND day = ? AND action = ?',
         )
-        .bind(userId, day, action)
+        .bind(amount, userId, day, action)
         .run()
     },
   }
