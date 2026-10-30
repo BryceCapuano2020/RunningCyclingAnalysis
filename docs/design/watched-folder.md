@@ -14,7 +14,6 @@ re-import first (it serves everyone), then add the watched folder as a Chromium-
 | Capability                          | Chrome / Edge desktop              | Safari        | Firefox       |
 | ----------------------------------- | ---------------------------------- | ------------- | ------------- |
 | `showDirectoryPicker` (read access) | Yes, since 105                     | No            | No            |
-| Handle kept in IndexedDB            | Yes                                | n/a           | n/a           |
 | Access kept after the tab closes    | Opt-in per user, Chrome 122 and up | n/a           | n/a           |
 | `FileSystemObserver`                | Shipped in 133                     | No            | No            |
 | `<input webkitdirectory>` fallback  | Yes                                | Yes (one-off) | Yes (one-off) |
