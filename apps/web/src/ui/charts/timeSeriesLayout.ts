@@ -1,5 +1,6 @@
 import type { PlotBox } from './chartTypes'
-import { STACK_MARGIN, axisShare } from './timeSeriesModel'
+import { geometryScale } from './plotBox'
+import { axisShare, stackMargin } from './timeSeriesModel'
 import { NARROW_WIDTH } from './ticks'
 import type { StackChannel } from './timeSeriesTypes'
 
@@ -30,12 +31,18 @@ export interface StackLayout {
   laneBottom: number
 }
 
-/** Where each row sits for a stack this wide, with real pixels per second and per unit: nothing is stretched. */
+/**
+ * Where each row sits for a stack this wide, with real pixels per second and per unit: nothing is stretched.
+ * The rows, the gaps and the time axis are laid out for a 16 px root and grow with the reader's text size, so the
+ * value ticks and the labels above the rows keep their room.
+ */
 export function layoutOf(width: number, channels: readonly StackChannel[]): StackLayout {
   const phone = width < NARROW_WIDTH
-  const base = phone ? BASE_ROW_PX.phone : BASE_ROW_PX.wide
-  const gap = phone ? LABEL_GAP_PX : ROW_GAP_PX
-  const first = phone ? LABEL_TOP_PX : TOP_PX
+  const scale = geometryScale()
+  const margin = stackMargin(scale)
+  const base = (phone ? BASE_ROW_PX.phone : BASE_ROW_PX.wide) * scale
+  const gap = (phone ? LABEL_GAP_PX : ROW_GAP_PX) * scale
+  const first = (phone ? LABEL_TOP_PX : TOP_PX) * scale
   let top = first
   const rows = channels.map((channel) => {
     const height = Math.round(base * channel.weight)
@@ -43,14 +50,14 @@ export function layoutOf(width: number, channels: readonly StackChannel[]): Stac
     top = row.bottom + gap
     return row
   })
-  const laneTop = (rows.at(-1)?.bottom ?? TOP_PX) + LANE_GAP_PX
-  const laneBottom = laneTop + LANE_PX
+  const laneTop = (rows.at(-1)?.bottom ?? TOP_PX * scale) + LANE_GAP_PX * scale
+  const laneBottom = laneTop + LANE_PX * scale
   return {
-    height: laneBottom + AXIS_PX,
+    height: laneBottom + AXIS_PX * scale,
     labelAbove: phone,
     plot: {
-      left: STACK_MARGIN.left,
-      right: Math.max(STACK_MARGIN.left + 1, width - STACK_MARGIN.right),
+      left: margin.left,
+      right: Math.max(margin.left + 1, width - margin.right),
       top: first,
       bottom: laneBottom,
     },
