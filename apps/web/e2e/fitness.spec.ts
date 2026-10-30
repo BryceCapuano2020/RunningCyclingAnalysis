@@ -314,3 +314,30 @@ test('no label of the evidence chart is written over another', async ({ page }) 
     }
   }
 })
+
+// The state word is display type, which grows with the text size. At 200% text on a phone every state, not only the
+// sample's, must stay inside the card's content box (Slipping overflowed by 36 px at 390 once).
+for (const width of [320, 390]) {
+  test(`every fitness state word fits the card at 200% text and ${width} px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await openSample(page)
+    await page.addStyleTag({ content: ':root { font-size: 200%; }' })
+    const labels = ['Slipping', 'Holding', 'Holding below', 'Recovering', 'Back']
+    const over = await card(page).evaluate((el, words) => {
+      const state = el.querySelector('.fitness-card__state')!
+      const text = state.querySelector('span')!
+      const style = getComputedStyle(el)
+      const inner =
+        el.getBoundingClientRect().right -
+        parseFloat(style.paddingRight) -
+        parseFloat(style.borderRightWidth)
+      return words.map((word) => {
+        text.textContent = word
+        const range = document.createRange()
+        range.selectNodeContents(text)
+        return { word, over: Math.round(range.getBoundingClientRect().right - inner) }
+      })
+    }, labels)
+    expect(over.filter(({ over: past }) => past > 0)).toEqual([])
+  })
+}

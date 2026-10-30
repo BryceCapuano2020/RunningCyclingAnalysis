@@ -167,19 +167,28 @@
   min-width: 0;
 }
 
-/* The state, as a word at display size and the shape that says it without colour. */
+/* The state, as a word at display size and the shape that says it without colour. A phone, and a status that
+   waits (it has no change to lead with), set it a step smaller. */
 .fitness-card__state {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   margin: 0;
-  font-size: var(--display-2);
+  font-size: var(--display-3);
   text-transform: uppercase;
 }
 
-/* A status that waits says so in a smaller word: it has no change to lead with. */
-.fitness-card[data-state='not-enough-evidence'] .fitness-card__state {
-  font-size: var(--display-3);
+@media (min-width: 761px) {
+  .fitness-card:not([data-state='not-enough-evidence']) .fitness-card__state {
+    font-size: var(--display-2);
+  }
+}
+
+/* A long state word hyphenates, then breaks, rather than spill at 200% text. */
+.fitness-card__state > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .fitness-card__headline {

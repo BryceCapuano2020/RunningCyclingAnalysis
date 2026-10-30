@@ -59,19 +59,33 @@ describe('the display scale', () => {
     expect(found.map(({ sheet, selectors }) => `${sheet} ${selectors.join(',')}`)).toEqual([])
   })
 
+  it('sets the Balance headline above a tile figure on a wide screen', () => {
+    const balance = sheets.find(({ path }) => path.endsWith('BalancePage.css'))?.css ?? ''
+    const wide =
+      /@media \(min-width: 1081px\) \{\s*\.balance-hero__title \{[^}]*font-size:\s*([\d.]+)rem/.exec(
+        balance,
+      )?.[1]
+    const tileMax = /clamp\([^,]+,[^,]+,\s*([\d.]+)rem\)/.exec(tokens.get('display-2') ?? '')?.[1]
+    expect(Number(wide)).toBeGreaterThan(Number(tileMax))
+  })
+
   it('keeps a size that bypasses the tokens from spreading', () => {
-    const raw = rules.flatMap(({ body }) =>
-      [...body.matchAll(/font-size:\s*([^;]+);/g)]
+    // A font shorthand sets a size too; inherit and a var() set none. Inline sizes in TSX come from the
+    // chart axis helpers (rem or measured), so they are out of scope here.
+    const sizes = rules.flatMap(({ body }) => [
+      ...[...body.matchAll(/font-size:\s*([^;]+);/g)].map((match) => match[1] ?? ''),
+      ...[...body.matchAll(/(?:^|[;\s])font:\s*([^;]+);/g)]
         .map((match) => match[1] ?? '')
-        .filter((value) => !/^(var\(--|inherit|0$)/.test(value)),
-    )
+        .filter((value) => !/^inherit$/.test(value)),
+    ])
+    const raw = sizes.filter((value) => !/^(var\(--|inherit|0$)/.test(value))
     // The rest are chart marks, the figures that wait on the de-box and Balance PRs, and standalone pages.
     expect(raw.length).toBeLessThanOrEqual(RAW_SIZES_NOW)
   })
 })
 
 /** Font sizes that bypass the type tokens: from 53 before the display scale. The count may only fall. */
-const RAW_SIZES_NOW = 28
+const RAW_SIZES_NOW = 27
 
 describe('the font weights', () => {
   it('request 700 or 800 only where the condensed face is set, since the sans face loads 400 to 600', () => {

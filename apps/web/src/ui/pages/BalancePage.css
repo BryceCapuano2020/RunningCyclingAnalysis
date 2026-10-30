@@ -75,6 +75,13 @@
   max-width: 28ch;
 }
 
+/* On a wide screen the headline is the page's largest type, so a tile (display-2) never equals it. */
+@media (min-width: 1081px) {
+  .balance-hero__title {
+    font-size: 4.25rem;
+  }
+}
+
 /* The sport the balance leans toward is underlined in its own colour: a shape, so the text stays ink. */
 .balance-hero__sport {
   font-style: normal;
