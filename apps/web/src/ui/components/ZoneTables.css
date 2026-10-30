@@ -37,3 +37,11 @@
   margin: 0;
   font-size: var(--text-sm);
 }
+
+.zone-tables__set {
+  margin-inline-start: var(--space-1);
+}
+
+.zone-tables__missing {
+  margin: 0;
+}

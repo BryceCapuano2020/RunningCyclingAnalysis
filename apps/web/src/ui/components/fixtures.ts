@@ -2,6 +2,7 @@ import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { RejectedFile } from '@rca/core/session'
 import { countFlags } from '@rca/core/digest'
+import type { ZoneEstimates } from '@rca/core/zones'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import type { AgeProfile } from '../grades'
 
@@ -106,5 +107,32 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     bikeModelSource: 'default',
     virtualAccuracy: { nSegments: 3, mape: 0.06, bias: 0.01, segments: [] },
     ...overrides,
+  }
+}
+
+/**
+ * Zone estimates in which an analysis's own thresholds hold on every date, so a test of what the zones show need not
+ * build the library's thresholds by week.
+ */
+export function estimatesFrom(
+  result: Pick<
+    AnalysisResult,
+    | 'runCp'
+    | 'rideCp'
+    | 'runMaxHeartRate'
+    | 'rideMaxHeartRate'
+    | 'runObservedMaxHeartRate'
+    | 'rideObservedMaxHeartRate'
+  >,
+): ZoneEstimates {
+  const always = (fit: AnalysisResult['runCp']) =>
+    fit === null ? [] : [{ fromMs: 0, fit, asOfMs: null, lastFit: 0 }]
+  return {
+    runMaxHeartRate: result.runMaxHeartRate,
+    rideMaxHeartRate: result.rideMaxHeartRate,
+    runObservedMaxHeartRate: result.runObservedMaxHeartRate,
+    rideObservedMaxHeartRate: result.rideObservedMaxHeartRate,
+    observedMaxSource: { run: null, ride: null },
+    thresholds: { run: always(result.runCp), ride: always(result.rideCp) },
   }
 }

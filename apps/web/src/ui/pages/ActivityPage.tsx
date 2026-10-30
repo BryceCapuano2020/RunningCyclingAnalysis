@@ -7,7 +7,8 @@ import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
-import { zonesAt } from '@rca/core/zones'
+import { missingThresholdZones, zonesAt } from '@rca/core/zones'
+import type { ZoneMeasure } from '@rca/core/zones'
 import type { ZoneEstimates } from '@rca/core/zones'
 import type { ZoneSet } from '@rca/core/zones'
 import { ActivityDelete } from '../components/ActivityDelete'
@@ -108,6 +109,19 @@ function zoneSetsOf(
   )
 }
 
+/** The pace or power the activity's sport has efforts for but no zones on its date. */
+function missingZonesOf(
+  activity: ActivitySummary | null,
+  settings: AthleteSettings,
+  estimates: ZoneEstimates | null,
+  weightKnown: boolean,
+): ZoneMeasure[] {
+  if (activity === null) return []
+  return missingThresholdZones(activity.startMs, settings, estimates)
+    .filter((gap) => gap.sport === activity.sport && !(!weightKnown && NEEDS_WEIGHT[gap.measure]))
+    .map((gap) => gap.measure)
+}
+
 /**
  * One activity: its figures, its route, its best efforts and records, its splits, its skipped
  * readings, and the links that explain its numbers.
@@ -147,6 +161,13 @@ export function ActivityPage({
         ? undefined
         : zoneSetsOf(activity, settings, zoneEstimates, weightKnown, setAsideIds),
     [activity, settings, zoneEstimates, weightKnown, setAsideIds],
+  )
+  const missingZones = useMemo(
+    () =>
+      settings === undefined
+        ? undefined
+        : missingZonesOf(activity, settings, zoneEstimates, weightKnown),
+    [activity, settings, zoneEstimates, weightKnown],
   )
   // Only a run's splits are asked for; the page keeps the answer, so the bests can place the flat pace note.
   const runId = activity?.sport === 'run' ? activity.id : null
@@ -231,6 +252,7 @@ export function ActivityPage({
       indoor={activity.indoor}
       loadTrace={loadTrace}
       zoneSets={zoneSets}
+      missingZones={missingZones}
       heartRateSetAside={setAsideIds.includes(activity.id)}
       onTrace={onTrace}
       selectionHost={selectionHost}

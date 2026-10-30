@@ -19,6 +19,8 @@ function bothWays(activity: Activity, measure: ZoneMeasure, reference: number) {
     source: 'entered',
     reference,
     estimatedFrom: [],
+    maxHeartRateFrom: null,
+    asOfMs: null,
     citation: '',
     zones: zonesFor(measure, reference),
   }
@@ -92,6 +94,8 @@ function sweep(activity: Activity, measure: ZoneMeasure, references: number[]) {
       source: 'entered',
       reference,
       estimatedFrom: [],
+      maxHeartRateFrom: null,
+      asOfMs: null,
       citation: '',
       zones,
     }

@@ -1,6 +1,9 @@
+import type { Sport } from '@rca/core/types'
 import type { Zone, ZoneMeasure, ZoneSet, ZoneSource } from '@rca/core/zones'
+import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { formatClock, formatPaceValue, formatPower, PACE_UNIT, paceSeconds } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
+import { formatMonth } from './format/date'
 import { SPORT_LABEL, SPORT_PLURAL } from './sports'
 
 /** What each measure is called in a table's title. */
@@ -13,8 +16,32 @@ const MEASURE_TITLE: Record<ZoneMeasure, string> = {
 /** Where a zone set's reference came from, in the words under its title. */
 const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   entered: () => 'You entered',
-  estimated: (set) =>
-    `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`,
+  estimated: (set) => {
+    const from = `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
+    // A pace or power from an older fit, because the half year before the date holds no hard, even effort to fit.
+    return set.asOfMs === null ? from : `${from} to ${formatMonth(set.asOfMs, true)}`
+  },
+}
+
+/** The sport whose maximum a sport's other-sport reference is worked out from, as a phrase. */
+const OTHER_MAX: Record<Sport, string> = {
+  run: 'your cycling maximum',
+  ride: `${RIDE_MAX_OFFSET_BPM} bpm below your running maximum`,
+}
+
+/**
+ * Where an estimated max heart rate comes from, as the start of a sentence: its own sport's reference is the
+ * highest value several separate days reached, since the date the stretch it was taken over begins; the other
+ * sport's is worked out from the first. Null for an entered reference, or any measure but heart rate.
+ */
+export function maxHeartRateBasis(set: ZoneSet): string | null {
+  if (set.measure !== 'heartRate' || set.source !== 'estimated') return null
+  const bpm = `${Math.round(set.reference)} bpm`
+  const from = set.maxHeartRateFrom
+  if (from === null) return `${bpm}, ${OTHER_MAX[set.sport]}`
+  const since = formatMonth(from.sinceMs, true)
+  if (from.days <= 1) return `${bpm}, the highest you reached, on a single day since ${since}`
+  return `${bpm}, the highest you reached on ${from.days} separate days since ${since}`
 }
 
 /**
@@ -85,6 +112,8 @@ const REFERENCE_TEXT: Record<ZoneMeasure, (reference: number, units: UnitSystem)
 export interface ZoneTable {
   /** "Ride power zones". */
   title: string
+  /** Whether the figure is an estimated max heart rate, which the athlete can be asked to confirm or correct. */
+  askable: boolean
   /** Where the reference came from and what it was: "From your rides: threshold power 250 W". */
   detail: string
   citation: string
@@ -100,9 +129,15 @@ const REFERENCE_NAME: Record<ZoneMeasure, string> = {
 
 /** A zone set as a table: one row a zone, with its number, name and range. */
 export function zoneTable(set: ZoneSet, units: UnitSystem): ZoneTable {
+  const basis = maxHeartRateBasis(set)
   return {
     title: `${SPORT_LABEL[set.sport]} ${MEASURE_TITLE[set.measure]} zones`,
-    detail: `${sourceText(set)}: ${REFERENCE_NAME[set.measure]} ${REFERENCE_TEXT[set.measure](set.reference, units)}`,
+    askable: basis !== null,
+    // An estimated max heart rate says where it came from in place of the figure alone.
+    detail:
+      basis !== null
+        ? `Max heart rate: ${basis}`
+        : `${sourceText(set)}: ${REFERENCE_NAME[set.measure]} ${REFERENCE_TEXT[set.measure](set.reference, units)}`,
     citation: set.citation,
     columns: ['Zone', 'Name', 'Range'],
     rows: set.zones.map((zone) => [

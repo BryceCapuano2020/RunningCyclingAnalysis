@@ -115,6 +115,8 @@ describe('activityTimeInZones', () => {
     source: 'entered',
     reference: 200,
     estimatedFrom: [],
+    maxHeartRateFrom: null,
+    asOfMs: null,
     citation: '',
     zones: zonesFor('heartRate', 200),
   }

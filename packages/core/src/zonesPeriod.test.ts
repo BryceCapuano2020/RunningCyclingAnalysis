@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { combine, digestActivity } from './digest'
+import { weekEndMs } from './digest/trendPoints'
 import { splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { AnalysisSession } from './session'
@@ -58,13 +59,19 @@ describe('zones do not depend on the period picked', () => {
     }
   })
 
-  it('takes its thresholds from an analysis of the whole library', () => {
-    const library = combine(DIGESTS, SETTINGS, {
+  it('takes its latest threshold from the efforts of the last half year of the whole library', () => {
+    const end = weekEndMs(Math.max(...DIGESTS.map((digest) => digest.startMs)))
+    const lastHalfYear = DIGESTS.filter(
+      (digest) => weekEndMs(digest.startMs) > end - 26 * 7 * 86_400_000,
+    )
+    const recent = combine(lastHalfYear, SETTINGS, {
       heartRateSetAside: new Set(states[0]!.heartRateJudgement.setAside),
-      calibration: states[0]!.heartRateJudgement.calibration,
     })
-    expect(library.runCp).not.toBeNull()
-    expect(states[0]!.zoneEstimates?.runCp).toEqual(library.runCp)
-    expect(states[0]!.zoneEstimates?.rideCp).toEqual(library.rideCp)
+    expect(recent.runCp).not.toBeNull()
+    const steps = states[0]!.zoneEstimates!.thresholds.run
+    expect(steps.at(-1)!.fit).toBeNull()
+    const last = steps.findLast((step) => step.fit !== null)!
+    // The fit over a window is the fit of a combine of the activities in it, for a run, which needs no bike model.
+    expect(last.fit).toEqual(recent.runCp)
   })
 })

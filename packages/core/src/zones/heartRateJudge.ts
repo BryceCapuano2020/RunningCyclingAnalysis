@@ -1,5 +1,5 @@
 import { sameMasses } from '../athlete/mass'
-import { judgeHeartRate, libraryFits } from '../digest/setAside'
+import { judgeHeartRate, libraryThresholds } from '../digest/setAside'
 import { NO_HEART_RATE_JUDGEMENT } from '../digest/setAsideTypes'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
 import { sameDigests } from '../periodCache'
@@ -29,7 +29,7 @@ export class HeartRateJudge {
     // Without heart rate nothing is set aside, but the library's thresholds are still the zones' references.
     const judgement = visible.some((digest) => digest.hasHeartRate)
       ? judgeHeartRate(visible, settings)
-      : { ...NO_HEART_RATE_JUDGEMENT, fit: libraryFits(visible, settings) }
+      : { ...NO_HEART_RATE_JUDGEMENT, ...libraryThresholds(visible, settings) }
     this.entry = { digests: visible, settings, judgement }
     return judgement
   }

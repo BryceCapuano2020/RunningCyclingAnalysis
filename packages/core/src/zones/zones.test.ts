@@ -9,6 +9,7 @@ import { AnalysisSession } from '../session'
 import { sampleDataset } from '../synthetic'
 import type { AthleteSettings } from '../types'
 import { ZONE_MEASURES, ZONE_SCHEMES } from './schemes'
+import { estimatesOf } from './test/estimates'
 import { zonesAt, zonesFor } from './zones'
 
 const local = (year: number, month: number, day: number) =>
@@ -139,12 +140,13 @@ describe('zonesAt', () => {
     activities.map((activity) => digestActivity(activity)),
     { massKg: 75, bikeMassKg: 9 },
   )
+  const estimates = estimatesOf(result)
   const settings: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
   const find = (sets: ReturnType<typeof zonesAt>, sport: string, measure: string) =>
     sets.find((set) => set.sport === sport && set.measure === measure)
 
   it("estimates every reference the analysis has, from the app's own figures", () => {
-    const sets = zonesAt(local(2025, 1, 1), settings, result)
+    const sets = zonesAt(local(2025, 1, 1), settings, estimates)
     expect(sets.every((set) => set.source === 'estimated')).toBe(true)
     expect(find(sets, 'ride', 'heartRate')?.reference).toBe(Math.round(result.rideMaxHeartRate!))
     expect(find(sets, 'run', 'heartRate')?.reference).toBe(Math.round(result.runMaxHeartRate!))
@@ -159,9 +161,12 @@ describe('zonesAt', () => {
   })
 
   it('says which sports a heart-rate reference rests on', () => {
-    const from = (estimates: Partial<typeof result>) =>
-      find(zonesAt(local(2025, 1, 1), settings, { ...result, ...estimates }), 'ride', 'heartRate')
-        ?.estimatedFrom
+    const from = (figures: Partial<typeof result>) =>
+      find(
+        zonesAt(local(2025, 1, 1), settings, estimatesOf({ ...result, ...figures })),
+        'ride',
+        'heartRate',
+      )?.estimatedFrom
     // Its own highest heart rate stands, so it rests on the sport alone.
     expect(from({ rideMaxHeartRate: 175, rideObservedMaxHeartRate: 175 })).toEqual(['ride'])
     // Worked out from the runs, which are higher, it rests on both sports.
@@ -169,7 +174,7 @@ describe('zonesAt', () => {
     // No ride heart rate on file at all: it rests on the runs alone.
     expect(from({ rideMaxHeartRate: 183, rideObservedMaxHeartRate: null })).toEqual(['run'])
     expect(
-      find(zonesAt(local(2025, 1, 1), settings, result), 'ride', 'power')?.estimatedFrom,
+      find(zonesAt(local(2025, 1, 1), settings, estimates), 'ride', 'power')?.estimatedFrom,
     ).toEqual(['ride'])
   })
 
@@ -177,7 +182,7 @@ describe('zonesAt', () => {
     const entries: Measurement[] = [
       { kind: 'maxHeartRate', sport: 'ride', value: 181, from: '2020-01-01' },
     ]
-    const sets = zonesAt(local(2025, 1, 1), { ...settings, measurements: entries }, result)
+    const sets = zonesAt(local(2025, 1, 1), { ...settings, measurements: entries }, estimates)
     expect(find(sets, 'ride', 'heartRate')?.estimatedFrom).toEqual([])
   })
 
@@ -192,12 +197,12 @@ describe('zonesAt', () => {
       { kind: 'maxHeartRate', sport: 'run', value: 188, from: '2024-01-01' },
     ]
     const withEntries = { ...settings, measurements: entries }
-    const early = find(zonesAt(local(2024, 6, 1), withEntries, result), 'ride', 'power')
-    const late = find(zonesAt(local(2025, 6, 1), withEntries, result), 'ride', 'power')
+    const early = find(zonesAt(local(2024, 6, 1), withEntries, estimates), 'ride', 'power')
+    const late = find(zonesAt(local(2025, 6, 1), withEntries, estimates), 'ride', 'power')
     expect([early?.source, early?.reference]).toEqual(['entered', 240])
     expect([late?.source, late?.reference]).toEqual(['entered', 260])
     // The run's heart rate is entered, and the rest stay estimated.
-    const sets = zonesAt(local(2024, 6, 1), withEntries, result)
+    const sets = zonesAt(local(2024, 6, 1), withEntries, estimates)
     expect(find(sets, 'run', 'heartRate')?.source).toBe('entered')
     expect(find(sets, 'ride', 'heartRate')?.source).toBe('estimated')
   })
@@ -218,8 +223,8 @@ describe('zonesAt', () => {
       { kind: 'massKg', value: 70, from: '2025-01-01' },
     ]
     const withMass = { ...settings, measurements: entries }
-    const before = find(zonesAt(local(2024, 1, 1), withMass, result), 'ride', 'power')!
-    const after = find(zonesAt(local(2025, 6, 1), withMass, result), 'ride', 'power')!
+    const before = find(zonesAt(local(2024, 1, 1), withMass, estimates), 'ride', 'power')!
+    const after = find(zonesAt(local(2025, 6, 1), withMass, estimates), 'ride', 'power')!
     // Each is a whole number of watts, so the ratio holds to a watt in 200.
     expect(before.reference / after.reference).toBeCloseTo(90 / 70, 2)
   })

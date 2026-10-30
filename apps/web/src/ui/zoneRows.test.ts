@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { zonesFor } from '@rca/core/zones'
 import type { ZoneSet } from '@rca/core/zones'
-import { sourceText, zoneRange, zoneTable } from './zoneRows'
+import { maxHeartRateBasis, sourceText, zoneRange, zoneTable } from './zoneRows'
 
 function setOf(partial: Partial<ZoneSet> & Pick<ZoneSet, 'measure' | 'reference'>): ZoneSet {
   return {
@@ -9,6 +9,8 @@ function setOf(partial: Partial<ZoneSet> & Pick<ZoneSet, 'measure' | 'reference'
     source: 'estimated',
     citation: 'A scheme',
     estimatedFrom: ['ride'],
+    maxHeartRateFrom: null,
+    asOfMs: null,
     zones: zonesFor(partial.measure, partial.reference),
     ...partial,
   }
@@ -111,5 +113,63 @@ describe('zoneTable', () => {
     expect(
       sourceText(setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })),
     ).toBe('From your runs')
+  })
+})
+
+describe('the source and basis of an estimated zone set', () => {
+  const MARCH_2023 = new Date(2023, 2, 15, 12).getTime()
+  const MARCH_2025 = new Date(2025, 2, 15, 12).getTime()
+
+  it('dates a pace or power that comes from an older fit', () => {
+    const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
+    expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs to Mar 2025')
+    expect(sourceText(set)).toBe('From your runs')
+  })
+
+  it('says how many separate days reached an estimated max heart rate, and since when', () => {
+    const own = setOf({
+      sport: 'run',
+      measure: 'heartRate',
+      reference: 200.6,
+      estimatedFrom: ['run'],
+      maxHeartRateFrom: { bpm: 200.6, days: 3, sinceMs: MARCH_2023 },
+    })
+    expect(maxHeartRateBasis(own)).toBe(
+      '201 bpm, the highest you reached on 3 separate days since Mar 2023',
+    )
+    expect(zoneTable(own, 'metric')).toMatchObject({
+      detail: 'Max heart rate: 201 bpm, the highest you reached on 3 separate days since Mar 2023',
+      askable: true,
+    })
+    const thin = { ...own, maxHeartRateFrom: { bpm: 200.6, days: 1, sinceMs: MARCH_2023 } }
+    expect(maxHeartRateBasis(thin)).toBe(
+      '201 bpm, the highest you reached, on a single day since Mar 2023',
+    )
+  })
+
+  it("says a sport's reference is worked out from the other sport's maximum", () => {
+    const ride = setOf({
+      sport: 'ride',
+      measure: 'heartRate',
+      reference: 195,
+      estimatedFrom: ['run'],
+    })
+    expect(maxHeartRateBasis(ride)).toBe('195 bpm, 6 bpm below your running maximum')
+    const run = setOf({
+      sport: 'run',
+      measure: 'heartRate',
+      reference: 188,
+      estimatedFrom: ['ride'],
+    })
+    expect(maxHeartRateBasis(run)).toBe('188 bpm, your cycling maximum')
+  })
+
+  it('has no basis for an entered reference or for a pace or power', () => {
+    expect(
+      maxHeartRateBasis(
+        setOf({ measure: 'heartRate', reference: 188, source: 'entered', estimatedFrom: [] }),
+      ),
+    ).toBeNull()
+    expect(maxHeartRateBasis(setOf({ measure: 'power', reference: 250 }))).toBeNull()
   })
 })

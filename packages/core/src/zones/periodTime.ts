@@ -1,4 +1,5 @@
 import { localDateOf } from '../athlete/measurements'
+import { weekEndMs } from '../digest/trendPoints'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { ZONE_MEASURES, ZONE_SCHEMES } from './schemes'
 import type { ZoneMeasure } from './schemes'
@@ -28,8 +29,8 @@ export interface MeasureTime {
   entered: number
   /**
    * The distinct references (watts, bpm or m/s) the athlete entered that the counted activities' zones were cut
-   * from, lowest first. An estimate is the same in every period on screen, so only an entered setting that
-   * changed between two periods puts them in different zones.
+   * from, lowest first. A change of an entered setting between two periods puts them in different zones; an
+   * estimate follows the athlete's fitness, so two periods are compared in zones relative to it.
    */
   enteredReferences: number[]
 }
@@ -62,11 +63,14 @@ export function noTimeInZones(): TimeInZones {
   }
 }
 
-/** The zones in effect on a date are the same all day, so activities of one day share one lookup. */
+/**
+ * The zones in effect on a date are the same all day, and an estimated threshold is the same all week, so activities
+ * of one day in one week share one lookup.
+ */
 function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) {
   const days = new Map<string, ZoneSet[]>()
   return (startMs: number): ZoneSet[] => {
-    const day = localDateOf(startMs)
+    const day = `${localDateOf(startMs)}|${weekEndMs(startMs)}`
     let sets = days.get(day)
     if (sets === undefined) {
       sets = zonesAt(startMs, settings, estimates)
@@ -82,9 +86,10 @@ function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) 
  * estimated ride threshold), so a period can hold activities with different zones. Zones are told
  * apart by level, which every date shares, so the seconds add up per level.
  *
- * `estimates` is the analysis of the whole library and supplies every reference that was not entered;
- * it is the same for each activity, so an estimated zone is the same all period and under every period. A period
- * before this one is cut by the same estimates, so the two are compared in the same zones.
+ * `estimates` is the analysis of the whole library and supplies every reference that was not entered. An
+ * estimated pace or power is the threshold of the half year before the activity's date, and a heart rate the
+ * library's maximum, so an activity has the same zones under every period, and the period before this one is
+ * cut by the athlete's fitness then, not by this period's.
  * `heartRateSetAside` names the activities whose heart rate the analysis does not trust.
  */
 export function periodTimeInZones(

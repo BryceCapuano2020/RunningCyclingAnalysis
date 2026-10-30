@@ -13,6 +13,7 @@ import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { SampleSettings } from '../components/SampleSettings'
 import { SavedLibraryCard } from '../components/SavedLibraryCard'
 import { SettingsOverTime } from '../components/SettingsOverTime'
+import type { SettingPrefill } from '../components/SettingsOverTime'
 import { ZoneTables } from '../components/ZoneTables'
 import { UNIT_OPTIONS, displayBirthYear, readBirthYear, weightKnown } from '../athlete'
 import type { WeightSettings } from '../athlete'
@@ -98,6 +99,8 @@ export function ProfilePage({
   // The weights' save is in flight, which the settings bar does not report to this page.
   const [weightSaving, setWeightSaving] = useState(false)
   const [removing, setRemoving] = useState(false)
+  // The figure the Set control beside an estimated max heart rate asked the dated-settings form to open to.
+  const [prefill, setPrefill] = useState<SettingPrefill | null>(null)
   // The retention and account questions are held here, so any open dialog can close a row confirmation.
   const [retentionAsking, setRetentionAsking] = useState(false)
   const [accountDialogOpen, setAccountDialogOpen] = useState(false)
@@ -254,6 +257,7 @@ export function ProfilePage({
             units={shownUnits}
             onAdd={onAddSetting}
             onRemove={onRemoveSetting}
+            prefill={prefill}
           />
         </>
       )}
@@ -262,6 +266,16 @@ export function ProfilePage({
         estimates={analysis.state.zoneEstimates}
         weightKnown={sample || weightKnown(settings)}
         units={shownUnits}
+        onSetMaxHeartRate={
+          sample
+            ? undefined
+            : (sport, bpm) =>
+                setPrefill((held) => ({
+                  choiceId: `maxHeartRate.${sport}`,
+                  text: String(bpm),
+                  nonce: (held?.nonce ?? 0) + 1,
+                }))
+        }
       />
 
       {email !== null ? (

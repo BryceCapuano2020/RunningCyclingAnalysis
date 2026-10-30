@@ -8,7 +8,13 @@ import type { UnitSystem } from '@rca/core/units'
 import { ZoneTimeChart } from '../charts/ZoneTimeChart'
 import { hrefFor } from '../route'
 import { sourceText, zoneRange } from '../zoneRows'
-import { ROW_LABEL, activityLede, percentText, zoneTimeText } from '../zoneTimeCopy'
+import {
+  ROW_LABEL,
+  THRESHOLD_NEEDS,
+  activityLede,
+  percentText,
+  zoneTimeText,
+} from '../zoneTimeCopy'
 import { zoneBar } from '../zoneTimeRows'
 
 /**
@@ -38,6 +44,9 @@ function rowsOf(
   })
 }
 
+/** No pace or power is missing: one array, so the default does not change between renders. */
+const NO_MISSING: readonly ZoneMeasure[] = []
+
 const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
 
 /** Why heart rate is not read into zones: the reason in a line, and the activity's issues give it in full. */
@@ -54,6 +63,19 @@ function SetAsideNote() {
 const OTHER_ZONES: Record<Sport, { zones: string; threshold: string }> = {
   run: { zones: 'Pace zones', threshold: 'threshold pace' },
   ride: { zones: 'Power zones', threshold: 'threshold power' },
+}
+
+/** Why a pace or power has no zones on the activity's date, and what would give them. */
+function MissingNote({ sport, measures }: { sport: Sport; measures: readonly ZoneMeasure[] }) {
+  return (
+    <>
+      {measures.map((measure) => (
+        <p key={measure} className="muted">
+          {`No ${measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
+        </p>
+      ))}
+    </>
+  )
 }
 
 /**
@@ -92,9 +114,12 @@ export function ActivityZoneTime({
   endS,
   units,
   heartRateSetAside = false,
+  missing = NO_MISSING,
 }: {
   trace: ActivityTrace
   sets: readonly ZoneSet[]
+  /** The pace or power with efforts to fit but no zones on the activity's date. */
+  missing?: readonly ZoneMeasure[]
   /** Whether the analysis set this activity's heart rate aside, so `sets` leaves heart rate out. */
   heartRateSetAside?: boolean
   startS: number
@@ -109,6 +134,7 @@ export function ActivityZoneTime({
         <>
           {heartRateSetAside && <SetAsideNote />}
           <ZoneNeed sport={trace.sport} heartRateSetAside={heartRateSetAside} />
+          <MissingNote sport={trace.sport} measures={missing} />
         </>
       )
     }
@@ -118,6 +144,7 @@ export function ActivityZoneTime({
           No heart rate, power or pace readings in this interval to place in zones.
         </p>
         {heartRateSetAside && <SetAsideNote />}
+        <MissingNote sport={trace.sport} measures={missing} />
       </>
     )
   }
@@ -157,6 +184,7 @@ export function ActivityZoneTime({
         }}
       />
       {heartRateSetAside && <SetAsideNote />}
+      <MissingNote sport={trace.sport} measures={missing} />
     </div>
   )
 }

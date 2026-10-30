@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
-import type { ZoneSet } from '@rca/core/zones'
+import type { ZoneMeasure, ZoneSet } from '@rca/core/zones'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import { ActivityZoneTime } from './ActivityZoneTime'
 import { LapChoices } from './ActivityWorkbenchLaps'
@@ -26,6 +26,8 @@ export interface ActivityWorkbenchProps {
   loadTrace: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
   /** The zones in effect on the activity's date, for its time in zones. Absent: no zones section. */
   zoneSets?: readonly ZoneSet[]
+  /** The pace or power the activity has efforts for but no zones on its date, which the zones section says what would give. */
+  missingZones?: readonly ZoneMeasure[]
   /** Whether the activity's heart rate is set aside, which its zones say instead of reading it. */
   heartRateSetAside?: boolean
   /**
@@ -123,6 +125,7 @@ export function ActivityWorkbench({
   indoor = false,
   loadTrace,
   zoneSets,
+  missingZones,
   heartRateSetAside,
   onTrace = noTrace,
   selectionHost,
@@ -136,6 +139,7 @@ export function ActivityWorkbench({
       indoor={indoor}
       loadTrace={loadTrace}
       zoneSets={zoneSets}
+      missingZones={missingZones}
       heartRateSetAside={heartRateSetAside}
       onTrace={onTrace}
       selectionHost={selectionHost}
@@ -152,14 +156,21 @@ function ActivityWorkbenchSession({
   indoor,
   loadTrace,
   zoneSets,
+  missingZones,
   heartRateSetAside,
   onTrace,
   selectionHost,
   onAddFiles,
 }: Required<
-  Omit<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside' | 'selectionHost' | 'onAddFiles'>
+  Omit<
+    ActivityWorkbenchProps,
+    'zoneSets' | 'missingZones' | 'heartRateSetAside' | 'selectionHost' | 'onAddFiles'
+  >
 > &
-  Pick<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside' | 'selectionHost' | 'onAddFiles'>) {
+  Pick<
+    ActivityWorkbenchProps,
+    'zoneSets' | 'missingZones' | 'heartRateSetAside' | 'selectionHost' | 'onAddFiles'
+  >) {
   const loaded = useTrace(activityId, loadTrace)
   const { status } = loaded.state
   const trace =
@@ -179,6 +190,7 @@ function ActivityWorkbenchSession({
         units={units}
         indoor={indoor}
         zoneSets={zoneSets}
+        missingZones={missingZones}
         heartRateSetAside={heartRateSetAside}
         selectionHost={selectionHost}
         fromOriginal={status === 'original'}
@@ -209,6 +221,7 @@ function ReadyWorkbench({
   units,
   indoor,
   zoneSets,
+  missingZones,
   heartRateSetAside,
   selectionHost,
   fromOriginal,
@@ -217,6 +230,7 @@ function ReadyWorkbench({
   units: UnitSystem
   indoor: boolean
   zoneSets?: readonly ZoneSet[]
+  missingZones?: readonly ZoneMeasure[]
   heartRateSetAside?: boolean
   selectionHost?: HTMLElement | null
   fromOriginal: boolean
@@ -323,6 +337,7 @@ function ReadyWorkbench({
         <ActivityZoneTime
           trace={trace}
           sets={zoneSets}
+          missing={missingZones}
           heartRateSetAside={heartRateSetAside}
           startS={startS}
           endS={endS}

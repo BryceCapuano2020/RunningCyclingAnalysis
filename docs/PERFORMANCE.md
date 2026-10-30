@@ -90,9 +90,17 @@ switch to a long period, but changes what the page shows while it waits.
 build, 50 ms to check), 200 workbench captures (30 ms), the weekly volume strip (15 ms), the heart-rate set-aside of 2,000 activities (`setAside.perf.test.ts`, 400 ms),
 the low-heart-rate test of the longest file (`lowHeartRate.perf.test.ts`, 120 ms), the heart rate that reads low
 for the power across 2,000 activities (`lowForPower.perf.test.ts`, 60 ms), time in zones for 2,000 activities
-(`periodTime.perf.test.ts`, 50 ms), and that the radix
+(`periodTime.perf.test.ts`, 50 ms), the threshold over time for 2,000 activities (`thresholdTimeline.perf.test.ts`, 30 ms), and that the radix
 order takes under two thirds of the comparison's time. Each is the fastest of several runs, three to twenty
 times the local figure.
+
+The pace and power zones follow the athlete's fitness: an estimated threshold is the fit over the half year before each
+week (`thresholdTimeline`), worked out once with the library's heart-rate judgement and cached with it, so changing the
+period costs nothing. A first version merged every digest of the half year for each of the weeks an activity enters or
+leaves it, 36 ms for 2,000 activities (ten a week, four years); the window's best now moves with the weeks, each digest
+priced once and pushed and popped once, and it takes 2.7 ms. A library load rose from 94 to 102 ms (all time), 28 to 36 ms
+(default 12 weeks), and a change of body mass from 31 to 40 ms, the rest being the per-week zones in the time in zones.
+Measured on 29 October 2026, the fastest of seven runs on a shared machine.
 
 These values are a local reference point, not CI thresholds. This is a Node CPU benchmark of
 generated activities and digest combination; it does not measure browser startup/rendering, FIT

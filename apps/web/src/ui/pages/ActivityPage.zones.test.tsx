@@ -6,7 +6,7 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { AthleteSettings } from '@rca/core/types'
-import { MAN_BORN_1986, makeActivity, makeResult } from '../components/fixtures'
+import { MAN_BORN_1986, estimatesFrom, makeActivity, makeResult } from '../components/fixtures'
 import type { RouteReply } from '../routeReply'
 import { ActivityPage } from './ActivityPage'
 import { steadyTrace } from './workbenchFixtures'
@@ -40,7 +40,7 @@ function show(
       activity={activity}
       library={[activity]}
       result={{ ...result, activities: [activity] }}
-      zoneEstimates={result}
+      zoneEstimates={estimatesFrom(result)}
       units="metric"
       massKg={70}
       settings={athlete}
@@ -124,7 +124,7 @@ describe('the activity page zones', () => {
           activity={ride}
           library={[ride]}
           result={{ ...makeResult({ rideMaxHeartRate: null }), activities: [ride] }}
-          zoneEstimates={makeResult({ rideMaxHeartRate: null })}
+          zoneEstimates={estimatesFrom(makeResult({ rideMaxHeartRate: null }))}
           units="metric"
           massKg={70}
           settings={settings()}
