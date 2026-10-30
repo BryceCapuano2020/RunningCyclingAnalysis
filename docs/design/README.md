@@ -7,6 +7,8 @@ Decisions section. Status is one of designed, in progress or built.
   fixed course. Status: in progress.
 - [findings.md](findings.md): a findings engine that speaks only when something non-obvious is well
   supported. Status: in progress.
+- [fitness.md](fitness.md): fitness at the same effort per sport, slipping to back, with its evidence. Status:
+  core built, page not yet.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed.
 - [architecture-1.md](architecture-1.md): a local originals store, an analysis-module registry and a

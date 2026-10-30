@@ -11,6 +11,7 @@ import type { Rejection } from './import/result'
 import type { HeartRateJudgement } from './digest/setAsideTypes'
 import type { PeriodZoneTimes } from './zones/timeCache'
 import type { ZoneEstimates } from './zones'
+import type { FitnessBySport } from './fitness/types'
 
 /** An activity file this import could not use, with why. */
 export interface RejectedFile extends Rejection {
@@ -63,6 +64,11 @@ export interface SessionState {
    * heart rates and thresholds it was judged against. A period's analysis takes this list for its own activities.
    */
   heartRateJudgement: HeartRateJudgement
+  /**
+   * Each sport's fitness at the same effort over the whole library, whatever period is picked: slipping,
+   * holding, recovering, back, or not enough evidence yet, with the figures and runs behind it.
+   */
+  fitness: FitnessBySport
   /**
    * The references that estimated zones are cut from: the thresholds and reference heart rates of the whole
    * library, whatever period is picked, so an activity has the same zones everywhere. Null without an analysis.

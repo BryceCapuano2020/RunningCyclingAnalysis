@@ -30,6 +30,7 @@ const FIELDS = [
   'sameHeartRate',
   'lateEvidence',
   'heartRateJudgement',
+  'fitness',
   'zoneEstimates',
   'timeInZones',
   'previous',
@@ -52,6 +53,8 @@ export async function stateHashes(
   const hashes: Record<string, string> = {}
   for (const choice of choices) {
     const session = new AnalysisSession()
+    // The fitness status reads the clock; the library's own last day keeps the pins from drifting with the date.
+    session.clock = () => Math.max(...library.map((digest) => digest.startMs))
     session.choosePeriod(choice)
     const state = session.loadDigests(library, settings)
     for (const field of FIELDS) {

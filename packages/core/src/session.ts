@@ -72,6 +72,9 @@ export class AnalysisSession {
   // The extraction limits of every import. The constants unless a test or caller sets others.
   private readonly limits: ExtractLimits
   private recordsCache = new RecordsCache()
+  // Today for the fitness status (a seam for tests); the sample season keeps its own day while on screen.
+  clock: () => number = Date.now
+  private sampleNowMs = 0
 
   /**
    * Production passes no limits, so the constants apply. The argument is a seam for tests, which need
@@ -192,6 +195,7 @@ export class AnalysisSession {
   loadSample(settings: AthleteSettings, clock: SampleClock = SAMPLE_CLOCK): SessionState {
     this.reset()
     this.isSample = true
+    this.sampleNowMs = clock.nowMs
     for (const digest of seasonDigests(clock)) this.digests.set(digest.id, digest)
     return this.state(settings)
   }
@@ -203,10 +207,7 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
-  /**
-   * The zones in effect on a date: the athlete's dated settings first, else the references of the
-   * analysis of the whole library, whatever the period on screen. A feature that needs zones for an activity asks with its start.
-   */
+  /** The zones in effect on a date: the dated settings first, else the whole library's references, whatever the period. */
   zonesAt(at: number, settings: AthleteSettings): ZoneSet[] {
     return zonesAt(at, this.athleteFor(settings), this.state(settings).zoneEstimates)
   }
@@ -257,13 +258,12 @@ export class AnalysisSession {
   }
 
   /**
-   * Digests one parsed activity and hands it to the sink. An activity already held and saved is
-   * left alone unless syncExisting requests a sink call for an existing activity (for example,
-   * to retain an original after that preference is enabled). A copy that outranks the held one for
-   * the same start second replaces it. A sink failure is counted, not thrown.
-   * After a failure that stops saving, the rest of the batch is digested but not sent to the sink.
-   * A held activity whose save failed is not yet in the library for good: it is added when this
-   * import saves it, and is otherwise still the held workout, however it came to be left unsaved.
+   * Digests one parsed activity and hands it to the sink. An activity already held and saved is left alone
+   * unless syncExisting requests a sink call for it (for example, to retain an original after that preference
+   * is enabled). A copy that outranks the held one for the same start second replaces it. A sink failure is
+   * counted, not thrown. After a failure that stops saving, the rest of the batch is digested but not sent.
+   * A held activity whose save failed is not yet in the library for good: it is added when this import saves
+   * it, and is otherwise still the held workout, however it came to be left unsaved.
    */
   private async keep(
     activity: Activity,
@@ -345,9 +345,7 @@ export class AnalysisSession {
 
   /** The run splits of a held activity, for its activity page. Null when it has none or is not held. */
   splitsOf(id: string): DigestSplits | null {
-    for (const digest of this.digests.values()) {
-      if (digest.id === id) return digest.splits ?? null
-    }
+    for (const digest of this.digests.values()) if (digest.id === id) return digest.splits ?? null
     return null
   }
 
@@ -367,10 +365,7 @@ export class AnalysisSession {
     this.isSample = false
   }
 
-  /**
-   * The settings the analysis uses. The sample athlete has its own body and bike masses, so it
-   * ignores the visitor's, dated ones included, while it is on screen.
-   */
+  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones included. */
   private athleteFor(settings: AthleteSettings): AthleteSettings {
     if (!this.isSample) return settings
     return { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
@@ -393,6 +388,7 @@ export class AnalysisSession {
         outdatedActivities: this.outdatedKeys.size,
         incompatibleActivities: this.incompatibleKeys.size,
         syncIssues: countIssues(this.unsynced, this.latestUnsynced),
+        nowMs: this.isSample ? this.sampleNowMs : this.clock(),
       },
       settings === null ? null : this.athleteFor(settings),
     )

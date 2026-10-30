@@ -30,6 +30,8 @@
     "./curves": "./src/curves/index.ts",
     "./effort": "./src/effort/index.ts",
     "./findings": "./src/findings/index.ts",
+    "./fitness": "./src/fitness/index.ts",
+    "./fitness/types": "./src/fitness/types.ts",
     "./fit": "./src/fit/index.ts",
     "./gpx": "./src/gpx/index.ts",
     "./gpx/encode": "./src/gpx/encode.ts",
