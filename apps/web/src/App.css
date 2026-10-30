@@ -184,8 +184,8 @@
   }
 }
 
-@media (orientation: landscape) and (max-height: 700px) and (pointer: coarse),
-  (orientation: landscape) and (max-height: 700px) and (max-width: 760px) {
+@media (orientation: landscape) and (max-height: 700px) and (min-width: 560px) and (pointer: coarse),
+  (orientation: landscape) and (max-height: 700px) and (min-width: 560px) and (max-width: 760px) {
   .landing__hero {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;

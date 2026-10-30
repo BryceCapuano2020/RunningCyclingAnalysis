@@ -198,7 +198,9 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
 
 for (const scheme of ['light', 'dark'] as const) {
   for (const { name, open } of PAGES) {
-    test(`${name} page has no WCAG 2 A/AA violations in ${scheme} mode`, async ({ page }) => {
+    test(`${name} page has no WCAG 2 A/AA or best-practice violations in ${scheme} mode`, async ({
+      page,
+    }) => {
       await page.emulateMedia({ colorScheme: scheme })
       await open(page)
       expect(await violationsOf(page)).toEqual([])

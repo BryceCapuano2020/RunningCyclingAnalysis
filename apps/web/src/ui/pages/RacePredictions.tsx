@@ -142,7 +142,7 @@ function RaceTable({
 }) {
   const ranAt = (distanceM: number) => ran.find((r) => r.distanceM === distanceM)
   // At 320 px the table is wider than its box and scrolls there, so a keyboard reader can reach it.
-  const region = useScrollRegion('Race predictions')
+  const region = useScrollRegion('Race predictions table')
   return (
     <div className="table-scroll" {...region}>
       <table className="race-table">
