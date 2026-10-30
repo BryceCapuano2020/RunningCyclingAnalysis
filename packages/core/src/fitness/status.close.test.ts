@@ -57,33 +57,25 @@ suite('the status after an episode closes', () => {
   })
 
   it('does not turn a level an episode closed on into "not enough evidence" while the close is in view', () => {
-    // 60 libraries with a drop of 8% and a partial return of 3%: those that close as holding, a wide range around a new level.
-    let closedLibraries = 0
-    let weeks = 0
-    for (let seed = 1; seed <= 80; seed++) {
-      const runs = simulate(
-        {
-          weeks: 230,
-          perWeek: 3,
-          planted: [
-            { type: 'step', week: 60, size: -0.08 },
-            { type: 'step', week: 100, size: 0.03 },
-          ],
-        },
-        seed,
-      )
-      const records = monitor(runs, 0, 229)
-      const close = records.find((r) => r.closes !== null && r.dip === null)
-      if (close === undefined) continue
-      closedLibraries++
-      for (let w = close.w; w < Math.min(230, close.w + 40); w++) {
-        weeks++
-        expect(statusAt(runs, records, w).state, `seed ${seed} week ${w}`).not.toBe(
-          'not-enough-evidence',
-        )
-      }
+    // One library (seed 36) where an 8% drop with a 3% return closes as holding at week 171 on a wide range: before the
+    // status read the weeks since the onset, 19 of the 40 weeks after the close read "not enough evidence". The sweep over
+    // many libraries is in episode.sim.test.ts.
+    const runs = simulate(
+      {
+        weeks: 230,
+        perWeek: 3,
+        planted: [
+          { type: 'step', week: 60, size: -0.08 },
+          { type: 'step', week: 100, size: 0.03 },
+        ],
+      },
+      36,
+    )
+    const records = monitor(runs, 0, 229)
+    const close = records.find((r) => r.closes !== null && r.dip === null)!
+    expect(close.w).toBeGreaterThan(150)
+    for (let w = close.w; w < close.w + 40; w++) {
+      expect(statusAt(runs, records, w).state, `week ${w}`).not.toBe('not-enough-evidence')
     }
-    expect(closedLibraries).toBeGreaterThanOrEqual(5)
-    expect(weeks).toBeGreaterThan(150)
   })
 })

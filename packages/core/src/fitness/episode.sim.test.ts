@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { NUISANCES, afterDips, planted, quantile, silence, within } from './test/episodeSim'
 import type { Silence } from './test/episodeSim'
 import { LEGACY, withParams } from './test/legacyParams'
+import { monitor, weekEndOf } from './machine'
+import { describe as statusOf } from './status'
+import { simulate } from './test/runSim'
 
 vi.setConfig({ testTimeout: 900_000 })
 
@@ -133,5 +136,54 @@ describe('a planted loss', () => {
     // Observed: median 7 (5 before), 79% within 12 (90%), 94% within 26.
     expect(quantile(now.lags, 0.5)).toBeLessThanOrEqual(quantile(was.lags, 0.5) + 4)
     expect(within(now.lags, 26)).toBeGreaterThanOrEqual(0.88)
+  })
+})
+
+describe('the status after an episode closes as holding', () => {
+  it('is never "not enough evidence" while the close is in view, over many libraries', () => {
+    // An 8% drop with 3% regained, 80 libraries: those that close as holding on a wide range, 40 weeks after the close.
+    const series = {
+      points: [],
+      referenceHr: 150,
+      method: {
+        tier: 'steady-pace' as const,
+        gradePassThrough: 1,
+        speedPerBpm: 0.005,
+        fitted: 100,
+        seasonal: null,
+      },
+    }
+    let closed = 0
+    let weeks = 0
+    for (let seed = 1; seed <= 80; seed++) {
+      const runs = simulate(
+        {
+          weeks: 230,
+          perWeek: 3,
+          planted: [
+            { type: 'step', week: 60, size: -0.08 },
+            { type: 'step', week: 100, size: 0.03 },
+          ],
+        },
+        seed,
+      )
+      const records = monitor(runs, 0, 229)
+      const close = records.find((r) => r.closes !== null && r.dip === null)
+      if (close === undefined) continue
+      closed++
+      for (let w = close.w; w < Math.min(230, close.w + 40); w++) {
+        weeks++
+        const status = statusOf(
+          'run',
+          series,
+          runs.filter((p) => p.t < (w + 1) * 7),
+          records.slice(0, w + 1),
+          weekEndOf(w),
+        )
+        expect(status.state, `seed ${seed} week ${w}`).not.toBe('not-enough-evidence')
+      }
+    }
+    expect(closed).toBeGreaterThanOrEqual(5)
+    expect(weeks).toBeGreaterThan(150)
   })
 })
