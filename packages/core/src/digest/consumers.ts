@@ -38,7 +38,10 @@ const RULES: Readonly<Record<Consumer, 'readable' | 'current'>> = CONSUMERS
 
 /**
  * Consumers that have no `orderedFor` call of their own: they receive an array `buildState` has already
- * filtered, named here. `consumers.test.ts` checks that no consumer is both direct and indirect.
+ * filtered, or are computed inside another consumer (referenceHr, thresholdTimeline and zones inside the
+ * heart-rate judgement, which is `setAside`'s). Their rule in `CONSUMERS` is not applied to anything, so a
+ * revision's `affects` and `holdsBack` cannot name them (`DirectConsumer`). The guard test checks that no
+ * consumer is both direct and indirect; a test through `buildState` comes with the readable input (PR B).
  */
 export const INDIRECT = {
   previousPeriods: 'the previous period of the analysed digests',
@@ -49,6 +52,9 @@ export const INDIRECT = {
   splits: 'the one digest of the activity page',
 } as const satisfies Partial<Record<Consumer, string>>
 
+/** A consumer with its own `orderedFor` call: the only kind a revision can hold back or flag as affected. */
+export type DirectConsumer = Exclude<Consumer, keyof typeof INDIRECT>
+
 /** Whether `consumer` reads a digest of `revision` under `table`. */
 export function readsRevision(
   consumer: Consumer,
@@ -58,7 +64,8 @@ export function readsRevision(
   const status = revisionStatus(revision, table)
   if (status === 'current') return true
   if (status !== 'compatible' || RULES[consumer] === 'current') return false
-  return !stepsFrom(revision, table).some((step) => step.holdsBack?.includes(consumer) === true)
+  const heldBack = (step: RevisionDeclaration): readonly Consumer[] => step.holdsBack ?? []
+  return !stepsFrom(revision, table).some((step) => heldBack(step).includes(consumer))
 }
 
 /** The digests `consumer` reads, in canonical order. Every reader of the library calls this by name. */

@@ -46,9 +46,14 @@ describe('orderedFor', () => {
       digestOf(7, 'z', 3),
       digestOf(6, 'w', 0),
     ]
+    // The rule before the table, written out: the digests of revision 6, by start time then id.
+    const before = mixed
+      .filter((d) => d.modelRevision === 6)
+      .sort((a, b) => a.startMs - b.startMs || a.id.localeCompare(b.id))
     for (const name of Object.keys(CONSUMERS) as Consumer[]) {
-      expect(orderedFor(name, mixed)).toEqual(orderedCurrent(mixed))
+      expect(orderedFor(name, mixed)).toEqual(before)
     }
+    expect(orderedCurrent(mixed)).toEqual(before)
     expect(orderedFor('combine', mixed).map((d) => d.id)).toEqual(['w', 'x'])
     expect(REVISIONS.at(-1)?.revision).toBe(6)
   })
