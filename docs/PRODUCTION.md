@@ -97,7 +97,11 @@ The status-check names are the job names shown on pull requests and must match e
 - Passing status checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)`,
   `Performance budgets` and `Dependency audit`. `Performance budgets` is the wall-clock timing job,
   split out of the first check so a loaded runner cannot fail the unit tests; add it to the required
-  list, or its failure will not block a merge.
+  list, or its failure will not block a merge. A documentation-only pull request (every changed file
+  is Markdown, under `docs/` or `LICENSE`) skips the end-to-end, budget and simulation jobs and the
+  typecheck, coverage and build steps, and runs the format check, lint, ops tests and the unit
+  tests that read Markdown, in about 3 minutes. GitHub counts a job skipped by its condition as
+  passing, so these pull requests still merge. Pushes to `main` run everything.
 - The branch to be up to date with `main` before merging.
 - All review conversations resolved; stale approvals are dismissed on new commits.
 - Linear history (merges are squash-only and merged branches are deleted).

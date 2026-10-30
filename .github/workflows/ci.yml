@@ -17,8 +17,48 @@ env:
   npm_config_fetch_retries: '5'
 
 jobs:
+  # Classifies a pull request as documentation only when every changed file is Markdown, under docs/
+  # or LICENSE. Such a pull request skips the long jobs (typecheck, coverage, build, simulations,
+  # budgets, end to end) and still runs the format check, lint, the ops tests and every unit test that
+  # reads a Markdown file. Pushes to main always run everything. The long jobs skip only on an
+  # explicit 'false', so if this job fails they run.
+  changes:
+    name: Changed files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # A pull request checks out its merge commit; its first parent is the base. No renames, so a
+          # file moved from code into docs/ still counts as a code change (the deletion is listed).
+          fetch-depth: 2
+      - id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only --no-renames HEAD^1 HEAD)
+          printf 'Changed files:\n%s\n' "$changed"
+          # grep reads the whole list (no -q), so pipefail never sees an early-exit SIGPIPE.
+          other=$(printf '%s\n' "$changed" | grep -vE '\.md$|^docs/|^LICENSE$' || true)
+          if [ -n "$changed" ] && [ -z "$other" ]; then
+            echo "Documentation only: the long jobs are skipped."
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          fi
+
   verify:
     name: Lint, typecheck, unit tests, build
+    needs: changes
+    # A required check, so it always reports; documentation-only pull requests skip its long steps.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     # Guards against a hang; it is not a speed budget (the job takes 8 to 9 minutes on a normal run).
     timeout-minutes: 15
@@ -34,17 +74,29 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+        if: needs.changes.outputs.code != 'false'
       - run: npm run test:deploy-config
       - run: npm run test:ops
       - run: npm run test:coverage
+        if: needs.changes.outputs.code != 'false'
+      # Documentation only: the unit tests that read a Markdown file (design tokens, the architecture
+      # and privacy pages, validation tables). Found by content, so a new one needs no list.
+      - name: Unit tests that read documentation
+        if: needs.changes.outputs.code == 'false'
+        run: |
+          files=$(git grep -l -F '.md' -- 'apps/*.test.ts' 'apps/*.test.tsx' 'packages/*.test.ts' ':!*.sim.test.ts' ':!*.perf.test.ts')
+          printf '%s\n' "$files"
+          npx vitest run $files
       - run: npm run build
+        if: needs.changes.outputs.code != 'false'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: always() && needs.changes.outputs.code != 'false'
         with:
           name: coverage
           path: coverage
           retention-days: 7
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: needs.changes.outputs.code != 'false'
         with:
           name: dist
           path: apps/web/dist
@@ -57,6 +109,8 @@ jobs:
   # second run fails too. A real regression fails both runs; a noisy neighbour rarely fails two in a row.
   perf:
     name: Performance budgets
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -81,6 +135,8 @@ jobs:
   # failure is a real change in a rate and the job does not retry.
   sim:
     name: Statistical simulations
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -96,6 +152,8 @@ jobs:
 
   e2e:
     name: End-to-end (Playwright)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # The image ships the browsers and their OS libraries, so the job downloads no apt packages.
