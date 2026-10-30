@@ -1,6 +1,8 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { describe, expect, it } from 'vitest'
-import { createHarness, digestFixture, type Harness } from '../test/harness.ts'
+import { DAILY_LIMITS } from '@rca/contract'
+import { utcDay } from '../budget.ts'
+import { START, createHarness, digestFixture, type Harness } from '../test/harness.ts'
 import { seedActivityRow } from '../test/seed.ts'
 
 const HASH = 'b'.repeat(64)
@@ -59,6 +61,36 @@ describe('POST /api/activities by model revision', () => {
       expect(res.status, String(revision)).toBe(409)
       expect(await res.json()).toMatchObject({ error: { code: 'app_outdated' } })
     }
+  })
+
+  it('treats an empty digest, object or array, as revision 1', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    for (const digest of [{}, []]) {
+      const res = await post(h, token, create(digest as Record<string, unknown>))
+      expect(res.status).toBe(409)
+      expect(await res.json()).toMatchObject({ error: { code: 'app_outdated' } })
+    }
+  })
+
+  it('answers 409, not 429, when the daily create budget is already spent', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const me = (await (await h.send({ path: '/api/me', ...as(token) })).json()) as {
+      user: { id: string }
+    }
+    await h.env.DB.prepare(
+      `INSERT INTO daily_budget (user_id, day, action, used) VALUES (?, ?, 'activityCreate', ?)`,
+    )
+      .bind(me.user.id, utcDay(START), DAILY_LIMITS.activityCreate)
+      .run()
+    // A current digest is held by the budget, which shows the pre-check does not depend on it.
+    const current = await post(h, token, create(digestFixture({ modelRevision: MODEL_REVISION })))
+    expect(current.status).toBe(429)
+    const stale = await post(h, token, create(digestFixture({ modelRevision: 1 })))
+    expect(stale.status).toBe(409)
+    expect(await stale.json()).toMatchObject({ error: { code: 'app_outdated' } })
+    expect(await dailyCreateUnits(h)).toBe(DAILY_LIMITS.activityCreate)
   })
 
   it('leaves a body with no digest object to the schema, as a malformed request', async () => {
