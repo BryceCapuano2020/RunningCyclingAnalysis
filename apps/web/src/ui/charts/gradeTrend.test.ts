@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { combine, digestActivity, fitnessTrend } from '@rca/core/digest'
+import { combine, digestActivity, equivalentRunSpeed, fitnessTrend } from '@rca/core/digest'
 import type { TrendPoint } from '@rca/core/digest'
-import { ageGradeForEffort } from '@rca/core/grade'
+import { ageGradeForEffort, gradeCeiling } from '@rca/core/grade'
 import { flatSpeedToMetabolic, metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { AthleteSettings, Sport } from '@rca/core/types'
@@ -114,6 +114,31 @@ describe('gradeWeeks against the cards', () => {
     const speed = metabolicToFlatSpeed(flatSpeedToMetabolic(4.2))
     expect(week?.run).toBe(ageGradeForEffort(speed, HEADLINE_DURATION_S, 35, 'male'))
     expect(week?.run).not.toBe(ageGradeForEffort(speed, HEADLINE_DURATION_S, 36, 'male'))
+  })
+
+  it('holds a ride week at the top of the age tables, so none plots above 100%', () => {
+    const point = (wkg: number): TrendPoint => ({
+      endMs: JAN_12_2025,
+      runWkg: null,
+      rideWkg: wkg,
+      runCount: 0,
+      rideCount: 1,
+      runAtMs: null,
+      rideAtMs: DEC_29_2024,
+      rideRunSpeed: equivalentRunSpeed(wkg * 75, 75, null),
+    })
+    const ceiling = gradeCeiling(HEADLINE_DURATION_S, 35, 'male')!
+    for (const wkg of [6, 7, 9]) {
+      const [week] = gradeWeeks([point(wkg)], PROFILE)
+      expect(week?.ride).toBe(ceiling)
+      expect(week?.rideHigh).toBe(ceiling)
+      expect(week?.rideLow ?? 0).toBeLessThanOrEqual(ceiling)
+      expect(ceiling).toBeLessThanOrEqual(1)
+    }
+    // A typical week is left as the model reads it, its high end under the ceiling.
+    const [typical] = gradeWeeks([point(3.5)], PROFILE)
+    expect(typical?.ride).toBeLessThan(ceiling)
+    expect(typical?.rideHigh).toBeLessThan(ceiling)
   })
 
   it('gives a week with no value no grade, and keeps its counts', () => {

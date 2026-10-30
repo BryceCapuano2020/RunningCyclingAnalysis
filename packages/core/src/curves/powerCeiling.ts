@@ -2,11 +2,12 @@ import type { DigestCurvePoint } from '../digest/partTypes'
 import { interpolatedCeiling } from './speedCeiling'
 
 /**
- * The published top of what riders hold, W/kg, at four durations: the lower edge of the "World Class
- * (international pro)" row of the men's power profile in Hunter Allen and Andrew Coggan, Training and
- * Racing with a Power Meter, 2nd ed.: 22.8 W/kg for 5 s, 10.6 for 1 min, 6.8 for 5 min and 5.6 for 60
- * min. The men's row is used for every athlete: the women's row is 11 to 22% lower, so it would
- * flag riders the men's row lets through, and the sex is not known where power is priced.
+ * The top of what riders hold, W/kg, at four durations, from a widely published power-profile table (the
+ * "World Class (international pro)" row for men, from the Allen and Coggan power profile): 22.8 W/kg for 5 s,
+ * 10.6 for 1 min, 6.8 for 5 min and 5.6 for 60 min. Copies of the table differ, and the primary source was not
+ * checked; a higher copy (25.2, 11.5, 7.6 and 6.6) is still under the ceiling these give once the margin is
+ * applied. The men's row is used for every athlete: copies of the women's row run 11 to 22% lower, so
+ * it would flag riders the men's row lets through, and the sex is not known where power is priced.
  */
 export const WORLD_CLASS_POWER_WKG: readonly { durationS: number; wkg: number }[] = [
   { durationS: 5, wkg: 22.8 },
@@ -16,6 +17,13 @@ export const WORLD_CLASS_POWER_WKG: readonly { durationS: number; wkg: number }[
 ]
 
 /**
+ * A node of our own, not of the table: the 15 s power of an elite sprinter, about 21 W/kg. Interpolating the
+ * table's 5 s and 1 min values alone would put the 15 s ceiling under it and flag a professional sprinter's
+ * best, so the ceiling is held to this value there. It is under the 5 s value, so the curve never rises with length.
+ */
+export const SPRINT_15S_WKG = 21
+
+/**
  * How far past the world-class edge a sustained power is still believable. The row marks where
  * professionals start, not their best, so a quarter of that again is allowed before a file is called
  * implausible; the faults this catches (a plateau of 700 W or more, a motor's output) are far beyond.
@@ -23,10 +31,11 @@ export const WORLD_CLASS_POWER_WKG: readonly { durationS: number; wkg: number }[
 export const POWER_CEILING_MARGIN = 1.25
 
 /** Ceiling points in the shape the speed tables use, so the same log-log interpolation applies. */
-const CEILING_TABLE = WORLD_CLASS_POWER_WKG.map((entry) => ({
-  durationS: entry.durationS,
-  speedMs: entry.wkg * POWER_CEILING_MARGIN,
-}))
+const CEILING_TABLE = [
+  ...WORLD_CLASS_POWER_WKG.slice(0, 1),
+  { durationS: 15, wkg: SPRINT_15S_WKG },
+  ...WORLD_CLASS_POWER_WKG.slice(1),
+].map((entry) => ({ durationS: entry.durationS, speedMs: entry.wkg * POWER_CEILING_MARGIN }))
 
 /**
  * The most W/kg a rider holds for durationS: the world-class edge, widened by the margin. Between the

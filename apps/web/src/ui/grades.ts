@@ -11,7 +11,7 @@ import {
 import type { Sex } from '@rca/core/grade'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { Sport } from '@rca/core/types'
+import type { Interval, Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 import { formatGrade, wholeGrade } from './gradeFormat'
 import { curveOf } from './records'
@@ -59,7 +59,13 @@ export interface SportGrade {
 
 /** Either a grade, with the age it was taken at, or the reason there is none to show. */
 export type GradeOutcome =
-  { kind: 'graded'; age: number; grade: SportGrade } | { kind: 'gap'; reason: string }
+  | { kind: 'graded'; age: number; grade: SportGrade }
+  /**
+   * A ride whose running equivalent is at or above what the age tables cover (see gradeCeiling): capped at 100%,
+   * with no grade of its own, and left out of the comparison with the run. Not a fault in the input.
+   */
+  | { kind: 'top-of-scale'; age: number }
+  | { kind: 'gap'; reason: string }
 
 export interface HeadlineGrades {
   run: GradeOutcome
@@ -82,14 +88,10 @@ export const NO_STANDARD_TEXT =
   'This best effort has no age standard or running equivalent to grade it.'
 /** The activity behind the best effort is not in the library, so the age on its date is unknown. */
 export const NO_DATE_TEXT = 'This best effort cannot be dated, so it is not graded.'
-/**
- * A ride's running equivalent is at or above the fastest a runner of the athlete's age and sex has run
- * (see gradeCeiling). It is shown as implausible input, left out of the grades and the balance, and
- * names what to check as possibilities, not findings.
- */
-export const IMPLAUSIBLE_RIDE_TEXT = `Your best ${HEADLINE_LABEL} ride power is at or above the running record for your age and sex, so it is flagged as implausible and left out of your grades and the balance. Worth checking: power meter calibration, your weight setting, or an e-bike ride logged as a ride.`
-/** The same flag in a few words, for a row or a line under the meter. */
-export const IMPLAUSIBLE_RIDE_SHORT = 'Power looks implausible'
+/** A ride's best effort is at or above the top of the age tables: said plainly, with no prompt to check anything. */
+export const TOP_OF_SCALE_TEXT = `Your best ${HEADLINE_LABEL} ride power is at the top of what the age tables cover, so it is capped at 100% and left out of the comparison with your running.`
+/** The same in a few words, for a row or a line under the meter. */
+export const TOP_OF_SCALE_SHORT = 'At the top of the age tables'
 export const AGE_RANGE_TEXT = `Age grades cover ages ${FIRST_GRADED_AGE} to ${LAST_GRADED_AGE}.`
 
 /** The level bands from lowest to highest, with the lower bound of each. */
@@ -147,32 +149,48 @@ function runGradeAt(speedMs: number, durationS: number, ageAndSex: AgeAndSex): S
   return centre === null ? null : { centre, range: null }
 }
 
-/** What rideGradeAt returns for an equivalent at or above the ceiling: no grade, and the reason is the input. */
-const IMPLAUSIBLE = 'implausible'
+/** A ride's grade read from its running-equivalent speeds, and whether it reaches the top of the age tables. */
+export interface RideGradeRead {
+  /** The grade with every end held at the ceiling, so none is above 100%. */
+  grade: SportGrade
+  /** The centre is at or above the ceiling: the ride is at the top of the scale. */
+  top: boolean
+}
 
 /**
- * A ride's grade from its running equivalent: the centre, and the model's range from the 5th to
- * the 95th percentile. A ride has no ceiling of its own, so the running record bounds it (gradeCeiling):
- * a centre at or above it is IMPLAUSIBLE, and a range end above it is held at it. Null without an
- * equivalent at durationS, or when an end has no grade.
+ * The one reading of a ride's running equivalent as a grade, for the cards and the trend alike. A ride has no
+ * ceiling of its own, so the running record bounds it (gradeCeiling): every end is held at the ceiling, and a
+ * centre at or above it is at the top of the scale. With no ceiling (the record's distance at this length is
+ * under the shortest standard) any graded equivalent is past it, and the ends are held at 100%. Null when
+ * an end has no grade.
  */
+export function rideGradeFromSpeeds(
+  runSpeed: Interval,
+  durationS: number,
+  ageAndSex: AgeAndSex,
+): RideGradeRead | null {
+  const at = (speedMs: number) => gradeAtSpeed(speedMs, durationS, ageAndSex)
+  const low = at(runSpeed.p05)
+  const centre = at(runSpeed.p50)
+  const high = at(runSpeed.p95)
+  if (!(low && centre && high)) return null
+  const ceiling = gradeCeiling(durationS, ageAndSex.age, ageAndSex.sex) ?? 1
+  const held = (grade: Grade): Grade =>
+    grade.grade > ceiling ? (gradeOf(ceiling) ?? grade) : grade
+  return {
+    grade: { centre: held(centre), range: { low: held(low), high: held(high) } },
+    top: centre.grade >= ceiling,
+  }
+}
+
+/** A ride's grade from its running equivalent at durationS; null without an equivalent there. */
 function rideGradeAt(
   result: AnalysisResult,
   durationS: number,
   ageAndSex: AgeAndSex,
-): SportGrade | typeof IMPLAUSIBLE | null {
+): RideGradeRead | null {
   const equivalent = result.equivalents.find((candidate) => candidate.durationS === durationS)
-  if (!equivalent) return null
-  const at = (speedMs: number) => gradeAtSpeed(speedMs, durationS, ageAndSex)
-  const low = at(equivalent.runSpeed.p05)
-  const centre = at(equivalent.runSpeed.p50)
-  const high = at(equivalent.runSpeed.p95)
-  if (!(low && centre && high)) return null
-  const ceiling = gradeCeiling(durationS, ageAndSex.age, ageAndSex.sex)
-  // No ceiling means the record's distance at this length is under the shortest standard, so any graded equivalent is past it.
-  if (ceiling === null || centre.grade >= ceiling) return IMPLAUSIBLE
-  const held = gradeOf(ceiling)
-  return { centre, range: { low, high: high.grade > ceiling && held ? held : high } }
+  return equivalent ? rideGradeFromSpeeds(equivalent.runSpeed, durationS, ageAndSex) : null
 }
 
 /**
@@ -193,17 +211,26 @@ export function sportGrade(
   if (startMs === null) return gap(NO_DATE_TEXT)
   const ageAndSex = ageAndSexAt(profile, startMs)
   if (ageAndSex === null) return gap(AGE_RANGE_TEXT)
-  const grade =
-    sport === 'run'
-      ? runGradeAt(metabolicToFlatSpeed(point.value), durationS, ageAndSex)
-      : rideGradeAt(result, durationS, ageAndSex)
-  if (grade === IMPLAUSIBLE) return gap(IMPLAUSIBLE_RIDE_TEXT)
-  return grade === null ? gap(NO_STANDARD_TEXT) : { kind: 'graded', age: ageAndSex.age, grade }
+  if (sport === 'run') {
+    const grade = runGradeAt(metabolicToFlatSpeed(point.value), durationS, ageAndSex)
+    return grade === null ? gap(NO_STANDARD_TEXT) : { kind: 'graded', age: ageAndSex.age, grade }
+  }
+  const ride = rideGradeAt(result, durationS, ageAndSex)
+  if (ride === null) return gap(NO_STANDARD_TEXT)
+  return ride.top
+    ? { kind: 'top-of-scale', age: ageAndSex.age }
+    : { kind: 'graded', age: ageAndSex.age, grade: ride.grade }
 }
 
-/** Whether a ride's outcome is the implausible-input flag: the balance leaves such a ride out. */
-export function isImplausibleRide(outcome: GradeOutcome | null): boolean {
-  return outcome !== null && outcome.kind === 'gap' && outcome.reason === IMPLAUSIBLE_RIDE_TEXT
+/** Whether a ride's outcome is the top of the scale, which the balance leaves out. */
+export function isTopOfScale(outcome: GradeOutcome | null): boolean {
+  return outcome !== null && outcome.kind === 'top-of-scale'
+}
+
+/** Why an outcome shows no grade, as a sentence; null for a graded one. */
+export function notGradedText(outcome: GradeOutcome): string | null {
+  if (outcome.kind === 'graded') return null
+  return outcome.kind === 'top-of-scale' ? TOP_OF_SCALE_TEXT : outcome.reason
 }
 
 /** Both sports' grades at the headline duration, each at its own date. */
@@ -215,11 +242,11 @@ export function headlineGrades(result: AnalysisResult, profile: AgeProfile): Hea
 }
 
 /**
- * The headline's comparison, held when the ride's grade is flagged as implausible input. The energy comparison
- * is taken from the same ride, so it would carry the flagged power into the balance that the grades leave out.
+ * The headline's comparison, left out when the ride is at the top of the scale. The energy comparison is taken
+ * from the same ride, so it would carry into the balance a ride that the grades leave out.
  */
-export function unlessRideImplausible<T>(pick: T | null, ride: GradeOutcome | null): T | null {
-  return isImplausibleRide(ride) ? null : pick
+export function unlessRideAtTop<T>(pick: T | null, ride: GradeOutcome | null): T | null {
+  return isTopOfScale(ride) ? null : pick
 }
 
 /**
@@ -238,32 +265,7 @@ export function gradedSexOf(
   return shown ? profile.sex : null
 }
 
-/**
- * The note a run's pace carries. The Flat mark on each run row is spelled out here, so it has its
- * meaning in words too.
- */
-export const FLAT_PACE_NOTE = 'Flat pace: your pace allowing for hills, as if on level ground.'
-
-/**
- * The note under a run's distance times when its splits are on the page too. The two are timed
- * differently on purpose: a distance time is race-like, from the clock including stops, and a split
- * is moving time.
- */
-export const TIMING_NOTE = 'Distance times include stops. Splits are moving time.'
-
-/** The same note while the splits show the device's recorded laps, whose timing it does not claim. */
-export const TIMING_NOTE_LAPS = 'Distance times include stops.'
-
-/** The note under splits where a steep descent has left a flat pace out. */
-export const STEEP_DESCENT_NOTE =
-  'Flat pace is left out where a steep descent would make it much slower than the pace you ran.'
-
-/** The note a run's distance times carry: they are as run, and the pace curve allows for hills. */
-export const DISTANCE_TIMES_NOTE =
-  'Distance times are as run. The pace curve allows for hills, so they can differ.'
-
-/** The note under a sport's grades: running's pace is flat, so it says so, and cycling has none. */
-export const SPORT_NOTE: Partial<Record<Sport, string>> = { run: FLAT_PACE_NOTE }
+export * from './gradeNotes'
 
 /**
  * The level a grade names: its band, or "Recreational to Local" when a ride's range crosses a band
@@ -367,8 +369,8 @@ export function isNoStandardGap(outcome: GradeOutcome | null): boolean {
  */
 export function gapRecordText(sport: Sport, outcome: GradeOutcome): string | null {
   if (outcome.kind === 'graded') return null
-  if (isImplausibleRide(outcome)) return IMPLAUSIBLE_RIDE_SHORT
-  return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport] : outcome.reason
+  if (outcome.kind === 'top-of-scale') return TOP_OF_SCALE_SHORT
+  return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport] : notGradedText(outcome)
 }
 
 /**

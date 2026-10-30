@@ -3,7 +3,7 @@ import type { EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
-import { HEADLINE_LABEL, gradeParts } from '../grades'
+import { HEADLINE_LABEL, gradeParts, notGradedText } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
 import { SPORT_LABEL, THRESHOLD_GLOSS, THRESHOLD_MEANING } from '../sports'
@@ -44,7 +44,7 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
 /** The grade line under the figure: the level and grade, and the best effort it rests on. */
 function gradeLine(sport: Sport, grade: GradeOutcome | null, effort: string | null): string | null {
   if (grade === null) return null
-  if (grade.kind === 'gap') return grade.reason
+  if (grade.kind !== 'graded') return notGradedText(grade)
   const { level, value, range } = gradeParts(sport, grade.grade, 'row')
   const grades = `${level} · ${value}${range === null ? '' : ` (${range})`}`
   return `${grades} on your best ${HEADLINE_LABEL}${effort === null ? '' : `, ${effort}`}.`

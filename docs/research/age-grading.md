@@ -38,13 +38,18 @@ running equivalent, and shows the model's 5th to 95th percentile as the range.
 Owner decision, 2026-10-30: a ride keeps its level words but is capped. The running age factors have no
 ceiling for a ride, so a strong young rider, and an older or female rider at modest watts, would read above
 100%. `gradeCeiling` is the lower of 1 and the grade of the open running record's speed
-(`RUN_WORLD_RECORD_SPEEDS`) for the length, at the athlete's age and sex. A ride whose centre equivalent
-is at or above it is flagged as implausible input (power meter calibration, weight setting or a
-mislabelled e-bike ride are the things to check), shown as that, and left out of the balance: the grade
-gap, the energy comparison and the share card. A range end above it is held at it. The level target is
-hidden when its target is above 100%, or at the ceiling for a ride. At 20 minutes the ceiling binds at 100%,
-which a 70 kg rider's 20-minute power reaches at about 5.6 W/kg (man of 25), 4.4 (man of 65), 5.2 (woman
-of 25) and 3.8 (woman of 65). A genuinely elite rider is flagged too; there is no override on this flag.
+(`RUN_WORLD_RECORD_SPEEDS`) for the length, at the athlete's age and sex. A ride whose centre equivalent is
+at or above it reads as at the **top of the scale**: capped at 100%, "at the top of what the age tables
+cover", and left out of the balance (the grade gap, the energy comparison and the share card). It is not a
+fault in the input, so the page asks for no check and offers no override. A range end above the ceiling is
+held at it, and the one reading (`rideGradeFromSpeeds`) is shared by the cards and the trend chart, so no
+week plots above 100%. The level target is hidden when its target is above 100%, or at the ceiling for a ride.
+At 20 minutes the ceiling binds at 100%, which a 70 kg rider's 20-minute power reaches at about 5.6 W/kg (man
+of 25), 4.4 (man of 65), 5.2 (woman of 25) and 3.8 (woman of 65).
+
+Implausible input is a different flag, for power above what professionals sustain (RCA-049; see DESIGN.md,
+"A ride whose power no rider holds is set aside"). Only that flag names the checks (power meter
+calibration, the weight setting, an e-bike logged as a ride) and can be overridden, with Keep this power.
 
 ## 4. Level bands
 

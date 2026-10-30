@@ -2,8 +2,7 @@ import type { Sport } from '@rca/core/types'
 import {
   AGE_RANGE_TEXT,
   HEADLINE_LABEL,
-  IMPLAUSIBLE_RIDE_SHORT,
-  IMPLAUSIBLE_RIDE_TEXT,
+  TOP_OF_SCALE_SHORT,
   NEEDS_EFFORT_TEXT,
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
@@ -37,7 +36,6 @@ const SHORT_REASON: Record<string, string> = {
   [NO_DATE_TEXT]: 'Best effort has no date',
   [AGE_RANGE_TEXT]: AGE_RANGE_TEXT.replace(/\.$/, ''),
   [NO_STANDARD_TEXT]: 'No age standard for this effort',
-  [IMPLAUSIBLE_RIDE_TEXT]: IMPLAUSIBLE_RIDE_SHORT,
 }
 
 /** The line for a sport with no activities in the period, per sport. */
@@ -53,6 +51,7 @@ function missingFor(
 ): string {
   if (input.inPeriod[sport] === 0) return NONE_IN_PERIOD[sport]
   if (outcome?.kind === 'gap') return SHORT_REASON[outcome.reason] ?? outcome.reason
+  if (outcome?.kind === 'top-of-scale') return TOP_OF_SCALE_SHORT
   // No outcome: the grades wait for the year of birth and sex, or for the weight a ride's grade needs.
   return input.missingAge === null ? 'Needs your weight' : `Needs your ${input.missingAge}`
 }

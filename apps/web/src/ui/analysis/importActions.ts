@@ -4,6 +4,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings } from '@rca/core/types'
 import { forgetSeenNotes } from '../aboutDataStore'
+import { clearKeptPower } from '../keptPowerStore'
 import { analysisSettings } from '../athlete'
 import { storedPeriodRequest } from '../periodPreference'
 import {
@@ -249,6 +250,7 @@ export function useImportActions({
     // What was cleared is no baseline, even before the worker answers the clear.
     reportedRef.current = EMPTY_SESSION
     forgetSeenNotes()
+    clearKeptPower()
     send({ type: 'clear', forgetDevice: accountRef.current.status !== 'signed-in' })
     refreshBusy()
   }, [

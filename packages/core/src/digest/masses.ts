@@ -12,6 +12,8 @@ export interface Masses {
   totalKg(digest: Pick<ActivityDigest, 'startMs'>): number
   /** Whether activities may differ in mass, because some body mass is dated. */
   dated: boolean
+  /** False while the body mass is a placeholder, when power per kilo cannot be judged. */
+  massKnown: boolean
   /** Whether the athlete chose to keep this ride's power although it is implausible (see implausiblePower). */
   powerKept(digest: Pick<ActivityDigest, 'id'>): boolean
 }
@@ -23,11 +25,13 @@ export function fixedMasses(
   massKg: number,
   bikeMassKg: number,
   kept: ReadonlySet<string> = NONE_KEPT,
+  massKnown = true,
 ): Masses {
   return {
     bodyKg: () => massKg,
     totalKg: () => massKg + bikeMassKg,
     dated: false,
+    massKnown,
     powerKept: (digest) => kept.has(digest.id),
   }
 }
@@ -35,12 +39,14 @@ export function fixedMasses(
 /** The masses of an analysis: dated body masses when settings have them, else settings.massKg. */
 export function massesOf(settings: AthleteSettings): Masses {
   const kept = new Set(settings.keepPower ?? [])
-  if (!hasDatedMass(settings)) return fixedMasses(settings.massKg, settings.bikeMassKg, kept)
+  if (!hasDatedMass(settings))
+    return fixedMasses(settings.massKg, settings.bikeMassKg, kept, settings.massAssumed !== true)
   const bodyAt = massAtFor(settings)
   return {
     bodyKg: (digest) => bodyAt(digest.startMs),
     totalKg: (digest) => bodyAt(digest.startMs) + settings.bikeMassKg,
     dated: true,
+    massKnown: true,
     powerKept: (digest) => kept.has(digest.id),
   }
 }

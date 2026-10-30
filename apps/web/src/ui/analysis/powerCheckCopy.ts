@@ -11,9 +11,17 @@ export const POWER_KEPT_CHIP = 'Power kept'
 export const POWER_SET_ASIDE_NOTE =
   'This ride’s power is higher than riders hold for these lengths at your weight, so it is left out of your bests, grades and the balance. Worth checking: power meter calibration, your weight setting, or an e-bike ride logged as a ride.'
 
-/** The line once the athlete has kept it. */
+/**
+ * The line once the athlete has kept it: what keeping changes (the ride counts toward the bests, the
+ * thresholds and the fitness figures) and what it does not (a ride at the top of the age tables stays out of the comparison).
+ */
 export const POWER_KEPT_NOTE =
-  'You chose to keep this ride’s power. It counts in your bests, grades and the balance.'
+  'You chose to keep this ride’s power, so it counts in your bests and thresholds. If it puts your cycling at the top of what the age tables cover, it is still left out of the comparison with your running.'
+
+/** The title and line when the period’s rides were set aside and left no ride to compare. */
+export const POWER_IMPLAUSIBLE_TITLE = 'Your ride power looks implausible'
+export const POWER_IMPLAUSIBLE_TEXT =
+  'Power on your rides is above what riders hold at your weight, so they are set aside and left out of your bests, grades and the balance. Worth checking: power meter calibration, your weight setting, or an e-bike ride logged as a ride. Each ride’s page lets you keep its power.'
 
 export const KEEP_POWER_LABEL = 'Keep this power'
 export const SET_POWER_ASIDE_LABEL = 'Set this power aside'

@@ -2,7 +2,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AgeProfile, Grade } from '../grades'
-import { ageAndSexAt, gradeAtSpeed } from '../grades'
+import { ageAndSexAt, gradeAtSpeed, rideGradeFromSpeeds } from '../grades'
 
 /**
  * One week of a shared trend: each sport's age grade that week, as a fraction, or null where it has none. A ride
@@ -41,18 +41,20 @@ function runGradeOf(point: TrendPoint, profile: AgeProfile): number | null {
 }
 
 /**
- * A ride's grades through its running equivalent, which is the same speed the card takes: the
- * centre at the median, and the range from the 5th to the 95th percentile. Null when any end has
- * no grade, as the card requires.
+ * A ride's grades through its running equivalent, which is the same speed the card takes and is read the
+ * same way (rideGradeFromSpeeds): the centre at the median, the range from the 5th to the 95th percentile, and
+ * every end held at the top of the age tables, so no week plots above 100%. Null when any end has no grade, as
+ * the card requires.
  */
 function rideGradesOf(point: TrendPoint, profile: AgeProfile): RideGrades | null {
   const { rideRunSpeed: speed, rideAtMs: atMs } = point
   if (speed === null || atMs === null) return null
-  const low = gradeAt(speed.p05, profile, atMs)
-  const centre = gradeAt(speed.p50, profile, atMs)
-  const high = gradeAt(speed.p95, profile, atMs)
-  if (low === null || centre === null || high === null) return null
-  return { centre: centre.grade, low: low.grade, high: high.grade }
+  const ageAndSex = ageAndSexAt(profile, atMs)
+  if (ageAndSex === null) return null
+  const read = rideGradeFromSpeeds(speed, HEADLINE_DURATION_S, ageAndSex)
+  if (read === null || read.grade.range === null) return null
+  const { centre, range } = read.grade
+  return { centre: centre.grade, low: range.low.grade, high: range.high.grade }
 }
 
 /**

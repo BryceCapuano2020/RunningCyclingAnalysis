@@ -118,8 +118,7 @@ export function ActivityRow({
   const skipped = materialSkippedCountOf(activity)
   const day = dateOrder ? formatRowDay(activity.startMs) : formatDay(activity.startMs)
   const chips = NEEDS_WEIGHT[activity.sport] && !weightKnown ? [] : chipLabels(records)
-  // Judged at the body mass in use, which is a placeholder until the athlete enters one: the mark waits for it.
-  const power = weightKnown ? powerCheckChip(activity.powerCheck) : null
+  const power = powerCheckChip(activity.powerCheck)
   const hero = heroOf(activity, units)
   return (
     <li

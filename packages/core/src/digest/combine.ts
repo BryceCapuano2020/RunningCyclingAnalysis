@@ -27,7 +27,8 @@ import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
 import { judgedCurves } from './judgedCurves'
-import { fitBikeModelOver, measuredRideBest, powerCheckOf, runCentralWkg } from './rideCurves'
+import { powerCheckOf, trustedPower } from './powerCheck'
+import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
 import type { EstimatedRideGate } from './estimatedRide'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { withoutSetAside } from './trustedHeartRate'
@@ -226,7 +227,7 @@ export function combine(
   const massKg = settings.massKg
   const masses = massesOf(settings)
 
-  const calibrated = calibratedOf(ordered)
+  const calibrated = calibratedOf(trustedPower(ordered, masses))
   const fittedBike = fitBikeModelOver(ordered, masses)
   const bikeModel = fittedBike.model
   const virtualAccuracy =
@@ -241,9 +242,7 @@ export function combine(
   const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = curves
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
-  const rideMeasuredCurve = plainCurve(
-    measuredRideBest(ordered.filter((digest) => powerCheckOf(digest, masses) !== 'set-aside')),
-  )
+  const rideMeasuredCurve = plainCurve(measuredRideBest(trustedPower(ordered, masses)))
   const rideMetabolicCurve = rideMetabolic
 
   const runFit = fits.run

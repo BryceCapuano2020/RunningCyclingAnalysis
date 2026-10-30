@@ -1,5 +1,5 @@
 import { HEADLINE_DURATION_S, HR_BLOCK_S, PRIORS, RESTING_W_PER_KG } from '../constants'
-import { implausiblePower, possibleRunWkg } from '../curves'
+import { possibleRunWkg } from '../curves'
 import { checkEfforts } from '../effort'
 import type { EffortPoint, MaxHeartRates } from '../effort'
 import type {
@@ -21,6 +21,7 @@ import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
+import { powerCheckOf, trustedPower } from './powerCheck'
 import { powerAt } from './terms'
 import { withoutSetAside } from './trustedHeartRate'
 
@@ -52,20 +53,11 @@ export function centralWkgFromWatts(watts: number, massKg: number): number {
  * it rode at, so a ride from a year ago is not refitted at today's weight.
  */
 export function fitBikeModelOver(ordered: ActivityDigest[], masses: Masses) {
-  const pool = new CalibrationPool(calibratedOf(ordered), (digest) => masses.totalKg(digest))
+  // A ride whose power is set aside is not a calibration of the bike: a wrong meter would bend the fit.
+  const pool = new CalibrationPool(calibratedOf(trustedPower(ordered, masses)), (digest) =>
+    masses.totalKg(digest),
+  )
   return fitBikeModel(pool.stats())
-}
-
-/**
- * Whether a ride's power is in question (see implausiblePower): 'set-aside' while it is left out of every best,
- * 'kept' once the athlete chose to keep it. Undefined for a run and for a ride whose power is plausible.
- */
-export function powerCheckOf(
-  digest: ActivityDigest,
-  masses: Masses,
-): 'set-aside' | 'kept' | undefined {
-  if (digest.sport !== 'ride' || !implausiblePower(digest, masses.bodyKg(digest))) return undefined
-  return masses.powerKept(digest) ? 'kept' : 'set-aside'
 }
 
 /**
@@ -207,7 +199,7 @@ export function sportCurves(
     masses,
     bikeModel,
     settings.massKg,
-    gate === undefined ? ownRideGate(ordered) : gate,
+    gate === undefined ? ownRideGate(trustedPower(ordered, masses)) : gate,
   )
   const curves = { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
   if (hardness === undefined) return curves

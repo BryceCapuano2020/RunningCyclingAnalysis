@@ -6,6 +6,7 @@ import { massesOf } from '../digest/masses'
 import { orderedCurrent } from '../digest/ordered'
 import { estimatedStanding, ownRideGate, pointAt } from '../digest/estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from '../digest/estimatedRide'
+import { trustedPower } from '../digest/powerCheck'
 import { fitBikeModelOver, pointWkg } from '../digest/rideCurves'
 import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
 
@@ -56,7 +57,9 @@ export function recordHolders(
   const bikeModel = fitBikeModelOver(ordered, masses).model
   // A treadmill run holds no record (see effortsCount), though its own times still show on its page.
   const eligible = ordered.filter(effortsCount)
-  const standing = estimatedStanding(gate === undefined ? ownRideGate(ordered) : gate)
+  const standing = estimatedStanding(
+    gate === undefined ? ownRideGate(trustedPower(ordered, masses)) : gate,
+  )
   const held = new Map<string, EarnedRecord[]>()
   const give = (id: string, record: EarnedRecord) => {
     const list = held.get(id)

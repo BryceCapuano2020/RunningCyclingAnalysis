@@ -5,6 +5,7 @@ import { plainCurve } from './bestCurve'
 import { estimatedStanding, rideGateOf } from './estimatedRide'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { Masses } from './masses'
+import { trustedPower } from './powerCheck'
 import { bestCurves, pointWkg } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { trustedHeartRate } from './trustedHeartRate'
@@ -59,13 +60,15 @@ export function judgedCurves(
   given: Given = {},
 ): JudgedCurves {
   const first = given.heartRateSetAside ?? lowForPowerSetAside(ordered)
-  let gate = given.rideGate === undefined ? rideGateOf(ordered, first) : given.rideGate
+  // The gate's heart-rate lines come from measured rides, less those whose power is set aside.
+  const powered = trustedPower(ordered, masses)
+  let gate = given.rideGate === undefined ? rideGateOf(powered, first) : given.rideGate
   let curves = bestCurves(ordered, masses, bikeModel, todayKg, gate)
   let fits = fitsOf(curves)
   const heart = trustedHeartRate(ordered, fits, unitsOf(masses, bikeModel), given.heartRateSetAside)
   if (given.heartRateSetAside === undefined && given.rideGate === undefined) {
     if (heart.setAside.size !== first.size) {
-      gate = rideGateOf(ordered, heart.setAside)
+      gate = rideGateOf(powered, heart.setAside)
       curves = bestCurves(ordered, masses, bikeModel, todayKg, gate)
       fits = fitsOf(curves)
     }

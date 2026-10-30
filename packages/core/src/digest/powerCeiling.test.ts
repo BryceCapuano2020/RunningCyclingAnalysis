@@ -1,76 +1,61 @@
 import { describe, expect, it } from 'vitest'
-import { DURATIONS_S } from '../constants'
 import {
   POWER_CEILING_MARGIN,
+  SPRINT_15S_WKG,
   WORLD_CLASS_POWER_WKG,
+  implausiblePower,
   ridePowerCeilingWkg,
 } from '../curves/powerCeiling'
-import { sampleDataset } from '../synthetic'
-import type { ActivityDigest, AthleteSettings, DigestCurvePoint } from '../types'
+import type { ActivityDigest, AthleteSettings } from '../types'
 import { activitySummaries, combine } from './combine'
-import { digestActivity } from './digestActivity'
 import { fixedMasses } from './masses'
-import { powerCheckOf } from './rideCurves'
+import { powerCheckOf } from './powerCheck'
+import { DAY, RUN_TEMPLATE, START, meterRide, steadyRide } from './powerFixtures'
 
-const { activities } = sampleDataset()
-const template = digestActivity(activities.find((a) => a.sport === 'ride')!)
 const settings: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
-const DAY = 86_400_000
-const START = Date.UTC(2026, 5, 1, 9)
 
-/** A ride whose measured power is watts at every duration up to its length, none beyond. */
-function ride(id: string, startMs: number, watts: (durationS: number) => number): ActivityDigest {
-  const curve: DigestCurvePoint[] = DURATIONS_S.map((durationS) => ({
-    durationS,
-    value: watts(durationS),
-    startIndex: 0,
-    windowS: durationS,
-    heartRate: null,
-    terms: null,
-  }))
-  return {
-    ...template,
-    id,
-    name: id,
-    startMs,
-    sport: 'ride',
-    curve,
-    hrBlocks: [],
-    calibration: null,
-  }
-}
-
-/** A steady ride at a W/kg for every duration, for the settings' 70 kg. */
-const steady = (id: string, startMs: number, wkg: number) => ride(id, startMs, () => wkg * 70)
-
-const bestId = (digests: ActivityDigest[], opts?: AthleteSettings) =>
-  combine(digests, opts ?? settings).rideCurve.find((p) => p.durationS === 1200)?.activityId
+const bestId = (digests: ActivityDigest[], opts: AthleteSettings = settings) =>
+  combine(digests, opts).rideCurve.find((p) => p.durationS === 1200)?.activityId
 
 describe('the ride power ceiling', () => {
-  it('is the published world-class edge widened by the margin, in log-log between durations', () => {
+  it('is the table’s world-class edge widened by the margin at its durations, with a 15 s sprint node', () => {
     for (const { durationS, wkg } of WORLD_CLASS_POWER_WKG) {
       expect(ridePowerCeilingWkg(durationS)).toBeCloseTo(wkg * POWER_CEILING_MARGIN, 12)
     }
-    expect(ridePowerCeilingWkg(1200)).toBeGreaterThan(ridePowerCeilingWkg(3600))
-    expect(ridePowerCeilingWkg(1200)).toBeLessThan(ridePowerCeilingWkg(300))
+    expect(ridePowerCeilingWkg(15)).toBeCloseTo(SPRINT_15S_WKG * POWER_CEILING_MARGIN, 12)
     expect(ridePowerCeilingWkg(1)).toBe(ridePowerCeilingWkg(5))
     expect(ridePowerCeilingWkg(86_400)).toBe(ridePowerCeilingWkg(3600))
   })
 
-  it('lets a strong rider through at every duration', () => {
-    // 6.5 W/kg for 20 minutes is professional power; the tail cases are the athletes it must not flag.
-    const strong = ride(
-      's',
-      START,
-      (durationS) => 70 * Math.min(6.5 * (1200 / durationS) ** 0.1, 6.5 * 3),
-    )
+  it('never rises with length, over every length from 1 s to 3 h', () => {
+    let previous = Number.POSITIVE_INFINITY
+    for (let durationS = 1; durationS <= 10_800; durationS = Math.ceil(durationS * 1.01) + 1) {
+      const ceiling = ridePowerCeilingWkg(durationS)
+      expect(ceiling).toBeLessThanOrEqual(previous + 1e-12)
+      previous = ceiling
+    }
+  })
+
+  it('is continuous: a one-percent step in length moves it by under two percent', () => {
+    for (let durationS = 2; durationS <= 10_800; durationS = Math.ceil(durationS * 1.01) + 1) {
+      const step = Math.log(ridePowerCeilingWkg(durationS * 1.01) / ridePowerCeilingWkg(durationS))
+      expect(Math.abs(step)).toBeLessThan(0.02)
+    }
+  })
+
+  it('lets a strong rider and an elite sprinter through at every length', () => {
+    // 6.5 W/kg for 20 min is professional power; 21 W/kg for 15 s is an elite sprinter's.
+    const strong = meterRide('s', START, (durationS) => {
+      if (durationS <= 15) return 70 * 21
+      return 70 * Math.min(6.5 * (1200 / durationS) ** 0.1, 6.5 * 3)
+    })
     expect(powerCheckOf(strong, fixedMasses(70, 9))).toBeUndefined()
   })
 })
 
 describe('an implausible sustained power in the analysis', () => {
-  const plateau = steady('plateau', START, 10) // 700 W for a 70 kg rider at every length
-  const normal = steady('normal', START + DAY, 3.5)
+  const plateau = steadyRide('plateau', START, 10) // 700 W for a 70 kg rider at every length
+  const normal = steadyRide('normal', START + DAY, 3.5)
 
   it('is set aside, so the next-best ride sets the best', () => {
     expect(bestId([plateau, normal])).toBe('normal')
@@ -87,9 +72,8 @@ describe('an implausible sustained power in the analysis', () => {
     expect(flagged.find((s) => s.id === 'plateau')?.powerCheck).toBe('set-aside')
     expect(flagged.find((s) => s.id === 'normal')?.powerCheck).toBeUndefined()
     const kept = { ...settings, keepPower: ['plateau'] }
-    expect(
-      activitySummaries([plateau, normal], kept).find((s) => s.id === 'plateau')?.powerCheck,
-    ).toBe('kept')
+    const keptSummaries = activitySummaries([plateau, normal], kept)
+    expect(keptSummaries.find((s) => s.id === 'plateau')?.powerCheck).toBe('kept')
     expect(bestId([plateau, normal], kept)).toBe('plateau')
   })
 
@@ -98,8 +82,14 @@ describe('an implausible sustained power in the analysis', () => {
     expect(bestId([plateau, normal], { massKg: 137, bikeMassKg: 9 })).toBe('plateau')
   })
 
+  it('is not judged while no body weight is entered, since 75 kg is a placeholder', () => {
+    const assumed: AthleteSettings = { massKg: 75, bikeMassKg: 9, massAssumed: true }
+    expect(bestId([plateau, normal], assumed)).toBe('plateau')
+    expect(activitySummaries([plateau], assumed)[0]?.powerCheck).toBeUndefined()
+    expect(implausiblePower(plateau, 75)).toBe(true)
+  })
+
   it('does not touch a run', () => {
-    const run = digestActivity(activities.find((a) => a.sport === 'run')!)
-    expect(powerCheckOf(run, fixedMasses(70, 9))).toBeUndefined()
+    expect(powerCheckOf(RUN_TEMPLATE, fixedMasses(70, 9))).toBeUndefined()
   })
 })

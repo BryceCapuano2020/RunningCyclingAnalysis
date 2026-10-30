@@ -24,12 +24,12 @@ import {
   ageAndSexAt,
   gradedSexOf,
   headlineGrades,
-  isImplausibleRide,
   SEX_NOUN,
-  unlessRideImplausible,
+  unlessRideAtTop,
 } from '../grades'
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
+import { rideLeftOut } from '../rideLeftOut'
 import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
@@ -143,9 +143,9 @@ export function BalancePage({
     }),
     [headline, weightKnown],
   )
-  // A ride flagged as implausible input is left out of the comparison, so the energy view cannot carry it in.
-  const rideImplausible = isImplausibleRide(grades.ride)
-  const pick = unlessRideImplausible(headlinePick(result), grades.ride)
+  // A ride at the top of the age tables is left out of the comparison, so the energy view cannot carry it in.
+  const leftOut = rideLeftOut(grades.ride, result)
+  const pick = unlessRideAtTop(headlinePick(result), grades.ride)
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // The balance is stated once the headline can compare the sports; without a pick it is held, and the gap is
   // held with it. This is the one gate: the headline, the tiles, the level target and the changes all read it.
@@ -268,7 +268,7 @@ export function BalancePage({
         weightKnown={weightKnown}
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
-        rideImplausible={rideImplausible}
+        rideLeftOut={leftOut}
         levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
         action={

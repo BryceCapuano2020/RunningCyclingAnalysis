@@ -9,7 +9,7 @@ import { plural } from '../components/plural'
 import { headlinePick } from '../components/pickHeadline'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
-import { headlineGrades, unlessRideImplausible } from '../grades'
+import { headlineGrades, unlessRideAtTop } from '../grades'
 import { curveOf, distanceRecords, effortLabel, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
 import { SPORT_ORDER } from '../sports'
@@ -116,9 +116,9 @@ function balanceItem(
   if (!weighted) return null
   const gradesBefore = profile === null ? null : headlineGrades(before, profile)
   const gradesAfter = profile === null ? null : headlineGrades(after, profile)
-  // A ride flagged as implausible input is out of the comparison, as the page leaves it out.
-  const pickBefore = unlessRideImplausible(headlinePick(before), gradesBefore?.ride ?? null)
-  const pickAfter = unlessRideImplausible(headlinePick(after), gradesAfter?.ride ?? null)
+  // A ride at the top of the age tables is out of the comparison, as the page leaves it out.
+  const pickBefore = unlessRideAtTop(headlinePick(before), gradesBefore?.ride ?? null)
+  const pickAfter = unlessRideAtTop(headlinePick(after), gradesAfter?.ride ?? null)
   const gapBefore = gradesBefore === null ? null : gapOfHeadline(gradesBefore)
   const gapAfter = gradesAfter === null ? null : gapOfHeadline(gradesAfter)
   const readingBefore = balanceOfPick(gapBefore, pickBefore)

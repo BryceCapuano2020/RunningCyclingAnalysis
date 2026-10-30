@@ -35,7 +35,7 @@ import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
-import { useKeptPower } from './ui/keptPowerStore'
+import { clearKeptPower, useKeptPower } from './ui/keptPowerStore'
 
 /** A string that changes whenever a different page is on screen. */
 function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
@@ -213,6 +213,7 @@ export function App() {
   }
   const deleteAccount = async () => {
     await account.deleteAccount()
+    clearKeptPower()
     setAccountDeleted(true)
     window.location.replace(hrefFor({ page: 'balance' }))
   }
@@ -264,6 +265,7 @@ export function App() {
             onSignOut={() => {
               // What this browser noted about the visitor's data goes with their session.
               forgetSeenNotes()
+              clearKeptPower()
               void account.signOut().catch(() => undefined)
             }}
           />

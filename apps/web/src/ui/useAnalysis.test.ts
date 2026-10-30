@@ -463,7 +463,7 @@ describe('useAnalysis account handling', () => {
     expect(worker().posted.at(-1)).toEqual({
       type: 'addFiles',
       files: [FILE],
-      settings: { massKg: 75, bikeMassKg: 12 },
+      settings: { massKg: 75, bikeMassKg: 12, massAssumed: true },
       sync: { keepFiles: true, userId: USER_ID },
     })
   })

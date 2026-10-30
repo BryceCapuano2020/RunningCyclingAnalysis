@@ -2,7 +2,7 @@ import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
 import { GradesLink, GradingLink } from '../components/GradingLink'
 import { LevelLadder } from '../components/LevelLadder'
-import { HEADLINE_LABEL, LEVEL_NOT_RANKING, gradeParts } from '../grades'
+import { HEADLINE_LABEL, LEVEL_NOT_RANKING, gradeParts, notGradedText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { BasisChip } from './StatTile'
@@ -85,8 +85,8 @@ export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelPro
           {`Age grades need your ${missingAge}.`}{' '}
           <a href={hrefFor({ page: 'profile' })}>{`Add your ${missingAge}`}</a>
         </p>
-      ) : outcome.kind === 'gap' ? (
-        <p className="secondary">{outcome.reason}</p>
+      ) : outcome.kind !== 'graded' ? (
+        <p className="secondary">{notGradedText(outcome)}</p>
       ) : (
         <>
           <LevelFigure sport={sport} outcome={outcome} />

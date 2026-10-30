@@ -55,6 +55,7 @@ export function hasDatedMass(settings: AthleteSettings): boolean {
  */
 export function sameMasses(a: AthleteSettings, b: AthleteSettings): boolean {
   if (a.massKg !== b.massKg || a.bikeMassKg !== b.bikeMassKg) return false
+  if ((a.massAssumed ?? false) !== (b.massAssumed ?? false)) return false
   const [keptA, keptB] = [a.keepPower ?? [], b.keepPower ?? []]
   if (keptA.length !== keptB.length || !keptA.every((id) => keptB.includes(id))) return false
   const [left, right] = [

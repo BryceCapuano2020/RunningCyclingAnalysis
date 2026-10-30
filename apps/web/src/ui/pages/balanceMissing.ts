@@ -4,7 +4,9 @@ import { countedPhrase, heldAction, needLine } from '../components/headlineNeed'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
-import { IMPLAUSIBLE_RIDE_TEXT } from '../grades'
+import { POWER_IMPLAUSIBLE_TEXT, POWER_IMPLAUSIBLE_TITLE } from '../analysis/powerCheckCopy'
+import { TOP_OF_SCALE_TEXT } from '../grades'
+import type { RideLeftOut } from '../rideLeftOut'
 import { betweenClause } from '../periodCopy'
 import { countEfforts, countSport } from '../records'
 
@@ -44,8 +46,20 @@ function noneOnScreen(libraryRuns: number, libraryRides: number, when: string): 
   }
 }
 
-/** The title while the ride's power is flagged and there is no run level to lead with. */
-const IMPLAUSIBLE_TITLE = 'Your ride power looks implausible'
+/** What a ride left out of the comparison says, and the title it takes when there is no run level to lead with. */
+const LEFT_OUT: Record<RideLeftOut, { title: string; detail: string }> = {
+  'top-of-scale': {
+    title: 'Your cycling is at the top of the age tables',
+    detail: TOP_OF_SCALE_TEXT,
+  },
+  'implausible-power': { title: POWER_IMPLAUSIBLE_TITLE, detail: POWER_IMPLAUSIBLE_TEXT },
+}
+
+/** The inputs to what is missing beyond the period, the library and the levels on screen. */
+export interface MissingOptions {
+  /** Why the ride is not in the comparison, when it is not for want of efforts. */
+  rideLeftOut?: RideLeftOut | null
+}
 
 /** What is missing before the two sports can be compared, in the period on screen. */
 export function missingText(
@@ -53,7 +67,7 @@ export function missingText(
   library: ActivitySummary[],
   period: Period,
   levels: { run: string | null; ride: string | null },
-  rideImplausible = false,
+  options: MissingOptions = {},
 ): Missing {
   const runs = countSport(result.activities, 'run')
   const rides = countSport(result.activities, 'ride')
@@ -93,11 +107,12 @@ export function missingText(
     }
   }
   if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when)
-  // Both sports are here, and the ride is the one flagged: say so rather than ask for harder efforts.
-  if (rideImplausible) {
+  // Both sports are here, and the ride is out of the comparison: say why rather than ask for harder efforts.
+  if (options.rideLeftOut) {
+    const said = LEFT_OUT[options.rideLeftOut]
     return {
-      title: levelsTitle({ run: levels.run }) ?? IMPLAUSIBLE_TITLE,
-      detail: IMPLAUSIBLE_RIDE_TEXT,
+      title: levelsTitle({ run: levels.run }) ?? said.title,
+      detail: said.detail,
       canShowAll: false,
     }
   }

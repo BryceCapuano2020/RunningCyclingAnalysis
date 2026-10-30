@@ -24,7 +24,7 @@ import { HOW_THIS_WORKS, SECTION_ID } from '../components/methodTopics'
 import { plural } from '../components/plural'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { periodDates } from '../components/rangeOptions'
-import { gradedSexOf, headlineGrades, unlessRideImplausible } from '../grades'
+import { gradedSexOf, headlineGrades, unlessRideAtTop } from '../grades'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { hrefFor } from '../route'
 import { activityNames } from '../records'
@@ -159,7 +159,7 @@ export function MethodPage({
   const gradeGapShown = gap !== null
   // The balance is the one Balance states, so the answer and the headline cannot disagree.
   const balance = weightKnown
-    ? balanceOfPick(gap, unlessRideImplausible(pick, headline?.ride ?? null))
+    ? balanceOfPick(gap, unlessRideAtTop(pick, headline?.ride ?? null))
     : null
   const verdict = answerVerdict(balance, hasResult && !weightKnown && rides > 0)
   const hardEfforts = hardEffortsOnFile(effort)

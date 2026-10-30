@@ -50,10 +50,22 @@ function store(ids: readonly string[]): void {
   for (const listener of listeners) listener()
 }
 
+/** Forgets every kept ride: a sign-out, a deleted account or Remove all takes the choices with it. */
+export function clearKeptPower(): void {
+  current = NONE
+  try {
+    localStorage.removeItem(KEY)
+  } catch {
+    // Nothing was kept that could be removed.
+  }
+  for (const listener of listeners) listener()
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   const onStorage = (event: StorageEvent) => {
-    if (event.key !== KEY) return
+    // A null key is the whole storage cleared, which takes this list with it.
+    if (event.key !== KEY && event.key !== null) return
     current = load()
     listener()
   }
@@ -69,6 +81,7 @@ export interface KeptPower {
   ids: readonly string[]
   keep: (id: string) => void
   release: (id: string) => void
+  clear: () => void
 }
 
 /** Rides kept despite implausible power, and the two ways to change that. */
@@ -82,5 +95,6 @@ export function useKeptPower(): KeptPower {
     release: (id) => {
       if (snapshot().includes(id)) store(snapshot().filter((kept) => kept !== id))
     },
+    clear: clearKeptPower,
   }
 }

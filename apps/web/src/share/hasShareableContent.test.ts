@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BalanceGap } from '../ui/balanceGap'
 import { makeActivity, makeResult } from '../ui/components/fixtures'
-import { IMPLAUSIBLE_RIDE_TEXT } from '../ui/grades'
 import { hasShareableContent } from './hasShareableContent'
 
 const NO_COMPARISON = { prior: [], calibrated: null }
@@ -65,8 +64,8 @@ describe('hasShareableContent', () => {
     )
   })
 
-  it('is false while the ride is flagged as implausible input, since the balance leaves it out', () => {
-    const flagged = { kind: 'gap' as const, reason: IMPLAUSIBLE_RIDE_TEXT }
+  it('is false while the ride is at the top of the age tables, since the balance leaves it out', () => {
+    const flagged = { kind: 'top-of-scale' as const, age: 30 }
     expect(hasShareableContent(makeResult(), null, true, flagged)).toBe(false)
     expect(hasShareableContent(makeResult(), GAP, true, flagged)).toBe(false)
   })

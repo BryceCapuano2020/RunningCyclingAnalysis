@@ -54,6 +54,8 @@ export function analysisSettings(
   return {
     massKg: settings.massKg ?? PLACEHOLDER_BODY_KG,
     bikeMassKg: settings.bikeMassKg,
+    // The placeholder is not the athlete's weight: ride power is not judged against it.
+    ...(settings.massKg === null ? { massAssumed: true as const } : {}),
     ...(measurements.length > 0 ? { measurements } : {}),
     ...(keepPower.length > 0 ? { keepPower } : {}),
   }

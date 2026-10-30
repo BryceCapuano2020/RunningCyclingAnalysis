@@ -222,8 +222,7 @@ export function ActivityPage({
   // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
   const earned = activity.sport === 'ride' && !weightKnown ? [] : (records.get(activity.id) ?? [])
   const chips = chipLabels(earned)
-  // Judged at the body mass in use, which is a placeholder until the athlete enters one: the mark waits for it.
-  const power = weightKnown ? powerCheckChip(activity.powerCheck) : null
+  const power = powerCheckChip(activity.powerCheck)
   // With a route, the figures sit beside it on a wide screen, so the header has no blank half.
   const hasRoute = route.kind === 'shape'
   // The detail has been looked for and there is none: the page is its summary, and says so after its bests.
@@ -302,7 +301,7 @@ export function ActivityPage({
           Power here is estimated from speed and climbs. No power meter recorded it.
         </p>
       )}
-      {weightKnown && <PowerCheck activity={activity} />}
+      <PowerCheck activity={activity} />
       <ActivityNav activity={activity} library={library} />
 
       {chips.length > 0 && (

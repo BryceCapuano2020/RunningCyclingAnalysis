@@ -1090,3 +1090,25 @@ describe('MethodPage without a result', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('MethodPage with a ride at the top of the age tables', () => {
+  const rideSpeed = (speedMs: number) =>
+    makeResult({
+      ...CONTRIBUTING,
+      equivalents: [
+        makeEquivalence({
+          durationS: HEADLINE_DURATION_S,
+          runSpeed: { p05: speedMs, p50: speedMs, p95: speedMs },
+        }),
+      ],
+    })
+
+  it('states no balance, as Balance does not, while an ordinary ride gets one', () => {
+    renderPage(rideSpeed(4), MAN_BORN_1986)
+    expect(screen.getAllByText(/A dead heat is/).length).toBeGreaterThan(0)
+    cleanup()
+    // 9 m/s over 20 min is faster than the running record for a man of 40.
+    renderPage(rideSpeed(9), MAN_BORN_1986)
+    expect(screen.queryByText(/A dead heat is/)).not.toBeInTheDocument()
+  })
+})
