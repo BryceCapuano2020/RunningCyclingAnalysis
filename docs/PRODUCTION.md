@@ -61,14 +61,16 @@ intended order:
 
 `npm run deploy` runs locally and must start from a clean checkout of `main` identical to
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
-the same release, without the approval and smoke-test steps, so use the workflow for production.
+the same release, without the approval step, so use the workflow for production. Right after the
+Worker is uploaded it runs the same smoke test as the workflow and prints the rollback floor if it fails.
 `npm run deploy:built` refuses to run while remote D1 migrations are pending, so apply them first with
 `npm run db:migrate:remote -w @rca/api`. It also refuses a working tree with uncommitted or untracked
 changes, a commit that is not the tip of `origin/main` (`--allow-older` deploys an older merged one on
 purpose) and a web build that was not made from that commit (`dist/build-info.json`), so a release can
 run from a detached worktree at the merged tip. It tags the Worker version with the 8-character
 commit id, writes the full commit into the version message, and builds the id into `/api/health`.
-After any local deploy run `npm run smoke:prod -- --expect-sha <sha>`: it sends only GET
+The smoke test runs on its own after a local deploy; to run it again use
+`npm run smoke:prod -- --expect-sha <sha>`: it sends only GET
 requests to the live origin, plus one empty-object POST to `/api/auth/dev-login` that cannot change
 anything in either state. Add the release to [RELEASES.md](RELEASES.md).
 
@@ -77,7 +79,9 @@ a comment. Repository settings do not enforce SHA pinning, and GitHub does not b
 names a tag or branch instead, so review workflow changes for this. Dependabot version updates are
 scheduled weekly in `.github/dependabot.yml`: minor and patch updates are grouped (production and
 development separately, and all of the actions together), a major update is its own pull request,
-and at most four npm and two action pull requests are open at once. Dependabot security updates for
+and at most four npm and two action pull requests are open at once (whether the npm cap
+counts per directory or across the `directories` list is unconfirmed; check it after the first
+week). Dependabot security updates for
 vulnerable dependencies are controlled by a repository setting, not by that file, and ignore those
 caps. A retried or flaky browser test fails CI rather
 than being hidden.
@@ -200,6 +204,7 @@ Each existing migration was reviewed against this rule:
 | `0008_file_bytes`               | Adds `users.file_bytes` (not null, default 0), three triggers on `activities` that keep it equal to the sum of `file_size`, and backfills it from each user's current rows.                                                                                         | The column has a default, so older Workers' inserts still succeed, and they never name it. The triggers fire on any write to `file_size`, so an older Worker that uploads or deletes between the migration and the new Worker keeps the counter exact, and no reconciliation is needed. The triggers are created before the backfill, which reads every sum in one statement, so no write is missed or counted twice. The earlier Worker never reads the column, so it stays a rollback target.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `0009_athlete_measurements`     | Creates `athlete_measurements`: the athlete's dated body mass, maximum heart rate and thresholds, keyed by user, kind, sport and date, with `CHECK`s on `kind` and `sport`.                                                                                         | A new table that no earlier Worker reads or writes, so it is invisible to them and every earlier release stays a rollback target. Its rows go with the account through the `ON DELETE CASCADE` foreign key. No data is migrated: a rider's current body mass stays in `profiles` and is treated as the latest entry.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `0010_signup_safety_list_index` | Creates `identity_budget` (a deleted account's daily counts under a keyed code of its Google identity), adds the index `activities_user_created_id_idx (user_id, created_at, id)` for the library listing, and a unique index `oauth_accounts (user_id, provider)`. | Additive plus one clearing UPDATE: a new table no earlier Worker touches, two indexes, and `users.list_cursor` set to NULL where it holds a value. Earlier Workers never name an index, so their queries only gain a better plan; they link identities with `INSERT ... WHERE NOT EXISTS (same user and provider)`, which cannot violate the unique index. `users.list_cursor` stays, because the previous Worker still reads and writes it; the migration sets any existing value to NULL (the new Worker never uses the column, and NULL is "no slot" to the previous Worker, which then charges a read unit for a cursor, as it does for any cursor that is not the last one it issued). The earlier Worker (`3e17b541`) stays a rollback target and the floor does not move. **That Worker, and any rollback to it, ignores `ALLOWED_EMAILS`: a rollback reopens public sign-up and drops the account-create and session caps** (see Sign-up list, "Rollback reopens sign-up", for the steps to take afterwards). After a rollback the old Worker's single cursor slot rejects cursors the new one issued, so only the first mismatched page of an in-flight library load is charged a read unit; the old Worker then issues its own cursor and the rest of the chain is free. **The unique index fails the migration if some user already has two identities for one provider; the migration stops before any Worker change.** Check first, read-only: `SELECT user_id, provider, COUNT(*) AS n FROM oauth_accounts GROUP BY user_id, provider HAVING COUNT(*) > 1` returns no row. The owner applies this migration; it was not applied by the change that added it. |
+| `0011_account_tombstones`       | Creates `account_tombstones` (random account id and deletion time, one row per deleted account, kept 100 days) and its index on `deleted_at`.                                                                                                                       | Additive: a new table no earlier Worker reads or writes, so every earlier Worker stays a rollback target and the floor does not move. A rollback to a Worker without the table stops writing tombstones, so accounts deleted meanwhile are not covered by a later restore reconciliation; keep a private note of them. **The owner applies this migration, before the Worker that writes it is deployed; it was not applied by the change that added it.** The deletion path fails if the table is missing, so never deploy that Worker first (`deploy:built` refuses while a migration is pending).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 After the Worker version that maintains `digest_bytes` is fully serving, reconcile any writes made
 by the previous Worker between migration 0004 and deployment. Run this as one statement against the
@@ -429,10 +434,11 @@ request/body logging around personal activity files or OAuth callbacks.
 - **Skipped deep check.** Once the deployment's daily deep-health budget is spent, the API answers
   `/api/health/deep` with 200 and `"deep":"skipped"` rather than probing D1 and R2. The probe records this as
   a warning annotation (`Deep health skipped`) and neither opens nor closes an outage issue because of it.
-  The run still passes or fails on the other checks. A skipped deep check therefore leaves D1 and R2 unmeasured
-  until the budget resets at 00:00 UTC, so an operator should check the Worker dashboard. A failing deep check
-  (a 503) still opens an outage issue, and the budget is shared by all callers, so the warning can also come
-  from someone else's requests.
+  The run still passes or fails on the other checks. A skipped deep check leaves D1 and R2 unmeasured
+  until the budget resets at 00:00 UTC, and anyone can spend that budget, so the probe opens one issue
+  labelled `monitoring-gap` while the check is skipped and closes it when the check runs again. Treat
+  that issue as a prompt to look at the Worker dashboard. A failing deep check (a 503) still opens an
+  outage issue.
 - **Probe origin.** The repository variable `PRODUCTION_ORIGIN` sets the origin the probe checks, with
   no trailing slash. When it is not set, the probe uses `https://rca-api.nutritioncoachapp.workers.dev`.
 - **Testing the outage path.** Start the Uptime workflow by hand with `simulate_outage` set to `true`.
@@ -535,10 +541,11 @@ restored database lacks their references.
   keep their own originals, and the owner should not promise that a stored original is recoverable.
   The manifest only records which objects existed, so an activity whose original is missing can be
   identified and re-imported.
-- **A deletion log.** The application keeps no record of deleted accounts once a deletion
-  completes. Until then, a pending_account_deletions row names the account. A restored backup can
-  contain accounts that were deleted after it was taken, so the restore procedure requires
-  reconciling them.
+- **A complete deletion log.** The application writes one `account_tombstones` row (random account id
+  and time, nothing else) for each deleted account and keeps it 100 days. A backup holds only the
+  tombstones that existed when it was taken, so a restore takes the live ones first and replays
+  them with `scripts/ops/reconcile-restore.mjs`. Accounts deleted after the newest backup, with the
+  live database also lost, cannot be reconciled from data.
 - **Anything after the backup time.** Changes after the newest backup are lost.
 
 A backup holds the whole D1 database: account identifiers, email addresses, session hashes and activity
@@ -613,7 +620,7 @@ or R2 changes.
   [Node benchmark](PERFORMANCE.md) is a baseline, not a mobile or free-tier guarantee.
 - Run the restore procedure in [scripts/ops/restore.md](../scripts/ops/restore.md) as a recorded
   drill, and measure it against the 2-hour RTO. Until a drill is recorded, the restore is unverified.
-  Also add a deletion log so restores can reconcile deleted accounts, and test future
+  The same goes for the Time Travel rewind in Part B of that runbook. Also test future
   schema/model rollback compatibility. The drills so far covered one synthetic activity, not
   maximum database size or disaster recovery of an active multi-user service.
 - Complete Google's public-brand requirements before representing the app as a verified public
