@@ -12,6 +12,7 @@ import type { ZoneMeasure } from '@rca/core/zones'
 import type { ZoneEstimates } from '@rca/core/zones'
 import type { ZoneSet } from '@rca/core/zones'
 import { ActivityDelete } from '../components/ActivityDelete'
+import { PowerCheck } from '../components/PowerCheck'
 import { RouteOffer } from '../components/RouteOffer'
 import { RouteShape as RouteOutline } from '../components/RouteShape'
 import { SplitsTable } from '../components/SplitsTable'
@@ -30,6 +31,7 @@ import { AWAITED, NO_DETAIL, useSplitsView, type TraceReport } from '../useSplit
 import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
 import { setAsideActivityText } from '../analysis/setAsideCopy'
+import { powerCheckChip } from '../analysis/powerCheckCopy'
 import { WALKING_PACE_CHIP, WALKING_PACE_NOTE } from '../analysis/walkingPaceCopy'
 import { ActivityIssues } from './ActivityIssues'
 import { ActivityNav } from './ActivityNav'
@@ -220,6 +222,8 @@ export function ActivityPage({
   // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
   const earned = activity.sport === 'ride' && !weightKnown ? [] : (records.get(activity.id) ?? [])
   const chips = chipLabels(earned)
+  // Judged at the body mass in use, which is a placeholder until the athlete enters one: the mark waits for it.
+  const power = weightKnown ? powerCheckChip(activity.powerCheck) : null
   // With a route, the figures sit beside it on a wide screen, so the header has no blank half.
   const hasRoute = route.kind === 'shape'
   // The detail has been looked for and there is none: the page is its summary, and says so after its bests.
@@ -270,6 +274,7 @@ export function ActivityPage({
           <span>{formatTimeOfDay(activity.startMs)}</span>
           {activity.indoor && <span className="chip">Indoor</span>}
           {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
+          {power !== null && <span className="chip chip--warning">{power}</span>}
         </p>
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="activity-page__title">
           {activity.name}
@@ -297,6 +302,7 @@ export function ActivityPage({
           Power here is estimated from speed and climbs. No power meter recorded it.
         </p>
       )}
+      {weightKnown && <PowerCheck activity={activity} />}
       <ActivityNav activity={activity} library={library} />
 
       {chips.length > 0 && (

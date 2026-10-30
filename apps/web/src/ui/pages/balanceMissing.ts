@@ -4,6 +4,7 @@ import { countedPhrase, heldAction, needLine } from '../components/headlineNeed'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
+import { IMPLAUSIBLE_RIDE_TEXT } from '../grades'
 import { betweenClause } from '../periodCopy'
 import { countEfforts, countSport } from '../records'
 
@@ -43,12 +44,16 @@ function noneOnScreen(libraryRuns: number, libraryRides: number, when: string): 
   }
 }
 
+/** The title while the ride's power is flagged and there is no run level to lead with. */
+const IMPLAUSIBLE_TITLE = 'Your ride power looks implausible'
+
 /** What is missing before the two sports can be compared, in the period on screen. */
 export function missingText(
   result: AnalysisResult,
   library: ActivitySummary[],
   period: Period,
   levels: { run: string | null; ride: string | null },
+  rideImplausible = false,
 ): Missing {
   const runs = countSport(result.activities, 'run')
   const rides = countSport(result.activities, 'ride')
@@ -88,6 +93,14 @@ export function missingText(
     }
   }
   if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when)
+  // Both sports are here, and the ride is the one flagged: say so rather than ask for harder efforts.
+  if (rideImplausible) {
+    return {
+      title: levelsTitle({ run: levels.run }) ?? IMPLAUSIBLE_TITLE,
+      detail: IMPLAUSIBLE_RIDE_TEXT,
+      canShowAll: false,
+    }
+  }
   return heldMissing(result, library, period, levels)
 }
 

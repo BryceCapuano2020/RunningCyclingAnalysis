@@ -1,5 +1,10 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { FIRST_GRADED_DISTANCE_M, LAST_GRADED_DISTANCE_M, ageGradeForEffort } from '@rca/core/grade'
+import {
+  FIRST_GRADED_DISTANCE_M,
+  LAST_GRADED_DISTANCE_M,
+  ageGradeForEffort,
+  gradeCeiling,
+} from '@rca/core/grade'
 import type { Sex } from '@rca/core/grade'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { equivalenceFor } from '@rca/core/digest'
@@ -285,6 +290,16 @@ const BEST_NOUN: Record<Sport, string> = { run: 'run', ride: 'ride' }
 /** The sport the balance does not lean toward: the one a level target is named for. */
 const OTHER_SPORT: Record<Sport, Sport> = { run: 'ride', ride: 'run' }
 
+/**
+ * Whether a target grade is out of reach for a sport: above the ceiling, or at it where a figure at the
+ * ceiling is itself flagged as implausible (a ride's), so a ride is never asked to reach what the page would refuse to grade.
+ */
+const FLAGGED_AT_CEILING: Record<Sport, boolean> = { run: false, ride: true }
+
+function beyondCeiling(sport: Sport, target: number, ceiling: number): boolean {
+  return FLAGGED_AT_CEILING[sport] ? target >= ceiling : target > ceiling
+}
+
 /** The inputs a level target reads: the balance, both grades, the athlete's sex and mass, and the units. */
 export interface LevelTargetInput {
   /** The sport the balance leans toward, which is the higher of the two. */
@@ -319,8 +334,9 @@ export interface LevelTarget {
 /**
  * The lower sport's best effort at the headline duration, as what it would need to grade level with the
  * higher sport's whole-percent grade: rounded toward the levelling side, and for a ride with the range its
- * estimate carries. Null when the balance is even, when either grade is not on screen, or when the levelled
- * centre is not strictly beyond the figure the page already shows.
+ * estimate carries. Null when the balance is even, when either grade is not on screen, when the target is above
+ * 100% or at the ceiling of what a runner of this age and sex has run, or when the levelled centre is not strictly
+ * beyond the figure the page already shows.
  */
 export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   const { lean, grades, result, sex, massKg, units, calibration } = input
@@ -333,6 +349,10 @@ export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   if (!higherGrade || higherGrade.kind !== 'graded') return null
   const target = wholeGrade(higherGrade.grade.centre.grade) / 100
   const athlete = { age: lowerGrade.age, sex, massKg, calibration }
+  // A grade above 100% is not a level anyone can be asked to reach, and neither is a figure the lower sport
+  // would itself be flagged at: the same ceiling that holds a ride's grade down holds the target down.
+  const ceiling = gradeCeiling(HEADLINE_DURATION_S, athlete.age, sex)
+  if (target > 1 || (ceiling !== null && beyondCeiling(lower, target, ceiling))) return null
   const needed = nativeRangeAtGrade(lower, target, HEADLINE_DURATION_S, athlete)
   const curve = curveOf(result, lower)
   const shown = OWN_OF_CURVE[lower](valueAt(curve, HEADLINE_DURATION_S))

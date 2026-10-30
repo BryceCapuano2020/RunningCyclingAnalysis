@@ -2,6 +2,8 @@ import type { Sport } from '@rca/core/types'
 import {
   AGE_RANGE_TEXT,
   HEADLINE_LABEL,
+  IMPLAUSIBLE_RIDE_SHORT,
+  IMPLAUSIBLE_RIDE_TEXT,
   NEEDS_EFFORT_TEXT,
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
@@ -35,6 +37,7 @@ const SHORT_REASON: Record<string, string> = {
   [NO_DATE_TEXT]: 'Best effort has no date',
   [AGE_RANGE_TEXT]: AGE_RANGE_TEXT.replace(/\.$/, ''),
   [NO_STANDARD_TEXT]: 'No age standard for this effort',
+  [IMPLAUSIBLE_RIDE_TEXT]: IMPLAUSIBLE_RIDE_SHORT,
 }
 
 /** The line for a sport with no activities in the period, per sport. */

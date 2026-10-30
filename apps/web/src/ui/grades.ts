@@ -5,6 +5,7 @@ import {
   LAST_GRADED_AGE,
   ageAt,
   ageGradeForEffort,
+  gradeCeiling,
   levelOf,
 } from '@rca/core/grade'
 import type { Sex } from '@rca/core/grade'
@@ -81,6 +82,14 @@ export const NO_STANDARD_TEXT =
   'This best effort has no age standard or running equivalent to grade it.'
 /** The activity behind the best effort is not in the library, so the age on its date is unknown. */
 export const NO_DATE_TEXT = 'This best effort cannot be dated, so it is not graded.'
+/**
+ * A ride's running equivalent is at or above the fastest a runner of the athlete's age and sex has run
+ * (see gradeCeiling). It is shown as implausible input, left out of the grades and the balance, and
+ * names what to check as possibilities, not findings.
+ */
+export const IMPLAUSIBLE_RIDE_TEXT = `Your best ${HEADLINE_LABEL} ride power is at or above the running record for your age and sex, so it is flagged as implausible and left out of your grades and the balance. Worth checking: power meter calibration, your weight setting, or an e-bike ride logged as a ride.`
+/** The same flag in a few words, for a row or a line under the meter. */
+export const IMPLAUSIBLE_RIDE_SHORT = 'Power looks implausible'
 export const AGE_RANGE_TEXT = `Age grades cover ages ${FIRST_GRADED_AGE} to ${LAST_GRADED_AGE}.`
 
 /** The level bands from lowest to highest, with the lower bound of each. */
@@ -138,22 +147,32 @@ function runGradeAt(speedMs: number, durationS: number, ageAndSex: AgeAndSex): S
   return centre === null ? null : { centre, range: null }
 }
 
+/** What rideGradeAt returns for an equivalent at or above the ceiling: no grade, and the reason is the input. */
+const IMPLAUSIBLE = 'implausible'
+
 /**
  * A ride's grade from its running equivalent: the centre, and the model's range from the 5th to
- * the 95th percentile. Null without an equivalent at durationS, or when an end has no grade.
+ * the 95th percentile. A ride has no ceiling of its own, so the running record bounds it (gradeCeiling):
+ * a centre at or above it is IMPLAUSIBLE, and a range end above it is held at it. Null without an
+ * equivalent at durationS, or when an end has no grade.
  */
 function rideGradeAt(
   result: AnalysisResult,
   durationS: number,
   ageAndSex: AgeAndSex,
-): SportGrade | null {
+): SportGrade | typeof IMPLAUSIBLE | null {
   const equivalent = result.equivalents.find((candidate) => candidate.durationS === durationS)
   if (!equivalent) return null
   const at = (speedMs: number) => gradeAtSpeed(speedMs, durationS, ageAndSex)
   const low = at(equivalent.runSpeed.p05)
   const centre = at(equivalent.runSpeed.p50)
   const high = at(equivalent.runSpeed.p95)
-  return low && centre && high ? { centre, range: { low, high } } : null
+  if (!(low && centre && high)) return null
+  const ceiling = gradeCeiling(durationS, ageAndSex.age, ageAndSex.sex)
+  // No ceiling means the record's distance at this length is under the shortest standard, so any graded equivalent is past it.
+  if (ceiling === null || centre.grade >= ceiling) return IMPLAUSIBLE
+  const held = gradeOf(ceiling)
+  return { centre, range: { low, high: high.grade > ceiling && held ? held : high } }
 }
 
 /**
@@ -178,7 +197,13 @@ export function sportGrade(
     sport === 'run'
       ? runGradeAt(metabolicToFlatSpeed(point.value), durationS, ageAndSex)
       : rideGradeAt(result, durationS, ageAndSex)
+  if (grade === IMPLAUSIBLE) return gap(IMPLAUSIBLE_RIDE_TEXT)
   return grade === null ? gap(NO_STANDARD_TEXT) : { kind: 'graded', age: ageAndSex.age, grade }
+}
+
+/** Whether a ride's outcome is the implausible-input flag: the balance leaves such a ride out. */
+export function isImplausibleRide(outcome: GradeOutcome | null): boolean {
+  return outcome !== null && outcome.kind === 'gap' && outcome.reason === IMPLAUSIBLE_RIDE_TEXT
 }
 
 /** Both sports' grades at the headline duration, each at its own date. */
@@ -187,6 +212,14 @@ export function headlineGrades(result: AnalysisResult, profile: AgeProfile): Hea
     run: sportGrade(result, 'run', HEADLINE_DURATION_S, profile),
     ride: sportGrade(result, 'ride', HEADLINE_DURATION_S, profile),
   }
+}
+
+/**
+ * The headline's comparison, held when the ride's grade is flagged as implausible input. The energy comparison
+ * is taken from the same ride, so it would carry the flagged power into the balance that the grades leave out.
+ */
+export function unlessRideImplausible<T>(pick: T | null, ride: GradeOutcome | null): T | null {
+  return isImplausibleRide(ride) ? null : pick
 }
 
 /**
@@ -334,6 +367,7 @@ export function isNoStandardGap(outcome: GradeOutcome | null): boolean {
  */
 export function gapRecordText(sport: Sport, outcome: GradeOutcome): string | null {
   if (outcome.kind === 'graded') return null
+  if (isImplausibleRide(outcome)) return IMPLAUSIBLE_RIDE_SHORT
   return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport] : outcome.reason
 }
 

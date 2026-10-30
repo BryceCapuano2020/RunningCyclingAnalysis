@@ -269,7 +269,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     loadCard,
   ])
 
-  if (!hasShareableContent(result, gap, weightKnown)) return null
+  if (!hasShareableContent(result, gap, weightKnown, grades.ride)) return null
 
   const shown = preview?.format === format ? preview : null
   // The action has a file to share or save only once this shape is drawn; until then it is held.

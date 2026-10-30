@@ -11,4 +11,9 @@ export interface AthleteSettings {
   bikeMassKg: number
   /** The athlete's dated settings. Absent or empty: every activity uses massKg, and references are estimated. */
   measurements?: readonly Measurement[]
+  /**
+   * Ids of the rides whose implausible power the athlete chose to keep (see implausiblePower). Absent or
+   * empty: such a ride's power is set aside.
+   */
+  keepPower?: readonly string[]
 }

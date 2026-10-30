@@ -43,17 +43,19 @@ export function weightKnown(settings: WeightSettings): boolean {
 }
 
 /**
- * The settings the analysis runs on. See PLACEHOLDER_BODY_KG. Dated settings are carried only when
- * there are some, so an athlete with none has exactly the two masses.
+ * The settings the analysis runs on. See PLACEHOLDER_BODY_KG. Dated settings and the rides whose power
+ * the athlete kept are carried only when there are some, so an athlete with none has exactly the two masses.
  */
 export function analysisSettings(
   settings: WeightSettings,
   measurements: readonly Measurement[] = [],
+  keepPower: readonly string[] = [],
 ): AthleteSettings {
   return {
     massKg: settings.massKg ?? PLACEHOLDER_BODY_KG,
     bikeMassKg: settings.bikeMassKg,
     ...(measurements.length > 0 ? { measurements } : {}),
+    ...(keepPower.length > 0 ? { keepPower } : {}),
   }
 }
 

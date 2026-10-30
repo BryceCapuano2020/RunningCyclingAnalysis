@@ -35,6 +35,7 @@ import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
+import { useKeptPower } from './ui/keptPowerStore'
 
 /** A string that changes whenever a different page is on screen. */
 function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
@@ -84,7 +85,8 @@ export function App() {
   }
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
-  const analysisAthlete = useAnalysisSettings(settings, measurements.entries)
+  const keptPower = useKeptPower()
+  const analysisAthlete = useAnalysisSettings(settings, measurements.entries, keptPower.ids)
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false

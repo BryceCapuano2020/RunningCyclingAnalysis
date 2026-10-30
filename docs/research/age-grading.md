@@ -35,6 +35,17 @@ running speed that costs the same metabolic power, over the ride's duration. The
 model-derived, not a published cycling standard. The UI calls `ageGradeForEffort` on each ride's
 running equivalent, and shows the model's 5th to 95th percentile as the range.
 
+Owner decision, 2026-10-30: a ride keeps its level words but is capped. The running age factors have no
+ceiling for a ride, so a strong young rider, and an older or female rider at modest watts, would read above
+100%. `gradeCeiling` is the lower of 1 and the grade of the open running record's speed
+(`RUN_WORLD_RECORD_SPEEDS`) for the length, at the athlete's age and sex. A ride whose centre equivalent
+is at or above it is flagged as implausible input (power meter calibration, weight setting or a
+mislabelled e-bike ride are the things to check), shown as that, and left out of the balance: the grade
+gap, the energy comparison and the share card. A range end above it is held at it. The level target is
+hidden when its target is above 100%, or at the ceiling for a ride. At 20 minutes the ceiling binds at 100%,
+which a 70 kg rider's 20-minute power reaches at about 5.6 W/kg (man of 25), 4.4 (man of 65), 5.2 (woman
+of 25) and 3.8 (woman of 65). A genuinely elite rider is flagged too; there is no override on this flag.
+
 ## 4. Level bands
 
 WMA-style bands, lower bounds inclusive: World 0.90, National 0.80, Regional 0.70, Local 0.60,

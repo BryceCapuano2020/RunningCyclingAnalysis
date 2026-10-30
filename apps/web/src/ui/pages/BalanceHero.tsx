@@ -35,6 +35,8 @@ export interface BalanceHeroProps {
   /** Each sport's level as the tiles show it, when it is graded. A missing sport's title can name the other's. */
   runLevel?: string | null
   rideLevel?: string | null
+  /** The ride's power is flagged as implausible input, so the balance is held for that reason, not for lack of effort. */
+  rideImplausible?: boolean
   /** Each sport's level, as one line under the meter; with the meter's grades missing, the one sport on file's. */
   levels?: ReactNode
   /** The period control, under the levels it changes. */
@@ -57,6 +59,7 @@ export function BalanceHero({
   action = null,
   runLevel = null,
   rideLevel = null,
+  rideImplausible = false,
   levels = null,
   controls = null,
 }: BalanceHeroProps) {
@@ -85,10 +88,13 @@ export function BalanceHero({
     )
   }
   if (reading === null) {
-    const { title, detail, canShowAll } = missingText(result, library, period, {
-      run: runLevel,
-      ride: rideLevel,
-    })
+    const { title, detail, canShowAll } = missingText(
+      result,
+      library,
+      period,
+      { run: runLevel, ride: rideLevel },
+      rideImplausible,
+    )
     return (
       <div className="balance-hero__pair">
         <section className="balance-hero">

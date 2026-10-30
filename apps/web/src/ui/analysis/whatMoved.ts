@@ -9,7 +9,7 @@ import { plural } from '../components/plural'
 import { headlinePick } from '../components/pickHeadline'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
-import { headlineGrades } from '../grades'
+import { headlineGrades, unlessRideImplausible } from '../grades'
 import { curveOf, distanceRecords, effortLabel, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
 import { SPORT_ORDER } from '../sports'
@@ -114,10 +114,13 @@ function balanceItem(
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
-  const pickBefore = headlinePick(before)
-  const pickAfter = headlinePick(after)
-  const gapBefore = profile === null ? null : gapOfHeadline(headlineGrades(before, profile))
-  const gapAfter = profile === null ? null : gapOfHeadline(headlineGrades(after, profile))
+  const gradesBefore = profile === null ? null : headlineGrades(before, profile)
+  const gradesAfter = profile === null ? null : headlineGrades(after, profile)
+  // A ride flagged as implausible input is out of the comparison, as the page leaves it out.
+  const pickBefore = unlessRideImplausible(headlinePick(before), gradesBefore?.ride ?? null)
+  const pickAfter = unlessRideImplausible(headlinePick(after), gradesAfter?.ride ?? null)
+  const gapBefore = gradesBefore === null ? null : gapOfHeadline(gradesBefore)
+  const gapAfter = gradesAfter === null ? null : gapOfHeadline(gradesAfter)
   const readingBefore = balanceOfPick(gapBefore, pickBefore)
   const readingAfter = balanceOfPick(gapAfter, pickAfter)
   if (readingBefore === null || readingAfter === null) return null

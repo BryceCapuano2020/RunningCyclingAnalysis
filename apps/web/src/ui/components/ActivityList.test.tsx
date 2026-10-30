@@ -243,6 +243,17 @@ describe('ActivityList rows', () => {
     expect(within(rowFor('Run')).queryByText('Walking pace')).not.toBeInTheDocument()
   })
 
+  it('marks a ride whose power is set aside or kept, and no other', () => {
+    renderList([
+      makeActivity({ id: 'a', name: 'Set aside', sport: 'ride', powerCheck: 'set-aside' }),
+      makeActivity({ id: 'b', name: 'Kept', sport: 'ride', powerCheck: 'kept' }),
+      makeActivity({ id: 'c', name: 'Plain', sport: 'ride' }),
+    ])
+    expect(within(rowFor('Set aside')).getByText('Power set aside')).toBeInTheDocument()
+    expect(within(rowFor('Kept')).getByText('Power kept')).toBeInTheDocument()
+    expect(within(rowFor('Plain')).queryByText(/^Power /)).not.toBeInTheDocument()
+  })
+
   it('leaves the chip off a skip too short to move a figure, which the activity page still lists', () => {
     const blip = { kind: 'hr-spike' as const, start: 600, end: 611, message: 'Heart rate jumped' }
     renderList([

@@ -27,7 +27,7 @@ import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
 import { judgedCurves } from './judgedCurves'
-import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
+import { fitBikeModelOver, measuredRideBest, powerCheckOf, runCentralWkg } from './rideCurves'
 import type { EstimatedRideGate } from './estimatedRide'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { withoutSetAside } from './trustedHeartRate'
@@ -172,7 +172,12 @@ export function activitySummaries(
   const masses = settings === undefined ? null : massesOf(settings)
   const dated = masses !== null && masses.dated
   return orderedCurrent(digests)
-    .map((digest) => summaryOf(digest, dated ? masses.bodyKg(digest) : undefined))
+    .map((digest) => {
+      const summary = summaryOf(digest, dated ? masses.bodyKg(digest) : undefined)
+      const check = masses === null ? undefined : powerCheckOf(digest, masses)
+      // A flagged ride gets its own copy; the cached summary is shared and stays as it is.
+      return check === undefined ? summary : Object.assign({}, summary, { powerCheck: check })
+    })
     .sort((a, b) => b.startMs - a.startMs)
 }
 
@@ -236,7 +241,9 @@ export function combine(
   const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = curves
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
-  const rideMeasuredCurve = plainCurve(measuredRideBest(ordered))
+  const rideMeasuredCurve = plainCurve(
+    measuredRideBest(ordered.filter((digest) => powerCheckOf(digest, masses) !== 'set-aside')),
+  )
   const rideMetabolicCurve = rideMetabolic
 
   const runFit = fits.run

@@ -387,3 +387,10 @@
     grid-area: route;
   }
 }
+
+/* The note about a ride's set-aside power, and the one button that keeps it. */
+.activity-page__power {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}

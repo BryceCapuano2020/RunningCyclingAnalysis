@@ -24,7 +24,9 @@ import {
   ageAndSexAt,
   gradedSexOf,
   headlineGrades,
+  isImplausibleRide,
   SEX_NOUN,
+  unlessRideImplausible,
 } from '../grades'
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
@@ -119,8 +121,6 @@ export function BalancePage({
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
   const { calibration } = heartRateJudgement
-  const pick = headlinePick(result)
-  const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
   // They are memoised on the analysis and the two profile values, not the profile object, which the
   // caller builds afresh on each render. The share preview is drawn from them, so a new object each
@@ -143,6 +143,10 @@ export function BalancePage({
     }),
     [headline, weightKnown],
   )
+  // A ride flagged as implausible input is left out of the comparison, so the energy view cannot carry it in.
+  const rideImplausible = isImplausibleRide(grades.ride)
+  const pick = unlessRideImplausible(headlinePick(result), grades.ride)
+  const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // The balance is stated once the headline can compare the sports; without a pick it is held, and the gap is
   // held with it. This is the one gate: the headline, the tiles, the level target and the changes all read it.
   const reading = useMemo(
@@ -264,6 +268,7 @@ export function BalancePage({
         weightKnown={weightKnown}
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
+        rideImplausible={rideImplausible}
         levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
         action={

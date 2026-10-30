@@ -1,5 +1,5 @@
 import { HEADLINE_DURATION_S, HR_BLOCK_S, PRIORS, RESTING_W_PER_KG } from '../constants'
-import { possibleRunWkg } from '../curves'
+import { implausiblePower, possibleRunWkg } from '../curves'
 import { checkEfforts } from '../effort'
 import type { EffortPoint, MaxHeartRates } from '../effort'
 import type {
@@ -57,6 +57,18 @@ export function fitBikeModelOver(ordered: ActivityDigest[], masses: Masses) {
 }
 
 /**
+ * Whether a ride's power is in question (see implausiblePower): 'set-aside' while it is left out of every best,
+ * 'kept' once the athlete chose to keep it. Undefined for a run and for a ride whose power is plausible.
+ */
+export function powerCheckOf(
+  digest: ActivityDigest,
+  masses: Masses,
+): 'set-aside' | 'kept' | undefined {
+  if (digest.sport !== 'ride' || !implausiblePower(digest, masses.bodyKg(digest))) return undefined
+  return masses.powerKept(digest) ? 'kept' : 'set-aside'
+}
+
+/**
  * One ride point priced: its mechanical watts, NaN when it is an estimate the athlete's heart rate does not back
  * (see ESTIMATED_RIDE), and whether it stands at its own duration only, as an unbacked estimate does.
  */
@@ -67,6 +79,7 @@ export function ridePriced(
   model: BikeModel,
   standing: EstimatedStanding,
 ): { watts: number; alone: boolean } {
+  if (powerCheckOf(digest, masses) === 'set-aside') return { watts: Number.NaN, alone: false }
   const watts = rideWattsAt(point, masses.totalKg(digest), model)
   const how = standing(point, watts)
   return { watts: how === 'drops' ? Number.NaN : watts, alone: how === 'stands' }
@@ -220,6 +233,8 @@ export function heartRatePoints(
 ): { runPoints: HrPoint[]; ridePoints: HrPoint[] } {
   const blockMetabolic = (digest: ActivityDigest, block: DigestHrBlock): number => {
     if (digest.sport === 'run') return possibleRunWkg(HR_BLOCK_S, block.value)
+    // A ride whose power is set aside gives no point either: its watts would bend the heart-rate line.
+    if (powerCheckOf(digest, masses) === 'set-aside') return Number.NaN
     const watts =
       block.terms === null ? block.value : powerAt(block.terms, masses.totalKg(digest), bikeModel)
     return centralWkgFromWatts(watts, masses.bodyKg(digest))
