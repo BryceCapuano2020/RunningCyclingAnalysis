@@ -9,7 +9,7 @@ export interface Span {
   endMs: number | null
 }
 import { formatSpan } from '../format/date'
-import { formatCount } from '../format/count'
+import { plural } from './plural'
 
 export interface RangeOption {
   /** The control's value for the choice. */
@@ -70,7 +70,7 @@ export function lengthOf(days: number): string {
   if (days === SIX_WEEKS_DAYS) return SIX_WEEKS_LABEL
   if (days === DEFAULT_PERIOD_DAYS) return DEFAULT_LABEL
   if (days === ONE_YEAR_DAYS) return ONE_YEAR_LABEL
-  return `${formatCount(days)} days`
+  return plural(days, 'day')
 }
 
 /** The period on screen as a name: "12 weeks", "6 weeks", "All time", or a custom range's days. */

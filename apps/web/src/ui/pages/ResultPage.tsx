@@ -90,6 +90,7 @@ export function ResultPage({
   const { period, library, totalActivities, isSample } = analysis.state
   // What the analysis rests on: the library less the runs at walking pace, which only the lists and pages show.
   const analysed = useMemo(() => withoutWalking(library), [library])
+  const missingFromDefault = useMemo(() => sportsMissingFromDefault(analysed), [analysed])
   // The runs at walking pace are left out; when they are all a sport has, its pages say so and offer to count them.
   const left = useMemo(() => leftOutRuns(library), [library])
   const leftOut = left.allLeftOut
@@ -167,7 +168,7 @@ export function ResultPage({
   )
   const latest = latestActivityText(newestMs)
   // The default shows all time only when its 12 weeks lack a sport the library has; the note names that sport.
-  const fallback = period.fellBack ? fallbackNote(sportsMissingFromDefault(analysed)) : null
+  const fallback = period.fellBack ? fallbackNote(missingFromDefault) : null
   // The note under the dates says why the default is all time, then how old the newest activity is.
   // Balance sets its period control compact under the levels: it says when a longer period repeats a shorter one,
   // links its count to the activities, and says how many runs at walking pace the count leaves out.

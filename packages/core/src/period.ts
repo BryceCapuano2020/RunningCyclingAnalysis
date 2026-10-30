@@ -178,18 +178,15 @@ export function sportsMissingFromDefault(
 /**
  * The default window: the 12 weeks up to the newest activity's day, when they hold every sport the
  * library has. It always ends on the newest day, so it never hides recent activities behind an older
- * window. It is clipped to the first activity's day, so a library shorter than the cap is dated from
- * its start.
+ * window. A library shorter than the window has no previous period to compare with, so it has no default
+ * window: the default is all time, which dates it from its first activity.
  */
 function defaultWindow(
   visible: readonly ActivityDigest[],
 ): { startMs: number; endMs: number } | null {
   const reach = defaultReach(visible)
-  if (reach.missing.length > 0) return null
-  return {
-    startMs: Math.max(reach.startMs, startOfLocalDay(reach.earliest)),
-    endMs: reach.endMs,
-  }
+  if (reach.missing.length > 0 || startOfLocalDay(reach.earliest) > reach.startMs) return null
+  return { startMs: reach.startMs, endMs: reach.endMs }
 }
 
 /** The period a choice names, dated from the visible digests. */

@@ -97,6 +97,10 @@ describe('previousPeriodLabel', () => {
     expect(previousPeriodLabel(55)).toBe('Previous 55 days')
   })
 
+  it('uses the singular for one day', () => {
+    expect(previousPeriodLabel(1)).toBe('Previous 1 day')
+  })
+
   it('groups the days from a thousand on', () => {
     expect(previousPeriodLabel(1500)).toBe('Previous 1,500 days')
   })

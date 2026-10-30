@@ -637,7 +637,7 @@ describe('ResultPage period', () => {
     }
   })
 
-  it('has no fallback note to give for a library of one sport, and keeps the latest activity', () => {
+  it('has no fallback note for a library shorter than 12 weeks, and keeps the latest activity', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {

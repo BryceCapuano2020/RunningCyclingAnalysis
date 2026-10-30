@@ -118,13 +118,24 @@ describe('the default period', () => {
     })
   })
 
-  it('is dated from the first activity’s day when the library is shorter than 12 weeks', () => {
+  it('is all time, with no sport missing, when the library is shorter than 12 weeks', () => {
+    // No previous period can exist, so the default does not dress a short span up as 12 weeks.
     const first = NEWEST - 20 * DAY_MS
-    const period = periodOf([at(first, 'run'), at(NEWEST, 'ride')], 'default')
-    expect(period).toMatchObject({
-      startMs: startOfDay(first),
+    const library = [at(first, 'run'), at(NEWEST, 'ride')]
+    expect(periodOf(library, 'default')).toEqual({
+      choice: 'default',
+      startMs: first,
       endMs: endOfDay(NEWEST),
-      days: 21,
+      days: null,
+      fellBack: true,
+    })
+    expect(sportsMissingFromDefault(library)).toEqual([])
+  })
+
+  it('is 12 weeks for a library exactly 12 weeks long', () => {
+    const first = daysBefore(startOfDay(NEWEST), 83) + 3_600_000
+    expect(periodOf([at(first, 'run'), at(NEWEST, 'ride')], 'default')).toMatchObject({
+      days: DEFAULT_PERIOD_DAYS,
       fellBack: false,
     })
   })
@@ -168,13 +179,13 @@ describe('the default period', () => {
     expect(previous).toHaveLength(1)
   })
 
-  it('is dated from the first activity’s day for a one-sport library shorter than 12 weeks', () => {
-    const first = NEWEST - 20 * DAY_MS
-    expect(periodOf([at(first, 'ride'), at(NEWEST, 'ride')], 'default')).toMatchObject({
-      startMs: startOfDay(first),
-      days: 21,
-      fellBack: false,
-    })
+  it('is all time for a one-sport library shorter than 12 weeks, one run included', () => {
+    for (const library of [
+      [at(NEWEST - 20 * DAY_MS, 'ride'), at(NEWEST, 'ride')],
+      [at(NEWEST, 'run')],
+    ]) {
+      expect(periodOf(library, 'default')).toMatchObject({ days: null, fellBack: true })
+    }
   })
 
   it('names the sport the 12 weeks lack, in a library of two', () => {

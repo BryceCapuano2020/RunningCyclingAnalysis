@@ -518,8 +518,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   activity's day, when they hold every sport the library has. A library of one sport always does, so a
   run-only or ride-only library gets its 12 weeks and a previous period like any other. A day is counted in the device's local zone and
   runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same
-  day give the same window, and an older window never hides recent activities. It is clipped to the
-  first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12
+  day give the same window, and an older window never hides recent activities. A library
+  shorter than 12 weeks has no previous period, so its default is All time, dated from its first
+  activity, with no note. When those 12
   weeks lack a sport the library has, as with a 2015 run and a 2019 ride, the default is All time, the
   control selects All time (the period in force, not the 12 weeks the stored choice names), and it
   says why, naming the missing sport: "Your last 12 weeks hold no rides, so this shows all time." The
