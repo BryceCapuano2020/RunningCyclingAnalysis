@@ -66,14 +66,14 @@
 }
 
 .segmented-control__option--selected:active {
-  box-shadow: inset 0 0 0 2px var(--selected-contrast);
+  box-shadow: inset 0 0 0 2px var(--highlight-ink);
 }
 
 /* The checked state uses weight and a filled background, not colour alone. */
 .segmented-control__option--selected {
-  background: var(--selected);
+  background: var(--highlight);
   border-color: var(--selected);
-  color: var(--selected-contrast);
+  color: var(--highlight-ink);
   font-weight: 600;
 }
 

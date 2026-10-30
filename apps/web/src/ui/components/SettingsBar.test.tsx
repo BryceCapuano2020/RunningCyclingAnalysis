@@ -526,3 +526,60 @@ describe('SettingsBar units agree with what is saved', () => {
     expect(change.massKg).toBeCloseTo(185 * 0.45359237, 6)
   })
 })
+
+describe('SettingsBar: a body weight far from the saved one', () => {
+  it('is not saved when the field is left, and names how far it is from the saved weight', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar()
+    await user.clear(body)
+    await user.type(body, '125')
+    await user.tab()
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('That is 125.0 kg')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '56% higher than your saved weight, 80.0 kg.',
+    )
+    expect(screen.getByRole('button', { name: 'Save 125.0 kg' })).toBeInTheDocument()
+  })
+
+  it('is saved once the athlete chooses to', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar()
+    await user.clear(body)
+    await user.type(body, '120')
+    await user.tab()
+    await user.click(screen.getByRole('button', { name: 'Save 120.0 kg' }))
+
+    expect(onChange).toHaveBeenCalledWith({ massKg: 120 })
+  })
+
+  it('has no saved weight to compare with when none was entered, so a typical weight saves at once', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar('metric', UNSET)
+    await user.type(body, '120')
+    await user.tab()
+
+    expect(onChange).toHaveBeenCalledWith({ massKg: 120 })
+  })
+
+  it('asks about a high first weight when none is saved', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar('metric', UNSET)
+    await user.type(body, '150')
+    await user.tab()
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('a high figure for a first weight')
+  })
+
+  it('does not question the bike and gear weight', async () => {
+    const user = userEvent.setup()
+    const { bike, onChange } = renderBar()
+    await user.clear(bike)
+    await user.type(bike, '20')
+    await user.tab()
+
+    expect(onChange).toHaveBeenCalledWith({ bikeMassKg: 20 })
+  })
+})

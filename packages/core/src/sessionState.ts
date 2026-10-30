@@ -43,6 +43,11 @@ export interface SessionState {
    * in the library, marked.
    */
   walkingPaceRuns: number
+  /**
+   * The workout keys (see `dedupeKey`) of the runs at walking pace that the athlete counts as runs
+   * (`AthleteSettings.countedRuns`). They are in the analysis and carry no mark in the library.
+   */
+  countedWalkingRuns: string[]
   /** The period analysed: its choice and its dates. The library lists every activity regardless. */
   period: Period
   /** Every visible activity, newest first, whatever the period: the activity list and its pages. */

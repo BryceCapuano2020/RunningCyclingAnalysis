@@ -1,5 +1,7 @@
 import type { Period } from '@rca/core/period'
 import type { Sport } from '@rca/core/types'
+import { leftOutShort } from '../analysis/walkingPaceCopy'
+import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { AddSportFiles } from '../components/AddSportFiles'
 import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { SportIcon } from '../components/icons'
@@ -15,6 +17,8 @@ export interface EmptySportCardProps {
   period: Period
   /** Adds files, as the header's Add files does. */
   onAddFiles: (files: File[]) => void
+  /** Runs of this sport that are all at walking pace and left out: the card says so. The headline offers to count them. */
+  leftOut?: LeftOutRuns
 }
 
 /**
@@ -23,7 +27,13 @@ export interface EmptySportCardProps {
  * offers the same file chooser as the header as a secondary action. It links nowhere, since the
  * sport's page would be empty as well.
  */
-export function EmptySportCard({ sport, inLibrary, period, onAddFiles }: EmptySportCardProps) {
+export function EmptySportCard({
+  sport,
+  inLibrary,
+  period,
+  onAddFiles,
+  leftOut,
+}: EmptySportCardProps) {
   const headingId = `empty-sport-${sport}`
   // This card sits on Balance beside the other sport, which it asks to be compared with.
   const other = SPORT_ORDER.find((candidate) => candidate !== sport)
@@ -33,7 +43,11 @@ export function EmptySportCard({ sport, inLibrary, period, onAddFiles }: EmptySp
         <SportIcon sport={sport} />
         {SPORT_LABEL[sport]}
       </h2>
-      <p className="secondary">{sportEmptyText(sport, period, inLibrary, other)}</p>
+      <p className="secondary">
+        {leftOut !== undefined && inLibrary === 0
+          ? leftOutShort(leftOut.count)
+          : sportEmptyText(sport, period, inLibrary, other)}
+      </p>
       <div className="empty-sport__actions">
         <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
         <HowToGetFilesButton />

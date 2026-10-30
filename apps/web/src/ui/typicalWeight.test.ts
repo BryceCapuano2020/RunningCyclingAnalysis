@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isTypicalBodyKg, unusualKgText, unusualWeightSentence } from './typicalWeight'
+import {
+  isTypicalBodyKg,
+  questionedKgText,
+  unusualKgText,
+  unusualWeightSentence,
+  weightQuestion,
+} from './typicalWeight'
 
 describe('isTypicalBodyKg', () => {
   it('takes a body weight from 45 to 160 kg at face value, with both ends included', () => {
@@ -50,5 +56,63 @@ describe('unusualWeightSentence', () => {
     expect(unusualWeightSentence(34.02, '75 lb', 'metric')).toBe(
       '75 lb is 34.0 kg, outside 45 to 160 kg.',
     )
+  })
+})
+
+describe('weightQuestion', () => {
+  const SAVED = { kg: 68, label: 'your saved weight' }
+
+  it('has nothing to ask of a typical weight near the one given before, or a modest one with none given', () => {
+    expect(weightQuestion(70, '70', 'metric', SAVED)).toBeNull()
+    expect(weightQuestion(70, '70', 'metric')).toBeNull()
+    expect(weightQuestion(120, '120', 'metric')).toBeNull()
+    expect(weightQuestion(70, '70', 'metric', { kg: 0, label: 'x' })).toBeNull()
+  })
+
+  it('asks about a weight outside the typical range, whatever was given before', () => {
+    expect(weightQuestion(34.02, '75', 'imperial', SAVED)).toBe(
+      '75 lb is 34.0 kg, outside 45 to 160 kg.',
+    )
+  })
+
+  it('asks about pounds typed into a kilogram field, which the range alone takes at face value', () => {
+    expect(weightQuestion(150, '150', 'metric', SAVED)).toBe(
+      'That is 150.0 kg, 121% higher than your saved weight, 68.0 kg.',
+    )
+  })
+
+  it('asks about kilograms typed into a pound field, quoting the figure as typed', () => {
+    expect(weightQuestion(30.84, '68', 'imperial', SAVED)).toBe(
+      '68 lb is 30.8 kg, outside 45 to 160 kg.',
+    )
+  })
+
+  it('lets a change of up to 40% through either way, and asks beyond it', () => {
+    expect(weightQuestion(68 * 1.39, '94.5', 'metric', SAVED)).toBeNull()
+    expect(weightQuestion(96, '96', 'metric', SAVED)).not.toBeNull()
+    expect(weightQuestion(68 / 1.39, '48.9', 'metric', SAVED)).toBeNull()
+    expect(weightQuestion(48.5, '48.5', 'metric', SAVED)).not.toBeNull()
+  })
+})
+
+describe('weightQuestion for a first weight', () => {
+  it('asks about a high one, and says what it would be if it were pounds', () => {
+    expect(weightQuestion(150, '150', 'metric')).toBe(
+      'That is 150.0 kg, a high figure for a first weight. If that is pounds, it is 68.0 kg.',
+    )
+  })
+
+  it('quotes a high pound figure as typed, with no second reading', () => {
+    expect(weightQuestion(136.08, '300', 'imperial')).toBe(
+      '300 lb is 136.1 kg, a high figure for a first weight.',
+    )
+  })
+})
+
+describe('questionedKgText', () => {
+  it('writes a weight inside the range as it is, and one outside as the range reads it', () => {
+    expect(questionedKgText(150)).toBe('150.0')
+    expect(questionedKgText(44.96)).toBe('44.9')
+    expect(questionedKgText(160.04)).toBe('160.1')
   })
 })

@@ -24,6 +24,12 @@ export default defineConfig({
       use: { ...devices['Pixel 7'], viewport: { width: 320, height: 640 } },
       testMatch: /accessibility\.spec\.ts$/,
     },
+    // WCAG 1.4.10 Reflow: a 1280 px page at 400% zoom is 320 x 256, and scrolls one way only.
+    {
+      name: 'reflow-320x256',
+      use: { ...devices['Pixel 7'], viewport: { width: 320, height: 256 } },
+      testMatch: /reflow\.spec\.ts$/,
+    },
   ],
   webServer: [
     {

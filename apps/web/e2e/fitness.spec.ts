@@ -214,7 +214,7 @@ test('the Run page leads with the same status above the threshold, and the Ride 
   await expect(page.getByRole('region', { name: 'Your fitness' })).toHaveCount(0)
 })
 
-test('the landing page’s example leads with the same finding for the sample athlete', async ({
+test('the landing page’s example shows the same finding as a second panel under the balance headline', async ({
   page,
 }) => {
   await page.goto('/')
@@ -224,6 +224,10 @@ test('the landing page’s example leads with the same finding for the sample at
     /^At 130 bpm you now run [\d.]+% \(\d+ to \d+%\) slower than before\.$/,
   )
   await expect(example.locator('.fitness-track__band')).toBeVisible()
+  // The balance comes first; the fitness finding is the panel under it.
+  const headline = await edgesOf(example.locator('.landing-example__title'))
+  const panel = await edgesOf(example.locator('.landing-example__fitness'))
+  expect(headline.bottom).toBeLessThanOrEqual(panel.top)
 })
 
 test('a forced-colours reader still sees the card’s edge and the track’s outline', async ({

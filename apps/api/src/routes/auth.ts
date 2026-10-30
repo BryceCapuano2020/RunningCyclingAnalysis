@@ -7,7 +7,6 @@ import type { AppEnv } from '../env.ts'
 import { HttpError } from '../errors.ts'
 import { parseGoogleIdToken } from '../auth/google.ts'
 import { buildMe, ensureProfile, signInDev } from '../auth/accounts.ts'
-import { hasRefusalPage, refusalPage } from '../auth/refusalPage.ts'
 import { signInWithGoogle } from '../auth/signIn.ts'
 import { signupGate } from '../auth/signupGate.ts'
 import { isLocalRequest } from '../localDev.ts'
@@ -75,14 +74,10 @@ authRoutes.get('/google/callback', async (c) => {
   }
 
   const profile = parseGoogleIdToken(idToken, c.env.GOOGLE_CLIENT_ID, deps.now())
-  let user
-  try {
-    user = await signInWithGoogle(db, deps, profile, signupGate(c.env, c.req.url))
-  } catch (error) {
-    // The browser is mid-navigation, so a refusal the person can act on is a page, not JSON.
-    if (error instanceof HttpError && hasRefusalPage(error)) return refusalPage(c, error)
-    throw error
-  }
+  // A refusal the person can act on (not on the list, too many accounts today, being deleted, an email that
+  // belongs to another Google account) is a coded error. The browser is mid-navigation, so the app's error
+  // handler sends it back to the app with the code, which the app words (see signInProblem).
+  const user = await signInWithGoogle(db, deps, profile, signupGate(c.env, c.req.url))
   // A new account's profile starts in the units of this sign-in's language; an existing one keeps its own.
   const units = unitsForAcceptLanguage(c.req.header('accept-language'))
   await ensureProfile(db, user.id, deps.now(), units)

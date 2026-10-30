@@ -664,10 +664,12 @@ describe('analysis worker', () => {
     ])
   })
 
-  it('tells a signed-out import to add its files again when the kept library cannot be read', async () => {
+  it('analyses a signed-out import on its own, and says so, when the kept library cannot be read', async () => {
     kept.library = {
       ...memoryDeviceLibrary(),
       all: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+      // Each save first reads what is kept under its workout, so nothing kept can be written over.
+      lookup: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
     }
     const { send } = await startWorker()
     const messages = await send({
@@ -678,10 +680,10 @@ describe('analysis worker', () => {
       saveToDevice: true,
     })
 
-    expect(messages.at(-1)).toEqual({
-      type: 'error',
-      message: expect.stringMatching(/these files were not added\. Add them again\./),
-    })
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notRead' })
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notSaved', count: 1 })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+    expect(messages.some((message) => message.type === 'error')).toBe(false)
   })
 
   it('leaves the sample on its period when the kept library loads after it', async () => {
@@ -1545,6 +1547,7 @@ function refusingLibrary(): DeviceLibrary {
   const refused = () => Promise.reject(new Error('Device storage is unavailable'))
   return {
     all: async () => [],
+    skipped: () => 0,
     get: async () => null,
     lookup: async () => null,
     route: async () => null,
