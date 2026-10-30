@@ -1,3 +1,4 @@
+import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
 import { plantedLibrary } from '../findings/test/plantedLibrary'
@@ -300,11 +301,10 @@ describe('the session', () => {
     expect(session.setRange('all', settings).fitness).not.toBe(first)
   })
 
-  // Drawing a whole sample season takes several seconds under coverage, so this test gets its own timeout.
   it("gives the sample athlete the sample season's own day, whatever the clock says", () => {
     const session = sessionOn(Date.UTC(2040, 0, 1))
     const sample = session.loadSample(settings)
     expect(sample.fitness.run.shortfall?.kind).not.toBe('break')
     expect(sample.fitness.run.asOfMs).toBeLessThan(Date.UTC(2030, 0, 1))
-  }, 30_000)
+  })
 })

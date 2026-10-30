@@ -71,7 +71,8 @@ async function attempt(action: () => Promise<unknown>): Promise<unknown> {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  // A reset, not a clear: clearing keeps the answers an earlier test queued, so the order would matter.
+  vi.resetAllMocks()
   vi.mocked(deleteAccountDetails).mockResolvedValue(null)
 })
 

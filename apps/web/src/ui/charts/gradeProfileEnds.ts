@@ -12,7 +12,7 @@ import { DEFAULT_HEIGHT } from './ChartFrame'
 import { bandBoxes } from './directLabelFit'
 import { drawnSports, profileLayout } from './gradeProfileLayout'
 import type { ProfileLayout, ProfileRow } from './gradeProfileLayout'
-import { isPhoneWidth, plotBoxOf } from './plotBox'
+import { geometryScale, isPhoneWidth, plotBoxOf } from './plotBox'
 import { rootFontPx } from './rootFont'
 
 /** The room an end label needs beyond its text: 10 px from the plot and 4 px from the chart's edge. */
@@ -65,7 +65,7 @@ function wantedLabels(rows: readonly ProfileRow[]): number {
  */
 export function usesEndLabels(rows: readonly ProfileRow[], profile: GradeProfile, width: number) {
   if (width < END_LABEL_MIN_WIDTH_PX || wantedLabels(rows) === 0) return false
-  const height = DEFAULT_HEIGHT
+  const height = DEFAULT_HEIGHT * geometryScale()
   const plot = plotBoxOf(width, height, undefined, undefined, isPhoneWidth(width))
   const size: ChartSize = { width, height, plot, tooltipId: '', hintId: '', titleId: '' }
   const layout = profileLayout(rows, profile, size)

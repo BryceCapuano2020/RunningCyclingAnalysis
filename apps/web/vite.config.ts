@@ -86,5 +86,13 @@ export default defineConfig({
     // Timing budgets run in test:perf, alone and without the parallel unit run.
     exclude: [...configDefaults.exclude, 'src/**/*.perf.test.ts'],
     setupFiles: ['src/test/setup.ts'],
+    // See packages/core/vitest.config.ts: a guard against a hang, not a budget.
+    testTimeout: 15_000,
+    hookTimeout: 30_000,
+    // A test may not leave its spies or stubbed globals to the next: a green run means the same in any order.
+    restoreMocks: true,
+    unstubGlobals: true,
+    // Not unstubEnvs: several files pin TZ once in beforeAll and unstub it in afterAll, and unstubbing after each test
+    // would hand the rest of the file the machine's zone.
   },
 })

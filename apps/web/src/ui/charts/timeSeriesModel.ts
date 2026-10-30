@@ -7,6 +7,14 @@
 /** The plot's left and right margins in px. The lap strip and the brush take the same, so they line up. */
 export const STACK_MARGIN = { left: 44, right: 12 }
 
+/**
+ * The margins at the reader's text size: the left one holds the value ticks, which grow with the text, so it
+ * grows with them (`scale` is geometryScale()). The stack, the lap strip and the brush all take this one.
+ */
+export function stackMargin(scale: number): { left: number; right: number } {
+  return { left: STACK_MARGIN.left * scale, right: STACK_MARGIN.right }
+}
+
 /** The shortest rolling mean, in seconds: a close view still averages out a second's jitter. */
 const MIN_WINDOW_S = 3
 /** The rolling mean is this fraction of the window: a trend at overview, and detail once zoomed. */

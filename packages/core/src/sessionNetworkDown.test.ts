@@ -8,7 +8,8 @@ import type { AthleteSettings } from './types'
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const DAY_MS = 24 * 3_600_000
-const COUNT = 2_000
+// Enough that the four saves attempted are a small part of the library; every other activity must go unsent.
+const COUNT = 60
 // The real timer, kept before the fake ones are installed, to let the import's own work run.
 const realSetTimeout = globalThis.setTimeout
 
@@ -37,7 +38,7 @@ function zipOfRuns(count: number): File {
 describe('AnalysisSession with the network down', () => {
   afterEach(() => vi.useRealTimers())
 
-  it('stops saving when the probe after three timed-out saves times out too, and reports all 2,000 unsaved', async () => {
+  it('stops saving when the probe after three timed-out saves times out too, and reports every other activity unsaved', async () => {
     const session = new AnalysisSession()
     const file = zipOfRuns(COUNT)
     let attempts = 0
@@ -59,12 +60,12 @@ describe('AnalysisSession with the network down', () => {
     }
     await done
 
-    // Three saves, a 2 s wait, one probe, and nothing more for the other 1,996.
+    // Three saves, a 2 s wait, one probe, and nothing more for the rest.
     expect(attempts).toBe(4)
     expect(Date.now() - started).toBe(4 * 31_000 + NETWORK_PROBE_DELAY_MS)
     expect(state.totalActivities).toBe(COUNT)
     expect(state.syncIssues).toEqual([{ code: 'network', count: COUNT }])
-  }, 60_000)
+  })
 
   it('carries on when the probe gets through, as after a Wi-Fi network changes', async () => {
     const session = new AnalysisSession()
@@ -89,6 +90,30 @@ describe('AnalysisSession with the network down', () => {
     expect(calls).toBe(12)
     expect(Date.now() - started).toBe(NETWORK_PROBE_DELAY_MS)
     expect(state.syncIssues).toEqual([{ code: 'network', count: 3 }])
+  })
+
+  it('carries on when the probe fails only in the original-file upload, since the server answered', async () => {
+    const session = new AnalysisSession()
+    const file = zipOfRuns(12)
+    let calls = 0
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    let state: Awaited<ReturnType<AnalysisSession['addFiles']>> | undefined
+    const done = session
+      .addFiles([file], SETTINGS, undefined, async () => {
+        calls++
+        if (calls <= 3) throw new SyncFailure('network', 'Offline')
+        // The probe: the digest reached the server and only the upload of the original failed.
+        if (calls === 4) throw new SyncFailure('network', 'Upload failed', true)
+      })
+      .then((s) => (state = s))
+    while (state === undefined) {
+      if (vi.getTimerCount() > 0) await vi.advanceTimersToNextTimerAsync()
+      else await new Promise((resolve) => realSetTimeout(resolve, 0))
+    }
+    await done
+
+    // Halting here would leave the other eight activities unsent although the network is up.
+    expect(calls).toBe(12)
   })
 
   it('does not count an original file that failed to upload after its digest was saved', async () => {

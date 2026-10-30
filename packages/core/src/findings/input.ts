@@ -1,5 +1,5 @@
 import { DAY_MS } from '../constants'
-import { orderedCurrent } from '../digest/combine'
+import { orderedFor } from '../digest/consumers'
 import { weekEndMs } from '../digest/trendPoints'
 import type { ActivityDigest } from '../types'
 import { buildTables } from './tables'
@@ -21,7 +21,7 @@ export interface FindingSource {
 
 /** The newest start among the digests of the current model, which is "now" for the data; 0 without any. */
 export function latestStartMs(digests: ActivityDigest[]): number {
-  return orderedCurrent(digests).at(-1)?.startMs ?? 0
+  return orderedFor('findings', digests).at(-1)?.startMs ?? 0
 }
 
 /** The zone tables as they stood at asOfMs: the activities up to it, and the weeks made from them. */
@@ -37,7 +37,7 @@ function zonesAt(zones: ZoneTables, asOfMs: number): ZoneTables {
  */
 export function inputAt(source: FindingSource, asOfMs?: number): FindingInput {
   const upTo = asOfMs ?? latestStartMs(source.digests)
-  const digests = orderedCurrent(source.digests).filter((d) => d.startMs <= upTo)
+  const digests = orderedFor('findings', source.digests).filter((d) => d.startMs <= upTo)
   return {
     digests,
     setAside: source.setAside,
@@ -55,7 +55,7 @@ export function weeklyMarks(
   digests: ActivityDigest[],
   range: { fromMs?: number; toMs?: number } = {},
 ): number[] {
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('findings', digests)
   if (ordered.length === 0) return []
   const marks: number[] = []
   const last = weekEndMs(ordered.at(-1)!.startMs)
