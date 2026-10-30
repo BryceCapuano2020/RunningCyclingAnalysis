@@ -1,22 +1,37 @@
 version: 2
+# Weekly version updates, grouped so one week is a handful of pull requests, with a small cap on
+# open ones so a busy week cannot flood the review queue. Every update goes through the normal PR
+# gate (CI plus the owner's review); none merges itself. Security updates are a repository setting
+# and ignore these caps (docs/PRODUCTION.md, "Repository settings checklist").
 updates:
   - package-ecosystem: npm
-    directory: /
+    # One root lockfile covers the npm workspaces. Each workspace manifest is listed so its own
+    # dependency ranges are updated too.
+    directories:
+      - /
+      - /apps/*
+      - /packages/*
     schedule:
       interval: weekly
-    # No routine version-update PRs. Security updates arrive as PRs through the normal PR gate,
-    # and CI audits dependencies on every run.
-    open-pull-requests-limit: 0
+      day: monday
+    open-pull-requests-limit: 4
     groups:
       production-dependencies:
         dependency-type: production
+        update-types:
+          - minor
+          - patch
       development-dependencies:
         dependency-type: development
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: /
-    open-pull-requests-limit: 0
     schedule:
       interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
     groups:
       github-actions:
         patterns:

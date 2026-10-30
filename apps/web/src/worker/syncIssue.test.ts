@@ -11,7 +11,12 @@ describe('syncIssueFor', () => {
       new ApiRequestError(409, 'account_changed', 'Changed'),
       'account-changed',
     ],
-    ['another conflict', new ApiRequestError(409, 'files_disabled', 'Off'), 'server'],
+    ['an unknown conflict', new ApiRequestError(409, 'something_else', 'Off'), 'server'],
+    [
+      'original files turned off in the profile',
+      new ApiRequestError(409, 'files_disabled', 'Off'),
+      'originals-off',
+    ],
     ['a full library', new ApiRequestError(403, 'activity_quota', 'Full'), 'activity-quota'],
     ['full storage', new ApiRequestError(403, 'storage_quota', 'Full'), 'storage-quota'],
     [

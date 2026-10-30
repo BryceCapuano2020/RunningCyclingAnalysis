@@ -37,8 +37,8 @@ describe('deltaELab', () => {
 
 describe('deltaE', () => {
   it('is 0 for the same colour and symmetric', () => {
-    expect(deltaE('#e5304f', '#e5304f')).toBe(0)
-    expect(deltaE('#e5304f', '#2f56e8')).toBeCloseTo(deltaE('#2f56e8', '#e5304f'), 9)
+    expect(deltaE('#e44f27', '#e44f27')).toBe(0)
+    expect(deltaE('#e44f27', '#2f56e8')).toBeCloseTo(deltaE('#2f56e8', '#e44f27'), 9)
   })
 
   it('puts white against black near 100', () => {
@@ -60,8 +60,8 @@ describe('simulate', () => {
   it('takes the red out of a red for a reader without red cones', () => {
     // A run coral and a green of the same lightness are told apart by hue; without red cones they converge.
     expect(
-      deltaE(simulate('#e5304f', 'protanopia'), simulate('#2f9e44', 'protanopia')),
-    ).toBeLessThan(deltaE('#e5304f', '#2f9e44'))
+      deltaE(simulate('#e44f27', 'protanopia'), simulate('#2f9e44', 'protanopia')),
+    ).toBeLessThan(deltaE('#e44f27', '#2f9e44'))
   })
 })
 
