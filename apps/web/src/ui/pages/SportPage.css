@@ -56,18 +56,13 @@
   }
 }
 
-/* A jump from "On this page" lands the section clear of the header, and of the row held under it on a desktop. */
+/* A jump from "On this page" lands the section clear of the header and of the row held under it on a desktop: scroll-padding (--sticky-extra) holds both, so the margin is a gap only. */
 .sport-panel,
 .sport-disclosure {
   scroll-margin-top: var(--space-3);
 }
 
 @media (min-width: 1081px) {
-  .sport-panel,
-  .sport-disclosure {
-    scroll-margin-top: calc(var(--control-height) + var(--space-5));
-  }
-
   .sport-row--pair {
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   }
