@@ -25,7 +25,7 @@ Install dependencies with `npm ci`, then install browser engines with
 It checks formatting, lint, all package types, unit coverage, deployment configuration and
 operations tests, the production build, Chromium and WebKit browser behavior, and the
 Worker-served application.
-CI does not install browsers. The `ci.yml` end-to-end job and the `deploy.yml` release gate run in
+CI does not install browsers. The `ci.yml` end-to-end shards and the `deploy.yml` release gate run in
 the official Playwright container, pinned by tag and digest to the `@playwright/test` version in
 `package-lock.json`. Browser downloads and apt packages therefore never stall a run. When that
 version is upgraded, change the image tag and digest in both workflows. The ops test
@@ -97,12 +97,15 @@ The status-check names are the job names shown on pull requests and must match e
 - Passing status checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)`,
   `Performance budgets`, `Statistical simulations` and `Dependency audit`. `Performance budgets`
   (the wall-clock timing job) and `Statistical simulations` (the seeded detector simulations) are
-  split out of the first check so a loaded runner cannot fail the unit tests. A
-  documentation-only pull request (every changed file is Markdown, under `docs/` or `LICENSE`)
-  skips the end-to-end, budget and simulation jobs and the typecheck, coverage and build steps, and
-  runs the format check, lint, ops tests and the unit tests that read Markdown, in about 3 minutes.
-  GitHub counts a job skipped by its condition as passing, so these pull requests still merge.
-  Pushes to `main` run everything.
+  split out of the first check so a loaded runner cannot fail the unit tests. The unit tests run in
+  two shards and the end-to-end tests in three. The two shard-backed checks are small jobs that pass
+  only when every shard passed; the first also merges the unit shards and applies the coverage
+  thresholds to the whole run. A documentation-only pull request (every changed file is Markdown,
+  under `docs/` or `LICENSE`) skips the end-to-end, unit-test, budget and simulation jobs and the
+  typecheck and build steps, and runs the format check, lint, ops tests and the unit tests that
+  read Markdown, in about 3 minutes. GitHub counts a job skipped by its condition as passing, so
+  these pull requests still merge. Pushes to `main` run everything, and no `main` run is ever
+  cancelled, so every commit on `main` gets a verdict.
 - Branches do not need to be up to date with `main` before merging ("require branches to be up to
   date" is off), so a green pull request merges without a rebase. Every push to `main` runs the
   full CI, which catches two changes that pass alone but fail together. See

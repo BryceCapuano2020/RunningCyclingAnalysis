@@ -5,8 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push to a pull request cancels that pull request's older run. Each push to main gets its
+# own group (its sha), so no main run is ever cancelled or dropped and every main commit gets a verdict.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -18,7 +20,7 @@ env:
 
 jobs:
   # Classifies a pull request as documentation only when every changed file is Markdown, under docs/
-  # or LICENSE. Such a pull request skips the long jobs (typecheck, coverage, build, simulations,
+  # or LICENSE. Such a pull request skips the long jobs (typecheck, unit tests, build, simulations,
   # budgets, end to end) and still runs the format check, lint, the ops tests and every unit test that
   # reads a Markdown file. Pushes to main always run everything. The long jobs skip only on an
   # explicit 'false', so if this job fails they run.
@@ -54,13 +56,12 @@ jobs:
             echo "code=true" >> "$GITHUB_OUTPUT"
           fi
 
-  verify:
-    name: Lint, typecheck, unit tests, build
+  # Everything in the first required check except the unit tests, which run in shards below.
+  static:
+    name: Lint, typecheck, build
     needs: changes
-    # A required check, so it always reports; documentation-only pull requests skip its long steps.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    # Guards against a hang; it is not a speed budget (the job takes 8 to 9 minutes on a normal run).
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -77,8 +78,6 @@ jobs:
         if: needs.changes.outputs.code != 'false'
       - run: npm run test:deploy-config
       - run: npm run test:ops
-      - run: npm run test:coverage
-        if: needs.changes.outputs.code != 'false'
       # Documentation only: the unit tests that read a Markdown file (design tokens, the architecture
       # and privacy pages, validation tables). Found by content, so a new one needs no list.
       - name: Unit tests that read documentation
@@ -90,18 +89,92 @@ jobs:
       - run: npm run build
         if: needs.changes.outputs.code != 'false'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always() && needs.changes.outputs.code != 'false'
-        with:
-          name: coverage
-          path: coverage
-          retention-days: 7
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: needs.changes.outputs.code != 'false'
         with:
           name: dist
           path: apps/web/dist
           retention-days: 7
           include-hidden-files: true
+
+  # The unit tests with coverage, split across shards. COVERAGE_SHARD turns off the thresholds in
+  # vitest.config.ts, because one shard's coverage is partial; each shard keeps its results and
+  # coverage as a blob report, and the required check below merges them and applies the thresholds
+  # to the whole run.
+  unit:
+    name: Unit tests (${{ matrix.shard }} of 2)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    env:
+      COVERAGE_SHARD: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit
+      - run: npx vitest run --coverage --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=default --reporter=blob
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vitest-blob-${{ matrix.shard }}
+          path: .vitest/blob
+          retention-days: 1
+          include-hidden-files: true
+
+  # The required check. It passes only when the static job passed and every unit shard passed (or,
+  # on a documentation-only pull request, was skipped), then merges the shards and applies the
+  # coverage thresholds to the whole run.
+  verify:
+    name: Lint, typecheck, unit tests, build
+    needs: [changes, static, unit]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require the static job and every unit shard
+        env:
+          CODE: ${{ needs.changes.outputs.code }}
+          STATIC: ${{ needs.static.result }}
+          UNIT: ${{ needs.unit.result }}
+        run: |
+          echo "static=$STATIC unit=$UNIT code=$CODE"
+          if [ "$STATIC" != success ]; then echo "::error::Lint, typecheck, build: $STATIC"; exit 1; fi
+          if [ "$UNIT" = skipped ] && [ "$CODE" = false ]; then exit 0; fi
+          if [ "$UNIT" != success ]; then echo "::error::Unit tests: $UNIT"; exit 1; fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.changes.outputs.code != 'false'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: needs.changes.outputs.code != 'false'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit
+        if: needs.changes.outputs.code != 'false'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.changes.outputs.code != 'false'
+        with:
+          pattern: vitest-blob-*
+          path: .vitest/blob
+          merge-multiple: true
+      - name: Merge the shards and apply the coverage thresholds
+        if: needs.changes.outputs.code != 'false'
+        run: npx vitest --mergeReports .vitest/blob --coverage
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && needs.changes.outputs.code != 'false'
+        with:
+          name: coverage
+          path: coverage
+          retention-days: 7
 
   # The wall-clock budgets (*.perf.test.ts) are their own job so a loaded runner cannot fail the unit
   # tests, and the unit tests' load cannot fail a budget. They still run on every pull request and
@@ -150,12 +223,18 @@ jobs:
       - run: npm ci --no-audit
       - run: npm run test:sim
 
+  # The Playwright suite split across shards (fullyParallel, so tests spread evenly). Each shard builds
+  # the app and starts its own servers; the Worker-runtime check runs once, in the first shard.
   e2e:
-    name: End-to-end (Playwright)
+    name: End-to-end (${{ matrix.shard }} of 3)
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     # The image ships the browsers and their OS libraries, so the job downloads no apt packages.
     # Its tag must match @playwright/test in package-lock.json (checked by workflow-guards.test.mjs).
     # Its Node (24) differs from .nvmrc (22), so setup-node still installs the project's Node.
@@ -177,14 +256,33 @@ jobs:
       - run: npx playwright install chromium webkit
         working-directory: apps/web
       - run: npm run build
-      - run: npm run e2e
+      - run: npm run e2e -w @rca/web -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - run: npm run e2e:worker -w @rca/web
+        if: matrix.shard == 1
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: apps/web/playwright-report
           retention-days: 7
+
+  # The required check: passes only when every end-to-end shard passed (or, on a documentation-only
+  # pull request, was skipped).
+  e2e-result:
+    name: End-to-end (Playwright)
+    needs: [changes, e2e]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every end-to-end shard
+        env:
+          CODE: ${{ needs.changes.outputs.code }}
+          E2E: ${{ needs.e2e.result }}
+        run: |
+          echo "e2e=$E2E code=$CODE"
+          if [ "$E2E" = skipped ] && [ "$CODE" = false ]; then exit 0; fi
+          if [ "$E2E" != success ]; then echo "::error::End-to-end shards: $E2E"; exit 1; fi
 
   audit:
     name: Dependency audit
