@@ -95,4 +95,37 @@ describe('ChartXAxis', () => {
     expect(extentOf(first).left).toBeGreaterThanOrEqual(PLOT.left)
     expect(extentOf(last).right).toBeLessThanOrEqual(PLOT.right)
   })
+
+  it('drops the middle label that meets the last one, keeping both ends and every grid line', () => {
+    // The last label is anchored to the plot's right edge, so it sits nearer its neighbour than the thinning allowed for.
+    const ticks = [
+      { position: 56, label: '1' },
+      { position: 278, label: '60' },
+      { position: 296, label: '120' },
+    ]
+    const { container } = render(
+      <svg>
+        <ChartXAxis ticks={ticks} plot={PLOT} />
+      </svg>,
+    )
+    const shown = Array.from(container.querySelectorAll('.chart-x-axis__tick')).map(
+      (tick) => tick.textContent,
+    )
+    expect(shown).toEqual(['1', '120'])
+    expect(container.querySelectorAll('.chart-x-axis__grid')).toHaveLength(3)
+  })
+
+  it('keeps every label when each has its room', () => {
+    const ticks = [
+      { position: 56, label: '1' },
+      { position: 180, label: '20' },
+      { position: 304, label: '120' },
+    ]
+    const { container } = render(
+      <svg>
+        <ChartXAxis ticks={ticks} plot={PLOT} />
+      </svg>,
+    )
+    expect(container.querySelectorAll('.chart-x-axis__tick')).toHaveLength(3)
+  })
 })

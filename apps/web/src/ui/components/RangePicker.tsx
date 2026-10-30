@@ -28,6 +28,11 @@ export const WAITS_FOR_IMPORT = 'Applies when the current import finishes'
 export interface RangePickerProps {
   /** The choice on screen, unless the athlete has picked one here since. */
   choice: PeriodChoice
+  /**
+   * The default shows all time, because its 12 weeks lack a sport the library has. The control then selects
+   * All time, the period in force, and not the 12 weeks the choice names.
+   */
+  fellBack?: boolean
   /** The periods offered. The Balance and sport pages offer all of them, the activity list fewer. */
   options?: RangeOption[]
   /** Whether the Custom segment is offered: the Balance and sport pages, not the activity list. */
@@ -68,6 +73,7 @@ export interface RangePickerProps {
  */
 export function RangePicker({
   choice,
+  fellBack = false,
   options = RANGE_OPTIONS,
   custom = false,
   range = null,
@@ -92,7 +98,9 @@ export function RangePicker({
     latest: PeriodChoice | null
   }>({ count: 0, answered: 0, latest: null })
   const waiting = picks.count > picks.answered
-  const checked = waiting && picks.latest !== null ? picks.latest : choice
+  const picked = waiting && picks.latest !== null ? picks.latest : choice
+  // A default that fell back is all time on screen, so that is the segment that shows as selected.
+  const checked: PeriodChoice = fellBack && picked === 'default' ? 'all' : picked
   // The form is open while a custom range is on screen, or while the athlete has picked Custom and not
   // yet a fixed period. A fixed period on screen closes it, but a new custom range keeps it open.
   const [customOpen, setCustomOpen] = useState(() => isCustomChoice(choice))

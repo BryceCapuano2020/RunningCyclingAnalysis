@@ -170,9 +170,12 @@
 /* The state word and its shape (no colour needed); a phone, or a waiting status, sets it a step smaller. */
 .fitness-card__state {
   display: flex;
+  /* At a large text size the word and its shape stack, not widen the page. */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: var(--display-3);
   text-transform: uppercase;
 }
@@ -183,10 +186,9 @@
   }
 }
 
-/* A long state word hyphenates, then breaks, rather than spill at 200% text. */
+/* A long state word hyphenates, then breaks (overflow-wrap above), rather than spill at 200% text. */
 .fitness-card__state > span {
   min-width: 0;
-  overflow-wrap: anywhere;
   hyphens: auto;
 }
 

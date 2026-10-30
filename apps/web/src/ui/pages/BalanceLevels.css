@@ -71,6 +71,8 @@
 
 .balance-levels__level .definition__term {
   text-align: start;
+  /* The level column is the row's squeezed track: at a large text size a long level word breaks rather than widen the page. */
+  overflow-wrap: anywhere;
 }
 
 .balance-levels__missing {

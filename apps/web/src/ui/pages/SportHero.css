@@ -20,6 +20,8 @@
 
 .sport-hero__panel {
   display: grid;
+  /* One track the panel's width: an auto track grows to its widest line, which a large text size sends past the card. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-3);
   min-width: 0;
@@ -117,6 +119,9 @@
 }
 
 .sport-hero__level-name {
+  min-width: 0;
+  /* A level word wider than the panel (a large text size, a reader's letter spacing) breaks rather than leave the card. */
+  overflow-wrap: anywhere;
   color: var(--text-primary);
   font-size: var(--display-2);
 }

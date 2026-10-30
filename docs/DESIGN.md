@@ -105,8 +105,8 @@ applies when the import finishes. How sure is this? names the dated period on on
 control. The period is a view preference: it is kept on this device, across Start over and sign-out.
 A period is counted back from the newest activity, not from today, so when that activity is more
 than six weeks old the note under the dates reads "Latest activity 17 months ago", and the dates
-above end on that day. The note says why the default is all time too, when it is and the library
-holds both sports, and an empty note takes no line. A stored pick the control no longer offers, such
+above end on that day. The note says why the default is all time too, when it is, and an empty note
+takes no line. A stored pick the control no longer offers, such
 as the 3 months of an earlier version, reads as the default.
 
 **The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. Its season is drawn relative to the day it is loaded (`sampleSeason` in `packages/core/src/synthetic`): a full training week for the last 12 weeks, a lighter one before that, and one session a week back past a year, so 12 weeks, 12 months and All time each show something different. The season ends on the most recent Sunday on or before yesterday and every draw is keyed to the days before that Sunday, so the plan and every figure from it are the same on every day of a week and in every week, and only the dates move; the newest activity is up to a week old. (The grades count age from the birth year against each effort's calendar year, so across New Year the figures differ by up to a week's worth of efforts' ages; a test notes it.) Start times vary through the day (weekday mornings, lunchtimes and evenings, weekend long sessions), in the visitor's own zone, and the ride threshold, bike efficiency and running economy rise through the season, so the trend, volume, same-heart-rate, durability, drift and stand-out sections all have something to show. It is deterministic for a clock and a seed: tests use the fixed reference clock (`SAMPLE_CLOCK`) and the small fixed `sampleDataset` fixture, and the app passes the device's clock. The birth year follows the year of the newest effort, so he is 37 on it. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the grade by duration shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the answer's headline over Balance's own meter and levels line (`BalanceMeter`, `BalanceLevels`), made from the sample's figures with the same components, so it cannot drift from the screen it stands for. A test pins its numbers to the sample's own analysis.
@@ -523,13 +523,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week or month, hours of each
   sport, total). It is not shown when fewer than three of the weeks have training.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest
-  activity's day, when they hold a run and a ride. A day is counted in the device's local zone and
+  activity's day, when they hold every sport the library has. A library of one sport always does, so a
+  run-only or ride-only library gets its 12 weeks and a previous period like any other. A day is counted in the device's local zone and
   runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same
-  day give the same window, and an older window never hides recent activities. It is clipped to the
-  first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12
-  weeks do not hold both sports, as with a 2015 run and a 2019 ride, the default is All time, and
-  the control says why: "Your last 12 weeks don't hold both sports, so this shows all time." It says
-  so only when the library holds both sports. The period is computed in
+  day give the same window, and an older window never hides recent activities. A library
+  shorter than 12 weeks has no previous period, so its default is All time, dated from its first
+  activity, with no note. When those 12
+  weeks lack a sport the library has, as with a 2015 run and a 2019 ride, the default is All time, the
+  control selects All time (the period in force, not the 12 weeks the stored choice names), and it
+  says why, naming the missing sport: "Your last 12 weeks hold no rides, so this shows all time." The
+  period is computed in
   `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the
   newest activity's day. A custom range is the first to the last day the athlete picks, both counted,
   with `periodOf` in `packages/core/src/period.ts` dating it from the first millisecond of its first

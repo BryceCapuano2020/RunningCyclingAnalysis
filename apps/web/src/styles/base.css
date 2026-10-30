@@ -45,6 +45,8 @@ h1 {
   font-weight: 800;
   line-height: var(--lh-display);
   letter-spacing: 0;
+  /* A single long word at a large text size breaks rather than widen the page. */
+  overflow-wrap: anywhere;
   text-wrap: pretty;
 }
 
