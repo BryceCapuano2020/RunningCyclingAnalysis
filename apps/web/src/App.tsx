@@ -17,7 +17,8 @@ import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
 import { RestoringPage } from './ui/pages/RestoringPage'
 import { HeldLibraryPage, UnavailableLibraryPage } from './ui/pages/HeldLibraryPage'
-import { pageKeyOf } from './ui/libraryPage'
+import { libraryPageTitle, pageKeyOf } from './ui/libraryPage'
+import { heldViewFor } from './ui/pages/heldLibraryView'
 import { useLibraryPage } from './ui/useLibraryPage'
 import { ResultPage } from './ui/pages/ResultPage'
 import { MethodPage } from './ui/pages/MethodPage'
@@ -133,7 +134,12 @@ export function App() {
   const key = pageKeyOf(route, page)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
   useRouteHistory()
-  useDocumentTitle(documentTitleFor(route, analysis.state.result, analysis.state.library))
+  const heldTitle =
+    page === 'held' ? heldViewFor(analysis, signedIn, fileRetentionAvailable).title : ''
+  useDocumentTitle(
+    libraryPageTitle(page, heldTitle) ??
+      documentTitleFor(route, analysis.state.result, analysis.state.library),
+  )
   // The account and a signed-in library must answer before the landing page is the true state.
   const settled =
     account.status !== 'loading' &&
@@ -340,7 +346,7 @@ export function App() {
         ) : restoringPage ? (
           <RestoringPage onFiles={setup.requestImport} />
         ) : page === 'unavailable' ? (
-          <UnavailableLibraryPage />
+          <UnavailableLibraryPage canRetry={signedIn} />
         ) : page === 'held' ? (
           <HeldLibraryPage
             analysis={analysis}

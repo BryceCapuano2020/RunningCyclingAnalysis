@@ -1,4 +1,5 @@
 import type { LibraryKnowledge } from './analysis/libraryKnowledge'
+import { APP_NAME } from '../appName'
 import type { Route } from './route'
 
 /**
@@ -43,4 +44,20 @@ export function libraryPageOf({
 export function pageKeyOf(route: Route, page: LibraryPage): string {
   if (page === 'result') return route.page === 'activity' ? `activity:${route.id}` : route.page
   return page === 'method' ? 'method-empty' : page
+}
+
+/**
+ * The tab title of a page that has no route name of its own: the held, restoring and error pages. Null for the
+ * others, whose titles come from the route. `held` is the held page's heading, which says which state it is in.
+ */
+export function libraryPageTitle(page: LibraryPage, held: string): string | null {
+  const name =
+    page === 'held'
+      ? held
+      : page === 'restoring'
+        ? 'Restoring your results'
+        : page === 'unavailable'
+          ? 'Your library is not showing yet'
+          : null
+  return name === null ? null : `${name} · ${APP_NAME}`
 }

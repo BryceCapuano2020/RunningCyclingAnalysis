@@ -113,10 +113,10 @@ describe('a signed-in library with every digest held out', () => {
     expect(screen.queryByRole('heading', { name: 'Update your library' })).not.toBeInTheDocument()
   })
 
-  it('keeps the default document title, not Balance', () => {
+  it('has its own document title, not Balance', () => {
     staleLibrary()
     render(<App />)
-    expect(document.title).not.toMatch(/^Balance/)
+    expect(document.title).toMatch(/^Update your library · /)
   })
 })
 
@@ -127,7 +127,7 @@ describe('a library made only by a newer app', () => {
     setSession({ result: null, incompatibleActivities: 4, libraryActivities: 4 })
     render(<App />)
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Reload the page to update the app' }),
+      screen.getByRole('heading', { level: 1, name: 'Your library needs a newer app' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
   })
@@ -153,6 +153,24 @@ describe('a library that has not answered', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: LANDING })).not.toBeInTheDocument()
+  })
+
+  it('has its own document title while it restores', () => {
+    setAccount('signed-in')
+    app.analysis.libraryStatus = 'loading'
+    render(<App />)
+    expect(document.title).toMatch(/^Restoring your results · /)
+  })
+
+  it('says to reload, with no Retry, when this browser’s library could not be read', () => {
+    setAccount('signed-out')
+    app.analysis.deviceIssue = { issue: 'notRead' }
+    render(<App />)
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Your library is not showing yet' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/Reload the page to try again/).length).toBeGreaterThan(0)
+    expect(document.title).toMatch(/^Your library is not showing yet · /)
   })
 
   it('shows the landing page once a signed-in library has loaded and is empty', () => {

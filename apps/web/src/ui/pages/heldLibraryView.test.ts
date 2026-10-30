@@ -1,3 +1,4 @@
+import { ORIGINALS_UNAVAILABLE } from '../analysis/copy'
 import { describe, expect, it } from 'vitest'
 import { heldLibraryView } from './heldLibraryView'
 
@@ -19,6 +20,20 @@ describe('heldLibraryView', () => {
     expect(view.lines).toEqual(['Updating your library. Your results come back when it finishes.'])
   })
 
+  it('says why Update now is off when original files cannot be kept', () => {
+    const view = heldLibraryView({ ...none, stale: 3, rebuildable: 3, retention: false })
+    expect(view.lines.at(-1)).toBe(ORIGINALS_UNAVAILABLE)
+    expect(heldLibraryView({ ...none, stale: 3, rebuildable: 3 }).lines.join(' ')).not.toMatch(
+      /cannot be read right now/,
+    )
+  })
+
+  it('says what a library of no runs or rides holds', () => {
+    expect(heldLibraryView(none).lines[0]).toBe(
+      'This library holds no runs or rides yet. Add your files to see your results.',
+    )
+  })
+
   it('asks for the files of activities with no original, and offers both when some can be rebuilt', () => {
     const view = heldLibraryView({ ...none, stale: 412, rebuildable: 0 })
     expect(view.lines[0]).toBe(
@@ -32,7 +47,7 @@ describe('heldLibraryView', () => {
 
   it('tells a library made by a newer app to reload', () => {
     const view = heldLibraryView({ ...none, newer: 2 })
-    expect(view.title).toBe('Reload the page to update the app')
+    expect(view.title).toBe('Your library needs a newer app')
     expect(view).toMatchObject({ update: false, addFiles: false })
   })
 

@@ -12,7 +12,7 @@ const MARKER: Record<HeldOutActivity['status'], string> = {
   newer: 'Needs a newer app',
 }
 
-export interface HeldOutListProps {
+export interface HeldBackListProps {
   activities: readonly HeldOutActivity[]
 }
 
@@ -21,7 +21,7 @@ export interface HeldOutListProps {
  * that is being updated or is waiting for a newer app still lists everything it holds. Nothing here
  * is analysed; there are no numbers to show. The first twenty are listed, newest first.
  */
-export function HeldOutList({ activities }: HeldOutListProps) {
+export function HeldBackList({ activities }: HeldBackListProps) {
   if (activities.length === 0) return null
   const more = activities.length - SHOWN
   return (

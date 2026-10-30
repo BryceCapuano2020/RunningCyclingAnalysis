@@ -1,6 +1,6 @@
 import { AddFilesButton } from '../components/AddFilesButton'
-import { HeldOutList } from '../components/HeldOutList'
-import { heldLibraryView } from './heldLibraryView'
+import { HeldBackList } from '../components/HeldBackList'
+import { heldViewFor } from './heldLibraryView'
 import type { AnalysisController } from '../useAnalysis'
 import { PAGE_HEADING_ID } from './pageHeading'
 import './RestoringPage.css'
@@ -24,15 +24,7 @@ export function HeldLibraryPage({
   fileRetentionAvailable,
   onFiles,
 }: HeldLibraryPageProps) {
-  const { outdatedActivities: stale, incompatibleActivities: newer } = analysis.state
-  const rebuildable = signedIn ? Math.min(analysis.outdatedWithOriginal, stale) : 0
-  const view = heldLibraryView({
-    stale,
-    newer,
-    rebuildable,
-    unreadable: analysis.libraryUnreadable,
-    busy: analysis.busy,
-  })
+  const view = heldViewFor(analysis, signedIn, fileRetentionAvailable)
   return (
     <section className="restoring" aria-busy={analysis.busy && view.update}>
       <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
@@ -58,19 +50,23 @@ export function HeldLibraryPage({
         )}
         {view.addFiles && <AddFilesButton onFiles={onFiles} />}
       </div>
-      <HeldOutList activities={analysis.state.heldOut} />
+      <HeldBackList activities={analysis.state.heldOut} />
     </section>
   )
 }
 
 /** The library could not be loaded or read. The message above the page has the retry; this says what the page is. */
-export function UnavailableLibraryPage() {
+export function UnavailableLibraryPage({ canRetry }: { canRetry: boolean }) {
   return (
     <section className="restoring">
       <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
         Your library is not showing yet
       </h1>
-      <p>It could not be loaded. Nothing was lost. Use Retry, or reload the page.</p>
+      <p>
+        {canRetry
+          ? 'It could not be loaded. Nothing was lost. Use Retry, or reload the page.'
+          : 'It could not be read from this browser. Nothing was lost. Reload the page to try again.'}
+      </p>
     </section>
   )
 }

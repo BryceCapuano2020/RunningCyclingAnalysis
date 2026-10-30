@@ -1,5 +1,5 @@
 import type { HeldOutActivity } from '@rca/core/session'
-import { HeldOutList } from '../components/HeldOutList'
+import { HeldBackList } from '../components/HeldBackList'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
@@ -269,7 +269,7 @@ export function ActivitiesPage({
           </div>
         )
       )}
-      <HeldOutList activities={heldOut} />
+      <HeldBackList activities={heldOut} />
     </div>
   )
 }
