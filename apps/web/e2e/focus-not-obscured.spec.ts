@@ -16,12 +16,12 @@ const PAST_EDGE_PX = 12
  * focus is, is in view; the browser then scrolls the new control in to the edge of the scrollport, which is
  * where `scroll-padding` decides how much of the page's sticky bars to clear. After each press the focused
  * control's centre must not lie under a sticky or fixed bar (WCAG 2.4.11 Focus Not Obscured). Returns the
- * presses that failed.
+ * presses that failed and how many of them scrolled the page.
  */
-async function obscuredPresses(page: Page): Promise<{ failures: string[]; presses: number }> {
+async function obscuredPresses(page: Page): Promise<{ failures: string[]; scrolled: number }> {
   const count = await page.locator(TABBABLE).evaluateAll((els) => els.length)
   const failures: string[] = []
-  let presses = 0
+  let scrolled = 0
   for (const key of ['Shift+Tab', 'Tab'] as const) {
     for (let i = 1; i < count - 1; i += 1) {
       const ready = await page.evaluate(
@@ -47,29 +47,34 @@ async function obscuredPresses(page: Page): Promise<{ failures: string[]; presse
         { selector: TABBABLE, index: i, key, past: PAST_EDGE_PX },
       )
       if (!ready) continue
+      const before = await page.evaluate(() => scrollY)
       await page.keyboard.press(key)
-      presses += 1
+      // Only a press that made the browser scroll tests the scroll padding.
+      if ((await page.evaluate(() => scrollY)) !== before) scrolled += 1
       const hidden = await focusObscuredBy(page)
       if (hidden !== null) failures.push(`${key} to control ${i}: ${hidden}`)
     }
   }
-  return { failures, presses }
+  return { failures, scrolled }
 }
 
-const ONLY_DESKTOP = 'Walks one browser; the bars are the same'
+const ONLY_BROWSERS = 'Walks Chromium and WebKit; the bars are the same in the others'
+
+/** The presses on a page that must have scrolled it, so a walk that never scrolls cannot pass. */
+const MIN_SCROLLED = 15
 
 test.describe('focus clears the sticky bars', () => {
   for (const sport of ['Run', 'Ride'] as const) {
     test(`${sport} at 1440 px: section row and header leave focus in view`, async ({
       page,
     }, testInfo) => {
-      test.skip(testInfo.project.name !== 'desktop', ONLY_DESKTOP)
+      test.skip(!['desktop', 'mobile-webkit'].includes(testInfo.project.name), ONLY_BROWSERS)
       await page.setViewportSize({ width: 1440, height: 900 })
       await openSample(page)
       await goTo(page, sport)
       await expect(page.locator('.section-nav')).toBeVisible()
-      const { failures, presses } = await obscuredPresses(page)
-      expect(presses).toBeGreaterThan(30)
+      const { failures, scrolled } = await obscuredPresses(page)
+      expect(scrolled).toBeGreaterThanOrEqual(MIN_SCROLLED)
       expect(failures).toEqual([])
     })
   }
@@ -77,14 +82,14 @@ test.describe('focus clears the sticky bars', () => {
   test('an activity at 390 px: the readout row and the tab bar leave focus in view', async ({
     page,
   }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop', ONLY_DESKTOP)
+    test.skip(!['desktop', 'mobile-webkit'].includes(testInfo.project.name), ONLY_BROWSERS)
     await page.setViewportSize({ width: 390, height: 844 })
     await openSample(page)
     const rows = await activitiesRows(page)
     await rows.first().getByRole('link').click()
     await expect(page.getByRole('slider', { name: 'Selection start' })).toBeVisible()
-    const { failures, presses } = await obscuredPresses(page)
-    expect(presses).toBeGreaterThan(10)
+    const { failures, scrolled } = await obscuredPresses(page)
+    expect(scrolled).toBeGreaterThanOrEqual(MIN_SCROLLED)
     expect(failures).toEqual([])
   })
 })

@@ -13,9 +13,10 @@ function publish(): void {
 
 /**
  * Keeps --sticky-extra at the height of a bar that sticks under the header (the section row, the chart readout)
- * while it is stuck, so `scroll-padding-top` clears it as well as the header and a control the browser scrolls
- * to is not left behind the bar (WCAG 2.4.11). A bar that is not sticky at this width adds nothing. The
- * element is a state value, not a ref, so the hook measures once it exists.
+ * whenever its position is sticky at this width, whether or not the page is scrolled far enough to stick it now,
+ * so `scroll-padding-top` clears it as well as the header and a control the browser scrolls to is not left behind
+ * the bar (WCAG 2.4.11). A bar that is not sticky at this width adds nothing. The element is a state value, not a
+ * ref, so the hook measures once it exists.
  */
 export function useStickyExtra(bar: HTMLElement | null): void {
   useLayoutEffect(() => {
