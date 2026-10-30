@@ -223,6 +223,28 @@ jobs:
       - run: npm ci --no-audit
       - run: npm run test:sim
 
+  # The unit tests run in declaration order above. This job runs them again in a shuffled order, with fixed
+  # seeds so a failure can be run again (npm run test:shuffle), so a test that leans on one a file earlier
+  # shows up here and not in a later session that runs a filtered or reordered set. It is not one of the
+  # sharded unit jobs and not part of the required check; like the budgets and simulations it runs
+  # whenever code changed.
+  order:
+    name: Unit tests in shuffled order
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit
+      - run: npm run test:shuffle
+
   # The Playwright suite split across shards (fullyParallel, so tests spread evenly). Each shard builds
   # the app and starts its own servers; the Worker-runtime check runs once, in the first shard.
   e2e:

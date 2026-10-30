@@ -159,7 +159,8 @@ npm run dev
 | `npm run dev:api`                 | Local API Worker on port 8787 (`wrangler dev`)                                             |
 | `npm run build`                   | Production build of the web app into `apps/web/dist`                                       |
 | `npm test`                        | Unit and component tests across all packages (Vitest)                                      |
-| `npm run test:coverage`           | Same, with coverage thresholds                                                             |
+| `npm run test:coverage`           | Same, with coverage thresholds for the core, API, contract and web app                     |
+| `npm run test:shuffle`            | The same tests in a shuffled order, with the fixed seeds CI uses, so a failure runs again  |
 | `npm run e2e`                     | Playwright tests against the production build; run `npm run build` first                   |
 | `npm run check`                   | Format check, lint, typecheck, tests with coverage, deploy-config and ops tests, and build |
 | `npm run test:perf`               | Wall-clock and heap budgets for `@rca/core` and `@rca/web` (`vitest.perf.config.ts`)       |

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS } from '@rca/core/fit'
 import { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from '@rca/core/import'
+import { WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES } from './worker/workbenchSchema'
 import { readStylesheet } from './ui/components/stylesheet'
 
 /*
@@ -35,5 +36,21 @@ describe('architecture doc states the Strava activity list limits as the code se
   it('says same-minute legs are numbered in file order, with an example', () => {
     expect(doc).toContain('numbered in file order')
     expect(doc).toContain('Morning Run, 6:11 am (2)')
+  })
+})
+
+const MIB = 1024 * 1024
+
+describe('architecture doc states the workbench cache limits as the code sets them', () => {
+  it('gives the shared budget and the entry limit in MiB', () => {
+    expect(doc).toContain(
+      `Its shared ${WORKBENCH_TOTAL_BYTES / MIB} MiB budget and ${WORKBENCH_ENTRY_BYTES / MIB} MiB entry limit are defined in \`workbenchSchema.ts\``,
+    )
+  })
+
+  it('says the budget is global, so the doc and the privacy page cannot disagree about it', () => {
+    expect(doc).toContain(
+      `the device results and every account share the ${WORKBENCH_TOTAL_BYTES / MIB} MiB`,
+    )
   })
 })

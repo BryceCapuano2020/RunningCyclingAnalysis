@@ -1,3 +1,4 @@
+import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import type { Measurement } from '../athlete/measurements'
 import { DAY_MS } from '../constants'
@@ -125,7 +126,6 @@ describe('when the half year cannot support a threshold', () => {
 })
 
 describe('the session', () => {
-  // Drawing a whole sample season takes several seconds under coverage, so this test gets its own timeout.
   it('keeps heart-rate zones where the pace and power zones lapse', () => {
     const session = new AnalysisSession()
     const state = session.loadSample(SETTINGS)
@@ -139,5 +139,5 @@ describe('the session', () => {
       { sport: 'run', measure: 'pace' },
       { sport: 'ride', measure: 'power' },
     ])
-  }, 30_000)
+  })
 })

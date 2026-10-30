@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { countingDb, createHarness, START, type Harness } from '../test/harness.ts'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { countingDb, createHarness, START, testEnv, type Harness } from '../test/harness.ts'
 
 /**
  * The listing's queries must keep their plan with and without table statistics. This runs the real
@@ -86,9 +86,13 @@ async function expectPinnedPlans(analyze: boolean): Promise<Harness> {
   return h
 }
 
-// ANALYZE writes sqlite_stat1, which stays in this file's database. The statistics-free test has to
-// run first and the ANALYZE test last.
+// ANALYZE writes sqlite_stat1, which stays in this file's database and is not emptied between tests. Each test
+// drops it first, so the statistics-free test sees none whichever order the tests run in.
 describe('activity listing query plans', () => {
+  beforeEach(async () => {
+    await testEnv().DB.prepare('DROP TABLE IF EXISTS sqlite_stat1').run()
+  })
+
   it('keep one index range and the primary key without statistics', async () => {
     const h = await expectPinnedPlans(false)
     // A control for the pin. The unpinned page read must reproduce the audit's plan on this SQLite,

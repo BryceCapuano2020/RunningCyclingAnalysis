@@ -8,6 +8,8 @@ import {
 
 /** Moves the hash, and resolves when the browser reports the change, as it does for a link. */
 function navigateTo(hash: string): Promise<void> {
+  // A hash already in place changes nothing, so the browser reports nothing to wait for.
+  if (window.location.hash === hash) return Promise.resolve()
   const changed = new Promise<void>((resolve) =>
     window.addEventListener('hashchange', () => resolve(), { once: true }),
   )
@@ -17,6 +19,8 @@ function navigateTo(hash: string): Promise<void> {
 
 afterEach(() => {
   clearRequestedMethodSection()
+  // Back to no hash without an event, so the next test starts from the same place whatever ran before.
+  window.history.replaceState(null, '', window.location.pathname)
 })
 
 describe('methodSection', () => {

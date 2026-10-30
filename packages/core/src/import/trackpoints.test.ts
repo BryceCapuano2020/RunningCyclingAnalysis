@@ -21,11 +21,10 @@ describe('readNumber', () => {
 
 describe('readNumber on long text', () => {
   it('refuses a very long run of digits without trying every split of it', () => {
-    const start = performance.now()
+    // That it is also fast is held in trackpoints.perf.test.ts.
     expect(readNumber('1'.repeat(50_000) + 'x')).toBeUndefined()
     expect(readNumber('1'.repeat(50_000))).toBeUndefined()
     expect(readNumber(' '.repeat(5_000) + '7')).toBeUndefined()
-    expect(performance.now() - start).toBeLessThan(500)
   })
 
   it('reads a number with its padding and a long fraction', () => {
