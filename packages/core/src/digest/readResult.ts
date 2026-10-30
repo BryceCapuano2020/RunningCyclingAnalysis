@@ -1,5 +1,6 @@
 import type { ActivityDigest, Sport } from '../types'
-import { DIGEST_VERSION, MODEL_REVISION } from './modelRevision'
+import { DIGEST_VERSION } from './modelRevision'
+import { revisionStatus } from './revisions'
 import { DigestReadError } from './parseValue'
 import type { ProblemKind } from './parseValue'
 import { readDigest } from './readDigest'
@@ -82,7 +83,9 @@ function isNewer(value: unknown, identity: DigestIdentity | null): boolean {
   const sport = (value as { sport?: unknown }).sport
   const unknownSport = typeof sport === 'string' && identity.sport === undefined
   return (
-    identity.version > DIGEST_VERSION || unknownSport || identity.modelRevision > MODEL_REVISION
+    identity.version > DIGEST_VERSION ||
+    unknownSport ||
+    revisionStatus(identity.modelRevision) === 'newer'
   )
 }
 

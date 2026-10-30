@@ -1,4 +1,4 @@
-import { orderedCurrent } from '../digest/ordered'
+import { orderedFor } from '../digest/consumers'
 import { memoByDigests } from '../digestMemo'
 import type { ActivityDigest, Sport } from '../types'
 import { dayOfMs, monitor, weekOfMs } from './machine'
@@ -58,7 +58,7 @@ interface Input {
 }
 
 function compute(digests: ActivityDigest[], input: Input): FitnessBySport {
-  const current = orderedCurrent(digests)
+  const current = orderedFor('fitness', digests)
   const newest = current.at(-1)?.startMs ?? 0
   const asOfMs = input.options.asOfMs ?? Math.max(newest, input.options.nowMs ?? 0)
   const upTo = current.filter((d) => d.startMs <= asOfMs)

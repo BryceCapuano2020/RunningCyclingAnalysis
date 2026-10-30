@@ -22,7 +22,7 @@ import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
 import { powerAt } from './terms'
 import { withoutSetAside } from './trustedHeartRate'
 
@@ -199,7 +199,7 @@ export function sportCurves(
   hardness?: { reference: MaxHeartRates; setAside: ReadonlySet<string> },
 ): SportCurves {
   const masses = massesOf(settings)
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('rideCurves', digests)
   const { runBest, rideBest } = bestCurves(
     ordered,
     masses,

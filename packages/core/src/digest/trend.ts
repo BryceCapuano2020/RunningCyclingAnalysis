@@ -4,7 +4,7 @@ import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Spor
 import { effortsCount } from './effortTrust'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
 import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import { fitBikeModelOver, pointWkg } from './rideCurves'
@@ -127,7 +127,7 @@ export function fitnessTrend(
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const durationS = opts.durationS ?? HEADLINE_DURATION_S
   const windowMs = (opts.windowDays ?? DEFAULT_WINDOW_DAYS) * DAY_MS
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('trend', digests)
   const first = ordered[0]
   const last = ordered.at(-1)
   if (first === undefined || last === undefined) return []

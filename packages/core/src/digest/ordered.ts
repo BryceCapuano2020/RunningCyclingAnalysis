@@ -1,8 +1,8 @@
 import type { ActivityDigest } from '../types'
-import { MODEL_REVISION } from './modelRevision'
+import { revisionStatus } from './revisions'
 
 /** Orders digests by start time, then id, so results do not depend on the order they arrive in. */
-function canonicalOrder(a: ActivityDigest, b: ActivityDigest): number {
+export function canonicalOrder(a: ActivityDigest, b: ActivityDigest): number {
   if (a.startMs !== b.startMs) return a.startMs - b.startMs
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
@@ -12,5 +12,7 @@ function canonicalOrder(a: ActivityDigest, b: ActivityDigest): number {
  * stale and current assumptions, so the other revisions are left out everywhere.
  */
 export function orderedCurrent(digests: ActivityDigest[]): ActivityDigest[] {
-  return digests.filter((digest) => digest.modelRevision === MODEL_REVISION).sort(canonicalOrder)
+  return digests
+    .filter((digest) => revisionStatus(digest.modelRevision) === 'current')
+    .sort(canonicalOrder)
 }

@@ -3,7 +3,7 @@ import type { RunRecordDistanceM } from '../constants'
 import type { Masses } from '../digest/masses'
 import { effortsCount } from '../digest/effortTrust'
 import { massesOf } from '../digest/masses'
-import { orderedCurrent } from '../digest/ordered'
+import { orderedFor } from '../digest/consumers'
 import { estimatedStanding, ownRideGate, pointAt } from '../digest/estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from '../digest/estimatedRide'
 import { fitBikeModelOver, pointWkg } from '../digest/rideCurves'
@@ -51,7 +51,7 @@ export function recordHolders(
   settings: AthleteSettings,
   gate?: EstimatedRideGate | null,
 ): Map<string, EarnedRecord[]> {
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('records', digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   // A treadmill run holds no record (see effortsCount), though its own times still show on its page.

@@ -20,6 +20,8 @@
     "./digest/test/mutants": "./src/digest/test/digestMutants.ts",
     "./digest/lateEvidenceTypes": "./src/digest/lateEvidenceTypes.ts",
     "./digest/modelRevision": "./src/digest/modelRevision.ts",
+    "./digest/revisions": "./src/digest/revisions.ts",
+    "./digest/consumers": "./src/digest/consumers.ts",
     "./digest/sameHeartRateTypes": "./src/digest/sameHeartRateTypes.ts",
     "./digest/setAsideTypes": "./src/digest/setAsideTypes.ts",
     "./digest/trendPoints": "./src/digest/trendPoints.ts",
