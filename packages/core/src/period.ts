@@ -90,6 +90,21 @@ export function sameChoice(a: PeriodChoice, b: PeriodChoice): boolean {
   return a === b
 }
 
+/**
+ * Whether two periods are one regime: windows of the same length, or both all time, or the same custom days. A figure
+ * read under one regime and a figure read under another are of different stretches of the library, so a difference
+ * between them is not the athlete changing. The default period is a regime of its own that all time can stand in for
+ * (`fellBack`), which is why it is read from the period's length and not from the choice that named it.
+ */
+export function sameRegime(a: Period, b: Period): boolean {
+  if (typeof a.choice === 'object' || typeof b.choice === 'object') {
+    return (
+      typeof a.choice === 'object' && typeof b.choice === 'object' && sameChoice(a.choice, b.choice)
+    )
+  }
+  return a.days === b.days
+}
+
 /** The first and last day of a period, as `YYYY-MM-DD`, or null when it has no dates. */
 export function periodDays(period: Period): CustomRange | null {
   if (period.startMs === null || period.endMs === null) return null

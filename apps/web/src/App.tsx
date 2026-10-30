@@ -112,9 +112,7 @@ export function App() {
     saveAnswers,
   })
 
-  // The trend's age grades need a year of birth and a sex; without them it shows energy alone.
-  const gradeTrend = ageProfile !== null
-  const analysis = useAnalysis(analysisAthlete, account, gradeTrend)
+  const analysis = useAnalysis(analysisAthlete, account)
 
   // The download holds the dated settings, so it waits for them rather than leave them out.
   const downloadData = async () => {

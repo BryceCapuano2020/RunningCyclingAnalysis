@@ -24,8 +24,7 @@ vi.mock('./ui/useSettings', async () => ({
 }))
 vi.mock('./ui/charts', async () => {
   const { heavyChartStubs } = await import('./test/appMocks')
-  const { TrendChart } = await import('./ui/charts/TrendChart')
-  return { ...heavyChartStubs, TrendChart }
+  return heavyChartStubs
 })
 
 const RIDE_START = Date.UTC(2026, 0, 5, 7, 30)

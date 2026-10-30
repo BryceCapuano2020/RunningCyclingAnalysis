@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS, SAME_HEART_RATE } from '../constants'
 import { mulberry32 } from '../math'
-import { changeOf, sameHeartRate } from './sameHeartRate'
-import type { SameHeartRateWeek } from './sameHeartRateTypes'
+import { sameHeartRate } from './sameHeartRate'
 import {
   BASE,
   MONDAY,
@@ -27,41 +26,39 @@ function jitter(seed: number, spread: number): () => number {
 }
 
 describe('output at the same heart rate', () => {
-  it('reads a 5% rise over 7 weeks as a real change of about 5%', () => {
+  it('reads a 5% rise over 7 weeks in its weeks: the first to the last differ by about 5%, and the weeks claim nothing more', () => {
     const digests = weeksOf('ride', 12, rising, jitter(1, 0.005))
-    const { change, referenceHeartRate } = sameHeartRate(digests, NONE, FROM_START).ride
+    const { weeks, reportedWeeks, referenceHeartRate } = sameHeartRate(
+      digests,
+      NONE,
+      FROM_START,
+    ).ride
     expect(referenceHeartRate).toBe(145)
-    expect(change).not.toBeNull()
-    expect(change!.weeksApart).toBe(7)
-    expect(change!.relative).toBeGreaterThan(0.04)
-    expect(change!.relative).toBeLessThan(0.06)
-    expect(change!.real).toBe(true)
+    const reported = weeks.filter((week) => week.fit !== null)
+    expect(reportedWeeks).toBe(reported.length)
+    const relative = reported.at(-1)!.fit!.output / reported[0]!.fit!.output - 1
+    expect(relative).toBeGreaterThan(0.04)
+    expect(relative).toBeLessThan(0.06)
   })
 
   it('reads the same for a run, in the flat speed it covers', () => {
     const digests = weeksOf('run', 12, rising, jitter(2, 0.005))
-    const { change } = sameHeartRate(digests, NONE, FROM_START).run
-    expect(change!.relative).toBeGreaterThan(0.04)
-    expect(change!.relative).toBeLessThan(0.06)
-    expect(change!.real).toBe(true)
+    const { weeks } = sameHeartRate(digests, NONE, FROM_START).run
+    const reported = weeks.filter((week) => week.fit !== null)
+    const relative = reported.at(-1)!.fit!.output / reported[0]!.fit!.output - 1
+    expect(relative).toBeGreaterThan(0.04)
+    expect(relative).toBeLessThan(0.06)
   })
 
-  it('finds noise alone to be no real change', () => {
-    // Of 40 seeds of this noise, one gives a false change: about the 5% that 90% intervals allow.
-    const digests = weeksOf('ride', 12, () => 1, jitter(11, 0.03))
-    const { change } = sameHeartRate(digests, NONE, FROM_START).ride
-    expect(change).not.toBeNull()
-    expect(change!.real).toBe(false)
-    expect(Math.abs(change!.relative)).toBeLessThan(0.05)
-  })
-
-  it('does not claim a change from intervals of float-noise width', () => {
-    const week = (endMs: number, output: number, half: number) =>
-      ({ endMs, fit: { output, low: output - half, high: output + half } }) as SameHeartRateWeek
-    const noise = [week(WEEK_MS, 200, 1e-12), week(5 * WEEK_MS, 210, 1e-12)]
-    expect(changeOf(noise)!.real).toBe(false)
-    const measured = [week(WEEK_MS, 200, 2), week(5 * WEEK_MS, 210, 2)]
-    expect(changeOf(measured)!.real).toBe(true)
+  it('carries no verdict of change at all: no end-week test, no relative size, no week count between ends', () => {
+    const result = sameHeartRate(
+      weeksOf('ride', 12, () => 1, jitter(11, 0.03)),
+      NONE,
+      FROM_START,
+    ).ride
+    expect(Object.keys(result).sort()).toEqual(
+      ['lacks', 'latestWeekEndMs', 'referenceHeartRate', 'reportedWeeks', 'weeks'].sort(),
+    )
   })
 
   it('reports each week at the one reference heart rate, with an interval around it', () => {
@@ -215,7 +212,7 @@ describe('what a week needs before it reports', () => {
     expect(sameHeartRate([], NONE, {}).ride).toEqual({
       referenceHeartRate: null,
       weeks: [],
-      change: null,
+      reportedWeeks: 0,
       lacks: 'blocks',
       latestWeekEndMs: null,
     })
@@ -258,13 +255,13 @@ describe('what a week needs before it reports', () => {
     expect(last.lacks).toBe('range')
   })
 
-  it('has no change from a single reported week, and says what is missing', () => {
+  it('has one reported week at most with four weeks of data, and says what is missing', () => {
     const result = sameHeartRate(
       weeksOf('ride', 4, () => 1),
       NONE,
       FROM_START,
     ).ride
-    expect(result.change).toBeNull()
+    expect(result.reportedWeeks).toBeLessThan(2)
     expect(result.lacks).not.toBeNull()
   })
 

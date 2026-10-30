@@ -105,29 +105,22 @@ test('a six-week period compares the best efforts with the six weeks before it',
   await expect(legend.getByText('Previous 12 weeks')).toHaveCount(0)
 })
 
-test('the fitness over time card shows for sample data, and its table toggles', async ({
-  page,
-}) => {
+test('the weekly hours card shows for sample data, and its table toggles', async ({ page }) => {
   await openSample(page)
   const card = page.locator('section').filter({
-    has: page.getByRole('heading', {
-      level: 2,
-      name: /^(Age grade|Energy rate) of your best 20 min, trailing/,
-    }),
+    has: page.getByRole('heading', { level: 2, name: 'Training hours' }),
   })
   await expect(card).toBeVisible()
   await expect(
-    card.getByRole('figure', {
-      name: /(Age grade|Energy rate) of your best 20 min, trailing/,
-    }),
+    card.getByRole('figure', { name: /of your running and riding hours/ }),
   ).toBeAttached()
 
-  // The trend has its own table view, which is checked here.
+  // The hours have their own table view, which is checked here.
   const details = card.locator('details').first()
   await expect(details).not.toHaveAttribute('open')
   await details.locator('summary').click()
   await expect(details).toHaveAttribute('open')
-  await expect(details.getByRole('columnheader', { name: 'Week ending' })).toBeVisible()
+  await expect(details.getByRole('columnheader', { name: /Week ending|Month to/ })).toBeVisible()
   await expect(details.getByRole('rowheader').first()).toHaveText(
     /^[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}( \d{4})?$/,
   )

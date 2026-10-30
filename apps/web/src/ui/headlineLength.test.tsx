@@ -43,12 +43,11 @@ const TREND: TrendPoint[] = [
     rideCount: 0,
     runAtMs: WEEK_END,
     rideAtMs: null,
-    rideRunSpeed: null,
   },
 ]
 
 describe('the headline length', () => {
-  it('is named from HEADLINE_LABEL in the balance hero, the trend heading and the method topic', () => {
+  it('is named from HEADLINE_LABEL in the balance hero', () => {
     const activities = [1, 2, 3].flatMap((n) => [
       makeActivity({ id: `run-${n}`, sport: 'run' }),
       makeActivity({ id: `ride-${n}`, sport: 'ride' }),
@@ -73,12 +72,8 @@ describe('the headline length', () => {
     expect(
       screen.getByText(/Add one run or ride of 45 min or more to compare them\./),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('region', { name: /of your best 45 min, trailing/ }),
-    ).toBeInTheDocument()
 
-    const trend = TOPICS.find((topic) => topic.id === 'trend')
-    expect(trend?.title).toBe('Best 45 min, week by week')
-    expect(trend?.plain.join(' ')).toContain('Balance uses 45 min.')
+    // The method topic no longer names the length: its dots are 5, 20 or 60 minutes, and Balance has no trend of its own.
+    expect(TOPICS.find((topic) => topic.id === 'trend')?.title).toBe('Best efforts over time')
   })
 })
