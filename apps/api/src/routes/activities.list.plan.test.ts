@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { countingDb, createHarness, START, testEnv, type Harness } from '../test/harness.ts'
+import { describe, expect, it } from 'vitest'
+import { countingDb, createHarness, resetTestEnv, START, type Harness } from '../test/harness.ts'
 
 /**
  * The listing's queries must keep their plan with and without table statistics. This runs the real
@@ -86,24 +86,20 @@ async function expectPinnedPlans(analyze: boolean): Promise<Harness> {
   return h
 }
 
-// ANALYZE writes sqlite_stat1, which stays in this file's database and is not emptied between tests. Each test
-// drops it first, so the statistics-free test sees none whichever order the tests run in.
+// ANALYZE writes sqlite_stat1, which stays in this file's database for the rest of the file, and SQLite keeps
+// the statistics it has loaded. The statistics-free plans have to be checked before the ANALYZE ones, so both are
+// one test, in that order: two tests would fail whenever the order of the tests changes.
 describe('activity listing query plans', () => {
-  beforeEach(async () => {
-    await testEnv().DB.prepare('DROP TABLE IF EXISTS sqlite_stat1').run()
-  })
-
-  it('keep one index range and the primary key without statistics', async () => {
+  it('keep one index range and the primary key without statistics, and after ANALYZE', async () => {
     const h = await expectPinnedPlans(false)
     // A control for the pin. The unpinned page read must reproduce the audit's plan on this SQLite,
     // or "the plan is fine" would hold for any query and the pin would prove nothing.
     expect(await planOf(h, UNPINNED)).toContain(
       'USING INDEX activities_user_created_idx (user_id=?)',
     )
-  })
 
-  it('keep the same plans after ANALYZE', async () => {
-    const h = await expectPinnedPlans(true)
-    expect(await planOf(h, UNPINNED)).toContain('sqlite_autoindex_activities_1 (id=?)')
+    await resetTestEnv()
+    const analysed = await expectPinnedPlans(true)
+    expect(await planOf(analysed, UNPINNED)).toContain('sqlite_autoindex_activities_1 (id=?)')
   })
 })
