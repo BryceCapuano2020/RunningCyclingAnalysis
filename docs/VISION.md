@@ -4,8 +4,9 @@
 
 RunningCyclingAnalysis becomes a platform that estimates an athlete's evolving performance in
 running, cycling, strength and swimming. It works from the data people already have: ordinary
-activity uploads, simple lifting logs and dated body measurements. It never asks for test
-protocols or detailed logging.
+activity uploads, simple lifting logs and dated body measurements. It never requires test
+protocols or detailed logging: experiments are opt-in, and a lifting log needs only sets, reps and
+load.
 
 It extends the existing physics and statistical models to pull useful evidence out of
 inconsistent, incomplete data. It uses a model suited to each sport. It always separates what the
@@ -31,8 +32,35 @@ shifting, and it says plainly how uncertain each estimate is and what evidence i
 6. **Transparent and reproducible.** Every estimate can show which activities it used, which
    model and assumptions, and why its interval is the width it is. The same inputs give the same
    outputs, bit for bit (seeded, versioned through `MODEL_REVISION`).
-7. **No LLMs in the product.** Statistical and decision models are fine; generative language
-   models are not.
+7. **No language model inside the product.** Every number comes from statistical and decision
+   models. An athlete can connect their own assistant through the MCP connector: it reads checked
+   evidence and saves plans, but it never computes or changes a number, and the product itself
+   generates no text with a language model.
+
+## The coaching loop
+
+Many athletes already plan their training weeks with a general-purpose assistant, and Strava,
+Garmin and Whoop now ship their own AI summaries and coaches. Nothing checks whether what any of
+them says about an athlete is true, and no tool understands a hybrid week of running, riding and
+lifting.
+
+RCA does not become a coach. It makes the athlete's own assistant accurate:
+
+1. **Read.** The assistant reads checked evidence through the connector: status per sport, recent
+   weeks, findings with the activities behind them, and the evidence still missing. Every number it
+   states comes from a tool.
+2. **Plan.** The assistant writes the week, and the plan is saved to RCA.
+3. **Check.** RCA compares the plan with the athlete's own history and reports where it departs
+   from it. It gives no rest advice and no readiness score.
+4. **Review.** After the week, RCA reports the plan against what was done and what changed.
+5. **Learn.** Experiments turn "did it work?" into an answer. The athlete follows A and B weeks,
+   and RCA reports the difference with an interval, or says the effect is too small to detect at
+   that size.
+
+Every step is measured. An eval scores whether the assistant's stated numbers match the evidence.
+A benchmark built on synthetic athletes with planted changes (a slip, a recovery, a device change,
+a lifting block) scores any system that makes claims about training data, and is published once
+plan checks exist.
 
 ## Architecture direction
 
@@ -58,6 +86,9 @@ source data ──► importer ──► Evidence[] ──► discipline model �
   activity's date, not today's.
 - **Estimate** is one shared type: demonstrated values, capability with an interval, trend, and a
   list of evidence gaps in plain language ("no ride over 20 minutes in the last 8 weeks").
+- **The evidence ledger** stores each checked claim with its interval, the activities behind it
+  and the model revision. The app, the MCP connector and the eval all read it. It syncs with the
+  library, so the connector serves what the browser computed and never recomputes it.
 
 The current running and cycling code becomes the first two disciplines. That move is a refactor,
 not a rewrite.
@@ -74,9 +105,10 @@ Each phase ships on its own and leaves the app more useful.
 2. **Evolving capability.** The shared timeline engine replaces the per-period rolling best (a
    window of a third of the period, between one week and 42 days) with a capability trajectory and
    intervals. Each card lists its evidence gaps.
-3. **Strength, the third dimension.** Simple lifting logs (manual entry, common app CSV exports, FIT
-   strength sets) and estimated one-rep max per lift, with intervals, using body mass for relative
-   strength.
+3. **Strength, the third dimension.** Simple lifting logs (an in-app logger first, then earlier
+   notes, common app CSV exports and FIT strength sets) and estimated one-rep max per lift, with
+   intervals, using body mass for relative strength. Lifting sits beside running and riding in one
+   week, so its effect on them can be measured.
 4. **Swimming.** Pool-swim FIT parsing (lengths, laps, pool size) and critical swim speed from
    ordinary swims, freestyle first.
 5. **Profile.** One page with a card per discipline, each showing its own trend, evidence and gaps.
