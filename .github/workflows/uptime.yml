@@ -6,7 +6,9 @@ name: Uptime
 # best-effort monitor. Scheduled runs are opt-in with RCA_UPTIME_ENABLED; manual runs remain
 # available. A failing probe opens or updates an issue labelled "outage" and fails the run. A
 # passing probe closes open outage issues. A deep check that the API reports as "skipped" (its
-# daily probe budget is spent) is a warning only: it neither opens nor closes an outage issue.
+# daily probe budget is spent) is a warning and opens one "monitoring-gap" issue, because D1 and R2
+# are then unmeasured. It neither opens nor closes an outage issue. A deep check that runs again
+# closes the gap issue.
 # See docs/PRODUCTION.md.
 on:
   schedule:
@@ -131,6 +133,29 @@ jobs:
           set -euo pipefail
           for number in $(gh issue list --label outage --state open --json number --jq '.[].number'); do
             gh issue close "$number" --comment "All probes passed at $(date -u +%FT%TZ). Closing."
+          done
+
+      - name: Open a monitoring-gap issue while the deep check is skipped
+        if: steps.probe.outputs.deep == 'skipped'
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh label create monitoring-gap --color FBCA04 \
+            --description "The uptime probe cannot measure D1 and R2" --force > /dev/null
+          number="$(gh issue list --label monitoring-gap --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$number" ]; then
+            gh issue create --title "Deep health check skipped: D1 and R2 are not being probed" \
+              --label monitoring-gap \
+              --body "$(printf 'The deep health budget was spent at %s, so the probe cannot see a D1 or R2 outage until it resets at 00:00 UTC. Check the Worker dashboard. Run: %s/actions/runs/%s\n' "$(date -u +%FT%TZ)" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
+          fi
+
+      - name: Close monitoring-gap issues once the deep check runs again
+        if: steps.probe.outputs.deep == 'ok'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for number in $(gh issue list --label monitoring-gap --state open --json number --jq '.[].number'); do
+            gh issue close "$number" --comment "The deep check ran again at $(date -u +%FT%TZ). Closing."
           done
 
       - name: Fail the run so the outage is visible in Actions

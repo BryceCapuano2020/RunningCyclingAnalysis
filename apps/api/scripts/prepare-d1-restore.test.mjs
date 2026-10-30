@@ -259,3 +259,29 @@ test('keeps row text that looks like SQL, and splits only at real statement ends
     assert.equal(db.prepare("SELECT file_bytes AS n FROM users WHERE id = 'user-1'").get().n, 300)
   })
 })
+
+test('accepts an export of the fully migrated schema, so a new table cannot make restores fail', async () => {
+  const migrations = new URL('../migrations/', import.meta.url)
+  const journal = JSON.parse(await readFile(new URL('meta/_journal.json', migrations), 'utf8'))
+  const db = new DatabaseSync(':memory:')
+  try {
+    db.exec(
+      'CREATE TABLE d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TEXT NOT NULL);',
+    )
+    for (const { tag } of journal.entries) {
+      db.exec(await readFile(new URL(`${tag}.sql`, migrations), 'utf8'))
+    }
+    const definitions = db
+      .prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%'")
+      .all()
+      .map((row) => `${row.sql};`)
+    const prepared = prepareD1RestoreSql(
+      `PRAGMA defer_foreign_keys=TRUE;\n${definitions.join('\n')}`,
+    )
+    for (const name of ['account_tombstones', 'identity_budget']) {
+      assert.match(prepared, new RegExp(`CREATE TABLE .?${name}`))
+    }
+  } finally {
+    db.close()
+  }
+})

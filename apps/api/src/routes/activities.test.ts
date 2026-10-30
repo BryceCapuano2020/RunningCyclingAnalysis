@@ -13,6 +13,7 @@ import {
 } from '@rca/contract'
 import { activityFileKey } from '../storage.ts'
 import { createHarness, digestFixture, START, testEnv, type Harness } from '../test/harness.ts'
+import { seedActivityRow } from '../test/seed.ts'
 import { sha256Hex, toBase64Url } from '../util.ts'
 import { dedupeKeyFor } from './activities/shared.ts'
 
@@ -62,6 +63,29 @@ async function createActivity(
 
 async function idOf(res: Response): Promise<string> {
   return ((await res.json()) as { id: string }).id
+}
+
+/** Stores an activity from a stale model straight into D1, as an older build left it: create refuses one. */
+async function seedStale(
+  h: Harness,
+  token: string,
+  digest: Record<string, unknown> = {},
+): Promise<string> {
+  if (h.env.FILES) {
+    const enabled = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      ...as(token),
+    })
+    expect(enabled.status).toBe(200)
+  }
+  return seedActivityRow(h.env.DB, {
+    userId: await userId(h, token),
+    revision: 1,
+    digest,
+    fileHash: HASH_OF_CONTENT,
+  })
 }
 
 describe('POST /api/activities', () => {
@@ -119,7 +143,7 @@ describe('POST /api/activities', () => {
   it('upgrades a stale digest only for the same original file and preserves file metadata', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1 }))
+    const id = await seedStale(h, token)
     const uploaded = await h.send({
       method: 'PUT',
       path: `/api/activities/${id}/file`,
@@ -163,10 +187,12 @@ describe('POST /api/activities', () => {
     expect(after).toEqual(before)
 
     const downgrade = await createActivity(h, token, {}, { modelRevision: 1, name: 'Stale retry' })
-    expect(downgrade.status).toBe(200)
-    expect(
-      ((await downgrade.json()) as { digest: { modelRevision: number } }).digest.modelRevision,
-    ).toBe(MODEL_REVISION)
+    expect(downgrade.status).toBe(409)
+    expect(await downgrade.json()).toMatchObject({ error: { code: 'app_outdated' } })
+    const kept = await h.env.DB.prepare('SELECT digest_json FROM activities WHERE id = ?')
+      .bind(id)
+      .first<{ digest_json: string }>()
+    expect(JSON.parse(kept!.digest_json).modelRevision).toBe(MODEL_REVISION)
 
     const conflict = await createActivity(
       h,
@@ -181,7 +207,7 @@ describe('POST /api/activities', () => {
   it('atomically upgrades concurrent matching retries without downgrading the digest', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1 }))
+    const id = await seedStale(h, token)
     const [first, second] = await Promise.all([
       createActivity(h, token, {}, { modelRevision: MODEL_REVISION, name: 'Current A' }),
       createActivity(h, token, {}, { modelRevision: MODEL_REVISION, name: 'Current B' }),
@@ -1503,7 +1529,7 @@ describe('boundary pins', () => {
 })
 
 describe('stored digests from older revisions', () => {
-  it('lists an old-revision row that create would refuse, and answers a same-revision create with it', async () => {
+  it('lists an old-revision row that create would refuse, and refuses a create at that revision', async () => {
     const h = createHarness()
     const token = await h.signIn()
     await createActivity(h, token)
@@ -1531,8 +1557,9 @@ describe('stored digests from older revisions', () => {
     expect(page.items.map((item) => item.id)).toEqual(['legacy'])
     expect(page.unreadable).toBeUndefined()
 
+    // A stale tab cannot write over it, or beside it.
     const again = await createActivity(h, token, {}, { modelRevision: 1 })
-    expect(again.status).toBe(200)
-    expect(await again.json()).toMatchObject({ id: 'legacy' })
+    expect(again.status).toBe(409)
+    expect(await again.json()).toMatchObject({ error: { code: 'app_outdated' } })
   })
 })

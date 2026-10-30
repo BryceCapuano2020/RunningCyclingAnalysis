@@ -37,7 +37,10 @@ list).
    and a HEAD that is behind the tip of `origin/main`; to deploy an older merged commit on purpose,
    add `-- --allow-older`. It then tags the Worker version with the 8-character commit id and a
    message naming the full commit, and builds the id into `/api/health`.
-4. `npm run smoke:prod -- --expect-sha <short sha>`. It sends only GET requests, no mutating ones, to the live
+4. `deploy:built` now runs the smoke test itself right after the deploy, against `APP_URL`, expecting the
+   commit it just tagged (`--no-smoke` skips it). On a failure it exits 1, prints the failures and the
+   rollback floor from this ledger, and rolls nothing back: whether to roll back is the owner's call, because a
+   migration may make older Workers unsafe. To run the same check again: `npm run smoke:prod -- --expect-sha <short sha>`. It sends only GET requests, no mutating ones, to the live
    origin (health, an unknown path's 404, the app shell and its Content-Security-Policy header, and
    the sign-in redirect) and fails if `/api/health` reports a different build. Without `--expect-sha` a Worker that reports no
    build id (one from before the id, as after a rollback) passes with a warning. The deep health check is
