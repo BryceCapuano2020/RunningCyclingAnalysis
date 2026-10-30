@@ -184,6 +184,11 @@
     line-height: 1;
   }
 
+  /* The backplate behind a figure is as tall as the font, so a tight line would put it over the label above. */
+  .hero-number {
+    line-height: 1.2;
+  }
+
   .btn:active:not([aria-disabled='true']) {
     outline: 2px solid CanvasText;
     outline-offset: -2px;

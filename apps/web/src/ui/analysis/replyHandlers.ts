@@ -1,9 +1,9 @@
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { limitReached, listingLimitReached } from '../limitCopy'
-import type { WorkerResponse } from '../../worker/protocol'
 import { DEVICE_NOT_LOADED, deleteFailureText, LIBRARY_NOT_LOADED, rebuildNoticeText } from './copy'
 import type { ErrorReply } from './copy'
-import { setKeptLibraryHinted } from './keptLibrary'
+import { rememberKeptLibrary } from './rememberKept'
+import type { ReplyResponse } from './rememberKept'
 import { baselineOf, comparableBefore } from './importState'
 import { mergeOutcomes } from './mergeOutcomes'
 import { isOvertaken } from './staleReplies'
@@ -28,55 +28,6 @@ export interface WorkerEventDeps {
   /** Whether the current worker has been asked for the library kept in this browser. */
   deviceLoadedRef: Box<boolean>
   loadDeviceOnce: () => void
-}
-
-/** The responses that answer a request, as opposed to ones the worker sends on its own. */
-export type ReplyResponse = Exclude<
-  WorkerResponse,
-  {
-    type:
-      | 'started'
-      | 'heartbeat'
-      | 'progress'
-      | 'missingOriginals'
-      | 'detailCoverage'
-      | 'libraryActivities'
-      | 'libraryUnreadable'
-      | 'accountIssue'
-      | 'deviceIssue'
-  }
->
-
-/**
- * A library read that answers or fails ends the restoring state. The hint says whether this browser
- * has results to restore: a library read or a saved import sets it, a clear or an empty library clears it.
- * For the library kept in this browser it follows the list the worker reported from storage, not the
- * session, so a refused save or a refused clear leaves the hint as storage stands.
- */
-function rememberKeptLibrary(
-  library: LibraryState,
-  pending: Pending | undefined,
-  message: ReplyResponse,
-): void {
-  if (pending?.kind === 'loadDevice' || pending?.kind === 'loadServer') library.setRestoring(false)
-  if (pending === undefined || message.type !== 'state') return
-  const kept = library.savedActivitiesRef.current.length > 0
-  // A clear keeps the library kept in this browser unless it forgets it, as a signed-in clear does not.
-  if (pending.kind === 'clear') {
-    if (pending.forgetDevice === true) setKeptLibraryHinted(kept)
-    return
-  }
-  // A sample on screen says nothing about the library kept in this browser.
-  if (message.state.isSample) return
-  if (pending.kind === 'loadServer') setKeptLibraryHinted(message.state.library.length > 0)
-  else if (
-    pending.kind === 'loadDevice' ||
-    pending.kind === 'deleteDeviceActivity' ||
-    pending.kind === 'keepProvisional' ||
-    (pending.kind === 'addFiles' && pending.saveToDevice === true)
-  ) {
-    setKeptLibraryHinted(kept)
-  }
 }
 
 /**

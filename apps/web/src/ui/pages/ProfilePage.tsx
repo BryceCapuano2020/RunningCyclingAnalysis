@@ -255,6 +255,7 @@ export function ProfilePage({
           <SettingsOverTime
             {...dated}
             units={shownUnits}
+            weightKg={settings.massKg}
             onAdd={onAddSetting}
             onRemove={onRemoveSetting}
             prefill={prefill}

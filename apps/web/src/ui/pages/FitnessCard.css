@@ -321,8 +321,10 @@
   min-width: 0;
 }
 
-.fitness-evidence__block h4 {
+.fitness-evidence__block h2 {
   margin: 0;
+  /* The eyebrow's own line, not the section heading's tight one. */
+  line-height: inherit;
 }
 
 .fitness-evidence__block p {

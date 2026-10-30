@@ -169,3 +169,19 @@
     align-content: center;
   }
 }
+
+/*
+ * Forced colours paint a backplate behind each run of text, as tall as the font and not the line. At 0.8 the
+ * figure's backplate covered the eyebrow and the chip above it; at 1 it sits on its own line.
+ */
+@media (forced-colors: active) {
+  .sport-hero__number {
+    line-height: 1;
+  }
+
+  /* A level name that wraps puts its percent on a second line, which the backplate of the first would cover. */
+  .sport-hero__level {
+    row-gap: var(--space-3);
+    line-height: 1;
+  }
+}

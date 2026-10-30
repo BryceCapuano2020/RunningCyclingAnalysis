@@ -96,6 +96,8 @@
   /* The header is two rows on a wide screen and one row on a phone; the phone tab bar is 48 px. */
   --header-height: calc(var(--space-5) + var(--control-height) * 2 + var(--space-2) + 1px);
   --tab-bar-height: 48px;
+  /* The bars that stick under the header (section row, chart readout) add their height here while stuck; see useStickyExtra.ts. */
+  --sticky-extra: 0px;
   /* The type scale: the small sizes the app uses, each one value. */
   --text-sm: 0.875rem;
   --text-md: 1rem;
