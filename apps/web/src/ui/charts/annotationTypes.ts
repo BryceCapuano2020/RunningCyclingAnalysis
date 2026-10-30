@@ -1,6 +1,6 @@
 import type { Box } from './chartBoxes'
 import type { PlotBox, Point } from './chartTypes'
-import { DEFAULT_ROOT_PX, GLYPH_EM, LABEL_PAD_EM, LABEL_REM } from './rootFont'
+import { DEFAULT_ROOT_PX, LABEL_PAD_EM, LABEL_REM, textEm } from './rootFont'
 
 /**
  * The annotation primitive: the marks that say what a chart found. An end label names a series where it
@@ -140,7 +140,7 @@ export function scaleOf(rootPx: number): number {
 
 /** The width of a small label, from its length, as the axis labels are estimated. */
 export function smallWidth(text: string, rootPx: number): number {
-  return (text.length * GLYPH_EM + LABEL_PAD_EM) * LABEL_REM * rootPx
+  return (textEm(text) + LABEL_PAD_EM) * LABEL_REM * rootPx
 }
 
 /** An eyebrow is set in bold capitals with tracking, which run about a fifth wider than the same text in sentence case. */

@@ -1,4 +1,4 @@
-/* A percent and a range never break inside themselves. The level before them may wrap. */
+/* A percent and a range never break inside themselves. The level before them, and the space between, may wrap. */
 .grade-sentence__unbroken {
   white-space: nowrap;
 }

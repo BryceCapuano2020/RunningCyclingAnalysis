@@ -1,6 +1,6 @@
 import type { ChartSize } from './chartTypes'
 import { ChartXAxis } from './ChartXAxis'
-import { axisFontRem } from './ticks'
+import { axisFontRem, labelWidth, rootScale } from './ticks'
 import { areaPath, bandPath, linePath, timeTicks } from './timeSeriesModel'
 import type { PixelMap } from './timeSeriesModel'
 import { bandOpacity, edgeTicks } from './timeSeriesEdge'
@@ -11,8 +11,11 @@ import { formatRecordTime } from '@rca/core/units'
 import { memo } from 'react'
 import './TimeSeriesStack.css'
 
-/** The widest a time label is, in px, so ticks keep clear of each other. */
+/** The widest a time label is, in px, at the default text size, so ticks keep clear of each other. */
 const TICK_GAP_PX = 64
+/** The tick text size and the air kept between two labels, px. */
+const TICK_FONT_PX = 12
+const TICK_AIR_PX = 16
 const SKIPPED_PX = 5
 
 export interface TimeSeriesRowsProps {
@@ -44,7 +47,12 @@ export const TimeSeriesRows = memo(function TimeSeriesRows({
   const span = Math.max(1, endS - startS)
   const x = (timeS: number) => plot.left + ((timeS - startS) / span) * (plot.right - plot.left)
   const rowsBottom = layout.rows.at(-1)?.bottom ?? plot.top
-  const ticks = timeTicks(startS, endS, plot.right - plot.left, TICK_GAP_PX).map((t) => ({
+  // The longest time on the axis sets the gap, at the reader's text size and spacing: an hour's "1:30:00" is wider than "0:30".
+  const gap = Math.max(
+    TICK_GAP_PX,
+    labelWidth(formatRecordTime(endS), TICK_FONT_PX, rootScale()) + TICK_AIR_PX,
+  )
+  const ticks = timeTicks(startS, endS, plot.right - plot.left, gap).map((t) => ({
     position: x(t),
     label: formatRecordTime(t),
   }))

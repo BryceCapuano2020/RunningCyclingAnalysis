@@ -222,3 +222,87 @@ describe('usePreferences', () => {
     expect(result.current[0]).toEqual(SAVED)
   })
 })
+
+describe('usePreferences across tabs', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('writes only the field that changed, so a tab that is out of date cannot put back another tab’s value', () => {
+    localStorage.setItem(KEY, JSON.stringify(SAVED))
+    const { result } = renderHook(() => usePreferences())
+    // Another tab raises the weight while this tab still shows the old one.
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ ...SAVED, settings: { ...SAVED.settings, massKg: 90 } }),
+    )
+
+    act(() => {
+      result.current[1]({ ...result.current[0], units: 'imperial' })
+    })
+
+    const stored = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Preferences
+    expect(stored.units).toBe('imperial')
+    expect(stored.settings.massKg).toBe(90)
+    expect(result.current[0].settings.massKg).toBe(90)
+  })
+
+  it('lets the latest writer of one field win, and keeps every field the other tab set', () => {
+    localStorage.setItem(KEY, JSON.stringify(SAVED))
+    const { result } = renderHook(() => usePreferences())
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ ...SAVED, settings: { ...SAVED.settings, massKg: 90 }, birthYear: 1985 }),
+    )
+
+    act(() => {
+      result.current[1]({
+        ...result.current[0],
+        settings: { ...result.current[0].settings, massKg: 70 },
+      })
+    })
+
+    const stored = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Preferences
+    expect(stored.settings.massKg).toBe(70)
+    expect(stored.birthYear).toBe(1985)
+  })
+
+  it('takes up a change another tab made, as the browser reports it', () => {
+    localStorage.setItem(KEY, JSON.stringify(SAVED))
+    const { result } = renderHook(() => usePreferences())
+
+    act(() => {
+      localStorage.setItem(KEY, JSON.stringify({ ...SAVED, units: 'imperial' }))
+      window.dispatchEvent(new StorageEvent('storage', { key: KEY }))
+    })
+
+    expect(result.current[0].units).toBe('imperial')
+  })
+
+  it('ignores a change to some other key', () => {
+    localStorage.setItem(KEY, JSON.stringify(SAVED))
+    const { result } = renderHook(() => usePreferences())
+    localStorage.setItem(KEY, JSON.stringify({ ...SAVED, units: 'imperial' }))
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'something.else' }))
+    })
+
+    expect(result.current[0].units).toBe('metric')
+  })
+
+  it('builds on its own copy when the browser will not read storage', () => {
+    localStorage.setItem(KEY, JSON.stringify(SAVED))
+    const { result } = renderHook(() => usePreferences())
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError')
+    })
+
+    act(() => {
+      result.current[1]({ ...result.current[0], units: 'imperial' })
+    })
+
+    expect(result.current[0]).toEqual({ ...SAVED, units: 'imperial' })
+    vi.restoreAllMocks()
+  })
+})

@@ -2,7 +2,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { withEntry, withoutEntry, measurementKey } from '@rca/core/athlete'
 import type { Measurement } from '@rca/core/athlete'
 import { deleteMeasurement, listMeasurements, putMeasurement } from '../api/measurements'
-import { loadMeasurements, sortedMeasurements, storeMeasurements } from './measurementStore'
+import {
+  loadMeasurements,
+  MEASUREMENTS_KEY,
+  readStoredMeasurements,
+  sortedMeasurements,
+  storeMeasurements,
+} from './measurementStore'
+import { tellOtherTabs, useTabMessages } from './tabSync'
+import type { TabMessage } from './tabSync'
 import type { AccountStatus } from './useAccount'
 
 const NOT_KEPT = 'This browser would not keep the setting. Check that it may store site data.'
@@ -57,6 +65,12 @@ export function useMeasurements(
   const [failedFor, setFailedFor] = useState<string | null>(null)
   // Which try this is: the first, its automatic retry, then any the athlete asks for.
   const [attempt, setAttempt] = useState(0)
+  // Another tab changed the account's list: reading it again is one more try. A list already shown stays
+  // if that read fails.
+  const onTabMessage = useCallback((message: TabMessage) => {
+    if (message.type === 'measurements') setAttempt((tries) => tries + 1)
+  }, [])
+  useTabMessages(onTabMessage)
 
   useEffect(() => {
     if (!signedIn) return
@@ -79,6 +93,15 @@ export function useMeasurements(
       clearTimeout(timer)
     }
   }, [signedIn, userId, attempt])
+
+  // Another tab changed the list kept in this browser.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === MEASUREMENTS_KEY) setDevice(loadMeasurements())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   const accountEntries = account !== null && account.userId === userId ? account.entries : null
   const loaded = signedIn && accountEntries !== null
@@ -122,10 +145,16 @@ export function useMeasurements(
   const commit = useCallback(
     (build: (current: readonly Measurement[]) => Measurement[], write: () => Promise<unknown>) => {
       const run = async (): Promise<Measurement[]> => {
-        const sorted = sortedMeasurements(build(latest.current.entries))
+        // Signed out, the list kept in this browser is built on as it stands now, so a change another tab
+        // made meanwhile is not written over.
+        const base = signedIn
+          ? latest.current.entries
+          : (readStoredMeasurements() ?? latest.current.entries)
+        const sorted = sortedMeasurements(build(base))
         if (signedIn) {
           await write()
           setAccount({ userId, entries: sorted })
+          tellOtherTabs({ type: 'measurements' })
         } else {
           if (!storeMeasurements(sorted)) throw new Error(NOT_KEPT)
           setDevice(sorted)

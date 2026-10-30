@@ -49,6 +49,25 @@ describe('RangePicker', () => {
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
   })
 
+  it('checks All time, the period in force, when the default fell back to it', () => {
+    render(picker({ choice: 'default', fellBack: true }))
+    expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
+    expect(screen.getByRole('status')).toHaveTextContent('All time')
+  })
+
+  it('checks 12 weeks for the default when it did not fall back', () => {
+    render(picker({ choice: 'default', fellBack: false }))
+    expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'All time' })).not.toBeChecked()
+  })
+
+  it('keeps All time checked for a fallen-back default while a pick for 12 weeks waits', async () => {
+    render(picker({ choice: 'default', fellBack: true, onChange: vi.fn() }))
+    await userEvent.click(screen.getByRole('radio', { name: '12 weeks' }))
+    expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
+  })
+
   it('reports the choice of the segment picked', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn<(choice: PeriodChoice) => void>()

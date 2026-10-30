@@ -1157,8 +1157,16 @@ describe('route shape', () => {
 })
 
 describe('the back link', () => {
+  // A click the page leaves alone is followed by jsdom, which moves the hash and replaces the history
+  // state a moment later, over whatever the next test has set. Nothing here asserts a navigation, so none runs.
+  const keepWhereItIs = (event: Event) => event.preventDefault()
+  beforeEach(() => {
+    document.addEventListener('click', keepWhereItIs)
+  })
+
   afterEach(() => {
-    window.history.replaceState(null, '')
+    document.removeEventListener('click', keepWhereItIs)
+    window.history.replaceState(null, '', '#')
     vi.restoreAllMocks()
   })
 
