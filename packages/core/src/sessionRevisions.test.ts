@@ -2,7 +2,7 @@ import './test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'
 import { digestActivity } from './digest'
-import { withRevisionTable } from './digest/revisions'
+import { withRevisionTable, withRevisionTableAsync } from './digest/revisions'
 import type { RevisionDeclaration } from './digest/revisions'
 import { AnalysisSession } from './session'
 import type { ImportCompletion } from './sessionHooks'
@@ -110,7 +110,7 @@ describe('a session library with compatible, stale and newer digests', () => {
     const session = new AnalysisSession()
     const old = stamped(digestActivity(run), COMPATIBLE)
     const outcomes: ImportCompletion[] = []
-    const after = await withRevisionTable(MIXED, async () => {
+    const after = await withRevisionTableAsync(MIXED, async () => {
       expect(session.loadDigests([old], SETTINGS).totalActivities).toBe(1)
       return session.addFiles([fitFile(run)], SETTINGS, undefined, undefined, false, (o) =>
         outcomes.push(o),
@@ -128,7 +128,7 @@ describe('a session library with compatible, stale and newer digests', () => {
     const session = new AnalysisSession()
     const stale = stamped(digestActivity(run), STALE)
     const outcomes: ImportCompletion[] = []
-    await withRevisionTable(MIXED, async () => {
+    await withRevisionTableAsync(MIXED, async () => {
       expect(session.loadDigests([stale], SETTINGS).outdatedActivities).toBe(1)
       const after = await session.addFiles(
         [fitFile(run)],
@@ -151,6 +151,29 @@ describe('a session library with compatible, stale and newer digests', () => {
     )
     expect(first[0]?.added).toHaveLength(1)
     expect(first[0]?.upgraded).toEqual([])
+  })
+
+  it('still hides a duplicate of a compatible digest, so the pair is counted once', () => {
+    const base = digestActivity(run)
+    // The same workout in a lower format, a few seconds off: the richer copy is shown, the other hidden.
+    const poorer = {
+      ...base,
+      id: 'poorer-copy.gpx',
+      startMs: base.startMs + 1000,
+      modelRevision: COMPATIBLE,
+    }
+    const state = withRevisionTable(MIXED, () =>
+      new AnalysisSession().loadDigests([stamped(base, COMPATIBLE), poorer], SETTINGS),
+    )
+    expect(state.libraryActivities).toBe(2)
+    expect(state.hiddenDuplicates).toBe(1)
+    expect(state.totalActivities).toBe(1)
+  })
+
+  it('refuses to hold a table across an await, since it would silently revert', async () => {
+    expect(() => withRevisionTable(MIXED, async () => 1)).toThrow(/withRevisionTableAsync/)
+    // The real table is back even though the run was refused.
+    expect(await withRevisionTableAsync(MIXED, async () => 1)).toBe(1)
   })
 
   it('removes a workout from every map, and clear empties them all', () => {

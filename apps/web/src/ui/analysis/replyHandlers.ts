@@ -10,6 +10,7 @@ import { isOvertaken } from './staleReplies'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
+import type { ImportOutcome } from '../../worker/protocol'
 import type { Account, Baseline, Box, Pending, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 
@@ -28,6 +29,11 @@ export interface WorkerEventDeps {
   /** Whether the current worker has been asked for the library kept in this browser. */
   deviceLoadedRef: Box<boolean>
   loadDeviceOnce: () => void
+}
+
+/** Whether the import brought any workout up to date from an older model. */
+function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean {
+  return updatedRuns + updatedRides > 0
 }
 
 /**
@@ -114,7 +120,10 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
       imports.setImportOutcome(message.outcome)
       imports.setImportChange({
         outcome: message.outcome,
-        before: comparableBefore(pending?.baseline, message.state),
+        // Workouts brought up to date are not new, so an import that updated any moves nothing.
+        before: isUpdate(message.outcome)
+          ? null
+          : comparableBefore(pending?.baseline, message.state),
         after: message.state.result,
       })
     }

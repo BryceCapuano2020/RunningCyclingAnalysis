@@ -49,12 +49,36 @@ export const REVISIONS: readonly RevisionDeclaration[] = [1, 2, 3, 4, 5, 6].map(
 /** The table the defaults below read. Only `withRevisionTable` changes it, for tests that need a compatible revision. */
 let active: readonly RevisionDeclaration[] = REVISIONS
 
-/** Runs `run` with `table` as the table every function here defaults to, then puts the real one back. */
+/**
+ * Runs `run` with `table` as the table every function here defaults to, then puts the real one back. The run is
+ * synchronous: the table is restored when it returns, so a run that returns a promise would continue under the
+ * real table, and is refused. Use `withRevisionTableAsync` for that.
+ */
 export function withRevisionTable<T>(table: readonly RevisionDeclaration[], run: () => T): T {
   const before = active
   active = table
   try {
-    return run()
+    const result = run()
+    if (result instanceof Promise) {
+      throw new TypeError(
+        'withRevisionTable cannot hold a table across an await; use withRevisionTableAsync',
+      )
+    }
+    return result
+  } finally {
+    active = before
+  }
+}
+
+/** As `withRevisionTable`, for a run that awaits: the table holds until the promise settles. Do not overlap two. */
+export async function withRevisionTableAsync<T>(
+  table: readonly RevisionDeclaration[],
+  run: () => Promise<T>,
+): Promise<T> {
+  const before = active
+  active = table
+  try {
+    return await run()
   } finally {
     active = before
   }

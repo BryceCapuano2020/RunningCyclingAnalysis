@@ -165,6 +165,7 @@ export class AnalysisSession {
     for (const digest of digests) {
       const key = dedupeKey(digest.sport, digest.startMs)
       // The copy of a workout that the analysis reads most wins, whatever the order they arrive in.
+      // A key that arrives both stale and newer is one row held back, the first of them; main counted it in both.
       const kept = this.library.digests.get(key) ?? this.library.notCurrent(key)
       if (kept === undefined || readRank(kept) < readRank(digest)) this.library.put(key, digest)
     }

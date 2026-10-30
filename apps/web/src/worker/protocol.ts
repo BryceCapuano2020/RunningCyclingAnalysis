@@ -57,6 +57,12 @@ export interface ImportOutcome {
   /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */
   runs?: number
   rides?: number
+  /**
+   * Runs and rides the import brought up to date: workouts the library held from an older model, replaced by a
+   * fresh copy. They are not new, so they are never counted in `runs` and `rides`, and never move the numbers.
+   */
+  updatedRuns?: number
+  updatedRides?: number
   /** The earliest and latest start, in epoch ms, of the activities the import added. */
   firstStartMs?: number
   lastStartMs?: number
