@@ -1,4 +1,6 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { dedupeKey } from '@rca/core/session'
+import type { Sport } from '@rca/core/types'
 import { plural } from '../components/plural'
 import type { Route } from '../route'
 
@@ -10,6 +12,17 @@ import type { Route } from '../route'
 /** The mark on a list row and an activity's header. */
 export const WALKING_PACE_CHIP = 'Walking pace'
 
+/**
+ * The runs of a sport that are all at walking pace and so all left out, with the way to count them. Pages that
+ * would otherwise say the sport has no runs say this instead.
+ */
+export interface LeftOutRuns {
+  sport: Sport
+  count: number
+  /** Counts them as runs. Whether the browser kept the choice is the controller's notKept. */
+  onCount: () => void
+}
+
 /** The pages that carry the library line about runs at walking pace: where runs are listed or analysed. */
 export const WALKING_NOTE_PAGES: readonly Route['page'][] = ['run', 'activities']
 
@@ -17,13 +30,65 @@ export const WALKING_NOTE_PAGES: readonly Route['page'][] = ['run', 'activities'
 export const WALKING_PACE_NOTE =
   'This run is at walking pace, so it is left out of your run analysis.'
 
-/** The line under the import notices for the saved runs at walking pace. */
-export function walkingPaceText(count: number): string {
-  return (
+/**
+ * The line under the import notices for the saved runs at walking pace. `offer` adds where to count one; the
+ * Run page, when every run is left out, has its own button and leaves the sentence off.
+ */
+export function walkingPaceText(count: number, offer = true): string {
+  const one = count === 1
+  const said =
     `${plural(count, 'saved run is', 'saved runs are')} at walking pace, so ` +
-    `${count === 1 ? 'it stays' : 'they stay'} in your activities and ` +
-    `${count === 1 ? 'is' : 'are'} left out of your run analysis.`
+    `${one ? 'it stays' : 'they stay'} in your activities and ` +
+    `${one ? 'is' : 'are'} left out of your run analysis.`
+  return offer ? `${said} Open ${one ? 'it' : 'one'} to count it as a run.` : said
+}
+
+/** The line about runs counted despite their walking pace, with the button to leave them out beside it. */
+export function countedDespiteText(count: number): string {
+  return `${plural(count, 'run is', 'runs are')} counted despite walking pace.`
+}
+
+/**
+ * What a page says in place of "no runs" when the runs it would show are all at walking pace: how many are left
+ * out, and that the athlete can count them. Said wherever the library holds runs the analysis does not.
+ */
+export function leftOutNote(count: number): string {
+  const one = count === 1
+  return (
+    `${plural(count, 'run is', 'runs are')} at walking pace, so ${one ? 'it is' : 'they are'} left out. ` +
+    `Count ${one ? 'it as a run' : 'them as runs'} to include ${one ? 'it' : 'them'}.`
   )
+}
+
+/** The short form, for a tile beside a headline that already says it all and offers the button. */
+export function leftOutShort(count: number): string {
+  return `${plural(count, 'run')} left out at walking pace.`
+}
+
+/** The button that counts runs at walking pace, for the one run or for all of them. */
+export function countRunsLabel(count: number): string {
+  return count === 1 ? 'Count this run' : 'Count these runs'
+}
+
+/** The workout key a choice to count a run is kept under: the same for every copy of the workout. */
+export function workoutKeyOf(activity: Pick<ActivitySummary, 'sport' | 'startMs'>): string {
+  return dedupeKey(activity.sport, activity.startMs)
+}
+
+/**
+ * The runs at walking pace in a library, and whether they are all of the sport's activities there: every run
+ * the analysis would use is left out, so the sport's pages have nothing and must say why.
+ */
+export function leftOutRuns(library: ActivitySummary[]): {
+  runs: ActivitySummary[]
+  allLeftOut: boolean
+} {
+  const runs = library.filter((activity) => activity.walkingPace === true)
+  const sport = runs[0]?.sport
+  const allLeftOut =
+    sport !== undefined &&
+    !library.some((activity) => activity.sport === sport && activity.walkingPace !== true)
+  return { runs, allLeftOut }
 }
 
 /**

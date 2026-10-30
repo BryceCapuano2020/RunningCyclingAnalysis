@@ -70,9 +70,14 @@ the build output.
    with the same verified email when that account has no Google identity yet, and otherwise creates
    the user, but only if the email is in the Worker secret `ALLOWED_EMAILS` (closed when it is unset,
    open only in local development). The user, its Google link and the day's counts a deleted account of
-   the same identity left behind are written in one batch. A refusal ends on an HTML page, not JSON.
+   the same identity left behind are written in one batch. A refusal to a browser is a redirect to the app with its code (below), not JSON.
    The API issues a 256-bit session token, stores only its SHA-256 hash with an expiry (a user keeps at
    most ten sessions), sets the token as a cookie, and redirects to `APP_URL`.
+
+When a browser navigation to either sign-in route is refused (a rate limit, a cancelled or expired sign-in, an address not on the sign-up list, too many accounts today, an account being deleted, an email that belongs to another Google account), the
+API redirects to the app's home with the error's code in the hash (`#/?signin=rate_limited`) instead of answering
+with JSON. The app words the codes it knows itself and takes the code out of the address (`signInProblem.ts`). A
+script that asks for the same routes still gets the JSON error.
 
 **Import** (parse, digest, upload)
 

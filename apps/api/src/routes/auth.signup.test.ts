@@ -28,6 +28,19 @@ function listed(...emails: string[]) {
   return createGoogleHarness({ ALLOWED_EMAILS: emails.join(',') })
 }
 
+/** The refusal is a redirect back to the app carrying only the error's code, which the app words. */
+function expectRefusal(res: Response, code: string, appUrl = 'http://localhost:5183'): void {
+  expect(res.status).toBe(302)
+  expect(res.headers.get('location')).toBe(`${appUrl}/#/?signin=${code}`)
+  expect(sessionCookie(res)).toBeUndefined()
+  // The one-shot sign-in cookies are cleared on the redirect, whatever the outcome.
+  const cleared = res.headers
+    .getSetCookie()
+    .filter((line) => line.startsWith('rca_oauth_state=') || line.startsWith('rca_oauth_verifier='))
+  expect(cleared).toHaveLength(2)
+  for (const line of cleared) expect(line).toMatch(/Max-Age=0|Expires=Thu, 01 Jan 1970/i)
+}
+
 describe('sign-in with a sign-up list', () => {
   it('S1: an account that exists signs in whatever the list holds, including no list in production', async () => {
     const h = listed(LISTED)
@@ -52,15 +65,13 @@ describe('sign-in with a sign-up list', () => {
     expect(await count(h, 'users')).toBe(1)
   })
 
-  it('S2: an account being deleted is refused with a page, and no session is made', async () => {
+  it('S2: an account being deleted is sent back to the app with its code, and no session is made', async () => {
     const h = listed(LISTED)
     await h.sessionFor({ email: LISTED })
     await h.env.DB.prepare('UPDATE users SET deleting_at = 1').run()
     const before = await count(h, 'sessions')
     const res = await h.signInAs({ email: LISTED })
-    expect(res.status).toBe(409)
-    expect(res.headers.get('content-type')).toContain('text/html')
-    expect(await res.text()).toContain('This account is being deleted')
+    expectRefusal(res, 'account_deleting')
     expect(await count(h, 'sessions')).toBe(before)
   })
 
@@ -77,12 +88,11 @@ describe('sign-in with a sign-up list', () => {
     expect(await count(h, 'users')).toBe(1)
   })
 
-  it('S4: an email already linked to another Google identity is refused with a page', async () => {
+  it('S4: an email already linked to another Google identity is sent back to the app with its code', async () => {
     const h = listed(LISTED)
     await h.sessionFor({ email: LISTED, sub: 'sub-first' })
     const res = await h.signInAs({ email: LISTED, sub: 'sub-second' })
-    expect(res.status).toBe(409)
-    expect(await res.text()).toContain('belongs to another Google account')
+    expectRefusal(res, 'account_conflict')
     expect(await rows(h, 'SELECT provider_user_id FROM oauth_accounts')).toEqual([
       { provider_user_id: 'sub-first' },
     ])
@@ -96,7 +106,7 @@ describe('sign-in with a sign-up list', () => {
       .bind('going', LISTED, 'Going', START, START)
       .run()
     const res = await h.signInAs({ email: LISTED })
-    expect(res.status).toBe(409)
+    expectRefusal(res, 'account_deleting')
     expect(await count(h, 'oauth_accounts')).toBe(0)
   })
 
@@ -111,20 +121,13 @@ describe('sign-in with a sign-up list', () => {
     expect(await count(h, 'sessions')).toBe(1)
   })
 
-  it('S7: an address not on the list gets a page, 403, and nothing is written', async () => {
+  it('S7: an address not on the list is sent back to the app with its code, and nothing is written', async () => {
     const h = listed(LISTED)
     const res = await h.signInAs({ email: OTHER })
-    expect(res.status).toBe(403)
-    expect(res.headers.get('content-type')).toContain('text/html')
-    expect(sessionCookie(res)).toBeUndefined()
-    const page = await res.text()
-    expect(page).toContain('not on the list')
-    expect(page).not.toContain(OTHER)
-    expect(page).not.toContain('{"error"')
-    expect(res.headers.get('content-security-policy')).toMatch(
-      /^default-src 'none'; style-src 'sha256-[A-Za-z0-9+/]+=*'; /,
-    )
-    expect(res.headers.get('content-security-policy')).not.toContain('script')
+    expectRefusal(res, 'not_on_list')
+    // Only the code travels: the address the person used is not echoed anywhere.
+    expect(res.headers.get('location')).not.toContain(OTHER)
+    expect(await res.text()).toBe('')
     for (const table of ['users', 'oauth_accounts', 'sessions', 'profiles', 'identity_budget']) {
       expect(await count(h, table), table).toBe(0)
     }
@@ -132,11 +135,11 @@ describe('sign-in with a sign-up list', () => {
 
   it('S7: with no list, sign-up is refused in production and open in local development', async () => {
     const closed = createGoogleHarness({ ENVIRONMENT: 'production', ALLOWED_EMAILS: undefined })
-    expect((await closed.signInAs({ email: LISTED })).status).toBe(403)
+    expectRefusal(await closed.signInAs({ email: LISTED }), 'not_on_list')
     expect(await count(closed, 'users')).toBe(0)
 
     const blank = createGoogleHarness({ ENVIRONMENT: 'production', ALLOWED_EMAILS: ' , ,' })
-    expect((await blank.signInAs({ email: LISTED })).status).toBe(403)
+    expectRefusal(await blank.signInAs({ email: LISTED }), 'not_on_list')
 
     const dev = createGoogleHarness({ ALLOWED_EMAILS: undefined })
     expect((await dev.signInAs({ email: LISTED })).status).toBe(302)
@@ -148,19 +151,17 @@ describe('sign-in with a sign-up list', () => {
       APP_URL: 'https://app.example.test',
     })
     h.env.ALLOWED_EMAILS = undefined
-    expect((await h.signInAs({ email: LISTED })).status).toBe(403)
+    expectRefusal(await h.signInAs({ email: LISTED }), 'not_on_list', 'https://app.example.test')
   })
 
-  it('S8: an identity that created and deleted accounts up to the cap is refused with a page', async () => {
+  it('S8: an identity that created and deleted accounts up to the cap is sent back to the app with its code', async () => {
     const h = listed(LISTED)
     for (let i = 0; i < MAX_ACCOUNT_CREATES_PER_DAY; i += 1) {
       const token = await h.sessionFor({ email: LISTED })
       expect((await h.deleteAccount(token)).status).toBe(204)
     }
     const res = await h.signInAs({ email: LISTED })
-    expect(res.status).toBe(429)
-    expect(res.headers.get('retry-after')).toBeTruthy()
-    expect(await res.text()).toContain('Too many accounts today')
+    expectRefusal(res, 'signup_limit')
     expect(await count(h, 'users')).toBe(0)
 
     // Another identity is not affected, and the next UTC day starts the count again.
@@ -249,12 +250,11 @@ describe('sign-in with a sign-up list', () => {
     const token = await h.sessionFor({ email: LISTED })
     await h.deleteAccount(token)
     h.env.ALLOWED_EMAILS = OTHER
-    const res = await h.signInAs({ email: LISTED })
-    expect(res.status).toBe(403)
+    expectRefusal(await h.signInAs({ email: LISTED }), 'not_on_list')
     expect(await count(h, 'users')).toBe(0)
     h.env.ALLOWED_EMAILS = undefined
     h.env.ENVIRONMENT = 'production'
-    expect((await h.signInAs({ email: LISTED })).status).toBe(403)
+    expectRefusal(await h.signInAs({ email: LISTED }), 'not_on_list')
   })
 
   it('D2: an account without a Google identity is deleted without saving any counts', async () => {

@@ -1,6 +1,14 @@
 import type { AnalysisController } from '../useAnalysis'
 import { detailCoverageLine } from '../analysis/detailCoverage'
-import { walkingPaceText } from '../analysis/walkingPaceCopy'
+import {
+  countedDespiteText,
+  leftOutNote,
+  leftOutRuns,
+  walkingPaceText,
+} from '../analysis/walkingPaceCopy'
+import { SPORT_LABEL } from '../sports'
+import { hrefFor } from '../route'
+import type { CountedRunsController } from '../useCountedRuns'
 import { movedAnything, type MovedItem } from '../analysis/whatMoved'
 import type { Route } from '../route'
 import { ImportNotice } from './ImportNotice'
@@ -33,6 +41,8 @@ export interface AppNoticesProps {
   pageNotice?: string
   /** On Run and Activities, the count of saved runs at walking pace is said under the notices. */
   walkingNote?: boolean
+  /** The runs counted despite walking pace: the way back, what the last change did and whether it was kept. */
+  countedRuns?: CountedRunsController
 }
 
 /**
@@ -54,6 +64,7 @@ export function AppNotices({
   page,
   pageNotice = '',
   walkingNote = false,
+  countedRuns,
 }: AppNoticesProps) {
   const { result, isSample } = analysis.state
   const neutralStop = analysis.error !== null && analysis.errorNeutral
@@ -63,16 +74,33 @@ export function AppNotices({
   const bareLibraryError = result === null ? analysis.libraryError : null
   // Notes about the data that need no action. The walking-pace count is said where runs are listed or analysed.
   const { hiddenDuplicates: copies, walkingPaceRuns: walking } = analysis.state
+  const left = leftOutRuns(analysis.state.library)
+  // Run, when every run is left out, has its own button to count them, so it leaves the offer to open one out.
+  const offerToOpen = !(left.allLeftOut && left.runs[0]?.sport === page)
   const aboutNotes = [
     ...(copies > 0 ? [{ id: 'copies', count: copies, text: hiddenCopiesText(copies) }] : []),
     ...(walkingNote && walking > 0
-      ? [{ id: 'walking', count: walking, text: walkingPaceText(walking) }]
+      ? [{ id: 'walking', count: walking, text: walkingPaceText(walking, offerToOpen) }]
       : []),
   ]
   // A signed-in library can read older detail back from a saved original, so the line, like the list's tag, is for this browser's own.
   const detailLine = signedIn
     ? null
     : detailCoverageLine(analysis.detail, analysis.savedActivities.length)
+  // An import that added only runs the analysis leaves out says so with its sentence, on the pages that do not
+  // say it themselves: Balance's headline, and Run's and Activities' own note. It ends with where to count them.
+  const leftOutSport = left.runs[0]?.sport
+  const leftOutLine =
+    left.allLeftOut && leftOutSport !== undefined && !walkingNote && !atBalance ? (
+      <>
+        {leftOutNote(left.runs.length)}{' '}
+        <a
+          href={hrefFor({ page: leftOutSport })}
+        >{`Open ${SPORT_LABEL[leftOutSport]} to count them.`}</a>
+      </>
+    ) : null
+  // The runs counted despite walking pace: the way back, where runs are listed or analysed.
+  const countedHere = analysis.state.countedWalkingRuns
   const sample = useSampleNotice({ page, shown: result !== null && isSample })
   return (
     <div className="app__notices">
@@ -84,6 +112,7 @@ export function AppNotices({
         moved={moved}
         atBalance={atBalance}
         detailLine={detailLine}
+        leftOutLine={leftOutLine}
         onDismiss={analysis.dismissSummary}
       />
       {sample.pill}
@@ -108,7 +137,25 @@ export function AppNotices({
         {/* A stop the visitor asked for is news, not a fault, so it is never an alert. */}
         {neutralStop && <p className="notice">{analysis.error}</p>}
         {pageNotice !== '' && <p className="app__notice">{pageNotice}</p>}
+        {/* What the last change to the counted runs did, for a screen reader: the buttons that made it are gone. */}
+        {countedRuns !== undefined && <p className="sr-only">{countedRuns.status}</p>}
+        {countedRuns?.notKept != null && <p className="notice">{countedRuns.notKept}</p>}
       </div>
+      {/* Outside the live region: the sr-only line above already says what the press did, so it is said once. */}
+      {walkingNote && countedRuns !== undefined && countedHere.length > 0 && (
+        <p className="notice">
+          {countedDespiteText(countedHere.length)}{' '}
+          <button
+            type="button"
+            className="btn"
+            onClick={(event) =>
+              runThenFocus(() => countedRuns.stop(countedHere), event.currentTarget)
+            }
+          >
+            {countedHere.length === 1 ? 'Leave it out' : 'Leave them out'}
+          </button>
+        </p>
+      )}
       {bareLibraryError !== null && (
         <p className="notice notice--critical" role="alert">
           {bareLibraryError}

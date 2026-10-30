@@ -7,6 +7,7 @@ import type { Sport } from '@rca/core/types'
 import type { FitnessBySport } from '@rca/core/fitness'
 import type { MeasureTime } from '@rca/core/zones'
 import type { UnitSystem } from '@rca/core/units'
+import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import type { AgeGap, AgeProfile } from '../grades'
 
 /** What a sport page is given: one sport's analysis, its period and the settings its figures need. */
@@ -47,6 +48,8 @@ export interface SportPageProps {
   footnote?: ReactNode
   /** What to say when the sport has nothing in the period, naming the period. */
   emptyText: string
+  /** Set when every activity of the sport is at walking pace and left out: the empty page offers to count them. */
+  leftOut?: LeftOutRuns
   /**
    * How many of the sport's activities the library holds, in all time. With none, the page has no period
    * to pick and asks for files; with some and none in the period, it offers All time.

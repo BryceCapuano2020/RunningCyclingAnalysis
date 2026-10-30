@@ -3,6 +3,8 @@ import { noteActivity } from './requestWatch'
 import { REPLY_TYPES } from '../../worker/protocol'
 import type { WireStamp, WorkerResponse } from '../../worker/protocol'
 import { STALLED_LEAD, UNREADABLE_LEAD, workerFailureText } from './copy'
+import { setDeviceLibraryMarked } from './keptLibrary'
+import { noteDeviceList } from './rememberKept'
 import { handleReply } from './replyHandlers'
 import type { WorkerEventDeps } from './replyHandlers'
 import { isStaleDeviceList } from './staleReplies'
@@ -96,6 +98,14 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         // Also read at once by rememberKeptLibrary, ahead of the render that sets the state.
         current.library.savedActivitiesRef.current = message.activities
         current.library.setSavedActivities(message.activities)
+        // Signed in, a list is the account's; signed out, or while that is not known, it is this browser's.
+        if (current.accountRef.current.status !== 'signed-in') {
+          noteDeviceList(current.library, message.activities, message.skipped ?? 0, pending)
+        }
+        return
+      }
+      if (message.type === 'deviceHolds') {
+        setDeviceLibraryMarked(message.holds)
         return
       }
       if (message.type === 'libraryUnreadable') {
@@ -103,14 +113,16 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         return
       }
       if (message.type === 'deviceIssue') {
-        current.library.setDeviceIssue(
+        // A refusal to keep follows the import's failure to read what was kept: both are said, not the last alone.
+        current.library.setDeviceIssue((previous) =>
           message.issue === 'notSaved'
             ? {
                 issue: 'notSaved',
                 count: message.count,
                 ...(message.newer === undefined ? {} : { newer: message.newer }),
+                ...(previous?.issue === 'notRead' ? { unread: true as const } : {}),
               }
-            : { issue: 'notForgotten' },
+            : { issue: message.issue },
         )
         return
       }

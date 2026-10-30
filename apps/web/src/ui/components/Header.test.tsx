@@ -116,7 +116,13 @@ describe('Header on a phone', () => {
       '--header-height: calc(var(--space-5) + var(--control-height) + var(--space-2) + 1px);',
     )
     expect(headerCss).not.toMatch(/--header-height:/)
-    expect(headerCss).toMatch(/html \{[^}]*scroll-padding-top:\s*var\(--header-height\)/)
+    expect(headerCss).toMatch(
+      /html \{[^}]*scroll-padding-top:\s*calc\(var\(--header-height\) \+ var\(--sticky-extra\)\)/,
+    )
+  })
+
+  it('keeps the bars stuck under the header at zero until a page measures them', () => {
+    expect(tokensCss).toMatch(/--sticky-extra:\s*0px;/)
   })
 
   it('tells the reader the header sizes are in tokens.css, where they are', () => {

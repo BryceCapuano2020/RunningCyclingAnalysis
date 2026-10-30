@@ -86,7 +86,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Virtual power',
     state: 'calculated',
-    line: 'Estimated watts on climbs for rides with no power meter, from speed, gradient and your weight, checked against your rides that have one.',
+    line: 'Estimated watts on steady climbs for rides with no power meter, from speed, gradient and your weight, checked against your rides that have one.',
   },
   {
     name: 'Splits',
