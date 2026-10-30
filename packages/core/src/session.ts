@@ -100,7 +100,7 @@ export class AnalysisSession {
     onReplaced?: ActivityListeners['replaced'],
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
-    // The rejected files are those of this import, so an earlier import's are not listed again.
+    // The rejected files are those of this import, so the files an earlier import refused are not listed again.
     this.rejected.length = 0
     this.unsupported.files = 0
     beginImportUnsynced(this.keeping)
