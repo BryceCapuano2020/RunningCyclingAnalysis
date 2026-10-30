@@ -47,13 +47,13 @@ describe('a change of route with no change of fitness', () => {
       expect(status.evidence!.method.gradePassThrough).toBeLessThan(0.6)
       expect(status.state).toBe('holding')
       // What the shift leaves in the value is far inside the 4% the status reports.
-      expect(Math.abs(status.change!.value)).toBeLessThan(0.02)
+      expect(Math.abs(status.change!.value)).toBeLessThan(0.005)
     })
   }
 
   it('is level with no shift at all, the same library', () => {
     const status = fitnessStatuses(library(0), new Set()).run
     expect(status.state).toBe('holding')
-    expect(Math.abs(status.change!.value)).toBeLessThan(0.02)
+    expect(Math.abs(status.change!.value)).toBeLessThan(0.005)
   })
 })

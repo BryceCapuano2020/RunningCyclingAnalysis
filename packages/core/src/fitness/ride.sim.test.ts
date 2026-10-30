@@ -23,7 +23,7 @@ describe('the flag', () => {
 const SPREADS = [0.024, 0.037, 0.045]
 
 describe('the monitor on ride values at the research spreads, one to three rides a week', () => {
-  // Observed (three years, 80 libraries): quiet alarms an athlete-year 0.06 to 0.15; with a 3% wander and a 1.5% season 0.23 to 0.53.
+  // Observed (three years, 80 libraries): quiet alarms an athlete-year 0.06 to 0.16; with a 3% wander and a 1.5% season 0.26 to 0.59.
   it.each(SPREADS)('stays under the budget when nothing changes, at %s a ride', (runSd) => {
     for (const perWeek of [1, 2, 3]) {
       const quiet = silence({ runSd }, 60, 3, perWeek)
@@ -34,7 +34,7 @@ describe('the monitor on ride values at the research spreads, one to three rides
     }
   })
 
-  // Observed an 8% loss: median 4 to 9 weeks, 85% to 97% within 26; a 5% loss that stays: median 7 to 24 weeks, 52% to 78% within 26.
+  // Observed an 8% loss: median 4 to 8 weeks, 67% to 93% within 12 and 87% to 97% within 26; a 5% loss that stays: median 6 to 22 weeks, 56% to 84% within 26.
   it.each(SPREADS)('sees a loss of 8% at %s a ride, and keeps it open', (runSd) => {
     const two = planted({ size: -0.08, perWeek: 2, runSd }, 100)
     expect(quantile(two.lags, 0.5)).toBeLessThanOrEqual(8)

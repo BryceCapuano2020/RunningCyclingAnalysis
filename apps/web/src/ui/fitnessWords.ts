@@ -72,7 +72,7 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
     did: 'rode',
     adjusted: 'the heart rate of each',
     promise:
-      'A change of 8% it sees within weeks, reliably. A change of 5% it usually sees within a few months, and not always. Anything smaller sits inside the spread from one ride to the next, 2% to 5%, and is not reported.',
+      'A change of 8% it usually sees within three months. A change of 5% it often takes longer to see, and does not always. Anything smaller sits inside the spread from one ride to the next, 2% to 5%, and is not reported.',
     reading: () => 'five-minute blocks',
     stretch: () => 'one five-minute block to the next',
     steadyMeaning: (hr) =>

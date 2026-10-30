@@ -213,7 +213,7 @@ test('the Run page leads with the same status above the threshold', async ({ pag
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
 })
 
-// The sample's rides are too few and too varied to call level: home says so in one line and does not draw a waiting card,
+// The sample's rides are enough in number but too varied to call level (a count shortfall reads "not enough steady rides yet, N of M"; see FitnessCard.test.tsx): home says so in one line and does not draw a waiting card,
 // and the Ride page holds the ride's own card, with the count it is waiting on and no run on it.
 test('Balance shows a ride that is still waiting as one line, and the Ride page holds its card', async ({
   page,
@@ -221,7 +221,7 @@ test('Balance shows a ride that is still waiting as one line, and the Ride page 
   await openSample(page)
   await expect(page.locator('.fitness-card')).toHaveCount(1)
   const line = page.getByTestId('ride-fitness-line')
-  await expect(line).toContainText('Ride fitness: not enough steady rides yet')
+  await expect(line).toContainText('Ride fitness: too uncertain to call yet')
   await line.getByRole('link').click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ride')
   const ride = page.locator('.fitness-card[data-sport="ride"]')

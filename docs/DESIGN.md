@@ -1475,8 +1475,8 @@ earlier level. The analysis is in [design/fitness.md](design/fitness.md); this i
 
 **Where.** A "Your fitness" section above the balance on Balance, and the same card above the threshold on a sport's page
 (without the sport's name, which the title says). One card for each sport that has a status, run first; the Ride page holds the ride's card
-alone. A ride that is still waiting on its count is one line on Balance ("Ride fitness: not enough steady rides yet, 7 of 12",
-linking to the Ride page), not a card of its own; its full card, with the count, is on the Ride page. A sport with no steady
+alone. A ride that is still waiting on its count is one line on Balance ("Ride fitness: not enough steady rides yet, 7 of 12", or "Ride fitness: too uncertain to call yet"
+when there are enough rides but the range is too wide; linking to the Ride page), not a card of its own; its full card, with the count, is on the Ride page. A sport with no steady
 run, or no outdoor ride with a power meter, has no card. The landing page's example leads with the same
 finding for the sample athlete (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
 

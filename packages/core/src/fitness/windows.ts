@@ -129,6 +129,8 @@ export function floorAt(
   sigma: number,
   dips: readonly Dip[] = [],
 ): number {
+  // TODO: cache the block levels per library (they change only when a run is added) before the findings engine is wired to replay
+  // this at every weekly mark. Switching the floor off does not change the replay's time today, so it is not dear yet.
   const means: number[] = []
   const noise: number[] = []
   const end = day - M.refEndWeeks * 7

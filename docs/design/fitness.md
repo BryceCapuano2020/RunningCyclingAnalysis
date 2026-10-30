@@ -230,11 +230,21 @@ week 170, 150 libraries, weeks to a "risen" reading (median / within 12 / never)
 67% / 5% before, 8 / 61% / 14% now; +5% with a 3% wander 5 / 65% / 9% before, 10 / 53% / 20% now. On a quiet library with a 1.5%
 season the weeks that read "risen" fall from 4.8% to 2.7%.
 
+### What it costs
+
+A replay of 1,400 steady runs (five years, eight activities a week) takes about 30 ms with the kilometres already read and
+about 140 ms for a first call, against about 40 ms before; the memory makes a repeat free. The findings engine's replay at
+210 weekly marks takes about 6.7 s on a loaded 8-core laptop against 5.8 s before: the season fit is the 15% (refitted every
+4 weeks), and the learned floor, which reads 18 blocks a week, does not show. The perf test's budget
+is 13 s. TODO (D11): cache the block levels of the floor per library before the findings engine is wired to replay every mark
+for every sport, since the ride adds a second replay.
+
 ### What the card promises
 
 "A change of 8% it sees within weeks, reliably. A change of 5% it usually sees within a few months, and not always. Anything
-smaller sits inside the spread from one run to the next, about 4%, and is not reported" (a ride: "from one ride to the next, 2%
-to 5%"). That is the table: an 8% loss is seen in a median of 4 weeks and 93% within 12; a 5% loss in 9 weeks and 62% within 12,
+smaller sits inside the spread from one run to the next, about 4%, and is not reported" (a ride has its own, from the figures below: "A change of 8% it usually sees within three months. A change of 5% it often takes
+longer to see, and does not always. Anything smaller sits inside the spread from one ride to the next, 2% to 5%, and is not
+reported"). That is the table: an 8% loss is seen in a median of 4 weeks and 93% within 12; a 5% loss in 9 weeks and 62% within 12,
 87% within 70 weeks. The "about 4%" is a run's own spread, 3.8% a run.
 
 ### kappa (RCA-009)
@@ -257,10 +267,11 @@ the evidence says so. A ride is adjusted for heart rate only (the power meter re
 steadiness, so any pace counts. A power meter's blocks are noisier than a run's kilometres: the research put a ride at 2.4% to
 4.5%. `ride.sim.test.ts` is the gate for the flag, at those spreads and one to three rides a week:
 
-- On the monitor with values drawn at each spread (three years, 60 libraries): quiet, 0.06 to 0.15 alarms an athlete-year
-  (budget 0.25), at most 11% of libraries ending in a slip state; with a 3% wander and a 1.5% season 0.23 to 0.53 (under 0.65).
-  An 8% loss that stays: median 4 to 9 weeks, 85% to 97% seen within 26 weeks (one ride a week at 4.5%: 85%; two or more: 93% to
-  97%). A 5% loss: median 7 to 24 weeks, 52% to 78% within 26, 91% to 98% of those seen still open.
+- On the monitor with values drawn at each spread (three years, 80 libraries; with the 2% floor ceiling, the dips left out and the
+  4-week refit): quiet, 0.06 to 0.16 alarms an athlete-year (budget 0.25), at most 14% of libraries ending in a slip state; with
+  a 3% wander and a 1.5% season 0.26 to 0.59 (under 0.65). An 8% loss that stays: median 4 to 8 weeks, 67% to 93% seen within 12
+  weeks and 87% to 97% within 26 (one ride a week at 4.5%: 67% and 87%; two or more: 82% to 93% and 93% to 97%). A 5% loss:
+  median 6 to 22 weeks, 56% to 84% within 26, 91% to 98% of those seen still open.
 - On rides as digests (`test/rideSim.ts`: five blocks a ride at 125 to 165 bpm, power rising 0.7% a bpm, block noise, the day's
   noise, a 2% wander; two rides a week, 130 weeks, 40 libraries per spread of 2.2%, 3.5% and 4.4%, measured by the monitor's
   own spread): 5% to 15% in a slip state when nothing changed; an 8% loss 25 weeks before the end is slipping or holding below

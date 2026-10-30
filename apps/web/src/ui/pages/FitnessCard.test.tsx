@@ -133,6 +133,23 @@ describe('FitnessSection', () => {
     )
   })
 
+  it('says a ride with enough rides but too wide a range is too uncertain to call, with no count', () => {
+    const imprecise = {
+      ...waitingStatus({ kind: 'imprecise', within: 0.07 }, 33),
+      sport: 'ride' as const,
+    }
+    render(
+      <FitnessSection
+        fitness={{ run: SLIPPING, ride: imprecise }}
+        units="metric"
+        library={FITNESS_RIDE_LIBRARY}
+      />,
+    )
+    const line = screen.getByTestId('ride-fitness-line')
+    expect(line).toHaveTextContent('Ride fitness: too uncertain to call yet')
+    expect(line).not.toHaveTextContent(/not enough|of \d/)
+  })
+
   it('shows one sport’s card without naming the sport, which its own page already names', () => {
     renderSection({ sport: 'run' })
     expect(screen.queryByText('Run')).not.toBeInTheDocument()

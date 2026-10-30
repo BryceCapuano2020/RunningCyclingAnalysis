@@ -11,10 +11,18 @@ import './FitnessCard.css'
 const isWaitingRide = (view: FitnessView) =>
   view.sport === 'ride' && view.state === 'not-enough-evidence'
 
-/** "Ride fitness: not enough steady rides yet, 7 of 12." */
+/**
+ * What a waiting ride says on the home page, by what it waits for: a count it is short of ("not enough steady rides yet,
+ * 7 of 12"), or, with enough rides, a level too uncertain to call ("too uncertain to call yet").
+ */
 function waitingLine({ progress, status }: FitnessView): string {
-  const kind = status.shortfall?.kind
-  const recent = kind === 'recent' || kind === 'break' ? 'recent ' : ''
+  const shortfall = status.shortfall
+  const kind = shortfall?.kind
+  if (kind === 'imprecise') return 'Ride fitness: too uncertain to call yet'
+  if (shortfall?.kind === 'break') {
+    return `Ride fitness: no steady ride for ${shortfall.weeksSince} weeks`
+  }
+  const recent = kind === 'recent' ? 'recent ' : ''
   const count = progress === null ? '' : `, ${progress.have} of ${progress.need}`
   return `Ride fitness: not enough ${recent}steady rides yet${count}`
 }
