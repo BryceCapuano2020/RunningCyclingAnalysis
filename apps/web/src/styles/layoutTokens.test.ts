@@ -13,6 +13,8 @@ const sheet = (name: string) => {
 /** Rules in these sheets cap prose, so they read the one measure (D10 section 2). */
 const PROSE_SHEETS = [
   'App.css',
+  'components.css',
+  'GradeProfileSection.css',
   'ExportGuides.css',
   'FitnessCard.css',
   'CalculatedSection.css',
@@ -22,12 +24,23 @@ const PROSE_SHEETS = [
   'privacy.css',
 ]
 
+/**
+ * Sheets that still cap prose in ch, because another package holds them (Balance, SportHero, the chart
+ * sheets). Move each to --measure when its owner merges, and delete it here; the list may only shrink.
+ */
+const PENDING_CH_CAPS = [
+  'BalancePage.css',
+  'SportHero.css',
+  'ChartAbout.css',
+  'ChartFrame.css',
+  'ChartHeadings.css',
+]
+
 /** Sheets that still read --shadow: cards until the de-box PR, and Balance and chart sheets waiting on other work. */
 const SHADOW_HOLDERS = [
   'BalanceChanges.css',
   'BalancePage.css',
   'ChartFrame.css',
-  'ChartTooltip.css',
   'FitnessCard.css',
   'SportHero.css',
   'StatTile.css',
@@ -59,6 +72,13 @@ describe('the layout tokens', () => {
     }
   })
 
+  it('leave no ch cap on a sheet that is not waiting on another package', () => {
+    const capped = sheets
+      .filter(({ css }) => /max-width:\s*\d+ch/.test(css))
+      .map(({ path }) => path.split('/').pop())
+    expect(capped.sort()).toEqual([...PENDING_CH_CAPS].sort())
+  })
+
   it('keep the popover shadow for popovers, and the old name from spreading', () => {
     for (const name of [
       'Definition.css',
@@ -88,3 +108,19 @@ describe('the layout tokens', () => {
 
 /** Raw radii left in the sheets: from 35, the rest are small marks, chart bars and sheets that wait on other work. */
 const RAW_RADII_NOW = 19
+
+/** Pages that link one stylesheet and not tokens.css, so every custom property they read is their own. */
+const STANDALONE = [{ page: '../../privacy.html', sheet: 'privacy.css' }]
+
+describe('a standalone stylesheet', () => {
+  it.each(STANDALONE)(
+    '$sheet defines every custom property it reads',
+    async ({ page, sheet: name }) => {
+      expect(await readStylesheet(import.meta.url, page)).toContain(`/${name}"`)
+      const css = sheet(name)
+      const read = [...css.matchAll(/var\(--([a-z0-9-]+)\s*[,)]/g)].map((match) => match[1])
+      const defined = new Set([...css.matchAll(/--([a-z0-9-]+)\s*:/g)].map((match) => match[1]))
+      expect(read.filter((token) => !defined.has(token ?? ''))).toEqual([])
+    },
+  )
+})

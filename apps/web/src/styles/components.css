@@ -52,7 +52,7 @@
 .card > h2 + p {
   color: var(--text-secondary);
   margin-top: var(--space-1);
-  max-width: 68ch;
+  max-width: var(--measure);
 }
 
 .eyebrow {

@@ -34,8 +34,8 @@ describe('ProfilePage stylesheet', () => {
     expect(ruleBody(segmented, '.segmented-control__option span')).toMatch(/text-wrap:\s*balance;/)
   })
 
-  it('holds the Profile sections prose to 68 characters', () => {
-    expect(bare).toMatch(/\.profile-page \.section > p \{[^}]*max-width:\s*68ch;/)
+  it('holds the Profile sections prose to the reading measure', () => {
+    expect(bare).toMatch(/\.profile-page \.section > p \{[^}]*max-width:\s*var\(--measure\);/)
   })
 
   it('outlines Remove all my activities in the critical colour, leaving the filled button to the confirmation', () => {

@@ -119,6 +119,8 @@ const PRIVACY_SIZES: Record<string, string> = {
   'text-sm': 'text-sm',
   'text-md': 'text-md',
   'text-lead': 'text-lead',
+  'radius-sm': 'radius-sm',
+  measure: 'measure',
 }
 
 describe('privacy page', () => {
