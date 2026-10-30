@@ -75,7 +75,7 @@ export function StatTile({
       {gloss === undefined ? null : <p className="stat-tile__gloss">{gloss}</p>}
       {figure === undefined ? null : (
         <p className="stat-tile__figure">
-          <span className="stat-tile__number">{figure.number}</span>
+          <span className="display stat-tile__number">{figure.number}</span>
           <span className="stat-tile__unit">{figure.unit}</span>
           {figure.side === undefined ? null : (
             <span className="stat-tile__side">{figure.side}</span>

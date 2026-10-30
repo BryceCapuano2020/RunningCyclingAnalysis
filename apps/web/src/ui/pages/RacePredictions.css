@@ -38,7 +38,7 @@
 .race-row__race {
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: var(--title);
   font-weight: 800;
   line-height: 1.05;
   text-transform: uppercase;
@@ -130,7 +130,7 @@
   left: 50%;
   color: var(--text-primary);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   transform: translateX(-50%);
 }

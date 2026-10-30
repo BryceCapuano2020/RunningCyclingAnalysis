@@ -80,7 +80,7 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
       <div className="fitness-card__body">
         <div className="fitness-card__text">
           {/* Not a heading: the page's own title comes first, and the card is named by its state. */}
-          <p id={`${id}-state`} className="fitness-card__state">
+          <p id={`${id}-state`} className="display fitness-card__state">
             <FitnessGlyph glyph={view.glyph} />
             <span>{view.label}</span>
           </p>

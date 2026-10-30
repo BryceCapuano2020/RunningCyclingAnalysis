@@ -45,7 +45,7 @@
   color: var(--text-secondary);
   font-family: var(--font-display);
   /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.25rem;
+  font-size: var(--heading);
   font-weight: 700;
 }
 
