@@ -24,9 +24,20 @@ const TEXT = 4.5
  * and each step is also numbered.
  */
 const NEIGHBOUR: Record<string, number> = { light: 7, dark: 5 }
-/** In dark, the least chroma (OKLCH) of any step, and the lightest a step may be: effort never fades to pale. */
+/** Ride dark: the least chroma (OKLCH) of any step, and the lightest a step may be; effort never fades to pale. */
 const DARK_MIN_CHROMA = 0.12
 const DARK_MAX_LIGHTNESS = 0.8
+/**
+ * The run ramp runs from orange into umber and its chroma falls toward the strong end, so effort
+ * deepens into earth and never into the status red. Steps 1 to 3 keep chroma 0.12 or more and steps 4
+ * and 5 keep 0.07 or more, in both schemes; no step is paler than 0.90 lightness (OKLCH).
+ */
+const MIN_CHROMA = [0.12, 0.12, 0.12, 0.07, 0.07]
+const MAX_LIGHTNESS = 0.9
+/** The hues (OKLCH degrees) the run steps stay between: orange to umber. */
+const HUE_BAND = [36, 60] as const
+/** The least CIEDE2000 between any run step and the status red of its scheme. */
+const FROM_CRITICAL = 10
 const STEPS = [1, 2, 3, 4, 5] as const
 const SPORTS = ['run', 'ride'] as const
 
@@ -65,8 +76,8 @@ describe('the zone ramp', () => {
         }
       })
 
-      if (name === 'dark') {
-        it(`keeps every ${sport} step saturated and no step pale in dark: hard is not faded`, () => {
+      if (sport === 'ride' && name === 'dark') {
+        it('keeps every ride step saturated and no step pale in dark: hard is not faded', () => {
           const found = steps.map(oklch)
           for (const [i, step] of found.entries()) {
             expect(step.chroma, `zone ${i + 1} chroma`).toBeGreaterThanOrEqual(DARK_MIN_CHROMA)
@@ -77,6 +88,33 @@ describe('the zone ramp', () => {
           // The hardest zone is at least as saturated as the easiest, and more luminous.
           expect(found[4]!.chroma).toBeGreaterThanOrEqual(found[0]!.chroma - 0.02)
           expect(found[4]!.lightness).toBeGreaterThan(found[0]!.lightness)
+        })
+      }
+
+      if (sport === 'run') {
+        it(`keeps every run step saturated enough and none pale in ${name}`, () => {
+          const found = steps.map(oklch)
+          for (const [i, step] of found.entries()) {
+            expect(step.chroma, `zone ${i + 1} chroma`).toBeGreaterThanOrEqual(MIN_CHROMA[i]!)
+            expect(step.lightness, `zone ${i + 1} lightness`).toBeLessThanOrEqual(MAX_LIGHTNESS)
+          }
+        })
+
+        it(`keeps every run step ${FROM_CRITICAL} from the status red in ${name}`, () => {
+          const critical = colour(tokens, 'status-critical')
+          for (const [i, step] of steps.entries()) {
+            expect(deltaE(step, critical), `zone ${i + 1}`).toBeGreaterThanOrEqual(FROM_CRITICAL)
+          }
+        })
+
+        it(`runs the ${name} steps through the orange to umber band, with chroma falling toward zone 5`, () => {
+          const found = steps.map(oklch)
+          expect(found[4]!.chroma).toBeLessThan(found[0]!.chroma)
+          // Red is hue 25; the ramp stays in the orange to umber band.
+          for (const step of found) {
+            expect(step.hue).toBeGreaterThanOrEqual(HUE_BAND[0])
+            expect(step.hue).toBeLessThanOrEqual(HUE_BAND[1])
+          }
         })
       }
 
