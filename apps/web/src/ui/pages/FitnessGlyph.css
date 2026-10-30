@@ -1,0 +1,20 @@
+/* A state's shape: a line with a head, on a soft tile in its sport's colour. */
+.fitness-glyph {
+  flex: none;
+  box-sizing: content-box;
+  width: 0.8em;
+  height: 0.8em;
+  padding: 0.14em;
+  border-radius: 0.3em;
+  background: var(--sport-colour-soft);
+}
+
+.fitness-glyph__old {
+  opacity: 0.4;
+}
+
+@media (forced-colors: active) {
+  .fitness-glyph {
+    border: 1px solid CanvasText;
+  }
+}

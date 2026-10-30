@@ -1,0 +1,17 @@
+/* The month the change began: a thin neutral rule through the plot, solid because it marks a date and not an estimate. */
+.fitness-chart__onset {
+  stroke: var(--text-muted);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+}
+
+/* Now is the largest ring, thicker than the rest, so the eye lands on where the level stands. */
+.fitness-chart__now {
+  stroke-width: 3.5px;
+}
+
+@media (forced-colors: active) {
+  .fitness-chart__onset {
+    stroke: CanvasText;
+  }
+}

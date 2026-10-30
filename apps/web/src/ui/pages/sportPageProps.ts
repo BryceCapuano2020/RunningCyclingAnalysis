@@ -3,6 +3,7 @@ import type { LateEvidence, SameHeartRate, SportCurves, TrendPoint } from '@rca/
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
+import type { FitnessBySport } from '@rca/core/fitness'
 import type { MeasureTime } from '@rca/core/zones'
 import type { UnitSystem } from '@rca/core/units'
 import type { AgeGap, AgeProfile } from '../grades'
@@ -21,6 +22,8 @@ export interface SportPageProps {
   windowDays: number
   /** This sport's output at one heart rate, week by week over the period. */
   sameHeartRate: SameHeartRate
+  /** Each sport's fitness at the same heart rate over the whole library, whatever the period: the page leads with its own sport's. */
+  fitness?: FitnessBySport
   /** This sport's best efforts late in long sessions, and the drift of its steady efforts, over the period. */
   lateEvidence: LateEvidence
   /** This sport's time in each zone over the period, one row for each measure. Absent: none counted. */

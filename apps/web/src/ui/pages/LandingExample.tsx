@@ -5,9 +5,12 @@ import { balanceTitle } from '../components/headlineText'
 import type { GradeOutcome } from '../grades'
 import { LANDING_EXAMPLE } from '../landingExample'
 import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
+import { FITNESS_STATE, trackModel } from '../fitnessModel'
 import { SPORT_ORDER } from '../sports'
 import { balanceLevels } from './levelsModel'
 import { BalanceLevels } from './BalanceLevels'
+import { FitnessGlyph } from './FitnessGlyph'
+import { FitnessTrack } from './FitnessTrack'
 import './LandingExample.css'
 
 /** The sample athlete's age on the newest effort, which the example's grades are taken at. */
@@ -19,9 +22,13 @@ const GRADES: Record<Sport, GradeOutcome> = {
   ride: { kind: 'graded', age: SAMPLE_AGE, grade: LANDING_EXAMPLE.grades.ride },
 }
 
+const { fitness } = LANDING_EXAMPLE
+const SLIP = FITNESS_STATE.slipping
+const SLIP_TRACK = trackModel('run', fitness.change, null, { before: '', now: '' })
+
 /**
- * An example of the Balance screen, drawn from the sample athlete: the answer's headline over the real meter
- * and the real levels line, made from the sample's own figures with the same components Balance uses, so the
+ * An example of the home screen, drawn from the sample athlete: the fitness finding above the answer's
+ * headline over the real meter and the real levels line, made from the sample's own figures with the same components Balance uses, so the
  * example cannot drift from the screen it stands for. It is the landing page's hero visual, labelled
  * illustrative, and names the sample.
  */
@@ -36,6 +43,16 @@ export function LandingExample() {
   return (
     <figure className="landing-example">
       <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`}</figcaption>
+      <div className="landing-example__fitness" data-sport="run" data-state="slipping">
+        <p className="landing-example__state">
+          <FitnessGlyph glyph={SLIP.glyph} />
+          <span>{SLIP.label}</span>
+        </p>
+        <p className="landing-example__sentence">
+          {`At ${fitness.referenceHr} bpm you now run ${fitness.shown.size} (${fitness.shown.range}) slower than before.`}
+        </p>
+        <FitnessTrack track={SLIP_TRACK} />
+      </div>
       <p className="landing-example__title">{balanceTitle(reading)}</p>
       <BalanceMeter reading={reading} />
       <BalanceLevels model={levels} />

@@ -13,6 +13,8 @@ import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { closedRow, openSection } from '../test/openSection'
+import { NO_FITNESS } from '@rca/core/fitness/types'
+import { SLIPPING } from '../fitnessFixtures'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)
@@ -332,5 +334,51 @@ describe('the threshold when only a floor is shown', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     renderPage('ride', makeResult({ activities: [ride], rideCpUneven: uneven }))
     expect(screen.getByRole('region', { name: 'Threshold power, estimated' })).toBeInTheDocument()
+  })
+})
+
+describe('a sport page’s fitness', () => {
+  const withFitness = (
+    sport: Sport,
+    result: AnalysisResult,
+    fitness = { run: SLIPPING, ride: NO_FITNESS.ride },
+  ) =>
+    render(
+      <SportPage
+        sport={sport}
+        result={result}
+        previous={null}
+        previousLabel={null}
+        trends={NO_TRENDS}
+        sameHeartRate={NO_SAME_HEART_RATE[sport]}
+        lateEvidence={NO_LATE_EVIDENCE[sport]}
+        fitness={fitness}
+        windowDays={28}
+        units="metric"
+        massKg={75}
+        weighted
+        profile={null}
+        missingAge={null}
+        rangeDays={42}
+        controls={<span>Period picker</span>}
+        emptyText="Nothing in this period."
+        inLibrary={result.activities.filter((activity) => activity.sport === sport).length}
+        library={result.activities}
+        onAddFiles={vi.fn()}
+      />,
+    )
+
+  it('leads the run page with its status, above the threshold, and does not name the sport twice', () => {
+    withFitness('run', fullRun())
+    const fitness = screen.getByRole('region', { name: 'Your fitness' })
+    const threshold = screen.getByRole('heading', { name: 'Threshold pace, estimated' })
+    expect(follows(fitness, threshold)).toBe(true)
+    expect(screen.getByRole('article', { name: 'Slipping' })).toBeInTheDocument()
+    expect(within(fitness).queryByText('Run')).not.toBeInTheDocument()
+  })
+
+  it('says nothing about fitness on the ride page while rides are not compared', () => {
+    withFitness('ride', makeResult({ activities: profileActivities('ride') }))
+    expect(screen.queryByRole('region', { name: 'Your fitness' })).not.toBeInTheDocument()
   })
 })
