@@ -36,6 +36,23 @@ import { withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
 import type { HeartRateJudgement } from './setAsideTypes'
 
+/** A heart-rate check with points and fits of its own, for a result that must not share them with the judgement. */
+function copyOfCheck(check: HrCrossCheck): HrCrossCheck {
+  const copyOf = (sport: HrCrossCheck['run']) =>
+    sport === null
+      ? null
+      : {
+          points: sport.points.map((point) => Object.assign({}, point)),
+          fit: Object.assign({}, sport.fit),
+        }
+  return {
+    run: copyOf(check.run),
+    ride: copyOf(check.ride),
+    kappa: check.kappa,
+    lnKappaSe: check.lnKappaSe,
+  }
+}
+
 export interface Equivalence {
   durationS: number
   /**
@@ -272,7 +289,7 @@ export function combine(
   const runCpUneven = unevenFit(runCurve, wPrimeFloor('run', massKg), runCp)
   const rideCpUneven = unevenFit(rideMetabolicCurve, wPrimeFloor('ride', massKg), rideCp)
   const hr =
-    (judged === null ? null : structuredClone(judged.cross)) ??
+    (judged === null ? null : copyOfCheck(judged.cross)) ??
     heartRateCrossCheck(heart.trusted, masses, bikeModel, { run: runFit, ride: rideFit })
   // The calibration is the athlete's, not the period's: given, it replaces this period's own check below.
   const calibration = opts.calibration === undefined ? hr : opts.calibration
