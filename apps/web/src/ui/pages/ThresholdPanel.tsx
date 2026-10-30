@@ -95,7 +95,7 @@ export function ThresholdPanel({
       </div>
       {hero ? (
         <p className="sport-hero__figure">
-          <span className="sport-hero__number">{hero.number}</span>
+          <span className="display sport-hero__number">{hero.number}</span>
           <span className="sport-hero__unit">{hero.unit}</span>
           {hero.sub && <span className="sport-hero__side">{hero.sub}</span>}
         </p>

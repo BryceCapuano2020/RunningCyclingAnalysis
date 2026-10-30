@@ -78,6 +78,13 @@
       "when": 1793369532341,
       "tag": "0010_signup_safety_list_index",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793389539456,
+      "tag": "0011_account_tombstones",
+      "breakpoints": true
     }
   ]
 }

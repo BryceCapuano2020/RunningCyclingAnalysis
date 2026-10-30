@@ -224,7 +224,7 @@
   }
 
   .volume-strip__takeaway strong {
-    font-size: 1.5rem;
+    font-size: var(--title);
   }
 
   .volume-strip__bars {

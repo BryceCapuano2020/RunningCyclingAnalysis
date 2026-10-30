@@ -334,6 +334,8 @@ describe('migrations', () => {
         'daily_budget',
         'upload_slots',
         'pending_account_deletions',
+        'account_tombstones',
+        'account_tombstones_deleted_at_idx',
         'oauth_accounts_user_idx',
         'sessions_user_idx',
         'upload_slots_expires_idx',

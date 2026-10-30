@@ -72,6 +72,7 @@ export async function resetTestEnv(): Promise<void> {
       'identity_budget',
       'upload_slots',
       'pending_account_deletions',
+      'account_tombstones',
       'r2_storage_budget',
     ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
   )

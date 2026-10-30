@@ -38,6 +38,7 @@ const sportRecords = await read('../ui/components/SportRecords.css')
 const googleSignIn = await read('../ui/components/GoogleSignInButton.css')
 const emptySportCard = await read('../ui/pages/EmptySportCard.css')
 const statTile = await read('../ui/pages/StatTile.css')
+const statTileTsx = await read('../ui/pages/StatTile.tsx')
 const balanceTiles = await read('../ui/pages/BalanceTiles.css')
 const equivalenceCss = await read('../ui/components/EquivalenceTable.css')
 const weightNote = await read('../ui/components/WeightNote.css')
@@ -568,9 +569,8 @@ describe('balance tiles', () => {
   })
 
   it('sets a tile’s figure at display size in the display face, and its name as an eyebrow', () => {
-    expect(rulesWith(statTile, '.stat-tile__number')).toMatch(
-      /font-family:\s*var\(--font-display\)/,
-    )
+    expect(statTileTsx).toContain('className="display stat-tile__number"')
+    expect(rulesWith(statTile, '.stat-tile__number')).toMatch(/font-size:\s*var\(--display-2\)/)
     expect(rulesWith(statTile, '.stat-tile__name')).toMatch(/text-transform:\s*uppercase/)
   })
 })

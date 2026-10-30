@@ -15,6 +15,7 @@ import {
   testEnv,
   type Harness,
 } from '../test/harness.ts'
+import { seedActivityRow } from '../test/seed.ts'
 import { sha256Hex } from '../util.ts'
 
 const CONTENT = new TextEncoder().encode('0123 fake FIT bytes')
@@ -63,6 +64,29 @@ async function createActivity(
 
 async function idOf(res: Response): Promise<string> {
   return ((await res.json()) as { id: string }).id
+}
+
+/** Stores an activity from a stale model straight into D1, as an older build left it: create refuses one. */
+async function seedStale(
+  h: Harness,
+  token: string,
+  digest: Record<string, unknown> = {},
+): Promise<string> {
+  if (h.env.FILES) {
+    const enabled = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      ...as(token),
+    })
+    expect(enabled.status).toBe(200)
+  }
+  return seedActivityRow(h.env.DB, {
+    userId: await userId(h, token),
+    revision: 1,
+    digest,
+    fileHash: HASH_OF_CONTENT,
+  })
 }
 
 async function pageOf(h: Harness, token: string, query: string) {
@@ -219,7 +243,7 @@ describe('per-user digest byte quota', () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    const id = await seedStale(h, token, { name: 'a' })
     const before = await storedDigestBytesOf(h, id)
     const upgrade = await createActivity(
       h,
@@ -237,7 +261,7 @@ describe('per-user digest byte quota', () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    const id = await seedStale(h, token, { name: 'a' })
     const before = await storedDigestBytesOf(h, id)
     await h.env.DB.prepare('UPDATE users SET digest_bytes = ? WHERE id = ?')
       .bind(MAX_DIGEST_BYTES_PER_USER - before, uid)
@@ -298,7 +322,7 @@ describe('per-user digest byte quota', () => {
     const h = createHarness({}, { DB: flaky })
     const token = await h.signIn()
     const uid = await userId(h, token)
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    const id = await seedStale(h, token, { name: 'a' })
     const before = await storedDigestBytesOf(h, id)
 
     failing = true
@@ -317,9 +341,7 @@ describe('per-user digest byte quota', () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)
-    const id = await idOf(
-      await createActivity(h, token, {}, { modelRevision: 1, name: 'a long original name' }),
-    )
+    const id = await seedStale(h, token, { name: 'a long original name' })
     await h.env.DB.prepare('UPDATE users SET digest_bytes = ? WHERE id = ?')
       .bind(MAX_DIGEST_BYTES_PER_USER + 1000, uid)
       .run()
@@ -334,7 +356,7 @@ describe('per-user digest byte quota', () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)
-    const a = await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    const a = await seedStale(h, token, { name: 'a' })
     const b = await idOf(
       await createActivity(h, token, {}, { name: 'bbbb', startMs: START + 60_000 }),
     )
@@ -410,7 +432,7 @@ describe('database size guard', () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    const id = await seedStale(h, token, { name: 'a' })
     const before = await storedDigestBytesOf(h, id)
     await setDatabaseBytes(h, DATABASE_SOFT_LIMIT_BYTES + 1)
 
@@ -429,7 +451,7 @@ describe('database size guard', () => {
   it('records the database size after an upgrade, so the guard sees the growth', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    await seedStale(h, token, { name: 'a' })
     await setDatabaseBytes(h, 0)
 
     const upgrade = await createActivity(
@@ -445,11 +467,12 @@ describe('database size guard', () => {
   it('still returns an existing activity and accepts upgrades while the database is over the limit', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1 }))
+    const id = await seedStale(h, token)
     await setDatabaseBytes(h, DATABASE_SOFT_LIMIT_BYTES + 1)
 
     const again = await createActivity(h, token, {}, { modelRevision: 1 })
-    expect(again.status).toBe(200)
+    expect(again.status).toBe(409)
+    expect(await again.json()).toMatchObject({ error: { code: 'app_outdated' } })
     const upgrade = await createActivity(h, token, {}, { modelRevision: MODEL_REVISION })
     expect(upgrade.status).toBe(200)
     expect(await idOf(upgrade)).toBe(id)
@@ -460,7 +483,7 @@ describe('POST /api/activities?replace=<id>', () => {
   it('updates the exact row the caller names and never inserts', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'old' }))
+    const id = await seedStale(h, token, { name: 'old' })
     const res = await createActivity(
       h,
       token,
@@ -479,7 +502,7 @@ describe('POST /api/activities?replace=<id>', () => {
   it('returns 404 not_found when the named activity was deleted in another tab, and does not re-insert it', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1 }))
+    const id = await seedStale(h, token)
     expect(
       (await h.send({ method: 'DELETE', path: `/api/activities/${id}`, ...as(token) })).status,
     ).toBe(204)
@@ -500,7 +523,7 @@ describe('POST /api/activities?replace=<id>', () => {
     const h = createHarness()
     const alice = await h.signIn('alice@example.com', 'Alice')
     const bob = await h.signIn('bob@example.com', 'Bob')
-    const id = await idOf(await createActivity(h, alice, {}, { modelRevision: 1, name: 'mine' }))
+    const id = await seedStale(h, alice, { name: 'mine' })
     const before = await storedDigestBytesOf(h, id)
 
     const res = await createActivity(
@@ -517,7 +540,7 @@ describe('POST /api/activities?replace=<id>', () => {
   it('refuses a replacement for a different file or a different start with 409 activity_conflict', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1 }))
+    const id = await seedStale(h, token)
 
     const otherFile = await createActivity(
       h,
@@ -553,10 +576,14 @@ describe('POST /api/activities?replace=<id>', () => {
       { modelRevision: 1, name: 'stale tab' },
       `?replace=${id}`,
     )
-    expect(res.status).toBe(200)
-    expect(await res.json()).toMatchObject({
-      id,
-      digest: { modelRevision: MODEL_REVISION, name: 'current' },
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ error: { code: 'app_outdated' } })
+    const stored = await h.env.DB.prepare('SELECT digest_json FROM activities WHERE id = ?')
+      .bind(id)
+      .first<{ digest_json: string }>()
+    expect(JSON.parse(stored!.digest_json)).toMatchObject({
+      modelRevision: MODEL_REVISION,
+      name: 'current',
     })
   })
 
@@ -564,7 +591,7 @@ describe('POST /api/activities?replace=<id>', () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)
-    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    const id = await seedStale(h, token, { name: 'a' })
     const usedBefore = await h.env.DB.prepare(
       `SELECT coalesce(used, 0) AS n FROM daily_budget WHERE user_id = ? AND action = 'activityCreate'`,
     )
