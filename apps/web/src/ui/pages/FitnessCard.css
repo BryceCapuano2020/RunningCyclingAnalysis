@@ -71,8 +71,8 @@
 .fitness-card__new strong {
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  background: var(--selected);
-  color: var(--selected-contrast);
+  background: var(--highlight);
+  color: var(--highlight-ink);
   font-family: var(--font-display);
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-caps);

@@ -225,7 +225,7 @@ const SERIES_TOKEN = /--series-(?:run|ride|swim)(?:-soft)?\b/
  * name built from a sport. A class such as `chart-series__area--${sport}` is not a token, so it passes.
  */
 const SERIES_SOURCE = /--series-(?:run|ride|swim)(?:-soft)?\b|var\(--\$\{|--series-\$\{/
-const SPORT_HEX = /#(?:e5304f|f0435f|2f56e8|4d6ef5|0f9fb0|14a0b0)(?:[0-9a-f]{2})?\b/i
+const SPORT_HEX = /#(?:e44f27|f56333|2f56e8|4d6ef5|0f9fb0|14a0b0)(?:[0-9a-f]{2})?\b/i
 
 /** Each selector, from a stylesheet's rules, whose declarations name a series colour token. */
 function seriesSelectorsOf(css: string): string[] {

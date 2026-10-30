@@ -207,6 +207,8 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                                                                                              |
 | `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                                                                                     |
 | `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                                                                                         |
+| `--highlight`          | `#c8f03c`   | `#c8f03c`   | Volt as a fill behind ink: selected segment, current page, new marker                                                                      |
+| `--highlight-ink`      | `#0e1116`   | `#0e1116`   | Ink on the highlight fill (4.5:1 or better)                                                                                                |
 | `--accent-hover`       | `#474f5c`   | `#a9d62c`   | Primary button fill on hover, a visible change in both schemes                                                                             |
 | `--accent-pressed`     | `#000000`   | `#8fb81c`   | Primary button fill while it is pressed, with a 1 px drop                                                                                  |
 | `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                                                                                  |
@@ -215,19 +217,20 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                                                                                                         |
 | `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                                                                                   |
 | `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                                                                                 |
-| `--series-run`         | `#e5304f`   | `#f0435f`   | Running data                                                                                                                               |
+| `--series-run`         | `#e44f27`   | `#f56333`   | Running data                                                                                                                               |
+| `--run-ink`            | `#b83a12`   | `#f56333`   | Text set in the run hue (4.5:1 on the page and the card)                                                                                   |
 | `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                                                                                               |
 | `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                                                                                   |
-| `--series-run-soft`    | `#e5304f26` | `#f0435f33` | Running band and area fill                                                                                                                 |
+| `--series-run-soft`    | `#e44f2726` | `#f5633333` | Running band and area fill                                                                                                                 |
 | `--series-ride-soft`   | `#2f56e826` | `#4d6ef533` | Cycling band and area fill                                                                                                                 |
 | `--series-swim-soft`   | `#0f9fb026` | `#14a0b033` | Swimming band and area fill (reserved)                                                                                                     |
-| `--ladder-run-band`    | `#e5304f26` | `#f0435f26` | Run band behind the level ladder's range, low enough alpha for the outline                                                                 |
+| `--ladder-run-band`    | `#e44f2714` | `#f5633326` | Run band behind the level ladder's range, low enough alpha for the outline                                                                 |
 | `--ladder-ride-band`   | `#2f56e826` | `#4d6ef526` | Ride band behind the level ladder's range, low enough alpha for the ring                                                                   |
-| `--zone-run-1`         | `#e16265`   | `#b43d52`   | Running zone 1, the lowest effort; the ramp darkens with effort in light and, in dark, grows more luminous at full saturation, never paler |
-| `--zone-run-2`         | `#d0293d`   | `#ca4556`   | Running zone 2, lowest effort first                                                                                                        |
-| `--zone-run-3`         | `#a90227`   | `#de555d`   | Running zone 3, lowest effort first                                                                                                        |
-| `--zone-run-4`         | `#750017`   | `#ee716e`   | Running zone 4, lowest effort first                                                                                                        |
-| `--zone-run-5`         | `#410008`   | `#ff897f`   | Running zone 5, lowest effort first                                                                                                        |
+| `--zone-run-1`         | `#d57029`   | `#b34f2c`   | Running zone 1, the lowest effort; the ramp runs orange into umber, losing chroma toward zone 5                                            |
+| `--zone-run-2`         | `#c94e0c`   | `#ce470d`   | Running zone 2, lowest effort first                                                                                                        |
+| `--zone-run-3`         | `#a63d02`   | `#f57e4d`   | Running zone 3, lowest effort first                                                                                                        |
+| `--zone-run-4`         | `#7d2d05`   | `#fba774`   | Running zone 4, lowest effort first                                                                                                        |
+| `--zone-run-5`         | `#552b14`   | `#fdc8a1`   | Running zone 5, lowest effort first                                                                                                        |
 | `--zone-ride-1`        | `#6589d3`   | `#5061b3`   | Cycling zone 1, the lowest effort; the ramp darkens with effort in light and, in dark, grows more luminous at full saturation, never paler |
 | `--zone-ride-2`        | `#3c67c9`   | `#4f70d6`   | Cycling zone 2, lowest effort first                                                                                                        |
 | `--zone-ride-3`        | `#1844b9`   | `#4a81f4`   | Cycling zone 3, lowest effort first                                                                                                        |
