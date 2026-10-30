@@ -7,7 +7,7 @@ import { EVERY_EFFORT } from '../digest/readingRule'
 import type { ReadingRule } from '../digest/readingRule'
 import type { ActivityDigest, PowerSource } from '../types'
 import { changeEvidence } from './evidence'
-import { nullBand } from './null'
+import { dealRatios, nullBand } from './null'
 import { readingsOf } from './readings'
 import { effortLibrary, MONDAY, SETTINGS } from './test/library'
 import { callAt, detectableAt, directionOf, verdictAt, verdictOfCall } from './types'
@@ -220,12 +220,17 @@ describe('an unbalanced pair is dealt by choosing the small side’s ranks', () 
   })
 
   it('agrees with the walk through the pool where both could be used', () => {
-    // 36 against 4 is unbalanced (4 < 40 / 8): compare it with the same pool dealt as a balanced walk, by their bands.
-    const small = Float64Array.from({ length: 40 }, (_, i) => 40 - i)
-    const unbalanced = nullBand(small, 4, 5)!
-    // The best of 4 random ranks of 40 is the lowest rank, with mean about 8: the median ratio of the 36's best over it is
-    // above 1, so the band's high end is below zero or near it.
-    expect(unbalanced.low).toBeLessThan(unbalanced.high)
-    expect(unbalanced.high).toBeLessThan(0.1)
+    // The same pool of 40 dealt 4 against 36 by the walk (share 0 never takes Floyd) and by Floyd (share 1 always does).
+    // With distinct values the small side holds the top effort with probability 4/40 under either; the median ln ratio agrees too.
+    const pool = Float64Array.from({ length: 40 }, (_, i) => 40 - i)
+    const draws = 20000
+    const walk = dealRatios(pool, 4, 5, draws, 0)
+    const floyd = dealRatios(pool, 4, 6, draws, 1)
+    const topShare = (r: Float64Array) => r.filter((x) => x > 0).length / draws
+    const sd = Math.sqrt((0.1 * 0.9) / draws)
+    expect(Math.abs(topShare(walk) - 0.1)).toBeLessThan(4 * sd)
+    expect(Math.abs(topShare(floyd) - 0.1)).toBeLessThan(4 * sd)
+    const median = (r: Float64Array) => [...r].sort((a, b) => a - b)[draws / 2]!
+    expect(Math.abs(median(walk) - median(floyd))).toBeLessThan(0.05)
   })
 })

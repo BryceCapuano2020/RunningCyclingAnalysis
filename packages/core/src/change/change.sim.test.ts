@@ -87,9 +87,11 @@ describe('equal capability is called a change about 10% of the time or less', ()
 describe('the surfaces that surface several claims at once hold a false-call budget', () => {
   // Observed over 300 libraries: any of 5, 20 and 60 min at the record level 18%; the headline of a run's or a ride's
   // 20 minutes 7.3% (4.0% for the run alone). The record rows keep 5% a tail; the headline surfaces use 2.5%.
-  it('calls the Balance strip’s or a curve’s headline in under 10% of libraries where nothing changed', () => {
+  it('calls the Balance strip’s or a curve’s headline in about 10% or fewer of libraries where nothing changed', () => {
+    // 500 libraries: the observed 7.3% has a standard error of 1.2 points, so the bound of 11% sits three errors above it.
+    const libraries = 500
     let any = 0
-    for (let seed = 1; seed <= SEEDS; seed++) {
+    for (let seed = 1; seed <= libraries; seed++) {
       const run = evidenceOf(libraryOf({ ...RUN, perWeek: 4, planted: 0 }, seed), 12).run
       const ride = evidenceOf(libraryOf({ ...RIDE, perWeek: 3, planted: 0 }, seed), 12).ride
       const called = (calls: typeof run) => {
@@ -101,7 +103,7 @@ describe('the surfaces that surface several claims at once hold a false-call bud
       }
       if (called(run) || called(ride)) any++
     }
-    expect(any / SEEDS).toBeLessThan(0.1)
+    expect(any / libraries).toBeLessThan(0.11)
   })
 
   it('is stricter at the headline than at a record row, by design', () => {

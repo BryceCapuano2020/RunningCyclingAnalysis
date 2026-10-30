@@ -129,13 +129,16 @@ function levelFor(activities: number): number {
   return PROFILE_ALPHA * Math.min(1, Math.max(activities, 1) / PROFILE_IN_LINE_MIN_ACTIVITIES)
 }
 
+/** The least a stand-out's drawn half-width may be, as a share of its interval's half-width. */
+const MIN_BAR_HALF_SHARE = 0.25
+
 /**
  * A row from a held duration. Its interval is the log ratio plus and minus a Student's t quantile times its own
  * spread, so a duration the others pin down poorly has a wide one. The level is `levelFor` over all the rows
  * (Bonferroni), so that a profile of pure noise stands out somewhere that rarely.
  *
  * A duration that stands out was picked for standing out, so the size it states is corrected for that
- * (`conditionalEstimate`: the size the flagged draws are centred on), never below the interval's near end and never
+ * (`conditionalEstimate`: the size the flagged draws are centred on), never within a quarter of the interval's half-width of its near end and never
  * above the draw. The bar drawn is then centred on the stated size, from the near end to its mirror, so the point and
  * its bar agree and the bar still excludes zero. A duration in line states its ratio and the interval as they are.
  */
@@ -163,8 +166,14 @@ function rowOf(
   const sign = standsOut === 'above' ? 1 : -1
   const nearLog = sign * Math.min(Math.abs(lowLog), Math.abs(highLog))
   const estimated = sign * held.sd * conditionalEstimate(Math.abs(held.logRatio) / held.sd, t)
+  // A draw just past the cut would state its size at the near end and draw a bar of no width: the stated size is kept at least
+  // a quarter of the interval's half-width inside it, so the bar is always there to read.
   const stated =
-    sign * Math.min(Math.abs(held.logRatio), Math.max(Math.abs(nearLog), Math.abs(estimated)))
+    sign *
+    Math.min(
+      Math.abs(held.logRatio),
+      Math.max(Math.abs(nearLog) + half * MIN_BAR_HALF_SHARE, Math.abs(estimated)),
+    )
   const far = stated + (stated - nearLog)
   return {
     durationS: held.durationS,

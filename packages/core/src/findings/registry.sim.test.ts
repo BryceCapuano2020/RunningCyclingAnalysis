@@ -32,10 +32,11 @@ describe('the registry as a family', () => {
     })
   })
 
-  // The fitness status documents a season of 3% swing as over its own 0.4 budget (docs/design/fitness.md, known gaps) and
-  // its own simulation holds that case to 0.65; a strap change and heart-rate spikes on top of the season stay inside the
-  // same documented allowance. This case holds the whole registry to it: it is the known gap, not the budget.
-  it('stays within the 0.65 the fitness status documents for a 3% season, with a strap change and spikes on top', () => {
+  // One statement of the numbers (docs/design/fitness.md, known gaps): the fitness status budget is 0.2 an athlete-year and
+  // the family's 0.5; a 3% season is a known gap over the 0.2, which its own simulation holds to 0.65. This case holds the
+  // whole registry, with a strap change and heart-rate spikes on top of the season, to that same 0.65 ceiling: it is the
+  // documented ceiling for a nuisance, not a budget.
+  it('stays within the 0.65 nuisance ceiling the fitness status documents, for a 3% season with a strap change and spikes on top', () => {
     expectRegistrySilence(
       REGISTRY,
       nullLibraries({ perCell: 6, nuisances: ['seasonal', 'strap-change', 'hr-spikes'], ...NOISE }),

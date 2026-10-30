@@ -31,4 +31,20 @@ describe('what a small library can say', () => {
     expect(large.residual).toBeLessThan(0.15)
     expect(large.low).toBeGreaterThan(0)
   })
+
+  it('draws a bar of some width for a duration only just past the cut', () => {
+    for (let step = 100; step <= 130; step++) {
+      const profile = durationProfile(scaled(1200, step / 100), 5, 40)
+      if (profile.status !== 'ready') throw new Error('not ready')
+      const row = profile.rows.find((one) => one.durationS === 1200)!
+      if (row.standsOut === null) continue
+      // The first multiplier that stands out is the one just past the cut.
+      expect(row.high - row.low).toBeGreaterThan(0.001)
+      expect(row.low).toBeGreaterThan(0)
+      expect(row.residual).toBeGreaterThan(row.low)
+      expect(row.residual).toBeLessThan(row.high)
+      return
+    }
+    throw new Error('no multiplier stood out')
+  })
 })

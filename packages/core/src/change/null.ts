@@ -20,11 +20,11 @@ export interface NullBand {
  * ranks instead (Floyd's sample of distinct ranks), takes the best of the small side as the lowest rank chosen and the
  * large side's best as the first rank not chosen: exact too, and O(s), so 400 efforts against 4 costs 4 draws, not a walk.
  */
-function dealOnce(pooled: Float64Array, now: number, random: () => number): number {
+function dealOnce(pooled: Float64Array, now: number, random: () => number, share: number): number {
   const n = pooled.length
   const before = n - now
   const small = Math.min(now, before)
-  if (small < n * CHANGE.unbalancedShare) {
+  if (small < n * share) {
     const chosen = new Set<number>()
     let lowest = n
     for (let j = n - small; j < n; j++) {
@@ -55,6 +55,20 @@ function dealOnce(pooled: Float64Array, now: number, random: () => number): numb
   return Math.log(bestNow / bestBefore)
 }
 
+/** The sorted-or-not ln ratios of `draws` deals; `share` is the small-side share below which Floyd's sample is used (tests force either path). */
+export function dealRatios(
+  pooled: Float64Array,
+  now: number,
+  seed: number,
+  draws: number,
+  share: number,
+): Float64Array {
+  const random = mulberry32(seed)
+  const ratios = new Float64Array(draws)
+  for (let draw = 0; draw < draws; draw++) ratios[draw] = dealOnce(pooled, now, random, share)
+  return ratios
+}
+
 /**
  * The bands the ln ratio of two periods' bests falls in when their efforts are dealt out at random: `now` efforts to
  * the later period and the rest to the earlier (see dealOnce).
@@ -63,9 +77,7 @@ function dealOnce(pooled: Float64Array, now: number, random: () => number): numb
  */
 export function nullBand(pooled: Float64Array, now: number, seed: number): NullBand | null {
   if (now < 1 || pooled.length - now < 1) return null
-  const random = mulberry32(seed)
-  const ratios = new Float64Array(CHANGE.draws)
-  for (let draw = 0; draw < CHANGE.draws; draw++) ratios[draw] = dealOnce(pooled, now, random)
+  const ratios = dealRatios(pooled, now, seed, CHANGE.draws, CHANGE.unbalancedShare)
   ratios.sort()
   return {
     low: quantileSorted(ratios, CHANGE.tail),
