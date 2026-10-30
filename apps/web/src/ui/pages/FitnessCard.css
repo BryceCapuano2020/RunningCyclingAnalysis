@@ -167,8 +167,7 @@
   min-width: 0;
 }
 
-/* The state, as a word at display size and the shape that says it without colour. A phone, and a status that
-   waits (it has no change to lead with), set it a step smaller. */
+/* The state word and its shape (no colour needed); a phone, or a waiting status, sets it a step smaller. */
 .fitness-card__state {
   display: flex;
   align-items: center;
