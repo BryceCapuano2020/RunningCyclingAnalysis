@@ -1278,7 +1278,9 @@ describe('the same workout in more than one format', () => {
       'activities/1.gpx.gz': gzipSync(encodeGpx(shifted(run, 4_000))),
       'activities/1.fit.gz': gzipSync(encodeFit(run, { gps: true })),
     })
-    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+    await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+    // All time, so a one-run library is not shorter than the trend's window.
+    const state = session.setRange('all', SETTINGS)
 
     expect(state.trend.at(-1)?.runCount).toBe(1)
   })

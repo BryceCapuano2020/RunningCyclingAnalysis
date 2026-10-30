@@ -1,5 +1,5 @@
 import { DAY_MS } from './constants'
-import type { ActivityDigest } from './types'
+import type { ActivityDigest, Sport } from './types'
 import { dayOf, dayStartMs, isCustomChoice, orderedRange } from './customRange'
 import type { CustomRange } from './customRange'
 
@@ -9,7 +9,7 @@ import type { CustomRange } from './customRange'
  */
 export const MAX_PERIOD_DAYS = 36_500
 
-/** The default period is the latest window of this many weeks that holds a run and a ride. */
+/** The default period is the latest window of this many weeks that holds every sport the library has. */
 export const DEFAULT_PERIOD_WEEKS = 12
 export const DEFAULT_PERIOD_DAYS = DEFAULT_PERIOD_WEEKS * 7
 
@@ -22,8 +22,8 @@ export type PeriodChoice = 'default' | 'all' | number | CustomRange
 
 /**
  * The period on screen. Its dates are inclusive, and both are null for an empty library. `days` is
- * the length, null for all time, which has no period before it. `fellBack` says that no window of
- * the default length holds both sports, so the default shows all time.
+ * the length, null for all time, which has no period before it. `fellBack` says that the default window
+ * lacks a sport the library has, so the default shows all time.
  */
 export interface Period {
   choice: PeriodChoice
@@ -134,30 +134,62 @@ export function windowEnding(newestMs: number, days: number): { startMs: number;
   }
 }
 
+/** The default window and the sports of the library that have no activity in it. */
+function defaultReach(visible: readonly { sport: Sport; startMs: number }[]): {
+  startMs: number
+  endMs: number
+  earliest: number
+  missing: Sport[]
+} {
+  let earliest = Infinity
+  let newest = -Infinity
+  const bySport = new Map<Sport, number[]>()
+  for (const { sport, startMs } of visible) {
+    earliest = Math.min(earliest, startMs)
+    newest = Math.max(newest, startMs)
+    const starts = bySport.get(sport)
+    if (starts === undefined) bySport.set(sport, [startMs])
+    else starts.push(startMs)
+  }
+  const window = windowEnding(newest, DEFAULT_PERIOD_DAYS)
+  const missing = [...bySport]
+    .filter(
+      ([, starts]) =>
+        !holds(
+          starts.sort((a, b) => a - b),
+          window.startMs,
+          window.endMs,
+        ),
+    )
+    .map(([sport]) => sport)
+  return { ...window, earliest, missing }
+}
+
 /**
- * The default window: the 12 weeks up to the newest activity's day, when they hold a run and a ride.
- * It always ends on the newest day, so it never hides recent activities behind an older window. It is
- * clipped to the first activity's day, so a library shorter than the cap is dated from its start.
+ * The sports the library holds that the default window has no activity of. Empty for a library of one
+ * sport, whose newest activity is always in the window, and for any library the window covers.
+ */
+export function sportsMissingFromDefault(
+  visible: readonly { sport: Sport; startMs: number }[],
+): Sport[] {
+  return visible.length === 0 ? [] : defaultReach(visible).missing
+}
+
+/**
+ * The default window: the 12 weeks up to the newest activity's day, when they hold every sport the
+ * library has. It always ends on the newest day, so it never hides recent activities behind an older
+ * window. It is clipped to the first activity's day, so a library shorter than the cap is dated from
+ * its start.
  */
 function defaultWindow(
   visible: readonly ActivityDigest[],
 ): { startMs: number; endMs: number } | null {
-  const starts = visible.map((d) => d.startMs)
-  const earliest = starts.reduce((low, s) => Math.min(low, s), Infinity)
-  const newest = starts.reduce((high, s) => Math.max(high, s), -Infinity)
-  const window = windowEnding(newest, DEFAULT_PERIOD_DAYS)
-  const runs = visible
-    .filter((d) => d.sport === 'run')
-    .map((d) => d.startMs)
-    .sort((a, b) => a - b)
-  const rides = visible
-    .filter((d) => d.sport === 'ride')
-    .map((d) => d.startMs)
-    .sort((a, b) => a - b)
-  if (!holds(runs, window.startMs, window.endMs) || !holds(rides, window.startMs, window.endMs)) {
-    return null
+  const reach = defaultReach(visible)
+  if (reach.missing.length > 0) return null
+  return {
+    startMs: Math.max(reach.startMs, startOfLocalDay(reach.earliest)),
+    endMs: reach.endMs,
   }
-  return { startMs: Math.max(window.startMs, startOfLocalDay(earliest)), endMs: window.endMs }
 }
 
 /** The period a choice names, dated from the visible digests. */

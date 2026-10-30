@@ -12,6 +12,7 @@ import {
   sameChoice,
   sameRegime,
   splitPeriods,
+  sportsMissingFromDefault,
   startedWithin,
   windowEnding,
 } from './period'
@@ -141,9 +142,57 @@ describe('the default period', () => {
     })
   })
 
-  it('falls back when there is only one sport', () => {
-    const period = periodOf([at(NEWEST - DAY_MS, 'run'), at(NEWEST, 'run')], 'default')
-    expect(period).toMatchObject({ days: null, fellBack: true })
+  it('holds a library of one sport in its 12 weeks, and never falls back', () => {
+    const first = NEWEST - 200 * DAY_MS
+    for (const sport of ['run', 'ride'] as const) {
+      const period = periodOf(
+        [at(first, sport), at(NEWEST - 30 * DAY_MS, sport), at(NEWEST, sport)],
+        'default',
+      )
+      expect(period).toEqual({
+        choice: 'default',
+        startMs: daysBefore(startOfDay(NEWEST), 83),
+        endMs: endOfDay(NEWEST),
+        days: DEFAULT_PERIOD_DAYS,
+        fellBack: false,
+      })
+    }
+  })
+
+  it('gives a one-sport library the previous 12 weeks, like any other', () => {
+    const { selected, previous } = splitPeriods(
+      [at(NEWEST - 100 * DAY_MS, 'run'), at(NEWEST - 5 * DAY_MS, 'run'), at(NEWEST, 'run')],
+      'default',
+    )
+    expect(selected).toHaveLength(2)
+    expect(previous).toHaveLength(1)
+  })
+
+  it('is dated from the first activity’s day for a one-sport library shorter than 12 weeks', () => {
+    const first = NEWEST - 20 * DAY_MS
+    expect(periodOf([at(first, 'ride'), at(NEWEST, 'ride')], 'default')).toMatchObject({
+      startMs: startOfDay(first),
+      days: 21,
+      fellBack: false,
+    })
+  })
+
+  it('names the sport the 12 weeks lack, in a library of two', () => {
+    const lacksRides = [at(NEWEST - 200 * DAY_MS, 'ride'), at(NEWEST, 'run')]
+    const lacksRuns = [at(NEWEST - 200 * DAY_MS, 'run'), at(NEWEST, 'ride')]
+    expect(periodOf(lacksRides, 'default').fellBack).toBe(true)
+    expect(sportsMissingFromDefault(lacksRides)).toEqual(['ride'])
+    expect(periodOf(lacksRuns, 'default').fellBack).toBe(true)
+    expect(sportsMissingFromDefault(lacksRuns)).toEqual(['run'])
+  })
+
+  it('names no sport when the 12 weeks hold every sport, or the library is one sport or empty', () => {
+    const both = [at(NEWEST - 10 * DAY_MS, 'run'), at(NEWEST, 'ride')]
+    expect(sportsMissingFromDefault(both)).toEqual([])
+    expect(sportsMissingFromDefault([at(NEWEST - 500 * DAY_MS, 'run'), at(NEWEST, 'run')])).toEqual(
+      [],
+    )
+    expect(sportsMissingFromDefault([])).toEqual([])
   })
 })
 

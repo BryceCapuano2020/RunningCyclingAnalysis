@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
 import {
   CUSTOM_OPTION,
-  FALLBACK_NOTE,
+  fallbackNote,
   LIBRARY_RANGE_OPTIONS,
   RANGE_OPTIONS,
   choiceOfValue,
@@ -102,9 +102,20 @@ describe('previousPeriodLabel', () => {
   })
 })
 
-describe('FALLBACK_NOTE', () => {
-  it('says the 12 weeks up to the newest activity lack both sports, and that the period shows all time', () => {
-    expect(FALLBACK_NOTE).toBe("Your last 12 weeks don't hold both sports, so this shows all time.")
+describe('fallbackNote', () => {
+  it('names the sport the last 12 weeks lack, and says the period shows all time', () => {
+    expect(fallbackNote(['ride'])).toBe('Your last 12 weeks hold no rides, so this shows all time.')
+    expect(fallbackNote(['run'])).toBe('Your last 12 weeks hold no runs, so this shows all time.')
+  })
+
+  it('names two sports in the order the sports sit, whatever order they are given in', () => {
+    expect(fallbackNote(['ride', 'run'])).toBe(
+      'Your last 12 weeks hold no runs or rides, so this shows all time.',
+    )
+  })
+
+  it('has nothing to say when no sport is missing', () => {
+    expect(fallbackNote([])).toBeNull()
   })
 })
 

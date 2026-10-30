@@ -1,5 +1,7 @@
 import { DEFAULT_PERIOD_DAYS, DEFAULT_PERIOD_WEEKS } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
+import type { Sport } from '@rca/core/types'
+import { SPORT_ORDER, SPORT_PLURAL } from '../sports'
 
 /** A stretch of time by its first and last millisecond; null when it has no dates. */
 export interface Span {
@@ -76,8 +78,17 @@ export function periodName(days: number | null): string {
   return days === null ? 'All time' : lengthOf(days)
 }
 
-/** Why the default shows all time, under the period's dates. */
-export const FALLBACK_NOTE = `Your last ${DEFAULT_PERIOD_WEEKS} weeks don't hold both sports, so this shows all time.`
+/**
+ * Why the default shows all time, under the period's dates: the sports of the library that the last 12 weeks
+ * have none of, in the order the sports sit everywhere. Null when none is missing.
+ */
+export function fallbackNote(missing: readonly Sport[]): string | null {
+  const names = SPORT_ORDER.filter((sport) => missing.includes(sport)).map(
+    (sport) => SPORT_PLURAL[sport],
+  )
+  if (names.length === 0) return null
+  return `Your last ${DEFAULT_PERIOD_WEEKS} weeks hold no ${names.join(' or ')}, so this shows all time.`
+}
 
 /** The label of the period before the one selected, or null when there is none (all time). */
 export function previousPeriodLabel(days: number | null): string | null {
