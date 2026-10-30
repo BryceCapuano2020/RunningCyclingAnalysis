@@ -175,7 +175,9 @@
   align-items: center;
   gap: var(--space-3);
   margin: 0;
+  /* A long word hyphenates, then breaks, rather than spill at 200% text. */
   overflow-wrap: anywhere;
+  hyphens: auto;
   font-size: var(--display-3);
   text-transform: uppercase;
 }
@@ -184,12 +186,6 @@
   .fitness-card:not([data-state='not-enough-evidence']) .fitness-card__state {
     font-size: var(--display-2);
   }
-}
-
-/* A long state word hyphenates, then breaks (overflow-wrap above), rather than spill at 200% text. */
-.fitness-card__state > span {
-  min-width: 0;
-  hyphens: auto;
 }
 
 .fitness-card__headline {
