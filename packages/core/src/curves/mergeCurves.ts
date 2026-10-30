@@ -6,6 +6,22 @@ function isCarried(point: CurvePoint): boolean {
   return !Number.isNaN(point.value) && point.windowS != null && point.windowS > point.durationS
 }
 
+/**
+ * Whether a candidate displaces the best so far; neither value is NaN. A higher value does, except that where
+ * the two are the same to float noise the one measured over its own length beats one carried down from a longer
+ * window, and a tie otherwise keeps the earlier. `mergeCurves` and the best of many digests (`bestOfEach`) both
+ * decide by this, so a curve built point by point is the one the merge of whole curves makes.
+ */
+export function displaces(
+  value: number,
+  carried: boolean,
+  bestValue: number,
+  bestCarried: boolean,
+): boolean {
+  if (tied(value, bestValue) && carried !== bestCarried) return bestCarried
+  return value > bestValue
+}
+
 /** Whether two values are the same to float noise, by the envelope's own tolerance. */
 function tied(a: number, b: number): boolean {
   return Math.abs(a - b) <= Math.max(Math.abs(a), Math.abs(b)) * ENVELOPE_TIE_TOLERANCE
@@ -33,9 +49,9 @@ export function mergeCurves<P extends CurvePoint>(curves: P[][]): P[] {
       const candidate = curve[i]!
       if (Number.isNaN(candidate.value)) continue
       if (Number.isNaN(best.value)) best = candidate
-      else if (tied(candidate.value, best.value) && isCarried(candidate) !== isCarried(best)) {
-        if (isCarried(best)) best = candidate
-      } else if (candidate.value > best.value) best = candidate
+      else if (displaces(candidate.value, isCarried(candidate), best.value, isCarried(best))) {
+        best = candidate
+      }
     }
     return Object.assign({}, best)
   })

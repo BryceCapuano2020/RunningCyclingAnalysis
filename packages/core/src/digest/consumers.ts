@@ -1,4 +1,5 @@
 import type { ActivityDigest } from '../types'
+import { memoByDigests } from '../digestMemo'
 import { canonicalOrder } from './ordered'
 import { REVISIONS, revisionStatus, stepsFrom } from './revisions'
 import type { RevisionDeclaration } from './revisions'
@@ -68,13 +69,44 @@ export function readsRevision(
   return !stepsFrom(revision, table).some((step) => heldBack(step).includes(consumer))
 }
 
+/** Which revisions a consumer reads under a table, named by a key so consumers that read the same share an answer. */
+interface Reads {
+  key: string
+  revisions: ReadonlySet<number>
+}
+
+const readsCache = new WeakMap<readonly RevisionDeclaration[], Map<Consumer, Reads>>()
+
+function readsOf(consumer: Consumer, table: readonly RevisionDeclaration[]): Reads {
+  const byConsumer = readsCache.get(table) ?? new Map<Consumer, Reads>()
+  readsCache.set(table, byConsumer)
+  const known = byConsumer.get(consumer)
+  if (known !== undefined) return known
+  const revisions = table
+    .map((declaration) => declaration.revision)
+    .filter((revision) => readsRevision(consumer, revision, table))
+  const reads = { key: revisions.join(','), revisions: new Set(revisions) }
+  byConsumer.set(consumer, reads)
+  return reads
+}
+
+/**
+ * A state asks for the same few lists many times, and a list is a function of its digests and of which
+ * revisions are read. Consumers that read the same revisions (all of them, while every revision is
+ * exclusive) share one answer, so the memo is as effective as the single current-only filter was.
+ */
+const ordering = memoByDigests(
+  (digests: ActivityDigest[], reads: Reads) =>
+    digests.filter((digest) => reads.revisions.has(digest.modelRevision)).sort(canonicalOrder),
+  (a, b) => a.key === b.key,
+  (ordered) => ordered.slice(),
+)
+
 /** The digests `consumer` reads, in canonical order. Every reader of the library calls this by name. */
 export function orderedFor(
   consumer: Consumer,
   digests: ActivityDigest[],
   table: readonly RevisionDeclaration[] = REVISIONS,
 ): ActivityDigest[] {
-  return digests
-    .filter((digest) => readsRevision(consumer, digest.modelRevision, table))
-    .sort(canonicalOrder)
+  return ordering(digests, readsOf(consumer, table))
 }
