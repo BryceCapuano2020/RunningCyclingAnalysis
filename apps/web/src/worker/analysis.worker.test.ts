@@ -815,6 +815,35 @@ describe('analysis worker', () => {
     ])
   })
 
+  it('reports a re-added stale file as updated, with counts only and nothing new', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([recordFor(stale, false)])
+      .mockResolvedValueOnce([recordFor(stale, false)])
+    const { send } = await startWorker()
+    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+    })
+
+    const reply = messages.find((message) => message.type === 'state')
+    expect(reply).toMatchObject({
+      state: { totalActivities: 1, outdatedActivities: 0 },
+      outcome: { runs: 0, rides: 0, filesAdded: 1 },
+    })
+    // The sport is whatever the sample's activity is; one of the two update counts is one, the other zero.
+    const outcome: Record<string, unknown> = {
+      ...(reply as { outcome?: object } | undefined)?.outcome,
+    }
+    expect([outcome.updatedRuns, outcome.updatedRides].sort()).toEqual([0, 1])
+    // Counts cross to the page, never the digests.
+    expect(outcome).not.toHaveProperty('upgraded')
+    expect(outcome).not.toHaveProperty('added')
+  })
+
   it('stops downloading after a daily limit and counts the remaining stored originals as limited', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-10-22T15:30:00Z'))
