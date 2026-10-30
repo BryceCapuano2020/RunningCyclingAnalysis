@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { bodyMassOn } from '@rca/core/athlete'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings } from '@rca/core/types'
@@ -105,7 +106,13 @@ export function useImportActions({
               files,
               settings: analysisSettings(
                 {
-                  massKg: savedMe.profile.massKg,
+                  // Today's weight by the one rule, so an import is priced as the page is: a dated weight in effect today
+                  // wins over the profile's, which a date passing leaves behind.
+                  massKg: bodyMassOn(
+                    savedMe.profile.massKg,
+                    settingsRef.current.measurements ?? [],
+                    Date.now(),
+                  ),
                   bikeMassKg: savedMe.profile.bikeMassKg,
                 },
                 settingsRef.current.measurements,

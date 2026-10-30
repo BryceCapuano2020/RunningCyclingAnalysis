@@ -17,6 +17,8 @@ function setOf(sport: ZoneSet['sport'], measure: ZoneMeasure, reference: number)
     source: 'estimated',
     reference,
     estimatedFrom: [sport],
+    maxHeartRateFrom: null,
+    asOfMs: null,
     citation: '',
     zones: zonesFor(measure, reference),
   }
@@ -201,5 +203,26 @@ describe('ActivityWorkbench zones', () => {
     const summary = screen.getByRole('heading', { name: 'Interval summary' })
     expect(summary.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByText('All of this run was in pace zone 2 (100%).')).toBeInTheDocument()
+  })
+})
+
+describe('ActivityZoneTime, a pace the date has no zones for', () => {
+  it('says what would give pace zones beside the heart rate time that is left', async () => {
+    const trace = twoPartRun()
+    render(
+      <ActivityWorkbench
+        activityId="run-3"
+        units="metric"
+        loadTrace={async () => ({ kind: 'trace', trace })}
+        zoneSets={[setOf('run', 'heartRate', 180)]}
+        missingZones={['pace']}
+      />,
+    )
+    await screen.findByRole('heading', { name: 'Time in zones' })
+    expect(
+      screen.getByText(
+        'No pace zones for this run. A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
+      ),
+    ).toBeInTheDocument()
   })
 })

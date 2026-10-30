@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { currentMass } from '@rca/core/athlete'
+import { bodyMassOn } from '@rca/core/athlete'
 import './App.css'
 import { forgetSeenNotes } from './ui/aboutDataStore'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
@@ -78,9 +78,10 @@ export function App() {
   // The weight today is the dated weight in effect today, whatever the saved profile holds, so a weight
   // dated for a later day takes effect on that day with no edit. Without dated weights it is the profile's.
   const now = useNow()
-  const datedKg = currentMass(measurements.entries, now)
-  const settings =
-    datedKg === null ? athleteValues.settings : { ...athleteValues.settings, massKg: datedKg }
+  const settings = {
+    ...athleteValues.settings,
+    massKg: bodyMassOn(athleteValues.settings.massKg, measurements.entries, now),
+  }
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const analysisAthlete = useAnalysisSettings(settings, measurements.entries)

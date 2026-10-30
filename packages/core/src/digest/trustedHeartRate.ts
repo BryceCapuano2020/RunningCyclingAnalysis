@@ -2,6 +2,12 @@ import type { EffortPoint, MaxHeartRates } from '../effort'
 import { referenceMaxHeartRates } from '../effort'
 import { lowForPowerSetAside, worstSetAside } from '../hr'
 import type { ActivityDigest, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
+import { memoByDigests } from '../digestMemo'
+import { newestHeartRateMs, referenceMaxOf } from './referenceMax'
+import type { ReferenceMax } from './referenceMax'
+
+/** How many answers the references keep for one first activity: the steps of a set-aside iteration. */
+const REFERENCES_KEPT = 16
 
 /** The heart rate an analysis uses, once the activities whose heart rate cannot be right are set aside. */
 export interface TrustedHeartRate {
@@ -9,27 +15,65 @@ export interface TrustedHeartRate {
   setAside: Set<string>
   /** The digests whose heart rate is used, in the order given. */
   trusted: ActivityDigest[]
-  /** Highest sustained heart rate of the trusted digests, bpm; null without any. */
+  /** The maximum heart rate of the trusted digests (see `referenceMaxOf`), bpm; null without any. */
   maxHr: number | null
+  /** Each sport's own maximum, bpm: the highest value reached on several separate days. Null without one. */
   observedMax: Record<Sport, number | null>
+  /** What each sport's maximum rests on: how many days reached it, and since when. */
+  observedSource: Record<Sport, ReferenceMax | null>
   reference: MaxHeartRates
 }
 
-/** Highest sustained heart rate of the digests, bpm; null when none recorded heart rate. */
-export function maxHeartRateOf(digests: ActivityDigest[]): number | null {
-  let best: number | null = null
-  for (const digest of digests) {
-    const value = digest.maxHeartRate
-    if (value !== null && (best === null || value > best)) best = value
-  }
-  return best
+interface References {
+  observedMax: Record<Sport, number | null>
+  observedSource: Record<Sport, ReferenceMax | null>
+  maxHr: number | null
+  reference: MaxHeartRates
 }
 
-function referencesOf(digests: ActivityDigest[]) {
-  const maxOf = (sport: Sport) => maxHeartRateOf(digests.filter((d) => d.sport === sport))
-  const observedMax = { run: maxOf('run'), ride: maxOf('ride') }
-  return { observedMax, reference: referenceMaxHeartRates(observedMax.run, observedMax.ride) }
+function computeReferences(digests: ActivityDigest[]): References {
+  const endMs = newestHeartRateMs(digests)
+  const maxOf = (sport: Sport) =>
+    referenceMaxOf(
+      digests.filter((d) => d.sport === sport),
+      endMs,
+    )
+  const observedSource = { run: maxOf('run'), ride: maxOf('ride') }
+  const observedMax = {
+    run: observedSource.run?.bpm ?? null,
+    ride: observedSource.ride?.bpm ?? null,
+  }
+  return {
+    observedMax,
+    observedSource,
+    maxHr: referenceMaxOf(digests, endMs)?.bpm ?? null,
+    reference: referenceMaxHeartRates(observedMax.run, observedMax.ride),
+  }
 }
+
+/** A copy a caller may change without changing what is kept. */
+function copyOfReferences(found: References): References {
+  return {
+    observedMax: { ...found.observedMax },
+    observedSource: { ...found.observedSource },
+    maxHr: found.maxHr,
+    reference: { ...found.reference },
+  }
+}
+
+/**
+ * The maxima of the digests: the sports' own, what each rests on, and the references the cross-sport rule makes of
+ * them. All are taken over the same trailing window, which ends at the newest heart rate among the digests. They read
+ * only the digests, so a change of body mass or settings takes the answer kept for the same activities, as does each
+ * step of the set-aside iteration that has been taken before.
+ */
+const memoReferences = memoByDigests(
+  (digests: ActivityDigest[], _input: null) => computeReferences(digests),
+  () => true,
+  copyOfReferences,
+  REFERENCES_KEPT,
+)
+const referencesOf = (digests: ActivityDigest[]): References => memoReferences(digests, null)
 
 /**
  * Sets aside the heart rate of activities whose best efforts show readings a working sensor would
@@ -53,7 +97,7 @@ export function trustedHeartRate(
   if (given !== undefined) {
     const trusted = ordered.filter((digest) => !given.has(digest.id))
     const setAside = new Set(ordered.filter((d) => given.has(d.id)).map((d) => d.id))
-    return { setAside, trusted, maxHr: maxHeartRateOf(trusted), ...referencesOf(trusted) }
+    return { setAside, trusted, ...referencesOf(trusted) }
   }
   const threshold = { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null }
   // Heart rate that reads low for the power across a whole activity is set aside first, so the references and the
@@ -67,7 +111,7 @@ export function trustedHeartRate(
     setAside.add(worst)
     trusted = trusted.filter((digest) => digest.id !== worst)
   }
-  return { setAside, trusted, maxHr: maxHeartRateOf(trusted), ...referencesOf(trusted) }
+  return { setAside, trusted, ...referencesOf(trusted) }
 }
 
 /** A best curve with no heart rate on the points of activities whose heart rate is set aside. */

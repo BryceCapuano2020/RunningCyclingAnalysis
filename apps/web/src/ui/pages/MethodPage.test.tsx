@@ -938,7 +938,7 @@ describe('MethodPage without a weight', () => {
     // The reference heart rate is defined in one sentence, where the heart-rate check is explained.
     expect(
       within(section).getByText(
-        /Your reference heart rate is set from your highest sustained heart rates.*6 bpm below running/,
+        /Your reference heart rate is set from the highest sustained heart rate that several separate days reached.*6 bpm below running/,
       ),
     ).toBeInTheDocument()
 

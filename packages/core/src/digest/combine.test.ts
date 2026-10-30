@@ -318,9 +318,15 @@ describe('combine', () => {
     })
   })
 
-  it('reports the highest heart rate across all activities', () => {
-    const highest = Math.max(...digests.map((d) => d.maxHeartRate ?? -Infinity))
-    expect(result.maxHeartRate).toBe(highest)
+  it('reports the highest heart rate that several separate days reached', () => {
+    // The sample has too few days with a heart rate to ask three to agree, so it is the second highest day.
+    const perDay = new Map<number, number>()
+    for (const d of digests) {
+      const day = Math.floor(d.startMs / 86_400_000)
+      perDay.set(day, Math.max(perDay.get(day) ?? -Infinity, d.maxHeartRate ?? -Infinity))
+    }
+    const secondHighest = [...perDay.values()].sort((a, b) => b - a)[1]
+    expect(result.maxHeartRate).toBe(secondHighest)
     expect(Math.abs(result.maxHeartRate! - athlete.hrMax)).toBeLessThan(3)
   })
 

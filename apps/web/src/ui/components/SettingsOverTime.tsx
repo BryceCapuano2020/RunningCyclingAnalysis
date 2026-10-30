@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { isLocalDate, localDateOf, localDayStartMs, measurementKey } from '@rca/core/athlete'
 import type { Measurement } from '@rca/core/athlete'
@@ -34,6 +34,18 @@ export interface SettingsOverTimeProps {
   elsewhere?: number
   /** Loads the account's settings again, offered as Try again when they could not be loaded. */
   retry?: () => void
+  /**
+   * Opens the form to a setting with a value typed in, as the Set control beside an estimated max heart rate asks.
+   * Each request has its own `nonce`, so asking twice for the same setting works again.
+   */
+  prefill?: SettingPrefill | null
+}
+
+export interface SettingPrefill {
+  /** The setting, as `SETTING_CHOICES` ids it, such as `maxHeartRate.run`. */
+  choiceId: string
+  text: string
+  nonce: number
 }
 
 const FIRST_CHOICE = SETTING_CHOICES[0] as SettingChoice
@@ -60,6 +72,7 @@ export function SettingsOverTime({
   onRemove,
   elsewhere = 0,
   retry,
+  prefill = null,
 }: SettingsOverTimeProps) {
   const baseId = useId()
   // At 320 px the table is wider than the page, so it scrolls and a keyboard reader can reach it.
@@ -77,6 +90,27 @@ export function SettingsOverTime({
   const [refusal, setRefusal] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const appliedNonce = useRef<number | null>(null)
+  const focusedNonce = useRef<number | null>(null)
+  // A request to set a figure opens the form to it, with the figure typed in for the athlete to confirm or change. The
+  // form is in view at once, with the status line saying whether the settings are loading or could not be loaded; the
+  // field takes focus once they are ready.
+  useEffect(() => {
+    if (prefill === null) return
+    if (appliedNonce.current !== prefill.nonce) {
+      appliedNonce.current = prefill.nonce
+      setChoiceId(prefill.choiceId)
+      setText(prefill.text)
+      setValueError(null)
+      setDateError(null)
+      setRefusal(null)
+      document.getElementById(`${baseId}-title`)?.scrollIntoView?.({ block: 'start' })
+    }
+    if (state === 'ready' && focusedNonce.current !== prefill.nonce) {
+      focusedNonce.current = prefill.nonce
+      document.getElementById(`${baseId}-value`)?.focus()
+    }
+  }, [prefill, state, baseId])
   const choice = SETTING_CHOICES.find((option) => option.id === choiceId) ?? FIRST_CHOICE
   const rows = [...entries].sort(listOrder)
   const dateOk = isLocalDate(from) && isMeasurementYear(from)

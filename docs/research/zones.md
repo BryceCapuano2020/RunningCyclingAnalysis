@@ -46,11 +46,17 @@ A reference is one of two things, and the zone set says which.
 - **You entered** (`source: 'entered'`). A dated setting (`maxHeartRate` per sport, `thresholdPower` for
   rides, `thresholdPace` for runs). The entry in effect on the local date applies; before the first entry the
   earliest applies. See the policy in `docs/DESIGN.md` and on the Method page.
-- **From your rides** or **from your runs** (`source: 'estimated'`). The app's own figures for the period on
-  screen: the critical-power fit (a run's flat speed, or a ride's metabolic W/kg turned into watts at
-  the body mass in effect on that date) and the reference heart rate of each sport
-  (`AnalysisResult.rideMaxHeartRate`, `runMaxHeartRate`). An estimate the analysis refuses, such as a
-  threshold with too few efforts, gives no zones. Zones are never made from a guess.
+- **From your rides** or **from your runs** (`source: 'estimated'`). The app's own figures. A pace or power is the
+  critical-power fit (a run's flat speed, or a ride's metabolic W/kg turned into watts at the body mass in effect on
+  that date) over the 26 weeks that end with the activity's week (`thresholdTimeline`), so an activity is cut by the
+  athlete's fitness then, not by their best ever. When that half year holds no fit (no effort as long as about 20
+  minutes), the newest earlier fit within 12 months is used and the table says "up to Mar 2025" (`ZoneSet.asOfMs`);
+  beyond that there are no pace or power zones, and the page says what would give them: a hard, even 3 to 5 minute
+  effort and a hard 20 minute effort. A heart rate is the reference of each sport (`HeartRateJudgement.referenceHr`): the
+  highest value that several separate days reached over the last three years, not the single highest reading
+  (`referenceMaxOf`; chosen against alternatives in `referenceMax.sim.test.ts`), with Profile naming the figure's
+  source and offering Set. An estimate the analysis refuses, such as a threshold with too few efforts, gives no zones.
+  Zones are never made from a guess.
 
 Critical power is the app's threshold estimate, not a 20 minute test or a lactate test, so power and pace
 zones from it are an estimate. An entered threshold replaces it.
@@ -70,10 +76,9 @@ _The Triathlete's Training Bible_, 4th ed., VeloPress, 2016.
 ## 4. Limits
 
 - Maximum heart rate zones move with a reference that is itself an estimate, and with age, heat and
-  sleep. The app's reference is the highest sustained heart rate on file, not a lab value.
+  sleep. The app's reference is the highest sustained heart rate that several separate days reached, not a lab value.
 - Zones do not rate ability. They do not enter the age grade, the level or the Balance.
-- A threshold estimated from a different period gives different zones; the Profile page shows the period
-  the analysis on screen covers.
+- A threshold estimated from a different half year gives different zones; the table says when an older fit stands in.
 
 ## 5. Time in zones
 
@@ -100,10 +105,10 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
   whole-activity interval agrees with the sport page.
 - **A period** adds the activities up zone by zone, each cut by its own zones, so zones that changed during the period
   are applied on the dates they were in effect. Zones are summed by level, which every date shares. A period is compared
-  with the one before it in the same estimated zones, because the references of an analysis belong to the period on
-  screen; entered settings are dated, so they apply on their own dates in both. When an entered setting changed between
+  with the one before it, each activity cut by the zones of its own date, so the shares are relative to the athlete's
+  fitness then; entered settings are dated, so they apply on their own dates in both. When an entered setting changed between
   the periods (`MeasureTime.enteredReferences` differ), the zones moved, so a change in shares could be the zones and not the
-  athlete: no change is claimed and the page says the zones changed. An estimated reference is the same in both, and a
+  athlete: no change is claimed and the page says the zones changed. An estimated reference follows fitness, and a
   dated weight moving an estimated ride threshold is the app's own figure, so neither stops the comparison. One period using an estimate for some activities and the other not would also stop it,
   but this cannot happen today, since the earliest entry applies before its own date, so a sport's measure is all entered or
   all estimated; the check is a guard for a future back-fill policy.

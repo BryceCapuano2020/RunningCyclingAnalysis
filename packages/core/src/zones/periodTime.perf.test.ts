@@ -6,6 +6,7 @@ import { fastestMs } from '../test/timing'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { periodTimeInZones } from './periodTime'
 import { ZoneTimeCache } from './timeCache'
+import { estimatesOf } from './test/estimates'
 import type { ZoneEstimates } from './zones'
 
 /**
@@ -19,14 +20,14 @@ const ACTIVITIES = 2000
 const NO_SET_ASIDE: readonly string[] = []
 const DAY_MS = 24 * 3600_000
 
-const estimates: ZoneEstimates = {
+const estimates: ZoneEstimates = estimatesOf({
   runCp: null,
   rideCp: null,
   runMaxHeartRate: 188,
   rideMaxHeartRate: 184,
   runObservedMaxHeartRate: 188,
   rideObservedMaxHeartRate: 184,
-}
+})
 const settings: AthleteSettings = {
   massKg: 72,
   bikeMassKg: 9,

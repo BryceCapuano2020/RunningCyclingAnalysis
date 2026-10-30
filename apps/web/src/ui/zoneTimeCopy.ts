@@ -49,6 +49,16 @@ const WITH_READING: Record<ZoneMeasure, string> = {
   pace: 'with a pace reading',
 }
 
+/**
+ * What gives a measure zones when none is entered and the half year before the date holds no fit (and no fit
+ * within a year does): the hard, even efforts a threshold is fitted to. Only a pace and a power are found this way.
+ */
+export const THRESHOLD_NEEDS: Record<ZoneMeasure, string> = {
+  heartRate: 'A max heart rate sets your heart rate zones.',
+  pace: 'A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
+  power: 'A hard, even 3–5 min effort and a hard 20 min effort set your power zones.',
+}
+
 /** What an activity has to record for a measure to count it. */
 const READING: Record<ZoneMeasure, string> = {
   heartRate: 'heart rate',
@@ -148,7 +158,11 @@ export function leftOutNotes(sport: Sport, rows: readonly MeasureTime[]): string
     if (row.setAside > 0) notes.push(`${of(row.setAside)} had heart rate set aside.`)
     if (row.noData > 0) notes.push(`${of(row.noData)} had no ${READING[row.measure]} to count.`)
     if (row.noZones > 0) {
-      notes.push(`${of(row.noZones)} had no ${IN_SENTENCE[row.measure]} zones for their date.`)
+      // A heart rate has zones from any max, so only a pace or a power says what would give it zones.
+      const need = row.measure === 'heartRate' ? '' : ` ${THRESHOLD_NEEDS[row.measure]}`
+      notes.push(
+        `${of(row.noZones)} had no ${IN_SENTENCE[row.measure]} zones for their date.${need}`,
+      )
     }
     return notes
   })
@@ -178,7 +192,7 @@ export function zoneSourceNote(rows: readonly MeasureTime[]): string {
   const counted = rows.reduce((n, row) => n + row.counted, 0)
   const entered = rows.reduce((n, row) => n + row.entered, 0)
   if (entered === 0) {
-    return "Zones are the app's estimate from your activities. Enter a max heart rate or a threshold on Profile to use your own."
+    return "Zones are the app's estimate: heart rate from your max, pace and power from your best efforts of the half year before each activity. Enter a max heart rate or a threshold on Profile to use your own."
   }
   if (entered === counted) return 'Zones follow the settings you entered on Profile.'
   return "Zones follow the settings you entered on Profile where you have them, and the app's estimate where you do not."

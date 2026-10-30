@@ -9,6 +9,7 @@ import type { AthleteSettings } from '../types'
 import { noTimeInZones, periodTimeInZones } from './periodTime'
 import { sameEnteredReferences } from './zoneShares'
 import { ZoneTimeCache } from './timeCache'
+import { estimatesOf } from './test/estimates'
 import { noon, zoneDigest } from './test/zoneDigests'
 
 const settings: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
@@ -137,14 +138,14 @@ describe('periodTimeInZones', () => {
       const entries: Measurement[] = [
         { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2026-01-15' },
       ]
-      const estimates = {
+      const estimates = estimatesOf({
         runCp: null,
         rideCp: null,
         runMaxHeartRate: 190,
         rideMaxHeartRate: null,
         runObservedMaxHeartRate: 190,
         rideObservedMaxHeartRate: null,
-      }
+      })
       const entered = row(january, entries)
       const estimated = heartRate(periodTimeInZones(february, settings, estimates), 'run')
       expect(estimated.entered).toBe(0)
@@ -159,7 +160,7 @@ describe('periodTimeInZones', () => {
       { kind: 'massKg', value: 90, from: '2020-01-01' },
       { kind: 'massKg', value: 70, from: '2025-06-01' },
     ])
-    const time = periodTimeInZones(digests, heavier, result)
+    const time = periodTimeInZones(digests, heavier, estimatesOf(result))
     const power = time.ride.find((row) => row.measure === 'power')!
     expect(power.counted).toBeGreaterThan(0)
     expect(power.enteredReferences).toEqual([])
@@ -193,7 +194,7 @@ describe('periodTimeInZones', () => {
   it('uses estimated zones from the analysis for what was not entered', () => {
     const digests = sampleDataset().activities.map((activity) => digestActivity(activity))
     const result = combine(digests, settings)
-    const time = periodTimeInZones(digests, settings, result)
+    const time = periodTimeInZones(digests, settings, estimatesOf(result))
     const rows = [...time.run, ...time.ride]
     for (const row of rows) {
       expect(row.entered).toBe(0)
@@ -213,45 +214,39 @@ describe('periodTimeInZones', () => {
 
 describe('ZoneTimeCache', () => {
   const digests = sampleDataset().activities.map((activity) => digestActivity(activity))
-  const analysis = combine(digests, settings)
+  const result = combine(digests, settings)
+  const analysis = estimatesOf(result)
+  const setAside = result.heartRateSetAside
 
   it('answers again from the same inputs without working it out again', () => {
     const cache = new ZoneTimeCache()
-    const first = cache.get(digests, [], settings, analysis, analysis.heartRateSetAside)
-    expect(cache.get(digests, [], { ...settings }, analysis, analysis.heartRateSetAside)).toBe(
-      first,
-    )
+    const first = cache.get(digests, [], settings, analysis, setAside)
+    expect(cache.get(digests, [], { ...settings }, analysis, setAside)).toBe(first)
   })
 
   it('works it out again when a dated setting, the digests or the analysis change', () => {
     const cache = new ZoneTimeCache()
-    const first = cache.get(digests, [], settings, analysis, analysis.heartRateSetAside)
+    const first = cache.get(digests, [], settings, analysis, setAside)
     const entry: Measurement = {
       kind: 'maxHeartRate',
       sport: 'run',
       value: 190,
       from: '2020-01-01',
     }
-    const entered = cache.get(
-      digests,
-      [],
-      withEntries([entry]),
-      analysis,
-      analysis.heartRateSetAside,
-    )
+    const entered = cache.get(digests, [], withEntries([entry]), analysis, setAside)
     expect(entered).not.toBe(first)
-    expect(
-      cache.get(digests.slice(1), [], withEntries([entry]), analysis, analysis.heartRateSetAside),
-    ).not.toBe(entered)
-    expect(
-      cache.get(digests, [], withEntries([entry]), { ...analysis }, analysis.heartRateSetAside),
-    ).not.toBe(entered)
+    expect(cache.get(digests.slice(1), [], withEntries([entry]), analysis, setAside)).not.toBe(
+      entered,
+    )
+    expect(cache.get(digests, [], withEntries([entry]), { ...analysis }, setAside)).not.toBe(
+      entered,
+    )
   })
 
   it('keeps the last few periods, so going back to one already shown is answered again', () => {
     const cache = new ZoneTimeCache()
     const periods = [3, 6, 9, 12].map((count) => digests.slice(0, count))
-    const aside = analysis.heartRateSetAside
+    const aside = setAside
     const first = periods.map((selected) => cache.get(selected, [], settings, analysis, aside))
     // Switching back and forth between the four costs nothing.
     for (const index of [0, 2, 1, 3, 0]) {
@@ -267,7 +262,7 @@ describe('ZoneTimeCache', () => {
 
   it('lets go of its results when cleared', () => {
     const cache = new ZoneTimeCache()
-    const aside = analysis.heartRateSetAside
+    const aside = setAside
     const first = cache.get(digests, [], settings, analysis, aside)
     cache.clear()
     const again = cache.get(digests, [], settings, analysis, aside)
@@ -277,7 +272,7 @@ describe('ZoneTimeCache', () => {
 
   it('does not answer one period from another, or from other settings or set-aside', () => {
     const cache = new ZoneTimeCache()
-    const aside = analysis.heartRateSetAside
+    const aside = setAside
     const a = cache.get(digests.slice(0, 5), [], settings, analysis, aside)
     const b = cache.get(digests.slice(0, 5), digests.slice(5, 9), settings, analysis, aside)
     expect(b).not.toBe(a)
@@ -308,9 +303,7 @@ describe('ZoneTimeCache', () => {
   })
 
   it('has no previous period for all time', () => {
-    expect(
-      new ZoneTimeCache().get(digests, [], settings, analysis, analysis.heartRateSetAside).previous,
-    ).toBeNull()
+    expect(new ZoneTimeCache().get(digests, [], settings, analysis, setAside).previous).toBeNull()
   })
 
   it('cuts the period before by the same estimated zones', () => {
@@ -320,7 +313,7 @@ describe('ZoneTimeCache', () => {
       digests.slice(0, half),
       settings,
       analysis,
-      analysis.heartRateSetAside,
+      setAside,
     )
     expect(times.previous).not.toBeNull()
   })

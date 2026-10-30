@@ -1417,12 +1417,17 @@ colour vision and for protanopia, deuteranopia and tritanopia. The number, the n
 only cue. In forced colours every segment is the highlight colour with its text in the highlight's own text colour. The
 figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%").
 
-**Zones do not depend on the period.** The references that estimated zones are cut from (the run threshold pace, the
-ride threshold power, and the reference heart rates) are the whole library's, whatever period is picked: the
-library's judgement, taken over every visible activity once (`SessionState.zoneEstimates`, from `HeartRateJudgement`). A dated setting the
-athlete entered still wins on the date it is in force, so each activity is cut by the value in force on its own
-day, and the library's estimate stands where nothing was entered. Profile, the activity page and the sport page's time
-in zones all read it, so one activity has the same zones, and the same shares, under every period. The reference
+**Zones do not depend on the period.** The references that estimated zones are cut from are the library's, whatever
+period is picked: the library's judgement, taken over every visible activity once (`SessionState.zoneEstimates`, from
+`HeartRateJudgement`). A heart rate is the reference heart rate, the highest value that several separate days reached
+over the last three years. A pace or power is the fit over the half year before the activity's week (`thresholdTimeline`),
+so an activity is cut by the athlete's fitness then; where that half year holds no fit the newest within a year stands
+in, dated in the table ("up to Mar 2025"), and beyond a year there are no pace or power zones and a line says what would
+give them. A dated setting the athlete entered still wins on the date it is in force, so each activity is cut by the
+value in force on its own day, and the library's estimate stands where nothing was entered. Profile, the activity page and
+the sport page's time in zones all read it, so one activity has the same zones, and the same shares, under every period.
+Profile names where the max heart rate comes from ("201 bpm, the highest you reached on 3 separate days since Mar 2023.
+Is that right?") with a Set control that opens the dated max heart rate form to the figure. The reference
 heart rate is one number too: the library judges heart rate against it (`HeartRateJudgement.referenceHr`), and every
 period's analysis reports and judges its efforts against it (`CombineOptions.references`), so Profile, How sure is
 this? and the set-aside note all say the same running and cycling figure. A period's own threshold, the sport page's

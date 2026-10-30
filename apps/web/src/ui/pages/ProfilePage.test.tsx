@@ -6,7 +6,7 @@ import type { Measurement } from '@rca/core/athlete'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
-import { makeResult } from '../components/fixtures'
+import { estimatesFrom, makeResult } from '../components/fixtures'
 import type { SavedActivity } from '../../worker/protocol'
 import type { ProfilePageProps } from './ProfilePage'
 import type { ProfilePatch } from '../profilePatch'
@@ -38,9 +38,10 @@ function renderProfile(
   const onSignIn = vi.fn()
   const onDownloadData = vi.fn(async () => new Blob())
   const onDeleteAccount = vi.fn(async () => {})
-  render(
+  const analysisProp = analysisStub(analysis)
+  const element = (changed: Partial<Omit<ProfilePageProps, 'analysis'>>) => (
     <ProfilePage
-      analysis={analysisStub(analysis)}
+      analysis={analysisProp}
       settings={SETTINGS}
       athlete={SETTINGS}
       units="metric"
@@ -61,9 +62,14 @@ function renderProfile(
       onDeleteAccount={onDeleteAccount}
       onRemoveAll={onRemoveAll}
       {...overrides}
-    />,
+      {...changed}
+    />
   )
-  return { onSaveProfile, onRemoveAll, onSignIn, onDownloadData, onDeleteAccount }
+  const view = render(element({}))
+  /** Renders again with these props changed, as the page does when its settings finish loading. */
+  const rerenderWith = (changed: Partial<Omit<ProfilePageProps, 'analysis'>>) =>
+    view.rerender(element(changed))
+  return { onSaveProfile, onRemoveAll, onSignIn, onDownloadData, onDeleteAccount, rerenderWith }
 }
 
 describe('ProfilePage settings', () => {
@@ -993,7 +999,7 @@ describe('ProfilePage zones and dated settings', () => {
 
   it('shows a table for each sport and measure the analysis has a reference for', () => {
     const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
-    renderProfile({}, { state: { result, zoneEstimates: result } })
+    renderProfile({}, { state: { result, zoneEstimates: estimatesFrom(result) } })
     for (const name of [
       /^Run heart rate zones/,
       /^Run pace zones/,
@@ -1010,15 +1016,57 @@ describe('ProfilePage zones and dated settings', () => {
     )
   })
 
+  it('opens the dated max heart rate form to the figure when Set it is pressed beside an estimate', () => {
+    const result = makeResult({ runMaxHeartRate: 201, rideMaxHeartRate: 195 })
+    const estimates = {
+      ...estimatesFrom(result),
+      runObservedMaxHeartRate: 201,
+      observedMaxSource: { run: { bpm: 201, days: 3, sinceMs: Date.UTC(2023, 2, 15) }, ride: null },
+    }
+    renderProfile({}, { state: { result, zoneEstimates: estimates } })
+    const setting = screen.getByLabelText('Setting') as HTMLSelectElement
+    expect(setting.value).not.toBe('maxHeartRate.run')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
+    expect(setting.value).toBe('maxHeartRate.run')
+    const value = screen.getByLabelText('Value (bpm)') as HTMLInputElement
+    expect(value.value).toBe('201')
+    expect(value).toHaveFocus()
+
+    // Asking again for the other sport moves the form to it.
+    fireEvent.click(screen.getByRole('button', { name: 'Set it for your ride max heart rate' }))
+    expect(setting.value).toBe('maxHeartRate.ride')
+    expect(value.value).toBe('195')
+  })
+
+  it('shows the form with the figure while the dated settings load, and focuses it once they are ready', () => {
+    const result = makeResult({ runMaxHeartRate: 201, rideMaxHeartRate: 195 })
+    const estimates = { ...estimatesFrom(result), runObservedMaxHeartRate: 201 }
+    const loading = { entries: [], state: 'loading' as const, elsewhere: 0, retry: vi.fn() }
+    const { rerenderWith } = renderProfile(
+      { dated: loading },
+      { state: { result, zoneEstimates: estimates } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
+    // The form says why it cannot be used yet, and holds the figure.
+    expect(screen.getByText('Loading your settings…')).toBeInTheDocument()
+    expect((screen.getByLabelText('Value (bpm)') as HTMLInputElement).value).toBe('201')
+    expect(screen.getByLabelText('Value (bpm)')).not.toHaveFocus()
+
+    rerenderWith({ dated: { ...loading, state: 'ready' } })
+    expect(screen.getByLabelText('Value (bpm)')).toHaveFocus()
+    expect((screen.getByLabelText('Value (bpm)') as HTMLInputElement).value).toBe('201')
+  })
+
   it('cuts estimated zones from the library’s references, not from the period’s result', () => {
     const period = makeResult({ runMaxHeartRate: 187, rideMaxHeartRate: 181 })
     const library = makeResult({ runMaxHeartRate: 192, rideMaxHeartRate: 186 })
-    renderProfile({}, { state: { result: period, zoneEstimates: library } })
+    renderProfile({}, { state: { result: period, zoneEstimates: estimatesFrom(library) } })
     expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toHaveAccessibleName(
-      /max heart rate 192 bpm/,
+      /Max heart rate: 192 bpm/,
     )
     expect(screen.getByRole('table', { name: /^Ride heart rate zones/ })).toHaveAccessibleName(
-      /max heart rate 186 bpm/,
+      /Max heart rate: 186 bpm/,
     )
   })
 
@@ -1031,7 +1079,7 @@ describe('ProfilePage zones and dated settings', () => {
         athlete: { ...SETTINGS, measurements: entries },
         dated: { entries, state: 'ready', elsewhere: 0, retry: vi.fn() },
       },
-      { state: { result: makeResult(), zoneEstimates: makeResult() } },
+      { state: { result: makeResult(), zoneEstimates: estimatesFrom(makeResult()) } },
     )
     const table = screen.getByRole('table', { name: /^Ride power zones/ })
     expect(table).toHaveAccessibleName(/You entered: threshold power 250 W/)
@@ -1046,7 +1094,7 @@ describe('ProfilePage zones and dated settings', () => {
       {
         state: {
           result: makeResult({ rideMaxHeartRate: 180 }),
-          zoneEstimates: makeResult({ rideMaxHeartRate: 180 }),
+          zoneEstimates: estimatesFrom(makeResult({ rideMaxHeartRate: 180 })),
         },
       },
     )
@@ -1061,7 +1109,7 @@ describe('ProfilePage zones and dated settings', () => {
     const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
     renderProfile(
       { settings: { massKg: null, bikeMassKg: 9 } },
-      { state: { result, zoneEstimates: result } },
+      { state: { result, zoneEstimates: estimatesFrom(result) } },
     )
     expect(screen.queryByRole('table', { name: /^Ride power zones/ })).not.toBeInTheDocument()
     expect(screen.getByText(/Add your body weight to see ride power zones/)).toBeInTheDocument()
@@ -1078,7 +1126,7 @@ describe('ProfilePage zones and dated settings', () => {
         settings: { massKg: null, bikeMassKg: 9 },
         athlete: { ...SETTINGS, measurements: entries },
       },
-      { state: { result: makeResult(), zoneEstimates: makeResult() } },
+      { state: { result: makeResult(), zoneEstimates: estimatesFrom(makeResult()) } },
     )
     expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
       /You entered/,
@@ -1087,7 +1135,7 @@ describe('ProfilePage zones and dated settings', () => {
 
   describe('with the sample athlete on screen', () => {
     const sample = (
-      zoneEstimates = makeResult({ runMaxHeartRate: 170, rideMaxHeartRate: 160 }),
+      zoneEstimates = estimatesFrom(makeResult({ runMaxHeartRate: 170, rideMaxHeartRate: 160 })),
     ) => ({
       state: { result: makeResult(), isSample: true, zoneEstimates },
     })
@@ -1130,7 +1178,7 @@ describe('ProfilePage zones and dated settings', () => {
         sample(),
       )
       expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toHaveAccessibleName(
-        /max heart rate 170 bpm/,
+        /Max heart rate: 170 bpm/,
       )
       expect(screen.queryByText(/188 bpm/)).not.toBeInTheDocument()
     })

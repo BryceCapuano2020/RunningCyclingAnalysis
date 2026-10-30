@@ -1,5 +1,8 @@
 import type { CriticalPowerFit, HrCalibration, Sport } from '../types'
 import type { EstimatedRideGate } from './estimatedRide'
+import type { ReferenceMax } from './referenceMax'
+import { NO_THRESHOLD_TIMELINE } from './thresholdTimelineTypes'
+import type { ThresholdTimeline } from './thresholdTimelineTypes'
 
 /**
  * Whose heart rate is set aside, judged over a whole library, with what it was judged against. A period's
@@ -11,13 +14,23 @@ export interface HeartRateJudgement {
   setAside: readonly string[]
   /** The reference heart rate each sport's efforts were judged against, bpm: the library's, not a period's. Null without one. */
   referenceHr: Record<Sport, number | null>
-  /** Each sport's own highest sustained heart rate in the kept activities, bpm: the library's. Null without one. */
+  /**
+   * Each sport's own maximum heart rate in the kept activities, bpm: the library's. It is the highest value reached on
+   * several separate days (see `referenceMaxOf`), not the single highest reading. Null without one.
+   */
   observedMaxHr: Record<Sport, number | null>
+  /** What each sport's maximum rests on: the days that reached it and the date it counts from. Null without one. */
+  observedMaxSource: Record<Sport, ReferenceMax | null>
   /**
    * Each sport's threshold fit over the whole library, as an analysis of it would report it: null when there are too
    * few efforts or the fit is refused. The zones' threshold references are these, so they are the library's.
    */
   fit: Record<Sport, CriticalPowerFit | null>
+  /**
+   * Each sport's threshold over time: for every week, the fit over the efforts of the half year that ends with it, which the
+   * estimated pace and power zones of an activity are cut from (see `ThresholdStep`).
+   */
+  thresholdTimeline: ThresholdTimeline
   /** Each sport's threshold the efforts were judged against, in the unit of its fit (gross metabolic W/kg). Null without one. */
   threshold: Record<Sport, number | null>
   /**
@@ -39,8 +52,10 @@ export const NO_HEART_RATE_JUDGEMENT: HeartRateJudgement = {
   setAside: [],
   referenceHr: { run: null, ride: null },
   observedMaxHr: { run: null, ride: null },
+  observedMaxSource: { run: null, ride: null },
   threshold: { run: null, ride: null },
   fit: { run: null, ride: null },
+  thresholdTimeline: NO_THRESHOLD_TIMELINE,
   calibration: null,
   rideGate: null,
 }
