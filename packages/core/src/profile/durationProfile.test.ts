@@ -9,39 +9,7 @@ import {
 } from './index'
 import type { ProfilePoint, ProfileRow, ReadyProfile } from './index'
 
-/** Morton's three-parameter model: the power held for t seconds. */
-function morton(t: number, cp: number, wPrime: number, pmax: number): number {
-  return cp + wPrime / (t + wPrime / (pmax - cp))
-}
-
-const DURATIONS = [
-  5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600,
-]
-
-/** A ride's curve from a known model, spread over four sessions so that none is the only source. */
-function modelCurve(change: (durationS: number, value: number) => number = (_, v) => v) {
-  return DURATIONS.map((durationS, i): ProfilePoint => ({
-    durationS,
-    value: change(durationS, morton(durationS, 250, 20_000, 1000)),
-    sessionId: `session-${i % 4}`,
-  }))
-}
-
-/** The curve with one duration's value scaled. */
-function scaled(durationS: number, factor: number): ProfilePoint[] {
-  return modelCurve((d, value) => (d === durationS ? value * factor : value))
-}
-
-function ready(points: ProfilePoint[]) {
-  const profile = durationProfile(points)
-  if (profile.status !== 'ready') throw new Error(`not ready: ${JSON.stringify(profile)}`)
-  return profile
-}
-
-const standing = (points: ProfilePoint[]) =>
-  ready(points)
-    .rows.filter((row) => row.standsOut !== null)
-    .map((row) => [row.durationS, row.standsOut])
+import { DURATIONS, modelCurve, morton, ready, scaled, standing } from './test/curves'
 
 describe('durationProfile', () => {
   it('finds a curve that follows one model in line with itself everywhere', () => {
@@ -195,7 +163,10 @@ describe('profileSentence', () => {
       standsOut: null,
     }))
     expect(
-      profileSentence({ status: 'ready', anchored: false, startS: 5, rows }, formatDuration),
+      profileSentence(
+        { status: 'ready', anchored: false, startS: 5, rows, activities: 40 },
+        formatDuration,
+      ),
     ).toBe('Your bests are in line with each other, compared from 2 min to 45 min.')
   })
 
@@ -236,6 +207,7 @@ describe('profileSentence', () => {
       status: 'ready',
       anchored: true,
       startS: 5,
+      activities: 40,
       rows,
     })
     const inLine = (durationS: number): ProfileRow => ({
@@ -274,6 +246,7 @@ describe('profileSentence', () => {
       status: 'ready',
       anchored: true,
       startS: 5,
+      activities: 40,
       rows: [row(10, 0.3), row(60, -0.1), row(300, 0.2), row(1200, 0.12), row(3600, -0.25)],
     }
     const text = profileSentence(profile, formatDuration)
@@ -297,6 +270,7 @@ describe('profileSentence', () => {
       status: 'ready',
       anchored: true,
       startS: 5,
+      activities: 40,
       rows: [row(60, -0.2), row(120, -0.15)],
     }
     expect(profileSentence(profile, formatDuration)).toBe(

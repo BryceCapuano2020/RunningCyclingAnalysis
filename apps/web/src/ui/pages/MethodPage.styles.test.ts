@@ -40,7 +40,7 @@ describe('method contents', () => {
 })
 
 describe('method paragraphs', () => {
-  it('holds the paragraphs of each section to a 68 character measure', () => {
-    expect(ruleBody(css, '.method > .section > p')).toMatch(/max-width:\s*68ch/)
+  it('holds the paragraphs of each section to the reading measure', () => {
+    expect(ruleBody(css, '.method > .section > p')).toMatch(/max-width:\s*var\(--measure\)/)
   })
 })

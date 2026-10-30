@@ -4,7 +4,8 @@ import { sampleDataset } from '../synthetic'
 import type { Activity, ActivityDigest, AthleteSettings } from '../types'
 import { combine } from './combine'
 import { digestActivity } from './digestActivity'
-import { parseDigest, serializeDigest } from './serialize'
+import { readDigest } from './readDigest'
+import { parseDigest as parseOnDevice, serializeDigest } from './serialize'
 
 const { athlete, activities } = sampleDataset()
 const settings: AthleteSettings = { massKg: athlete.massKg, bikeMassKg: athlete.bikeMassKg }
@@ -18,6 +19,14 @@ function edited(digest: ActivityDigest, edit: (o: Record<string, unknown>) => vo
 }
 
 const curveOf = (o: Record<string, unknown>) => o.curve as Record<string, unknown>[]
+
+/**
+ * Reads a serialised digest as a create does: every rule, nothing repaired, nothing dropped. The tests
+ * below that say a digest is rejected mean this reader. The device library's reader, which repairs what
+ * it can, is parseOnDevice.
+ */
+const parseForCreate = (json: string) => readDigest(JSON.parse(json), 'create')
+const parseDigest = parseForCreate
 
 describe('serializeDigest and parseDigest', () => {
   it('round-trips every sample digest exactly', () => {
@@ -52,7 +61,8 @@ describe('serializeDigest and parseDigest', () => {
     }
     const digest = digestActivity(activity)
     expect(Number.isNaN(digest.distanceM)).toBe(true)
-    const parsed = parseDigest(serializeDigest(digest))
+    // The device library keeps a run whose distance is missing, which a create refuses.
+    const parsed = parseOnDevice(serializeDigest(digest))
     expect(Number.isNaN(parsed.distanceM)).toBe(true)
     expect(parsed.curve[0]!.value).toBeCloseTo(digest.curve[0]!.value, 12)
     // A 300 s run has no calibration, and the longest duration has no window at all.
@@ -69,13 +79,13 @@ describe('serializeDigest and parseDigest', () => {
   })
 
   it('rejects text that is not JSON', () => {
-    expect(() => parseDigest('{not json')).toThrow(/parseDigest: not JSON/)
+    expect(() => parseOnDevice('{not json')).toThrow(/parseDigest: not JSON/)
   })
 
   it('keeps the JSON parse error as the cause', () => {
     let caught: unknown
     try {
-      parseDigest('{not json')
+      parseOnDevice('{not json')
     } catch (error) {
       caught = error
     }
@@ -258,7 +268,7 @@ describe('serializeDigest and parseDigest', () => {
 
     expect(() =>
       parseDigest(edited(ride, (o) => (o.hrBlocks = [{ heartRate: 'x', value: 1, terms: null }]))),
-    ).toThrow(/hrBlocks\[0\]\.heartRate must be a finite number/)
+    ).toThrow(/hrBlocks\[0\]\.heartRate must be a number or null/)
     expect(() =>
       parseDigest(
         edited(ride, (o) => (o.hrBlocks = [{ heartRate: 120, value: 'x', terms: null }])),
@@ -279,7 +289,7 @@ describe('serializeDigest and parseDigest', () => {
       /calibration must be an object/,
     )
     expect(() => parseDigest(edited(ride, (o) => (o.calibration = { blocks: 1, rr: 1 })))).toThrow(
-      /calibration\.ra must be a finite number/,
+      /calibration\.ra must be a number or null/,
     )
     expect(() => parseDigest(edited(ride, (o) => (o.climbSections = [{}])))).toThrow(
       /climbSections\[0\]\.start must be an integer/,
@@ -327,14 +337,13 @@ describe('serializeDigest and parseDigest', () => {
     expect(() =>
       parseDigest(edited(digests[0]!, (o) => (o.flags = range(0, digests[0]!.durationS + 1)))),
     ).toThrow(/flags\[0\] must satisfy 0 <= start < end <= durationS/)
-    expect(() =>
-      parseDigest(
-        edited(
-          digests[0]!,
-          (o) => (o.flags = [{ kind: 'gremlin', start: 0, end: 1, message: 'x' }]),
-        ),
-      ),
-    ).toThrow(/flags\[0\]\.kind must be one of/)
+    const gremlin = edited(
+      digests[0]!,
+      (o) => (o.flags = [{ kind: 'gremlin', start: 0, end: 1, message: 'x' }]),
+    )
+    expect(() => parseForCreate(gremlin)).toThrow(/flags\[0\]\.kind must be one of/)
+    // A build that knows more kinds wrote it: the device library keeps the activity, without the flag.
+    expect(parseOnDevice(gremlin).flags).toEqual([])
   })
 
   it('rejects negative durations and distances and windows shorter than their duration', () => {
@@ -354,9 +363,9 @@ describe('serializeDigest and parseDigest', () => {
   })
 
   it('validates flag counts by kind and value', () => {
-    expect(() => parseDigest(edited(digests[0]!, (o) => (o.flagCounts = { gremlin: 1 })))).toThrow(
-      /flagCounts\.gremlin is not a quality kind/,
-    )
+    const gremlin = edited(digests[0]!, (o) => (o.flagCounts = { gremlin: 1 }))
+    expect(() => parseForCreate(gremlin)).toThrow(/flagCounts\.gremlin is not a quality kind/)
+    expect(parseOnDevice(gremlin).flagCounts).toEqual({})
     expect(() =>
       parseDigest(edited(digests[0]!, (o) => (o.flagCounts = { 'power-spike': -1 }))),
     ).toThrow(/flagCounts\.power-spike must be a non-negative integer/)
@@ -460,13 +469,14 @@ describe('distance bests on the wire', () => {
         }),
       ),
     ).toThrow(/distanceBests\[0\]\.seconds must not exceed durationS/)
-    expect(() =>
-      parseDigest(
-        editedRun((o) => {
-          bestsOf(o)[0]!.distanceM = -1
-        }),
-      ),
-    ).toThrow(/distanceBests\[0\]\.distanceM must be positive/)
+    const unknown = editedRun((o) => {
+      bestsOf(o)[0]!.distanceM = 2000
+    })
+    expect(() => parseForCreate(unknown)).toThrow(
+      /distanceBests\[0\]\.distanceM is not a run record/,
+    )
+    // A build that records another distance wrote it: the device library keeps the run without it.
+    expect(parseOnDevice(unknown).distanceBests?.map((b) => b.distanceM)).not.toContain(2000)
     expect(() =>
       parseDigest(
         editedRun((o) => {

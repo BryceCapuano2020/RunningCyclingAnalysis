@@ -18,8 +18,7 @@ vi.mock('./ui/useSettings', async () => ({
 }))
 vi.mock('./ui/charts', async () => {
   const { heavyChartStubs } = await import('./test/appMocks')
-  const { TrendChart } = await import('./ui/charts/TrendChart')
-  return { ...heavyChartStubs, TrendChart }
+  return heavyChartStubs
 })
 
 const APP = 'RunningCyclingAnalysis'

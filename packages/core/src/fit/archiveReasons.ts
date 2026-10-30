@@ -49,6 +49,12 @@ export const entryTooLarge = (limit: number) =>
 export const bufferedTooLarge = (limit: number) =>
   tooLarge(`Buffered data exceeds the ${limit}-byte limit`, limit)
 
+/** Skipped entries inflated past what one source may cost, so the rest of them are not inflated. */
+export const skippedTooLarge = (limit: number) =>
+  tooLarge(`Files this import skips expand to more than ${limitText(limit)}`, limit)
+export const skippedTooCompressed = () =>
+  rejection('too-large', 'Files this import skips expand far more than they are compressed')
+
 /** Count limits have no byte size to show, so they carry no detail. */
 export const entryCountTooLarge = (limit: number) =>
   rejection('too-large', `Archive exceeds the ${limit}-entry limit`)

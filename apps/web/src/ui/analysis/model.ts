@@ -83,7 +83,7 @@ export interface Pending {
   activeAt?: number
   notice?: string
   /** The analysis an import is compared with, taken when the import was sent. */
-  baseline?: AnalysisResult | null
+  baseline?: Baseline | null
   /** Receives the worker's answer, or null when the worker is dropped before answering. */
   settle?: (message: WorkerResponse | null) => void
   /** An analysis made while the account loads: its answer is not an import result, so it is not summarised. */
@@ -103,6 +103,16 @@ export function drainBatches(queue: Box<File[][]>): File[][] {
   const batches = queue.current
   queue.current = []
   return batches
+}
+
+/**
+ * The analysis an import is compared with, and the period it was made under. A period is a regime: the default period
+ * is 12 weeks, or all time where no 12 weeks hold both sports, so one added activity can switch it, and figures from
+ * two regimes are not figures of one athlete changing.
+ */
+export interface Baseline {
+  result: AnalysisResult
+  period: Period
 }
 
 /** The period before any activities are loaded: the default, with no dates yet. */
@@ -129,6 +139,7 @@ export const EMPTY_SESSION: SessionState = {
   walkingPaceRuns: 0,
   trend: [],
   previous: null,
+  change: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,

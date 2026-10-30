@@ -228,12 +228,15 @@ test('documentation-only pull requests skip the long CI work, and everything els
     assert.match(block, /^ {4}needs: changes$/m, job)
     assert.match(
       block,
-      /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.code != 'false' \}\}$/m,
+      /^ {4}if: \$\{\{ !cancelled\(\) && !github\.event\.pull_request\.draft && needs\.changes\.outputs\.code != 'false' \}\}$/m,
       `${job} skips only on an explicit 'false', so a failed classification runs it`,
     )
   }
   const staticJob = blocks.get('static').join('\n')
-  assert.match(staticJob, /^ {4}if: \$\{\{ !cancelled\(\) \}\}$/m)
+  assert.match(
+    staticJob,
+    /^ {4}if: \$\{\{ !cancelled\(\) && !github\.event\.pull_request\.draft \}\}$/m,
+  )
   for (const step of ['typecheck', 'build']) {
     assert.match(
       staticJob,
@@ -289,4 +292,28 @@ test('shards cover the whole suite: the shard count comes from the matrix, and o
   assert.match(e2e, /- run: npm run e2e:worker -w @rca\/web\n {8}if: matrix\.shard == 1/)
   const config = await readFile(new URL('vitest.config.ts', root), 'utf8')
   assert.match(config, /thresholds: process\.env\.COVERAGE_SHARD\s*\?\s*undefined/)
+})
+
+test('a draft pull request runs no long jobs, and its required checks fail until it is marked ready', async () => {
+  const ci = await workflow('ci')
+  assert.match(ci, /^ {4}types: \[opened, synchronize, reopened, ready_for_review\]$/m)
+  const blocks = jobBlocks(ci)
+  for (const job of ['changes', 'static', 'unit', 'perf', 'sim', 'e2e', 'audit']) {
+    assert.match(
+      blocks.get(job).join('\n'),
+      /^ {4}if: \$\{\{ [^\n]*!github\.event\.pull_request\.draft/m,
+      `${job} is skipped on a draft`,
+    )
+  }
+  // The two required checks still run on a draft and fail, so a skipped (and so passing) check can
+  // never let a draft, or a pull request just marked ready, merge before its real run.
+  for (const job of ['verify', 'e2e-result']) {
+    const block = blocks.get(job).join('\n')
+    assert.doesNotMatch(block, /^ {4}if: [^\n]*draft/m, `${job} itself runs on a draft`)
+    assert.match(
+      block,
+      /- name: A draft pull request runs no checks\n {8}if: github\.event\.pull_request\.draft\n {8}run: \|\n[^\n]*\n {10}exit 1/,
+      `${job} fails on a draft`,
+    )
+  }
 })

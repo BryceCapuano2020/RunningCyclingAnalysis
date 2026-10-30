@@ -26,7 +26,8 @@ describe('What is calculated', () => {
       /Thresholds/,
       /Best efforts and curves/,
       /Race predictions/,
-      /Best effort week by week/,
+      /Best efforts over time/,
+      /Whether a change is a change/,
       /same heart rate/,
       /Level target/,
       /Grade by duration/,
@@ -55,7 +56,7 @@ describe('What is calculated', () => {
     const entryFor: Record<SectionId, RegExp> = {
       bestEfforts: /Best efforts and curves/,
       racePredictions: /Race predictions/,
-      weekByWeek: /Best effort week by week/,
+      bestsOverTime: /Best efforts over time/,
       sameHeartRate: /same heart rate/,
       lateInEffort: /Late in long sessions/,
       timeInZones: /Time in zones/,

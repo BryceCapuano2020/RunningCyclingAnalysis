@@ -40,6 +40,10 @@ they state the uncertainty and the evidence still missing. The plan is in
 
 ## What it does
 
+- **Fitness at the same heart rate.** The home screen and the Run page open with whether your
+  running fitness at the same heart rate is slipping, holding, recovering or back, with the change,
+  its range and the runs behind it. It reads steady runs only, and states the size of change it can
+  see.
 - **Age-graded levels and balance.** With your age, sex and weight, each sport's best 20 minute
   effort is graded against the USATF road standards for your age and sex, and shown as a level such
   as Local or Regional. The balance is the gap between the two grades, in points, drawn with the

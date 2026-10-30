@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
 import type { Sport } from '@rca/core/types'
-import { sameHeartRateCopy } from '../sameHeartRateCopy'
 import { LATE_IN_EFFORT_NAME, lateFinding, lateInEffort } from '../lateInEffort'
 import { RACE_PREDICTIONS_NAME, RACE_PREDICTION_NEED, racePredictionsOf } from '../racePredictions'
 import { distanceRecords } from '../records'
 import { timeInZonesLack } from '../zoneTimeCopy'
-import { bestEffortRows } from './bestEffortRows'
+import { buildRows } from '../charts/sportCurveModel'
+import { bestEffortRows, curvesOf } from './bestEffortRows'
 import { BestEffortsEvidence } from './BestEffortsEvidence'
 import { bestEffortsFinding } from './bestEffortsFinding'
 import { BestEffortsSection } from './BestEffortsSection'
@@ -13,12 +13,7 @@ import { LateInEffortSection } from './LateInEffortSection'
 import { RacePredictions } from './RacePredictions'
 import { ranBests } from './raceRan'
 import { SameHeartRateSection } from './SameHeartRateSection'
-import {
-  SAME_HEART_RATE_NAME,
-  SAME_HEART_RATE_WEEKLY_NAME,
-  sameHeartRateLack,
-  weeklyFinding,
-} from './sameHeartRateLack'
+import { SAME_HEART_RATE_NAME, sameHeartRateLack, weeklyFinding } from './sameHeartRateLack'
 import { SectionCell } from './SectionCell'
 import { anchorOf } from './sectionAnchor'
 import type { SectionNavItem } from './SectionNav'
@@ -26,7 +21,7 @@ import { StandOutSection } from './StandOutSection'
 import { standOutFinding, standOutOf } from './standOut'
 import { standOutLack } from './standOutLack'
 import { TimeInZonesSection } from './TimeInZonesSection'
-import { WeekByWeekSection } from './WeekByWeekSection'
+import { BestsOverTimeSection } from './BestsOverTimeSection'
 import { lackLine } from './lackLine'
 import type { SectionContext } from './sportPageProps'
 
@@ -35,7 +30,7 @@ export type SectionId =
   | 'bestEfforts'
   | 'racePredictions'
   | 'timeInZones'
-  | 'weekByWeek'
+  | 'bestsOverTime'
   | 'sameHeartRate'
   | 'lateInEffort'
   | 'standOut'
@@ -59,8 +54,8 @@ const NAV_LABEL: Record<SectionId, string> = {
   bestEfforts: 'Best efforts',
   racePredictions: 'Race predictions',
   timeInZones: 'Time in zones',
-  weekByWeek: 'Week by week',
-  sameHeartRate: 'Same heart rate',
+  bestsOverTime: 'Best efforts over time',
+  sameHeartRate: 'Same heart rate, week by week',
   lateInEffort: 'Late in long sessions',
   standOut: 'Stand-out',
   evidence: 'All best efforts',
@@ -76,7 +71,7 @@ export const SPORT_ROWS: Record<Sport, readonly (readonly SectionId[])[]> = {
   run: [
     ['bestEfforts'],
     ['racePredictions', 'timeInZones'],
-    ['weekByWeek'],
+    ['bestsOverTime'],
     ['sameHeartRate'],
     ['lateInEffort'],
     ['standOut'],
@@ -85,7 +80,7 @@ export const SPORT_ROWS: Record<Sport, readonly (readonly SectionId[])[]> = {
   ride: [
     ['bestEfforts'],
     ['timeInZones'],
-    ['weekByWeek'],
+    ['bestsOverTime'],
     ['sameHeartRate'],
     ['lateInEffort'],
     ['standOut'],
@@ -142,40 +137,38 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
         }
       : { content: null, lacks: [lack] }
   },
-  weekByWeek: ({ sport, trends, windowDays, massKg, units }) => ({
-    content: (
-      <WeekByWeekSection
-        sport={sport}
-        trends={trends}
-        windowDays={windowDays}
-        massKg={massKg}
-        units={units}
-      />
-    ),
-    lacks: [],
-  }),
-  sameHeartRate: ({ sport, sameHeartRate, units, fitness }) => {
-    const lack = sameHeartRateLack(sport, sameHeartRate, units)
-    if (lack !== null) return { content: null, lacks: [lack] }
-    // With a fitness status on the page the weekly view defers to it: it is retitled and says no change of its own, so
-    // the card and this section never disagree about the same runs.
-    const deferred = fitness !== undefined && fitness[sport].state !== 'not-enough-evidence'
+  bestsOverTime: ({ sport, result, previous, previousLabel, change, trends, massKg, units }) => {
+    const { current, earlier } = curvesOf({ sport, result, previous, previousLabel })
     return {
       content: (
-        <SameHeartRateSection sport={sport} data={sameHeartRate} units={units} weekly={deferred} />
+        <BestsOverTimeSection
+          sport={sport}
+          trends={trends}
+          massKg={massKg}
+          units={units}
+          finding={
+            earlier === null || previousLabel === null
+              ? null
+              : { sport, units, rows: buildRows(sport, current, earlier), previousLabel, change }
+          }
+        />
       ),
       lacks: [],
-      closed: deferred
-        ? {
-            title: SAME_HEART_RATE_WEEKLY_NAME,
-            finding: weeklyFinding(sport, sameHeartRate.referenceHeartRate),
-          }
-        : {
-            title: SAME_HEART_RATE_NAME,
-            // The closed row says what the chart is titled by, so the two cannot differ, and which heart rate "the
-            // same" is, so the finding stands alone.
-            finding: `${sameHeartRateCopy(sport, sameHeartRate, units).text.replace(/\.$/, '')} (${sameHeartRate.referenceHeartRate} bpm)`,
-          },
+    }
+  },
+  sameHeartRate: ({ sport, sameHeartRate, units, fitness }) => {
+    const lack = sameHeartRateLack(sport, sameHeartRate)
+    if (lack !== null) return { content: null, lacks: [lack] }
+    // No change is claimed from the weekly dots. With a fitness status on the page it is the sport's voice, and the
+    // closed row says so.
+    const statusSpeaks = fitness !== undefined && fitness[sport].state !== 'not-enough-evidence'
+    return {
+      content: <SameHeartRateSection sport={sport} data={sameHeartRate} units={units} />,
+      lacks: [],
+      closed: {
+        title: SAME_HEART_RATE_NAME,
+        finding: weeklyFinding(sport, sameHeartRate.referenceHeartRate, statusSpeaks),
+      },
     }
   },
   // The section holds two readings, each with its own need: the page lists what is missing even beside content.

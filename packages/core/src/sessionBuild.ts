@@ -20,7 +20,6 @@ import type { HeartRateJudge, ZoneTimeCache } from './zones'
 export interface StateInputs {
   digests: ActivityDigest[]
   choice: PeriodChoice
-  gradeTrend: boolean
   isSample: boolean
   periods: PeriodCache
   zoneTimes: ZoneTimeCache
@@ -73,12 +72,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const bikeModel = analysis?.bikeModel
   // All time is not clipped at a start, so its trend begins at the first activity.
   const fromMs = period.days === null ? null : period.startMs
-  // The sample is graded as its own athlete, so its rides carry their equivalents too.
-  const hr = inputs.gradeTrend || inputs.isSample ? judgement.calibration : undefined
   const efforts =
     athlete === null
       ? NO_TRENDS
-      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, hr, judgement.rideGate)
+      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate)
   const sameHeartRate =
     analysis === null
       ? NO_SAME_HEART_RATE
@@ -106,6 +103,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             referenceHr: judgement.referenceHr,
             setAside,
           })
+        : null,
+    change:
+      athlete !== null && bikeModel !== undefined && previous.length > 0
+        ? periods.change(selected, previous, athlete, bikeModel, judgement.rideGate)
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,

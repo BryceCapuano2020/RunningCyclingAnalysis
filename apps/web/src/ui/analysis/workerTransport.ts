@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
-import type { AnalysisResult } from '@rca/core/pipeline'
 import type { WorkerRequest } from '../../worker/protocol'
 import { NOT_SENT, STOPPED } from './copy'
-import type { Box, Pending, SetError, Setter } from './model'
+import type { Baseline, Box, Pending, SetError, Setter } from './model'
 
 /** What a reply needs besides its request: its settle, its baseline and the session it was made in. */
 type PendingEntry = Omit<Pending, 'kind' | 'id' | 'sentAt'>
@@ -45,7 +44,7 @@ export interface WorkerTransport {
     request: WorkerRequest,
     notice?: string,
     settle?: Pending['settle'],
-    baseline?: AnalysisResult | null,
+    baseline?: Baseline | null,
   ) => boolean
   flushUnsent: () => void
   /**
@@ -194,7 +193,7 @@ export function useWorkerTransport({
       request: WorkerRequest,
       notice?: string,
       settle?: Pending['settle'],
-      baseline?: AnalysisResult | null,
+      baseline?: Baseline | null,
     ): boolean => dispatch(request, { notice, settle, baseline, session: sessionEpochRef.current }),
     [dispatch],
   )

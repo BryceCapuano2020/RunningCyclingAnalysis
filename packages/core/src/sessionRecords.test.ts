@@ -81,6 +81,7 @@ describe('AnalysisSession records', () => {
         'period',
         'outdatedActivities',
         'previous',
+        'change',
         'rejected',
         'records',
         'result',

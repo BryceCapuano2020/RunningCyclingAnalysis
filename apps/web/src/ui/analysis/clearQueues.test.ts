@@ -35,6 +35,7 @@ const STATE = {
   walkingPaceRuns: 0,
   trend: [],
   previous: null,
+  change: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
@@ -68,7 +69,7 @@ const SIGNED_IN_B: Account = { status: 'signed-in', me: me('u2') }
 function setup(initial: Account, settings: Settings = SETTINGS) {
   return renderHook(
     ({ account, current }: { account: Account; current: Settings }) =>
-      useAnalysis(current, account, false),
+      useAnalysis(current, account),
     { initialProps: { account: initial, current: settings } },
   )
 }

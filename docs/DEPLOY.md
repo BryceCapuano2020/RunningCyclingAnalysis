@@ -418,6 +418,12 @@ public again for as long as that Worker serves, and drops the account-create and
 post-rollback steps in [PRODUCTION.md](PRODUCTION.md#sign-up-list-worker-secret-allowed_emails). If a migration is the problem, fix forward with a new migration file, following the expand,
 deploy, contract rule in [PRODUCTION.md](PRODUCTION.md#migrations-order-of-operations).
 
+A rollback also changes which reader sees data written after the release. A digest field the older
+Worker, and the web app it serves, does not know is stripped when it reads the row, so the activity is listed without it; a quality
+kind or a record distance it does not know makes it skip the row (`unreadable`), so a release that adds
+one moves the rollback floor in [RELEASES.md](RELEASES.md). See
+[Changing the digest](ENGINEERING.md#changing-the-digest).
+
 ## 13. Delete everything
 
 This is permanent. All accounts, sessions, activity data and any kept files are lost, and nothing

@@ -95,7 +95,7 @@
   line-height: 1.35;
 }
 
-/* The tag says how far to trust the change: solid ink for beyond its range, hollow for an estimate. */
+/* The tag says what the change rests on: a green check for a recording, hollow for an estimate. */
 .balance-changes__tag {
   display: inline-flex;
   align-items: center;
@@ -115,11 +115,6 @@
 .balance-changes__tag svg {
   width: 14px;
   height: 14px;
-}
-
-.balance-changes__tag--beyond {
-  background: var(--selected);
-  color: var(--selected-contrast);
 }
 
 .balance-changes__tag--recorded {

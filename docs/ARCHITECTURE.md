@@ -242,7 +242,8 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    compressed bytes, its inflated bytes and their decoded text. Its inflated bytes count against the
    zip's decompressed-bytes budget, even when the list is malformed. No row may hold more than 256
    cells: a row of commas is a cell per byte, so the byte cap alone does not bound the cells a parse
-   builds.
+   builds. No field may hold more than 64 KiB (65,536 characters); a list with a longer field is
+   malformed, like one with a wider row.
    The first row wins for a file that appears twice. A row with a file and no name is kept, since its
    type still says what the file is. A list that ends inside a quoted field, or has a row of more than
    256 cells, is malformed and is ignored, so it names no files.
@@ -431,8 +432,10 @@ R2 files can be downloaded by the browser to drive that recovery; no database mi
 ## Limits
 
 Service limits (per-account quotas, byte caps, edge rate limits and the deployment-wide R2 budget)
-are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). Analysis limits, meaning what the
-statistics can and cannot show, are in the [README](../README.md#limits).
+are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). What a file, an archive or a digest may
+ask of the importer, and the bounds the one digest reader holds, are in [LIMITS.md](LIMITS.md).
+Analysis limits, meaning what the statistics can and cannot show, are in the
+[README](../README.md#limits).
 
 ## Client bundle
 

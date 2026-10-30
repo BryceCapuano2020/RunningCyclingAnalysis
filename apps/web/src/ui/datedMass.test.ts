@@ -13,6 +13,7 @@ import type { BestEffortInput } from './pages/bestEffortRows'
 import { sportGrade } from './grades'
 import { sportRecords } from './records'
 import { fitRestsOnEstimate } from './thresholdRange'
+import { changeOf } from './charts/changeFixtures'
 
 const baseRide = digestActivity(
   sampleDataset().activities.find((activity) => activity.sport === 'ride')!,
@@ -136,6 +137,8 @@ describe('best-effort change on the period before, with dated body masses', () =
       result: makeResult({ activities: [now], rideCurve: [curvePoint(1200, 300, 'new')] }),
       previous: { runCurve: [], rideCurve: [curvePoint(1200, 270, 'old')] },
       previousLabel: 'Previous 6 weeks',
+      // At one weight the heavier rider's 300 W is a little less, and in watts per kilogram too; without dated weights it is 30 W more.
+      change: changeOf(masses ? 'lower' : 'higher'),
       massKg: 90,
       units: 'metric',
       profile: null,

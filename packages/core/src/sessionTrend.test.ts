@@ -5,7 +5,7 @@ import { AnalysisSession } from './session'
 import { EFFORT_LENGTHS_S } from './digest/trendPoints'
 import { sampleDataset } from './synthetic'
 import { combine, digestActivity, sportCurves } from './digest'
-import { DAY_MS, DEFAULT_BIKE_MODEL, HEADLINE_DURATION_S } from './constants'
+import { DAY_MS, DEFAULT_BIKE_MODEL } from './constants'
 import type { AthleteSettings } from './types'
 import { dayOf } from './customRange'
 
@@ -31,30 +31,6 @@ const EFFORTS = EFFORT_LENGTHS_S.length
 describe('AnalysisSession trend', () => {
   beforeEach(() => {
     fitnessTrend.mockClear()
-  })
-
-  it('gives the headline trend no running equivalents until the session is asked to grade it', () => {
-    const session = new AnalysisSession()
-    session.loadDigests(sampleDigests(), SETTINGS)
-    const plain = session.setRange('all', SETTINGS)
-    const rides = plain.trend.filter((point) => point.rideWkg !== null)
-    expect(rides.length).toBeGreaterThan(0)
-    expect(rides.every((point) => point.rideRunSpeed === null)).toBe(true)
-
-    const graded = session.setGradeTrend(true, SETTINGS)
-    expect(graded.trend.some((point) => point.rideRunSpeed !== null)).toBe(true)
-    // Asked to stop, the trend goes back to plain points.
-    expect(session.setGradeTrend(false, SETTINGS).trend.every((p) => p.rideRunSpeed === null)).toBe(
-      true,
-    )
-  })
-
-  it('gives the sample’s rides running equivalents without being asked, since the sample is graded as its own athlete', () => {
-    const session = new AnalysisSession()
-    const state = session.loadSample(SETTINGS)
-    const rides = state.trend.filter((point) => point.rideWkg !== null)
-    expect(rides.length).toBeGreaterThan(0)
-    expect(rides.some((point) => point.rideRunSpeed !== null)).toBe(true)
   })
 
   it('recomputes the trend for a custom range that holds the same activities from another first day', () => {
@@ -92,19 +68,13 @@ describe('AnalysisSession trend', () => {
   it('computes the trend of a period from windows that stay inside it', () => {
     const session = new AnalysisSession()
     session.loadDigests(sampleDigests(), SETTINGS)
-    session.setGradeTrend(true, SETTINGS)
     const state = session.setRange(42, SETTINGS)
     const digests = sampleDigests()
     const newest = Math.max(...digests.map((digest) => digest.startMs))
     const cutoff = newest - 42 * DAY_MS
     const selected = digests.filter((digest) => digest.startMs >= cutoff)
     expect(state.trend).toEqual(
-      trend.fitnessTrend(selected, SETTINGS, {
-        windowDays: 14,
-        fromMs: cutoff,
-        // The running equivalents read the library's calibration, not the period's own.
-        equivalence: { hr: combine(digests, SETTINGS).hr },
-      }),
+      trend.fitnessTrend(selected, SETTINGS, { windowDays: 14, fromMs: cutoff }),
     )
   })
 
@@ -112,7 +82,6 @@ describe('AnalysisSession trend', () => {
     const session = new AnalysisSession()
     session.loadDigests(sampleDigests(), SETTINGS)
     session.setRange('all', SETTINGS)
-    session.setGradeTrend(true, SETTINGS)
     const computed = fitnessTrend.mock.calls.length
 
     session.setSettings({ ...SETTINGS })
@@ -121,24 +90,18 @@ describe('AnalysisSession trend', () => {
     const state = session.setSettings({ ...SETTINGS, massKg: 80 })
     expect(fitnessTrend.mock.calls.length).toBe(computed + 1 * EFFORTS)
     const changed = { ...SETTINGS, massKg: 80 }
-    expect(state.trend).toEqual(
-      trend.fitnessTrend(sampleDigests(), changed, {
-        equivalence: { hr: combine(sampleDigests(), changed).hr },
-      }),
-    )
+    expect(state.trend).toEqual(trend.fitnessTrend(sampleDigests(), changed))
   })
 
   it('gives the trend of each effort length over the period, with the 20-minute one as trend', () => {
     const session = new AnalysisSession()
     session.loadDigests(sampleDigests(), SETTINGS)
-    session.setGradeTrend(true, SETTINGS)
     const state = session.setRange(42, SETTINGS)
     const digests = sampleDigests()
     const newest = Math.max(...digests.map((digest) => digest.startMs))
     const cutoff = newest - 42 * DAY_MS
     const selected = digests.filter((digest) => digest.startMs >= cutoff)
     const { bikeModel } = combine(selected, SETTINGS)
-    const { hr } = combine(digests, SETTINGS)
     for (const durationS of EFFORT_LENGTHS_S) {
       expect(state.effortTrends[durationS]).toEqual(
         trend.fitnessTrend(selected, SETTINGS, {
@@ -146,8 +109,6 @@ describe('AnalysisSession trend', () => {
           windowDays: 14,
           fromMs: cutoff,
           bikeModel,
-          // Only the headline trend carries the running equivalent.
-          equivalence: durationS === HEADLINE_DURATION_S ? { hr } : undefined,
         }),
       )
     }
@@ -158,17 +119,12 @@ describe('AnalysisSession trend', () => {
     const session = new AnalysisSession()
     session.loadDigests(sampleDigests(), SETTINGS)
     session.setRange('all', SETTINGS)
-    session.setGradeTrend(true, SETTINGS)
     const computed = fitnessTrend.mock.calls.length
 
     const bigger = { ...SETTINGS, bikeMassKg: 12 }
     const state = session.setSettings(bigger)
     expect(fitnessTrend.mock.calls.length).toBe(computed + EFFORT_LENGTHS_S.length)
-    expect(state.trend).toEqual(
-      trend.fitnessTrend(sampleDigests(), bigger, {
-        equivalence: { hr: combine(sampleDigests(), bigger).hr },
-      }),
-    )
+    expect(state.trend).toEqual(trend.fitnessTrend(sampleDigests(), bigger))
   })
 
   it('recomputes when the library changes', () => {

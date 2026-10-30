@@ -11,14 +11,14 @@
 /* About you and Body and bike stand side by side on a wide screen, and stack on a narrow one. */
 .profile-pair {
   display: grid;
-  gap: var(--space-7);
+  gap: var(--section-gap);
   align-items: start;
   min-width: 0;
 }
 
 /* The sections' prose stops at 68 characters, so a line stays readable on a wide screen. */
 .profile-page .section > p {
-  max-width: 68ch;
+  max-width: var(--measure);
 }
 
 /* The width is PROFILE_PAIR_MIN_WIDTH_PX in layoutBreakpoints.ts; change it there and here together. */

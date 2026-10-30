@@ -59,6 +59,7 @@ export function curveMarks(
     units,
     rows,
     previousLabel: view.previous?.label ?? null,
+    change: view.change,
   })
   const calloutDurations =
     cited === null || CALLOUT_DURATIONS_S.includes(cited)

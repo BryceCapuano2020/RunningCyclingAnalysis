@@ -184,10 +184,12 @@ approach the shared allowance; this is a bound on one account, not on the whole 
 - One request scans at most 8 database pages, which keeps it inside D1 Free's 50 queries per invocation
   even when many stored rows are unreadable. A request that hits the cap returns the rows it found, possibly
   none, with a cursor after the last row it examined; clients follow that cursor like any other.
-- Stored digests are read with a lenient schema, `StoredActivityDigestSchema`, by the client. It keeps the
-  field types but not the create-time rules (for example a null duration or a curve off the grid, which older
-  revisions may carry), and it bounds array lengths at four times the create limits. Creates still use the
-  strict schema.
+- Stored digests are read with a lenient view of the one digest reader, `StoredActivityDigestSchema`, by
+  the client. It keeps the field types and the numeric bounds but not the create-time rules (for example a
+  null duration or a curve off the grid, which older revisions may carry), and it bounds array lengths at four
+  times the create limits. It drops a quality kind or a record distance it does not know, so a rollback does
+  not hide the activity. Creates use the strict view. The reader and its bounds are described in
+  [docs/LIMITS.md](../../docs/LIMITS.md#digests).
 
 ## Creates, replace and the database guard
 

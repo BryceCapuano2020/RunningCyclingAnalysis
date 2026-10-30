@@ -80,8 +80,9 @@ shown back, including one after a shallow dip, can be spoken.
    hits; the sample athlete keeps the sample season's own day), and a break of four weeks or more, or fewer than
    four steady runs in eight weeks, makes the status line "not enough recent evidence" without changing the
    monitor's state. The monitor is evaluated at completed week ends only, so a week still going joins at its end.
-4. Known gaps, measured: a seasonal swing of 3% amplitude gives 0.7 alarms an athlete-year (budget 0.4); every
-   nuisance at once about 0.55; a watch or strap change of 3 to 5% reads as a real slip, since the data cannot
+4. Known gaps, measured: its budget is 0.2 alarms an athlete-year on quiet libraries (`alarmBudget`; the family of detectors shares 0.5). A seasonal
+   swing of 3% amplitude is over that budget, a known gap: its simulation holds it to 0.65 an athlete-year, a strap change
+   to 0.5, and the whole registry with season, strap change and spikes together to the same 0.65; a watch or strap change of 3 to 5% reads as a real slip, since the data cannot
    tell them apart.
 5. "Recovering" is a headline claim, so it is held to a stricter bar than a slip. Before tuning, about 1 in 9
    persistent-loss libraries was called recovering within a year and 1 in 3 within 2.5 years (on harness libraries,

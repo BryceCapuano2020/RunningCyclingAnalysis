@@ -10,10 +10,12 @@ import {
   periodDays,
   periodOf,
   sameChoice,
+  sameRegime,
   splitPeriods,
   startedWithin,
   windowEnding,
 } from './period'
+import type { Period } from './period'
 import { sampleDataset } from './synthetic'
 import type { Activity, ActivityDigest, Sport } from './types'
 
@@ -346,5 +348,36 @@ describe('a custom range', () => {
       to: TO,
     })
     expect(periodDays(periodOf([], { from: FROM, to: TO }))).toBeNull()
+  })
+})
+
+describe('sameRegime', () => {
+  const period = (over: Partial<Period>): Period => ({
+    choice: 'default',
+    startMs: 1,
+    endMs: 2,
+    days: DEFAULT_PERIOD_DAYS,
+    fellBack: false,
+    ...over,
+  })
+
+  it('holds for windows of one length, whichever choice named them', () => {
+    expect(sameRegime(period({}), period({ choice: DEFAULT_PERIOD_DAYS }))).toBe(true)
+  })
+
+  it('does not hold between the default window and the all time it falls back to', () => {
+    expect(sameRegime(period({}), period({ days: null, fellBack: true }))).toBe(false)
+  })
+
+  it('holds between two readings of all time, however the choice named it', () => {
+    expect(sameRegime(period({ days: null }), period({ choice: 'all', days: null }))).toBe(true)
+  })
+
+  it('holds for one custom range only', () => {
+    const a = { from: '2025-01-01', to: '2025-02-01' }
+    const b = { from: '2025-01-01', to: '2025-03-01' }
+    expect(sameRegime(period({ choice: a, days: 32 }), period({ choice: a, days: 32 }))).toBe(true)
+    expect(sameRegime(period({ choice: a, days: 32 }), period({ choice: b, days: 60 }))).toBe(false)
+    expect(sameRegime(period({ choice: a, days: 32 }), period({ days: 32 }))).toBe(false)
   })
 })

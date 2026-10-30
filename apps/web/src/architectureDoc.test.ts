@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS } from '@rca/core/fit'
 import { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from '@rca/core/import'
 import { WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES } from './worker/workbenchSchema'
+import { MAX_CSV_FIELD_CHARS } from '@rca/core/import/limits'
 import { readStylesheet } from './ui/components/stylesheet'
 
 /*
@@ -25,6 +26,12 @@ describe('architecture doc states the Strava activity list limits as the code se
 
   it('gives the cell cap per row, which bounds the cells a parse builds', () => {
     expect(doc, HINT).toContain(`more than ${MAX_CSV_CELLS_PER_ROW} cells`)
+  })
+
+  it('gives the field cap, in KiB and in characters', () => {
+    expect(doc).toContain(
+      `more than ${MAX_CSV_FIELD_CHARS / 1024} KiB (${MAX_CSV_FIELD_CHARS.toLocaleString('en-US')} characters)`,
+    )
   })
 
   it('gives the row cap as rows in all', () => {

@@ -1,5 +1,5 @@
 import { PROFILE_DROP_FRACTION } from './constants'
-import { predictionSd } from './predictionSd'
+import { predictionSd, withSpreadAtLeast } from './predictionSd'
 import type { PredictionSd } from './predictionSd'
 
 /** A fitted curve: the value it predicts for a best held for a duration, s. */
@@ -275,5 +275,9 @@ export function fitCurve(points: readonly FitPoint[], pmax: boolean): CurveFit |
     (p) => p.value >= (1 - PROFILE_DROP_FRACTION) * first.predict(p.durationS),
   )
   if (kept.length === points.length || kept.length < minimum) return first
-  return fit(columnsOf(kept)) ?? first
+  const refit = fit(columnsOf(kept))
+  if (refit === null) return first
+  // The points dropped were scatter too, and the curve is judged against the athlete's bests as they are: dropping them
+  // must not tighten the spread a best is held to.
+  return { predict: refit.predict, sd: withSpreadAtLeast(refit.sd, first.sd.spread) }
 }
