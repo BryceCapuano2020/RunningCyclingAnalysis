@@ -8,6 +8,9 @@ import type { Measurement } from '@rca/core/athlete'
  */
 const KEY = 'rca.measurements.v1'
 
+/** The storage key, for a tab that listens for another tab's change to it. */
+export const MEASUREMENTS_KEY = KEY
+
 /** Earliest date first, then by kind and sport, so a list reads the same wherever it came from. */
 export function sortedMeasurements(entries: readonly Measurement[]): Measurement[] {
   return [...entries].sort((a, b) => {
@@ -43,6 +46,15 @@ export function loadMeasurements(): Measurement[] {
     return parseMeasurements(localStorage.getItem(KEY))
   } catch {
     return []
+  }
+}
+
+/** The stored list, or null when the browser will not say (a write then builds on the tab's own copy). */
+export function readStoredMeasurements(): Measurement[] | null {
+  try {
+    return parseMeasurements(localStorage.getItem(KEY))
+  } catch {
+    return null
   }
 }
 
