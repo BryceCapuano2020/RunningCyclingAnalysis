@@ -20,7 +20,7 @@
 }
 
 .splits-table__fastest {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* The Fastest chip sits in its row without making the row taller. */
@@ -117,7 +117,7 @@
   border-color: var(--selected);
   background: var(--selected);
   color: var(--selected-contrast);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .btn.splits-view__choice--active:hover {

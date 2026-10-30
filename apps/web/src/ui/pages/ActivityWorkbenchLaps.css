@@ -42,7 +42,7 @@
   border-color: var(--selected);
   background: var(--selected);
   color: var(--selected-contrast);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .lap-strip__segment.activity-workbench__lap--active::before {

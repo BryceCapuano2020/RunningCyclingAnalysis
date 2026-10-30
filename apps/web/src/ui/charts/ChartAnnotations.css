@@ -13,7 +13,7 @@
 
 .annot__text--eyebrow {
   fill: var(--text-secondary);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
@@ -41,6 +41,7 @@
 
 .annot__unit {
   fill: var(--text-secondary);
+  font-family: var(--font-display);
   font-size: 0.6em;
   font-weight: 700;
 }

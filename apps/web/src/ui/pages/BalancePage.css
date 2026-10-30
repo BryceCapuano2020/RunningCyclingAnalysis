@@ -69,9 +69,8 @@
 }
 
 .balance-hero__title {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: clamp(2.25rem, 5.6vw, 4.25rem);
-  line-height: 0.92;
+  /* A sentence, not a figure: display-1 would run it to three lines on a phone and push the meter off the first screen. */
+  font-size: var(--display-2);
   max-width: 21ch;
 }
 

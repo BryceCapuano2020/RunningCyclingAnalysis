@@ -41,17 +41,15 @@ h3 {
 }
 
 h1 {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: clamp(2.25rem, 6vw, 3.5rem);
+  font-size: var(--display-3);
   font-weight: 800;
-  line-height: 0.95;
+  line-height: var(--lh-display);
   letter-spacing: 0;
   text-wrap: pretty;
 }
 
 h2 {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.5rem;
+  font-size: var(--title);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: 0.01em;

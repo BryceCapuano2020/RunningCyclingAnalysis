@@ -38,7 +38,7 @@
   background: var(--selected);
   border-color: var(--selected);
   color: var(--selected-contrast);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .pager__gap {

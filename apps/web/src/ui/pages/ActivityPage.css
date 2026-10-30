@@ -67,9 +67,9 @@
     gap: var(--space-3);
   }
 
-  /* A display size with no type token; the column is narrower than the page, so the time sets a step smaller. */
+  /* The column is narrower than the page, so the time sets a step smaller. */
   .activity-page__main--detail .activity-page__hero .hero-number {
-    font-size: 3rem;
+    font-size: var(--display-2);
   }
 }
 
@@ -139,7 +139,7 @@
 /* The time is one line at any width: it steps down with the screen rather than wrapping ("3 h 21" over "min"). */
 .activity-page__hero .hero-number {
   white-space: nowrap;
-  font-size: clamp(2.25rem, 12vw, 4.5rem);
+  font-size: var(--display-1);
 }
 
 /*
@@ -296,7 +296,7 @@
   }
 
   .activity-page__main--detail .activity-page__hero .hero-number {
-    font-size: 1.75rem;
+    font-size: var(--display-3);
     line-height: 1.2;
   }
 

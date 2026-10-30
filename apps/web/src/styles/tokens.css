@@ -99,6 +99,19 @@
   --text-xs: 0.75rem;
   /* The 18 px lead size, the one display size a step above the body: lead paragraphs, small headings, tabs. */
   --text-lead: 1.125rem;
+  /*
+   * The display scale (D10): Barlow Condensed for figures and titles, three fluid sizes and two fixed.
+   * One hero figure a view takes display-1; tile and secondary figures take display-2 and never
+   * equal the page's hero; page titles and finding titles take display-3. A heading is never smaller
+   * than the body. Each size reaches its top at a window about 1070, 800 and 900 px wide.
+   */
+  --display-1: clamp(3.5rem, 2rem + 6vw, 6rem);
+  --display-2: clamp(2.25rem, 1.5rem + 3vw, 3rem);
+  --display-3: clamp(1.75rem, 1.4rem + 1.5vw, 2.25rem);
+  --title: 1.5rem;
+  --heading: 1.25rem;
+  /* The display line height, set once in .display; forced colours takes 1 so a chip beside it is clear. */
+  --lh-display: 0.95;
   /* The phone's tab labels are set a touch loose, so four of them fit a 360 px bar. */
   --tracking-tab: 0.02em;
   /* Eyebrows, chips and the capitals of the tabs share one tracking. */
