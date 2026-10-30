@@ -3,49 +3,29 @@ import { describe, expect, it } from 'vitest'
 import { schema } from '../db/schema.ts'
 import { systemDeps } from '../deps.ts'
 import { testEnv } from '../test/harness.ts'
-import { GOOGLE_PROVIDER, signInWithGoogle } from './accounts.ts'
+import { GOOGLE_PROVIDER } from './accounts.ts'
 import type { GoogleProfile } from './google.ts'
+import { signInWithGoogle } from './signIn.ts'
+import { signupGate } from './signupGate.ts'
 
-const LINK_STATEMENT = 'INSERT INTO oauth_accounts'
+/** Development on this machine, with no list: every verified address may create an account. */
+const openGate = () => signupGate(testEnv(), 'http://localhost/')
 
 /**
- * Wraps a D1 binding so that every statement which links a Google identity waits for `beforeLink`
- * before it runs. Lets a test order two sign-in callbacks without relying on timing.
+ * Wraps a D1 binding so that each call to `batch` waits at `beforeBatch` first. Lets a test hold
+ * two sign-in callbacks after they have read and before either writes, without relying on timing.
  */
-function gateLinks(target: D1Database, beforeLink: () => Promise<void>): D1Database {
-  const gateRun = (bound: D1PreparedStatement): D1PreparedStatement =>
-    new Proxy(bound, {
-      get(obj, prop) {
-        const value: unknown = Reflect.get(obj, prop, obj)
-        if (prop === 'run' || prop === 'all' || prop === 'first' || prop === 'raw') {
-          if (typeof value !== 'function') return value
-          return async (...args: unknown[]) => {
-            await beforeLink()
-            return Reflect.apply(value, obj, args)
-          }
-        }
-        return typeof value === 'function' ? value.bind(obj) : value
-      },
-    })
+function gateBatches(target: D1Database, beforeBatch: () => Promise<void>): D1Database {
   return new Proxy(target, {
     get(obj, prop) {
       const value: unknown = Reflect.get(obj, prop, obj)
-      if (prop !== 'prepare' || typeof value !== 'function') {
-        return typeof value === 'function' ? value.bind(obj) : value
+      if (prop === 'batch' && typeof value === 'function') {
+        return async (...args: unknown[]) => {
+          await beforeBatch()
+          return Reflect.apply(value, obj, args)
+        }
       }
-      return (sql: string) => {
-        const statement: D1PreparedStatement = Reflect.apply(value, obj, [sql])
-        if (!sql.includes(LINK_STATEMENT)) return statement
-        return new Proxy(statement, {
-          get(stmt, method) {
-            const member: unknown = Reflect.get(stmt, method, stmt)
-            if (method !== 'bind' || typeof member !== 'function') {
-              return typeof member === 'function' ? member.bind(stmt) : member
-            }
-            return (...params: unknown[]) => gateRun(Reflect.apply(member, stmt, params))
-          },
-        })
-      }
+      return typeof value === 'function' ? value.bind(obj) : value
     },
   })
 }
@@ -64,61 +44,93 @@ async function linkedUserIds(sub: string): Promise<string[]> {
   return results.map((row) => row.user_id)
 }
 
+async function userCount(): Promise<number> {
+  const row = await testEnv().DB.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>()
+  return row?.n ?? 0
+}
+
 describe('signInWithGoogle identity links', () => {
   it('never re-links a Google identity that is already linked to another user', async () => {
     const db = drizzle(testEnv().DB, { schema })
     const owner = await signInWithGoogle(
       db,
       systemDeps,
-      profileFor('sub-owner', 'owner@example.com'),
+      profileFor('sub-owner', 'owner@example.test'),
+      openGate(),
     )
-    await signInWithGoogle(db, systemDeps, profileFor('sub-other', 'other@example.com'))
+    await signInWithGoogle(
+      db,
+      systemDeps,
+      profileFor('sub-other', 'other@example.test'),
+      openGate(),
+    )
 
     const again = await signInWithGoogle(
       db,
       systemDeps,
-      profileFor('sub-owner', 'other@example.com'),
+      profileFor('sub-owner', 'other@example.test'),
+      openGate(),
     )
 
     expect(again.id).toBe(owner.id)
     expect(await linkedUserIds('sub-owner')).toEqual([owner.id])
   })
 
-  it('keeps an identity with the user that linked it first when two callbacks race', async () => {
+  it('keeps an identity with the user that linked it first when two callbacks race, and leaves no orphan user', async () => {
     const env = testEnv()
-    const firstProfile = profileFor('shared-sub', 'first@example.com')
-    const secondProfile = profileFor('shared-sub', 'second@example.com')
+    // Both callbacks read before either writes: the same subject, two different addresses.
+    let arrivals = 0
+    let release!: () => void
+    const bothArrived = new Promise<void>((resolve) => (release = resolve))
+    const barrier = async () => {
+      arrivals += 1
+      if (arrivals === 2) release()
+      await bothArrived
+    }
+    const run = (email: string) =>
+      signInWithGoogle(
+        drizzle(gateBatches(env.DB, barrier), { schema }),
+        systemDeps,
+        profileFor('shared-sub', email),
+        openGate(),
+      )
 
-    let secondAtLink!: () => void
-    const secondReady = new Promise<void>((resolve) => (secondAtLink = resolve))
-    let firstFinished!: () => void
-    const firstDone = new Promise<void>((resolve) => (firstFinished = resolve))
+    const [first, second] = await Promise.all([
+      run('first@example.test'),
+      run('second@example.test'),
+    ])
 
-    // Both callbacks finish their lookups before either links. The first to link wins; the second
-    // must then resolve to that same user, not take the identity over.
-    const firstRun = signInWithGoogle(
-      drizzle(
-        gateLinks(env.DB, () => secondReady),
-        { schema },
-      ),
-      systemDeps,
-      firstProfile,
-    )
-    void firstRun.finally(() => firstFinished()).catch(() => undefined)
-    const secondRun = signInWithGoogle(
-      drizzle(
-        gateLinks(env.DB, async () => {
-          secondAtLink()
-          await firstDone
-        }),
-        { schema },
-      ),
-      systemDeps,
-      secondProfile,
-    )
-
-    const [first, second] = await Promise.all([firstRun, secondRun])
     expect(second.id).toBe(first.id)
     expect(await linkedUserIds('shared-sub')).toEqual([first.id])
+    // The loser's batch rolled back whole, so its user row was never created.
+    expect(await userCount()).toBe(1)
+  })
+
+  it('creates the user and its link together or not at all', async () => {
+    const env = testEnv()
+    // A link for the subject appears between the reads and the batch, as a concurrent callback's would.
+    const db = drizzle(
+      gateBatches(env.DB, async () => {
+        await env.DB.batch([
+          env.DB.prepare(
+            'INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)',
+          ).bind('winner', 'winner@example.test', 'Winner', 1),
+          env.DB.prepare(
+            'INSERT INTO oauth_accounts (provider, provider_user_id, user_id) VALUES (?, ?, ?)',
+          ).bind(GOOGLE_PROVIDER, 'sub-contested', 'winner'),
+        ])
+      }),
+      { schema },
+    )
+
+    const signedIn = await signInWithGoogle(
+      db,
+      systemDeps,
+      profileFor('sub-contested', 'loser@example.test'),
+      openGate(),
+    )
+
+    expect(signedIn.id).toBe('winner')
+    expect(await userCount()).toBe(1)
   })
 })

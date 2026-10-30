@@ -13,6 +13,12 @@ export interface Bindings {
   APP_URL: string
   GOOGLE_CLIENT_ID: string
   GOOGLE_CLIENT_SECRET: string
+  /**
+   * Worker secret: the email addresses that may create a new account, comma separated and
+   * case-insensitive. Unset or blank closes sign-up outside local development; existing accounts
+   * sign in whatever it holds. Never set in the repository (see docs/PRODUCTION.md).
+   */
+  ALLOWED_EMAILS?: string
   /** HMAC key for session cookies. Worker secret in production; fixed in .dev.vars.example. */
   SESSION_SIGNING_KEY: string
   /** Cloudflare edge bindings; required outside local development. */
@@ -22,7 +28,8 @@ export interface Bindings {
   HEALTH_RATE_LIMITER?: RateLimit
 }
 
-export type Db = DrizzleD1Database<typeof schema>
+/** Drizzle over D1, with the raw binding for batches and statements Drizzle cannot express. */
+export type Db = DrizzleD1Database<typeof schema> & { $client: D1Database }
 
 export interface Variables {
   deps: Deps

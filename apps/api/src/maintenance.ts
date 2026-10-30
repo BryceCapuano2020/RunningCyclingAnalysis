@@ -2,6 +2,7 @@ import type { Bindings } from './env.ts'
 import type { Deps } from './deps.ts'
 import { finishAccountDeletion } from './accountDeletion.ts'
 import { pruneDailyBudget, pruneUploadSlots } from './budget.ts'
+import { pruneIdentityBudget } from './identityBudget.ts'
 import { SESSION_ABSOLUTE_MS } from './auth/session.ts'
 import { recordDatabaseSize, reserveR2Operation } from './storage.ts'
 
@@ -61,7 +62,10 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   }
   const sessions = expired?.meta.changes ?? 0
   const slots = await within(0, () => pruneUploadSlots(bound.DB, now))
-  const budgetRows = await within(0, () => pruneDailyBudget(bound.DB, now))
+  // Daily rows, and the counts a deleted account left under its identity code, count together.
+  const budgetRows =
+    (await within(0, () => pruneDailyBudget(bound.DB, now))) +
+    (await within(0, () => pruneIdentityBudget(bound.DB, now)))
   const { finished, failed } = await finishPendingDeletions(bound, deps)
   const orphansDeleted = bound.FILES ? await sweepOrphanObjects(bound, deps) : 0
   return {

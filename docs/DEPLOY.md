@@ -180,9 +180,19 @@ GitHub Actions environment secret. The first deploy that verifies signed session
 invalidate all existing unsigned session cookies, so every user will need to sign in again. D1
 session rows may remain until their normal expiry and cleanup.
 
+New accounts need an address on the sign-up list. Set it before the first deploy that carries the list
+(see [PRODUCTION.md](PRODUCTION.md#sign-up-list-worker-secret-allowed_emails)):
+
+```bash
+npx wrangler secret put ALLOWED_EMAILS
+```
+
+Paste the addresses of the people who may create an account, comma separated. Without it nobody new can sign
+up in production; people who already have an account still sign in.
+
 Both `npm run deploy` and the production workflow check the names of `GOOGLE_CLIENT_ID`,
-`GOOGLE_CLIENT_SECRET` and `SESSION_SIGNING_KEY` with `wrangler secret list` before deploying or
-applying migrations. The check never prints secret values. This confirms the names exist, not that
+`GOOGLE_CLIENT_SECRET`, `SESSION_SIGNING_KEY` and `ALLOWED_EMAILS` with `wrangler secret list` before
+deploying or applying migrations. The check never prints secret values. This confirms the names exist, not that
 the values work; the smoke test does not exercise an OAuth callback.
 
 ## 7. Set APP_URL and deploy again
@@ -403,7 +413,9 @@ The Deploy workflow rolls back only when its smoke test fails and
 was configured and fails. A rollback changes only Worker code. It does not undo database migrations
 or newer data. A Worker version deployed before signed cookies and deletion tombstones existed cannot
 safely serve the current schema and cannot read signed session cookies, so do not use it as a
-rollback target. If a migration is the problem, fix forward with a new migration file, following the expand,
+rollback target. A rollback to a Worker from before the sign-up list (`ALLOWED_EMAILS`) makes sign-up
+public again for as long as that Worker serves, and drops the account-create and session caps; follow the
+post-rollback steps in [PRODUCTION.md](PRODUCTION.md#sign-up-list-worker-secret-allowed_emails). If a migration is the problem, fix forward with a new migration file, following the expand,
 deploy, contract rule in [PRODUCTION.md](PRODUCTION.md#migrations-order-of-operations).
 
 ## 13. Delete everything

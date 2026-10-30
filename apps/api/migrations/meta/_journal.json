@@ -71,6 +71,13 @@
       "when": 1793214879937,
       "tag": "0009_athlete_measurements",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793369532341,
+      "tag": "0010_signup_safety_list_index",
+      "breakpoints": true
     }
   ]
 }

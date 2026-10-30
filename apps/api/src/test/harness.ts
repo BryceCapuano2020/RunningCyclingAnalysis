@@ -69,6 +69,7 @@ export async function resetTestEnv(): Promise<void> {
       'profiles',
       'users',
       'daily_budget',
+      'identity_budget',
       'upload_slots',
       'pending_account_deletions',
       'r2_storage_budget',

@@ -137,7 +137,8 @@
           <strong>Sign-in sessions:</strong> a one-way hash of your session token, your account, and
           its creation and expiry times. The token stays in your browser, in a sign-in cookie that
           lasts until your session ends. Sessions end up to 30 days after last use, and at most 90
-          days after they were created. Expired sessions are removed in daily cleanup.
+          days after they were created. At most ten are kept; signing in again ends the oldest.
+          Expired sessions are removed in daily cleanup.
         </li>
         <li>
           <strong>Profile settings:</strong> weight, bike and gear weight, units, whether you keep
@@ -163,12 +164,16 @@
         <li>
           <strong>Daily counts:</strong> per account, downloads, saves, deletions, uploads, profile
           changes, dated-setting changes and library reads, kept about a week, up to eight UTC days.
+          When you create or delete an account, a one-way code made from your Google ID with a
+          server key is written beside the number of accounts that ID has created today and, on
+          deletion, that day's counts. These are kept about two days. They hold no name, email or
+          activity, and stop deleting an account and signing up again the same day from resetting
+          the counts.
         </li>
         <li>
           <strong>Bookkeeping:</strong> activity IDs, a key from each activity's sport and start,
-          digest versions, your activity count and digest bytes, the library page cursor, whether
-          and when deletion started, when your profile last changed, and an upload reservation token
-          while a file uploads.
+          digest versions, your activity count and digest bytes, whether and when deletion started,
+          when your profile last changed, and an upload reservation token while a file uploads.
         </li>
       </ul>
       <p>

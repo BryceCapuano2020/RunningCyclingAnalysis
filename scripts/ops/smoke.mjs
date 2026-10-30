@@ -42,8 +42,10 @@ function expect(condition, message) {
 
 /**
  * The checks run against the live origin. Each one throws with a short, non-sensitive reason. They
- * are all GET requests with no body: no mutating requests (the deep health check reserves a row in its
- * own budget). `expectSha` is the commit the deploy was built from, full or short; when given,
+ * are GET requests with no body, with one exception: the dev-login gate check posts an empty object,
+ * which cannot change anything in either state (a closed gate answers 404 before reading it, an open
+ * one answers 400 because the object is not a login). The deep health check reserves a row in its own
+ * budget. `expectSha` is the commit the deploy was built from, full or short; when given,
  * /api/health must report a build id and it must match. Without it a missing build id is a warning, so
  * the smoke test still passes against a Worker that predates the id, as after a rollback.
  */
@@ -148,6 +150,22 @@ export function smokeChecks(origin, appUrl, expectSha) {
         expect(
           res.status === 200 && body === 'null',
           `expected 200 with a null body, got ${res.status} ${body.slice(0, 80)}`,
+        )
+      },
+    },
+    {
+      name: 'dev-login is not served: POST /api/auth/dev-login with an empty object answers 404',
+      run: async (fetchImpl) => {
+        const res = await fetchImpl(new URL('/api/auth/dev-login', origin), {
+          method: 'POST',
+          redirect: 'manual',
+          headers: { 'content-type': 'application/json', 'x-rca-client': 'web' },
+          body: '{}',
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        })
+        expect(
+          res.status === 404,
+          `dev-login answered ${res.status}, expected 404: dev-login is being served, so the local-development gate is open on this origin`,
         )
       },
     },

@@ -25,7 +25,7 @@ describe('contract limits', () => {
 
   it('pins the per-user daily budgets', () => {
     expect(limits.DAILY_LIMITS).toEqual({
-      fileDownload: 50,
+      fileDownload: 5000,
       profileWrite: 50,
       activityDelete: 50,
       activityCreate: 5000,
@@ -38,6 +38,20 @@ describe('contract limits', () => {
 
   it('lets one day create as many activities as a library may hold', () => {
     expect(limits.DAILY_LIMITS.activityCreate).toBe(limits.MAX_ACTIVITIES_PER_USER)
+  })
+
+  it('lets one day rebuild the largest library from its originals', () => {
+    expect(limits.DAILY_LIMITS.fileDownload).toBe(limits.MAX_ACTIVITIES_PER_USER)
+  })
+
+  it('pins the list meter, the session cap and the account-create cap', () => {
+    expect(limits.LIST_ROWS_PER_DAY).toBe(200_000)
+    expect(limits.MAX_SESSIONS_PER_USER).toBe(10)
+    expect(limits.MAX_ACCOUNT_CREATES_PER_DAY).toBe(5)
+  })
+
+  it('lets a day of listing cover dozens of cold loads of the largest library', () => {
+    expect(limits.LIST_ROWS_PER_DAY / limits.MAX_ACTIVITIES_PER_USER).toBeGreaterThanOrEqual(40)
   })
 
   it('pins the most dated settings a user may keep', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { DAILY_LIMITS, MAX_STORED_BYTES_PER_USER } from '@rca/contract'
+import { DAILY_LIMITS, LIST_ROWS_PER_DAY, MAX_STORED_BYTES_PER_USER } from '@rca/contract'
+import { chargeDaily } from './budget.ts'
 import { createHarness, digestFixture, START, testEnv } from './test/harness.ts'
 import { sha256Hex } from './util.ts'
 
@@ -371,4 +372,62 @@ describe('stored-bytes quota with the daily upload budget', () => {
     expect(res.status).toBe(403)
     expect(await res.json()).toMatchObject({ error: { code: 'storage_quota' } })
   })
+})
+
+describe('chargeDaily with an amount', () => {
+  const LIST_ROWS = 'listRows' as const
+
+  it('takes the amount in one step and refuses when the day cannot cover it', async () => {
+    const h = createHarness()
+    const uid = await userId(h, await h.signIn())
+    const db = h.env.DB
+    await chargeDaily(db, uid, LIST_ROWS, START, LIST_ROWS_PER_DAY - 90)
+    await chargeDaily(db, uid, LIST_ROWS, START, 90)
+    expect(await usedOf(h, uid, LIST_ROWS)).toBe(LIST_ROWS_PER_DAY)
+    await expect(chargeDaily(db, uid, LIST_ROWS, START, 1)).rejects.toMatchObject({
+      status: 429,
+      code: 'daily_limit',
+    })
+  })
+
+  it('does not take part of an amount it cannot cover', async () => {
+    const h = createHarness()
+    const uid = await userId(h, await h.signIn())
+    await setUsed(h, uid, LIST_ROWS, LIST_ROWS_PER_DAY - 50)
+    await expect(chargeDaily(h.env.DB, uid, LIST_ROWS, START, 90)).rejects.toMatchObject({
+      code: 'daily_limit',
+    })
+    expect(await usedOf(h, uid, LIST_ROWS)).toBe(LIST_ROWS_PER_DAY - 50)
+  })
+
+  it('never admits more than the limit among simultaneous charges', async () => {
+    const h = createHarness()
+    const uid = await userId(h, await h.signIn())
+    const results = await Promise.allSettled(
+      Array.from({ length: 12 }, () => chargeDaily(h.env.DB, uid, 'profileWrite', START, 7)),
+    )
+    const admitted = results.filter((r) => r.status === 'fulfilled').length
+    expect(admitted).toBe(Math.floor(DAILY_LIMITS.profileWrite / 7))
+    expect(await usedOf(h, uid, 'profileWrite')).toBe(admitted * 7)
+  })
+
+  it('refunds the whole amount, and never below zero', async () => {
+    const h = createHarness()
+    const uid = await userId(h, await h.signIn())
+    const charge = await chargeDaily(h.env.DB, uid, LIST_ROWS, START, 90)
+    await charge.refund()
+    await charge.refund()
+    expect(await usedOf(h, uid, LIST_ROWS)).toBe(0)
+  })
+
+  it.each([0, -1, 1.5, LIST_ROWS_PER_DAY + 1])(
+    'refuses the amount %j as a programming error',
+    async (amount) => {
+      const h = createHarness()
+      const uid = await userId(h, await h.signIn())
+      await expect(chargeDaily(h.env.DB, uid, LIST_ROWS, START, amount)).rejects.toBeInstanceOf(
+        RangeError,
+      )
+    },
+  )
 })

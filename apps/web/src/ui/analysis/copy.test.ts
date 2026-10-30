@@ -1,5 +1,5 @@
-import { DAILY_LIMITS } from '@rca/contract'
 import type { Copy } from '@rca/core/session'
+import { LIST_ROWS_LIMIT_MESSAGE } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
 import {
   addedSentence,
@@ -170,7 +170,7 @@ describe('limitedSentence', () => {
   it('names the daily download limit and its reset on a daily limit', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitedSentence(1, 'daily', resetsAt)).toBe(
-      `1 activity was not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+      `1 activity was not updated because today's limit on downloads (5,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -186,7 +186,7 @@ describe('limitedSentence', () => {
   it('groups a count of a thousand or more on a daily limit', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitedSentence(1204, 'daily', resetsAt)).toBe(
-      `1,204 activities were not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+      `1,204 activities were not updated because today's limit on downloads (5,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -226,6 +226,14 @@ describe('exportFailureText', () => {
   it('reports a daily read limit with its reset', () => {
     expect(exportFailureText({ type: 'error', message: 'x', issue: 'daily-limit' })).toMatch(
       /^You have reached today's limit on library loads \(\d+ per day\)\. It resets at .*, your time\.$/,
+    )
+  })
+
+  it('names the rows allowance when the server refused a page of rows part way through', () => {
+    expect(
+      exportFailureText({ type: 'error', message: LIST_ROWS_LIMIT_MESSAGE, issue: 'daily-limit' }),
+    ).toMatch(
+      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. It resets at .*, your time\.$/,
     )
   })
 

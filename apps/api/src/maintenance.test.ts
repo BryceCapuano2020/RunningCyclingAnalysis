@@ -123,6 +123,23 @@ describe('scheduled maintenance', () => {
     expect(days.results.map((r) => r.day)).toEqual(['2026-01-08', '2026-01-15'])
   })
 
+  it('also prunes the counts a deleted account left under its identity code, from before yesterday', async () => {
+    const h = createHarness()
+    await h.env.DB.batch(
+      ['2026-01-13', '2026-01-14', '2026-01-15'].map((day) =>
+        h.env.DB.prepare(
+          "INSERT INTO identity_budget (identity_key, day, action, used) VALUES ('k', ?, 'fileUpload', 1)",
+        ).bind(day),
+      ),
+    )
+    const report = await runMaintenance(h.env, at(START))
+    expect(report.budgetRows).toBe(1)
+    const days = await h.env.DB.prepare('SELECT day FROM identity_budget ORDER BY day').all<{
+      day: string
+    }>()
+    expect(days.results.map((r) => r.day)).toEqual(['2026-01-14', '2026-01-15'])
+  })
+
   it('sweeps R2 objects that have no matching row once they are older than the grace period', async () => {
     const h = createHarness()
     const token = await h.signIn()

@@ -1,7 +1,7 @@
 import { formatCount } from '../format/count'
 import { DAILY_LIMITS } from '@rca/contract'
 import type { DeviceIssue, SavedActivity, WorkerResponse } from '../../worker/protocol'
-import { limitReached, resetSentence } from '../limitCopy'
+import { limitReached, listingLimitReached, resetSentence } from '../limitCopy'
 import type { AccountStatus } from '../useAccount'
 import { formatDay, formatDayMonth, formatMonth } from '../format/date'
 import type { ImportSummary } from '../../worker/importSummary'
@@ -159,7 +159,7 @@ export function deleteNoticeText(activity: SavedActivity | undefined): string {
 
 export function exportFailureText(message: ErrorReply): string {
   return message.issue === 'daily-limit'
-    ? limitReached('read')
+    ? listingLimitReached(message.message)
     : `Could not download your data. ${message.message}`
 }
 
