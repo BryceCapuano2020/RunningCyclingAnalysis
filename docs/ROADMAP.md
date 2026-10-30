@@ -20,7 +20,10 @@ Decided on 30 Oct 2026:
   the fitness status is read at each import.
 - **The MCP server waits for a checked-findings store** (an evidence ledger in core with provenance),
   so it serves calibrated findings rather than raw summaries.
-- Same-route, swimming, lifting, the local originals store and the module registry come later.
+- **Lifting is the third dimension, after running and cycling.** It is the next discipline after
+  stage D (stage E: the discipline registry, Hevy CSV import, an in-app logger and an interference
+  analysis against runs and rides), ahead of swimming.
+- Same-route, swimming, the local originals store and the module registry come later.
 
 ## Phase 1: Foundations
 
@@ -43,19 +46,19 @@ one week and 42 days; all time uses 42 days (PR #17).
   8 weeks". Research: [evolving-capability.md](research/evolving-capability.md) and
   [capability-from-field-data.md](research/capability-from-field-data.md).
 
-## Phase 3: Swimming
-
-- **Pool swims from FIT.** Lengths, laps and pool size.
-- **Critical swim speed** from ordinary swims, freestyle first. Research:
-  [swimming.md](research/swimming.md).
-
-## Phase 4: Strength
+## Phase 3: Strength, the third dimension
 
 - **Lifting logs** from manual entry, common app CSV exports and FIT strength sets. Hevy CSV import
   comes first (stage E), with an interference analysis against runs and rides.
 - **Estimated one-rep max per lift**, with an interval, relative to body mass on the lift's date.
   It keeps its own units and is not placed on a shared axis with energy rate. Research:
   [strength.md](research/strength.md).
+
+## Phase 4: Swimming
+
+- **Pool swims from FIT.** Lengths, laps and pool size.
+- **Critical swim speed** from ordinary swims, freestyle first. Research:
+  [swimming.md](research/swimming.md).
 
 ## Phase 5: Profile
 
@@ -93,7 +96,7 @@ one week and 42 days; all time uses 42 days (PR #17).
 
 ## Input formats
 
-1. **CSV.** Strava CSV summaries, and the lifting CSV exports used in Phase 4 (Hevy first).
+1. **CSV.** Strava CSV summaries, and the lifting CSV exports used in Phase 3 (Hevy first).
    Strava sync through its API is off the plan (see above).
 2. **Apple Health export.** Workouts and dated body mass, parsed with the streaming XML scanner in
    `packages/core/src/xml`.
