@@ -1,33 +1,26 @@
-import { digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import type { ExtractLimits } from './fit'
 import { countImportFiles } from './import/activitiesCsv'
-import type { Considered, ImportProgress, ReadFile, Refused } from './sessionSource'
+import type { ImportProgress, ReadFile, Refused } from './sessionSource'
 import { importSource, sortRead } from './sessionSource'
 import { DEFAULT_ATHLETE, SAMPLE_CLOCK } from './synthetic'
 import { seasonDigests } from './sessionSample'
 import type { SampleClock } from './synthetic'
 import { requirePositiveFinite } from './math'
-import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
+import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
+import { dedupeKey, hiddenDigests } from './duplicates'
 import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
-import {
-  countIssues,
-  NETWORK_FAILURES_BEFORE_PROBE,
-  NETWORK_PROBE_DELAY_MS,
-  networkStreakAfter,
-  stopsSaving,
-  SyncFailure,
-} from './saveFailure'
+import { countIssues } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
-import { noteKept } from './sessionHooks'
+import { considerActivity } from './sessionKeep'
+import type { KeepState } from './sessionKeep'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
-import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
+import type { SaveBatch, SyncSink } from './sessionSync'
 import { RecordsCache } from './sessionRecords'
 import { zonesAt, HeartRateJudge, ZoneTimeCache } from './zones'
 import type { ZoneSet } from './zones'
@@ -56,6 +49,14 @@ export class AnalysisSession {
   private latestUnsynced = new Set<string>()
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
+  // The same maps, as sessionKeep.ts reads them.
+  private keeping: KeepState = {
+    digests: this.digests,
+    unsynced: this.unsynced,
+    latestUnsynced: this.latestUnsynced,
+    outdatedKeys: this.outdatedKeys,
+    incompatibleKeys: this.incompatibleKeys,
+  }
   // The files the last import refused, each listed as it was refused, and how many it left unread
   // for being in a format the app does not read. Both are replaced by the next import.
   private rejected: Refused[] = []
@@ -123,7 +124,7 @@ export class AnalysisSession {
         unsupported: this.unsupported,
         hashFiles: sink !== undefined,
         consider: (activity, file) =>
-          this.consider(activity, file, sink, syncExisting, batch, listeners),
+          considerActivity(this.keeping, activity, file, sink, syncExisting, batch, listeners),
       })
     }
     // Only digests still visible count as added, so the order the files arrive in does not matter.
@@ -234,113 +235,6 @@ export class AnalysisSession {
   clear(): SessionState {
     this.reset()
     return this.state(null)
-  }
-
-  /**
-   * Keeps one activity of an import, unless a richer copy of the same workout is already held. That
-   * copy is not synced. Equally rich copies are both saved, and the analysis hides one of them. A
-   * poorer copy is saved but hidden from the analysis. Says what became of the activity: the digest
-   * it added, or the name of the held file when its workout was already in the library, whether this
-   * is a copy, the same file again or a richer copy that replaces the held one. The listeners hear of
-   * the activity when it is kept, or when it is the held file again, never of another skipped copy.
-   */
-  private async consider(
-    activity: Activity,
-    file: ImportedFile,
-    sink: SyncSink | undefined,
-    syncExisting: boolean,
-    batch: SaveBatch,
-    listeners?: ActivityListeners,
-  ): Promise<Considered> {
-    const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
-    if (copyOf !== null) return { held: copyOf }
-    return this.keep(activity, file, sink, syncExisting, batch, listeners)
-  }
-
-  /**
-   * Digests one parsed activity and hands it to the sink. An activity already held and saved is left alone
-   * unless syncExisting requests a sink call for it (for example, to retain an original after that preference
-   * is enabled). A copy that outranks the held one for the same start second replaces it. A sink failure is
-   * counted, not thrown. After a failure that stops saving, the rest of the batch is digested but not sent.
-   * A held activity whose save failed is not yet in the library for good: it is added when this import saves
-   * it, and is otherwise still the held workout, however it came to be left unsaved.
-   */
-  private async keep(
-    activity: Activity,
-    file: ImportedFile,
-    sink: SyncSink | undefined,
-    syncExisting: boolean,
-    batch: SaveBatch,
-    listeners?: ActivityListeners,
-  ): Promise<Considered> {
-    const key = dedupeKey(activity.sport, activity.startMs)
-    const held = this.digests.get(key)
-    const replaces = held !== undefined && outranksHeld(activity, file.fileName, held)
-    if (
-      held !== undefined &&
-      !replaces &&
-      (sink === undefined || (!this.unsynced.has(key) && !syncExisting))
-    ) {
-      // The same file again restores a recording that went missing; any other copy is only skipped.
-      await noteKept(activity, held, held, listeners)
-      return { held: fileNameOf(held.id) }
-    }
-    // A workout this import is adding, or has added: new to the library, or a later copy of one.
-    const adding = held === undefined || batch.added.has(key)
-    const retry = !adding && this.unsynced.has(key)
-    const digest = held !== undefined && !replaces ? held : digestActivity(activity)
-    this.digests.set(key, digest)
-    if (adding) batch.added.set(key, digest)
-    this.outdatedKeys.delete(key)
-    this.incompatibleKeys.delete(key)
-    // A replacing copy is swapped in only once the sink answers: the server may refuse it (409) and keep its own.
-    const swapAfterSink = replaces && sink !== undefined && batch.halt === null
-    if (!swapAfterSink) await noteKept(activity, digest, held, listeners)
-    const considered = (saved: boolean): Considered => {
-      if (retry && saved) batch.added.set(key, digest)
-      return adding || (retry && saved) || held === undefined
-        ? { added: digest }
-        : { held: fileNameOf(held.id) }
-    }
-    if (sink === undefined) return considered(false)
-    if (batch.halt !== null) {
-      // An activity already saved, offered again to keep its file, is not waiting for a save.
-      if (held === undefined || replaces || this.unsynced.has(key)) {
-        this.leaveUnsynced(key, batch.halt)
-      }
-      return considered(false)
-    }
-    // After a run of network failures the next save is a probe, sent once the outage has had a moment
-    // to pass. If it fails too the network is down and the saves stop; if not, the import carries on.
-    const probing = batch.networkStreak >= NETWORK_FAILURES_BEFORE_PROBE
-    if (probing) await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
-    try {
-      await sink({ digest, route: activity.route, ...file })
-      this.unsynced.delete(key)
-      batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
-    } catch (error) {
-      const code = error instanceof SyncFailure ? error.code : 'server'
-      this.leaveUnsynced(key, code)
-      // The server answered when only the original file failed to upload, so the network is up.
-      const answered = error instanceof SyncFailure && error.digestSaved
-      batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
-      if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
-      if (swapAfterSink && code === 'activity-conflict') {
-        // The server keeps the copy it holds, so the screen keeps it too, as a reload would show it.
-        this.digests.set(key, held)
-        if (adding) batch.added.set(key, held)
-        return adding ? { added: held } : { held: fileNameOf(held.id) }
-      }
-      if (swapAfterSink) await noteKept(activity, digest, held, listeners)
-      return considered(false)
-    }
-    if (swapAfterSink) await noteKept(activity, digest, held, listeners)
-    return considered(true)
-  }
-
-  private leaveUnsynced(key: string, code: SyncIssueCode): void {
-    this.unsynced.set(key, code)
-    this.latestUnsynced.add(key)
   }
 
   /** The run splits of a held activity, for its activity page. Null when it has none or is not held. */
