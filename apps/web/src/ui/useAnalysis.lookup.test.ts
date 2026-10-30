@@ -10,29 +10,11 @@ import type { Me } from '@rca/contract'
 import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
+import { FakeWorker } from '../test/fakeWorker'
 import { setKeptLibraryHinted } from './analysis/keptLibrary'
 import { EMPTY_PERIOD } from './analysis/model'
 import type { AccountStatus } from './useAccount'
 import { DEVICE_GRACE_MS, useAnalysis } from './useAnalysis'
-
-/** A Worker that records what the hook posts and lets the test send replies. */
-class FakeWorker {
-  static instances: FakeWorker[] = []
-  onmessage: ((event: MessageEvent<WorkerResponse>) => void) | null = null
-  onerror: ((event: ErrorEvent) => void) | null = null
-  posted: WorkerRequest[] = []
-  constructor() {
-    FakeWorker.instances.push(this)
-  }
-  postMessage(request: WorkerRequest) {
-    this.posted.push(request)
-  }
-  terminate() {}
-  reply(data: WorkerResponse) {
-    this.onmessage?.({ data } as MessageEvent<WorkerResponse>)
-  }
-}
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 

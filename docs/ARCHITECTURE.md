@@ -142,6 +142,23 @@ account original is fetched and reparsed only after an explicit request. Reimpor
 activity rebuilds its trace even when digest deduplication skips it. Cache failures never prevent
 digest analysis or saving. No server schema or model revision changes are required.
 
+**Worker messages**
+
+The page numbers every request it posts to the Web Worker (`requestId`). The worker stamps the number on
+its one reply (`replyTo`) and on every other message it sends while it runs the request (`during`), so
+a reply is matched to its request by number and never by arrival order. A message that names no request
+the page still waits for (late, repeated, or from before a clear) is counted and dropped. The worker
+announces each request when it begins it (`started`) and, every two seconds while it runs, reports a
+count of units of real work (`heartbeat`). The page's watchdog times the request being run from its
+`started`, and counts only headway: a reply, a progress message, or a heartbeat whose count moved (files
+read, activities saved, pages fetched, a chunk of a download, a rate-limit wait). After 90 s (30 s for
+short analysis) without headway it shows a neutral "still working" notice; after 180 s (60 s) it replaces
+the worker as it does for a script error (one automatic restart, then stopped) and does not send the
+stalled request again. A page that lost time itself (a suspended laptop, a frozen tab) starts every wait
+again instead of reading the gap as silence. Single reads (a route, splits, a detail trace) are let go as
+unread after 30 s (150 s from a kept original), say nothing, and never restart the worker. A request the
+browser cannot copy to the worker fails at once with a message.
+
 ## Data model
 
 The tables below mirror `apps/api/src/db/schema.ts`. Wrangler also keeps a `d1_migrations` table

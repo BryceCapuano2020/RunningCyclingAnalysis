@@ -31,17 +31,13 @@ export interface WorkerEventDeps {
   loadDeviceOnce: () => void
 }
 
-/** The requests a route reply answers. A forgotten route is answered with the same reply. */
-const ROUTE_KINDS: ReadonlySet<Pending['kind']> = new Set<Pending['kind']>([
-  'routeShape',
-  'forgetRoutes',
-])
-
 /** The responses that answer a request, as opposed to ones the worker sends on its own. */
 export type ReplyResponse = Exclude<
   WorkerResponse,
   {
     type:
+      | 'started'
+      | 'heartbeat'
       | 'progress'
       | 'missingOriginals'
       | 'detailCoverage'
@@ -113,15 +109,11 @@ function settleOvertaken(deps: WorkerEventDeps, pending: Pending, message: Reply
 }
 
 /** Shows what a reply reports, and settles the request it answers. */
-export function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
+export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pending: Pending): void {
   const { transport, imports, library, handleAccountIssue, refreshBusy } = deps
-  // A route reply answers only a route request. One that comes out of turn is dropped before the
-  // pending request is taken, so that request still gets its own reply.
-  const front = transport.pendingRepliesRef.current[0]
-  if (message.type === 'routeShape' && (front === undefined || !ROUTE_KINDS.has(front.kind))) return
-  if (message.type === 'activityTrace' && front?.kind !== 'activityTrace') return
-  // Replies arrive in request order; the first pending request is the one this answers.
-  const pending = transport.pendingRepliesRef.current.shift()
+  // The reply names its request, so it settles that request whatever order replies arrive in.
+  const waiting = transport.pendingRepliesRef.current
+  waiting.splice(waiting.indexOf(pending), 1)
   // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
   if (pending?.kind === 'setRange') pending.settle?.(message)
   refreshBusy()
