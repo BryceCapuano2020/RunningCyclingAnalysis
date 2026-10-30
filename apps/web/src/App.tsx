@@ -16,10 +16,12 @@ import { documentTitleFor, useDocumentTitle } from './ui/documentTitle'
 import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
 import { RestoringPage } from './ui/pages/RestoringPage'
+import { HeldLibraryPage, UnavailableLibraryPage } from './ui/pages/HeldLibraryPage'
+import { pageKeyOf } from './ui/libraryPage'
+import { useLibraryPage } from './ui/useLibraryPage'
 import { ResultPage } from './ui/pages/ResultPage'
 import { MethodPage } from './ui/pages/MethodPage'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
-import type { Route } from './ui/route'
 import { hrefFor, useRoute } from './ui/route'
 import { restoreScroll, useRouteHistory } from './ui/routeHistory'
 import { useAccount } from './ui/useAccount'
@@ -37,17 +39,6 @@ import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
 import { useCountedRuns } from './ui/useCountedRuns'
 import { useSignInProblem } from './ui/signInProblem'
-
-/** A string that changes whenever a different page is on screen. */
-function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
-  if (route.page === 'profile') return 'profile'
-  // Restoring gives way to the landing page on its own, so the two are different pages to focus.
-  // How sure is this? shows without a result, so it is its own page there rather than the landing.
-  // A Method with no result is its own page, so when results arrive the page change moves focus to its heading.
-  if (!hasResult)
-    return restoring ? 'restoring' : route.page === 'method' ? 'method-empty' : 'landing'
-  return route.page === 'activity' ? `activity:${route.id}` : route.page
-}
 
 /**
  * Whether focus was lost with the page that went away. Focus that is still on a control outside
@@ -134,12 +125,12 @@ export function App() {
     save: saveProfile,
   })
   const hasResult = analysis.state.result !== null
+  // A library is more than a result: one whose digests are all held out has none, and is still a library.
+  const { knowledge, page } = useLibraryPage(analysis, route, signedIn)
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
   const moved = listedMoves(analysis.importChange, analysisAthlete, units, ageProfile, weighted)
-  // The restoring page holds until the kept library replies. Profile and How sure is this? keep their
-  // own pages while results restore, so it stands in for the landing page only.
-  const restoringPage = analysis.restoring && route.page !== 'profile' && route.page !== 'method'
-  const key = pageKey(route, hasResult, restoringPage)
+  const restoringPage = page === 'restoring'
+  const key = pageKeyOf(route, page)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
   useRouteHistory()
   useDocumentTitle(documentTitleFor(route, analysis.state.result, analysis.state.library))
@@ -150,6 +141,7 @@ export function App() {
   const coldNotice = useRouteGuard({
     route,
     hasResult,
+    libraryPresent: knowledge === 'present',
     busy: analysis.busy,
     // A file import queued behind the library, or running while it is not loading.
     waiting: analysis.waitingReason !== null,
@@ -252,10 +244,13 @@ export function App() {
       {/* While results restore, the tabs show and Add files is left to the restoring page. */}
       <Header
         route={route}
-        showTabs={hasResult || analysis.restoring}
+        showTabs={hasResult || analysis.restoring || knowledge === 'present'}
         addFiles={
           restoringPage || onLanding ? null : (
-            <AddFilesButton onFiles={setup.requestImport} primary={hasResult || signedIn} />
+            <AddFilesButton
+              onFiles={setup.requestImport}
+              primary={hasResult || signedIn || knowledge === 'present'}
+            />
           )
         }
         account={
@@ -304,6 +299,7 @@ export function App() {
           }
           walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
           countedRuns={countedRuns}
+          libraryPanel={page === 'held'}
         />
         {route.page === 'profile' ? (
           <ProfilePage
@@ -328,7 +324,7 @@ export function App() {
             onDeleteAccount={deleteAccount}
             onRemoveAll={removeAll}
           />
-        ) : analysis.state.result ? (
+        ) : page === 'result' && analysis.state.result ? (
           <ResultPage
             route={route}
             analysis={analysis}
@@ -343,6 +339,15 @@ export function App() {
           />
         ) : restoringPage ? (
           <RestoringPage onFiles={setup.requestImport} />
+        ) : page === 'unavailable' ? (
+          <UnavailableLibraryPage />
+        ) : page === 'held' ? (
+          <HeldLibraryPage
+            analysis={analysis}
+            signedIn={signedIn}
+            fileRetentionAvailable={fileRetentionAvailable}
+            onFiles={setup.requestImport}
+          />
         ) : route.page === 'method' ? (
           <MethodPage
             result={null}

@@ -195,7 +195,7 @@ describe('focus after an action completes', () => {
     ).toHaveFocus()
   })
 
-  it('moves focus to the landing heading when a library retry starts loading', () => {
+  it('moves focus to the restoring heading when a library retry starts loading', () => {
     app.analysis.libraryStatus = 'failed'
     app.analysis.retryLibrary = vi.fn(() => {
       app.analysis.libraryStatus = 'loading'
@@ -206,7 +206,7 @@ describe('focus after an action completes', () => {
     fireEvent.click(retry)
 
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
+    expect(screen.getByRole('heading', { level: 1, name: 'Restoring your results' })).toHaveFocus()
   })
 
   it('moves focus to the rebuild notice when a rebuild ends and its button goes away', () => {

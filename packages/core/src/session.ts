@@ -29,6 +29,7 @@ import type { ZoneSet } from './zones'
 export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { RejectedFile, SessionState } from './sessionState'
+export type { HeldOutActivity } from './sessionLibrary'
 export type { Period, PeriodChoice } from './period'
 export type { RejectCode, Rejection } from './import/result'
 // The device library keeps one copy per workout by the same rule the analysis uses.
