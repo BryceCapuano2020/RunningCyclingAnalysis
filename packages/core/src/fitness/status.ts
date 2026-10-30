@@ -11,6 +11,7 @@ import type {
   Ranged,
   Shortfall,
 } from './types'
+import { levelSeries, pointOf } from './series'
 import { levelOf, referenceOf, risenAt, sigmaAt, slice } from './windows'
 import type { RunPoint } from './windows'
 import type { Sport } from '../types'
@@ -89,6 +90,9 @@ function shortLevel(
   return ep.level
 }
 
+/** Where the level now is drawn: the end of the week it is read at, but never after the newest activity. */
+const nowMs = (base: FitnessStatus, day: number) => Math.min(msOfDay(day), base.asOfMs)
+
 /** The numbers of an episode state, from the latest week the monitor was in that state (or the latest with an episode). */
 function episodic(
   base: FitnessStatus,
@@ -134,6 +138,7 @@ function episodic(
       recent: spanOf(recent),
       baseline: baseline === null ? null : withoutIds(spanOf(baseline)),
     },
+    series: levelSeries(runs, day, ep.reference, pointOf(level, nowMs(base, day))),
     shortfall: null,
   }
 }
@@ -194,6 +199,7 @@ function calm(
       recent: spanOf(recent),
       baseline: withoutIds(spanOf(before)),
     },
+    series: levelSeries(runs, day, b.m, pointOf(a, nowMs(base, day))),
     shortfall: null,
   }
 }
@@ -228,6 +234,7 @@ export function describe(
       baseline: null,
       method: series.method,
     },
+    series: [],
     shortfall: null,
     entered: null,
     steady: runs.length,

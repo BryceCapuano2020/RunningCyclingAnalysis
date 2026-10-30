@@ -54,6 +54,16 @@ const STEADY_WEEKS = 35
  * given heart rate: the climb the same-heart-rate view shows.
  */
 const START_SHARE = { cpRun: 0.965, cpRide: 0.9, grossEfficiency: 0.91, runEconomyScale: 1.05 }
+/**
+ * A slip in easy running, planted so the sample shows the fitness status something to find: the cost of
+ * running easily rises by `depth` over `fallWeeks`, starting `startWeeks` before the season's end, and stays
+ * up. Heart rate follows the metabolic power alone, so a dearer step is the same heart rate at a slower pace,
+ * which is what the status reads. Only easy runs carry it: the tests, the race, the tempo and the intervals are
+ * drawn from the threshold as before, so the bests and the grades do not move by it. (The heart-rate
+ * cross-check reads every run's pace against its heart rate, so the lean between the sports moves a little.)
+ */
+const EASY_SLIP = { startWeeks: 8, fallWeeks: 1, depth: 0.11 }
+
 /** The share of the season's climb made by the start of the last twelve weeks: the build is steeper after it. */
 const CLIMB_BEFORE_BUILD = 0.5
 /** How far a day's form sits off the season's line, up or down. */
@@ -186,6 +196,13 @@ function athleteOn(daysAgo: number, runForm: number, rideForm: number): Syntheti
   }
 }
 
+/** How much dearer an easy run is on a day: 0 before the slip, `depth` once it has fallen. */
+export function easySlipOn(daysAgo: number): number {
+  const { startWeeks, fallWeeks, depth } = EASY_SLIP
+  const weeksIn = startWeeks - daysAgo / 7
+  return depth * Math.min(1, Math.max(0, weeksIn / fallWeeks))
+}
+
 function offsetOf(clock: SampleClock): (ms: number) => number {
   return clock.utcOffsetMinutes ?? (() => 0)
 }
@@ -243,7 +260,10 @@ export function samplePlan(clock: SampleClock = SAMPLE_CLOCK, seed = 1): SampleE
         withPower: planned.withPower,
         hrGlitch: planned.hrGlitch,
       },
-      athlete: form,
+      athlete:
+        planned.sport === 'run' && planned.effort === 'easy'
+          ? { ...form, runEconomyScale: form.runEconomyScale * (1 + easySlipOn(daysBefore)) }
+          : form,
       seed: Math.floor(seedDraw * 0x100000000),
     })
   }

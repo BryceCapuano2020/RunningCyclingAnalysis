@@ -153,6 +153,9 @@ export const FITNESS = {
     nowWeeks: [4, 6, 8, 12, 16],
     /** Holding is said only when the level is known to within this much. */
     maxWithin: 0.06,
+    /** The level series: a point every `seriesStepWeeks`, back over at most `seriesWeeks` weeks. */
+    seriesStepWeeks: 4,
+    seriesWeeks: 76,
     /** The percentage of a printed range (one-sided 5% tails). */
     rangeZ: 1.645,
     /** A state is a fresh finding for this many weeks after it is first shown (the engine's stale limit is 8). */
