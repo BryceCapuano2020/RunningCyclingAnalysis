@@ -1,9 +1,11 @@
 import { DAY_MS } from '../constants'
 import { episodeStep, openEpisode, troughOf } from './episode'
 import type { Episode, EpisodeLevel, Trough } from './episode'
+import { fitSeason, withoutSeason } from './season'
+import type { Season } from './season'
 import { FITNESS } from './params'
-import { locateOnset, referenceOf, sigmaAt, slipAt } from './windows'
-import type { RunPoint } from './windows'
+import { levelOf, locateOnset, lowLastYear, referenceOf, sigmaAt, slice, slipAt } from './windows'
+import type { RunPoint, Slip } from './windows'
 
 const M = FITNESS.monitor
 
@@ -97,33 +99,71 @@ export function applyHold(records: WeekRecord[]): void {
 }
 
 /**
- * Runs the monitor week by week over `runs` (sorted by t) from week `from` to week `to`, each evaluation
- * seeing only the runs before the end of its week. With no episode open it tests for a slip; once one is
- * declared it follows the episode against its frozen reference until it closes. Deterministic.
+ * The run of weekly evaluations that have fired: one more when this week's own runs read low against the
+ * baseline of the scale judged, none when they do not or the scale does not fire, and unchanged in a week
+ * without a steady run, which says nothing either way.
  */
+function nextStreak(
+  streak: number,
+  slip: Slip | null,
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  checkYear: boolean,
+): number {
+  if (slip === null || !slip.fire) return 0
+  if (checkYear && lowLastYear(runs, day, slip, sigma)) return 0
+  const week = slice(runs, day - 7, day)
+  if (week.length === 0) return streak
+  const low = levelOf(week, slip.reference, sigma)!.m - slip.reference
+  return low <= -M.confirmShare * M.delta ? streak + 1 : 0
+}
+
+/** The monitor's weeks, and the seasonal swing the last of them was read with (null when none has been found). */
+export interface Replay {
+  records: WeekRecord[]
+  season: Season | null
+}
+
+/** The weeks of `replay` alone, for callers that do not read the runs again. */
 export function monitor(runs: readonly RunPoint[], from: number, to: number): WeekRecord[] {
+  return replay(runs, from, to).records
+}
+
+/**
+ * Runs the monitor week by week over `runs` (sorted by t) from week `from` to week `to`, each evaluation
+ * seeing only the runs before the end of its week, with the athlete's own season (once two years show one)
+ * taken out of them. With no episode open it tests for a slip; once one is declared it follows the episode
+ * against its frozen reference until it closes. Deterministic.
+ */
+export function replay(runs: readonly RunPoint[], from: number, to: number): Replay {
   const records: WeekRecord[] = []
   let ep: Episode | null = null
   let streak = 0
+  let season: Season | null = null
   for (let w = from; w <= to; w++) {
     const day = dayOfWeekEnd(w)
-    const sigma = sigmaAt(runs, day)
+    // The tests read the runs with the athlete's season taken out; an open episode keeps the swing it began with.
+    season = ep === null ? fitSeason(runs, day) : ep.season
+    const seen = withoutSeason(runs, season, day - FITNESS.season.lookbackWeeks * 7, day)
+    const sigma = sigmaAt(seen, day)
     if (ep === null) {
-      const earlier = referenceOf(runs, day)
+      const earlier = referenceOf(seen, day)
       if (earlier === null) {
         records.push(record(w, 'nodata'))
         continue
       }
-      const slip = slipAt(runs, day, sigma)
-      streak = slip?.fire ? streak + 1 : 0
+      const slip = slipAt(seen, day, sigma)
+      streak = nextStreak(streak, slip, seen, day, sigma, season === null)
       if (slip !== null && streak >= M.consecutive) {
-        const onset = locateOnset(runs, day, sigma)
+        const onset = locateOnset(seen, day, sigma)
         ep = openEpisode(
           w,
           sigma,
           onset?.reference ?? slip.reference,
           onset?.referenceRuns ?? earlier.n,
           onset?.day ?? null,
+          season,
         )
         streak = 0
         records.push(record(w, 'slipping', { fresh: true, z: slip.z, delta: slip.delta }))
@@ -132,7 +172,7 @@ export function monitor(runs: readonly RunPoint[], from: number, to: number): We
       }
       continue
     }
-    const step = episodeStep(runs, day, w, ep)
+    const step = episodeStep(seen, day, w, ep)
     if (step.state === 'thin') {
       records.push(record(w, 'thin'))
       continue
@@ -160,5 +200,5 @@ export function monitor(runs: readonly RunPoint[], from: number, to: number): We
     }
   }
   applyHold(records)
-  return records
+  return { records, season }
 }

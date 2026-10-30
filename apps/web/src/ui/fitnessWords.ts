@@ -18,6 +18,8 @@ export interface FitnessWords {
   steadyPlural: string
   activity: string
   activities: string
+  /** What the athlete did at the reference heart rate, past tense: "ran" or "rode". */
+  did: string
   /** What is read of one steady run, in the athlete's units: "kilometres 2 to 10 (0.6 to 6.2 miles in)". */
   reading: (units: UnitSystem) => string
   /** The change of pace between one stretch of a run and the next, which a steady run keeps small. */
@@ -47,6 +49,7 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
     steadyPlural: 'steady runs',
     activity: 'run',
     activities: 'runs',
+    did: 'ran',
     ...run,
     steadyMeaning: (hr, units) =>
       `A run outdoors with heart rate on file, where pace changes by about ${Math.round(U.maxPaceChange * 100)}% or less from ${run.stretch(units)}. Its ${run.reading(units)} are read: the ones within ${U.hrHalfBand} bpm of ${hr} bpm and with little climb, at least ${U.minKm} of them. Intervals, hilly runs and treadmill runs do not count.`,
@@ -59,6 +62,7 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
     steadyPlural: 'steady rides',
     activity: 'ride',
     activities: 'rides',
+    did: 'rode',
     reading: () => 'five-minute blocks',
     stretch: () => 'one five-minute block to the next',
     steadyMeaning: (hr) =>

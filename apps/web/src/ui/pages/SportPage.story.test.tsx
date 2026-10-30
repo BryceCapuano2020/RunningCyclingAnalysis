@@ -14,7 +14,7 @@ import { profileActivities, profileCurve } from '../profileFixtures'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { closedRow, openSection } from '../test/openSection'
 import { NO_FITNESS } from '@rca/core/fitness/types'
-import { SLIPPING, waitingStatus } from '../fitnessFixtures'
+import { RIDE_SLIPPING, SLIPPING, waitingStatus } from '../fitnessFixtures'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)
@@ -341,7 +341,10 @@ describe('a sport page’s fitness', () => {
   const withFitness = (
     sport: Sport,
     result: AnalysisResult,
-    fitness = { run: SLIPPING, ride: NO_FITNESS.ride },
+    fitness: { run: typeof SLIPPING; ride: typeof RIDE_SLIPPING | typeof NO_FITNESS.ride } = {
+      run: SLIPPING,
+      ride: NO_FITNESS.ride,
+    },
     sameHeartRate: SameHeartRate = NO_SAME_HEART_RATE[sport],
   ) =>
     render(
@@ -378,9 +381,20 @@ describe('a sport page’s fitness', () => {
     expect(within(fitness).queryByText('Run')).not.toBeInTheDocument()
   })
 
-  it('says nothing about fitness on the ride page while rides are not compared', () => {
+  it('says nothing about fitness on the ride page for a library with no ride status', () => {
     withFitness('ride', makeResult({ activities: profileActivities('ride') }))
     expect(screen.queryByRole('region', { name: 'Your fitness' })).not.toBeInTheDocument()
+  })
+
+  it('leads the ride page with the ride’s status, in watts, and not the run’s', () => {
+    withFitness('ride', makeResult({ activities: profileActivities('ride') }), {
+      run: SLIPPING,
+      ride: RIDE_SLIPPING,
+    })
+    const fitness = screen.getByRole('region', { name: 'Your fitness' })
+    expect(within(fitness).getAllByRole('article')).toHaveLength(1)
+    expect(fitness.textContent).toMatch(/you now ride at \d+ W/)
+    expect(fitness.textContent).not.toMatch(/you now run/)
   })
 
   it('defers the weekly same-heart-rate section to the status: retitled, and no change of its own that could disagree', () => {

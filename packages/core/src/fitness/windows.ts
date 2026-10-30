@@ -105,16 +105,47 @@ export interface Slip {
   fire: boolean
   /** The median of the baseline of the scale judged. */
   reference: number
-  /** Weeks of the recent window of the scale judged. */
+  /** Weeks of the recent window of the scale judged, and of the baseline before it. */
   weeks: number
+  baseWeeks: number
+}
+
+/**
+ * The model-error floor of a week's tests: `tau`, plus the library's own wander where it shows more than the
+ * reference athlete's. The levels of the blocks of weeks from 108 to 8 weeks back are compared with their median;
+ * their spread (robust, so a step does not set it) less the sampling noise of a block is the wander. Too few
+ * blocks (a library under two years old): `tau`.
+ */
+export function floorAt(runs: readonly RunPoint[], day: number, sigma: number): number {
+  const means: number[] = []
+  const noise: number[] = []
+  const end = day - M.refEndWeeks * 7
+  for (
+    let lo = day - M.floorWeeks * 7;
+    lo + M.floorBlockWeeks * 7 <= end;
+    lo += M.floorBlockWeeks * 7
+  ) {
+    const rs = slice(runs, lo, lo + M.floorBlockWeeks * 7)
+    if (rs.length < M.floorBlockRuns) continue
+    means.push(levelOf(rs, medianOf(rs), sigma)!.m)
+    noise.push((sigma * sigma) / rs.length)
+  }
+  if (means.length < M.floorMinBlocks) return M.tau
+  const centre = medianInPlace(Float64Array.from(means))
+  const spread = 1.4826 * medianInPlace(Float64Array.from(means, (m) => Math.abs(m - centre)))
+  const wander = Math.sqrt(Math.max(0, spread * spread - medianInPlace(Float64Array.from(noise))))
+  const extra = Math.sqrt(Math.max(0, wander * wander - M.floorRef * M.floorRef))
+  return Math.min(M.floorMax, Math.sqrt(M.tau * M.tau + (M.floorGain * extra) ** 2))
 }
 
 /** The contrast of each scale (recent weeks against the weeks before them) in standard errors, for the scales that have the runs. */
 function contrasts(runs: readonly RunPoint[], day: number, sigma: number) {
-  const out: { delta: number; z: number; weeks: number; reference: number }[] = []
+  const out: { delta: number; z: number; weeks: number; baseWeeks: number; reference: number }[] =
+    []
+  const tau = floorAt(runs, day, sigma)
   for (const [recentWeeks, baseWeeks] of M.scales) {
     const recent = slice(runs, day - recentWeeks * 7, day)
-    if (recent.length < M.minRecentRuns) continue
+    if (recent.length < M.minRecentRuns || distinctWeeks(recent) < M.minRecentWeeks) continue
     const base = slice(runs, day - (recentWeeks + baseWeeks) * 7, day - recentWeeks * 7)
     if (base.length < M.minRefRuns || distinctWeeks(base) < M.minRefWeeks) continue
     const mu = medianOf(base)
@@ -123,8 +154,9 @@ function contrasts(runs: readonly RunPoint[], day: number, sigma: number) {
     const delta = a.m - b.m
     out.push({
       delta,
-      z: delta / Math.sqrt(a.se ** 2 + b.se ** 2 + M.tau ** 2),
+      z: delta / Math.sqrt(a.se ** 2 + b.se ** 2 + tau ** 2),
       weeks: recentWeeks,
+      baseWeeks,
       reference: mu,
     })
   }
@@ -143,6 +175,27 @@ export function slipAt(runs: readonly RunPoint[], day: number, sigma: number): S
     }
   }
   return best
+}
+
+/**
+ * The non-seasonal check for a library with no fitted season: whether the scale that fired read as low a year earlier
+ * (the same recent and baseline weeks, 52 weeks back, by at least `yoyShare` of `delta`). A drop that came at this
+ * time last year is the season's. False when that year holds too few runs to say, and for a drop that is new: its
+ * year-ago contrast is level but for the usual wander.
+ */
+export function lowLastYear(
+  runs: readonly RunPoint[],
+  day: number,
+  slip: Slip,
+  sigma: number,
+): boolean {
+  const last = day - 52 * 7
+  const recent = slice(runs, last - slip.weeks * 7, last)
+  const base = slice(runs, last - (slip.weeks + slip.baseWeeks) * 7, last - slip.weeks * 7)
+  if (recent.length < M.minRecentRuns || distinctWeeks(recent) < M.minRecentWeeks) return false
+  if (base.length < M.minRefRuns || distinctWeeks(base) < M.minRefWeeks) return false
+  const mu = medianOf(base)
+  return levelOf(recent, mu, sigma)!.m - levelOf(base, mu, sigma)!.m <= -M.yoyShare * M.delta
 }
 
 /**

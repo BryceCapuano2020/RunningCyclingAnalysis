@@ -25,15 +25,20 @@ function Method({ status, units }: { status: FitnessStatus; units: UnitSystem })
   const steady = <Definition meaning={meaning.steadyRun}>{words.steady}</Definition>
   const same = <Definition meaning={meaning.sameHeartRate}>{`${hr} bpm`}</Definition>
   const range = <Definition meaning={meaning.range}>90% range</Definition>
+  const swing = status.evidence?.method.seasonal ?? null
+  const season = swing === null ? null : Math.max(1, Math.round(swing * 100))
   const against = `${M.refStartWeeks - M.refEndWeeks} weeks before the last ${M.refEndWeeks}`
   return (
     <>
       <p>
-        Each {steady} gives one figure: the {words.output.toLowerCase()} you ran at {same}, read
-        from its {words.reading(units)} and adjusted for the heart rate and the climb of each. Your
-        level is the middle of your {words.steadyPlural} over the last 4 to 16 weeks. It is set
+        Each {steady} gives one figure: the {words.output.toLowerCase()} you {words.did} at {same},
+        read from its {words.reading(units)} and adjusted for the heart rate and the climb of each.
+        Your level is the middle of your {words.steadyPlural} over the last 4 to 16 weeks. It is set
         against the level before the change began, the line across the chart, or against the{' '}
         {against} while nothing has changed. The band round each point is its {range}.
+        {season === null
+          ? null
+          : ` Your usual seasonal swing of about ${season}% has been taken out of every ${words.steady} first.`}
       </p>
       <p>
         It sees a change of about 5% or more, within weeks to a few months. A smaller change sits

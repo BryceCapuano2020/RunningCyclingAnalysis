@@ -16,9 +16,9 @@ export interface FitnessSectionProps {
 }
 
 /**
- * "Your fitness": each sport's status at the same heart rate, as cards. Rides are not compared yet, so on a
- * library with runs this is the run's card alone; a sport with nothing to say has none, and with no card the
- * section is not drawn.
+ * "Your fitness": each sport's status at the same heart rate, as cards, run first. A sport with nothing to say
+ * has none (a library with no steady run, or no ride with a power meter), and with no card the section is not
+ * drawn.
  */
 export function FitnessSection({ fitness, units, library, sport }: FitnessSectionProps) {
   const id = useId()

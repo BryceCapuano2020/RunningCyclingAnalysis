@@ -190,6 +190,78 @@ describe('the branches of an open episode', () => {
   })
 })
 
+describe('closing an episode when the drop is no longer clear', () => {
+  const since = (records: readonly WeekRecord[], w: number) => records.filter((r) => r.w >= w)
+
+  it('closes as holding, without saying back, when the level settles within range of the old one', () => {
+    // An 8% drop at week 60 and a return of 6.5% at week 100: 1.5% under the reference, outside the "back" test (1%) and inside the range.
+    const level = (w: number) => (w >= 60 ? -0.08 : 0) + (w >= 100 ? 0.065 : 0)
+    const records = monitor(library(200, level), 0, 199)
+    const closed = records.find((r) => r.closes !== null)!
+    expect(closed).toBeDefined()
+    expect(closed.state).toBe('holding')
+    expect(closed.w).toBeGreaterThan(100)
+    expect(closed.w).toBeLessThan(150)
+    expect(records.some((r) => r.state === 'back')).toBe(false)
+    expect(since(records, closed.w + 1).every((r) => r.episode === null)).toBe(true)
+  })
+
+  it('keeps a drop that stays open: a planted 5% under the old level never closes', () => {
+    const level = (w: number) => (w >= 60 ? -0.08 : 0) + (w >= 100 ? 0.03 : 0)
+    const records = monitor(library(260, level), 0, 259)
+    expect(records.some((r) => r.closes !== null)).toBe(false)
+    expect(records.at(-1)!.state).toBe('holding-below')
+  })
+
+  it('does not count weeks that only see the runs from before the onset', () => {
+    // 10 weeks after an 8% drop the level since the onset has too few runs to say: the episode is not quiet.
+    const records = monitor(
+      library(100, (w) => (w >= 60 ? -0.08 : 0)),
+      0,
+      99,
+    )
+    expect(records.filter((r) => r.w >= 60).every((r) => r.closes === null)).toBe(true)
+  })
+
+  it('still reaches back after a full return, ahead of the closing rule', () => {
+    const level = (w: number) => (w >= 60 ? -0.08 : 0) + (w >= 100 ? 0.08 : 0)
+    const records = monitor(library(200, level), 0, 199)
+    expect(records.some((r) => r.state === 'back')).toBe(true)
+    expect(records.find((r) => r.closes !== null)!.state).toBe('holding')
+  })
+})
+
+describe('the second qualifying week', () => {
+  it('does not declare a slip when the week that would confirm it is level, though its window still fires', () => {
+    // Weeks 70 to 72 read 12% low (spread about 3% a run), then the level is as it was. The 4-week window holds
+    // the three low weeks at the evaluations of weeks 72 and 73 and fires at both; week 73's own runs are level.
+    const points = library(120, () => 0).map((p) => {
+      const week = Math.floor(p.t / 7)
+      return Object.assign({}, p, { x: p.x * 3 - (week >= 70 && week <= 72 ? 0.12 : 0) })
+    })
+    const records = monitor(points, 0, 119)
+    expect(records.some((r) => r.fresh)).toBe(false)
+  })
+
+  it('does not let a week without a run end the streak', () => {
+    // A real drop at week 60 with no runs in week 62: the weeks around the gap still add up to a slip.
+    const points = library(120, (w) => (w >= 60 ? -0.1 : 0)).filter(
+      (p) => Math.floor(p.t / 7) !== 62,
+    )
+    const slip = monitor(points, 0, 119).find((r) => r.fresh)!
+    expect(slip.w).toBeLessThanOrEqual(66)
+  })
+
+  it('still declares a real drop within the weeks the research promised', () => {
+    const slip = monitor(
+      library(120, (w) => (w >= 60 ? -0.08 : 0)),
+      0,
+      119,
+    ).find((r) => r.fresh)!
+    expect(slip.w).toBeLessThanOrEqual(64)
+  })
+})
+
 describe('the display hold', () => {
   const rec = (w: number, state: MachineState, fresh = false): WeekRecord => ({
     w,

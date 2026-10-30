@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import {
   FITNESS_LIBRARY,
+  FITNESS_RIDE_LIBRARY,
+  RIDE_SLIPPING,
   HOLDING,
   IMPROVING,
   RECOVERING,
@@ -52,11 +54,40 @@ describe('FitnessSection', () => {
     expect(screen.getByRole('region', { name: 'Your fitness' })).toBeInTheDocument()
   })
 
-  it('draws nothing for a library with no status to show, and nothing for the ride, which is not compared', () => {
+  it('draws nothing for a library with no status to show, and no ride card for a library with no ride status', () => {
     const empty = render(<FitnessSection fitness={NO_FITNESS} units="metric" library={[]} />)
     expect(empty.container).toBeEmptyDOMElement()
     empty.unmount()
     renderSection()
+    expect(screen.queryByText('Ride')).not.toBeInTheDocument()
+  })
+
+  it('draws the ride’s card like the run’s, in watts, on the home page and alone on the ride page', () => {
+    const library = [...FITNESS_LIBRARY, ...FITNESS_RIDE_LIBRARY]
+    const both = render(
+      <FitnessSection
+        fitness={{ run: SLIPPING, ride: RIDE_SLIPPING }}
+        units="metric"
+        library={library}
+      />,
+    )
+    const cards = screen.getAllByRole('article', { name: 'Slipping' })
+    expect(cards.map((card) => card.getAttribute('data-sport'))).toEqual(['run', 'ride'])
+    expect(spoken(cards[1]!)).toMatch(
+      /At 140 bpm you now ride at \d+ W, .*% \(\d+ to \d+%\) less than the/,
+    )
+    expect(spoken(cards[1]!)).toMatch(/12 steady rides/)
+    expect(spoken(cards[1]!)).not.toMatch(BANNED)
+    both.unmount()
+    render(
+      <FitnessSection
+        fitness={{ run: SLIPPING, ride: RIDE_SLIPPING }}
+        units="metric"
+        library={library}
+        sport="ride"
+      />,
+    )
+    expect(screen.getAllByRole('article')).toHaveLength(1)
     expect(screen.queryByText('Ride')).not.toBeInTheDocument()
   })
 
@@ -157,6 +188,38 @@ describe('the evidence panel', () => {
     expect(spoken(panel).match(/about 5% or more/g)).toHaveLength(1)
     expect(spoken(panel)).toMatch(/Of your 12 runs on file, 64 are steady runs\./)
     expect(spoken(panel)).not.toMatch(BANNED)
+  })
+
+  it('says the athlete’s own seasonal swing was taken out, when one was, and says "rode" for a ride', () => {
+    const seasoned = (status: typeof SLIPPING) => ({
+      ...status,
+      evidence: { ...status.evidence!, method: { ...status.evidence!.method, seasonal: 0.021 } },
+    })
+    renderSection({ run: seasoned(SLIPPING) })
+    fireEvent.click(screen.getByText('See the evidence'))
+    const details = screen.getByText('See the evidence').closest('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    const panel = document.querySelector('.fitness-evidence')!
+    expect(spoken(panel)).toMatch(
+      /Your usual seasonal swing of about 2% has been taken out of every steady run first\./,
+    )
+    expect(spoken(panel)).toMatch(/the pace you ran at 150 bpm/)
+    cleanup()
+    render(
+      <FitnessSection
+        fitness={{ run: NO_FITNESS.run, ride: RIDE_SLIPPING }}
+        units="metric"
+        library={FITNESS_RIDE_LIBRARY}
+      />,
+    )
+    fireEvent.click(screen.getByText('See the evidence'))
+    const rideDetails = screen.getByText('See the evidence').closest('details')!
+    rideDetails.open = true
+    fireEvent(rideDetails, new Event('toggle'))
+    const ridePanel = document.querySelector('.fitness-evidence')!
+    expect(spoken(ridePanel)).toMatch(/the power you rode at 140 bpm/)
+    expect(spoken(ridePanel)).not.toMatch(/seasonal/)
   })
 
   it('counts in the athlete’s unit: miles beside the kilometres it reads, none for a metric athlete', () => {

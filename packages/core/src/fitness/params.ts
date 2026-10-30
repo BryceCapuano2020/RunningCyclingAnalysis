@@ -1,7 +1,8 @@
 /**
  * Every number the fitness analysis reads, in one table. They were chosen and tested together (the
  * false-alarm budget of about a quarter of an alarm per athlete-year on a quiet athlete and the lag to a
- * clear drop of 4 to 6 weeks come from this set), so change them as a set and re-run the acceptance tests.
+ * clear drop of 4 to 6 weeks come from this set; the closing rule, the season and the learned floor were added and
+ * swept against that budget in D2), so change them as a set and re-run the acceptance tests (`*.sim.test.ts`).
  * Fractions are of speed or power, in natural-log units where they are contrasts (0.04 is a 3.9% loss).
  */
 export const FITNESS = {
@@ -48,7 +49,7 @@ export const FITNESS = {
     betaFallback: 0.005,
     minHrSd: 1,
   },
-  /** Rides: measured power only, from the five-minute blocks. Behind `RIDE_FITNESS_ENABLED`. */
+  /** Rides: measured power only, from the five-minute blocks. */
   ride: {
     hrHalfBand: 20,
     minBlocks: 2,
@@ -65,6 +66,12 @@ export const FITNESS = {
     minRefRuns: 12,
     minRefWeeks: 8,
     minRecentRuns: 3,
+    /** A contrast needs runs from this many distinct weeks in its recent window: a burst of runs in one week cannot declare a slip. */
+    minRecentWeeks: 2,
+    /** The second qualifying week: a weekly evaluation counts toward `consecutive` only if that week's own steady runs read at least this share of `delta` below the baseline judged. A week without a steady run neither counts nor breaks the run. */
+    confirmShare: 0.5,
+    /** The non-seasonal check while no season is fitted: a slip is set aside when the same scale read at least this share of `delta` low a year earlier (it came at this time last year too), when that year holds the runs to say. */
+    yoyShare: 0.5,
     /** Window contrasts: recent weeks against the weeks before them. A slip is a contrast of at least `delta` at `zSlip` standard errors. */
     scales: [
       [4, 32],
@@ -77,6 +84,19 @@ export const FITNESS = {
     /** Model-error floor added to every standard error (slow wander of the level), and the larger one in printed ranges. */
     tau: 0.01,
     rangeTau: 0.02,
+    /**
+     * The floor learns the library's own wander. Blocks of `floorBlockWeeks` weeks from `floorWeeks` back to 8 weeks
+     * back (at least `floorMinBlocks` blocks of `floorBlockRuns` runs, else `tau`); the robust spread of their levels
+     * beyond the sampling noise of a block is the wander, and what it shows past `floorRef` (the reference athlete's)
+     * adds to `tau` in quadrature, `floorGain` times over, to at most `floorMax`.
+     */
+    floorBlockWeeks: 6,
+    floorWeeks: 108,
+    floorMinBlocks: 14,
+    floorBlockRuns: 2,
+    floorRef: 0.02,
+    floorGain: 1,
+    floorMax: 0.03,
     /** Run values are clipped at the window's median plus or minus this many spreads. */
     clip: 2.5,
     /** Weekly evaluations in a row a contrast must hold to declare a slip. */
@@ -92,6 +112,28 @@ export const FITNESS = {
     onsetMaxWeeks: 40,
     onsetBaseWeeks: 32,
     onsetMinAfter: 4,
+  },
+  /**
+   * The athlete's own seasonal pattern, fitted from the steady-run series once `minYears` full years exist: one
+   * annual sine and cosine on the last whole years of runs (at most `maxYears`), shrunk to nothing unless it
+   * stands out from the wander, and taken out of every run before the tests read it.
+   */
+  season: {
+    minYears: 2,
+    maxYears: 4,
+    /** Runs the fit needs, and in each quarter of the year. */
+    minRuns: 80,
+    minQuarterRuns: 12,
+    /** Residuals are clipped at this many robust spreads and the fit repeated once. */
+    clip: 2.5,
+    /** The fitted amplitude is shrunk by `1 - shrinkK / r`, r being its squared size over the variance of one coefficient (weekly levels, with their lag-1 correlation); no term below that. */
+    shrinkK: 6,
+    maxRho: 0.9,
+    /** The term is dropped below this amplitude (log units) and never exceeds `maxAmplitude`. */
+    minAmplitude: 0.003,
+    maxAmplitude: 0.06,
+    /** Days of runs the tests read back from a week's end: the longest window any of them uses. */
+    lookbackWeeks: 110,
   },
   /** After a slip is declared the reference is frozen and the episode is followed until it closes. */
   episode: {
@@ -138,6 +180,20 @@ export const FITNESS = {
     /** After this many weeks in back the episode closes and the reference is read afresh. Below -(backTol + backRelapse) it reopens as slipping. */
     backHoldWeeks: 12,
     backRelapse: 0.01,
+    /**
+     * A drop that is no longer clear closes the episode as holding. The level is the runs since the onset (at most
+     * `closeLevelWeeks` weeks, needing `closeMinRuns` over `closeMinWeeks` weeks); a week is quiet when its range
+     * (`closeZ` standard errors, the model-error floor `closeTau`) against the reference reaches no change; the episode
+     * closes after `closeWeeks` quiet weeks running.
+     */
+    closeWeeks: 12,
+    /** In recovering the wait is longer, so a return that is on its way to "back" gets there first. */
+    closeRecoveringWeeks: 26,
+    closeZ: 1.645,
+    closeTau: 0.015,
+    closeLevelWeeks: 26,
+    closeMinRuns: 12,
+    closeMinWeeks: 8,
     /** Standard error of a median against a mean. */
     medianFactor: 1.2533,
   },
@@ -172,8 +228,9 @@ export const FITNESS = {
 } as const
 
 /**
- * Rides are not compared yet: their noise is not measured on real power-meter libraries (the research
- * had too few measured rides to calibrate them). Flip when it is, after calibrating `FITNESS.ride` and the
- * false-alarm budget on several libraries.
+ * Rides are compared: the ride unit runs the same monitor as the run unit, and `ride.sim.test.ts` is its gate. At the
+ * spreads of a measured-power ride (2.4% to 4.5% a ride, wider than a run's because a five-minute block has no steadiness
+ * test) it holds the run budget when nothing changes and sees a loss of 8% in a few weeks. Turn it off, and the ride
+ * card and findings go, if those sims ever fail; calibrate `FITNESS.ride` on real power-meter libraries when there are some.
  */
-export const RIDE_FITNESS_ENABLED = false
+export const RIDE_FITNESS_ENABLED = true

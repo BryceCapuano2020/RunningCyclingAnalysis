@@ -105,10 +105,12 @@ describe('the sample athlete’s fitness story', () => {
     }
   }, 60_000)
 
-  it('leaves the rides without a status while they are not compared', () => {
+  it('compares the rides as well: the sample has measured-power rides, too few and too varied to call level yet', () => {
     const rides = new AnalysisSession().loadSample(SETTINGS, SAMPLE_CLOCK).fitness.ride
-    expect(rides.shortfall).toEqual({ kind: 'unavailable' })
-    expect(rides.series).toEqual([])
+    expect(rides.shortfall?.kind).not.toBe('unavailable')
+    expect(rides.steady).toBeGreaterThanOrEqual(20)
+    expect(rides.referenceHr).not.toBeNull()
+    expect(rides.evidence!.method.tier).toBe('power')
   })
 })
 
