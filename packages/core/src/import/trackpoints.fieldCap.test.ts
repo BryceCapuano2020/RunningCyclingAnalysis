@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_FIELD_CHARS, appendField } from './trackpoints'
+import { MAX_FIELD_CHARS } from './limits'
+import { appendField } from './trackpoints'
 
 describe('appendField', () => {
   it('joins short pieces as they come', () => {
