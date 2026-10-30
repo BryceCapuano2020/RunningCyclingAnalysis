@@ -306,7 +306,8 @@
 
   .activity-page__main--detail .activity-page__stats--key .stat-number {
     font-size: 1.375rem;
-    white-space: nowrap;
+    /* A number and its unit may part when the cell is narrow (a large text size), and a word breaks before it leaves the cell. */
+    overflow-wrap: anywhere;
   }
 
   /* A label may take two lines here, so three cells fit 288 px. */

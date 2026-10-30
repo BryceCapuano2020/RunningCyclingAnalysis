@@ -578,7 +578,7 @@ describe('ResultPage period', () => {
     const ride = makeActivity({
       id: 'old-ride',
       sport: 'ride',
-      startMs: new Date(2025, 5, 2, 7).getTime(),
+      startMs: new Date(2025, 0, 2, 7).getTime(),
     })
     const activities = withRide ? [old, ride] : [old]
     const period = {
@@ -621,20 +621,23 @@ describe('ResultPage period', () => {
     }
   })
 
-  it('says why the default is all time, and the latest activity, in the same note, when both sports are held', () => {
+  it('says why the default is all time, naming the missing sport, and the latest activity, in the same note', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(true, true)
       expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-        "Your last 12 weeks don't hold both sports, so this shows all time · Same 2 activities as 6 weeks · Latest activity 17 months ago",
+        'Your last 12 weeks hold no rides, so this shows all time · Same 2 activities as 12 months · Latest activity 17 months ago',
       )
+      // The segment in force is All time, not the 12 weeks the stored choice names.
+      expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
+      expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('leaves out the fallback note when the library holds one sport, and keeps the latest activity', () => {
+  it('has no fallback note for a library shorter than 12 weeks, and keeps the latest activity', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {

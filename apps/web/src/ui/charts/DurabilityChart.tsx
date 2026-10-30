@@ -29,6 +29,8 @@ export interface DurabilityChartProps {
 }
 
 const MARK_R = 6
+/** A row whose value drops under its label is this many times as tall. */
+const TALL_ROW = 1.4
 /** Space between the label column, the track and the value column, in px. */
 const COLUMN_GAP = 12
 /** The narrowest the track may get before the labels give way, in px. */
@@ -68,24 +70,29 @@ function rowsOf(groups: readonly LateGroup[], sport: Sport, units: UnitSystem): 
  */
 export function DurabilityChart({ sport, groups, units, takeaway, note }: DurabilityChartProps) {
   const [rootPx] = useState(rootFontPx)
-  const rowH = Math.max(34, Math.round(labelSizePx(rootPx) * 2.4))
+  const baseRowH = Math.max(34, Math.round(labelSizePx(rootPx) * 2.4))
   const rows = rowsOf(groups, sport, units)
-  const height = rows.length * rowH + 2 * EDGE
   const labelCol = Math.max(...rows.map((row) => labelWidthPx(row.label, rootPx)))
   const valueCol = Math.max(...rows.map((row) => labelWidthPx(row.text, rootPx)))
+  // Too narrow for a label and a value on one line (large text, or a phone): the value drops under the label.
+  const tallAt = (width: number) => width < labelCol + valueCol + COLUMN_GAP
+  const rowHAt = (width: number) => (tallAt(width) ? Math.round(baseRowH * TALL_ROW) : baseRowH)
 
   return (
     <ChartFrame
       title={durabilityTitle(sport, units)}
       takeaway={takeaway}
       description={durabilityDescription(sport, groups, units)}
-      height={height}
+      height={(width) => rows.length * rowHAt(width) + 2 * EDGE}
       note={note}
       table={durabilityTable(sport, groups, units)}
     >
       {(size) => {
         // Narrow, the labels and values would leave the track no room: they stack over it, and the track is the row's lower half.
-        const stacked = size.width < labelCol + valueCol + MIN_TRACK + 2 * COLUMN_GAP + 2 * MARK_R
+        const tall = tallAt(size.width)
+        const rowH = rowHAt(size.width)
+        const stacked =
+          tall || size.width < labelCol + valueCol + MIN_TRACK + 2 * COLUMN_GAP + 2 * MARK_R
         const x0 = stacked ? MARK_R : labelCol + COLUMN_GAP + MARK_R
         const x1 = stacked
           ? size.width - MARK_R
@@ -98,13 +105,13 @@ export function DurabilityChart({ sport, groups, units, takeaway, note }: Durabi
           <g data-sport={sport}>
             {rows.map((row, i) => {
               const top = EDGE + i * rowH
-              const y = stacked ? top + rowH * 0.7 : top + rowH / 2
+              const y = tall ? top + rowH * 0.84 : stacked ? top + rowH * 0.7 : top + rowH / 2
               return (
                 <g key={row.key} data-testid="late-row">
                   <text
                     className="late-chart__label"
                     x={0}
-                    y={stacked ? top + rowH * 0.25 : y}
+                    y={tall ? top + rowH * 0.2 : stacked ? top + rowH * 0.25 : y}
                     dominantBaseline="central"
                   >
                     {row.label}
@@ -133,9 +140,9 @@ export function DurabilityChart({ sport, groups, units, takeaway, note }: Durabi
                   />
                   <text
                     className="late-chart__value"
-                    x={size.width}
-                    y={stacked ? top + rowH * 0.25 : y}
-                    textAnchor="end"
+                    x={tall ? 0 : size.width}
+                    y={tall ? top + rowH * 0.5 : stacked ? top + rowH * 0.25 : y}
+                    textAnchor={tall ? 'start' : 'end'}
                     dominantBaseline="central"
                   >
                     {row.text}

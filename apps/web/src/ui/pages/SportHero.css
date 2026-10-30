@@ -20,6 +20,8 @@
 
 .sport-hero__panel {
   display: grid;
+  /* One track the panel's width: an auto track grows to its widest line, which a large text size sends past the card. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-3);
   min-width: 0;
@@ -60,7 +62,8 @@
   color: var(--text-primary);
   /* A display size with no type token; see DESIGN.md, Type. */
   font-family: var(--font-display);
-  font-size: clamp(5.5rem, 26vw, 7rem);
+  /* The floor is the smaller of 5.5rem and 22vw: at a large text size the figure still fits a phone. */
+  font-size: clamp(min(5.5rem, 22vw), 26vw, 7rem);
   font-weight: 800;
   line-height: 0.8;
   font-variant-numeric: tabular-nums;
@@ -125,6 +128,9 @@
 }
 
 .sport-hero__level-name {
+  min-width: 0;
+  /* A level word wider than the panel (a large text size, a reader's letter spacing) breaks rather than leave the card. */
+  overflow-wrap: anywhere;
   color: var(--text-primary);
   font-size: clamp(2.75rem, 14vw, 4rem);
 }

@@ -7,6 +7,7 @@ import { combine, sportCurves } from './digest/combine'
 import type { CombineOptions } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
 import { rideGateKey } from './digest/estimatedRide'
+import type { JudgedWork } from './digest/judgedWork'
 import type { EstimatedRideGate } from './digest/estimatedRide'
 import type { EffortReference } from './effort'
 import { lateEvidence } from './digest/lateEvidence'
@@ -139,6 +140,7 @@ export class PeriodCache {
     calibration?: HrCalibration | null,
     references?: CombineOptions['references'],
     rideGate?: EstimatedRideGate | null,
+    judged?: JudgedWork,
   ): AnalysisResult {
     const key = setAsideAmong(selected, setAside)
     const calibrationId = calibrationKey(calibration)
@@ -162,6 +164,7 @@ export class PeriodCache {
       calibration,
       references,
       rideGate,
+      judged,
     })
     this.analysisEntries.unshift({
       selected,

@@ -19,9 +19,11 @@ describe('SportRecords: a record row’s link on a phone', () => {
     expect(ruleBody(css, '.records__source')).toContain('flex-wrap: wrap;')
   })
 
-  it('cuts the name short and keeps the date whole', () => {
-    expect(ruleBody(css, '.records__name')).toContain('text-overflow: ellipsis;')
-    expect(ruleBody(css, '.records__name')).toContain('overflow: hidden;')
+  it('wraps the whole name, never cutting it, and keeps the date whole', () => {
+    expect(ruleBody(css, '.records__name')).toContain('overflow-wrap: anywhere;')
+    expect(ruleBody(css, '.records__name')).not.toContain('text-overflow')
+    expect(ruleBody(css, '.records__name')).not.toContain('overflow: hidden;')
+    expect(ruleBody(css, '.records__link')).toContain('flex-wrap: wrap;')
     expect(ruleBody(css, '.records__date')).toContain('flex: none;')
     expect(ruleBody(css, '.records__date')).toContain('white-space: nowrap;')
     // The link itself no longer clips, which is what took the date off with the name's end.

@@ -35,14 +35,33 @@ import { summaryOf, type ActivitySummary } from './summary'
 import type { BikeModelSource } from '../virtualPower'
 import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
+import { answers } from './judgedWork'
+import type { JudgedWork } from './judgedWork'
 import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
 import type { EstimatedRideGate } from './estimatedRide'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
 import type { HeartRateJudgement } from './setAsideTypes'
+
+/** A heart-rate check with points and fits of its own, for a result that must not share them with the judgement. */
+function copyOfCheck(check: HrCrossCheck): HrCrossCheck {
+  const copyOf = (sport: HrCrossCheck['run']) =>
+    sport === null
+      ? null
+      : {
+          points: sport.points.map((point) => Object.assign({}, point)),
+          fit: Object.assign({}, sport.fit),
+        }
+  return {
+    run: copyOf(check.run),
+    ride: copyOf(check.ride),
+    kappa: check.kappa,
+    lnKappaSe: check.lnKappaSe,
+  }
+}
 
 export interface Equivalence {
   durationS: number
@@ -187,7 +206,7 @@ export function activitySummaries(
 ): ActivitySummary[] {
   const masses = settings === undefined ? null : massesOf(settings)
   const dated = masses !== null && masses.dated
-  return orderedCurrent(digests)
+  return orderedFor('listing', digests)
     .map((digest) => summaryOf(digest, dated ? masses.bodyKg(digest) : undefined))
     .sort((a, b) => b.startMs - a.startMs)
 }
@@ -218,6 +237,11 @@ export interface CombineOptions {
    * same rule. Absent, it is built from these digests; null counts every estimated point.
    */
   rideGate?: EstimatedRideGate | null
+  /**
+   * What judging the library worked out (`judgedWorkOf`). Used only when these digests are the judged ones under the
+   * same masses, gate and set-aside, when the analysis is the same figures without working them out again.
+   */
+  judged?: JudgedWork
 }
 
 /**
@@ -231,33 +255,43 @@ export function combine(
 ): AnalysisResult {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('combine', digests)
   // The mass of today, which the threshold floors and the comparison are expressed at. Each activity
   // is priced at the body and bike mass in effect on its own date.
   const massKg = settings.massKg
   const masses = massesOf(settings)
 
+  // The library's judgement already did the work of an analysis of the whole library under the same masses.
+  const reused =
+    opts.judged !== undefined && answers(opts.judged, ordered, settings, opts) ? opts.judged : null
   const calibrated = calibratedOf(ordered)
-  const fittedBike = fitBikeModelOver(ordered, masses)
+  const fittedBike =
+    reused === null
+      ? fitBikeModelOver(ordered, masses)
+      : { model: { ...reused.bikeModel }, source: reused.bikeModelSource }
   const bikeModel = fittedBike.model
   const virtualAccuracy =
     calibrated.length > 0
       ? leaveOneOutAccuracy(calibrated, (digest) => masses.totalKg(digest))
       : null
 
-  const { curves, fits, heart, gate } = judgedCurves(
-    ordered,
-    masses,
-    bikeModel,
-    massKg,
-    { heartRateSetAside: opts.heartRateSetAside, rideGate: opts.rideGate },
-    settings,
-  )
+  const { curves, fits, heart, gate } =
+    reused ??
+    judgedCurves(
+      ordered,
+      masses,
+      bikeModel,
+      massKg,
+      { heartRateSetAside: opts.heartRateSetAside, rideGate: opts.rideGate },
+      settings,
+    )
   const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = curves
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
   const rideMeasuredCurve = plainCurve(measuredRideBest(ordered))
-  const rideMetabolicCurve = rideMetabolic
+  // What the judgement worked out is shared, so what the result hands out is a copy.
+  const rideMetabolicCurve =
+    reused === null ? rideMetabolic : rideMetabolic.map((point) => Object.assign({}, point))
 
   const runFit = fits.run
   const rideFit = fits.ride
@@ -274,7 +308,9 @@ export function combine(
   const rideCp = rideOutcome.fit
   const runCpUneven = unevenFit(runCurve, wPrimeFloor('run', massKg), runCp)
   const rideCpUneven = unevenFit(rideMetabolicCurve, wPrimeFloor('ride', massKg), rideCp)
-  const hr = heartRateCrossCheck(heart.trusted, masses, bikeModel, { run: runFit, ride: rideFit })
+  const hr =
+    (reused === null ? null : copyOfCheck(reused.cross)) ??
+    heartRateCrossCheck(heart.trusted, masses, bikeModel, { run: runFit, ride: rideFit })
   // The calibration is the athlete's, not the period's: given, it replaces this period's own check below.
   const calibration = opts.calibration === undefined ? hr : opts.calibration
   const comparison = compareSports(runCurve, rideComparable, massKg, calibration, {
