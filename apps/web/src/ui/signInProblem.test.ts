@@ -16,6 +16,17 @@ describe('signInProblemText', () => {
     )
   })
 
+  it('words the refusals of the sign-up list and of account states, which the API sends as codes', () => {
+    expect(signInProblemText('#/?signin=not_on_list')).toMatch(
+      /is not on the list, so nothing was created/,
+    )
+    expect(signInProblemText('#/?signin=signup_limit')).toMatch(/Try again after midnight UTC/)
+    expect(signInProblemText('#/?signin=account_deleting')).toMatch(/not finished yet/)
+    expect(signInProblemText('#/?signin=account_conflict')).toMatch(
+      /linked to a different Google account/,
+    )
+  })
+
   it('gives the general line for a code it does not know, and never the address’s own words', () => {
     expect(signInProblemText('#/?signin=internal_error')).toBe(SIGN_IN_FAILED)
     expect(signInProblemText('#/?signin=Send%20money%20now')).toBe(SIGN_IN_FAILED)

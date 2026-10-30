@@ -353,8 +353,9 @@ Creating a new account needs the verified Google email to be in the Worker secre
 separated, case-insensitive, exact addresses (no wildcards). Unset or blank, sign-up is closed everywhere but
 local development, where it is open. The list is read only when no account exists for the Google identity or
 the email, so an existing account signs in whatever the secret holds, and removing an address from the list
-does not sign that user out. A refusal at the OAuth callback is an HTML page (403 `not_on_list`, 429
-`signup_limit`, 409 `account_deleting` or `account_conflict`), not JSON.
+does not sign that user out. A refusal at the OAuth callback (403 `not_on_list`, 429
+`signup_limit`, 409 `account_deleting` or `account_conflict`) answers a script with the JSON error, and a browser
+navigation with a redirect to the app carrying only the code (`#/?signin=not_on_list`), which the app words.
 
 "Local development" means `ENVIRONMENT` is exactly `development`, `APP_URL` is a loopback origin and the
 request arrived on a loopback host (`isLocalDevelopment`). The same test decides dev-login, the rate-limit

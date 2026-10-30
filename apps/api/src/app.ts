@@ -40,10 +40,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
       c.res.headers.set('Cross-Origin-Resource-Policy', 'same-origin')
     }
     c.res.headers.set('X-Frame-Options', 'DENY')
-    // A route that renders a page (the sign-in refusals) sets its own, tighter-than-needed policy.
-    if (!c.res.headers.has('Content-Security-Policy')) {
-      c.res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
-    }
+    c.res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
     if (!isLocalRequest(c)) {
       c.res.headers.set('Strict-Transport-Security', 'max-age=31536000')
     }

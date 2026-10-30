@@ -13,6 +13,14 @@ const REASONS: Record<string, string> = {
   oauth_state_mismatch:
     'That sign-in could not be matched to this browser, or it expired. Start it again.',
   service_unavailable: 'Sign-in is unavailable right now. Try again shortly.',
+  not_on_list:
+    'Creating an account is by invitation while the app is in testing, and the Google account you used is not on the list, so nothing was created. If you were invited, ask the person who invited you to add the address of this Google account, then try again. You can also use the app without an account: your analysis stays on this device.',
+  signup_limit:
+    'This Google account has created several accounts today, and deleted them again. Try again after midnight UTC.',
+  account_deleting:
+    'Deleting the account has not finished yet. Try signing in again in a few minutes.',
+  account_conflict:
+    'The email address is already linked to a different Google account. Sign in with that account instead.',
 }
 
 export const SIGN_IN_FAILED = 'Sign-in could not be completed. Try again.'
