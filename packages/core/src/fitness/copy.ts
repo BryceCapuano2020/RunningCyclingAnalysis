@@ -62,11 +62,14 @@ const WORDS: Record<Sport, Words> = {
   },
 }
 
-/** A change and its range as the athlete reads them (see Words.shown). */
-function asShown(sport: Sport, r: Ranged): Ranged {
+/** A change and its range as the athlete reads them (see Words.shown): paces for a run, power for a ride. */
+export function shownChange(sport: Sport, r: Ranged): Ranged {
   const f = WORDS[sport].shown
   return { value: f(r.value), low: f(r.low), high: f(r.high) }
 }
+
+/** Whether the whole range is on one side of level: only then is there a direction to say. */
+export const oneSided = (r: Ranged): boolean => r.low > 0 || r.high < 0
 
 /** The ends of a range as whole percentages, "3 to 9%"; one figure when they round together. */
 const rangeText = (r: Ranged): string => {
@@ -77,15 +80,21 @@ const rangeText = (r: Ranged): string => {
 
 /** "6% (3 to 9%)": the size of a change and the range it may lie in. */
 const sized = (sport: Sport, r: Ranged) => {
-  const shown = asShown(sport, r)
+  const shown = shownChange(sport, r)
   return `${formatRelative(shown.value)} (${rangeText(shown)})`
 }
 
 /** The side a change is on: "slower" or "faster" than the level it is against. */
 const side = (w: Words, r: Ranged) => (r.value < 0 ? w.less : w.more)
 
-/** How far from level the runs allow the athlete to be, as a percentage: the log distance read as a change. */
-const withinText = (within: number) => formatRelative(Math.expm1(within))
+/**
+ * How far from level the runs allow the athlete to be, as a percentage in the athlete's terms: the log distance
+ * read as a change each way (more speed or power, less), the larger side said, which for a run is the pace.
+ */
+function withinText(sport: Sport, within: number): string {
+  const f = WORDS[sport].shown
+  return formatRelative(Math.max(Math.abs(f(Math.expm1(within))), Math.abs(f(Math.expm1(-within)))))
+}
 
 /** The month a change began, or the day the level before it ended. */
 const before = (ms: number | null) => (ms === null ? '' : ` before ${formatDay(ms)}`)
@@ -106,7 +115,7 @@ function shortfallText(sport: Sport, s: Shortfall): string {
     case 'break':
       return `Not enough recent evidence yet. The last ${w.steady} was ${counted(s.weeksSince, 'week')} ago.`
     case 'imprecise':
-      return `Not enough evidence yet. The ${w.steady}s so far leave ${adapter.outputName} at the same heart rate uncertain by about ${formatRelative(Math.expm1(s.within))}, too wide to call it level.`
+      return `Not enough evidence yet. The ${w.steady}s so far leave ${adapter.outputName} at the same heart rate uncertain by about ${withinText(sport, s.within)}, too wide to call it level.`
     case 'unavailable':
       return `Not enough evidence yet. ${adapter.nounPlural[0]!.toUpperCase()}${adapter.nounPlural.slice(1)} are not compared at the same heart rate yet.`
   }
@@ -143,15 +152,19 @@ export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines
   const weeksBefore = (weeks: number) =>
     runs === undefined ? null : `${runs} in the ${weeks} weeks${since || ' before'}`
   const reference = M.refStartWeeks - M.refEndWeeks
+  // A direction is said only when the whole range is on one side of level.
+  const level = !oneSided(s.change)
   switch (s.state) {
     case 'slipping':
       return {
-        headline: `At ${hr} you now ${w.verb} ${now}, ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
+        headline: level
+          ? `At ${hr} you now ${w.verb} ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
+          : `At ${hr} you now ${w.verb} ${now}, ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
         support: support(s, weeksBefore(M.onsetBaseWeeks)),
       }
     case 'holding':
       return {
-        headline: `At ${hr} you ${w.verb} ${now}, level with the ${reference} weeks before (within ${withinText(s.within!)}).`,
+        headline: `At ${hr} you ${w.verb} ${now}, level with the ${reference} weeks before (within ${withinText(s.sport, s.within!)}).`,
         support: support(s, `${runs} in the ${reference} weeks before`),
       }
     case 'improving':
@@ -161,19 +174,25 @@ export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines
       }
     case 'holding-below':
       return {
-        headline: `At ${hr} you ${w.verb} ${now}, holding ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
+        headline: level
+          ? `At ${hr} you ${w.verb} ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
+          : `At ${hr} you ${w.verb} ${now}, holding ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
         support: support(s, null),
       }
-    case 'recovering':
+    case 'recovering': {
+      const regained = oneSided(s.gain!) ? `regained ${sized(s.sport, s.gain!)}` : 'regained ground'
       return {
-        headline: `At ${hr} you have regained ${sized(s.sport, s.gain!)} since your low in ${month(s.lowMs!)}: ${now}, ${s.change.value < 0 ? 'still' : 'now'} ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
+        headline: level
+          ? `At ${hr} you have ${regained} since your low in ${month(s.lowMs!)}: ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
+          : `At ${hr} you have ${regained} since your low in ${month(s.lowMs!)}: ${now}, ${s.change.value < 0 ? 'still' : 'now'} ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
         support: support(s, null),
       }
+    }
     case 'back':
       return {
         headline: faster(s)
           ? `At ${hr} you are back and ${w.more}: ${now} against ${was}${since}, ${sized(s.sport, s.change)} ${w.more}.`
-          : `At ${hr} you are back: ${now} against ${was}${since}, within ${withinText(s.within!)}.`,
+          : `At ${hr} you are back: ${now} against ${was}${since}, within ${withinText(s.sport, s.within!)}.`,
         support: support(s, null),
       }
   }
@@ -191,11 +210,11 @@ export function fitnessFindingHeadline(s: FitnessStatus): string {
     case 'slipping':
       return `At ${hr} you now ${w.verb} ${sized(s.sport, s.change!)} ${side(w, s.change!)}${w.tail}${since ? ` than${since}` : ''}.`
     case 'recovering':
-      return `At ${hr} you have regained ${sized(s.sport, s.gain!)} since your low in ${month(s.lowMs!)}.`
+      return `At ${hr} you have ${oneSided(s.gain!) ? `regained ${sized(s.sport, s.gain!)}` : 'regained ground'} since your low in ${month(s.lowMs!)}.`
     case 'back':
       return faster(s)
         ? `At ${hr} you are back and ${sized(s.sport, s.change!)} ${w.more}${since ? ` than${since}` : ''}.`
-        : `At ${hr} you are back to your level${since}, within ${withinText(s.within!)}.`
+        : `At ${hr} you are back to your level${since}, within ${withinText(s.sport, s.within!)}.`
     default:
       return ''
   }

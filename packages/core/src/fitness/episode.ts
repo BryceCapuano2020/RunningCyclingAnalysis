@@ -18,6 +18,8 @@ export interface Episode {
   sigma: number
   /** The day the change is dated to, or null when no split could be found. */
   onsetDay: number | null
+  /** The week it was first declared in. */
+  startedWeek: number
   /** The week it was declared in (reset each time it falls again). */
   declared: number
   phase: Phase
@@ -42,6 +44,7 @@ export function openEpisode(
     referenceRuns,
     sigma,
     onsetDay,
+    startedWeek: week,
     declared: week,
     phase: 'slipping',
     phaseAt: null,

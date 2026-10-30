@@ -141,6 +141,43 @@ describe('the lines of a status', () => {
     )
   })
 
+  it('says level, not a direction, when the range of the change reaches both sides of level', () => {
+    const across: Ranged = { value: 0.006, low: -0.03, high: 0.04 }
+    const slipping = fitnessLines(
+      status('run', 'slipping', { change: across, within: 0.045 }),
+      'metric',
+    )
+    expect(slipping.headline).toBe(
+      'At 150 bpm you now run 5:30 /km, level with the 5:00 /km before 28 Feb (within 4.6%).',
+    )
+    const below = fitnessLines(
+      status('run', 'holding-below', { change: across, within: 0.045 }),
+      'metric',
+    )
+    expect(below.headline).toContain('level with the 5:00 /km before 28 Feb (within 4.6%)')
+    const recovering = fitnessLines(
+      status('run', 'recovering', {
+        change: across,
+        within: 0.045,
+        gain: { value: 0.01, low: -0.02, high: 0.04 },
+      }),
+      'metric',
+    ).headline
+    expect(recovering).toContain('regained ground since your low in July')
+    expect(recovering).toContain('level with the 5:00 /km before 28 Feb (within 4.6%)')
+    for (const text of [slipping.headline, below.headline, recovering]) {
+      expect(text).not.toMatch(/slower|faster|still/)
+    }
+  })
+
+  it('says "within" as a distance in the athlete\'s terms, the larger side, for a run and a ride', () => {
+    const run = fitnessLines(status('run', 'holding', { within: 0.1 }), 'metric').headline
+    const ride = fitnessLines(status('ride', 'holding', { within: 0.1 }), 'metric').headline
+    // exp(0.1) - 1: a pace 10.5% slower is as far as a speed 9.5% faster, and the larger is said.
+    expect(run).toContain('within 11%')
+    expect(ride).toContain('within 11%')
+  })
+
   it('says what is missing, with both counts and the window', () => {
     const lacking = (shortfall: Shortfall, sport: Sport = 'run') =>
       fitnessLines({ ...noFitness(sport), shortfall }, 'metric').headline

@@ -222,6 +222,14 @@ describe('a dip and a return, week by week', () => {
     expect(back.within).toBeLessThan(0.1)
   })
 
+  it('never says improving once back: the dip is still in the weeks it is compared with', () => {
+    const back = first('back')
+    expect(back).toBeGreaterThan(0)
+    // Back, the episode closes, and for 36 weeks the earlier level still holds the dip.
+    expect(weekly.slice(back).filter((s) => s.state === 'improving')).toEqual([])
+    expect(weekly.slice(back).some((s) => s.state === 'holding')).toBe(true)
+  })
+
   it('dates the slip to within a couple of months of when it began', () => {
     const slipping = weekly[first('slipping')]!
     expect(Math.abs(slipping.onsetMs! - dip.truths[0]!.onsetMs)).toBeLessThan(10 * WEEK)

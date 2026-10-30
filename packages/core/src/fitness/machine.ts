@@ -43,6 +43,8 @@ export interface WeekRecord {
   /** The level against the reference (an episode), or the best contrast (no episode). */
   delta: number
   episode: EpisodeView | null
+  /** The day the episode that closed this week began (its onset, else its first week): the dip it leaves in the weeks behind. */
+  closes: number | null
   /** What is shown once a new state has held for the display hold. */
   shown: MachineState
 }
@@ -54,6 +56,7 @@ const record = (w: number, state: MachineState, extra: Partial<WeekRecord> = {})
   z: Number.NaN,
   delta: Number.NaN,
   episode: null,
+  closes: null,
   shown: state,
   ...extra,
 })
@@ -143,7 +146,13 @@ export function monitor(runs: readonly RunPoint[], from: number, to: number): We
       trough: step.state === 'recovering' || step.state === 'back' ? troughOf(ep) : null,
     }
     records.push(
-      record(w, state, { fresh: step.fresh, z: step.z, delta: step.delta, episode: view }),
+      record(w, state, {
+        fresh: step.fresh,
+        z: step.z,
+        delta: step.delta,
+        episode: view,
+        closes: step.close ? (ep.onsetDay ?? dayOfWeekEnd(ep.startedWeek)) : null,
+      }),
     )
     if (step.close) {
       ep = null

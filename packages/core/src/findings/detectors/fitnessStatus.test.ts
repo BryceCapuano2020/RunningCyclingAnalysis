@@ -46,6 +46,10 @@ describe('the fitness-status detector', () => {
     expect(finding.headline).not.toMatch(/\/km|\/mi/)
     expect(finding.confidence).toBeGreaterThanOrEqual(0.8)
     expect(finding.numbers.map((n) => n.key)).toEqual(['now', 'before', 'change'])
+    // The number is said as a pace, as the page shows a run; the effect stays in speed for the engine.
+    const change = finding.numbers.find((n) => n.key === 'change')!
+    expect(change.value / 100).toBeCloseTo(finding.effect / (1 + finding.effect), 6)
+    expect(change.value).toBeLessThan(finding.effect * 100)
   })
 
   it('points at the runs it rests on', () => {

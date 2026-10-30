@@ -198,6 +198,7 @@ describe('the display hold', () => {
     z: Number.NaN,
     delta: 0,
     episode: null,
+    closes: null,
     shown: state,
   })
   const shown = (states: [MachineState, boolean?][]) => {

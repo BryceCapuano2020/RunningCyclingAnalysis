@@ -142,7 +142,12 @@ function episodic(
  * No episode open: the last 8 weeks against the reference window. Holding when the level is known to within
  * 6%; improving when it is clearly up; otherwise too uncertain to say.
  */
-function calm(base: FitnessStatus, runs: readonly RunPoint[], day: number): FitnessStatus {
+function calm(
+  base: FitnessStatus,
+  runs: readonly RunPoint[],
+  day: number,
+  records: readonly WeekRecord[],
+): FitnessStatus {
   const recent = slice(runs, day - D.recentWeeks * 7, day)
   const before = slice(runs, day - M.refStartWeeks * 7, day - M.refEndWeeks * 7)
   const sigma = sigmaAt(runs, day)
@@ -163,8 +168,19 @@ function calm(base: FitnessStatus, runs: readonly RunPoint[], day: number): Fitn
   const change = ranged(delta, half)
   // A clear rise is said plainly rather than as too little evidence: the mirror of the slip test on two weeks
   // running, with the range clear of zero. There is no episode and no finding.
+  // The earlier level must be free of a dip: while the weeks 8 to 44 ago hold any of an episode that has since
+  // closed (or one still open), an athlete back at their old level would read as faster than their dip.
+  const window = { from: day - M.refStartWeeks * 7, to: day - M.refEndWeeks * 7 }
+  const dipBehind =
+    records.at(-1)?.episode != null ||
+    records.some(
+      (r) => r.closes !== null && r.closes < window.to && dayOfWeekEnd(r.w) >= window.from,
+    )
   const rising =
-    change.low > 0 && risenAt(runs, day, sigma) && risenAt(runs, day - 7, sigmaAt(runs, day - 7))
+    !dipBehind &&
+    change.low > 0 &&
+    risenAt(runs, day, sigma) &&
+    risenAt(runs, day - 7, sigmaAt(runs, day - 7))
   if (!rising && within > D.maxWithin) return lacking(base, { kind: 'imprecise', within })
   return {
     ...base,
@@ -256,7 +272,7 @@ export function describe(
   const entered = enteredAt(records)
   const told =
     (shown === 'holding' ? null : episodic(base, shown as FitnessState, records, runs)) ??
-    calm(base, runs, day)
+    calm(base, runs, day, records)
   // Only the state the monitor has begun is entered; a calm status told while the display lags is not.
   return told.state === shown ? { ...told, entered } : told
 }

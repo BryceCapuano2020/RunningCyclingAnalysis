@@ -247,4 +247,31 @@ describe('fitness status: improving', () => {
     expect(said / seeds).toBeGreaterThanOrEqual(0.75)
     expect(slipped).toBeLessThanOrEqual(2)
   })
+
+  it('is never said after a dip is back and its episode has closed, while the dip is in the weeks compared with', () => {
+    let reachedBack = 0
+    let improving = 0
+    for (let seed = 1; seed <= 30; seed++) {
+      const library = plantedLibrary({
+        seed,
+        weeks: 190,
+        perWeek: 3,
+        ...NOISE,
+        effects: [
+          { type: 'efficiency-shift', atWeek: 60, size: -0.12 },
+          { type: 'efficiency-shift', atWeek: 100, size: 0.12 / 0.88 },
+        ],
+      })
+      const after = states(library, 100, 175)
+      const back = after.indexOf('back')
+      if (back < 0) continue
+      reachedBack++
+      // From the first back on, 36 weeks and more: the episode closes after 12 weeks, the dip leaves the window after 44.
+      if (after.slice(back).includes('improving')) improving++
+    }
+    // Observed: 27 of 30 libraries reach back inside the window, and none say improving afterwards (20 of the 27 did before
+    // the closed episode was remembered).
+    expect(reachedBack).toBeGreaterThanOrEqual(15)
+    expect(improving).toBe(0)
+  })
 })

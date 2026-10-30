@@ -1,4 +1,4 @@
-import { fitnessFindingHeadline } from '../../fitness/copy'
+import { fitnessFindingHeadline, oneSided, shownChange } from '../../fitness/copy'
 import { fitnessStatuses } from '../../fitness/compute'
 import { weekOfMs } from '../../fitness/machine'
 import { FITNESS } from '../../fitness/params'
@@ -51,7 +51,8 @@ function candidateOf(status: FitnessStatus, sport: Sport, asOfMs: number): Candi
   const slipping = status.state === 'slipping'
   const shift = slipping ? change : gain
   if (shift === null || !Number.isFinite(entered.z)) return null
-  if (slipping ? !(shift.value < 0) : !(shift.value > 0)) return null
+  // A finding states a direction, so its whole range has to lie on that side of level.
+  if (!oneSided(shift) || (slipping ? !(shift.value < 0) : !(shift.value > 0))) return null
   const window = { fromMs: evidence.recent.fromMs, toMs: evidence.recent.toMs }
   const baseline = evidence.baseline ?? window
   const newest = evidence.recent.ids.slice(-F.evidenceRuns)
@@ -72,7 +73,8 @@ function candidateOf(status: FitnessStatus, sport: Sport, asOfMs: number): Candi
     numbers: [
       { key: 'now', value: status.now!, unit: OUTPUT_UNIT[sport] },
       { key: 'before', value: status.before!, unit: OUTPUT_UNIT[sport] },
-      { key: 'change', unit: '%', ...percent(shift) },
+      // Said as the page shows it: a run's change in pace, a ride's in power. `effect` stays in output for the engine.
+      { key: 'change', unit: '%', ...percent(shownChange(sport, shift)) },
     ],
     evidence: refs,
     support: {

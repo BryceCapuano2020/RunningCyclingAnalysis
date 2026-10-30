@@ -50,14 +50,18 @@ not kept as a test.
 
 Improving mirrors the slip test with no episode: at the same scales a contrast of z of 3.3 and a gain of 4%
 on two weeks running, with the range of the change clear of zero. It freezes no reference; once the earlier
-36 weeks catch up with the new level the status reads holding. A fuller state, with a reference and a
+36 weeks catch up with the new level the status reads holding. It is withheld while the weeks 8 to 44 ago hold any
+of an episode that has closed (or one still open): an athlete back at their old level would otherwise read as
+faster than their own dip. A fuller state, with a reference and a
 holding at the new level, is not built.
 
 ## Findings
 
 `findings/detectors/fitnessStatus.ts` speaks only for a slipping, recovering or back that began to be shown in
 the last 6 weeks, so the ledger shows each once; holding and not enough evidence are status lines. Its
-headline carries sizes and dates but no pace or power, because a finding outlives the unit setting. The
+headline carries sizes and dates but no pace or power, because a finding outlives the unit setting, and a finding is
+made only when the whole range of its change is on one side of level (a status line whose range reaches both sides
+says level, within a distance). The
 engine's surprise is the monitor's own z against the usual spread of a z-score, 1
 (`FITNESS.finding.quietSpread`), since the monitor has already held the change to a false-alarm budget of
 about a quarter of an alarm per athlete-year. A back is judged by its own statistic: how far the 12-week level
