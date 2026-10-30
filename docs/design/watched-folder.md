@@ -144,7 +144,6 @@ tell the athlete how many files were new. Safari and Firefox users can re-pick t
 
 1. Do the "since your last import" check-in on the existing picker and drop first: ledger by path,
    size and mtime, plus a "new since" count. Works in every browser.
-2. Ask the five testers where their files land (Express folder, watch drive, Dropbox, phone only)
-   before building the folder watcher. That settles the question the ROADMAP already flags.
-3. If two or more testers have a reachable folder, build the Chromium prototype above in stage E.
-4. Do not promise Garmin Express support. Tell Garmin users to use Garmin's export or Dropbox copy.
+2. Ask the five testers where their files land (Express, watch drive, Dropbox, phone only) first.
+3. If two or more testers have a reachable folder, build the Chromium prototype in stage E.
+   Do not promise Garmin Express support.
