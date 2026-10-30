@@ -28,6 +28,16 @@
   inset: -12px -6px;
 }
 
+/*
+ * In a paragraph the lines of a sentence touch, so a reach of 12 px above and below would overlap the term on the
+ * line above or below, and a press on the lower half of one term would open the other (the later in the page wins).
+ * A term in prose is an inline target, as wide as its text and as tall as its line, with a pixel to spare: a press
+ * on it opens it and nothing else.
+ */
+p .definition__term::after {
+  inset: -1px -6px;
+}
+
 /* Shown while data-open: a press, which the keyboard makes with the button, or a pointer resting on the term or the note. */
 .definition__note {
   position: absolute;

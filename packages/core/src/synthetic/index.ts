@@ -6,6 +6,9 @@ export { sampleDataset } from './dataset'
 export {
   SAMPLE_CLOCK,
   SAMPLE_REFERENCE_NOW_MS,
+  easyCostOn,
+  easySlipOn,
+  easyWobbleOn,
   generateSampleActivity,
   samplePlan,
   sampleSeason,

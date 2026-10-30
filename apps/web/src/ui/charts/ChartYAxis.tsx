@@ -1,5 +1,6 @@
 import type { AxisTick, PlotBox } from './chartTypes'
-import { axisFontRem, labelWidth, rootScale } from './ticks'
+import { axisFontRem } from './ticks'
+import { INSIDE_LIFT, TICK_GAP, TITLE_RISE, yLabelLayout } from './yAxisLabels'
 import './ChartYAxis.css'
 
 export interface ChartYAxisProps {
@@ -9,16 +10,12 @@ export interface ChartYAxisProps {
   title?: string
   /** Tick text size in px. */
   fontSize?: number
+  /**
+   * Draws the tick labels alone, no gridlines and not the title (which still decides which labels would run into it): a chart that lays marks over the plot draws the labels once
+   * more on top of them, so a line that crosses an inside label does not strike it through (the halo hides it).
+   */
+  labelsOnly?: boolean
 }
-
-/** The gap, px, between a tick label and the plot's left edge. */
-const TICK_GAP = 8
-
-/** How far above its gridline an inside label's baseline sits, px. */
-const INSIDE_LIFT = 5
-
-/** How far above the plot's top edge the axis title's baseline sits, px. */
-const TITLE_RISE = 12
 
 /**
  * Gridlines, tick labels to the left of the plot, and an optional title above it. Where the widest label
@@ -26,24 +23,27 @@ const TITLE_RISE = 12
  * gridline and over a halo, so the gutter can stay narrow and no label is cut off. An inside label near the
  * plot's top would run up into the title, so its text is left off there; its gridline stays.
  */
-export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProps) {
-  const scale = rootScale()
-  const widest = Math.max(0, ...ticks.map((tick) => labelWidth(tick.label, fontSize, scale)))
-  const inside = widest + TICK_GAP > plot.left
-  // The title's descent reaches 3 px below its baseline; an inside label reaches fontSize + INSIDE_LIFT above its line.
-  const reachesTitle = (tick: AxisTick) =>
-    inside && Boolean(title) && tick.position - INSIDE_LIFT - fontSize < plot.top - TITLE_RISE + 3
+export function ChartYAxis({
+  ticks,
+  plot,
+  title,
+  fontSize = 12,
+  labelsOnly = false,
+}: ChartYAxisProps) {
+  const { inside, reachesTitle } = yLabelLayout(ticks, plot, title, fontSize)
   return (
     <g className="chart-y-axis">
       {ticks.map((tick) => (
         <g key={tick.position}>
-          <line
-            className="chart-y-axis__grid"
-            x1={plot.left}
-            x2={plot.right}
-            y1={tick.position}
-            y2={tick.position}
-          />
+          {labelsOnly ? null : (
+            <line
+              className="chart-y-axis__grid"
+              x1={plot.left}
+              x2={plot.right}
+              y1={tick.position}
+              y2={tick.position}
+            />
+          )}
           {reachesTitle(tick) ? null : (
             <text
               className={
@@ -60,7 +60,7 @@ export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProp
           )}
         </g>
       ))}
-      {title ? (
+      {title && !labelsOnly ? (
         <text
           className="chart-y-axis__title"
           x={plot.left}

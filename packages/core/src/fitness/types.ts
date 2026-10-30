@@ -79,6 +79,21 @@ export interface FitnessEntry {
   z: number
 }
 
+/**
+ * One point of the level over time: the output at the reference heart rate over the `weeks` to `atMs` (the last day
+ * the point includes), with its 90% range, in the status's unit.
+ */
+export interface FitnessPoint {
+  atMs: number
+  value: number
+  low: number
+  high: number
+  /** Steady runs the point is read from. */
+  runs: number
+  /** The stretch it is read over, in weeks: the shortest of 4 to 16 that holds enough runs. */
+  weeks: number
+}
+
 export interface FitnessStatus {
   sport: Sport
   state: FitnessState
@@ -98,6 +113,12 @@ export interface FitnessStatus {
   onsetMs: number | null
   lowMs: number | null
   evidence: FitnessEvidence | null
+  /**
+   * The level at four-weekly steps, oldest first, for the evidence chart: a point every `FITNESS.display.seriesStepWeeks` back from the
+   * newest, over at most the last `seriesWeeks` weeks. The last point is the level now, the same figure as `now`. Empty without a state.
+   * The line it is read against is `before` and the month the change began is `onsetMs`.
+   */
+  series: FitnessPoint[]
   shortfall: Shortfall | null
   /** When the state began and with what test; null for holding that was never interrupted and for no state. */
   entered: FitnessEntry | null
@@ -123,6 +144,7 @@ export function noFitness(sport: Sport): FitnessStatus {
     onsetMs: null,
     lowMs: null,
     evidence: null,
+    series: [],
     shortfall: {
       kind: 'history',
       have: 0,

@@ -1,6 +1,7 @@
 import type { SameHeartRate } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { FITNESS_WORDS } from '../fitnessWords'
 import { sameHeartRateCopy } from '../sameHeartRateCopy'
 import { lackLine } from './lackLine'
 
@@ -20,4 +21,13 @@ export function sameHeartRateLack(
   return copy.kind === 'missing' && data.change === null
     ? lackLine(SAME_HEART_RATE_NAME, copy.text)
     : null
+}
+
+/** The section's name once the fitness status above it speaks: it is the weekly view, not the verdict. */
+export const SAME_HEART_RATE_WEEKLY_NAME = 'Same heart rate, week by week'
+
+/** What the closed row says then: what is drawn, and where the verdict is. It names no change, so the two never disagree. */
+export function weeklyFinding(sport: Sport, referenceHr: number | null): string {
+  const words = FITNESS_WORDS[sport]
+  return `Your ${words.output.toLowerCase()} each week${referenceHr === null ? '' : ` at ${referenceHr} bpm`}. Your fitness status above is read from ${words.steadyPlural} over longer stretches.`
 }

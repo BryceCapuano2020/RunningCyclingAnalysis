@@ -29,11 +29,22 @@ export function SameHeartRateSection({
   sport,
   data,
   units,
+  weekly = false,
 }: {
   sport: Sport
   data: SameHeartRate
   units: UnitSystem
+  /** The fitness status above speaks for the sport, so this is the weekly view: its chart carries no change headline of its own. */
+  weekly?: boolean
 }) {
   if (data.change === null) return null
-  return <SameHeartRateChart sport={sport} data={data} units={units} note={noteFor(sport)} />
+  return (
+    <SameHeartRateChart
+      sport={sport}
+      data={data}
+      units={units}
+      note={noteFor(sport)}
+      headline={!weekly}
+    />
+  )
 }

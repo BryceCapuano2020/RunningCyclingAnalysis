@@ -1,0 +1,394 @@
+/* Your fitness: one card for each sport that has a status, above the balance it sits beside. */
+.fitness-section {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.fitness-section__cards {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The card carries its sport on its left edge, as the records' cards do; the figures stay in ink. */
+.fitness-card {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5) var(--space-5) var(--space-4) calc(var(--space-5) + 4px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow);
+}
+
+.fitness-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px auto -1px -1px;
+  width: 6px;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: var(--sport-colour);
+}
+
+.fitness-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.fitness-card__sport {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.fitness-card__sport .icon {
+  color: var(--sport-colour);
+}
+
+/* New: solid ink for the marker, the week it began beside it in words. */
+.fitness-card__new {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.fitness-card__new strong {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--selected);
+  color: var(--selected-contrast);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-caps);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.fitness-card__body {
+  display: grid;
+  gap: var(--space-4) var(--space-6);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+
+@media (min-width: 761px) {
+  .fitness-card__body {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+}
+
+/*
+ * A short phone (the same test as the page's own tighter gaps) has a header, a notice and a tab bar to share its
+ * height with, so the card gives up what its evidence panel repeats: the support line and the sport's tag go, the New
+ * marker rides the corner without its week (read aloud still), the sentence is a size smaller, and the balance under
+ * the card sits closer. What stays is the state, the sentence with its range and the track.
+ */
+@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
+  .fitness-section {
+    margin-bottom: calc(var(--space-3) - var(--space-7));
+  }
+
+  .fitness-card {
+    gap: var(--space-3);
+    padding-block: var(--space-4) var(--space-2);
+  }
+
+  .fitness-card__sport,
+  .fitness-card__support {
+    display: none;
+  }
+
+  .fitness-card__top {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-4);
+  }
+
+  .fitness-card__new-week {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .fitness-card__state {
+    padding-right: 3.5rem;
+  }
+
+  .fitness-card__headline {
+    font-size: var(--text-md);
+  }
+}
+
+/* A landscape phone has little height: the track sits beside the words, as on a wide screen, and the card is tighter. */
+@media (max-height: 520px) and (min-width: 560px) {
+  .fitness-card {
+    gap: var(--space-2);
+    padding-block: var(--space-3);
+  }
+
+  .fitness-card__body {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+
+  /* The sport's tag goes and the marker rides the card's corner, so the state is its first line. */
+  .fitness-card__top {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-4);
+  }
+
+  .fitness-card__sport {
+    display: none;
+  }
+}
+
+.fitness-card__text {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The state, as a word at display size and the shape that says it without colour. */
+.fitness-card__state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
+  font-size: clamp(2rem, 6.4vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* A status that waits says so in a smaller word: it has no change to lead with. */
+.fitness-card[data-state='not-enough-evidence'] .fitness-card__state {
+  font-size: clamp(1.5rem, 4.8vw, 2rem);
+}
+
+.fitness-card__headline {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--text-primary);
+  font-size: var(--text-lead);
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+.fitness-card__support {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.fitness-card__shape {
+  min-width: 0;
+}
+
+/* A count the status is waiting on: one pill for each steady run it needs. */
+.fitness-progress {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.fitness-progress__cells {
+  display: flex;
+  gap: 4px;
+}
+
+.fitness-progress__cell {
+  flex: 1 1 0;
+  max-width: 28px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--level-4);
+}
+
+.fitness-progress__cell.is-on {
+  background: var(--sport-colour);
+}
+
+.fitness-progress__count {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+}
+
+.fitness-progress__count strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+}
+
+.fitness-card__evidence {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+.fitness-card__evidence > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height);
+  font-weight: 600;
+}
+
+@media (forced-colors: active) {
+  .fitness-card::before {
+    background: CanvasText;
+  }
+
+  .fitness-progress__cell {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  .fitness-progress__cell.is-on {
+    background: Highlight;
+  }
+
+  .fitness-card__new strong {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* The panel behind the disclosure: the chart across the card, then how it is measured and the runs it rests on side by side. */
+.fitness-evidence {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--space-3) 0 var(--space-2);
+}
+
+.fitness-evidence__text {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+@media (min-width: 901px) {
+  .fitness-evidence__text {
+    gap: var(--space-5) var(--space-6);
+    grid-template:
+      'method runs' auto
+      'why runs' 1fr / minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .fitness-evidence__block[data-area='method'] {
+    grid-area: method;
+  }
+
+  .fitness-evidence__block[data-area='runs'] {
+    grid-area: runs;
+  }
+
+  .fitness-evidence__block[data-area='why'] {
+    grid-area: why;
+  }
+}
+
+.fitness-evidence__block {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.fitness-evidence__block h4 {
+  margin: 0;
+}
+
+.fitness-evidence__block p {
+  margin: 0;
+  max-width: 62ch;
+  font-size: var(--text-md);
+}
+
+.fitness-evidence__earlier > summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+}
+
+.fitness-runs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fitness-runs__row {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.fitness-runs__row a {
+  /* One underline for a row, under the name: a flex link's two cells would each carry the line. */
+  text-decoration: none;
+  display: flex;
+  flex: 1;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block: 2px;
+}
+
+.fitness-runs__date {
+  flex: none;
+  min-width: 4.5rem;
+  color: var(--text-secondary);
+}
+
+.fitness-runs__name {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fitness-runs__figure {
+  flex: none;
+}
+
+@media (pointer: coarse) {
+  .fitness-runs__row a {
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
+.fitness-runs__row a:hover .fitness-runs__name {
+  text-decoration-thickness: 2px;
+}

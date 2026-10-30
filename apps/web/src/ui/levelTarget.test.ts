@@ -256,7 +256,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       }),
     ).toBe(
-      'To grade level with your running at 20 min, your best ride would need about 285 W (roughly 260 to 305 W; now 243 W).',
+      'To grade level with your running at 20 min, your best ride would need about 275 W (roughly 245 to 295 W; now 243 W).',
     )
   }, 60_000)
 

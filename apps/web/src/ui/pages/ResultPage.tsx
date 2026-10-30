@@ -199,6 +199,7 @@ export function ResultPage({
           trends={analysis.state.effortTrends}
           windowDays={trendWindowDays(period.days)}
           sameHeartRate={analysis.state.sameHeartRate[route.page]}
+          fitness={analysis.state.fitness}
           lateEvidence={analysis.state.lateEvidence[route.page]}
           zoneTimes={analysis.state.timeInZones.current[route.page]}
           previousZoneTimes={analysis.state.timeInZones.previous?.[route.page] ?? null}

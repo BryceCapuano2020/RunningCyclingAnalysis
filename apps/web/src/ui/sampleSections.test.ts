@@ -18,6 +18,9 @@ const session = new AnalysisSession()
 session.loadSample(SETTINGS)
 const at = (choice: 'default' | 365 | 'all'): SessionState => session.setRange(choice, SETTINGS)
 
+/** Which way each sport's output at the same heart rate moves over the sample's default period. */
+const SAME_HEART_RATE_SIGN: Record<Sport, number> = { run: -1, ride: 1 }
+
 describe('the sample athlete fills every section of the app', () => {
   it('shows three different libraries at 12 weeks, 12 months and all time', () => {
     const counts = (['default', 365, 'all'] as const).map(
@@ -42,7 +45,9 @@ describe('the sample athlete fills every section of the app', () => {
     expect(referenceHeartRate).not.toBeNull()
     expect(weeks.filter((week) => week.fit !== null).length).toBeGreaterThanOrEqual(3)
     expect(change).not.toBeNull()
-    expect(change!.relative).toBeGreaterThan(0)
+    // The ride's output at the same heart rate climbs with the season. The run's falls: the season's last weeks hold
+    // the slip the fitness status finds (sessionSample.fitness.test.ts), which the weekly view reads too.
+    expect(Math.sign(change!.relative)).toBe(SAME_HEART_RATE_SIGN[sport])
   })
 
   it.each(SPORTS)('has durability and drift evidence for %s', (sport) => {

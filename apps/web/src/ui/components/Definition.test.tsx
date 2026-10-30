@@ -257,5 +257,9 @@ describe('Definition', () => {
       expect(ruleBody(css, '.definition__term::after')).toMatch(/inset:\s*-12px -6px/)
       expect(ruleBody(css, '.definition__term')).toMatch(/position:\s*relative/)
     })
+
+    it('reaches no further than a pixel above and below a term in a paragraph, so a term on the next line is not covered', () => {
+      expect(ruleBody(css, 'p .definition__term::after')).toMatch(/inset:\s*-1px -6px/)
+    })
   })
 })

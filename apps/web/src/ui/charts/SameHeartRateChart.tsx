@@ -35,6 +35,8 @@ export interface SameHeartRateChartProps {
   units: UnitSystem
   /** Muted text under the plot: how to read it, and what it does not count. */
   note: string
+  /** Whether the change is the chart's headline. Left out where another finding speaks for the sport. */
+  headline?: boolean
 }
 
 /** A chart at least this wide, px, keeps a right gutter for the line's end label. */
@@ -86,7 +88,13 @@ function tooltipFor(
  * date axis. The finding names a change only when the trend's 90% band is clear of zero, so a line
  * that slopes within its band is drawn but not claimed. Rides are diamonds.
  */
-export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateChartProps) {
+export function SameHeartRateChart({
+  sport,
+  data,
+  units,
+  note,
+  headline = true,
+}: SameHeartRateChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const { weeks, referenceHeartRate: reference } = data
   const hasData = reference !== null && weeks.filter(weekHasFit).length >= 2
@@ -99,7 +107,7 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={title}
-      takeaway={takeaway}
+      takeaway={headline ? takeaway : undefined}
       description={`Output at ${reference} bpm in each week, fitted to the steady stretches of the 4 weeks to that Sunday, as ${SPORT_FORMAT[sport].titleUnit(units)}, with a fitted line and its band.`}
       note={note}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}

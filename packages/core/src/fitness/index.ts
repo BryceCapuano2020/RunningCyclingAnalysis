@@ -13,6 +13,7 @@ export type {
   FitnessEntry,
   FitnessEvidence,
   FitnessMethod,
+  FitnessPoint,
   FitnessSpan,
   FitnessState,
   FitnessStatus,
