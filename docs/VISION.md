@@ -74,10 +74,11 @@ Each phase ships on its own and leaves the app more useful.
 2. **Evolving capability.** The shared timeline engine replaces the per-period rolling best (a
    window of a third of the period, between one week and 42 days) with a capability trajectory and
    intervals. Each card lists its evidence gaps.
-3. **Swimming.** Pool-swim FIT parsing (lengths, laps, pool size) and critical swim speed from
+3. **Strength, the third dimension.** Simple lifting logs (manual entry, common app CSV exports, FIT
+   strength sets) and estimated one-rep max per lift, with intervals, using body mass for relative
+   strength.
+4. **Swimming.** Pool-swim FIT parsing (lengths, laps, pool size) and critical swim speed from
    ordinary swims, freestyle first.
-4. **Strength.** Simple lifting logs (manual entry, common app CSV exports, FIT strength sets) and
-   estimated one-rep max per lift, with intervals, using body mass for relative strength.
 5. **Profile.** One page with a card per discipline, each showing its own trend, evidence and gaps.
    It has no composite score.
 
