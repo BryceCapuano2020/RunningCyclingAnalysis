@@ -396,9 +396,11 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
 
   it('shows nothing when this browser refused nothing, and the notice once it did', () => {
     const { rerender } = render(shown(null))
-    expect(screen.queryByRole('region', { name: 'Kept in this browser' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Browser storage problem' }),
+    ).not.toBeInTheDocument()
 
     rerender(shown({ issue: 'notForgotten' }))
-    expect(screen.getByRole('region', { name: 'Kept in this browser' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Browser storage problem' })).toBeInTheDocument()
   })
 })
