@@ -18,3 +18,11 @@ export type {
   NoiseModel,
   SensorNoise,
 } from './types'
+export { LIBRARY_END_MS, buildLibrary } from './library'
+export type { FileFormat, Library, LibraryEntry, PersonaSpec, Session, SportPlan } from './library'
+export { PERSONAS, PERSONA_NAMES, persona } from './personas'
+export type { PersonaName } from './personas'
+export { TUNING_CONFIGS, TUNING_CONFIG_NAMES } from './tuningConfigs'
+export type { TuningConfigName } from './tuningConfigs'
+export { noiseWith } from './variants'
+export type { NoisePatch } from './variants'
