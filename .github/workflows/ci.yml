@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+    # ready_for_review runs CI when a draft is marked ready; a draft itself runs only the two cheap
+    # required-check jobs below, which fail on purpose so a draft can never look green.
+    types: [opened, synchronize, reopened, ready_for_review]
 
 # A newer push to a pull request cancels that pull request's older run. Each push to main gets its
 # own group (its sha), so no main run is ever cancelled or dropped and every main commit gets a verdict.
@@ -26,6 +29,7 @@ jobs:
   # explicit 'false', so if this job fails they run.
   changes:
     name: Changed files
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -60,7 +64,7 @@ jobs:
   static:
     name: Lint, typecheck, build
     needs: changes
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -103,7 +107,7 @@ jobs:
   unit:
     name: Unit tests (${{ matrix.shard }} of 2)
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -139,6 +143,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: A draft pull request runs no checks
+        if: github.event.pull_request.draft
+        run: |
+          echo "::error::Draft pull request: CI runs when it is marked ready for review."
+          exit 1
       - name: Require the static job and every unit shard
         env:
           CODE: ${{ needs.changes.outputs.code }}
@@ -183,7 +192,7 @@ jobs:
   perf:
     name: Performance budgets
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -209,7 +218,7 @@ jobs:
   sim:
     name: Statistical simulations
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -228,7 +237,7 @@ jobs:
   e2e:
     name: End-to-end (${{ matrix.shard }} of 3)
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -275,6 +284,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      - name: A draft pull request runs no checks
+        if: github.event.pull_request.draft
+        run: |
+          echo "::error::Draft pull request: CI runs when it is marked ready for review."
+          exit 1
       - name: Require every end-to-end shard
         env:
           CODE: ${{ needs.changes.outputs.code }}
@@ -286,6 +300,7 @@ jobs:
 
   audit:
     name: Dependency audit
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
