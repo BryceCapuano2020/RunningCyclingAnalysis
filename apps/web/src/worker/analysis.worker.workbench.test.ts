@@ -496,3 +496,40 @@ describe('what is said when a recording cannot be removed', () => {
     expect(notForgotten(messages)).toHaveLength(1)
   })
 })
+
+describe('what the worker says after reading a recording from the original', () => {
+  it('tells the page which recordings it holds before its reply, so nothing follows the reply', async () => {
+    const bytes = new Uint8Array(encodeGpx(run))
+    const parsed = parseActivityFile(bytes, 'run.gpx')
+    if (!parsed.ok) throw new Error('The test file does not read')
+    const digest = digestActivity(parsed.activities[0]!)
+    const record: ActivityRecord = {
+      id: 'rec-1',
+      digest,
+      fileName: 'run.gpx',
+      hasFile: true,
+      fileSize: bytes.byteLength,
+      createdAt: 1,
+    }
+    vi.mocked(client.listActivities).mockResolvedValue([record])
+    vi.mocked(client.downloadActivityFile).mockResolvedValue(bytes)
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: 'u1' })
+
+    const messages = await send({
+      type: 'activityTrace',
+      id: digest.id,
+      userId: 'u1',
+      fromOriginal: true,
+      requestId: 21,
+    } as WorkerRequest)
+
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'activityTrace', replyTo: 21 })
+    expect(reply).toMatchObject({ reply: { kind: 'trace' } })
+    const coverage = messages.findIndex((message) => message.type === 'detailCoverage')
+    expect(coverage).toBeGreaterThanOrEqual(0)
+    expect(coverage).toBeLessThan(messages.length - 1)
+    expect(messages.filter((message) => message.type === 'activityTrace')).toHaveLength(1)
+  })
+})

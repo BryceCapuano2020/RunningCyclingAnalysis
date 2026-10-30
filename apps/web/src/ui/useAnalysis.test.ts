@@ -7,7 +7,7 @@ import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
-import { createElement, StrictMode } from 'react'
+import { createElement, StrictMode, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { DAILY_LIMITS, LIST_ROWS_LIMIT_MESSAGE } from '@rca/contract'
 import type { Me } from '@rca/contract'
@@ -15,8 +15,9 @@ import type { SessionState } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { RouteReply } from './routeReply'
 import type { AthleteSettings } from '@rca/core/types'
+import { FakeWorker } from '../test/fakeWorker'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
+import type { WorkerRequest } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
 import { SyncStatus } from './components/SyncStatus'
@@ -40,31 +41,6 @@ function localTime(ms: number): string {
 
 /** The reset sentence, with the local time left to the viewer's zone. */
 const RESET_AT_UTC_MIDNIGHT = /It resets at .+, your time\.$/
-
-/** A Worker that records what the hook posts and lets the test send replies. */
-class FakeWorker {
-  static instances: FakeWorker[] = []
-  onmessage: ((event: MessageEvent<WorkerResponse>) => void) | null = null
-  onerror: ((event: ErrorEvent) => void) | null = null
-  posted: WorkerRequest[] = []
-  terminated = false
-
-  constructor() {
-    FakeWorker.instances.push(this)
-  }
-
-  postMessage(request: WorkerRequest) {
-    this.posted.push(request)
-  }
-
-  terminate() {
-    this.terminated = true
-  }
-
-  reply(data: WorkerResponse) {
-    this.onmessage?.({ data } as MessageEvent<WorkerResponse>)
-  }
-}
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const USER_ID = 'u1'
@@ -1159,7 +1135,7 @@ describe('useAnalysis account handling', () => {
 
       act(() => result.current.addFiles([FILE]))
       reportKept(0)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }, {}))
       act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
 
       expect(localStorage.getItem(KEPT_KEY)).toBeNull()
@@ -1169,7 +1145,7 @@ describe('useAnalysis account handling', () => {
     it('keeps how many were left to a newer version of the app', () => {
       const { result } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 0, newer: 2 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 0, newer: 2 }, {}))
       expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 0, newer: 2 })
     })
 
@@ -1177,7 +1153,7 @@ describe('useAnalysis account handling', () => {
       const { result } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
       act(() => result.current.addFiles([FILE]))
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }, {}))
       act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 1 } }))
       expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 1 })
 
@@ -1190,13 +1166,13 @@ describe('useAnalysis account handling', () => {
     it('drops the news of unsaved imports when the sample is loaded, and when the visitor signs in', () => {
       const { result, rerender } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }, {}))
       expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 1 })
 
       act(() => result.current.loadSample())
       expect(result.current.deviceIssue).toBeNull()
 
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }, {}))
       rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
       expect(result.current.deviceIssue).toBeNull()
     })
@@ -1204,7 +1180,7 @@ describe('useAnalysis account handling', () => {
     it('keeps a refused delete through the sample and an account change, since the copy stays in this browser', () => {
       const { result, rerender } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }, {}))
 
       act(() => result.current.loadSample())
       expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
@@ -1216,7 +1192,7 @@ describe('useAnalysis account handling', () => {
     it('keeps a refused signed-in delete through sign-out, until this browser is asked again', () => {
       const { result, rerender } = setup(SIGNED_IN_KEEP)
       finishLibraryLoad(STATE)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }, {}))
       expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
 
       rerender({ account: SIGNED_OUT, current: SETTINGS })
@@ -1235,7 +1211,7 @@ describe('useAnalysis account handling', () => {
 
       act(() => result.current.clear())
       reportKept(2)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }, {}))
       act(() => worker().reply({ type: 'state', state: STATE }))
 
       expect(localStorage.getItem(KEPT_KEY)).toBe('1')
@@ -1392,10 +1368,15 @@ describe('useAnalysis device library', () => {
     const startMs = Date.UTC(2026, 9, 20, 12)
     const { result } = setup(SIGNED_OUT)
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'run-1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [
+            { id: 'run-1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY },
+          ],
+        },
+        {},
+      ),
     )
     finishDeviceLoad()
 
@@ -1781,10 +1762,14 @@ describe('useAnalysis state', () => {
     expect(result.current.uploading).toBeNull()
   })
 
-  it('says how many a signed-in import saved when its last progress and its reply arrive together', () => {
+  it('says how many a signed-in import saved when its last progress and its reply arrive together', async () => {
     // The sync status as the app renders it, fed by the hook.
+    let analysisOf: ReturnType<typeof useAnalysis> | undefined
     function Status() {
       const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP, false)
+      useEffect(() => {
+        analysisOf = analysis
+      })
       return createElement(SyncStatus, {
         uploading: analysis.uploading,
         savedCount: analysis.savedCount,
@@ -1794,6 +1779,7 @@ describe('useAnalysis state', () => {
     }
     render(createElement(Status))
     finishLibraryLoad()
+    await act(async () => analysisOf?.addFiles([FILE]))
     act(() => worker().reply({ type: 'progress', filesRead: 0, filesTotal: 3, uploaded: 0 }))
     act(() => worker().reply({ type: 'progress', filesRead: 1, filesTotal: 3, uploaded: 1 }))
 
@@ -2249,10 +2235,13 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'state', state: STATE }))
@@ -2327,10 +2316,13 @@ describe('useAnalysis state', () => {
     const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'state', state: STATE }))
@@ -2350,12 +2342,15 @@ describe('useAnalysis state', () => {
     const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
-    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }))
+    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }, {}))
     expect(result.current.savedActivities).toHaveLength(1)
     expect(result.current.libraryUnreadable).toBe(2)
 
@@ -2384,10 +2379,13 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
 
     act(() => result.current.deleteActivity('a1'))
@@ -2406,10 +2404,13 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
@@ -2429,10 +2430,13 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'error', message: 'Network down' }))
@@ -2529,7 +2533,7 @@ describe('useAnalysis library messages', () => {
   it('shows how many stored activities could not be read, and clears the count when the library reloads', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
-    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }))
+    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }, {}))
     expect(result.current.libraryUnreadable).toBe(2)
 
     act(() => result.current.retryLibrary())
@@ -2839,6 +2843,7 @@ describe('useAnalysis route shapes', () => {
   it('keeps an error already on screen, and is not busy while a route loads', () => {
     const { result } = setup(SIGNED_OUT)
     finishDeviceLoad()
+    act(() => result.current.addFiles([FILE]))
     act(() => worker().reply({ type: 'error', message: 'The import failed' }))
 
     act(() => {

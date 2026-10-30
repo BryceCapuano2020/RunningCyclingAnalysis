@@ -1,3 +1,4 @@
+import { noteWork } from './workerWire'
 import { listActivities } from '../api/client'
 import { exportActivitiesJson, exportFooterJson, exportHeaderJson } from '../export/accountExport'
 import type { WorkerRequest } from './protocol'
@@ -33,6 +34,7 @@ export async function exportAccount(
       firstPage = false
       parts.push(new Blob([text]))
     },
+    noteWork,
   )
   parts.push(exportFooterJson(unreadable))
   return new Blob(parts, { type: 'application/json' })

@@ -8,40 +8,12 @@ import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
 import type { Me } from '@rca/contract'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
+import { FakeWorker } from '../../test/fakeWorker'
 import { useAnalysis } from '../useAnalysis'
 import { EMPTY_PERIOD } from './model'
 
 type Account = Parameters<typeof useAnalysis>[1]
 type Settings = Parameters<typeof useAnalysis>[0]
-
-/** A worker that records what the hook posts and lets the test send replies or fail. */
-class FakeWorker {
-  static instances: FakeWorker[] = []
-  onmessage: ((event: MessageEvent<WorkerResponse>) => void) | null = null
-  onerror: ((event: ErrorEvent) => void) | null = null
-  posted: WorkerRequest[] = []
-
-  constructor() {
-    FakeWorker.instances.push(this)
-  }
-
-  postMessage(request: WorkerRequest) {
-    this.posted.push(request)
-  }
-
-  terminate() {
-    // Nothing to stop: the fake worker has no work of its own.
-  }
-
-  reply(data: WorkerResponse) {
-    this.onmessage?.({ data } as MessageEvent<WorkerResponse>)
-  }
-
-  fail() {
-    this.onerror?.({ message: 'module failed' } as ErrorEvent)
-  }
-}
 
 const SETTINGS: Settings = { massKg: 75, bikeMassKg: 9 }
 const CHANGED_SETTINGS: Settings = { massKg: 80, bikeMassKg: 9 }

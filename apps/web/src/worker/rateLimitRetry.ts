@@ -1,11 +1,22 @@
 import { ApiRequestError } from '../api/client'
 import { syncIssueFor } from './syncIssue'
+import { noteWork } from './workerWire'
 
 /** The edge rate limiter's window, and the Retry-After its 429 carries. */
 export const RATE_LIMIT_WINDOW_MS = 60_000
 
 /** The longest an import waits for a rate limit. A longer Retry-After stops the import instead. */
 const MAX_WAIT_MS = 2 * RATE_LIMIT_WINDOW_MS
+
+/** How often a long wait reports that it is alive, so a watchdog does not take it for a stall. */
+const WAIT_STEP_MS = 10_000
+
+async function waitNoting(ms: number): Promise<void> {
+  for (let left = ms; left > 0; left -= WAIT_STEP_MS) {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(left, WAIT_STEP_MS)))
+    noteWork()
+  }
+}
 
 /**
  * Runs one save. When the server answers 429, it waits for the Retry-After that came with it and
@@ -25,7 +36,7 @@ export async function retryAfterRateLimit<T>(
       (error instanceof ApiRequestError ? error.retryAfterMs : undefined) ?? RATE_LIMIT_WINDOW_MS
     if (waitMs > MAX_WAIT_MS) throw error
     onWait?.()
-    await new Promise((resolve) => setTimeout(resolve, waitMs))
+    await waitNoting(waitMs)
     return attempt()
   }
 }

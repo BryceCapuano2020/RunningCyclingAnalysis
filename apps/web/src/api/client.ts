@@ -15,6 +15,7 @@ import type { ActivityRecord, Me, Profile, ProfileInput } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
 import { readableRecords } from './pageRecords'
 import { ApiRequestError } from './apiError'
+import { noteRequestActivity } from './requestActivity'
 import type { RequestOptions } from './requestOptions'
 import {
   clearResponseTimeout,
@@ -99,6 +100,7 @@ export async function request(
   for (let attempt = 0; ; attempt++) {
     const startedAt = Date.now()
     const response = await fetchOnce(path, init, timeoutMs)
+    noteRequestActivity()
     const failedFast =
       options.retryWithinMs === undefined || Date.now() - startedAt < options.retryWithinMs
     const canRetry = backoffMs !== undefined && attempt === 0 && failedFast
@@ -150,13 +152,15 @@ export async function deleteAccount(userId?: string): Promise<void> {
  *
  * With `onPage`, each page's records are handed over as they arrive and are not kept, so a large
  * library never sits in memory whole; the promise then resolves to an empty array. Without it the
- * promise resolves to every record.
+ * promise resolves to every record. `onFetched` hears of each page as it arrives, which tells a watchdog
+ * that a long listing is getting somewhere.
  */
 export async function listActivities(
   since?: number,
   userId?: string,
   onUnreadable?: (count: number) => void,
   onPage?: (items: ActivityRecord[]) => void,
+  onFetched?: () => void,
 ): Promise<ActivityRecord[]> {
   const records: ActivityRecord[] = []
   const seenCursors = new Set<string>()
@@ -182,6 +186,7 @@ export async function listActivities(
     }
     total += page.items.length
     const readable = readableRecords(page.items)
+    onFetched?.()
     if (onPage) onPage(readable.records)
     else records.push(...readable.records)
     unreadable += (page.unreadable ?? 0) + readable.unreadable

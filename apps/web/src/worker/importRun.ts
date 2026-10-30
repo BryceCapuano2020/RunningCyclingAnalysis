@@ -11,6 +11,7 @@ import { summarizeAdded } from './importSummary'
 import type { Workbench } from './workbench'
 import type { TraceScope } from './workbenchStore'
 import type { WorkerView } from './workerView'
+import { noteWork } from './workerWire'
 
 /** What an import reads and changes in the worker. */
 export interface ImportRunContext {
@@ -76,7 +77,10 @@ export async function runImport(
           savedRecords,
           missingOriginals,
           routes,
-          onSaved: () => reporter.activitySaved(),
+          onSaved: () => {
+            noteWork()
+            reporter.activitySaved()
+          },
           onPaused: () => reporter.savesPaused(),
           onStopped: (code) => {
             stoppedBy ??= code
@@ -98,7 +102,10 @@ export async function runImport(
     state = await session.addFiles(
       request.files,
       request.settings,
-      (count) => reporter.filesReadSoFar(count),
+      (count) => {
+        noteWork()
+        reporter.filesReadSoFar(count)
+      },
       save ??
         (request.provisional ? holdForDevice : request.saveToDevice ? keeper.keep : undefined),
       sync?.keepFiles === true,

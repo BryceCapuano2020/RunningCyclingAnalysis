@@ -69,7 +69,18 @@ export function isDeletion(kind: WorkerRequest['type']): boolean {
 
 /** A request the worker has not answered yet. `notice` is the confirmation shown on success. */
 export interface Pending {
+  /** The request's number, which its reply carries back as `replyTo`. Unique for the page's life. */
+  id: number
   kind: WorkerRequest['type']
+  /** When the request was sent, in epoch ms. */
+  sentAt: number
+  /** When the worker began it, in epoch ms; absent while it waits its turn behind another request. */
+  startedAt?: number
+  /** A read of a route or recording from the kept original file, which can take a download's time. */
+  fromOriginal?: boolean
+  /** The worker's last work count for this request, and when it last moved (or the request last spoke). */
+  progress?: number
+  activeAt?: number
   notice?: string
   /** The analysis an import is compared with, taken when the import was sent. */
   baseline?: AnalysisResult | null

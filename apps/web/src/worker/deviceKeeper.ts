@@ -1,5 +1,6 @@
 import type { SyncItem } from '@rca/core/session'
 import { workoutKeyOf } from './device'
+import { noteWork } from './workerWire'
 import type { DeviceActions } from './device'
 import type { WorkerResponse } from './protocol'
 
@@ -16,6 +17,7 @@ export function deviceKeeper(device: DeviceActions, post: (message: WorkerRespon
   return {
     /** A sync sink: keeps the activity, or notes why it was not kept. */
     async keep(item: SyncItem): Promise<void> {
+      noteWork()
       const key = workoutKeyOf(item.digest)
       const saved = await device.save(item)
       if (saved === 'kept') kept.add(key)
