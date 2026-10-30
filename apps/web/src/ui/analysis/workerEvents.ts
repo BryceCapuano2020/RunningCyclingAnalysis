@@ -76,6 +76,9 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
           ...(message.paused ? { paused: true as const } : {}),
         })
         current.imports.setUploading(message.uploaded ?? null)
+        if (pending?.kind === 'addFiles' && pending.provisional !== true) {
+          current.manifest.progress(message.filesRead, message.filesTotal ?? null)
+        }
         // A new import has begun, so the last one's count no longer stands.
         current.imports.setSavedCount(null)
         return
@@ -181,6 +184,7 @@ function handleWorkerFailure(
   lead?: string,
 ): void {
   const { transport, imports, library, accountRef, setError, failLibrary, refreshBusy } = deps
+  deps.manifest.fail()
   transport.dropPendingReplies()
   refreshBusy()
   imports.setProgress(null)

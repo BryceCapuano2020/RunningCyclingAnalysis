@@ -1,3 +1,4 @@
+import { openManifestStore } from '../ui/importManifest'
 import { clearWorkbenchScope } from './workbenchStore'
 
 /**
@@ -9,6 +10,8 @@ import { clearWorkbenchScope } from './workbenchStore'
 export async function forgetAccountDetails(userId: string | undefined): Promise<string | null> {
   // An environment without IndexedDB could never have kept these recordings.
   if (userId === undefined || typeof indexedDB === 'undefined') return null
+  // The record of this account's imports names the files it was given: it goes with the recordings.
+  await openManifestStore().forget(`account:${userId}`)
   const cleared = await clearWorkbenchScope({ kind: 'account', userId }).catch(() => false)
   return cleared
     ? null

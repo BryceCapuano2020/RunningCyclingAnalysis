@@ -12,6 +12,7 @@ import type { CountedRunsController } from '../useCountedRuns'
 import { movedAnything, type MovedItem } from '../analysis/whatMoved'
 import type { Route } from '../route'
 import { ImportNotice } from './ImportNotice'
+import { IncompleteImportNotice } from './IncompleteImportNotice'
 import { AboutData } from './AboutData'
 import { hiddenCopiesText } from '../analysis/hiddenCopiesCopy'
 import { LibraryNotices } from './LibraryNotices'
@@ -116,6 +117,12 @@ export function AppNotices({
         onDismiss={analysis.dismissSummary}
       />
       {sample.pill}
+      {analysis.incompleteImport !== null && !analysis.busy && (
+        <IncompleteImportNotice
+          manifest={analysis.incompleteImport}
+          onAccept={analysis.acceptIncompleteImport}
+        />
+      )}
       <AboutData notes={aboutNotes} />
       <div className="app__live" role="status" aria-atomic="false">
         <SyncStatus

@@ -99,6 +99,13 @@
           app says so once and notes that in a third flag, rca.persistNote.v1.
         </li>
         <li>
+          A short record of each import is kept in this browser (database rca-import-meta): the
+          names and sizes of the files it was given, how many activity files it read, and whether it
+          finished. It lets a page that loads after an import was cut off say so. The last five per
+          library are kept. It is never uploaded. Signing out and deleting your account clear the
+          account's, and so does Remove all my activities, which is offered only when signed out.
+        </li>
+        <li>
           If you choose to count a run that is at walking pace, the choice is kept in this browser's
           local storage under rca.countedRuns.v1 as the run's sport and start time in seconds. It is
           never uploaded, signed in or not. Signing out and deleting your account clear it, and so

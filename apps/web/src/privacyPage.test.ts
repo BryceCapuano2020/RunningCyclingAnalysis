@@ -194,6 +194,15 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('It holds no activity data.')
   })
 
+  it('names the record of imports this browser keeps, and says what clears it', async () => {
+    const manifest = await readStylesheet(import.meta.url, './ui/importManifest.ts')
+    expect(text).toContain('database rca-import-meta')
+    expect(manifest).toContain("DB_NAME = 'rca-import-meta'")
+    expect(text).toContain('The last five per library are kept.')
+    expect(manifest).toContain('KEPT_PER_SCOPE = 5')
+    expect(text).toContain('Signing out and deleting your account clear the account')
+  })
+
   it('names the flags and choices this browser keeps beyond the summaries, as the app stores them', async () => {
     const keptLibrary = await readStylesheet(import.meta.url, './ui/analysis/keptLibrary.ts')
     const countedRuns = await readStylesheet(import.meta.url, './ui/countedRunsStore.ts')

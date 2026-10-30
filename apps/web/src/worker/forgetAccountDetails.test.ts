@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { openManifestStore } from '../ui/importManifest'
 import { forgetAccountDetails } from './forgetAccountDetails'
 import { clearWorkbenchScope } from './workbenchStore'
 
 vi.mock('./workbenchStore', () => ({ clearWorkbenchScope: vi.fn() }))
+
+vi.mock('../ui/importManifest', () => {
+  const forget = vi.fn(async () => undefined)
+  return { openManifestStore: () => ({ forget }) }
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -40,4 +46,15 @@ describe('account recording cleanup after sign-out', () => {
       )
     },
   )
+})
+
+describe('the record of the account’s imports', () => {
+  it('is forgotten with the recordings, for that account only', async () => {
+    vi.stubGlobal('indexedDB', {})
+    vi.mocked(clearWorkbenchScope).mockResolvedValue(true)
+
+    await forgetAccountDetails('alice')
+
+    expect(openManifestStore().forget).toHaveBeenCalledExactlyOnceWith('account:alice')
+  })
 })

@@ -12,6 +12,9 @@ import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
 import type { Account, Baseline, Box, Pending, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
+import type { ImportManifestController } from './importManifestHook'
+import type { RejectedFile } from '@rca/core/session'
+import type { DamagedSource } from '../importManifest'
 
 export interface WorkerEventDeps {
   transport: WorkerTransport
@@ -28,6 +31,8 @@ export interface WorkerEventDeps {
   /** Whether the current worker has been asked for the library kept in this browser. */
   deviceLoadedRef: Box<boolean>
   loadDeviceOnce: () => void
+  /** The record of imports (see importManifest.ts): how far the running one got, and how it ended. */
+  manifest: Pick<ImportManifestController, 'progress' | 'finish' | 'fail'>
 }
 
 /**
@@ -59,11 +64,25 @@ function settleOvertaken(deps: WorkerEventDeps, pending: Pending, message: Reply
 }
 
 /** Shows what a reply reports, and settles the request it answers. */
+/** The zips among the refused files that could not be read to their end, with the files that cost, when known. */
+export function damagedZips(rejected: readonly RejectedFile[]): DamagedSource[] {
+  return rejected
+    .filter(({ code, fileName }) => code === 'corrupt' && /\.zip$/i.test(fileName))
+    .map(({ fileName, detail }) => {
+      const lost = Number(detail)
+      return { name: fileName, lost: Number.isInteger(lost) && lost >= 1 ? lost : null }
+    })
+}
+
 export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pending: Pending): void {
   const { transport, imports, library, handleAccountIssue, refreshBusy } = deps
   // The reply names its request, so it settles that request whatever order replies arrive in.
   const waiting = transport.pendingRepliesRef.current
   waiting.splice(waiting.indexOf(pending), 1)
+  if (pending.kind === 'addFiles' && pending.provisional !== true) {
+    if (message.type === 'state') deps.manifest.finish(damagedZips(message.state.rejected))
+    else if (message.type === 'error') deps.manifest.fail()
+  }
   // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
   if (pending?.kind === 'setRange') pending.settle?.(message)
   refreshBusy()
