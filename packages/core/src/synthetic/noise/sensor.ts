@@ -1,9 +1,11 @@
 import { normal, mulberry32 } from '../../math'
-import type { Activity } from '../../types'
+import type { Activity, Sport } from '../../types'
 import type { Effort } from '../spec'
 import { ar1, between, countUpTo } from './random'
 import type { BehaviourNoise, GpsNoise, HeartRateNoise, NoiseModel } from './types'
 
+/** Sports with a step rate: wrist lock, treadmill belts and cadence streams apply to these only. */
+const STEPPED: Record<Sport, boolean> = { run: true, ride: false }
 const SEED_MIX = 0x5bd1e995
 const STOP_MARGIN_S = 60
 const SPIKE_BPM = { min: 40, max: 80 }
@@ -79,7 +81,7 @@ function applyHeartRate(
     const drift = 1 + (hr.driftPerHour * i) / DRIFT_HOUR_S
     a.heartRate[i] = x * drift + hr.sdBpm * normal(rand)
   }
-  if (a.sport === 'run' && rand() < hr.lock.share) {
+  if (STEPPED[a.sport] && rand() < hr.lock.share) {
     const length = Math.round(between(rand, hr.lock.minS, hr.lock.maxS))
     const start = Math.floor(between(rand, 0, Math.max(1, a.n - length)))
     for (let i = start; i < Math.min(a.n, start + length); i++) {
@@ -117,10 +119,10 @@ export function applySensorNoise(
   effort: Effort,
 ): Activity {
   const rand = mulberry32((seed ^ SEED_MIX) >>> 0)
-  a.indoor = a.sport === 'run' && rand() < noise.behaviour.treadmillShare
+  a.indoor = STEPPED[a.sport] && rand() < noise.behaviour.treadmillShare
   if (a.indoor) applyBelt(a)
   else applyGps(a, noise.sensor.gps, rand, effort === 'easy')
   if (a.hasHeartRate) applyHeartRate(a, noise.sensor.heartRate, noise.behaviour.stepRate, rand)
-  if (a.sport === 'run' && noise.behaviour.cadence) addCadence(a, noise.behaviour, rand)
+  if (STEPPED[a.sport] && noise.behaviour.cadence) addCadence(a, noise.behaviour, rand)
   return a
 }

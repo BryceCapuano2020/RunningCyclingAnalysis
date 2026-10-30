@@ -11,6 +11,9 @@ const WINDOWS = {
   ride: { durationS: 2100, from: 1680, to: 2040 },
 } as const
 
+/** The stream whose window mean is the best. */
+const SIGNAL = { run: 'speed', ride: 'power' } as const
+
 /**
  * The split-half statistic measured on generated activities: `pool` equal-capability test
  * activities, the mean over the held window of each, then `draws` pairs of halves of
@@ -31,7 +34,7 @@ export function generatedSplitHalf(
       (k + 1) * 7919 + 13,
       noise,
     )
-    const xs = sport === 'run' ? a.speed : a.power
+    const xs = a[SIGNAL[sport]]
     let sum = 0
     for (let i = from; i < to; i++) sum += xs[i]!
     return sum / (to - from)
