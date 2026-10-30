@@ -58,6 +58,23 @@ describe('orderedFor', () => {
     expect(REVISIONS.at(-1)?.revision).toBe(6)
   })
 
+  it('remembers an answer for the same digests without sharing the array a caller may change', () => {
+    const digests = [digestOf(6, 'b', 2), digestOf(6, 'a', 1)]
+    const first = orderedFor('combine', digests)
+    first.pop()
+    const second = orderedFor('trend', digests)
+    expect(second.map((d) => d.id)).toEqual(['a', 'b'])
+    expect(second).not.toBe(first)
+    expect(second[0]).toBe(digests[1])
+  })
+
+  it('does not mix the answers of consumers that read different revisions of the same digests', () => {
+    const digests = [digestOf(3, 'c', 3), digestOf(2, 'b', 2)]
+    expect(orderedFor('trend', digests, TABLE).map((d) => d.id)).toEqual(['b', 'c'])
+    expect(orderedFor('fitness', digests, TABLE).map((d) => d.id)).toEqual(['c'])
+    expect(orderedFor('trend', digests, TABLE).map((d) => d.id)).toEqual(['b', 'c'])
+  })
+
   it('adds compatible digests for a consumer that reads them, in canonical order', () => {
     expect(orderedFor('trend', library, TABLE).map((d) => d.id)).toEqual(['b', 'c'])
   })
