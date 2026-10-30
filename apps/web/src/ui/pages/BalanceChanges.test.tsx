@@ -10,8 +10,8 @@ const LEAN: ChangeItem = {
   key: 'lean',
   direction: 'down',
   title: 'Lean eased 3 pts',
-  body: 'From 9 pts toward running to 6 pts toward running, beyond its range of 1 to 12.',
-  tag: 'beyond',
+  body: 'From 9 pts toward running to 6 pts toward running. 90% range now 1 to 12 points.',
+  tag: 'estimated',
 }
 const RIDE: ChangeItem = {
   key: 'ride-best',
@@ -25,7 +25,7 @@ const RUN: ChangeItem = {
   direction: 'up',
   title: 'New 20 min run best',
   body: '0:12 /mi faster than previous 12 weeks.',
-  tag: 'within',
+  tag: 'recorded',
 }
 const GUESS: ChangeItem = { ...LEAN, key: 'guess', tag: 'estimated' }
 
@@ -57,12 +57,12 @@ describe('BalanceChanges', () => {
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(3)
     expect(within(items[0]!).getByText('Lean eased 3 pts')).toBeInTheDocument()
-    expect(within(items[0]!).getByText('Beyond its range')).toBeInTheDocument()
+    expect(within(items[0]!).getByText('Estimated')).toBeInTheDocument()
     expect(within(items[1]!).getByText('Recorded')).toBeInTheDocument()
-    expect(within(items[2]!).getByText('Within its range')).toBeInTheDocument()
+    expect(within(items[2]!).getByText('Recorded')).toBeInTheDocument()
   })
 
-  it('words each tag as the change warrants, never beyond or within for an estimate with no range', () => {
+  it('words each tag as what the change rests on, and has no tag about ranges', () => {
     render(
       <BalanceChanges
         changes={{ items: [GUESS], notes: [], compared: true }}

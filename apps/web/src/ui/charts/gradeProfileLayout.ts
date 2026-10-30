@@ -7,13 +7,17 @@ import type { SportGrade } from '../grades'
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
 import { linearScale, logScale, niceDomain, tickDecimals } from './scale'
-import { plotted } from './sharedTrendText'
 import { fitTicks } from './ticks'
 import type { Box } from './chartBoxes'
 import { lineObstacles } from './annotations'
 import { bandBoxes, fitLabel, insideTickBoxes, placedBox } from './directLabelFit'
 import type { LabelSpace } from './directLabelFit'
 import { rootFontPx } from './rootFont'
+
+/** Grades are drawn in per cent, so the axis reads in whole steps. */
+function plotted(value: number): number {
+  return value * 100
+}
 
 /** One duration the chart has a grade at, with each sport's grade there or none. */
 export interface ProfileRow {

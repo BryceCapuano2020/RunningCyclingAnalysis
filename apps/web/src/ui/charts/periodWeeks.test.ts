@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '@rca/core/constants'
 import { weekEndMs } from '@rca/core/digest/trendPoints'
-import { onSharedWeeks, periodWeekEnds } from './sharedWeeks'
+import { periodWeekEnds } from './periodWeeks'
 
 const WEEK = 7 * DAY_MS
 const FIRST = weekEndMs(Date.UTC(2026, 8, 6))
@@ -30,23 +30,5 @@ describe('periodWeekEnds', () => {
 
   it('is empty without a trend', () => {
     expect(periodWeekEnds([], Date.UTC(2026, 7, 3))).toEqual([])
-  })
-})
-
-describe('onSharedWeeks', () => {
-  it('keeps the graded weeks and fills the weeks before the trend with weeks that have no grade', () => {
-    const graded = {
-      endMs: FIRST,
-      run: 0.6,
-      ride: null,
-      rideLow: null,
-      rideHigh: null,
-      runCount: 2,
-      rideCount: 0,
-    }
-    const weeks = onSharedWeeks([graded], [FIRST - 2 * WEEK, FIRST - WEEK, FIRST])
-    expect(weeks.map((week) => week.endMs)).toEqual([FIRST - 2 * WEEK, FIRST - WEEK, FIRST])
-    expect(weeks[2]).toBe(graded)
-    expect(weeks[0]).toMatchObject({ run: null, ride: null, runCount: 0, rideCount: 0 })
   })
 })

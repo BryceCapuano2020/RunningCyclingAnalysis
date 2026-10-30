@@ -25,6 +25,7 @@ import { THRESHOLD_FLOOR_LABEL, THRESHOLD_LABEL, THRESHOLD_MEANING } from '../sp
 import { RangePicker } from '../components/RangePicker'
 import { closedRow, openSection } from '../test/openSection'
 import { SportPage } from './SportPage'
+import { changeOf } from '../charts/changeFixtures'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
 const NOW = new Date(2026, 5, 10, 12).getTime()
@@ -71,7 +72,7 @@ function renderPage(
       trends={trends}
       sameHeartRate={sameHeartRate}
       lateEvidence={NO_LATE_EVIDENCE[sport]}
-      windowDays={14}
+      change={previous === null ? null : changeOf('higher')}
       units={units}
       massKg={75}
       weighted={weighted}
@@ -161,7 +162,7 @@ describe('SportPage', () => {
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
         lateEvidence={NO_LATE_EVIDENCE.run}
-        windowDays={14}
+        change={null}
         units="metric"
         massKg={75}
         profile={null}
@@ -478,7 +479,7 @@ describe('SportPage', () => {
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
         lateEvidence={NO_LATE_EVIDENCE.run}
-        windowDays={14}
+        change={null}
         units="metric"
         massKg={75}
         weighted
@@ -866,7 +867,7 @@ describe('SportPage fitness trend', () => {
   const paceOf = (wkg: number | null) =>
     formatPace(wkg === null ? NaN : (wkg - RESTING_W_PER_KG) / FLAT_RUN_COST, 'metric')
 
-  /** The pace column of the trend chart named by `label`, one entry per week. */
+  /** The pace column of the dated bests chart named by `label`, one entry per dot. */
   const paceColumnOf = (label: string): (string | null | undefined)[] => {
     const figure = screen.getByRole('figure', { name: new RegExp(label) })
     return Array.from(figure?.querySelectorAll('tbody tr') ?? [], (row) => {
@@ -876,30 +877,26 @@ describe('SportPage fitness trend', () => {
 
   const paceList = (points: TrendPoint[]) => points.map((point) => paceOf(point.runWkg))
 
-  it('shows the 20-minute trend first, with an effort length choice', () => {
+  it('shows the 20-minute dated bests first, with an effort length choice', () => {
     renderPage('run', makeResult({ activities: [morningRun] }), 'metric', null, null, null, TRENDS)
     const choice = screen.getByRole('group', { name: 'Effort length' })
     expect(within(choice).getByRole('radio', { name: '20 min' })).toBeChecked()
-    expect(
-      screen.getByText(/^Run flat pace per kilometre, best 20 min, trailing/),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Best 20 min runs by day')).toBeInTheDocument()
   })
 
-  it('draws the trend of the effort length chosen, with the length in its name', () => {
+  it('draws the dated bests of the effort length chosen, with the length in its name', () => {
     renderPage('run', makeResult({ activities: [morningRun] }), 'metric', null, null, null, TRENDS)
     const choice = screen.getByRole('group', { name: 'Effort length' })
 
     fireEvent.click(within(choice).getByRole('radio', { name: '5 min' }))
-    expect(
-      screen.getByText(/^Run flat pace per kilometre, best 5 min, trailing/),
-    ).toBeInTheDocument()
-    expect(paceColumnOf('best 5 min')).toEqual(paceList(TRENDS[FIVE_MIN_S]))
-    expect(screen.queryByText(/best 20 min, trailing/)).toBeNull()
+    expect(screen.getByText('Best 5 min runs by day')).toBeInTheDocument()
+    expect(paceColumnOf('Best 5 min')).toEqual(paceList(TRENDS[FIVE_MIN_S]))
+    expect(screen.queryByText('Best 20 min runs by day')).toBeNull()
 
     fireEvent.click(within(choice).getByRole('radio', { name: '60 min' }))
-    expect(screen.getByText(/best 60 min, trailing/)).toBeInTheDocument()
-    expect(paceColumnOf('best 60 min')).toEqual(paceList(TRENDS[SIXTY_MIN_S]))
-    expect(paceColumnOf('best 60 min')).not.toEqual(paceList(TRENDS[TWENTY_MIN_S]))
+    expect(screen.getByText('Best 60 min runs by day')).toBeInTheDocument()
+    expect(paceColumnOf('Best 60 min')).toEqual(paceList(TRENDS[SIXTY_MIN_S]))
+    expect(paceColumnOf('Best 60 min')).not.toEqual(paceList(TRENDS[TWENTY_MIN_S]))
   })
 })
 
@@ -1431,17 +1428,17 @@ describe('SportPage depth', () => {
     )
   })
 
-  it('names the trend "Week by week" and draws the curve in the sport’s unit under the records', () => {
+  it('names the dated bests "Best efforts over time" and draws the curve in the sport’s unit under the records', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'ride-1', sport: 'ride' })] }))
 
-    expect(screen.getByRole('heading', { name: 'Week by week' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Best efforts over time' })).toBeInTheDocument()
     const records = screen.getByRole('region', { name: 'Best efforts' })
     expect(
       within(records).getByRole('figure', { name: 'Ride power in watts by duration' }),
     ).toBeInTheDocument()
   })
 
-  describe('at the same heart rate', () => {
+  describe('the weekly same heart rate', () => {
     const WEEK_MS = 7 * 86_400_000
     const fitted = (index: number, output: number): SameHeartRate['weeks'][number] => ({
       endMs: Date.UTC(2025, 0, 12, 23, 59, 59, 999) + index * WEEK_MS,
@@ -1469,7 +1466,7 @@ describe('SportPage depth', () => {
     const rideActivity = () =>
       makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] })
 
-    it('is a closed section that follows the week-by-week trend', () => {
+    it('is a closed section that follows the dated bests', () => {
       renderPage(
         'ride',
         rideActivity(),
@@ -1490,67 +1487,45 @@ describe('SportPage depth', () => {
         .map(
           (region) => region.getAttribute('aria-label') ?? region.querySelector('h2')?.textContent,
         )
-      expect(names.indexOf('Week by week')).toBeGreaterThan(-1)
-      expect(names.indexOf('At the same heart rate')).toBeGreaterThan(names.indexOf('Week by week'))
-    })
-
-    it('says a real change, and draws the chart with the heart rate in its title', () => {
-      renderPage(
-        'ride',
-        rideActivity(),
-        'metric',
-        null,
-        null,
-        null,
-        NO_TRENDS,
-        true,
-        null,
-        42,
-        '',
-        null,
-        reading(198, 214, true),
-      )
-      // The closed row says the finding: 16 W more than in the month the first week's window is in.
-      expect(closedRow('At the same heart rate')).toBe(
-        'At the same heart rateAt the same heart rate you put out 16 W more than in December (145 bpm)',
-      )
-      const section = openSection('At the same heart rate')
-      // The note says the rule: the trend's 90% band must be clear of zero.
-      expect(
-        within(section).getByText(
-          /A change is named only when the trend’s 90% band is clear of zero\./,
-        ),
-      ).toBeInTheDocument()
-      const figure = within(section).getByRole('figure', { name: /Your output at 145 bpm/ })
-      expect(figure).toHaveAccessibleDescription(
-        'At the same heart rate you put out 16 W more than in December',
+      expect(names.indexOf('Best efforts over time')).toBeGreaterThan(-1)
+      expect(names.indexOf('Same heart rate, week by week')).toBeGreaterThan(
+        names.indexOf('Best efforts over time'),
       )
     })
 
-    it('quotes the first and last values, and says no clear change, when the ranges overlap', () => {
-      renderPage(
-        'ride',
-        rideActivity(),
-        'metric',
-        null,
-        null,
-        null,
-        NO_TRENDS,
-        true,
-        null,
-        42,
-        '',
-        null,
-        reading(204, 207, false),
-      )
-      expect(closedRow('At the same heart rate')).toMatch(
-        /At the same heart rate: no clear change since December \(145 bpm\)$/,
-      )
-      const figure = within(openSection('At the same heart rate')).getByRole('figure')
-      expect(figure).toHaveAccessibleDescription(
-        'At the same heart rate: no clear change since December',
-      )
-    })
+    it.each([
+      ['a steady rise', reading(198, 214, true)],
+      ['a flat reading', reading(204, 207, false)],
+    ])(
+      'claims no change for %s: the row says what is drawn, and the chart carries the heart rate in its name',
+      (_name, data) => {
+        renderPage(
+          'ride',
+          rideActivity(),
+          'metric',
+          null,
+          null,
+          null,
+          NO_TRENDS,
+          true,
+          null,
+          42,
+          '',
+          null,
+          data,
+        )
+        expect(closedRow('Same heart rate, week by week')).toBe(
+          'Same heart rate, week by weekYour power each week at 145 bpm.',
+        )
+        const section = openSection('Same heart rate, week by week')
+        const figure = within(section).getByRole('figure', { name: /Your output at 145 bpm/ })
+        expect(section.textContent).not.toMatch(
+          /no clear change|more than|less than|clear of zero/i,
+        )
+        expect(figure.querySelector('.chart-frame__takeaway')).toBeNull()
+        expect(figure.querySelector('[data-testid="same-hr-trend"]')).toBeNull()
+      },
+    )
 
     it('leaves the section out, and says what is missing in the list at the end, with too little data', () => {
       const none: SameHeartRate = { ...NO_SAME_HEART_RATE.ride, lacks: 'activities' }
@@ -1569,18 +1544,18 @@ describe('SportPage depth', () => {
         null,
         none,
       )
-      expect(screen.queryByRole('region', { name: 'At the same heart rate' })).toBeNull()
+      expect(screen.queryByRole('region', { name: 'Same heart rate, week by week' })).toBeNull()
       const list = screen.getByRole('region', { name: 'Not enough yet' })
       expect(
         within(list).getByText(
-          'At the same heart rate: needs steady stretches from at least 6 rides in 4 weeks.',
+          'Same heart rate, week by week: needs steady stretches from at least 6 rides in 4 weeks.',
         ),
       ).toBeInTheDocument()
     })
 
     it('is not on a sport page with nothing in the period', () => {
       renderPage('run', makeResult({ activities: [] }))
-      expect(screen.queryByRole('heading', { name: 'At the same heart rate' })).toBeNull()
+      expect(screen.queryByRole('heading', { name: 'Same heart rate, week by week' })).toBeNull()
     })
   })
 })
@@ -1597,7 +1572,7 @@ describe('SportPage with nothing to show', () => {
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
         lateEvidence={NO_LATE_EVIDENCE.run}
-        windowDays={14}
+        change={null}
         units="metric"
         massKg={75}
         profile={null}
@@ -1624,7 +1599,7 @@ describe('SportPage with nothing to show', () => {
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
         lateEvidence={NO_LATE_EVIDENCE.run}
-        windowDays={14}
+        change={null}
         units="metric"
         massKg={75}
         profile={null}
@@ -1665,7 +1640,7 @@ describe('SportPage with nothing to show', () => {
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
         lateEvidence={NO_LATE_EVIDENCE.run}
-        windowDays={14}
+        change={null}
         units="metric"
         massKg={75}
         profile={null}
@@ -1696,7 +1671,7 @@ describe('SportPage period focus', () => {
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
         lateEvidence={NO_LATE_EVIDENCE.run}
-        windowDays={14}
+        change={null}
         units="metric"
         massKg={75}
         weighted

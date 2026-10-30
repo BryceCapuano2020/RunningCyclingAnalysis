@@ -93,7 +93,10 @@ describe('fitness status: silence', () => {
     nullLibraries({ perCell: 20, nuisances, ...NOISE })
 
   it('speaks under 0.2 findings an athlete-year when nothing changes', () => {
-    expectSilence(detector, grid(), { perAthleteYear: 0.2, minAthleteYears: 200 })
+    expectSilence(detector, grid(), {
+      perAthleteYear: detector.alarmBudget,
+      minAthleteYears: 200,
+    })
   })
 
   it('tolerates heart-rate spikes and missing heart rate', () => {

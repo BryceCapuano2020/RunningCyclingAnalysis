@@ -15,8 +15,8 @@ vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
 }))
 vi.mock('./ui/charts', async () => {
-  const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
-  return { ...heavyChartStubs, ...(await trendCharts()) }
+  const { heavyChartStubs } = await import('./test/appMocks')
+  return heavyChartStubs
 })
 
 const LANDING_HEADING = 'Are you a better runner or a better cyclist?'

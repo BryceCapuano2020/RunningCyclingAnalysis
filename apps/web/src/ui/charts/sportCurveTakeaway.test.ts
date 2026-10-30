@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CurveRow } from './curveTable'
-import { citedDurationS, curveTakeaway } from './sportCurveTakeaway'
+import { changeOf } from './changeFixtures'
+import { citedDurationS, curveTakeaway, takeawayAt } from './sportCurveTakeaway'
 
 const row = (
   durationS: number,
@@ -9,7 +10,12 @@ const row = (
   carry: { carried?: boolean; previousCarried?: boolean } = {},
 ): CurveRow => ({ durationS, value, previous, activityId: 'a', ...carry })
 
-const base = { units: 'metric', previousLabel: 'Previous 12 weeks' } as const
+const base = {
+  units: 'metric',
+  previousLabel: 'Previous 12 weeks',
+  change: changeOf('higher'),
+} as const
+const unchanged = { ...base, change: changeOf('none') } as const
 
 describe('curveTakeaway with a period before', () => {
   it('says how far a run’s 20 minutes moved, in seconds per kilometre, and which way', () => {
@@ -56,39 +62,58 @@ describe('curveTakeaway with a period before', () => {
     )
   })
 
-  describe('the floor a change must clear', () => {
-    const ride = (value: number, previous: number) =>
-      curveTakeaway({ ...base, sport: 'ride', rows: [row(1200, value, previous)] })
-    // A 400 W effort: 1% is 4 W, which is above the 2 W floor.
-    it('is 1% of the earlier value, where that is more than the fixed floor', () => {
-      expect(ride(404, 400)).toBe('No clear change against the previous 12 weeks')
-      expect(ride(405, 400)).toBe('20 min is 5 W higher than the previous 12 weeks')
-    })
-
-    it('is 2 W for a ride, where 1% is less', () => {
-      // 150 W: 1% is 1.5 W, so the 2 W floor governs.
-      expect(ride(152, 150)).toBe('No clear change against the previous 12 weeks')
-      expect(ride(153, 150)).toBe('20 min is 3 W higher than the previous 12 weeks')
-    })
-
-    it('is 2 s/km for a run in metric and 3 s/mi in imperial', () => {
-      // Speeds that are 250 s/km and about 247 s/km apart by 2 and 3 s/km.
-      const run = (units: 'metric' | 'imperial', now: number, before: number) =>
-        curveTakeaway({ ...base, units, sport: 'run', rows: [row(1200, now, before)] })
-      expect(run('metric', 4.0, 1000 / 252)).toBe('No clear change against the previous 12 weeks')
-      expect(run('metric', 4.0, 1000 / 253)).toContain('s/km quicker')
-      // 4 m/s is 402.3 s/mi; 3 s/mi slower is 405.3 s/mi.
-      const mi = 1609.344
-      expect(run('imperial', 4.0, mi / 405.3)).toBe('No clear change against the previous 12 weeks')
-      expect(run('imperial', 4.0, mi / 406.5)).toContain('s/mi quicker')
-    })
-
-    it('is the same whatever the fit says about its own spread, so the same data has one verdict', () => {
-      // The same two curves, with and without a threshold: curveTakeaway does not take one.
-      const rows = [row(1200, 4.0, 3.8)]
-      expect(curveTakeaway({ ...base, sport: 'run', rows })).toBe(
-        curveTakeaway({ ...base, sport: 'run', rows: [...rows] }),
+  describe('the change test decides whether a move is a change', () => {
+    it('says no clear change for a move the test does not call, however big it looks', () => {
+      expect(curveTakeaway({ ...unchanged, sport: 'ride', rows: [row(1200, 300, 250)] })).toBe(
+        'No clear change against the previous 12 weeks',
       )
+      expect(curveTakeaway({ ...unchanged, sport: 'run', rows: [row(1200, 4.4, 4.0)] })).toBe(
+        'No clear change against the previous 12 weeks',
+      )
+    })
+
+    it('words a move the test calls, with the amount the page shows and the direction the figures move', () => {
+      expect(curveTakeaway({ ...base, sport: 'ride', rows: [row(1200, 252, 250)] })).toBe(
+        '20 min is 2 W higher than the previous 12 weeks',
+      )
+      expect(
+        curveTakeaway({
+          ...base,
+          change: changeOf('lower'),
+          sport: 'ride',
+          rows: [row(1200, 238, 250)],
+        }),
+      ).toBe('20 min is 12 W lower than the previous 12 weeks')
+    })
+
+    it('does not word a call as a move when its figures round to the same', () => {
+      expect(curveTakeaway({ ...base, sport: 'ride', rows: [row(1200, 250.2, 250)] })).toBe(
+        'No clear change against the previous 12 weeks',
+      )
+    })
+
+    it('falls to the best, comparing nothing, where the test could not judge the length', () => {
+      const untested = { ...base, change: changeOf('untested') }
+      expect(curveTakeaway({ ...untested, sport: 'ride', rows: [row(1200, 250, 200)] })).toBe(
+        'Best 20 min: 250 W',
+      )
+      expect(citedDurationS({ ...untested, sport: 'ride', rows: [row(1200, 250, 200)] })).toBeNull()
+    })
+
+    it('reads another length the test could judge when the 20 minutes is not one', () => {
+      const change = changeOf('higher', { 1200: 'untested' })
+      const rows = [row(300, 330, 320), row(1200, 263, 250), row(3600, 240, 230)]
+      expect(curveTakeaway({ ...base, change, sport: 'ride', rows })).toBe(
+        '60 min is 10 W higher than the previous 12 weeks',
+      )
+    })
+
+    it('is the same on the same data whichever page asks: the title and a length asked for by name', () => {
+      const input = { ...base, sport: 'ride', rows: [row(1200, 263, 250)] } as const
+      expect(takeawayAt(input, 1200)).toBe(curveTakeaway(input))
+      expect(takeawayAt(input, 300)).toBeNull()
+      expect(takeawayAt({ ...input, change: changeOf('untested') }, 1200)).toBeNull()
+      expect(takeawayAt({ ...input, previousLabel: null }, 1200)).toBeNull()
     })
   })
 
@@ -139,7 +164,7 @@ describe('curveTakeaway with a period before', () => {
     })
 
     it('does not name a carried 20 minute value as the best, or give it the level', () => {
-      const none = { units: 'metric', previousLabel: null } as const
+      const none = { units: 'metric', previousLabel: null, change: null } as const
       const text = curveTakeaway({
         ...none,
         sport: 'ride',
@@ -154,6 +179,7 @@ describe('curveTakeaway with a period before', () => {
         curveTakeaway({
           units: 'metric',
           previousLabel: null,
+          change: null,
           sport: 'ride',
           rows: [row(1200, 250, NaN, { carried: true })],
         }),
@@ -163,7 +189,7 @@ describe('curveTakeaway with a period before', () => {
 })
 
 describe('curveTakeaway with no period before', () => {
-  const none = { units: 'metric', previousLabel: null } as const
+  const none = { units: 'metric', previousLabel: null, change: null } as const
 
   it('names the best 20 minutes, with its level when there is one', () => {
     expect(curveTakeaway({ ...none, sport: 'run', rows: [row(1200, 4.0)], level: 'Local' })).toBe(
@@ -211,12 +237,18 @@ describe('citedDurationS', () => {
   })
 
   it('is none when the title says no clear change, which cites no effort', () => {
-    expect(citedDurationS({ ...base, sport: 'ride', rows: [row(900, 250, 250)] })).toBeNull()
+    expect(citedDurationS({ ...unchanged, sport: 'ride', rows: [row(900, 250, 250)] })).toBeNull()
   })
 
   it('is none without a period before, whose title names the best 20 minutes', () => {
     expect(
-      citedDurationS({ ...base, previousLabel: null, sport: 'ride', rows: [row(900, 250, 240)] }),
+      citedDurationS({
+        ...base,
+        previousLabel: null,
+        change: null,
+        sport: 'ride',
+        rows: [row(900, 250, 240)],
+      }),
     ).toBeNull()
   })
 })

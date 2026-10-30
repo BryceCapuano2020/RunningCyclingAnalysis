@@ -19,6 +19,7 @@ export function volumeDetector(id: string, minChange: number): Detector {
     kind: 'pattern',
     sports: ['run', 'ride'],
     minHistoryWeeks: 16,
+    alarmBudget: 0.05,
     run(input, sport): Candidate[] {
       const weeks = input.tables.weeklyMoving[sport].filter((w) => w.complete)
       if (weeks.length < 2 * RECENT) return []

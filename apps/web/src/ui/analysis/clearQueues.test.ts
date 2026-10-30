@@ -35,6 +35,7 @@ const STATE = {
   walkingPaceRuns: 0,
   trend: [],
   previous: null,
+  change: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,

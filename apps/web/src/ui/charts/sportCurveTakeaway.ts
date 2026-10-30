@@ -1,6 +1,8 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import type { ChangeEvidence } from '@rca/core/change/types'
+import { verdictAt } from '@rca/core/change/types'
 import { effortLabel } from '../records'
 import { splitValue } from './annotationTypes'
 import type { CurveRow } from './curveTable'
@@ -16,8 +18,6 @@ interface Wording {
   lowerIsBetter: boolean
   /** The size of a change as text, from whole plotted units and the unit of the sport's formatted value. */
   size: (amount: number, unit: string) => string
-  /** The least change, in plotted units, that is called a change: below it the two periods are the same to a reading's noise. */
-  floor: (units: UnitSystem) => number
 }
 
 const WORDING: Record<Sport, Wording> = {
@@ -28,7 +28,6 @@ const WORDING: Record<Sport, Wording> = {
     lowerIsBetter: true,
     // The unit is "/km" or "/mi", set tight to the seconds: "13 s/km".
     size: (amount, unit) => `${amount} s${unit.trim()}`,
-    floor: (units) => (units === 'metric' ? RUN_FLOOR_S_PER_KM : RUN_FLOOR_S_PER_MI),
   },
   ride: {
     noun: 'power',
@@ -36,37 +35,7 @@ const WORDING: Record<Sport, Wording> = {
     worse: 'lower',
     lowerIsBetter: false,
     size: (amount, unit) => `${amount}${unit}`,
-    floor: () => RIDE_FLOOR_W,
   },
-}
-
-/**
- * When a change is a change. One floor for every curve, whatever else is known about its fit, so the same
- * data always gets the same verdict: the change must exceed 1% of the earlier value and this much besides,
- * which is about what two readings of the same effort differ by. A change under it is "no clear change".
- */
-export const MIN_RELATIVE_CHANGE = 0.01
-export const RIDE_FLOOR_W = 2
-export const RUN_FLOOR_S_PER_KM = 2
-export const RUN_FLOOR_S_PER_MI = 3
-
-/**
- * Whether a move between two readings of the same effort is a change, by the one floor every page reads: the curve's
- * title, Balance's what-changed strip and the import summary's records all call it, so the same pair of values gets
- * the same verdict everywhere. `now` and `before` are in the sport's own unit (a running flat speed in m/s, or
- * watts); the move must round to a whole plotted unit and exceed both the sport's floor and 1% of the earlier value.
- */
-export function isClearChange(
-  sport: Sport,
-  now: number,
-  before: number,
-  units: UnitSystem,
-): boolean {
-  if (!Number.isFinite(now) || !Number.isFinite(before)) return false
-  const plottedBefore = plottedValue(sport, before, units)
-  const change = Math.abs(plottedValue(sport, now, units) - plottedBefore)
-  const floor = Math.max(WORDING[sport].floor(units), Math.abs(plottedBefore) * MIN_RELATIVE_CHANGE)
-  return change > floor && Math.round(change) >= 1
 }
 
 export interface TakeawayInput {
@@ -77,6 +46,8 @@ export interface TakeawayInput {
   previousLabel: string | null
   /** The level the best 20 minutes grades to, such as "Local", when it can be graded. */
   level?: string
+  /** The change test for the two periods (see changeEvidence); null where there is no period before. */
+  change: ChangeEvidence | null
 }
 
 const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
@@ -88,10 +59,20 @@ const measuredIn = (row: CurveRow, key: 'value' | 'previous') =>
 
 /**
  * The effort the comparison reads: the best 20 minutes when both periods have a measured one, else the longest
- * effort both have measured, which holds the most evidence.
+ * effort both have measured, which holds the most evidence. Only an effort the change test could judge counts: one
+ * whose two periods hold too few efforts to tell a change from chance is passed over for a longer or shorter one.
  */
-function comparedRow(rows: readonly CurveRow[]): CurveRow | undefined {
-  const both = rows.filter((row) => measuredIn(row, 'value') && measuredIn(row, 'previous'))
+function comparedRow(
+  rows: readonly CurveRow[],
+  sport: Sport,
+  change: ChangeEvidence | null,
+): CurveRow | undefined {
+  const both = rows.filter(
+    (row) =>
+      measuredIn(row, 'value') &&
+      measuredIn(row, 'previous') &&
+      verdictAt(change, sport, row.durationS) !== 'untested',
+  )
   return both.find((row) => row.durationS === HEADLINE_DURATION_S) ?? both.at(-1)
 }
 
@@ -108,33 +89,59 @@ interface Comparison {
   durationS: number
 }
 
-/**
- * What a curve with a period before says: how far the 20 minute effort (or the longest effort both periods have
- * measured) moved, when the move clears the floor above, and then which effort that was; or that there is no clear
- * change, which cites no effort. Null with no period before, or nothing both periods have measured.
- */
-function comparison({
-  sport,
-  units,
-  rows,
-  previousLabel,
-}: TakeawayInput): Comparison | { text: string; durationS: null } | null {
-  const compared = previousLabel === null ? undefined : comparedRow(rows)
-  if (previousLabel === null || compared === undefined) return null
+/** What the change test says of one row, as a sentence, and the effort length the sentence cites (null for no clear change). */
+function comparisonOf(
+  row: CurveRow,
+  { sport, units, previousLabel, change }: TakeawayInput & { previousLabel: string },
+): Comparison | { text: string; durationS: null } {
   const wording = WORDING[sport]
-  const change =
-    plottedValue(sport, compared.value, units) - plottedValue(sport, compared.previous, units)
-  const amount = Math.round(Math.abs(change))
+  const shift = plottedValue(sport, row.value, units) - plottedValue(sport, row.previous, units)
+  const amount = Math.round(Math.abs(shift))
   const against = `the ${lowerFirst(previousLabel)}`
-  if (!isClearChange(sport, compared.value, compared.previous, units)) {
+  const verdict = verdictAt(change, sport, row.durationS)
+  // A called change shows as at least one plotted unit; a figure that rounds to none is not worded as a move.
+  if ((verdict !== 'higher' && verdict !== 'lower') || amount === 0) {
     return { text: `No clear change against ${against}`, durationS: null }
   }
-  const better = wording.lowerIsBetter ? change < 0 : change > 0
-  const { unit } = splitValue(formatNative(sport, compared.value, units))
+  const better = wording.lowerIsBetter ? shift < 0 : shift > 0
+  const { unit } = splitValue(formatNative(sport, row.value, units))
   return {
-    text: `${effortLabel(compared.durationS)} is ${wording.size(amount, unit)} ${better ? wording.better : wording.worse} than ${against}`,
-    durationS: compared.durationS,
+    text: `${effortLabel(row.durationS)} is ${wording.size(amount, unit)} ${better ? wording.better : wording.worse} than ${against}`,
+    durationS: row.durationS,
   }
+}
+
+/**
+ * What a curve with a period before says: how far the 20 minute effort (or the longest effort both periods have
+ * measured) moved, when the change test calls it a change, and then which effort that was; or that there is no clear
+ * change, which cites no effort. Null with no period before, or no effort both periods have measured and the test
+ * could judge.
+ */
+function comparison(input: TakeawayInput): Comparison | { text: string; durationS: null } | null {
+  const { sport, rows, previousLabel, change } = input
+  const compared = previousLabel === null ? undefined : comparedRow(rows, sport, change)
+  if (previousLabel === null || compared === undefined) return null
+  return comparisonOf(compared, { ...input, previousLabel })
+}
+
+/**
+ * The sentence for one effort length, as the curve's title would say it: how far it moved against the period
+ * before when the change test calls it, or that there is no clear change. Null without a period before, when either
+ * period has no measured effort of that length, or when the test could not judge it.
+ */
+export function takeawayAt(input: TakeawayInput, durationS: number): string | null {
+  const { sport, rows, previousLabel, change } = input
+  const row = rows.find((candidate) => candidate.durationS === durationS)
+  if (
+    previousLabel === null ||
+    row === undefined ||
+    !measuredIn(row, 'value') ||
+    !measuredIn(row, 'previous') ||
+    verdictAt(change, sport, durationS) === 'untested'
+  ) {
+    return null
+  }
+  return comparisonOf(row, { ...input, previousLabel }).text
 }
 
 /**

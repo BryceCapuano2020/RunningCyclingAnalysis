@@ -103,21 +103,13 @@ export function usePreferencesMock(): [Preferences, (next: Preferences) => void]
   return [app.preferences, setPreferences]
 }
 
-/** The costly charts. The trend charts stay real, since the Balance and sport pages' fitness tests read them. */
+/** The costly charts. */
 export const heavyChartStubs = {
   CurveChart: () => null,
   SportCurveChart: () => null,
   RatioChart: () => null,
   HrScatter: () => null,
   AccuracyScatter: () => null,
-}
-
-/** The trend charts and the grade series, which are not stubbed. */
-export async function trendCharts() {
-  const { TrendChart } = await import('../ui/charts/TrendChart')
-  const { SharedTrendChart } = await import('../ui/charts/SharedTrendChart')
-  const { gradeWeeks } = await import('../ui/charts/gradeTrend')
-  return { TrendChart, SharedTrendChart, gradeWeeks }
 }
 
 /** Signs the test user in (with the given options), out, or marks the account unavailable. */

@@ -11,40 +11,27 @@ const COUNTS: Record<Sport, string> = {
   ride: 'Counts rides with a power meter.',
 }
 
-/**
- * Under the chart: how a dot is made and what it counts, and the limit of the reading. Fatigue can
- * lower heart rate at a given effort (Hammes 2016), so a rise is not always training.
- */
+/** Under the chart: how a dot is made and what it counts. */
 function noteFor(sport: Sport): string {
   const window = plural(SAME_HEART_RATE.windowDays / 7, 'week')
-  return `Each dot is fitted to the steady 5-minute stretches of the ${window} to that Sunday. The line is fitted through the dots, and its band is how well the line is pinned down. A change is named only when the trend’s 90% band is clear of zero. ${COUNTS[sport]} Fatigue can lower heart rate at a given effort, so a rise can come with fatigue as well as with training.`
+  return `Each dot is fitted to the steady 5-minute stretches of the ${window} to that Sunday, and a week with too little data has none. ${COUNTS[sport]}`
 }
 
 /**
- * A sport's output at one heart rate, week by week: a fitted trend with its band, and the finding as its title. It says
- * a change only when the trend's 90% band is clear of zero. With too little data to draw it has no
- * section: sameHeartRateLack says what is missing.
+ * A sport's output at one heart rate, week by week: a dot for each week that reports. It claims no change: the
+ * windows of neighbouring weeks overlap and the level wanders, so a line fitted through the dots reads that as a trend.
+ * The fitness status is the sport's voice on change. With too little data to draw it has no section:
+ * sameHeartRateLack says what is missing.
  */
 export function SameHeartRateSection({
   sport,
   data,
   units,
-  weekly = false,
 }: {
   sport: Sport
   data: SameHeartRate
   units: UnitSystem
-  /** The fitness status above speaks for the sport, so this is the weekly view: its chart carries no change headline of its own. */
-  weekly?: boolean
 }) {
   if (data.change === null) return null
-  return (
-    <SameHeartRateChart
-      sport={sport}
-      data={data}
-      units={units}
-      note={noteFor(sport)}
-      headline={!weekly}
-    />
-  )
+  return <SameHeartRateChart sport={sport} data={data} units={units} note={noteFor(sport)} />
 }

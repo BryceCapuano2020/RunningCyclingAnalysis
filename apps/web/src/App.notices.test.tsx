@@ -32,8 +32,8 @@ vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
 }))
 vi.mock('./ui/charts', async () => {
-  const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
-  return { ...heavyChartStubs, ...(await trendCharts()) }
+  const { heavyChartStubs } = await import('./test/appMocks')
+  return heavyChartStubs
 })
 
 /** The status regions in the page right now, before a message is put into one of them. */

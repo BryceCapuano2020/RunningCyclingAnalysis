@@ -195,7 +195,10 @@ describe('profileSentence', () => {
       standsOut: null,
     }))
     expect(
-      profileSentence({ status: 'ready', anchored: false, startS: 5, rows }, formatDuration),
+      profileSentence(
+        { status: 'ready', anchored: false, startS: 5, rows, activities: 40 },
+        formatDuration,
+      ),
     ).toBe('Your bests are in line with each other, compared from 2 min to 45 min.')
   })
 
@@ -236,6 +239,7 @@ describe('profileSentence', () => {
       status: 'ready',
       anchored: true,
       startS: 5,
+      activities: 40,
       rows,
     })
     const inLine = (durationS: number): ProfileRow => ({
@@ -274,6 +278,7 @@ describe('profileSentence', () => {
       status: 'ready',
       anchored: true,
       startS: 5,
+      activities: 40,
       rows: [row(10, 0.3), row(60, -0.1), row(300, 0.2), row(1200, 0.12), row(3600, -0.25)],
     }
     const text = profileSentence(profile, formatDuration)
@@ -297,6 +302,7 @@ describe('profileSentence', () => {
       status: 'ready',
       anchored: true,
       startS: 5,
+      activities: 40,
       rows: [row(60, -0.2), row(120, -0.15)],
     }
     expect(profileSentence(profile, formatDuration)).toBe(
@@ -367,5 +373,35 @@ describe('a run’s profile, which starts at 3 minutes', () => {
     expect(profile.anchored).toBe(false)
     expect(profile.rows).toHaveLength(DURATIONS.filter((d) => d >= 180).length)
     expect(profile.rows.every((row) => row.standsOut === null)).toBe(true)
+  })
+})
+
+describe('what a small library can say', () => {
+  it('does not say the bests are in line with each other with fewer than 40 activities behind them', () => {
+    const few = durationProfile(modelCurve(), 5, 25)
+    if (few.status !== 'ready') throw new Error('not ready')
+    const text = profileSentence(few, formatDuration)
+    expect(text).not.toContain('in line with')
+    expect(text).toContain('takes 40 activities to say they agree; this period has 25')
+    const enough = durationProfile(modelCurve(), 5, 40)
+    if (enough.status !== 'ready') throw new Error('not ready')
+    expect(profileSentence(enough, formatDuration)).toContain('in line with each other')
+  })
+
+  it('judges a duration at a stricter level in a small library, and shrinks what stands out', () => {
+    const points = scaled(1200, 1.15)
+    const flagged = (activities: number) => {
+      const profile = durationProfile(points, 5, activities)
+      if (profile.status !== 'ready') throw new Error('not ready')
+      return profile.rows.find((row) => row.durationS === 1200)!
+    }
+    const large = flagged(40)
+    const small = flagged(5)
+    expect(large.standsOut).toBe('above')
+    expect(small.standsOut).toBeNull()
+    // The size reported is below the raw 15%: the duration noise helped most is pulled toward the curve.
+    expect(large.residual).toBeGreaterThan(0.08)
+    expect(large.residual).toBeLessThan(0.15)
+    expect(large.low).toBeGreaterThan(0)
   })
 })

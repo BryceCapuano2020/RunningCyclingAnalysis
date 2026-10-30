@@ -107,6 +107,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             setAside,
           })
         : null,
+    change:
+      athlete !== null && bikeModel !== undefined && previous.length > 0
+        ? periods.change(selected, previous, athlete, bikeModel, judgement.rideGate)
+        : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,
     isSample: inputs.isSample,

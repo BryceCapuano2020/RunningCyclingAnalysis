@@ -1,5 +1,7 @@
 import { HEADLINE_DURATION_S } from './constants'
 import { sameMasses } from './athlete/mass'
+import { changeEvidence } from './change/evidence'
+import type { ChangeEvidence } from './change/types'
 import { combine, sportCurves } from './digest/combine'
 import type { CombineOptions } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
@@ -84,6 +86,8 @@ export class PeriodCache {
       points: TrendPoint[]
     }
   >()
+  private changeEntry:
+    (Inputs & { previous: ActivityDigest[]; gate: string; evidence: ChangeEvidence }) | null = null
   private previousEntry:
     | (Inputs & { previous: ActivityDigest[]; gate: string; hardness: string; curves: SportCurves })
     | null = null
@@ -336,5 +340,32 @@ export class PeriodCache {
     )
     this.previousEntry = { selected, settings, previous, gate, hardness, curves }
     return curves
+  }
+
+  /**
+   * Whether the selected period's bests differ from the previous period's by more than chance. Priced with the
+   * selected period's bike model, so its key is the same as the previous curves': the two period lists, the masses
+   * and the library's ride gate. Going back to a period just shown costs nothing.
+   */
+  change(
+    selected: ActivityDigest[],
+    previous: ActivityDigest[],
+    settings: AthleteSettings,
+    bikeModel: BikeModel,
+    rideGate?: EstimatedRideGate | null,
+  ): ChangeEvidence {
+    const cached = this.changeEntry
+    const gate = rideGateKey(rideGate)
+    if (
+      cached !== null &&
+      cached.gate === gate &&
+      sameInputs(cached, selected, settings) &&
+      sameDigests(cached.previous, previous)
+    ) {
+      return cached.evidence
+    }
+    const evidence = changeEvidence(selected, previous, settings, bikeModel, rideGate)
+    this.changeEntry = { selected, settings, previous, gate, evidence }
+    return evidence
   }
 }

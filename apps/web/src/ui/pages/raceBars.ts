@@ -8,8 +8,8 @@ export interface MethodMark {
 
 /**
  * Where each part of a race's bar sits, as fractions of the bar from 0 (left, the quickest time) to 1. The
- * bar is drawn on a scale that runs a little past what is on it, so nothing sits on its edge, and wider when
- * an estimate falls outside the assumed spread, so it is still drawn where it is and not clamped to an end.
+ * bar is drawn on the scale of the whole list, which runs a little past what is on any bar, so nothing sits on an
+ * edge and an estimate outside the assumed spread is still drawn where it is and not clamped to an end.
  */
 export interface RaceBarGeometry {
   /** The assumed spread's two ends. */
@@ -27,25 +27,59 @@ export interface RaceBarGeometry {
 const MARGIN = 0.04
 
 /**
- * The bar's geometry, linear in seconds as the times are. The spread's ends and every estimate set the
- * scale; the prediction is the geometric mean of the estimates, so it sits between them but not at the
- * middle of the spread, which is part of what the bar shows.
+ * The scale every bar of a list is drawn on: how far, as a fraction of its own prediction, anything on any bar falls
+ * below and above it. One scale for all the races makes a bar's width the race's own uncertainty, so a marathon's
+ * wider band is wider on the page, and every prediction stands at one place along its bar.
  */
-export function raceBar(
-  prediction: RacePrediction,
-  ranSeconds: number | null = null,
-): RaceBarGeometry {
-  const times = [
+export interface RaceScale {
+  /** The most any time on any bar is faster than its prediction, as a fraction of the prediction. */
+  below: number
+  /** The most any time is slower than its prediction. */
+  above: number
+}
+
+/** The times drawn on one bar. */
+function timesOf(prediction: RacePrediction, ranSeconds: number | null): number[] {
+  return [
     prediction.low,
     prediction.high,
     prediction.seconds,
     ...prediction.methods.map((method) => method.seconds),
     ...(ranSeconds === null ? [] : [ranSeconds]),
   ]
-  const lowest = Math.min(...times)
-  const highest = Math.max(...times)
-  const span = highest - lowest || 1
-  const at = (seconds: number) => MARGIN + ((seconds - lowest) / span) * (1 - 2 * MARGIN)
+}
+
+/**
+ * The common scale of some races, from every time drawn on them, the spread's ends, each estimate and a recorded best
+ * (`rans`, by distance, for the races that have one). It runs a little past the most extreme, so nothing sits on an edge.
+ */
+export function raceScale(
+  predictions: readonly RacePrediction[],
+  rans: ReadonlyMap<number, number> = new Map(),
+): RaceScale {
+  let below = 0
+  let above = 0
+  for (const prediction of predictions) {
+    for (const seconds of timesOf(prediction, rans.get(prediction.distanceM) ?? null)) {
+      below = Math.max(below, 1 - seconds / prediction.seconds)
+      above = Math.max(above, seconds / prediction.seconds - 1)
+    }
+  }
+  return { below, above }
+}
+
+/**
+ * The bar's geometry on a scale, linear in seconds as the times are. The prediction is the geometric mean of the
+ * estimates, so it sits between them but not at the middle of the spread, which is part of what the bar shows.
+ */
+export function raceBar(
+  prediction: RacePrediction,
+  scale: RaceScale,
+  ranSeconds: number | null = null,
+): RaceBarGeometry {
+  const span = scale.below + scale.above || 1
+  const at = (seconds: number) =>
+    MARGIN + ((seconds / prediction.seconds - 1 + scale.below) / span) * (1 - 2 * MARGIN)
   return {
     low: at(prediction.low),
     high: at(prediction.high),

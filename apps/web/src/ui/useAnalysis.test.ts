@@ -143,6 +143,7 @@ const STATE = {
   walkingPaceRuns: 0,
   trend: [],
   previous: null,
+  change: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
@@ -1946,6 +1947,41 @@ describe('useAnalysis state', () => {
     act(() => result.current.addFiles([FILE]))
     act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
     expect(result.current.importChange?.before).toBeNull()
+  })
+
+  it('compares the import with nothing when it switched the period from 12 weeks to all time', () => {
+    const outcome = { activities: 1, rejected: 0, duplicates: [], runs: 0, rides: 1 }
+    const window12 = { ...STATE.period, days: 84, fellBack: false }
+    const allTime = { ...STATE.period, days: null, fellBack: true }
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: makeResult({ runCp: null }), period: window12 })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, result: makeResult(), period: allTime },
+        outcome,
+      }),
+    )
+    expect(result.current.importChange?.before).toBeNull()
+    expect(result.current.importChange?.after).not.toBeNull()
+  })
+
+  it('compares the import with the result on screen when the period stayed in its regime', () => {
+    const outcome = { activities: 1, rejected: 0, duplicates: [], runs: 0, rides: 1 }
+    const before = makeResult({ runCp: null })
+    const window12 = { ...STATE.period, days: 84, fellBack: false }
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: before, period: window12 })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, result: makeResult(), period: { ...window12, endMs: 5 } },
+        outcome,
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(before)
   })
 
   it('forgets what moved when the summary is cleared', () => {

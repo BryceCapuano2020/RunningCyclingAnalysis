@@ -8,6 +8,7 @@ import {
   PROFILE_MIN_SESSIONS,
   shortEndOf,
   PROFILE_ALPHA,
+  PROFILE_IN_LINE_MIN_ACTIVITIES,
 } from './constants'
 import { fitCurve } from './morton'
 import { studentTQuantile } from './studentT'
@@ -44,6 +45,8 @@ export interface ReadyProfile {
   anchored: boolean
   /** The shortest duration the profile reads, s: 5 s for a ride, 3 min for a run. */
   startS: number
+  /** The athlete's activities of the sport behind the bests, which the sentence needs PROFILE_IN_LINE_MIN_ACTIVITIES of to say they agree. */
+  activities: number
 }
 
 /**
@@ -116,23 +119,45 @@ function leaveOneOut(points: readonly ProfilePoint[], pmax: boolean): Held[] {
 }
 
 /**
- * A row from a held duration. Its interval is the log ratio plus and minus a Student's t quantile times
- * its own spread, so a duration the others pin down poorly has a wide one. The level is PROFILE_ALPHA over
- * all the rows (Bonferroni), so that a profile of pure noise stands out somewhere that rarely. The bounds
- * are put back from logs to fractions.
+ * The level a profile is judged at, spread over its rows. PROFILE_ALPHA is for a library of
+ * PROFILE_IN_LINE_MIN_ACTIVITIES activities or more; a smaller one has fewer efforts behind each best, whose spread
+ * the fit's few points and the meter's floor understate, so its level is cut in proportion and a stand-out in a
+ * small library is rarer and surer.
  */
-function rowOf(held: Held, rows: number, quantiles: Map<number, number>): ProfileRow {
-  const t = quantiles.get(held.df) ?? studentTQuantile(1 - PROFILE_ALPHA / (2 * rows), held.df)
-  quantiles.set(held.df, t)
+function levelFor(activities: number): number {
+  return PROFILE_ALPHA * Math.min(1, Math.max(activities, 1) / PROFILE_IN_LINE_MIN_ACTIVITIES)
+}
+
+/**
+ * A row from a held duration. Its interval is the log ratio plus and minus a Student's t quantile times its own
+ * spread, so a duration the others pin down poorly has a wide one. The level is `levelFor` over all the rows
+ * (Bonferroni), so that a profile of pure noise stands out somewhere that rarely. A duration that stands out is the
+ * one noise has helped most, so its size is shrunk toward the athlete's curve by the share of its squared distance
+ * that its own spread does not explain (positive-part James-Stein, `1 - (sd / ratio)^2`). The interval is the
+ * unshrunk one, which is what decides that it stands out and whether the sentence names it; the shrunk size stays inside it. The bounds are put back from logs to fractions.
+ */
+function rowOf(
+  held: Held,
+  rows: number,
+  quantiles: Map<number, number>,
+  level: number,
+): ProfileRow {
+  const key = held.df
+  const t = quantiles.get(key) ?? studentTQuantile(1 - level / (2 * rows), held.df)
+  quantiles.set(key, t)
   const half = t * held.sd
-  const low = Math.expm1(held.logRatio - half)
-  const high = Math.expm1(held.logRatio + half)
+  const lowLog = held.logRatio - half
+  const highLog = held.logRatio + half
+  const standsOut: StandsOut | null = lowLog > 0 ? 'above' : highLog < 0 ? 'below' : null
+  // Only a duration that stands out is shrunk: for the rest the ratio is already inside noise.
+  const share = standsOut === null ? 1 : Math.max(0, 1 - (held.sd / Math.abs(held.logRatio)) ** 2)
+  const shrunk = share * held.logRatio
   return {
     durationS: held.durationS,
-    residual: Math.expm1(held.logRatio),
-    low,
-    high,
-    standsOut: low > 0 ? 'above' : high < 0 ? 'below' : null,
+    residual: Math.expm1(shrunk),
+    low: Math.expm1(lowLog),
+    high: Math.expm1(highLog),
+    standsOut,
   }
 }
 
@@ -150,6 +175,7 @@ function rowOf(held: Held, rows: number, quantiles: Map<number, number>): Profil
 export function durationProfile(
   curve: readonly ProfilePoint[],
   startS: number = PROFILE_MIN_S,
+  activities: number = PROFILE_IN_LINE_MIN_ACTIVITIES,
 ): DurationProfile {
   const points = curve.filter(inRange(startS)).sort((a, b) => a.durationS - b.durationS)
   const anchored = points.some((point) => point.durationS <= PROFILE_ANCHOR_S)
@@ -159,10 +185,12 @@ export function durationProfile(
   const held = leaveOneOut(shown, anchored)
   if (held.length < PROFILE_MIN_DURATIONS) return { status: 'unfit' }
   const quantiles = new Map<number, number>()
+  const level = levelFor(activities)
   return {
     status: 'ready',
-    rows: held.map((one) => rowOf(one, held.length, quantiles)),
+    rows: held.map((one) => rowOf(one, held.length, quantiles, level)),
     anchored,
     startS,
+    activities,
   }
 }

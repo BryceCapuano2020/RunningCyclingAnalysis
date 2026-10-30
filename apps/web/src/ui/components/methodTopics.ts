@@ -5,6 +5,7 @@ import {
   PRIORS,
   RUN_COST_CORRECTION,
 } from '@rca/core/constants'
+import { CHANGE } from '@rca/core/change'
 import { ENERGY_RATE_UNIT } from '@rca/core/units'
 import {
   DEFAULT_WINDOW_DAYS,
@@ -12,7 +13,6 @@ import {
   MIN_WINDOW_DAYS,
   trendWindowDays,
 } from '@rca/core/digest/trendPoints'
-import { HEADLINE_LABEL } from '../grades'
 import { CURVE_START_S, RECORD_DURATIONS_S, effortLabel } from '../records'
 import { RANGE_OPTIONS } from './rangeOptions'
 
@@ -82,18 +82,23 @@ const TOPIC_LIST = [
   },
   {
     id: 'trend',
-    title: `Best ${HEADLINE_LABEL}, week by week`,
+    title: 'Best efforts over time',
     plain: [
-      `Each point is one week, ending on a Sunday in UTC. It shows your best effort in each sport over the chosen length: ${EFFORT_PHRASE}. Balance uses ${HEADLINE_LABEL}. Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts.`,
-      `Each point looks back over a window that ends that Sunday. Each window is a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days, so ${WINDOW_EXAMPLES}. All time uses ${DEFAULT_WINDOW_DAYS} days. Each window lies inside the period you chose.`,
-      'A gap means no run or ride of that length fell inside the window.',
+      `Each dot is an effort that was the best of its stretch, on the day it was done, for the chosen length: ${EFFORT_PHRASE}. Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts. Older dots are fainter.`,
+      'There is no line. The days between two dots hold no reading, and a line through best efforts shows how often you went hard as much as how fit you were. Your fitness status, read from steady runs at the same heart rate, is the trend.',
     ],
     detail:
-      'Each effort is judged on energy rate and converted with the period’s one bike model, which is ' +
-      'fitted to its activities. The ' +
-      'headline reports the median, the middle of the model’s simulated answers, which ' +
-      'heart-rate calibration can shift, so the headline and the trend can differ slightly. The ' +
-      'range shown with the headline is not drawn for each week.',
+      `A dot is the effort that led a trailing window ending on some Sunday in UTC. Each window is a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days, so ${WINDOW_EXAMPLES}. All time uses ${DEFAULT_WINDOW_DAYS} days. ` +
+      'Each effort is judged on energy rate and converted with the period’s one bike model, which is fitted to its activities.',
+  },
+  {
+    id: 'change',
+    title: 'How a change is called',
+    plain: [
+      'The app calls a change only when it is bigger than your own efforts would put between two periods by chance. It pools the efforts of the period and the one before, deals them out at random to a “now” side and a “before” side of their real sizes, and calls a change when the real difference falls outside the middle 90% of those deals.',
+      `So the bar is yours: it is wider for a length you have few efforts at, and for an athlete whose efforts vary more. With fewer than ${CHANGE.minPerSide} efforts of a length in either period, the app says nothing about it. A best is a floor on what you can do, so a period without a hard effort can read as lower.`,
+    ],
+    detail: `For each length the two periods’ efforts are dealt out ${CHANGE.draws.toLocaleString('en-US')} times; the difference is the natural log of one side’s best over the other’s. Running is compared in flat speed and cycling in watts per kilogram, so a change of weight between the periods is not read as a change of power. The band is the 5th to the 95th percentile of those deals, so a pair of periods in which nothing changed is called a change about one time in ten at most.`,
   },
   {
     id: 'heart',
@@ -183,7 +188,14 @@ export const TOPICS: readonly Topic[] = TOPIC_LIST
 const TOPIC_BY_ID = new Map<TopicId, Topic>(TOPICS.map((topic) => [topic.id, topic]))
 
 /** The topics the How this works list on Method holds: the ones with no chart of their own. */
-export const HOW_THIS_WORKS: readonly TopicId[] = ['trend', 'settings', 'data', 'speed', 'limits']
+export const HOW_THIS_WORKS: readonly TopicId[] = [
+  'trend',
+  'change',
+  'settings',
+  'data',
+  'speed',
+  'limits',
+]
 
 export function topicOf(id: TopicId): Topic {
   const topic = TOPIC_BY_ID.get(id)

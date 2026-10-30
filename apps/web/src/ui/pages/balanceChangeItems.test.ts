@@ -6,6 +6,9 @@ import type { SportCurves } from '@rca/core/types'
 import { AnalysisSession } from '@rca/core/session'
 import type { BalanceGap } from '../balanceGap'
 import { gapOfHeadline } from '../balanceGap'
+import type { ChangeVerdict } from '@rca/core/change/types'
+import type { Sport } from '@rca/core/types'
+import { changeOf } from '../charts/changeFixtures'
 import { headlineGrades } from '../grades'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import {
@@ -15,7 +18,6 @@ import {
   noChangeText,
   notComparedText,
   previousGap,
-  rangeVerdict,
 } from './balanceChangeItems'
 import type { ChangesInput } from './balanceChangeItems'
 
@@ -26,56 +28,53 @@ const gap = (centre: number, low: number, high: number): BalanceGap => ({
   lean: centre > 2 ? 'run' : centre < -2 ? 'ride' : 'even',
 })
 
-describe('rangeVerdict', () => {
-  it('calls ranges that overlap within their range, ends touching included', () => {
-    expect(rangeVerdict({ low: 1, high: 12 }, { low: 3, high: 15 })).toBe('within')
-    expect(rangeVerdict({ low: 1, high: 12 }, { low: 12, high: 20 })).toBe('within')
-    expect(rangeVerdict({ low: 4, high: 8 }, { low: 1, high: 12 })).toBe('within')
-  })
+/** The verdicts of a run and a ride best that explain a lean moving from `before` to `now`: the run higher, or lower, alone. */
+function explaining(now: BalanceGap, before: BalanceGap): Record<Sport, ChangeVerdict> {
+  return { run: now.centre > before.centre ? 'higher' : 'lower', ride: 'none' }
+}
 
-  it('calls ranges that do not overlap beyond their range, from either side', () => {
-    expect(rangeVerdict({ low: 14, high: 26 }, { low: 1, high: 12 })).toBe('beyond')
-    expect(rangeVerdict({ low: 1, high: 12 }, { low: 14, high: 26 })).toBe('beyond')
-    expect(rangeVerdict({ low: -12, high: -1 }, { low: 2, high: 9 })).toBe('beyond')
-  })
-
-  it('claims nothing where either period has no range, or one of a single value', () => {
-    expect(rangeVerdict(null, { low: 1, high: 12 })).toBeNull()
-    expect(rangeVerdict({ low: 1, high: 12 }, null)).toBeNull()
-    expect(rangeVerdict({ low: 6, high: 6 }, { low: 1, high: 12 })).toBeNull()
-    expect(rangeVerdict({ low: 1, high: 12 }, { low: 6, high: 6 })).toBeNull()
-  })
-
-  it('does not call a move beyond its range just because the earlier centre left the current range', () => {
-    // The earlier centre, 14, is outside the range now (1 to 12), but the two ranges overlap.
-    expect(rangeVerdict({ low: 6, high: 22 }, { low: 1, high: 12 })).toBe('within')
-  })
-})
+/** The lean item for a move that a called best explains. */
+const lean = (now: BalanceGap, before: BalanceGap) => leanItem(now, before, explaining(now, before))
 
 describe('leanItem', () => {
-  it('tags ranges that do not overlap as beyond their range, and says the lean eased', () => {
-    const item = leanItem(gap(6, 1, 12), gap(20, 14, 26))
+  it('says the lean eased, tagged as an estimate, with this period’s range and no claim about the earlier one', () => {
+    const item = lean(gap(6, 1, 12), gap(20, 14, 26))
     expect(item).toMatchObject({
       key: 'lean',
       title: 'Lean eased 14 pts',
       direction: 'down',
-      tag: 'beyond',
+      tag: 'estimated',
     })
     expect(item?.body).toBe(
-      'From 20 pts toward running to 6 pts toward running. 90% range now 1 to 12 points, which does not overlap the earlier range.',
+      'From 20 pts toward running to 6 pts toward running. 90% range now 1 to 12\u00a0points.',
     )
+    expect(Object.values(TAG_TEXT).join(' ')).not.toMatch(/range|real change/i)
   })
 
-  it('tags ranges that overlap as within their range, and never calls it not a real change', () => {
-    const item = leanItem(gap(6, 1, 12), gap(9, 3, 15))
-    expect(item).toMatchObject({ title: 'Lean eased 3 pts', tag: 'within' })
-    expect(item?.body).toMatch(/which overlaps the earlier range\.$/)
-    expect(TAG_TEXT[item!.tag]).toBe('Within its range')
-    expect(Object.values(TAG_TEXT).join(' ')).not.toMatch(/real change/)
+  describe('which moves the change test supports', () => {
+    const now = gap(6, 1, 12)
+    const before = gap(20, 14, 26)
+    // Easing from 20 to 6 points toward running is a move toward cycling.
+    it('lists a move toward cycling when the run’s best was called lower or the ride’s higher', () => {
+      expect(leanItem(now, before, { run: 'lower', ride: 'none' })).not.toBeNull()
+      expect(leanItem(now, before, { run: 'none', ride: 'higher' })).not.toBeNull()
+    })
+
+    it('lists nothing when no best was called, or the called best moves the lean the other way', () => {
+      expect(leanItem(now, before, { run: 'none', ride: 'none' })).toBeNull()
+      expect(leanItem(now, before, { run: 'untested', ride: 'untested' })).toBeNull()
+      expect(leanItem(now, before, { run: 'higher', ride: 'none' })).toBeNull()
+      expect(leanItem(now, before, { run: 'none', ride: 'lower' })).toBeNull()
+    })
+
+    it('lists a move either way when both bests were called in opposite ways', () => {
+      expect(leanItem(now, before, { run: 'higher', ride: 'higher' })).not.toBeNull()
+      expect(leanItem(before, now, { run: 'higher', ride: 'higher' })).not.toBeNull()
+    })
   })
 
   it('says the lean grew, with an arrow up, when the gap widened', () => {
-    expect(leanItem(gap(12, 5, 19), gap(6, 1, 11))).toMatchObject({
+    expect(lean(gap(12, 5, 19), gap(6, 1, 11))).toMatchObject({
       title: 'Lean grew 6 pts',
       direction: 'up',
     })
@@ -83,63 +82,55 @@ describe('leanItem', () => {
 
   describe('for a lean toward cycling', () => {
     it('writes the range from cycling’s side, as the headline does', () => {
-      const item = leanItem(gap(-6, -12, -1), gap(-9, -14, -3))
+      const item = lean(gap(-6, -12, -1), gap(-9, -14, -3))
       expect(item?.body).toContain('90% range now 1 to 12 points')
       expect(item?.body).not.toContain('−')
       expect(item?.body).toMatch(/^From 9 pts toward cycling to 6 pts toward cycling\./)
     })
 
     it('signs a range that reaches zero, from cycling’s side', () => {
-      const item = leanItem(gap(-4, -9, 2), gap(-9, -14, -3))
+      const item = lean(gap(-4, -9, 2), gap(-9, -14, -3))
       expect(item?.body).toContain('90% range now −2 to +9 points')
     })
 
     it('points the arrow down when the lean eased and up when it grew, whichever sport it favours', () => {
-      expect(leanItem(gap(-6, -12, -1), gap(-9, -14, -3))).toMatchObject({
+      expect(lean(gap(-6, -12, -1), gap(-9, -14, -3))).toMatchObject({
         title: 'Lean eased 3 pts',
         direction: 'down',
       })
-      expect(leanItem(gap(-12, -18, -6), gap(-6, -12, -1))).toMatchObject({
+      expect(lean(gap(-12, -18, -6), gap(-6, -12, -1))).toMatchObject({
         title: 'Lean grew 6 pts',
         direction: 'up',
       })
       // The same easing for running reads the same way.
-      expect(leanItem(gap(6, 1, 12), gap(9, 3, 15))?.direction).toBe('down')
+      expect(lean(gap(6, 1, 12), gap(9, 3, 15))?.direction).toBe('down')
     })
   })
 
   it('names the new side when the lean crossed over, with the arrow for how far it moved', () => {
-    const item = leanItem(gap(-6, -12, -1), gap(8, 2, 14))
+    const item = lean(gap(-6, -12, -1), gap(8, 2, 14))
     expect(item?.title).toBe('Lean moved toward cycling')
-    expect(item?.tag).toBe('beyond')
     expect(item?.direction).toBe('down')
   })
 
-  it('claims neither beyond nor within when either estimate has no range, and tags it estimated', () => {
-    const item = leanItem(gap(6, 6, 6), gap(9, 3, 15))
-    expect(item?.tag).toBe('estimated')
-    expect(item?.body).not.toMatch(/overlap/)
-    expect(leanItem(gap(6, 1, 12), gap(9, 9, 9))?.tag).toBe('estimated')
-  })
-
   it('writes no range where the range now rounds to one value, and says nothing of a range that is not there', () => {
-    const item = leanItem(gap(3, 3, 3), gap(9, 9, 9))
+    const item = lean(gap(3, 3, 3), gap(9, 9, 9))
     expect(item?.body).toBe('From 9 pts toward running to 3 pts toward running.')
     expect(item?.body).not.toMatch(/range|0 to 0|9 to 9/)
     expect(item?.tag).toBe('estimated')
-    expect(leanItem(gap(-6, -6, -6), gap(1, 1, 1))?.body).not.toMatch(/range/)
+    expect(lean(gap(-6, -6, -6), gap(1, 1, 1))?.body).not.toMatch(/range/)
   })
 
   it('says still in balance, not that the lean moved, between two readings both inside the level band', () => {
     // +2 and -2 both read as level, though they round to opposite sides.
-    const item = leanItem(gap(-2, -8, 4), gap(2, -4, 8))
+    const item = lean(gap(-2, -8, 4), gap(2, -4, 8))
     expect(item?.title).toBe('Still in balance')
     // A reading outside the band is a move.
-    expect(leanItem(gap(-6, -9, -3), gap(2, -4, 8))?.title).toBe('Lean moved toward cycling')
+    expect(lean(gap(-6, -9, -3), gap(2, -4, 8))?.title).toBe('Lean moved toward cycling')
   })
 
   it('lists nothing when the gap is the same in whole points', () => {
-    expect(leanItem(gap(6.2, 1, 12), gap(5.8, 2, 11))).toBeNull()
+    expect(lean(gap(6.2, 1, 12), gap(5.8, 2, 11))).toBeNull()
   })
 })
 
@@ -153,6 +144,7 @@ function sample() {
     previous,
     library: state.library,
     previousLabel: 'Previous 12 weeks',
+    change: changeOf('higher'),
     units: 'metric',
     rideShown: true,
     gap: null,
@@ -209,7 +201,7 @@ describe('balanceChanges', () => {
 
   it('says a slower 20 min run is down, and still recorded: both bests were measured', () => {
     const { input, scaled } = measured()
-    const run = balanceChanges(input(scaled(1.05, 1)))?.items.find(
+    const run = balanceChanges(input(scaled(1.05, 1), { change: changeOf('lower') }))?.items.find(
       (item) => item.key === 'run-best',
     )
     expect(run).toMatchObject({
@@ -219,21 +211,35 @@ describe('balanceChanges', () => {
     })
   })
 
-  it('lists a best only where the curve would call it a change: a move under the floor is no clear change', () => {
+  it('lists a best only where the change test calls it: a move it does not call is no clear change', () => {
     const { input, scaled } = measured()
-    // 0.1% of a pace is well under the curve's floor of 1% and 2 s/km, and of 1% and 2 W for watts.
-    const tiny = balanceChanges(input(scaled(0.999, 0.999)))
-    expect(tiny?.items.map((item) => item.key)).toEqual([])
-    expect(tiny?.compared).toBe(true)
-    // 5% is a change on both, so the strip lists both bests.
+    // The figures differ by 5%, but the test puts that inside what chance does between the two periods.
+    const none = balanceChanges(input(scaled(0.95, 0.95), { change: changeOf('none') }))
+    expect(none?.items.map((item) => item.key)).toEqual([])
+    expect(none?.compared).toBe(true)
+    // Called, the same figures list both bests.
     const clear = balanceChanges(input(scaled(0.95, 0.95)))
     expect(clear?.items.map((item) => item.key).sort()).toEqual(['ride-best', 'run-best'])
+  })
+
+  it('compares nothing where the test could not judge the 20 minutes in either sport', () => {
+    const { input, scaled } = measured()
+    const out = balanceChanges(input(scaled(0.9, 0.9), { change: changeOf('untested') }))
+    expect(out).toEqual({ items: [], notes: [], compared: false })
+  })
+
+  it('judges each sport by its own call', () => {
+    const { input, scaled } = measured()
+    const change = changeOf('higher')
+    change.ride = changeOf('none').ride
+    const out = balanceChanges(input(scaled(0.9, 0.9), { change }))
+    expect(out?.items.map((item) => item.key)).toEqual(['run-best'])
   })
 
   it('gets the direction of a best from the figures, not from the words written for it', () => {
     const { input, scaled } = measured()
     const up = balanceChanges(input(scaled(1, 0.9)))?.items.find((item) => item.key === 'ride-best')
-    const down = balanceChanges(input(scaled(1, 1.1)))?.items.find(
+    const down = balanceChanges(input(scaled(1, 1.1), { change: changeOf('lower') }))?.items.find(
       (item) => item.key === 'ride-best',
     )
     expect([up?.direction, down?.direction]).toEqual(['up', 'down'])
@@ -264,7 +270,7 @@ describe('balanceChanges', () => {
     expect(ride(previous, { library })?.tag).toBe('estimated')
   })
 
-  it('tags it estimated where the current best’s watts were estimated, and claims no range', () => {
+  it('tags it estimated where the current best’s watts were estimated', () => {
     const { input, scaled, result, state } = sample()
     const virtual = (activities: readonly ActivitySummary[]) =>
       activities.map((a) => Object.assign({}, a, { powerSource: 'virtual' as const }))
@@ -275,7 +281,6 @@ describe('balanceChanges', () => {
       }),
     )?.items.find((item) => item.key === 'ride-best')
     expect(ride?.tag).toBe('estimated')
-    expect(['beyond', 'within']).not.toContain(ride?.tag)
     expect(ride?.body).toMatch(/^\d+ W, \d+ W more than previous 12 weeks\./)
   })
 

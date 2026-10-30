@@ -37,6 +37,13 @@ took up to 100 blocks needed about 510 ms of wall time for all time. Measured on
 eight activities a week, alternating sport, 15 steady blocks each. `npm run test:perf` holds 100 ms and 400 ms
 for the two cases.
 
+The change test (`changeEvidence`, docs/design/change-test.md) is worked out beside the combine for a period that has one
+before it. It reads each activity of the two periods once at each of the 21 curve lengths, then deals the pooled efforts at
+random 2,000 times per sport and length, finding the best of each side by walking the pooled ranks from the top until both
+sides have appeared (a few steps a deal, no sort). For a library of 2,000 activities, a year against the year before took about
+12 ms (fastest of seven); the last period is kept, so asking again costs a comparison of two lists. `npm run test:perf` holds 100 ms and 2 ms.
+It reads the same prices as the curves, so a change of weight redoes it with them.
+
 A combine prices ride equivalents at the six cross-sport durations only; the grade-by-duration chart
 prices its extra durations once per result, in the page. `combine.perf.test.ts` holds a combine of a
 1,000-activity library under 90 ms (fastest of seven): three times the 30 ms it takes locally, since a CI

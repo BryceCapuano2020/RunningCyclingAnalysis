@@ -1,5 +1,6 @@
 import { expect } from 'vitest'
 import { DAY_MS } from '../../constants'
+import { FINDINGS } from '../constants'
 import { inputAt, weeklyMarks } from '../input'
 import { registryOf } from '../registry'
 import type { Registry } from '../registry'
@@ -162,7 +163,7 @@ export function expectSilence(
 }
 
 /** The design's limit for the whole engine: half a finding in an athlete-year, across every detector. */
-export const REGISTRY_BUDGET_PER_ATHLETE_YEAR = 0.5
+export const REGISTRY_BUDGET_PER_ATHLETE_YEAR = FINDINGS.familyBudgetPerYear
 
 /**
  * The same for a whole registry: all its detectors together may speak at most `perAthleteYear` findings
