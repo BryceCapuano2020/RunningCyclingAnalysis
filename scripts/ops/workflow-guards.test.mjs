@@ -190,3 +190,40 @@ test('a deploy records the commit on the Worker version and the live /api/health
   )
   assert.doesNotMatch(script, /wrangler deploy/)
 })
+
+test('documentation-only pull requests skip the long CI work, and everything else runs it', async () => {
+  const blocks = jobBlocks(await workflow('ci'))
+  const changes = blocks.get('changes').join('\n')
+  assert.match(changes, /if \[ "\$EVENT" != pull_request \]; then\n\s+echo "code=true"/)
+  assert.match(changes, /git diff --name-only --no-renames HEAD\^1 HEAD/)
+  assert.doesNotMatch(
+    changes,
+    /grep -q/,
+    'grep -q can exit early and trip pipefail into a false docs-only',
+  )
+  for (const job of ['perf', 'sim', 'e2e']) {
+    const block = blocks.get(job).join('\n')
+    assert.match(block, /^ {4}needs: changes$/m, job)
+    assert.match(
+      block,
+      /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.code != 'false' \}\}$/m,
+      `${job} skips only on an explicit 'false', so a failed classification runs it`,
+    )
+  }
+  const verify = blocks.get('verify').join('\n')
+  assert.match(verify, /^ {4}if: \$\{\{ !cancelled\(\) \}\}$/m, 'the required check always reports')
+  for (const step of ['typecheck', 'test:coverage', 'build']) {
+    assert.match(
+      verify,
+      new RegExp(`- run: npm run ${step}\\n {8}if: needs\\.changes\\.outputs\\.code != 'false'`),
+      step,
+    )
+  }
+  for (const step of ['format:check', 'lint', 'test:deploy-config', 'test:ops']) {
+    assert.match(verify, new RegExp(`- run: npm run ${step}\\n {6}- `), `${step} always runs`)
+  }
+  assert.match(
+    verify,
+    /if: needs\.changes\.outputs\.code == 'false'\n\s+run: \|\n\s+files=\$\(git grep -l -F '\.md'/,
+  )
+})
