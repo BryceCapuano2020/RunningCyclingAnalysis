@@ -22,6 +22,13 @@ async function violationsOf(page: Page) {
   }))
 }
 
+/** Opens the fitness card's evidence and waits for what is in it: its chart and the runs it rests on. */
+async function openFitnessEvidence(page: Page): Promise<void> {
+  await page.getByText('See the evidence').click()
+  await expect(page.getByRole('figure', { name: /^Pace at \d+ bpm over time$/ })).toBeVisible()
+  await expect(page.locator('.fitness-runs a').first()).toBeVisible()
+}
+
 /** Opens the sample with a year of birth and a sex saved, so the age grades and levels show. */
 async function openGradedSample(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -73,6 +80,26 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
   },
   { name: 'Balance', open: openSample },
   {
+    name: 'Balance, the fitness evidence open',
+    open: async (page) => {
+      await openSample(page)
+      await openFitnessEvidence(page)
+    },
+  },
+  {
+    name: 'Balance, a fitness definition open',
+    open: async (page) => {
+      await openSample(page)
+      // By keyboard: a term that wraps over two lines has no one point to click.
+      await page
+        .locator('.fitness-card')
+        .getByRole('button', { name: /^At \d+ bpm$/ })
+        .focus()
+      await page.keyboard.press('Enter')
+      await expect(page.locator('.fitness-card .definition__note').first()).toBeVisible()
+    },
+  },
+  {
     name: 'Balance, a definition open',
     open: async (page) => {
       await openSample(page)
@@ -85,6 +112,14 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     open: async (page) => {
       await openSample(page)
       await goTo(page, 'Run')
+    },
+  },
+  {
+    name: 'Run, the fitness evidence open',
+    open: async (page) => {
+      await openSample(page)
+      await goTo(page, 'Run')
+      await openFitnessEvidence(page)
     },
   },
   {
@@ -367,4 +402,21 @@ test('notices sit inside main, and a page has no empty live region of its own to
     () => document.querySelectorAll('main .app__live[role="status"]').length,
   )
   expect(regions).toBe(1)
+})
+
+test('the fitness card and its evidence fit a 320 px screen, in both schemes', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'narrow-320', 'Measures the narrowest supported screen')
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme })
+    await openSample(page)
+    await openFitnessEvidence(page)
+    await page.locator('.fitness-card').getByText('View as table').click()
+    await expect(page.locator('.fitness-card table').first()).toBeVisible()
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(0)
+    expect(await violationsOf(page)).toEqual([])
+  }
 })

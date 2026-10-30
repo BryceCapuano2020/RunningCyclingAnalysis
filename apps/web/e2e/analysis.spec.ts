@@ -266,66 +266,69 @@ const TRACK = '.balance-meter [role="img"]'
 const VALUE = '.balance-meter__value'
 const LEVEL_ROWS = '.balance-levels__row'
 
-// The answer's one picture is on the first screen: at 1440 by 900 the meter, its value and both levels end above
-// the fold, and the meter is the first graphic on the page, not the trend 1,900 px down.
-test('at 1440 by 900 the meter, its value and both levels are on the first screen, whole', async ({
+/** The fitness card's state, as the card names it, its sentence, and the change drawn as a track. */
+const FITNESS_CARD = '.fitness-card'
+const FITNESS_STATE = '.fitness-card__state'
+
+// The home page leads with the fitness finding: at 1440 by 900 the whole card, with its state, its sentence, its track
+// and "See the evidence", is on the first screen, and the balance begins right under it as a calm single line.
+test('at 1440 by 900 the fitness card is on the first screen, whole, and the balance begins under it', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openSample(page)
-  expect((await edgesOf(page.locator(TRACK))).bottom).toBeLessThanOrEqual(900)
-  expect((await edgesOf(page.locator(VALUE))).bottom).toBeLessThanOrEqual(900)
-  const rows = await page.locator(LEVEL_ROWS).all()
-  expect(rows).toHaveLength(2)
-  for (const row of rows) expect((await edgesOf(row)).bottom).toBeLessThanOrEqual(900)
-  // It is the first graphic on the page: nothing drawn comes before it.
+  const card = await edgesOf(page.locator(FITNESS_CARD))
+  expect(card.bottom).toBeLessThanOrEqual(900)
+  await expect(page.locator(FITNESS_STATE)).toHaveText('Slipping')
+  await expect(page.getByTestId('fitness-new')).toBeVisible()
+  const track = await edgesOf(page.locator('.fitness-track'))
+  expect(track.bottom).toBeLessThanOrEqual(card.bottom)
+  expect(track.top).toBeGreaterThanOrEqual(card.top)
+  await expect(page.getByText('See the evidence')).toBeInViewport()
+  // The balance's headline starts on the first screen, under the card and not far from it.
+  const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
+  expect(headline.top).toBeGreaterThanOrEqual(card.bottom)
+  expect(headline.top).toBeLessThan(900)
+  // The finding is the first graphic on the page, and the balance's meter is the first drawing after it.
   const first = await page.evaluate(
     () =>
       document.querySelector('main [role="img"], main svg:not(.icon)')?.parentElement?.className ??
       '',
   )
-  expect(first).toContain('balance-meter')
-  // The answer is a line: no scale drawing, no ladder.
-  await expect(page.locator('.balance-meter__value')).toHaveText('+11pts')
-  // The line is HTML, not a drawing: nothing in the answer's stack is an SVG but the sport glyphs.
+  expect(first).toContain('fitness-card__state')
+  const firstImage = await page.evaluate(
+    () => document.querySelector('main [role="img"]')?.parentElement?.className ?? '',
+  )
+  expect(firstImage).toContain('balance-meter')
+  // The answer is still a line: no scale drawing, no ladder, and the meter is in its place.
+  await expect(page.locator('.balance-meter__value')).toHaveText('+8pts')
   await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
   await expect(page.locator('.balance-hero__pair svg:not(.icon)')).toHaveCount(0)
 })
 
-// A phone holds the whole line on its first screen, the sample notice and all: at 390 by 844 and at 320 by 640 the
-// meter, its value and both levels end above the section tabs fixed to the window's foot, with the period control
-// under the levels.
+// A phone holds the whole finding on its first screen, the sample notice and all: at 390 by 844 and at 320 by 640
+// the card's state, sentence and track end above the section tabs fixed to the window's foot, and at 390 the
+// finding is in the first 600 px.
 for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} the meter, its value and both levels are above the section tabs`, async ({
+  test(`at ${width} by ${height} the fitness state, its sentence and its track are above the section tabs`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
     await openSample(page)
     await expect(page.getByText('Sample athlete', { exact: false }).first()).toBeVisible()
     const tabs = await tabBarTop(page)
-    const track = await edgesOf(page.locator(TRACK))
-    const value = await edgesOf(page.locator(VALUE))
-    expect(value.top).toBeGreaterThanOrEqual(track.bottom)
-    expect(value.bottom).toBeLessThanOrEqual(tabs)
-    const rows = await page.locator(LEVEL_ROWS).all()
-    expect(rows).toHaveLength(2)
-    let previous = value.bottom
-    for (const row of rows) {
-      const box = await edgesOf(row)
-      expect(box.top).toBeGreaterThanOrEqual(previous)
-      expect(box.bottom).toBeLessThanOrEqual(tabs)
-      previous = box.bottom
-    }
-    // The period control is directly under the levels, and the headline above the meter.
-    const period = await edgesOf(page.getByRole('group', { name: 'Period' }))
-    const answer = await edgesOf(page.getByRole('heading', { level: 1 }))
-    expect(period.top).toBeGreaterThanOrEqual(previous)
-    expect(track.top).toBeGreaterThanOrEqual(answer.bottom)
-    // Nothing collides: the end labels and the value sit inside the window, and the page does not scroll sideways.
-    for (const selector of ['.balance-meter__ends', VALUE, '.balance-meter__edges']) {
+    const state = await edgesOf(page.locator(FITNESS_STATE))
+    const sentence = await edgesOf(page.locator('.fitness-card__headline'))
+    const track = await edgesOf(page.locator('.fitness-track'))
+    expect(sentence.top).toBeGreaterThanOrEqual(state.bottom)
+    expect(track.top).toBeGreaterThanOrEqual(sentence.bottom)
+    expect(track.bottom).toBeLessThanOrEqual(tabs)
+    if (width === 390) expect(track.bottom).toBeLessThanOrEqual(600)
+    // Nothing collides, and the page does not scroll sideways.
+    for (const selector of [FITNESS_CARD, '.fitness-track__ends', '.fitness-card__headline']) {
       const box = await page.locator(selector).first().boundingBox()
       expect(box === null ? -1 : box.x).toBeGreaterThanOrEqual(0)
       expect(box === null ? width + 1 : box.x + box.width).toBeLessThanOrEqual(width)
@@ -333,6 +336,26 @@ for (const [width, height] of [
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
     ).toBeLessThanOrEqual(0)
+    // The balance follows as before: its headline, then the meter, its value and both levels in order, inside the window.
+    await page.locator(TRACK).scrollIntoViewIfNeeded()
+    const meter = await edgesOf(page.locator(TRACK))
+    const value = await edgesOf(page.locator(VALUE))
+    expect(value.top).toBeGreaterThanOrEqual(meter.bottom)
+    let previous = value.bottom
+    const rows = await page.locator(LEVEL_ROWS).all()
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      const box = await edgesOf(row)
+      expect(box.top).toBeGreaterThanOrEqual(previous)
+      previous = box.bottom
+    }
+    const period = await edgesOf(page.getByRole('group', { name: 'Period' }))
+    expect(period.top).toBeGreaterThanOrEqual(previous)
+    for (const selector of ['.balance-meter__ends', VALUE, '.balance-meter__edges']) {
+      const box = await page.locator(selector).first().boundingBox()
+      expect(box === null ? -1 : box.x).toBeGreaterThanOrEqual(0)
+      expect(box === null ? width + 1 : box.x + box.width).toBeLessThanOrEqual(width)
+    }
   })
 }
 
@@ -367,12 +390,17 @@ test('at 1280 the headline runs the full width, the lede keeps its measure, and 
   expect(meter.x + meter.width).toBeCloseTo(tiles.x + tiles.width, 0)
 })
 
-// A landscape phone has too little height for the headline and a drawing: the answer is what is on screen.
-test('at 667 by 375 the headline is above the section tabs', async ({ page }) => {
+// A landscape phone has too little height for the card and a drawing: the finding's state and its sentence are what
+// is on screen.
+test('at 667 by 375 the fitness state and its sentence are above the section tabs', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 667, height: 375 })
   await openSample(page)
   const tabs = await tabBarTop(page)
-  expect((await edgesOf(page.getByRole('heading', { level: 1 }))).bottom).toBeLessThanOrEqual(tabs)
+  await expect(page.locator(FITNESS_STATE)).toHaveText('Slipping')
+  expect((await edgesOf(page.locator(FITNESS_STATE))).bottom).toBeLessThanOrEqual(tabs)
+  expect((await edgesOf(page.locator('.fitness-card__headline'))).bottom).toBeLessThanOrEqual(tabs)
 })
 
 test('the meter defines its terms in place, by press and by Enter', async ({ page }) => {
@@ -401,11 +429,11 @@ test('the meter is named in words and its value and levels are text, none under 
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
   await expect(page.locator(TRACK)).toHaveAccessibleName(
-    /^Running grades 11 points higher than cycling \(range 6 to 16/,
+    /^Running grades 8 points higher than cycling \(range 2 to 13/,
   )
   await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Running\s*67%\s*Local/)
   await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(
-    /Cycling\s*56%\s*Recreational to Local/,
+    /Cycling\s*59%\s*Recreational to Local/,
   )
   const sizes = await page
     .locator(

@@ -1,7 +1,7 @@
 # Fitness at the same effort: slipping, holding, recovering, back
 
-Status: core built (`packages/core/src/fitness/`), exposed on `SessionState.fitness`; the page is a
-separate task. Written from a research study whose method, tables and tuning are summarised here.
+Status: core built (`packages/core/src/fitness/`), exposed on `SessionState.fitness`, and drawn on Balance and the Run page
+(see DESIGN.md, "Fitness at the same heart rate"). Written from a research study whose method, tables and tuning are summarised here.
 
 ## What it says
 
@@ -92,3 +92,14 @@ shown back, including one after a shallow dip, can be spoken.
    94% within a year (87% on harness libraries); a return spread over half a year takes a median of 24 weeks.
    The other levers tried (higher z everywhere, a larger or growing model-error floor, longer confirmation, longer
    windows) either cut true recoveries as fast as false ones or did little; see the table in the PR.
+
+## For the page
+
+`FitnessStatus.series` is the level at four-week steps for the evidence chart (`fitness/series.ts`): back from the end of the last
+week, each step is the shortest of the 4 to 16 week stretches that holds 6 steady runs, as `{ atMs, value, low, high, runs }` with
+the printed 90% range, at most 20 points over the last 76 weeks, and a step with too few runs left out. The last point is the
+status's own level, so the chart and the sentence give one figure. The line it is read against is `before` and the month the change
+began is `onsetMs`. The runs behind the level now are `evidence.recent.ids`.
+
+The sample athlete carries one planted effect, a slip in easy running over its last 8 weeks (`EASY_SLIP` in
+`synthetic/sampleSeason.ts`); the detector finds it, nothing in the season says what the status is.
