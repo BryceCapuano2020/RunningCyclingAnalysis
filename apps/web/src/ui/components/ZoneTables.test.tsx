@@ -77,14 +77,23 @@ describe('ZoneTables, the max heart rate and its source', () => {
       ),
     ).toBeInTheDocument()
     expect(screen.getAllByText(/^Is that right\?/)).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: 'Set your run max heart rate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
     expect(onSet).toHaveBeenCalledWith('run', 201)
     // The ride's is worked out from the run's, and can be corrected too.
     expect(
       screen.getByText('Max heart rate: 195 bpm, 6 bpm below your running maximum.'),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Set your ride max heart rate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Set it for your ride max heart rate' }))
     expect(onSet).toHaveBeenLastCalledWith('ride', 195)
+  })
+
+  it('names each Set control by words that include its visible text, for speech input', () => {
+    zones(vi.fn())
+    for (const sport of ['run', 'ride']) {
+      const button = screen.getByRole('button', { name: `Set it for your ${sport} max heart rate` })
+      expect(button).toHaveTextContent('Set it')
+      expect(button.getAttribute('aria-label')!.startsWith(button.textContent!)).toBe(true)
+    }
   })
 
   it('states the source without the question when it cannot be set from here', () => {
@@ -124,7 +133,7 @@ describe('ZoneTables, a pace or power the fitness cannot give today', () => {
     expect(screen.queryByRole('table', { name: /^Run pace zones/ })).toBeNull()
     expect(
       screen.getByText(
-        'No run pace zones today. A hard, even 3–5 min and 10–20 min effort sets your pace zones.',
+        'No run pace zones today. A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByText(/^No ride power zones today\./)).toBeInTheDocument()

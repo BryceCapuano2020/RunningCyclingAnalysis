@@ -1422,7 +1422,7 @@ period is picked: the library's judgement, taken over every visible activity onc
 `HeartRateJudgement`). A heart rate is the reference heart rate, the highest value that several separate days reached
 over the last three years. A pace or power is the fit over the half year before the activity's week (`thresholdTimeline`),
 so an activity is cut by the athlete's fitness then; where that half year holds no fit the newest within a year stands
-in, dated in the table ("to Mar 2025"), and beyond a year there are no pace or power zones and a line says what would
+in, dated in the table ("up to Mar 2025"), and beyond a year there are no pace or power zones and a line says what would
 give them. A dated setting the athlete entered still wins on the date it is in force, so each activity is cut by the
 value in force on its own day, and the library's estimate stands where nothing was entered. Profile, the activity page and
 the sport page's time in zones all read it, so one activity has the same zones, and the same shares, under every period.

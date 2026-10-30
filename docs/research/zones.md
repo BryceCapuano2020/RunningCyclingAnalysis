@@ -50,9 +50,9 @@ A reference is one of two things, and the zone set says which.
   critical-power fit (a run's flat speed, or a ride's metabolic W/kg turned into watts at the body mass in effect on
   that date) over the 26 weeks that end with the activity's week (`thresholdTimeline`), so an activity is cut by the
   athlete's fitness then, not by their best ever. When that half year holds no fit (no effort as long as about 20
-  minutes), the newest earlier fit within 12 months is used and the table says "to Mar 2025" (`ZoneSet.asOfMs`);
+  minutes), the newest earlier fit within 12 months is used and the table says "up to Mar 2025" (`ZoneSet.asOfMs`);
   beyond that there are no pace or power zones, and the page says what would give them: a hard, even 3 to 5 minute
-  and 10 to 20 minute effort. A heart rate is the reference of each sport (`HeartRateJudgement.referenceHr`): the
+  effort and a hard 20 minute effort. A heart rate is the reference of each sport (`HeartRateJudgement.referenceHr`): the
   highest value that several separate days reached over the last three years, not the single highest reading
   (`referenceMaxOf`; chosen against alternatives in `referenceMax.sim.test.ts`), with Profile naming the figure's
   source and offering Set. An estimate the analysis refuses, such as a threshold with too few efforts, gives no zones.

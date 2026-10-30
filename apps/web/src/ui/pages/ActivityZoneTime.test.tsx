@@ -221,7 +221,7 @@ describe('ActivityZoneTime, a pace the date has no zones for', () => {
     await screen.findByRole('heading', { name: 'Time in zones' })
     expect(
       screen.getByText(
-        'No pace zones for this run. A hard, even 3–5 min and 10–20 min effort sets your pace zones.',
+        'No pace zones for this run. A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
       ),
     ).toBeInTheDocument()
   })

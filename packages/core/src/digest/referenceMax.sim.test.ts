@@ -38,6 +38,11 @@ interface Scenario {
   /** The share of days with a cadence lock near 160 to 185. */
   lock: number
   bias: number
+  /**
+   * Seconds a sensor holds a reading before it updates, 1 for one that updates every second. A hold of half a minute
+   * or more makes the 30 s mean of a plateau a whole number.
+   */
+  hold?: number
   /** The fall of the true maximum, bpm a year. */
   decline: number
 }
@@ -54,6 +59,27 @@ function random(seed: number): () => number {
 
 const between = (r: () => number, low: number, high: number) => low + (high - low) * r()
 const START = Date.UTC(2020, 0, 1, 12)
+
+/**
+ * The 30 s mean peak of a 7 minute plateau around `target` bpm that a sensor reports in whole beats, holding each
+ * reading for `hold` seconds. With a long hold the best 31 samples are one reading repeated, so the peak is a whole number.
+ */
+function heldPeak(r: () => number, target: number, hold: number): number {
+  const length = 420
+  const hr: number[] = []
+  let value = target
+  for (let i = 0; i < length; i++) {
+    if (i % hold === 0) value = Math.round(target + (r() - 0.5) * 4)
+    hr.push(value)
+  }
+  let best = -Infinity
+  for (let i = 15; i < length - 15; i++) {
+    let sum = 0
+    for (let j = i - 15; j <= i + 15; j++) sum += hr[j]!
+    best = Math.max(best, sum / 31)
+  }
+  return best
+}
 
 function library(scenario: Scenario, seed: number) {
   const r = random(seed)
@@ -76,6 +102,7 @@ function library(scenario: Scenario, seed: number) {
             ? max * between(r, 0.93, 0.985)
             : max * between(r, 0.68, 0.92)
       bpm += scenario.bias
+      if (scenario.hold !== undefined && scenario.hold > 1) bpm = heldPeak(r, bpm, scenario.hold)
       if (r() < scenario.lock) bpm = Math.max(bpm, lock + between(r, -2, 2))
       if (r() < scenario.spike) bpm = max * between(r, 1.04, 1.2)
       if (r() < scenario.ceiling) bpm = ceiling
@@ -157,6 +184,14 @@ describe('the reference maximum, against the alternatives', () => {
     const { bias } = meanError({ ...BASE, bias: 4 }, shipped)
     expect(bias).toBeGreaterThan(2.5)
     expect(bias).toBeLessThan(5.5)
+  })
+
+  it('is not lost to a sensor that holds each reading for 40 s, which makes whole-number peaks of real ones', () => {
+    // Many days then share a whole number at the top. Dropping every copy of a tied number left the maximum at the next
+    // lower, near 25 bpm low on average; one representative of each keeps it.
+    const scenario = { ...BASE, hold: 40, spike: 0.005 }
+    expect(meanError(scenario, shipped).mean).toBeLessThan(4)
+    expect(meanError(scenario, shipped).bias).toBeGreaterThan(-3)
   })
 
   it('follows a maximum that does not fall with age as closely as one that does', () => {

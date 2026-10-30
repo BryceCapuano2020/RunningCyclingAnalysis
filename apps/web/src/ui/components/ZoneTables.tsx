@@ -125,7 +125,7 @@ export function ZoneTables({
                       <button
                         type="button"
                         className="btn zone-tables__set"
-                        aria-label={`Set your ${SPORT_LABEL[set.sport].toLowerCase()} max heart rate`}
+                        aria-label={`Set it for your ${SPORT_LABEL[set.sport].toLowerCase()} max heart rate`}
                         onClick={() => onSetMaxHeartRate(set.sport, Math.round(set.reference))}
                       >
                         Set it

@@ -122,7 +122,7 @@ describe('the source and basis of an estimated zone set', () => {
 
   it('dates a pace or power that comes from an older fit', () => {
     const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
-    expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs to Mar 2025')
+    expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs up to Mar 2025')
     expect(sourceText(set)).toBe('From your runs')
   })
 

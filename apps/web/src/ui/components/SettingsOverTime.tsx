@@ -91,19 +91,26 @@ export function SettingsOverTime({
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
   const appliedNonce = useRef<number | null>(null)
-  // A request to set a figure opens the form to it, with the figure typed in for the athlete to confirm or change.
+  const focusedNonce = useRef<number | null>(null)
+  // A request to set a figure opens the form to it, with the figure typed in for the athlete to confirm or change. The
+  // form is in view at once, with the status line saying whether the settings are loading or could not be loaded; the
+  // field takes focus once they are ready.
   useEffect(() => {
-    if (prefill === null || appliedNonce.current === prefill.nonce) return
-    appliedNonce.current = prefill.nonce
-    setChoiceId(prefill.choiceId)
-    setText(prefill.text)
-    setValueError(null)
-    setDateError(null)
-    setRefusal(null)
-    const field = document.getElementById(`${baseId}-value`)
-    field?.scrollIntoView?.({ block: 'center' })
-    field?.focus()
-  }, [prefill, baseId])
+    if (prefill === null) return
+    if (appliedNonce.current !== prefill.nonce) {
+      appliedNonce.current = prefill.nonce
+      setChoiceId(prefill.choiceId)
+      setText(prefill.text)
+      setValueError(null)
+      setDateError(null)
+      setRefusal(null)
+      document.getElementById(`${baseId}-title`)?.scrollIntoView?.({ block: 'start' })
+    }
+    if (state === 'ready' && focusedNonce.current !== prefill.nonce) {
+      focusedNonce.current = prefill.nonce
+      document.getElementById(`${baseId}-value`)?.focus()
+    }
+  }, [prefill, state, baseId])
   const choice = SETTING_CHOICES.find((option) => option.id === choiceId) ?? FIRST_CHOICE
   const rows = [...entries].sort(listOrder)
   const dateOk = isLocalDate(from) && isMeasurementYear(from)

@@ -152,7 +152,7 @@ describe('leftOutNotes', () => {
   it('says what gives a pace or a power zones when a date has none', () => {
     const pace = measureTime('run', 'pace', [1, 1, 1, 1, 1], { counted: 5, noZones: 2 })
     expect(leftOutNotes('run', [pace])).toEqual([
-      '2 of 7 runs had no pace zones for their date. A hard, even 3–5 min and 10–20 min effort sets your pace zones.',
+      '2 of 7 runs had no pace zones for their date. A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
     ])
   })
 

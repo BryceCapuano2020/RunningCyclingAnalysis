@@ -19,7 +19,7 @@ const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   estimated: (set) => {
     const from = `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
     // A pace or power from an older fit, because the half year before the date holds no hard, even effort to fit.
-    return set.asOfMs === null ? from : `${from} to ${formatMonth(set.asOfMs, true)}`
+    return set.asOfMs === null ? from : `${from} up to ${formatMonth(set.asOfMs, true)}`
   },
 }
 

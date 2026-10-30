@@ -1,3 +1,4 @@
+import { localDateOf } from '../athlete/measurements'
 import { DAY_MS } from '../constants'
 import type { ActivityDigest } from '../types'
 
@@ -42,19 +43,19 @@ export interface ReferenceMax {
 }
 
 interface Day {
-  day: number
+  day: string
   bpm: number
   startMs: number
 }
 
 /** Each day's highest per-activity maximum among the digests that started in [fromMs, toMs]. */
 function dayMaxima(digests: readonly ActivityDigest[], fromMs: number, toMs: number): Day[] {
-  const byDay = new Map<number, Day>()
+  const byDay = new Map<string, Day>()
   for (const { startMs, maxHeartRate } of digests) {
     if (maxHeartRate === null || !Number.isFinite(maxHeartRate) || !Number.isFinite(startMs))
       continue
     if (startMs < fromMs || startMs > toMs) continue
-    const day = Math.floor(startMs / DAY_MS)
+    const day = localDateOf(startMs)
     const held = byDay.get(day)
     if (held === undefined || maxHeartRate > held.bpm)
       byDay.set(day, { day, bpm: maxHeartRate, startMs })
@@ -64,20 +65,26 @@ function dayMaxima(digests: readonly ActivityDigest[], fromMs: number, toMs: num
 }
 
 /**
- * Days above the typical day whose highest reading is a whole number that another day's reading equals exactly. A
- * sustained heart rate is a mean of many samples, so it is rarely a whole number and two days almost never agree to
- * the decimal; a sensor that stops at a ceiling (or repeats the last value) gives the same whole number each time.
- * Such days cannot corroborate each other and are left out. Below the middle of the days, or when most days agree, a
- * repeated number says nothing of a ceiling and is kept.
+ * Days above the typical day whose highest reading is a whole number that another day's reading equals exactly count
+ * once between them. A sustained heart rate is a mean of many samples, so it is rarely a whole number and two days
+ * almost never agree to the decimal; a sensor that stops at a ceiling (or repeats the last value) gives the same whole
+ * number each time, and one that holds a reading for half a minute or more makes whole-number peaks of real ones. One
+ * representative of each such number stays, so the days cannot corroborate each other but the value is not lost: stuck
+ * 210s count as one day, and a real 190 reached flat on five days still counts. Below the middle of the days a repeated
+ * number says nothing of a ceiling, and every day is kept.
  */
 function withoutRepeatedCeilings(days: Day[]): Day[] {
   if (days.length === 0) return days
   const seen = new Map<number, number>()
   for (const { bpm } of days) seen.set(bpm, (seen.get(bpm) ?? 0) + 1)
   const median = days.map((d) => d.bpm).sort((a, b) => a - b)[days.length >> 1]!
-  return days.filter(
-    ({ bpm }) => !(Number.isInteger(bpm) && bpm > median && (seen.get(bpm) ?? 0) > 1),
-  )
+  const kept = new Set<number>()
+  return days.filter(({ bpm }) => {
+    if (!(Number.isInteger(bpm) && bpm > median && (seen.get(bpm) ?? 0) > 1)) return true
+    if (kept.has(bpm)) return false
+    kept.add(bpm)
+    return true
+  })
 }
 
 /**
@@ -111,7 +118,7 @@ function corroborated(values: number[]): { bpm: number; days: number } {
  * `MIN_WINDOW_DAYS` days with a heart rate in the window it is taken over all time. Null without a heart rate.
  *
  * A day counts for its highest per-activity maximum (`ActivityDigest.maxHeartRate`, already a 30 s mean), so
- * several hard efforts in one day are one day. Days that read the same whole number are left out (see
+ * several hard efforts in one day are one day, by local date. Days that read the same whole number count once (see
  * `withoutRepeatedCeilings`). The rule was picked against the alternatives in referenceMax.sim.test.ts.
  */
 export function referenceMaxOf(

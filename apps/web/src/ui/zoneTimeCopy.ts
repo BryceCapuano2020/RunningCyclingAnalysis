@@ -55,8 +55,8 @@ const WITH_READING: Record<ZoneMeasure, string> = {
  */
 export const THRESHOLD_NEEDS: Record<ZoneMeasure, string> = {
   heartRate: 'A max heart rate sets your heart rate zones.',
-  pace: 'A hard, even 3–5 min and 10–20 min effort sets your pace zones.',
-  power: 'A hard, even 3–5 min and 10–20 min effort sets your power zones.',
+  pace: 'A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
+  power: 'A hard, even 3–5 min effort and a hard 20 min effort set your power zones.',
 }
 
 /** What an activity has to record for a measure to count it. */

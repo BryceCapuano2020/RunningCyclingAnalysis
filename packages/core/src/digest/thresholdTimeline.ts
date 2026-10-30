@@ -24,7 +24,7 @@ const NONE = Number.NEGATIVE_INFINITY
 
 /**
  * One digest of a sport: the end of its week and its start; its points priced in the sport's fit unit, by duration
- * (`backed` counts at every duration, `standing` at its own only, as in `bestOfEach`); and whether it has an effort as
+ * (`backed` counts at every duration, `standing` at its own only, as `bestOfEach` has it); and whether it has an effort as
  * long as a fit reaches. A duration with no value holds `NONE`.
  */
 interface Entry {
@@ -107,7 +107,7 @@ class WindowMax {
 }
 
 /**
- * The curve of a window as `bestOfPrepared` makes it, in values only: the best of the points that count at every
+ * The curve of a window as `bestOfEach` makes it, in values only: the best of the points that count at every
  * duration, held non-increasing by the monotone envelope, then the points that stand at their own duration alone
  * placed where they beat what is there, without rising above the nearest shorter duration with a value.
  */

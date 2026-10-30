@@ -49,9 +49,11 @@ export function setAsideLibrary(): { digests: ActivityDigest[]; newestMs: number
       ? digest
       : Object.assign({}, digest, { startMs: digest.startMs - 400 * DAY_MS }),
   )
-  // A maximum counts once three separate days reached it, so the borderline ride's 250 bpm is matched by two more rides.
+  // The fixture needs a reference far above what the other rides read, so that `sample-09` and the borderline ride are
+  // judged against it: the 250 bpm peak is kept, not lowered. A maximum counts once three separate days within a few beats
+  // reached it, so the borderline ride's peak is matched by two more rides.
   const matching = moved.filter((digest) => digest.sport === 'ride')
-  // They differ a little, since days that read the same whole number cannot corroborate each other.
+  // They differ a little, since days that read the same whole number count as one and cannot corroborate each other.
   const raised = new Map(matching.slice(-2).map((digest, i) => [digest.id, 250.5 + i]))
   const library = moved.map((digest) =>
     raised.has(digest.id)

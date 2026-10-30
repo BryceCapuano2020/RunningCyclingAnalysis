@@ -63,6 +63,28 @@ describe('referenceMaxOf', () => {
     expect(bpmOf(library)).toBeCloseTo(189.1, 9)
   })
 
+  it('counts days that tie on a whole number once, so a real peak held flat is not lost and stuck ones are not three', () => {
+    // A sensor that holds a reading for half a minute or more makes whole-number peaks of real ones: five days at 190 flat,
+    // then two a little lower. The five count as one day, and the two below make the three that agree.
+    const flat = [
+      ...season(200, [187.3, 188.1]),
+      ...[40, 50, 60, 70, 80].map((d) => digest(d, 190)),
+    ]
+    expect(bpmOf(flat)).toBeCloseTo(187.3, 9)
+    // The same for a stuck ceiling above the real peaks: it counts once, and does not raise the maximum past them.
+    const stuck = [...season(200, HARD), digest(120, 210), digest(130, 210), digest(140, 210)]
+    expect(bpmOf(stuck)).toBeCloseTo(189.1, 9)
+  })
+
+  it('counts a day by its local date', () => {
+    const late = new Date(2024, 5, 3, 23, 30).getTime()
+    const early = new Date(2024, 5, 3, 0, 30).getTime()
+    const mk = (startMs: number, maxHeartRate: number) =>
+      ({ id: `${startMs}`, sport: 'run', startMs, maxHeartRate }) as unknown as ActivityDigest
+    // Two activities on one local day, 23 hours apart, are one day and so cannot make a second.
+    expect(referenceMaxOf([mk(late, 199.5), mk(early, 199.4)], late)).toMatchObject({ days: 1 })
+  })
+
   it('leaves out spikes older than the window, even when they agree', () => {
     const old = [digest(0, 209.1), digest(2, 210.4), digest(4, 211.2)]
     const recent = season(300, HARD, 1500)
