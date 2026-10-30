@@ -1,3 +1,4 @@
+import type { CountedRunsController } from '../ui/useCountedRuns'
 import { vi } from 'vitest'
 import type { SessionState } from '@rca/core/session'
 import { EMPTY_SESSION } from '../ui/analysis/model'
@@ -53,5 +54,17 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     clear: vi.fn(),
     loadRoute: vi.fn(async (): Promise<RouteReply> => ({ kind: 'none' })),
     ...rest,
+  }
+}
+
+/** The counted-runs controller of a page that is not testing the choice: nothing is counted and nothing is kept. */
+export function countedRunsStub(): CountedRunsController {
+  return {
+    keys: [],
+    count: () => undefined,
+    stop: () => undefined,
+    clear: () => undefined,
+    notKept: null,
+    status: '',
   }
 }

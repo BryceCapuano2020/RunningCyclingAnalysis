@@ -19,6 +19,7 @@ export function syncIssueFor(error: unknown): SyncIssueCode {
   if (error.status === 403 && error.code === 'digest_quota') return 'digest-quota'
   if (error.status === 503 && error.code === 'database_full') return 'database-full'
   if (error.status === 409 && error.code === 'activity_conflict') return 'activity-conflict'
+  if (error.status === 409 && error.code === 'files_disabled') return 'originals-off'
   if (error.status === 429) return 'rate-limited'
   return 'server'
 }

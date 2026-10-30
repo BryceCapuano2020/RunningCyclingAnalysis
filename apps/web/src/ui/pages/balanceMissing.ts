@@ -4,6 +4,7 @@ import { countedPhrase, heldAction, needLine } from '../components/headlineNeed'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
+import { leftOutNote } from '../analysis/walkingPaceCopy'
 import { betweenClause } from '../periodCopy'
 import { countEfforts, countSport } from '../records'
 
@@ -27,14 +28,28 @@ export interface Missing {
   canShowAll: boolean
 }
 
+/** The headline when every run is at walking pace and left out, so the files hold runs the analysis cannot use. */
+function leftOutTitle(leftOut: number): string {
+  return leftOut === 1 ? 'Your run is at walking pace' : 'Your runs are at walking pace'
+}
+
 /** Neither sport is in the period on screen: what All time holds, or that the files hold neither. */
-function noneOnScreen(libraryRuns: number, libraryRides: number, when: string): Missing {
+function noneOnScreen(
+  libraryRuns: number,
+  libraryRides: number,
+  when: string,
+  leftOut: number,
+): Missing {
   if (libraryRuns + libraryRides > 0) {
     return {
       title: `No runs or rides${when}`,
       detail: `You have ${plural(libraryRuns, 'run')} and ${plural(libraryRides, 'ride')} in All time.`,
       canShowAll: true,
     }
+  }
+  // Runs that are all left out are not "no runs": say how many, and that they can be counted.
+  if (leftOut > 0) {
+    return { title: leftOutTitle(leftOut), detail: leftOutNote(leftOut), canShowAll: false }
   }
   return {
     title: 'Add a run and a ride to see your balance',
@@ -43,12 +58,17 @@ function noneOnScreen(libraryRuns: number, libraryRides: number, when: string): 
   }
 }
 
-/** What is missing before the two sports can be compared, in the period on screen. */
+/**
+ * What is missing before the two sports can be compared, in the period on screen. `leftOut` is how many runs
+ * the files hold that are all at walking pace, 0 when there are none or some runs are analysed: a page with
+ * no runs to use says it has runs it left out rather than that it has none.
+ */
 export function missingText(
   result: AnalysisResult,
   library: ActivitySummary[],
   period: Period,
   levels: { run: string | null; ride: string | null },
+  leftOut = 0,
 ): Missing {
   const runs = countSport(result.activities, 'run')
   const rides = countSport(result.activities, 'ride')
@@ -81,13 +101,20 @@ export function missingText(
       }
     }
     const title = levelsTitle({ ride: levels.ride })
+    if (leftOut > 0) {
+      return {
+        title: title ?? leftOutTitle(leftOut),
+        detail: leftOutNote(leftOut),
+        canShowAll: false,
+      }
+    }
     return {
       title: title ?? 'Add a run to see your balance',
       detail: title ? 'Add a run to compare it with your cycling.' : 'Your ride results are below.',
       canShowAll: false,
     }
   }
-  if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when)
+  if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when, leftOut)
   return heldMissing(result, library, period, levels)
 }
 

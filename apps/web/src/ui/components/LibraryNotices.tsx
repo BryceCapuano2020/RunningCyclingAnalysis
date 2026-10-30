@@ -52,8 +52,16 @@ const SHORT = {
     `${plural(count, 'activity', 'activities')} missing the original file`,
   incompatible: (count: number) =>
     `${plural(count, 'saved activity', 'saved activities')} need a newer app`,
-  device: (issue: DeviceIssue) =>
-    issue.issue === 'notSaved' ? 'Not kept in this browser' : 'Could not remove from this browser',
+  device: (issue: DeviceIssue) => {
+    if (issue.issue === 'evicted') return 'Your kept results were cleared'
+    if (issue.issue === 'mayBeCleared') return 'This browser may clear your results'
+    if (issue.issue === 'notRead' || (issue.issue === 'notSaved' && issue.unread === true)) {
+      return 'Kept results could not be read'
+    }
+    return issue.issue === 'notSaved'
+      ? 'Not kept in this browser'
+      : 'Could not remove from this browser'
+  },
   outdated: (rebuildable: number, needFiles: number) => {
     const count = rebuildable + needFiles
     const what = plural(count, 'saved activity', 'saved activities')

@@ -291,10 +291,15 @@ test('Profile with dated settings fits 320 px, and its table is a keyboard scrol
   const dates = ['2026-08-15', '2025-08-15', '2026-05-01']
   for (const [index, date] of dates.entries()) {
     await page.getByLabel('Setting', { exact: true }).selectOption({ index: index === 2 ? 1 : 0 })
-    await page.getByLabel(/^Value/).fill(index === 2 ? '184' : `${70 + index}`)
+    await page.getByLabel(/^Value/).fill(index === 2 ? '184' : `${150 + index}`)
     await page.locator('.settings-over-time input[type="date"]').fill(date)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
-    await expect(page.getByRole('status').filter({ hasText: /^(Added|Updated)/ })).toBeVisible()
+    await expect(
+      page
+        .locator('.settings-over-time')
+        .getByRole('status')
+        .filter({ hasText: /^(Added|Updated)/ }),
+    ).toBeVisible()
   }
   await expect(page.locator('.settings-over-time tbody tr')).toHaveCount(3)
   const overflow = await page.evaluate(

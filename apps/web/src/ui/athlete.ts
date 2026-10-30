@@ -49,11 +49,13 @@ export function weightKnown(settings: WeightSettings): boolean {
 export function analysisSettings(
   settings: WeightSettings,
   measurements: readonly Measurement[] = [],
+  countedRuns: readonly string[] = [],
 ): AthleteSettings {
   return {
     massKg: settings.massKg ?? PLACEHOLDER_BODY_KG,
     bikeMassKg: settings.bikeMassKg,
     ...(measurements.length > 0 ? { measurements } : {}),
+    ...(countedRuns.length > 0 ? { countedRuns } : {}),
   }
 }
 

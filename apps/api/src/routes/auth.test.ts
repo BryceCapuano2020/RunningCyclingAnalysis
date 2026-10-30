@@ -252,11 +252,11 @@ describe('GET /api/auth/google/callback', () => {
     const res = await h.send({
       path: callbackParams(second.state),
       cookies: { rca_oauth_state: second.state, rca_oauth_verifier: second.verifier },
+      headers: { 'Sec-Fetch-Mode': 'navigate' },
     })
-    expect(res.status).toBe(409)
-    // The browser is mid-navigation, so the refusal is a page, not JSON.
-    expect(res.headers.get('content-type')).toContain('text/html')
-    expect(await res.text()).toContain('already linked to a different Google account')
+    // Google sends the browser to the callback, so the refusal sends it back to the app with its code, not JSON.
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('http://localhost:5183/#/?signin=account_conflict')
     expect(sessionCookie(res)).toBeUndefined()
     expect(
       await h.env.DB.prepare('SELECT COUNT(*) AS n FROM oauth_accounts').first<{ n: number }>(),
