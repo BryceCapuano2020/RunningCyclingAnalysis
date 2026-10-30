@@ -311,7 +311,7 @@ describe('pressed states', () => {
     expect(unselected).toMatch(/background:\s*var\(--surface-pressed\)/)
     expect(unselected).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--control-border\)/)
     expect(rulesWith(segmented, '.segmented-control__option--selected:active')).toMatch(
-      /box-shadow:\s*inset 0 0 0 2px var\(--selected-contrast\)/,
+      /box-shadow:\s*inset 0 0 0 2px var\(--highlight-ink\)/,
     )
   })
 
@@ -723,7 +723,7 @@ describe('global controls', () => {
 
   it('keeps the current Pager page filled on hover and press, as its rule outranks the generic button rules', () => {
     expect(rulesWith(pagerCss, ".pager .pager__page[aria-current='page']")).toMatch(
-      /background:\s*var\(--selected\)/,
+      /background:\s*var\(--highlight\)/,
     )
   })
 

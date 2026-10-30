@@ -20,7 +20,7 @@ const INK = {
   text: '#eef0f3',
   secondary: '#b6bcc6',
   muted: '#8d95a2',
-  run: '#f0435f',
+  run: '#f56333',
   ride: '#4d6ef5',
   brand: '#c8f03c',
 }

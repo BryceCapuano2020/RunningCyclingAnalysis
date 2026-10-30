@@ -35,9 +35,9 @@
    nothing, so it keeps the selected look rather than the pressed fill, which would lose its label. */
 .pager .pager__page[aria-current='page'],
 .pager .pager__page[aria-current='page']:active {
-  background: var(--selected);
+  background: var(--highlight);
   border-color: var(--selected);
-  color: var(--selected-contrast);
+  color: var(--highlight-ink);
   font-weight: 600;
 }
 
