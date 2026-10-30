@@ -6,6 +6,8 @@ import { messageOf } from '../api/messageOf'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
 import { forgetAccountDetails } from '../worker/forgetAccountDetails'
 import { sweepAccountDetails } from '../worker/sweepAccountDetails'
+import { tellOtherTabs } from './tabSync'
+import { SESSION_ENDED, useAccountTabs } from './useAccountTabs'
 
 export type AccountStatus = 'loading' | 'signed-out' | 'signed-in' | 'unavailable'
 
@@ -51,9 +53,6 @@ const LOOKUP_RETRY_DELAYS_MS = [1_000, 3_000, 10_000]
  * The last attempt uses the normal deadline, so a slow link that needs longer is not signed out for
  * good.
  */
-/** The least time between two asks made on coming back online or to the tab. */
-const RE_ASK_FLOOR_MS = 30_000
-
 const LOOKUP_ATTEMPT = { timeoutMs: 5_000, retryWithinMs: 1_000 } as const
 
 function isUnauthenticated(failure: unknown): boolean {
@@ -138,9 +137,10 @@ export function useAccount(): AccountController {
     setMe(null)
     setStatus('signed-out')
     setSessionExpired(true)
-    setError('Your session ended. Sign in to keep saving your activities.')
+    setError(SESSION_ENDED)
     forgetEnded(ended.user.id)
     void sweepAccountDetails(null)
+    tellOtherTabs({ type: 'account', change: 'expired' })
   }, [forgetEnded])
 
   useEffect(() => {
@@ -186,38 +186,7 @@ export function useAccount(): AccountController {
     }
   }, [adopt])
 
-  // A link that was down for the whole ladder leaves the account "unavailable" with nothing left to
-  // retry. Coming back online, or back to the tab, asks once more, so a signed-in athlete on a slow or
-  // flaky link is not left signed out until they reload.
-  const lapsedRef = useRef(false)
-  useEffect(() => {
-    lapsedRef.current = status === 'unavailable' && !lookupPending
-  }, [status, lookupPending])
-  useEffect(() => {
-    let asking = false
-    let askedAt = -Infinity
-    const askAgain = () => {
-      if (!lapsedRef.current || asking || Date.now() - askedAt < RE_ASK_FLOOR_MS) return
-      asking = true
-      askedAt = Date.now()
-      refresh()
-        // The answer takes back the "could not reach the server" the lookup left on screen.
-        .then(() => setError(null))
-        .catch(() => undefined)
-        .finally(() => {
-          asking = false
-        })
-    }
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') askAgain()
-    }
-    window.addEventListener('online', askAgain)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('online', askAgain)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [refresh])
+  useAccountTabs({ status, lookupPending, refresh, meRef, setError })
 
   const signIn = useCallback(() => {
     location.assign(signInUrl)
@@ -237,6 +206,7 @@ export function useAccount(): AccountController {
     try {
       await profileWritesRef.current
       await api.logout(userId)
+      tellOtherTabs({ type: 'account', change: 'signed-out' })
       meRef.current = null
       profileWriteFailureRef.current = null
       setMe(null)
@@ -259,6 +229,7 @@ export function useAccount(): AccountController {
     try {
       await profileWritesRef.current
       await api.deleteAccount(userId)
+      tellOtherTabs({ type: 'account', change: 'deleted' })
       const cleanupNotice = await deleteAccountDetails(userId)
       meRef.current = null
       profileWriteFailureRef.current = null
@@ -292,6 +263,7 @@ export function useAccount(): AccountController {
             throw new ApiRequestError(409, 'account_changed', 'The signed-in account changed')
           }
           const profile = await api.updateProfile(mergeProfile(latest.profile, patch), userId)
+          tellOtherTabs({ type: 'profile' })
           profileWriteFailureRef.current = null
           const current = meRef.current
           if (current !== null) {

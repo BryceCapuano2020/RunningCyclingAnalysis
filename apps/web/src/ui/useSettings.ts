@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_BIKE_MASS_KG, unitsForLocale } from '@rca/contract'
 import type { Sex } from '@rca/contract'
 import type { UnitSystem } from '@rca/core/units'
@@ -88,12 +88,68 @@ function load(): Preferences {
   }
 }
 
+/** The preferences in storage, or null when the browser will not say. */
+function loadStored(): Preferences | null {
+  try {
+    return parsePreferences(localStorage.getItem(KEY))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Applies to `base` only the fields where `next` differs from `before`. A tab that changed one field
+ * writes that field, not the whole set, so a tab that is out of date cannot put back a value another
+ * tab changed meanwhile.
+ */
+export function applyChanges(
+  base: Preferences,
+  before: Preferences,
+  next: Preferences,
+): Preferences {
+  const changed = <T>(a: T, b: T) => a !== b
+  return {
+    settings: {
+      massKg: changed(before.settings.massKg, next.settings.massKg)
+        ? next.settings.massKg
+        : base.settings.massKg,
+      bikeMassKg: changed(before.settings.bikeMassKg, next.settings.bikeMassKg)
+        ? next.settings.bikeMassKg
+        : base.settings.bikeMassKg,
+    },
+    units: changed(before.units, next.units) ? next.units : base.units,
+    birthYear: changed(before.birthYear, next.birthYear) ? next.birthYear : base.birthYear,
+    sex: changed(before.sex, next.sex) ? next.sex : base.sex,
+    setupDone: changed(before.setupDone, next.setupDone) ? next.setupDone : base.setupDone,
+  }
+}
+
+/**
+ * The preferences kept in this browser. A change is written field by field over what is stored now, and
+ * a change another tab makes (the browser's storage event) is taken up as it happens.
+ */
 export function usePreferences(): [Preferences, (next: Preferences) => void] {
   const [preferences, setPreferences] = useState(load)
+  // What this tab last showed, to tell which fields a change touches.
+  const shown = useRef(preferences)
+  useEffect(() => {
+    shown.current = preferences
+  }, [preferences])
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== KEY) return
+      setPreferences(load())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
   const update = useCallback((next: Preferences) => {
-    setPreferences(next)
+    // Storage that cannot be read leaves this tab's own copy as the base, as before.
+    const merged = applyChanges(loadStored() ?? shown.current, shown.current, next)
+    shown.current = merged
+    setPreferences(merged)
     try {
-      localStorage.setItem(KEY, JSON.stringify(next))
+      localStorage.setItem(KEY, JSON.stringify(merged))
     } catch {
       // Storage can be unavailable (private windows); the app still works for the session.
     }
