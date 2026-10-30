@@ -1,4 +1,6 @@
+import { DAY_MS } from '../constants'
 import { localDayNumber } from '../digest/localDay'
+import { STALE_THRESHOLD_DAYS } from '../digest/thresholdTimelineTypes'
 import { weekEndMs } from '../digest/trendPoints'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { ZONE_MEASURES, ZONE_SCHEMES } from './schemes'
@@ -6,6 +8,8 @@ import type { ZoneMeasure } from './schemes'
 import { activityTimeInZones } from './timeInZones'
 import { zonesAt } from './zones'
 import type { ZoneEstimates, ZoneSet } from './zones'
+
+const WEEK_MS = 7 * DAY_MS
 
 /** One sport's time in the zones of one measure over a period. */
 export interface MeasureTime {
@@ -64,13 +68,53 @@ export function noTimeInZones(): TimeInZones {
 }
 
 /**
+ * The instants at which an estimated threshold read from an earlier fit goes stale (`thresholdAt` keeps the newest
+ * earlier fit for `STALE_THRESHOLD_DAYS` after its efforts end), ascending. Within a week they are the only moments the zones of an
+ * undated athlete can change, besides the week's end.
+ */
+function staleInstants(estimates: ZoneEstimates | null): number[] {
+  if (estimates === null) return []
+  const instants: number[] = []
+  for (const steps of [estimates.thresholds.run, estimates.thresholds.ride]) {
+    // Only a week with no fit of its own reads an earlier one, which is the fit of the step it names.
+    for (const step of steps) {
+      const older = steps[step.lastFit]
+      if (step.fit === null && older?.fit != null && older.asOfMs !== null) {
+        instants.push(older.asOfMs + STALE_THRESHOLD_DAYS * DAY_MS)
+      }
+    }
+  }
+  return instants.sort((a, b) => a - b)
+}
+
+/** Whether any of the ascending instants falls in [from, to]. */
+function anyIn(instants: readonly number[], from: number, to: number): boolean {
+  let low = 0
+  let high = instants.length
+  while (low < high) {
+    const middle = (low + high) >> 1
+    if (instants[middle]! < from) low = middle + 1
+    else high = middle
+  }
+  return low < instants.length && instants[low]! <= to
+}
+
+/**
  * The zones in effect on a date are the same all day, and an estimated threshold is the same all week, so activities
- * of one day in one week share one lookup.
+ * of one day in one week share one lookup. With no dated setting nothing changes during the week, so a week shares one,
+ * unless a threshold goes stale inside it, when each activity has its own lookup.
  */
 function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) {
-  const days = new Map<string, ZoneSet[]>()
+  const days = new Map<number | string, ZoneSet[]>()
+  const dated = (settings.measurements ?? []).length > 0
+  const stale = staleInstants(estimates)
   return (digest: ActivityDigest): ZoneSet[] => {
-    const day = `${localDayNumber(digest.startMs)}|${weekEndMs(digest.startMs)}`
+    const week = weekEndMs(digest.startMs)
+    const day = dated
+      ? `${localDayNumber(digest.startMs)}|${week}`
+      : anyIn(stale, week - WEEK_MS + 1, week)
+        ? `at|${digest.startMs}`
+        : week
     let sets = days.get(day)
     if (sets === undefined) {
       sets = zonesAt(digest.startMs, settings, estimates)

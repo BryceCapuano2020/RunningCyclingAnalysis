@@ -1,6 +1,7 @@
 import './zodConfig.ts'
 import { z } from 'zod'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
+import { revisionStatus } from '@rca/core/digest/revisions'
 import { ActivityDigestSchema, StoredActivityDigestSchema } from './digest.ts'
 import { WEIGHT_LIMITS_KG } from './athlete.ts'
 import { MAX_CURSOR_CHARS, MAX_FILE_NAME_CHARS, MAX_RECORD_ID_CHARS } from './limits.ts'
@@ -64,7 +65,7 @@ export const ActivityCreateSchema = z
     fileHash: z.string().regex(/^[0-9a-f]{64}$/),
   })
   .superRefine(({ digest }, ctx) => {
-    if (digest.modelRevision > MODEL_REVISION) {
+    if (revisionStatus(digest.modelRevision) === 'newer') {
       ctx.addIssue({
         code: 'custom',
         path: ['digest', 'modelRevision'],

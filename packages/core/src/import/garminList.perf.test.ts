@@ -1,6 +1,11 @@
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { MAX_GARMIN_SUMMARY_BYTES, MAX_GARMIN_SUMMARY_OBJECTS, readGarminList } from './garminList'
+import {
+  MAX_GARMIN_SUMMARY_BYTES,
+  MAX_GARMIN_SUMMARY_OBJECTS,
+  parseGarminSummaries,
+  readGarminList,
+} from './garminList'
 import { realisticSummary, SUMMARY_START_MS, SUMMARY_STEP_MS } from './garminTestFiles'
 
 /** The largest summary a real account is allowed: about 5,000 activities, 15.6 MiB, read from a zip. */
@@ -48,4 +53,12 @@ describe('reading a summary at the size cap', () => {
       expect(host.process.memoryUsage().heapUsed - heapBefore).toBeLessThan(RETAINED_BUDGET_BYTES)
     }
   }, 60_000)
+})
+
+describe('refusing a summary nested too deep', () => {
+  it('refuses 4 Mi of brackets in well under a second, on the way past the 65th', () => {
+    const started = performance.now()
+    expect(parseGarminSummaries('['.repeat(4 * 1024 * 1024))).toEqual([])
+    expect(performance.now() - started).toBeLessThan(500)
+  })
 })

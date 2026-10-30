@@ -2,6 +2,8 @@ import { useId } from 'react'
 import { percentText } from '../zoneTimeCopy'
 import { ChartFrame } from './ChartFrame'
 import type { ChartSize, ChartTableData } from './chartTypes'
+import { eyebrowWidth, smallWidth } from './annotationTypes'
+import { geometryScale } from './plotBox'
 import { rootFontPx } from './rootFont'
 import { percentFits, segmentsOf, takeawayText, underLabels } from './zoneBars'
 import './ZoneTimeChart.css'
@@ -29,7 +31,10 @@ export interface ZoneTimeChartProps {
   summary?: ChartTableData
 }
 
-/** One measure's band: its label and takeaway line, the bar, and the zone numbers and names under it. */
+/**
+ * One measure's band: its label and takeaway line, the bar, and the zone numbers and names under it. The sizes
+ * are laid out for a 16 px root and grow with the reader's text size (geometryScale), as the text inside them does.
+ */
 const LABEL_BASELINE = 14
 const BAR_TOP = 24
 const BAR_HEIGHT = 44
@@ -41,48 +46,78 @@ const KEY_CHIP = { width: 34, height: 22, gap: 6 }
 const BAR_RADIUS = 8
 /** The gap kept between two segments, px. */
 const SEGMENT_GAP = 2
+/** The room a label and its takeaway keep between them, px, and the line the takeaway takes when it drops under. */
+const TAKEAWAY_GAP = 12
+const TAKEAWAY_LINE = 16
 
-const ROW_HEIGHT = BAR_TOP + BAR_HEIGHT + NAME_GAP + ROW_GAP
+/** Whether the label and its takeaway are too wide for one line, so the takeaway goes on a line of its own. */
+function takeawayDrops(row: ZoneChartRow, width: number, rootPx: number): boolean {
+  if (!row.easyHard) return false
+  return (
+    eyebrowWidth(row.label, rootPx) +
+      smallWidth(takeawayText(row.easyHard), rootPx) +
+      TAKEAWAY_GAP >
+    width
+  )
+}
 
-/** The height of the whole chart for this many bars: each band, then the key. */
-function heightOf(rows: number): number {
-  return rows * ROW_HEIGHT + KEY_HEIGHT
+/** The band's height, with the extra line a dropped takeaway takes. */
+function rowHeight(dropped: boolean): number {
+  const scale = geometryScale()
+  return (BAR_TOP + BAR_HEIGHT + NAME_GAP + ROW_GAP + (dropped ? TAKEAWAY_LINE : 0)) * scale
+}
+
+/** Where each band starts, and the height of the whole chart: each band, then the key. */
+function layoutOf(rows: readonly ZoneChartRow[], width: number) {
+  const rootPx = rootFontPx()
+  const dropped = rows.map((row) => takeawayDrops(row, width, rootPx))
+  const tops = dropped.map((_, i) =>
+    dropped.slice(0, i).reduce((sum, drop) => sum + rowHeight(drop), 0),
+  )
+  const keyTop = tops.length === 0 ? 0 : tops.at(-1)! + rowHeight(dropped.at(-1)!)
+  return { dropped, tops, keyTop, height: keyTop + KEY_HEIGHT * geometryScale() }
 }
 
 function Bar({
   row,
   index,
+  top,
+  dropped,
   size,
   clipId,
 }: {
   row: ZoneChartRow
   index: number
+  top: number
+  dropped: boolean
   size: ChartSize
   clipId: string
 }) {
-  const barHeight = BAR_HEIGHT
-  const top = index * ROW_HEIGHT
-  const barTop = top + BAR_TOP
+  const scale = geometryScale()
+  const barHeight = BAR_HEIGHT * scale
+  const nameGap = NAME_GAP * scale
+  const barTop = top + (BAR_TOP + (dropped ? TAKEAWAY_LINE : 0)) * scale
+  const baseline = top + LABEL_BASELINE * scale
   const rootPx = rootFontPx()
   const segments = segmentsOf(row.seconds, size.width)
   const clip = `${clipId}-${index}`
   return (
     <g>
-      <text className="zone-time__label" x={0} y={top + LABEL_BASELINE}>
+      <text className="zone-time__label" x={0} y={baseline}>
         {row.label}
       </text>
       {row.easyHard ? (
         <text
           className="zone-time__takeaway"
-          x={size.width}
-          y={top + LABEL_BASELINE}
-          textAnchor="end"
+          x={dropped ? 0 : size.width}
+          y={dropped ? baseline + TAKEAWAY_LINE * scale : baseline}
+          textAnchor={dropped ? 'start' : 'end'}
         >
           {takeawayText(row.easyHard)}
         </text>
       ) : null}
       <clipPath id={clip}>
-        <rect x={0} y={barTop} width={size.width} height={barHeight} rx={BAR_RADIUS} />
+        <rect x={0} y={barTop} width={size.width} height={barHeight} rx={BAR_RADIUS * scale} />
       </clipPath>
       <g clipPath={`url(#${clip})`}>
         {segments.map((segment, i) => {
@@ -123,7 +158,7 @@ function Bar({
           key={label.level}
           className="zone-time__number"
           x={label.x}
-          y={barTop + barHeight + NAME_GAP - 2}
+          y={barTop + barHeight + nameGap - 2}
           textAnchor="middle"
         >
           {label.text}
@@ -135,11 +170,13 @@ function Bar({
 
 /** The key: the five steps, numbered, from easy to hard, in the ramp's colours. */
 function Key({ y }: { y: number }) {
-  const step = KEY_CHIP.width + KEY_CHIP.gap
-  const left = 40
+  const scale = geometryScale()
+  const chip = { width: KEY_CHIP.width * scale, height: KEY_CHIP.height * scale }
+  const step = chip.width + KEY_CHIP.gap * scale
+  const left = 40 * scale
   return (
     <g className="zone-time__key">
-      <text className="zone-time__number" x={0} y={y + 16}>
+      <text className="zone-time__number" x={0} y={y + 16 * scale}>
         Easy
       </text>
       {[1, 2, 3, 4, 5].map((level) => (
@@ -149,15 +186,15 @@ function Key({ y }: { y: number }) {
             data-zone={level}
             x={left + (level - 1) * step}
             y={y}
-            width={KEY_CHIP.width}
-            height={KEY_CHIP.height}
-            rx={4}
+            width={chip.width}
+            height={chip.height}
+            rx={4 * scale}
           />
           <text
             className="zone-time__percent zone-time__percent--key"
             data-zone={level}
-            x={left + (level - 1) * step + KEY_CHIP.width / 2}
-            y={y + KEY_CHIP.height / 2}
+            x={left + (level - 1) * step + chip.width / 2}
+            y={y + chip.height / 2}
             textAnchor="middle"
             dominantBaseline="central"
           >
@@ -165,7 +202,7 @@ function Key({ y }: { y: number }) {
           </text>
         </g>
       ))}
-      <text className="zone-time__number" x={left + 5 * step + 2} y={y + 16}>
+      <text className="zone-time__number" x={left + 5 * step + 2} y={y + 16 * scale}>
         Hard
       </text>
     </g>
@@ -186,18 +223,29 @@ export function ZoneTimeChart({ title, lede, rows, table, summary }: ZoneTimeCha
       title={title}
       description={description}
       lede={lede}
-      height={heightOf(rows.length)}
+      height={(width) => layoutOf(rows, width).height}
       table={table}
       summary={summary}
     >
-      {(size) => (
-        <>
-          {rows.map((row, i) => (
-            <Bar key={row.label} row={row} index={i} size={size} clipId={clipId} />
-          ))}
-          <Key y={rows.length * ROW_HEIGHT} />
-        </>
-      )}
+      {(size) => {
+        const { dropped, tops, keyTop } = layoutOf(rows, size.width)
+        return (
+          <>
+            {rows.map((row, i) => (
+              <Bar
+                key={row.label}
+                row={row}
+                index={i}
+                top={tops[i]!}
+                dropped={dropped[i]!}
+                size={size}
+                clipId={clipId}
+              />
+            ))}
+            <Key y={keyTop} />
+          </>
+        )
+      }}
     </ChartFrame>
   )
 }
