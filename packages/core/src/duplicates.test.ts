@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isSameWorkout } from './duplicates'
+import { isSameWorkout, workoutKey } from './duplicates'
 
 describe('isSameWorkout', () => {
   const run = { sport: 'run', startMs: 0, durationS: 3600 } as const
@@ -21,5 +21,20 @@ describe('isSameWorkout', () => {
 
   it('never joins two sports', () => {
     expect(isSameWorkout(run, { ...run, sport: 'ride' })).toBe(false)
+  })
+})
+
+describe('workoutKey', () => {
+  it('is the sport and the start rounded to the nearest second, half up', () => {
+    expect(workoutKey('ride', 1_499)).toBe('ride-1')
+    expect(workoutKey('ride', 1_500)).toBe('ride-2')
+    expect(workoutKey('run', 2_499)).toBe('run-2')
+    expect(workoutKey('run', 1_700_000_000_000)).toBe('run-1700000000')
+  })
+
+  it('names two copies a few hundred milliseconds apart alike, and copies a second or more apart differently', () => {
+    expect(workoutKey('run', 10_100)).toBe(workoutKey('run', 10_400))
+    expect(workoutKey('run', 10_400)).not.toBe(workoutKey('run', 11_400))
+    expect(workoutKey('run', 10_000)).not.toBe(workoutKey('ride', 10_000))
   })
 })

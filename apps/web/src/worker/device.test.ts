@@ -441,3 +441,55 @@ describe('the rows a library keeps but cannot read', () => {
     expect(plainPosted).toEqual([{ type: 'libraryActivities', activities: [] }])
   })
 })
+
+describe('the file kept with a saved workout', () => {
+  const HASH = 'c'.repeat(64)
+  const fileItem = (digest: ActivityDigest, fileHash = HASH): SyncItem => ({
+    digest,
+    fileName: 'run.fit',
+    fileHash,
+    bytes: new Uint8Array(),
+  })
+
+  it('keeps the file name and hash with the digest', async () => {
+    const { actions, library } = setup()
+
+    await actions.save(fileItem(FIRST))
+
+    expect(await library.all()).toEqual([
+      {
+        workoutKey: workoutKeyOf(FIRST),
+        digest: FIRST,
+        file: { fileName: 'run.fit', fileHash: HASH },
+      },
+    ])
+  })
+
+  it('keeps no file when the hash is missing, as in a browser with no crypto', async () => {
+    const { actions, library } = setup()
+
+    await actions.save(fileItem(FIRST, ''))
+
+    expect((await library.all())[0]?.file).toBeUndefined()
+  })
+
+  it('gives a row kept before files were recorded its hash when the same file is added again', async () => {
+    const { actions, library } = setup()
+    await library.put(workoutKeyOf(FIRST), FIRST)
+
+    await actions.save(fileItem(FIRST))
+
+    expect((await library.all())[0]?.file).toEqual({ fileName: 'run.fit', fileHash: HASH })
+  })
+
+  it('does not give it the hash of a different copy of the workout', async () => {
+    const { actions, library } = setup()
+    const kept = copyFrom(FIRST, 'run.fit')
+    await library.put(workoutKeyOf(FIRST), kept)
+
+    // A poorer copy: it is not kept, and its hash is not the kept copy's.
+    await actions.save(fileItem(copyFrom(FIRST, 'run.gpx')))
+
+    expect((await library.all())[0]?.file).toBeUndefined()
+  })
+})

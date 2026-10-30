@@ -30,7 +30,7 @@ export interface CountedRuns {
 
 /**
  * Applies the athlete's choice: the walking-pace runs whose workout key is in `chosen` become ordinary runs.
- * `entries` are the library's digests with their workout keys (see `dedupeKey`).
+ * `entries` are the library's digests with their workout keys (see `workoutKey`).
  */
 export function applyCountedRuns(
   entries: readonly (readonly [string, ActivityDigest])[],

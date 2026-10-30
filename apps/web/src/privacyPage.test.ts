@@ -104,8 +104,8 @@ const ANALYSIS_FIGURES = [
 ]
 
 describe('privacy page date', () => {
-  it('is dated 28 October 2026', () => {
-    expect(page).toContain('<p class="updated">Last updated 28 October 2026</p>')
+  it('is dated 30 October 2026', () => {
+    expect(page).toContain('<p class="updated">Last updated 30 October 2026</p>')
   })
 })
 
@@ -260,9 +260,12 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('reports a local cleanup failure separately')
   })
 
-  it('says a summary keeps a SHA-256 hash of its file only when the file yields several summaries', () => {
+  it('says a summary keeps a SHA-256 hash of its file when the file yields several summaries, and from now on for every summary kept here', () => {
     expect(text).toContain(
       'When one file yields several summaries, including a split activity, each keeps a SHA-256 hash of that file, so they are shown together.',
+    )
+    expect(text).toContain(
+      'Summaries kept from now on also keep the file name and a SHA-256 hash of the file, for adding them to an account later.',
     )
     expect(importPipeline).toContain('(multi || parts > 1) && context.sessionKey !== undefined')
   })
@@ -459,10 +462,10 @@ describe('privacy page states the limits the code sets', () => {
 })
 
 describe('the code behind the page', () => {
-  it('stores the digest and its route outline on this device, with no file hash or coordinates', () => {
-    expect(device).toContain('async save({ digest, route })')
+  it('stores the digest, its route outline and its file’s name and hash on this device, with no coordinates', () => {
+    expect(device).toContain('async save({ digest, route, fileName, fileHash })')
     expect(deviceLibrary).toContain(
-      'store.put({ digest: serializeDigest(digest), route }, workoutKey)',
+      'store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey)',
     )
     expect(digestTypes).toContain('export interface ActivityDigest {')
     const digest = /export interface ActivityDigest \{[\s\S]*?\n\}/.exec(digestTypes)?.[0] ?? ''

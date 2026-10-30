@@ -1,9 +1,9 @@
-import { dedupeKey } from '@rca/core/session'
+import { workoutKey } from '@rca/core/session'
 import type { Sport } from '@rca/core/types'
 
 /**
  * Where the runs the athlete counts despite their walking pace are kept: this browser's storage, next to
- * the preferences, whether or not anyone is signed in. A choice is a workout key (see `dedupeKey`), so it
+ * the preferences, whether or not anyone is signed in. A choice is a workout key (see `workoutKey`), so it
  * holds for that workout whichever library it is in and across a re-import. It is never uploaded.
  */
 export const COUNTED_RUNS_KEY = 'rca.countedRuns.v1'
@@ -11,11 +11,11 @@ export const COUNTED_RUNS_KEY = 'rca.countedRuns.v1'
 /** The sports whose activities can be at walking pace, so a choice to count one can be kept. */
 const CAN_BE_AT_WALKING_PACE: Record<Sport, boolean> = { run: true, ride: false }
 
-/** A workout key of such a sport, in the form `dedupeKey` writes: the sport and the start second. */
+/** A workout key of such a sport, in the form `workoutKey` writes: the sport and the start second. */
 const WORKOUT_KEY = new RegExp(
   `^(?:${(Object.keys(CAN_BE_AT_WALKING_PACE) as Sport[])
     .filter((sport) => CAN_BE_AT_WALKING_PACE[sport])
-    .map((sport) => dedupeKey(sport, 0).replace(/0$/, ''))
+    .map((sport) => workoutKey(sport, 0).replace(/0$/, ''))
     .join('|')})\\d{1,12}$`,
 )
 
