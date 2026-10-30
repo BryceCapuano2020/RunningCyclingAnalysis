@@ -25,6 +25,7 @@ import {
   type ActivityRow,
 } from './shared.ts'
 import { databaseSoftLimitBytes } from '../../databaseGuard.ts'
+import { requireCurrentRevision } from './revisionCheck.ts'
 import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
@@ -336,7 +337,9 @@ createRoutes.post(
     const userId = currentUser(c).id
     const { replace } = c.req.valid('query')
 
-    const parsed = ActivityCreateSchema.safeParse(await readJsonBody(c.req.raw))
+    const body = await readJsonBody(c.req.raw)
+    requireCurrentRevision(body)
+    const parsed = ActivityCreateSchema.safeParse(body)
     if (!parsed.success) return c.json(invalidRequest(parsed.error), 400)
     const input = createInput(parsed.data)
 

@@ -21,7 +21,7 @@
 .chart-frame__title--eyebrow {
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }

@@ -91,7 +91,8 @@ const ASKED = /\brevisionStatus\(\s*[\w.?]*\.modelRevision\s*[,)]/g
 /**
  * The files that read it, and why. revisions.ts and consumers.ts are the table and its filter. readDigest.ts
  * and readResult.ts parse the field from untrusted input. create.ts orders two stored digests for an upgrade
- * (strictly newer), which does not ask whether either is current.
+ * (strictly newer), which does not ask whether either is current. revisionCheck.ts reads the claimed revision
+ * from an unparsed body, to ask `revisionStatus` before the schema runs.
  */
 const ALLOWED = [
   'packages/core/src/digest/revisions.ts',
@@ -99,6 +100,7 @@ const ALLOWED = [
   'packages/core/src/digest/readDigest.ts',
   'packages/core/src/digest/readResult.ts',
   'apps/api/src/routes/activities/create.ts',
+  'apps/api/src/routes/activities/revisionCheck.ts',
 ]
 
 describe('revision reads', () => {

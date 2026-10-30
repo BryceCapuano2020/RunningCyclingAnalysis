@@ -31,7 +31,7 @@ describe('the group titles, which are headings', () => {
   it('sets them back to the size, family and case of the text round them, as the bold line they replace', () => {
     const rule = titleRule()
     expect(rule).toContain('font: inherit;')
-    expect(rule).toContain('font-weight: 700;')
+    expect(rule).toContain('font-weight: 600;')
     expect(rule).toContain('text-transform: none;')
     expect(rule).toContain('letter-spacing: normal;')
   })

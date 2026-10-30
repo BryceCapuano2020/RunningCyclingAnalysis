@@ -167,7 +167,7 @@
   min-width: 0;
 }
 
-/* The state, as a word at display size and the shape that says it without colour. */
+/* The state word and its shape (no colour needed); a phone, or a waiting status, sets it a step smaller. */
 .fitness-card__state {
   display: flex;
   /* At a large text size the word and its shape stack, not widen the page. */
@@ -175,18 +175,17 @@
   align-items: center;
   gap: var(--space-3);
   margin: 0;
+  /* A long word hyphenates, then breaks, rather than spill at 200% text. */
   overflow-wrap: anywhere;
-  font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: clamp(2rem, 6.4vw, 2.75rem);
-  font-weight: 800;
-  line-height: 1;
+  hyphens: auto;
+  font-size: var(--display-3);
   text-transform: uppercase;
 }
 
-/* A status that waits says so in a smaller word: it has no change to lead with. */
-.fitness-card[data-state='not-enough-evidence'] .fitness-card__state {
-  font-size: clamp(1.5rem, 4.8vw, 2rem);
+@media (min-width: 761px) {
+  .fitness-card:not([data-state='not-enough-evidence']) .fitness-card__state {
+    font-size: var(--display-2);
+  }
 }
 
 .fitness-card__headline {
