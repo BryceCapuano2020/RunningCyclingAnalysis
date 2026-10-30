@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import {
@@ -307,5 +307,41 @@ describe('what the app noted about the data', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(app.account.signOut).toHaveBeenCalledOnce()
     expect(window.localStorage.getItem('rca.aboutDataSeen')).toBeNull()
+  })
+})
+
+describe('the rides whose power was kept', () => {
+  /** Puts a kept ride in this browser's storage and lets the mounted app read it. */
+  function keepARide() {
+    window.localStorage.setItem('rca.keepPower.v1', '["ride-1"]')
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'rca.keepPower.v1' }))
+    })
+  }
+
+  function signOut() {
+    fireEvent.click(document.querySelector('.account-menu__trigger')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+  }
+
+  it('are forgotten once the sign-out has gone through', async () => {
+    render(<App />)
+    keepARide()
+    signOut()
+    await waitFor(() => expect(window.localStorage.getItem('rca.keepPower.v1')).toBeNull())
+  })
+
+  it('stay when the sign-out fails, since the visitor is still signed in', async () => {
+    app.account.signOut = vi.fn(async () => {
+      throw new Error('offline')
+    })
+    render(<App />)
+    keepARide()
+    signOut()
+    await waitFor(() => expect(app.account.signOut).toHaveBeenCalledOnce())
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(window.localStorage.getItem('rca.keepPower.v1')).toBe('["ride-1"]')
   })
 })

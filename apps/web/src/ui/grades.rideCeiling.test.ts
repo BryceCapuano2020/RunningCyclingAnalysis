@@ -182,6 +182,23 @@ describe('the balance leaves a ride at the top of the scale out', () => {
     expect(rideLeftOut(gap, makeResult())).toBeNull()
     const graded = headlineGrades(pageResult(3.5, 75), athlete(35, 'male')).ride
     expect(rideLeftOut(graded, setAside)).toBeNull()
+    // A ride left in the period means the gap has another reason, which the page says as it does for any gap.
+    const mixed = makeResult({
+      activities: [
+        makeActivity({ id: 'run-1', sport: 'run' }),
+        makeActivity({ id: 'ride-1', sport: 'ride', powerCheck: 'set-aside' }),
+        makeActivity({ id: 'ride-2', sport: 'ride' }),
+      ],
+    })
+    expect(rideLeftOut(gap, mixed)).toBeNull()
+    // A ride too short for the headline is no candidate, so it does not stop the set-aside one being named.
+    const shortRide = makeResult({
+      activities: [
+        makeActivity({ id: 'ride-1', sport: 'ride', powerCheck: 'set-aside' }),
+        makeActivity({ id: 'ride-2', sport: 'ride', durationS: 600 }),
+      ],
+    })
+    expect(rideLeftOut(gap, shortRide)).toBe('implausible-power')
     const held = missingText(
       setAside,
       setAside.activities,

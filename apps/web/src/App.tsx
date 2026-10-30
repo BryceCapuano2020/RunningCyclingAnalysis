@@ -265,8 +265,8 @@ export function App() {
             onSignOut={() => {
               // What this browser noted about the visitor's data goes with their session.
               forgetSeenNotes()
-              clearKeptPower()
-              void account.signOut().catch(() => undefined)
+              // The kept rides go once the session has really ended; a failed sign-out leaves the visitor signed in.
+              void account.signOut().then(clearKeptPower, () => undefined)
             }}
           />
         }

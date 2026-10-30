@@ -159,10 +159,10 @@ export interface RideGradeRead {
 
 /**
  * The one reading of a ride's running equivalent as a grade, for the cards and the trend alike. A ride has no
- * ceiling of its own, so the running record bounds it (gradeCeiling): every end is held at the ceiling, and a
- * centre at or above it is at the top of the scale. With no ceiling (the record's distance at this length is
- * under the shortest standard) any graded equivalent is past it, and the ends are held at 100%. Null when
- * an end has no grade.
+ * ceiling of its own, so the running record bounds it (gradeCeiling): an end above the ceiling is held at it, and
+ * a centre at or above it is at the top of the scale. With no ceiling (the record's distance at this length is
+ * under the shortest standard) any graded equivalent is past it, and the ends above 100% are held at 100%. Null
+ * when an end has no grade.
  */
 export function rideGradeFromSpeeds(
   runSpeed: Interval,
@@ -196,7 +196,8 @@ function rideGradeAt(
 /**
  * A sport's age grade at durationS, taken at the age on the date of the activity that set the best
  * effort there. A ride's equivalent comes from its own best ride at that duration, so a ride is
- * dated by that ride. Returns the reason when there is no grade to show.
+ * dated by that ride. A ride at the top of the age tables is its own outcome, and any other lack of a grade
+ * comes back as the reason.
  */
 export function sportGrade(
   result: AnalysisResult,

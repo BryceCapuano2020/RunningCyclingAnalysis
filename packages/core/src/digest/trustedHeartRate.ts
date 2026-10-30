@@ -87,12 +87,16 @@ const referencesOf = (digests: ActivityDigest[]): References => memoReferences(d
  * for those of `ordered` it names. The references reported are then these activities' own, taken from the
  * ones not named, and are not the references the set-aside was judged by (`HeartRateJudgement` has those).
  * `combine` replaces them with the judgement's (`CombineOptions.references`), so a period reports the library's.
+ *
+ * `lowForPower` is the first set-aside when the caller has already judged it, over the digests whose power it
+ * trusts; absent, it is judged over `ordered`.
  */
 export function trustedHeartRate(
   ordered: ActivityDigest[],
   fits: Record<Sport, CriticalPowerFit | null>,
   valueOf: (digest: ActivityDigest, point: DigestCurvePoint) => number,
   given?: ReadonlySet<string>,
+  lowForPower?: ReadonlySet<string>,
 ): TrustedHeartRate {
   if (given !== undefined) {
     const trusted = ordered.filter((digest) => !given.has(digest.id))
@@ -102,7 +106,7 @@ export function trustedHeartRate(
   const threshold = { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null }
   // Heart rate that reads low for the power across a whole activity is set aside first, so the references and the
   // thresholds' share are taken without it.
-  const setAside = lowForPowerSetAside(ordered)
+  const setAside = new Set(lowForPower ?? lowForPowerSetAside(ordered))
   let trusted = ordered.filter((digest) => !setAside.has(digest.id))
   for (;;) {
     const referenceHr = referencesOf(trusted).reference

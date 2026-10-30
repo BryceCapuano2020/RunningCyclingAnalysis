@@ -42,9 +42,6 @@ describe('useKeptPower', () => {
     act(() => clearKeptPower())
     expect(result.current.ids).toEqual([])
     expect(localStorage.getItem('rca.keepPower.v1')).toBeNull()
-    act(() => result.current.keep('ride-2'))
-    act(() => result.current.clear())
-    expect(result.current.ids).toEqual([])
   })
 
   it('keeps a choice for the visit when the browser refuses to store it', () => {

@@ -59,13 +59,21 @@ export function judgedCurves(
   todayKg: number,
   given: Given = {},
 ): JudgedCurves {
-  const first = given.heartRateSetAside ?? lowForPowerSetAside(ordered)
-  // The gate's heart-rate lines come from measured rides, less those whose power is set aside.
+  // The gate's heart-rate lines and the low-for-power judgement read measured rides, less those whose power is set
+  // aside: their heart rate is otherwise trusted, but it is not judged against watts that cannot be right.
   const powered = trustedPower(ordered, masses)
+  const ownLow = given.heartRateSetAside === undefined ? lowForPowerSetAside(powered) : undefined
+  const first = given.heartRateSetAside ?? ownLow!
   let gate = given.rideGate === undefined ? rideGateOf(powered, first) : given.rideGate
   let curves = bestCurves(ordered, masses, bikeModel, todayKg, gate)
   let fits = fitsOf(curves)
-  const heart = trustedHeartRate(ordered, fits, unitsOf(masses, bikeModel), given.heartRateSetAside)
+  const heart = trustedHeartRate(
+    ordered,
+    fits,
+    unitsOf(masses, bikeModel),
+    given.heartRateSetAside,
+    ownLow,
+  )
   if (given.heartRateSetAside === undefined && given.rideGate === undefined) {
     if (heart.setAside.size !== first.size) {
       gate = rideGateOf(powered, heart.setAside)

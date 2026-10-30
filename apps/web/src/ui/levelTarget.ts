@@ -292,7 +292,8 @@ const OTHER_SPORT: Record<Sport, Sport> = { run: 'ride', ride: 'run' }
 
 /**
  * Whether a target grade is out of reach for a sport: above the ceiling, or at it where a figure at the
- * ceiling is itself flagged as implausible (a ride's), so a ride is never asked to reach what the page would refuse to grade.
+ * ceiling is itself at the top of the age tables (a ride's), so a ride is never asked to reach what the page
+ * would not grade.
  */
 const FLAGGED_AT_CEILING: Record<Sport, boolean> = { run: false, ride: true }
 

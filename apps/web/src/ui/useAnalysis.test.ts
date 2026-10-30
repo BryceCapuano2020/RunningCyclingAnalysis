@@ -500,6 +500,39 @@ describe('useAnalysis account handling', () => {
     })
   })
 
+  it('keeps the rides whose power the athlete kept when a signed-in import is priced at the profile', async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    const kept: AthleteSettings = { ...SETTINGS, keepPower: ['ride-a', 'ride-b'] }
+    const { result } = setup(account, kept)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    act(() => result.current.addFiles([FILE]))
+    await act(async () => {
+      const saved = meWith(true)
+      finish({ ...saved, profile: { ...saved.profile, massKg: 83, bikeMassKg: 12 } })
+      await Promise.resolve()
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'addFiles',
+      files: [FILE],
+      settings: { massKg: 83, bikeMassKg: 12, keepPower: ['ride-a', 'ride-b'] },
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+  })
+
+  it('forgets the rides whose power was kept when the library is cleared (Remove all)', () => {
+    localStorage.setItem('rca.keepPower.v1', '["ride-a"]')
+    const { result } = setup(SIGNED_IN_NO_KEEP)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    act(() => result.current.clear())
+    expect(localStorage.getItem('rca.keepPower.v1')).toBeNull()
+  })
+
   it('reports a profile-write failure and does not silently import with retention off', async () => {
     const failure = new Error('profile save failed')
     const account: Account = {

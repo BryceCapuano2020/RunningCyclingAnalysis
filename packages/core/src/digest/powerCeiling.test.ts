@@ -10,7 +10,7 @@ import type { ActivityDigest, AthleteSettings } from '../types'
 import { activitySummaries, combine } from './combine'
 import { fixedMasses } from './masses'
 import { powerCheckOf } from './powerCheck'
-import { DAY, RUN_TEMPLATE, START, meterRide, steadyRide } from './powerFixtures'
+import { DAY, RUN_TEMPLATE, START, meterRide, steadyRide } from './test/powerFixtures'
 
 const settings: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 

@@ -61,6 +61,21 @@ export function analysisSettings(
   }
 }
 
+/**
+ * The settings as they stand with another pair of weights: every other choice they carry (dated settings,
+ * the rides whose power was kept) is theirs still, and whether the body mass is a placeholder follows the new
+ * weights. An import for a signed-in profile prices at the profile's weights, and keeps the rest.
+ */
+export function withWeights(settings: AthleteSettings, weights: WeightSettings): AthleteSettings {
+  const { massAssumed: _assumed, ...rest } = settings
+  return {
+    ...rest,
+    massKg: weights.massKg ?? PLACEHOLDER_BODY_KG,
+    bikeMassKg: weights.bikeMassKg,
+    ...(weights.massKg === null ? { massAssumed: true as const } : {}),
+  }
+}
+
 export function weightKg(settings: WeightSettings, field: WeightField): number | null {
   return field === 'body' ? settings.massKg : settings.bikeMassKg
 }

@@ -16,6 +16,7 @@ import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
 import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
+import { trustedPower } from './powerCheck'
 import { fitBikeModelOver, pointWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
 import { DEFAULT_WINDOW_DAYS, weekEndMs } from './trendPoints'
@@ -157,7 +158,7 @@ export function fitnessTrend(
   const masses = massesOf(settings)
   const bikeModel = opts.bikeModel ?? fitBikeModelOver(ordered, masses).model
   const standing = estimatedStanding(
-    opts.rideGate === undefined ? ownRideGate(ordered) : opts.rideGate,
+    opts.rideGate === undefined ? ownRideGate(trustedPower(ordered, masses)) : opts.rideGate,
   )
   const readings: Reading[] = []
   for (const digest of ordered) {

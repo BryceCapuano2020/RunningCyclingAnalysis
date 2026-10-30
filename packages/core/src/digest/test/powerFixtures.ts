@@ -1,7 +1,7 @@
-import { DURATIONS_S } from '../constants'
-import { sampleDataset } from '../synthetic'
-import type { ActivityDigest, DigestCurvePoint } from '../types'
-import { digestActivity } from './digestActivity'
+import { DURATIONS_S } from '../../constants'
+import { sampleDataset } from '../../synthetic'
+import type { ActivityDigest, DigestCurvePoint } from '../../types'
+import { digestActivity } from '../digestActivity'
 
 /** The sample's digests, and a ride and a run from them as templates for test digests. */
 export const SAMPLE_DIGESTS = sampleDataset().activities.map((activity) => digestActivity(activity))

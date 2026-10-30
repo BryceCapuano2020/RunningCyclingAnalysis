@@ -1119,11 +1119,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   at 60 min, with a 15 s sprint node of 21; `ridePowerCeilingWkg`, `curves/powerCeiling.ts`), at the body mass of
   its day, is priced as NaN everywhere a ride is priced: no best, trend point, record or heart-rate point, no
   calibration of the bike model, no heart-rate line in the estimated-ride gate, no durability or drift reading and
-  no ride fitness. The next ride takes its place. It is not judged while no body weight is entered. It stays in the
+  no ride fitness. Its heart rate is otherwise trusted: it is neither fitted nor judged by the low-for-power test,
+  which reads heart rate against watts that cannot be right. The next ride takes its place. It is not judged while no body weight is entered. It stays in the
   library with a **Power set aside** chip on its row and page, where a line names power meter calibration, the
   weight setting and an e-bike logged as a ride as things to check, and a **Keep this power** button. Keeping it is
-  a choice stored in this browser only (`rca.keepPower.v1`, ids; cleared on sign-out, account deletion and Remove
-  all), carried into the analysis as `AthleteSettings.keepPower`, and shows **Power kept**: the ride counts in the
+  a choice stored in this browser only (`rca.keepPower.v1`, ids; cleared on a completed sign-out, account deletion and Remove
+  all, not on a session that expires), carried into the analysis as `AthleteSettings.keepPower`, and shows **Power kept**: the ride counts in the
   bests and thresholds, but a ride that then tops the age tables is still left out of the comparison. The digest is
   not touched, so nothing is reimported. A ride at the top of the age tables (a different flag, see
   `docs/research/age-grading.md`) is no fault, names no check and has no override.

@@ -81,7 +81,6 @@ export interface KeptPower {
   ids: readonly string[]
   keep: (id: string) => void
   release: (id: string) => void
-  clear: () => void
 }
 
 /** Rides kept despite implausible power, and the two ways to change that. */
@@ -95,6 +94,5 @@ export function useKeptPower(): KeptPower {
     release: (id) => {
       if (snapshot().includes(id)) store(snapshot().filter((kept) => kept !== id))
     },
-    clear: clearKeptPower,
   }
 }
