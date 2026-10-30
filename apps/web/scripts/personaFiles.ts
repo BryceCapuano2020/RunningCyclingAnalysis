@@ -57,10 +57,12 @@ export function makeStravaZip(library: Library): Uint8Array {
         STRAVA_TYPE[entry.activity.sport],
         entry.activity.n,
         path,
+        entry.effort === 'race' ? 'true' : '',
       ].join(','),
     )
   })
-  const header = 'Activity ID,Activity Date,Activity Name,Activity Type,Elapsed Time,Filename\n'
+  const header =
+    'Activity ID,Activity Date,Activity Name,Activity Type,Elapsed Time,Filename,Competition\n'
   zipped['activities.csv'] = [
     strToU8(`${header}${rows.join('\n')}\n`),
     { mtime: ZIP_MTIME, level: 9 },

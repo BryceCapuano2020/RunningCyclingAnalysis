@@ -10,13 +10,36 @@ const entriesOf = (name: (typeof PERSONA_NAMES)[number], seed = 1, weeks = WEEKS
 const share = (xs: boolean[]) => xs.filter(Boolean).length / xs.length
 
 describe('personas', () => {
-  it('every persona makes a library of the sports it does', () => {
-    for (const name of PERSONA_NAMES) {
-      const entries = entriesOf(name)
-      const sports = new Set(entries.map((e) => e.activity.sport))
-      expect([...sports].sort()).toEqual(Object.keys(PERSONAS[name].plans).sort())
-      expect(entries.length).toBeGreaterThan(10)
-      for (const e of entries) expect(e.activity.n).toBeGreaterThan(600)
+  it.each(PERSONA_NAMES)('%s makes a library of the sports it does', (name) => {
+    const entries = entriesOf(name)
+    const sports = new Set(entries.map((e) => e.activity.sport))
+    expect([...sports].sort()).toEqual(Object.keys(PERSONAS[name].plans).sort())
+    expect(entries.length).toBeGreaterThan(10)
+    for (const e of entries) expect(e.activity.n).toBeGreaterThan(600)
+  })
+
+  // The importer folds two activities of one sport that start within 60 s into one workout, and a
+  // library of overlapping sessions is not one an athlete could have recorded.
+  it.each(PERSONA_NAMES)('%s: no two activities start within 60 s or overlap', (name) => {
+    for (const seed of [1, 2]) {
+      const starts = entriesOf(name, seed, 8)
+        .map((e) => e.activity)
+        .sort((p, q) => p.startMs - q.startMs)
+      expect(starts.length).toBeGreaterThan(5)
+      for (let i = 1; i < starts.length; i++) {
+        const prev = starts[i - 1]!
+        expect(starts[i]!.startMs - prev.startMs).toBeGreaterThan(60_000)
+        expect(starts[i]!.startMs).toBeGreaterThanOrEqual(prev.startMs + prev.n * 1000)
+      }
+    }
+  })
+
+  it('sessions start in the daytime of the persona clock', () => {
+    const offset = PERSONAS.watchRunner.utcOffsetH!
+    for (const e of entriesOf('watchRunner')) {
+      const hour = (((e.activity.startMs / 3_600_000 + offset) % 24) + 24) % 24
+      expect(hour).toBeGreaterThanOrEqual(5.99)
+      expect(hour).toBeLessThan(20.01)
     }
   })
 

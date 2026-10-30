@@ -1,7 +1,7 @@
 /**
  * Bands recorded when the held-out configurations merged. A held-out test asserts these; it does not
  * move them. A re-pin is its own commit, "held-out re-pinned: <reason>", with a new row in
- * docs/design/heldout-log.md (heldOut.heldout.test.ts checks that the last row names this file's hash).
+ * docs/design/heldout-log.md (heldOutLog.node.test.ts checks that the last row names the hash of heldOut.ts and this file together).
  */
 
 /** Spread of the same-heart-rate unit about the weekly level, log units: 8 seeds of 78 weeks, pooled. */

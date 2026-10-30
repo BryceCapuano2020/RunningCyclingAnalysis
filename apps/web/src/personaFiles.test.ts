@@ -40,8 +40,18 @@ describe('persona files', () => {
     expect(rows.length).toBe(library.entries.length)
     const types = new Set(rows.map((r) => r.split(',')[3]))
     expect([...types].sort()).toEqual(['Ride', 'Run'])
-    const first = rows[0]!.split(',').at(-1)!
+    const first = rows[0]!.split(',')[5]!
     const parsed = parseActivityFile(gunzipSync(entries[first]!), first.replace(/\.gz$/, ''))
     expect(parsed.ok).toBe(true)
+  })
+
+  it('tags a race in the Competition column, as Strava does', () => {
+    const whole = persona('watchRunner', 1, 16)
+    const race = whole.entries.find((e) => e.effort === 'race')!
+    const library = { ...whole, entries: [whole.entries[0]!, race] }
+    const entries = unzipSync(makeStravaZip(library))
+    const rows = strFromU8(entries['activities.csv']!).trim().split('\n')
+    expect(rows[0]!.split(',').at(-1)).toBe('Competition')
+    expect(rows.slice(1).map((r) => r.split(',').at(-1))).toEqual(['', 'true'])
   })
 })

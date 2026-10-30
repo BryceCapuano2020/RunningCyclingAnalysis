@@ -41,6 +41,8 @@ export interface PersonaSpec {
   plans: Partial<Record<Sport, SportPlan>>
   /** Weeks without training, twice a year: each 1 to 3 weeks. */
   gapsPerYear: number
+  /** Hours the athlete's clock is ahead of UTC; sessions start between 06:00 and 20:00 local. Defaults to 0. */
+  utcOffsetH?: number
 }
 
 /** One generated activity with the truth behind it. */
@@ -121,6 +123,37 @@ function raceOfDistance(a: Activity, distanceM: number): Activity {
   }
 }
 
+const DAY_START_MIN = 6 * 60
+const DAY_END_MIN = 20 * 60
+const PLACE_TRIES = 12
+/** Sessions keep this far apart, so no two read as one workout and none overlaps. */
+const SLOT_GAP_MS = 30 * 60_000
+
+/**
+ * A start inside the week for a session of `durationS`: a random day and minute of the athlete's
+ * local day, clear of the sessions already `taken`. Null when twelve tries find no room.
+ */
+function placeStart(
+  rand: () => number,
+  taken: [number, number][],
+  weekMs: number,
+  offsetH: number,
+  durationS: number,
+): number | null {
+  for (let attempt = 0; attempt < PLACE_TRIES; attempt++) {
+    const day = Math.floor(rand() * WEEK_DAYS)
+    const latest = Math.max(DAY_START_MIN + 1, DAY_END_MIN - durationS / 60)
+    const minute = Math.floor(between(rand, DAY_START_MIN, latest))
+    const startMs = weekMs + day * DAY_MS + (minute - offsetH * 60) * 60_000
+    const endMs = startMs + durationS * 1000
+    if (taken.every(([a, b]) => startMs >= b + SLOT_GAP_MS || endMs + SLOT_GAP_MS <= a)) {
+      taken.push([startMs, endMs])
+      return startMs
+    }
+  }
+  return null
+}
+
 /** Weeks with no training: `gapsPerYear` a year, each 1 to 3 weeks long. */
 function gapWeeks(rand: () => number, weeks: number, gapsPerYear: number): Set<number> {
   const gaps = new Set<number>()
@@ -147,6 +180,8 @@ export function buildLibrary(spec: PersonaSpec, seed: number, weeks: number): Li
   const sinceRace: Partial<Record<Sport, number>> = {}
   for (let week = 0; week < weeks; week++) {
     if (gaps.has(week)) continue
+    const weekMs = firstMs + week * WEEK_DAYS * DAY_MS
+    const taken: [number, number][] = []
     for (const sport of Object.keys(spec.plans) as Sport[]) {
       const plan = spec.plans[sport]!
       const count = poisson(rand, plan.perWeek)
@@ -158,14 +193,14 @@ export function buildLibrary(spec: PersonaSpec, seed: number, weeks: number): Li
         const race = dueRace ? plan.race : undefined
         const session = dueTest ? undefined : pick(rand, plan.sessions)
         const effort: Effort = race ? 'race' : (session?.effort ?? 'test')
+        const minutes = session ? between(rand, session.minutes[0], session.minutes[1]) : 110
+        const durationS = Math.round(
+          race ? RACE_WARMUP_S + race.distanceM / SLOWEST_RACE_MS + RACE_TAIL_S : minutes * 60,
+        )
+        const startMs = placeStart(rand, taken, weekMs, spec.utcOffsetH ?? 0, durationS)
+        if (startMs === null) continue
         if (race) sinceRace[sport] = week
         else if (!session) sinceTest[sport] = week
-        const minutes = session ? between(rand, session.minutes[0], session.minutes[1]) : 110
-        const durationS = race
-          ? RACE_WARMUP_S + race.distanceM / SLOWEST_RACE_MS + RACE_TAIL_S
-          : Math.round(minutes * 60)
-        const day = Math.floor(rand() * WEEK_DAYS)
-        const hour = Math.floor(between(rand, 6, 19))
         const draw = sport === 'run' ? spec.noise.level.runSd * studentT5(rand) : 0
         const level = levels[week]!
         const id = `${sport}-${String(entries.length + 1).padStart(4, '0')}`
@@ -175,8 +210,8 @@ export function buildLibrary(spec: PersonaSpec, seed: number, weeks: number): Li
             id,
             name: id,
             sport,
-            startMs: firstMs + (week * WEEK_DAYS + day) * DAY_MS + hour * 3_600_000,
-            durationS: Math.round(durationS),
+            startMs,
+            durationS,
             effort,
             terrain: race ? 'flat' : (session?.terrain ?? 'flat'),
             withPower: plan.withPower,

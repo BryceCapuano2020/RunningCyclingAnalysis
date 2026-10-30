@@ -98,6 +98,7 @@ export const PERSONAS: Record<PersonaName, PersonaSpec> = {
     noise: NOISE_PRESETS.measured,
     plans: { run: RUN_PLAN },
     gapsPerYear: 2,
+    utcOffsetH: -7,
   },
   /** A slow runner on a phone with a chest strap: no cadence, GPX files, noisy GPS. */
   phoneSlowRunner: {
@@ -107,6 +108,7 @@ export const PERSONAS: Record<PersonaName, PersonaSpec> = {
       run: { ...RUN_PLAN, perWeek: 2.8, sessions: [EASY_RUN, LONG_RUN], format: 'gpx' },
     },
     gapsPerYear: 2,
+    utcOffsetH: 1,
   },
   /** Most runs on a treadmill: 7 in 10. The rest are outdoors on a watch. */
   treadmillHeavy: {
@@ -122,7 +124,7 @@ export const PERSONAS: Record<PersonaName, PersonaSpec> = {
     plans: { run: RUN_PLAN },
     gapsPerYear: 2,
   },
-  /** A rider with a power meter and a chest strap. */
+  /** A rider with a power meter and a wrist watch. */
   ridePower: {
     athlete: DEFAULT_ATHLETE,
     noise: NOISE_PRESETS.measured,

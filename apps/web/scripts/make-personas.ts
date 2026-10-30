@@ -4,7 +4,8 @@
 // Default personas: all. Default out: a folder in the system temp directory; never commit the output.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { PERSONA_NAMES, persona } from '@rca/core/synthetic'
 import type { PersonaName } from '@rca/core/synthetic'
 import { makeLibraryFiles, makeStravaZip } from './personaFiles'
@@ -31,6 +32,14 @@ if (unknown.length > 0) {
   process.exit(1)
 }
 const names = asked.length > 0 ? (asked as PersonaName[]) : [...PERSONA_NAMES]
+
+// Generated libraries are never committed: refuse a folder inside the repository.
+const repo = fileURLToPath(new URL('../../../', import.meta.url))
+const fromRepo = relative(repo, resolve(out))
+if (fromRepo === '' || !(fromRepo.startsWith('..') || isAbsolute(fromRepo))) {
+  console.error(`Refusing to write inside the repository (${out}). Pick a folder outside it.`)
+  process.exit(1)
+}
 
 mkdirSync(out, { recursive: true })
 for (const name of names) {
