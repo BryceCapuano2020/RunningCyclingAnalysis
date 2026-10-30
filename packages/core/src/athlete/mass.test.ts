@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasDatedMass, massAtFor, sameMasses } from './mass'
+import { bodyMassOn, hasDatedMass, massAtFor, sameMasses } from './mass'
 import type { Measurement } from './measurements'
 import type { AthleteSettings } from './settings'
 
@@ -63,5 +63,27 @@ describe('sameMasses', () => {
     expect(sameMasses(base, settingsWith())).toBe(false)
     expect(sameMasses(base, { ...base, massKg: 73 })).toBe(false)
     expect(sameMasses(base, { ...base, bikeMassKg: 10 })).toBe(false)
+  })
+})
+
+describe('bodyMassOn', () => {
+  it('is the profile mass with no dated mass, and stays null when the profile has none', () => {
+    expect(bodyMassOn(72, [], local(2024, 1, 1))).toBe(72)
+    expect(bodyMassOn(null, [], local(2024, 1, 1))).toBeNull()
+  })
+
+  it('is the dated mass in effect, whatever the profile holds, and the same as the analysis prices an activity at', () => {
+    const entries = [mass(90, '2023-01-01'), mass(80, '2024-06-01')]
+    for (const date of [
+      local(2022, 1, 1),
+      local(2023, 5, 1),
+      local(2024, 6, 1),
+      local(2026, 1, 1),
+    ]) {
+      expect(bodyMassOn(72, entries, date)).toBe(massAtFor(settingsWith(...entries))(date))
+    }
+    // A later dated mass takes effect on its day with no edit to the profile.
+    expect(bodyMassOn(72, entries, local(2024, 5, 31))).toBe(90)
+    expect(bodyMassOn(72, entries, local(2024, 6, 1))).toBe(80)
   })
 })

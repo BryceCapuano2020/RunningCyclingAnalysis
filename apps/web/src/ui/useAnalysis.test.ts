@@ -468,6 +468,38 @@ describe('useAnalysis account handling', () => {
     })
   })
 
+  it("prices a signed-in import at the dated weight in effect today, not the saved profile's", async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    // The profile still holds 83 kg; a weight dated last year, and a later one, say what the athlete weighs now.
+    const dated: AthleteSettings = {
+      ...SETTINGS,
+      measurements: [
+        { kind: 'massKg', value: 70, from: '2020-01-01' },
+        { kind: 'massKg', value: 77.5, from: '2024-06-01' },
+      ],
+    }
+    const { result } = setup(account, dated)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    act(() => result.current.addFiles([FILE]))
+    await act(async () => {
+      const saved = meWith(true)
+      finish({ ...saved, profile: { ...saved.profile, massKg: 83, bikeMassKg: 12 } })
+      await Promise.resolve()
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'addFiles',
+      files: [FILE],
+      settings: { massKg: 77.5, bikeMassKg: 12, measurements: dated.measurements },
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+  })
+
   it('reports a profile-write failure and does not silently import with retention off', async () => {
     const failure = new Error('profile save failed')
     const account: Account = {

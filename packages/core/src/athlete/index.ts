@@ -11,6 +11,6 @@ export {
   withoutEntry,
 } from './measurements'
 export type { Measurement, MeasurementKind } from './measurements'
-export { currentMass, hasDatedMass, massAtFor, sameMasses } from './mass'
+export { bodyMassOn, currentMass, hasDatedMass, massAtFor, sameMasses } from './mass'
 export type { MassAt } from './mass'
 export type { AthleteSettings } from './settings'
