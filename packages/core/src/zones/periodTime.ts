@@ -65,12 +65,14 @@ export function noTimeInZones(): TimeInZones {
 
 /**
  * The zones in effect on a date are the same all day, and an estimated threshold is the same all week, so activities
- * of one day in one week share one lookup.
+ * of one day in one week share one lookup. With no dated setting nothing changes during the week, so a week shares one.
  */
 function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) {
-  const days = new Map<string, ZoneSet[]>()
+  const days = new Map<number | string, ZoneSet[]>()
+  const dated = (settings.measurements ?? []).length > 0
   return (digest: ActivityDigest): ZoneSet[] => {
-    const day = `${localDayNumber(digest.startMs)}|${weekEndMs(digest.startMs)}`
+    const week = weekEndMs(digest.startMs)
+    const day = dated ? `${localDayNumber(digest.startMs)}|${week}` : week
     let sets = days.get(day)
     if (sets === undefined) {
       sets = zonesAt(digest.startMs, settings, estimates)

@@ -4,6 +4,7 @@ import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_TRENDS } from './digest/trendPoints'
+import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
 import { splitPeriods } from './period'
@@ -63,6 +64,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
           judgement.calibration,
           references,
           judgement.rideGate,
+          judgedWorkOf(judgement),
         )
       : null
   // The references that zones are cut from are the library's, not the period's: one activity has the same zones
