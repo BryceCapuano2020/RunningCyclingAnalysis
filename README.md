@@ -236,28 +236,36 @@ FIT SDK is a development-only reference for differential tests. The API runs on
 Cloudflare Workers with D1 and R2, using Hono, Drizzle ORM and zod. Written with Claude Code; no
 language model runs in the product.
 
-## How this was built and verified
+## How this was built
 
-Most of the code was written by AI coding agents (Claude Code) working under the standing rules in
-[docs/ENGINEERING.md](docs/ENGINEERING.md). The decisions are
-the owner's: what the product is for, what it may store, how results are worded, and what ships.
-Nothing is deployed without the owner asking for it.
+Claude Code wrote most of this code. I decided what to build, made the product and science calls,
+and checked the results against my own training. Nothing reaches production unless I ask for it.
 
-- **Tests.** Unit and component tests cover the analysis core, the API and the web app, with coverage
-  thresholds. Identity pins fix the exact output for a set of synthetic sessions, so a change to a
-  result is deliberate and listed. Playwright runs the production build in Chromium and WebKit,
-  including a run against the real Worker. Timing budgets run in their own CI job.
-- **Fixtures.** Tests use synthetic activities generated in code and the public test files of
-  open-source FIT, GPX and TCX parsers. No personal data is committed.
-- **Review loop.** Each change is one branch and one pull request. A second agent session reviews it
-  against the standing rules, and CI must pass before the squash merge.
-- **Gates.** After each stage of the plan in [docs/design/README.md](docs/design/README.md), separate
-  passes check quality, security, real data (run outside the repository, reporting counts only),
-  hardening, performance and accessibility. Findings that matter are fixed before the next stage.
-- **Releases.** A release runs the full gate on the exact commit, then deploys it with
-  `npm run deploy:built`, which tags the Worker version with the commit. The live `/api/health`
-  reports that commit, `npm run smoke:prod` checks the live origin, and [docs/RELEASES.md](docs/RELEASES.md)
-  records every release.
+The work runs as a small team of agents. The rules they follow are in
+[docs/PROCESS.md](docs/PROCESS.md) and [docs/ENGINEERING.md](docs/ENGINEERING.md).
+
+- A coordinator session plans each stage, writes the briefs and merges.
+- Builder agents each take one change in their own git worktree and write its tests.
+- Reviewer agents read every diff and report findings by file and line. A change goes back until
+  they find nothing that blocks it.
+- Between stages, gate agents check quality, security, accessibility, performance and how the app
+  handles my own export. The export is never committed, and the scripts that read it live outside
+  the repository and report counts only.
+
+CI decides what merges. Each pull request runs about 10,000 unit tests against coverage thresholds,
+about 500 Playwright tests on desktop and phone layouts in Chromium and WebKit, seeded simulations
+of the change detectors, timing budgets and a dependency audit. Identity tests pin the exact output
+for a set of synthetic sessions, so a change to any result is deliberate and listed in its commit.
+Tests use synthetic activities and the public test files of open-source parsers.
+
+In late October 2026 I had twelve agent teams audit the whole project, with a separate pass trying
+to refute their headline findings. Code quality graded B+. Product value graded C-: the app was
+accurate and fast but gave little reason to come back. Stage D fixes what the audit found, and the
+plan after it ([docs/VISION.md](docs/VISION.md#the-coaching-loop)) is my answer to the C-.
+
+A release runs the full gate on the exact commit and deploys it tagged with that commit. The live
+`/api/health` reports the commit, `npm run smoke:prod` checks the live origin, and
+[docs/RELEASES.md](docs/RELEASES.md) lists every release.
 
 ## Privacy, security and license
 
