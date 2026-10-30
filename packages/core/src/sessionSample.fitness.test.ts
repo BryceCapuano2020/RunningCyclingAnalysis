@@ -89,21 +89,19 @@ describe('the sample athlete’s fitness story', () => {
     expect(lintCopy(`${headline} ${support}`)).toEqual([])
   })
 
-  it('tells the same story whatever day of the week, week or time zone it is loaded in', () => {
-    const clocks = [
-      { nowMs: SAMPLE_REFERENCE_NOW_MS + 3 * DAY_MS },
-      { nowMs: SAMPLE_REFERENCE_NOW_MS + 9 * WEEK_MS, utcOffsetMinutes: () => -480 },
-      { nowMs: SAMPLE_REFERENCE_NOW_MS + 30 * WEEK_MS, utcOffsetMinutes: () => 780 },
-    ]
-    for (const clock of clocks) {
-      const other = runStatus(clock)
-      expect(other.state).toBe(status.state)
-      expect(other.steady).toBe(status.steady)
-      // A zone can move a run across a week's edge, so the windows differ a little: the size stays within a point.
-      expect(Math.abs(other.change!.value - status.change!.value)).toBeLessThan(0.01)
-      expect(other.change!.high).toBeLessThan(0)
-    }
-  }, 60_000)
+  // One other week and zone, since each clock draws a whole season of its own. The other days of the week and
+  // zones are in sessionSample.fitness.sim.test.ts.
+  it('tells the same story in another week and time zone', () => {
+    const other = runStatus({
+      nowMs: SAMPLE_REFERENCE_NOW_MS + 9 * WEEK_MS,
+      utcOffsetMinutes: () => -480,
+    })
+    expect(other.state).toBe(status.state)
+    expect(other.steady).toBe(status.steady)
+    // A zone can move a run across a week's edge, so the windows differ a little: the size stays within a point.
+    expect(Math.abs(other.change!.value - status.change!.value)).toBeLessThan(0.01)
+    expect(other.change!.high).toBeLessThan(0)
+  })
 
   it('leaves the rides without a status while they are not compared', () => {
     const rides = new AnalysisSession().loadSample(SETTINGS, SAMPLE_CLOCK).fitness.ride

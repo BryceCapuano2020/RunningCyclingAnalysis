@@ -8,7 +8,8 @@ import type { AthleteSettings } from './types'
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const DAY_MS = 24 * 3_600_000
-const COUNT = 2_000
+// The stop is per failure, not per count: any import longer than the three saves and the probe shows it.
+const COUNT = 40
 // The real timer, kept before the fake ones are installed, to let the import's own work run.
 const realSetTimeout = globalThis.setTimeout
 
@@ -37,7 +38,7 @@ function zipOfRuns(count: number): File {
 describe('AnalysisSession with the network down', () => {
   afterEach(() => vi.useRealTimers())
 
-  it('stops saving when the probe after three timed-out saves times out too, and reports all 2,000 unsaved', async () => {
+  it('stops saving when the probe after three timed-out saves times out too, and reports all 40 unsaved', async () => {
     const session = new AnalysisSession()
     const file = zipOfRuns(COUNT)
     let attempts = 0
@@ -59,12 +60,12 @@ describe('AnalysisSession with the network down', () => {
     }
     await done
 
-    // Three saves, a 2 s wait, one probe, and nothing more for the other 1,996.
+    // Three saves, a 2 s wait, one probe, and nothing more for the rest.
     expect(attempts).toBe(4)
     expect(Date.now() - started).toBe(4 * 31_000 + NETWORK_PROBE_DELAY_MS)
     expect(state.totalActivities).toBe(COUNT)
     expect(state.syncIssues).toEqual([{ code: 'network', count: COUNT }])
-  }, 60_000)
+  })
 
   it('carries on when the probe gets through, as after a Wi-Fi network changes', async () => {
     const session = new AnalysisSession()

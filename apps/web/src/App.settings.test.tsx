@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { localDateOf } from '@rca/core/athlete'
 import type { Measurement } from '@rca/core/athlete'
 import { App } from './App'
+import { AUTO_RETRY_MS } from './ui/useMeasurements'
 import {
   app,
   measurementsApi,
@@ -224,13 +225,24 @@ describe('dated settings on Profile, signed in', () => {
   })
 
   describe('when the dated settings do not load', () => {
-    const LONG = { timeout: 5000 }
+    // The automatic retry waits AUTO_RETRY_MS. Only that wait is shortened, so the tests do not sit through it.
+    beforeEach(() => {
+      const realSetTimeout = globalThis.setTimeout
+      vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+        handler: TimerHandler,
+        ms?: number,
+        ...args: unknown[]
+      ) => realSetTimeout(handler, ms === AUTO_RETRY_MS ? 0 : ms, ...args)) as typeof setTimeout)
+    })
+    afterEach(() => {
+      vi.mocked(globalThis.setTimeout).mockRestore()
+    })
 
     async function renderFailed() {
       measurementsApi.listMeasurements.mockRejectedValue(new Error('offline'))
       render(<App />)
       // One automatic try follows the first, after a short wait, before it is reported.
-      await screen.findByRole('button', { name: 'Try again' }, LONG)
+      await screen.findByRole('button', { name: 'Try again' })
     }
 
     it('tries once more by itself before it says so', async () => {
@@ -238,9 +250,7 @@ describe('dated settings on Profile, signed in', () => {
         .mockRejectedValueOnce(new Error('offline'))
         .mockResolvedValue([OLD_MASS])
       render(<App />)
-      expect(
-        await screen.findByRole('table', { name: 'Your dated settings' }, LONG),
-      ).toBeInTheDocument()
+      expect(await screen.findByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
       expect(measurementsApi.listMeasurements).toHaveBeenCalledTimes(2)
       expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     })

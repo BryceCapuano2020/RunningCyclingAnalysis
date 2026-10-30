@@ -116,12 +116,13 @@ async function setup(count = 40) {
 }
 
 describe('the keyset cursor', () => {
-  it('walks the library newest first with ties by id, each row once, at several page sizes', async () => {
-    const { h, token, rows } = await setup(41)
-    for (const limit of [1, 3, 7, 41, 90]) {
-      expect(await walk(h, token, limit), `limit ${limit}`).toEqual(inListOrder(rows))
-    }
-  })
+  it.each([1, 3, 7, 41, 90])(
+    'walks the library newest first with ties by id, each row once, at page size %i',
+    async (limit) => {
+      const { h, token, rows } = await setup(41)
+      expect(await walk(h, token, limit)).toEqual(inListOrder(rows))
+    },
+  )
 
   it('does not move when rows newer than the cursor are inserted mid-walk', async () => {
     const { h, token, uid, rows } = await setup()
@@ -195,8 +196,10 @@ describe('the keyset cursor', () => {
     expect(seen).toEqual(ordered.filter((id) => !doomed.includes(id)))
   })
 
-  it('shows every row present for the whole walk exactly once, in order, under random inserts and deletes', async () => {
-    for (const randomSeed of [1, 2, 3, 4, 5, 6]) {
+  // One test for each seed, so a loaded machine does not run six walks against one timeout.
+  it.each([1, 2, 3, 4, 5, 6])(
+    'shows every row present for the whole walk exactly once, in order, under random inserts and deletes (seed %i)',
+    async (randomSeed) => {
       await resetTestEnv()
       const { h, token, uid, rows } = await setup(60)
       let state = randomSeed * 7919
@@ -233,8 +236,8 @@ describe('the keyset cursor', () => {
       const byId = new Map<string, Seed>([...rows, ...alive.values()].map((row) => [row.id, row]))
       const order = seen.map((id) => byId.get(id)).filter((row): row is Seed => row !== undefined)
       expect(seen, `seed ${randomSeed}: order`).toEqual(inListOrder(order))
-    }
-  })
+    },
+  )
 
   it('accepts a cursor written by the previous Worker, byte for byte', async () => {
     // base64url("1768478400000:act-0003"), the text the previous Worker issued and the web client

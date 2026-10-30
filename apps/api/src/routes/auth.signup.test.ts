@@ -153,10 +153,18 @@ describe('sign-in with a sign-up list', () => {
 
   it('S8: an identity that created and deleted accounts up to the cap is refused with a page', async () => {
     const h = listed(LISTED)
-    for (let i = 0; i < MAX_ACCOUNT_CREATES_PER_DAY; i += 1) {
-      const token = await h.sessionFor({ email: LISTED })
-      expect((await h.deleteAccount(token)).status).toBe(204)
-    }
+    // One create and delete counts one, and S9 pins that. The identity then stands one create short of
+    // the cap, so one more takes it there, instead of every create up to the cap.
+    const first = await h.sessionFor({ email: LISTED })
+    expect((await h.deleteAccount(first)).status).toBe(204)
+    await h.env.DB.prepare("UPDATE identity_budget SET used = ? WHERE action = 'accountCreate'")
+      .bind(MAX_ACCOUNT_CREATES_PER_DAY - 1)
+      .run()
+    const last = await h.sessionFor({ email: LISTED })
+    expect((await h.deleteAccount(last)).status).toBe(204)
+    expect(
+      await rows(h, "SELECT used FROM identity_budget WHERE action = 'accountCreate'"),
+    ).toEqual([{ used: MAX_ACCOUNT_CREATES_PER_DAY }])
     const res = await h.signInAs({ email: LISTED })
     expect(res.status).toBe(429)
     expect(res.headers.get('retry-after')).toBeTruthy()

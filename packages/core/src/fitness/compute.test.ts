@@ -1,3 +1,4 @@
+import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
 import { plantedLibrary } from '../findings/test/plantedLibrary'
@@ -78,9 +79,10 @@ describe('fitnessStatuses', () => {
 
   it('says a clear rise plainly, as improving, and never for an athlete whose level does not move', () => {
     const states = (effects: PlantedSpec['effects']) => {
-      const planted = library({ weeks: 110, noise: 0.01, effects })
-      return Array.from({ length: 70 }, (_, i) => {
-        const asOfMs = planted.firstMs + (40 + i) * WEEK
+      const planted = library({ weeks: 100, noise: 0.01, effects })
+      // From a few weeks before the rise to 30 weeks after it: the dip-and-return sweep below covers the rest.
+      return Array.from({ length: 36 }, (_, i) => {
+        const asOfMs = planted.firstMs + (64 + i) * WEEK
         return fitnessStatuses(
           planted.digests.filter((d) => d.startMs <= asOfMs),
           NONE,
@@ -298,11 +300,11 @@ describe('the session', () => {
     expect(session.setRange('all', settings).fitness).not.toBe(first)
   })
 
-  // Drawing a whole sample season takes several seconds under coverage, so this test gets its own timeout.
+  // The sample season is drawn once for the file, as the import of warmSample above does.
   it("gives the sample athlete the sample season's own day, whatever the clock says", () => {
     const session = sessionOn(Date.UTC(2040, 0, 1))
     const sample = session.loadSample(settings)
     expect(sample.fitness.run.shortfall?.kind).not.toBe('break')
     expect(sample.fitness.run.asOfMs).toBeLessThan(Date.UTC(2030, 0, 1))
-  }, 30_000)
+  })
 })

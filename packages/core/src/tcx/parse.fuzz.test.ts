@@ -8,7 +8,8 @@ import { encodeTcx } from './encode'
 const NOW_MS = Date.UTC(2026, 9, 22)
 const START_MS = Date.UTC(2025, 4, 1, 7, 30, 0)
 const HOUR = 3_600_000
-const FILES = 500
+// The unit run keeps a small seeded sample; the simulation run (test:sim) scales it up, see parse.fuzz.sim.test.ts.
+const FILES = 150 * Number(process.env.FUZZ_SCALE ?? 1)
 const MAX_SAMPLES = 172_800
 const SPEED_LIMIT = { ride: 30, run: 12.5 } as const
 
@@ -118,9 +119,7 @@ function violations(result: ParseResult): string[] {
   return problems
 }
 
-// The input count is fixed, so the timeout only guards against a hang; coverage
-// instrumentation on a shared CI runner can take several times the local run.
-describe('parseTcx under mutation', { timeout: 60_000 }, () => {
+describe('parseTcx under mutation', () => {
   it('never throws, and returns only plausible activities', () => {
     const rng = random(0x7c7c)
     const bases = baseFiles()
@@ -137,7 +136,7 @@ describe('parseTcx under mutation', { timeout: 60_000 }, () => {
     expect(broken).toEqual([])
     // Most mutations break the XML or the data; some leave a valid document.
     expect(accepted).toBeGreaterThan(0)
-  }, 30_000)
+  })
 
   it('never throws on random bytes', () => {
     const rng = random(0xbeef)
