@@ -218,7 +218,8 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                                                                                   |
 | `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                                                                                 |
 | `--series-run`         | `#e44f27`   | `#f56333`   | Running data                                                                                                                               |
-| `--run-ink`            | `#b83a12`   | `#f56333`   | Text set in the run hue (4.5:1 on the page and the card)                                                                                   |
+| `--run-ink`            | `#b83a12`   | `#f56333`   | Text in the run hue (4.5:1); staged with `--ride-ink` for sport-coloured text, a later D10 PR                                              |
+| `--ride-ink`           | `#2f56e8`   | `#5c7bf7`   | Text in the ride hue (4.5:1); staged, nothing reads it yet                                                                                 |
 | `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                                                                                               |
 | `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                                                                                   |
 | `--series-run-soft`    | `#e44f2726` | `#f5633333` | Running band and area fill                                                                                                                 |

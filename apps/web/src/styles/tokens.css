@@ -31,7 +31,9 @@
   --series-run: #e44f27;
   --series-ride: #2f56e8;
   --series-swim: #0f9fb0;
+  /* Staged for sport-coloured text, which a later D10 PR brings; nothing reads the two inks yet. */
   --run-ink: #b83a12;
+  --ride-ink: #2f56e8;
   --series-run-soft: #e44f2726;
   --series-ride-soft: #2f56e826;
   --series-swim-soft: #0f9fb026;
@@ -186,6 +188,7 @@
     --series-ride: #4d6ef5;
     --series-swim: #14a0b0;
     --run-ink: #f56333;
+    --ride-ink: #5c7bf7;
     --series-run-soft: #f5633333;
     --series-ride-soft: #4d6ef533;
     --series-swim-soft: #14a0b033;

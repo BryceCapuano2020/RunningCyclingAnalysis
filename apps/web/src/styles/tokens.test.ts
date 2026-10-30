@@ -70,6 +70,8 @@ const PAIRS: [string, string, number][] = [
   ['series-run', 'surface-1', GRAPHIC],
   ['run-ink', 'surface-0', TEXT],
   ['run-ink', 'surface-1', TEXT],
+  ['ride-ink', 'surface-0', TEXT],
+  ['ride-ink', 'surface-1', TEXT],
   ['series-ride', 'surface-1', GRAPHIC],
   ['series-swim', 'surface-1', GRAPHIC],
   ['status-warning', 'surface-1', TEXT],
