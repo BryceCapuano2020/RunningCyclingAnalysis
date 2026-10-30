@@ -277,3 +277,21 @@ describe('trendWindowDays', () => {
     expect(trendWindowDays(21)).toBe(7)
   })
 })
+
+describe('fitnessTrend after a change of body mass', () => {
+  const library = samples
+  const at = (massKg: number) =>
+    fitnessTrend(library, { ...settings, massKg }, { durationS: HEADLINE_DURATION_S })
+
+  it('keeps the run figures and prices the rides again, as a trend made from nothing does', () => {
+    const light = at(60)
+    at(95)
+    // The same masses again, once other masses were asked for: the runs' readings are the ones kept.
+    const again = at(60)
+    expect(again).toEqual(light)
+    const heavy = at(95)
+    expect(heavy.map((point) => point.runWkg)).toEqual(light.map((point) => point.runWkg))
+    expect(heavy.map((point) => point.runAtMs)).toEqual(light.map((point) => point.runAtMs))
+    expect(heavy.some((point, i) => point.rideWkg !== light[i]!.rideWkg)).toBe(true)
+  })
+})

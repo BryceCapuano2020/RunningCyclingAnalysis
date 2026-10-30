@@ -1,7 +1,8 @@
 import { formatDuration } from '@rca/core/units'
 import type { AxisTick } from './chartTypes'
 import { PHONE_CHART_WIDTH } from './plotBox'
-import { DEFAULT_ROOT_PX, GLYPH_EM, rootFontPx } from './rootFont'
+import { DEFAULT_ROOT_PX, readRoot, rootFontPx, textEm } from './rootFont'
+import type { RootText } from './rootFont'
 
 /** Below this width, x ticks are capped at four, and axis text is 12 px rather than 13. */
 export const NARROW_WIDTH = PHONE_CHART_WIDTH
@@ -58,8 +59,9 @@ export function fitTicks(
       : ticks
   // The root is read once for the whole fit, not once per label it measures.
   const fontPx = axisFontSize(width)
-  const scale = rootScale()
-  while (kept.length > 1 && collides(kept, axis, fontPx, scale)) {
+  const root = readRoot()
+  const scale = root.px / DEFAULT_ROOT_PX
+  while (kept.length > 1 && collides(kept, axis, fontPx, scale, root)) {
     const next = every(kept, 2, keep)
     if (next.length < kept.length) {
       kept = next
@@ -90,18 +92,31 @@ export function rootScale(): number {
  * The width of a tick label in pixels, estimated from its length and the font size, scaled by the root
  * text size the caller read once with rootScale().
  */
-export function labelWidth(label: string, fontPx: number, scale: number): number {
-  return label.length * fontPx * GLYPH_EM * scale
+export function labelWidth(
+  label: string,
+  fontPx: number,
+  scale: number,
+  root: RootText = readRoot(),
+): number {
+  return textEm(label, root) * fontPx * scale
 }
 
-function collides(ticks: AxisTick[], axis: 'x' | 'y', fontPx: number, scale: number): boolean {
+function collides(
+  ticks: AxisTick[],
+  axis: 'x' | 'y',
+  fontPx: number,
+  scale: number,
+  root: RootText,
+): boolean {
   return ticks.some((tick, i) => {
     const next = ticks[i + 1]
     if (next === undefined) return false
     const gap = Math.abs(next.position - tick.position)
     const needed =
       axis === 'x'
-        ? (labelWidth(tick.label, fontPx, scale) + labelWidth(next.label, fontPx, scale)) / 2 +
+        ? (labelWidth(tick.label, fontPx, scale, root) +
+            labelWidth(next.label, fontPx, scale, root)) /
+            2 +
           LABEL_GAP
         : fontPx * scale + 4
     return gap < needed

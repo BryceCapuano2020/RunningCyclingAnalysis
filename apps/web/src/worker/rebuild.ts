@@ -1,5 +1,6 @@
 import type { ActivityRecord } from '@rca/contract'
-import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
+import { digestActivity } from '@rca/core/digest'
+import { revisionStatus } from '@rca/core/digest/revisions'
 import { haltsImport } from '@rca/core/session'
 import type { AnalysisSession, PeriodChoice, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
@@ -85,7 +86,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
     undefined,
     noteWork,
   )
-  const stale = records.filter((record) => record.digest.modelRevision < MODEL_REVISION)
+  const stale = records.filter((record) => revisionStatus(record.digest.modelRevision) === 'stale')
   let rebuilt = 0
   let missing = 0
   let failed = 0

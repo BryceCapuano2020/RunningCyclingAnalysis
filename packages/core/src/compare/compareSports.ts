@@ -32,6 +32,25 @@ class DrawOrders {
   }
 }
 
+/** The orders of a set of draws, kept with the draws (which are shared between calls), so each is sorted once. */
+const ordersOfDraws = new WeakMap<Float64Array, DrawOrders>()
+
+function ordersOf(draws: Float64Array): DrawOrders {
+  let found = ordersOfDraws.get(draws)
+  if (found === undefined) {
+    found = new DrawOrders(draws)
+    ordersOfDraws.set(draws, found)
+  }
+  return found
+}
+
+/**
+ * The order of the ratios at each duration the last time they were sorted, by the draws of the efficiency. A change
+ * of body mass scales every ride value by one factor, so every ratio of a duration by the inverse of it and the
+ * order stays: the last one is the likely order (`confirmedOrder`), and a new best, a tie or a reversal sorts again.
+ */
+const ratioOrdersOfDraws = new WeakMap<Float64Array, (readonly number[] | undefined)[]>()
+
 /** The draws of one duration: run and ride metabolic power in W/kg, and their ratio. */
 interface Quantities {
   runM: Float64Array
@@ -43,14 +62,16 @@ interface Quantities {
  * The ascending order of each quantity of one duration. Run and ride metabolic power move with one
  * prior's draws, so the order of those draws serves them: running power rises with the economy
  * scale above resting power and falls with it below, and riding power falls with efficiency while
- * the ride value is positive. The ratio moves with both priors, so it is sorted. A tie or a
- * reversal the guess misses is caught by confirmedOrder, which sorts instead.
+ * the ride value is positive. The ratio moves with both priors, so its guess is the order it had
+ * last time (`likelyRatio`). A tie or a reversal the guess misses is caught by confirmedOrder,
+ * which sorts instead.
  */
 function ordersAt(
   runValue: number,
   rideValue: number,
   quantities: Quantities,
   priors: { economy: DrawOrders; efficiency: DrawOrders },
+  likelyRatio: readonly number[] = [],
 ) {
   const { runM, rideM, ratio } = quantities
   const { economy, efficiency } = priors
@@ -60,7 +81,7 @@ function ordersAt(
       runValue >= RESTING_W_PER_KG ? economy.ascending() : economy.descending(),
     ),
     ride: confirmedOrder(rideM, rideValue > 0 ? efficiency.descending() : efficiency.ascending()),
-    ratio: sortedOrder(ratio),
+    ratio: confirmedOrder(ratio, likelyRatio),
   }
 }
 
@@ -93,7 +114,9 @@ export function compareSports(
 
   const { ge, s } = drawPriors(opts.draws ?? 4000, opts.seed ?? 1)
   const draws = ge.length
-  const priorOrders = { economy: new DrawOrders(s), efficiency: new DrawOrders(ge) }
+  const priorOrders = { economy: ordersOf(s), efficiency: ordersOf(ge) }
+  const ratioOrders = ratioOrdersOfDraws.get(ge) ?? []
+  ratioOrdersOfDraws.set(ge, ratioOrders)
   const equal = new Float64Array(draws).fill(1)
   const calibration = calibrationWeights(ge, s, hr)
   const weights = calibration?.accepted ? calibration.weights : null
@@ -115,7 +138,8 @@ export function compareSports(
       ratio[d] = runM[d]! / rideM[d]!
     }
     // Both weightings read the same orders, so each quantity is sorted once for the duration.
-    const order = ordersAt(runPoint.value, ridePoint.value, quantities, priorOrders)
+    const order = ordersAt(runPoint.value, ridePoint.value, quantities, priorOrders, ratioOrders[i])
+    ratioOrders[i] = order.ratio
     const summarise = (w: Float64Array): ComparisonPoint => ({
       durationS: runPoint.durationS,
       ratio: weightedIntervalAlong(ratio, w, order.ratio),

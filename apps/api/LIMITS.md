@@ -189,7 +189,7 @@ approach the shared allowance; this is a bound on one account, not on the whole 
   null duration or a curve off the grid, which older revisions may carry), and it bounds array lengths at four
   times the create limits. It drops a quality kind or a record distance it does not know, so a rollback does
   not hide the activity. Creates use the strict view. The reader and its bounds are described in
-  [docs/LIMITS.md](../docs/LIMITS.md#digests).
+  [docs/LIMITS.md](../../docs/LIMITS.md#digests).
 
 ## Creates, replace and the database guard
 

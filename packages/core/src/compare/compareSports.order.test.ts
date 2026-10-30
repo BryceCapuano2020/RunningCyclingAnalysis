@@ -158,6 +158,17 @@ describe('compareSports against sorting every interval', () => {
     }
   })
 
+  it('matches when the last ratio orders are the guess: the mass changes, then the curves, then both', () => {
+    const run = [6, 9, 12, 15, 21]
+    const ride = [120, 180, 240, 300, 420]
+    // The same draws each time, so each call starts from the orders the last one made.
+    for (const massKg of [70, 71, 70, 85, 40]) expectSameNumbers(run, ride, null, undefined, massKg)
+    expectSameNumbers([6, 9, 13, 15, 21], ride, null, undefined, 71)
+    expectSameNumbers(run, [120, 180, 250, 300, 420], hrCheck(1.1, 0.1), undefined, 71)
+    expectSameNumbers([21, 15, 12, 9, 6], [420, 300, 240, 180, 120], null, undefined, 72)
+    expectSameNumbers(run, ride, null, undefined, 70)
+  })
+
   it('matches on the comparison of a whole library', () => {
     const digests = sampleDataset().activities.map(digestActivity)
     const { runCurve, rideCurve, hr, comparison } = combine(digests, DEFAULT_ATHLETE)
