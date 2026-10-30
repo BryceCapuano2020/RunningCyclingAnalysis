@@ -7,7 +7,7 @@ import { AnalysisSession } from '@rca/core/session'
 import { gapOfHeadline } from '../balanceGap'
 import { headlineGrades } from '../grades'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
-import { LandingExample } from './LandingExample'
+import { LandingExample, LandingFitnessExample } from './LandingExample'
 import { LANDING_EXAMPLE } from '../landingExample'
 
 /** A row's words as read, without the notes its defined terms keep in the markup. */
@@ -57,24 +57,20 @@ describe('LandingExample', () => {
     expect(headline).toContain(`${example.shown.size} (${example.shown.range}) slower`)
   })
 
-  it('gives the finding as a second panel: its state, one sentence and the change as a track', () => {
-    const { container } = render(<LandingExample />)
+  it('gives the finding as a second panel of its own: its state, one sentence and the change as a track', () => {
+    const { container } = render(<LandingFitnessExample />)
     expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
     expect(
       screen.getByText(/^At 130 bpm you now run 7\.1% \(3 to 11%\) slower than before\.$/),
     ).toBeInTheDocument()
     expect(container.querySelector('.fitness-track__band')).not.toBeNull()
-    const order = [
-      ...container.querySelectorAll('.landing-example__fitness, .landing-example__title'),
-    ]
-    // The answer comes first, as on the home screen's headline; the fitness finding is the panel under it.
-    expect(order.map((node) => node.className)).toEqual([
-      'landing-example__title',
-      'landing-example__fitness',
-    ])
-    const figure = container.querySelector('.landing-example')!
-    expect(figure.lastElementChild?.className).toBe('landing-example__fitness')
     expect(screen.getByText('Fitness at the same heart rate')).toBeInTheDocument()
+  })
+
+  it('keeps the finding out of the answer’s panel, which holds the headline, meter and levels alone', () => {
+    const { container } = render(<LandingExample />)
+    expect(container.querySelector('.landing-example__fitness')).toBeNull()
+    expect(screen.queryByText('Slipping')).not.toBeInTheDocument()
   })
 
   it('is labelled illustrative, names the sample, and gives the answer’s headline', () => {
@@ -99,7 +95,12 @@ describe('LandingExample', () => {
   })
 
   it('draws no level scale, ring or table: the meter, one line a sport and the fitness finding are all it shows', () => {
-    const { container } = render(<LandingExample />)
+    const { container } = render(
+      <>
+        <LandingExample />
+        <LandingFitnessExample />
+      </>,
+    )
     expect(container.querySelector('svg:not(.icon):not(.fitness-glyph)')).toBeNull()
     expect(container.querySelector('details')).toBeNull()
   })

@@ -1508,7 +1508,7 @@ earlier level. The analysis is in [design/fitness.md](design/fitness.md); this i
 (without the sport's name, which the title says). One card for each sport that has a status; rides are not compared yet, so a
 library with runs has the run's card alone and the Ride page says nothing about it, rather than promising what cannot show. A
 sport with no steady run, or whose status is "not compared yet", has no card. The landing page's example shows the same
-finding for the sample athlete as its second panel, under the balance headline, meter and levels (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
+finding for the sample athlete as its second panel, below the drop zone so Add files stays on the first screen, (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
 
 **The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness" and the card by its state). A sport edge on the left, the sport's name, and a **New** marker, "since the week of 12 Oct", when the state began to be
 shown in the last six weeks. The state is a word at display size (Slipping, Holding, Holding below, Recovering, Back,
