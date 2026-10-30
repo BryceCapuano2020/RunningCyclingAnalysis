@@ -22,6 +22,7 @@ import {
   dedupeKeyFor,
   findOwnedActivity,
   toRecord,
+  toRecordHolding,
   type ActivityRow,
 } from './shared.ts'
 import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
@@ -198,14 +199,14 @@ async function upgradeExisting(
     modelRevision: input.digest.modelRevision,
     fileHash: input.fileHash,
   })
-  if (upgraded) return c.json(toRecord(upgraded), 200)
+  if (upgraded) return c.json(toRecordHolding(upgraded, input.digest), 200)
 
   const latest = await findExisting(c.var.db, userId, input.dedupeKey)
   if (!latest) throw new HttpError(404, 'not_found', 'Activity not found')
   if (latest.fileHash !== input.fileHash) {
     throw new HttpError(409, 'activity_conflict', CONFLICTING_FILE_MESSAGE)
   }
-  return c.json(toRecord(latest), 200)
+  return c.json(toRecordHolding(latest, input.digest), 200)
 }
 
 /** A rebuild names the exact activity it came from, and never inserts one deleted elsewhere. */

@@ -1,14 +1,15 @@
-import { Gunzip, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
+import { Gunzip, Unzip } from 'fflate'
 import type { UnzipFile } from 'fflate'
 import { concat } from '../bytes'
 import { StreamTail } from './streamTail'
 import type { Rejection } from '../import/result'
+import { registerDecoders, registerDiscarder } from './unsupportedMethods'
 import { checkStream } from './zipCheck'
 import {
   DECOMPRESS_INPUT_CHUNK_BYTES,
   deliver,
-  discard,
   MAX_NESTED_ARCHIVE_DEPTH,
+  skipEntry,
   withPrefix,
 } from './zipRun'
 import type { PendingEntry, ZipRun } from './zipRun'
@@ -64,8 +65,7 @@ export class ZipReader {
     // Entries of a nested zip are named after the zip that holds them, e.g. "rides.zip/a.fit".
     this.prefix = depth === 0 ? '' : `${name}/`
     this.unzip = new Unzip((file) => this.onEntry(file))
-    this.unzip.register(UnzipPassThrough)
-    this.unzip.register(UnzipInflate)
+    registerDecoders(this.unzip)
   }
 
   /** Pushes at most DECOMPRESS_INPUT_CHUNK_BYTES. False when the zip cannot be read on. */
@@ -131,23 +131,19 @@ export class ZipReader {
    */
   async verify(): Promise<void> {
     try {
-      await this.check()
+      await checkStream(this.run, {
+        name: this.name,
+        streamFailure: this.streamFailure,
+        interruption: this.interruption,
+        sawEntry: this.sawEntry,
+        archivePrefix: this.archivePrefix,
+        seenEntries: this.seenEntries,
+        tail: this.tail,
+      })
     } finally {
       this.releaseTail()
       this.open.clear()
     }
-  }
-
-  private check(): Promise<void> {
-    return checkStream(this.run, {
-      name: this.name,
-      streamFailure: this.streamFailure,
-      interruption: this.interruption,
-      sawEntry: this.sawEntry,
-      archivePrefix: this.archivePrefix,
-      seenEntries: this.seenEntries,
-      tail: this.tail,
-    })
   }
 
   /** Stops reading a zip whose holder failed, and says nothing: the holder has reported itself. */
@@ -195,13 +191,7 @@ export class ZipReader {
 
   private failEntry(pending: PendingEntry, rejection: Rejection): void {
     if (pending.state !== 'open') return
-    pending.state = 'failed'
-    pending.terminate?.()
-    pending.child?.abandon()
-    this.settle(pending)
-    this.run.budget.bufferedBytes -= pending.bytes
-    pending.chunks = []
-    pending.bytes = 0
+    this.dropQuietly(pending)
     this.reportEntryError(pending.name, rejection)
   }
 
@@ -212,13 +202,21 @@ export class ZipReader {
     this.failEntry(pending, rejection)
   }
 
+  /** Skips an entry the import does not read, stopping it if it inflates past its budget. */
+  private skip(file: UnzipFile): void {
+    registerDiscarder(this.unzip, file.compression)
+    skipEntry(file, this.run, this.tail, (rejection) => {
+      this.reportEntryError(this.prefix + file.name, rejection)
+    })
+  }
+
   private onEntry(file: UnzipFile): void {
     const { sink, budget } = this.run
     const { limits } = sink
     this.sawEntry = true
     this.seenEntries++
     // Once the archive has stopped, its remaining entries are covered by the archive-wide reason.
-    if (budget.abort !== null) return discard(file)
+    if (budget.abort !== null) return this.skip(file)
     budget.archiveEntries++
     const entry = file.name
     const name = this.prefix + entry
@@ -227,35 +225,35 @@ export class ZipReader {
       const rejection = entryCountTooLarge(limits.maxArchiveEntries)
       this.reportEntryError(name, rejection)
       budget.abort ??= rejection
-      return discard(file)
+      return this.skip(file)
     }
-    if (isIgnored(entry)) return discard(file)
+    if (isIgnored(entry)) return this.skip(file)
     // A file of the zip that its list leaves out is not an activity, in a format the app reads or not.
     const unlisted = this.depth === 0 && sink.listed?.(entry) === false
     if (OTHER_ACTIVITY.test(entry)) {
       sink.summary[unlisted ? 'notActivities' : 'otherActivityFiles']++
-      return discard(file)
+      return this.skip(file)
     }
     const nested = ZIP.test(entry)
-    if (!nested && !ACTIVITY.test(entry)) return discard(file)
+    if (!nested && !ACTIVITY.test(entry)) return this.skip(file)
     if (unlisted && !nested) {
       sink.summary.notActivities++
-      return discard(file)
+      return this.skip(file)
     }
     if (nested && this.depth >= MAX_NESTED_ARCHIVE_DEPTH) {
       this.reportEntryError(name, unreadable(TOO_DEEP))
-      return discard(file)
+      return this.skip(file)
     }
     if (!nested) {
       budget.fitEntries++
       if (budget.fitEntries > limits.maxFitFiles) {
         this.reportEntryError(name, activityCountTooLarge(limits.maxFitFiles))
-        return discard(file)
+        return this.skip(file)
       }
       // A zip is not held whole, so only an activity file is held to the size of one entry.
       if (file.originalSize !== undefined && file.originalSize > limits.maxEntryBytes) {
         this.reportEntryError(name, entryTooLarge(limits.maxEntryBytes))
-        return discard(file)
+        return this.skip(file)
       }
     }
 
@@ -267,7 +265,8 @@ export class ZipReader {
     this.open.add(pending)
     if (file.compression !== 0 && file.compression !== 8) {
       this.failEntry(pending, unreadable(UNSUPPORTED_COMPRESSION))
-      return
+      // Started and drained, or fflate holds the compressed input of the entry whole.
+      return this.skip(file)
     }
     file.ondata = this.entryReader(pending, /\.gz$/i.test(entry))
     try {
