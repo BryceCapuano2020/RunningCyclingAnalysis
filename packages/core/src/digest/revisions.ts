@@ -1,5 +1,5 @@
 import type { ActivityDigest } from '../types'
-import type { Consumer } from './consumers'
+import type { DirectConsumer } from './consumers'
 
 /**
  * What a model revision does to the digests of the one before it.
@@ -22,9 +22,9 @@ export interface RevisionDeclaration {
   /** Fields whose values mean something different from this revision on. */
   changes: readonly DigestField[]
   /** Consumers whose output moves; comparisons across this revision are not made. Read for `mixable` only. */
-  affects: readonly Consumer[]
+  affects: readonly DirectConsumer[]
   /** Under `mixable`: consumers that read current digests only. */
-  holdsBack?: readonly Consumer[]
+  holdsBack?: readonly DirectConsumer[]
   /** Under `mixable`: the id of the study test that measures it. */
   bound?: string
 }

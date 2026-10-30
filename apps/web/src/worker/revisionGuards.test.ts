@@ -6,18 +6,22 @@ import { readFilesUnder } from '../ui/components/stylesheet'
 /** Source outside tests, fixtures and test helpers, with its path from the repository root. */
 async function sourceUnder(...dirs: string[]): Promise<{ path: string; text: string }[]> {
   const files = await Promise.all(
-    dirs.map(async (dir) =>
-      (await readFilesUnder(import.meta.url, `../../../../${dir}/`, '.ts')).map(
-        ({ path, text }) => ({ path: `${dir}/${path}`, text }),
+    dirs.flatMap((dir) =>
+      ['.ts', '.tsx'].map(async (suffix) =>
+        (await readFilesUnder(import.meta.url, `../../../../${dir}/`, suffix)).map(
+          ({ path, text }) => ({ path: `${dir}/${path}`, text }),
+        ),
       ),
     ),
   )
-  return files.flat().filter(({ path }) => !/\.test\.ts$|(^|\/)test\//.test(path))
+  return files.flat().filter(({ path }) => !/\.test\.tsx?$|(^|\/)test\//.test(path))
 }
+
+const READERS = ['packages/core/src', 'apps/web/src']
 
 /** The first argument of every `orderedFor(` call outside the module that defines it. */
 async function callSites(): Promise<{ path: string; first: string }[]> {
-  const source = await sourceUnder('packages/core/src', 'apps/web/src/worker')
+  const source = await sourceUnder(...READERS)
   return source
     .filter(({ path }) => !path.endsWith('digest/consumers.ts'))
     .flatMap(({ path, text }) =>
@@ -50,7 +54,7 @@ describe('the consumer list', () => {
   })
 
   it('leaves no reader on the current-only filter', async () => {
-    const source = await sourceUnder('packages/core/src', 'apps/web/src/worker')
+    const source = await sourceUnder(...READERS)
     const readers = source.filter(
       ({ path, text }) =>
         /\borderedCurrent\(/.test(text) && !/digest\/(ordered|combine)\.ts$/.test(path),
@@ -74,24 +78,31 @@ describe('the revision table', () => {
 })
 
 /**
- * A comparison of a model revision with anything. Revisions are compared in one place, `revisionStatus`.
- * Matches `modelRevision < x`, `x >= MODEL_REVISION` and `stored.revision !== next.modelRevision`, and
- * leaves a check for null or undefined alone.
+ * Reading a digest's `modelRevision`: `x.modelRevision`, `x['modelRevision']` or a destructuring that names
+ * it. Whatever is then done with the value (a comparison, a subtraction, an alias) is a way round
+ * `revisionStatus`, so the read itself is what is forbidden. Writing the field (`modelRevision: n`) is not.
  */
-const COMPARISON =
-  /(?:modelRevision|MODEL_REVISION)\s*(?:[<>]=?|[!=]==?)(?!=)(?!\s*(?:null|undefined)\b)|(?:[<>]=?|[!=]==?)\s*[\w.]*(?:modelRevision|MODEL_REVISION)\b/
+const READ_REVISION =
+  /\.modelRevision\b|\[\s*['"]modelRevision['"]\s*\]|\{[^{}]*\bmodelRevision\b[^{}]*\}\s*=(?!=)/
+
+/** A read that is handed straight to `revisionStatus`, which is the way to ask. */
+const ASKED = /\brevisionStatus\(\s*[\w.?]*\.modelRevision\s*[,)]/g
 
 /**
- * The files that may compare. revisions.ts is the one place. create.ts decides whether a rebuilt digest is
- * strictly newer than the stored one, which orders two digests and does not ask whether either is current.
+ * The files that read it, and why. revisions.ts and consumers.ts are the table and its filter. readDigest.ts
+ * and readResult.ts parse the field from untrusted input. create.ts orders two stored digests for an upgrade
+ * (strictly newer), which does not ask whether either is current.
  */
 const ALLOWED = [
   'packages/core/src/digest/revisions.ts',
+  'packages/core/src/digest/consumers.ts',
+  'packages/core/src/digest/readDigest.ts',
+  'packages/core/src/digest/readResult.ts',
   'apps/api/src/routes/activities/create.ts',
 ]
 
-describe('revision comparisons', () => {
-  it('are made only in revisions.ts, apart from the one ordering of two stored digests', async () => {
+describe('revision reads', () => {
+  it('happen only where the model revision is asked about, parsed or ordered', async () => {
     const source = await sourceUnder(
       'packages/core/src',
       'packages/contract/src',
@@ -100,21 +111,28 @@ describe('revision comparisons', () => {
     )
     const found = source
       .filter(({ path }) => !ALLOWED.includes(path))
-      .filter(({ text }) => text.split('\n').some((line) => COMPARISON.test(line)))
+      .filter(({ text }) => READ_REVISION.test(text.replace(ASKED, '')))
       .map(({ path }) => path)
     expect(found).toEqual([])
   })
 
-  it('still matches the shapes of the sites it replaced', () => {
-    const before = [
-      'kept.modelRevision < MODEL_REVISION',
-      'digest.modelRevision !== MODEL_REVISION',
-      'identity.modelRevision > MODEL_REVISION',
-      'record.digest.modelRevision < MODEL_REVISION',
-      'stored.revision >= next.modelRevision',
+  it('sees the ways round revisionStatus, across lines, and leaves the allowed forms alone', () => {
+    const flagged = [
+      'const r = d.modelRevision\n  if (r < 6) return',
+      'const { modelRevision } = digest',
+      'const { id, modelRevision: r } = digest',
+      'digest.modelRevision - 1',
+      "digest['modelRevision'] > 5",
+      'kept\n  .modelRevision >= x',
     ]
-    for (const line of before) expect(COMPARISON.test(line), line).toBe(true)
-    expect(COMPARISON.test('modelRevision: MODEL_REVISION,')).toBe(false)
-    expect(COMPARISON.test('modelRevision === null')).toBe(false)
+    for (const text of flagged) expect(READ_REVISION.test(text.replace(ASKED, '')), text).toBe(true)
+    const allowed = [
+      'revisionStatus(kept.modelRevision) === current',
+      'revisionStatus(record.digest.modelRevision)',
+      'return { id, modelRevision: MODEL_REVISION }',
+      'modelRevision: number',
+    ]
+    for (const text of allowed)
+      expect(READ_REVISION.test(text.replace(ASKED, '')), text).toBe(false)
   })
 })
