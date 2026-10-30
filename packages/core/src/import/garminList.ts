@@ -24,7 +24,7 @@ export const MAX_GARMIN_SUMMARY_DEPTH = 64
 /** The most all of an export's summaries may inflate to together. They are read one at a time. */
 export const MAX_GARMIN_SUMMARIES_BYTES = 64 * 1024 * 1024
 /** The most summary files read from one export. Garmin splits a large account's summaries into a few. */
-const MAX_SUMMARY_FILES = 32
+export const MAX_SUMMARY_FILES = 32
 /**
  * How far a summary's start may sit from the start of the activity it names. The summary gives the
  * activity's start to the millisecond; the file's first record is within a second or two of it.

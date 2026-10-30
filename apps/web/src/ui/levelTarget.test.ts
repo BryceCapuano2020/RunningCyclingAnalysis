@@ -258,7 +258,7 @@ describe('levelTargetText on the sample athlete', () => {
     ).toBe(
       'To grade level with your running at 20 min, your best ride would need about 275 W (roughly 245 to 295 W; now 243 W).',
     )
-  }, 60_000)
+  })
 
   it('has watts that the page grades back to the target through the sample heart-rate weights', () => {
     const { result, calibration } = loadedSample()
@@ -267,7 +267,7 @@ describe('levelTargetText on the sample athlete', () => {
     expect(
       Math.abs(pageRideGrade(watts, result, SAMPLE_PROFILE, calibration) - 0.64),
     ).toBeLessThanOrEqual(0.005)
-  }, 60_000)
+  })
 })
 
 describe('the levelled target, rounded toward the side that levels', () => {
@@ -299,7 +299,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
       const runGrade = ageGradeForEffort(levelled, HEADLINE_DURATION_S, athlete.age, athlete.sex)
       expect(wholeGrade(runGrade ?? 0), `run at ${whole}%`).toBeGreaterThanOrEqual(whole)
     }
-  }, 120_000)
+  })
 
   it('names no line when the ride already shows the levelled watts, and one when it shows one watt less', () => {
     const { result, calibration } = sampleRide()
@@ -335,7 +335,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
       })
     expect(at(levelled)).toBeNull()
     expect(at(levelled - 1)).toContain(`; now ${levelled - 1} W).`)
-  }, 60_000)
+  })
 })
 
 describe('levelTarget', () => {
