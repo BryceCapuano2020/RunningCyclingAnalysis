@@ -13,7 +13,12 @@ import { LateInEffortSection } from './LateInEffortSection'
 import { RacePredictions } from './RacePredictions'
 import { ranBests } from './raceRan'
 import { SameHeartRateSection } from './SameHeartRateSection'
-import { SAME_HEART_RATE_NAME, sameHeartRateLack } from './sameHeartRateLack'
+import {
+  SAME_HEART_RATE_NAME,
+  SAME_HEART_RATE_WEEKLY_NAME,
+  sameHeartRateLack,
+  weeklyFinding,
+} from './sameHeartRateLack'
 import { SectionCell } from './SectionCell'
 import { anchorOf } from './sectionAnchor'
 import type { SectionNavItem } from './SectionNav'
@@ -149,20 +154,29 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
     ),
     lacks: [],
   }),
-  sameHeartRate: ({ sport, sameHeartRate, units }) => {
+  sameHeartRate: ({ sport, sameHeartRate, units, fitness }) => {
     const lack = sameHeartRateLack(sport, sameHeartRate, units)
-    return lack === null
-      ? {
-          content: <SameHeartRateSection sport={sport} data={sameHeartRate} units={units} />,
-          lacks: [],
-          closed: {
+    if (lack !== null) return { content: null, lacks: [lack] }
+    // With a fitness status on the page the weekly view defers to it: it is retitled and says no change of its own, so
+    // the card and this section never disagree about the same runs.
+    const deferred = fitness !== undefined && fitness[sport].state !== 'not-enough-evidence'
+    return {
+      content: (
+        <SameHeartRateSection sport={sport} data={sameHeartRate} units={units} weekly={deferred} />
+      ),
+      lacks: [],
+      closed: deferred
+        ? {
+            title: SAME_HEART_RATE_WEEKLY_NAME,
+            finding: weeklyFinding(sport, sameHeartRate.referenceHeartRate),
+          }
+        : {
             title: SAME_HEART_RATE_NAME,
             // The closed row says what the chart is titled by, so the two cannot differ, and which heart rate "the
             // same" is, so the finding stands alone.
             finding: `${sameHeartRateCopy(sport, sameHeartRate, units).text.replace(/\.$/, '')} (${sameHeartRate.referenceHeartRate} bpm)`,
           },
-        }
-      : { content: null, lacks: [lack] }
+    }
   },
   // The section holds two readings, each with its own need: the page lists what is missing even beside content.
   lateInEffort: ({ sport, result, lateEvidence, units }) => {

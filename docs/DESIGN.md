@@ -1479,7 +1479,7 @@ library with runs has the run's card alone and the Ride page says nothing about 
 sport with no steady run, or whose status is "not compared yet", has no card. The landing page's example leads with the same
 finding for the sample athlete (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
 
-**The card.** A sport edge on the left, the sport's name, and a **New** marker with "week of 12 Oct" when the state began to be
+**The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness" and the card by its state). A sport edge on the left, the sport's name, and a **New** marker, "since the week of 12 Oct", when the state began to be
 shown in the last six weeks. The state is a word at display size (Slipping, Holding, Holding below, Recovering, Back,
 Improving) beside its own shape on a soft sport tile: a descending line, a level arrow, a level arrow under a bar, a
 rise from a dip, a ring with a tick, a rising line. A state is never colour alone. Under it the analysis's own sentence, with
@@ -1494,6 +1494,10 @@ yet"), without repeating the sentence's opener, and shows how many steady runs i
 over time" and has a table twin: the level at four-week steps, each a hollow ring with its 90% range as a shaded band, the
 level before the change as a labelled reference line ("Before February", with its value), a rule where the change began
 ("Began February", left out when the chart starts after it), and now as the largest ring with its value. The axis is tight to
-the ranges, faster up. Under it, in two columns on a wide screen: how it is measured, with the honest limit said once ("a change
+the ranges, faster up. On a short phone (the page's own tighter-gaps test) the card gives up what the evidence repeats: the support line and the sport's tag go, and the marker keeps its word and not its week, so the balance's headline is still above the tabs at 320 by 640. Under it, in two columns on a wide screen: how it is measured, with the honest limit said once ("a change
 of about 5% or more, within weeks to a few months"); the steady runs it rests on as links to their activities (the newest eight,
-then all on a press); and why some runs do not count. The level series is `FitnessStatus.series`: at most 20 points, no per-run data.
+then all on a press); and why some runs do not count. The level series is `FitnessStatus.series`: at most 20 points, no per-run data; a step is named by the weeks it is read over and dated by the last day it includes ("the 8 weeks to 25 Oct"). The copy is in the athlete's units: a run is read in whole kilometres, so for miles it gives the distance in miles beside them. The Run page's older weekly same-heart-rate section defers to the status: it is retitled "Same heart rate, week by week" and says no change of its own, so the two never disagree about the same runs.
+
+**Terms in a sentence.** A defined term in a paragraph reaches a pixel past its line (`p .definition__term::after`), as wide as
+its text and as tall as the line. Consecutive lines of a sentence touch, so the 12 px reach a term keeps elsewhere let a press on
+the lower half of one term open the term on the line below it. A term outside a paragraph keeps its 44 px target.

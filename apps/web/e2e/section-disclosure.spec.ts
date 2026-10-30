@@ -9,7 +9,7 @@ test('a Run section opens and shuts by mouse and by Enter on a phone, and its bo
   await openSample(page)
   await goTo(page, 'Run')
 
-  const section = page.getByRole('region', { name: 'At the same heart rate' })
+  const section = page.getByRole('region', { name: 'Same heart rate, week by week' })
   const details = section.locator('.sport-disclosure__details')
   const summary = section.locator('.sport-disclosure__summary')
   const body = section.locator('.sport-disclosure__body')

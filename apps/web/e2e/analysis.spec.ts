@@ -31,7 +31,11 @@ const NOT_ENOUGH_YET = 'Not enough yet'
 /** The sport page's section that is open and needs a season of activities; the others sit behind closed rows. */
 const OPEN_SEASON_SECTION = 'Week by week'
 /** The closed sections that need a season: each row says its finding, and opens to a chart. */
-const CLOSED_SEASON_SECTIONS = ['At the same heart rate', 'Late in long sessions']
+/** The same-heart-rate row is the weekly view where a fitness status speaks for the sport (the run), and has its own finding where none does. */
+const CLOSED_SEASON_SECTIONS = [
+  /^(At the same heart rate|Same heart rate, week by week)$/,
+  'Late in long sessions',
+]
 /** The closed row of the finding that compares each best with the athlete's other bests. */
 const STAND_OUT_SECTION = 'Where your bests stand out'
 const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|.*stand out)/
@@ -280,26 +284,34 @@ test('at 1440 by 900 the fitness card is on the first screen, whole, and the bal
   const card = await edgesOf(page.locator(FITNESS_CARD))
   expect(card.bottom).toBeLessThanOrEqual(900)
   await expect(page.locator(FITNESS_STATE)).toHaveText('Slipping')
-  await expect(page.getByTestId('fitness-new')).toBeVisible()
+  await expect(page.getByTestId('fitness-new')).toContainText('since the week of')
+  // The change's track sits beside the words on a wide screen, inside the card, and not under them.
   const track = await edgesOf(page.locator('.fitness-track'))
+  const trackBox = (await page.locator('.fitness-track').boundingBox())!
+  const sentenceBox = (await page.locator('.fitness-card__headline').boundingBox())!
+  const cardBox = (await page.locator(FITNESS_CARD).boundingBox())!
+  expect(trackBox.x).toBeGreaterThanOrEqual(sentenceBox.x + sentenceBox.width)
+  expect(trackBox.x + trackBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width)
   expect(track.bottom).toBeLessThanOrEqual(card.bottom)
-  expect(track.top).toBeGreaterThanOrEqual(card.top)
   await expect(page.getByText('See the evidence')).toBeInViewport()
   // The balance's headline starts on the first screen, under the card and not far from it.
   const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
   expect(headline.top).toBeGreaterThanOrEqual(card.bottom)
   expect(headline.top).toBeLessThan(900)
-  // The finding is the first graphic on the page, and the balance's meter is the first drawing after it.
-  const first = await page.evaluate(
-    () =>
-      document.querySelector('main [role="img"], main svg:not(.icon)')?.parentElement?.className ??
-      '',
-  )
-  expect(first).toContain('fitness-card__state')
-  const firstImage = await page.evaluate(
-    () => document.querySelector('main [role="img"]')?.parentElement?.className ?? '',
-  )
-  expect(firstImage).toContain('balance-meter')
+  // The finding is the first drawing on the page, and the balance's meter the next: the track comes before every image.
+  const order = await page.evaluate(() => {
+    const track = document.querySelector('.fitness-track__bar')
+    const firstImage = document.querySelector('main [role="img"]')
+    return {
+      trackFirst:
+        track !== null &&
+        firstImage !== null &&
+        (track.compareDocumentPosition(firstImage) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+      firstImage: firstImage?.parentElement?.className ?? '',
+    }
+  })
+  expect(order.trackFirst).toBe(true)
+  expect(order.firstImage).toContain('balance-meter')
   // The answer is still a line: no scale drawing, no ladder, and the meter is in its place.
   await expect(page.locator('.balance-meter__value')).toHaveText('+8pts')
   await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
@@ -327,6 +339,10 @@ for (const [width, height] of [
     expect(track.top).toBeGreaterThanOrEqual(sentence.bottom)
     expect(track.bottom).toBeLessThanOrEqual(tabs)
     if (width === 390) expect(track.bottom).toBeLessThanOrEqual(600)
+    // The balance's own headline begins above the tabs too, under the card: the finding leads and the answer is still in sight.
+    const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
+    expect(headline.top).toBeGreaterThanOrEqual((await edgesOf(page.locator(FITNESS_CARD))).bottom)
+    expect(headline.top).toBeLessThan(tabs)
     // Nothing collides, and the page does not scroll sideways.
     for (const selector of [FITNESS_CARD, '.fitness-track__ends', '.fitness-card__headline']) {
       const box = await page.locator(selector).first().boundingBox()

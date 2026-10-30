@@ -9,6 +9,11 @@ export interface ChartYAxisProps {
   title?: string
   /** Tick text size in px. */
   fontSize?: number
+  /**
+   * Draws the tick labels alone, no gridlines and not the title (which still decides which labels would run into it): a chart that lays marks over the plot draws the labels once
+   * more on top of them, so a line that crosses an inside label does not strike it through (the halo hides it).
+   */
+  labelsOnly?: boolean
 }
 
 /** The gap, px, between a tick label and the plot's left edge. */
@@ -26,7 +31,13 @@ const TITLE_RISE = 12
  * gridline and over a halo, so the gutter can stay narrow and no label is cut off. An inside label near the
  * plot's top would run up into the title, so its text is left off there; its gridline stays.
  */
-export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProps) {
+export function ChartYAxis({
+  ticks,
+  plot,
+  title,
+  fontSize = 12,
+  labelsOnly = false,
+}: ChartYAxisProps) {
   const scale = rootScale()
   const widest = Math.max(0, ...ticks.map((tick) => labelWidth(tick.label, fontSize, scale)))
   const inside = widest + TICK_GAP > plot.left
@@ -37,13 +48,15 @@ export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProp
     <g className="chart-y-axis">
       {ticks.map((tick) => (
         <g key={tick.position}>
-          <line
-            className="chart-y-axis__grid"
-            x1={plot.left}
-            x2={plot.right}
-            y1={tick.position}
-            y2={tick.position}
-          />
+          {labelsOnly ? null : (
+            <line
+              className="chart-y-axis__grid"
+              x1={plot.left}
+              x2={plot.right}
+              y1={tick.position}
+              y2={tick.position}
+            />
+          )}
           {reachesTitle(tick) ? null : (
             <text
               className={
@@ -60,7 +73,7 @@ export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProp
           )}
         </g>
       ))}
-      {title ? (
+      {title && !labelsOnly ? (
         <text
           className="chart-y-axis__title"
           x={plot.left}

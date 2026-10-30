@@ -38,7 +38,23 @@ describe('the level series of a fitness status', () => {
     // The last step is shorter or longer by the days the newest run is from the end of its week.
     for (const step of steps.slice(0, -1)) expect(step).toBe(4 * WEEK)
     expect(JSON.stringify(series).length).toBeLessThan(3000)
-    expect(Object.keys(series[0]!).sort()).toEqual(['atMs', 'high', 'low', 'runs', 'value'])
+    expect(Object.keys(series[0]!).sort()).toEqual([
+      'atMs',
+      'high',
+      'low',
+      'runs',
+      'value',
+      'weeks',
+    ])
+  })
+
+  it('dates a step by the last day it includes, a Sunday, and says how many weeks it is read over', () => {
+    const { series } = fitnessStatuses(slipped().digests, NONE).run
+    for (const p of series.slice(0, -1)) {
+      expect(new Date(p.atMs).getUTCDay()).toBe(0)
+      expect(new Date(p.atMs).getUTCHours()).toBe(23)
+    }
+    for (const p of series) expect([4, 6, 8, 12, 16]).toContain(p.weeks)
   })
 
   it('draws a range round every point, wider where fewer runs stand behind it', () => {

@@ -43,7 +43,10 @@ describe('what each state is called, and the shape that says it', () => {
 
   it('words nothing the copy rules ban: no cause, no ranking, no hedge', () => {
     const labels = Object.values(FITNESS_STATE).map((state) => state.label)
-    const meanings = Object.values(fitnessDefinitions(SLIPPING))
+    const meanings = [
+      ...Object.values(fitnessDefinitions(SLIPPING, 'metric')),
+      ...Object.values(fitnessDefinitions(SLIPPING, 'imperial')),
+    ]
     for (const text of [...labels, ...meanings]) expect(text).not.toMatch(BANNED)
   })
 })
@@ -59,8 +62,8 @@ describe('viewOf', () => {
   })
 
   it('marks a state that began to be shown in the last six weeks with the week it began, and no other', () => {
-    expect(viewOf(SLIPPING, 'metric').fresh).toBe('week of 12 Oct')
-    expect(viewOf(RECOVERING, 'metric').fresh).toBe('week of 28 Sep')
+    expect(viewOf(SLIPPING, 'metric').fresh).toBe('the week of 12 Oct')
+    expect(viewOf(RECOVERING, 'metric').fresh).toBe('the week of 28 Sep')
     const old = fitnessStatus('slipping', () => 0, {
       entered: { atMs: FITNESS_AS_OF_MS - 7 * 7 * DAY_MS, z: -4 },
     })

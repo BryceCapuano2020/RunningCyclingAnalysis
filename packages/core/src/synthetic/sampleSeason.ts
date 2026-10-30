@@ -62,7 +62,15 @@ const START_SHARE = { cpRun: 0.965, cpRide: 0.9, grossEfficiency: 0.91, runEcono
  * drawn from the threshold as before, so the bests and the grades do not move by it. (The heart-rate
  * cross-check reads every run's pace against its heart rate, so the lean between the sports moves a little.)
  */
-const EASY_SLIP = { startWeeks: 8, fallWeeks: 1, depth: 0.11 }
+const EASY_SLIP = { startWeeks: 9, fallWeeks: 4, depth: 0.11 }
+/**
+ * A real athlete's easy pace is not a straight line: its cost wobbles by up to `amplitude` from one week to the
+ * next, the same for every easy run of a week, from a seeded draw for the week, so the season is the same on every
+ * load and the status reads a slip through some noise.
+ */
+const EASY_WOBBLE = { amplitude: 0.012, seed: 17 }
+/** The sports whose easy running carries the slip and the wobble, a table so no sport is named in the plan. */
+const EASY_COST_MOVES: Record<Sport, boolean> = { run: true, ride: false }
 
 /** The share of the season's climb made by the start of the last twelve weeks: the build is steeper after it. */
 const CLIMB_BEFORE_BUILD = 0.5
@@ -196,11 +204,22 @@ function athleteOn(daysAgo: number, runForm: number, rideForm: number): Syntheti
   }
 }
 
-/** How much dearer an easy run is on a day: 0 before the slip, `depth` once it has fallen. */
+/** How much dearer an easy run is on a day: 0 before the slip, `depth` once it has fallen, in a straight line between. */
 export function easySlipOn(daysAgo: number): number {
   const { startWeeks, fallWeeks, depth } = EASY_SLIP
   const weeksIn = startWeeks - daysAgo / 7
   return depth * Math.min(1, Math.max(0, weeksIn / fallWeeks))
+}
+
+/** The week's wobble in an easy run's cost, from -`amplitude` to `amplitude`, the same on every day of the week. */
+export function easyWobbleOn(daysAgo: number): number {
+  const week = Math.floor(daysAgo / 7)
+  return (2 * mulberry32(EASY_WOBBLE.seed * 1000 + week)() - 1) * EASY_WOBBLE.amplitude
+}
+
+/** An easy run's cost on a day, against the season's line: the slip and the week's wobble together. */
+export function easyCostOn(daysAgo: number): number {
+  return (1 + easySlipOn(daysAgo)) * (1 + easyWobbleOn(daysAgo))
 }
 
 function offsetOf(clock: SampleClock): (ms: number) => number {
@@ -261,8 +280,8 @@ export function samplePlan(clock: SampleClock = SAMPLE_CLOCK, seed = 1): SampleE
         hrGlitch: planned.hrGlitch,
       },
       athlete:
-        planned.sport === 'run' && planned.effort === 'easy'
-          ? { ...form, runEconomyScale: form.runEconomyScale * (1 + easySlipOn(daysBefore)) }
+        EASY_COST_MOVES[planned.sport] && planned.effort === 'easy'
+          ? { ...form, runEconomyScale: form.runEconomyScale * easyCostOn(daysBefore) }
           : form,
       seed: Math.floor(seedDraw * 0x100000000),
     })

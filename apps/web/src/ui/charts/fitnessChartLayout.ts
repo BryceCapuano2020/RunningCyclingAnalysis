@@ -1,4 +1,5 @@
 import type { FitnessStatus } from '@rca/core/fitness'
+import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
 import { linearScale } from './scale'
@@ -6,8 +7,8 @@ import { plottedValue, sportYAxis } from './sportAxis'
 import { fitTicks } from './ticks'
 import { trendDateTicks } from './trendTicks'
 
-/** The axis spans at least this many seconds of pace, or this share of power, so a small change reads as small. */
-const MIN_PACE_SPAN_S = 30
+/** The least a sport's axis spans, in its plotted unit (seconds of pace; watts do not need one), so a small change reads as small. */
+const MIN_TIGHT_SPAN: Record<Sport, number> = { run: 30, ride: 0 }
 
 export interface FitnessLayout {
   /** Where each point sits across, in the order the arrow keys step through them. */
@@ -44,7 +45,7 @@ export function fitnessLayout(
   const x = linearScale([first.atMs, last.atMs], [plot.left, plot.right])
   const at = (output: number) => plottedValue(sport, output, units)
   const values = [at(before), ...series.flatMap((p) => [at(p.low), at(p.high)])]
-  const { y, ticks } = sportYAxis(sport, values, plot, true, sport === 'run' ? MIN_PACE_SPAN_S : 0)
+  const { y, ticks } = sportYAxis(sport, values, plot, true, MIN_TIGHT_SPAN[sport])
   const edge = (pick: (a: number, b: number) => number) =>
     series.map((p) => ({ x: x(p.atMs), y: pick(y(at(p.low)), y(at(p.high))) }))
   const onsetX = status.onsetMs === null ? null : x(status.onsetMs)

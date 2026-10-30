@@ -61,7 +61,7 @@ describe('LandingExample', () => {
     const { container } = render(<LandingExample />)
     expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
     expect(
-      screen.getByText(/^At 130 bpm you now run 6\.6% \(3 to 10%\) slower than before\.$/),
+      screen.getByText(/^At 130 bpm you now run 7\.1% \(3 to 11%\) slower than before\.$/),
     ).toBeInTheDocument()
     expect(container.querySelector('.fitness-track__band')).not.toBeNull()
     const order = [

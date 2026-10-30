@@ -31,9 +31,10 @@ export function FitnessSection({ fitness, units, library, sport }: FitnessSectio
   if (views.length === 0) return null
   return (
     <section className="fitness-section" aria-labelledby={id} data-testid="fitness-section">
-      <h2 id={id} className="eyebrow">
+      {/* Not a heading either: on Balance the page's h1 follows, and the region is named by this line. */}
+      <p id={id} className="eyebrow">
         Your fitness
-      </h2>
+      </p>
       <div className="fitness-section__cards">
         {views.map((view) => (
           <FitnessCard

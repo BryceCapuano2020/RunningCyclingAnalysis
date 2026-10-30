@@ -4,8 +4,8 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 const DAY_MS = 86_400_000
 const STEP_MS = 28 * DAY_MS
 
-/** The status's date: a Sunday in the autumn of 2026. Synthetic like every figure here. */
-export const FITNESS_AS_OF_MS = Date.UTC(2026, 9, 25)
+/** The status's date: the end of a Sunday in the autumn of 2026, which a step is dated by. Synthetic like every figure here. */
+export const FITNESS_AS_OF_MS = Date.UTC(2026, 9, 25, 23, 59, 59, 999)
 /** The level before the change, m/s: 5:03 /km. */
 export const FITNESS_BEFORE = 3.3
 
@@ -39,6 +39,7 @@ export function fitnessSeries(shape: (i: number, n: number) => number, n = 14): 
       low: value * 0.96,
       high: value * 1.04,
       runs: 7,
+      weeks: 8,
     }
   })
 }

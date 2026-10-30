@@ -22,16 +22,16 @@ export const LANDING_EXAMPLE: {
   gap: { centre: 8, low: 2, high: 13, lean: 'run' },
   fitness: {
     referenceHr: 130,
-    change: { value: -0.0618, low: -0.0947, high: -0.0276 },
-    shown: { size: '6.6%', range: '3 to 10%' },
+    change: { value: -0.0667, low: -0.0994, high: -0.0328 },
+    shown: { size: '7.1%', range: '3 to 11%' },
   },
   grades: {
     run: { centre: { grade: 0.6742100769874514, level: 'Local' }, range: null },
     ride: {
-      centre: { grade: 0.5948039444687337, level: 'Recreational' },
+      centre: { grade: 0.5920414288661671, level: 'Recreational' },
       range: {
-        low: { grade: 0.5433457556567782, level: 'Recreational' },
-        high: { grade: 0.6539037158747107, level: 'Local' },
+        low: { grade: 0.5413812413974327, level: 'Recreational' },
+        high: { grade: 0.6513208761947022, level: 'Local' },
       },
     },
   },

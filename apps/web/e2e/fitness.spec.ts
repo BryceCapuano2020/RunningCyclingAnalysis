@@ -22,7 +22,7 @@ test('the sample leads Balance with a fitness status that is new, with its range
   const errors = trackErrors(page)
   await openSample(page)
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
-  await expect(card(page).getByRole('heading', { level: 3 })).toHaveText('Slipping')
+  await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
   // The words: the heart rate it is read at, the size with its 90% range, and the evidence behind it.
   expect(await spoken(card(page).locator('.fitness-card__headline'))).toMatch(
     /^At \d+ bpm you now run \d+:\d{2}\s\/(km|mi), [\d.]+% \(\d+ to \d+%\) slower than the \d+:\d{2}\s\/(km|mi) before \d{1,2} [A-Z][a-z]{2}\.$/,
@@ -30,7 +30,9 @@ test('the sample leads Balance with a fitness status that is new, with its range
   expect(await spoken(card(page).locator('.fitness-card__support'))).toMatch(
     /steady runs, .* against \d+ in the/,
   )
-  await expect(page.getByTestId('fitness-new')).toHaveText(/^Newweek of \d{1,2} [A-Z][a-z]{2}$/)
+  await expect(page.getByTestId('fitness-new')).toHaveText(
+    /^Newsince the week of \d{1,2} [A-Z][a-z]{2}$/,
+  )
   // The state is a shape as well as a word, and the change is a track: both drawn, both hidden from a screen reader.
   await expect(card(page).locator('.fitness-glyph')).toHaveAttribute('aria-hidden', 'true')
   await expect(card(page).locator('.fitness-track__band')).toBeVisible()
@@ -90,7 +92,9 @@ test('a keyboard reaches the disclosure, opens it with Enter and reads the chart
   const plot = chart.locator('.plot-surface')
   await plot.focus()
   await page.keyboard.press('ArrowRight')
-  await expect(chart.locator('.chart-tooltip__title')).toContainText(/^Four weeks to /)
+  await expect(chart.locator('.chart-tooltip__title')).toContainText(
+    /^The \d+ weeks to \d{1,2} [A-Z][a-z]{2}$/,
+  )
   await expect(chart.locator('.chart-tooltip')).toContainText(/90% range .* to .*; \d+ steady runs/)
 })
 
@@ -98,13 +102,18 @@ test('the terms that carry the answer are defined in place: the heart rate, the 
   page,
 }) => {
   await openSample(page)
-  // Each is pressed with the keyboard: a term that wraps over two lines has no one point to click, and on a phone
-  // its note is a sheet at the window's foot that covers the terms below it until it is closed.
+  // Each is opened and closed in turn with the keyboard: on a phone a note is a sheet at the window's foot, which
+  // covers the terms below it until it is closed.
+  // The support line (where "steady runs" first stands) is left out on a short phone, so the third term is the one
+  // in how the figure is measured, which every phone has.
+  await page.getByText('See the evidence').click()
   const terms: [Locator, RegExp][] = [
     [card(page).getByRole('button', { name: /^At \d+ bpm$/ }), /one heart rate, \d+ bpm/],
     [card(page).getByRole('button', { name: /^\(\d+ to \d+%\)$/ }), /nine times out of ten/],
     [
-      card(page).getByRole('button', { name: 'steady runs' }),
+      card(page)
+        .locator('.fitness-evidence')
+        .getByRole('button', { name: 'steady run', exact: true }),
       /Intervals, hilly runs and treadmill runs do not count/,
     ],
   ]
@@ -118,13 +127,77 @@ test('the terms that carry the answer are defined in place: the heart rate, the 
   }
 })
 
+/** The terms of a paragraph with the box each takes on the page, in the order they are read. */
+const termBoxes = (scope: Locator) =>
+  scope.evaluate((root) =>
+    [...root.querySelectorAll('.definition__term')].map((term, index) => {
+      const box = term.getBoundingClientRect()
+      return {
+        index,
+        text: term.textContent ?? '',
+        left: box.left,
+        right: box.right,
+        top: box.top + window.scrollY,
+        bottom: box.bottom + window.scrollY,
+        height: box.height,
+      }
+    }),
+  )
+
+// A press on a term opens that term. A term's press target reaches past its line, and on consecutive lines of a
+// sentence the reach of one covered the term under it, so a tap on the lower part of "At 130 bpm" opened the range
+// that sits beneath it. A real touch at the lower third of each term that has another term right under it, with the
+// reach of the two overlapping in x, must open that one.
+test('a tap on the lower third of a term opens it and not the term on the line below', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    !['mobile', 'mobile-webkit'].includes(testInfo.project.name),
+    'A touch is made on the phone projects',
+  )
+  await openSample(page)
+  await page.getByText('See the evidence').click()
+  await expect(page.locator('.fitness-evidence .definition__term').first()).toBeVisible()
+  let pairs = 0
+  for (const scope of ['.fitness-card__headline', '.fitness-card__support', '.fitness-evidence']) {
+    const region = page.locator(scope)
+    const boxes = await termBoxes(region)
+    for (const upper of boxes) {
+      // The term that starts on the next line, whose own box begins where this one's line ends.
+      const lower = boxes.find(
+        (other) =>
+          other.index !== upper.index &&
+          other.top >= upper.bottom - 2 &&
+          other.top <= upper.bottom + 4 &&
+          other.left < upper.right + 6 &&
+          other.right > upper.left - 6,
+      )
+      if (lower === undefined) continue
+      pairs += 1
+      const terms = region.locator('.definition__term')
+      await terms.nth(upper.index).scrollIntoViewIfNeeded()
+      const now = (await termBoxes(region))[upper.index]!
+      const viewportTop = await page.evaluate(() => window.scrollY)
+      const x = (now.left + now.right) / 2
+      const y = now.top - viewportTop + now.height * 0.85
+      await page.touchscreen.tap(x, y)
+      await expect(terms.nth(upper.index)).toHaveAttribute('aria-expanded', 'true')
+      await expect(terms.nth(lower.index)).toHaveAttribute('aria-expanded', 'false')
+      await page.keyboard.press('Escape')
+      await expect(terms.nth(upper.index)).toHaveAttribute('aria-expanded', 'false')
+    }
+  }
+  // The check is not vacuous: the card's sentence has terms on consecutive lines at a phone's width.
+  expect(pairs).toBeGreaterThan(0)
+})
+
 test('the Run page leads with the same status above the threshold, and the Ride page says nothing about it', async ({
   page,
 }) => {
   await openSample(page)
   await goTo(page, 'Run')
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
-  await expect(card(page).getByRole('heading', { level: 3 })).toHaveText('Slipping')
+  await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
   // Above the threshold, and the sport is not named twice.
   const fitness = await edgesOf(card(page))
   const threshold = await edgesOf(page.getByRole('heading', { level: 2, name: /^Threshold pace/ }))
@@ -148,14 +221,14 @@ test('the landing page’s example leads with the same finding for the sample at
   await expect(example.locator('.fitness-track__band')).toBeVisible()
 })
 
-test('a forced-colours reader still sees the card’s edges and the track, and reduced motion draws nothing that moves', async ({
+test('a forced-colours reader still sees the card’s edge and the track’s outline', async ({
   page,
 }, testInfo) => {
   test.skip(
     testInfo.project.name !== 'desktop',
     'Media emulation is checked on the desktop project',
   )
-  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' })
+  await page.emulateMedia({ forcedColors: 'active' })
   await openSample(page)
   const edge = await card(page).evaluate((el) => getComputedStyle(el, '::before').backgroundColor)
   expect(edge).not.toBe('rgba(0, 0, 0, 0)')
@@ -163,8 +236,9 @@ test('a forced-colours reader still sees the card’s edges and the track, and r
     .locator('.fitness-track__bar')
     .evaluate((el) => getComputedStyle(el).borderTopWidth)
   expect(bar).toBe('1px')
-  const motion = await card(page).evaluate((el) =>
-    [el, ...el.querySelectorAll('*')].map((node) => getComputedStyle(node).animationName),
-  )
-  expect(motion.every((name) => name === 'none')).toBe(true)
+  // The band, which is a tint in colour, takes the system's highlight so the range is still a shape.
+  const band = await card(page)
+    .locator('.fitness-track__band')
+    .evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(band).not.toBe('rgba(0, 0, 0, 0)')
 })

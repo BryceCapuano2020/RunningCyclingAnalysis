@@ -19,7 +19,7 @@ describe('FitnessChart', () => {
     const figure = screen.getByRole('figure', { name: 'Pace at 150 bpm over time' })
     expect(figure).toBeInTheDocument()
     expect(within(figure).getByRole('img').getAttribute('aria-label')).toMatch(
-      /^Flat pace at 150 bpm at four-week steps, each with its 90% range, against the level before the change began in February and the level now\.$/,
+      /^Flat pace at 150 bpm at steps four weeks apart, each read over the 4 to 16 weeks to it and given with its 90% range, against the level before the change began in February and the level now\.$/,
     )
   })
 
@@ -94,6 +94,27 @@ describe('FitnessChart', () => {
         .match(/-?[\d.]+ (-?[\d.]+)/g) ?? []
     ).map((pair) => Number(pair.split(' ')[1]))
     expect(ys.at(-1)!).toBeGreaterThan(ys[0]!)
+  })
+
+  it('dates a step by its last day, a Sunday, and says how many weeks it is read over, in its table and its readings', () => {
+    const { container } = render(<FitnessChart status={SLIPPING} units="metric" />)
+    const { rows } = tableOf(container)
+    const steps = rows.filter((row) => row.length === 4)
+    expect(steps.at(-1)![0]).toBe('8 weeks to 25 Oct')
+    expect(steps.at(-2)![0]).toBe('8 weeks to 27 Sep')
+    expect(container.querySelector('.chart-frame__details caption')?.textContent).toMatch(
+      /4 to 16 weeks to its date/,
+    )
+    expect(new Date(SLIPPING.series.at(-1)!.atMs).getUTCDay()).toBe(0)
+  })
+
+  it('draws the level’s labels a second time over the reference line, so the line does not strike one through', () => {
+    const { container } = render(<FitnessChart status={SLIPPING} units="metric" />)
+    const labels = [...container.querySelectorAll('.chart-y-axis__tick')].map((t) => t.textContent)
+    // Once under the marks with the gridlines, and once over them.
+    expect(labels.length % 2).toBe(0)
+    expect(labels.slice(0, labels.length / 2)).toEqual(labels.slice(labels.length / 2))
+    expect(container.querySelectorAll('.chart-y-axis__title')).toHaveLength(1)
   })
 
   it('says so rather than drawing from fewer than two steps', () => {

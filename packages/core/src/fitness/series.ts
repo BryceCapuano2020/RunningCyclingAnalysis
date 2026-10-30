@@ -11,8 +11,11 @@ const M = FITNESS.monitor
 
 const msOfDay = (day: number) => WEEK_ORIGIN_MS + day * DAY_MS
 
-/** A level as a point: its output and the ends of its 90% range, the half-width as the printed ranges have it. */
-export function pointOf(level: Level, atMs: number): FitnessPoint {
+/**
+ * A level as a point: its output and the ends of its 90% range, the half-width as the printed ranges have it, and
+ * the weeks it was read over.
+ */
+export function pointOf(level: Level, atMs: number, weeks: number): FitnessPoint {
   const half = D.rangeZ * Math.sqrt(level.se ** 2 + M.rangeTau ** 2)
   return {
     atMs,
@@ -20,6 +23,7 @@ export function pointOf(level: Level, atMs: number): FitnessPoint {
     low: Math.exp(level.m - half),
     high: Math.exp(level.m + half),
     runs: level.n,
+    weeks,
   }
 }
 
@@ -44,7 +48,8 @@ export function levelSeries(
     for (const weeks of D.nowWeeks) {
       const rs = slice(runs, end - weeks * 7, end)
       if (rs.length < E.minRuns) continue
-      points.push(pointOf(levelOf(rs, reference, sigma)!, msOfDay(end)))
+      // A step is dated by the last day it includes, a Sunday: `end` is the Monday that follows it and is not in it.
+      points.push(pointOf(levelOf(rs, reference, sigma)!, msOfDay(end) - 1, weeks))
       break
     }
   }

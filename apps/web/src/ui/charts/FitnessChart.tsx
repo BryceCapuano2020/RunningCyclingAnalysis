@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FitnessPoint, FitnessStatus } from '@rca/core/fitness'
 import type { UnitSystem } from '@rca/core/units'
-import { FITNESS_WORDS } from '../fitnessModel'
+import { FITNESS_WORDS } from '../fitnessWords'
 import { formatMonthName } from '../format/date'
 import { ChartAnnotations } from './ChartAnnotations'
 import { lineObstacles } from './annotations'
@@ -34,6 +34,8 @@ const EDGE_PX = 24
 const LINE_CLEARANCE_PX = 16
 /** How far the onset's label sits from its rule, px. */
 const ONSET_LABEL_GAP = 6
+/** How far above the plot's floor the onset's label sits, px: clear of the date ticks below the plot, and of the level, which is higher. */
+const ONSET_LABEL_LIFT = 8
 /** The room a label needs left of its rule, px. */
 const ONSET_LABEL_ROOM_PX = 90
 
@@ -80,7 +82,7 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
     return {
       x,
       y,
-      title: `Four weeks to ${shortDate(p.atMs)}`,
+      title: `The ${p.weeks} weeks to ${shortDate(p.atMs)}`,
       rows: [
         {
           kind: sport,
@@ -95,7 +97,7 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={`${word} at ${hr} bpm over time`}
-      description={`${nativeLabel(sport)} at ${hr} bpm at four-week steps, each with its 90% range, against the level before the change${status.onsetMs === null ? '' : ` began in ${onsetMonth(status, status.onsetMs)}`} and the level now.`}
+      description={`${nativeLabel(sport)} at ${hr} bpm at steps four weeks apart, each read over the 4 to 16 weeks to it and given with its 90% range, against the level before the change${status.onsetMs === null ? '' : ` began in ${onsetMonth(status, status.onsetMs)}`} and the level now.`}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : EDGE_PX)}
       summary={{
         columns: ['Level', 'Value'],
@@ -116,12 +118,12 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
           FITNESS_WORDS[sport].steadyPlural,
         ],
         rows: series.map((p) => [
-          shortDate(p.atMs),
+          `${p.weeks} weeks to ${shortDate(p.atMs)}`,
           formatNative(sport, p.value, units),
           rangeText(p, status, units),
           String(p.runs),
         ]),
-        caption: `${word} at ${hr} bpm at four-week steps. A step is read from the ${FITNESS_WORDS[sport].steadyPlural} of the weeks before it.`,
+        caption: `${word} at ${hr} bpm at steps four weeks apart. A step is read from the ${FITNESS_WORDS[sport].steadyPlural} of the 4 to 16 weeks to its date, the fewest that hold enough of them.`,
         phoneHidden: [3],
       }}
       empty={series.length < 2 || before === null ? 'Not enough steps to draw' : undefined}
@@ -145,7 +147,7 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
         const { plot } = size
         const { marker: markerR } = markerRadii(size.width)
         const activeX = active === null ? undefined : m.xs[active]
-        // The label sits left of its rule, where the plot is empty above the earlier level, unless there is no room there.
+        // The label sits at the foot of the plot, left of its rule, where the earlier level (higher up) leaves it clear, unless there is no room there.
         const onsetRight = m.onsetX !== null && m.onsetX - plot.left < ONSET_LABEL_ROOM_PX
         return (
           <g data-sport={sport}>
@@ -168,7 +170,7 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
                 <text
                   className="annot__text annot__text--label"
                   x={m.onsetX + (onsetRight ? ONSET_LABEL_GAP : -ONSET_LABEL_GAP)}
-                  y={plot.top + 12}
+                  y={plot.bottom - ONSET_LABEL_LIFT}
                   textAnchor={onsetRight ? 'start' : 'end'}
                 >
                   {`Began ${onsetMonth(status, status.onsetMs!)}`}
@@ -225,6 +227,14 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
                   sub: 'now',
                 },
               ]}
+            />
+            {/* The level's labels again, over the reference line, so a line across one does not strike it through. */}
+            <ChartYAxis
+              ticks={m.yTicks}
+              plot={plot}
+              title={axisTitle(sport, units)}
+              fontSize={axisFontSize(size.width)}
+              labelsOnly
             />
           </g>
         )

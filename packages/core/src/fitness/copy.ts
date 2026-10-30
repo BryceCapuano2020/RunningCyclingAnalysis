@@ -24,6 +24,17 @@ const MONTHS = [
 ]
 const month = (ms: number) => MONTHS[new Date(ms).getUTCMonth()]!
 
+/**
+ * A date names its year when it is not in the year the status is as of, so a change that began or a low that fell
+ * in an earlier year reads unambiguously ("before 1 Aug 2022"), and a recent one stays short.
+ */
+const year = (ms: number, asOfMs: number) =>
+  new Date(ms).getUTCFullYear() === new Date(asOfMs).getUTCFullYear()
+    ? ''
+    : ` ${new Date(ms).getUTCFullYear()}`
+const dayOf = (ms: number, asOfMs: number) => `${formatDay(ms)}${year(ms, asOfMs)}`
+const monthOf = (ms: number, asOfMs: number) => `${month(ms)}${year(ms, asOfMs)}`
+
 /** How each sport's level and change are said: the verb, the words for less and more, and the level as the athlete's units write it. */
 interface Words {
   verb: string
@@ -97,7 +108,8 @@ function withinText(sport: Sport, within: number): string {
 }
 
 /** The month a change began, or the day the level before it ended. */
-const before = (ms: number | null) => (ms === null ? '' : ` before ${formatDay(ms)}`)
+const before = (ms: number | null, asOfMs: number) =>
+  ms === null ? '' : ` before ${dayOf(ms, asOfMs)}`
 
 /** Whether the whole range is above the old level: the athlete is not only back but faster. */
 const faster = (s: FitnessStatus) => s.change!.low > 0
@@ -147,7 +159,7 @@ export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines
   const hr = `${s.referenceHr} bpm`
   const now = w.level(s.now, system)
   const was = w.level(s.before!, system)
-  const since = before(s.onsetMs)
+  const since = before(s.onsetMs, s.asOfMs)
   const runs = s.evidence!.baseline?.runs
   const weeksBefore = (weeks: number) =>
     runs === undefined ? null : `${runs} in the ${weeks} weeks${since || ' before'}`
@@ -183,8 +195,8 @@ export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines
       const regained = oneSided(s.gain!) ? `regained ${sized(s.sport, s.gain!)}` : 'regained ground'
       return {
         headline: level
-          ? `At ${hr} you have ${regained} since your low in ${month(s.lowMs!)}: ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
-          : `At ${hr} you have ${regained} since your low in ${month(s.lowMs!)}: ${now}, ${s.change.value < 0 ? 'still' : 'now'} ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
+          ? `At ${hr} you have ${regained} since your low in ${monthOf(s.lowMs!, s.asOfMs)}: ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
+          : `At ${hr} you have ${regained} since your low in ${monthOf(s.lowMs!, s.asOfMs)}: ${now}, ${s.change.value < 0 ? 'still' : 'now'} ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
         support: support(s, null),
       }
     }
@@ -205,12 +217,12 @@ export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines
 export function fitnessFindingHeadline(s: FitnessStatus): string {
   const w = WORDS[s.sport]
   const hr = `${s.referenceHr} bpm`
-  const since = before(s.onsetMs)
+  const since = before(s.onsetMs, s.asOfMs)
   switch (s.state) {
     case 'slipping':
       return `At ${hr} you now ${w.verb} ${sized(s.sport, s.change!)} ${side(w, s.change!)}${w.tail}${since ? ` than${since}` : ''}.`
     case 'recovering':
-      return `At ${hr} you have ${oneSided(s.gain!) ? `regained ${sized(s.sport, s.gain!)}` : 'regained ground'} since your low in ${month(s.lowMs!)}.`
+      return `At ${hr} you have ${oneSided(s.gain!) ? `regained ${sized(s.sport, s.gain!)}` : 'regained ground'} since your low in ${monthOf(s.lowMs!, s.asOfMs)}.`
     case 'back':
       return faster(s)
         ? `At ${hr} you are back and ${sized(s.sport, s.change!)} ${w.more}${since ? ` than${since}` : ''}.`

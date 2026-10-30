@@ -46,6 +46,7 @@ function status(
     },
     shortfall: null,
     steady: 100,
+    asOfMs: Date.UTC(2025, 9, 25),
     ...over,
   }
 }
@@ -247,5 +248,27 @@ describe('the headline of a finding', () => {
     for (const state of ['holding', 'holding-below', 'improving'] as const) {
       expect(fitnessFindingHeadline(status('run', state))).toBe('')
     }
+  })
+})
+
+describe('the year of a date', () => {
+  it('is named when the change began or the low fell in an earlier year than the status is as of, in the sentence and the finding', () => {
+    const later = status('run', 'recovering', { asOfMs: Date.UTC(2026, 3, 12) })
+    const { headline } = fitnessLines(later, 'metric')
+    expect(headline).toContain('since your low in July 2025')
+    expect(headline).toContain('before 28 Feb 2025')
+    expect(fitnessFindingHeadline(later)).toContain('since your low in July 2025')
+    const slip = fitnessLines(
+      status('run', 'slipping', { asOfMs: Date.UTC(2026, 3, 12) }),
+      'metric',
+    )
+    expect(slip.headline).toMatch(/before 28 Feb 2025\.$/)
+  })
+
+  it('is left out in the status’s own year, so a recent date stays short', () => {
+    const { headline } = fitnessLines(status('run', 'recovering'), 'metric')
+    expect(headline).toContain('since your low in July:')
+    expect(headline).toMatch(/before 28 Feb\.$/)
+    expect(headline).not.toMatch(/2025/)
   })
 })

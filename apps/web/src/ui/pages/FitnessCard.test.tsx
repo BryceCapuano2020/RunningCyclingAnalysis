@@ -40,11 +40,16 @@ describe('FitnessSection', () => {
   it('is a named region, "Your fitness", with a card for the run and its state as the card’s name', () => {
     renderSection()
     const region = screen.getByRole('region', { name: 'Your fitness' })
-    expect(within(region).getByRole('heading', { level: 3, name: 'Slipping' })).toBeInTheDocument()
     expect(within(region).getByRole('article', { name: 'Slipping' })).toHaveAttribute(
       'data-sport',
       'run',
     )
+  })
+
+  it('adds no heading, so a page’s own title stays first in the outline: the region and the card are named without one', () => {
+    renderSection()
+    expect(screen.queryAllByRole('heading')).toHaveLength(0)
+    expect(screen.getByRole('region', { name: 'Your fitness' })).toBeInTheDocument()
   })
 
   it('draws nothing for a library with no status to show, and nothing for the ride, which is not compared', () => {
@@ -89,7 +94,7 @@ describe('FitnessSection', () => {
 
   it('wears a New marker with the week the state began, only while it is new', () => {
     renderSection()
-    expect(screen.getByTestId('fitness-new').textContent).toBe('Newweek of 12 Oct')
+    expect(screen.getByTestId('fitness-new').textContent).toBe('Newsince the week of 12 Oct')
     cleanup()
     renderSection({ run: HOLDING })
     expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
@@ -109,7 +114,7 @@ describe('FitnessSection', () => {
     const { container } = renderSection({
       run: waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }),
     })
-    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Not enough evidence yet')
+    expect(screen.getByRole('article', { name: 'Not enough evidence yet' })).toBeInTheDocument()
     expect(container.querySelectorAll('.fitness-progress__cell')).toHaveLength(12)
     expect(container.querySelectorAll('.fitness-progress__cell.is-on')).toHaveLength(7)
     expect(container.querySelector('.fitness-progress__count')?.textContent).toBe(
@@ -152,6 +157,24 @@ describe('the evidence panel', () => {
     expect(spoken(panel).match(/about 5% or more/g)).toHaveLength(1)
     expect(spoken(panel)).toMatch(/Of your 12 runs on file, 64 are steady runs\./)
     expect(spoken(panel)).not.toMatch(BANNED)
+  })
+
+  it('counts in the athlete’s unit: miles beside the kilometres it reads, none for a metric athlete', () => {
+    renderSection({ units: 'imperial' })
+    fireEvent.click(screen.getByText('See the evidence'))
+    const details = screen.getByText('See the evidence').closest('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    const panel = document.querySelector('.fitness-evidence')!
+    expect(spoken(panel)).toMatch(/kilometres 2 to 10 \(from 0\.6 to 6\.2 miles into the run\)/)
+    expect(spoken(panel)).toMatch(/changed pace from one kilometre \(0\.6 mi\) to the next/)
+    cleanup()
+    renderSection({ units: 'metric' })
+    const metric = screen.getByText('See the evidence').closest('details')!
+    metric.open = true
+    fireEvent(metric, new Event('toggle'))
+    expect(spoken(document.querySelector('.fitness-evidence')!)).not.toMatch(/miles?\b| mi\b/)
+    expect(spoken(document.querySelector('.fitness-evidence')!)).toMatch(/kilometres 2 to 10/)
   })
 
   it('lists the runs it rests on as links to their activities, newest first, and counts those it compares with', () => {

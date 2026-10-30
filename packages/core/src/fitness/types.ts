@@ -79,7 +79,10 @@ export interface FitnessEntry {
   z: number
 }
 
-/** One point of the level over time: the output at the reference heart rate over the weeks to `atMs`, with its 90% range, in the status's unit. */
+/**
+ * One point of the level over time: the output at the reference heart rate over the `weeks` to `atMs` (the last day
+ * the point includes), with its 90% range, in the status's unit.
+ */
 export interface FitnessPoint {
   atMs: number
   value: number
@@ -87,6 +90,8 @@ export interface FitnessPoint {
   high: number
   /** Steady runs the point is read from. */
   runs: number
+  /** The stretch it is read over, in weeks: the shortest of 4 to 16 that holds enough runs. */
+  weeks: number
 }
 
 export interface FitnessStatus {

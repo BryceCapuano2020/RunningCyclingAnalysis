@@ -3,8 +3,8 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { SportIcon } from '../components/icons'
 import { SPORT_LABEL } from '../sports'
-import { FITNESS_WORDS } from '../fitnessModel'
 import type { FitnessProgress, FitnessView } from '../fitnessModel'
+import { FITNESS_WORDS } from '../fitnessWords'
 import { withDefinitions } from '../fitnessText'
 import { FitnessEvidence } from './FitnessEvidence'
 import { FitnessGlyph } from './FitnessGlyph'
@@ -72,20 +72,21 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
           {view.fresh === null ? null : (
             <p className="fitness-card__new" data-testid="fitness-new">
               <strong>New</strong>
-              <span>{view.fresh}</span>
+              <span className="fitness-card__new-week">{`since ${view.fresh}`}</span>
             </p>
           )}
         </header>
       ) : null}
       <div className="fitness-card__body">
         <div className="fitness-card__text">
-          <h3 id={`${id}-state`} className="fitness-card__state">
+          {/* Not a heading: the page's own title comes first, and the card is named by its state. */}
+          <p id={`${id}-state`} className="fitness-card__state">
             <FitnessGlyph glyph={view.glyph} />
             <span>{view.label}</span>
-          </h3>
-          <p className="fitness-card__headline">{withDefinitions(view.headline, status)}</p>
+          </p>
+          <p className="fitness-card__headline">{withDefinitions(view.headline, status, units)}</p>
           {view.support === '' ? null : (
-            <p className="fitness-card__support">{withDefinitions(view.support, status)}</p>
+            <p className="fitness-card__support">{withDefinitions(view.support, status, units)}</p>
           )}
         </div>
         <div className="fitness-card__shape">

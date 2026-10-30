@@ -96,10 +96,25 @@ shown back, including one after a shallow dip, can be spoken.
 ## For the page
 
 `FitnessStatus.series` is the level at four-week steps for the evidence chart (`fitness/series.ts`): back from the end of the last
-week, each step is the shortest of the 4 to 16 week stretches that holds 6 steady runs, as `{ atMs, value, low, high, runs }` with
+week, each step is the shortest of the 4 to 16 week stretches that holds 6 steady runs, as `{ atMs, value, low, high, runs, weeks }` with
 the printed 90% range, at most 20 points over the last 76 weeks, and a step with too few runs left out. The last point is the
 status's own level, so the chart and the sentence give one figure. The line it is read against is `before` and the month the change
 began is `onsetMs`. The runs behind the level now are `evidence.recent.ids`.
 
-The sample athlete carries one planted effect, a slip in easy running over its last 8 weeks (`EASY_SLIP` in
-`synthetic/sampleSeason.ts`); the detector finds it, nothing in the season says what the status is.
+The sample athlete carries one planted effect, a slip in easy running (`EASY_SLIP` in `synthetic/sampleSeason.ts`): the
+cost of easy running rises by 11% in a straight line over 4 weeks, starting 9 weeks before the season's end, with a seeded
+wobble of up to 1.2% from week to week on every easy run so the line is not noise-free. The detector finds it; nothing in
+the season says what the status is, and a test checks that the planted change lies within the reported range.
+
+A step of the series is dated by the last day it includes (a Sunday) and says how many weeks it is read over (4 to 16), so the
+page can say "the 8 weeks to 25 Oct" and not "four weeks".
+
+## Open modelling item: a run-economy slip moves the ride's credit
+
+A slip in how much it costs to run at a heart rate is read by the heart-rate cross-check (`hr/crossCheck.ts`), which compares
+the heart-rate slope of riding with that of running (`kappa`). The slope of running falls when easy runs sit at a lower pace for
+the same heart rate, so `kappa` rises, and with it the metabolic credit a ride is given on Balance's grades. On the sample, the
+planted slip moves the ride's grade from 56% to 59% and the lean from 11 to 8 points; a deeper or longer dip moves it more (a
+dip and recovery of 16% took the lean to even). The status and the cross-check are both right about what they read; they read it
+differently, and the two are not reconciled. The model is not changed here. It is open: whether the cross-check should read runs
+that the fitness status has found to be out of line with the library's earlier level.

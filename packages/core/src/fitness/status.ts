@@ -91,7 +91,7 @@ function shortLevel(
 }
 
 /** Where the level now is drawn: the end of the week it is read at, but never after the newest activity. */
-const nowMs = (base: FitnessStatus, day: number) => Math.min(msOfDay(day), base.asOfMs)
+const nowMs = (base: FitnessStatus, day: number) => Math.min(msOfDay(day) - 1, base.asOfMs)
 
 /** The numbers of an episode state, from the latest week the monitor was in that state (or the latest with an episode). */
 function episodic(
@@ -138,7 +138,7 @@ function episodic(
       recent: spanOf(recent),
       baseline: baseline === null ? null : withoutIds(spanOf(baseline)),
     },
-    series: levelSeries(runs, day, ep.reference, pointOf(level, nowMs(base, day))),
+    series: levelSeries(runs, day, ep.reference, pointOf(level, nowMs(base, day), level.weeks)),
     shortfall: null,
   }
 }
@@ -199,7 +199,7 @@ function calm(
       recent: spanOf(recent),
       baseline: withoutIds(spanOf(before)),
     },
-    series: levelSeries(runs, day, b.m, pointOf(a, nowMs(base, day))),
+    series: levelSeries(runs, day, b.m, pointOf(a, nowMs(base, day), D.recentWeeks)),
     shortfall: null,
   }
 }

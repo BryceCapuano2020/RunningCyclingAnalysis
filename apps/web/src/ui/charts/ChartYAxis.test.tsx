@@ -45,4 +45,23 @@ describe('ChartYAxis', () => {
     expect(lines[0]?.getAttribute('x1')).toBe('56')
     expect(lines[0]?.getAttribute('x2')).toBe('300')
   })
+
+  it('draws the labels alone on a second pass: no gridlines or title, and still none that would run into the title', () => {
+    const { container } = render(
+      <svg>
+        <ChartYAxis
+          ticks={[{ position: 30, label: '11:00' }, ...TICKS]}
+          plot={{ left: 40, right: 300, top: 28, bottom: 200 }}
+          title="Flat pace"
+          labelsOnly
+        />
+      </svg>,
+    )
+    expect(container.querySelectorAll('.chart-y-axis__grid')).toHaveLength(0)
+    expect(container.querySelector('.chart-y-axis__title')).toBeNull()
+    // The label near the top would run up into the title, so it is left off as in the full axis.
+    expect(
+      [...container.querySelectorAll('.chart-y-axis__tick')].map((t) => t.textContent),
+    ).toEqual(['1,000', '500'])
+  })
 })

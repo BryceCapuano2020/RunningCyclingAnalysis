@@ -3,6 +3,7 @@ import { FITNESS, fitnessLines } from '@rca/core/fitness'
 import type { FitnessBySport, FitnessState, FitnessStatus, Ranged } from '@rca/core/fitness'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { FITNESS_WORDS } from './fitnessWords'
 import { SPORT_FORMAT, SPORT_ORDER } from './sports'
 
 /** The shapes that say a state without colour: each is drawn by FitnessGlyph. */
@@ -24,27 +25,6 @@ export const FITNESS_STATE: Record<FitnessState, { label: string; glyph: Fitness
 const SIDES: Record<Sport, { less: string; more: string }> = {
   run: { less: 'Slower', more: 'Faster' },
   ride: { less: 'Less', more: 'More' },
-}
-
-/** The sport's word for its output at the same heart rate, and for one run of evidence. */
-export const FITNESS_WORDS: Record<
-  Sport,
-  { output: string; steady: string; steadyPlural: string; activity: string; activities: string }
-> = {
-  run: {
-    output: 'Pace',
-    steady: 'steady run',
-    steadyPlural: 'steady runs',
-    activity: 'run',
-    activities: 'runs',
-  },
-  ride: {
-    output: 'Power',
-    steady: 'steady ride',
-    steadyPlural: 'steady rides',
-    activity: 'ride',
-    activities: 'rides',
-  },
 }
 
 /** Where the change sits against the level before it, as a share of a track that is `span` wide either way of "before". */
@@ -83,7 +63,7 @@ export interface FitnessView {
   glyph: FitnessGlyphKey
   headline: string
   support: string
-  /** A change that began to be shown within the last weeks: "week of 12 Oct". Null otherwise. */
+  /** A change that began to be shown within the last weeks: "the week of 12 Oct". Null otherwise. */
   fresh: string | null
   track: FitnessTrackModel | null
   progress: FitnessProgress | null
@@ -97,7 +77,7 @@ const FRESH_STATES = new Set<FitnessState>(['slipping', 'recovering', 'back'])
 /** The Monday of the week a state was first shown (it is entered at the week's end), written in UTC as the weeks are. */
 function weekOf(entryMs: number): string {
   const monday = new Date(entryMs - 6 * DAY_MS)
-  return `week of ${monday.getUTCDate()} ${MONTHS[monday.getUTCMonth()]}`
+  return `the week of ${monday.getUTCDate()} ${MONTHS[monday.getUTCMonth()]}`
 }
 
 /** A figure keeps its unit on its line: a pace and its "/km" are one word to the eye. */
@@ -113,7 +93,9 @@ export function worthShowing(status: FitnessStatus): boolean {
 }
 
 /**
- * The track of a change, with the low a recovery fell to when it has one. `before` and `now` are the levels as
+ * The track of a change, with the low a recovery fell to when it has one. It is a shape: its positions are the
+ * change in output (speed for a run), where the sentence's percentages are in pace, as the athlete reads them, so the
+ * two differ by a point or so at 7% (a pace 7.1% slower is a speed 6.7% lower) and neither is wrong. `before` and `now` are the levels as
  * the athlete reads them, or empty where a figure has no units to be read in.
  */
 export function trackModel(

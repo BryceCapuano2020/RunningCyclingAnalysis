@@ -93,6 +93,51 @@
   }
 }
 
+/*
+ * A short phone (the same test as the page's own tighter gaps) has a header, a notice and a tab bar to share its
+ * height with, so the card gives up what its evidence panel repeats: the support line and the sport's tag go, the New
+ * marker rides the corner without its week (read aloud still), the sentence is a size smaller, and the balance under
+ * the card sits closer. What stays is the state, the sentence with its range and the track.
+ */
+@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
+  .fitness-section {
+    margin-bottom: calc(var(--space-3) - var(--space-7));
+  }
+
+  .fitness-card {
+    gap: var(--space-3);
+    padding-block: var(--space-4) var(--space-2);
+  }
+
+  .fitness-card__sport,
+  .fitness-card__support {
+    display: none;
+  }
+
+  .fitness-card__top {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-4);
+  }
+
+  .fitness-card__new-week {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .fitness-card__state {
+    padding-right: 3.5rem;
+  }
+
+  .fitness-card__headline {
+    font-size: var(--text-md);
+  }
+}
+
 /* A landscape phone has little height: the track sits beside the words, as on a wide screen, and the card is tighter. */
 @media (max-height: 520px) and (min-width: 560px) {
   .fitness-card {
@@ -308,6 +353,8 @@
 }
 
 .fitness-runs__row a {
+  /* One underline for a row, under the name: a flex link's two cells would each carry the line. */
+  text-decoration: none;
   display: flex;
   flex: 1;
   gap: var(--space-3);
@@ -322,6 +369,9 @@
 }
 
 .fitness-runs__name {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -337,4 +387,8 @@
     min-height: 44px;
     align-items: center;
   }
+}
+
+.fitness-runs__row a:hover .fitness-runs__name {
+  text-decoration-thickness: 2px;
 }

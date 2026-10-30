@@ -14,7 +14,7 @@ import { profileActivities, profileCurve } from '../profileFixtures'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { closedRow, openSection } from '../test/openSection'
 import { NO_FITNESS } from '@rca/core/fitness/types'
-import { SLIPPING } from '../fitnessFixtures'
+import { SLIPPING, waitingStatus } from '../fitnessFixtures'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)
@@ -342,6 +342,7 @@ describe('a sport page’s fitness', () => {
     sport: Sport,
     result: AnalysisResult,
     fitness = { run: SLIPPING, ride: NO_FITNESS.ride },
+    sameHeartRate: SameHeartRate = NO_SAME_HEART_RATE[sport],
   ) =>
     render(
       <SportPage
@@ -350,7 +351,7 @@ describe('a sport page’s fitness', () => {
         previous={null}
         previousLabel={null}
         trends={NO_TRENDS}
-        sameHeartRate={NO_SAME_HEART_RATE[sport]}
+        sameHeartRate={sameHeartRate}
         lateEvidence={NO_LATE_EVIDENCE[sport]}
         fitness={fitness}
         windowDays={28}
@@ -380,5 +381,32 @@ describe('a sport page’s fitness', () => {
   it('says nothing about fitness on the ride page while rides are not compared', () => {
     withFitness('ride', makeResult({ activities: profileActivities('ride') }))
     expect(screen.queryByRole('region', { name: 'Your fitness' })).not.toBeInTheDocument()
+  })
+
+  it('defers the weekly same-heart-rate section to the status: retitled, and no change of its own that could disagree', () => {
+    // The weekly data rise 13% while the status says slipping: the section must not say so beside the card.
+    withFitness('run', fullRun(), { run: SLIPPING, ride: NO_FITNESS.ride }, RUN_SAME_HEART_RATE)
+    expect(screen.queryByRole('region', { name: 'At the same heart rate' })).not.toBeInTheDocument()
+    const row = closedRow('Same heart rate, week by week')
+    expect(row).toContain('Your pace each week at 145 bpm.')
+    expect(row).toContain('Your fitness status above')
+    expect(row).not.toMatch(/faster|slower|quicker|no clear change|since/i)
+    const region = openSection('Same heart rate, week by week')
+    // The chart is still there, named by what it plots, without a headline of its own.
+    expect(within(region).getByRole('figure')).toBeInTheDocument()
+    expect(region.querySelector('.chart-frame__takeaway')).toBeNull()
+  })
+
+  it('keeps the section’s own finding where the status has no state to give', () => {
+    withFitness(
+      'run',
+      fullRun(),
+      { run: waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }), ride: NO_FITNESS.ride },
+      RUN_SAME_HEART_RATE,
+    )
+    expect(closedRow('At the same heart rate')).toMatch(/quicker|faster/i)
+    expect(
+      screen.queryByRole('region', { name: 'Same heart rate, week by week' }),
+    ).not.toBeInTheDocument()
   })
 })

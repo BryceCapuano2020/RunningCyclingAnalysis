@@ -21,3 +21,15 @@ export function sameHeartRateLack(
     ? lackLine(SAME_HEART_RATE_NAME, copy.text)
     : null
 }
+
+/** The section's name once the fitness status above it speaks: it is the weekly view, not the verdict. */
+export const SAME_HEART_RATE_WEEKLY_NAME = 'Same heart rate, week by week'
+
+/** What the closed row says then: what is drawn, and where the verdict is. It names no change, so the two never disagree. */
+export function weeklyFinding(sport: Sport, referenceHr: number | null): string {
+  const output = SPORT_WEEKLY_OUTPUT[sport]
+  return `Your ${output} each week${referenceHr === null ? '' : ` at ${referenceHr} bpm`}. Your fitness status above is read from steady runs over longer stretches.`
+}
+
+/** What each sport's weekly reading is of. */
+const SPORT_WEEKLY_OUTPUT: Record<Sport, string> = { run: 'pace', ride: 'power' }
