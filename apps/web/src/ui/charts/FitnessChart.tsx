@@ -112,12 +112,7 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
         textColumns: [0, 1],
       }}
       table={{
-        columns: [
-          'Four weeks to',
-          nativeLabel(sport),
-          '90% range',
-          FITNESS_WORDS[sport].steadyPlural,
-        ],
+        columns: ['Weeks to', nativeLabel(sport), '90% range', FITNESS_WORDS[sport].steadyPlural],
         rows: series.map((p) => [
           `${p.weeks} weeks to ${shortDate(p.atMs)}`,
           formatNative(sport, p.value, units),

@@ -16,7 +16,7 @@ export function fitnessDefinitions(status: FitnessStatus, units: UnitSystem) {
   const hr = status.referenceHr
   const words = FITNESS_WORDS[status.sport]
   return {
-    sameHeartRate: `Your ${words.output.toLowerCase()} is read at one heart rate, ${hr} bpm, so a hard day does not look like fitness. It is the heart rate your steady kilometres most often sit at, to the nearest ${U.referenceStepBpm} bpm.`,
+    sameHeartRate: `Your ${words.output.toLowerCase()} is read at one heart rate, ${hr} bpm, so a hard day does not look like fitness. It is the heart rate your ${words.steadyPlural} most often sit at, to the nearest ${U.referenceStepBpm} bpm.`,
     steadyRun: words.steadyMeaning(hr, units),
     range: DEFINITIONS.range90,
   }
