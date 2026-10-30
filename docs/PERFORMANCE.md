@@ -97,10 +97,12 @@ times the local figure.
 The pace and power zones follow the athlete's fitness: an estimated threshold is the fit over the half year before each
 week (`thresholdTimeline`), worked out once with the library's heart-rate judgement and cached with it, so changing the
 period costs nothing. A first version merged every digest of the half year for each of the weeks an activity enters or
-leaves it, 36 ms for 2,000 activities (ten a week, four years); the window's best now moves with the weeks, each digest
-priced once and pushed and popped once, and it takes 2.7 ms. A library load rose from 94 to 102 ms (all time), 28 to 36 ms
-(default 12 weeks), and a change of body mass from 31 to 40 ms, the rest being the per-week zones in the time in zones.
-Measured on 29 October 2026, the fastest of seven runs on a shared machine.
+leaves it, 36 ms for 2,000 activities (ten a week, four years), and a body-mass change cost 43 ms against 34 ms before; the window's best now
+moves with the weeks, each digest priced once and pushed and popped once, and it takes 2.7 ms. What a mass change does not
+change is kept: the reference heart rates (they read only the digests, and each step of the set-aside iteration is kept) and
+the run's steps (a run's efforts are priced from its pace alone). A date is read as a number, not formatted. A library load is now 95 ms (all time, 90 before), 30 ms (default 12 weeks, 28 before), and a
+change of body mass 33 ms (32 before), the rest being the zones by week in the time in zones.
+Measured on 29 October 2026, the fastest of several runs on a shared machine, alternating with main.
 
 These values are a local reference point, not CI thresholds. This is a Node CPU benchmark of
 generated activities and digest combination; it does not measure browser startup/rendering, FIT

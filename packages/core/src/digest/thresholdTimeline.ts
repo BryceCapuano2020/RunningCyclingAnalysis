@@ -8,6 +8,7 @@ import {
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { ENVELOPE_TIE_TOLERANCE } from '../curves/monotoneEnvelope'
 import type { ActivityDigest, BikeModel, CriticalPowerFit, Curve, Sport } from '../types'
+import { memoByDigests } from '../digestMemo'
 import { effortsCount } from './effortTrust'
 import { estimatedStanding } from './estimatedRide'
 import type { EstimatedRideGate } from './estimatedRide'
@@ -196,6 +197,32 @@ function stepsOf(
   return steps
 }
 
+/** What a window's curve gives as a threshold fit, as the analysis reports a fit. */
+const fitterOf = (minWPrime: number) => (values: Float64Array) =>
+  criticalPowerOutcome(fitCurve(values), { minWPrime }).fit
+
+/** A run's efforts are priced from its pace alone, and its work-capacity floor does not read mass. */
+const priceRun = (digest: ActivityDigest, i: number) => ({
+  wkg: runCentralWkg(digest.curve[i]!),
+  alone: false,
+})
+const RUN_FIT = fitterOf(wPrimeFloor('run', 1))
+
+/**
+ * A run's steps, kept for the last runs asked for: they read nothing but the runs, so a change of body mass, bike model
+ * or estimated-ride gate takes the steps already worked out for the same runs.
+ */
+const runSteps = memoByDigests(
+  (runs: ActivityDigest[]) =>
+    stepsOf(
+      runs.map((run) => entryOf(run, priceRun)),
+      RUN_FIT,
+    ),
+  () => true,
+  undefined,
+  2,
+)
+
 /**
  * Each sport's threshold over time: for every week, the fit over the efforts of the trailing
  * `THRESHOLD_WINDOW_WEEKS` weeks that end with it (see `ThresholdStep`). The points are priced as the library's
@@ -211,25 +238,18 @@ export function thresholdTimeline(
   gate: EstimatedRideGate | null,
 ): ThresholdTimeline {
   const standing = estimatedStanding(gate)
-  const pricers: Record<
-    Sport,
-    (digest: ActivityDigest, index: number) => { wkg: number; alone: boolean }
-  > = {
-    run: (digest, i) => ({ wkg: runCentralWkg(digest.curve[i]!), alone: false }),
-    ride: (digest, i) => {
-      const { watts, alone } = ridePriced(digest.curve[i]!, digest, masses, bikeModel, standing)
-      return {
-        wkg: centralWkgFromWatts(watts, masses.bodyKg(digest)),
-        alone: gate !== null && alone,
-      }
-    },
+  const priceRide = (digest: ActivityDigest, i: number) => {
+    const { watts, alone } = ridePriced(digest.curve[i]!, digest, masses, bikeModel, standing)
+    return {
+      wkg: centralWkgFromWatts(watts, masses.bodyKg(digest)),
+      alone: gate !== null && alone,
+    }
   }
-  const timelineOf = (sport: Sport): ThresholdStep[] => {
-    const entries = ordered
-      .filter((digest) => digest.sport === sport && effortsCount(digest))
-      .map((digest) => entryOf(digest, pricers[sport]))
-    const minWPrime = wPrimeFloor(sport, todayKg)
-    return stepsOf(entries, (values) => criticalPowerOutcome(fitCurve(values), { minWPrime }).fit)
+  const counted = (sport: Sport) =>
+    ordered.filter((digest) => digest.sport === sport && effortsCount(digest))
+  const rides = counted('ride').map((ride) => entryOf(ride, priceRide))
+  return {
+    run: runSteps(counted('run'), null),
+    ride: stepsOf(rides, fitterOf(wPrimeFloor('ride', todayKg))),
   }
-  return { run: timelineOf('run'), ride: timelineOf('ride') }
 }

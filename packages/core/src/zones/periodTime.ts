@@ -1,4 +1,4 @@
-import { localDateOf } from '../athlete/measurements'
+import { localDayNumber } from '../digest/localDay'
 import { weekEndMs } from '../digest/trendPoints'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { ZONE_MEASURES, ZONE_SCHEMES } from './schemes'
@@ -69,11 +69,11 @@ export function noTimeInZones(): TimeInZones {
  */
 function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) {
   const days = new Map<string, ZoneSet[]>()
-  return (startMs: number): ZoneSet[] => {
-    const day = `${localDateOf(startMs)}|${weekEndMs(startMs)}`
+  return (digest: ActivityDigest): ZoneSet[] => {
+    const day = `${localDayNumber(digest.startMs)}|${weekEndMs(digest.startMs)}`
     let sets = days.get(day)
     if (sets === undefined) {
-      sets = zonesAt(startMs, settings, estimates)
+      sets = zonesAt(digest.startMs, settings, estimates)
       days.set(day, sets)
     }
     return sets
@@ -109,11 +109,7 @@ export function periodTimeInZones(
     }
   }
   for (const digest of digests) {
-    const times = activityTimeInZones(
-      digest,
-      setsOn(digest.startMs),
-      heartRateSetAside.has(digest.id),
-    )
+    const times = activityTimeInZones(digest, setsOn(digest), heartRateSetAside.has(digest.id))
     for (const measure of ZONE_MEASURES[digest.sport]) {
       const time = times[measure]
       const row = bySportMeasure.get(`${digest.sport}.${measure}`)

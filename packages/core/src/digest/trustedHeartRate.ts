@@ -2,8 +2,12 @@ import type { EffortPoint, MaxHeartRates } from '../effort'
 import { referenceMaxHeartRates } from '../effort'
 import { lowForPowerSetAside, worstSetAside } from '../hr'
 import type { ActivityDigest, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
+import { memoByDigests } from '../digestMemo'
 import { newestHeartRateMs, referenceMaxOf } from './referenceMax'
 import type { ReferenceMax } from './referenceMax'
+
+/** How many answers the references keep for one first activity: the steps of a set-aside iteration. */
+const REFERENCES_KEPT = 16
 
 /** The heart rate an analysis uses, once the activities whose heart rate cannot be right are set aside. */
 export interface TrustedHeartRate {
@@ -20,11 +24,14 @@ export interface TrustedHeartRate {
   reference: MaxHeartRates
 }
 
-/**
- * The maxima of the digests: the sports' own, what each rests on, and the references the cross-sport rule makes of
- * them. All are taken over the same trailing window, which ends at the newest heart rate among the digests.
- */
-function referencesOf(digests: ActivityDigest[]) {
+interface References {
+  observedMax: Record<Sport, number | null>
+  observedSource: Record<Sport, ReferenceMax | null>
+  maxHr: number | null
+  reference: MaxHeartRates
+}
+
+function computeReferences(digests: ActivityDigest[]): References {
   const endMs = newestHeartRateMs(digests)
   const maxOf = (sport: Sport) =>
     referenceMaxOf(
@@ -43,6 +50,30 @@ function referencesOf(digests: ActivityDigest[]) {
     reference: referenceMaxHeartRates(observedMax.run, observedMax.ride),
   }
 }
+
+/** A copy a caller may change without changing what is kept. */
+function copyOfReferences(found: References): References {
+  return {
+    observedMax: { ...found.observedMax },
+    observedSource: { ...found.observedSource },
+    maxHr: found.maxHr,
+    reference: { ...found.reference },
+  }
+}
+
+/**
+ * The maxima of the digests: the sports' own, what each rests on, and the references the cross-sport rule makes of
+ * them. All are taken over the same trailing window, which ends at the newest heart rate among the digests. They read
+ * only the digests, so a change of body mass or settings takes the answer kept for the same activities, as does each
+ * step of the set-aside iteration that has been taken before.
+ */
+const memoReferences = memoByDigests(
+  (digests: ActivityDigest[], _input: null) => computeReferences(digests),
+  () => true,
+  copyOfReferences,
+  REFERENCES_KEPT,
+)
+const referencesOf = (digests: ActivityDigest[]): References => memoReferences(digests, null)
 
 /**
  * Sets aside the heart rate of activities whose best efforts show readings a working sensor would

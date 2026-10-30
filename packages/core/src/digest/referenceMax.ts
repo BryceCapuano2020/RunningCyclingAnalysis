@@ -1,6 +1,6 @@
-import { localDateOf } from '../athlete/measurements'
 import { DAY_MS } from '../constants'
 import type { ActivityDigest } from '../types'
+import { localDayNumber } from './localDay'
 
 /**
  * How many separate days must reach a heart rate before it counts as a maximum. One reading can be a sensor
@@ -43,19 +43,20 @@ export interface ReferenceMax {
 }
 
 interface Day {
-  day: string
+  day: number
   bpm: number
   startMs: number
 }
 
 /** Each day's highest per-activity maximum among the digests that started in [fromMs, toMs]. */
 function dayMaxima(digests: readonly ActivityDigest[], fromMs: number, toMs: number): Day[] {
-  const byDay = new Map<string, Day>()
-  for (const { startMs, maxHeartRate } of digests) {
+  const byDay = new Map<number, Day>()
+  for (const digest of digests) {
+    const { startMs, maxHeartRate } = digest
     if (maxHeartRate === null || !Number.isFinite(maxHeartRate) || !Number.isFinite(startMs))
       continue
     if (startMs < fromMs || startMs > toMs) continue
-    const day = localDateOf(startMs)
+    const day = localDayNumber(startMs)
     const held = byDay.get(day)
     if (held === undefined || maxHeartRate > held.bpm)
       byDay.set(day, { day, bpm: maxHeartRate, startMs })
@@ -126,15 +127,14 @@ export function referenceMaxOf(
   endMs: number,
 ): ReferenceMax | null {
   const windowStart = endMs - REFERENCE_WINDOW_DAYS * DAY_MS
+  const everyDay = dayMaxima(digests, -Infinity, Infinity)
   const windowed = withoutRepeatedCeilings(dayMaxima(digests, windowStart, endMs))
   const useWindow = windowed.length >= MIN_WINDOW_DAYS
-  const days = useWindow
-    ? windowed
-    : withoutRepeatedCeilings(dayMaxima(digests, -Infinity, Infinity))
+  const days = useWindow ? windowed : withoutRepeatedCeilings(everyDay)
   if (days.length === 0) return null
   const { bpm, days: corroborating } = corroborated(days.map((d) => d.bpm))
   // A library that began inside the window was read from its first day, not from the window's start.
-  const first = Math.min(...dayMaxima(digests, -Infinity, Infinity).map((d) => d.startMs))
+  const first = Math.min(...everyDay.map((d) => d.startMs))
   return { bpm, days: corroborating, sinceMs: useWindow ? Math.max(first, windowStart) : first }
 }
 
