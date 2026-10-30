@@ -7,10 +7,12 @@ import { fastestMs } from './test/timing'
 /**
  * What a session costs on a library of 2,000 activities, about four years of ten a week, in the worker.
  * Locally an all-time load takes about 80 ms, the default 12 weeks about 21 ms and a change of body
- * mass about 19 ms; before the draws were sorted by their bits and a week's activities were found by
- * search, they took about 175, 65 and 62 ms. The budgets are about four times the current figures, so a
- * pass per activity added to the state, or a sort that goes back to a comparison, fails them on a loaded
- * runner too.
+ * mass about 30 ms; before the draws were sorted by their bits and a week's activities were found by
+ * search, they took about 175, 65 and 62 ms. A change of body mass had grown to about 55 ms as the state
+ * took in zones, trends and records, until what it does not read (the runs, the draws, the library's
+ * order) was kept, the judgement's work was shared with the analysis of the whole library and each best
+ * stopped making a point for every candidate. The budgets are well over the current figures, so a pass per
+ * activity added to the state, or a sort that goes back to a comparison, fails them on a loaded runner too.
  */
 const ACTIVITIES = 2000
 const ALL_TIME_BUDGET_MS = 300

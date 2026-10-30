@@ -15,6 +15,7 @@ import type {
 import { fitBikeModel } from '../virtualPower'
 import { bestOf, bestOfEach, isMeasured, plainCurve } from './bestCurve'
 import { CalibrationPool, calibratedOf } from './calibration'
+import { memoByDigests } from '../digestMemo'
 import { effortsCount } from './effortTrust'
 import { EVERY_EFFORT } from './readingRule'
 import type { ReadingRule } from './readingRule'
@@ -22,7 +23,7 @@ import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { ofSport, orderedCurrent } from './ordered'
 import { powerAt } from './terms'
 import { withoutSetAside } from './trustedHeartRate'
 
@@ -115,6 +116,17 @@ export interface BestCurves {
 }
 
 /**
+ * The best run values of runs read by every effort that counts. A run is priced from its pace alone, so a change of body
+ * mass, bike model or estimated-ride gate takes the curve already worked out for the same runs. A copy, for a caller that
+ * changes it.
+ */
+const everyRunBest = memoByDigests(
+  (runs: ActivityDigest[], _input: null) => bestOfEach(runs, 'run', () => runCentralWkg),
+  () => true,
+  (curve) => curve.map((point) => ({ ...point })),
+)
+
+/**
  * The best run and ride values at each duration. Rides are priced with bikeModel, and an estimated ride point
  * counts only if `gate` lets it (see ESTIMATED_RIDE); null leaves every point, as with too few measured rides. What counts
  * as a reading at all is `rule`'s (a treadmill run holds no best, see effortsCount): the change test reads efforts through
@@ -134,7 +146,11 @@ export function bestCurves(
     (digest: ActivityDigest, value: (point: DigestCurvePoint) => number) =>
     (point: DigestCurvePoint): number =>
       rule.point(digest, point) ? value(point) : Number.NaN
-  const runBest = bestOfEach(ordered, 'run', (digest) => counted(digest, runCentralWkg))
+  const runs = ofSport(ordered, 'run')
+  const runBest =
+    rule === EVERY_EFFORT
+      ? everyRunBest(runs, null)
+      : bestOfEach(runs, 'run', (digest) => counted(digest, runCentralWkg))
   const standing = estimatedStanding(gate)
   // Without a gate every point holds, so none stands alone.
   const aloneFor =
@@ -181,8 +197,15 @@ export function bestCurves(
 
 /** The best watts at each duration among the rides with a power meter, which need no bike model. */
 export function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
-  return bestOf(ordered, 'ride', (point) => point.value, isMeasured)
+  return measuredBest(ofSport(ordered, 'ride').filter(isMeasured), null)
 }
+
+/** The measured rides read no mass or model, so the same rides give the curve already worked out. */
+const measuredBest = memoByDigests(
+  (measured: ActivityDigest[], _input: null) => bestOf(measured, 'ride', (point) => point.value),
+  () => true,
+  (curve) => curve.map((point) => ({ ...point })),
+)
 
 /**
  * The run and ride curves of a set of digests, without the rest of the analysis. Rides are priced

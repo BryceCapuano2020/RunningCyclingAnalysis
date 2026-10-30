@@ -2,9 +2,26 @@ import { PRIORS } from '../constants'
 import { mulberry32, truncatedNormal } from '../math'
 import type { HrCalibration } from '../types'
 
-/** Shared draws keep comparison and equivalent pace on the same assumptions and seed. */
+/** The draws kept: the default count and seed an analysis uses, and a few others. */
+const DRAWS_KEPT = 4
+const kept = new Map<string, { ge: Float64Array; s: Float64Array }>()
+
+/**
+ * Shared draws keep comparison and equivalent pace on the same assumptions and seed. They are a function of the count
+ * and seed alone, so the last few are kept and shared: callers read them and never change them.
+ */
 export function drawPriors(draws: number, seed: number) {
   if (!Number.isInteger(draws) || draws < 1) throw new Error('draws must be a positive integer')
+  const key = `${draws}|${seed}`
+  const found = kept.get(key)
+  if (found !== undefined) return found
+  const made = newDraws(draws, seed)
+  kept.set(key, made)
+  if (kept.size > DRAWS_KEPT) kept.delete(kept.keys().next().value!)
+  return made
+}
+
+function newDraws(draws: number, seed: number) {
   const rand = mulberry32(seed)
   const ge = new Float64Array(draws)
   const s = new Float64Array(draws)
