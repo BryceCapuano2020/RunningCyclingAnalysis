@@ -8,7 +8,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
-import { headlinePick } from '../components'
+import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { heldReason } from '../components/headlineNeed'
 import {
@@ -18,6 +18,7 @@ import {
   referenceText,
 } from '../components/headlineText'
 import { hardEffortsOnFile } from '../effortCaveat'
+import { HEADLINE_LABEL } from '../grades'
 import { CheckIcon, WarningIcon } from '../components/icons'
 import { Methodology, TopicBody } from '../components/Methodology'
 import { HOW_THIS_WORKS, SECTION_ID } from '../components/methodTopics'
@@ -143,7 +144,7 @@ export function MethodPage({
   const noResultLine = restoring ? RESTORING_EVIDENCE : NO_FILES_EVIDENCE
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
-  const pick = result ? headlinePick(result) : null
+  const pick = result ? heldPick(result).pick : null
   const reason = result ? heldReason(result, period) : ''
   const effort = result?.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   const reference = result ? referenceText(result) : null
@@ -322,7 +323,8 @@ export function MethodPage({
           {hardEfforts && (
             <li>
               Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each
-              sport&rsquo;s reference heart rate, so both were hard efforts.
+              sport&rsquo;s reference heart rate. Heart rate cannot tell a hard {HEADLINE_LABEL}{' '}
+              from an all-out one.
             </li>
           )}
         </ul>

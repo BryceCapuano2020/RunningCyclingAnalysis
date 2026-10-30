@@ -158,14 +158,14 @@ describe('what the section needs', () => {
     expect(lateInEffort('run', NONE).needs).toEqual([
       {
         name: 'Best efforts late in long sessions',
-        need: 'Add 3 runs longer than an hour that reach a hard heart rate.',
+        need: 'Add 3 runs, each longer than an hour and reaching a hard heart rate.',
       },
       { name: 'Output per heartbeat over an hour', need: 'Needs 3 steady runs with heart rate.' },
     ])
     expect(lateInEffort('ride', NONE).needs).toEqual([
       {
         name: 'Best efforts late in long sessions',
-        need: 'Add 3 rides longer than an hour with a power meter that reach a hard heart rate.',
+        need: 'Add 3 rides with a power meter, each longer than an hour and reaching a hard heart rate.',
       },
       {
         name: 'Output per heartbeat over an hour',
@@ -178,7 +178,7 @@ describe('what the section needs', () => {
     expect(lateInEffort('run', { ...NONE, drift: driftPoints([2, 3, 4]) }).needs).toEqual([
       {
         name: 'Best efforts late in long sessions',
-        need: 'Add 3 runs longer than an hour that reach a hard heart rate.',
+        need: 'Add 3 runs, each longer than an hour and reaching a hard heart rate.',
       },
     ])
   })
@@ -191,7 +191,7 @@ describe('what the section needs', () => {
     expect(lateInEffort('ride', two).needs).toEqual([
       {
         name: 'Best efforts late in long sessions',
-        need: 'Add 1 ride longer than an hour with a power meter that reach a hard heart rate.',
+        need: 'Add 1 ride with a power meter, each longer than an hour and reaching a hard heart rate.',
       },
     ])
   })

@@ -1,6 +1,12 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import { countedPhrase, heldAction, needLine } from '../components/headlineNeed'
+import {
+  countedPhrase,
+  heldAction,
+  effortHold,
+  needLine,
+  unconfirmedSports,
+} from '../components/headlineNeed'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
@@ -65,7 +71,7 @@ export function missingText(
       }
     }
     // One sport: its level is the title, and the one thing to do is the line under it.
-    const title = levelsTitle({ run: levels.run })
+    const title = levelsTitle({ run: levels.run }, unconfirmedSports(result))
     return {
       title: title ?? 'Add a ride to see your balance',
       detail: title ? 'Add a ride to compare it with your running.' : 'Your run results are below.',
@@ -80,7 +86,7 @@ export function missingText(
         canShowAll: true,
       }
     }
-    const title = levelsTitle({ ride: levels.ride })
+    const title = levelsTitle({ ride: levels.ride }, unconfirmedSports(result))
     return {
       title: title ?? 'Add a run to see your balance',
       detail: title ? 'Add a run to compare it with your cycling.' : 'Your ride results are below.',
@@ -102,6 +108,13 @@ function heldMissing(
   levels: { run: string | null; ride: string | null },
 ): Missing {
   const action = heldAction(result, period)
+  // Why, when it is not the count of activities: a best 20 minutes that was not hard, or not checked, says so first.
+  const effort = effortHold(result)
+  const reason =
+    effort === null ||
+    needLine(headlineShortfall(result.activities), period, result.activities) !== null
+      ? ''
+      : `${effort.text} `
   const allTimeEnough =
     needLine(headlineShortfall(result.activities), period, result.activities) !== null &&
     period.days !== null &&
@@ -110,8 +123,8 @@ function heldMissing(
   const rides = countedPhrase(result.activities, 'ride')
   return {
     // The levels the files do show are the title; "not enough" is the title only when there is none to show.
-    title: levelsTitle(levels) ?? HARDER_EFFORTS_TITLE,
-    detail: `From ${runs} and ${rides}. ${action}`,
+    title: levelsTitle(levels, unconfirmedSports(result)) ?? HARDER_EFFORTS_TITLE,
+    detail: `From ${runs} and ${rides}. ${reason}${action}`,
     canShowAll: allTimeEnough,
   }
 }

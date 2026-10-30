@@ -14,7 +14,7 @@ import { plural } from '../components/plural'
 import { formatDayMonth } from '../format/date'
 import { HEADLINE_LABEL, headlineGrades } from '../grades'
 import type { AgeProfile } from '../grades'
-import { hardEffort } from '../effortCaveat'
+import { effortShare } from '../effortCaveat'
 import { isClearChange } from '../charts/sportCurveTakeaway'
 import { recordChange } from '../recordChange'
 import { effortLabel, isEstimatedRecord, valueAt } from '../records'
@@ -154,16 +154,28 @@ function notHardNote(
   previous: SportCurves,
   label: string,
 ): string | null {
-  const nowHard = hardEffort(
+  const now = effortShare(
     sport,
     result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
   )
-  const beforeHard = hardEffort(sport, previous.headlineEffort)
-  if (beforeHard === false) {
-    return `No comparable hard ${HEADLINE_LABEL} of ${SPORT_NOUN[sport]} in the ${label.toLowerCase()}.`
+  const before = effortShare(sport, previous.headlineEffort)
+  const noun = SPORT_NOUN[sport]
+  // Where the reference cannot show an effort hard, a harder effort is not what is missing: say it cannot be called hard.
+  if (before !== null && !before.hard) {
+    if (!before.checked) {
+      return `The best ${HEADLINE_LABEL} of ${noun} in the ${label.toLowerCase()} was not checked for effort, so it is not compared.`
+    }
+    return before.confirmed
+      ? `No comparable hard ${HEADLINE_LABEL} of ${noun} in the ${label.toLowerCase()}.`
+      : `No best ${HEADLINE_LABEL} of ${noun} in the ${label.toLowerCase()} can be called hard, so it is not compared.`
   }
-  if (nowHard === false) {
-    return `Your best ${HEADLINE_LABEL} of ${SPORT_NOUN[sport]} in this period was not a hard effort, so it is not compared.`
+  if (now !== null && !now.hard) {
+    if (!now.checked) {
+      return `Your best ${HEADLINE_LABEL} of ${noun} in this period was not checked for effort, so it is not compared.`
+    }
+    return now.confirmed
+      ? `Your best ${HEADLINE_LABEL} of ${noun} in this period was not a hard effort, so it is not compared.`
+      : `Your best ${HEADLINE_LABEL} of ${noun} in this period cannot be called a hard effort, so it is not compared.`
   }
   return null
 }

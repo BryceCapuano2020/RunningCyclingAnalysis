@@ -5,6 +5,7 @@ import type { Period } from '@rca/core/period'
 import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import { BalanceMeter } from '../components/BalanceMeter'
+import { unconfirmedSports } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
@@ -75,7 +76,10 @@ export function BalanceHero({
   ) {
     return (
       <section className="balance-hero">
-        {head(levelsTitle({ run: runLevel }) ?? 'Your balance waits for your weight')}
+        {head(
+          levelsTitle({ run: runLevel }, unconfirmedSports(result)) ??
+            'Your balance waits for your weight',
+        )}
         <p className="lede secondary">
           <WeightPrompt />
         </p>

@@ -65,9 +65,15 @@ describe('the threshold on the sample', () => {
     })
     expect(outcome.fit).not.toBeNull()
     expect(outcome.refusal).toBeNull()
-    // An easy run is not a hard effort: the fit is the rules', and the effort gate withholds it.
-    expect(result.runCp).toBeNull()
-    expect(result.runCpRefusal).toBe('effort')
+    // One run is too few days with a heart rate to set a reference without the age, so the effort gate cannot judge it:
+    // the fit is the rules', it is shown, and the effort is said not to have been checked.
+    expect(result.runCp).not.toBeNull()
+    expect(result.effortGate.run).toMatchObject({ verdict: 'unknown', unchecked: 'thin' })
+    // With the age the reference is the age-predicted maximum, and an easy run is not a hard effort against it.
+    const aged = combine([digestNamed('Morning Run')], { ...SETTINGS, birthYear: 1985 })
+    expect(aged.effortGate.run.reference).toBe('trusted')
+    expect(aged.runCp).toBeNull()
+    expect(aged.runCpRefusal).toBe('effort')
   })
 
   it('refuses the sample’s Saturday Long Ride alone by the ride floor and by nothing else', () => {

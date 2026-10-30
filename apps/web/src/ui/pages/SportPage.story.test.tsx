@@ -262,7 +262,7 @@ describe('a sport page with sections that have nothing to show', () => {
       expect.stringMatching(
         /^At the same heart rate: needs at least \d+ steady 5-minute stretches/,
       ),
-      'Best efforts late in long sessions: add 3 runs longer than an hour that reach a hard heart rate.',
+      'Best efforts late in long sessions: add 3 runs, each longer than an hour and reaching a hard heart rate.',
       'Output per heartbeat over an hour: needs 3 steady runs with heart rate.',
       expect.stringMatching(/^Where your bests stand out: needs bests at 5 or more durations/),
     ])

@@ -26,8 +26,10 @@ export function longestFitEffortS(result: AnalysisResult, sport: Sport): number 
 
 /** The line in a missing threshold's place: what the sport's fit lacks, and the longest effort it has to go on. */
 export function thresholdNeedsLine(result: AnalysisResult, sport: Sport): string {
+  const refusal = refusalOf(result, sport)
+  // A threshold withheld for its effort has its own line (thresholdWithheld): it says what the best 20 minutes reached.
   return (
     thresholdWithheldLine(result, sport) ??
-    thresholdNeedsText(refusalOf(result, sport), longestFitEffortS(result, sport))
+    thresholdNeedsText(refusal === 'effort' ? null : refusal, longestFitEffortS(result, sport))
   )
 }

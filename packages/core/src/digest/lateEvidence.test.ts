@@ -3,6 +3,7 @@ import type { ActivityDigest, DigestDrift, Sport } from '../types'
 import { digestActivity } from './digestActivity'
 import { lateEvidence } from './lateEvidence'
 import type { LateReference } from './lateEvidence'
+import type { EffortReference } from '../effort'
 import { NO_LATE_EVIDENCE } from './lateEvidenceTypes'
 import { syntheticActivity } from './test/syntheticActivity'
 
@@ -47,10 +48,13 @@ describe('lateEvidence', () => {
 })
 
 describe('lateEvidence and the effort gate', () => {
-  const REFERENCE: LateReference = {
+  const effortReference = (reading: 'trusted' | 'habitual'): EffortReference => ({
     referenceHr: { run: 190, ride: 184 },
-    referenceReading: { run: 'trusted', ride: 'trusted' },
-  }
+    reading: { run: reading, ride: 'trusted' },
+    source: { run: 'data', ride: 'data' },
+    from: { run: 'run', ride: 'ride' },
+  })
+  const REFERENCE: LateReference = { effortReference: effortReference('trusted') }
 
   /** A long run with a late 20 minute best, whose peak heart rate was `peak`, and whose average was `average`. */
   function longRun(id: string, peak: number | null, average: number | null = null): ActivityDigest {
@@ -59,6 +63,8 @@ describe('lateEvidence and the effort gate', () => {
       maxHeartRate: peak,
       avgHeartRate: average,
       durability: [{ afterS: 3600, durationS: 1200, value: 12 }],
+      // The synthetic stream's seconds by heart rate are not the peak this fixture sets.
+      distributions: undefined,
     }
   }
   const supporters = (digests: ActivityDigest[], judged = REFERENCE) =>
@@ -85,9 +91,7 @@ describe('lateEvidence and the effort gate', () => {
 
   it('counts none where the reference cannot be trusted', () => {
     const library = [longRun('a', 188), longRun('b', 186)]
-    expect(
-      supporters(library, { ...REFERENCE, referenceReading: { run: 'habitual', ride: 'trusted' } }),
-    ).toBe(0)
+    expect(supporters(library, { effortReference: effortReference('habitual') })).toBe(0)
   })
 
   it('says how hard the sessions behind the late bests were, as their peak over the reference', () => {

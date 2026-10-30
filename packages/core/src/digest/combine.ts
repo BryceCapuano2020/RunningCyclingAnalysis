@@ -1,9 +1,15 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
-import { DURATIONS_S, EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../constants'
+import {
+  DURATIONS_S,
+  EQUIVALENCE_DURATIONS_S,
+  FLAT_RUN_COST,
+  HEADLINE_DURATION_S,
+  RESTING_W_PER_KG,
+} from '../constants'
 import { criticalPowerOutcome, unevenFit, wPrimeFloor } from '../cp'
 import type { UnevenFit } from '../cp'
-import { checkEfforts, effortGateOf } from '../effort'
+import { checkEfforts } from '../effort'
 import type { EffortGate } from '../effort'
 import { requirePositiveFinite } from '../math'
 import type {
@@ -24,6 +30,7 @@ import type {
 import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
 import { gatedThreshold } from './effortGating'
+import { effortGatesOf } from './twentyMinute'
 import { summaryOf, type ActivitySummary } from './summary'
 import type { BikeModelSource } from '../virtualPower'
 import { leaveOneOutAccuracy } from './accuracy'
@@ -204,7 +211,7 @@ export interface CombineOptions {
    * against them and the result reports them, so the athlete's reference heart rate is one number whichever
    * period is on screen. Absent, they are taken from these digests alone.
    */
-  references?: Pick<HeartRateJudgement, 'referenceHr' | 'observedMaxHr' | 'referenceReading'>
+  references?: Pick<HeartRateJudgement, 'referenceHr' | 'observedMaxHr' | 'effortReference'>
   /**
    * The library's estimated-ride gate (`HeartRateJudgement.rideGate`): which rides without a power meter count
    * toward the bests, as the athlete's measured rides' heart rate says. Given, every period reads rides by the
@@ -238,10 +245,14 @@ export function combine(
       ? leaveOneOutAccuracy(calibrated, (digest) => masses.totalKg(digest))
       : null
 
-  const { curves, fits, heart } = judgedCurves(ordered, masses, bikeModel, massKg, {
-    heartRateSetAside: opts.heartRateSetAside,
-    rideGate: opts.rideGate,
-  })
+  const { curves, fits, heart, gate } = judgedCurves(
+    ordered,
+    masses,
+    bikeModel,
+    massKg,
+    { heartRateSetAside: opts.heartRateSetAside, rideGate: opts.rideGate },
+    settings,
+  )
   const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = curves
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
@@ -289,14 +300,25 @@ export function combine(
 
   const reference = opts.references?.referenceHr ?? heart.reference
   const observedMax = opts.references?.observedMaxHr ?? heart.observedMax
-  const reading = opts.references?.referenceReading ?? heart.reading
+  const judged = opts.references?.effortReference ?? heart.effort
   const heartRuns = withoutSetAside(runBest, heart.setAside)
   const heartRides = withoutSetAside(rideBest, heart.setAside)
   // Every duration, not the comparison's: a library of one sport has no comparison, and still has efforts to judge.
-  const effort = checkEfforts(heartRuns, heartRides, reference, DURATIONS_S, reading)
-  const effortGate = {
-    run: effortGateOf(heartRuns, runCurve, reference.run, reading.run),
-    ride: effortGateOf(heartRides, rideMetabolicCurve, reference.ride, reading.ride),
+  const effort = checkEfforts(heartRuns, heartRides, judged.referenceHr, DURATIONS_S, judged)
+  const effortGate = effortGatesOf(
+    ordered,
+    masses,
+    bikeModel,
+    gate,
+    { run: runCurve, ride: rideMetabolicCurve },
+    judged,
+    heart.setAside,
+  )
+  // The chip and the gate judge the same effort: the one with the highest heart rate among the 20 minute bests.
+  const headline = effort.find((e) => e.durationS === HEADLINE_DURATION_S)
+  if (headline !== undefined) {
+    if (effortGate.run.share !== null) headline.runHrFraction = effortGate.run.share
+    if (effortGate.ride.share !== null) headline.rideHrFraction = effortGate.ride.share
   }
   const run = gatedThreshold(effortGate.run, runOutcome, runCpUneven)
   const ride = gatedThreshold(effortGate.ride, rideOutcome, rideCpUneven)
@@ -325,8 +347,8 @@ export function combine(
     heartRateSetAside: [...heart.setAside].sort(),
     // A share of a reference that is not a maximum would price VO2max as if it were one.
     runVo2max:
-      reading.run === 'trusted'
-        ? vo2maxFromHeartRate(heart.trusted, reference.run, runCentralWkg)
+      judged.reading.run === 'trusted'
+        ? vo2maxFromHeartRate(heart.trusted, judged.referenceHr.run, runCentralWkg)
         : null,
     effort,
     bikeModel,

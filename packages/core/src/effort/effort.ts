@@ -1,6 +1,6 @@
 import { rollingMean } from '../math'
-import type { Activity, CurvePoint, EffortCheck, Sport } from '../types'
-import type { ReferenceReading } from './gate'
+import type { Activity, CurvePoint, EffortCheck } from '../types'
+import type { EffortReference } from './reference'
 
 export interface HeartRateSource {
   activity: Activity
@@ -129,20 +129,23 @@ function highest(a: number | null, b: number | null): number | null {
   return Math.max(a, b)
 }
 
-/** One check per requested duration, in the order given. `readings` is what each reference can certify. */
+/** One check per requested duration, in the order given. `reference` says what each reference can certify and where it is from. */
 export function checkEfforts(
   runCurve: EffortPoint[],
   rideCurve: EffortPoint[],
   maxHr: MaxHeartRates,
   durations: readonly number[],
-  readings: Record<Sport, ReferenceReading | null>,
+  reference: Pick<EffortReference, 'reading' | 'source'>,
 ): EffortCheck[] {
+  const { reading, source } = reference
   return durations.map((durationS) => ({
     durationS,
     runHrFraction: heartRateFraction(findPoint(runCurve, durationS), maxHr.run),
     rideHrFraction: heartRateFraction(findPoint(rideCurve, durationS), maxHr.ride),
-    runReference: readings.run,
-    rideReference: readings.ride,
+    runReference: reading.run,
+    rideReference: reading.ride,
+    runReferenceSource: source.run,
+    rideReferenceSource: source.ride,
   }))
 }
 

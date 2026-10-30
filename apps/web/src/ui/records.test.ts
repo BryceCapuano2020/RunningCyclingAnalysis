@@ -67,14 +67,14 @@ describe('threshold', () => {
 describe('thresholdRange', () => {
   it('calls a running threshold’s spread a fit spread, not a range, from the faster pace to the slower', () => {
     // The fixture’s critical power is 4.0 W/kg, with a standard error of 0.05 W/kg, and the model error floor widens it.
-    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Fit spread 21:46 to 25:15 /km')
+    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Fit spread 20:54 to 23:49 /km')
     expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe(
-      'Fit spread 35:02 to 40:39 /mi',
+      'Fit spread 33:38 to 38:19 /mi',
     )
   })
 
   it('gives a cycling threshold’s fit spread in watts, from the lower to the higher', () => {
-    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('Fit spread 46 to 51 W')
+    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('Fit spread 48 to 52 W')
   })
 
   it('is null without a fit, and when the low end would not be a positive work rate', () => {
@@ -111,7 +111,7 @@ describe('thresholdRange', () => {
     const outside = [curvePoint(3600, 2.5, 'ride-1'), curvePoint(600, 3.0, 'ride-2')]
     expect(
       thresholdRange(makeResult({ activities, rideCurve: outside }), 'ride', 75, 'metric'),
-    ).toBe('Fit spread 46 to 51 W')
+    ).toBe('Fit spread 48 to 52 W')
   })
 })
 

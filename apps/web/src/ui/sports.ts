@@ -120,11 +120,9 @@ const EFFORT_BETWEEN = `between ${EFFORT_MIN_TEXT} and ${EFFORT_MAX_TEXT}`
  * What a threshold's place says when there is none: the efforts are missing, or they are there but
  * show no threshold, so a harder one is asked for.
  */
-export const THRESHOLD_NEEDS_TEXT: Record<CriticalPowerRefusal, string> = {
+export const THRESHOLD_NEEDS_TEXT: Record<Exclude<CriticalPowerRefusal, 'effort'>, string> = {
   missing: `Needs efforts ${EFFORT_BETWEEN}`,
   shape: `Needs a harder effort ${EFFORT_BETWEEN}`,
-  // The effort gate's refusal has a fuller line (thresholdWithheld), which says what the best 20 minutes did reach.
-  effort: `Needs a hard ${EFFORT_MAX_TEXT} effort`,
 }
 
 /**
@@ -133,7 +131,7 @@ export const THRESHOLD_NEEDS_TEXT: Record<CriticalPowerRefusal, string> = {
  * the long one and names the longest held, rather than asking for efforts the card lists.
  */
 export function thresholdNeedsText(
-  refusal: CriticalPowerRefusal | null,
+  refusal: Exclude<CriticalPowerRefusal, 'effort'> | null,
   longestHeldS: number | null = null,
 ): string {
   const reason = refusal ?? 'missing'

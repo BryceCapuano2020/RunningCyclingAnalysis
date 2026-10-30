@@ -57,7 +57,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const references = {
     referenceHr: judgement.referenceHr,
     observedMaxHr: judgement.observedMaxHr,
-    referenceReading: judgement.referenceReading,
+    effortReference: judgement.effortReference,
   }
   const analysis =
     athlete !== null && visible.length > 0
@@ -90,10 +90,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const late =
     analysis === null
       ? NO_LATE_EVIDENCE
-      : periods.late(selected, setAside, {
-          referenceHr: judgement.referenceHr,
-          referenceReading: judgement.referenceReading,
-        })
+      : periods.late(selected, setAside, { effortReference: judgement.effortReference })
   return {
     result: analysis,
     trend: efforts[HEADLINE_DURATION_S],
@@ -113,8 +110,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     previous:
       athlete !== null && bikeModel !== undefined && previous.length > 0
         ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate, {
-            referenceHr: judgement.referenceHr,
-            referenceReading: judgement.referenceReading,
+            effortReference: judgement.effortReference,
             setAside,
           })
         : null,

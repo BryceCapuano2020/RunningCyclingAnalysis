@@ -30,7 +30,7 @@ export function floorThreshold(
   if (threshold(result, sport, massKg, units) !== null) return null
   const held = result.effortGate[sport].floor
   if (refusalOf(result, sport) === 'effort' && held !== null) {
-    return FIGURE_AT[sport](held, massKg, units)
+    return FIGURE_AT[sport](held.value, massKg, units)
   }
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   if (!uneven) return null

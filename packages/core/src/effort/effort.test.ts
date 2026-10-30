@@ -214,7 +214,10 @@ describe('checkEfforts', () => {
     point(1200, 153, 'ride1', 153),
   ]
   const durations = [60, 300, 600, 900, 1200, 1800, 3600]
-  const trusted = { run: 'trusted', ride: 'trusted' } as const
+  const trusted = {
+    reading: { run: 'trusted', ride: 'trusted' },
+    source: { run: 'data', ride: 'data' },
+  } as const
   /** An entry with no heart-rate share, for a duration the curves do not give. */
   const none = (durationS: number) => ({
     durationS,
@@ -222,6 +225,8 @@ describe('checkEfforts', () => {
     rideHrFraction: null,
     runReference: 'trusted',
     rideReference: 'trusted',
+    runReferenceSource: 'data',
+    rideReferenceSource: 'data',
   })
 
   it('computes exact fractions of max heart rate with null where data is missing', () => {
@@ -233,6 +238,8 @@ describe('checkEfforts', () => {
       rideHrFraction: 153 / 180,
       runReference: 'trusted',
       rideReference: 'trusted',
+      runReferenceSource: 'data',
+      rideReferenceSource: 'data',
     })
     expect(result[1]!.durationS).toBe(300)
     expect(result[1]!.runHrFraction).toBeCloseTo(110 / 180, 12)
@@ -281,6 +288,8 @@ describe('checkEfforts', () => {
         rideHrFraction: 153 / 170,
         runReference: 'trusted',
         rideReference: 'trusted',
+        runReferenceSource: 'data',
+        rideReferenceSource: 'data',
       },
     ])
   })

@@ -1,11 +1,11 @@
 import { HEADLINE_DURATION_S } from './constants'
-import { sameMasses } from './athlete/mass'
+import { sameAnalysisSettings } from './athlete/references'
 import { combine, sportCurves } from './digest/combine'
 import type { CombineOptions } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
 import { rideGateKey } from './digest/estimatedRide'
 import type { EstimatedRideGate } from './digest/estimatedRide'
-import type { MaxHeartRates, ReferenceReading } from './effort'
+import type { EffortReference } from './effort'
 import { lateEvidence } from './digest/lateEvidence'
 import type { LateReference } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
@@ -20,7 +20,6 @@ import type {
   AthleteSettings,
   BikeModel,
   HrCalibration,
-  Sport,
   SportCurves,
 } from './types'
 
@@ -45,7 +44,7 @@ function sameInputs(
   selected: ActivityDigest[],
   settings: AthleteSettings,
 ): boolean {
-  return sameMasses(cached.settings, settings) && sameDigests(cached.selected, selected)
+  return sameAnalysisSettings(cached.settings, settings) && sameDigests(cached.selected, selected)
 }
 
 /** The ids of a set among these digests, sorted and joined: what in a library's set-aside can move their analysis. */
@@ -316,11 +315,7 @@ export class PeriodCache {
     settings: AthleteSettings,
     bikeModel: BikeModel,
     rideGate?: EstimatedRideGate | null,
-    judged?: {
-      referenceHr: MaxHeartRates
-      referenceReading: Record<Sport, ReferenceReading | null>
-      setAside: readonly string[]
-    },
+    judged?: { effortReference: EffortReference; setAside: readonly string[] },
   ): SportCurves {
     const cached = this.previousEntry
     const gate = rideGateKey(rideGate)
@@ -328,7 +323,7 @@ export class PeriodCache {
     const hardness =
       judged === undefined
         ? 'none'
-        : `${judged.referenceHr.run}|${judged.referenceHr.ride}|${judged.referenceReading.run}|${judged.referenceReading.ride}|${setAsideAmong(previous, judged.setAside)}`
+        : `${JSON.stringify(judged.effortReference)}|${setAsideAmong(previous, judged.setAside)}`
     if (
       cached !== null &&
       cached.gate === gate &&
@@ -345,11 +340,7 @@ export class PeriodCache {
       rideGate,
       judged === undefined
         ? undefined
-        : {
-            reference: judged.referenceHr,
-            reading: judged.referenceReading,
-            setAside: new Set(judged.setAside),
-          },
+        : { effort: judged.effortReference, setAside: new Set(judged.setAside) },
     )
     this.previousEntry = { selected, settings, previous, gate, hardness, curves }
     return curves

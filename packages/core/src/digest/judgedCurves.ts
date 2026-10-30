@@ -1,5 +1,6 @@
 import { fitCriticalPowerUnchecked } from '../cp'
 import { lowForPowerSetAside } from '../hr'
+import type { AthleteSettings } from '../athlete/settings'
 import type { ActivityDigest, BikeModel, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
 import { plainCurve } from './bestCurve'
 import { estimatedStanding, rideGateOf } from './estimatedRide'
@@ -57,12 +58,19 @@ export function judgedCurves(
   bikeModel: BikeModel,
   todayKg: number,
   given: Given = {},
+  athlete: Pick<AthleteSettings, 'measurements' | 'birthYear'> = {},
 ): JudgedCurves {
   const first = given.heartRateSetAside ?? lowForPowerSetAside(ordered)
   let gate = given.rideGate === undefined ? rideGateOf(ordered, first) : given.rideGate
   let curves = bestCurves(ordered, masses, bikeModel, todayKg, gate)
   let fits = fitsOf(curves)
-  const heart = trustedHeartRate(ordered, fits, unitsOf(masses, bikeModel), given.heartRateSetAside)
+  const heart = trustedHeartRate(
+    ordered,
+    fits,
+    unitsOf(masses, bikeModel),
+    given.heartRateSetAside,
+    athlete,
+  )
   if (given.heartRateSetAside === undefined && given.rideGate === undefined) {
     if (heart.setAside.size !== first.size) {
       gate = rideGateOf(ordered, heart.setAside)

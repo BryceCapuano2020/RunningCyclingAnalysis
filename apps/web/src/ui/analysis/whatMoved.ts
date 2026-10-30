@@ -6,7 +6,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { gapOfHeadline } from '../balanceGap'
 import { balanceOfPick } from '../components/balanceScale'
 import { plural } from '../components/plural'
-import { headlinePick } from '../components/pickHeadline'
+import { heldPick } from '../resultHold'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
 import { headlineGrades } from '../grades'
@@ -114,8 +114,8 @@ function balanceItem(
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
-  const pickBefore = headlinePick(before)
-  const pickAfter = headlinePick(after)
+  const pickBefore = heldPick(before).pick
+  const pickAfter = heldPick(after).pick
   const gapBefore = profile === null ? null : gapOfHeadline(headlineGrades(before, profile))
   const gapAfter = profile === null ? null : gapOfHeadline(headlineGrades(after, profile))
   const readingBefore = balanceOfPick(gapBefore, pickBefore)

@@ -4,6 +4,7 @@ import type { EffortRuler } from '@rca/core/digest/lateEvidenceTypes'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Sport } from '@rca/core/types'
 import { plural } from './components/plural'
+import { REFERENCE_ACTION } from './effortWords'
 import { effortLabel } from './records'
 import { SPORT_ACTIVITY, SPORT_PLURAL } from './sports'
 
@@ -193,7 +194,7 @@ function durabilityReading(
   if (groups.length === 0) return null
   const { group, cell } = ledeCell(groups)
   const support = `Your best ${effortLabel(group.durationS)} after ${afterLabel(cell.afterS)} rests on ${plural(cell.supporters, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])}.`
-  const limit = `A lower figure late on can also mean the ${SPORT_ACTIVITY[sport]} never asked for more.`
+  const limit = `A lower figure late on can also mean the ${SPORT_ACTIVITY[sport]} never asked for more. A ${SPORT_ACTIVITY[sport]} with no heart rate counts.`
   return {
     lede: durabilityLede(cell.afterS, group.durationS, cell.retention),
     stat: durabilityStat(group.durationS, cell.afterS, cell.retention),
@@ -261,7 +262,12 @@ const DRIFT_NEEDS_DEVICE: Record<Sport, string> = {
 function durabilityNeed(sport: Sport, evidence: LateEvidence): string {
   const have = Math.max(0, ...evidence.durability.map((row) => row.after[0]?.best?.supporters ?? 0))
   const count = Math.max(1, minActivities - have)
-  return `Add ${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])} longer than an hour${NEEDS_DEVICE[sport]} that reach a hard heart rate.`
+  const reading = evidence.reading ?? 'trusted'
+  // A reference that cannot show a hard effort is not mended by one more long session: the reference is what is missing.
+  if (reading === 'low' || reading === 'habitual' || reading === 'high') {
+    return `Needs a reference heart rate that can be trusted. ${REFERENCE_ACTION}`
+  }
+  return `Add ${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])}${NEEDS_DEVICE[sport]}, each longer than an hour and reaching a hard heart rate.`
 }
 
 /** What drift needs: steady efforts, each over an hour, with the readings it compares. */

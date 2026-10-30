@@ -1,7 +1,13 @@
-import { HEADLINE_DURATION_S, HR_BLOCK_S, PRIORS, RESTING_W_PER_KG } from '../constants'
+import {
+  DURATIONS_S,
+  HEADLINE_DURATION_S,
+  HR_BLOCK_S,
+  PRIORS,
+  RESTING_W_PER_KG,
+} from '../constants'
 import { possibleRunWkg } from '../curves'
-import { checkEfforts } from '../effort'
-import type { EffortPoint, MaxHeartRates, ReferenceReading } from '../effort'
+import { checkEfforts, judgedTwentyMinutes } from '../effort'
+import type { EffortPoint, EffortReference, TwentyMinutePoint } from '../effort'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -174,6 +180,42 @@ export function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
   return bestOf(ordered, 'ride', (point) => point.value, isMeasured)
 }
 
+/** The index of the 20 minute best among a digest's durations. */
+const HEADLINE_INDEX = DURATIONS_S.indexOf(HEADLINE_DURATION_S)
+
+/**
+ * Each sport's activities' 20 minute bests in the fit's unit (gross metabolic W/kg) with the heart rate over each window,
+ * for the activities whose efforts count. A heart rate that is set aside is none. These are what the effort gate chooses
+ * the effort to judge from: the best, and any within the fit's reach tolerance of it.
+ */
+export function twentyMinutePoints(
+  ordered: readonly ActivityDigest[],
+  masses: Masses,
+  bikeModel: BikeModel,
+  gate: EstimatedRideGate | null,
+  setAside: ReadonlySet<string>,
+): Record<Sport, TwentyMinutePoint[]> {
+  const standing = estimatedStanding(gate)
+  const out: Record<Sport, TwentyMinutePoint[]> = { run: [], ride: [] }
+  for (const digest of ordered) {
+    const point = digest.curve[HEADLINE_INDEX]
+    if (point === undefined || !effortsCount(digest)) continue
+    const value =
+      digest.sport === 'ride'
+        ? centralWkgFromWatts(
+            ridePriced(point, digest, masses, bikeModel, standing).watts,
+            masses.bodyKg(digest),
+          )
+        : runCentralWkg(point)
+    if (!Number.isFinite(value)) continue
+    out[digest.sport].push({
+      value,
+      heartRate: setAside.has(digest.id) ? null : point.heartRate,
+    })
+  }
+  return out
+}
+
 /**
  * The run and ride curves of a set of digests, without the rest of the analysis. Rides are priced
  * with bikeModel, passed in so that two periods share one model and a change of model cannot read
@@ -186,31 +228,39 @@ export function sportCurves(
   settings: AthleteSettings,
   bikeModel: BikeModel,
   gate?: EstimatedRideGate | null,
-  hardness?: {
-    reference: MaxHeartRates
-    reading: Record<Sport, ReferenceReading | null>
-    setAside: ReadonlySet<string>
-  },
+  hardness?: { effort: EffortReference; setAside: ReadonlySet<string> },
 ): SportCurves {
   const masses = massesOf(settings)
   const ordered = orderedCurrent(digests)
-  const { runBest, rideBest } = bestCurves(
-    ordered,
-    masses,
-    bikeModel,
-    settings.massKg,
-    gate === undefined ? ownRideGate(ordered) : gate,
-  )
+  const rideGate = gate === undefined ? ownRideGate(ordered) : gate
+  const { runBest, rideBest } = bestCurves(ordered, masses, bikeModel, settings.massKg, rideGate)
   const curves = { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
   if (hardness === undefined) return curves
+  const setAside = new Set(hardness.setAside)
   const [effort] = checkEfforts(
-    withoutSetAside(runBest, new Set(hardness.setAside)),
-    withoutSetAside(rideBest, new Set(hardness.setAside)),
-    hardness.reference,
+    withoutSetAside(runBest, setAside),
+    withoutSetAside(rideBest, setAside),
+    hardness.effort.referenceHr,
     [HEADLINE_DURATION_S],
-    hardness.reading,
+    hardness.effort,
   )
-  return { ...curves, headlineEffort: effort! }
+  // The check judges the effort the gate does: the one with the highest heart rate among the 20 minute bests.
+  const points = twentyMinutePoints(ordered, masses, bikeModel, rideGate, setAside)
+  const share = (sport: Sport) => {
+    const { heartRate } = judgedTwentyMinutes(points[sport])
+    const reference = hardness.effort.referenceHr[sport]
+    return heartRate !== null && reference !== null && reference > 0 ? heartRate / reference : null
+  }
+  const runShare = share('run')
+  const rideShare = share('ride')
+  return {
+    ...curves,
+    headlineEffort: {
+      ...effort!,
+      runHrFraction: runShare ?? effort!.runHrFraction,
+      rideHrFraction: rideShare ?? effort!.rideHrFraction,
+    },
+  }
 }
 
 /**

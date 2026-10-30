@@ -131,7 +131,7 @@ describe('the answer: threshold and level in one card', () => {
     })
     expect(chip.closest('.chip')).toHaveClass('chip--good')
     expect(chip.closest('.chip')?.querySelector('svg')).not.toBeNull()
-    expect(screen.getByRole('note')).toHaveTextContent('so it was hard.')
+    expect(screen.getByRole('note')).toHaveTextContent(': close to your highest heart rate.')
   })
 
   it('names the period the threshold is for beside its name, so it is not read against another period’s', () => {

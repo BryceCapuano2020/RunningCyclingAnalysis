@@ -37,14 +37,11 @@ function reachesHeadline(curve: Curve): boolean {
 
 /**
  * Whether a sport has the evidence the headline needs: an effort as long as the headline's, or a fitted
- * threshold, and a best 20 minutes that heart rate does not show to be easy. A sport known only from shorter
- * efforts, such as one estimated 5 minute ride, says too little about its level to be set against the other; one
- * whose best 20 minutes was not a hard effort (the effort gate) says what it held, not what it can do, and
- * setting it against the other sport would read an easy week as a level. That is a hold, not a change to the rule
- * that reads the gap once both are there.
+ * threshold. A sport known only from shorter efforts, such as one estimated 5 minute ride, says too little
+ * about its level to be set against the other. Whether that effort was hard is not asked here: that is a hold on
+ * the headline (`holdOf`), which the pick is read under, so a pick is the same function of its result as ever.
  */
 export function hasEvidence(result: AnalysisResult, sport: Sport): boolean {
-  if (result.effortGate[sport].verdict === 'notHard') return false
   const { curve, threshold } = EVIDENCE_OF[sport](result)
   return threshold !== null || reachesHeadline(curve)
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { HEADLINE_DURATION_S } from '../constants'
-import { athleteFor, libraryOf } from '../effort/test/libraries'
+import { HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
+import { athleteFor, birthYearFor, libraryOf } from '../effort/test/libraries'
 import type { LibraryKind } from '../effort/test/libraries'
 import type { Sport } from '../types'
 import { combine } from './combine'
@@ -30,9 +30,11 @@ describe('the effort gate through the analysis', () => {
     expect(result.runCp).toBeNull()
     expect(result.runCpRefusal).toBe('effort')
     expect(result.runCpUneven).toBeNull()
-    const best = result.runCurve.find((p) => p.durationS === HEADLINE_DURATION_S)!.value
-    expect(result.effortGate.run.floor).toBe(best)
-    expect(result.effortGate.run.neededS).toBe(HEADLINE_DURATION_S)
+    // The floor is the best 30 minutes where the curve has one: the time a threshold is said to be held for.
+    const best = result.runCurve.find((p) => p.durationS === THRESHOLD_HOLD_S)!.value
+    expect(result.effortGate.run.floor).toEqual({ durationS: THRESHOLD_HOLD_S, value: best })
+    // The reference is too low to be a maximum, so a harder effort is not what is missing: the reference is.
+    expect(result.effortGate.run.neededS).toBeNull()
     // A sport with no activities has nothing to judge.
     expect(result.effortGate.ride.verdict).toBe('unknown')
   })
@@ -69,7 +71,12 @@ describe('the effort gate through the analysis', () => {
     ['hard', 3],
     ['testOnly', 1],
   ] as const)('keeps the threshold of a %s library', (kind, seed) => {
-    const result = combine(digestsOf(kind, 'run', seed), SETTINGS)
+    // A single test day has too few days with a heart rate to set its own reference: the age-predicted maximum stands in.
+    const birthYear = birthYearFor(athleteFor(seed), seed)
+    const result = combine(
+      digestsOf(kind, 'run', seed),
+      birthYear === null ? SETTINGS : { ...SETTINGS, birthYear },
+    )
     expect(result.effortGate.run.verdict).toBe('hard')
     expect(result.effortGate.run.reference).toBe('trusted')
     expect(result.effortGate.run.share).toBeGreaterThanOrEqual(0.9)
@@ -97,5 +104,69 @@ describe('the effort gate through the analysis', () => {
     expect(result.runCp).not.toBeNull()
     expect(result.runCpRefusal).toBeNull()
     expect(result.effort.every((e) => e.runHrFraction === null)).toBe(true)
+  })
+
+  it('cannot set a reference from a single test day without the age: it says the effort was not checked, and withholds nothing', () => {
+    const result = combine(digestsOf('testOnly', 'run', 1), SETTINGS)
+    expect(result.effortGate.run).toMatchObject({
+      verdict: 'unknown',
+      unchecked: 'thin',
+      reference: 'thin',
+    })
+    expect(result.runCp).not.toBeNull()
+    expect(result.runCpRefusal).toBeNull()
+  })
+
+  it('takes a maximum the athlete entered as the reference, trusted, over everything the activities say', () => {
+    const athlete = athleteFor(3)
+    const entered = [
+      {
+        kind: 'maxHeartRate' as const,
+        sport: 'run' as const,
+        value: athlete.hrMax,
+        from: '2020-01-01',
+      },
+    ]
+    const easy = combine(digestsOf('easy'), { ...SETTINGS, measurements: entered })
+    // Against the true maximum an easy library's best is not hard, and the reference no longer says it is low.
+    expect(easy.effortGate.run).toMatchObject({
+      verdict: 'notHard',
+      reference: 'trusted',
+      referenceSource: 'entered',
+      referenceBpm: athlete.hrMax,
+      neededS: HEADLINE_DURATION_S,
+    })
+    const hardHeavy = combine(digestsOf('hardHeavy'), SETTINGS)
+    // Without it, intervals twice a week put the typical day at the maximum, as a tempo-only runner's is: held as habitual.
+    expect(hardHeavy.effortGate.run.reference).toBe('habitual')
+    const told = combine(digestsOf('hardHeavy'), { ...SETTINGS, measurements: entered })
+    expect(told.effortGate.run.verdict).toBe('hard')
+  })
+
+  it('judges the reference against the age band: a maximum far over what the age gives is not trusted until entered', () => {
+    const athlete = athleteFor(3)
+    const young = Math.round((208 - athlete.hrMax + 40) / 0.7)
+    // Born so that the predicted maximum is 40 bpm under the reference the activities give.
+    const result = combine(digestsOf('hard'), { ...SETTINGS, birthYear: 2021 - young })
+    expect(result.effortGate.run.reference).toBe('high')
+    expect(result.effortGate.run.verdict).toBe('notHard')
+    expect(result.effortGate.run.neededS).toBeNull()
+  })
+
+  it('does not hold a rider with a power meter for a typical day at the maximum: the curve’s shape judges', () => {
+    // Tempo-only riding has its typical day at its maximum. A runner is held for it; a rider with a meter is not.
+    const rides = combine(digestsOf('tempo', 'ride', 1), SETTINGS)
+    const runs = combine(digestsOf('tempo', 'run', 1), SETTINGS)
+    expect(runs.effortGate.run.reference).not.toBe('trusted')
+    expect(rides.effortGate.ride.reference).not.toBe('habitual')
+  })
+
+  it('lists the hard sessions and the long sessions of high average heart rate that predictions may draw on', () => {
+    const result = combine(digestsOf('hard'), SETTINGS)
+    const { hard, endurance } = result.effortGate.run.sessions
+    expect(hard.length).toBeGreaterThan(10)
+    expect(hard.length).toBeLessThan(result.activities.length)
+    expect(endurance.length).toBeLessThan(result.activities.length)
+    expect(combine(digestsOf('easy'), SETTINGS).effortGate.run.sessions.hard).toEqual([])
   })
 })

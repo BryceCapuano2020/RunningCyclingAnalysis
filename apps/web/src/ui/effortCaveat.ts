@@ -1,8 +1,9 @@
 import { isHardShare } from '@rca/core/effort'
-import type { ReferenceReading } from '@rca/core/effort'
+import type { ReferenceReading, ReferenceSource } from '@rca/core/effort'
 import type { EffortCheck, Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 import { HEADLINE_LABEL } from './grades'
+import { HIGH_ACTION, REFERENCE_ACTION, THIN_ACTION, THIN_WHY } from './effortWords'
 import { SPORT_NOUN, SPORT_ORDER } from './sports'
 
 /*
@@ -19,12 +20,26 @@ export interface EffortCaveat {
   short: string
 }
 
-/** What follows a best effort's share, shared by the card's text and the sport page's line. */
-const VERDICT = {
-  /** The measured fact is the share before it, so this says what would change it. */
-  notHard: (duration: string) => `. A hard ${duration} effort would raise this.`,
-  hard: ', so it was hard.',
-} as const
+/** The share from which an effort is said to be close to the top of what the athlete has shown: 95%. */
+const CLOSE_SHARE = 0.95
+
+/**
+ * What follows a best effort's share, shared by the card's text and the sport page's line. Under the line the measured
+ * fact is the share, so it says what would change it. At it, it says no more than the share shows: heart rate near the
+ * athlete's highest is not proof of an all-out effort, and within 10% of it cannot tell a hard 20 minutes from an all-out one.
+ */
+function verdictAfter(fraction: number, duration: string, top: string): string {
+  if (!isHardShare(fraction)) return `. A hard ${duration} effort would raise this.`
+  if (fraction >= CLOSE_SHARE) return `: close to your ${top}.`
+  return `: within 10% of your ${top}. Heart rate cannot tell a hard ${duration} from an all-out one.`
+}
+
+/** What the reference is named after: the heart rate the athlete entered or the age gives a max, the activities a highest. */
+const TOP: Record<ReferenceSource, string> = {
+  data: 'highest heart rate',
+  entered: 'max heart rate',
+  age: 'max heart rate',
+}
 
 /** A share as the percent the text shows. The verdict is judged on this same figure. */
 function percentOf(fraction: number): number {
@@ -45,31 +60,58 @@ function referenceOf(effort: EffortCheck, sport: Sport): ReferenceReading | null
   return reading === undefined ? 'trusted' : reading
 }
 
+/** Where a check's reference came from; absent reads as the activities. */
+function sourceOf(effort: EffortCheck, sport: Sport): ReferenceSource {
+  const source = { run: effort.runReferenceSource, ride: effort.rideReferenceSource }[sport]
+  return source ?? 'data'
+}
+
 /**
  * Why a share of a reference that cannot be a maximum shows nothing, in words that follow "so a share of it cannot
- * show your best 20 min was hard": the reference is too low to be a maximum, or sits where a typical day does.
+ * show your best 20 min was hard", and what to do: the reference is too low to be a maximum, sits where a typical day does,
+ * or is far above the age band.
  */
-const UNCONFIRMED_WHY: Record<Exclude<ReferenceReading, 'trusted'>, (noun: string) => string> = {
-  low: (noun) => `The highest heart rate on file for your ${noun} is too low to be a maximum`,
-  habitual: (noun) => `Your ${noun} heart rate on file never rises far above a typical day's`,
+const UNCONFIRMED: Record<
+  Exclude<ReferenceReading, 'trusted' | 'thin'>,
+  { why: (noun: string) => string; action: string }
+> = {
+  low: {
+    why: (noun) => `The highest heart rate on file for your ${noun} is too low to be a maximum`,
+    action: REFERENCE_ACTION,
+  },
+  habitual: {
+    why: (noun) => `Your ${noun} heart rate on file never rises far above a typical day's`,
+    action: REFERENCE_ACTION,
+  },
+  high: {
+    why: (noun) =>
+      `Your highest ${noun} heart rate on file is far above the usual maximum for your age`,
+    action: HIGH_ACTION,
+  },
 }
 
-/**
- * Where the reference heart rate is named, its one gloss, in words that hold for both sports: cycling's is
- * derived from running's, so "your highest heart rate" would be wrong for a ride.
- */
-const REFERENCE_SOURCE = 'set from your highest heart rates on file'
+/** Where the reference heart rate is named, its one gloss, in words that hold for both sports. */
+const SOURCE_TEXT: Record<ReferenceSource, string> = {
+  data: 'set from your highest heart rates on file',
+  entered: 'the max heart rate you entered',
+  age: 'estimated from your age',
+}
 
 /** A best effort's heart rate as a share of its sport's reference, in words, without its ending. */
-function reachedText(sport: Sport, duration: string, fraction: number): string {
-  return REACHED[sport](duration, percentOf(fraction))
+function reachedText(
+  sport: Sport,
+  duration: string,
+  fraction: number,
+  source: ReferenceSource = 'data',
+): string {
+  return REACHED[sport](duration, percentOf(fraction), SOURCE_TEXT[source])
 }
 
-const REACHED: Record<Sport, (duration: string, share: number) => string> = {
-  run: (duration, share) =>
-    `Your best ${duration} running reached ${share}% of your running reference heart rate (${REFERENCE_SOURCE})`,
-  ride: (duration, share) =>
-    `Your best ${duration} on the bike reached ${share}% of your cycling reference heart rate (${REFERENCE_SOURCE})`,
+const REACHED: Record<Sport, (duration: string, share: number, source: string) => string> = {
+  run: (duration, share, source) =>
+    `Your best ${duration} running reached ${share}% of your running reference heart rate (${source})`,
+  ride: (duration, share, source) =>
+    `Your best ${duration} on the bike reached ${share}% of your cycling reference heart rate (${source})`,
 }
 
 /** Why the best efforts may not have been the hardest, or null when heart rate does not say so. */
@@ -78,15 +120,22 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   const { durationS, runHrFraction: run, rideHrFraction: ride } = effort
   const duration = formatDuration(durationS)
   const fractions = { run, ride }
-  const unconfirmed = SPORT_ORDER.some(
-    (sport) => fractions[sport] !== null && referenceOf(effort, sport) !== 'trusted',
+  const reads = SPORT_ORDER.filter((sport) => fractions[sport] !== null).map((sport) =>
+    referenceOf(effort, sport),
   )
-  if (unconfirmed) {
+  if (reads.includes('thin')) {
+    return {
+      title: 'Effort not checked',
+      text: `${THIN_WHY} ${THIN_ACTION}`,
+      short: THIN_WHY,
+    }
+  }
+  if (reads.some((read) => read !== 'trusted' && read !== null)) {
     return {
       title: 'Heart rate cannot show how hard your best efforts were',
       text:
-        `The highest heart rates on file sit too near a typical day's, or too low, to mark a hard effort, ` +
-        `so a share of them cannot show a best ${duration} was hard. A hard ${duration} effort would settle it.`,
+        `The highest heart rates on file sit too near a typical day's, or too low or too high, to mark a hard effort, ` +
+        `so a share of them cannot show a best ${duration} was hard. ${REFERENCE_ACTION}`,
       short: `Heart rate does not show the best efforts over ${duration} were hard.`,
     }
   }
@@ -95,7 +144,7 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
       title: 'Neither best effort reached a hard heart rate',
       text:
         `Your best ${duration} reached ${percentOf(run)}% of your running reference heart rate ` +
-        `and ${percentOf(ride)}% of your cycling one (both ${REFERENCE_SOURCE}). ` +
+        `and ${percentOf(ride)}% of your cycling one (both ${SOURCE_TEXT.data}). ` +
         `A hard ${duration} effort in each sport would raise these.`,
       short: `Best efforts over ${duration} did not reach a hard heart rate.`,
     }
@@ -103,14 +152,14 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   if (ride !== null && !isHard(ride)) {
     return {
       title: 'Your best ride did not reach a hard heart rate',
-      text: `${reachedText('ride', duration, ride)}${VERDICT.notHard(duration)}`,
+      text: `${reachedText('ride', duration, ride, sourceOf(effort, 'ride'))}${verdictAfter(ride, duration, TOP[sourceOf(effort, 'ride')])}`,
       short: `Best cycling effort over ${duration} did not reach a hard heart rate.`,
     }
   }
   if (run !== null && !isHard(run)) {
     return {
       title: 'Your best run did not reach a hard heart rate',
-      text: `${reachedText('run', duration, run)}${VERDICT.notHard(duration)}`,
+      text: `${reachedText('run', duration, run, sourceOf(effort, 'run'))}${verdictAfter(run, duration, TOP[sourceOf(effort, 'run')])}`,
       short: `Best running effort over ${duration} did not reach a hard heart rate.`,
     }
   }
@@ -126,27 +175,38 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
 export function effortShare(
   sport: Sport,
   effort: EffortCheck | null | undefined,
-): { line: string; hard: boolean; percent: number; confirmed: boolean } | null {
+): { line: string; hard: boolean; percent: number; confirmed: boolean; checked: boolean } | null {
   if (!effort) return null
   const fraction = { run: effort.runHrFraction, ride: effort.rideHrFraction }[sport]
   if (fraction === null) return null
   const reading = referenceOf(effort, sport)
-  if (reading !== null && reading !== 'trusted') {
-    const why = UNCONFIRMED_WHY[reading](SPORT_NOUN[sport])
+  if (reading === 'thin') {
     return {
-      line: `${why}, so a share of it cannot show your best ${HEADLINE_LABEL} was hard. A hard ${HEADLINE_LABEL} effort would settle it.`,
+      line: `${THIN_WHY} ${THIN_ACTION}`,
       hard: false,
       percent: percentOf(fraction),
       confirmed: false,
+      checked: false,
     }
   }
+  if (reading !== null && reading !== 'trusted') {
+    const { why, action } = UNCONFIRMED[reading]
+    return {
+      line: `${why(SPORT_NOUN[sport])}, so a share of it cannot show your best ${HEADLINE_LABEL} was hard. ${action}`,
+      hard: false,
+      percent: percentOf(fraction),
+      confirmed: false,
+      checked: true,
+    }
+  }
+  const source = sourceOf(effort, sport)
   const hard = isHard(fraction)
-  const verdict = hard ? VERDICT.hard : VERDICT.notHard(HEADLINE_LABEL)
   return {
-    line: `${reachedText(sport, HEADLINE_LABEL, fraction)}${verdict}`,
+    line: `${reachedText(sport, HEADLINE_LABEL, fraction, source)}${verdictAfter(fraction, HEADLINE_LABEL, TOP[source])}`,
     hard,
     percent: percentOf(fraction),
     confirmed: true,
+    checked: true,
   }
 }
 
@@ -183,9 +243,8 @@ export function effortChipText(
 ): EffortChipText | null {
   const share = effortShare(sport, effort)
   if (share === null) return null
-  if (!share.confirmed) {
-    return { hard: false, label: 'Effort not confirmed', detail: share.line }
-  }
+  if (!share.checked) return { hard: false, label: 'Effort not checked', detail: share.line }
+  if (!share.confirmed) return { hard: false, label: 'Effort not confirmed', detail: share.line }
   return {
     hard: share.hard,
     label: `${share.hard ? 'Hard effort' : 'Not a hard effort'} · ${share.percent}%`,

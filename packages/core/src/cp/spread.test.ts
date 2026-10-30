@@ -1,18 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { MODEL_ERROR_FRACTION, cpSpread } from './spread'
+import { ALLOWANCE_BASE, ALLOWANCE_PER_SHORTFALL, UNCHECKED_SHARE, cpBand } from './spread'
 
-describe('cpSpread', () => {
-  it('is the regression error alone only when the model error is nothing', () => {
-    expect(cpSpread({ cp: 0, cpSe: 0.3 })).toBe(0.3)
+describe('cpBand', () => {
+  const fit = { cp: 16, cpSe: 0.25 }
+
+  it('goes down by the regression error alone', () => {
+    expect(cpBand(fit, 0.97).low).toBeCloseTo(15.75)
   })
 
-  it('never falls under the model error floor, however well the efforts lie on a line', () => {
-    expect(cpSpread({ cp: 16, cpSe: 0 })).toBeCloseTo(16 * MODEL_ERROR_FRACTION)
-    expect(cpSpread({ cp: 16, cpSe: 0.001 })).toBeGreaterThan(0.79)
+  it('goes up by an allowance that grows as the effort falls short of the reference', () => {
+    const near = cpBand(fit, 1).high
+    const hard = cpBand(fit, 0.92).high
+    const marginal = cpBand(fit, 0.9).high
+    expect(near).toBeCloseTo(16 * (1 + ALLOWANCE_BASE))
+    expect(hard).toBeGreaterThan(near)
+    expect(marginal).toBeCloseTo(16 * (1 + ALLOWANCE_BASE + ALLOWANCE_PER_SHORTFALL * 0.1))
   })
 
-  it('adds the two errors as independent errors are added', () => {
-    const floor = 10 * MODEL_ERROR_FRACTION
-    expect(cpSpread({ cp: 10, cpSe: floor })).toBeCloseTo(floor * Math.SQRT2)
+  it('takes a share over the reference as the reference, and an unchecked effort as the hard line', () => {
+    expect(cpBand(fit, 1.1).high).toBe(cpBand(fit, 1).high)
+    expect(cpBand(fit, null).high).toBe(cpBand(fit, UNCHECKED_SHARE).high)
+  })
+
+  it('is wider above than below for a threshold whose effort was only just hard', () => {
+    const { low, high } = cpBand(fit, 0.9)
+    expect(high - fit.cp).toBeGreaterThan(fit.cp - low)
   })
 })

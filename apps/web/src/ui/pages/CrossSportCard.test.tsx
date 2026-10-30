@@ -93,6 +93,49 @@ describe('CrossSportCard', () => {
     },
   )
 
+  it('says the ride behind the pace was not a hard effort, or was not checked, and says nothing of one that was', () => {
+    const base = { equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }
+    const check = (share: number, reference: 'trusted' | 'low' = 'trusted') => ({
+      effort: [
+        {
+          durationS: 1200,
+          runHrFraction: null,
+          rideHrFraction: share,
+          runReference: null,
+          rideReference: reference,
+        },
+      ],
+    })
+    // A hard ride is said on the ride's own tile, beside this card.
+    renderCard(makeResult({ ...base, ...check(0.95) }))
+    expect(screen.queryByRole('button', { name: /effort/ })).toBeNull()
+    cleanup()
+    renderCard(makeResult({ ...base, ...check(0.7) }))
+    expect(screen.getByRole('button', { name: 'Not a hard effort · 70%' })).toBeInTheDocument()
+    cleanup()
+    renderCard(makeResult({ ...base, ...check(0.99, 'low') }))
+    expect(screen.getByRole('button', { name: 'Effort not confirmed' })).toBeInTheDocument()
+    cleanup()
+    const unchecked = {
+      verdict: 'unknown' as const,
+      unchecked: 'noHeartRate' as const,
+      share: null,
+      reference: null,
+      referenceBpm: null,
+      referenceSource: null,
+      referenceFrom: null,
+      floor: null,
+      neededS: 1200,
+      sessions: { hard: [], endurance: [] },
+    }
+    const { container } = renderCard(
+      makeResult({ ...base, effortGate: { run: unchecked, ride: unchecked } }),
+    )
+    expect(container.textContent).toContain(
+      'Effort not checked: no heart rate on your best 20 min ride.',
+    )
+  })
+
   it('states the bike fitness as a flat running pace, with the cycling effort it comes from', () => {
     const { container } = renderCard(
       makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),

@@ -1,5 +1,4 @@
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
-import { effortGateOf } from '../effort'
 import type { EffortGate } from '../effort'
 import { requirePositiveFinite } from '../math'
 import type { ActivityDigest, AthleteSettings, CriticalPowerFit, Sport } from '../types'
@@ -13,7 +12,7 @@ import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { gatedThreshold } from './effortGating'
 import { thresholdTimeline } from './thresholdTimeline'
-import { withoutSetAside } from './trustedHeartRate'
+import { effortGatesOf } from './twentyMinute'
 
 /**
  * Each sport's threshold fit of a library as the analysis reports it, null where it has none, refuses it, or the
@@ -76,32 +75,38 @@ export function judgeHeartRate(
   const ordered = orderedCurrent(digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
-  const { curves, fits, heart, gate } = judgedCurves(ordered, masses, bikeModel, settings.massKg)
-  const { setAside, reference, observedMax, observedSource, reading, trusted } = heart
+  const { curves, fits, heart, gate } = judgedCurves(
+    ordered,
+    masses,
+    bikeModel,
+    settings.massKg,
+    {},
+    settings,
+  )
+  const { setAside, reference, observedMax, observedSource, effort, trusted } = heart
   const { kappa, lnKappaSe } = heartRateCrossCheck(trusted, masses, bikeModel, fits)
   return {
     setAside: [...setAside].sort(),
     referenceHr: { run: reference.run, ride: reference.ride },
     observedMaxHr: { run: observedMax.run, ride: observedMax.ride },
     observedMaxSource: { run: observedSource.run, ride: observedSource.ride },
-    referenceReading: { run: reading.run, ride: reading.ride },
-    fit: reportedFits(curves, settings.massKg, {
-      run: effortGateOf(
-        withoutSetAside(curves.runBest, setAside),
-        plainCurve(curves.runBest),
-        reference.run,
-        reading.run,
+    effortReference: effort,
+    fit: reportedFits(
+      curves,
+      settings.massKg,
+      effortGatesOf(
+        ordered,
+        masses,
+        bikeModel,
+        gate,
+        { run: plainCurve(curves.runBest), ride: curves.rideMetabolic },
+        effort,
+        setAside,
       ),
-      ride: effortGateOf(
-        withoutSetAside(curves.rideBest, setAside),
-        curves.rideMetabolic,
-        reference.ride,
-        reading.ride,
-      ),
-    }),
+    ),
     thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, gate, {
-      referenceHr: reference,
-      referenceReading: reading,
+      referenceHr: effort.referenceHr,
+      referenceReading: effort.reading,
       setAside,
     }),
     threshold: { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null },

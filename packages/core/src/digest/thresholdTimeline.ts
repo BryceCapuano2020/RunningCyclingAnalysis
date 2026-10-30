@@ -199,9 +199,9 @@ function changeWeeks(entries: readonly Entry[]): number[] {
 }
 
 /**
- * Whether a window's best 20 minutes was a hard effort, as the analysis's gate judges its own: the entry of the window
- * with the highest value at 20 minutes, its heart rate over the reference. A window with no heart rate there cannot
- * be judged and is not held back.
+ * Whether a window's best 20 minutes was a hard effort, as the analysis's gate judges its own: of the entries whose 20 minute
+ * value is within the fit's reach tolerance of the window's best, the one with the highest heart rate over the reference.
+ * A window with no heart rate there, or a reference too thin to read, cannot be judged and is not held back.
  */
 function windowHard(
   entries: readonly Entry[],
@@ -209,13 +209,18 @@ function windowHard(
   hi: number,
   reading: ReferenceReading | null,
 ): boolean {
-  let best: Entry | null = null
+  if (reading === null || reading === 'thin') return true
+  let best = NONE
+  for (let i = lo; i < hi; i++) best = Math.max(best, entries[i]!.backed[HEADLINE_INDEX]!)
+  if (best === NONE) return true
+  let share: number | null = null
   for (let i = lo; i < hi; i++) {
     const entry = entries[i]!
-    if (entry.backed[HEADLINE_INDEX]! > (best?.backed[HEADLINE_INDEX] ?? NONE)) best = entry
+    const near = entry.backed[HEADLINE_INDEX]! >= best * (1 - CP_FIT_REACH_TOLERANCE)
+    if (near && entry.share !== null && (share === null || entry.share > share)) share = entry.share
   }
-  if (best === null || best.share === null || reading === null) return true
-  return reading === 'trusted' && isHardShare(best.share)
+  if (share === null) return true
+  return reading === 'trusted' && isHardShare(share)
 }
 
 /**

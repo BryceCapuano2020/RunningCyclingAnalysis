@@ -1,5 +1,6 @@
 import type { PeriodDurabilityRow } from './durabilityPeriod'
 import type { DriftPoint } from './driftTrend'
+import type { ReferenceReading } from '../effort'
 import type { Sport } from '../types'
 
 /** What one sport's digests say about its late-effort output: best efforts after hours of work and drift. */
@@ -10,6 +11,8 @@ export interface LateEvidence {
   drift: DriftPoint[]
   /** How hard the sessions behind the durability were; null without a reference or any such session. */
   ruler?: EffortRuler | null
+  /** What the sport's reference can certify; a late best waits for sessions that reach a hard heart rate only while it is trusted. */
+  reading?: ReferenceReading | null
 }
 
 /** The sessions behind a figure, and how hard they were: the lowest and highest peak heart rate over the reference. */

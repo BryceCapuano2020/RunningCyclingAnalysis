@@ -98,7 +98,7 @@ describe('effortShare line', () => {
     expect(
       effortShareLine('run', { durationS: 1200, runHrFraction: 0.95, rideHrFraction: null }),
     ).toBe(
-      'Your best 20 min running reached 95% of your running reference heart rate (set from your highest heart rates on file), so it was hard.',
+      'Your best 20 min running reached 95% of your running reference heart rate (set from your highest heart rates on file): close to your highest heart rate.',
     )
   })
 
@@ -129,7 +129,7 @@ describe('the 90% boundary is judged on the percent shown', () => {
     expect(
       effortShareLine('run', { durationS: 1200, runHrFraction: 0.895, rideHrFraction: null }),
     ).toBe(
-      'Your best 20 min running reached 90% of your running reference heart rate (set from your highest heart rates on file), so it was hard.',
+      'Your best 20 min running reached 90% of your running reference heart rate (set from your highest heart rates on file): within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one.',
     )
     expect(effortCaveat({ durationS: 1200, runHrFraction: null, rideHrFraction: 0.895 })).toBeNull()
     expect(hardEffortsOnFile({ durationS: 1200, runHrFraction: 0.895, rideHrFraction: 0.9 })).toBe(
@@ -141,7 +141,7 @@ describe('the 90% boundary is judged on the percent shown', () => {
     expect(
       effortShareLine('ride', { durationS: 1200, runHrFraction: null, rideHrFraction: 0.9 }),
     ).toBe(
-      'Your best 20 min on the bike reached 90% of your cycling reference heart rate (set from your highest heart rates on file), so it was hard.',
+      'Your best 20 min on the bike reached 90% of your cycling reference heart rate (set from your highest heart rates on file): within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one.',
     )
     expect(effortCaveat({ durationS: 1200, runHrFraction: null, rideHrFraction: 0.9 })).toBeNull()
   })

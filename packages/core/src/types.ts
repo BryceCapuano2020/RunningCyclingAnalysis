@@ -9,7 +9,7 @@ import type {
   DigestDrift,
   DigestDurabilityPoint,
 } from './digest/evidenceTypes'
-import type { ReferenceReading } from './effort/gate'
+import type { ReferenceReading, ReferenceSource } from './effort/reference'
 import type { RouteShape } from './route/routeShape'
 import type {
   DigestClimbSection,
@@ -279,6 +279,9 @@ export interface EffortCheck {
    */
   runReference?: ReferenceReading | null
   rideReference?: ReferenceReading | null
+  /** Where each reference came from (the activities, a maximum entered, or the age). Absent reads as the activities. */
+  runReferenceSource?: ReferenceSource | null
+  rideReferenceSource?: ReferenceSource | null
 }
 
 /**

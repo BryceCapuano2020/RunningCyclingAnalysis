@@ -1,102 +1,165 @@
 # The effort gate: a best is a capability only when it was a hard effort
 
-Status: built (`packages/core/src/effort/gate.ts`), applied to thresholds, zones from threshold, race predictions, the Balance
-headline and the late-in-sessions views. Calibrated on the synthetic harness only; no real figures are in this note.
+Status: built (`packages/core/src/effort/`), applied to thresholds, zones from threshold, race predictions, the Balance
+headline and the late-in-sessions views. Calibrated on the synthetic harness; no real figures are in this note.
 
 ## What it says
 
 A best effort is a lower bound on what an athlete can do. It becomes a capability (a threshold, a zone, a race time, a level
 to set against the other sport) only when it was a hard effort, and heart rate is the evidence the app has. The gate asks one
 question per sport and period: **was the best 20 minutes a hard effort?** The best 20 minutes is the effort every fit has to
-reach (`CP_FIT_REACH_TOLERANCE`), the one the Balance headline grades, and the one the chip has always named.
+reach (`CP_FIT_REACH_TOLERANCE`), the one the Balance headline grades, and the one the chip has always named. Of the 20 minute
+efforts within 5% of the best (a headwind or a hill moves a best by that), the one held at the highest heart rate is judged, in
+the gate, the chip, the previous-period check and the threshold timeline alike.
 
-Verdicts: `hard`, `notHard`, and `unknown` (no heart rate on that best, no reference, or no 20 minute best: nothing is
-judged, nothing is withheld, and no chip is shown). A failed gate withholds the estimate, shows the demonstrated best as a
-floor ("At least"), and names the effort that would settle it: one hard 20 min effort.
+Verdicts: `hard`, `notHard`, and `unknown`. `unknown` carries why: **no heart rate** on the best 20 minutes, **too few days** with a
+heart rate to set a reference (`thin`), or no 20 minute best. An unknown verdict withholds nothing, and every screen says
+"Effort not checked" with the reason and what would let it be checked; the Balance headline is held while a sport it rests on
+is unchecked. The line is the existing one: 90% of the reference heart rate, judged on the percent shown (`isHardShare`).
 
-The line is the existing one: 90% of the reference heart rate, judged on the percent shown (`isHardShare`). The chip, the
-gate, the "What changed" strip and the Method page all use it.
+A failed gate withholds the estimate and shows the demonstrated best in its place: the best 30 minutes where the curve has one
+(what a threshold is said to be held for), else the best 20, named "Best 30 min pace" and drawn as a recorded best, not as
+"Threshold, at least". What it asks for depends on why it failed (`EffortGate.neededS`):
+
+- the reference can be trusted and the best was under the line: **a hard 20 min effort** would settle it;
+- the reference cannot be trusted (`low`, `habitual`, `high`): a harder effort is not what is missing, the reference is. The
+  copy says what is true, **set your max heart rate in Profile, or reach hard heart rates on several days**, and for `high`, if
+  it is right, enter it. `neededS` is null.
 
 ## The reference cannot certify itself
 
-The reference is the athlete's own highest sustained heart rate, so on its own it only compares a best with the athlete's
-top. A library with no hard effort has a reference at its easy level and every best reads 95% to 100% of it. Two checks
-(`readReferences`) sit in front of the share:
+The reference is the athlete's own highest sustained heart rate, so on its own it can only compare a best with the athlete's top.
+`readReferences` (`effort/reference.ts`) reads it, per sport, in this order:
 
-| Reading    | When                                                                                            | Why                                                                                                    |
-| ---------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `low`      | the reference is under 150 bpm                                                                  | under the mean maximum at 80 (Tanaka 2001: 208 - 0.7 x age = 152), so not a maximum at any usual age   |
-| `habitual` | over 12 or more days with a heart rate, the median day's peak is 90% or more of the maximum     | a true maximum is reached on few days; where the typical day sits at it, it is where the athlete lives |
-| `trusted`  | otherwise (and for libraries under 12 days, which cannot say, so that a single test day passes) |                                                                                                        |
+| Case                                                                                                                                                                                      | Reference                                  | Reading                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
+| A maximum entered in Profile (dated, per sport; cycling's is running's less 6 bpm if only that is given)                                                                                  | the entered value                          | `trusted`, source `entered`; no check applies                         |
+| Under 12 days with a heart rate, age known                                                                                                                                                | the age-predicted maximum, 208 - 0.7 x age | `trusted`, source `age`                                               |
+| Under 12 days with a heart rate, age unknown                                                                                                                                              | the activities'                            | `thin`: nothing is judged, the screens say the effort was not checked |
+| The sport's own maximum under the floor                                                                                                                                                   | the activities'                            | `low`                                                                 |
+| A maximum more than 25 bpm over the age-predicted one                                                                                                                                     | the activities'                            | `high`: not trusted until the athlete enters a maximum                |
+| The median day's peak is 90% or more of the maximum over 12 or more days, unless the age puts the reference within 10 bpm of the predicted maximum, and not for a ride with a power meter | the activities'                            | `habitual`                                                            |
+| Otherwise                                                                                                                                                                                 | the activities'                            | `trusted`                                                             |
 
-The reading is that of the sport that supplied the reference (cycling's may be run's less 6 bpm), so a ride library next to a
-hard run library is judged against the run's maximum. Across sports that is also why an easy run library beside hard rides
-fails on its share, not on its reading.
+The floor tests the sport that supplied the reference (cycling's may be running's), not the derived value. **Floor:** with the year of
+birth, max(130, 208 - 0.7 x age - 30) bpm, three of the roughly 10 bpm spread between people under the predicted maximum; without it, 150.
+**Bands:** predicted maximum 208 - 0.7 x age (Tanaka, Monahan and Seals 2001, J Am Coll Cardiol 37:153, a meta-analysis of 18,712 people);
+low is 30 bpm under it, high 25 over it. A rider with a power meter is never held for `habitual` alone: the curve's shape and
+work capacity judge. The year of birth and the entered maxima are part of the cache key (`sameAnalysisSettings`), so entering one
+re-reads everything.
 
-**Residual.** A reference of 150 bpm or more whose typical day sits well under it, reached by tempo days (weekly tempo with easy
-days between), reads as trusted, and heart rate cannot tell a tempo 20 minutes (88% of critical power) from an all-out one
-within the spread of athletes. Only an age and sex band breaks that (Stage D6, RCA-005). No-heart-rate libraries are `unknown`.
+**Residual.** Tempo days that set a reference of 150 bpm or more, with easy days between, read as trusted. Heart rate cannot tell a
+tempo 20 minutes (88% of critical power) from an all-out one within the spread of athletes. Without the age, intervals twice a week
+(a hard-heavy week) also read `habitual`, indistinguishable from a tempo-only runner's every day; the entered maximum is the
+way out, and the message says so. The rest of RCA-005 (a prominent "Is that right?" on the zone tables for a `high` reference, the
+no-near-maximal state on zones) is D6.
 
 ## Where it applies, and what each shows when it fails
 
-- **Threshold** (`combine`): the fit is null with refusal `effort`; the uneven fit goes with it; `effortGate[sport].floor` is the best
-  20 minutes in the fit's unit. Panel and tile show the floor as "At least", no spread, and the line "Your best 20 min was not
-  shown to be a hard effort: it reached 82% of your running reference heart rate. A hard 20 min effort would give a threshold."
-  (or the reference is too low, with its bpm, or sits where a typical day does). The share card and anything that needs both
-  fits waits for them.
-- **Chip**: "Not a hard effort · N%", or "Effort not confirmed" with no share when the reference cannot certify. `result.effort`
-  now has an entry for every curve duration, so a one-sport library has its chip (it had none).
-- **Zones from threshold** (`thresholdTimeline`, `HeartRateJudgement.fit`): a window whose best 20 minutes (the entry with the
-  highest 20 min value) was not hard has no fit; the activity page reads the older fit within 12 months, or none.
-- **Race predictions**: a run's bests are carried to a race only if the run reached a hard heart rate (its peak, `maxHeartRate`);
-  runs without heart rate count. The heart-rate VO2max is dropped when the reference is not trusted. Nothing left: "Needs a hard
-  run".
-- **Balance headline**: held when a sport's gate says `notHard`, naming the sport. A hold, not a rule change: `leanOfLead` stays.
-- **Late in long sessions** (RCA-043): a late best counts only sessions that reached a hard heart rate (peak against the
-  reference; no heart rate counts); under 3 such sessions the headline is hidden. The section's note gives the ruler: how near the
-  reference the sessions peaked. Each steady effort of the drift carries its average share of the reference, and the note gives
-  its range. Drift is not filtered: it is defined on submaximal steady efforts.
+- **Threshold** (`combine`): the fit is null with refusal `effort`; the uneven fit goes with it. Panel and tile name the figure
+  "Best 30 min pace" (a recorded best), give no spread, and say why in one line (see above). The share card and anything that needs both
+  fits waits for them. An unchecked threshold is shown with "Effort not checked: no heart rate on your best 20 min run."
+- **Chip**: "Hard effort · N%" with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
+  "within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one"), "Not a hard effort · N%",
+  "Effort not confirmed" with no share for an untrusted reference, "Effort not checked". The reference is named by its source
+  (the activities, the maximum entered, the age). `result.effort` has an entry for every curve duration, so a one-sport library
+  has its chip. The ride on foot card says the ride behind its pace was not hard or not checked, and nothing of one that was.
+- **Zones from threshold** (`thresholdTimeline`, `HeartRateJudgement.fit`): a window whose judged 20 minutes was not hard has no fit. The
+  activity page then reads an older fit within 12 months, else shows heart-rate zones only: for an athlete who is persistently
+  not hard the pace and power zones are absent, which is the honest state.
+- **Race predictions**: a run's bests are carried to a race when it reached a hard heart rate (its peak at the hard line, and held there
+  for two minutes where the digest has its seconds by heart rate, so a lone 30 s spike does not count; digests from before the
+  distributions were kept are judged by the peak alone), or, for a best at a half marathon or longer, when its average
+  heart rate was 80% of the reference or more, since a long effort's average sits well under its peak. Runs without a heart rate count, and
+  so does every run where the gate could not judge. The heart-rate VO2max uses the same reference and reading. Nothing left: "Needs a
+  hard run of a mile or more", or the reference action.
+- **Balance headline**: held, by one place (`holdOf`, `ui/resultHold.ts`): a sport whose best 20 minutes was not hard, or not checked, with
+  the sport named and what lifts it, per sport. A hold, not a rule change: `leanOfLead` stays. A level read from a best that was not shown
+  hard is not asserted: "Your best 20 min run grades Local", and the level rows say "best 20 min, not a hard effort". The precedence is
+  'implausible-ride' (a seam for D6a) over 'effort'; 'updating' and 'partial-import' will go above both.
+- **Late in long sessions** (RCA-043): a late best counts only sessions that reached a hard heart rate (a session with no heart rate counts); under
+  3 such sessions the headline is hidden, and with a reference that cannot be trusted the need is the reference. The note gives the ruler.
+  Each steady effort of the drift carries its average share of the reference, and the note gives its range. Drift is not filtered: it
+  is defined on submaximal steady efforts.
 
 ## The fit spread
 
-`cpSpread = hypot(cpSe, MODEL_ERROR_FRACTION x cp)` with `MODEL_ERROR_FRACTION = 0.05`. The regression error shrinks as efforts are
-added but assumes they all lie on one curve; the model error does not shrink. The "fit spread" the page draws is this.
+One-sided (`cpBand`): down by the regression error, up by an allowance that falls with the share of the reference the judged effort
+reached, `0.044 + 0.386 x (1 - share)` of the threshold (a share of 0.9 allows 8.3%, an unchecked effort is read as 0.9). A best that
+was not quite all-out puts the fit under the truth, so the truth lies above it. Both ends are in gross metabolic W/kg, the fit's unit.
+
+Fitted to the 1,085 gate-passing fits of 11 arms: the truth's distance above the fit regressed on 1 - share gives 0.037 + 0.386 x (1 -
+share), and the 67th percentile of what is left, 0.0074, is added. The band held the truth in 67% of those fits (Wilson 95%: 0.64 to
+0.70; with the regression error alone and no allowance it is 58%). **That is synthetic coverage**: the harness's efforts are not quite
+all-out by construction (a test at 94% to 100% of critical power), and a real athlete's miss may be larger or smaller; field fits
+against a laboratory threshold show a standard error of estimate of 5.2% (Karsten et al. 2015), the same size as the allowance at the
+hard line. Leave-one-out on the 9 curves of the public corpus (`cp.corpus.test.ts`): the jackknife error of the threshold is 0.7 to 1.4 times
+the regression error (median 1.2), so the curve is described about as well as the regression says; it measures curve misfit, not whether
+the efforts were maximal, and these are single sessions.
 
 ## The duration a threshold is held for
 
-The fit rests on efforts of 3 to 20 minutes. "About an hour" is not what that supports; the tile says "about 30 min"
-(`THRESHOLD_HOLD_S`). On noise-free curves that fall with duration the fitted value sat at about the value of a 40 minute effort
-(0.98 to 1.05 times it, in the audit's simulations), so half an hour, between the longest effort the fit uses and that, is a
-stated convention in the constant, not a measurement. It is not tied to a source that says 30 minutes.
+The fit rests on efforts of 3 to 20 minutes, and "about an hour" is not what that supports; the tile says "about 30 min"
+(`THRESHOLD_HOLD_S`). Poole et al. 2016 (Med Sci Sports Exerc 48:2320, PMC5070974) report riders completing 24 minutes at critical power
+without difficulty, and exercise just above it sustained for "perhaps 30 minutes"; on noise-free curves that fall with duration the fit sat
+at about the value of a 40 minute effort (0.98 to 1.05 times it, in the audit's simulations). Half an hour, between those, is a convention
+stated in the constant. A published 20 to 40 minute range for time to exhaustion at critical power could not be verified and is not cited.
 
 ## Calibration (synthetic harness, `effort/gate.sim.test.ts`)
 
-40 synthetic athletes per kind (critical power 13 to 20 W/kg, work capacity 900 to 1600 J/kg, maximum heart rate 165 to 200,
-heart rate at critical power 88% to 95% of it), twelve weeks of 3 to 4 sessions a week, sessions varied by the day's form (easy
-+-12%, tempo +-5%, intervals +-2%, a test 94% to 100% of all-out). Run through the whole analysis.
+100 synthetic athletes an arm (critical power 13 to 20 W/kg, work capacity 900 to 1600 J/kg, maximum heart rate 165 to 200,
+heart rate at critical power 88% to 95% of it unless the arm says), 12 weeks of 3 to 4 sessions a week unless it says, each session varied by
+the day's form (easy +-12%, tempo +-5%, intervals +-2%, a test 94% to 100% of all-out). Counts out of 100 let through as `hard`; the Wilson
+95% bound is in brackets. Arms ending "age" give the year of birth (the athlete's maximum plus the age rule's spread of 10 bpm), and none is
+given for ages under 15 or over 85.
 
-| Library                                              | Gate (hard / notHard) | Reference readings  | Typical day / maximum (5th to 95th) | Fit error against truth (10th, 50th, 90th) |
-| ---------------------------------------------------- | --------------------- | ------------------- | ----------------------------------- | ------------------------------------------ |
-| easy only                                            | 0 / 40                | low 40              | 0.93 to 0.96                        | (withheld)                                 |
-| tempo only                                           | 0 / 40                | habitual 26, low 14 | 0.97 to 0.99                        | (withheld)                                 |
-| weekly tempo, easy days                              | 25 / 15               | trusted 25, low 15  | 0.85 to 0.89                        | (fit refused by shape)                     |
-| tempo and intervals weekly                           | 37 / 3                | trusted 40          | 0.85 to 0.88                        | -14.2%, -13.0%, -12.5% (the residual)      |
-| hard (intervals weekly, a monthly test)              | 40 / 0                | trusted 40          | 0.79 to 0.85                        | -5.3%, -3.2%, -2.2%                        |
-| hard but sparse (intervals every 2nd week, one test) | 40 / 0                | trusted 40          | 0.75 to 0.81                        | -7.4%, -4.9%, -2.8%                        |
-| single test day                                      | 38 / 2                | trusted 40          | (under 12 days)                     | -6.8%, -4.7%, -3.4%                        |
-| easy plus a race every 4th week                      | 33 / 7                | trusted 33, low 7   | 0.72 to 0.97                        | (3 or 4 races needed to set a reference)   |
+| Arm                                                            | hard                                      | readings (of 100)                |
+| -------------------------------------------------------------- | ----------------------------------------- | -------------------------------- |
+| easy only                                                      | 0 (0 to 0.04)                             | low 95, habitual 5               |
+| tempo only                                                     | 0 (0 to 0.04)                             | habitual 76, low 24              |
+| tempo only, age known                                          | 7 (0.03 to 0.14)                          | habitual 68, low 25, trusted 7   |
+| realistic easy (70% to 80% of maximum, strides)                | 2 (0.01 to 0.07)                          | habitual 58, low 40              |
+| realistic easy, age known                                      | 4 (0.02 to 0.10)                          | habitual 55, low 41              |
+| realistic easy with a day-to-day heart-rate offset (sd 6 bpm)  | 14 (0.09 to 0.22)                         | habitual 55, low 31, trusted 14  |
+| easy 5 weeks (12 to 29 days)                                   | 0                                         | low 95, habitual 5               |
+| easy riding                                                    | 5 (0.02 to 0.11)                          | low 95                           |
+| easy running and easy riding                                   | 0                                         | low 95, habitual 5               |
+| easy running, hard riding (run judged)                         | 0                                         | trusted 100 (the ride's maximum) |
+| easy, true maximum entered                                     | 0                                         | trusted 100                      |
+| hard (intervals weekly, a monthly test)                        | 99 (0.95 to 1.00)                         | trusted 100                      |
+| hard but sparse                                                | 100 (0.96 to 1.00)                        | trusted 100                      |
+| hard, 5 weeks                                                  | 100                                       | trusted 100                      |
+| hard with a day offset                                         | 98 (0.93 to 0.99)                         | trusted 100                      |
+| hard riding / sparse riding                                    | 99 / 100                                  | trusted 100                      |
+| hard running and riding                                        | 99                                        | trusted 100                      |
+| hard-heavy, true maximum entered                               | 99                                        | trusted 100                      |
+| hard, maximum entered 5% under                                 | 100                                       | trusted 100                      |
+| hard-heavy (intervals twice a week), no age                    | 1 (0 to 0.05)                             | habitual 99                      |
+| hard-heavy, age known                                          | 77 (0.68 to 0.84)                         | trusted 78, habitual 22          |
+| tempo and intervals weekly                                     | 96 (0.90 to 0.98), fit 13% under          | trusted 100                      |
+| weekly tempo, easy days (fit refused for shape)                | 71                                        | trusted 71, low 29               |
+| one test day, no age                                           | unknown 100                               | thin 100                         |
+| two weeks of hard training, no age                             | unknown 100                               | thin 100                         |
+| one test day, age known                                        | 69 (0.59 to 0.77), unknown 11, notHard 20 | trusted 89, thin 11              |
+| maximum 140 to 165, no age                                     | 54 (0.44 to 0.63)                         | low 46                           |
+| maximum 140 to 165, age known                                  | 72 (0.63 to 0.80)                         | low 28                           |
+| beginners (heart rate at critical power 80% to 88% of maximum) | 19 (0.13 to 0.28)                         | trusted 94, low 6                |
+| easy plus a race every fourth week                             | 83 (0.74 to 0.89)                         | low 17                           |
 
-Rides (20 athletes): easy 20 notHard, tempo 20 notHard, hard 20 hard, single test day 19 hard.
+The 17 athletes of the race arm that are held are not those with the lower maxima (held mean 183 bpm, passed 181, held from 168 up) and their
+race heart rate is not set aside: three races rarely agree to within 3 bpm, so the reference rule (`referenceMax.ts`, C1) finds the first three days
+that do among the easy ones and reads the easy level. That is a limit of the reference, reported rather than changed here.
 
-`HABITUAL_PEAK_RATIO = 0.90` sits between the hard libraries (up to 0.85) and the easy and tempo-only ones (from 0.93).
-`MODEL_ERROR_FRACTION`: over the 118 hard, sparse and test-day fits the gate lets through, the spread holds the truth
-0% of the time with the regression error alone, 50% at a floor of 4%, 58% at 4.5%, 70% at 5%, 85% at 6%. 5% is the least floor in half
-percents that holds it in two of three; it matches the 5.2% standard error of estimate field fits show against a laboratory
-threshold (Karsten et al. 2015). The fits sit 2% to 7% under the truth because the efforts are not quite all-out.
+What the numbers say: easy and tempo-only libraries are held, and the share let through is at most 14% in every arm built to be held (0 to 7% in all but
+the day-offset arm); hard training is let through at 96% or more in every arm except hard-heavy training (77 with the age, 1 without it), a
+single test day, athletes with a maximum under 150 bpm, beginners whose heart rate at critical power is low in this model, and the race arm. Those
+are the costs, and they are listed: such athletes are held or unchecked until they enter a maximum.
 
 ## What this does not do
 
-- It cannot tell a tempo 20 minutes from an all-out one by heart rate alone (above).
-- It does not judge a library without heart rate: `unknown`, nothing withheld. A runner's easy-only library without a watch still
-  gets an easy-pace threshold. A pace-based test would need its own calibration.
-- Digests are unchanged (no MODEL_REVISION): every input is a field a digest already holds.
+- It cannot tell a tempo 20 minutes from an all-out one by heart rate alone, and does not see through tempo and intervals every week.
+- A library without a heart rate on its best 20 minutes is `unknown`: nothing is withheld and the screens say it was not checked. A hardness
+  test from the curve's shape (a W' near what the same efforts at 88% of critical power would give) was considered and not built: it needs a
+  calibration against real tests, not the harness, whose curve is the model's own.
+- Digests are unchanged (no MODEL_REVISION): every input is a field a digest already holds. Digests without `distributions` are judged for a hard
+  session by the peak alone.

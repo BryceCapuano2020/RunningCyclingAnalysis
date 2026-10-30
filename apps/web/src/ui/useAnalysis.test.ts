@@ -1468,6 +1468,22 @@ describe('useAnalysis requests', () => {
     expect(worker().posted).toEqual([DEVICE_LOAD, { type: 'setSettings', settings: changed }])
   })
 
+  it('posts new settings when what the heart-rate reference reads changes, and not for a threshold', () => {
+    const { rerender } = setup(SIGNED_OUT, SETTINGS)
+    const dated = (kind: 'maxHeartRate' | 'thresholdPower', value: number) => ({
+      ...SETTINGS,
+      measurements: [{ kind, sport: 'run' as const, value, from: '2025-01-01' }],
+    })
+    rerender({ account: SIGNED_OUT, current: dated('thresholdPower', 250) })
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+    const maximum = dated('maxHeartRate', 188)
+    rerender({ account: SIGNED_OUT, current: maximum })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setSettings', settings: maximum })
+    const born = { ...maximum, birthYear: 1985 }
+    rerender({ account: SIGNED_OUT, current: born })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setSettings', settings: born })
+  })
+
   it('stops the worker on unmount', () => {
     const { unmount } = setup(SIGNED_OUT)
     const created = worker()

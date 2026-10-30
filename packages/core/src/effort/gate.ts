@@ -1,132 +1,149 @@
-import { HEADLINE_DURATION_S } from '../constants'
+import { CP_FIT_REACH_TOLERANCE, HEADLINE_DURATION_S } from '../constants'
+import { ALL_OUT_FRACTION } from './effort'
+import type { ReferenceReading, ReferenceSource } from './reference'
 import type { Sport } from '../types'
-import { ALL_OUT_FRACTION, heartRateFraction } from './effort'
-import type { EffortPoint, MaxHeartRates } from './effort'
 
 /*
  * The effort gate: whether a sport's best efforts were hard, before a best is read as capability. One rule,
  * used wherever a best becomes a threshold, a zone, a race time, a level or a durability: see D1 in
- * .claude/stage-d and docs/design/effort-gate.md for the calibration.
+ * .claude/stage-d and docs/design/effort-gate.md for the calibration. The references it reads are judged in reference.ts.
  */
-
-/**
- * What a reference heart rate can certify. `trusted` can; `low` is under what any usual maximum is; `habitual` is
- * where the athlete's typical day already sits, so no best can be told from it by a share of it.
- */
-export type ReferenceReading = 'trusted' | 'low' | 'habitual'
-
-/**
- * A reference under this, bpm, is not a maximum at any usual age: the mean maximum at 80 is 152 (Tanaka et al.
- * 2001, 208 - 0.7 x age). The one absolute number in the gate; an age and sex band replaces it where the profile is known.
- */
-export const REFERENCE_FLOOR_BPM = 150
-
-/**
- * The typical day's peak heart rate over the maximum, from which the maximum is where the athlete lives. A true maximum
- * is reached on few days, so a typical day sits under it. Between the typical-day ratio of hard libraries (under
- * 0.85) and of easy or tempo-only ones (over 0.93) in the synthetic harness; see effort/gate.sim.test.ts.
- */
-export const HABITUAL_PEAK_RATIO = 0.9
-
-/** Fewest days with a heart rate for the typical day to say anything; a thinner library is read as trusted. */
-export const HABITUAL_MIN_DAYS = 12
-
-/** The per-day peaks of one sport against its maximum, as `typicalDayOf` gives them. */
-export interface TypicalDayShare {
-  share: number
-  days: number
-}
-
-const OTHER_SPORT: Record<Sport, Sport> = { run: 'ride', ride: 'run' }
 
 /** Whether a share of the reference, as the percent the screen shows it, reaches the hard line. */
 export function isHardShare(fraction: number): boolean {
   return Math.round(fraction * 100) >= Math.round(ALL_OUT_FRACTION * 100)
 }
 
-/**
- * Each sport's reference read: null without a reference. The reading is that of the sport that supplied the reference,
- * since cycling's may be worked out from running's.
- */
-export function readReferences(
-  reference: MaxHeartRates,
-  observedMax: Record<Sport, number | null>,
-  typical: Record<Sport, TypicalDayShare | null>,
-): Record<Sport, ReferenceReading | null> {
-  const read = (sport: Sport): ReferenceReading | null => {
-    const bpm = reference[sport]
-    if (bpm === null) return null
-    if (bpm < REFERENCE_FLOOR_BPM) return 'low'
-    const source = observedMax[sport] === bpm ? sport : OTHER_SPORT[sport]
-    const day = typical[source]
-    const habitual =
-      day !== null && day.days >= HABITUAL_MIN_DAYS && day.share >= HABITUAL_PEAK_RATIO
-    return habitual ? 'habitual' : 'trusted'
-  }
-  return { run: read('run'), ride: read('ride') }
-}
-
 export type EffortVerdict = 'hard' | 'notHard' | 'unknown'
+
+/** Why a gate could not judge: no heart rate on the best, too few days to set a reference, or no 20 minute best. */
+export type Unchecked = 'noHeartRate' | 'thin' | 'noBest'
 
 /** The gate's answer for one sport and period. */
 export interface EffortGate {
-  /** `unknown` without a heart rate on the best 20 minutes, a reference or a 20 minute best: nothing is judged. */
+  /** `unknown` when it cannot judge (see `unchecked`): nothing is withheld, and the screens say the effort was not checked. */
   verdict: EffortVerdict
-  /** The best 20 minutes' heart rate over the reference; null when it cannot be worked out. */
+  /** Why it could not judge; null when it did. */
+  unchecked: Unchecked | null
+  /** The judged 20 minutes' heart rate over the reference; null when it cannot be worked out. */
   share: number | null
   /** What the reference can certify; null without one. */
   reference: ReferenceReading | null
-  /** The demonstrated best at the headline duration, in the sport's fit unit (gross metabolic W/kg); null without one. */
-  floor: number | null
-  /** The cheapest effort that would settle a failed gate: one hard effort of this length, s. */
-  neededS: number
+  /** The reference heart rate the share is of, bpm; null without one. */
+  referenceBpm: number | null
+  /** Where it came from, and for one worked out from the activities, the sport whose days supplied it. */
+  referenceSource: ReferenceSource | null
+  referenceFrom: Sport | null
+  /**
+   * The demonstrated best shown in place of a withheld threshold, in the sport's fit unit (gross metabolic W/kg) with the
+   * duration it was held for: the best 30 minutes (what a threshold is said to be held for) where the curve has one, else the
+   * best 20 minutes. Null without either.
+   */
+  floor: { durationS: number; value: number } | null
+  /**
+   * What would settle a failed gate: one hard effort of this length, s, when the reference can certify one. Null when it
+   * cannot (low, habitual or high): then a hard effort is not the missing piece, the reference is.
+   */
+  neededS: number | null
+  /**
+   * The activities that reached a hard heart rate (`hard`), and the long ones whose average heart rate was high
+   * (`endurance`): what a race prediction may carry a time from. Empty where the gate could not judge.
+   */
+  sessions: { hard: string[]; endurance: string[] }
 }
 
 /** A gate with nothing to judge: no heart rate, no reference. Held by a result before it has efforts. */
 export const NO_EFFORT_GATE: EffortGate = {
   verdict: 'unknown',
+  unchecked: 'noBest',
   share: null,
   reference: null,
+  referenceBpm: null,
+  referenceSource: null,
+  referenceFrom: null,
   floor: null,
   neededS: HEADLINE_DURATION_S,
+  sessions: { hard: [], endurance: [] },
 }
 
-function pointAt(curve: readonly EffortPoint[], durationS: number): EffortPoint | undefined {
-  return curve.find((point) => point.durationS === durationS)
+/** One activity's 20 minute best: its value in the fit unit and the heart rate over the window; null without one. */
+export interface TwentyMinutePoint {
+  value: number
+  heartRate: number | null
 }
 
 /**
- * The gate for a sport. `heartCurve` carries the heart rate of each best (the sport's best curve with set-aside
- * heart rate removed); `fitCurve` is the same bests in the unit the threshold is fitted in, which gives the floor.
- * The best 20 minutes is the point the fit must reach, so it is the effort the gate judges.
+ * The 20 minute efforts that stand for a sport's best: the best, and any other within the fit's reach tolerance of it. Of
+ * these the one with the highest heart rate is the one judged, since a headwind or a hill moves the best by a few percent and
+ * says nothing of effort.
+ */
+export function judgedTwentyMinutes(points: readonly TwentyMinutePoint[]): {
+  best: number | null
+  heartRate: number | null
+} {
+  let best: number | null = null
+  for (const { value } of points) {
+    if (Number.isFinite(value) && (best === null || value > best)) best = value
+  }
+  if (best === null) return { best: null, heartRate: null }
+  let heartRate: number | null = null
+  for (const point of points) {
+    const near = Number.isFinite(point.value) && point.value >= best * (1 - CP_FIT_REACH_TOLERANCE)
+    if (near && point.heartRate !== null && (heartRate === null || point.heartRate > heartRate)) {
+      heartRate = point.heartRate
+    }
+  }
+  return { best, heartRate }
+}
+
+/** What a gate reads of a sport's reference. */
+export interface GateReference {
+  bpm: number | null
+  reading: ReferenceReading | null
+  source: ReferenceSource | null
+  from: Sport | null
+}
+
+/**
+ * The gate for a sport, from its 20 minute efforts. `floor` is the demonstrated best the surfaces show in place of a
+ * withheld threshold.
  */
 export function effortGateOf(
-  heartCurve: readonly EffortPoint[],
-  fitCurve: readonly { durationS: number; value: number }[],
-  referenceBpm: number | null,
-  reading: ReferenceReading | null,
+  points: readonly TwentyMinutePoint[],
+  floor: EffortGate['floor'],
+  reference: GateReference,
+  sessions: EffortGate['sessions'],
 ): EffortGate {
-  const held = fitCurve.find((point) => point.durationS === HEADLINE_DURATION_S)
-  const floor = held !== undefined && Number.isFinite(held.value) ? held.value : null
-  const base = { reference: reading, floor, neededS: HEADLINE_DURATION_S }
-  const share = heartRateFraction(pointAt(heartCurve, HEADLINE_DURATION_S), referenceBpm)
-  if (share === null || reading === null) return { ...base, verdict: 'unknown', share }
-  const hard = reading === 'trusted' && isHardShare(share)
-  return { ...base, verdict: hard ? 'hard' : 'notHard', share }
-}
-
-/**
- * Whether a whole activity reached a hard heart rate, from its peak (the highest 30 s mean) against the sport's
- * reference: the judgement of a session, where `effortGateOf` judges a best. `unknown` without a peak or a reference.
- * A reference that cannot certify a maximum never shows a session hard.
- */
-export function sessionEffort(
-  peakBpm: number | null,
-  referenceBpm: number | null,
-  reading: ReferenceReading | null,
-): EffortVerdict {
-  if (peakBpm === null || referenceBpm === null || !(referenceBpm > 0) || reading === null) {
-    return 'unknown'
+  const { best, heartRate } = judgedTwentyMinutes(points)
+  const base = {
+    reference: reference.reading,
+    referenceBpm: reference.bpm,
+    referenceSource: reference.source,
+    referenceFrom: reference.from,
+    floor,
   }
-  return reading === 'trusted' && isHardShare(peakBpm / referenceBpm) ? 'hard' : 'notHard'
+  const share =
+    heartRate !== null && reference.bpm !== null && reference.bpm > 0
+      ? heartRate / reference.bpm
+      : null
+  const unknown = (unchecked: Unchecked): EffortGate => ({
+    ...base,
+    verdict: 'unknown',
+    unchecked,
+    share,
+    neededS: HEADLINE_DURATION_S,
+    sessions: { hard: [], endurance: [] },
+  })
+  if (best === null) return unknown('noBest')
+  if (reference.reading === 'thin') return unknown('thin')
+  if (share === null || reference.reading === null) return unknown('noHeartRate')
+  const trusted = reference.reading === 'trusted'
+  return {
+    ...base,
+    verdict: trusted && isHardShare(share) ? 'hard' : 'notHard',
+    unchecked: null,
+    share,
+    neededS: trusted ? HEADLINE_DURATION_S : null,
+    sessions,
+  }
 }
