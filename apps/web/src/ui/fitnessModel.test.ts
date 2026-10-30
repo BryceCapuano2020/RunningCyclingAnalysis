@@ -6,6 +6,7 @@ import {
   HOLDING,
   IMPROVING,
   RECOVERING,
+  RIDE_SLIPPING,
   SLIPPING,
   fitnessStatus,
   waitingStatus,
@@ -153,12 +154,19 @@ describe('progressOf and worthShowing', () => {
     expect(worthShowing(waitingStatus({ kind: 'unavailable' }, 30))).toBe(false)
   })
 
-  it('draws the run alone today: the ride is not compared, and an empty library has no card', () => {
-    const both = fitnessViews(
+  it('draws a card for each sport that has a status, run first, and none for a sport that is switched off or has no steady ride', () => {
+    const both = fitnessViews({ run: SLIPPING, ride: RIDE_SLIPPING }, 'metric')
+    expect(both.map((view) => view.sport)).toEqual(['run', 'ride'])
+    expect(both[1]!.headline).toMatch(/^At 140 bpm you now ride at \d+ W, \d+% /)
+    const off = fitnessViews(
       { run: SLIPPING, ride: { ...NO_FITNESS.ride, shortfall: { kind: 'unavailable' } } },
       'metric',
     )
-    expect(both.map((view) => view.sport)).toEqual(['run'])
+    expect(off.map((view) => view.sport)).toEqual(['run'])
+    // A library of runs has no steady ride: nothing to count, so no card; a library of rides shows the ride alone.
+    expect(
+      fitnessViews({ run: NO_FITNESS.run, ride: RIDE_SLIPPING }, 'metric').map((v) => v.sport),
+    ).toEqual(['ride'])
     expect(fitnessViews(NO_FITNESS, 'metric')).toEqual([])
   })
 })

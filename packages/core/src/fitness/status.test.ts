@@ -11,6 +11,7 @@ const rec = (w: number, state: MachineState, fresh = false, z = Number.NaN): Wee
   delta: 0,
   episode: null,
   closes: null,
+  dip: null,
   shown: state,
 })
 
