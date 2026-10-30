@@ -202,6 +202,21 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('It holds no activity data.')
   })
 
+  it('names the flags and choices this browser keeps beyond the summaries, as the app stores them', async () => {
+    const keptLibrary = await readStylesheet(import.meta.url, './ui/analysis/keptLibrary.ts')
+    const countedRuns = await readStylesheet(import.meta.url, './ui/countedRunsStore.ts')
+    expect(text).toContain('rca.deviceKept.v1')
+    expect(keptLibrary).toContain("DEVICE_KEY = 'rca.deviceKept.v1'")
+    expect(text).toContain('rca.persistNote.v1')
+    expect(keptLibrary).toContain("PERSIST_NOTE_KEY = 'rca.persistNote.v1'")
+    expect(text).toContain('Signing out and deleting your account clear it')
+    expect(text).toContain('Remove all my activities, which is offered only when signed out')
+    expect(text).toContain('rca.countedRuns.v1')
+    expect(countedRuns).toContain("COUNTED_RUNS_KEY = 'rca.countedRuns.v1'")
+    expect(text).toContain('It is never uploaded, signed in or not')
+    expect(text).toContain("asks the browser to keep this site's storage")
+  })
+
   it('says signed-in visitors do not see the summaries kept in this browser', () => {
     expect(text).toMatch(/signed in[^.]*not shown|not shown[^.]*signed in/i)
   })

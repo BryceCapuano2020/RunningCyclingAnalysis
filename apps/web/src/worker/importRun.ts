@@ -1,7 +1,7 @@
 import type { ActivityRecord } from '@rca/contract'
 import type { AnalysisSession, SessionState, SyncIssueCode, SyncItem } from '@rca/core/session'
 import { accountSaver } from './accountSave'
-import { workoutKeyOf as activityKey, KEPT_NOT_READ_FOR_IMPORT } from './device'
+import { workoutKeyOf as activityKey } from './device'
 import type { DeviceActions } from './device'
 import { deviceKeeper } from './deviceKeeper'
 import { ImportReporter } from './importReporter'
@@ -87,9 +87,12 @@ export async function runImport(
           },
         })
 
-  // Files saved here join the library kept in this browser, unless the session already holds it.
-  if (sync === null && request.saveToDevice && !device.inSession())
-    await device.load(request.settings, KEPT_NOT_READ_FOR_IMPORT)
+  // Files saved here join the library kept in this browser, unless the session already holds it. When that
+  // library cannot be read the files are analysed on their own and the page is told: nothing is lost, and
+  // nothing kept is written over, since each save first reads what is kept under its workout (a strict read).
+  if (sync === null && request.saveToDevice && !device.inSession()) {
+    await device.load(request.settings).catch(() => post({ type: 'deviceIssue', issue: 'notRead' }))
+  }
   view.showingSample = false
   const keeper = deviceKeeper(device, post)
   // While the account is unknown, the activities are held for the device without their files, to be

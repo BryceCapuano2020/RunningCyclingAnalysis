@@ -198,7 +198,18 @@ export function workerFailureText(
  * activity is gone from the account, but its copy here could come back once they sign out; a
  * signed-out visitor can remove everything from Profile and try again.
  */
+const NOT_READ_TEXT =
+  'Your kept results could not be read from this browser just now, so these files are shown on their own and are not added to them. Reload the page to try again.'
+
 export function deviceIssueText(notice: DeviceIssue, signedIn: boolean): string {
+  const signIn = signedIn ? '' : ' Sign in to keep your results on your account.'
+  if (notice.issue === 'evicted') {
+    return `The results you kept in this browser are no longer in it. Clearing site data, low storage or, in Safari, a week away can remove them. Add your files again.${signIn}`
+  }
+  if (notice.issue === 'mayBeCleared') {
+    return `Your results are kept in this browser only, and it has not agreed to hold them. Clearing site data, low storage or, in Safari, a week away can remove them.${signIn}`
+  }
+  if (notice.issue === 'notRead') return NOT_READ_TEXT
   if (notice.issue === 'notSaved') {
     const one = notice.count === 1
     const refused =
@@ -206,10 +217,11 @@ export function deviceIssueText(notice: DeviceIssue, signedIn: boolean): string 
         ? ''
         : `${plural(notice.count, 'activity', 'activities')} ${one ? 'shows' : 'show'} here but could not be kept in this browser. ${one ? 'It' : 'They'} will not be here after a reload.`
     const newer = notice.newer ?? 0
-    if (newer === 0) return refused
+    const unread = notice.unread === true ? `${NOT_READ_TEXT} ` : ''
+    if (newer === 0) return `${unread}${refused}`
     const oneNewer = newer === 1
     const left = `${plural(newer, 'activity', 'activities')} ${oneNewer ? 'shows' : 'show'} here. This browser keeps ${oneNewer ? 'a copy of it' : 'copies of them'} saved by a newer version of this app, and ${oneNewer ? 'that copy was' : 'those copies were'} left as ${oneNewer ? 'it is' : 'they are'}. Reload the page to update the app.`
-    return refused === '' ? left : `${refused} ${left}`
+    return `${unread}${refused === '' ? left : `${refused} ${left}`}`
   }
   return signedIn
     ? 'This browser could not delete its copy of the activity or its recording. It may come back when you sign out.'

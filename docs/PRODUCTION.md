@@ -80,7 +80,8 @@ names a tag or branch instead, so review workflow changes for this. Dependabot v
 scheduled weekly in `.github/dependabot.yml`: minor and patch updates are grouped (production and
 development separately, and all of the actions together), a major update is its own pull request,
 and at most four npm and two action pull requests are open at once (whether the npm cap
-counts per directory or across the `directories` list is unconfirmed; check it after the first week). Dependabot security updates for
+counts per directory or across the `directories` list is unconfirmed; check it after the first
+week). Dependabot security updates for
 vulnerable dependencies are controlled by a repository setting, not by that file, and ignore those
 caps. A retried or flaky browser test fails CI rather
 than being hidden.

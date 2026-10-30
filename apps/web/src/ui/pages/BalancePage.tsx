@@ -9,6 +9,7 @@ import { previousPeriodLabel } from '../components/rangeOptions'
 import { gapOfHeadline } from '../balanceGap'
 import { levelTarget } from '../levelTarget'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
+import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { countSport } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { LEVEL_NOT_RANKING, gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
@@ -46,6 +47,8 @@ export interface BalancePageProps {
   footnote?: ReactNode
   /** Picks All time the way the period control does, so the choice is kept. */
   onShowAll: () => void
+  /** Runs that are all at walking pace and left out, which the page says instead of that it has no runs. */
+  leftOut?: LeftOutRuns
 }
 
 /** The level a sport's grade names, or null when the grade is not shown. */
@@ -68,6 +71,7 @@ export function BalancePage({
   weightKnown,
   onShowAll,
   footnote = null,
+  leftOut,
 }: BalancePageProps) {
   const {
     isSample,
@@ -229,6 +233,7 @@ export function BalancePage({
         rideLevel={gradedLevel(grades.ride)}
         levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
+        leftOut={leftOut}
         action={
           <ShareImageButton
             result={result}
@@ -258,6 +263,7 @@ export function BalancePage({
         reading={pointsReading}
         target={target?.sentence ?? null}
         onAddFiles={analysis.addFiles}
+        leftOut={leftOut}
       />
 
       {sourceLine}

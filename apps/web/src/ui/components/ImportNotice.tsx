@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import type { RejectedFile } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
 import { addedSentence, importSentence } from '../analysis/copy'
@@ -22,6 +22,8 @@ export interface ImportNoticeProps {
   moved: MovedItem[]
   /** On the Balance page the link to it would point at the page it is already on, so it is left out. */
   atBalance: boolean
+  /** Said under the sentence when the runs it added are all left out at walking pace, so "Added 22 runs" is not left alone. */
+  leftOutLine?: ReactNode
   /** Where detailed readings stop for the older activities, when they do; null when every activity has them. */
   detailLine?: { short: string; full: string } | null
   /** Called when the summary is dismissed, so the page can drop what moved with it. */
@@ -51,6 +53,7 @@ export function ImportNotice({
   moved,
   atBalance,
   detailLine = null,
+  leftOutLine = null,
   onDismiss,
 }: ImportNoticeProps) {
   const [dismissed, setDismissed] = useState<ImportOutcome | null>(null)
@@ -71,6 +74,7 @@ export function ImportNotice({
     <div className="import-notice">
       <div className="import-notice__body">
         <p>{importSentence(outcome)}</p>
+        {leftOutLine !== null && <p className="secondary">{leftOutLine}</p>}
         {listMoved && (
           <ul className="import-notice__moved">
             {moved.map((item) => (

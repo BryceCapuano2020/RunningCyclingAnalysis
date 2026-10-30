@@ -14,6 +14,7 @@ export function memoryDeviceLibrary(): DeviceLibrary {
       .map(([workoutKey, { digest }]) => ({ workoutKey, digest }))
   return {
     all,
+    skipped: () => 0,
     get: async (workoutKey) => entries.get(workoutKey)?.digest ?? null,
     lookup: async (workoutKey) => entries.get(workoutKey)?.digest ?? null,
     route: async (workoutKey) => entries.get(workoutKey)?.route ?? null,

@@ -342,6 +342,48 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
     ).toBeInTheDocument()
   })
 
+  it('says the results kept here are no longer in it, without naming one cause', () => {
+    render(shown({ issue: 'evicted' }))
+
+    expect(
+      screen.getByText(
+        'The results you kept in this browser are no longer in it. Clearing site data, low storage or, in Safari, a week away can remove them. Add your files again. Sign in to keep your results on your account.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Your kept results were cleared')).toBeInTheDocument()
+  })
+
+  it('does not tell a signed-in visitor to sign in', () => {
+    render(shown({ issue: 'evicted' }, true))
+    expect(screen.queryByText(/Sign in to keep/)).not.toBeInTheDocument()
+    cleanup()
+    render(shown({ issue: 'mayBeCleared' }, true))
+    expect(screen.queryByText(/Sign in to keep/)).not.toBeInTheDocument()
+  })
+
+  it('says a browser that did not promise to keep the results can lose them', () => {
+    render(shown({ issue: 'mayBeCleared' }))
+
+    expect(
+      screen.getByText(
+        'Your results are kept in this browser only, and it has not agreed to hold them. Clearing site data, low storage or, in Safari, a week away can remove them. Sign in to keep your results on your account.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('This browser may clear your results')).toBeInTheDocument()
+  })
+
+  it('says both when the kept results could not be read and the new files could not be kept', () => {
+    render(shown({ issue: 'notSaved', count: 2, unread: true }))
+    expect(screen.getByText(/shown on their own and are not added to them\./)).toBeInTheDocument()
+    expect(screen.getByText(/2 activities show here but could not be kept/)).toBeInTheDocument()
+    expect(screen.getByText('Kept results could not be read')).toBeInTheDocument()
+  })
+
+  it('says an import was analysed on its own because the kept results could not be read', () => {
+    render(shown({ issue: 'notRead' }))
+    expect(screen.getByText(/shown on their own and are not added to them/)).toBeInTheDocument()
+  })
+
   it('says a signed-in delete left a copy in this browser', () => {
     render(shown({ issue: 'notForgotten' }, true))
 
