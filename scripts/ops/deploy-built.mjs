@@ -75,12 +75,29 @@ export function latestRollbackFloor(ledger) {
  * names the floor and the command and does not run it.
  */
 export function failedSmokeMessage(failures, short, floor) {
+  return rollbackAdvice(
+    [`Post-deploy smoke test failed for ${short}:`, ...failures.map((failure) => `- ${failure}`)],
+    floor,
+  )
+}
+
+/** The same advice when the smoke test itself could not start (a bad APP_URL, an unreadable config). */
+export function smokeCouldNotRunMessage(error, short, floor) {
+  return rollbackAdvice(
+    [
+      `Deployed ${short}; the smoke check could not run: ${error.message}`,
+      'Check the live origin by hand (npm run smoke:prod -- --expect-sha ' + short + ').',
+    ],
+    floor,
+  )
+}
+
+function rollbackAdvice(lines, floor) {
   const target = floor
     ? `a version at or above the rollback floor ${floor}`
     : 'a safe earlier version'
   return [
-    `Post-deploy smoke test failed for ${short}:`,
-    ...failures.map((failure) => `- ${failure}`),
+    ...lines,
     `The Worker is live. To go back, pick ${target} from docs/RELEASES.md and run:`,
     '  npx wrangler deployments list   (in apps/api, to find the version id)',
     '  npx wrangler rollback <version id> --yes',
@@ -108,12 +125,20 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       process.exitCode = result.status ?? 1
       if (result.status === 0 && !process.argv.includes('--no-smoke')) {
         console.log(`Deployed. Smoke-testing the live origin for ${source.short}.`)
-        const failures = await smokeAfterDeploy(source.short)
-        if (failures.length) {
-          const ledger = await readFile(RELEASES, 'utf8')
-          console.error(failedSmokeMessage(failures, source.short, latestRollbackFloor(ledger)))
+        const ledger = await readFile(RELEASES, 'utf8').catch(() => '')
+        const floor = latestRollbackFloor(ledger)
+        let failures
+        try {
+          failures = await smokeAfterDeploy(source.short)
+        } catch (error) {
+          console.error(smokeCouldNotRunMessage(error, source.short, floor))
           process.exitCode = 1
-        } else {
+          failures = null
+        }
+        if (failures?.length) {
+          console.error(failedSmokeMessage(failures, source.short, floor))
+          process.exitCode = 1
+        } else if (failures) {
           console.log('Post-deploy smoke test passed.')
         }
       }

@@ -340,7 +340,9 @@ describe('scheduled maintenance', () => {
     expect(reports[0]?.budgetReached).toBe(true)
     // A deletion whose user row is gone but whose pending row the cap kept from being cleared is
     // finished, and counted, again by the next run. So the count is at least the two accounts.
-    expect(reports.reduce((sum, r) => sum + r.finishedDeletions, 0)).toBeGreaterThanOrEqual(2)
+    const finishedTotal = reports.reduce((sum, r) => sum + r.finishedDeletions, 0)
+    expect(finishedTotal).toBeGreaterThanOrEqual(2)
+    expect(finishedTotal).toBeLessThanOrEqual(2 * reports.length)
     expect(await countOf('SELECT COUNT(*) AS n FROM users')).toBe(0)
     expect(await countOf('SELECT COUNT(*) AS n FROM pending_account_deletions')).toBe(0)
     expect(await countOf('SELECT COUNT(*) AS n FROM account_tombstones')).toBe(2)

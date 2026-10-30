@@ -136,3 +136,37 @@ test('writes a private new file and refuses to overwrite one', async () => {
     await rm(dir, { recursive: true, force: true })
   }
 })
+
+test('accounts whose deletion had started before a rewind, exported as tombstones, are deleted again', async () => {
+  // After a rewind the copy shows Dan as a normal account: his deleting_at and pending row were
+  // erased and no tombstone existed yet. The pre-rewind union export carries him.
+  const db = await restoredCopy()
+  try {
+    const union = JSON.stringify([
+      {
+        results: [
+          { user_id: ALICE, deleted_at: 5 },
+          { user_id: DAN, deleted_at: 8 },
+          { user_id: DAN, deleted_at: 9 },
+        ],
+      },
+    ])
+    db.exec(reconcileSql(parseTombstones(union)))
+    assert.deepEqual(
+      db
+        .prepare('SELECT id FROM users ORDER BY id')
+        .all()
+        .map((r) => r.id),
+      [BOB],
+    )
+  } finally {
+    db.close()
+  }
+})
+
+test('the error for a bad id says one bad row stops the whole run', () => {
+  assert.throws(
+    () => parseTombstones(JSON.stringify([{ user_id: 'nope', deleted_at: 1 }])),
+    /stops the whole run on purpose/,
+  )
+})

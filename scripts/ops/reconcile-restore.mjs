@@ -7,8 +7,9 @@ import { fileURLToPath } from 'node:url'
  * copy it came from. A restore (D1 Time Travel or a backup) brings those accounts back; this
  * deletes them again before anyone can sign in.
  *
- * Input: the live `account_tombstones` rows, exported BEFORE the restore, because a restore also
- * rewinds that table. Either a plain JSON array of { user_id, deleted_at } or the output of
+ * Input: the live `account_tombstones` rows, plus the accounts whose deletion has started but not
+ * finished (`users.deleting_at`, `pending_account_deletions`), exported BEFORE the restore, because a
+ * rewind erases all three and a deletion in flight has no tombstone yet. Either a plain JSON array of { user_id, deleted_at } or the output of
  * `wrangler d1 execute <db> --remote --json --command "SELECT user_id, deleted_at FROM account_tombstones"`.
  * Run it on a database whose migrations are applied (the table must exist). See scripts/ops/restore.md.
  *
@@ -36,7 +37,9 @@ export function parseTombstones(text) {
     const userId = row?.user_id
     const deletedAt = row?.deleted_at
     if (typeof userId !== 'string' || !USER_ID.test(userId)) {
-      throw new Error('The tombstone export has a row with an invalid user_id.')
+      throw new Error(
+        'The tombstone export has a row with an invalid user_id. One bad row stops the whole run on purpose: fix or remove it in the export, then run again.',
+      )
     }
     if (!Number.isSafeInteger(deletedAt) || deletedAt < 0) {
       throw new Error('The tombstone export has a row with an invalid deleted_at.')

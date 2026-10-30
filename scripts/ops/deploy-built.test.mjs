@@ -5,6 +5,7 @@ import {
   deployArguments,
   failedSmokeMessage,
   latestRollbackFloor,
+  smokeCouldNotRunMessage,
 } from './deploy-built.mjs'
 
 const SHA = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678'
@@ -125,4 +126,19 @@ test('a failed post-deploy smoke test names the failures, the floor and the roll
   assert.match(message, /wrangler rollback <version id> --yes/)
   assert.match(message, /migrations are never reversed/)
   assert.match(failedSmokeMessage(['x'], 'a1b2c3d4', undefined), /a safe earlier version/)
+})
+
+test('when the smoke check cannot start, the message says the Worker is live and gives the rollback way', () => {
+  const message = smokeCouldNotRunMessage(
+    new Error('the origin under test is not APP_URL'),
+    'a1b2c3d4',
+    '3e17b541',
+  )
+  assert.match(
+    message,
+    /Deployed a1b2c3d4; the smoke check could not run: the origin under test is not APP_URL/,
+  )
+  assert.match(message, /The Worker is live/)
+  assert.match(message, /rollback floor 3e17b541/)
+  assert.doesNotMatch(message, /Refusing to deploy/)
 })
