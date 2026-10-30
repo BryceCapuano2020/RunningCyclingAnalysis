@@ -223,9 +223,9 @@ describe('the grade fit', () => {
     const { runs, kms } = structural(1, 11)
     const fit = fitGrade(runs)
     expect(fit.stable).toBe(true)
-    // The nuisance coefficient is a quarter or so of the planted value (and not a share of anything).
-    expect(-fit.kappa).toBeGreaterThan(0.05)
-    expect(-fit.kappa).toBeLessThan(0.5)
+    // The nuisance coefficient is about a third of the planted value (0.34 to 0.38 over five seeds), and not a share of anything.
+    expect(-fit.kappa).toBeGreaterThan(0.25)
+    expect(-fit.kappa).toBeLessThan(0.45)
     // The structural estimate (heart rate as the response, gamma = credit coefficient over speed coefficient) finds the planted one.
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
     const [ml, mc, mh] = [
@@ -328,6 +328,7 @@ describe('rides', () => {
       ride('virtual', 3, { powerSource: 'virtual' }),
       ride('spiked', 4, { flagCounts: { 'hr-spike': 1 } }),
       ride('far', 5, {}, 200),
+      ride('trainer', 7, { indoor: true }),
       ride('terms', 6, {
         hrBlocks: [
           { heartRate: 140, value: 180, terms: { gravityAccel: 1, rolling: 1, aero: 1 } },
@@ -340,6 +341,11 @@ describe('rides', () => {
     expect(result.referenceHr).toBe(140)
     expect(Math.exp(result.points[0]!.x)).toBeGreaterThan(150)
     expect(result.method.tier).toBe('power')
+  })
+
+  it('leaves indoor rides out: a trainer is not compared with the road', () => {
+    const indoor = [ride('a', 1, { indoor: true }), ride('b', 2, { indoor: true })]
+    expect(rideSeries(indoor, 'ride', NONE).points).toEqual([])
   })
 
   it('has nothing without a measured ride', () => {

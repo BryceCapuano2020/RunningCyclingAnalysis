@@ -26,6 +26,9 @@ export interface Silence {
   endingNotHolding: number
   /** Share of evaluated weeks not holding. */
   weeksNotHolding: number
+  /** Episodes that closed as holding (not after "back"), and the share of them followed by a new slip within 26 weeks: a close that only hands the same wander back to the slip test. */
+  closes: number
+  closeReopen: number
 }
 
 /** Libraries where nothing changes, `years` long, three steady runs a week by default. */
@@ -41,12 +44,19 @@ export function silence(
   let ending = 0
   let notHolding = 0
   let evaluated = 0
+  let closes = 0
+  let reopened = 0
   for (let seed = firstSeed; seed < firstSeed + libraries; seed++) {
     const records = replaySim(simulate({ ...spec, weeks, perWeek }, seed), weeks)
     alarms += slipWeeks(records).length
     const last = records.at(-1)!.shown
     if (last !== 'holding' && last !== 'nodata' && last !== 'thin') ending++
+    const fresh = slipWeeks(records)
     for (const r of records) {
+      if (r.closes !== null && r.dip === null) {
+        closes++
+        if (fresh.some((w) => w > r.w && w <= r.w + 26)) reopened++
+      }
       if (r.shown === 'nodata') continue
       evaluated++
       if (r.shown !== 'holding' && r.shown !== 'thin') notHolding++
@@ -56,6 +66,8 @@ export function silence(
     alarms: alarms / (libraries * years),
     endingNotHolding: ending / libraries,
     weeksNotHolding: notHolding / evaluated,
+    closes,
+    closeReopen: closes === 0 ? 0 : reopened / closes,
   }
 }
 
@@ -128,3 +140,29 @@ export function planted(
 }
 
 export { quantile }
+
+/**
+ * An athlete with two real dips and returns (8% down for 20 weeks, then again for 30), two years of quiet, and then a
+ * new loss of `size` at week 200: the weeks of the dips must not be read as wander that hides the new loss.
+ */
+export function afterDips(size: number, libraries: number, firstSeed = 1): Planted {
+  const steps: NonNullable<SimSpec['planted']> = [
+    { type: 'step', week: 60, size: -0.08 },
+    { type: 'step', week: 80, size: 0.08 },
+    { type: 'step', week: 120, size: -0.08 },
+    { type: 'step', week: 150, size: 0.08 },
+    { type: 'step', week: 200, size },
+  ]
+  const weeks = 270
+  const lags: number[] = []
+  let open = 0
+  let seen = 0
+  for (let seed = firstSeed; seed < firstSeed + libraries; seed++) {
+    const records = replaySim(simulate({ weeks, perWeek: 3, planted: steps }, seed), weeks)
+    const first = firstWeekOf(records, 200, 'slipping')
+    lags.push(first === null ? Number.POSITIVE_INFINITY : first - 199)
+    if (first !== null) seen++
+    if (records.at(-1)!.shown !== 'holding') open++
+  }
+  return { seen: seen / libraries, open: open / libraries, lags, back: 0 }
+}

@@ -23,6 +23,7 @@ function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
   if (cache.has(digest)) return cache.get(digest)!
   const eligible =
     digest.powerSource === 'measured' &&
+    !digest.indoor &&
     digest.hasHeartRate &&
     !digest.flagCounts['hr-spike'] &&
     !digest.flagCounts['hr-dropout']
@@ -49,7 +50,8 @@ const RIDE_SLOPE: SlopeLimits = {
 /**
  * One value per ride with a power meter: the log of its watts at the reference heart rate, from the
  * five-minute blocks within 20 bpm of it (at least two), moved to the reference by the library's own
- * slope. Indoor rides on a meter count. Heart rate that is set aside is left out. Rides carry no
+ * slope. Indoor rides are left out: a trainer reads differently from the road at the same heart rate, and
+ * comparing the two would read the switch as fitness. Heart rate that is set aside is left out. Rides carry no
  * steadiness test, so their spread is wider than a run's (2.4% to 4.5% a ride in the research; the monitor reads
  * the spread from the library's own rides). `ride.sim.test.ts` checks the unit at those spreads.
  */

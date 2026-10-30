@@ -20,6 +20,10 @@ export interface FitnessWords {
   activities: string
   /** What the athlete did at the reference heart rate, past tense: "ran" or "rode". */
   did: string
+  /** What each figure is adjusted for: a run for the heart rate and the climb, a ride (a power meter reads the hill itself) for the heart rate. */
+  adjusted: string
+  /** What the status can see, said once: the size of change it finds reliably and the one it finds usually, against the spread from one activity to the next. */
+  promise: string
   /** What is read of one steady run, in the athlete's units: "kilometres 2 to 10 (0.6 to 6.2 miles in)". */
   reading: (units: UnitSystem) => string
   /** The change of pace between one stretch of a run and the next, which a steady run keeps small. */
@@ -50,6 +54,9 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
     activity: 'run',
     activities: 'runs',
     did: 'ran',
+    adjusted: 'the heart rate and the climb of each',
+    promise:
+      'A change of 8% it sees within weeks, reliably. A change of 5% it usually sees within a few months, and not always. Anything smaller sits inside the spread from one run to the next, about 4%, and is not reported.',
     ...run,
     steadyMeaning: (hr, units) =>
       `A run outdoors with heart rate on file, where pace changes by about ${Math.round(U.maxPaceChange * 100)}% or less from ${run.stretch(units)}. Its ${run.reading(units)} are read: the ones within ${U.hrHalfBand} bpm of ${hr} bpm and with little climb, at least ${U.minKm} of them. Intervals, hilly runs and treadmill runs do not count.`,
@@ -63,11 +70,14 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
     activity: 'ride',
     activities: 'rides',
     did: 'rode',
+    adjusted: 'the heart rate of each',
+    promise:
+      'A change of 8% it sees within weeks, reliably. A change of 5% it usually sees within a few months, and not always. Anything smaller sits inside the spread from one ride to the next, 2% to 5%, and is not reported.',
     reading: () => 'five-minute blocks',
     stretch: () => 'one five-minute block to the next',
     steadyMeaning: (hr) =>
-      `A ride with a power meter and heart rate, whose five-minute blocks within ${FITNESS.ride.hrHalfBand} bpm of ${hr} bpm are read.`,
+      `A ride outdoors with a power meter and heart rate on file. Its five-minute blocks within ${FITNESS.ride.hrHalfBand} bpm of ${hr} bpm are read, at least ${FITNESS.ride.minBlocks} of them. Rides are not tested for steadiness, so any pace counts.`,
     leftOut: (hr) =>
-      `The others had no power meter, or too little riding within ${FITNESS.ride.hrHalfBand} bpm of ${hr} bpm.`,
+      `The others were indoors, had no power meter, no heart rate or one that was set aside, or had too little riding within ${FITNESS.ride.hrHalfBand} bpm of ${hr} bpm.`,
   },
 }

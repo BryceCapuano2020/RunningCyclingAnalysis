@@ -96,7 +96,9 @@ export const FITNESS = {
     floorBlockRuns: 2,
     floorRef: 0.02,
     floorGain: 1,
-    floorMax: 0.03,
+    floorMax: 0.02,
+    /** 1: blocks that overlap a real dip (an episode that reached "back") are left out of the wander; 0 reads them as wander. */
+    floorSkipDips: 1,
     /** Run values are clipped at the window's median plus or minus this many spreads. */
     clip: 2.5,
     /** Weekly evaluations in a row a contrast must hold to declare a slip. */
@@ -134,6 +136,8 @@ export const FITNESS = {
     maxAmplitude: 0.06,
     /** Days of runs the tests read back from a week's end: the longest window any of them uses. */
     lookbackWeeks: 110,
+    /** The swing is refitted every this many weeks (not every week: it moves slowly, and a fit is the dearest step of a replay); between fits the last one is used. */
+    refitWeeks: 4,
   },
   /** After a slip is declared the reference is frozen and the episode is followed until it closes. */
   episode: {

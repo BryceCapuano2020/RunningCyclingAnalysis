@@ -62,6 +62,11 @@ describe('the athlete’s own season', () => {
     expect(found).toBeLessThan(15)
   })
 
+  it('reads days before the origin, which the quarters count modulo a year', () => {
+    const early = runs(156, sine(0.03)).map((r) => Object.assign({}, r, { t: r.t - 2000 }))
+    expect(fitSeason(early, dayOf(156) - 2000)).not.toBeNull()
+  })
+
   it('has nothing without runs in every quarter of the year', () => {
     const gapped = runs(160, sine(0.04)).filter((r) => {
       const quarter = Math.floor(((r.t % YEAR) / YEAR) * 4)
@@ -71,8 +76,8 @@ describe('the athlete’s own season', () => {
     expect(fitSeason(gapped, dayOf(160))).toBeNull()
   })
 
-  it('takes a step part-way through for a small swing at most', () => {
-    // 8% step at the middle of three years, noise-free of wander so nothing gates the fit: the leak is 2 * size / (pi * years) at worst.
+  it('does not take a clean step part-way through for a season: what it leaves swamps the swing', () => {
+    // An 8% step at the middle of three years with no wander. A swing of up to 2 * size / (pi * years) (1.7%) would fit it, but the residuals it leaves are far larger than that.
     const random = mulberry32(3)
     const stepped: RunPoint[] = []
     for (let w = 0; w < 156; w++) {
@@ -81,8 +86,22 @@ describe('the athlete’s own season', () => {
         stepped.push({ id: `p${w}-${i}`, t, x: (t > 546 ? -0.08 : 0) + 0.01 * normal(random) })
       }
     }
-    const season = fitSeason(stepped, dayOf(156))
-    expect(season?.amplitude ?? 0).toBeLessThan((2 * 0.08) / (Math.PI * 3) + 0.003)
+    expect(fitSeason(stepped, dayOf(156))).toBeNull()
+  })
+
+  it('with a wander and a step part-way through, finds a term in a third of libraries, mostly small', () => {
+    // Observed over 200 libraries: a term in 36%, 2% at the 90th percentile and 4% at most (the leak alone is 1.7%): the wander adds to it.
+    const amplitudes: number[] = []
+    for (let seed = 1; seed <= 100; seed++) {
+      const series = runs(156, (t) => (t > 546 ? -0.08 : 0), seed)
+      amplitudes.push(fitSeason(series, dayOf(156))?.amplitude ?? 0)
+    }
+    amplitudes.sort((a, b) => a - b)
+    const found = amplitudes.filter((a) => a > 0).length
+    expect(found).toBeGreaterThan(10)
+    expect(found).toBeLessThan(60)
+    expect(amplitudes[90]!).toBeLessThan(0.03)
+    expect(amplitudes[99]!).toBeLessThan(0.05)
   })
 
   it('takes the term out of every run from a day on, and leaves the runs alone without one', () => {

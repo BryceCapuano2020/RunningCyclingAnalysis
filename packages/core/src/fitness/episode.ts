@@ -111,6 +111,8 @@ export interface Step {
   fresh: boolean
   /** The episode is over: the reference is read afresh from the next week. */
   close: boolean
+  /** The episode closed after reaching "back": a dip that was real, whose weeks say nothing of the athlete's usual wander. */
+  confirmed: boolean
   /** The test statistic behind a fresh state, signed like the change; NaN otherwise. */
   z: number
   /** The level now against the reference. */
@@ -123,6 +125,7 @@ const THIN: Step = {
   low: false,
   fresh: false,
   close: false,
+  confirmed: false,
   z: Number.NaN,
   delta: Number.NaN,
   level: null,
@@ -133,7 +136,16 @@ function step(
   base: Pick<Step, 'delta' | 'level'>,
   more: Partial<Step> = {},
 ): Step {
-  return { state, low: false, fresh: false, close: false, z: Number.NaN, ...base, ...more }
+  return {
+    state,
+    low: false,
+    fresh: false,
+    close: false,
+    confirmed: false,
+    z: Number.NaN,
+    ...base,
+    ...more,
+  }
 }
 
 /**
@@ -198,7 +210,7 @@ function riseOf(
  * Only runs after the onset count, so the weeks before a fresh drop cannot make it look small; too few of them, and
  * the week is not quiet.
  */
-function quietNow(runs: readonly RunPoint[], day: number, ep: Episode): boolean {
+export function quietNow(runs: readonly RunPoint[], day: number, ep: Episode): boolean {
   const from = (ep.onsetDay ?? (ep.startedWeek + 1) * 7) + E.riseOnsetSkipDays
   const settled = slice(runs, Math.max(from, day - E.closeLevelWeeks * 7), day)
   if (settled.length < E.closeMinRuns || distinctWeeks(settled) < E.closeMinWeeks) return false
@@ -245,7 +257,9 @@ export function episodeStep(runs: readonly RunPoint[], day: number, w: number, e
     if (!backNow && longer !== null && longer.m - ep.reference < -E.backTol - E.backRelapse) {
       return reslip((longer.m - ep.reference) / backSe)
     }
-    if (w - ep.backAt >= E.backHoldWeeks) return step('holding', base, { close: true })
+    if (w - ep.backAt >= E.backHoldWeeks) {
+      return step('holding', base, { close: true, confirmed: true })
+    }
     return step('back', base)
   }
   if (ep.backRun >= E.backConsecutive) {

@@ -5,7 +5,7 @@ import { fitSeason, withoutSeason } from './season'
 import type { Season } from './season'
 import { FITNESS } from './params'
 import { levelOf, locateOnset, lowLastYear, referenceOf, sigmaAt, slice, slipAt } from './windows'
-import type { RunPoint, Slip } from './windows'
+import type { Dip, RunPoint, Slip } from './windows'
 
 const M = FITNESS.monitor
 
@@ -47,6 +47,8 @@ export interface WeekRecord {
   episode: EpisodeView | null
   /** The day the episode that closed this week began (its onset, else its first week): the dip it leaves in the weeks behind. */
   closes: number | null
+  /** The stretch the episode that closed this week after reaching "back" covered: a real dip, left out of the learned floor. */
+  dip: Dip | null
   /** What is shown once a new state has held for the display hold. */
   shown: MachineState
 }
@@ -59,6 +61,7 @@ const record = (w: number, state: MachineState, extra: Partial<WeekRecord> = {})
   delta: Number.NaN,
   episode: null,
   closes: null,
+  dip: null,
   shown: state,
   ...extra,
 })
@@ -141,10 +144,17 @@ export function replay(runs: readonly RunPoint[], from: number, to: number): Rep
   let ep: Episode | null = null
   let streak = 0
   let season: Season | null = null
+  const dips: Dip[] = []
+  /** The week the swing was last fitted: it is refitted every few weeks, so a card's level can step by a fraction of a per cent when it is. */
+  let fitted: number | null = null
   for (let w = from; w <= to; w++) {
     const day = dayOfWeekEnd(w)
     // The tests read the runs with the athlete's season taken out; an open episode keeps the swing it began with.
-    season = ep === null ? fitSeason(runs, day) : ep.season
+    if (ep !== null) season = ep.season
+    else if (fitted === null || w - fitted >= FITNESS.season.refitWeeks) {
+      season = fitSeason(runs, day)
+      fitted = w
+    }
     const seen = withoutSeason(runs, season, day - FITNESS.season.lookbackWeeks * 7, day)
     const sigma = sigmaAt(seen, day)
     if (ep === null) {
@@ -153,7 +163,7 @@ export function replay(runs: readonly RunPoint[], from: number, to: number): Rep
         records.push(record(w, 'nodata'))
         continue
       }
-      const slip = slipAt(seen, day, sigma)
+      const slip = slipAt(seen, day, sigma, dips)
       streak = nextStreak(streak, slip, seen, day, sigma, season === null)
       if (slip !== null && streak >= M.consecutive) {
         const onset = locateOnset(seen, day, sigma)
@@ -192,8 +202,12 @@ export function replay(runs: readonly RunPoint[], from: number, to: number): Rep
         delta: step.delta,
         episode: view,
         closes: step.close ? (ep.onsetDay ?? dayOfWeekEnd(ep.startedWeek)) : null,
+        dip: step.confirmed
+          ? { fromDay: ep.onsetDay ?? dayOfWeekEnd(ep.startedWeek), toDay: day }
+          : null,
       }),
     )
+    if (step.confirmed) dips.push(records.at(-1)!.dip!)
     if (step.close) {
       ep = null
       streak = 0

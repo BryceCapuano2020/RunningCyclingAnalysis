@@ -92,7 +92,7 @@ export const RUN_SLOPE: SlopeLimits = {
  * beta (per bpm) and kappa. Kappa is an empirical nuisance coefficient, not a measure of how much of the model's
  * credit is physiologically real: pace regressed on grade credit within steady runs mixes the structural
  * pass-through with the heart-rate sensitivity, the noise in the heart rate and the runner's habit of easing off on
- * a climb, so errors in the variables pull it toward zero (about 0.25 comes back when the structural value is 1; see
+ * a climb, so errors in the variables pull it toward zero (about a third comes back when the structural value is 1; see
  * the planted-truth test in unit.test.ts). What it does is take the route's credit out of the value in the way the
  * runs themselves show, so the value is level against it. Unstable (so the strict unit is used)
  * with fewer than 300 kilometres, or kappa further than 0.5 outside [-1, 0], or known no better than

@@ -99,6 +99,12 @@ export function levelOf(rs: readonly RunPoint[], fallback: number, sigma: number
   return { m: sum / rs.length, se: sigma / Math.sqrt(rs.length), n: rs.length }
 }
 
+/** A stretch of days that was a real dip (an episode that reached "back" and closed): left out of what the floor reads as wander. */
+export interface Dip {
+  fromDay: number
+  toDay: number
+}
+
 export interface Slip {
   delta: number
   z: number
@@ -113,10 +119,16 @@ export interface Slip {
 /**
  * The model-error floor of a week's tests: `tau`, plus the library's own wander where it shows more than the
  * reference athlete's. The levels of the blocks of weeks from 108 to 8 weeks back are compared with their median;
- * their spread (robust, so a step does not set it) less the sampling noise of a block is the wander. Too few
- * blocks (a library under two years old): `tau`.
+ * their spread (robust, so a step does not set it) less the sampling noise of a block is the wander. Blocks that
+ * overlap a real dip (`dips`: an episode that reached "back") are left out, so a dip the athlete really had is not
+ * counted as wander that makes the next real loss harder to see. Too few blocks (a library under two years old): `tau`.
  */
-export function floorAt(runs: readonly RunPoint[], day: number, sigma: number): number {
+export function floorAt(
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  dips: readonly Dip[] = [],
+): number {
   const means: number[] = []
   const noise: number[] = []
   const end = day - M.refEndWeeks * 7
@@ -125,7 +137,9 @@ export function floorAt(runs: readonly RunPoint[], day: number, sigma: number): 
     lo + M.floorBlockWeeks * 7 <= end;
     lo += M.floorBlockWeeks * 7
   ) {
-    const rs = slice(runs, lo, lo + M.floorBlockWeeks * 7)
+    const hi = lo + M.floorBlockWeeks * 7
+    if (M.floorSkipDips === 1 && dips.some((d) => lo < d.toDay && hi > d.fromDay)) continue
+    const rs = slice(runs, lo, hi)
     if (rs.length < M.floorBlockRuns) continue
     means.push(levelOf(rs, medianOf(rs), sigma)!.m)
     noise.push((sigma * sigma) / rs.length)
@@ -139,10 +153,10 @@ export function floorAt(runs: readonly RunPoint[], day: number, sigma: number): 
 }
 
 /** The contrast of each scale (recent weeks against the weeks before them) in standard errors, for the scales that have the runs. */
-function contrasts(runs: readonly RunPoint[], day: number, sigma: number) {
+function contrasts(runs: readonly RunPoint[], day: number, sigma: number, dips: readonly Dip[]) {
   const out: { delta: number; z: number; weeks: number; baseWeeks: number; reference: number }[] =
     []
-  const tau = floorAt(runs, day, sigma)
+  const tau = floorAt(runs, day, sigma, dips)
   for (const [recentWeeks, baseWeeks] of M.scales) {
     const recent = slice(runs, day - recentWeeks * 7, day)
     if (recent.length < M.minRecentRuns || distinctWeeks(recent) < M.minRecentWeeks) continue
@@ -167,9 +181,14 @@ function contrasts(runs: readonly RunPoint[], day: number, sigma: number) {
  * The slip test of one week. The scale with the lowest z is the one judged, and it fires when z is at
  * most -3.3 and the loss at least 4%.
  */
-export function slipAt(runs: readonly RunPoint[], day: number, sigma: number): Slip | null {
+export function slipAt(
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  dips: readonly Dip[] = [],
+): Slip | null {
   let best: Slip | null = null
-  for (const c of contrasts(runs, day, sigma)) {
+  for (const c of contrasts(runs, day, sigma, dips)) {
     if (best === null || c.z < best.z) {
       best = { ...c, fire: c.z <= -M.zSlip && c.delta <= -M.delta }
     }
@@ -203,9 +222,14 @@ export function lowLastYear(
  * least 3.3 and a gain of at least 4%. The status line asks it on two weeks running before it says
  * "improving"; there is no episode and no finding.
  */
-export function risenAt(runs: readonly RunPoint[], day: number, sigma: number): boolean {
+export function risenAt(
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  dips: readonly Dip[] = [],
+): boolean {
   let best: { delta: number; z: number } | null = null
-  for (const c of contrasts(runs, day, sigma)) if (best === null || c.z > best.z) best = c
+  for (const c of contrasts(runs, day, sigma, dips)) if (best === null || c.z > best.z) best = c
   return best !== null && best.z >= M.zSlip && best.delta >= M.delta
 }
 

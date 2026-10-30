@@ -74,7 +74,7 @@ function leastSquares(runs: readonly RunPoint[], keep: (i: number) => boolean): 
  * The athlete's seasonal swing as of `day`, or null: fewer than two whole years of steady runs, too few runs in
  * a quarter of the year, or a swing that does not stand out from the wander of the level. The last whole years
  * of runs (up to four) are fitted with a constant, so a step part-way through leaks only a little into the
- * swing; the fit is repeated with outlying runs clipped; then the swing is shrunk by how far it stands above
+ * swing (and what it leaves in the residuals gates the term out, in most libraries); the fit is repeated with outlying runs clipped; then the swing is shrunk by how far it stands above
  * the variance of one coefficient, taken from the weekly levels and their lag-1 correlation.
  */
 export function fitSeason(runs: readonly RunPoint[], day: number): Season | null {
@@ -84,7 +84,8 @@ export function fitSeason(runs: readonly RunPoint[], day: number): Season | null
   const rs = slice(runs, day - years * YEAR_DAYS, day)
   if (rs.length < S.minRuns) return null
   const quarters = [0, 0, 0, 0]
-  for (const r of rs) quarters[Math.floor(((r.t % YEAR_DAYS) / YEAR_DAYS) * 4)]!++
+  for (const r of rs)
+    quarters[Math.floor(((((r.t % YEAR_DAYS) + YEAR_DAYS) % YEAR_DAYS) / YEAR_DAYS) * 4)]!++
   if (quarters.some((q) => q < S.minQuarterRuns)) return null
   let fit = leastSquares(rs, () => true)
   if (fit === null) return null
@@ -123,7 +124,7 @@ export function fitSeason(runs: readonly RunPoint[], day: number): Season | null
   const size2 = fit.cos ** 2 + fit.sin ** 2
   const shrink = Math.max(0, 1 - (S.shrinkK * varCoef) / size2)
   const amplitude = Math.min(S.maxAmplitude, shrink * Math.sqrt(size2))
-  if (amplitude < S.minAmplitude) return null
+  if (!(amplitude >= S.minAmplitude)) return null
   const scale = amplitude / Math.sqrt(size2)
   return { cos: fit.cos * scale, sin: fit.sin * scale, amplitude }
 }

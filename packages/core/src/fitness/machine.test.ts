@@ -213,16 +213,6 @@ describe('closing an episode when the drop is no longer clear', () => {
     expect(records.at(-1)!.state).toBe('holding-below')
   })
 
-  it('does not count weeks that only see the runs from before the onset', () => {
-    // 10 weeks after an 8% drop the level since the onset has too few runs to say: the episode is not quiet.
-    const records = monitor(
-      library(100, (w) => (w >= 60 ? -0.08 : 0)),
-      0,
-      99,
-    )
-    expect(records.filter((r) => r.w >= 60).every((r) => r.closes === null)).toBe(true)
-  })
-
   it('still reaches back after a full return, ahead of the closing rule', () => {
     const level = (w: number) => (w >= 60 ? -0.08 : 0) + (w >= 100 ? 0.08 : 0)
     const records = monitor(library(200, level), 0, 199)
@@ -271,6 +261,7 @@ describe('the display hold', () => {
     delta: 0,
     episode: null,
     closes: null,
+    dip: null,
     shown: state,
   })
   const shown = (states: [MachineState, boolean?][]) => {

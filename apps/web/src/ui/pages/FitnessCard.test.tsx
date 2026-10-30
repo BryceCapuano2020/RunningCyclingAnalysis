@@ -91,6 +91,48 @@ describe('FitnessSection', () => {
     expect(screen.queryByText('Ride')).not.toBeInTheDocument()
   })
 
+  it('draws a ride that is still waiting as one line on the home page, with its count and a link to the Ride page', () => {
+    const waiting = waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }, 7)
+    render(
+      <FitnessSection
+        fitness={{ run: SLIPPING, ride: { ...waiting, sport: 'ride' } }}
+        units="metric"
+        library={FITNESS_LIBRARY}
+      />,
+    )
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    const line = screen.getByTestId('ride-fitness-line')
+    expect(line).toHaveTextContent('Ride fitness: not enough steady rides yet, 7 of 12')
+    expect(within(line).getByRole('link')).toHaveAttribute('href', '#/ride')
+    cleanup()
+    // The Ride page draws the full waiting card, with the count.
+    render(
+      <FitnessSection
+        fitness={{ run: SLIPPING, ride: { ...waiting, sport: 'ride' } }}
+        units="metric"
+        library={FITNESS_LIBRARY}
+        sport="ride"
+      />,
+    )
+    expect(screen.getByRole('article', { name: 'Not enough evidence yet' })).toBeInTheDocument()
+    expect(screen.queryByTestId('ride-fitness-line')).toBeNull()
+  })
+
+  it('draws the section for a waiting ride alone (a library of rides) as the line, and says "recent" when it is the weeks that are short', () => {
+    const recent = waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }, 30)
+    render(
+      <FitnessSection
+        fitness={{ run: NO_FITNESS.run, ride: { ...recent, sport: 'ride' } }}
+        units="metric"
+        library={FITNESS_RIDE_LIBRARY}
+      />,
+    )
+    expect(screen.queryByRole('article')).toBeNull()
+    expect(screen.getByTestId('ride-fitness-line')).toHaveTextContent(
+      'Ride fitness: not enough recent steady rides yet, 2 of 4',
+    )
+  })
+
   it('shows one sport’s card without naming the sport, which its own page already names', () => {
     renderSection({ sport: 'run' })
     expect(screen.queryByText('Run')).not.toBeInTheDocument()
@@ -182,10 +224,12 @@ describe('the evidence panel', () => {
     expect(
       within(panel as HTMLElement).getByRole('heading', { name: 'How it is measured' }),
     ).toBeInTheDocument()
+    expect(panel.textContent).toMatch(/A change of 8% it sees within weeks, reliably\./)
     expect(panel.textContent).toMatch(
-      /It sees a change of about 5% or more, within weeks to a few months\./,
+      /A change of 5% it usually sees within a few months, and not always\./,
     )
-    expect(spoken(panel).match(/about 5% or more/g)).toHaveLength(1)
+    expect(panel.textContent).toMatch(/spread from one run to the next, about 4%/)
+    expect(spoken(panel).match(/usually sees within a few months/g)).toHaveLength(1)
     expect(spoken(panel)).toMatch(/Of your 12 runs on file, 64 are steady runs\./)
     expect(spoken(panel)).not.toMatch(BANNED)
   })
@@ -202,7 +246,10 @@ describe('the evidence panel', () => {
     fireEvent(details, new Event('toggle'))
     const panel = document.querySelector('.fitness-evidence')!
     expect(spoken(panel)).toMatch(
-      /Your usual seasonal swing of about 2% has been taken out of every steady run first\./,
+      /Your usual seasonal swing, up to 2\.1% either side of your usual, has been taken out of every steady run first\./,
+    )
+    expect(screen.getByTestId('fitness-season')).toHaveTextContent(
+      'Allowing for your usual seasonal swing, up to 2.1% either side.',
     )
     expect(spoken(panel)).toMatch(/the pace you ran at 150 bpm/)
     cleanup()
@@ -219,6 +266,15 @@ describe('the evidence panel', () => {
     fireEvent(rideDetails, new Event('toggle'))
     const ridePanel = document.querySelector('.fitness-evidence')!
     expect(spoken(ridePanel)).toMatch(/the power you rode at 140 bpm/)
+    expect(spoken(ridePanel)).toMatch(/adjusted for the heart rate of each\./)
+    expect(spoken(ridePanel)).not.toMatch(/climb/)
+    expect(spoken(ridePanel)).toMatch(/from one ride to the next, 2% to 5%/)
+    expect(ridePanel.textContent).toMatch(
+      /Rides are not tested for steadiness, so any pace counts\./,
+    )
+    expect(ridePanel.textContent).toMatch(/A ride outdoors with a power meter/)
+    expect(spoken(ridePanel)).toMatch(/The others were indoors/)
+    expect(screen.queryByTestId('fitness-season')).toBeNull()
     expect(spoken(ridePanel)).not.toMatch(/seasonal/)
   })
 

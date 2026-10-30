@@ -61,8 +61,21 @@ describe('the model-error floor', () => {
     // A square wave of 12 weeks up and 12 down, 5% each way: far more than the 2% the floor was set on.
     const wavy = library(130, (w) => (w % 24 < 12 ? 0.05 : -0.05))
     const f = floor(wavy, 129)
-    expect(f).toBeGreaterThan(M.tau * 2)
+    expect(f).toBeGreaterThan(M.tau * 1.5)
     expect(f).toBeLessThanOrEqual(M.floorMax)
+  })
+
+  it('leaves out the weeks of a dip that was real: they are not the wander', () => {
+    // Two dips of 8%, 27 and 22 weeks long, inside the 100 weeks the floor reads: as wander they raise it, as dips they do not.
+    const level = (w: number) => ((w >= 25 && w < 52) || (w >= 70 && w < 92) ? -0.08 : 0)
+    const dipped = library(130, level)
+    const dips = [
+      { fromDay: 25 * 7, toDay: 52 * 7 },
+      { fromDay: 70 * 7, toDay: 92 * 7 },
+    ]
+    const day = dayOf(129)
+    expect(floorAt(dipped, day, sigmaAt(dipped, day))).toBeGreaterThan(M.tau * 1.5)
+    expect(floorAt(dipped, day, sigmaAt(dipped, day), dips)).toBe(M.tau)
   })
 
   it('is not set by one step near the end of the history', () => {

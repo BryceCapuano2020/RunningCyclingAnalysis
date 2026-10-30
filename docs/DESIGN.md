@@ -1474,16 +1474,18 @@ The finding that leads: whether the athlete is slipping, holding, recovering or 
 earlier level. The analysis is in [design/fitness.md](design/fitness.md); this is how it shows.
 
 **Where.** A "Your fitness" section above the balance on Balance, and the same card above the threshold on a sport's page
-(without the sport's name, which the title says). One card for each sport that has a status; rides are not compared yet, so a
-library with runs has the run's card alone and the Ride page says nothing about it, rather than promising what cannot show. A
-sport with no steady run, or whose status is "not compared yet", has no card. The landing page's example leads with the same
+(without the sport's name, which the title says). One card for each sport that has a status, run first; the Ride page holds the ride's card
+alone. A ride that is still waiting on its count is one line on Balance ("Ride fitness: not enough steady rides yet, 7 of 12",
+linking to the Ride page), not a card of its own; its full card, with the count, is on the Ride page. A sport with no steady
+run, or no outdoor ride with a power meter, has no card. The landing page's example leads with the same
 finding for the sample athlete (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
 
 **The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness" and the card by its state). A sport edge on the left, the sport's name, and a **New** marker, "since the week of 12 Oct", when the state began to be
 shown in the last six weeks. The state is a word at display size (Slipping, Holding, Holding below, Recovering, Back,
 Improving) beside its own shape on a soft sport tile: a descending line, a level arrow, a level arrow under a bar, a
 rise from a dip, a ring with a tick, a rising line. A state is never colour alone. Under it the analysis's own sentence, with
-the heart rate, the range and "steady run" defined in place (Definition), and the support line. Right of it, the change as a
+the heart rate, the range and "steady run" defined in place (Definition), the support line, and, when the athlete's own
+seasonal swing was taken out of every run, a line saying so ("Allowing for your usual seasonal swing, up to 2.1% either side."). Right of it, the change as a
 **track**: "before" at the middle, "slower" and "faster" at the ends, the 90% range as a band and a hollow ring for the
 estimate (an estimate is a ring and a band, never a dash); a recovery marks the low it fell to, so the way back reads along the
 track. The track's scale holds at 12% either way and widens in 4% steps. It is hidden from assistive technology; the sentence
@@ -1494,8 +1496,9 @@ yet"), without repeating the sentence's opener, and shows how many steady runs i
 over time" and has a table twin: the level at four-week steps, each a hollow ring with its 90% range as a shaded band, the
 level before the change as a labelled reference line ("Before February", with its value), a rule where the change began
 ("Began February", left out when the chart starts after it), and now as the largest ring with its value. The axis is tight to
-the ranges, faster up. On a short phone (the page's own tighter-gaps test) the card gives up what the evidence repeats: the support line and the sport's tag go, and the marker keeps its word and not its week, so the balance's headline is still above the tabs at 320 by 640. Under it, in two columns on a wide screen: how it is measured, with the honest limit said once ("a change
-of about 5% or more, within weeks to a few months"); the steady runs it rests on as links to their activities (the newest eight,
+the ranges, faster up. On a short phone (the page's own tighter-gaps test) the card gives up what the evidence repeats: the support line and the sport's tag go, and the marker keeps its word and not its week, so the balance's headline is still above the tabs at 320 by 640. Under it, in two columns on a wide screen: how it is measured, with the honest limit said once and in the sport's own spread ("A change of 8% it sees within weeks,
+reliably. A change of 5% it usually sees within a few months, and not always."; a ride's smaller changes sit inside 2% to 5%
+a ride, a run's inside about 4%; a ride is adjusted for heart rate only, a run for heart rate and climb); the steady runs it rests on as links to their activities (the newest eight,
 then all on a press); and why some runs do not count. The level series is `FitnessStatus.series`: at most 20 points, no per-run data; a step is named by the weeks it is read over and dated by the last day it includes ("the 8 weeks to 25 Oct"). The copy is in the athlete's units: a run is read in whole kilometres, so for miles it gives the distance in miles beside them. The Run page's older weekly same-heart-rate section defers to the status: it is retitled "Same heart rate, week by week" and says no change of its own, so the two never disagree about the same runs.
 
 **Terms in a sentence.** A defined term in a paragraph reaches a pixel past its line (`p .definition__term::after`), as wide as
