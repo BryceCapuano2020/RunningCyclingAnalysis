@@ -10,6 +10,7 @@ import {
 import type { SyncIssueCode } from './saveFailure'
 import { noteKept } from './sessionHooks'
 import type { ActivityListeners } from './sessionHooks'
+import type { SessionLibrary } from './sessionLibrary'
 import type { Considered } from './sessionSource'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
 import type { Activity, ActivityDigest } from './types'
@@ -19,13 +20,20 @@ import type { Activity, ActivityDigest } from './types'
  * session's own (never replaced, only emptied), so this object and the session always agree.
  */
 export interface KeepState {
-  digests: Map<string, ActivityDigest>
+  library: SessionLibrary
   /** Activities whose last sink call failed, and why. Re-importing the file tries them again. */
   unsynced: Map<string, SyncIssueCode>
   /** The keys the latest import left in `unsynced`, so its own failures can be told from earlier ones. */
   latestUnsynced: Set<string>
-  outdatedKeys: Set<string>
-  incompatibleKeys: Set<string>
+}
+
+/**
+ * The digests a new copy is compared with: the current ones, and the compatible ones of other workouts. A
+ * compatible digest of this very workout is replaced by the new copy whatever its richness, so it is not one.
+ */
+function* comparable(library: SessionLibrary, key: string): Iterable<ActivityDigest> {
+  yield* library.digests.values()
+  for (const [other, digest] of library.readable) if (other !== key) yield digest
 }
 
 /**
@@ -45,7 +53,11 @@ export async function considerActivity(
   batch: SaveBatch,
   listeners?: ActivityListeners,
 ): Promise<Considered> {
-  const copyOf = heldCopyOf(state.digests.values(), activity, file.fileName)
+  const copyOf = heldCopyOf(
+    comparable(state.library, dedupeKey(activity.sport, activity.startMs)),
+    activity,
+    file.fileName,
+  )
   if (copyOf !== null) return { held: copyOf }
   return keepActivity(state, activity, file, sink, syncExisting, batch, listeners)
 }
@@ -68,7 +80,9 @@ async function keepActivity(
   listeners?: ActivityListeners,
 ): Promise<Considered> {
   const key = dedupeKey(activity.sport, activity.startMs)
-  const held = state.digests.get(key)
+  const held = state.library.digests.get(key)
+  // The same workout held from an older model: a fresh copy replaces it, and the import reports it upgraded.
+  const older = held === undefined ? state.library.notCurrent(key) : undefined
   const replaces = held !== undefined && outranksHeld(activity, file.fileName, held)
   if (
     held !== undefined &&
@@ -83,10 +97,9 @@ async function keepActivity(
   const adding = held === undefined || batch.added.has(key)
   const retry = !adding && state.unsynced.has(key)
   const digest = held !== undefined && !replaces ? held : digestActivity(activity)
-  state.digests.set(key, digest)
+  state.library.put(key, digest)
   if (adding) batch.added.set(key, digest)
-  state.outdatedKeys.delete(key)
-  state.incompatibleKeys.delete(key)
+  if (older !== undefined) batch.upgraded.add(key)
   // A replacing copy is swapped in only once the sink answers: the server may refuse it (409) and keep its own.
   const swapAfterSink = replaces && sink !== undefined && batch.halt === null
   if (!swapAfterSink) await noteKept(activity, digest, held, listeners)
@@ -121,7 +134,7 @@ async function keepActivity(
     if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
     if (swapAfterSink && code === 'activity-conflict') {
       // The server keeps the copy it holds, so the screen keeps it too, as a reload would show it.
-      state.digests.set(key, held)
+      state.library.put(key, held)
       if (adding) batch.added.set(key, held)
       return adding ? { added: held } : { held: fileNameOf(held.id) }
     }

@@ -46,6 +46,25 @@ const exclusive = (revision: number): RevisionDeclaration => ({
 /** Every revision, oldest first, from 1 without gaps. The last entry is the one this build writes. */
 export const REVISIONS: readonly RevisionDeclaration[] = [1, 2, 3, 4, 5, 6].map(exclusive)
 
+/** The table the defaults below read. Only `withRevisionTable` changes it, for tests that need a compatible revision. */
+let active: readonly RevisionDeclaration[] = REVISIONS
+
+/** Runs `run` with `table` as the table every function here defaults to, then puts the real one back. */
+export function withRevisionTable<T>(table: readonly RevisionDeclaration[], run: () => T): T {
+  const before = active
+  active = table
+  try {
+    return run()
+  } finally {
+    active = before
+  }
+}
+
+/** The table in force: the real one, or a test's inside `withRevisionTable`. */
+export function activeRevisionTable(): readonly RevisionDeclaration[] {
+  return active
+}
+
 /** The declaration of a revision, or undefined when the table has none (before 1, or past the current). */
 function declarationOf(
   revision: number,
@@ -57,7 +76,7 @@ function declarationOf(
 /** The declarations a digest of `revision` has to cross to reach the current one, oldest first. */
 export function stepsFrom(
   revision: number,
-  table: readonly RevisionDeclaration[] = REVISIONS,
+  table: readonly RevisionDeclaration[] = active,
 ): RevisionDeclaration[] {
   return table.filter((declaration) => declaration.revision > revision)
 }
@@ -68,7 +87,7 @@ export function stepsFrom(
  */
 export function revisionStatus(
   revision: number,
-  table: readonly RevisionDeclaration[] = REVISIONS,
+  table: readonly RevisionDeclaration[] = active,
 ): RevisionStatus {
   const current = table[table.length - 1]?.revision ?? 0
   if (revision === current) return 'current'
@@ -80,14 +99,12 @@ export function revisionStatus(
 }
 
 /** The revision this build writes: the last declared. */
-export function currentRevision(table: readonly RevisionDeclaration[] = REVISIONS): number {
+export function currentRevision(table: readonly RevisionDeclaration[] = active): number {
   return table[table.length - 1]?.revision ?? 0
 }
 
 /** The lowest revision whose status is `compatible` or `current`: the oldest the server accepts. */
-export function oldestCompatibleRevision(
-  table: readonly RevisionDeclaration[] = REVISIONS,
-): number {
+export function oldestCompatibleRevision(table: readonly RevisionDeclaration[] = active): number {
   for (const declaration of table) {
     if (revisionStatus(declaration.revision, table) !== 'stale') return declaration.revision
   }
@@ -108,7 +125,7 @@ function addedAt(field: DigestField, table: readonly RevisionDeclaration[]): num
 export function knows(
   digest: Pick<ActivityDigest, 'modelRevision'>,
   field: DigestField,
-  table: readonly RevisionDeclaration[] = REVISIONS,
+  table: readonly RevisionDeclaration[] = active,
 ): boolean {
   const revision = addedAt(field, table)
   return revision === null || digest.modelRevision >= revision
@@ -117,7 +134,7 @@ export function knows(
 /** The optional fields a rebuild of this digest would add. */
 export function missingFields(
   digest: Pick<ActivityDigest, 'modelRevision'>,
-  table: readonly RevisionDeclaration[] = REVISIONS,
+  table: readonly RevisionDeclaration[] = active,
 ): readonly DigestField[] {
   return stepsFrom(digest.modelRevision, table).flatMap((step) => step.adds)
 }
