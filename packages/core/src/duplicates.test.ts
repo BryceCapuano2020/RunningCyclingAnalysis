@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { workoutKey } from './duplicates'
-import { isSameWorkout } from './duplicates'
+import { isSameWorkout, workoutKey } from './duplicates'
 
 describe('isSameWorkout', () => {
   const run = { sport: 'run', startMs: 0, durationS: 3600 } as const
