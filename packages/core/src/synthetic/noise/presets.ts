@@ -51,6 +51,8 @@ const MEASURED_LEVEL: LevelNoise = {
 }
 
 const MEASURED_BEHAVIOUR: BehaviourNoise = {
+  // Fitted so that two halves of SPLIT_HALF_EFFORTS (6) hard efforts each, of equal capability,
+  // differ by the measured median: the fit assumes 6 efforts a half (a 12-week period).
   effortSd: { run: 0.0765, ride: 0.212 },
   easyFraction: { run: { min: 0.78, max: 0.85 }, ride: { min: 0.55, max: 0.7 } },
   fade: 0.03,
@@ -75,13 +77,19 @@ const MEASURED: NoiseModel = {
 }
 
 export const NOISE_PRESETS: Record<NoisePresetName, NoiseModel> = {
-  /** Close to today's near-noiseless generator: the floor every other preset is read against. */
+  /** Today's generator as a model: 1% speed and 1 bpm (uniform) noise, 0.2 m altitude steps, no stops. */
   quiet: {
     sensor: {
-      gps: { ...WATCH_GPS, speedSd: 0.005, stops: { max: 0, minS: 0, maxS: 0 }, altitudeWalkM: 0 },
+      gps: {
+        ...WATCH_GPS,
+        speedSd: 0.006,
+        stops: { max: 0, minS: 0, maxS: 0 },
+        altitudeWalkM: 0,
+        altitudeStepM: 0.2,
+      },
       heartRate: {
         ...STRAP_HR,
-        sdBpm: 0.5,
+        sdBpm: 0.6,
         driftPerHour: 0,
         dropouts: { max: 0, minS: 0, maxS: 0 },
         spikesPerHour: 0,

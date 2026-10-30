@@ -1,6 +1,6 @@
 import { mulberry32, quantile } from '../../math'
 import type { Sport } from '../../types'
-import { effortFactor } from './behaviour'
+import { deliveredFactor } from './behaviour'
 import type { BehaviourNoise } from './types'
 
 /** Hard efforts a half holds: one 12-week period of a regular athlete. */
@@ -9,7 +9,7 @@ const DEFAULT_DRAWS = 4000
 
 /**
  * Median |ln(best of half A / best of half B)| for two halves of equal capability: the noise a
- * change test has to clear. Each effort is one draw of the model's effort factor.
+ * change test has to clear. Each effort is one draw of the delivered factor, as the generator draws it.
  */
 export function splitHalfMedian(
   b: BehaviourNoise,
@@ -21,7 +21,7 @@ export function splitHalfMedian(
   const rand = mulberry32(seed)
   const best = () => {
     let top = 0
-    for (let k = 0; k < efforts; k++) top = Math.max(top, effortFactor(rand, b, sport))
+    for (let k = 0; k < efforts; k++) top = Math.max(top, deliveredFactor(rand, b, sport))
     return top
   }
   const diffs = Array.from({ length: draws }, () => Math.abs(Math.log(best() / best())))

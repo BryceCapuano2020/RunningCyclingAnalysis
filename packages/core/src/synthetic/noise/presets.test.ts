@@ -8,16 +8,18 @@ import { weeklyLevel } from './level'
 import { NOISE_PRESETS, NOISE_PRESET_NAMES } from './presets'
 import type { NoisePresetName } from './presets'
 import { studentT5 } from './random'
-import { autocorrelation, quantileRange, sineShare, splitHalfMedian } from './realism'
+import {
+  SPLIT_HALF_EFFORTS,
+  autocorrelation,
+  quantileRange,
+  sineShare,
+  splitHalfMedian,
+} from './realism'
 
-/** Guard bands: each preset's measured realism statistics. A preset change that moves one fails here. */
-const SPLIT_HALF: Record<NoisePresetName, { run: [number, number]; ride: [number, number] }> = {
-  quiet: { run: [0.004, 0.009], ride: [0.004, 0.009] },
-  measured: { run: [0.04, 0.05], ride: [0.12, 0.13] },
-  nuisanceAll: { run: [0.04, 0.05], ride: [0.12, 0.13] },
-  phoneGps: { run: [0.04, 0.05], ride: [0.12, 0.13] },
-  strapStep: { run: [0.04, 0.05], ride: [0.12, 0.13] },
-}
+/** Guard bands: split-half spread of equal-capability bests (6 efforts a half). A change that moves one fails here. */
+const QUIET_BAND = { run: [0.004, 0.009], ride: [0.004, 0.009] }
+const REAL_BAND = { run: [0.04, 0.05], ride: [0.12, 0.13] }
+const SPLIT_HALF = (name: NoisePresetName) => (name === 'quiet' ? QUIET_BAND : REAL_BAND)
 /** Mean over 30 libraries of the spread of the weekly level over five years, log units. */
 const LEVEL_SD: Record<NoisePresetName, [number, number]> = {
   quiet: [0, 0],
@@ -52,12 +54,52 @@ const meanOf = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length
 describe('noise presets', () => {
   it.each(NOISE_PRESET_NAMES)('%s: split-half spread of equal-capability bests', (name) => {
     const b = NOISE_PRESETS[name].behaviour
-    const { run, ride } = SPLIT_HALF[name]
-    expect(splitHalfMedian(b, 'run')).toBeGreaterThanOrEqual(run[0])
-    expect(splitHalfMedian(b, 'run')).toBeLessThanOrEqual(run[1])
-    expect(splitHalfMedian(b, 'ride')).toBeGreaterThanOrEqual(ride[0])
-    expect(splitHalfMedian(b, 'ride')).toBeLessThanOrEqual(ride[1])
+    const { run, ride } = SPLIT_HALF(name)
+    const [runMedian, rideMedian] = [splitHalfMedian(b, 'run'), splitHalfMedian(b, 'ride')]
+    expect(runMedian).toBeGreaterThanOrEqual(run[0]!)
+    expect(runMedian).toBeLessThanOrEqual(run[1]!)
+    expect(rideMedian).toBeGreaterThanOrEqual(ride[0]!)
+    expect(rideMedian).toBeLessThanOrEqual(ride[1]!)
   })
+
+  // The same statistic from real generated activities: a 20-minute run best and a 5-minute ride
+  // best (each a held test window), 6 against 6 drawn (with replacement) from a pool of 1000 equal-capability activities.
+  it.each([
+    { sport: 'run', durationS: 5200, from: 3960, to: 5160, band: [0.04, 0.06] },
+    { sport: 'ride', durationS: 2100, from: 1680, to: 2040, band: [0.115, 0.14] },
+  ] as const)(
+    'generated $sport bests show the split-half spread',
+    ({ sport, durationS, from, to, band }) => {
+      const m = NOISE_PRESETS.measured
+      const bests = Array.from({ length: 1000 }, (_, k) => {
+        const a = generateActivity(
+          DEFAULT_ATHLETE,
+          { id: 'b', name: 'B', sport, startMs: 0, durationS, effort: 'test', terrain: 'flat' },
+          (k + 1) * 7919 + 13,
+          m,
+        )
+        const xs = sport === 'run' ? a.speed : a.power
+        let sum = 0
+        for (let i = from; i < to; i++) sum += xs[i]!
+        return sum / (to - from)
+      })
+      const rand = mulberry32(11)
+      const diffs = Array.from({ length: 3000 }, () => {
+        const half = () => {
+          let top = 0
+          for (let k = 0; k < SPLIT_HALF_EFFORTS; k++) {
+            top = Math.max(top, bests[Math.floor(rand() * bests.length)]!)
+          }
+          return top
+        }
+        return Math.abs(Math.log(half() / half()))
+      })
+      // A finite pool adds about half a point of sampling noise to the median, hence the upper edges.
+      const median = quantile(diffs, 0.5)
+      expect(median).toBeGreaterThanOrEqual(band[0])
+      expect(median).toBeLessThanOrEqual(band[1])
+    },
+  )
 
   it.each(NOISE_PRESET_NAMES)('%s: spread of the weekly level', (name) => {
     const sds = Array.from({ length: 30 }, (_, k) => {

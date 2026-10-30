@@ -115,7 +115,8 @@ function simulate(
 /**
  * Generates one activity, second by second, from the athlete's ground-truth parameters. With a
  * `noise` model the athlete behaves and the sensors read as the model says; without one the output
- * is exactly the noise-free generator's.
+ * is exactly the noise-free generator's. A model replaces the generator's own 1% speed and 1 bpm
+ * noise (the `quiet` preset restates them); the power meter's 3% and an explicit `hrGlitch` stay.
  */
 export function generateActivity(
   athlete: SyntheticAthlete,
@@ -150,14 +151,14 @@ export function generateActivity(
   let hr = hrTarget(motion.metabolic[0] ?? 0)
 
   for (let i = 0; i < n; i++) {
-    speed[i] = motion.speed[i]! * (1 + uniform(rand, SPEED_NOISE))
+    speed[i] = motion.speed[i]! * (1 + uniform(rand, noise ? 0 : SPEED_NOISE))
     altitude[i] = Math.round(motion.altitude[i]! / ALTITUDE_RESOLUTION_M) * ALTITUDE_RESOLUTION_M
     if (hasPower) {
       power[i] = Math.round(motion.power[i]! * (1 + uniform(rand, POWER_NOISE)))
     }
     if (hasHeartRate) {
       hr += hrAlpha * (hrTarget(motion.metabolic[i]!) - hr)
-      let reading = Math.round(hr + uniform(rand, HR_NOISE_BPM))
+      let reading = Math.round(hr + uniform(rand, noise ? 0 : HR_NOISE_BPM))
       if (spec.hrGlitch && i >= glitchStart && i < glitchEnd) {
         reading = GLITCH_MIN_BPM + Math.floor(rand() * GLITCH_RANGE_BPM)
       }
@@ -182,5 +183,5 @@ export function generateActivity(
     hasAltitude: true,
     indoor: false,
   }
-  return noise ? applySensorNoise(activity, noise, seed) : activity
+  return noise ? applySensorNoise(activity, noise, seed, spec.effort) : activity
 }

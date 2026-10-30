@@ -64,6 +64,14 @@ describe('applySensorNoise through generateActivity', () => {
     }
   })
 
+  it('keeps stops out of hard efforts', () => {
+    const noise = model({ gps: { stops: { max: 4, minS: 20, maxS: 20 } } })
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const a = run(seed, noise, { effort: 'tempo' })
+      expect(a.speed.filter((v) => v === 0).length).toBe(0)
+    }
+  })
+
   it('wrist lock puts the heart rate on the step rate for a stretch', () => {
     const noise = model({
       hr: { lock: { share: 1, minS: 200, maxS: 200 }, dropouts: { max: 0, minS: 0, maxS: 0 } },

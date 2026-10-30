@@ -1,5 +1,6 @@
 import { normal, mulberry32 } from '../../math'
 import type { Activity } from '../../types'
+import type { Effort } from '../spec'
 import { ar1, between, countUpTo } from './random'
 import type { BehaviourNoise, GpsNoise, HeartRateNoise, NoiseModel } from './types'
 
@@ -36,9 +37,9 @@ function integrateDistance(a: Activity): void {
   }
 }
 
-function applyGps(a: Activity, gps: GpsNoise, rand: () => number): void {
+function applyGps(a: Activity, gps: GpsNoise, rand: () => number, stops: boolean): void {
   const error = ar1(a.n, rand, gps.speedSd, gps.corrS)
-  const stopped = stretches(a.n, rand, gps.stops)
+  const stopped = stops ? stretches(a.n, rand, gps.stops) : new Uint8Array(a.n)
   for (let i = 0; i < a.n; i++) {
     a.speed[i] = stopped[i] ? 0 : Math.max(0, a.speed[i]! * (1 + error[i]!))
     if (stopped[i] && a.hasPower) a.power[i] = 0
@@ -106,13 +107,19 @@ function addCadence(a: Activity, b: BehaviourNoise, rand: () => number): void {
 
 /**
  * Turns a clean generated activity into what a device would have recorded. Mutates and returns
- * `a`. Draws from its own stream so the clean generator's draws are untouched.
+ * `a`. Draws from its own stream so the clean generator's draws are untouched. Stops happen on
+ * easy runs and rides only, never inside a hard effort.
  */
-export function applySensorNoise(a: Activity, noise: NoiseModel, seed: number): Activity {
+export function applySensorNoise(
+  a: Activity,
+  noise: NoiseModel,
+  seed: number,
+  effort: Effort,
+): Activity {
   const rand = mulberry32((seed ^ SEED_MIX) >>> 0)
   a.indoor = a.sport === 'run' && rand() < noise.behaviour.treadmillShare
   if (a.indoor) applyBelt(a)
-  else applyGps(a, noise.sensor.gps, rand)
+  else applyGps(a, noise.sensor.gps, rand, effort === 'easy')
   if (a.hasHeartRate) applyHeartRate(a, noise.sensor.heartRate, noise.behaviour.stepRate, rand)
   if (a.sport === 'run' && noise.behaviour.cadence) addCadence(a, noise.behaviour, rand)
   return a

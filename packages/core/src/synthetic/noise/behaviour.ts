@@ -8,9 +8,8 @@ import type { BehaviourNoise } from './types'
 
 /** Hard samples are those at or above this share of critical effort. */
 const HARD_SHARE = 0.85
-/** The most one delivered hard activity can differ from capability: nobody beats it by 15%. */
-const MIN_DELIVERED = 0.5
-const MAX_DELIVERED = 1.15
+/** Delivered efforts are cut off at this many sd of the log factor (mean plus 3 sd). */
+const DELIVERED_SD_CAP = 3
 /** Easy-effort wander: slow drift, a few minutes, and short surges. Autocorrelation fades by 10 min. */
 const EASY_WANDER = [
   { sd: 0.01, corrS: 1800 },
@@ -26,11 +25,14 @@ const TERRAIN_OCTAVES = [
 ]
 
 /**
- * What one hard effort reads against the athlete's capability: log-normal, so a library's bests
- * show the real split-half spread (see realism.ts). The generator bounds it to what is deliverable.
+ * What one hard effort delivers against the athlete's capability: log-normal, cut off at 3 sd. The
+ * generator and the realism statistic (realism.ts) both draw through this, so a library's bests
+ * show the split-half spread the preset claims.
  */
-export function effortFactor(rand: () => number, b: BehaviourNoise, sport: Sport): number {
-  return Math.exp(b.effortSd[sport] * normal(rand))
+export function deliveredFactor(rand: () => number, b: BehaviourNoise, sport: Sport): number {
+  const sd = b.effortSd[sport]
+  const z = Math.min(DELIVERED_SD_CAP, Math.max(-DELIVERED_SD_CAP, normal(rand)))
+  return Math.exp(sd * z)
 }
 
 /**
@@ -58,7 +60,7 @@ export function behaviourTarget(
     return out
   }
   const out = rawTarget(effort, cp, wPrime, n, rand)
-  const factor = Math.min(MAX_DELIVERED, Math.max(MIN_DELIVERED, effortFactor(rand, b, sport)))
+  const factor = deliveredFactor(rand, b, sport)
   const fade = rand() * b.fade
   for (let i = 0; i < n; i++) {
     if (out[i]! >= HARD_SHARE * cp) out[i]! *= factor * (1 - (fade * i) / n)
