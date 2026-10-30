@@ -4,6 +4,8 @@ import {
   DAILY_LIMITS,
   DAILY_UPLOAD_BYTES,
   DATABASE_SOFT_LIMIT_BYTES,
+  LIST_ROWS_PER_DAY,
+  MAX_ACCOUNT_CREATES_PER_DAY,
   MAX_ACTIVITIES_PER_USER,
   MAX_CONCURRENT_UPLOADS_PER_USER,
   MAX_DIGEST_BYTES,
@@ -18,6 +20,7 @@ import {
   MAX_PAGE_DIGEST_BYTES,
   MAX_PAGE_SIZE,
   MAX_RECORD_ENVELOPE_BYTES,
+  MAX_SESSIONS_PER_USER,
   MAX_STORED_BYTES_PER_USER,
   MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
 } from '@rca/contract'
@@ -156,6 +159,33 @@ describe('the activity list figures', () => {
 
   it('gives the bound parameters of a page read', () => {
     expect(text).toContain(`${MAX_PAGE_SIZE + 1} of the 100 bound parameters`)
+  })
+})
+
+describe('read charging and the account caps', () => {
+  it('gives the rows-listed meter, and the loads it allows, as the contract sets them', () => {
+    expect(text).toContain(`\`LIST_ROWS_PER_DAY\`, **${n(LIST_ROWS_PER_DAY)} per UTC day**`)
+    expect(text).toContain(
+      `about ${Math.floor(LIST_ROWS_PER_DAY / 2700)} cold loads of a 2,700 library or ${Math.floor(LIST_ROWS_PER_DAY / 5000)} of a 5,000 library`,
+    )
+    expect(text).toContain(`is charged \`max(limit, ${MAX_PAGE_SIZE})\` up front`)
+  })
+
+  it('gives the account creations an identity may make in a day', () => {
+    expect(text).toContain(
+      `**${MAX_ACCOUNT_CREATES_PER_DAY} per Google identity per UTC day** (\`MAX_ACCOUNT_CREATES_PER_DAY\`)`,
+    )
+  })
+
+  it('says how many sessions a user keeps, here and on the privacy page', () => {
+    const words: Record<number, string> = { 10: 'ten' }
+    const word = words[MAX_SESSIONS_PER_USER]
+    expect(word, 'name the new session cap in this test').toBeDefined()
+    expect(text).toContain(`**${MAX_SESSIONS_PER_USER} per user** (\`MAX_SESSIONS_PER_USER\`)`)
+    expect(text).toContain(`beyond the ${word} most recently created`)
+    expect(read('../../web/privacy.html').replace(/\s+/g, ' ')).toContain(
+      `At most ${word} are kept`,
+    )
   })
 })
 

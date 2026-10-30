@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { describe, expect, it } from 'vitest'
 import { schema } from './db/schema.ts'
@@ -29,7 +29,6 @@ const DISCLOSED: Record<string, string> = {
   'users.deleting_at': 'whether and when deletion started',
   'users.digest_bytes': 'digest bytes',
   'users.file_bytes': 'size of each kept original',
-  'users.list_cursor': 'library page cursor',
 
   'oauth_accounts.provider': ACCOUNT,
   'oauth_accounts.provider_user_id': ACCOUNT,
@@ -71,6 +70,11 @@ const DISCLOSED: Record<string, string> = {
   'activities.file_reservation_token': 'an upload reservation token',
   'activities.created_at': 'start and save times',
 
+  'identity_budget.identity_key': 'one-way code made from your google id',
+  'identity_budget.day': 'kept about two days',
+  'identity_budget.action': "that day's counts",
+  'identity_budget.used': "that day's counts",
+
   'daily_budget.user_id': DAILY,
   'daily_budget.day': DAILY,
   'daily_budget.action': DAILY,
@@ -85,6 +89,12 @@ const DISCLOSED: Record<string, string> = {
   'pending_account_deletions.sweep_pending': 'account deletions not yet finished',
 }
 
+/**
+ * A column the schema still has and nothing writes: the library cursor is a stateless position now, so the page no
+ * longer lists it. The second test keeps it unwritten; start writing it and the page must say so.
+ */
+const UNUSED = new Set(['users.list_cursor'])
+
 /** The deployment-wide row holds counters and a listing cursor for object keys: nothing about a person. */
 const DEPLOYMENT_WIDE = 'r2_storage_budget'
 
@@ -95,7 +105,9 @@ const stored = Object.values(schema).flatMap((table) => {
 
 describe('the privacy page and the stored columns', () => {
   it('discloses every column the schema stores, and maps no column the schema lost', () => {
-    const personal = stored.filter((column) => !column.startsWith(`${DEPLOYMENT_WIDE}.`))
+    const personal = stored.filter(
+      (column) => !column.startsWith(`${DEPLOYMENT_WIDE}.`) && !UNUSED.has(column),
+    )
     expect(personal.filter((column) => !(column in DISCLOSED))).toEqual([])
     expect(Object.keys(DISCLOSED).filter((column) => !personal.includes(column))).toEqual([])
   })
@@ -105,5 +117,20 @@ describe('the privacy page and the stored columns', () => {
       .filter(([, phrase]) => !page.includes(phrase))
       .map(([column, phrase]) => `${column}: "${phrase}"`)
     expect(missing).toEqual([])
+  })
+})
+
+describe('a column the page does not list', () => {
+  it('is written by nothing outside the schema and its migrations', () => {
+    const sources = readdirSync(new URL('./', import.meta.url), {
+      recursive: true,
+      encoding: 'utf8',
+    })
+      .filter((path) => /\.ts$/.test(path) && !/\.test\.ts$/.test(path) && path !== 'db/schema.ts')
+      .map((path) => [path, readFileSync(new URL(path, import.meta.url), 'utf8')] as const)
+    const writers = sources
+      .filter(([, text]) => /listCursor|list_cursor/.test(text))
+      .map(([path]) => path)
+    expect(writers).toEqual([])
   })
 })
