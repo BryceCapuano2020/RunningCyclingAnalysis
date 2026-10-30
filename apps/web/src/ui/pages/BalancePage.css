@@ -71,7 +71,8 @@
 .balance-hero__title {
   /* A sentence, not a figure: display-1 would run it to three lines on a phone and push the meter off the first screen. */
   font-size: var(--display-2);
-  max-width: 21ch;
+  /* 28 ch of the smaller headline is the width 21 ch was at the old, larger size: wider than the lede. */
+  max-width: 28ch;
 }
 
 /* The sport the balance leans toward is underlined in its own colour: a shape, so the text stays ink. */
