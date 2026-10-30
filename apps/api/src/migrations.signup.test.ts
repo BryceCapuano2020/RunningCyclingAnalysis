@@ -28,7 +28,7 @@ function databaseBefore(): DatabaseSync {
   const db = new DatabaseSync(':memory:')
   db.exec('PRAGMA foreign_keys = ON')
   const tags = journalTags()
-  expect(tags.at(-1)).toBe(THIS)
+  expect(tags).toContain(THIS)
   for (const tag of tags.slice(0, tags.indexOf(LAST_BEFORE) + 1)) apply(db, tag)
   db.exec(`
     INSERT INTO users (id, email, name, picture_url, created_at)

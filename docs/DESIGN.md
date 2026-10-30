@@ -282,9 +282,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   `--text-label` (15 px, the phone's tab labels and the chart and notice labels) and `--text-lead`
   (18 px, the one display size a step above the body, such as the lead paragraph, the small
   headings, the tabs, the phone's wordmark and the skip link). Eyebrows, chips, the tabs and the capitals of the
-  header share `--tracking-caps`, and the phone's tab labels take `--tracking-tab`. Sizes above 18 px,
-  such as the page headings and the figures, have no token: each is set where it is used, with a
-  comment saying so. A unit inside a capitalised heading is set apart in `.unit`, so it stays in
+  header share `--tracking-caps`, and the phone's tab labels take `--tracking-tab`.
+- **The display scale is tokens too, for every size above 18 px.** `--display-1` (56 to 96 px, fluid) is
+  the one hero figure a view: the sport page's threshold figure and an activity's time. `--display-2`
+  (36 to 48 px) is a tile or secondary figure, a state word and a long sentence headline such as
+  Balance's. `--display-3` (28 to 36 px) is a page title, the level name and a finding title. `--title`
+  (24 px) is a section heading and `--heading` (20 px) a smaller one. A size is never a clamp of its own,
+  and `typeScale.test.ts` keeps the count of sizes that bypass the tokens from rising. `.display` sets the
+  face, weight 800, tabular figures and the line height `--lh-display` (0.95) once, and takes a full line
+  under forced colours so a chip beside a figure cannot overlap it. Barlow loads 400 to 600, so a sans
+  rule never asks for 700 or 800: only rules that set the condensed face do.
+- **Units in a heading.** A unit inside a capitalised heading is set apart in `.unit`, so it stays in
   lower case, as in "/mi", and the space before it is a non-breaking space, so the unit never starts
   a line. Inline source links are set at `--text-md`, and on Balance and the sport pages so are the
   disclosure summaries, except a best efforts label, an eyebrow at `--text-sm`.

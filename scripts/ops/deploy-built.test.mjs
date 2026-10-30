@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkDeploySource, deployArguments } from './deploy-built.mjs'
+import {
+  checkDeploySource,
+  deployArguments,
+  failedSmokeMessage,
+  latestRollbackFloor,
+  smokeCouldNotRunMessage,
+} from './deploy-built.mjs'
 
 const SHA = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678'
 
@@ -89,4 +95,50 @@ test('the deploy is tagged with the short commit id, messaged with the full one 
     '--define',
     '__BUILD_SHA__:"a1b2c3d4"',
   ])
+})
+
+const LEDGER = `## Releasing
+
+| 1 Jan 2000 | not a ledger row | x | none | deadbeef | before the ledger |
+
+## Ledger
+
+| Date        | Main sha | Worker version | Migrations | Rollback floor | Notes |
+| ----------- | -------- | -------------- | ---------- | -------------- | ----- |
+| 30 Oct 2026 | 40b3a4be | 96043823       | none       | 3e17b541       | new   |
+| 29 Oct 2026 | 54e897a6 | 9fdb7f91       | 0009       | 11111111       | old   |
+`
+
+test('reads the rollback floor from the newest ledger row, not from an example above the ledger', () => {
+  assert.equal(latestRollbackFloor(LEDGER), '3e17b541')
+  assert.equal(latestRollbackFloor('no table here'), undefined)
+})
+
+test('a failed post-deploy smoke test names the failures, the floor and the rollback command, and runs nothing', () => {
+  const message = failedSmokeMessage(
+    ['GET /api/health: expected 200, got 503'],
+    'a1b2c3d4',
+    '3e17b541',
+  )
+  assert.match(message, /smoke test failed for a1b2c3d4/)
+  assert.match(message, /- GET \/api\/health: expected 200, got 503/)
+  assert.match(message, /rollback floor 3e17b541/)
+  assert.match(message, /wrangler rollback <version id> --yes/)
+  assert.match(message, /migrations are never reversed/)
+  assert.match(failedSmokeMessage(['x'], 'a1b2c3d4', undefined), /a safe earlier version/)
+})
+
+test('when the smoke check cannot start, the message says the Worker is live and gives the rollback way', () => {
+  const message = smokeCouldNotRunMessage(
+    new Error('the origin under test is not APP_URL'),
+    'a1b2c3d4',
+    '3e17b541',
+  )
+  assert.match(
+    message,
+    /Deployed a1b2c3d4; the smoke check could not run: the origin under test is not APP_URL/,
+  )
+  assert.match(message, /The Worker is live/)
+  assert.match(message, /rollback floor 3e17b541/)
+  assert.doesNotMatch(message, /Refusing to deploy/)
 })
