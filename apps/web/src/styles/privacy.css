@@ -151,7 +151,7 @@ body {
   align-items: center;
   min-height: var(--control-height);
   padding: 0 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--muted);
   font-family: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
   font-size: var(--text-lead);
@@ -206,7 +206,7 @@ h2 {
 
 p,
 li {
-  max-width: 68ch;
+  max-width: var(--measure);
   overflow-wrap: anywhere;
 }
 

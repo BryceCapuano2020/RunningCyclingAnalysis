@@ -64,13 +64,13 @@
 
 /* The paragraphs of each section are held to a readable measure, as the lists are. */
 .method > .section > p {
-  max-width: 68ch;
+  max-width: var(--measure);
 }
 
 .method__facts {
   display: grid;
   gap: var(--space-2);
-  max-width: 68ch;
+  max-width: var(--measure);
   margin: 0;
   padding-left: 1.25rem;
 }
