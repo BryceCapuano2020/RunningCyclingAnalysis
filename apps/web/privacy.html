@@ -185,6 +185,11 @@
           the counts.
         </li>
         <li>
+          <strong>Deletion record:</strong> when you delete your account, a random account ID and
+          the time are kept for 100 days, so that restoring the database from an older copy does not
+          bring your account back. It holds no name, email, Google ID or activity.
+        </li>
+        <li>
           <strong>Bookkeeping:</strong> activity IDs, a key from each activity's sport and start,
           digest versions, your activity count and digest bytes, whether and when deletion started,
           when your profile last changed, and an upload reservation token while a file uploads.
@@ -202,6 +207,11 @@
         deletions not yet finished. Original files are in a private Cloudflare R2 bucket, under keys
         that include your account and activity IDs. Cloudflare hosts and processes this data as our
         provider, and Google processes sign-in.
+      </p>
+      <p>
+        Cloudflare also keeps a point-in-time history of the database, between 7 and 30 days
+        depending on the plan, which lets us undo a bad deploy. Data you delete can stay in that
+        history until it expires. Deleted accounts are removed again if we ever rewind the database.
       </p>
       <p>
         Error logs hold a request ID, the error type and, for a saved activity that cannot be read,

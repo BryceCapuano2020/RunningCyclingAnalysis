@@ -49,7 +49,7 @@
 /* The band the grade falls in is named in bold, so the level reads without its colour. */
 .level-ladder__name--current {
   color: var(--text-primary);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 /* The end names are anchored to the figure's edges, so a large text size cannot push them past it. */

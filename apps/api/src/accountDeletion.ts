@@ -7,6 +7,14 @@ import { identityKeyFor } from './auth/signupGate.ts'
 import { saveCountsStatement } from './identityBudget.ts'
 
 /**
+ * How long a deleted account's tombstone is kept: longer than the 90-day backup archives, so a
+ * restore from any copy the project holds can still be reconciled. D1 Time Travel reaches back
+ * 30 days at most.
+ */
+export const TOMBSTONE_RETENTION_DAYS = 100
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
  * Starts an account deletion. The account stops accepting writes and sign-ins at once, and a
  * pending row records the work so that an interrupted deletion can be finished later.
  */
@@ -85,9 +93,11 @@ export async function finishAccountDeletion(
 
 /**
  * Deletes the user row, which cascades to every table that references it. In the same batch, the
- * counts the user spent today are saved under a keyed code of its Google identity, so signing up
- * again the same UTC day does not start from zero (see identityBudget.ts). A user without a Google
- * identity, or a deployment without a usable signing key, is deleted without the save.
+ * account's tombstone is written (a restore from an older copy must not bring the account back),
+ * and the counts the user spent today are saved under a keyed code of its Google identity, so
+ * signing up again the same UTC day does not start from zero (see identityBudget.ts). A user
+ * without a Google identity, or a deployment without a usable signing key, is deleted without the
+ * save.
  */
 async function deleteUserKeepingCounts(env: Bindings, deps: Deps, userId: string): Promise<void> {
   const db = env.DB
@@ -98,12 +108,31 @@ async function deleteUserKeepingCounts(env: Bindings, deps: Deps, userId: string
   const identityKey = link
     ? await identityKeyFor(env.SESSION_SIGNING_KEY, link.provider_user_id)
     : undefined
-  const remove = db.prepare('DELETE FROM users WHERE id = ?').bind(userId)
-  if (identityKey === undefined) {
-    await remove.run()
-    return
-  }
-  await db.batch([saveCountsStatement(db, identityKey, userId, deps.now()), remove])
+  const now = deps.now()
+  const statements = [
+    db
+      .prepare('INSERT OR IGNORE INTO account_tombstones (user_id, deleted_at) VALUES (?, ?)')
+      .bind(userId, now),
+    db.prepare('DELETE FROM users WHERE id = ?').bind(userId),
+  ]
+  if (identityKey !== undefined)
+    statements.unshift(saveCountsStatement(db, identityKey, userId, now))
+  await db.batch(statements)
+}
+
+/** Removes tombstones older than the retention period. Bounded per call. */
+export async function pruneAccountTombstones(
+  db: D1Database,
+  now: number,
+  limit = 1000,
+): Promise<number> {
+  const result = await db
+    .prepare(
+      'DELETE FROM account_tombstones WHERE rowid IN (SELECT rowid FROM account_tombstones WHERE deleted_at < ? LIMIT ?)',
+    )
+    .bind(now - TOMBSTONE_RETENTION_DAYS * DAY_MS, limit)
+    .run()
+  return result.meta.changes
 }
 
 async function sweepBeforeDelete(env: Bindings, deps: Deps, userId: string): Promise<void> {

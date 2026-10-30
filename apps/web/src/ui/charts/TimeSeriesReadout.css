@@ -52,7 +52,7 @@
 .ts-readout__value {
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: var(--heading);
   font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;

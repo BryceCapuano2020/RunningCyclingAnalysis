@@ -69,10 +69,17 @@
 }
 
 .balance-hero__title {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: clamp(2.25rem, 5.6vw, 4.25rem);
-  line-height: 0.92;
-  max-width: 21ch;
+  /* A sentence, not a figure: display-1 would run it to three lines on a phone and push the meter off the first screen. */
+  font-size: var(--display-2);
+  /* 28 ch of the smaller headline is the width 21 ch was at the old, larger size: wider than the lede. */
+  max-width: 28ch;
+}
+
+/* On a wide screen the headline is the page's largest type, so a tile (display-2) never equals it. */
+@media (min-width: 1081px) {
+  .balance-hero__title {
+    font-size: 4.25rem;
+  }
 }
 
 /* The sport the balance leans toward is underlined in its own colour: a shape, so the text stays ink. */

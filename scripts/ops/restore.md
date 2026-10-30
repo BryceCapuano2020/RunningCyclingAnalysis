@@ -1,8 +1,17 @@
 # Restoring a backup
 
-This runbook restores the production D1 database from a scheduled backup
+This runbook has two parts. Part A restores the production D1 database from a scheduled backup
 (`.github/workflows/backup.yml`) into a new database and a preview Worker, then verifies it.
-Production is not touched until the owner decides to cut over (step 8).
+Production is not touched until the owner decides to cut over (step 8). Part B, at the end, rewinds
+the live database in place with D1 Time Travel, which is the faster path for a bad deploy or a
+mistaken write and the only path for a database above the 64 MiB limit of Part A.
+
+Both parts end with the same reconciliation: accounts deleted after the point you restore to come
+back with the copy, so they are deleted again before anyone signs in
+(`scripts/ops/reconcile-restore.mjs`).
+
+**Neither part has been rehearsed.** Run Part B on a scratch database and Part A on the newest backup,
+record the times, and only then trust either. A drill that is not recorded does not count.
 
 ## Targets and limits
 
@@ -80,19 +89,38 @@ npm exec -w @rca/api -- wrangler d1 migrations apply rca-restore-YYYYMMDD --remo
 
 ## 5. Remove sessions and reconcile deletions
 
-Before anyone can sign in to the restored database, delete every session the backup contains.
-Some may have been revoked, or belong to accounts that signed out after the backup:
+Before anyone can sign in to the restored database, delete every session the backup contains and
+delete again every account that was deleted after the backup. The application writes one row to
+`account_tombstones` (account id and time, nothing else) for each deletion and keeps it for 100
+days, longer than the 90-day backups. The restored copy has only the tombstones that existed when
+the backup was taken, so take the current ones from the live database. Do this before any cutover:
+
+```bash
+npm exec -w @rca/api -- wrangler d1 execute rca --remote --json \
+  --command "SELECT user_id, deleted_at FROM account_tombstones UNION SELECT id, deleting_at FROM users WHERE deleting_at IS NOT NULL UNION SELECT user_id, requested_at FROM pending_account_deletions ORDER BY 2" > "$WORK/tombstones.json"
+node scripts/ops/reconcile-restore.mjs "$WORK/tombstones.json" "$WORK/reconcile.sql"
+npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote --file "$WORK/reconcile.sql"
+```
+
+The query also takes the accounts whose deletion was requested but not finished (`users.deleting_at`
+and `pending_account_deletions`). A rewind erases both markers, and such an account has no tombstone
+yet, so without them it would come back alive. The script validates every id and time before writing
+SQL, and one invalid row stops the whole run on purpose: fix or remove it in the export and run again. The SQL inserts the tombstones into the
+restored database, finishes the deletion of accounts the backup shows as mid-deletion, deletes every
+account that has a tombstone (the delete cascades to its rows), and deletes all sessions. It can be
+run again safely. The restored database needs migration `0011` (the tombstone table) first; step 4
+applies pending migrations. Check the result:
 
 ```bash
 npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
-  --command "DELETE FROM sessions;"
+  --command "SELECT (SELECT COUNT(*) FROM users WHERE id IN (SELECT user_id FROM account_tombstones)) AS resurrected, (SELECT COUNT(*) FROM sessions) AS sessions;"
 ```
 
-Accounts deleted after the backup time are still present in it. The application keeps no deletion
-log, so the operator must keep a private record of account deletions (account identifier and time)
-and delete those accounts from the restored database again before use. A restore must never bring
-back an account that its owner deleted. Until such a record exists, do not use a backup older than
-the most recent deletion without that reconciliation.
+Both numbers must be 0. Tombstones older than 100 days are removed, so a backup older than that
+can bring back an account that nothing records any more; do not use one without asking the
+owner. If the live database is lost as well, the tombstones are only as new as the newest backup,
+and the accounts deleted since then cannot be reconciled from data. List them from support requests
+or the privacy contact log and delete them by hand.
 
 ## 6. Verify row counts and sample digests
 
@@ -210,3 +238,72 @@ counts compared, and any missing originals.
 Run this procedure quarterly against the newest backup, using steps 1 to 7 only. A drill that is
 not recorded does not count. The first drill is the evidence that this runbook works; until it is
 done, treat the restore as unverified.
+
+## Part B. Rewind the live database with Time Travel
+
+D1 Time Travel keeps point-in-time history for the database (30 days on the Workers Paid plan,
+7 days on Free) and restores it in place. Use it when a bad deploy or a mistaken write damaged data
+and the damage is newer than the history. It also restores deleted data: an account deleted
+inside the window is in the history, which is why the privacy page says deleted data can remain for
+up to 30 days, and why step B3 matters.
+
+Time Travel rewinds the whole database, including `account_tombstones`, and also the budget
+ledger. Rewinding the R2 write ledger would reopen capacity the bucket has already used (see
+"Never rewind the global R2 budget ledger" in `docs/PRODUCTION.md`); step B4 copies the live
+ledger forward.
+
+1. **Pick the moment.** Find the last good time from the access log or the release ledger. Look up its
+   bookmark and also note the current one, which is the way back if the rewind was a mistake:
+
+   ```bash
+   npm exec -w @rca/api -- wrangler d1 time-travel info rca
+   npm exec -w @rca/api -- wrangler d1 time-travel info rca --timestamp "<RFC 3339 time>"
+   ```
+
+   Check the flags with `wrangler d1 time-travel --help` first; they have changed between Wrangler
+   versions. Write both bookmarks into the incident notes.
+
+2. **Stop writes if you can.** Deploy the previous Worker (`wrangler rollback`, to a version at or
+   above the rollback floor in `docs/RELEASES.md`) so people are not writing while you rewind.
+   Anything written after the chosen time is lost.
+
+3. **Save what a rewind would erase, before it runs.** Export the tombstones and the deletions still in flight (the same query as in Part A step 5), and the live R2
+   ledger row, into a private directory (`umask 077`):
+
+   ```bash
+   npm exec -w @rca/api -- wrangler d1 execute rca --remote --json \
+     --command "SELECT user_id, deleted_at FROM account_tombstones UNION SELECT id, deleting_at FROM users WHERE deleting_at IS NOT NULL UNION SELECT user_id, requested_at FROM pending_account_deletions ORDER BY 2" > "$WORK/tombstones.json"
+   npm exec -w @rca/api -- wrangler d1 execute rca --remote --json \
+     --command "SELECT * FROM r2_storage_budget" > "$WORK/r2-budget-live.json"
+   ```
+
+4. **Restore**, with the bookmark from step 1:
+
+   ```bash
+   npm exec -w @rca/api -- wrangler d1 time-travel restore rca --bookmark "<bookmark>"
+   ```
+
+   Wrangler prints the bookmark of the state just before the rewind. Add it to the incident notes.
+   Then set the R2 ledger counters back to the larger of the live row and the restored one
+   (`lifetime_put_bytes` and the monthly counters), by hand, from `r2-budget-live.json`. If you
+   cannot establish the post-rewind usage, treat file capacity as exhausted until the owner has
+   reviewed it.
+
+5. **Reconcile deletions**, exactly as in step 5 of Part A, against `rca` instead of the scratch
+   database: build `reconcile.sql` from `$WORK/tombstones.json` and run it. If the rewind went to a
+   point before migration `0011`, apply the migrations first (`npm run db:migrate:remote -w
+@rca/api`), because the script writes to `account_tombstones`.
+
+6. **Verify** with steps 6 (row counts, digests, file bytes) of Part A, pointing at `rca`. Then run
+   `npm run smoke:prod -- --expect-sha <sha of the deployed Worker>` and sign in with a test
+   account.
+
+7. **Undo a mistaken rewind** by restoring the bookmark recorded in step 4, then repeat step 5.
+
+Rehearse this on a scratch database created for the purpose (`wrangler d1 create rca-scratch`),
+with synthetic rows only, so the first real use is not the first run. Record the drill the same way
+as in Part A.
+
+The refusal to deploy while a migration is pending belongs to `npm run deploy` and
+`npm run deploy:built`. A bare `wrangler deploy` and `npm run deploy:bootstrap` do not check, so after a
+rewind that crosses migration `0011` never use them; apply the migrations first.
