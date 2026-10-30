@@ -14,6 +14,8 @@ import type { ExtractLimits } from './extractLimits'
 import type { Rejection } from '../import/result'
 import { MIB } from '../constants'
 
+/** Sizes here are small on purpose: the limits are passed in, and the shipped ones are tested apart. */
+const KIB = 1024
 const FIT = new Uint8Array([14, 16, 0, 0, 1, 2, 3, 4, 46, 70, 73, 84, 9, 9])
 
 /** Pseudo-random bytes, which deflate hardly at all. */
@@ -63,8 +65,8 @@ afterEach(() => vi.restoreAllMocks())
 describe('a skipped zip entry that inflates past its budget', () => {
   it('is stopped once it has passed its free bytes at a ratio no real file has', async () => {
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
-    const zip = zipSync({ 'media/zeros.bin': new Uint8Array(8 * MIB), 'a.fit': FIT })
-    const { files, errors } = await extract(zip, { maxSkippedEntryFreeBytes: 1 * MIB })
+    const zip = zipSync({ 'media/zeros.bin': new Uint8Array(1 * MIB), 'a.fit': FIT })
+    const { files, errors } = await extract(zip, { maxSkippedEntryFreeBytes: 64 * KIB })
     expect(stop).toHaveBeenCalledTimes(1)
     // It is not an error: the import never wanted the entry, and the file after it is read.
     expect(errors).toEqual([])
@@ -73,23 +75,23 @@ describe('a skipped zip entry that inflates past its budget', () => {
 
   it('is left alone when it stays inside its free bytes, however well it compresses', async () => {
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
-    const zip = zipSync({ 'media/zeros.bin': new Uint8Array(1 * MIB), 'a.fit': FIT })
-    await extract(zip, { maxSkippedEntryFreeBytes: 2 * MIB })
+    const zip = zipSync({ 'media/zeros.bin': new Uint8Array(256 * KIB), 'a.fit': FIT })
+    await extract(zip, { maxSkippedEntryFreeBytes: 512 * KIB })
     expect(stop).not.toHaveBeenCalled()
   })
 
   it('is left alone past its free bytes when it does not compress like that', async () => {
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
-    const zip = zipSync({ 'media/noise.bin': noise(2 * MIB), 'a.fit': FIT })
-    await extract(zip, { maxSkippedEntryFreeBytes: 1 * MIB })
+    const zip = zipSync({ 'media/noise.bin': noise(256 * KIB), 'a.fit': FIT })
+    await extract(zip, { maxSkippedEntryFreeBytes: 128 * KIB })
     expect(stop).not.toHaveBeenCalled()
   })
 
   it('is stopped inside a zip nested in the export too', async () => {
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
-    const inner = zipSync({ 'media/zeros.bin': new Uint8Array(8 * MIB), 'b.fit': FIT })
+    const inner = zipSync({ 'media/zeros.bin': new Uint8Array(1 * MIB), 'b.fit': FIT })
     const outer = zipSync({ 'inner.zip': [inner, { level: 0 }], 'a.fit': FIT })
-    const { files } = await extract(outer, { maxSkippedEntryFreeBytes: 1 * MIB })
+    const { files } = await extract(outer, { maxSkippedEntryFreeBytes: 64 * KIB })
     expect(stop).toHaveBeenCalledTimes(1)
     expect(files.map((f) => f.fileName).sort()).toEqual(['a.fit', 'inner.zip/b.fit'])
   })
@@ -97,9 +99,9 @@ describe('a skipped zip entry that inflates past its budget', () => {
   it('counts against a total for the whole source, names the entry, and reads the files after it', async () => {
     const zip = zipSync({
       'a.fit': FIT,
-      'media/one.bin': new Uint8Array(3 * MIB),
-      'media/two.bin': new Uint8Array(3 * MIB),
-      'media/three.bin': new Uint8Array(3 * MIB),
+      'media/one.bin': new Uint8Array(512 * KIB),
+      'media/two.bin': new Uint8Array(512 * KIB),
+      'media/three.bin': new Uint8Array(512 * KIB),
       'b.fit': FIT,
     })
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
@@ -107,7 +109,7 @@ describe('a skipped zip entry that inflates past its budget', () => {
     const { files, errors } = await extract(zip, {
       maxSkippedEntryFreeBytes: 100 * MIB,
       maxSkippedGlobalFreeBytes: 100 * MIB,
-      maxSkippedInflateBytes: 4 * MIB,
+      maxSkippedInflateBytes: 768 * KIB,
     })
     // Skipping costs nothing once the budget is out, and a skipped entry is not wanted: both fit files are read.
     expect(files.map((f) => f.fileName).sort()).toEqual(['a.fit', 'b.fit'])
@@ -119,7 +121,7 @@ describe('a skipped zip entry that inflates past its budget', () => {
 
   it('inflates nothing of the skipped entries after the budget has run out, not even their first piece', async () => {
     const entries: Zippable = { 'a.fit': FIT }
-    for (let i = 0; i < 6; i++) entries[`media/${i}.bin`] = new Uint8Array(3 * MIB)
+    for (let i = 0; i < 6; i++) entries[`media/${i}.bin`] = new Uint8Array(512 * KIB)
     // Stored, so that the only thing reaching the inflater is a skipped entry.
     entries['b.fit'] = [FIT, { level: 0 }]
     const inflate = vi.spyOn(Inflate.prototype, 'push')
@@ -136,7 +138,7 @@ describe('a skipped zip entry that inflates past its budget', () => {
       {
         ...DEFAULT_EXTRACT_LIMITS,
         maxSkippedEntryFreeBytes: 100 * MIB,
-        maxSkippedInflateBytes: 4 * MIB,
+        maxSkippedInflateBytes: 768 * KIB,
       },
     )
     expect(atExhaustion).toBeGreaterThan(0)
@@ -147,12 +149,12 @@ describe('a skipped zip entry that inflates past its budget', () => {
 
   it('adds up many entries that each stay under their own allowance, by the ratio of the whole', async () => {
     const entries: Record<string, Uint8Array> = { 'a.fit': FIT }
-    for (let i = 0; i < 12; i++) entries[`media/${i}.bin`] = new Uint8Array(3 * MIB)
+    for (let i = 0; i < 12; i++) entries[`media/${i}.bin`] = new Uint8Array(256 * KIB)
     entries['b.fit'] = FIT
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
     const { files, errors } = await extract(zipSync(entries), {
-      maxSkippedEntryFreeBytes: 8 * MIB,
-      maxSkippedGlobalFreeBytes: 8 * MIB,
+      maxSkippedEntryFreeBytes: 1 * MIB,
+      maxSkippedGlobalFreeBytes: 1 * MIB,
       maxSkippedGlobalRatio: 20,
     })
     expect(files.map((f) => f.fileName).sort()).toEqual(['a.fit', 'b.fit'])
@@ -164,8 +166,8 @@ describe('a skipped zip entry that inflates past its budget', () => {
 
   it('stops a bomb in a zip written with data descriptors, where the headers give no size', async () => {
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
-    const zip = streamedZip({ 'media/zeros.bin': new Uint8Array(40 * MIB), 'a.fit': FIT })
-    const { files } = await extract(zip, { maxSkippedEntryFreeBytes: 4 * MIB })
+    const zip = streamedZip({ 'media/zeros.bin': new Uint8Array(2 * MIB), 'a.fit': FIT })
+    const { files } = await extract(zip, { maxSkippedEntryFreeBytes: 256 * KIB })
     expect(stop).toHaveBeenCalledTimes(1)
     expect(files.map((f) => f.fileName)).toEqual(['a.fit'])
   })
@@ -173,12 +175,12 @@ describe('a skipped zip entry that inflates past its budget', () => {
   it('does not count a stored entry, however long', async () => {
     const stop = vi.spyOn(StoppableInflate.prototype, 'terminate')
     const zip = zipSync({
-      'media/video.mp4': [new Uint8Array(20 * MIB), { level: 0 }],
+      'media/video.mp4': [new Uint8Array(2 * MIB), { level: 0 }],
       'a.fit': FIT,
     })
     const { files, errors } = await extract(zip, {
-      maxSkippedEntryFreeBytes: 1 * MIB,
-      maxSkippedInflateBytes: 1 * MIB,
+      maxSkippedEntryFreeBytes: 128 * KIB,
+      maxSkippedInflateBytes: 128 * KIB,
     })
     expect(stop).not.toHaveBeenCalled()
     expect(errors).toEqual([])
