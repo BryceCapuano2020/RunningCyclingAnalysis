@@ -4,17 +4,12 @@ import { mulberry32, quantile } from '../../math'
 import type { Activity } from '../../types'
 import { DEFAULT_ATHLETE } from '../athlete'
 import { generateActivity } from '../generate'
+import { generatedSplitHalf } from './generatedBests'
 import { weeklyLevel } from './level'
 import { NOISE_PRESETS, NOISE_PRESET_NAMES } from './presets'
 import type { NoisePresetName } from './presets'
 import { studentT5 } from './random'
-import {
-  SPLIT_HALF_EFFORTS,
-  autocorrelation,
-  quantileRange,
-  sineShare,
-  splitHalfMedian,
-} from './realism'
+import { autocorrelation, quantileRange, sineShare, splitHalfMedian } from './realism'
 
 /** Guard bands: split-half spread of equal-capability bests (6 efforts a half). A change that moves one fails here. */
 const QUIET_BAND = { run: [0.004, 0.009], ride: [0.004, 0.009] }
@@ -62,44 +57,16 @@ describe('noise presets', () => {
     expect(rideMedian).toBeLessThanOrEqual(ride[1]!)
   })
 
-  // The same statistic from real generated activities: a 20-minute run best and a 5-minute ride
-  // best (each a held test window), 6 against 6 drawn (with replacement) from a pool of 1000 equal-capability activities.
+  // Smoke version of the generated-bests check (the full one is presets.sim.test.ts): a small pool,
+  // wide bands. It still fails when a clamp or a scaling bug squashes the bests.
   it.each([
-    { sport: 'run', durationS: 5200, from: 3960, to: 5160, band: [0.04, 0.06] },
-    { sport: 'ride', durationS: 2100, from: 1680, to: 2040, band: [0.115, 0.14] },
-  ] as const)(
-    'generated $sport bests show the split-half spread',
-    ({ sport, durationS, from, to, band }) => {
-      const m = NOISE_PRESETS.measured
-      const bests = Array.from({ length: 1000 }, (_, k) => {
-        const a = generateActivity(
-          DEFAULT_ATHLETE,
-          { id: 'b', name: 'B', sport, startMs: 0, durationS, effort: 'test', terrain: 'flat' },
-          (k + 1) * 7919 + 13,
-          m,
-        )
-        const xs = sport === 'run' ? a.speed : a.power
-        let sum = 0
-        for (let i = from; i < to; i++) sum += xs[i]!
-        return sum / (to - from)
-      })
-      const rand = mulberry32(11)
-      const diffs = Array.from({ length: 3000 }, () => {
-        const half = () => {
-          let top = 0
-          for (let k = 0; k < SPLIT_HALF_EFFORTS; k++) {
-            top = Math.max(top, bests[Math.floor(rand() * bests.length)]!)
-          }
-          return top
-        }
-        return Math.abs(Math.log(half() / half()))
-      })
-      // A finite pool adds about half a point of sampling noise to the median, hence the upper edges.
-      const median = quantile(diffs, 0.5)
-      expect(median).toBeGreaterThanOrEqual(band[0])
-      expect(median).toBeLessThanOrEqual(band[1])
-    },
-  )
+    { sport: 'run', band: [0.02, 0.09] },
+    { sport: 'ride', band: [0.07, 0.22] },
+  ] as const)('generated $sport bests show a split-half spread (smoke)', ({ sport, band }) => {
+    const median = generatedSplitHalf(NOISE_PRESETS.measured, sport, 50, 1000)
+    expect(median).toBeGreaterThanOrEqual(band[0])
+    expect(median).toBeLessThanOrEqual(band[1])
+  })
 
   it.each(NOISE_PRESET_NAMES)('%s: spread of the weekly level', (name) => {
     const sds = Array.from({ length: 30 }, (_, k) => {
