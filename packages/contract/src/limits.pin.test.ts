@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_DIGEST_TEXT_CHARS } from '@rca/core/digest/limits'
 import * as limits from './limits.ts'
 
 /** Bound parameters one D1 statement may carry (Cloudflare's limit for Workers). */
@@ -17,6 +18,8 @@ describe('contract limits', () => {
 
   it('pins the upload and digest sizes', () => {
     expect(limits.MAX_DIGEST_BYTES).toBe(256 * 1024)
+    // The digest reader bounds a text in characters by the same number the API bounds a body in bytes.
+    expect(MAX_DIGEST_TEXT_CHARS).toBe(limits.MAX_DIGEST_BYTES)
     expect(limits.MAX_FILE_BYTES).toBe(50 * 1024 * 1024)
     expect(limits.MAX_ACTIVITIES_PER_USER).toBe(5000)
     expect(limits.MAX_STORED_BYTES_PER_USER).toBe(1024 * 1024 * 1024)

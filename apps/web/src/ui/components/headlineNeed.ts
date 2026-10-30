@@ -1,3 +1,4 @@
+import { MIN_CLIMB_GRADE } from '@rca/core/constants'
 import { effortsCount } from '@rca/core/digest'
 import type { Period } from '@rca/core/period'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
@@ -111,15 +112,23 @@ function needsOf(result: AnalysisResult): Need[] {
 }
 
 /** "a 20 min run reaching 90% of your reference heart rate and one ride of 20 min or more": the activities to add, said once for all the sports. */
-function addPhrase(needs: readonly Need[]): string {
+function addPhrase(needs: readonly Need[], activities: ActivitySummary[]): string {
   // Sports that only lack a 20 minute effort share the sentence: "one run and one ride of 20 min or more".
   const missing = needs.flatMap((need) => (need.kind === 'missing' ? [need.sport] : []))
-  const lacking =
-    missing.length === 0
+  const plain = missing.filter((sport) => meterFacts(activities, sport) === null)
+  const climbs = missing.filter((sport) => meterFacts(activities, sport) !== null)
+  const lacking = [
+    ...(plain.length === 0
       ? []
       : [
-          `${missing.map((sport) => `one ${SPORT_ACTIVITY[sport]}`).join(' and ')} of ${HEADLINE_LABEL} or more`,
-        ]
+          `${plain.map((sport) => `one ${SPORT_ACTIVITY[sport]}`).join(' and ')} of ${HEADLINE_LABEL} or more`,
+        ]),
+    // A ride known by the model's watts is asked for a power meter, or a climb that holds for the headline's length.
+    ...climbs.map(
+      (sport) =>
+        `one ${SPORT_ACTIVITY[sport]} of ${HEADLINE_LABEL} or more with a power meter, or with ${CLIMB_NEEDED}`,
+    ),
+  ]
   // Sports whose best was under the line are asked for an effort that reaches it, said once for all of them.
   const efforts = needs.flatMap((need) =>
     need.kind === 'effort' && !need.reference ? [need.action] : [],
@@ -134,14 +143,23 @@ function addPhrase(needs: readonly Need[]): string {
 }
 
 /** The sentence that says what to add, then the sentences that say how to set a reference that cannot be trusted. */
-function actionOf(needs: readonly Need[]): string {
-  const add = addPhrase(needs)
+function actionOf(needs: readonly Need[], activities: ActivitySummary[]): string {
+  const add = addPhrase(needs, activities)
+  // Where a ride has no altitude to find a climb from, that is said first.
+  const flat = needs.find(
+    (need) => need.kind === 'missing' && meterFacts(activities, need.sport)?.noAltitude === true,
+  )
+  const lead =
+    flat === undefined
+      ? ''
+      : `None of your ${SPORT_PLURAL[flat.sport]} without a power meter records altitude, so no climb can be found. `
   const references = needs.flatMap((need) =>
     need.kind !== 'missing' && need.reference ? [need.action] : [],
   )
-  return [add === '' ? '' : `Add ${add} to compare them.`, ...references]
+  const body = [add === '' ? '' : `Add ${add} to compare them.`, ...references]
     .filter((x) => x !== '')
     .join(' ')
+  return `${lead}${body}`
 }
 
 /** What the hold for effort says: the sports it is for, why, and what lifts it. */
@@ -164,8 +182,53 @@ export function effortHold(result: AnalysisResult): EffortHold | null {
   return {
     sports: needs.map((need) => need.sport),
     text: needs.map((need) => need.reason).join(' '),
-    action: actionOf(needs),
+    action: actionOf(needs, result.activities),
   }
+}
+
+/**
+ * What a ride without a power meter needs for the headline: virtual power is trusted only on a climb, and
+ * the headline's length needs one that holds that long without a break. A long ride is not enough, and
+ * neither is a hilly one whose climbs are shorter.
+ */
+export const CLIMB_NEEDED = `a climb of ${Math.round(MIN_CLIMB_GRADE * 100)}% or steeper that holds for ${HEADLINE_LABEL} without a break`
+
+/** The sports whose activities may or may not have a power meter, and so may be known only by the model's watts. */
+const MAY_LACK_METER: Record<Sport, boolean> = { run: false, ride: true }
+
+/**
+ * What a sport's counted activities say about a power meter, and about the altitude a climb is found from. Some
+ * are the model's watts, or there would be no facts: only a climb can give those a best of the headline's length.
+ */
+interface MeterFacts {
+  /** All are: none has a meter, so a longer one cannot help. */
+  allVirtual: boolean
+  /** Those with the model's watts were all flagged as recording no altitude, so no climb can be found in them. */
+  noAltitude: boolean
+}
+
+/** The meter facts of the activities of a sport that the headline's rule counts, or null for a sport with no meter. */
+function meterFacts(activities: ActivitySummary[], sport: Sport): MeterFacts | null {
+  if (!MAY_LACK_METER[sport]) return null
+  const counted = activities.filter((a) => a.sport === sport && effortsCount(a))
+  const virtual = counted.filter((a) => a.powerSource === 'virtual')
+  if (virtual.length === 0) return null
+  return {
+    allVirtual: virtual.length === counted.length,
+    noAltitude: virtual.every((a) => (a.flagCounts['missing-altitude'] ?? 0) > 0),
+  }
+}
+
+/** Why a sport with the model's watts has no best of the headline's length, and what it compares on instead. */
+function climbReason(sport: Sport, fact: MeterFacts): string {
+  const [plural, one] = [SPORT_PLURAL[sport], SPORT_ACTIVITY[sport]]
+  if (fact.noAltitude) {
+    return `None of your ${plural} without a power meter records altitude, so a ${one} without one has no climb to compare on.`
+  }
+  if (fact.allVirtual) {
+    return `Your ${plural} have no power meter, so a ${one} compares only on ${CLIMB_NEEDED}.`
+  }
+  return `None of your ${plural} with a power meter has a best of ${HEADLINE_LABEL}, and those without one compare only on ${CLIMB_NEEDED}.`
 }
 
 /**
@@ -184,7 +247,7 @@ export function heldAction(result: AnalysisResult, period: Period | undefined): 
   const needs = needsOf(result)
   return needs.length === 0
     ? `Add one run or ride of ${HEADLINE_LABEL} or more to compare them.`
-    : actionOf(needs)
+    : actionOf(needs, result.activities)
 }
 
 /**
@@ -197,15 +260,23 @@ export function heldReason(result: AnalysisResult, period: Period | undefined): 
   if (short !== null) return short
   const needs = needsOf(result)
   if (needs.length === 0) return NEEDS_EFFORT
-  const missing = needs.flatMap((need) => (need.kind === 'missing' ? [SPORT_NOUN[need.sport]] : []))
+  const meter = (sport: Sport) => meterFacts(result.activities, sport)
+  const missing = needs.flatMap((need) => (need.kind === 'missing' ? [need.sport] : []))
+  // A ride known by the model's watts is short of a climb as well as of length, which a longer ride alone does not mend.
+  const plain = missing.filter((sport) => meter(sport) === null).map((sport) => SPORT_NOUN[sport])
   const lacking =
-    missing.length === 0
+    plain.length === 0
       ? []
       : [
-          `Your ${missing.join(' and ')} ${missing.length === 1 ? 'has' : 'have'} no ${HEADLINE_LABEL} effort yet.`,
+          `Your ${plain.join(' and ')} ${plain.length === 1 ? 'has' : 'have'} no ${HEADLINE_LABEL} effort yet.`,
         ]
+  const climbs = missing.flatMap((sport) => {
+    const fact = meter(sport)
+    return fact === null ? [] : [climbReason(sport, fact)]
+  })
   return [
     ...lacking,
+    ...climbs,
     ...needs.flatMap((need) => (need.kind === 'missing' ? [] : [need.reason])),
   ].join(' ')
 }

@@ -35,6 +35,8 @@ import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
+import { useCountedRuns } from './ui/useCountedRuns'
+import { useSignInProblem } from './ui/signInProblem'
 
 /** A string that changes whenever a different page is on screen. */
 function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
@@ -84,10 +86,13 @@ export function App() {
   }
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
+  const countedRuns = useCountedRuns()
+  const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(
     settings,
     measurements.entries,
     athleteValues.birthYear,
+    countedRuns.keys,
   )
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
@@ -185,6 +190,7 @@ export function App() {
   // replaces the Profile history entry rather than adding one.
   const removingAll = useRef(false)
   const removeAll = () => {
+    // The runs counted at walking pace are forgotten when the worker reports the library forgotten (rememberKept).
     analysis.clear()
     // With no result on screen the effect below never runs, so the landing page is shown now.
     if (!hasResult) {
@@ -213,6 +219,7 @@ export function App() {
   }
   const deleteAccount = async () => {
     await account.deleteAccount()
+    countedRuns.clear()
     setAccountDeleted(true)
     window.location.replace(hrefFor({ page: 'balance' }))
   }
@@ -264,7 +271,8 @@ export function App() {
             onSignOut={() => {
               // What this browser noted about the visitor's data goes with their session.
               forgetSeenNotes()
-              void account.signOut().catch(() => undefined)
+              // The runs counted here go once the session has ended, not if signing out failed.
+              void account.signOut().then(countedRuns.clear, () => undefined)
             }}
           />
         }
@@ -297,9 +305,10 @@ export function App() {
           pageNotice={
             accountDeleted && route.page === 'balance'
               ? 'Your account and data were deleted.'
-              : (coldNotice ?? '')
+              : (signInProblem ?? coldNotice ?? '')
           }
           walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
+          countedRuns={countedRuns}
         />
         {route.page === 'profile' ? (
           <ProfilePage
@@ -335,6 +344,7 @@ export function App() {
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}
             signedIn={signedIn}
+            countedRuns={countedRuns}
           />
         ) : restoringPage ? (
           <RestoringPage onFiles={setup.requestImport} />

@@ -608,6 +608,148 @@ describe('SetupDialog: the account answers after the visitor has changed units',
   })
 })
 
+/*
+ * The account answers late, with units of its own. What the visitor has done decides whether the dialog
+ * follows it. Digits typed in one unit are never read in another.
+ *
+ * | weight typed | units chosen | the account's units arrive | units shown   | weight field            |
+ * | ------------ | ------------ | -------------------------- | ------------- | ----------------------- |
+ * | no           | no           | pounds, kg saved           | follow: lb    | the saved weight in lb  |
+ * | no           | no (year)    | pounds                     | follow: lb    | the saved weight in lb  |
+ * | yes          | no           | pounds                     | keep          | the digits as typed     |
+ * | no           | yes          | pounds                     | keep chosen   | saved weight, chosen    |
+ * | yes          | yes          | pounds                     | keep chosen   | the digits as typed     |
+ */
+describe('SetupDialog: the account answers late with units of its own', () => {
+  const METRIC: AthleteValues = {
+    settings: { massKg: null, bikeMassKg: 9 },
+    units: 'metric',
+    birthYear: null,
+    sex: null,
+  }
+  const POUNDS: AthleteValues = {
+    settings: { massKg: 68, bikeMassKg: 9 },
+    units: 'imperial',
+    birthYear: null,
+    sex: null,
+  }
+
+  function open(onConfirm = vi.fn()) {
+    const view = render(<SetupDialog initial={METRIC} onConfirm={onConfirm} onSkip={vi.fn()} />)
+    const accountAnswers = () =>
+      view.rerender(<SetupDialog initial={POUNDS} onConfirm={onConfirm} onSkip={vi.fn()} />)
+    return { accountAnswers, onConfirm }
+  }
+
+  it('follows the account while nothing has been typed or chosen', () => {
+    const { accountAnswers } = open()
+    accountAnswers()
+
+    expect(screen.getByRole('radio', { name: 'Imperial' })).toBeChecked()
+    expect(weight()).toHaveValue('149.9')
+  })
+
+  it('still follows the account when only the year has been typed', async () => {
+    const user = userEvent.setup()
+    const { accountAnswers } = open()
+    await user.type(year(), '1985')
+    accountAnswers()
+
+    expect(screen.getByRole('radio', { name: 'Imperial' })).toBeChecked()
+  })
+
+  it('keeps the units the digits were typed in, so 150 typed in kilograms is not read as pounds', async () => {
+    const user = userEvent.setup()
+    const { accountAnswers, onConfirm } = open()
+    await user.type(weight(), '82')
+    accountAnswers()
+
+    expect(screen.getByRole('radio', { name: 'Metric' })).toBeChecked()
+    expect(weight()).toHaveValue('82')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    // The weight is 82 kg, and the units the visitor saw are the ones saved.
+    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: 82 }, units: 'metric' })
+  })
+
+  it('keeps the units that were chosen, and shows the saved weight in them', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+    const unsetPounds = { ...POUNDS, settings: { massKg: null, bikeMassKg: 9 } }
+    const view = render(
+      <SetupDialog initial={unsetPounds} onConfirm={onConfirm} onSkip={vi.fn()} />,
+    )
+    await user.click(screen.getByRole('radio', { name: 'Metric' }))
+    view.rerender(<SetupDialog initial={POUNDS} onConfirm={onConfirm} onSkip={vi.fn()} />)
+
+    expect(screen.getByRole('radio', { name: 'Metric' })).toBeChecked()
+    expect(weight()).toHaveValue('68')
+  })
+
+  it('keeps both the chosen units and the digits typed', async () => {
+    const user = userEvent.setup()
+    const { accountAnswers } = open()
+    await user.click(screen.getByRole('radio', { name: 'Imperial' }))
+    await user.type(weight(), '150')
+    accountAnswers()
+
+    expect(screen.getByRole('radio', { name: 'Imperial' })).toBeChecked()
+    expect(weight()).toHaveValue('150')
+  })
+})
+
+describe('SetupDialog: a weight far from the saved one', () => {
+  const SAVED: AthleteValues = { ...INITIAL, settings: { massKg: 68, bikeMassKg: 9 } }
+
+  it('asks about pounds typed into the kilogram field, and keeps the weight only on a second Analyse', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog(SAVED)
+    await user.clear(weight())
+    await user.type(weight(), '150')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'That is 150.0 kg, 121% higher than your saved weight, 68.0 kg.',
+    )
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: 150 } })
+  })
+
+  it('asks about a high first weight, with no saved one to compare with', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog(UNSET)
+    await user.type(weight(), '150')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'That is 150.0 kg, a high figure for a first weight. If that is pounds, it is 68.0 kg.',
+    )
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('takes a weight within the saved one by 40% without asking', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog(SAVED)
+    await user.clear(weight())
+    await user.type(weight(), '80')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+
+    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: 80 } })
+  })
+
+  it('does not keep the questioned weight when Skip is pressed after the question', async () => {
+    const user = userEvent.setup()
+    const { onSkip } = renderDialog(SAVED)
+    await user.clear(weight())
+    await user.type(weight(), '150')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+
+    expect(onSkip).toHaveBeenCalledWith({})
+  })
+})
+
 describe('SetupDialog focus', () => {
   it('returns focus to the control that opened it when it closes', async () => {
     const user = userEvent.setup()

@@ -16,4 +16,9 @@ export interface AthleteSettings {
    * age band; absent, the reference is judged on the data alone.
    */
   birthYear?: number
+  /**
+   * The workouts (by `dedupeKey`) the athlete counts as runs although they are at walking pace. Absent or
+   * empty: every run at walking pace is left out of the analysis.
+   */
+  countedRuns?: readonly string[]
 }

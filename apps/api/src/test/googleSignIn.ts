@@ -35,6 +35,8 @@ export function createGoogleHarness(envOverrides: Partial<Bindings> = {}): Googl
     return h.send({
       path: `/api/auth/google/callback?state=${state}&code=code-1`,
       cookies: { rca_oauth_state: state, rca_oauth_verifier: cookie('rca_oauth_verifier') },
+      // Google sends the browser to the callback, so a refusal is a redirect back to the app, not JSON.
+      headers: { 'Sec-Fetch-Mode': 'navigate' },
     })
   }
   return {

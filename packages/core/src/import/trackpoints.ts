@@ -1,5 +1,6 @@
 import { isUsableLatLon, trackFromFixes } from './gps'
 import type { GpsFix, GpsTrack } from './gps'
+import { MAX_FIELD_CHARS } from './limits'
 import type { RejectCode } from './result'
 
 /** Rules shared by the GPX and TCX readers: refusals, XML numbers and positions, GPS tracks. */
@@ -8,13 +9,18 @@ import type { RejectCode } from './result'
 export class Refusal extends Error {
   readonly reason: string
   readonly code: RejectCode
+  readonly detail: string | undefined
 
-  constructor(reason: string, code: RejectCode) {
+  constructor(reason: string, code: RejectCode, detail?: string) {
     super(reason)
     this.reason = reason
     this.code = code
+    this.detail = detail
   }
 }
+
+/** The detail of a `too-much-data` refusal for a file that holds too many tracks or activities to be one file. */
+export const SPLIT_THE_FILE = 'split'
 
 export interface LatLon {
   lat: number
@@ -35,13 +41,6 @@ const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/
 
 /** The most characters a number's text may have once trimmed: a double needs under 25. */
 const MAX_NUMBER_CHARS = 64
-
-/**
- * The most characters kept of a text field while reading a file. A value, a name or a time is far shorter;
- * a longer one is cut here, so a hostile field cannot grow with the file. It is also what `readNumber` reads
- * in full, so an overlong number text is refused whatever its cut.
- */
-export const MAX_FIELD_CHARS = 1024
 
 /** `text` after `more`, held to MAX_FIELD_CHARS (one more character stays, so an overlong field is still seen as such). */
 export function appendField(text: string, more: string): string {

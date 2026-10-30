@@ -144,6 +144,17 @@ describe('validationMessage', () => {
     expect(validationMessage(parsed.error)).toBe('massKg: Too small: expected number to be >=30')
   })
 
+  it('reports a few issues and stays within the ApiError bound for thousands of invalid elements', () => {
+    const parsed = z
+      .array(z.object({ a: z.number() }))
+      .safeParse(Array.from({ length: 2000 }, () => ({})))
+    expect(parsed.success).toBe(false)
+    if (parsed.success) return
+    const message = validationMessage(parsed.error)
+    expect(message).toMatch(/and 1995 more$/)
+    expect(message.length).toBeLessThanOrEqual(1000)
+  })
+
   it('names the body when the failure is at the top level', () => {
     const parsed = z.string().safeParse(5)
     expect(parsed.success).toBe(false)

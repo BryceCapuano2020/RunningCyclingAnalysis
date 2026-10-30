@@ -70,9 +70,14 @@ the build output.
    with the same verified email when that account has no Google identity yet, and otherwise creates
    the user, but only if the email is in the Worker secret `ALLOWED_EMAILS` (closed when it is unset,
    open only in local development). The user, its Google link and the day's counts a deleted account of
-   the same identity left behind are written in one batch. A refusal ends on an HTML page, not JSON.
+   the same identity left behind are written in one batch. A refusal to a browser is a redirect to the app with its code (below), not JSON.
    The API issues a 256-bit session token, stores only its SHA-256 hash with an expiry (a user keeps at
    most ten sessions), sets the token as a cookie, and redirects to `APP_URL`.
+
+When a browser navigation to either sign-in route is refused (a rate limit, a cancelled or expired sign-in, an address not on the sign-up list, too many accounts today, an account being deleted, an email that belongs to another Google account), the
+API redirects to the app's home with the error's code in the hash (`#/?signin=rate_limited`) instead of answering
+with JSON. The app words the codes it knows itself and takes the code out of the address (`signInProblem.ts`). A
+script that asks for the same routes still gets the JSON error.
 
 **Import** (parse, digest, upload)
 
@@ -242,7 +247,8 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    compressed bytes, its inflated bytes and their decoded text. Its inflated bytes count against the
    zip's decompressed-bytes budget, even when the list is malformed. No row may hold more than 256
    cells: a row of commas is a cell per byte, so the byte cap alone does not bound the cells a parse
-   builds.
+   builds. No field may hold more than 64 KiB (65,536 characters); a list with a longer field is
+   malformed, like one with a wider row.
    The first row wins for a file that appears twice. A row with a file and no name is kept, since its
    type still says what the file is. A list that ends inside a quoted field, or has a row of more than
    256 cells, is malformed and is ignored, so it names no files.
@@ -431,8 +437,10 @@ R2 files can be downloaded by the browser to drive that recovery; no database mi
 ## Limits
 
 Service limits (per-account quotas, byte caps, edge rate limits and the deployment-wide R2 budget)
-are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). Analysis limits, meaning what the
-statistics can and cannot show, are in the [README](../README.md#limits).
+are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). What a file, an archive or a digest may
+ask of the importer, and the bounds the one digest reader holds, are in [LIMITS.md](LIMITS.md).
+Analysis limits, meaning what the statistics can and cannot show, are in the
+[README](../README.md#limits).
 
 ## Client bundle
 

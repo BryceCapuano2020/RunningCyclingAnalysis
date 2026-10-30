@@ -50,12 +50,14 @@ export function analysisSettings(
   settings: WeightSettings,
   measurements: readonly Measurement[] = [],
   birthYear: number | null = null,
+  countedRuns: readonly string[] = [],
 ): AthleteSettings {
   return {
     massKg: settings.massKg ?? PLACEHOLDER_BODY_KG,
     bikeMassKg: settings.bikeMassKg,
     ...(measurements.length > 0 ? { measurements } : {}),
     ...(birthYear === null ? {} : { birthYear }),
+    ...(countedRuns.length > 0 ? { countedRuns } : {}),
   }
 }
 

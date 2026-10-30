@@ -13,6 +13,7 @@ export {
 export type { Measurement, MeasurementKind } from './measurements'
 export { bodyMassOn, currentMass, hasDatedMass, massAtFor, sameMasses } from './mass'
 export type { MassAt } from './mass'
+export { sameCountedRuns } from './countedRuns'
 export type { AthleteSettings } from './settings'
 export {
   NO_REFERENCE_SETTINGS,

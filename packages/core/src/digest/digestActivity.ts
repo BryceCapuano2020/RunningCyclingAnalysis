@@ -38,13 +38,14 @@ import type { OutputStream } from './evidence'
 import { and, countKept, meanWhere, movingMask, not, recordedSeconds } from './masks'
 import type { SampleTerms } from './terms'
 import { SELECTION_MASS_KG, sampleTerms, termsOver } from './terms'
+import { DIGEST_VERSION } from './modelRevision'
+import { MAX_DIGEST_FLAGS } from './readLimits'
 
-export const DIGEST_VERSION = 1
+export { DIGEST_VERSION }
 
 /** Climbs whose measured mean power is below this are too easy to score meaningfully, W. */
 const MIN_MEASURED_W = 50
-/** Most flags kept per activity. The true count of each kind is kept in flagCounts. */
-const MAX_FLAGS = 50
+/** Flags kept per activity are the first MAX_DIGEST_FLAGS. The true count of each kind is kept in flagCounts. */
 
 /** The settings-independent parts of a digest, produced per sport and power source. */
 interface Parts {
@@ -360,7 +361,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
       parts.powerSource === 'measured'
         ? meanWhere(activity.power, and(quality.validPower, moving))
         : null,
-    flags: quality.flags.slice(0, MAX_FLAGS),
+    flags: quality.flags.slice(0, MAX_DIGEST_FLAGS),
     flagCounts: countFlags(quality.flags),
     maxHeartRate: maxHeartRate([source]),
     curve: parts.curve,

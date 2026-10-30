@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { mediaBlock, readStylesheet, ruleBody } from '../components/stylesheet'
-import { PHONE_MAX_WIDTH_PX, SHORT_PHONE_MAX_HEIGHT_PX } from '../layoutBreakpoints'
+import {
+  LANDSCAPE_TWO_COLUMN_MIN_WIDTH_PX,
+  PHONE_MAX_WIDTH_PX,
+  SHORT_PHONE_MAX_HEIGHT_PX,
+} from '../layoutBreakpoints'
 
 const app = await readStylesheet(import.meta.url, '../../App.css')
 const example = await readStylesheet(import.meta.url, './LandingExample.css')
@@ -8,8 +12,8 @@ const design = await readStylesheet(import.meta.url, '../../../../../docs/DESIGN
 
 /** The short-phone query as App.css writes it: short, and a finger or a phone-width window. */
 const SHORT_PHONE = `(max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (pointer: coarse), (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
-/** The same, held sideways. */
-const SHORT_LANDSCAPE = `(orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (pointer: coarse), (orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
+/** The same, held sideways and wide enough for two columns. */
+const SHORT_LANDSCAPE = `(orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (min-width: ${LANDSCAPE_TWO_COLUMN_MIN_WIDTH_PX}px) and (pointer: coarse), (orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (min-width: ${LANDSCAPE_TWO_COLUMN_MIN_WIDTH_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
 
 describe('landing start', () => {
   it('sizes the drop zone and the example to their own content and centres the pair, so neither is a tall empty box', () => {

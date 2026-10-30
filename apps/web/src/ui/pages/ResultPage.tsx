@@ -8,7 +8,7 @@ import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
 import { FALLBACK_NOTE, periodDates, previousPeriodLabel } from '../components/rangeOptions'
-import { withoutWalking } from '../analysis/walkingPaceCopy'
+import { leftOutRuns, withoutWalking, workoutKeyOf } from '../analysis/walkingPaceCopy'
 import { plural } from '../components/plural'
 import { usePeriodChoice } from '../periodPreference'
 import { sameAsShorterText } from '../periodSame'
@@ -19,12 +19,14 @@ import type { SavedActivity } from '../../worker/protocol'
 import { hrefFor } from '../route'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
+import type { CountedRunsController } from '../useCountedRuns'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthlete'
 import { ActivitiesPage } from './ActivitiesPage'
 import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
 import { ProfileFootnote } from '../components/ProfileFootnote'
 import { MethodPage } from './MethodPage'
+import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
 import { SportPage } from './SportPage'
 
 /**
@@ -59,6 +61,8 @@ export interface ResultPageProps {
   sex: Sex | null
   /** Whether the visitor is signed in, which says where a removal takes an activity from. */
   signedIn: boolean
+  /** The runs at walking pace the athlete counts as runs, and how to change that. */
+  countedRuns: CountedRunsController
 }
 
 /**
@@ -81,10 +85,25 @@ export function ResultPage({
   birthYear,
   sex,
   signedIn,
+  countedRuns,
 }: ResultPageProps) {
   const { period, library, totalActivities, isSample } = analysis.state
   // What the analysis rests on: the library less the runs at walking pace, which only the lists and pages show.
   const analysed = useMemo(() => withoutWalking(library), [library])
+  // The runs at walking pace are left out; when they are all a sport has, its pages say so and offer to count them.
+  const left = useMemo(() => leftOutRuns(library), [library])
+  const leftOut = left.allLeftOut
+    ? {
+        sport: left.runs[0]!.sport,
+        count: left.runs.length,
+        onCount: () => {
+          askHeadingFocus()
+          countedRuns.count(left.runs.map(workoutKeyOf))
+        },
+      }
+    : null
+  // Counting them flips this page to the answer; once it has, focus goes to the heading, which names the new state.
+  useHeadingFocusWhen(leftOut === null)
   const setRange = analysis.setRange
   // Each effort is graded at its own date, so the profile carries the year of birth, not an age.
   // The sample athlete has its own age, sex and masses, whatever the visitor has entered.
@@ -213,7 +232,14 @@ export function ResultPage({
             countSport(analysed, route.page),
             route.page,
           )}
-          emptyText={sportEmptyText(route.page, period, countSport(analysed, route.page))}
+          emptyText={sportEmptyText(
+            route.page,
+            period,
+            countSport(analysed, route.page),
+            undefined,
+            leftOut?.sport === route.page ? leftOut.count : 0,
+          )}
+          leftOut={leftOut?.sport === route.page ? leftOut : undefined}
           inLibrary={countSport(analysed, route.page)}
           library={analysed}
           onShowAll={() => pickPeriod('all')}
@@ -258,6 +284,15 @@ export function ResultPage({
           heartRateJudgement={analysis.state.heartRateJudgement}
           weightKnown={weightKnown}
           profile={profile}
+          walkingChoice={
+            activity === null
+              ? undefined
+              : {
+                  counted: analysis.state.countedWalkingRuns.includes(workoutKeyOf(activity)),
+                  onCount: () => countedRuns.count([workoutKeyOf(activity)]),
+                  onStop: () => countedRuns.stop([workoutKeyOf(activity)]),
+                }
+          }
           records={analysis.state.records}
           loadSplits={analysis.activitySplits}
           loadTrace={analysis.loadTrace}
@@ -295,6 +330,7 @@ export function ResultPage({
           profile={profile}
           missingAge={missingAge}
           controls={control(result.activities.length, totalActivities, undefined, latest, true)}
+          leftOut={leftOut ?? undefined}
           onShowAll={() => pickPeriod('all')}
           footnote={balanceFootnote}
         />

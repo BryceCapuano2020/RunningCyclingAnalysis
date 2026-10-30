@@ -7,7 +7,7 @@ import { oddLibraries } from '@rca/core/synthetic/odd'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { Route } from '../route'
-import { analysisStub } from '../../test/analysisStub'
+import { analysisStub, countedRunsStub } from '../../test/analysisStub'
 import { ResultPage } from './ResultPage'
 
 /**
@@ -30,6 +30,7 @@ function renderPage(
 ) {
   return render(
     <ResultPage
+      countedRuns={countedRunsStub()}
       signedIn={false}
       route={route}
       analysis={analysisStub({ state })}

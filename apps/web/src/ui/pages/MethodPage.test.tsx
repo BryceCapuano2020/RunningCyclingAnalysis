@@ -393,8 +393,13 @@ describe('MethodPage energy view', () => {
 
   it('holds the comparison when a sport has no 20 min effort or threshold, with no ratio chart or fallback copy', () => {
     const short = [curvePoint(300, 4, 'run-1')]
+    // Rides a meter measured: what they lack is length, so the general line stands.
+    const metered = makeResult().activities.map((a) =>
+      Object.assign({}, a, a.sport === 'ride' ? { powerSource: 'measured' as const } : {}),
+    )
     const { container } = renderPage(
       makeResult({
+        activities: metered,
         runCp: null,
         rideCp: null,
         runCurve: short,
@@ -414,6 +419,26 @@ describe('MethodPage energy view', () => {
     expect(screen.queryByText(/^Run against Ride, 90% range/)).not.toBeInTheDocument()
     expect(section.querySelector('details.method__evidence')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
+  })
+
+  it('names the climb a ride needs when its rides have no power meter, not another ride', () => {
+    renderPage(
+      makeResult({
+        runCp: null,
+        rideCp: null,
+        runCurve: [curvePoint(1200, 4, 'run-1')],
+        rideCurve: [curvePoint(300, 250, 'ride-1')],
+      }),
+      null,
+      DATED_SIX_WEEKS,
+    )
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(
+      within(section).getByText(
+        'The comparison is held. Your rides have no power meter, so a ride compares only on a climb of 3% or steeper that holds for 20 min without a break.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('names the activities a sport lacks in the period when that is why the comparison is held', () => {

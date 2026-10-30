@@ -75,9 +75,11 @@ anything in either state. Add the release to [RELEASES.md](RELEASES.md).
 Every `uses:` reference in `.github/workflows` is pinned to a full commit SHA, with the release tag in
 a comment. Repository settings do not enforce SHA pinning, and GitHub does not block a workflow that
 names a tag or branch instead, so review workflow changes for this. Dependabot version updates are
-scheduled weekly in `.github/dependabot.yml` with `open-pull-requests-limit: 0`, so they open no
-routine version-update pull requests. Dependabot security updates for vulnerable dependencies are
-controlled by a repository setting, not by that file. A retried or flaky browser test fails CI rather
+scheduled weekly in `.github/dependabot.yml`: minor and patch updates are grouped (production and
+development separately, and all of the actions together), a major update is its own pull request,
+and at most four npm and two action pull requests are open at once. Dependabot security updates for
+vulnerable dependencies are controlled by a repository setting, not by that file, and ignore those
+caps. A retried or flaky browser test fails CI rather
 than being hidden.
 
 The initial `npm run deploy:bootstrap` is an explicit exception for discovering the Worker address.
@@ -144,6 +146,15 @@ The status-check names are the job names shown on pull requests and must match e
   to the repository's security advisory form.
 - Enable Dependabot alerts and security updates. Version updates are configured in
   `.github/dependabot.yml`.
+- **Secret scanning and push protection** (Settings, Code security). These are the last defence
+  against a secret committed by mistake, by a person or by a coding agent, in a public repository.
+  They are off until the owner switches them on, and no file in the repository can do it. Turn on
+  both. Then check them with
+  `gh api repos/BryceCapuano2020/RunningCyclingAnalysis --jq .security_and_analysis`: both entries must say
+  `enabled`. If a key has ever appeared in a shared process or a log, rotate it; do not rely on the
+  scanner to find it.
+- `docs/audits/` is git-ignored because it can quote real-data aggregates. Check that a new clone
+  still ignores it with `git check-ignore -v docs/audits/x` before using `git add -A`.
 - Turn on notifications for failed workflow runs and for issues labelled `outage`.
 - Scheduled workflows run only from the default branch. Backup and uptime schedules run only when the
   repository variables `RCA_BACKUP_ENABLED` and `RCA_UPTIME_ENABLED` each equal `true`. Manual runs

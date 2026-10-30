@@ -1,4 +1,7 @@
+import { StoredActivityDigestSchema } from '@rca/contract'
 import type { ActivityRecord, Profile } from '@rca/contract'
+import { digestActivity, serializeDigest } from '@rca/core/digest'
+import type { ActivityDigest } from '@rca/core/types'
 import { encodeFit } from '@rca/core/fit'
 import { AnalysisSession } from '@rca/core/session'
 import { sampleDataset } from '@rca/core/synthetic'
@@ -50,10 +53,6 @@ const activitiesCsvSource = await readStylesheet(
 )
 const periodPreference = await readStylesheet(import.meta.url, './ui/periodPreference.ts')
 const cardName = await readStylesheet(import.meta.url, './share/cardName.ts')
-const contractDigest = await readStylesheet(
-  import.meta.url,
-  '../../../packages/contract/src/digest.ts',
-)
 const apiSchema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
 const rateLimit = await readStylesheet(import.meta.url, '../../api/src/rateLimit.ts')
 const apiList = await readStylesheet(import.meta.url, '../../api/src/routes/activities/list.ts')
@@ -195,6 +194,21 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('It holds no activity data.')
   })
 
+  it('names the flags and choices this browser keeps beyond the summaries, as the app stores them', async () => {
+    const keptLibrary = await readStylesheet(import.meta.url, './ui/analysis/keptLibrary.ts')
+    const countedRuns = await readStylesheet(import.meta.url, './ui/countedRunsStore.ts')
+    expect(text).toContain('rca.deviceKept.v1')
+    expect(keptLibrary).toContain("DEVICE_KEY = 'rca.deviceKept.v1'")
+    expect(text).toContain('rca.persistNote.v1')
+    expect(keptLibrary).toContain("PERSIST_NOTE_KEY = 'rca.persistNote.v1'")
+    expect(text).toContain('Signing out and deleting your account clear it')
+    expect(text).toContain('Remove all my activities, which is offered only when signed out')
+    expect(text).toContain('rca.countedRuns.v1')
+    expect(countedRuns).toContain("COUNTED_RUNS_KEY = 'rca.countedRuns.v1'")
+    expect(text).toContain('It is never uploaded, signed in or not')
+    expect(text).toContain("asks the browser to keep this site's storage")
+  })
+
   it('says signed-in visitors do not see the summaries kept in this browser', () => {
     expect(text).toMatch(/signed in[^.]*not shown|not shown[^.]*signed in/i)
   })
@@ -279,16 +293,21 @@ describe('privacy page describes what is stored as the app stores it', () => {
   })
 
   it('keeps each figure it lists in the digest the server stores', () => {
-    expect(contractDigest).toMatch(/splits: digestSplits\(1\)\.optional\(\)/)
-    expect(contractDigest).toMatch(
-      /gradeAdjustedSeconds: z\.number\(\)\.nonnegative\(\)\.nullable\(\)/,
-    )
-    expect(contractDigest).toMatch(/indoor: z\.boolean\(\)/)
-    expect(contractDigest).toMatch(/calibration: calibrationSums\.nullable\(\)/)
-    expect(contractDigest).toMatch(/movingS: z\.number\(\)\.int\(\)\.nonnegative\(\)\.optional\(\)/)
-    expect(contractDigest).toMatch(/avgPowerW: nullableNumber\.optional\(\)/)
-    expect(contractDigest).toMatch(/walkingPace: z\.literal\(true\)\.optional\(\)/)
-    expect(contractDigest).toMatch(/race: z\.literal\(true\)\.optional\(\)/)
+    const digests = sampleDataset().activities.map((activity) => digestActivity(activity))
+    const run = digests.find((digest) => digest.splits !== undefined)
+    const ride = digests.find((digest) => digest.calibration !== null)
+    if (run === undefined || ride === undefined) throw new Error('The sample has no such digest')
+    const stored = (digest: ActivityDigest, extra: object = {}) =>
+      StoredActivityDigestSchema.parse({ ...JSON.parse(serializeDigest(digest)), ...extra })
+    const marked = stored(run, { movingS: 600, avgPowerW: 210, walkingPace: true, race: true })
+    expect(marked.splits?.km.length).toBeGreaterThan(0)
+    expect(marked.splits?.km[0]?.gradeAdjustedSeconds).toBeTypeOf('number')
+    expect(marked.indoor).toBe(run.indoor)
+    expect(marked.movingS).toBe(600)
+    expect(marked.avgPowerW).toBe(210)
+    expect(marked.walkingPace).toBe(true)
+    expect(marked.race).toBe(true)
+    expect(stored(ride).calibration).toEqual(ride.calibration)
     expect(sentenceWith('It holds the figures shown')).toMatch(/walking pace.*race mark/s)
   })
 

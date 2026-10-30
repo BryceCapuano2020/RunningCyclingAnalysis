@@ -6,6 +6,9 @@ import type { Activity, Sport } from '../types'
 import type { SyntheticAthlete } from './athlete'
 import type { ActivitySpec } from './spec'
 import type { GradeFn } from './target'
+import { behaviourTarget, roughGrade } from './noise/behaviour'
+import { applySensorNoise } from './noise/sensor'
+import type { NoiseModel } from './noise/types'
 import { applyLag, gradeFunction, holdWindows, rawTarget } from './target'
 
 const MAX_RUN_SPEED_MS = 7.5
@@ -109,21 +112,28 @@ function simulate(
   return { speed, distance, altitude, power, metabolic }
 }
 
-/** Generates one activity, second by second, from the athlete's ground-truth parameters. */
+/**
+ * Generates one activity, second by second, from the athlete's ground-truth parameters. With a
+ * `noise` model the athlete behaves and the sensors read as the model says; without one the output
+ * is exactly the noise-free generator's. A model replaces the generator's own 1% speed and 1 bpm
+ * noise (the `quiet` preset restates them); the power meter's 3% and an explicit `hrGlitch` stay.
+ */
 export function generateActivity(
   athlete: SyntheticAthlete,
   spec: ActivitySpec,
   seed: number,
+  noise?: NoiseModel,
 ): Activity {
   const rand = mulberry32(seed)
   const n = Math.max(0, Math.floor(spec.durationS))
   const isRide = spec.sport === 'ride'
   const cp = isRide ? athlete.cpRide : athlete.cpRun
-  const target = applyLag(
-    rawTarget(spec.effort, cp, athlete.wPrime, n, rand),
-    holdWindows(spec.effort, n),
-  )
-  const gradeAt = gradeFunction(spec.terrain, n, rand)
+  const raw = noise
+    ? behaviourTarget(spec.effort, spec.sport, cp, athlete.wPrime, n, rand, noise.behaviour)
+    : rawTarget(spec.effort, cp, athlete.wPrime, n, rand)
+  const target = applyLag(raw, holdWindows(spec.effort, n))
+  const rough = noise !== undefined && spec.terrain === 'rolling'
+  const gradeAt = rough ? roughGrade(rand) : gradeFunction(spec.terrain, n, rand)
   const motion = simulate(athlete, spec.sport, target, gradeAt)
 
   const hasPower = isRide && (spec.withPower ?? true)
@@ -141,14 +151,14 @@ export function generateActivity(
   let hr = hrTarget(motion.metabolic[0] ?? 0)
 
   for (let i = 0; i < n; i++) {
-    speed[i] = motion.speed[i]! * (1 + uniform(rand, SPEED_NOISE))
+    speed[i] = motion.speed[i]! * (1 + uniform(rand, noise ? 0 : SPEED_NOISE))
     altitude[i] = Math.round(motion.altitude[i]! / ALTITUDE_RESOLUTION_M) * ALTITUDE_RESOLUTION_M
     if (hasPower) {
       power[i] = Math.round(motion.power[i]! * (1 + uniform(rand, POWER_NOISE)))
     }
     if (hasHeartRate) {
       hr += hrAlpha * (hrTarget(motion.metabolic[i]!) - hr)
-      let reading = Math.round(hr + uniform(rand, HR_NOISE_BPM))
+      let reading = Math.round(hr + uniform(rand, noise ? 0 : HR_NOISE_BPM))
       if (spec.hrGlitch && i >= glitchStart && i < glitchEnd) {
         reading = GLITCH_MIN_BPM + Math.floor(rand() * GLITCH_RANGE_BPM)
       }
@@ -156,7 +166,7 @@ export function generateActivity(
     }
   }
 
-  return {
+  const activity: Activity = {
     id: spec.id,
     name: spec.name,
     sport: spec.sport,
@@ -173,4 +183,5 @@ export function generateActivity(
     hasAltitude: true,
     indoor: false,
   }
+  return noise ? applySensorNoise(activity, noise, seed, spec.effort) : activity
 }

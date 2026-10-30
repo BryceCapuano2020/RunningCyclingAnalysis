@@ -4,9 +4,11 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
+import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BalanceMeter } from '../components/BalanceMeter'
 import { uncheckedNote, unconfirmedSports } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
+import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
 import { eyebrowText, titleParts } from './balanceCopy'
@@ -40,6 +42,8 @@ export interface BalanceHeroProps {
   levels?: ReactNode
   /** The period control, under the levels it changes. */
   controls?: ReactNode
+  /** Runs that are all at walking pace and left out: the headline says so and offers to count them. */
+  leftOut?: LeftOutRuns
 }
 
 /**
@@ -60,6 +64,7 @@ export function BalanceHero({
   rideLevel = null,
   levels = null,
   controls = null,
+  leftOut,
 }: BalanceHeroProps) {
   const head = (title: ReactNode, className?: string) => (
     <div className="balance-hero__head">
@@ -89,10 +94,13 @@ export function BalanceHero({
     )
   }
   if (reading === null) {
-    const { title, detail, canShowAll } = missingText(result, library, period, {
-      run: runLevel,
-      ride: rideLevel,
-    })
+    const { title, detail, canShowAll } = missingText(
+      result,
+      library,
+      period,
+      { run: runLevel, ride: rideLevel },
+      leftOut?.count ?? 0,
+    )
     return (
       <div className="balance-hero__pair">
         <section className="balance-hero">
@@ -104,6 +112,9 @@ export function BalanceHero({
                 Show all time
               </button>
             </p>
+          )}
+          {leftOut !== undefined && (
+            <CountWalkingRuns count={leftOut.count} onCount={leftOut.onCount} />
           )}
           {levels === null ? action : null}
         </section>
