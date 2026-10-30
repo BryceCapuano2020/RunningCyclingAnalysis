@@ -61,14 +61,16 @@ intended order:
 
 `npm run deploy` runs locally and must start from a clean checkout of `main` identical to
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
-the same release, without the approval and smoke-test steps, so use the workflow for production.
+the same release, without the approval step, so use the workflow for production. Right after the
+Worker is uploaded it runs the same smoke test as the workflow and prints the rollback floor if it fails.
 `npm run deploy:built` refuses to run while remote D1 migrations are pending, so apply them first with
 `npm run db:migrate:remote -w @rca/api`. It also refuses a working tree with uncommitted or untracked
 changes, a commit that is not the tip of `origin/main` (`--allow-older` deploys an older merged one on
 purpose) and a web build that was not made from that commit (`dist/build-info.json`), so a release can
 run from a detached worktree at the merged tip. It tags the Worker version with the 8-character
 commit id, writes the full commit into the version message, and builds the id into `/api/health`.
-After any local deploy run `npm run smoke:prod -- --expect-sha <sha>`: it sends only GET
+The smoke test runs on its own after a local deploy; to run it again use
+`npm run smoke:prod -- --expect-sha <sha>`: it sends only GET
 requests to the live origin, plus one empty-object POST to `/api/auth/dev-login` that cannot change
 anything in either state. Add the release to [RELEASES.md](RELEASES.md).
 
@@ -429,10 +431,11 @@ request/body logging around personal activity files or OAuth callbacks.
 - **Skipped deep check.** Once the deployment's daily deep-health budget is spent, the API answers
   `/api/health/deep` with 200 and `"deep":"skipped"` rather than probing D1 and R2. The probe records this as
   a warning annotation (`Deep health skipped`) and neither opens nor closes an outage issue because of it.
-  The run still passes or fails on the other checks. A skipped deep check therefore leaves D1 and R2 unmeasured
-  until the budget resets at 00:00 UTC, so an operator should check the Worker dashboard. A failing deep check
-  (a 503) still opens an outage issue, and the budget is shared by all callers, so the warning can also come
-  from someone else's requests.
+  The run still passes or fails on the other checks. A skipped deep check leaves D1 and R2 unmeasured
+  until the budget resets at 00:00 UTC, and anyone can spend that budget, so the probe opens one issue
+  labelled `monitoring-gap` while the check is skipped and closes it when the check runs again. Treat
+  that issue as a prompt to look at the Worker dashboard. A failing deep check (a 503) still opens an
+  outage issue.
 - **Probe origin.** The repository variable `PRODUCTION_ORIGIN` sets the origin the probe checks, with
   no trailing slash. When it is not set, the probe uses `https://rca-api.nutritioncoachapp.workers.dev`.
 - **Testing the outage path.** Start the Uptime workflow by hand with `simulate_outage` set to `true`.
@@ -535,10 +538,11 @@ restored database lacks their references.
   keep their own originals, and the owner should not promise that a stored original is recoverable.
   The manifest only records which objects existed, so an activity whose original is missing can be
   identified and re-imported.
-- **A deletion log.** The application keeps no record of deleted accounts once a deletion
-  completes. Until then, a pending_account_deletions row names the account. A restored backup can
-  contain accounts that were deleted after it was taken, so the restore procedure requires
-  reconciling them.
+- **A complete deletion log.** The application writes one `account_tombstones` row (random account id
+  and time, nothing else) for each deleted account and keeps it 100 days. A backup holds only the
+  tombstones that existed when it was taken, so a restore takes the live ones first and replays
+  them with `scripts/ops/reconcile-restore.mjs`. Accounts deleted after the newest backup, with the
+  live database also lost, cannot be reconciled from data.
 - **Anything after the backup time.** Changes after the newest backup are lost.
 
 A backup holds the whole D1 database: account identifiers, email addresses, session hashes and activity
@@ -613,7 +617,7 @@ or R2 changes.
   [Node benchmark](PERFORMANCE.md) is a baseline, not a mobile or free-tier guarantee.
 - Run the restore procedure in [scripts/ops/restore.md](../scripts/ops/restore.md) as a recorded
   drill, and measure it against the 2-hour RTO. Until a drill is recorded, the restore is unverified.
-  Also add a deletion log so restores can reconcile deleted accounts, and test future
+  The same goes for the Time Travel rewind in Part B of that runbook. Also test future
   schema/model rollback compatibility. The drills so far covered one synthetic activity, not
   maximum database size or disaster recovery of an active multi-user service.
 - Complete Google's public-brand requirements before representing the app as a verified public

@@ -1,8 +1,12 @@
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readFile } from 'node:fs/promises'
 import { readMarker } from './build-marker.mjs'
 import { runGit } from './check-release.mjs'
+import { DEFAULT_CONFIG, appUrlFromConfig, runSmoke } from './smoke.mjs'
+
+const RELEASES = new URL('../../docs/RELEASES.md', import.meta.url)
 
 /**
  * Throws unless the checkout is clean, its commit is the tip of origin/main, and the web build in
@@ -57,6 +61,39 @@ export function deployArguments({ sha, short }) {
   ]
 }
 
+/** The rollback floor in the newest row of the release ledger, or undefined if it cannot be read. */
+export function latestRollbackFloor(ledger) {
+  const rows = ledger.slice(ledger.indexOf('\n## Ledger')).split('\n')
+  const row = rows.find((line) => /^\| \d{1,2} [A-Z][a-z]{2} \d{4} \|/.test(line))
+  const cell = row?.split('|')[5]?.trim()
+  return cell && /[0-9a-f]{8}/.test(cell) ? cell : undefined
+}
+
+/**
+ * What to tell the operator when the post-deploy smoke test fails. The Worker is live and serving
+ * what it serves; rolling back is a decision (a migration may make older Workers unsafe), so this
+ * names the floor and the command and does not run it.
+ */
+export function failedSmokeMessage(failures, short, floor) {
+  const target = floor
+    ? `a version at or above the rollback floor ${floor}`
+    : 'a safe earlier version'
+  return [
+    `Post-deploy smoke test failed for ${short}:`,
+    ...failures.map((failure) => `- ${failure}`),
+    `The Worker is live. To go back, pick ${target} from docs/RELEASES.md and run:`,
+    '  npx wrangler deployments list   (in apps/api, to find the version id)',
+    '  npx wrangler rollback <version id> --yes',
+    'A rollback restores Worker code only; migrations are never reversed (docs/PRODUCTION.md).',
+  ].join('\n')
+}
+
+/** Runs the live smoke test against the origin in wrangler.toml; returns the failure lines. */
+async function smokeAfterDeploy(short) {
+  const appUrl = appUrlFromConfig(await readFile(DEFAULT_CONFIG, 'utf8'))
+  return runSmoke({ origin: appUrl, appUrl, expectSha: short })
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const source = await checkDeploySource(runGit, {
@@ -69,6 +106,17 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const result = spawnSync('wrangler', deployArguments(source), { stdio: 'inherit' })
       if (result.error) throw result.error
       process.exitCode = result.status ?? 1
+      if (result.status === 0 && !process.argv.includes('--no-smoke')) {
+        console.log(`Deployed. Smoke-testing the live origin for ${source.short}.`)
+        const failures = await smokeAfterDeploy(source.short)
+        if (failures.length) {
+          const ledger = await readFile(RELEASES, 'utf8')
+          console.error(failedSmokeMessage(failures, source.short, latestRollbackFloor(ledger)))
+          process.exitCode = 1
+        } else {
+          console.log('Post-deploy smoke test passed.')
+        }
+      }
     }
   } catch (error) {
     console.error(`Refusing to deploy: ${error.message}`)

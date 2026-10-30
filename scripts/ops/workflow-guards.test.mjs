@@ -89,6 +89,19 @@ test('a skipped deep health check warns and neither opens nor closes the outage 
   )
 })
 
+test('a skipped deep health check opens one monitoring-gap issue, and a deep check that runs closes it', async () => {
+  const uptime = await workflow('uptime')
+  assert.match(
+    uptime,
+    /name: Open a monitoring-gap issue while the deep check is skipped\n {8}if: steps\.probe\.outputs\.deep == 'skipped'/,
+  )
+  assert.match(
+    uptime,
+    /name: Close monitoring-gap issues once the deep check runs again\n {8}if: steps\.probe\.outputs\.deep == 'ok'/,
+  )
+  assert.match(uptime, /gh issue list --label monitoring-gap --state open/)
+})
+
 const jobBlocks = (source) => {
   const lines = source.split('\n')
   const blocks = new Map()

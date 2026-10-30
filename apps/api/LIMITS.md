@@ -368,8 +368,8 @@ of them.
 `[triggers] crons = ["17 3 * * *"]` runs `runMaintenance` (`src/maintenance.ts`), and each step is bounded:
 
 - Deletes sessions that have expired or passed their 90-day end, up to 500 per run. Its statement also records the database size (see the database guard).
-- Prunes expired upload slots, daily rows older than seven days and saved identity counts older than yesterday.
-- Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts.
+- Prunes expired upload slots, daily rows older than seven days, saved identity counts older than yesterday and account tombstones older than 100 days.
+- Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts, and writes an `account_tombstones` row (account id and time) in the batch that deletes the user.
 - Sweeps two pages of 90 keys per run for R2 objects with no activity row, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
 

@@ -326,11 +326,29 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('The network address is used only as a rate-limit key.')
   })
 
-  it('names the pending-deletion row in the production notes until a deletion completes', () => {
+  it('names the pending-deletion row and the tombstone in the production notes', () => {
     const notes = productionNotes.replace(/\s+/g, ' ')
-    expect(notes).toContain(
-      'keeps no record of deleted accounts once a deletion completes. Until then, a pending_account_deletions row names the account.',
+    expect(notes).toContain('A complete deletion log.')
+    expect(notes).toContain('account_tombstones')
+    expect(notes).toContain('keeps it 100 days')
+  })
+
+  it('says a deleted account leaves only a random ID and a time for 100 days, as the code writes it', () => {
+    expect(apiSchema).toMatch(/sqliteTable\(\s*'account_tombstones'/)
+    expect(apiSchema).toMatch(
+      /userId: text\('user_id'\)\.primaryKey\(\)\.notNull\(\),\s*deletedAt: integer\('deleted_at'\)\.notNull\(\),\s*\},/,
     )
+    expect(accountDeletion).toContain('TOMBSTONE_RETENTION_DAYS = 100')
+    expect(accountDeletion).toContain(
+      'INSERT OR IGNORE INTO account_tombstones (user_id, deleted_at)',
+    )
+    expect(text).toContain('a random account ID and the time are kept for 100 days')
+    expect(text).toContain('It holds no name, email, Google ID or activity.')
+  })
+
+  it('discloses the Time Travel history: 7 days on Free, 30 on Paid', () => {
+    expect(text).toContain('point-in-time history of the database, between 7 and 30 days')
+    expect(text).toContain('Data you delete can stay in that history until it expires.')
   })
 
   it('says what is counted each day, and that the counts are kept seven days', () => {
