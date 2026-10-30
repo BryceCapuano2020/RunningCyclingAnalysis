@@ -4,12 +4,23 @@ Planned work, grouped by the phases in [VISION.md](VISION.md), then by model acc
 formats, operations and engineering. Shipped behaviour is in the [README](../README.md), and the
 design is in [ARCHITECTURE.md](ARCHITECTURE.md). Open review findings are in [REVIEWS.md](REVIEWS.md).
 
-The order of work is the stage plan in [design/README.md](design/README.md): stage B is the visual
-system, the home screen, the first impression and operations quick wins (in progress); C is findings
-and a "what changed" ledger; D is a read-only MCP server per account; E is a discipline registry,
-lifting through Hevy CSV import and an interference analysis. Same-route, a watch folder and swimming
-come later, Strava sync waits for a written answer on API policy section 6.2 (the seven-day cache
-rule), and the local originals store and module registry wait until findings need them.
+The order of work is the stage plan in [design/README.md](design/README.md). Stage C shipped the
+fitness status at the same heart rate. Stage D (in progress) fixes the claims the 29 Oct audit found
+over-stated (effort evidence before a best counts as capability, one calibrated change test, capped
+ride levels, a screened max heart rate) and moves the front door to two jobs the data path can serve:
+a "your years" look-back at first import and a "since your last import" check-in, with incremental
+re-import.
+
+Decided on 30 Oct 2026:
+
+- **Strava API sync is off the plan.** The Strava API Policy in force from 1 June 2026 bars storing
+  derived data, AI use and third-party MCP servers over Strava API data, and caps caching at seven
+  days. An athlete's own file export is not covered by it and stays the main input.
+- **Weekly early warning waits for a fresh-data path** (a watch folder or a device API). Until then
+  the fitness status is read at each import.
+- **The MCP server waits for a checked-findings store** (an evidence ledger in core with provenance),
+  so it serves calibrated findings rather than raw summaries.
+- Same-route, swimming, lifting, the local originals store and the module registry come later.
 
 ## Phase 1: Foundations
 
@@ -83,7 +94,7 @@ one week and 42 days; all time uses 42 days (PR #17).
 ## Input formats
 
 1. **CSV.** Strava CSV summaries, and the lifting CSV exports used in Phase 4 (Hevy first).
-   Strava sync through its API is deferred pending a written answer on API policy section 6.2.
+   Strava sync through its API is off the plan (see above).
 2. **Apple Health export.** Workouts and dated body mass, parsed with the streaming XML scanner in
    `packages/core/src/xml`.
 3. **FIT memory.** Real device fixtures are now in `packages/core/test-corpus`. Remaining: stream
@@ -118,10 +129,9 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
 7. **Google public brand.** Complete Google's verification requirements. Sign-in is still External and
    Testing.
 8. **Done: release gate, pinned actions, atomic quotas, R2 budgets and rate limits.**
-9. **Merged, not yet deployed: release ledger ([RELEASES.md](RELEASES.md)), tagged releases, the
-   build id in `/api/health`, a post-deploy smoke test that sends no mutating requests, a sampled
-   structured access log and a separate CI job for timing budgets.** The Worker items take effect at
-   the next release; this entry becomes Done then.
+9. **Done: release ledger ([RELEASES.md](RELEASES.md)), tagged releases, the build id in
+   `/api/health`, a post-deploy smoke test that sends no mutating requests, a sampled structured
+   access log and a separate CI job for timing budgets.**
 10. **Done: browser-side rebuild of saved libraries from retained originals.**
 
 ## Engineering

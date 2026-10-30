@@ -19,20 +19,20 @@ Decisions section. Status is one of designed, in progress or built.
 Between stages: quality, security and privacy review, a smoke test on a real local export (never
 committed), hardening, performance and accessibility gates. Fix what is material, then move on.
 
-| Stage | Work                                                                                                                                                                                                                      |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A     | Shipped (release 3e17b541, see [RELEASES.md](../RELEASES.md)): dated settings and zones, time in zones, the activity workbench, durability and drift, weekly volume, walking pace, performance, audit fixes.              |
-| B     | In progress: the visual system, the home screen (Balance), the first impression, and operations quick wins (CI split, release tags and ledger, build id in health, access log, docs drift).                               |
-| C     | Findings v1 ([findings.md](findings.md)) and a persistent "what changed" ledger, so a finding is shown once and its change over time is kept.                                                                             |
-| D     | A read-only MCP server per account: OAuth sign-in, read-only tools over the stored digests, and an evaluation of what a model gets right with them.                                                                       |
-| E     | A discipline registry (the sport seam, so shared code has no run or ride literals), lifting through Hevy CSV import, and an interference analysis, for example long runs grouped by hours since the last lower-body lift. |
-| Later | Same-route ([same-route.md](same-route.md)), a watch folder for new files, and swimming when a swimmer asks. Training load ([training-load.md](training-load.md)) stays designed and unscheduled.                         |
+| Stage | Work                                                                                                                                                                                                                                                                                                                       |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A     | Shipped (release 3e17b541, see [RELEASES.md](../RELEASES.md)): dated settings and zones, time in zones, the activity workbench, durability and drift, weekly volume, walking pace, performance, audit fixes.                                                                                                               |
+| B     | Shipped (releases c9d9cb9b and 9fdb7f91): the visual system, the Balance home screen, the first impression, and operations quick wins.                                                                                                                                                                                     |
+| C     | Shipped (release 96043823): fitness at the same heart rate per sport ([fitness.md](fitness.md)), reference max heart rate from three days, zones from current fitness.                                                                                                                                                     |
+| D     | In progress: the 29 Oct audit fixes (effort evidence, one calibrated change test, capped ride levels, screened max heart rate, sign-up allowlist, sync integrity), then the "your years" look-back and the "since your last import" check-in. A read-only MCP server follows once findings are stored with their evidence. |
+| E     | A discipline registry (the sport seam, so shared code has no run or ride literals), lifting through Hevy CSV import, and an interference analysis, for example long runs grouped by hours since the last lower-body lift.                                                                                                  |
+| Later | Same-route ([same-route.md](same-route.md)), a watch folder for new files, and swimming when a swimmer asks. Training load ([training-load.md](training-load.md)) stays designed and unscheduled.                                                                                                                          |
 
 ## Deferred
 
-- **Strava sync** waits for a written answer on API policy section 6.2, which limits how long Strava
-  data may be cached (seven days). Server-held tokens, a webhook and server-side digesting are not
-  started until that is answered.
+- **Strava sync** is off the plan: the Strava API Policy in force from 1 June 2026 bars storing
+  derived data, AI use and third-party MCP servers over Strava API data, and caps caching at seven
+  days. The athlete's own file export stays the main input.
 - **Architecture I** (a local originals store, an analysis-module registry, a unified local storage
   layer; [architecture-1.md](architecture-1.md)) is built when findings need it, not before. Until
   then the bespoke IndexedDB stores stay.
