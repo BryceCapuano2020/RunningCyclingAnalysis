@@ -7,6 +7,7 @@ import { fitnessViews } from '../fitnessModel'
 import type { FitnessView } from '../fitnessModel'
 import { FitnessCard } from './FitnessCard'
 import './FitnessCard.css'
+import './FitnessSection.css'
 
 const isWaitingRide = (view: FitnessView) =>
   view.sport === 'ride' && view.state === 'not-enough-evidence'

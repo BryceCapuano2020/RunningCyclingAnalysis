@@ -5,12 +5,6 @@
   min-width: 0;
 }
 
-.fitness-section__line {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
 .fitness-section__cards {
   display: grid;
   gap: var(--space-4);
