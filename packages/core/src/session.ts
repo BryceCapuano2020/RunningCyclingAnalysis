@@ -107,24 +107,29 @@ export class AnalysisSession {
     this.rejected.length = 0
     this.unsupported.files = 0
     beginImportUnsynced(this.keeping)
-    const batch: SaveBatch = { halt: null, networkStreak: 0, added: new Map() }
+    const batch: SaveBatch = { halt: null, networkStreak: 0, added: new Map(), inflight: [] }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
     const listeners: ActivityListeners = { kept: onActivity, replaced: onReplaced }
-    for (const [index, source] of sources.entries()) {
-      await importSource(source, {
-        limits: this.limits,
-        progress,
-        source: index,
-        outcome,
-        refused: this.rejected,
-        read,
-        unsupported: this.unsupported,
-        hashFiles: sink !== undefined,
-        consider: (activity, file) =>
-          considerActivity(this.keeping, activity, file, sink, syncExisting, batch, listeners),
-      })
+    try {
+      for (const [index, source] of sources.entries()) {
+        await importSource(source, {
+          limits: this.limits,
+          progress,
+          source: index,
+          outcome,
+          refused: this.rejected,
+          read,
+          unsupported: this.unsupported,
+          hashFiles: sink !== undefined,
+          consider: (activity, file) =>
+            considerActivity(this.keeping, activity, file, sink, syncExisting, batch, listeners),
+        })
+      }
+    } finally {
+      // Saves the sink began in the background settle before the import ends, whatever ended it.
+      await Promise.all(batch.inflight)
     }
     // Only digests still visible count as added, so the order the files arrive in does not matter.
     const hidden = hiddenDigests([...this.digests.values()])

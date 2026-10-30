@@ -69,3 +69,152 @@ describe('saving an activity to the account', () => {
     expect(uploadFile).not.toHaveBeenCalled()
   })
 })
+
+/** A call the test settles by hand, and a count of how many are open at once. */
+function gated() {
+  const open: (() => void)[] = []
+  let live = 0
+  let most = 0
+  const enter = () => {
+    live++
+    most = Math.max(most, live)
+    return new Promise<void>((resolve) =>
+      open.push(() => {
+        live--
+        resolve()
+      }),
+    )
+  }
+  return { open, most: () => most, enter }
+}
+
+const queued = { ...item, queueable: true }
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+describe('saving several activities at once', () => {
+  it('saves a new activity in the background, and answers with a save the import can wait for', async () => {
+    const ctx = context(false)
+    const save = accountSaver(ctx)
+
+    const sent = await save(queued)
+
+    expect(sent).toBeDefined()
+    await sent!.done
+    expect(ctx.onSaved).toHaveBeenCalledOnce()
+  })
+
+  it('saves one that is not queueable before it answers, as before', async () => {
+    const ctx = context(false)
+    const save = accountSaver(ctx)
+
+    expect(await save(item)).toBeUndefined()
+    expect(ctx.onSaved).toHaveBeenCalledOnce()
+  })
+
+  it('has at most three creates open at once, and the rest wait their turn', async () => {
+    const creates = gated()
+    vi.mocked(createActivity).mockImplementation(async () => {
+      await creates.enter()
+      return { record, created: true }
+    })
+    const save = accountSaver(context(false))
+
+    const sends = Array.from({ length: 6 }, (_, i) => save({ ...queued, fileName: `run-${i}.fit` }))
+    await tick()
+    expect(creates.open).toHaveLength(3)
+    // Letting one go starts the next in line.
+    creates.open[0]!()
+    await tick()
+    expect(creates.open).toHaveLength(4)
+
+    for (let i = 0; i < 6; i++) {
+      await tick()
+      creates.open[i]?.()
+    }
+    const saves = await Promise.all(sends)
+    await Promise.all(saves.map((sent) => sent?.done))
+    expect(creates.most()).toBe(3)
+  })
+
+  it('has at most two uploads open at once, whatever the creates are doing', async () => {
+    const uploads = gated()
+    vi.mocked(uploadFile).mockImplementation(async () => {
+      await uploads.enter()
+      return { ...record, hasFile: true, fileSize: 1 }
+    })
+    const save = accountSaver(context(true))
+
+    const sends = Array.from({ length: 5 }, () => save(queued))
+    await tick()
+    await tick()
+    expect(uploads.open.length).toBeLessThanOrEqual(2)
+    for (let i = 0; i < 5; i++) {
+      await tick()
+      uploads.open[i]?.()
+    }
+    const saves = await Promise.all(sends)
+    await Promise.all(saves.map((sent) => sent?.done))
+    expect(uploads.most()).toBe(2)
+  })
+
+  it('holds back the next file while six saves are in flight', async () => {
+    const creates = gated()
+    vi.mocked(createActivity).mockImplementation(async () => {
+      await creates.enter()
+      return { record, created: true }
+    })
+    const save = accountSaver(context(false))
+    const answered: number[] = []
+    const sends = Array.from({ length: 8 }, (_, i) => save(queued).then(() => answered.push(i)))
+
+    await tick()
+    await tick()
+    expect(answered).toHaveLength(6)
+    for (let i = 0; i < 8; i++) {
+      await tick()
+      creates.open[i]?.()
+    }
+    await Promise.all(sends)
+    expect(answered).toHaveLength(8)
+  })
+
+  it('holds back the next file while the files in flight are large, but always lets one in', async () => {
+    const creates = gated()
+    vi.mocked(createActivity).mockImplementation(async () => {
+      await creates.enter()
+      return { record, created: true }
+    })
+    const save = accountSaver(context(false))
+    const big = { ...queued, bytes: new Uint8Array(40 * 1024 * 1024) }
+    const answered: number[] = []
+
+    const sends = [0, 1, 2].map((i) => save(big).then(() => answered.push(i)))
+    await tick()
+    await tick()
+    // The first is in; the second would take them past 48 MiB, so it waits.
+    expect(answered).toEqual([0])
+    creates.open[0]!()
+    await tick()
+    await tick()
+    expect(answered).toEqual([0, 1])
+    for (let i = 1; i < 3; i++) {
+      await tick()
+      creates.open[i]?.()
+    }
+    await Promise.all(sends)
+  })
+
+  it('reports a failure through the save, against that activity alone, and stops the rest when it ends the saves', async () => {
+    vi.mocked(createActivity)
+      .mockResolvedValueOnce({ record, created: true })
+      .mockRejectedValueOnce(new ApiRequestError(409, 'activity_limit', 'Library is full'))
+    const ctx = context(false)
+    const save = accountSaver(ctx)
+
+    const first = await save(queued)
+    const second = await save(queued)
+    await expect(first!.done).resolves.toBeUndefined()
+    await expect(second!.done).rejects.toBeInstanceOf(SyncFailure)
+    expect(ctx.onSaved).toHaveBeenCalledOnce()
+  })
+})

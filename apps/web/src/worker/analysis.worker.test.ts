@@ -1164,8 +1164,9 @@ describe('analysis worker', () => {
       sync: { keepFiles: true, userId: USER_ID },
     })
 
-    // The first activity is sent twice, the second not at all.
-    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    // The first is sent twice. The second is sent twice if it was already in flight beside it, and not at all if
+    // the limit had already held; nothing is sent after.
+    expect([2, 4]).toContain(mocked.createActivity.mock.calls.length)
     expect(messages).toContainEqual({ type: 'accountIssue', issue: 'rate-limited' })
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
@@ -2762,5 +2763,71 @@ describe('a reply carries its request number, and nothing follows it', () => {
       'rebuildComplete',
       14,
     )
+  })
+})
+
+describe('a signed-in import saves its activities side by side', () => {
+  /** A zip of short runs, a day apart, so none is a copy of another. */
+  const base: Activity = sampleActivity!
+  function zipOfRuns(count: number): File {
+    const entries: Record<string, Uint8Array> = {}
+    for (let i = 0; i < count; i++) {
+      const startMs = Date.UTC(2020, 0, 1) + i * 24 * 3_600_000
+      entries[`activities/${i}.fit`] = encodeFit(
+        { ...base, id: `run-${i}`, startMs },
+        { gps: true },
+      )
+    }
+    return new File([zipSync(entries)], 'export.zip')
+  }
+
+  it('keeps no more than three creates open at once, saves every activity, and ends with the count', async () => {
+    let live = 0
+    let most = 0
+    mocked.createActivity.mockImplementation(async (digest) => {
+      live++
+      most = Math.max(most, live)
+      // Longer than reading and digesting the next file, so the saves overlap.
+      await new Promise((resolve) => setTimeout(resolve, 60))
+      live--
+      return { record: recordFor(digest), created: true }
+    })
+    const { send } = await startWorker()
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [zipOfRuns(12)],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(12)
+    expect(most).toBe(3)
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'state', saved: 12, state: { totalActivities: 12 } })
+    expect(reply).toMatchObject({ state: { syncIssues: [] } })
+  })
+
+  it('reports the activities that did not save by their reason, and the rest as saved', async () => {
+    let calls = 0
+    mocked.createActivity.mockImplementation(async (digest) => {
+      calls++
+      if (calls === 4) throw new ApiRequestError(500, 'server_error', 'Boom')
+      return { record: recordFor(digest), created: true }
+    })
+    const { send } = await startWorker()
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [zipOfRuns(8)],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      saved: 7,
+      state: { totalActivities: 8, syncIssues: [{ code: 'server', count: 1 }] },
+    })
   })
 })

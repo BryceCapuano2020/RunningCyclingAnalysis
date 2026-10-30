@@ -91,6 +91,14 @@ script that asks for the same routes still gets the JSON error.
    per-account quota and the deployment-wide R2 budget, streams the bytes to R2 under a per-user key
    prefix, and records the key and size on the row.
 
+A signed-in import saves a new activity in the background while it goes on reading: up to three creates and two
+original-file uploads (the server's two upload slots) are open at once, and the import waits for all of them
+before it ends. At most six saves, and 48 MiB of file bytes, are in flight; the reader waits when the saves are
+full, so a large library stays flat in memory. A replacement of a held copy, or a retry of an activity whose
+save failed, is saved before the next file is looked at, so two saves of one workout never overlap. A failure
+belongs to the activity that had it, and one that ends the saves (a full library, a spent day) stops the rest
+as before.
+
 **View** (combine in the browser)
 
 1. The web app calls `GET /api/activities` with optional `since`, `limit` and `cursor` query

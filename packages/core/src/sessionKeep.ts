@@ -108,18 +108,26 @@ async function keepActivity(
   // to pass. If it fails too the network is down and the saves stop; if not, the import carries on.
   const probing = batch.networkStreak >= NETWORK_FAILURES_BEFORE_PROBE
   if (probing) await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
+  // A workout new to the library has nothing to wait for, so its save may run beside the others. Anything else
+  // (a replacement, a retry) is settled after the saves already begun, so two saves of one workout never overlap.
+  const queueable = adding && !replaces && !retry && held === undefined
+  if (!queueable) await Promise.all(batch.inflight)
   try {
-    await sink({ digest, route: activity.route, ...file })
+    const sent = await sink({ digest, route: activity.route, ...file, queueable })
+    if (sent !== undefined) {
+      batch.inflight.push(settleLater(state, batch, key, probing, sent.done))
+      return considered(false)
+    }
     clearUnsynced(state, key)
     batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
   } catch (error) {
-    const code = error instanceof SyncFailure ? error.code : 'server'
-    markUnsynced(state, key, code)
-    // The server answered when only the original file failed to upload, so the network is up.
-    const answered = error instanceof SyncFailure && error.digestSaved
-    batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
-    if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
-    if (swapAfterSink && code === 'activity-conflict') {
+    const code = failureOf(error)
+    markUnsynced(state, key, code.code)
+    batch.networkStreak = networkStreakAfter(batch.networkStreak, code.answered ? null : code.code)
+    if (stopsSaving(code.code) || (probing && !code.answered && code.code === 'network')) {
+      batch.halt = code.code
+    }
+    if (swapAfterSink && code.code === 'activity-conflict') {
       // The server keeps the copy it holds, so the screen keeps it too, as a reload would show it.
       state.digests.set(key, held)
       if (adding) batch.added.set(key, held)
@@ -130,6 +138,37 @@ async function keepActivity(
   }
   if (swapAfterSink) await noteKept(activity, digest, held, listeners)
   return considered(true)
+}
+
+/** Why a save failed, and whether the server answered (only the original file failed, so the network is up). */
+function failureOf(error: unknown): { code: SyncIssueCode; answered: boolean } {
+  const code = error instanceof SyncFailure ? error.code : 'server'
+  return { code, answered: error instanceof SyncFailure && error.digestSaved }
+}
+
+/**
+ * Settles a save that ran in the background as the inline path does: saved, or unsaved with its reason, and
+ * the network and halting rules applied. Never rejects, so the import can wait for every save together.
+ */
+function settleLater(
+  state: KeepState,
+  batch: SaveBatch,
+  key: string,
+  probing: boolean,
+  done: Promise<void>,
+): Promise<void> {
+  return done.then(
+    () => {
+      clearUnsynced(state, key)
+      batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
+    },
+    (error: unknown) => {
+      const { code, answered } = failureOf(error)
+      markUnsynced(state, key, code)
+      batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
+      if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
+    },
+  )
 }
 
 /** Notes that the activity is not saved, and why, as a failure of the import in progress. */
