@@ -515,7 +515,7 @@ describe('refusals happen before the body is read or hashed', () => {
 })
 
 describe('validation messages', () => {
-  it('reports a few issues and stays within the ApiError bound for thousands of invalid elements', async () => {
+  it('names the field of a digest that is not valid, and stays within the ApiError bound', async () => {
     const h = createHarness()
     const token = await h.signIn()
     const res = await createActivity(
@@ -527,7 +527,8 @@ describe('validation messages', () => {
     expect(res.status).toBe(400)
     const body = ApiErrorSchema.parse(await res.json())
     expect(body.error.code).toBe('invalid_request')
-    expect(body.error.message).toMatch(/and \d+ more$/)
+    // The digest reader stops at the first thing wrong, so the message is one issue, not 2,000.
+    expect(body.error.message).toMatch(/^digest\.hrBlocks: /)
     expect(body.error.message.length).toBeLessThanOrEqual(1000)
   })
 })

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { changeOf } from './changeFixtures'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CurvePoint } from '@rca/core/types'
@@ -67,6 +68,7 @@ function ride(curve: CurvePoint[], threshold?: Parameters<typeof SportCurveChart
       sport="ride"
       curve={curve}
       previous={null}
+      change={null}
       massKg={MASS_KG}
       units="metric"
       threshold={threshold}
@@ -224,7 +226,14 @@ describe('a run curve that carries a longer effort', () => {
 
   const run = () =>
     render(
-      <SportCurveChart sport="run" curve={RUN} previous={null} massKg={MASS_KG} units="metric" />,
+      <SportCurveChart
+        sport="run"
+        curve={RUN}
+        previous={null}
+        change={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
     )
 
   it('draws the carried stretch lighter and says what the line carries', () => {
@@ -453,6 +462,7 @@ describe('the effort the title cites', () => {
         sport="ride"
         curve={curve}
         previous={{ curve: earlier, label: 'Previous 12 weeks' }}
+        change={changeOf('higher')}
         massKg={MASS_KG}
         units="metric"
       />,

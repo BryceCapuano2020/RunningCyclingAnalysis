@@ -692,6 +692,28 @@ async function insertRawActivity(
     .run()
 }
 
+describe('a create that finds its activity already stored with a digest that cannot be read', () => {
+  it('answers with the digest it sent, not a server error, when the stored one is out of bounds', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const first = await createActivity(h, token, {}, { startMs: START })
+    expect(first.status).toBe(201)
+    const id = await idOf(first)
+    // A row a bound has since refused, at the same revision, so the create does not replace it.
+    await h.env.DB.prepare(
+      "UPDATE activities SET digest_json = json_set(digest_json, '$.startMs', 1e300) WHERE id = ?",
+    )
+      .bind(id)
+      .run()
+
+    const again = await createActivity(h, token, {}, { startMs: START })
+    expect(again.status).toBe(200)
+    const body = (await again.json()) as { id: string; digest: { startMs: number } }
+    expect(body.id).toBe(id)
+    expect(body.digest.startMs).toBe(START)
+  })
+})
+
 describe('GET /api/activities with unreadable stored rows', () => {
   it('skips a stored row that is not JSON, counts it, and still returns the valid rows', async () => {
     const h = createHarness()

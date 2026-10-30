@@ -52,7 +52,7 @@ p .definition__term::after {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-pop);
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: var(--text-sm);

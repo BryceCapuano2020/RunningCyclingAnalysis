@@ -1,11 +1,16 @@
 import { useEffect } from 'react'
-import type { WorkerResponse } from '../../worker/protocol'
-import { workerFailureText } from './copy'
+import { noteActivity } from './requestWatch'
+import { REPLY_TYPES } from '../../worker/protocol'
+import type { WireStamp, WorkerResponse } from '../../worker/protocol'
+import { STALLED_LEAD, UNREADABLE_LEAD, workerFailureText } from './copy'
 import { handleReply } from './replyHandlers'
 import type { WorkerEventDeps } from './replyHandlers'
 import { isStaleDeviceList } from './staleReplies'
 import { drainBatches, EMPTY_SESSION } from './model'
 import { useLatest } from './useLatest'
+
+/** Messages in a row the browser cannot read back before the worker counts as failed. */
+const UNREADABLE_LIMIT = 3
 
 /**
  * Creates the worker and routes its messages. Each reply is attributed to the request it answers,
@@ -24,10 +29,44 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
     const worker = new Worker(new URL('../../worker/analysis.worker.ts', import.meta.url), {
       type: 'module',
     })
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+    let unreadableInARow = 0
+    worker.onmessage = (event: MessageEvent<WorkerResponse & WireStamp>) => {
       const current = latest()
       if (generation !== current.transport.workerGenerationRef.current) return
+      unreadableInARow = 0
       const message = event.data
+      // A message belongs to the request it answers (a reply) or ran under (an event). One that names a
+      // request the page no longer waits for is stray: late, repeated or from before a clear. A reply
+      // that names no request cannot be matched to one at all.
+      const owner = message.replyTo ?? message.during
+      const { pendingRepliesRef, strayRepliesRef } = current.transport
+      const pending =
+        owner === undefined ? undefined : pendingRepliesRef.current.find(({ id }) => id === owner)
+      const { lastHeardAtRef, releasedRef } = current.transport
+      const released = owner === undefined ? undefined : releasedRef.current.get(owner)
+      if (pending === undefined && message.type === 'heartbeat') {
+        // A beat for a request the page let go is the worker still busy with it. It counts as hearing
+        // from the worker only if the work moved: a read that hangs while beating must not keep a
+        // request queued behind it from being judged not started.
+        if (released !== undefined && message.progress !== released.progress) {
+          released.progress = message.progress
+          lastHeardAtRef.current = Date.now()
+        }
+        return
+      }
+      lastHeardAtRef.current = Date.now()
+      if (released !== undefined && REPLY_TYPES.has(message.type))
+        releasedRef.current.delete(owner!)
+      if (pending === undefined && message.type === 'started') return
+      if (
+        (owner !== undefined && pending === undefined) ||
+        (owner === undefined && REPLY_TYPES.has(message.type))
+      ) {
+        strayRepliesRef.current++
+        return
+      }
+      if (pending !== undefined) noteActivity(pending, message)
+      if (message.type === 'started' || message.type === 'heartbeat') return
       if (message.type === 'progress') {
         current.imports.setProgress({
           filesRead: message.filesRead,
@@ -53,7 +92,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         return
       }
       if (message.type === 'libraryActivities') {
-        if (isStaleDeviceList(current.transport, current.accountRef)) return
+        if (isStaleDeviceList(current.transport, current.accountRef, message.during)) return
         // Also read at once by rememberKeptLibrary, ahead of the render that sets the state.
         current.library.savedActivitiesRef.current = message.activities
         current.library.setSavedActivities(message.activities)
@@ -79,14 +118,27 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         current.handleAccountIssue(message.issue)
         return
       }
-      handleReply(current, message)
+      // A reply always has its request: the check above dropped any that did not.
+      if (pending !== undefined) handleReply(current, message, pending)
     }
     worker.onerror = (event) => {
       const current = latest()
       if (generation !== current.transport.workerGenerationRef.current) return
-      handleWorkerError(current, worker, event)
+      handleWorkerFailure(current, worker, event.message)
+    }
+    // A message the browser could not read back is one the page cannot match to a request. Counted, and
+    // the request it answered is left to the watchdog.
+    worker.onmessageerror = () => {
+      const current = latest()
+      if (generation !== current.transport.workerGenerationRef.current) return
+      current.transport.strayRepliesRef.current++
+      // One unreadable message is lost news; three in a row is a worker that cannot be understood.
+      if (++unreadableInARow >= UNREADABLE_LIMIT) failWorker(current, worker, UNREADABLE_LEAD)
     }
     workerRef.current = worker
+    // A new worker is heard from the moment it exists, so its first requests are not judged by a dead one's silence.
+    transport.lastHeardAtRef.current = Date.now()
+    transport.releasedRef.current.clear()
     // A worker that starts while nobody is signed in begins from the library kept in this browser.
     // One that starts signed in never does, so the device library cannot replace an account's.
     const current = latest()
@@ -110,7 +162,12 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
  * good until the user asks for a retry, so a broken module or browser resource cannot trigger an
  * unbounded restart loop.
  */
-function handleWorkerError(deps: WorkerEventDeps, worker: Worker, event: ErrorEvent): void {
+function handleWorkerFailure(
+  deps: WorkerEventDeps,
+  worker: Worker,
+  eventMessage: string,
+  lead?: string,
+): void {
   const { transport, imports, library, accountRef, setError, failLibrary, refreshBusy } = deps
   transport.dropPendingReplies()
   refreshBusy()
@@ -120,7 +177,7 @@ function handleWorkerError(deps: WorkerEventDeps, worker: Worker, event: ErrorEv
   if (current.status !== 'signed-in') imports.setState(EMPTY_SESSION)
   imports.setImportOutcome(null)
   const willRestart = transport.automaticRestartCountRef.current < 1
-  setError(workerFailureText(current.status, willRestart, event.message))
+  setError(workerFailureText(current.status, willRestart, eventMessage, lead))
   if (willRestart) {
     transport.automaticRestartCountRef.current += 1
     transport.restartWorker()
@@ -136,4 +193,19 @@ function handleWorkerError(deps: WorkerEventDeps, worker: Worker, event: ErrorEv
     refreshBusy()
     if (current.status === 'signed-in') failLibrary()
   }
+}
+
+/**
+ * The worker is running but has made no headway for longer than its request allows (see requestWatch).
+ * It is treated as a worker that stopped on its own: replaced once, then stopped for good. The request
+ * that stalled is not sent again; an import resumes from what was saved, as after any restart.
+ */
+export function failStalledWorker(deps: WorkerEventDeps): void {
+  const worker = deps.transport.workerRef.current
+  if (worker !== null) failWorker(deps, worker, STALLED_LEAD)
+}
+
+/** The worker is replaced for a reason of ours rather than its own error event. */
+function failWorker(deps: WorkerEventDeps, worker: Worker, lead: string): void {
+  handleWorkerFailure(deps, worker, '', lead)
 }

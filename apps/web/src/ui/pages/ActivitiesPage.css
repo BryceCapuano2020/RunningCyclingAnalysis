@@ -3,7 +3,7 @@
  * page's usual gap: the title, the strip and the controls are 24 px apart.
  */
 .activities {
-  gap: var(--space-5);
+  gap: var(--stack-gap);
 }
 
 .activities__controls {
@@ -53,7 +53,7 @@
   min-height: var(--control-height);
   padding: 0 var(--space-2);
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-1);
   color: var(--text-primary);
   font: inherit;

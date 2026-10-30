@@ -38,6 +38,20 @@ export function toRecord(
   return { ...toEnvelope(row), digest }
 }
 
+/**
+ * The record of a row for a request that holds a digest of its own: when the stored digest cannot be
+ * read (a row a bound has since refused, or one a build wrote that this one cannot), the record
+ * carries the digest the request sent, which was checked, and not a failure the athlete cannot act on.
+ */
+export function toRecordHolding(row: ActivityRow, held: ActivityRecord['digest']): ActivityRecord {
+  try {
+    const stored = StoredActivityDigestSchema.safeParse(JSON.parse(row.digestJson))
+    return toRecord(row, stored.success ? stored.data : held)
+  } catch {
+    return toRecord(row, held)
+  }
+}
+
 /** Looks up an activity owned by the user. Other users' activities read as not found. */
 export async function findOwnedActivity(db: Db, userId: string, id: string): Promise<ActivityRow> {
   const row = await db

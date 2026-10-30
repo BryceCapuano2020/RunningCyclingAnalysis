@@ -94,8 +94,6 @@ export type WorkerRequest =
   | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
-  /** Whether the headline trend carries running equivalents: only an age-graded Balance trend uses them. */
-  | { type: 'setGradeTrend'; on: boolean; settings: AthleteSettings }
   | { type: 'setRange'; choice: PeriodChoice; settings: AthleteSettings }
   /** `forgetDevice` also empties the library kept in this browser. */
   | { type: 'clear'; forgetDevice?: boolean }
@@ -128,7 +126,39 @@ export type WorkerRequest =
   /** A detail trace for an exact core activity id. Originals are read only on explicit request. */
   | { type: 'activityTrace'; id: string; userId?: string; fromOriginal?: boolean }
 
+/**
+ * A request as it travels to the worker: the request and the page's number for it. The worker stamps
+ * the number on its reply (`replyTo`) and on every other message it sends while it runs the request
+ * (`during`), so the page matches a reply to its request by number, never by arrival order. The number
+ * is `requestId` because several requests already have an `id` of their own (an activity's).
+ */
+export type WireRequest = WorkerRequest & { requestId: number }
+
+/** What the worker adds to a message: `replyTo` on a reply, `during` on an event. Both are absent when the request had no number. */
+export interface WireStamp {
+  replyTo?: number
+  during?: number
+}
+
+/** The messages that answer a request, one per request. Every other message is an event. */
+export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerResponse['type']>([
+  'state',
+  'error',
+  'exportReady',
+  'splits',
+  'routeShape',
+  'activityTrace',
+  'rebuildComplete',
+])
+
 export type WorkerResponse =
+  /** Sent when the worker begins a request, so a request waiting its turn is not timed as if it ran. */
+  | { type: 'started' }
+  /**
+   * Sent every couple of seconds while a request runs. `progress` counts units of real work (files read,
+   * activities saved), so a count that does not move is a worker that is not getting anywhere.
+   */
+  | { type: 'heartbeat'; progress: number }
   /**
    * `filesTotal` is the activity files the request holds, when that is known before they are read.
    * `paused` is set while a rate limit holds the saves back; the next progress message ends it.

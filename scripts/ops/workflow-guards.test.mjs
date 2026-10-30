@@ -201,29 +201,97 @@ test('documentation-only pull requests skip the long CI work, and everything els
     /grep -q/,
     'grep -q can exit early and trip pipefail into a false docs-only',
   )
-  for (const job of ['perf', 'sim', 'e2e']) {
+  for (const job of ['perf', 'sim', 'unit', 'e2e']) {
     const block = blocks.get(job).join('\n')
     assert.match(block, /^ {4}needs: changes$/m, job)
     assert.match(
       block,
-      /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.code != 'false' \}\}$/m,
+      /^ {4}if: \$\{\{ !cancelled\(\) && !github\.event\.pull_request\.draft && needs\.changes\.outputs\.code != 'false' \}\}$/m,
       `${job} skips only on an explicit 'false', so a failed classification runs it`,
     )
   }
-  const verify = blocks.get('verify').join('\n')
-  assert.match(verify, /^ {4}if: \$\{\{ !cancelled\(\) \}\}$/m, 'the required check always reports')
-  for (const step of ['typecheck', 'test:coverage', 'build']) {
+  const staticJob = blocks.get('static').join('\n')
+  assert.match(
+    staticJob,
+    /^ {4}if: \$\{\{ !cancelled\(\) && !github\.event\.pull_request\.draft \}\}$/m,
+  )
+  for (const step of ['typecheck', 'build']) {
     assert.match(
-      verify,
+      staticJob,
       new RegExp(`- run: npm run ${step}\\n {8}if: needs\\.changes\\.outputs\\.code != 'false'`),
       step,
     )
   }
   for (const step of ['format:check', 'lint', 'test:deploy-config', 'test:ops']) {
-    assert.match(verify, new RegExp(`- run: npm run ${step}\\n {6}- `), `${step} always runs`)
+    assert.match(staticJob, new RegExp(`- run: npm run ${step}\\n {6}[-#]`), `${step} always runs`)
   }
   assert.match(
-    verify,
+    staticJob,
     /if: needs\.changes\.outputs\.code == 'false'\n\s+run: \|\n\s+files=\$\(git grep -l -F '\.md'/,
   )
+})
+
+test('every push to main gets its own CI run, and only pull request runs are cancelled', async () => {
+  const ci = await workflow('ci')
+  assert.match(
+    ci,
+    /^ {2}group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.event_name == 'pull_request' && github\.ref \|\| github\.sha \}\}$/m,
+  )
+})
+
+test('the required checks collect their shards and pass a skipped shard only on a docs-only run', async () => {
+  const blocks = jobBlocks(await workflow('ci'))
+  const verify = blocks.get('verify').join('\n')
+  assert.match(verify, /^ {4}name: Lint, typecheck, unit tests, build$/m)
+  assert.match(verify, /^ {4}needs: \[changes, static, unit\]$/m)
+  assert.match(verify, /^ {4}if: \$\{\{ !cancelled\(\) \}\}$/m, 'the required check always reports')
+  assert.match(verify, /if \[ "\$STATIC" != success \]; then/)
+  assert.match(verify, /if \[ "\$UNIT" = skipped \] && \[ "\$CODE" = false \]; then exit 0; fi/)
+  assert.match(verify, /if \[ "\$UNIT" != success \]; then/)
+  assert.match(verify, /npx vitest --mergeReports \.vitest\/blob --coverage/)
+  const result = blocks.get('e2e-result').join('\n')
+  assert.match(result, /^ {4}name: End-to-end \(Playwright\)$/m)
+  assert.match(result, /^ {4}needs: \[changes, e2e\]$/m)
+  assert.match(result, /^ {4}if: \$\{\{ !cancelled\(\) \}\}$/m)
+  assert.match(result, /if \[ "\$E2E" = skipped \] && \[ "\$CODE" = false \]; then exit 0; fi/)
+  assert.match(result, /if \[ "\$E2E" != success \]; then/)
+})
+
+test('shards cover the whole suite: the shard count comes from the matrix, and only the merge applies coverage thresholds', async () => {
+  const blocks = jobBlocks(await workflow('ci'))
+  const unit = blocks.get('unit').join('\n')
+  assert.match(unit, /--shard=\$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}/)
+  assert.match(unit, /fail-fast: false/)
+  assert.match(unit, /COVERAGE_SHARD: '1'/)
+  assert.doesNotMatch(unit, /test:sim|test:perf/)
+  const e2e = blocks.get('e2e').join('\n')
+  assert.match(e2e, /--shard=\$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}/)
+  assert.match(e2e, /fail-fast: false/)
+  assert.match(e2e, /- run: npm run e2e:worker -w @rca\/web\n {8}if: matrix\.shard == 1/)
+  const config = await readFile(new URL('vitest.config.ts', root), 'utf8')
+  assert.match(config, /thresholds: process\.env\.COVERAGE_SHARD\s*\?\s*undefined/)
+})
+
+test('a draft pull request runs no long jobs, and its required checks fail until it is marked ready', async () => {
+  const ci = await workflow('ci')
+  assert.match(ci, /^ {4}types: \[opened, synchronize, reopened, ready_for_review\]$/m)
+  const blocks = jobBlocks(ci)
+  for (const job of ['changes', 'static', 'unit', 'perf', 'sim', 'e2e', 'audit']) {
+    assert.match(
+      blocks.get(job).join('\n'),
+      /^ {4}if: \$\{\{ [^\n]*!github\.event\.pull_request\.draft/m,
+      `${job} is skipped on a draft`,
+    )
+  }
+  // The two required checks still run on a draft and fail, so a skipped (and so passing) check can
+  // never let a draft, or a pull request just marked ready, merge before its real run.
+  for (const job of ['verify', 'e2e-result']) {
+    const block = blocks.get(job).join('\n')
+    assert.doesNotMatch(block, /^ {4}if: [^\n]*draft/m, `${job} itself runs on a draft`)
+    assert.match(
+      block,
+      /- name: A draft pull request runs no checks\n {8}if: github\.event\.pull_request\.draft\n {8}run: \|\n[^\n]*\n {10}exit 1/,
+      `${job} fails on a draft`,
+    )
+  }
 })

@@ -13,9 +13,6 @@ import { analysisStub } from '../../test/analysisStub'
 import { curvePoint } from '../charts/fixtures'
 import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
 import { ResultPage } from './ResultPage'
-import { AnalysisSession } from '@rca/core/session'
-import { gradeWeeks } from '../charts/gradeTrend'
-import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { PERIOD_KEY } from '../periodPreference'
 
 afterEach(() => {
@@ -738,32 +735,6 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     )
     fireEvent.click(screen.getByRole('radio', { name: 'All time' }))
     expect(screen.getByText('Applies when the current import finishes')).toBeInTheDocument()
-  })
-
-  it('shows rides on the age-grade trend for a sample opened by a visitor with no age or sex', () => {
-    const sample = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
-    const result = sample.result
-    if (result === null) throw new Error('The sample has no result')
-    const weeks = gradeWeeks(sample.trend, SAMPLE_PROFILE)
-    expect(weeks.some((week) => week.ride !== null)).toBe(true)
-    render(
-      <ResultPage
-        signedIn={false}
-        route={{ page: 'balance' }}
-        analysis={analysisStub({
-          state: { ...sample, library: sample.library, period: sample.period },
-        })}
-        result={result}
-        settings={SAMPLE_SETTINGS}
-        weightKnown
-        units="metric"
-        birthYear={null}
-        sex={null}
-      />,
-    )
-    expect(
-      screen.getByRole('heading', { name: /of your best 20 min, trailing/ }),
-    ).toBeInTheDocument()
   })
 })
 

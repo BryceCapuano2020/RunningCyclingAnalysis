@@ -3,6 +3,7 @@ import { SPORT_TRACE } from '../workbench/sportTrace'
 import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
+import { MAX_GPX_TRACKS } from '../import/limits'
 import { parseIsoTime } from '../import/time'
 import { fileTitle } from '../import/names'
 import { sportOfType } from '../import/sportType'
@@ -14,6 +15,7 @@ import {
   readNumber,
   readPosition,
   Refusal,
+  SPLIT_THE_FILE,
 } from '../import/trackpoints'
 import type { LatLon } from '../import/trackpoints'
 import { scanXmlBytes, XmlError } from '../xml/parse'
@@ -23,6 +25,7 @@ import type { GpxPoint } from './records'
 
 const NOT_GPX = 'Not a GPX file'
 const DECODE_FAILED = 'Could not decode GPX file'
+const TOO_MANY_TRACKS = `GPX file has more than ${MAX_GPX_TRACKS} tracks: split it`
 
 const POWER_NAMES = new Set(['power', 'PowerInWatts'])
 /** Elements whose own text is read when they close. */
@@ -119,7 +122,7 @@ function parseUnchecked(
   try {
     scanXmlBytes(bytes, reader)
   } catch (error) {
-    if (error instanceof Refusal) return failure(fileName, error.reason, error.code)
+    if (error instanceof Refusal) return failure(fileName, error.reason, error.code, error.detail)
     if (error instanceof XmlError) return failure(fileName, NOT_GPX, 'corrupt')
     throw error
   }
@@ -144,6 +147,7 @@ class GpxReader implements XmlHandler {
   /** The type the export's list gives the activity, for a track that names no sport. */
   private readonly activityType: string | undefined
   private pointCount = 0
+  private trackCount = 0
   private creator: string | undefined = undefined
   private track: OpenTrack | undefined = undefined
   private point: OpenPoint | undefined = undefined
@@ -234,6 +238,8 @@ class GpxReader implements XmlHandler {
       return 'root'
     }
     if (parent === 'root' && local === 'trk') {
+      if (++this.trackCount > MAX_GPX_TRACKS)
+        throw new Refusal(TOO_MANY_TRACKS, 'too-much-data', SPLIT_THE_FILE)
       this.track = newTrack()
       return 'track'
     }

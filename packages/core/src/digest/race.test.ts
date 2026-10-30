@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sampleDataset } from '../synthetic'
 import { digestActivity } from './digestActivity'
+import { readDigest } from './readDigest'
 import { parseDigest, serializeDigest } from './serialize'
 import { summaryOf } from './summary'
 
@@ -27,8 +28,10 @@ describe('a race tag', () => {
     expect(rest).toEqual(plain)
   })
 
-  it('is ignored in a stored digest unless it is true', () => {
+  it('is read as absent from a stored digest unless it is true, and refused on a create', () => {
     const stored = JSON.parse(serializeDigest(digestActivity(activity))) as Record<string, unknown>
-    expect(parseDigest(JSON.stringify({ ...stored, race: false }))).not.toHaveProperty('race')
+    const wire = { ...stored, race: false }
+    expect(parseDigest(JSON.stringify(wire))).not.toHaveProperty('race')
+    expect(() => readDigest(wire, 'create')).toThrow(/race must be true when present/)
   })
 })

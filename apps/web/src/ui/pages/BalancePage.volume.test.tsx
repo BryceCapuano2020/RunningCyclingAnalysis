@@ -44,7 +44,6 @@ function trendOf(weeks: number): TrendPoint[] {
       rideCount: 0,
       runAtMs: endMs,
       rideAtMs: null,
-      rideRunSpeed: null,
     }
   })
 }
@@ -88,8 +87,8 @@ function figureNamed(measure: string | RegExp): HTMLElement {
   return figure
 }
 
-describe('the weekly volume under the Balance trend', () => {
-  it('shows the hours of each sport under the trend, with a line that says what moved', () => {
+describe('the weekly volume on Balance', () => {
+  it('shows the hours of each sport, with a line that says what moved', () => {
     const activities = [
       inWeek(0, 'run', 3600 * 5),
       inWeek(0, 'ride', 3600),
@@ -99,9 +98,10 @@ describe('the weekly volume under the Balance trend', () => {
       inWeek(3, 'ride', 3600 * 6),
     ]
     const { container } = renderPage(makeResult({ activities }), trendOf(4))
-    const trend = figureNamed(/of your best 20 min, trailing/)
     const volume = figureNamed(VOLUME)
-    expect(trend.compareDocumentPosition(volume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The strip stands alone: nothing over it draws a trend of best efforts.
+    expect(screen.queryByRole('figure', { name: /Age grade of your best/ })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Training hours' })).toHaveClass('sr-only')
     expect(
       within(volume).getByText(
         'Cycling rose from 17% of your running and riding hours in the first half to 100% in the second.',
@@ -110,7 +110,7 @@ describe('the weekly volume under the Balance trend', () => {
     expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(6)
   })
 
-  it('draws a bar for each week of the trend, so the two share their weeks', () => {
+  it('draws a bar for each week of the period, to the last the trend’s weeks reach', () => {
     const activities = [
       inWeek(0, 'run', 3600),
       inWeek(2, 'run', 3600),
@@ -118,7 +118,7 @@ describe('the weekly volume under the Balance trend', () => {
       inWeek(9, 'run', 3600),
     ]
     const { container } = renderPage(makeResult({ activities }), trendOf(5))
-    // The fifth week is the last the trend draws, so the activity ten weeks on is not counted.
+    // The fifth week is the last the period reaches, so the activity ten weeks on is not counted.
     expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(3)
     // A week with no training is no bar and no mark on the axis: there is no comb of empty weeks.
     expect(container.querySelectorAll('[data-testid="trend-gap"]')).toHaveLength(0)
@@ -155,6 +155,6 @@ describe('the weekly volume under the Balance trend', () => {
     const activities = [inWeek(0, 'run', 3600), inWeek(3, 'ride', 3600)]
     renderPage(makeResult({ activities }), trendOf(5))
     expect(screen.queryByText(VOLUME)).toBeNull()
-    expect(figureNamed(/of your best 20 min, trailing/)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Training hours' })).toBeNull()
   })
 })

@@ -17,6 +17,7 @@ import { deviceClock, sampleActivityById } from './sampleClock'
 import type { DeviceLibrary } from './deviceLibrary'
 import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
 import * as importSummary from './importSummary'
+import { REPLY_TYPES } from './protocol'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 /** A reply waits on a full analysis, which takes most of a second on its own; vi.waitFor's 1 s is too short under load. */
@@ -128,6 +129,7 @@ async function startWorker() {
           last?.type !== 'rebuildComplete' &&
           last?.type !== 'exportReady' &&
           last?.type !== 'splits' &&
+          last?.type !== 'activityTrace' &&
           last?.type !== 'routeShape')
       ) {
         throw new Error('still working')
@@ -551,7 +553,13 @@ describe('analysis worker', () => {
     const { send } = await startWorker()
     const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
 
-    expect(mocked.listActivities).toHaveBeenCalledWith(undefined, USER_ID, expect.any(Function))
+    expect(mocked.listActivities).toHaveBeenCalledWith(
+      undefined,
+      USER_ID,
+      expect.any(Function),
+      undefined,
+      expect.any(Function),
+    )
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
@@ -2221,6 +2229,7 @@ describe('account export', () => {
       USER_ID,
       expect.any(Function),
       expect.any(Function),
+      expect.any(Function),
     )
     const exported = JSON.parse(await exportedText(messages)) as {
       format: string
@@ -2632,6 +2641,117 @@ describe('rebuilding a multisport leg keeps its session key', () => {
       expect.stringMatching(/^[0-9a-f]{64}$/),
       USER_ID,
       `rec-${stale.id}`,
+    )
+  })
+})
+
+describe('request numbers', () => {
+  it('announces a numbered request and stamps its reply and the events it posts', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send } = await startWorker()
+    const request = { type: 'loadServer', settings: SETTINGS, userId: USER_ID, requestId: 41 }
+    const messages = await send(request as WorkerRequest)
+
+    expect(messages[0]).toEqual({ type: 'started', during: 41 })
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'state', replyTo: 41 })
+    // Everything else it said while it ran names the same request, and none of it claims to be a reply.
+    for (const event of messages.slice(1, -1)) {
+      expect(event).toMatchObject({ during: 41 })
+      expect(event).not.toHaveProperty('replyTo')
+    }
+  })
+
+  it('carries the number on a request that fails', async () => {
+    const { send } = await startWorker()
+    const request = {
+      type: 'deleteActivity',
+      id: 'nope',
+      userId: USER_ID,
+      settings: SETTINGS,
+      requestId: 8,
+    }
+    const messages = await send(request as WorkerRequest)
+    expect(messages.at(-1)).toMatchObject({ type: 'error', replyTo: 8 })
+  })
+
+  it('sends an unnumbered request nothing extra', async () => {
+    const { send } = await startWorker()
+    const messages = await send({ type: 'setSettings', settings: SETTINGS })
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).not.toHaveProperty('replyTo')
+  })
+})
+
+describe('a reply carries its request number, and nothing follows it', () => {
+  /** The reply is the one message of its kind, comes last, and names the request; the rest ran under it. */
+  function expectOneReply(messages: WorkerResponse[], type: WorkerResponse['type'], id: number) {
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type, replyTo: id })
+    for (const event of messages.slice(0, -1)) {
+      expect(event).toMatchObject({ during: id })
+      expect(event).not.toHaveProperty('replyTo')
+      expect(REPLY_TYPES.has(event.type)).toBe(false)
+    }
+  }
+
+  async function sendNumbered(
+    send: (request: WorkerRequest) => Promise<WorkerResponse[]>,
+    request: WorkerRequest,
+    id: number,
+  ) {
+    return send({ ...request, requestId: id } as unknown as WorkerRequest)
+  }
+
+  it('numbers an export', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    const messages = await sendNumbered(
+      send,
+      {
+        type: 'exportData',
+        userId: USER_ID,
+        account: { name: 'A', email: 'a@example.com' },
+        profile: {
+          massKg: 75,
+          bikeMassKg: 9,
+          units: 'metric',
+          keepFiles: true,
+          birthYear: null,
+          sex: null,
+          updatedAt: 1,
+        },
+      },
+      11,
+    )
+    expectOneReply(messages, 'exportReady', 11)
+  })
+
+  it('numbers the splits of an activity', async () => {
+    const { send } = await startWorker()
+    expectOneReply(
+      await sendNumbered(send, { type: 'activitySplits', id: 'nope' }, 12),
+      'splits',
+      12,
+    )
+  })
+
+  it('numbers a route', async () => {
+    const { send } = await startWorker()
+    expectOneReply(
+      await sendNumbered(send, { type: 'routeShape', id: 'nope', userId: USER_ID }, 13),
+      'routeShape',
+      13,
+    )
+  })
+
+  it('numbers a rebuild', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    expectOneReply(
+      await sendNumbered(send, { type: 'rebuildStale', settings: SETTINGS, userId: USER_ID }, 14),
+      'rebuildComplete',
+      14,
     )
   })
 })

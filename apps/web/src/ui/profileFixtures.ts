@@ -7,7 +7,7 @@ import { makeActivity } from './components/fixtures'
 const DURATIONS_S = [
   5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600,
 ]
-const SESSIONS = 4
+const SESSIONS = 40
 
 /** Morton's three-parameter model, with the values of a 250 W rider: CP 250, W' 20 kJ, Pmax 1000. */
 function morton(durationS: number): number {

@@ -269,6 +269,12 @@ export interface Detector {
   sports: readonly Sport[]
   /** Weeks of a sport's history it needs before it is run for that sport. */
   minHistoryWeeks: number
+  /**
+   * The findings an athlete-year it may speak, as new findings, in a library where nothing changes: its share of the
+   * family budget (FINDINGS.familyBudgetPerYear), which the registry keeps the sum of under. A detector's own
+   * simulation holds it to this; adding a detector means finding its share, and lowering another's if none is left.
+   */
+  alarmBudget: number
   run: (input: FindingInput, sport: Sport) => Candidate[]
 }
 

@@ -21,6 +21,12 @@ export const DEVICE_NOT_LOADED =
 export const LIBRARY_NOT_LOADED =
   'Your library is not loaded, so these files were not imported. Retry loading your library, then add them again.'
 export const STOPPED = 'Analysis is stopped, so this did not run. Restart analysis, then try again.'
+/** Said when the browser could not hand a request to the analysis, and nothing was started. */
+export const NOT_SENT = 'These files could not be sent to the analysis. Add them again.'
+/** Shown while a request has made no headway for a while, before anything is done about it. */
+export const STALLED_LEAD = 'Analysis stopped responding.'
+export const UNREADABLE_LEAD = 'Analysis sent something this browser could not read.'
+export const STILL_WORKING = 'Still working. This is taking longer than usual.'
 export const INTERRUPTED = 'Your import was interrupted. Add the files again.'
 export const EXPORT_INTERRUPTED = 'The download was interrupted. Download your data again.'
 export const ACCOUNT_CHANGED_BEFORE_IMPORT =
@@ -172,16 +178,17 @@ export function workerFailureText(
   status: AccountStatus,
   willRestart: boolean,
   eventMessage: string,
+  lead = 'Analysis stopped unexpectedly.',
 ): string {
   if (status === 'signed-in') {
     return willRestart
-      ? 'Analysis stopped unexpectedly. Your saved library is reloading; add again any files that were not saved.'
-      : 'Analysis stopped unexpectedly. Restart analysis to reload your saved library; add again any files that were not saved.'
+      ? `${lead} Your saved library is reloading; add again any files that were not saved.`
+      : `${lead} Restart analysis to reload your saved library; add again any files that were not saved.`
   }
   if (status === 'signed-out') {
     return willRestart
-      ? 'Analysis stopped unexpectedly. Your results kept in this browser are reloading; add again any files that were being added.'
-      : 'Analysis stopped unexpectedly. Restart analysis to reload your results kept in this browser; add again any files that were being added.'
+      ? `${lead} Your results kept in this browser are reloading; add again any files that were being added.`
+      : `${lead} Restart analysis to reload your results kept in this browser; add again any files that were being added.`
   }
   return eventMessage || 'Analysis failed. Add again any files that were being added.'
 }
