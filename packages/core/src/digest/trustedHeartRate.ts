@@ -5,6 +5,7 @@ import { readReferences, referenceMaxHeartRates } from '../effort'
 import { lowForPowerSetAside, worstSetAside } from '../hr'
 import type { ActivityDigest, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
 import { memoByDigests } from '../digestMemo'
+import { localZoneKey } from './localDay'
 import { maximumAndTypicalDay, newestHeartRateMs, referenceMaxOf } from './referenceMax'
 import type { ReferenceMax } from './referenceMax'
 
@@ -100,16 +101,17 @@ function copyOfReferences(found: References): References {
 /**
  * The maxima of the digests: the sports' own, what each rests on, and the references the cross-sport rule makes of
  * them. All are taken over the same trailing window, which ends at the newest heart rate among the digests. They read
- * only the digests, so a change of body mass or settings takes the answer kept for the same activities, as does each
- * step of the set-aside iteration that has been taken before.
+ * only the digests and the zone their days are cut in, so a change of body mass or settings takes the answer kept for the
+ * same activities, as does each step of the set-aside iteration that has been taken before.
  */
 const memoReferences = memoByDigests(
-  (digests: ActivityDigest[], _input: null) => computeReferences(digests),
-  () => true,
+  (digests: ActivityDigest[], _zone: string) => computeReferences(digests),
+  (a, b) => a === b,
   copyOfReferences,
   REFERENCES_KEPT,
 )
-const referencesOf = (digests: ActivityDigest[]): References => memoReferences(digests, null)
+const referencesOf = (digests: ActivityDigest[]): References =>
+  memoReferences(digests, localZoneKey())
 
 /**
  * Sets aside the heart rate of activities whose best efforts show readings a working sensor would

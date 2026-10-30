@@ -97,6 +97,13 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * field that reads the activities moved with it (`trend`, `effortTrends`, `sameHeartRate`, `fitness`, `records`, `library` and the rest);
  * `period` did not.
  *
+ * Re-pinned for the zone of the maxima (D1, after the merge with main). The reference maxima group heart rates by local day and
+ * were kept per activity list whatever the zone, so a zone taken after another read that one's days: the pins of the
+ * 400-activity library under Los Angeles and Auckland had been taken with the UTC dated state's maxima, and in a shuffled order
+ * (or any order but the declared one) the pins failed. They are kept per zone now, and the state does not depend on the order.
+ * Moved, in those two settings only and under every period: `heartRateJudgement` and `zoneEstimates` (the maxima and what the
+ * threshold timeline's windows are judged by). The fixed and dated UTC states, and every other field, are as they were.
+ *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one
  * body mass in UTC, then three dated masses (each ride priced at its own weight) in UTC, in Los Angeles
  * and in Auckland. The masses change inside the library's span, and both zones change clocks inside it,
@@ -256,9 +263,9 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/effortTrends': '6f79278cc35bd233',
     '"default"/sameHeartRate': '22df1c594490347d',
     '"default"/lateEvidence': '366eecf73fe2bfba',
-    '"default"/heartRateJudgement': '39077c8a2b35b824',
+    '"default"/heartRateJudgement': 'f3e2e84505e1ce05',
     '"default"/fitness': '664f7967ba66876f',
-    '"default"/zoneEstimates': '0a3ad93d0a53eb5d',
+    '"default"/zoneEstimates': '5b5be0cc1f06bcbe',
     '"default"/timeInZones': '54c30cf4c9ba2cd0',
     '"default"/previous': '08f65c180a0c3b6c',
     '"default"/change': '29817778adf0bc89',
@@ -270,9 +277,9 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/effortTrends': '0d7c9dc4ee13f5bc',
     '"all"/sameHeartRate': '104aae874dcc0f73',
     '"all"/lateEvidence': '1f7591427943c04f',
-    '"all"/heartRateJudgement': '39077c8a2b35b824',
+    '"all"/heartRateJudgement': 'f3e2e84505e1ce05',
     '"all"/fitness': '664f7967ba66876f',
-    '"all"/zoneEstimates': '0a3ad93d0a53eb5d',
+    '"all"/zoneEstimates': '5b5be0cc1f06bcbe',
     '"all"/timeInZones': '0a96b61cd3761a12',
     '"all"/previous': '74234e98afe7498f',
     '"all"/change': '74234e98afe7498f',
@@ -284,9 +291,9 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/effortTrends': 'f3f678396ae6f43d',
     '42/sameHeartRate': 'a4da967ad8eb0e1c',
     '42/lateEvidence': '1c60ca68e4e9ef59',
-    '42/heartRateJudgement': '39077c8a2b35b824',
+    '42/heartRateJudgement': 'f3e2e84505e1ce05',
     '42/fitness': '664f7967ba66876f',
-    '42/zoneEstimates': '0a3ad93d0a53eb5d',
+    '42/zoneEstimates': '5b5be0cc1f06bcbe',
     '42/timeInZones': '2df256f9939609a7',
     '42/previous': 'ae116e6f0a9ac5b1',
     '42/change': '565eb9f4ac4e8c2e',
@@ -298,9 +305,9 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': '818f214dc83d57ff',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': 'cc847208ae91fbcb',
     '{"from":"2021-03-10","to":"2021-03-20"}/lateEvidence': '46f255705fa1ddf9',
-    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '39077c8a2b35b824',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': 'f3e2e84505e1ce05',
     '{"from":"2021-03-10","to":"2021-03-20"}/fitness': '664f7967ba66876f',
-    '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '0a3ad93d0a53eb5d',
+    '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '5b5be0cc1f06bcbe',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': 'd31af9c49d1601f0',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '3c34eaf0926b3798',
     '{"from":"2021-03-10","to":"2021-03-20"}/change': 'fd8f615867f617d7',
@@ -314,9 +321,9 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/effortTrends': '49bbfe8a9b36d2bb',
     '"default"/sameHeartRate': 'edff06eb1e7cec4d',
     '"default"/lateEvidence': '366eecf73fe2bfba',
-    '"default"/heartRateJudgement': '8a76e9fea6d65418',
+    '"default"/heartRateJudgement': '87e836221b11ae92',
     '"default"/fitness': '664f7967ba66876f',
-    '"default"/zoneEstimates': '0a3ad93d0a53eb5d',
+    '"default"/zoneEstimates': '5b5be0cc1f06bcbe',
     '"default"/timeInZones': '54c30cf4c9ba2cd0',
     '"default"/previous': '08f65c180a0c3b6c',
     '"default"/change': '29817778adf0bc89',
@@ -328,9 +335,9 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/effortTrends': '627e4d57d7c12a7c',
     '"all"/sameHeartRate': '104aae874dcc0f73',
     '"all"/lateEvidence': '1f7591427943c04f',
-    '"all"/heartRateJudgement': '8a76e9fea6d65418',
+    '"all"/heartRateJudgement': '87e836221b11ae92',
     '"all"/fitness': '664f7967ba66876f',
-    '"all"/zoneEstimates': '0a3ad93d0a53eb5d',
+    '"all"/zoneEstimates': '5b5be0cc1f06bcbe',
     '"all"/timeInZones': '71011fbcc6ed1cea',
     '"all"/previous': '74234e98afe7498f',
     '"all"/change': '74234e98afe7498f',
@@ -342,9 +349,9 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/effortTrends': 'c260e577386370ea',
     '42/sameHeartRate': '14bdbf1215b15474',
     '42/lateEvidence': '1c60ca68e4e9ef59',
-    '42/heartRateJudgement': '8a76e9fea6d65418',
+    '42/heartRateJudgement': '87e836221b11ae92',
     '42/fitness': '664f7967ba66876f',
-    '42/zoneEstimates': '0a3ad93d0a53eb5d',
+    '42/zoneEstimates': '5b5be0cc1f06bcbe',
     '42/timeInZones': '2df256f9939609a7',
     '42/previous': 'ae116e6f0a9ac5b1',
     '42/change': '565eb9f4ac4e8c2e',
@@ -356,9 +363,9 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': '818f214dc83d57ff',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': 'cc847208ae91fbcb',
     '{"from":"2021-03-10","to":"2021-03-20"}/lateEvidence': 'eb9091f7e5f3948b',
-    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '8a76e9fea6d65418',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '87e836221b11ae92',
     '{"from":"2021-03-10","to":"2021-03-20"}/fitness': '664f7967ba66876f',
-    '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '0a3ad93d0a53eb5d',
+    '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '5b5be0cc1f06bcbe',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '9ca2885d5b8c4d13',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '3c34eaf0926b3798',
     '{"from":"2021-03-10","to":"2021-03-20"}/change': 'd83b2325078adca5',
@@ -684,6 +691,17 @@ describe('session state', () => {
     expect(state.fitness.run.state).toBe('holding')
     expect(state.fitness.run.steady).toBeGreaterThanOrEqual(40)
     expect(state.library).toHaveLength(400)
+  })
+
+  it('gives the same state in a zone whichever zone the process worked in before', async () => {
+    // The maxima group heart rates by local day and are kept per activity list: they must be kept per zone too, or a
+    // zone taken after another reads that one's days, and the pins hold only in the order the tests run.
+    const own = copiedLibrary(400, { hard: true })
+    await inZone('America/Los_Angeles', () => stateHashes(own, ['all'], DATED))
+    const hashes = await inZone('UTC', () => stateHashes(own, ['all'], DATED))
+    for (const field of ['heartRateJudgement', 'zoneEstimates'] as const) {
+      expect(hashes[`"all"/${field}`]).toBe(PINNED['dated in UTC']![`"all"/${field}`])
+    }
   })
 
   it('prices rides at all three dated masses, which change inside the library', () => {
