@@ -97,12 +97,15 @@ the backup was taken, so take the current ones from the live database. Do this b
 
 ```bash
 npm exec -w @rca/api -- wrangler d1 execute rca --remote --json \
-  --command "SELECT user_id, deleted_at FROM account_tombstones ORDER BY deleted_at" > "$WORK/tombstones.json"
+  --command "SELECT user_id, deleted_at FROM account_tombstones UNION SELECT id, deleting_at FROM users WHERE deleting_at IS NOT NULL UNION SELECT user_id, requested_at FROM pending_account_deletions ORDER BY 2" > "$WORK/tombstones.json"
 node scripts/ops/reconcile-restore.mjs "$WORK/tombstones.json" "$WORK/reconcile.sql"
 npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote --file "$WORK/reconcile.sql"
 ```
 
-The script validates every id and time before writing SQL. The SQL inserts the tombstones into the
+The query also takes the accounts whose deletion was requested but not finished (`users.deleting_at`
+and `pending_account_deletions`). A rewind erases both markers, and such an account has no tombstone
+yet, so without them it would come back alive. The script validates every id and time before writing
+SQL, and one invalid row stops the whole run on purpose: fix or remove it in the export and run again. The SQL inserts the tombstones into the
 restored database, finishes the deletion of accounts the backup shows as mid-deletion, deletes every
 account that has a tombstone (the delete cascades to its rows), and deletes all sessions. It can be
 run again safely. The restored database needs migration `0011` (the tombstone table) first; step 4
@@ -264,12 +267,12 @@ ledger forward.
    above the rollback floor in `docs/RELEASES.md`) so people are not writing while you rewind.
    Anything written after the chosen time is lost.
 
-3. **Save what a rewind would erase, before it runs.** Export the tombstones, and the live R2
+3. **Save what a rewind would erase, before it runs.** Export the tombstones and the deletions still in flight (the same query as in Part A step 5), and the live R2
    ledger row, into a private directory (`umask 077`):
 
    ```bash
    npm exec -w @rca/api -- wrangler d1 execute rca --remote --json \
-     --command "SELECT user_id, deleted_at FROM account_tombstones ORDER BY deleted_at" > "$WORK/tombstones.json"
+     --command "SELECT user_id, deleted_at FROM account_tombstones UNION SELECT id, deleting_at FROM users WHERE deleting_at IS NOT NULL UNION SELECT user_id, requested_at FROM pending_account_deletions ORDER BY 2" > "$WORK/tombstones.json"
    npm exec -w @rca/api -- wrangler d1 execute rca --remote --json \
      --command "SELECT * FROM r2_storage_budget" > "$WORK/r2-budget-live.json"
    ```
@@ -300,3 +303,7 @@ ledger forward.
 Rehearse this on a scratch database created for the purpose (`wrangler d1 create rca-scratch`),
 with synthetic rows only, so the first real use is not the first run. Record the drill the same way
 as in Part A.
+
+The refusal to deploy while a migration is pending belongs to `npm run deploy` and
+`npm run deploy:built`. A bare `wrangler deploy` and `npm run deploy:bootstrap` do not check, so after a
+rewind that crosses migration `0011` never use them; apply the migrations first.
