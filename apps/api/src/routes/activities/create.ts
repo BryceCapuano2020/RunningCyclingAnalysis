@@ -4,7 +4,6 @@ import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import {
   ActivityCreateSchema,
-  DATABASE_SOFT_LIMIT_BYTES,
   MAX_ACTIVITIES_PER_USER,
   MAX_DIGEST_BYTES_PER_USER,
   MAX_DIGEST_BYTES,
@@ -25,6 +24,7 @@ import {
   toRecordHolding,
   type ActivityRow,
 } from './shared.ts'
+import { databaseSoftLimitBytes } from '../../databaseGuard.ts'
 import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
@@ -89,7 +89,12 @@ async function findExisting(
 }
 
 /** Moves the digest counter in one guarded write; a refusal is explained from the account. */
-async function reserveDigestDelta(db: D1Database, userId: string, delta: number): Promise<void> {
+async function reserveDigestDelta(
+  db: D1Database,
+  userId: string,
+  delta: number,
+  databaseLimit: number,
+): Promise<void> {
   // A shrinking digest is always admitted, even by an account already above the cap, and so is one
   // that does not grow while the database is over its soft limit.
   const reserved = await db
@@ -99,12 +104,12 @@ async function reserveDigestDelta(db: D1Database, userId: string, delta: number)
          AND (?1 <= 0 OR coalesce((SELECT d1_size_bytes FROM r2_storage_budget WHERE id = 1), 0) <= ?4)
        RETURNING id`,
     )
-    .bind(delta, userId, MAX_DIGEST_BYTES_PER_USER, DATABASE_SOFT_LIMIT_BYTES)
+    .bind(delta, userId, MAX_DIGEST_BYTES_PER_USER, databaseLimit)
     .first()
   if (reserved) return
   const state = await accountState(db, userId)
   if (state.deletingAt !== null) throw accountDeleting()
-  if (delta > 0 && state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) {
+  if (delta > 0 && state.databaseBytes > databaseLimit) {
     throw databaseFull()
   }
   throw digestQuota()
@@ -143,7 +148,7 @@ async function upgradeDigest(
     .get()
   if (!stored || stored.revision >= next.modelRevision) return null
   const delta = digestByteLength(next.digestJson) - digestByteLength(existing.digestJson)
-  await reserveDigestDelta(c.env.DB, userId, delta)
+  await reserveDigestDelta(c.env.DB, userId, delta, databaseSoftLimitBytes(c.env))
   // The reservation is undone unless the digest was replaced, including when the update itself fails.
   let replaced = false
   try {
@@ -268,7 +273,7 @@ async function insertActivity(
       userId,
       digestBytes,
       MAX_DIGEST_BYTES_PER_USER,
-      DATABASE_SOFT_LIMIT_BYTES,
+      databaseSoftLimitBytes(c.env),
       userId,
     ),
     c.env.DB.prepare(
@@ -288,7 +293,11 @@ async function insertNew(
   const { db, deps } = c.var
   // What the account cannot hold is refused before a daily unit is taken, so a refused create
   // writes nothing. The insert holds the same limits, for requests that race this check.
-  const refusal = createRefusal(await accountState(c.env.DB, userId), input.digestBytes)
+  const refusal = createRefusal(
+    await accountState(c.env.DB, userId),
+    input.digestBytes,
+    databaseSoftLimitBytes(c.env),
+  )
   if (refusal) throw refusal
   // Only a request that will insert a new row takes a daily create unit.
   const charge = await chargeDaily(c.env.DB, userId, 'activityCreate', deps.now())
@@ -305,7 +314,13 @@ async function insertNew(
   const existing = await findExisting(db, userId, input.dedupeKey)
   if (existing) return upgradeExisting(c, userId, existing, input)
   // Another request filled the account after the check above.
-  throw createRefusal(await accountState(c.env.DB, userId), input.digestBytes) ?? activityQuota()
+  throw (
+    createRefusal(
+      await accountState(c.env.DB, userId),
+      input.digestBytes,
+      databaseSoftLimitBytes(c.env),
+    ) ?? activityQuota()
+  )
 }
 
 export const createRoutes = new Hono<AppEnv>()

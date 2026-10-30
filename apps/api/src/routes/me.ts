@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, or, sql } from 'drizzle-orm'
 import { ProfileInputSchema, unitsForAcceptLanguage } from '@rca/contract'
 import type { AppEnv } from '../env.ts'
 import { buildMe, ensureProfile, toProfile } from '../auth/accounts.ts'
@@ -15,6 +15,18 @@ import { must } from '../util.ts'
 import { activities, profiles } from '../db/schema.ts'
 
 const PROFILE_BODY_BYTES = 4 * 1024
+
+/**
+ * Rows that record a stored file, a size or an upload reservation. Clearing only these writes a
+ * few rows when a library of thousands has a few originals, instead of rewriting every row.
+ */
+function hasFileState() {
+  return or(
+    isNotNull(activities.fileKey),
+    isNotNull(activities.fileSize),
+    isNotNull(activities.fileReservationToken),
+  )
+}
 
 export const meRoutes = new Hono<AppEnv>()
 
@@ -71,7 +83,7 @@ meRoutes.put(
       await db
         .update(activities)
         .set({ fileKey: null, fileSize: null, fileReservationToken: null })
-        .where(eq(activities.userId, userId))
+        .where(and(eq(activities.userId, userId), hasFileState()))
     }
     // Optional fields that were left out are not in `values`, so an upsert keeps the saved value.
     const values = { ...input, updatedAt }
@@ -90,6 +102,7 @@ meRoutes.put(
         .where(
           and(
             eq(activities.userId, userId),
+            hasFileState(),
             sql`EXISTS (SELECT 1 FROM profiles WHERE user_id = ${userId} AND keep_files = 0)`,
           ),
         )
