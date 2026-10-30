@@ -89,9 +89,10 @@ export default defineConfig({
     // See packages/core/vitest.config.ts: a guard against a hang, not a budget.
     testTimeout: 15_000,
     hookTimeout: 30_000,
-    // A test may not leave its stubs, spies or globals to the next: a green run means the same in any order.
+    // A test may not leave its spies or stubbed globals to the next: a green run means the same in any order.
     restoreMocks: true,
     unstubGlobals: true,
-    unstubEnvs: true,
+    // Not unstubEnvs: several files pin TZ once in beforeAll and unstub it in afterAll, and unstubbing after each test
+    // would hand the rest of the file the machine's zone.
   },
 })
