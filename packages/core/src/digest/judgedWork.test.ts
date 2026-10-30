@@ -43,22 +43,27 @@ describe('an analysis that takes the work of the judgement', () => {
     const alone = combine(library, SETTINGS, givenBy(judgement))
     const taking = combine(library, SETTINGS, { ...givenBy(judgement), judged: work })
     expect(taking).toEqual(alone)
-    expect(taking.hr).toBe(work.cross)
-    expect(taking.bikeModel).toBe(work.bikeModel)
-    expect(alone.hr).not.toBe(work.cross)
+    expect(taking.hr).toEqual(work.cross)
+    // What it hands out is its own, so a change to it cannot reach the judgement.
+    expect(taking.hr).not.toBe(work.cross)
+    expect(taking.bikeModel).not.toBe(work.bikeModel)
+    expect(taking.rideMetabolicCurve).not.toBe(work.curves.rideMetabolic)
   })
 
-  it('is not used for other body masses, other activities, another gate or another set-aside', () => {
+  it('gives what a fresh analysis gives for other body masses, activities, gates and set-asides', () => {
     const given = givenBy(judgement)
     const heavier = { ...SETTINGS, massKg: SETTINGS.massKg + 5 }
-    expect(combine(library, heavier, { ...given, judged: work }).hr).not.toBe(work.cross)
-    expect(combine(library.slice(1), SETTINGS, { ...given, judged: work }).hr).not.toBe(work.cross)
-    expect(combine(library, SETTINGS, { ...given, rideGate: null, judged: work }).hr).not.toBe(
-      work.cross,
-    )
-    expect(
-      combine(library, SETTINGS, { ...given, heartRateSetAside: new Set(), judged: work }).hr,
-    ).not.toBe(work.cross)
-    expect(combine(library, SETTINGS, { judged: work }).hr).not.toBe(work.cross)
+    const cases: [ActivityDigest[], typeof SETTINGS, CombineOptions][] = [
+      [library, heavier, given],
+      [library.slice(1), SETTINGS, given],
+      [library, SETTINGS, { ...given, rideGate: null }],
+      [library, SETTINGS, { ...given, heartRateSetAside: new Set() }],
+      [library, SETTINGS, {}],
+    ]
+    for (const [digests, settings, options] of cases) {
+      expect(combine(digests, settings, { ...options, judged: work })).toEqual(
+        combine(digests, settings, options),
+      )
+    }
   })
 })

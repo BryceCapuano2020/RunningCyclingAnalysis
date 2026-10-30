@@ -66,6 +66,7 @@ interface Best {
 
 /** One activity's best effort at or above the trend duration, with its sport and start. */
 interface Reading {
+  id: string
   startMs: number
   sport: Sport
   best: Best
@@ -116,7 +117,8 @@ function readingsOf(digests: ActivityDigest[], best: (digest: ActivityDigest) =>
   for (const digest of digests) {
     if (!effortsCount(digest)) continue
     const found = best(digest)
-    if (found !== null) readings.push({ startMs: digest.startMs, sport: digest.sport, best: found })
+    if (found !== null)
+      readings.push({ id: digest.id, startMs: digest.startMs, sport: digest.sport, best: found })
   }
   return readings
 }
@@ -130,13 +132,14 @@ const runReadings = memoByDigests(
   EFFORT_LENGTHS_S.length,
 )
 
-/** Two lists of readings, each in order of start, as one. */
+/** Two lists of readings, each in order of start and then id, as one. */
 function mergedByStart(a: Reading[], b: Reading[]): Reading[] {
   const merged: Reading[] = []
   let i = 0
   let j = 0
-  while (i < a.length && j < b.length)
-    merged.push(a[i]!.startMs <= b[j]!.startMs ? a[i++]! : b[j++]!)
+  const before = (x: Reading, y: Reading) =>
+    x.startMs < y.startMs || (x.startMs === y.startMs && x.id < y.id)
+  while (i < a.length && j < b.length) merged.push(before(a[i]!, b[j]!) ? a[i++]! : b[j++]!)
   while (i < a.length) merged.push(a[i++]!)
   while (j < b.length) merged.push(b[j++]!)
   return merged

@@ -235,7 +235,7 @@ export function combine(
   const fittedBike =
     judged === null
       ? fitBikeModelOver(ordered, masses)
-      : { model: judged.bikeModel, source: judged.bikeModelSource }
+      : { model: { ...judged.bikeModel }, source: judged.bikeModelSource }
   const bikeModel = fittedBike.model
   const virtualAccuracy =
     calibrated.length > 0
@@ -252,7 +252,9 @@ export function combine(
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
   const rideMeasuredCurve = plainCurve(measuredRideBest(ordered))
-  const rideMetabolicCurve = rideMetabolic
+  // What the judgement worked out is shared, so what the result hands out is a copy.
+  const rideMetabolicCurve =
+    judged === null ? rideMetabolic : rideMetabolic.map((point) => Object.assign({}, point))
 
   const runFit = fits.run
   const rideFit = fits.ride
@@ -270,7 +272,7 @@ export function combine(
   const runCpUneven = unevenFit(runCurve, wPrimeFloor('run', massKg), runCp)
   const rideCpUneven = unevenFit(rideMetabolicCurve, wPrimeFloor('ride', massKg), rideCp)
   const hr =
-    judged?.cross ??
+    (judged === null ? null : structuredClone(judged.cross)) ??
     heartRateCrossCheck(heart.trusted, masses, bikeModel, { run: runFit, ride: rideFit })
   // The calibration is the athlete's, not the period's: given, it replaces this period's own check below.
   const calibration = opts.calibration === undefined ? hr : opts.calibration
