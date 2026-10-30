@@ -2,6 +2,10 @@ import { DIGEST_VERSION, parseDigest, serializeDigest } from '@rca/core/digest'
 import { parseRouteShape } from '@rca/core/route/routeShape'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest } from '@rca/core/types'
+import { deviceFileOf } from './deviceFile'
+import type { DeviceFile } from './deviceFile'
+
+export type { DeviceFile }
 
 /**
  * Activity digests kept in this browser for a signed-out visitor, so a reload keeps their results.
@@ -37,8 +41,22 @@ export interface DeviceLibrary {
   lookup(workoutKey: string): Promise<ActivityDigest | 'newer' | 'unreadable' | null>
   /** The route shape kept with the digest, or null when none was kept or it does not read. */
   route(workoutKey: string): Promise<RouteShape | null>
-  /** Keeps a digest with its route, which goes with it. A replacement without a route keeps none. */
-  put(workoutKey: string, digest: ActivityDigest, route?: RouteShape | null): Promise<void>
+  /**
+   * Keeps a digest with its route, which goes with it, and with the name and hash of the file it was made
+   * from when they are given, so the workout can be added to an account later (the server needs the hash).
+   * A replacement without a route keeps none, and one without a file keeps none.
+   */
+  put(
+    workoutKey: string,
+    digest: ActivityDigest,
+    route?: RouteShape | null,
+    file?: DeviceFile | null,
+  ): Promise<void>
+  /**
+   * Gives a row that has no file hash the name and hash of the file its digest was made from, keeping its
+   * digest and route as they are. A row that already has one, and a workout kept nowhere, are left alone.
+   */
+  backfillFile(workoutKey: string, file: DeviceFile): Promise<void>
   remove(workoutKey: string): Promise<void>
   clear(): Promise<void>
 }
@@ -46,6 +64,8 @@ export interface DeviceLibrary {
 export interface DeviceEntry {
   workoutKey: string
   digest: ActivityDigest
+  /** The file the digest was made from, absent for a row kept before files were recorded. */
+  file?: DeviceFile
 }
 
 const DB_NAME = 'rca-device-library'
@@ -169,23 +189,33 @@ function fromNewerVersion(value: unknown): boolean {
 }
 
 /**
- * A stored row: the digest and the route kept with it. A row written before routes were kept holds
- * the digest alone, and reads with no route.
+ * A stored row: the digest, the route kept with it, and the file it was made from. A row written before
+ * routes were kept holds the digest alone, and one written before files were recorded has no file; both
+ * still read.
  */
 interface Row {
   digest: ActivityDigest
   route: RouteShape | null
+  file: DeviceFile | null
+}
+
+function readFile(value: object): DeviceFile | null {
+  const name = 'fileName' in value ? value.fileName : undefined
+  const hash = 'fileHash' in value ? value.fileHash : undefined
+  return typeof name === 'string' && typeof hash === 'string'
+    ? deviceFileOf({ fileName: name, fileHash: hash })
+    : null
 }
 
 function readRow(value: unknown): Row | null {
   if (typeof value === 'string') {
     const digest = readDigest(value)
-    return digest === null ? null : { digest, route: null }
+    return digest === null ? null : { digest, route: null, file: null }
   }
   if (typeof value !== 'object' || value === null || !('digest' in value)) return null
   const digest = readDigest(value.digest)
   const route = 'route' in value ? parseRouteShape(value.route) : null
-  return digest === null ? null : { digest, route }
+  return digest === null ? null : { digest, route, file: readFile(value) }
 }
 
 /**
@@ -270,7 +300,15 @@ export function openDeviceLibrary(): DeviceLibrary {
     )
     lastSkipped = rows.filter(({ row }) => row === null).length
     return rows.flatMap(({ key, row }) =>
-      typeof key === 'string' && row !== null ? [{ workoutKey: key, digest: row.digest }] : [],
+      typeof key === 'string' && row !== null
+        ? [
+            {
+              workoutKey: key,
+              digest: row.digest,
+              ...(row.file === null ? {} : { file: row.file }),
+            },
+          ]
+        : [],
     )
   }
 
@@ -293,8 +331,28 @@ export function openDeviceLibrary(): DeviceLibrary {
         true,
       ),
     route: async (workoutKey) => (await readOne(workoutKey))?.route ?? null,
-    put: (workoutKey, digest, route = null) =>
-      write((store) => store.put({ digest: serializeDigest(digest), route }, workoutKey)),
+    put: (workoutKey, digest, route = null, file = null) =>
+      write((store) =>
+        store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey),
+      ),
+    backfillFile: (workoutKey, file) =>
+      withStore(
+        'readwrite',
+        async (store) => {
+          const stored: unknown = await done(store.get(workoutKey))
+          if (stored === undefined || stored === null) return
+          if (typeof stored === 'string') {
+            store.put({ digest: stored, route: null, ...file }, workoutKey)
+          } else if (
+            typeof stored === 'object' &&
+            'digest' in stored &&
+            readFile(stored) === null
+          ) {
+            store.put({ ...stored, ...file }, workoutKey)
+          }
+        },
+        undefined,
+      ),
     remove: (workoutKey) => write((store) => store.delete(workoutKey)),
     clear: () => write((store) => store.clear()),
   }

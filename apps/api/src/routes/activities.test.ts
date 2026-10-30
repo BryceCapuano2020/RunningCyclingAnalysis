@@ -14,7 +14,7 @@ import {
 import { activityFileKey } from '../storage.ts'
 import { createHarness, digestFixture, START, testEnv, type Harness } from '../test/harness.ts'
 import { sha256Hex, toBase64Url } from '../util.ts'
-import { dedupeKeyFor } from './activities/shared.ts'
+import { workoutKey } from '@rca/core/duplicates'
 
 const CONTENT = new TextEncoder().encode('0123 fake FIT bytes')
 const HASH_OF_CONTENT = await sha256Hex(CONTENT)
@@ -1457,9 +1457,9 @@ function storedDigestBytes(name: string): number {
 
 describe('boundary pins', () => {
   it('derives the dedupe key by rounding to the nearest second, half up', () => {
-    expect(dedupeKeyFor('ride', 1_499)).toBe('ride-1')
-    expect(dedupeKeyFor('ride', 1_500)).toBe('ride-2')
-    expect(dedupeKeyFor('run', 2_499)).toBe('run-2')
+    expect(workoutKey('ride', 1_499)).toBe('ride-1')
+    expect(workoutKey('ride', 1_500)).toBe('ride-2')
+    expect(workoutKey('run', 2_499)).toBe('run-2')
   })
 
   it('accepts a digest of exactly 256 KB and refuses one byte more', async () => {

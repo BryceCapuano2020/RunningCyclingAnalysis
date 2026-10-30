@@ -1,8 +1,9 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import { copyOfDigest, dedupeKey, outranks } from '@rca/core/duplicates'
+import { copyOfDigest, outranks, workoutKey as storedKey } from '@rca/core/duplicates'
 import type { AnalysisSession, SessionState, SyncItem } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
+import { deviceFileOf } from './deviceFile'
 import type { DeviceEntry, DeviceLibrary } from './deviceLibrary'
 import type { SavedActivity, WorkerResponse } from './protocol'
 import { savedActivityOf } from './savedActivity'
@@ -60,7 +61,7 @@ export interface DeviceActions {
 export type DeviceSave = 'kept' | 'refused' | 'newer'
 
 export function workoutKeyOf(digest: Pick<ActivityDigest, 'sport' | 'startMs'>): string {
-  return dedupeKey(digest.sport, digest.startMs)
+  return storedKey(digest.sport, digest.startMs)
 }
 
 /**
@@ -125,15 +126,25 @@ export function deviceActions(
     replaced() {
       held = false
     },
-    async save({ digest, route }) {
+    async save({ digest, route, fileName, fileHash }) {
       try {
         const key = workoutKeyOf(digest)
+        const file = deviceFileOf({ fileName, fileHash })
         const kept = await device.lookup(key)
         // A row a newer version wrote is left as it is: writing over it would destroy what that
         // version made. One that is damaged or from an older format is written over, so it heals.
         if (kept === 'newer') return 'newer'
-        if (replaces(digest, kept === 'unreadable' ? null : kept))
-          await device.put(key, digest, route)
+        if (replaces(digest, kept === 'unreadable' ? null : kept)) {
+          await device.put(key, digest, route, file)
+        } else if (
+          file !== null &&
+          kept !== null &&
+          kept !== 'unreadable' &&
+          kept.id === digest.id
+        ) {
+          // The same file again: a row kept before files were recorded gets its hash now.
+          await device.backfillFile(key, file)
+        }
         return 'kept'
       } catch {
         // Storage can be refused (a private window, a full disk); the results still show.

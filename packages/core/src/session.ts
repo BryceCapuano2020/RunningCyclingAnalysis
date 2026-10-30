@@ -11,7 +11,7 @@ import { seasonDigests } from './sessionSample'
 import type { SampleClock } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { dedupeKey, hiddenDigests } from './duplicates'
+import { workoutKey, hiddenDigests } from './duplicates'
 import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
 import { countIssues } from './saveFailure'
@@ -32,7 +32,7 @@ export type { RejectedFile, SessionState } from './sessionState'
 export type { Period, PeriodChoice } from './period'
 export type { RejectCode, Rejection } from './import/result'
 // The device library keeps one copy per workout by the same rule the analysis uses.
-export { copyOfDigest, dedupeKey, outranks } from './duplicates'
+export { copyOfDigest, workoutKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
 
 export type { SyncItem, SyncSink } from './sessionSync'
@@ -137,7 +137,7 @@ export class AnalysisSession {
 
   /** Removes one saved workout after its owner-scoped server deletion succeeds. */
   removeActivity(sport: Sport, startMs: number, settings: AthleteSettings): SessionState {
-    const key = dedupeKey(sport, startMs)
+    const key = workoutKey(sport, startMs)
     this.digests.delete(key)
     clearUnsynced(this.keeping, key)
     this.outdatedKeys.delete(key)
@@ -147,7 +147,7 @@ export class AnalysisSession {
 
   /** Whether a saved workout is held out of the analysis for being made by an older model. */
   hasOutdated(sport: Sport, startMs: number): boolean {
-    return this.outdatedKeys.has(dedupeKey(sport, startMs))
+    return this.outdatedKeys.has(workoutKey(sport, startMs))
   }
 
   /**
@@ -165,7 +165,7 @@ export class AnalysisSession {
     const outdatedKeys = new Set<string>()
     const incompatibleKeys = new Set<string>()
     for (const digest of digests) {
-      const key = dedupeKey(digest.sport, digest.startMs)
+      const key = workoutKey(digest.sport, digest.startMs)
       if (digest.modelRevision !== MODEL_REVISION) {
         if (digest.modelRevision < MODEL_REVISION) outdatedKeys.add(key)
         else incompatibleKeys.add(key)

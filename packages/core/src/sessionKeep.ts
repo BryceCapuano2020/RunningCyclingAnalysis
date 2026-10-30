@@ -1,5 +1,5 @@
 import { digestActivity } from './digest'
-import { dedupeKey, fileNameOf, heldCopyOf, outranksHeld } from './duplicates'
+import { workoutKey, fileNameOf, heldCopyOf, outranksHeld } from './duplicates'
 import {
   NETWORK_FAILURES_BEFORE_PROBE,
   NETWORK_PROBE_DELAY_MS,
@@ -67,7 +67,7 @@ async function keepActivity(
   batch: SaveBatch,
   listeners?: ActivityListeners,
 ): Promise<Considered> {
-  const key = dedupeKey(activity.sport, activity.startMs)
+  const key = workoutKey(activity.sport, activity.startMs)
   const held = state.digests.get(key)
   const replaces = held !== undefined && outranksHeld(activity, file.fileName, held)
   if (

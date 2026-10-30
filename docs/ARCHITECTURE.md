@@ -4,7 +4,8 @@ RunningCyclingAnalysis is browser-first with an optional account. The browser pa
 and runs the analysis. When a user signs in, the API stores per-activity digests in D1 and optional
 original activity files (FIT, GPX or TCX) in R2. Without an account, the browser keeps the same
 per-activity digests in its own IndexedDB storage (database `rca-device-library`), so a reload keeps
-the results; nothing from them reaches the server. One Cloudflare Worker serves both the built web app
+the results, each with the name and SHA-256 of the file it came from (so a later sign-in can add it to
+the account; rows kept before this have none); nothing from them reaches the server. One Cloudflare Worker serves both the built web app
 and the API.
 
 This page describes the source on `main`. For what is deployed and when it was released, see the

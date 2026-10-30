@@ -1552,6 +1552,7 @@ function refusingLibrary(): DeviceLibrary {
     lookup: async () => null,
     route: async () => null,
     put: refused,
+    backfillFile: refused,
     remove: refused,
     clear: refused,
   }
@@ -2153,7 +2154,12 @@ describe('keeping what was analysed while the account was unknown', () => {
     const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
 
     expect(await keptDevice().all()).toEqual([
-      { workoutKey: workoutKeyOf(digest), digest: expect.objectContaining({ id: digest.id }) },
+      {
+        workoutKey: workoutKeyOf(digest),
+        digest: expect.objectContaining({ id: digest.id }),
+        // Kept with the file it came from, so the workout can be added to an account later.
+        file: { fileName: expect.any(String), fileHash: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      },
     ])
     expect(messages).toContainEqual({
       type: 'libraryActivities',

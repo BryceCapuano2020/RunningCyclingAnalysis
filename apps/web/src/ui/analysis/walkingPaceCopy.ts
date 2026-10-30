@@ -1,5 +1,5 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { dedupeKey } from '@rca/core/session'
+import { workoutKey } from '@rca/core/session'
 import type { Sport } from '@rca/core/types'
 import { plural } from '../components/plural'
 import type { Route } from '../route'
@@ -72,7 +72,7 @@ export function countRunsLabel(count: number): string {
 
 /** The workout key a choice to count a run is kept under: the same for every copy of the workout. */
 export function workoutKeyOf(activity: Pick<ActivitySummary, 'sport' | 'startMs'>): string {
-  return dedupeKey(activity.sport, activity.startMs)
+  return workoutKey(activity.sport, activity.startMs)
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { dedupeKey } from './duplicates'
+import { workoutKey } from './duplicates'
 import { digestActivity } from './digest/digestActivity'
 import { AnalysisSession } from './session'
 import { sampleDataset } from './synthetic'
@@ -18,7 +18,7 @@ hike.digest = { ...source, id: 'hike', walkingPace: true }
 
 describe('counting a run at walking pace, in the sample', () => {
   it('does not apply: the sample is its own athlete and ignores the visitor’s choices', () => {
-    const key = dedupeKey('run', source.startMs)
+    const key = workoutKey('run', source.startMs)
     const state = new AnalysisSession().loadSample({
       massKg: athlete.massKg,
       bikeMassKg: athlete.bikeMassKg,
