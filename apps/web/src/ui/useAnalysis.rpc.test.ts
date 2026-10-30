@@ -15,6 +15,11 @@ import { EMPTY_PERIOD } from './analysis/model'
 import { WATCHDOG_MS } from './analysis/workerWatchdog'
 import { useAnalysis } from './useAnalysis'
 
+vi.mock(
+  './analysis/workerStart',
+  async () => (await import('../test/workerStartsAtOnce')).workerStart,
+)
+
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const SIGNED_OUT = { status: 'signed-out' as const, me: null }
 const FILE = new File(['x'], 'run.fit')

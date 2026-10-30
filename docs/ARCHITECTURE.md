@@ -439,9 +439,28 @@ Analysis limits, meaning what the statistics can and cannot show, are in the
 
 ## Client bundle
 
-The app has three main build outputs: the app entry, the analysis Web Worker (which runs `@rca/core`), and the stylesheet. Their sizes change with each build, so read them from the output of `npm run build -w @rca/web` rather than from this page.
+The app has three kinds of build output: the initial load (the app entry, the chunks it preloads and
+the stylesheets), the analysis Web Worker (which runs `@rca/core`), and the page chunks. Their sizes
+change with each build, so read them from the output of `npm run build -w @rca/web` rather than from
+this page.
 
-The analysis runs in the Web Worker, so the worker bundle is the second download on a first visit.
+The landing and restoring pages are in the initial load. The Balance, Run, Ride, Activities, Activity
+and How sure is this? pages (one `ResultPage` chunk, with the method page shared with the empty case)
+and the Profile page load the first time they are shown, while a page that is not ready shows a plain
+loading line after a short wait (`ui/lazyPages.tsx`). They start loading when files are being read, a
+kept library is restoring or someone is signed in, in parallel with the analysis, so the usual path
+shows no loading line. Focus and scroll move to a page's heading once the page is on screen.
+
+The analysis runs in the Web Worker, which the browser fetches when a request first needs it. A
+browser that kept results starts it with the page, so the restoring page ends as soon as the library
+replies. A first visit leaves it unfetched until someone adds files, loads the sample or signs in. The
+worker is its own bundle, so the app entry and the worker each carry their own copy of zod; the entry
+holds it for the API client, and the page needs the worker only for the analysis.
+
+`npm run check:bundle` (part of `npm run check` and CI) fails when the initial load, the worker or one
+page chunk is over the gzip budgets in `scripts/ops/check-bundle-size.mjs`, which sit about 15% above
+the build they were set from.
+
 The only third-party request the app makes is for a signed-in user's profile picture, from
 `lh3.googleusercontent.com`.
 

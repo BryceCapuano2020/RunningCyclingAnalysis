@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { curvePoint } from './ui/charts/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
@@ -11,7 +11,11 @@ import {
   makeResult,
 } from './ui/components/fixtures'
 import { App } from './App'
+import { preloadAllPages } from './ui/lazyPages'
 import { app, resetAppMocks, setAccount, setSession, showResult } from './test/appMocks'
+
+// The pages load on first use in the app; these tests render one the moment its route is chosen.
+beforeAll(preloadAllPages)
 
 vi.mock('./ui/useAccount', async () => ({
   useAccount: (await import('./test/appMocks')).useAccountMock,

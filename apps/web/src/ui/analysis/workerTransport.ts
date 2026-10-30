@@ -22,6 +22,8 @@ export interface WorkerTransport {
   workerRef: Box<Worker | null>
   workerGenerationRef: Box<number>
   workerGeneration: number
+  /** Whether a worker should exist. It starts false for a first visit and turns true on the first need. */
+  workerWanted: boolean
   stoppedRef: Box<boolean>
   unsentRef: Box<UnsentRequest[]>
   pendingRepliesRef: Box<Pending[]>
@@ -67,6 +69,8 @@ interface TransportDeps {
   /** Runs when a request leaves the pending list without a reply, so the page can recount what is busy. */
   onDropped: () => void
   setError: SetError
+  /** Whether the worker starts with the page rather than on the first request that needs it. */
+  startWorker: () => boolean
 }
 
 /**
@@ -78,15 +82,28 @@ function ignoreProvisional(waiting: readonly Pending[]): void {
   for (const pending of waiting) if (pending.provisional) pending.ignored = true
 }
 
+/**
+ * Whether a request needs a running worker. Settings and a forget of the routes ride along to the next
+ * worker, so neither starts one: a visitor who only changes a weight has not asked for an analysis.
+ */
+function needsWorker(request: WorkerRequest): boolean {
+  return request.type !== 'setSettings' && request.type !== 'forgetRoutes'
+}
+
 export function useWorkerTransport({
   pendingRepliesRef,
   onSend,
   onDropped,
   setError,
+  startWorker,
 }: TransportDeps): WorkerTransport {
   const workerRef = useRef<Worker | null>(null)
   const workerGenerationRef = useRef(0)
   const [workerGeneration, setWorkerGeneration] = useState(0)
+  // The worker is a 350 KB script, so a visit that has nothing to analyse does not fetch it. It starts
+  // with the page when the browser kept results (the hint), and otherwise on the first request that
+  // needs it. A request made before then waits in `unsentRef`, as it does during a restart.
+  const [workerWanted, setWorkerWanted] = useState(startWorker)
   // Set when the worker has stopped for good. Imports are refused, not queued, until a restart.
   const stoppedRef = useRef(false)
   const [workerStopped, setWorkerStopped] = useState(false)
@@ -104,6 +121,7 @@ export function useWorkerTransport({
     workerGenerationRef.current = next
     // A new worker runs nothing that was refused while the old one was stopped.
     stoppedRef.current = false
+    setWorkerWanted(true)
     setWorkerGeneration(next)
   }, [])
 
@@ -147,6 +165,7 @@ export function useWorkerTransport({
           return false
         }
         unsentRef.current.push({ request, entry })
+        if (needsWorker(request)) setWorkerWanted(true)
         return true
       }
       const flags =
@@ -220,6 +239,7 @@ export function useWorkerTransport({
     workerRef,
     workerGenerationRef,
     workerGeneration,
+    workerWanted,
     stoppedRef,
     unsentRef,
     pendingRepliesRef,

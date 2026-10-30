@@ -16,6 +16,7 @@ import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/mo
 import { drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerWatchdog } from './analysis/workerWatchdog'
+import { workerStartsWithPage } from './analysis/workerStart'
 import { useWorkerTransport } from './analysis/workerTransport'
 import { replyOf } from './routeReply'
 import type { RouteReply } from './routeReply'
@@ -128,6 +129,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     onSend,
     onDropped: refreshBusy,
     setError,
+    startWorker: workerStartsWithPage,
   })
   const { dropPendingReplies, dropUnsent, restartWorker, setWorkerStopped } = transport
   const { automaticRestartCountRef, send: sendToWorker } = transport
@@ -137,6 +139,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     accountRef,
     settingsRef,
     send: sendToWorker,
+    workerRunning: () => transport.workerRef.current !== null,
     provisionalImportsRef,
     libraryWaitRef,
   })

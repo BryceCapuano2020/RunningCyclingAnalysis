@@ -16,6 +16,11 @@ import { EMPTY_PERIOD } from './analysis/model'
 import type { AccountStatus } from './useAccount'
 import { DEVICE_GRACE_MS, useAnalysis } from './useAnalysis'
 
+vi.mock(
+  './analysis/workerStart',
+  async () => (await import('../test/workerStartsAtOnce')).workerStart,
+)
+
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
 const ME: Me = {

@@ -92,6 +92,9 @@ jobs:
           npx vitest run $files
       - run: npm run build
         if: needs.changes.outputs.code != 'false'
+      # The gzip size of the initial load, the worker and each page chunk, against scripts/ops/check-bundle-size.mjs.
+      - run: npm run check:bundle
+        if: needs.changes.outputs.code != 'false'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: needs.changes.outputs.code != 'false'
         with:

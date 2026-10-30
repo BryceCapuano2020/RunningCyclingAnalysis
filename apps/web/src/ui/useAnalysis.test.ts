@@ -26,6 +26,11 @@ import { makeActivity, makeResult } from './components/fixtures'
 import { EMPTY_PERIOD } from './analysis/model'
 import { PERIOD_KEY } from './periodPreference'
 
+vi.mock(
+  './analysis/workerStart',
+  async () => (await import('../test/workerStartsAtOnce')).workerStart,
+)
+
 const SAVED_COPY: Copy = {
   id: 'saved-copy',
   rank: 3,
