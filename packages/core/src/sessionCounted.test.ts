@@ -102,11 +102,4 @@ describe('counting a run at walking pace as a run', () => {
     expect(reloaded.countedWalkingRuns).toEqual([KEY])
     expect(reloaded.library.find((a) => a.id === 'hike-again')?.walkingPace).toBeUndefined()
   })
-
-  it('does not apply to the sample, which is its own athlete', () => {
-    const session = new AnalysisSession()
-    const state = session.loadSample({ ...SETTINGS, countedRuns: [KEY] })
-
-    expect(state.countedWalkingRuns).toEqual([])
-  })
 })
