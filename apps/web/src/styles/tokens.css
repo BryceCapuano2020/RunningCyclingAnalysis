@@ -70,6 +70,7 @@
 
   --radius: 12px;
   --radius-sm: 6px;
+  --radius-pill: 999px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -77,6 +78,13 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-7: 48px;
+  /* Layout: one shell for the header, the tabs and every page, so nothing jumps between pages, and the
+     reading width for prose (about 66 characters in Barlow; charts and answer panels use the shell). */
+  --page-width: 75rem;
+  --measure: 28.5rem;
+  /* The only two gaps between a page's parts: between sections, and between the items of a stack. */
+  --section-gap: var(--space-7);
+  --stack-gap: var(--space-5);
   /* A control is 40 px; a phone or a finger gets the 44 px touch target, set below. */
   --control-height: 40px;
   /* The header is two rows on a wide screen and one row on a phone; the phone tab bar is 48 px. */
@@ -105,7 +113,10 @@
   --column-zones: 22rem;
   --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
-  --shadow: 0 1px 2px #0000000d, 0 4px 16px #0000000a;
+  /* Popovers, menus, dialogs and tooltips only. --shadow is the same value for the cards that still
+     lift (P6 turns them into bands) and the files that wait on other work; it is not for new rules. */
+  --shadow-pop: 0 1px 2px #0000000d, 0 4px 16px #0000000a;
+  --shadow: var(--shadow-pop);
 
   /*
    * Activity channels: one colour for each signal on the activity page's stack, so heart rate, power
@@ -200,7 +211,7 @@
     --status-warning-bg: #33290c;
     --status-critical: #ff8a80;
     --status-critical-bg: #3a1714;
-    --shadow: 0 1px 2px #00000040;
+    --shadow-pop: 0 1px 2px #00000040;
 
     --ch-pace: #3fc27a;
     --ch-power: #f0a030;

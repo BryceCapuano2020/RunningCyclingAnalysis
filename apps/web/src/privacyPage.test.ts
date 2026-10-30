@@ -664,8 +664,8 @@ describe('privacy page layout and copy', () => {
     )
   })
 
-  it('measures prose at 68 characters', () => {
-    expect(ruleBody(privacyCss, 'p,\nli')).toMatch(/max-width:\s*68ch;/)
+  it('measures prose at the app’s reading measure', () => {
+    expect(ruleBody(privacyCss, 'p,\nli')).toMatch(/max-width:\s*var\(--measure\);/)
   })
 
   it('thickens the underline of a link on hover, as the app does', () => {

@@ -819,7 +819,9 @@ describe('sport records, on the card and the page', () => {
     expect(rulesWith(mediaOf(sportPage, '(min-width: 1081px)'), '.sport-row--pair')).toMatch(
       /minmax\(0, 3fr\) minmax\(0, 2fr\)/,
     )
-    expect(rulesWith(sportPage, '.page:has(.sport-page)')).toMatch(/max-width:\s*1200px/)
+    // The width is the shell's, 75rem (1,200 px) on every page, so the sport pages set none of their own.
+    expect(rulesWith(components, '.page')).toMatch(/max-width:\s*var\(--page-width\)/)
+    expect(sportPage).not.toMatch(/max-width:\s*(1080|1200)px/)
   })
 
   it('holds the “On this page” row under the header on a desktop, and lets it scroll sideways on a phone', () => {

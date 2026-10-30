@@ -70,7 +70,7 @@
 
 .fitness-card__new strong {
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--selected);
   color: var(--selected-contrast);
   font-family: var(--font-display);
@@ -188,7 +188,7 @@
 
 .fitness-card__headline {
   margin: 0;
-  max-width: 56ch;
+  max-width: var(--measure);
   color: var(--text-primary);
   font-size: var(--text-lead);
   line-height: 1.35;
@@ -197,7 +197,7 @@
 
 .fitness-card__support {
   margin: 0;
-  max-width: 62ch;
+  max-width: var(--measure);
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
@@ -221,7 +221,7 @@
   flex: 1 1 0;
   max-width: 28px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--level-4);
 }
 
@@ -322,7 +322,7 @@
 
 .fitness-evidence__block p {
   margin: 0;
-  max-width: 62ch;
+  max-width: var(--measure);
   font-size: var(--text-md);
 }
 
