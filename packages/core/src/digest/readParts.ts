@@ -195,11 +195,14 @@ export function readFlagCounts(
       if (rules.tolerant) continue
       fail(path, 'is not a quality kind')
     }
-    if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) {
-      fail(path, 'must be a non-negative integer')
-    }
-    if (count <= MAX_ACTIVITY_S) counts[kind] = count
-    else if (!rules.tolerant) failRange(path, `must be at most ${MAX_ACTIVITY_S}`)
+    if (typeof count !== 'number') fail(path, 'must be a non-negative integer')
+    // A count that is negative, fractional or past the longest activity is that kind having no count.
+    const kept = whenOutOfRange<number | null>(rules.tolerant, null, () => {
+      if (!Number.isInteger(count) || count < 0) failRange(path, 'must be a non-negative integer')
+      if (count > MAX_ACTIVITY_S) failRange(path, `must be at most ${MAX_ACTIVITY_S}`)
+      return count
+    })
+    if (kept !== null) counts[kind] = kept
   }
   return counts
 }

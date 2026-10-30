@@ -21,7 +21,7 @@ import {
   MAX_DISTANCE_BESTS_READ,
   MAX_SPLIT_DISTANCE_M,
 } from './readLimits'
-import { clamped, nullIn, within } from './readParts'
+import { nullIn, within } from './readParts'
 import type { DigestRules } from './readRules'
 
 /** The lists of a run's digest that only runs have: distance bests and splits. */
@@ -99,9 +99,8 @@ export function coveredBests(
 function readSplit(value: unknown, path: string, rules: DigestRules): DigestSplit {
   const o = asObject(value, path)
   const known = (key: string, max: number) => nullIn(rules, o[key], `${path}.${key}`, 0, max)
-  return {
-    // A distance is never unknown in a split, so a tolerant reader clamps one out of bounds.
-    distanceM: whenOutOfRange(rules.tolerant, clamped(o.distanceM, 0, MAX_SPLIT_DISTANCE_M), () =>
+  const split = {
+    distanceM: whenOutOfRange<number | null>(rules.tolerant, null, () =>
       asBetween(o.distanceM, `${path}.distanceM`, 0, MAX_SPLIT_DISTANCE_M),
     ),
     seconds: known('seconds', MAX_ACTIVITY_S),
@@ -109,6 +108,18 @@ function readSplit(value: unknown, path: string, rules: DigestRules): DigestSpli
     elevationGainM: known('elevationGainM', MAX_ACTIVITY_CLIMB_M),
     avgHeartRate: known('avgHeartRate', MAX_DIGEST_HEART_RATE),
   }
+  // A split whose distance cannot be taken has no pace and is not a whole split: it is a split of no
+  // distance with nothing known, which the run's readings and rows leave out.
+  if (split.distanceM === null) {
+    return {
+      distanceM: 0,
+      seconds: null,
+      gradeAdjustedSeconds: null,
+      elevationGainM: null,
+      avgHeartRate: null,
+    }
+  }
+  return { ...split, distanceM: split.distanceM }
 }
 
 /** A run over the limit has no splits in that unit, as the digest makes it, so a tolerant reader reads none. */

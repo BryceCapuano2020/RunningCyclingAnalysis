@@ -3,35 +3,40 @@ import type { AsyncFlateStreamHandler, UnzipDecoder, UnzipDecoderConstructor } f
 import { StoppableInflate } from './stoppableInflate'
 
 /**
- * The compression methods zip files use that this build cannot inflate: shrink, reduce, implode,
- * deflate64, bzip2, LZMA, zstd and the others PKWARE lists, and WinZip's AES wrapper (99, and the
- * ones near it). fflate keeps the compressed input of an entry whose method it has no decoder for, for
- * as long as the entry lasts, so a skipped entry in one of these would be held in memory whole. A
- * decoder that takes the input and discards it lets the entry be started and drained.
+ * Every compression method a zip entry can name is a 16-bit number, and this build reads two of them:
+ * stored (0) and deflate (8). fflate keeps the compressed input of an entry whose method it has no
+ * decoder for, for as long as the entry lasts, so a skipped entry in any other method (shrink, implode,
+ * deflate64, bzip2, LZMA, zstd, WinZip's AES wrapper at 99, or a number nobody has assigned) would be
+ * held in memory whole. A decoder that takes the input and drops it lets the entry be started and
+ * drained. One is registered for each method as an entry names it, so all 65,534 are covered without
+ * keeping a table of them in every unzipper.
  */
-export const UNSUPPORTED_METHODS: readonly number[] = [
-  1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 14, 18, 19, 93, 94, 95, 96, 97, 98, 99,
-]
+const discarding = new Map<number, UnzipDecoderConstructor>()
 
-/** A decoder for one method that reads nothing: it never gives output, so nothing is inflated or kept. */
-function discardingDecoder(method: number): UnzipDecoderConstructor {
-  return class DiscardingDecoder implements UnzipDecoder {
+/** The decoder for one method that reads nothing: it never gives output, so nothing is inflated or kept. */
+export function discardingDecoder(method: number): UnzipDecoderConstructor {
+  const known = discarding.get(method)
+  if (known !== undefined) return known
+  const decoder = class DiscardingDecoder implements UnzipDecoder {
     static compression = method
     ondata: AsyncFlateStreamHandler = () => undefined
     push(): void {
       // The input of an entry that cannot be read is dropped as it arrives.
     }
   }
+  discarding.set(method, decoder)
+  return decoder
 }
 
-/** One decoder for each unsupported method, kept so a test can watch them. */
-export const DISCARDING_DECODERS: ReadonlyMap<number, UnzipDecoderConstructor> = new Map(
-  UNSUPPORTED_METHODS.map((method) => [method, discardingDecoder(method)]),
-)
-
-/** Every decoder a zip reader needs: stored, deflate, and a discarding one for each method it cannot read. */
+/** Every decoder a zip reader reads with: stored and deflate. The others are added as entries name them. */
 export function registerDecoders(unzip: Unzip): void {
   unzip.register(UnzipPassThrough)
   unzip.register(StoppableInflate)
-  for (const decoder of DISCARDING_DECODERS.values()) unzip.register(decoder)
+}
+
+/** Makes sure an entry in any method but stored and deflate can be started and drained. */
+export function registerDiscarder(unzip: Unzip, method: number): void {
+  if (method !== UnzipPassThrough.compression && method !== StoppableInflate.compression) {
+    unzip.register(discardingDecoder(method))
+  }
 }

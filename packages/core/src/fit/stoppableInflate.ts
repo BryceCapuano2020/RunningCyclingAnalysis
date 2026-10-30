@@ -9,8 +9,14 @@ import type { AsyncFlateStreamHandler, FlateError, UnzipDecoder } from 'fflate'
 export class StoppableInflate implements UnzipDecoder {
   static compression = 8
 
+  /**
+   * Set while an entry that is already given up on is being started: the decoder it gets is made stopped,
+   * so the first piece of its input, which fflate pushes at once, is not inflated either.
+   */
+  static startStopped = false
+
   ondata: AsyncFlateStreamHandler = () => undefined
-  private stopped = false
+  private stopped = StoppableInflate.startStopped
   private readonly inflate = new Inflate((data, final) => {
     this.ondata(null, data, final)
   })

@@ -95,9 +95,10 @@ drained, so the unzipper does not keep its compressed bytes, and what it costs d
 - **Stored** entries inflate nothing and are not counted.
 - **Deflated** entries are inflated to find the next entry, so their output is counted and a hostile
   one is stopped (below).
-- **Entries in a method this build cannot read** (shrink, implode, deflate64, bzip2, LZMA, zstd, and
-  WinZip's AES wrapper, method 99) are fed to a decoder that drops their input. They give no output and
-  are not counted. An activity file in one of these methods is reported as unreadable and drained the same way.
+- **Entries in any other method** (shrink, implode, deflate64, bzip2, LZMA, zstd, WinZip's AES wrapper
+  at 99, or a number nobody has assigned; a method is a 16-bit number) are fed to a decoder that drops
+  their input. They give no output and are not counted. An activity file in one of these methods is
+  reported as unreadable and drained the same way.
 
 The checks are on output size and on the compressed bytes read since the entry began, so they hold
 for zips written with data descriptors, whose headers give no size. A stopped entry is not an error
@@ -112,8 +113,8 @@ of its own: the import never wanted it.
 | `MAX_SKIPPED_INFLATE_BYTES` / `maxSkippedInflateBytes`        | 8,589,934,592 | Bytes all skipped entries of a source may inflate to whatever their ratio (8 GiB), the backstop    |
 
 When any of the three budgets for the whole source runs out, the entry that ran it out is reported
-once, by name, and every skipped entry after it is started and stopped at once, so nothing more is
-inflated. The files the import wants are read all the same: nothing a skipped entry holds is wanted,
+once, by name, and every skipped entry after it is started already stopped, so not even its first
+piece is inflated. The files the import wants are read all the same: nothing a skipped entry holds is wanted,
 so no activity is lost to it.
 
 Worst case for the processor: the per-entry ratio stops one bomb after 16 MiB. Many small bombs add

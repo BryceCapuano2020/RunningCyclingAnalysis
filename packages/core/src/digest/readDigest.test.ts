@@ -201,6 +201,48 @@ describe('a tolerant reader', () => {
     expect(read.hrBlocks).toHaveLength(cap)
   })
 
+  it.each(views)(
+    '%s: reads a split whose distance is out of bounds as no split, with no pace',
+    (view) => {
+      const split = {
+        distanceM: 1e9,
+        seconds: 300,
+        gradeAdjustedSeconds: 290,
+        elevationGainM: 5,
+        avgHeartRate: 150,
+      }
+      const good = { ...split, distanceM: 1000 }
+      const read = readDigest({ ...run, splits: { km: [good, split, good], mile: [] } }, view)
+      expect(read.splits?.km).toEqual([
+        good,
+        {
+          distanceM: 0,
+          seconds: null,
+          gradeAdjustedSeconds: null,
+          elevationGainM: null,
+          avgHeartRate: null,
+        },
+        good,
+      ])
+      expect(() => readDigest({ ...run, splits: { km: [split], mile: [] } }, 'create')).toThrow()
+    },
+  )
+
+  it.each(views)(
+    '%s: drops a flag count that is negative or fractional, and keeps the row',
+    (view) => {
+      const read = readDigest(
+        { ...run, flagCounts: { 'hr-spike': -1, 'power-spike': 1.5, 'hr-dropout': 2 } },
+        view,
+      )
+      expect(read.flagCounts).toEqual({ 'hr-dropout': 2 })
+      expect(() => readDigest({ ...run, flagCounts: { 'hr-spike': -1 } }, 'create')).toThrow(
+        /non-negative integer/,
+      )
+      expect(() => readDigest({ ...run, flagCounts: { 'hr-spike': 'many' } }, view)).toThrow()
+    },
+  )
+
   it.each(views)('%s: still refuses a value of the wrong type, as damage', (view) => {
     for (const damage of [
       { distanceM: 'far' },

@@ -2,6 +2,7 @@ import type { UnzipFile } from 'fflate'
 import type { Rejection } from '../import/result'
 import { skippedTooCompressed, skippedTooLarge } from './archiveReasons'
 import type { ExtractLimits } from './extractLimits'
+import { StoppableInflate } from './stoppableInflate'
 import type { StreamTail } from './streamTail'
 import type { ZipReader } from './zipReader'
 import type { EntryFilter } from './zipDirectory'
@@ -153,16 +154,14 @@ export function skipEntry(
     }
     if (stopped) file.terminate()
   }
+  // Once the budget has run out, a deflated entry is started stopped, so not even its first piece is inflated.
+  StoppableInflate.startStopped = inflating && budget.skipStopped !== null
   try {
     file.start()
   } catch {
     // Nothing is retained for an entry that cannot start.
-    return
-  }
-  // The budget ran out before this entry began: it is stopped before it inflates more than its first piece.
-  if (budget.skipStopped !== null && inflating) {
-    stopped = true
-    file.terminate()
+  } finally {
+    StoppableInflate.startStopped = false
   }
 }
 

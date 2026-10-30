@@ -1,10 +1,10 @@
-import { deflateSync, zipSync } from 'fflate'
-import type { UnzipFile } from 'fflate'
+import { deflateSync, Inflate, Unzip, zipSync } from 'fflate'
+import type { UnzipFile, Zippable } from 'fflate'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
 import type { FitFile } from './archive'
 import { StoppableInflate } from './stoppableInflate'
-import { DISCARDING_DECODERS } from './unsupportedMethods'
+import { discardingDecoder, registerDiscarder } from './unsupportedMethods'
 import { newBudget, skipEntry, ZipRun } from './zipRun'
 import type { Sink } from './zipRun'
 import { StreamTail } from './streamTail'
@@ -27,23 +27,28 @@ function noise(length: number): Uint8Array {
   return out
 }
 
+/** A zip as a source that streams in pieces of 64 KiB. */
+function memorySource(zip: Uint8Array) {
+  return {
+    name: 'export.zip',
+    arrayBuffer: async () => zip.slice().buffer,
+    stream: () =>
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (let at = 0; at < zip.length; at += 64 * 1024) {
+            controller.enqueue(zip.slice(at, at + 64 * 1024))
+          }
+          controller.close()
+        },
+      }),
+  }
+}
+
 async function extract(zip: Uint8Array, limits: Partial<ExtractLimits> = {}) {
   const files: FitFile[] = []
   const errors: Array<{ fileName: string; rejection: Rejection }> = []
-  const source = { name: 'export.zip', arrayBuffer: async () => zip.slice().buffer }
   await extractFitFiles(
-    {
-      ...source,
-      stream: () =>
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            for (let at = 0; at < zip.length; at += 64 * 1024) {
-              controller.enqueue(zip.slice(at, at + 64 * 1024))
-            }
-            controller.close()
-          },
-        }),
-    },
+    memorySource(zip),
     (file) => {
       files.push(file)
     },
@@ -117,8 +122,36 @@ describe('a skipped zip entry that inflates past its budget', () => {
     expect(files.map((f) => f.fileName).sort()).toEqual(['a.fit', 'b.fit'])
     expect(errors.map((e) => e.fileName)).toEqual(['media/two.bin'])
     expect(errors[0]!.rejection.code).toBe('too-large')
-    // The entry that ran it out and the one after it were stopped; the first was inflated whole.
-    expect(stop).toHaveBeenCalledTimes(2)
+    // The entry that ran it out was stopped. The ones after it were started stopped, so there was nothing to stop.
+    expect(stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('inflates nothing of the skipped entries after the budget has run out, not even their first piece', async () => {
+    const entries: Zippable = { 'a.fit': FIT }
+    for (let i = 0; i < 6; i++) entries[`media/${i}.bin`] = new Uint8Array(3 * MIB)
+    // Stored, so that the only thing reaching the inflater is a skipped entry.
+    entries['b.fit'] = [FIT, { level: 0 }]
+    const inflate = vi.spyOn(Inflate.prototype, 'push')
+    let atExhaustion = -1
+    const files: string[] = []
+    await extractFitFiles(
+      memorySource(zipSync(entries)),
+      (file) => {
+        files.push(file.fileName)
+      },
+      () => {
+        atExhaustion = inflate.mock.calls.length
+      },
+      {
+        ...DEFAULT_EXTRACT_LIMITS,
+        maxSkippedEntryFreeBytes: 100 * MIB,
+        maxSkippedInflateBytes: 4 * MIB,
+      },
+    )
+    expect(atExhaustion).toBeGreaterThan(0)
+    // No piece of any later entry reached the inflater.
+    expect(inflate.mock.calls.length).toBe(atExhaustion)
+    expect(files.sort()).toEqual(['a.fit', 'b.fit'])
   })
 
   it('adds up many entries that each stay under their own allowance, by the ratio of the whole', async () => {
@@ -134,8 +167,8 @@ describe('a skipped zip entry that inflates past its budget', () => {
     expect(files.map((f) => f.fileName).sort()).toEqual(['a.fit', 'b.fit'])
     expect(errors).toHaveLength(1)
     expect(errors[0]!.rejection.reason).toMatch(/far more than they are compressed/)
-    // From the entry that ran it out on, none of the twelve is inflated more than its first piece.
-    expect(stop.mock.calls.length).toBeGreaterThanOrEqual(8)
+    // From the entry that ran it out on, the rest were started stopped.
+    expect(stop).toHaveBeenCalledTimes(1)
   })
 
   it('stops a bomb in a zip written with data descriptors, where the headers give no size', async () => {
@@ -183,40 +216,47 @@ function pushedBytes(spy: { mock: { calls: unknown[][] } }): number {
 
 describe('an entry in a compression method this build cannot read', () => {
   const junk = noise(200 * 1024)
-  const decoder = DISCARDING_DECODERS.get(99)!
 
-  it('is drained and not held, when the import skips it (method 99, the AES wrapper)', async () => {
-    const push = vi.spyOn(decoder.prototype, 'push')
-    const zip = withMethod(
-      zipSync({ 'media/secret.bin': [junk, { level: 0 }], 'a.fit': FIT }),
-      'media/secret.bin',
-      99,
-    )
-    const { files, errors } = await extract(zip)
-    expect(files.map((f) => f.fileName)).toEqual(['a.fit'])
-    expect(errors).toEqual([])
-    // Every byte of its input went to the decoder that drops it.
-    expect(pushedBytes(push)).toBeGreaterThanOrEqual(junk.length)
+  // 99 is WinZip's AES wrapper; 100 and 65535 are numbers nobody has assigned.
+  describe.each([99, 100, 65535])('method %i', (method) => {
+    it('is drained and not held, when the import skips it', async () => {
+      const push = vi.spyOn(discardingDecoder(method).prototype, 'push')
+      const zip = withMethod(
+        zipSync({ 'media/secret.bin': [junk, { level: 0 }], 'a.fit': FIT }),
+        'media/secret.bin',
+        method,
+      )
+      const { files, errors } = await extract(zip)
+      expect(files.map((f) => f.fileName)).toEqual(['a.fit'])
+      expect(errors).toEqual([])
+      // Every byte of its input went to the decoder that drops it.
+      expect(pushedBytes(push)).toBeGreaterThanOrEqual(junk.length)
+    })
+
+    it('is reported once and drained too, when it is an activity file', async () => {
+      const push = vi.spyOn(discardingDecoder(method).prototype, 'push')
+      const zip = withMethod(
+        zipSync({ 'rides/lost.fit': [junk, { level: 0 }], 'a.fit': FIT }),
+        'rides/lost.fit',
+        method,
+      )
+      const { files, errors } = await extract(zip)
+      expect(files.map((f) => f.fileName)).toEqual(['a.fit'])
+      expect(errors.map((e) => e.fileName)).toEqual(['rides/lost.fit'])
+      expect(pushedBytes(push)).toBeGreaterThanOrEqual(junk.length)
+    })
   })
 
-  it('is reported once and drained too, when it is an activity file', async () => {
-    const push = vi.spyOn(decoder.prototype, 'push')
-    const zip = withMethod(
-      zipSync({ 'rides/lost.fit': [junk, { level: 0 }], 'a.fit': FIT }),
-      'rides/lost.fit',
-      99,
-    )
-    const { files, errors } = await extract(zip)
-    expect(files.map((f) => f.fileName)).toEqual(['a.fit'])
-    expect(errors.map((e) => e.fileName)).toEqual(['rides/lost.fit'])
-    expect(pushedBytes(push)).toBeGreaterThanOrEqual(junk.length)
-  })
-
-  it('has a decoder for every method the unzipper might meet, and none for stored or deflate', () => {
-    const methods = [...DISCARDING_DECODERS.keys()].sort((a, b) => a - b)
-    expect(methods).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 14, 18, 19, 93, 94, 95, 96, 97, 98, 99,
-    ])
+  it('has one decoder for each method, made as it is named, and none for stored or deflate', () => {
+    expect(discardingDecoder(7).compression).toBe(7)
+    expect(discardingDecoder(7)).toBe(discardingDecoder(7))
+    const unzip = new Unzip(() => undefined)
+    const register = vi.spyOn(unzip, 'register')
+    registerDiscarder(unzip, 0)
+    registerDiscarder(unzip, 8)
+    expect(register).not.toHaveBeenCalled()
+    registerDiscarder(unzip, 40000)
+    expect(register).toHaveBeenCalledWith(discardingDecoder(40000))
   })
 })
 

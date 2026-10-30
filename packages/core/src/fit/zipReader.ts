@@ -3,7 +3,7 @@ import type { UnzipFile } from 'fflate'
 import { concat } from '../bytes'
 import { StreamTail } from './streamTail'
 import type { Rejection } from '../import/result'
-import { registerDecoders } from './unsupportedMethods'
+import { registerDecoders, registerDiscarder } from './unsupportedMethods'
 import { checkStream } from './zipCheck'
 import {
   DECOMPRESS_INPUT_CHUNK_BYTES,
@@ -204,6 +204,7 @@ export class ZipReader {
 
   /** Skips an entry the import does not read, stopping it if it inflates past its budget. */
   private skip(file: UnzipFile): void {
+    registerDiscarder(this.unzip, file.compression)
     skipEntry(file, this.run, this.tail, (rejection) => {
       this.reportEntryError(this.prefix + file.name, rejection)
     })
