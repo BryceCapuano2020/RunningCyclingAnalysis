@@ -33,6 +33,12 @@ function expectRefusal(res: Response, code: string, appUrl = 'http://localhost:5
   expect(res.status).toBe(302)
   expect(res.headers.get('location')).toBe(`${appUrl}/#/?signin=${code}`)
   expect(sessionCookie(res)).toBeUndefined()
+  // The one-shot sign-in cookies are cleared on the redirect, whatever the outcome.
+  const cleared = res.headers
+    .getSetCookie()
+    .filter((line) => line.startsWith('rca_oauth_state=') || line.startsWith('rca_oauth_verifier='))
+  expect(cleared).toHaveLength(2)
+  for (const line of cleared) expect(line).toMatch(/Max-Age=0|Expires=Thu, 01 Jan 1970/i)
 }
 
 describe('sign-in with a sign-up list', () => {
