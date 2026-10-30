@@ -110,6 +110,8 @@ describe('Methodology', () => {
       'Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts.',
     )
     expect(section).toHaveTextContent('There is no line.')
+    // Wherever a sport has a fitness status that is the trend, so the sentence reads right with or without a ride status.
+    expect(section).toHaveTextContent('Where a sport has a fitness status')
     expect(section.querySelectorAll(':scope > p')).toHaveLength(2)
   })
 
@@ -137,6 +139,12 @@ describe('Methodology', () => {
     )
     expect(section.querySelector('details')).toHaveTextContent(
       `${CHANGE.draws.toLocaleString('en-US')} times`,
+    )
+    // The false-call rate is the simulations' own at a real library's spread, not "one time in ten at most".
+    expect(section.querySelector('details')).toHaveTextContent('3% to 8% of pairs on a record row')
+    expect(section.querySelector('details')).not.toHaveTextContent('one time in ten')
+    expect(section.querySelector('details')).toHaveTextContent(
+      'A swing in how many hard efforts a period holds is not allowed for',
     )
   })
 

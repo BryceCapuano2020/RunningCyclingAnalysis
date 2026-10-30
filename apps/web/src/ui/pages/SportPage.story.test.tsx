@@ -33,15 +33,7 @@ const RUN_SAME_HEART_RATE: SameHeartRate = {
   referenceHeartRate: 145,
   // Eight weeks, from 3.0 to 3.4 m/s: 5:33 to 4:54 a kilometre, a trend the weeks' own ranges leave no doubt of.
   weeks: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => week(i, 3.0 + i * (0.4 / 7))),
-  change: {
-    fromEndMs: week(0, 3.0).endMs,
-    toEndMs: week(7, 3.4).endMs,
-    from: 3.0,
-    to: 3.4,
-    weeksApart: 7,
-    relative: 0.133,
-    real: true,
-  },
+  reportedWeeks: 8,
   lacks: null,
   latestWeekEndMs: week(7, 3.4).endMs,
 }

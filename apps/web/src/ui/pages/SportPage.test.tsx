@@ -855,7 +855,6 @@ describe('SportPage fitness trend', () => {
     rideCount: 0,
     runAtMs: Date.UTC(2026, 0, 11 + index * 7, 23, 59, 59, 999),
     rideAtMs: null,
-    rideRunSpeed: null,
   })
   const TRENDS: Record<EffortLengthS, TrendPoint[]> = {
     [FIVE_MIN_S]: [week(0, 16), week(1, 16.2)],
@@ -1447,19 +1446,11 @@ describe('SportPage depth', () => {
       blocks: 14,
       activities: 5,
     })
-    const reading = (from: number, to: number, real: boolean): SameHeartRate => ({
+    const reading = (from: number, to: number): SameHeartRate => ({
       referenceHeartRate: 145,
       // Eight weeks, so a steady rise is a trend the line's band can tell from flat.
       weeks: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => fitted(i, from + ((to - from) * i) / 7)),
-      change: {
-        fromEndMs: fitted(0, from).endMs,
-        toEndMs: fitted(7, to).endMs,
-        from,
-        to,
-        weeksApart: 7,
-        relative: to / from - 1,
-        real,
-      },
+      reportedWeeks: 8,
       lacks: null,
       latestWeekEndMs: fitted(7, to).endMs,
     })
@@ -1480,7 +1471,7 @@ describe('SportPage depth', () => {
         42,
         '',
         null,
-        reading(198, 214, true),
+        reading(198, 214),
       )
       const names = screen
         .getAllByRole('region')
@@ -1494,8 +1485,8 @@ describe('SportPage depth', () => {
     })
 
     it.each([
-      ['a steady rise', reading(198, 214, true)],
-      ['a flat reading', reading(204, 207, false)],
+      ['a steady rise', reading(198, 214)],
+      ['a flat reading', reading(204, 207)],
     ])(
       'claims no change for %s: the row says what is drawn, and the chart carries the heart rate in its name',
       (_name, data) => {

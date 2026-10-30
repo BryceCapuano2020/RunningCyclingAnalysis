@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import { SAME_HEART_RATE } from '@rca/core/constants'
-import type { Lack, SameHeartRate, SameHeartRateChange, SameHeartRateWeek } from '@rca/core/digest'
+import type { Lack, SameHeartRate, SameHeartRateWeek } from '@rca/core/digest'
 import { LACK_TEXT, sameHeartRateLackText, sameHeartRateTitle } from './sameHeartRateCopy'
 
 const WEEK_MS = 7 * 86_400_000
@@ -19,35 +19,16 @@ function week(index: number, output: number | null, spread = 0.02): SameHeartRat
   }
 }
 
-/**
- * Weeks of the given outputs, with the change the first and last reporting weeks make unless `change` says
- * otherwise. The last of them is the period's last week unless `latestWeek` says.
- */
-function data(
-  outputs: (number | null)[],
-  change: Partial<SameHeartRateChange> | null = {},
-  { latestWeek = outputs.length - 1, spread = 0.02 } = {},
-): SameHeartRate {
+/** Weeks of the given outputs, or none to draw (`drawn` false) with the lack named; the last is the period's last week. */
+function data(outputs: (number | null)[], drawn = true, spread = 0.02): SameHeartRate {
   const weeks = outputs.map((output, i) => week(i, output, spread))
-  const reported = weeks.filter((w) => w.fit !== null)
+  const reportedWeeks = weeks.filter((w) => w.fit !== null).length
   return {
     referenceHeartRate: 145,
     weeks,
-    change:
-      change === null
-        ? null
-        : {
-            fromEndMs: reported[0]!.endMs,
-            toEndMs: reported.at(-1)!.endMs,
-            from: reported[0]!.fit!.output,
-            to: reported.at(-1)!.fit!.output,
-            weeksApart: reported.length - 1,
-            relative: 0,
-            real: true,
-            ...change,
-          },
-    lacks: change === null ? 'weeks' : null,
-    latestWeekEndMs: FIRST_END + latestWeek * WEEK_MS,
+    reportedWeeks,
+    lacks: drawn ? null : 'weeks',
+    latestWeekEndMs: FIRST_END + (outputs.length - 1) * WEEK_MS,
   }
 }
 
@@ -68,9 +49,9 @@ describe('the weekly view’s words', () => {
   })
 
   it('names what is missing, in a muted line, when there is nothing to draw', () => {
-    expect(sameHeartRateLackText('run', { ...data([null, null], null), lacks: 'activities' })).toBe(
-      LACK_TEXT.activities('run'),
-    )
+    expect(
+      sameHeartRateLackText('run', { ...data([null, null], false), lacks: 'activities' }),
+    ).toBe(LACK_TEXT.activities('run'))
   })
 
   it('draws weeks that report even when too few to name a trend: there is no lack', () => {
@@ -81,7 +62,7 @@ describe('the weekly view’s words', () => {
     const none: SameHeartRate = {
       referenceHeartRate: null,
       weeks: [],
-      change: null,
+      reportedWeeks: 0,
       lacks: 'blocks',
       latestWeekEndMs: null,
     }

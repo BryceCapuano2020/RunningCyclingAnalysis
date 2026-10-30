@@ -292,8 +292,12 @@ describe('balanceChanges', () => {
 
   it('says nothing changed, having compared, when the bests are the same as the page shows them', () => {
     const { input, scaled } = sample()
-    expect(balanceChanges(input(scaled(1, 1)))).toEqual({ items: [], notes: [], compared: true })
-    expect(noChangeText('Previous 12 weeks')).toBe('No clear change since the previous 12 weeks.')
+    expect(balanceChanges(input(scaled(1, 1), { change: changeOf('none') }))).toEqual({
+      items: [],
+      notes: [],
+      compared: true,
+    })
+    expect(noChangeText('Previous 12 weeks')).toBe('No clear change from the previous 12 weeks.')
   })
 
   it('says there is not enough to compare, apart from nothing changing, when the previous period lacks the efforts', () => {
@@ -346,7 +350,10 @@ describe('balanceChanges and how hard the bests were', () => {
     const { input, scaled, result } = measured()
     const hard = { ...result, effort: [check(0.95, 0.95)] }
     const previous = { ...scaled(0.95, 1), headlineEffort: check(0.7, 0.95) }
-    const out = balanceChanges(input(previous, { result: hard }))
+    // The test calls the run; it is the ride that did not change.
+    const change = changeOf('higher')
+    change.ride = changeOf('none').ride
+    const out = balanceChanges(input(previous, { result: hard, change }))
     expect(runBest(out)).toBeUndefined()
     expect(out?.notes).toEqual(['No comparable hard 20 min of running in the previous 12 weeks.'])
     // The ride's bests were both hard, so it is still compared.
@@ -441,5 +448,58 @@ describe('previousGap', () => {
   it('is null when a sport has no best at the headline duration in the previous period', () => {
     const { result, grading } = sample()
     expect(previousGap(result, { runCurve: [], rideCurve: result.rideCurve }, grading)).toBeNull()
+  })
+})
+
+describe('balanceChanges: direction, level and the lean', () => {
+  it('takes a best’s direction from the call, not the shown watts: the same watts at a lower weight is up', () => {
+    const { input, scaled } = measured()
+    // The previous ride is the same watts as now; the call, in watts per kilogram, says higher.
+    const ride = balanceChanges(input(scaled(1, 1)))?.items.find((item) => item.key === 'ride-best')
+    expect(ride).toMatchObject({
+      direction: 'up',
+      title: 'More power over 20 min than the previous 12 weeks',
+    })
+    expect(ride?.body).toMatch(/8% more power per kilogram than previous 12 weeks/)
+    // And the call saying lower reads down, with the same watts.
+    const down = balanceChanges(input(scaled(1, 1), { change: changeOf('lower') }))?.items.find(
+      (item) => item.key === 'ride-best',
+    )
+    expect(down).toMatchObject({ direction: 'down' })
+  })
+
+  it('holds the strip to the stricter band: a call that leaves only the record band lists nothing', () => {
+    const { input, scaled } = measured()
+    const weak = changeOf('higher', {}, { weak: true })
+    const out = balanceChanges(input(scaled(0.95, 0.95), { change: weak }))
+    expect(out).toEqual({ items: [], notes: [], compared: true })
+  })
+
+  it('counts a sport whose best was withheld as not hard as untested for the lean', () => {
+    const { input, scaled, grading, result } = sample()
+    const nowGap = previousGap(result, scaled(1, 1), grading)
+    // The ride was weaker the period before, so the lean has eased toward cycling; the run's lower call explains that.
+    const earlier = scaled(1, 0.8)
+    const hard = {
+      ...result,
+      effort: [{ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.95 }],
+    }
+    const change = changeOf('lower')
+    change.ride = changeOf('none').ride
+    const withLean = (previous: typeof earlier) =>
+      balanceChanges(input(previous, { result: hard, gap: nowGap, grading, change }))
+    const hardBefore = {
+      ...earlier,
+      headlineEffort: { durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.95 },
+    }
+    expect(withLean(hardBefore)?.items.map((item) => item.key)).toContain('lean')
+    // The run's previous best was easy: its call is withheld, and a withheld call explains no move of the lean.
+    const easyBefore = {
+      ...earlier,
+      headlineEffort: { durationS: 1200, runHrFraction: 0.6, rideHrFraction: 0.95 },
+    }
+    const out = withLean(easyBefore)
+    expect(out?.notes).toEqual(['No comparable hard 20 min of running in the previous 12 weeks.'])
+    expect(out?.items.map((item) => item.key)).not.toContain('lean')
   })
 })

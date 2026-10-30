@@ -44,7 +44,6 @@ function trendOf(weeks: number): TrendPoint[] {
       rideCount: 0,
       runAtMs: endMs,
       rideAtMs: null,
-      rideRunSpeed: null,
     }
   })
 }

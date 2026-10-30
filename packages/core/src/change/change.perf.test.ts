@@ -34,6 +34,18 @@ describe('the change test on a large library', () => {
     expect(ms).toBeLessThan(FIRST_BUDGET_MS)
   })
 
+  it('deals 400 efforts against 4 by choosing the small side’s ranks, in under the budget', () => {
+    // The newest week against the year before it: a reading at each length from every run, four of them in the week.
+    const runs = library.filter((d) => d.sport === 'run')
+    const newest = runs.slice(-4)
+    const earlier = runs.filter((d) => d.startMs < newest[0]!.startMs).slice(-400)
+    expect(earlier.length).toBe(400)
+    const ms = fastestMs(() => {
+      changeEvidence(newest, earlier, SETTINGS, DEFAULT_BIKE_MODEL, null)
+    })
+    expect(ms).toBeLessThan(FIRST_BUDGET_MS)
+  })
+
   it('costs next to nothing for a period it has just worked out', () => {
     const cache = new PeriodCache()
     cache.change(selected, previous, SETTINGS, DEFAULT_BIKE_MODEL, null)

@@ -43,7 +43,6 @@ const TREND: TrendPoint[] = [
     rideCount: 0,
     runAtMs: WEEK_END,
     rideAtMs: null,
-    rideRunSpeed: null,
   },
 ]
 

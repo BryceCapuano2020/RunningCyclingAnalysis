@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ChangeVerdict } from '@rca/core/change/types'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { changeOf } from '../charts/changeFixtures'
+import { callOf, changeOf } from '../charts/changeFixtures'
 import type { CurveRow } from '../charts/curveTable'
 import { curveTakeaway } from '../charts/sportCurveTakeaway'
 import { recordChange } from '../recordChange'
@@ -34,7 +34,7 @@ function sentences(
     previousLabel: 'Previous 12 weeks',
     change: changeOf(verdict),
   })
-  const words = recordChange(sport, now, before, units, 'Previous 12 weeks', verdict)
+  const words = recordChange(sport, now, before, units, 'Previous 12 weeks', callOf(1200, verdict))
   return {
     titleClear: title !== null && !title.startsWith('No clear change') && !title.startsWith('Best'),
     wordsClear: words !== null && !words.startsWith('No clear change'),

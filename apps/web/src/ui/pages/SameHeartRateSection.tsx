@@ -32,6 +32,6 @@ export function SameHeartRateSection({
   data: SameHeartRate
   units: UnitSystem
 }) {
-  if (data.change === null) return null
+  if (data.reportedWeeks < 2) return null
   return <SameHeartRateChart sport={sport} data={data} units={units} note={noteFor(sport)} />
 }

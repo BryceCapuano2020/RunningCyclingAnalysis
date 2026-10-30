@@ -4,5 +4,5 @@
  */
 export { changeEvidence } from './evidence'
 export { CHANGE } from './constants'
-export { callAt, verdictAt } from './types'
-export type { ChangeCall, ChangeEvidence, ChangeVerdict } from './types'
+export { callAt, detectableAt, directionOf, verdictAt, verdictOfCall } from './types'
+export type { ChangeBasis, ChangeCall, ChangeEvidence, ChangeLevel, ChangeVerdict } from './types'

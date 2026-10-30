@@ -9,7 +9,7 @@ import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
 import { Crosshair } from './Crosshair'
-import { bestDots, dotRadius, dotsLayout } from './bestsOverTime'
+import { OLD_BELOW, bestDots, dotRadius, dotsLayout } from './bestsOverTime'
 import type { BestDot } from './bestsOverTime'
 import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import type { ChartSize, TooltipContent } from './chartTypes'
@@ -22,6 +22,7 @@ import { axisFontSize } from './ticks'
 import { shortDateWithYear } from './trendTicks'
 import './ChartHeadings.css'
 import './ChartSeries.css'
+import './BestsOverTimeChart.css'
 
 export interface BestsOverTimeChartProps {
   sport: Sport
@@ -34,6 +35,15 @@ export interface BestsOverTimeChartProps {
   effortS: number
   /** The finding the change test makes about this length against the period before, or null where it makes none. */
   takeaway: string | null
+  /** The period the finding compares with, such as "Previous 12 weeks", which the line under the title names; null where none. */
+  comparedWith: string | null
+}
+
+/** The line under a finding: what the dots are, and what the finding compares them with. */
+function ledeOf(described: string, comparedWith: string | null): string {
+  return comparedWith === null
+    ? described
+    : `${described}. The finding compares this period's best with the ${comparedWith.toLowerCase()}.`
 }
 
 /** A dot's tooltip: the day, the value, and for a ride its W/kg. */
@@ -75,6 +85,7 @@ export function BestsOverTimeChart({
   units,
   effortS,
   takeaway,
+  comparedWith,
 }: BestsOverTimeChartProps) {
   const dots = useMemo(() => bestDots(points, sport, massKg), [points, sport, massKg])
   const hasData = dots.length >= 2
@@ -88,8 +99,8 @@ export function BestsOverTimeChart({
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={hasData && takeaway !== null ? takeaway : described}
-      lede={hasData && takeaway !== null ? described : undefined}
-      description={`Each dot is an effort of ${effort} or longer that was the best of its stretch, as ${nativeLabel(sport).toLowerCase()}. Older dots are fainter.`}
+      lede={hasData && takeaway !== null ? ledeOf(described, comparedWith) : undefined}
+      description={`${described}. Each dot is an effort of ${effort} or longer that was the best of its stretch, as ${nativeLabel(sport).toLowerCase()}. Older dots are fainter.${comparedWith === null ? '' : ` The finding compares this period's best with the ${comparedWith.toLowerCase()}.`}`}
       idleReadout={
         hasData ? idleFrom(tooltipFor(dots, dots.length - 1, 0, 0, sport, units)) : undefined
       }
@@ -144,7 +155,7 @@ export function BestsOverTimeChart({
               <circle
                 key={dots[i]!.atMs}
                 data-testid={i === dots.length - 1 ? 'bests-latest' : 'bests-dot'}
-                className={`chart-series__marker chart-series__marker--${sport}`}
+                className={`chart-series__marker chart-series__marker--${sport}${m.opacities[i]! < OLD_BELOW ? ' bests-dot--old' : ''}`}
                 cx={point.x}
                 cy={point.y}
                 r={i === active ? markerRadii(size.width).active : dotRadius(size.width)}

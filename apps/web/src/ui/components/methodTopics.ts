@@ -85,7 +85,7 @@ const TOPIC_LIST = [
     title: 'Best efforts over time',
     plain: [
       `Each dot is an effort that was the best of its stretch, on the day it was done, for the chosen length: ${EFFORT_PHRASE}. Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts. Older dots are fainter.`,
-      'There is no line. The days between two dots hold no reading, and a line through best efforts shows how often you went hard as much as how fit you were. Your fitness status, read from steady runs at the same heart rate, is the trend.',
+      'There is no line. The days between two dots hold no reading, and a line through best efforts shows how often you went hard as much as how fit you were. Where a sport has a fitness status, read from steady efforts at the same heart rate, that status is the trend.',
     ],
     detail:
       `A dot is the effort that led a trailing window ending on some Sunday in UTC. Each window is a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days, so ${WINDOW_EXAMPLES}. All time uses ${DEFAULT_WINDOW_DAYS} days. ` +
@@ -98,7 +98,7 @@ const TOPIC_LIST = [
       'The app calls a change only when it is bigger than your own efforts would put between two periods by chance. It pools the efforts of the period and the one before, deals them out at random to a “now” side and a “before” side of their real sizes, and calls a change when the real difference falls outside the middle 90% of those deals.',
       `So the bar is yours: it is wider for a length you have few efforts at, and for an athlete whose efforts vary more. With fewer than ${CHANGE.minPerSide} efforts of a length in either period, the app says nothing about it. A best is a floor on what you can do, so a period without a hard effort can read as lower.`,
     ],
-    detail: `For each length the two periods’ efforts are dealt out ${CHANGE.draws.toLocaleString('en-US')} times; the difference is the natural log of one side’s best over the other’s. Running is compared in flat speed and cycling in watts per kilogram, so a change of weight between the periods is not read as a change of power. The band is the 5th to the 95th percentile of those deals, so a pair of periods in which nothing changed is called a change about one time in ten at most.`,
+    detail: `For each length the two periods’ efforts are dealt out ${CHANGE.draws.toLocaleString('en-US')} times; the difference is the natural log of one side’s best over the other’s. Running is compared in flat speed and cycling in watts per kilogram, so a change of weight between the periods is not read as a change of power. The band is the 5th to the 95th percentile of those deals. A card, a strip or a title that states a change on its own is held to the 2.5th to the 97.5th. On simulated libraries with a real library’s spread, periods in which nothing changed were called a change in 3% to 8% of pairs on a record row and 2% to 5% on a title or the strip; the same simulations found a 10% gain in a run’s 20 min in about two athletes in five, and in a ride’s 5 min in about one in eight. A swing in how many hard efforts a period holds is not allowed for, and reads as a change in the best.`,
   },
   {
     id: 'heart',

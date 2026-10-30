@@ -1,12 +1,12 @@
 import type { ChangeEvidence, ChangeVerdict } from '@rca/core/change/types'
-import { verdictAt } from '@rca/core/change/types'
+import { callAt, directionOf, verdictAt, verdictOfCall } from '@rca/core/change/types'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { equivalenceFor } from '@rca/core/pipeline'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { HrCalibration, Sport, SportCurves } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { formatPace, formatPower, paceSeconds } from '@rca/core/units'
+import { formatPace, formatPower } from '@rca/core/units'
 import { activityMasses } from '../activityMasses'
 import { gapOfHeadline } from '../balanceGap'
 import type { BalanceGap } from '../balanceGap'
@@ -17,7 +17,7 @@ import { formatDayMonth } from '../format/date'
 import { HEADLINE_LABEL, headlineGrades } from '../grades'
 import type { AgeProfile } from '../grades'
 import { hardEffort } from '../effortCaveat'
-import { recordChange } from '../recordChange'
+import { NO_CLEAR_CHANGE, recordChange } from '../recordChange'
 import { effortLabel, isEstimatedRecord, valueAt } from '../records'
 import { SPORT_NOUN, SPORT_ORDER } from '../sports'
 
@@ -86,13 +86,6 @@ const CURVE: Record<
 const NATIVE: Record<Sport, (value: number) => number> = {
   run: (wkg) => metabolicToFlatSpeed(wkg),
   ride: (watts) => watts,
-}
-
-/** How far a best moved in the figures the page shows, positive when it is better: whole seconds of pace, whole watts. */
-const SHOWN_GAIN: Record<Sport, (now: number, before: number, units: UnitSystem) => number> = {
-  run: (now, before, units) =>
-    Math.round(paceSeconds(before, units)) - Math.round(paceSeconds(now, units)),
-  ride: (now, before) => Math.round(now) - Math.round(before),
 }
 
 /** A best as the page writes it. */
@@ -166,20 +159,23 @@ function bestItem(
   // A best set at an easy heart rate is not what the sport can do, so it is not set against one that was.
   const withheld = notHardNote(sport, result, previous, label)
   if (withheld !== null) return { item: null, note: withheld }
-  const verdict = verdictAt(change, sport, HEADLINE_DURATION_S)
+  // The strip is a headline, so a best is held to the stricter band.
+  const call = callAt(change, sport, HEADLINE_DURATION_S)
+  const verdict = verdictOfCall(call, 'headline')
   if (verdict === 'untested') return null
   // A move the test does not call is no clear change, so the strip lists nothing, as the curve says nothing.
   if (verdict === 'none') return { item: null }
-  const gain = SHOWN_GAIN[sport](now, before, units)
-  if (gain === 0) return { item: null }
+  // Which way it moved is the call's, in the compared unit; the shown figures write the amount.
+  const better = directionOf(call, 'headline') > 0
+  const words = recordChange(sport, now, before, units, label, call) ?? ''
+  if (words === '' || words.startsWith(NO_CLEAR_CHANGE)) return { item: null }
   const source = setBy(CURVE[sport](result), result.activities)
   const earlier = setBy(CURVE[sport](previous), library)
-  const words = recordChange(sport, now, before, units, label, verdict) ?? ''
   return {
     item: {
       key: `${sport}-best`,
-      direction: gain > 0 ? 'up' : 'down',
-      title: bestTitle(sport, gain > 0, label),
+      direction: better ? 'up' : 'down',
+      title: bestTitle(sport, better, label),
       body: setOn(`${SHOWN[sport](now, units)}, ${words}`, source),
       tag:
         isEstimatedRecord(sport, source) || isEstimatedRecord(sport, earlier)
@@ -324,8 +320,15 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
   const { result, previous, previousLabel, units, rideShown, gap, grading, library, change } = input
   if (previous === null || previousLabel === null) return null
   const best = { result, previous, library, units, label: previousLabel, change }
+  // A sport whose best was withheld as not a hard effort, or that is held for want of a weight, explains no move of the lean.
+  const shown: Record<Sport, boolean> = { run: true, ride: rideShown }
   const verdicts = Object.fromEntries(
-    SPORT_ORDER.map((sport) => [sport, verdictAt(change, sport, HEADLINE_DURATION_S)]),
+    SPORT_ORDER.map((sport) => [
+      sport,
+      !shown[sport] || notHardNote(sport, result, previous, previousLabel) !== null
+        ? 'untested'
+        : verdictAt(change, sport, HEADLINE_DURATION_S, 'headline'),
+    ]),
   ) as Record<Sport, ChangeVerdict>
   const leanOutcome = (): Compared => {
     if (gap === null || grading === null) return null
@@ -344,7 +347,7 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
 
 /** The strip's line when the change test called nothing: the periods were compared, and no best left what chance puts between them. */
 export function noChangeText(previousLabel: string): string {
-  return `No clear change since the ${previousLabel.toLowerCase()}.`
+  return `${NO_CLEAR_CHANGE} from the ${previousLabel.toLowerCase()}.`
 }
 
 /** The strip's line when the previous period has activities but not the efforts to compare. */

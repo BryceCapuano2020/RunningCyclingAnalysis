@@ -1,5 +1,5 @@
 import type { ChangeEvidence } from '@rca/core/change/types'
-import { verdictAt } from '@rca/core/change/types'
+import { callAt } from '@rca/core/change/types'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
@@ -102,7 +102,7 @@ function changeOf(
     valueAt(earlier, record.durationS) * atNewerWeight,
     units,
     previousLabel,
-    verdictAt(input.change, sport, record.durationS),
+    callAt(input.change, sport, record.durationS),
   )
 }
 

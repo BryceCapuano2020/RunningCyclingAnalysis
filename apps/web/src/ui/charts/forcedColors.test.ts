@@ -9,6 +9,7 @@ const tooltipCss = await readStylesheet(import.meta.url, './ChartTooltip.css')
 const volumeCss = await readStylesheet(import.meta.url, './WeeklyVolumeChart.css')
 const breakCss = await readStylesheet(import.meta.url, './AxisBreaks.css')
 const splitsCss = await readStylesheet(import.meta.url, '../components/SplitsTable.css')
+const bestsCss = await readStylesheet(import.meta.url, './BestsOverTimeChart.css')
 
 /** The rules inside a stylesheet's forced-colours block, which the browser applies in place of the tints. */
 function forcedBody(css: string): string {
@@ -101,5 +102,12 @@ describe('forced colours keep the chart marks visible', () => {
       expect(forced).toMatch(/\.hr-scatter__dot--ride \{[^}]*fill: Canvas/)
       expect(forced).toMatch(/\.hr-scatter__dot--ride \{[^}]*stroke: CanvasText/)
     })
+  })
+
+  it('draws an older dated best hollow, since forced colours ignore the opacity that shows its age, and an older ride’s ring dashed', () => {
+    const forced = forcedBody(bestsCss)
+    expect(forced).toMatch(/\.chart-series__marker\.bests-dot--old \{[^}]*fill: Canvas/)
+    expect(forced).toMatch(/\.chart-series__marker\.bests-dot--old \{[^}]*stroke: CanvasText/)
+    expect(forced).toMatch(/\.chart-series__marker--ride\.bests-dot--old \{[^}]*stroke-dasharray/)
   })
 })

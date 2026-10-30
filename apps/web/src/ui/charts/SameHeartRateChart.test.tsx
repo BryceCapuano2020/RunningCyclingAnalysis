@@ -26,15 +26,7 @@ function dataOf(outputs: (number | null)[]): SameHeartRate {
   return {
     referenceHeartRate: 145,
     weeks,
-    change: {
-      fromEndMs: reported[0]!.endMs,
-      toEndMs: reported.at(-1)!.endMs,
-      from: reported[0]!.fit!.output,
-      to: reported.at(-1)!.fit!.output,
-      weeksApart: reported.length - 1,
-      relative: 0,
-      real: false,
-    },
+    reportedWeeks: reported.length,
     lacks: null,
     latestWeekEndMs: reported.at(-1)!.endMs,
   }

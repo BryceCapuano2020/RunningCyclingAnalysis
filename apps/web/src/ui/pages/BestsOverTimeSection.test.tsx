@@ -23,7 +23,6 @@ const point = (week: number, speed: number, atDay: number): TrendPoint => ({
   rideCount: 0,
   runAtMs: START + atDay * DAY,
   rideAtMs: null,
-  rideRunSpeed: null,
 })
 const POINTS = [point(0, 3.8, 1), point(1, 4, 9), point(2, 4.1, 16)]
 const TRENDS = { ...NO_TRENDS, 300: POINTS, 1200: POINTS, 3600: POINTS }
@@ -59,7 +58,7 @@ describe('BestsOverTimeSection', () => {
     renderSection(finding('higher'))
     expect(
       screen.getByRole('figure', {
-        name: '20 min is 13 s/km quicker than the previous 12 weeks',
+        name: '20 min is 13 s/km faster than the previous 12 weeks',
       }),
     ).toBeInTheDocument()
     fireEvent.click(
@@ -68,14 +67,16 @@ describe('BestsOverTimeSection', () => {
       }),
     )
     expect(
-      screen.getByRole('figure', { name: '5 min is 11 s/km quicker than the previous 12 weeks' }),
+      screen.getByRole('figure', { name: '5 min is 11 s/km faster than the previous 12 weeks' }),
     ).toBeInTheDocument()
   })
 
   it('says no clear change when the test does not call the move, however far the figures are apart', () => {
     renderSection(finding('none'))
     expect(
-      screen.getByRole('figure', { name: 'No clear change against the previous 12 weeks' }),
+      screen.getByRole('figure', {
+        name: "No clear change in 20 min from the previous 12 weeks; changes under 7% can't be told apart here",
+      }),
     ).toBeInTheDocument()
   })
 

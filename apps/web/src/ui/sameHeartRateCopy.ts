@@ -37,8 +37,8 @@ export function sameHeartRateTitle(sport: Sport, referenceHr: number, units: Uni
  * It speaks of the weeks and never of a change: the fitness status above is the sport's voice on that.
  */
 export function sameHeartRateLackText(sport: Sport, data: SameHeartRate): string | null {
-  const { referenceHeartRate: reference, change } = data
-  if (reference === null || change === null)
+  const { referenceHeartRate: reference, reportedWeeks } = data
+  if (reference === null || reportedWeeks < 2)
     return LACK_TEXT[data.lacks ?? 'blocks'](sport, reference)
   return null
 }

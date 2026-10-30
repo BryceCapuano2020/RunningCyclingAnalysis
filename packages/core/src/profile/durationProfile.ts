@@ -12,6 +12,7 @@ import {
 } from './constants'
 import { fitCurve } from './morton'
 import { studentTQuantile } from './studentT'
+import { conditionalEstimate } from './winnersCurse'
 
 /** One duration's best, in the sport's own unit, and the session it was set in. */
 export interface ProfilePoint {
@@ -131,10 +132,12 @@ function levelFor(activities: number): number {
 /**
  * A row from a held duration. Its interval is the log ratio plus and minus a Student's t quantile times its own
  * spread, so a duration the others pin down poorly has a wide one. The level is `levelFor` over all the rows
- * (Bonferroni), so that a profile of pure noise stands out somewhere that rarely. A duration that stands out is the
- * one noise has helped most, so its size is shrunk toward the athlete's curve by the share of its squared distance
- * that its own spread does not explain (positive-part James-Stein, `1 - (sd / ratio)^2`). The interval is the
- * unshrunk one, which is what decides that it stands out and whether the sentence names it; the shrunk size stays inside it. The bounds are put back from logs to fractions.
+ * (Bonferroni), so that a profile of pure noise stands out somewhere that rarely.
+ *
+ * A duration that stands out was picked for standing out, so the size it states is corrected for that
+ * (`conditionalEstimate`: the size the flagged draws are centred on), never below the interval's near end and never
+ * above the draw. The bar drawn is then centred on the stated size, from the near end to its mirror, so the point and
+ * its bar agree and the bar still excludes zero. A duration in line states its ratio and the interval as they are.
  */
 function rowOf(
   held: Held,
@@ -142,21 +145,32 @@ function rowOf(
   quantiles: Map<number, number>,
   level: number,
 ): ProfileRow {
-  const key = held.df
-  const t = quantiles.get(key) ?? studentTQuantile(1 - level / (2 * rows), held.df)
-  quantiles.set(key, t)
+  const t = quantiles.get(held.df) ?? studentTQuantile(1 - level / (2 * rows), held.df)
+  quantiles.set(held.df, t)
   const half = t * held.sd
   const lowLog = held.logRatio - half
   const highLog = held.logRatio + half
   const standsOut: StandsOut | null = lowLog > 0 ? 'above' : highLog < 0 ? 'below' : null
-  // Only a duration that stands out is shrunk: for the rest the ratio is already inside noise.
-  const share = standsOut === null ? 1 : Math.max(0, 1 - (held.sd / Math.abs(held.logRatio)) ** 2)
-  const shrunk = share * held.logRatio
+  if (standsOut === null) {
+    return {
+      durationS: held.durationS,
+      residual: Math.expm1(held.logRatio),
+      low: Math.expm1(lowLog),
+      high: Math.expm1(highLog),
+      standsOut,
+    }
+  }
+  const sign = standsOut === 'above' ? 1 : -1
+  const nearLog = sign * Math.min(Math.abs(lowLog), Math.abs(highLog))
+  const estimated = sign * held.sd * conditionalEstimate(Math.abs(held.logRatio) / held.sd, t)
+  const stated =
+    sign * Math.min(Math.abs(held.logRatio), Math.max(Math.abs(nearLog), Math.abs(estimated)))
+  const far = stated + (stated - nearLog)
   return {
     durationS: held.durationS,
-    residual: Math.expm1(shrunk),
-    low: Math.expm1(lowLog),
-    high: Math.expm1(highLog),
+    residual: Math.expm1(stated),
+    low: Math.expm1(Math.min(nearLog, far)),
+    high: Math.expm1(Math.max(nearLog, far)),
     standsOut,
   }
 }

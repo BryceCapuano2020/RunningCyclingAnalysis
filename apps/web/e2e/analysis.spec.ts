@@ -66,6 +66,12 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
       page.getByRole('figure', { name: sport === 'Run' ? RUN_CURVE : RIDE_CURVE }),
     ).toBeVisible()
     await expect(page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION })).toBeVisible()
+    // The dated bests are drawn: a figure named for the effort, with at least two dots in its plot.
+    const dated = page.locator('section').filter({
+      has: page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION }),
+    })
+    await expect(dated.getByRole('figure', { name: /20 min/ })).toBeVisible()
+    expect(await dated.locator('[data-testid^="bests-"]').count()).toBeGreaterThanOrEqual(2)
     // A closed row says what it found, so closed still tells the athlete something; it opens to its chart.
     const standOut = page.getByRole('region', { name: STAND_OUT_SECTION })
     await expect(standOut.locator('.sport-disclosure__finding')).toHaveText(STANDS_OUT_LINE)

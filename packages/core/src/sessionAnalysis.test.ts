@@ -39,8 +39,6 @@ describe('AnalysisSession analysis cache', () => {
     const first = session.loadDigests([...SAMPLE_DIGESTS], SETTINGS)
     expect(combine).toHaveBeenCalledTimes(1)
     expect(session.setSettings(SETTINGS).result).toBe(first.result)
-    expect(session.setGradeTrend(true, SETTINGS).result).toBe(first.result)
-    expect(session.setGradeTrend(false, SETTINGS).result).toBe(first.result)
     expect(combine).toHaveBeenCalledTimes(1)
   })
 

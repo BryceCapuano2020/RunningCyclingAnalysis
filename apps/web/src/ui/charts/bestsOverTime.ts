@@ -52,8 +52,10 @@ export function bestDots(points: readonly TrendPoint[], sport: Sport, massKg: nu
   return dots.sort((a, b) => a.atMs - b.atMs)
 }
 
-/** The least opacity of the oldest dot: faded, never gone. */
-export const OLDEST_OPACITY = 0.35
+/** The least opacity of the oldest dot: faded, never gone, and still plainly there on the card in both colour schemes. */
+export const OLDEST_OPACITY = 0.45
+/** A dot fainter than this is old: forced colours, which ignore opacity, draw it hollow. */
+export const OLD_BELOW = 0.7
 
 /** How opaque a dot is by its age: the newest is solid, the oldest OLDEST_OPACITY, evenly between by date. */
 export function opacityOf(dots: readonly BestDot[]): number[] {

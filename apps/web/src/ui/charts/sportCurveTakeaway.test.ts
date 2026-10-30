@@ -16,17 +16,21 @@ const base = {
   change: changeOf('higher'),
 } as const
 const unchanged = { ...base, change: changeOf('none') } as const
+/** What a 20 minute row with no clear change reads, with the smallest change the headline band could have called. */
+const NONE =
+  "No clear change in 20 min from the previous 12 weeks; changes under 7% can't be told apart here"
+const lower = { ...base, change: changeOf('lower') } as const
 
 describe('curveTakeaway with a period before', () => {
   it('says how far a run’s 20 minutes moved, in seconds per kilometre, and which way', () => {
     // 4.0 m/s is 250 s/km; 3.8 m/s is 263 s/km.
-    const quicker = curveTakeaway({
+    const faster = curveTakeaway({
       ...base,
       sport: 'run',
       rows: [row(300, 4.4, 4.2), row(1200, 4.0, 3.8)],
     })
-    expect(quicker).toBe('20 min is 13 s/km quicker than the previous 12 weeks')
-    const slower = curveTakeaway({ ...base, sport: 'run', rows: [row(1200, 3.8, 4.0)] })
+    expect(faster).toBe('20 min is 13 s/km faster than the previous 12 weeks')
+    const slower = curveTakeaway({ ...lower, sport: 'run', rows: [row(1200, 3.8, 4.0)] })
     expect(slower).toBe('20 min is 13 s/km slower than the previous 12 weeks')
   })
 
@@ -37,7 +41,7 @@ describe('curveTakeaway with a period before', () => {
       sport: 'run',
       rows: [row(1200, 4.0, 3.8)],
     })
-    expect(text).toBe('20 min is 21 s/mi quicker than the previous 12 weeks')
+    expect(text).toBe('20 min is 21 s/mi faster than the previous 12 weeks')
   })
 
   it('says how far a ride’s 20 minutes moved, in watts, and which way', () => {
@@ -48,28 +52,20 @@ describe('curveTakeaway with a period before', () => {
       previousLabel: 'Previous 6 weeks',
     })
     expect(higher).toBe('20 min is 12 W higher than the previous 6 weeks')
-    expect(curveTakeaway({ ...base, sport: 'ride', rows: [row(1200, 238, 250)] })).toBe(
+    expect(curveTakeaway({ ...lower, sport: 'ride', rows: [row(1200, 238, 250)] })).toBe(
       '20 min is 12 W lower than the previous 12 weeks',
     )
   })
 
   it('says there is no clear change when the two are the same', () => {
-    expect(curveTakeaway({ ...base, sport: 'run', rows: [row(1200, 4.0, 4.0)] })).toBe(
-      'No clear change against the previous 12 weeks',
-    )
-    expect(curveTakeaway({ ...base, sport: 'ride', rows: [row(1200, 250, 250)] })).toBe(
-      'No clear change against the previous 12 weeks',
-    )
+    expect(curveTakeaway({ ...unchanged, sport: 'run', rows: [row(1200, 4.0, 4.0)] })).toBe(NONE)
+    expect(curveTakeaway({ ...unchanged, sport: 'ride', rows: [row(1200, 250, 250)] })).toBe(NONE)
   })
 
   describe('the change test decides whether a move is a change', () => {
     it('says no clear change for a move the test does not call, however big it looks', () => {
-      expect(curveTakeaway({ ...unchanged, sport: 'ride', rows: [row(1200, 300, 250)] })).toBe(
-        'No clear change against the previous 12 weeks',
-      )
-      expect(curveTakeaway({ ...unchanged, sport: 'run', rows: [row(1200, 4.4, 4.0)] })).toBe(
-        'No clear change against the previous 12 weeks',
-      )
+      expect(curveTakeaway({ ...unchanged, sport: 'ride', rows: [row(1200, 300, 250)] })).toBe(NONE)
+      expect(curveTakeaway({ ...unchanged, sport: 'run', rows: [row(1200, 4.4, 4.0)] })).toBe(NONE)
     })
 
     it('words a move the test calls, with the amount the page shows and the direction the figures move', () => {
@@ -86,10 +82,27 @@ describe('curveTakeaway with a period before', () => {
       ).toBe('20 min is 12 W lower than the previous 12 weeks')
     })
 
-    it('does not word a call as a move when its figures round to the same', () => {
-      expect(curveTakeaway({ ...base, sport: 'ride', rows: [row(1200, 250.2, 250)] })).toBe(
-        'No clear change against the previous 12 weeks',
+    it('takes the direction from the call, not the watts: the same rider at a lower weight is higher in power per kilogram', () => {
+      // 245 W against 250 W is fewer watts, and the call (watts per kilogram) says higher.
+      expect(curveTakeaway({ ...base, sport: 'ride', rows: [row(1200, 245, 250)] })).toBe(
+        '20 min is 8% more power per kilogram than the previous 12 weeks',
       )
+      // The same watts, and the call says lower: a heavier rider.
+      expect(curveTakeaway({ ...lower, sport: 'ride', rows: [row(1200, 250, 250)] })).toBe(
+        '20 min is 8% less power per kilogram than the previous 12 weeks',
+      )
+    })
+
+    it('does not word a run’s call as a move when its pace rounds to the same, and says no more than no clear change', () => {
+      expect(curveTakeaway({ ...base, sport: 'run', rows: [row(1200, 4.0001, 4.0)] })).toBe(
+        'No clear change in 20 min from the previous 12 weeks',
+      )
+    })
+
+    it('holds the title to the stricter band: a call that leaves only the record band is no clear change', () => {
+      const weak = { ...base, change: changeOf('higher', {}, { weak: true }) }
+      expect(curveTakeaway({ ...weak, sport: 'ride', rows: [row(1200, 262, 250)] })).toBe(NONE)
+      expect(takeawayAt({ ...weak, sport: 'ride', rows: [row(1200, 262, 250)] }, 1200)).toBe(NONE)
     })
 
     it('falls to the best, comparing nothing, where the test could not judge the length', () => {

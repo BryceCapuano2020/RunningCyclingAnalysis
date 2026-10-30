@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RacePrediction } from '@rca/core/predict'
-import { raceBar, raceScale } from './raceBars'
+import { RAN_BELOW_CAP, raceBar, raceScale } from './raceBars'
 
 /** A 5 km predicted at 20:00, spread 19:00 to 21:30, estimated 19:30 from runs and 20:30 from heart rate. */
 const FIVE_K: RacePrediction = {
@@ -117,5 +117,31 @@ describe('raceBar on a scale shared by several races', () => {
   it('lets a recorded best on one race widen the scale of them all', () => {
     const wider = raceScale([FIVE_K, MARATHON], new Map([[5000, 900]]))
     expect(wider.below).toBeGreaterThan(scale.below)
+  })
+})
+
+describe('a recorded best far under its prediction', () => {
+  const MARATHON: RacePrediction = {
+    distanceM: 42_195,
+    seconds: 12_600,
+    low: 11_520,
+    high: 13_920,
+    methods: [{ method: 'performances', seconds: 12_300, fromM: 21_097 }],
+  }
+
+  it('widens the scale by no more than the cap, so one odd best cannot squash every bar', () => {
+    const plain = raceScale([FIVE_K, MARATHON])
+    const odd = raceScale([FIVE_K, MARATHON], new Map([[5000, 400]]))
+    expect(odd.below).toBeLessThanOrEqual(Math.max(plain.below, RAN_BELOW_CAP) + 1e-12)
+    // The marathon's spread is still most of its bar.
+    const bar = raceBar(MARATHON, odd)
+    expect(bar.high - bar.low).toBeGreaterThan(0.4)
+  })
+
+  it('draws that best at the bar’s edge, inside it, where it still reads as faster', () => {
+    const scale = raceScale([FIVE_K], new Map([[5000, 400]]))
+    const bar = raceBar(FIVE_K, scale, 400)
+    expect(bar.ran!).toBeGreaterThan(0)
+    expect(bar.ran!).toBeLessThan(bar.low)
   })
 })

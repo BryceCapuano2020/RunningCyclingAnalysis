@@ -132,8 +132,6 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       throw new Error('A rebuild is not a session request')
     case 'setSettings':
       return session.setSettings(request.settings)
-    case 'setGradeTrend':
-      return session.setGradeTrend(request.on, request.settings)
     case 'setRange':
       return session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':

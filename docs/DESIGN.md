@@ -326,11 +326,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   without its caption. The last point is named at its end with its value and its duration. Both
   sports' curves are on a 12% wash of the sport's colour to the foot of the axis, and the period before is a thinner (2 px) solid
   grey line, never dashed. The curve's title is its finding (`curveTakeaway`): with a period before, how far the best
-  20 minutes (or the longest effort both periods have measured) moved ("20 min is 11 s/km quicker than the previous 12 weeks", "20 min is 12 W higher than ...",
-  with the seconds set tight to the unit), or "No clear change against the previous 12 weeks"; without one, the best with its level
+  20 minutes (or the longest effort both periods have measured) moved ("20 min is 11 s/km faster than the previous 12 weeks", "20 min is 12 W higher than ...", or in power per kilogram, "20 min is 5% more power per kilogram than ...", where a change of weight moves the watts the other way from the call,
+  with the seconds set tight to the unit), or "No clear change in 20 min from the previous 12 weeks; changes under 7% can't be told apart here" (the smallest change the test could have called, from its band); without one, the best with its level
   ("Best 20 min: 4:11 /km, Local"). One test decides, for every curve and every page, so the same data always gets the same verdict: the change test
   (`packages/core/src/change`, [design/change-test.md](design/change-test.md)), which calls a change only when the real difference between the two periods' bests is outside the middle 90% of
-  the differences the athlete's own efforts make when dealt out at random between the two periods. A length the periods hold too few efforts of to test gets no comparison, and the title names the best instead. A carried value (below) is never read as a finding, in either period: the
+  the differences the athlete's own efforts make when dealt out at random between the two periods. A length the periods hold too few efforts of to test gets no comparison, and the title names the best instead. A title and Balance's strip hold a call to the stricter 95% band, since they state several claims at once; a record row keeps the 90% band. A ride is tested on its power-meter rides, or on estimated against estimated, and a mix that differs between the periods is not tested. A carried value (below) is never read as a finding, in either period: the
   comparison and the best skip carried rows and take the longest measured effort. The chart's name stays as the small caption above the finding.
   Where the curve's points are a longer effort's value copied down by the envelope (`windowS` longer than `durationS`), the
   line there is that longer effort's value, not a measured one at its own length: the stretch is drawn lighter, from the measured
@@ -408,8 +408,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   - **Best efforts over time** shows the efforts of 5, 20 or 60 minutes that were the best of their stretch, each as a dot
     on the day it was done, older ones fainter (35% at the oldest, solid at the newest), with no line and no wash: the days
     between dots hold no reading, and a line through best efforts measured how often the athlete went hard. Its title is the change
-    test's finding about that length against the previous period with the window named ("20 min is 11 s/km quicker than
-    the previous 12 weeks", "No clear change against the previous 12 weeks"), and the plain description ("Best 20 min runs by
+    test's finding about that length against the previous period with the window named ("20 min is 11 s/km faster than
+    the previous 12 weeks", "No clear change in 20 min from the previous 12 weeks; changes under 7% can't be told apart here"), and the plain description ("Best 20 min runs by
     day") when there is no previous period (All time) or the test could not judge the length. The fitness status above is the
     sport's trend. A dot is the effort that led some trailing window, once; the hard-effort filter waits for the effort gate in core.
   - **Late in long sessions** is a closed section. It holds two readings, each titled by what it found, with its
@@ -585,9 +585,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   since a chart that would only repeat the 20 minute balance says nothing more. The chart's table lists each
   grade, with a ride's range in brackets, and its tooltip names the level.
 - A previous period is a solid mid-grey line (2 px, `--previous-mark`), never dashed. It appears only when it
-  has values, and otherwise its key row says there were none. A trend with one week of values keeps its title
-  and says so in a line beneath it: "Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend
-  needs two weeks with values."
+  has values, and otherwise its key row says there were none.
 - **The Balance first screen is one line.** At 1440 x 900 the headline, the sentence, the meter, the levels and the period chips are all above the fold, and at 390 px wide and at 320 x 640, with the sample banner's two lines above it, the meter and both levels end above the section tabs (the eyebrow goes on a phone, since the period control states the dates). The meter is the first graphic on the page. On a landscape phone (667 x 375) the headline is above the foot bar.
 - The Balance headline runs the answer's full width and names the sport the balance leans toward, underlined in that
   sport's colour (a shape; the text stays ink). The lede is one plain sentence at the 62 character measure ("Running's age grade is 11 points higher than cycling's at 20 min.", with age grade defined in place); the range is not in it, since it is written at the meter's dot. Running is
@@ -606,7 +604,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   grew or eased, whichever sport it favours, and this period's 90% range is written from the side it leans to, as the headline writes it; no claim is made about whether the earlier range overlaps it. A best's title says what moved against the period before ("Faster 20 min run than the previous 12 weeks"), as
   it is not a personal record. The previous period's grades are worked out from its curves the way this period's are, the ride at the mass it was ridden at.
   Previous thresholds are not in the session state, so thresholds are not listed. With nothing to list the strip says
-  "No clear change since the previous 12 weeks." when something could be compared and the test called nothing, and "Not enough in the previous 12 weeks to compare." when the previous period lacks the efforts or holds too few of that length to test; where only some could be compared it lists those. A best is compared only where neither period's best 20 min is known, by the heart-rate effort check's 90% line, to have been an
+  "No clear change from the previous 12 weeks." when something could be compared and the test called nothing, and "Not enough in the previous 12 weeks to compare." when the previous period lacks the efforts or holds too few of that length to test; where only some could be compared it lists those. A best is compared only where neither period's best 20 min is known, by the heart-rate effort check's 90% line, to have been an
   easy effort; otherwise a line says "No comparable hard 20 min of running in the previous 12 weeks." (or, where this period's was the easy one, that it was not a hard effort so it is not compared). Where heart rate
   does not say, the best stands. The previous period's check is `SportCurves.headlineEffort`, judged against the library's reference heart rates and set-aside list.
 - **The import summary compares like with like.** It lists what an import moved only when the period was in the same regime before and after (the same length, all time both times, or the same custom days: `sameRegime`). The default period is 12 weeks until an import brings a sport the library lacked and then all time; a threshold or grade across that switch is a different stretch of the library, not a change, so the summary lists nothing then.

@@ -95,7 +95,7 @@ describe('BalanceChanges', () => {
         previousLabel="Previous 12 weeks"
       />,
     )
-    expect(screen.getByText('No clear change since the previous 12 weeks.')).toBeInTheDocument()
+    expect(screen.getByText('No clear change from the previous 12 weeks.')).toBeInTheDocument()
     expect(container.querySelector('ul')).toBeNull()
   })
 

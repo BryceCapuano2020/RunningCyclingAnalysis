@@ -69,7 +69,7 @@ const SIGNED_IN_B: Account = { status: 'signed-in', me: me('u2') }
 function setup(initial: Account, settings: Settings = SETTINGS) {
   return renderHook(
     ({ account, current }: { account: Account; current: Settings }) =>
-      useAnalysis(current, account, false),
+      useAnalysis(current, account),
     { initialProps: { account: initial, current: settings } },
   )
 }

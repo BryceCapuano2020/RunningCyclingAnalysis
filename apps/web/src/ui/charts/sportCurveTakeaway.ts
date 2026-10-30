@@ -1,8 +1,10 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { callAt, directionOf, verdictAt, verdictOfCall } from '@rca/core/change/types'
 import type { ChangeEvidence } from '@rca/core/change/types'
-import { verdictAt } from '@rca/core/change/types'
+import { perKilogramWords, resolutionClause, shownDirection } from '../changeWords'
+import { NO_CLEAR_CHANGE } from '../recordChange'
 import { effortLabel } from '../records'
 import { splitValue } from './annotationTypes'
 import type { CurveRow } from './curveTable'
@@ -14,7 +16,7 @@ interface Wording {
   noun: string
   better: string
   worse: string
-  /** A pace is seconds per unit, so a smaller number is quicker. */
+  /** A pace is seconds per unit, so a smaller number is faster. */
   lowerIsBetter: boolean
   /** The size of a change as text, from whole plotted units and the unit of the sport's formatted value. */
   size: (amount: number, unit: string) => string
@@ -23,7 +25,7 @@ interface Wording {
 const WORDING: Record<Sport, Wording> = {
   run: {
     noun: 'pace',
-    better: 'quicker',
+    better: 'faster',
     worse: 'slower',
     lowerIsBetter: true,
     // The unit is "/km" or "/mi", set tight to the seconds: "13 s/km".
@@ -71,7 +73,7 @@ function comparedRow(
     (row) =>
       measuredIn(row, 'value') &&
       measuredIn(row, 'previous') &&
-      verdictAt(change, sport, row.durationS) !== 'untested',
+      verdictAt(change, sport, row.durationS, 'headline') !== 'untested',
   )
   return both.find((row) => row.durationS === HEADLINE_DURATION_S) ?? both.at(-1)
 }
@@ -89,24 +91,40 @@ interface Comparison {
   durationS: number
 }
 
-/** What the change test says of one row, as a sentence, and the effort length the sentence cites (null for no clear change). */
+/**
+ * What the change test says of one row, as a sentence, and the effort length the sentence cites (null for no clear
+ * change, which still says which length it speaks of, since the title is about one). The title is a headline, so it is
+ * held to the stricter band. Which way a move went is the call's (the compared unit), never the displayed watts; where
+ * they disagree the sentence is in watts per kilogram.
+ */
 function comparisonOf(
   row: CurveRow,
   { sport, units, previousLabel, change }: TakeawayInput & { previousLabel: string },
 ): Comparison | { text: string; durationS: null } {
   const wording = WORDING[sport]
+  const call = callAt(change, sport, row.durationS)
+  const verdict = verdictOfCall(call, 'headline')
   const shift = plottedValue(sport, row.value, units) - plottedValue(sport, row.previous, units)
   const amount = Math.round(Math.abs(shift))
   const against = `the ${lowerFirst(previousLabel)}`
-  const verdict = verdictAt(change, sport, row.durationS)
-  // A called change shows as at least one plotted unit; a figure that rounds to none is not worded as a move.
-  if ((verdict !== 'higher' && verdict !== 'lower') || amount === 0) {
-    return { text: `No clear change against ${against}`, durationS: null }
+  const length = effortLabel(row.durationS)
+  if (verdict !== 'higher' && verdict !== 'lower') {
+    const clause = resolutionClause(call, 'headline')
+    const tail = clause === '' ? '' : `; ${clause}`
+    return { text: `${NO_CLEAR_CHANGE} in ${length} from ${against}${tail}`, durationS: null }
   }
-  const better = wording.lowerIsBetter ? shift < 0 : shift > 0
+  const direction = directionOf(call, 'headline')
+  // Better is lower for a pace (a smaller number of seconds): the displayed figure and the call must agree on it.
+  const shownBetter = shownDirection(wording.lowerIsBetter ? -shift : shift)
+  if (shownBetter !== direction || amount === 0) {
+    const perKilo = perKilogramWords(sport, call, 'headline')
+    return perKilo === null
+      ? { text: `${NO_CLEAR_CHANGE} in ${length} from ${against}`, durationS: null }
+      : { text: `${length} is ${perKilo} than ${against}`, durationS: row.durationS }
+  }
   const { unit } = splitValue(formatNative(sport, row.value, units))
   return {
-    text: `${effortLabel(row.durationS)} is ${wording.size(amount, unit)} ${better ? wording.better : wording.worse} than ${against}`,
+    text: `${length} is ${wording.size(amount, unit)} ${direction > 0 ? wording.better : wording.worse} than ${against}`,
     durationS: row.durationS,
   }
 }
@@ -137,7 +155,7 @@ export function takeawayAt(input: TakeawayInput, durationS: number): string | nu
     row === undefined ||
     !measuredIn(row, 'value') ||
     !measuredIn(row, 'previous') ||
-    verdictAt(change, sport, durationS) === 'untested'
+    verdictAt(change, sport, durationS, 'headline') === 'untested'
   ) {
     return null
   }

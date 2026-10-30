@@ -89,7 +89,7 @@ const UNREACHABLE: Account = { status: 'unavailable', me: null, lookupPending: t
 function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS) {
   return renderHook(
     ({ account, current }: { account: Account; current: AthleteSettings }) =>
-      useAnalysis(current, account, false),
+      useAnalysis(current, account),
     { initialProps: { account: initial, current: settings } },
   )
 }
@@ -211,7 +211,7 @@ describe('useAnalysis account handling', () => {
   it('loads the stored activities into the active worker under StrictMode', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account, false),
+        useAnalysis(current, account),
       {
         initialProps: { account: SIGNED_IN_KEEP, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -1298,7 +1298,7 @@ describe('useAnalysis device library', () => {
   it('sends one device load to the surviving worker under StrictMode when signed out', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account, false),
+        useAnalysis(current, account),
       {
         initialProps: { account: SIGNED_OUT, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -1430,33 +1430,6 @@ describe('useAnalysis requests', () => {
     } finally {
       localStorage.removeItem(PERIOD_KEY)
     }
-  })
-
-  it('asks the worker to grade the trend once the athlete has an age and sex, and only then', () => {
-    const { rerender } = renderHook(
-      ({ grade }: { grade: boolean }) => useAnalysis(SETTINGS, SIGNED_OUT, grade),
-      { initialProps: { grade: false } },
-    )
-    expect(worker().posted).toEqual([DEVICE_LOAD])
-    rerender({ grade: true })
-    expect(worker().posted).toEqual([
-      DEVICE_LOAD,
-      { type: 'setGradeTrend', on: true, settings: SETTINGS },
-    ])
-    rerender({ grade: true })
-    expect(worker().posted).toHaveLength(2)
-    rerender({ grade: false })
-    expect(worker().posted.at(-1)).toEqual({ type: 'setGradeTrend', on: false, settings: SETTINGS })
-  })
-
-  it('asks the worker that replaces a stopped one to grade the trend too', () => {
-    const { result } = renderHook(() => useAnalysis(SETTINGS, SIGNED_OUT, true))
-    const first = worker()
-    expect(first.posted).toContainEqual({ type: 'setGradeTrend', on: true, settings: SETTINGS })
-    act(() => result.current.stop())
-
-    expect(worker()).not.toBe(first)
-    expect(worker().posted).toContainEqual({ type: 'setGradeTrend', on: true, settings: SETTINGS })
   })
 
   it('posts new settings only when the body or bike mass changes', () => {
@@ -1767,7 +1740,7 @@ describe('useAnalysis state', () => {
     // The sync status as the app renders it, fed by the hook.
     let analysisOf: ReturnType<typeof useAnalysis> | undefined
     function Status() {
-      const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP, false)
+      const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP)
       useEffect(() => {
         analysisOf = analysis
       })

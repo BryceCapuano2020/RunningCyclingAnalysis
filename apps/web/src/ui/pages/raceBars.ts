@@ -38,16 +38,22 @@ export interface RaceScale {
   above: number
 }
 
-/** The times drawn on one bar. */
-function timesOf(prediction: RacePrediction, ranSeconds: number | null): number[] {
+/** The times drawn on a bar that the scale must hold: the spread's ends, the prediction and each estimate. */
+function timesOf(prediction: RacePrediction): number[] {
   return [
     prediction.low,
     prediction.high,
     prediction.seconds,
     ...prediction.methods.map((method) => method.seconds),
-    ...(ranSeconds === null ? [] : [ranSeconds]),
   ]
 }
+
+/**
+ * The most a recorded best widens the scale below its prediction, as a fraction of the prediction. A best far under its
+ * prediction (a short race run in a long one, or a mislabelled file) would otherwise set the scale for every race and
+ * squash every other bar into a corner; beyond this it is drawn at the bar's left edge, where it still says it is faster.
+ */
+export const RAN_BELOW_CAP = 0.15
 
 /**
  * The common scale of some races, from every time drawn on them, the spread's ends, each estimate and a recorded best
@@ -60,9 +66,13 @@ export function raceScale(
   let below = 0
   let above = 0
   for (const prediction of predictions) {
-    for (const seconds of timesOf(prediction, rans.get(prediction.distanceM) ?? null)) {
+    for (const seconds of timesOf(prediction)) {
       below = Math.max(below, 1 - seconds / prediction.seconds)
       above = Math.max(above, seconds / prediction.seconds - 1)
+    }
+    const ran = rans.get(prediction.distanceM)
+    if (ran !== undefined) {
+      below = Math.max(below, Math.min(RAN_BELOW_CAP, 1 - ran / prediction.seconds))
     }
   }
   return { below, above }
@@ -88,6 +98,7 @@ export function raceBar(
       method: method.method,
       at: at(method.seconds),
     })),
-    ran: ranSeconds === null ? null : at(ranSeconds),
+    // A best past the scale's edge is drawn at the edge (inside the margin), not off the bar.
+    ran: ranSeconds === null ? null : Math.max(MARGIN / 2, at(ranSeconds)),
   }
 }

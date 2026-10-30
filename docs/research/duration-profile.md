@@ -156,8 +156,9 @@ are in line with each other, compared from 5 s to 60 min.", and the page shows n
 - Changes made for the false-finding audit (D5). The drop rule's trimmed spread is the case above: the refit's residual spread is
   now never below the first fit's, so dropping points cannot tighten the interval the rest are judged by. The level
   (`PROFILE_ALPHA`, 5% over the rows) is for a library of `PROFILE_IN_LINE_MIN_ACTIVITIES` (40) activities or more and is scaled by
-  activities over 40 below that. A duration that stands out is stated at a size shrunk toward the curve by the positive-part
-  James-Stein share, `1 - (sd / ratio)^2`, since the duration noise helped most is the one that stands out. "In line with each other"
+  activities over 40 below that. A duration that stands out is stated at a size corrected for having been picked as the largest of
+  several (a conditional estimate from the truncated normal above the flag cut, `profile/winnersCurse.ts`), and the drawn bar is centred on
+  that stated size. "In line with each other"
   is said only with 40 activities behind the bests. `profile/standOut.sim.test.ts` draws libraries of N activities that each carry one
   effort through every duration they reach, with a per-duration habit of 3%: with nothing planted the profiles that flagged a duration
   at N of 15 / 25 / 40 (efforts 10% short of the curve) went from 6.3 / 8.5 / 3.8% to 2.5 / 5.5 / 3.8%; a planted 15% rise at 20 minutes was

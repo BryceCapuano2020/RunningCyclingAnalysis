@@ -47,7 +47,6 @@ const runPoint = (week: number, speed: number): TrendPoint => {
     rideCount: 0,
     runAtMs: endMs,
     rideAtMs: null,
-    rideRunSpeed: null,
   }
 }
 
@@ -83,6 +82,7 @@ describe('the sport pages’ charts on a phone', () => {
         units="metric"
         effortS={1200}
         takeaway={null}
+        comparedWith={null}
       />,
     )
     const idle = screen.getByTestId('chart-readout').getAttribute('data-idle')
@@ -99,6 +99,7 @@ describe('the sport pages’ charts on a phone', () => {
         units="metric"
         effortS={1200}
         takeaway={null}
+        comparedWith={null}
       />,
     )
     expect(screen.queryByTestId('chart-readout')).toBeNull()

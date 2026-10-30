@@ -37,6 +37,15 @@ export interface Spec {
   meter?: number
   /** A log wander of the capability from week to week (correlation 0.9), as a log sd. */
   wander?: number
+  /**
+   * Real noise: when given, every effort lands exp(effortSd * N(0, 1)) round the capability, with no ceiling and no easy
+   * share, and carries that through every length it reaches. A hard effort of a real library lands above and below
+   * its athlete's curve alike (terrain, heat, sleep, pacing, a stray sensor), which `spread` with its ceiling does not
+   * draw: at `spread` the best of a period sits at the ceiling and the noise a best has is 6 to 17 times smaller than
+   * a real library's. About 0.10 matches a run's 20 minutes (equal-capability pairs of periods differ by a median of
+   * 3.5 to 6% there), and about 0.3 a ride's 5 minutes (a median of 10 to 15%).
+   */
+  effortSd?: number
 }
 
 function poisson(random: () => number, mean: number): number {
@@ -70,7 +79,12 @@ export function effortLibrary(spec: Spec): ActivityDigest[] {
     const count = Number.isInteger(spec.perWeek) ? spec.perWeek : poisson(random, spec.perWeek)
     for (let i = 0; i < count; i++) {
       const hard = random() < hardShare
-      const factor = hard ? Math.min(0, spread * normal(random) - 0.01) : -(0.08 + 0.12 * random())
+      const factor =
+        spec.effortSd !== undefined
+          ? spec.effortSd * normal(random)
+          : hard
+            ? Math.min(0, spread * normal(random) - 0.01)
+            : -(0.08 + 0.12 * random())
       const level = (spec.level?.(week) ?? 0) + wander + factor
       // The longest length this effort reaches: a hard effort tends to be long enough to count at 20 min.
       const reaches = DURATIONS_S[Math.min(DURATIONS_S.length - 1, 8 + Math.floor(random() * 11))]!

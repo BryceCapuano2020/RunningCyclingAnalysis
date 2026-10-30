@@ -9,39 +9,7 @@ import {
 } from './index'
 import type { ProfilePoint, ProfileRow, ReadyProfile } from './index'
 
-/** Morton's three-parameter model: the power held for t seconds. */
-function morton(t: number, cp: number, wPrime: number, pmax: number): number {
-  return cp + wPrime / (t + wPrime / (pmax - cp))
-}
-
-const DURATIONS = [
-  5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600,
-]
-
-/** A ride's curve from a known model, spread over four sessions so that none is the only source. */
-function modelCurve(change: (durationS: number, value: number) => number = (_, v) => v) {
-  return DURATIONS.map((durationS, i): ProfilePoint => ({
-    durationS,
-    value: change(durationS, morton(durationS, 250, 20_000, 1000)),
-    sessionId: `session-${i % 4}`,
-  }))
-}
-
-/** The curve with one duration's value scaled. */
-function scaled(durationS: number, factor: number): ProfilePoint[] {
-  return modelCurve((d, value) => (d === durationS ? value * factor : value))
-}
-
-function ready(points: ProfilePoint[]) {
-  const profile = durationProfile(points)
-  if (profile.status !== 'ready') throw new Error(`not ready: ${JSON.stringify(profile)}`)
-  return profile
-}
-
-const standing = (points: ProfilePoint[]) =>
-  ready(points)
-    .rows.filter((row) => row.standsOut !== null)
-    .map((row) => [row.durationS, row.standsOut])
+import { DURATIONS, modelCurve, morton, ready, scaled, standing } from './test/curves'
 
 describe('durationProfile', () => {
   it('finds a curve that follows one model in line with itself everywhere', () => {
@@ -373,35 +341,5 @@ describe('a run’s profile, which starts at 3 minutes', () => {
     expect(profile.anchored).toBe(false)
     expect(profile.rows).toHaveLength(DURATIONS.filter((d) => d >= 180).length)
     expect(profile.rows.every((row) => row.standsOut === null)).toBe(true)
-  })
-})
-
-describe('what a small library can say', () => {
-  it('does not say the bests are in line with each other with fewer than 40 activities behind them', () => {
-    const few = durationProfile(modelCurve(), 5, 25)
-    if (few.status !== 'ready') throw new Error('not ready')
-    const text = profileSentence(few, formatDuration)
-    expect(text).not.toContain('in line with')
-    expect(text).toContain('takes 40 activities to say they agree; this period has 25')
-    const enough = durationProfile(modelCurve(), 5, 40)
-    if (enough.status !== 'ready') throw new Error('not ready')
-    expect(profileSentence(enough, formatDuration)).toContain('in line with each other')
-  })
-
-  it('judges a duration at a stricter level in a small library, and shrinks what stands out', () => {
-    const points = scaled(1200, 1.15)
-    const flagged = (activities: number) => {
-      const profile = durationProfile(points, 5, activities)
-      if (profile.status !== 'ready') throw new Error('not ready')
-      return profile.rows.find((row) => row.durationS === 1200)!
-    }
-    const large = flagged(40)
-    const small = flagged(5)
-    expect(large.standsOut).toBe('above')
-    expect(small.standsOut).toBeNull()
-    // The size reported is below the raw 15%: the duration noise helped most is pulled toward the curve.
-    expect(large.residual).toBeGreaterThan(0.08)
-    expect(large.residual).toBeLessThan(0.15)
-    expect(large.low).toBeGreaterThan(0)
   })
 })

@@ -104,7 +104,7 @@ const BOTH_SPORTS = makeResult({
   equivalents: [makeEquivalence()],
 })
 
-/** Weeks with a run and a ride, each rode with a running equivalent, so the grade trend has both. */
+/** Weeks with a run and a ride, each with a best, so the page has both sports' weeks to draw its hours on. */
 function trendWithRides(weeks: number): TrendPoint[] {
   return Array.from({ length: weeks }, (_, index) => {
     const endMs = new Date(2026, 0, 4 + index * 7, 23, 59).getTime()
@@ -116,12 +116,11 @@ function trendWithRides(weeks: number): TrendPoint[] {
       rideCount: 1,
       runAtMs: endMs,
       rideAtMs: endMs,
-      rideRunSpeed: { p05: 3.9, p50: 4.2, p95: 4.5 },
     }
   })
 }
 
-/** Two weeks with a running value: the fitness trend is shown only from two. */
+/** Weeks with a running value. */
 function trendWithWeeks(weeks: number): TrendPoint[] {
   return Array.from({ length: weeks }, (_, index) => {
     const endMs = new Date(2026, 0, 4 + index * 7, 23, 59).getTime()
@@ -133,7 +132,6 @@ function trendWithWeeks(weeks: number): TrendPoint[] {
       rideCount: 0,
       runAtMs: endMs,
       rideAtMs: null,
-      rideRunSpeed: null,
     }
   })
 }
@@ -344,7 +342,7 @@ describe('BalancePage', () => {
     expect(
       (tiles?.compareDocumentPosition(chart) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    // Not in a pair with the hours: the trend and the hours are their own block below it.
+    // Not in a pair with anything: the hours strip is its own block below it.
     expect(chart.parentElement).not.toHaveClass('balance__pair')
     expect(container.querySelector('.balance__pair')).toBeNull()
   })

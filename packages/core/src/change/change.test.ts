@@ -65,11 +65,11 @@ describe('readingsOf', () => {
     for (const sport of ['run', 'ride'] as const) {
       const { library } = periods({ sport }, 0)
       const readings = readingsOf(library, SETTINGS, DEFAULT_BIKE_MODEL, null)
-      const index = readings[sport].findIndex((values) => values.length > 0)
+      const index = readings[sport].findIndex((r) => r.values.length > 0)
       expect(index).toBeGreaterThanOrEqual(0)
       const analysis = combine(library, SETTINGS)
       const curve = sport === 'run' ? analysis.runCurve : analysis.rideMetabolicCurve
-      for (const [i, values] of readings[sport].entries()) {
+      for (const [i, { values }] of readings[sport].entries()) {
         if (values.length === 0) continue
         const point = curve[i]!
         // A run is compared in flat speed and a ride in W/kg, which are the curves' own values under the same conversion.
@@ -83,7 +83,7 @@ describe('readingsOf', () => {
     const { library } = periods({ sport: 'run' }, 0)
     const indoor = library.map((d) => Object.assign({}, d, { indoor: true }))
     const readings = readingsOf(indoor, SETTINGS, DEFAULT_BIKE_MODEL, null)
-    expect(readings.run.every((values) => values.length === 0)).toBe(true)
+    expect(readings.run.every((r) => r.values.length === 0)).toBe(true)
   })
 })
 
@@ -156,13 +156,40 @@ describe('changeEvidence', () => {
 })
 
 describe('PeriodCache.change', () => {
+  const p = periods({ sport: 'run' }, 0.05)
+
   it('keeps the evidence for the same periods, masses and gate, and redoes it for others', () => {
-    const p = periods({ sport: 'run' }, 0.05)
     const cache = new PeriodCache()
     const first = cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)
     expect(cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)).toBe(first)
     expect(
       cache.change(p.selected, p.previous.slice(1), SETTINGS, DEFAULT_BIKE_MODEL, null),
     ).not.toBe(first)
+  })
+
+  it('keeps a few periods, so going back to one just shown costs nothing', () => {
+    const cache = new PeriodCache()
+    const first = cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)
+    cache.change(p.selected.slice(1), p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)
+    cache.change(p.selected.slice(2), p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)
+    expect(cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)).toBe(first)
+  })
+
+  it('finds an entry only for the reading rule it was made through', () => {
+    const cache = new PeriodCache()
+    const first = cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)
+    const gated = { rule: { activity: () => true, point: () => false }, key: 'nothing counts' }
+    const other = cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null, gated)
+    expect(other).not.toBe(first)
+    expect(other.run.every((call) => call.verdict === 'untested')).toBe(true)
+  })
+
+  it('lets go of the change test and the previous curves of a digest the library no longer holds', () => {
+    const cache = new PeriodCache()
+    const first = cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)
+    cache.releaseAbsent([...p.selected, ...p.previous])
+    expect(cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)).toBe(first)
+    cache.releaseAbsent(p.selected)
+    expect(cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null)).not.toBe(first)
   })
 })

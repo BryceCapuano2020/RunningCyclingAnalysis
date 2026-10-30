@@ -56,6 +56,7 @@ export function BestsOverTimeSection({
         units={units}
         effortS={effort}
         takeaway={takeaway}
+        comparedWith={takeaway === null || finding === null ? null : finding.previousLabel}
       />
     </section>
   )

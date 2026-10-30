@@ -13,7 +13,6 @@ const runPoint = (week: number, speed: number, atDay: number): TrendPoint => ({
   rideCount: 0,
   runAtMs: START + atDay * DAY,
   rideAtMs: null,
-  rideRunSpeed: null,
 })
 
 describe('bestDots', () => {

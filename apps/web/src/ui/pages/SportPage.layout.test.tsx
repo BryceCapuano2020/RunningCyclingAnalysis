@@ -339,15 +339,7 @@ describe('"On this page" and the layout', () => {
       blocks: 14,
       activities: 5,
     })),
-    change: {
-      fromEndMs: Date.UTC(2025, 0, 12),
-      toEndMs: Date.UTC(2025, 0, 12) + 3 * 7 * 86_400_000,
-      from: 3.2,
-      to: 3.35,
-      weeksApart: 3,
-      relative: 0.05,
-      real: true,
-    },
+    reportedWeeks: 4,
     lacks: null,
     latestWeekEndMs: Date.UTC(2025, 0, 12) + 3 * 7 * 86_400_000,
   }
