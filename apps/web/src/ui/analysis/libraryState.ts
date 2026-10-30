@@ -37,7 +37,17 @@ export function useLibraryState() {
   const [detail, setDetail] = useState<DetailCoverage | null>(null)
   const [outdatedWithOriginal, setOutdatedWithOriginal] = useState(0)
   const [libraryUnreadable, setLibraryUnreadable] = useState(0)
-  const [deviceIssue, setDeviceIssue] = useState<DeviceIssue | null>(null)
+  const [deviceIssue, setDeviceIssueState] = useState<DeviceIssue | null>(null)
+  // The issue on screen, current the moment it is set, so a notice that waits for a free place can ask.
+  const deviceIssueRef = useRef<DeviceIssue | null>(null)
+  const setDeviceIssue = useCallback(
+    (next: DeviceIssue | null | ((previous: DeviceIssue | null) => DeviceIssue | null)) => {
+      const value = typeof next === 'function' ? next(deviceIssueRef.current) : next
+      deviceIssueRef.current = value
+      setDeviceIssueState(value)
+    },
+    [],
+  )
   const [savedActivities, setSavedActivities] = useState<SavedActivity[]>([])
   const savedActivitiesRef = useRef<SavedActivity[]>([])
 
@@ -69,7 +79,7 @@ export function useLibraryState() {
    */
   const dropNotSaved = useCallback(
     () => setDeviceIssue((issue) => (issue?.issue === 'notSaved' ? null : issue)),
-    [],
+    [setDeviceIssue],
   )
 
   /** Clears what a request replaces: an unreadable count a library load reports afresh, and a refusal it retries. */
@@ -87,7 +97,7 @@ export function useLibraryState() {
       if (request.type === 'loadSample' || request.type === 'loadDevice') dropNotSaved()
       if (retriesDevice(request)) setDeviceIssue(null)
     },
-    [dropNotSaved],
+    [dropNotSaved, setDeviceIssue],
   )
 
   return {
@@ -112,6 +122,7 @@ export function useLibraryState() {
     libraryUnreadable,
     setLibraryUnreadable,
     deviceIssue,
+    deviceIssueRef,
     setDeviceIssue,
     dropNotSaved,
     resetNoticesFor,

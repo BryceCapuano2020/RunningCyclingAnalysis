@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { useStickyExtra } from '../components/useStickyExtra'
 import { goToSection } from './goToSection'
 import './SectionNav.css'
 
@@ -13,9 +15,12 @@ export interface SectionNavItem {
  * a row that scrolls sideways. It sits after the period control, so the answer keeps the first screen.
  */
 export function SectionNav({ items }: { items: readonly SectionNavItem[] }) {
+  const [bar, setBar] = useState<HTMLElement | null>(null)
+  // While the row sticks under the header, the page's scroll padding clears it too.
+  useStickyExtra(bar)
   if (items.length < 2) return null
   return (
-    <nav className="section-nav" aria-label="On this page">
+    <nav ref={setBar} className="section-nav" aria-label="On this page">
       <ul className="section-nav__list">
         {items.map(({ id, label }) => (
           <li key={id}>

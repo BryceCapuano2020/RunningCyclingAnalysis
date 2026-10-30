@@ -27,10 +27,11 @@ const SLIP = FITNESS_STATE.slipping
 const SLIP_TRACK = trackModel('run', fitness.change, null, { before: '', now: '' })
 
 /**
- * An example of the home screen, drawn from the sample athlete: the fitness finding above the answer's
- * headline over the real meter and the real levels line, made from the sample's own figures with the same components Balance uses, so the
+ * An example of the home screen, drawn from the sample athlete: the answer's headline over the real meter and
+ * the real levels line, made from the sample's own figures with the same components Balance uses, so the
  * example cannot drift from the screen it stands for. It is the landing page's hero visual, labelled
- * illustrative, and names the sample.
+ * illustrative, and names the sample. The fitness finding is the second panel (LandingFitnessExample), set
+ * below the actions so the first screen keeps Add files.
  */
 export function LandingExample() {
   const reading = gapReading(LANDING_EXAMPLE.gap)
@@ -43,6 +44,21 @@ export function LandingExample() {
   return (
     <figure className="landing-example">
       <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`}</figcaption>
+      <p className="landing-example__title">{balanceTitle(reading)}</p>
+      <BalanceMeter reading={reading} />
+      <BalanceLevels model={levels} />
+    </figure>
+  )
+}
+
+/**
+ * The example's second panel: the sample athlete's fitness finding, the state, one sentence and the change as
+ * a track, from the same figures the sample's own analysis gives. It follows the actions on the landing page.
+ */
+export function LandingFitnessExample() {
+  return (
+    <figure className="landing-example landing-example--fitness">
+      <figcaption className="eyebrow">Fitness at the same heart rate</figcaption>
       <div className="landing-example__fitness" data-sport="run" data-state="slipping">
         <p className="landing-example__state">
           <FitnessGlyph glyph={SLIP.glyph} />
@@ -53,9 +69,6 @@ export function LandingExample() {
         </p>
         <FitnessTrack track={SLIP_TRACK} />
       </div>
-      <p className="landing-example__title">{balanceTitle(reading)}</p>
-      <BalanceMeter reading={reading} />
-      <BalanceLevels model={levels} />
     </figure>
   )
 }

@@ -11,4 +11,9 @@ export interface AthleteSettings {
   bikeMassKg: number
   /** The athlete's dated settings. Absent or empty: every activity uses massKg, and references are estimated. */
   measurements?: readonly Measurement[]
+  /**
+   * The workouts (by `dedupeKey`) the athlete counts as runs although they are at walking pace. Absent or
+   * empty: every run at walking pace is left out of the analysis.
+   */
+  countedRuns?: readonly string[]
 }
