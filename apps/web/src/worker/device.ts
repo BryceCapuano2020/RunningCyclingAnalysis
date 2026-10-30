@@ -4,6 +4,7 @@ import type { AnalysisSession, SessionState, SyncItem } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import { deviceFileOf } from './deviceFile'
+import { LibraryReplaced } from './deviceFile'
 import type { DeviceEntry, DeviceLibrary } from './deviceLibrary'
 import type { SavedActivity, WorkerResponse } from './protocol'
 import { savedActivityOf } from './savedActivity'
@@ -29,9 +30,13 @@ export interface DeviceActions {
   inSession(): boolean
   /** The session's library was replaced or emptied, so the kept one must be loaded again. */
   replaced(): void
+  /** Whether the kept library is still the one this session loaded (false once it was emptied since, or when storage will not say). */
+  current(): Promise<boolean>
+  /** Whether activities show here that could not be kept in this browser, which loading the library again would lose. */
+  hasUnkept(): boolean
   /**
    * Keeps one imported activity, with its route. Best effort: a refused write leaves the visit
-   * working. Resolves 'refused' when the write was refused, 'newer' when a row this version cannot
+   * working. Resolves 'refused' when the write was refused, 'replaced' when the library was emptied since this session loaded it, 'newer' when a row this version cannot
    * read is kept under the workout (one a newer version of the app wrote), which is left as it is,
    * and 'kept' when the activity is kept or the kept copy is the one to keep.
    */
@@ -58,7 +63,7 @@ export interface DeviceActions {
 }
 
 /** What keeping an imported activity in this browser came to. See DeviceActions.save. */
-export type DeviceSave = 'kept' | 'refused' | 'newer'
+export type DeviceSave = 'kept' | 'refused' | 'newer' | 'replaced'
 
 export function workoutKeyOf(digest: Pick<ActivityDigest, 'sport' | 'startMs'>): string {
   return storedKey(digest.sport, digest.startMs)
@@ -94,8 +99,15 @@ export function deviceActions(
   device: DeviceLibrary,
   post: (message: WorkerResponse) => void,
   onRemoved: (activityId: string) => Promise<boolean> = async () => true,
+  /** Called each time the library's epoch is read, so what else is kept for the library (its recordings) reads its own. */
+  onEpoch: () => Promise<void> = async () => undefined,
 ): DeviceActions {
   let held = false
+  // The library's epoch (see DeviceLibrary.epoch) when this session loaded or last emptied it, or null when
+  // not known yet. Every write carries it, so a library emptied in another tab since is not written to.
+  let epochSeen: number | null = null
+  // Activities that show but could not be kept since the library was loaded: a reload would drop them.
+  let unkept = 0
   const report = async () => {
     try {
       // A failed read rejects, which leaves the list on screen as it is instead of replacing it with none.
@@ -107,13 +119,24 @@ export function deviceActions(
   }
   return {
     async load(settings, unreadable = KEPT_NOT_READ) {
+      // Read before the rows: a clear between the two then fails this session's writes, not lets them through.
+      // A library whose epoch cannot be read is one that cannot be written to safely, so it is not loaded.
+      const readAll = async () => {
+        const epoch = await device.epoch()
+        await onEpoch()
+        const rows = await device.all()
+        return { epoch, rows }
+      }
       // One failed read can be a connection the browser dropped, which the next call opens again.
-      const entries = await device.all().catch(async () => {
+      const loaded = await readAll().catch(async () => {
         await new Promise((resolve) => setTimeout(resolve, READ_RETRY_MS))
-        return device.all().catch(() => {
+        return readAll().catch(() => {
           throw new Error(unreadable)
         })
       })
+      const entries = loaded.rows
+      epochSeen = loaded.epoch
+      unkept = 0
       post(listed(newestFirst(entries), device.skipped()))
       const state = session.loadDigests(
         entries.map((entry) => entry.digest),
@@ -127,17 +150,32 @@ export function deviceActions(
     },
     replaced() {
       held = false
+      epochSeen = null
+      unkept = 0
+    },
+    async current() {
+      if (epochSeen === null) return true
+      // Storage that will not say is not taken for unchanged: the import is stopped, not trusted.
+      return (await device.epoch().catch(() => null)) === epochSeen
+    },
+    hasUnkept() {
+      return unkept > 0
     },
     async save({ digest, route, fileName, fileHash }) {
       try {
         const key = workoutKeyOf(digest)
         const file = deviceFileOf({ fileName, fileHash })
+        // A session that never loaded the library takes the epoch it finds at its first write.
+        if (epochSeen === null) {
+          epochSeen = await device.epoch()
+          await onEpoch()
+        }
         const kept = await device.lookup(key)
         // A row a newer version wrote is left as it is: writing over it would destroy what that
         // version made. One that is damaged or from an older format is written over, so it heals.
         if (kept === 'newer') return 'newer'
         if (replaces(digest, kept === 'unreadable' ? null : kept)) {
-          await device.put(key, digest, route, file)
+          await device.put(key, digest, route, file, epochSeen)
         } else if (
           file !== null &&
           kept !== null &&
@@ -148,8 +186,11 @@ export function deviceActions(
           await device.backfillFile(key, digest.id, file)
         }
         return 'kept'
-      } catch {
+      } catch (error) {
+        // The library was emptied since this session loaded it: nothing more of this import belongs in it.
+        if (error instanceof LibraryReplaced) return 'replaced'
         // Storage can be refused (a private window, a full disk); the results still show.
+        unkept++
         return 'refused'
       }
     },
@@ -205,8 +246,11 @@ export function deviceActions(
         }
       }
       post(listed([], 0))
-      // Nothing to merge once empty.
+      // Nothing to merge once empty, and the clear began a new epoch that this session now writes to.
       held = true
+      epochSeen = await device.epoch().catch(() => null)
+      await onEpoch()
+      unkept = 0
       return true
     },
   }

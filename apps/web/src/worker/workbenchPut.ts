@@ -1,5 +1,6 @@
 import type { ActivityTrace } from '@rca/core/workbench'
 import {
+  DEVICE_EPOCH_KEY,
   ENTRIES,
   OWNERS,
   RANK_INDEX,
@@ -11,6 +12,7 @@ import {
   abortQuietly,
   activityTraceBytes,
   entryKey,
+  epochOfRow,
   requestResult,
   resetWorkbenchDatabase,
   scopeKey,
@@ -41,8 +43,9 @@ export async function putTrace(
   scope: TraceScope,
   input: ActivityTrace,
   startMs: number,
+  epoch?: number,
 ): Promise<PutResult> {
-  return writeTrace(scope, input, startMs, false)
+  return writeTrace(scope, input, startMs, false, epoch)
 }
 
 async function writeTrace(
@@ -50,11 +53,12 @@ async function writeTrace(
   input: ActivityTrace,
   startMs: number,
   repaired: boolean,
+  epoch?: number,
 ): Promise<PutResult> {
   let transaction: IDBTransaction | null = null
   /** A cache that cannot account for itself is rebuilt once; a second failure refuses the trace. */
   const retry = async (): Promise<PutResult> =>
-    !repaired && (await repairLedger()) ? writeTrace(scope, input, startMs, true) : 'refused'
+    !repaired && (await repairLedger()) ? writeTrace(scope, input, startMs, true, epoch) : 'refused'
   try {
     // The trace was built here by activityTraceOf, so it is not checked again on the way in. What
     // storage hands back is, in WorkbenchStore.get.
@@ -76,6 +80,17 @@ async function writeTrace(
       opened.abort()
       await done.catch(() => undefined)
       return 'refused'
+    }
+    // The device scope's epoch moves in the transaction that clears the scope, so a write begun before another
+    // tab emptied the library is refused here, in the same transaction that would have written it.
+    if (
+      scope.kind === 'device' &&
+      epoch !== undefined &&
+      epochOfRow(await requestResult(stateStore.get(DEVICE_EPOCH_KEY))) !== epoch
+    ) {
+      opened.abort()
+      await done.catch(() => undefined)
+      return 'replaced'
     }
     const [prior, stateRow] = await Promise.all([
       requestResult(entries.get(key)) as Promise<unknown>,
