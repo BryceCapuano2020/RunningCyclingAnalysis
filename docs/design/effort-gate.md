@@ -55,8 +55,7 @@ re-reads everything.
 **Residual.** Tempo days that set a reference of 150 bpm or more, with easy days between, read as trusted. Heart rate cannot tell a
 tempo 20 minutes (88% of critical power) from an all-out one within the spread of athletes. Without the age, intervals twice a week
 (a hard-heavy week) also read `habitual`, indistinguishable from a tempo-only runner's every day; the entered maximum is the
-way out, and the message says so. The rest of RCA-005 (a prominent "Is that right?" on the zone tables for a `high` reference, the
-no-near-maximal state on zones) is D6.
+way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c): a reference read `low` (under what a maximum is at the athlete's age) or `habitual` (the typical day already sits at it) means no effort reached near the maximum, so no heart-rate zones are cut from it and the page says what would give them (`ZoneEstimates.untrustedMax`); a reference read `high` keeps its zones and is asked about up front, in a note above the table with the Set control, not in small print. A maximum the athlete entered always wins. With no heart-rate zones the heart-rate easy and hard shares are not stated either.
 
 ## Where it applies, and what each shows when it fails
 

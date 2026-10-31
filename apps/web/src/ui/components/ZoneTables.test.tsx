@@ -139,3 +139,46 @@ describe('ZoneTables, a pace or power the fitness cannot give today', () => {
     expect(screen.getByText(/^No ride power zones today\./)).toBeInTheDocument()
   })
 })
+
+describe('ZoneTables, a max heart rate that cannot be one', () => {
+  const base = (): ZoneEstimates =>
+    estimatesFrom(makeResult({ runMaxHeartRate: 205, rideMaxHeartRate: null }))
+  const zones = (estimates: ZoneEstimates, onSet?: (sport: string, bpm: number) => void) =>
+    render(
+      <ZoneTables
+        athlete={{ massKg: 70, bikeMassKg: 9 }}
+        estimates={estimates}
+        weightKnown
+        units="metric"
+        onSetMaxHeartRate={onSet}
+      />,
+    )
+
+  it('asks up front, not in small print, when the max is far over what one is at the age', () => {
+    const onSet = vi.fn()
+    zones({ ...base(), untrustedMax: { run: 'high' } }, onSet)
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent('well above what a maximum is at your age')
+    expect(note).toHaveTextContent('Is that right?')
+    expect(screen.getAllByText(/Is that right\?/)).toHaveLength(1)
+    fireEvent.click(within(note).getByRole('button', { name: /max heart rate/ }))
+    expect(onSet).toHaveBeenCalledWith('run', 205)
+    expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toBeTruthy()
+  })
+
+  it('leaves the small offer alone for a max that can be one', () => {
+    zones(base(), vi.fn())
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(screen.getByText(/Is that right\?/)).toBeTruthy()
+  })
+
+  it('shows no heart rate zones where no effort reached near the max, and says what would give them', () => {
+    zones({ ...base(), untrustedMax: { run: 'habitual' } })
+    expect(screen.queryByRole('table', { name: /^Run heart rate zones/ })).toBeNull()
+    expect(
+      screen.getByText(
+        /^No run heart rate zones today\. None of your efforts reached near your maximum/,
+      ),
+    ).toBeTruthy()
+  })
+})

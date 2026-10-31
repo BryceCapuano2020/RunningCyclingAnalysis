@@ -54,7 +54,8 @@ const WITH_READING: Record<ZoneMeasure, string> = {
  * within a year does): the hard, even efforts a threshold is fitted to. Only a pace and a power are found this way.
  */
 export const THRESHOLD_NEEDS: Record<ZoneMeasure, string> = {
-  heartRate: 'A max heart rate sets your heart rate zones.',
+  heartRate:
+    'None of your efforts reached near your maximum, so there is no max to cut zones from. Enter your max heart rate on Profile to get them.',
   pace: 'A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
   power: 'A hard, even 3–5 min effort and a hard 20 min effort set your power zones.',
 }
@@ -162,8 +163,8 @@ export function leftOutNotes(sport: Sport, rows: readonly MeasureTime[]): string
     if (row.setAside > 0) notes.push(`${of(row.setAside)} had heart rate set aside.`)
     if (row.noData > 0) notes.push(`${of(row.noData)} had no ${READING[row.measure]} to count.`)
     if (row.noZones > 0) {
-      // A heart rate has zones from any max, so only a pace or a power says what would give it zones.
-      const need = row.measure === 'heartRate' ? '' : ` ${THRESHOLD_NEEDS[row.measure]}`
+      // A heart rate has zones from any maximum that can be one, so it lacks them only where no effort reached near it.
+      const need = ` ${THRESHOLD_NEEDS[row.measure]}`
       notes.push(
         `${of(row.noZones)} had no ${IN_SENTENCE[row.measure]} zones for their date.${need}`,
       )
