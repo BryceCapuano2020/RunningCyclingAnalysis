@@ -1,5 +1,5 @@
 import { median } from '../findings/stats'
-import { hasRevision7 } from '../digest/revision7Gate'
+import { revisionStatus } from '../digest/revisions'
 import type { ActivityDigest, DigestSplit } from '../types'
 import type { KmReading } from './fit'
 import { FITNESS } from './params'
@@ -87,7 +87,7 @@ export function runReadings(
         id: digest.id,
         startMs: digest.startMs,
         steadyPace: steadyPace(km),
-        ...(digest.temperature === undefined || !hasRevision7(digest.modelRevision)
+        ...(digest.temperature === undefined || revisionStatus(digest.modelRevision) !== 'current'
           ? {}
           : { c: digest.temperature.c }),
         ...kilometres(km),

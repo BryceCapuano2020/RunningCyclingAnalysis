@@ -391,7 +391,7 @@ adds it back before anything else reads the series, so the season of D2 is fitte
 - It is on only with two years of runs that carry a temperature (counted from the first of them), when 60% of the steady runs in the
   last two years carry one, there are 40 of them and their heat spans 1.0 (10 index degrees); it goes off only under 50%. A library
   under two years reads exactly as D2's monitor. Digests from before revision 7 carry none and count as missing (a temperature on a
-  digest of an earlier revision is not read), so a library that has not been rebuilt reads as before (`heat.test.ts`). When on, the
+  digest that is not of the current revision is not read), so a library that has not been rebuilt reads as before (`heat.test.ts`). When on, the
   card says "Adjusted for warm days." once.
 - The ride unit reads the same field.
 - `heat.sim.test.ts` holds the rates (three-year libraries, four run rates, 25 libraries each, alarms an athlete-year, term off ->

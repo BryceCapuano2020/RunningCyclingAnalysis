@@ -1,6 +1,6 @@
 import { DAY_MS } from '../constants'
 import { median } from '../findings/stats'
-import { hasRevision7 } from '../digest/revision7Gate'
+import { revisionStatus } from '../digest/revisions'
 import type { ActivityDigest, Sport } from '../types'
 import { fitHeartRateSlope } from './fit'
 import type { SlopeLimits } from './fit'
@@ -35,7 +35,7 @@ function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
     ? {
         id: digest.id,
         startMs: digest.startMs,
-        ...(digest.temperature === undefined || !hasRevision7(digest.modelRevision)
+        ...(digest.temperature === undefined || revisionStatus(digest.modelRevision) !== 'current'
           ? {}
           : { c: digest.temperature.c }),
         blocks: digest.hrBlocks
