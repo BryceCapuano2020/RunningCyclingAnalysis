@@ -115,7 +115,7 @@ describe('the share image’s stamp', () => {
     const ink = cardInk(await readStylesheet(import.meta.url, './styles/tokens.css'))
     expect(
       stamp,
-      'public/social-card.png is older than the sample or the tokens: run npm run card',
+      'public/social-card.png is older than the sample or the tokens. Run npx playwright install chromium, then npm run card, then commit public/social-card.png, public/social-card.stamp and the icons it rewrites.',
     ).toBe(cardStamp(LANDING_EXAMPLE, ink))
   })
 

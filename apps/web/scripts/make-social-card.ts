@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 import { formatGrade } from '../src/ui/gradeFormat.ts'
+import type { SportGrade } from '../src/ui/grades.ts'
 import { cardInk, cardStamp } from '../src/ui/landingFigures.ts'
 import { SPORT_NOUN } from '../src/ui/sports.ts'
 import { computeLandingFigures } from './landingFigures.ts'
@@ -57,17 +58,27 @@ function ladder(top: number, label: string, colour: string, draw: string): strin
   return `<text x="${LADDER.x}" y="${top + 16}" fill="${colour}" font-size="25" font-weight="600">${label}</text>${bands}${edges}${draw}`
 }
 
+/**
+ * A sport's mark on its ladder: a solid dot when the grade is recorded (no range), and a ring on a band of its
+ * 90% range when it is estimated.
+ */
+function mark(top: number, colour: string, { centre, range }: SportGrade): string {
+  const cy = top + 56
+  if (range === null) {
+    return `<circle cx="${at(centre.grade)}" cy="${cy}" r="14" fill="${colour}" stroke="${INK.surface1}" stroke-width="4"/>`
+  }
+  const band = `<rect x="${at(range.low.grade)}" y="${top + 44}" width="${at(range.high.grade) - at(range.low.grade)}" height="24" rx="12" fill="${colour}" fill-opacity="0.35" stroke="${colour}" stroke-width="2"/>`
+  const ring = `<circle cx="${at(centre.grade)}" cy="${cy}" r="14" fill="${INK.surface1}" stroke="${colour}" stroke-width="5"/>`
+  return band + ring
+}
+
 function card(): string {
   const run = FIGURES.grades.run
   const ride = FIGURES.grades.ride
   const lead = FIGURES.gap
-  const rideRange = ride.range!
   // The range is signed toward running; the card states it from the side the balance leans to.
   const leanRange =
     lead.lean === 'ride' ? { from: -lead.high, to: -lead.low } : { from: lead.low, to: lead.high }
-  const runDot = `<circle cx="${at(run.centre.grade)}" cy="${RUN_TOP + 56}" r="14" fill="${INK.run}" stroke="${INK.surface1}" stroke-width="4"/>`
-  const rideBand = `<rect x="${at(rideRange.low.grade)}" y="${RIDE_TOP + 44}" width="${at(rideRange.high.grade) - at(rideRange.low.grade)}" height="24" rx="12" fill="${INK.ride}" fill-opacity="0.35" stroke="${INK.ride}" stroke-width="2"/>`
-  const rideRing = `<circle cx="${at(ride.centre.grade)}" cy="${RIDE_TOP + 56}" r="14" fill="${INK.surface1}" stroke="${INK.ride}" stroke-width="5"/>`
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${font('barlow-condensed', 'barlow-condensed-latin-800-normal.woff2', 800)}
 ${font('barlow', 'barlow-latin-500-normal.woff2', 500)}
@@ -96,8 +107,8 @@ svg{display:block}
   <text class="display" x="${LADDER.x}" y="${PANEL.y + 168}" fill="${INK.text}" font-size="132">+${Math.abs(Math.round(lead.centre))}</text>
   <text class="display" x="${LADDER.x + 150}" y="${PANEL.y + 128}" fill="${INK.secondary}" font-size="24" letter-spacing="1.9">PTS TOWARD ${SPORT_NOUN[lead.lean].toUpperCase()}</text>
   <text x="${LADDER.x + 150}" y="${PANEL.y + 160}" fill="${INK.muted}" font-size="23" font-weight="500">range ${leanRange.from} to ${leanRange.to} points</text>
-  ${ladder(RUN_TOP, `Run · ${run.centre.level} · ${formatGrade(run.centre.grade)}`, INK.run, runDot)}
-  ${ladder(RIDE_TOP, `Ride · ${ride.centre.level} · ${formatGrade(ride.centre.grade)}`, INK.ride, rideBand + rideRing)}
+  ${ladder(RUN_TOP, `Run · ${run.centre.level} · ${formatGrade(run.centre.grade)}`, INK.run, mark(RUN_TOP, INK.run, run))}
+  ${ladder(RIDE_TOP, `Ride · ${ride.centre.level} · ${formatGrade(ride.centre.grade)}`, INK.ride, mark(RIDE_TOP, INK.ride, ride))}
   <g fill="${INK.muted}" font-size="17" font-weight="500">
     <text x="${LADDER.x}" y="${PANEL.y + 462}">Solid dot: recorded.</text>
     <text x="${LADDER.x}" y="${PANEL.y + 486}">Ring and band: estimated, with its 90% range.</text>

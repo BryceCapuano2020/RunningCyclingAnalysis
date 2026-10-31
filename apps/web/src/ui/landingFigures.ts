@@ -2,7 +2,7 @@ import type { Ranged } from '@rca/core/fitness'
 import type { Sport } from '@rca/core/types'
 import { declared, resolved } from '../styles/tokenSheet'
 import type { SportGrade } from './grades'
-import { SPORT_NOUN } from './sports'
+import { SPORT_NOUN } from '../domain/sportNoun'
 
 /**
  * The figures the landing page and its share image show. They are the sample athlete's own, read from the
@@ -26,7 +26,7 @@ export function ogAlt({ grades, gap }: LandingFigures): string {
 
 /** index.html with the placeholders it holds for text made from the figures filled in. */
 export function fillLandingOg(html: string, figures: LandingFigures): string {
-  return html.replaceAll('%LANDING_OG_ALT%', ogAlt(figures))
+  return html.replaceAll('%LANDING_OG_ALT%', () => ogAlt(figures))
 }
 
 /** The colours the share image draws with, by the name the image uses for each. */
