@@ -22,14 +22,15 @@ from published errors, not from the two estimates' spread alone.
   - **Share of VO2max:** its heart rate gives the share of VO2max by Swain et al. (1994, Med Sci Sports
     Exerc 26:112): %HRmax = 0.64 × %VO2max + 37.
   - **VO2max:** cost over share, with the median over runs weighted by how hard each window was (at least two
-    runs, and a run's worth of weight).
+    runs at or over 85% of the reference, as it always was).
   - **Anchors:** the 5 km and 10 km this VO2max would run, by Daniels & Gilbert's formula (Oxygen Power,
     1979), which reproduces the VDOT table to 0.5% (`daniels.test.ts`).
-  - **Why a ramp:** a window held under 85% of the reference counts for nothing, one at 90% or more counts in
-    full, and between the two it counts by a straight line (`vo2maxShare.ts`). Below the ramp the intercept of Swain's relation is a
-    larger part of the estimate and its error grows; near the maximum heart rate plateaus. A hard cut at one share
-    (it was 85%) moved the estimate, and every race time carried from it, in one step when a run drifted across the
-    line or the reference moved a beat; the ramp moves it with them.
+  - **Why a ramp:** a window held under 85% of the reference counts for nothing, one on the line counts for half,
+    one at 90% or more counts in full, and between them it counts by a straight line (`vo2maxShare.ts`). Below the
+    line the intercept of Swain's relation is a larger part of the estimate and its error grows; near the maximum heart
+    rate plateaus. A hard cut at one share moved the estimate, and every race time carried from it, in one step when
+    a run drifted across the line or the reference moved a beat; the ramp moves it with them. Whether there is an
+    estimate is the old rule: two runs at or over the line, and "on N hard runs" counts them.
 
 **The hill cap.** A window of 10 min or more cannot be faster on the flat than the runner's fastest mile
 as run. When a window's flat-equivalent pace is, the grade model has inflated it on hills, so that run is left
