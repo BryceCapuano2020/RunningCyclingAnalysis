@@ -38,6 +38,8 @@ export interface CurveMarks {
   annotations: Annotation[]
   /** The line and its markers as boxes, so text keeps off the data. */
   obstacles: Box[]
+  /** The y axis's labels where a phone sets them inside the plot: no text meets them. */
+  ticks: Box[]
 }
 
 /** What the curve says outright: its bests with their values, its end, its threshold and its stretch with no effort. */
@@ -151,8 +153,8 @@ export function curveMarks(
   const ticks = insideTickBoxes(m.yTicks, size.plot, rootFontPx())
   return {
     annotations,
+    ticks,
     obstacles: [
-      ...ticks,
       ...lineObstacles(m.points, LINE_CLEARANCE_PX),
       ...lineObstacles(m.earlier, 3),
       ...markers,
