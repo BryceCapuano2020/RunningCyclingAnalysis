@@ -44,8 +44,9 @@ export function powerCheckChip(check: 'set-aside' | 'kept' | undefined): string 
 export function powerHeartRateNote(evidence: PowerHeartRate): string {
   const minutes = Math.round(evidence.durationS / 60)
   const share = Math.round(evidence.heartRateShare * 100)
-  const seen = `Over its best ${minutes} min, at ${evidence.wkg.toFixed(1)} W/kg, your heart rate averaged ${share}% of your max.`
-  return isHardShare(evidence.heartRateShare)
-    ? `${seen} That is as high as a hard effort reads. Heart rate cannot say whether the power was right.`
-    : `${seen} That is lower than an effort at that power usually shows.`
+  const seen = `Over its best ${minutes} min, at ${evidence.wkg.toFixed(1)} W/kg, your heart rate averaged ${share}% of your reference heart rate.`
+  const reading = isHardShare(evidence.heartRateShare)
+    ? 'That is as high as a hard effort reads.'
+    : 'That is lower than an effort at that power usually shows.'
+  return `${seen} ${reading} Heart rate cannot say whether the power was right.`
 }

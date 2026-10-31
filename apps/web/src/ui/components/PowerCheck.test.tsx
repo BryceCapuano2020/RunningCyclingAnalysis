@@ -43,13 +43,14 @@ describe('the heart rate over the questioned power', () => {
 
   it('says what the heart rate averaged, and that a hard one cannot settle the power', () => {
     expect(powerHeartRateNote(evidence(0.93))).toBe(
-      'Over its best 20 min, at 8.0 W/kg, your heart rate averaged 93% of your max. That is as high as a hard effort reads. Heart rate cannot say whether the power was right.',
+      'Over its best 20 min, at 8.0 W/kg, your heart rate averaged 93% of your reference heart rate. That is as high as a hard effort reads. Heart rate cannot say whether the power was right.',
     )
   })
 
   it('says a lower one is lower than an effort at that power usually shows, without a verdict', () => {
     const note = powerHeartRateNote(evidence(0.78))
-    expect(note).toContain('averaged 78% of your max')
+    expect(note).toContain('averaged 78% of your reference heart rate')
+    expect(note).toContain('Heart rate cannot say whether the power was right.')
     expect(note).toContain('lower than an effort at that power usually shows')
     expect(note).not.toMatch(/wrong|fault|broken|cheat/i)
   })
@@ -75,7 +76,7 @@ describe('the heart rate over the questioned power', () => {
         })}
       />,
     )
-    expect(screen.getByText(/averaged 70% of your max/)).toBeTruthy()
+    expect(screen.getByText(/averaged 70% of your reference heart rate/)).toBeTruthy()
     cleanup()
     render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
     expect(screen.queryByText(/^Over its best/)).toBeNull()

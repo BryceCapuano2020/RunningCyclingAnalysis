@@ -1,4 +1,4 @@
-import { ridePowerCeilingWkg } from '../curves'
+import { pointOverCeiling } from '../curves'
 import type { EffortReference } from '../effort'
 import type { ActivityDigest } from '../types'
 
@@ -37,10 +37,9 @@ export function powerHeartRateOf(
   if (referenceHr === null || !(referenceHr > 0)) return undefined
   let found: PowerHeartRate | undefined
   for (const point of digest.curve) {
-    if (point.terms !== null || !Number.isFinite(point.value) || point.heartRate === null) continue
-    if (point.durationS < POWER_HEART_RATE_MIN_S) continue
+    if (point.heartRate === null || point.durationS < POWER_HEART_RATE_MIN_S) continue
+    if (!pointOverCeiling(point, bodyKg)) continue
     const wkg = point.value / bodyKg
-    if (wkg <= ridePowerCeilingWkg(point.durationS)) continue
     if (found === undefined || point.durationS > found.durationS) {
       found = { durationS: point.durationS, wkg, heartRateShare: point.heartRate / referenceHr }
     }
