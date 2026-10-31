@@ -61,7 +61,7 @@ describe('LandingExample', () => {
     const { container } = render(<LandingFitnessExample />)
     expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
     expect(
-      screen.getByText(/^At 140 bpm you now run 9\.9% \(6 to 14%\) slower than before\.$/),
+      screen.getByText(/^At 120 bpm you now run 12% \(7 to 16%\) slower than before\.$/),
     ).toBeInTheDocument()
     expect(container.querySelector('.fitness-track__band')).not.toBeNull()
     expect(screen.getByText('Fitness at the same heart rate')).toBeInTheDocument()
@@ -85,13 +85,13 @@ describe('LandingExample', () => {
     const { container } = render(<LandingExample />)
     expect(
       screen.getByRole('img', {
-        name: /^Cycling grades 7 points higher than running \(range /,
+        name: /^Cycling grades 15 points higher than running \(range /,
       }),
     ).toBeInTheDocument()
-    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+7pts')
-    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('−3 to +19')
+    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+15pts')
+    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('4 to 27')
     const rows = [...container.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(['Running 64% Local', 'Cycling 71% Local to National'])
+    expect(rows).toEqual(['Running 65% Local', 'Cycling 80% Local to World'])
   })
 
   it('draws no level scale, ring or table: the meter, one line a sport and the fitness finding are all it shows', () => {

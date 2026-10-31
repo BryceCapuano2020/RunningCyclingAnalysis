@@ -127,6 +127,9 @@ describe('the sample gives one result on every day of a week, and in every week'
 
   it('is the result the landing example shows', () => {
     expect(reference.gap).toMatchObject(LANDING_EXAMPLE.gap)
+    // The headline and the card say which sport leads, so the lead's range keeps clear of zero (it reads "in balance" else).
+    const { low, high } = reference.gap!
+    expect(low > 0 || high < 0).toBe(true)
     for (const sport of ['run', 'ride'] as const) {
       const outcome = reference[sport]
       if (outcome.kind !== 'graded') throw new Error(`The sample has no ${sport} grade`)

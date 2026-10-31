@@ -323,7 +323,7 @@ test('at 1440 by 900 the fitness card is on the first screen, whole, and the bal
   expect(order.trackFirst).toBe(true)
   expect(order.firstImage).toContain('balance-meter')
   // The answer is still a line: no scale drawing, no ladder, and the meter is in its place.
-  await expect(page.locator('.balance-meter__value')).toHaveText('+7pts')
+  await expect(page.locator('.balance-meter__value')).toHaveText('+15pts')
   await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
   await expect(page.locator('.balance-hero__pair svg:not(.icon)')).toHaveCount(0)
 })
@@ -461,10 +461,10 @@ test('the meter is named in words and its value and levels are text, none under 
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
   await expect(page.locator(TRACK)).toHaveAccessibleName(
-    /^Cycling grades 7 points higher than running \(range /,
+    /^Cycling grades 15 points higher than running \(range /,
   )
-  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Running\s*64%\s*Local/)
-  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(/Cycling\s*71%\s*Local to National/)
+  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Running\s*65%\s*Local/)
+  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(/Cycling\s*80%\s*Local to World/)
   const sizes = await page
     .locator(
       '.balance-meter__value > *, .balance-meter__range, .balance-meter__ends, .balance-levels__row > *',

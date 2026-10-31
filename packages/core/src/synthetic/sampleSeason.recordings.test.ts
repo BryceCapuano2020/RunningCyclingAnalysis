@@ -117,13 +117,13 @@ describe('hard efforts that reach the top of the athlete’s range', () => {
 })
 
 describe('easy running that looks recorded, not drawn', () => {
-  it('sits near 80% of the maximum heart rate, and a long run’s middle 90% spans about 12 bpm', () => {
+  it('sits near 70% of the maximum heart rate, and a long run’s middle 90% spans about 12 bpm', () => {
     const spans: number[] = []
     for (const entry of longRuns.slice(-6)) {
       const run = recording(entry)
       const share = heartRateAt(run, 0.5) / SAMPLE_ATHLETE.hrMax
-      expect(share).toBeGreaterThan(0.72)
-      expect(share).toBeLessThan(0.88)
+      expect(share).toBeGreaterThan(0.6)
+      expect(share).toBeLessThan(0.8)
       spans.push(heartRateAt(run, 0.95) - heartRateAt(run, 0.05))
     }
     expect(quantile(spans, 0.5)).toBeGreaterThanOrEqual(12)

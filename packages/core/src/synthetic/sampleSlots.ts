@@ -28,6 +28,8 @@ const GLITCH_WEEK = 5
 const RIDE_EARLY_EVERY = 5
 const RIDE_LIGHT_EVERY = 4
 const RIDE_FULL_WEEKS = 9
+/** The weeks back, from the newest, that hold the short rides too. */
+const RIDE_DAILY_WEEKS = 8
 const NO_POWER_WEEKS: readonly number[] = [6, 22, 41]
 /** The weeks back whose Tuesday easy run is on a treadmill, and the week whose one has no heart rate. */
 const TREADMILL_WEEKS: readonly number[] = [7, 10]
@@ -102,6 +104,11 @@ const RIDE_TEST = slot(fixed('Power Test'), 'ride', 'test', 'flat', [108, 112], 
 const NO_POWER_CLIMB = slot(kind('climbRide'), 'ride', 'tempo', 'climb', [76, 90], WEEKEND, {
   withPower: false,
 })
+// The short rides of a rider's week, in the last RIDE_DAILY_WEEKS: Monday, Friday, odd Thursdays, and a Tuesday evening commute
+// after the day's run. They are what makes the last 12 weeks hold enough rides for the ride page to say things.
+const EASY_RIDE = slot(kind('easyRide'), 'ride', 'easy', 'rolling', [48, 78], LUNCH)
+const FRIDAY_RIDE = slot(kind('easyRide'), 'ride', 'easy', 'rolling', [52, 84], EVENING)
+const COMMUTE = slot(kind('commute'), 'ride', 'easy', 'flat', [26, 40], EVENING)
 const GLITCH_RIDE = slot(fixed('Evening Ride'), 'ride', 'tempo', 'rolling', [84, 96], EVENING, {
   hrGlitch: true,
 })
@@ -110,6 +117,11 @@ const GLITCH_RIDE = slot(fixed('Evening Ride'), 'ride', 'tempo', 'rolling', [84,
 function lightRide(weekday: number, weeksAgo: number): Slot | null {
   if (weekday !== 6 || weeksAgo % RIDE_LIGHT_EVERY !== 0) return null
   return weeksAgo % (2 * RIDE_LIGHT_EVERY) === 0 ? HILLS : LONG_RIDE
+}
+
+/** A second session in a day: the Tuesday evening commute of a rider's week, after that day's run. */
+export function extraFor(weekday: number, weeksAgo: number): Slot | null {
+  return weekday === 2 && weeksAgo < RIDE_DAILY_WEEKS ? COMMUTE : null
 }
 
 /** The slot a day holds, or null for a rest day. `weekday` counts from Sunday = 0, as Date does. */
@@ -139,8 +151,13 @@ export function slotFor(weekday: number, weeksAgo: number, pick: number): Slot |
       return pick < 0.5 ? EASY_RUN : LUNCH_RUN
     case 3:
       return even ? TEMPO_RIDE : VO2_RIDE
+    case 1:
+      return weeksAgo < RIDE_DAILY_WEEKS ? EASY_RIDE : null
+    case 5:
+      return weeksAgo < RIDE_DAILY_WEEKS ? FRIDAY_RIDE : null
     case 4:
-      return even ? (weeksAgo % 4 === 0 ? TEMPO_RUN : TRACK) : null
+      if (!even) return weeksAgo < RIDE_DAILY_WEEKS ? FRIDAY_RIDE : null
+      return weeksAgo % 4 === 0 ? TEMPO_RUN : TRACK
     case 6:
       return weeksAgo % 4 === 3 ? CLIMB : LONG_RIDE
     case 0:

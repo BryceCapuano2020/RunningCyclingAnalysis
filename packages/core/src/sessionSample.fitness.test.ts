@@ -144,10 +144,16 @@ describe('the planted slip', () => {
     expect(easySlipOn(0)).toBeGreaterThan(0.05)
   })
 
-  it('wanders from one week to the next, the same on every day of a week and on every load, by a few points', () => {
-    const weeks = Array.from({ length: 20 }, (_, week) => easyWobbleOn(week * 7 + 3))
-    expect(new Set(weeks.map((w) => w.toFixed(6))).size).toBeGreaterThan(15)
-    for (const wobble of weeks) expect(Math.abs(wobble)).toBeLessThanOrEqual(0.08)
+  it('wanders from one week to the next, the same on every day of a week and on every load, by about 2% a week', () => {
+    // The model's marginal spread is 2% (AR(1) at 0.9 a week); over the season's 56 weeks the draw's own is 1% to 3%,
+    // and no week is further than 2 marginal sd out.
+    const levels = Array.from({ length: 56 }, (_, week) => Math.log(1 + easyWobbleOn(week * 7 + 3)))
+    const mean = levels.reduce((a, b) => a + b, 0) / levels.length
+    const sd = Math.sqrt(levels.reduce((a, b) => a + (b - mean) ** 2, 0) / levels.length)
+    expect(sd).toBeGreaterThan(0.01)
+    expect(sd).toBeLessThan(0.03)
+    expect(new Set(levels.map((l) => l.toFixed(6))).size).toBeGreaterThan(50)
+    for (const level of levels) expect(Math.abs(level)).toBeLessThanOrEqual(0.04)
     expect(easyWobbleOn(14)).toBe(easyWobbleOn(20))
     expect(easyWobbleOn(14)).not.toBe(easyWobbleOn(21))
   })

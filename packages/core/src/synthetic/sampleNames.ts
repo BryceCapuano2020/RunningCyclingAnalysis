@@ -18,6 +18,7 @@ export type NameKind =
   | 'tempoRide'
   | 'intervalRide'
   | 'climbRide'
+  | 'commute'
 
 const DEFAULT = ''
 
@@ -39,6 +40,7 @@ const POOLS: Record<NameKind, readonly string[]> = {
   tempoRide: ['Tempo Ride', 'Sweet Spot', 'Threshold Ride', 'Steady Ride'],
   intervalRide: ['VO2 Intervals', 'Hill Repeats', 'Over-Unders', '4 x 8 min'],
   climbRide: ['Canyon Climb', 'Mountain Climb', 'Pass Climb'],
+  commute: ['Commute', 'Ride to work', DEFAULT],
 }
 
 const SPORT_WORD: Record<Sport, string> = { run: 'Run', ride: 'Ride' }

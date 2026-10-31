@@ -12,7 +12,8 @@ import type { NoiseModel } from './noise/types'
 import { noiseWith } from './noise/variants'
 import { withRecordGap } from './sampleRecording'
 import type { RecordGap } from './sampleRecording'
-import { FULL_WEEKS, isFeatured, nameOf, slotFor, variantOf } from './sampleSlots'
+import { FULL_WEEKS, extraFor, isFeatured, nameOf, slotFor, variantOf } from './sampleSlots'
+import type { Slot } from './sampleSlots'
 import type { ActivitySpec } from './spec'
 
 /**
@@ -50,26 +51,29 @@ export interface SampleClock {
 export const SAMPLE_CLOCK: SampleClock = { nowMs: SAMPLE_REFERENCE_NOW_MS }
 
 /**
- * The seeds, of the first 40, whose season tells the sample's whole story on every clock tried: the shipped detector
+ * The seeds, of the first 150, whose season tells the sample's whole story on every clock tried: the shipped detector
  * finds the planted easy slip with a range clear of zero, the ride's fitness card says it has too few steady rides to
- * compare, both sports' best efforts pass the effort gate with a margin, and every threshold and stand-out profile
- * has what it needs. A seed is another draw of the same athlete, and most do not: the detector fires on about
- * seven in ten, the gate on most, and the rest of the story on a few (five of forty). The sample uses the first, which
- * also keeps the chart labels of the 200% text e2e apart (a threshold label can meet a tick label on a phone).
- * `sampleSeason.sim.test.ts` replays the list.
+ * compare, both sports' best efforts pass the effort gate with a margin, every threshold and stand-out profile has
+ * what it needs, the last 12 weeks hold 40 rides, the balance's lead has a range clear of zero, and easy running is
+ * mostly in the heart-rate zones it is in the pace zones. A seed is another draw of the same athlete: the detector
+ * fires on nine in ten, and the whole story on seven in 150. The sample uses the first. `sampleSeason.sim.test.ts`
+ * replays the list.
  */
-export const SAMPLE_SEEDS: readonly number[] = [15, 26, 4, 31, 37]
+export const SAMPLE_SEEDS: readonly number[] = [90, 15, 150, 31, 98, 116, 78]
 export const SAMPLE_SEED = SAMPLE_SEEDS[0]!
 
 /**
- * The sample athlete's body: the default athlete with a heart-rate line that puts easy running near 80% of a
- * maximum of 176 bpm and threshold running near 90%, so the zones from pace and from heart rate sit within one of each other.
+ * The sample athlete's body: the default athlete with a heart-rate line that puts easy running near 70% of a
+ * maximum of 176 bpm (its readings reach the high 180s with the sensor's noise and drift) and threshold running near 90%
+ * of what the sensor reads, so easy running is in the heart-rate zones it is in the pace zones.
  */
 export const SAMPLE_ATHLETE: SyntheticAthlete = {
   ...DEFAULT_ATHLETE,
-  grossEfficiency: 0.185,
-  hrIntercept: 44,
-  hrSlope: 7,
+  cpRide: 16,
+  // The power at a given metabolic rate stays the default athlete's (16 over 15 times 0.1735 is 0.185).
+  grossEfficiency: 0.1735,
+  hrIntercept: 12,
+  hrSlope: 9,
   hrMax: 176,
 }
 
@@ -79,9 +83,12 @@ export const SAMPLE_ATHLETE: SyntheticAthlete = {
  * gap, and one in three of those under the 10 s that flags a run). The model's own ranges flag most runs, which is
  * a harsher watch than the sample means to show.
  */
+const SAMPLE_EASY = NOISE_PRESETS.measured.behaviour.easyFraction
 export const SAMPLE_NOISE: NoiseModel = noiseWith(NOISE_PRESETS.measured, {
   gps: { stops: { max: 2, minS: 5, maxS: 30 } },
   heartRate: { dropouts: { max: 1, minS: 3, maxS: 14 } },
+  // Easy running at 66 to 74% of critical speed (the preset's 78 to 85%), so its heart rate is an easy one.
+  behaviour: { easyFraction: { ...SAMPLE_EASY, run: { min: 0.66, max: 0.74 } } },
 })
 /** The same athlete on a treadmill: belt speed, no altitude, no route. */
 const TREADMILL_NOISE: NoiseModel = noiseWith(SAMPLE_NOISE, { behaviour: { treadmillShare: 1 } })
@@ -227,34 +234,45 @@ export function samplePlan(clock: SampleClock = SAMPLE_CLOCK, seed = SAMPLE_SEED
     // The anchor is a Sunday, so a day's weekday follows from its distance from it alone.
     const weekday = (7 - (daysBefore % 7)) % 7
     const weeksAgo = Math.floor(daysBefore / 7)
-    const planned = variantOf(slotFor(weekday, weeksAgo, pick), weekday, weeksAgo)
-    if (planned === null || (skip < SKIP_CHANCE && !isFeatured(planned))) continue
-    const [hour, spread] = planned.hour
-    const [shortest, longest] = planned.minutes
-    const startHour = hour + spread * hourDraw
-    const startLocalMs = anchorLocalMs - daysBefore * DAY_MS + Math.round(startHour * 60) * 60_000
-    entries.push({
-      spec: {
-        id: `sample-${String(entries.length + 1).padStart(3, '0')}`,
-        name: nameOf(planned, startHour, nameDraw),
-        sport: planned.sport,
-        startMs: instantOf(startLocalMs, offsetAt),
-        durationS: (shortest + Math.round(lengthDraw * (longest - shortest))) * 60,
-        effort: planned.effort,
-        terrain: planned.terrain,
-        withPower: planned.withPower,
-        withHeartRate: planned.withHeartRate,
-        hrGlitch: planned.hrGlitch,
-      },
-      athlete:
-        EASY_COST_MOVES[planned.sport] && planned.effort === 'easy'
-          ? { ...form, runEconomyScale: form.runEconomyScale * easyCostOn(daysBefore) }
-          : form,
-      seed: Math.floor(seedDraw * 0x100000000),
-      noise: planned.treadmill ? TREADMILL_NOISE : SAMPLE_NOISE,
-      ...(planned.raceM === undefined ? {} : { raceM: planned.raceM }),
-      ...(planned.gap === undefined ? {} : { gap: planned.gap }),
-    })
+    // A second session in a day draws from a stream of its own, so the first's draws do not depend on it.
+    const extra = extraFor(weekday, weeksAgo)
+    const extraRand = mulberry32(seed * 100_003 + daysBefore)
+    const sessions: [Slot | null, number[]][] = [
+      [
+        variantOf(slotFor(weekday, weeksAgo, pick), weekday, weeksAgo),
+        [skip, hourDraw, lengthDraw, seedDraw, nameDraw],
+      ],
+      [extra, [extraRand(), extraRand(), extraRand(), extraRand(), extraRand()]],
+    ]
+    for (const [planned, [skipped, hourAt, lengthAt, seedAt, nameAt]] of sessions) {
+      if (planned === null || (skipped! < SKIP_CHANCE && !isFeatured(planned))) continue
+      const [hour, spread] = planned.hour
+      const [shortest, longest] = planned.minutes
+      const startHour = hour + spread * hourAt!
+      const startLocalMs = anchorLocalMs - daysBefore * DAY_MS + Math.round(startHour * 60) * 60_000
+      entries.push({
+        spec: {
+          id: `sample-${String(entries.length + 1).padStart(3, '0')}`,
+          name: nameOf(planned, startHour, nameAt!),
+          sport: planned.sport,
+          startMs: instantOf(startLocalMs, offsetAt),
+          durationS: (shortest + Math.round(lengthAt! * (longest - shortest))) * 60,
+          effort: planned.effort,
+          terrain: planned.terrain,
+          withPower: planned.withPower,
+          withHeartRate: planned.withHeartRate,
+          hrGlitch: planned.hrGlitch,
+        },
+        athlete:
+          EASY_COST_MOVES[planned.sport] && planned.effort === 'easy'
+            ? { ...form, runEconomyScale: form.runEconomyScale * easyCostOn(daysBefore) }
+            : form,
+        seed: Math.floor(seedAt! * 0x100000000),
+        noise: planned.treadmill ? TREADMILL_NOISE : SAMPLE_NOISE,
+        ...(planned.raceM === undefined ? {} : { raceM: planned.raceM }),
+        ...(planned.gap === undefined ? {} : { gap: planned.gap }),
+      })
+    }
   }
   return entries
 }

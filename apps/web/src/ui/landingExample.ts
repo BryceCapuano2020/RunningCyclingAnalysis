@@ -7,8 +7,8 @@ import type { SportGrade } from './grades'
  * LandingExample.test.tsx checks that it still does. They are those of the sample on the fixed reference
  * clock (SAMPLE_CLOCK). The season is anchored to a Sunday and keyed to the days before it, so the app's own
  * sample, loaded on any day, gives the same figures (sampleSections.test.ts checks that over two weeks of
- * clocks): running 64% Local, cycling 71% Regional with a range of 61% to 83%, a lean of 7 points to cycling
- * (3 toward running to 19 toward cycling), and a run that is slipping at the same heart rate. The generator
+ * clocks): running 65% Local, cycling 80% National with a range of 70% to 93%, a lean of 15 points to cycling
+ * (4 to 27, clear of zero), and a run that is slipping at the same heart rate. The generator
  * draws the sample, so these move with it; build-time generation of this file is G4's.
  */
 export const LANDING_EXAMPLE: {
@@ -20,19 +20,19 @@ export const LANDING_EXAMPLE: {
    */
   fitness: { referenceHr: number; change: Ranged; shown: { size: string; range: string } }
 } = {
-  gap: { centre: -7, low: -19, high: 3, lean: 'ride' },
+  gap: { centre: -15, low: -27, high: -4, lean: 'ride' },
   fitness: {
-    referenceHr: 140,
-    change: { value: -0.0898, low: -0.1234, high: -0.055 },
-    shown: { size: '9.9%', range: '6 to 14%' },
+    referenceHr: 120,
+    change: { value: -0.1047, low: -0.1404, high: -0.0675 },
+    shown: { size: '12%', range: '7 to 16%' },
   },
   grades: {
-    run: { centre: { grade: 0.6430111582722373, level: 'Local' }, range: null },
+    run: { centre: { grade: 0.6583518165965895, level: 'Local' }, range: null },
     ride: {
-      centre: { grade: 0.7174593304790404, level: 'Regional' },
+      centre: { grade: 0.8049601853246248, level: 'National' },
       range: {
-        low: { grade: 0.6123153136406498, level: 'Local' },
-        high: { grade: 0.8328553568162148, level: 'National' },
+        low: { grade: 0.6950130236853881, level: 'Local' },
+        high: { grade: 0.9251730199210054, level: 'World' },
       },
     },
   },

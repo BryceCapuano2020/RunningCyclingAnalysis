@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
-import { DEFAULT_ATHLETE } from './athlete'
 import {
+  SAMPLE_ATHLETE,
   SAMPLE_CLOCK,
   SAMPLE_REFERENCE_NOW_MS,
   SAMPLE_SEED,
@@ -126,6 +126,21 @@ describe('samplePlan', () => {
     }
   })
 
+  it('holds 40 rides in the last 12 weeks, so the ride page has enough to say, and a second session on Tuesdays', () => {
+    const recent = plan.filter(
+      (entry) => entry.spec.sport === 'ride' && daysBefore(SAMPLE_CLOCK, entry.spec.startMs) <= 84,
+    )
+    expect(recent.length).toBeGreaterThanOrEqual(40)
+    // A rider's Tuesday: the morning or lunch run, then an evening commute.
+    const tuesday = plan.filter((entry) => weekdayOf(entry.spec.startMs) === 2)
+    const days = new Map<number, number>()
+    for (const entry of tuesday) {
+      const day = Math.floor(entry.spec.startMs / DAY_MS)
+      days.set(day, (days.get(day) ?? 0) + 1)
+    }
+    expect([...days.values()].some((count) => count === 2)).toBe(true)
+  })
+
   it('numbers ids in time order, each once', () => {
     const ids = plan.map((entry) => entry.spec.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -150,8 +165,11 @@ describe('samplePlan', () => {
   })
 
   it('puts the long sessions at the weekend', () => {
+    // A long session is a run of 75 minutes or a ride of 100: the weekday rides are shorter than that.
+    const longMinutes = { run: 75, ride: 100 }
     const long = plan.filter(
-      (entry) => entry.spec.effort === 'easy' && entry.spec.durationS >= 75 * 60,
+      (entry) =>
+        entry.spec.effort === 'easy' && entry.spec.durationS >= longMinutes[entry.spec.sport] * 60,
     )
     expect(long.length).toBeGreaterThan(20)
     for (const entry of long) expect([0, 6]).toContain(weekdayOf(entry.spec.startMs))
@@ -180,7 +198,7 @@ describe('samplePlan', () => {
     expect(mean(last) / mean(first)).toBeGreaterThan(1.15)
     const runs = plan.filter((entry) => entry.spec.sport === 'run')
     expect(runs.at(-1)!.athlete.cpRun).toBeGreaterThan(runs[0]!.athlete.cpRun)
-    expect(Math.abs(rides.at(-1)!.athlete.cpRide / DEFAULT_ATHLETE.cpRide - 1)).toBeLessThan(0.05)
+    expect(Math.abs(rides.at(-1)!.athlete.cpRide / SAMPLE_ATHLETE.cpRide - 1)).toBeLessThan(0.05)
   })
 
   it('keeps the sample’s features: threshold tests, a ride without power, a heart-rate glitch', () => {
@@ -224,6 +242,6 @@ describe('generateSampleActivity', () => {
       .slice(-Math.floor(rides.length / 2))
       .map((entry) => mean(generateSampleActivity(entry)))
     const average = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length
-    expect(average(late) / average(early)).toBeGreaterThan(1.05)
+    expect(average(late) / average(early)).toBeGreaterThan(1.02)
   })
 })

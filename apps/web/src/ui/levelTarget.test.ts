@@ -256,7 +256,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       }),
     ).toBe(
-      'To grade level with your cycling at 20 min, your best run would need a flat pace of about 3:40 /km (now 4:07 /km).',
+      'To grade level with your cycling at 20 min, your best run would need a flat pace of about 3:15 /km (now 4:01 /km).',
     )
   })
 
