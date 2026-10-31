@@ -1,3 +1,13 @@
+import {
+  civilOfDay,
+  dayOfCivil,
+  localDayOf,
+  localDayOfInstant,
+  localYearOf,
+  mondayOnOrBefore,
+  startOfDayNumber,
+} from '@rca/core/calendar'
+import type { Dated } from '@rca/core/calendar'
 import { COMPRESS_AFTER_WEEKS, MONTHLY_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
@@ -66,57 +76,40 @@ export function secondsOf(totals: TotalsBySport): number {
   return SPORT_ORDER.reduce((sum, sport) => sum + totals[sport].seconds, 0)
 }
 
+/** The month a day number is in, as the list's month headings group by: `2025-5` for June 2025. */
+export function monthKeyOfDay(day: number): string {
+  const { year, month } = civilOfDay(day)
+  return `${year}-${month}`
+}
+
 /** The calendar month of a moment in the viewer's zone, as the list's month headings group by. */
 export function monthKeyOf(ms: number): string {
-  const date = new Date(ms)
-  return `${date.getFullYear()}-${date.getMonth()}`
+  return monthKeyOfDay(localDayOfInstant(ms))
 }
 
-/** The Monday, 00:00 local, of the week a moment falls in. */
-function weekStartOf(ms: number): number {
-  const date = new Date(ms)
-  const sinceMonday = (date.getDay() + 6) % 7
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - sinceMonday).getTime()
+/** The first day of the week, month or quarter that holds a day. */
+function startDayOf(kind: BucketKind, day: number): number {
+  if (kind === 'week') return mondayOnOrBefore(day)
+  const { year, month } = civilOfDay(day)
+  return dayOfCivil(year, kind === 'month' ? month : Math.floor(month / 3) * 3, 1)
 }
 
-function weekKey(startMs: number): string {
-  const date = new Date(startMs)
-  return `${WEEK_PREFIX}${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-}
-
-function monthStartOf(ms: number): number {
-  const date = new Date(ms)
-  return new Date(date.getFullYear(), date.getMonth(), 1).getTime()
-}
-
-/** The calendar quarter's first month: January, April, July or October. */
-function quarterStartOf(ms: number): number {
-  const date = new Date(ms)
-  return new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1).getTime()
+/** The first day of the week, month or quarter after the one that starts on `day`. */
+function nextStartDay(kind: BucketKind, day: number): number {
+  if (kind === 'week') return day + 7
+  const { year, month } = civilOfDay(day)
+  return dayOfCivil(year, month + MONTHS_IN[kind], 1)
 }
 
 const MONTHS_IN: Record<Exclude<BucketKind, 'week'>, number> = { month: 1, quarter: 3 }
 
-/** The start of the week, month or quarter after the one that starts at `startMs`. */
-function nextStart(kind: BucketKind, startMs: number): number {
-  const date = new Date(startMs)
-  return kind === 'week'
-    ? new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7).getTime()
-    : new Date(date.getFullYear(), date.getMonth() + MONTHS_IN[kind], 1).getTime()
-}
-
-const START_OF: Record<BucketKind, (ms: number) => number> = {
-  week: weekStartOf,
-  month: monthStartOf,
-  quarter: quarterStartOf,
-}
-
-function keyOf(kind: BucketKind, startMs: number): string {
-  if (kind === 'week') return weekKey(startMs)
-  const date = new Date(startMs)
+/** The key a bucket that starts on a day is named by. */
+function keyOfDay(kind: BucketKind, day: number): string {
+  const { year, month, date } = civilOfDay(day)
+  if (kind === 'week') return `${WEEK_PREFIX}${year}-${month}-${date}`
   return kind === 'month'
-    ? `${MONTH_PREFIX}${monthKeyOf(startMs)}`
-    : `${QUARTER_PREFIX}${date.getFullYear()}-${Math.floor(date.getMonth() / 3)}`
+    ? `${MONTH_PREFIX}${year}-${month}`
+    : `${QUARTER_PREFIX}${year}-${Math.floor(month / 3)}`
 }
 
 /**
@@ -140,27 +133,31 @@ export function volumeBuckets(
   if (activities.length === 0) return []
   let oldest = Infinity
   let newest = -Infinity
+  let oldestDay = Infinity
+  let newestDay = -Infinity
   for (const activity of activities) {
+    const day = localDayOf(activity)
     oldest = Math.min(oldest, activity.startMs)
     newest = Math.max(newest, activity.startMs)
+    oldestDay = Math.min(oldestDay, day)
+    newestDay = Math.max(newestDay, day)
   }
   const kind = bucketKindFor(oldest, newest, phone)
-  const startOf = START_OF[kind]
   const buckets: VolumeBucket[] = []
   const byKey = new Map<string, VolumeBucket>()
-  for (let start = startOf(oldest); start <= newest; start = nextStart(kind, start)) {
+  for (let day = startDayOf(kind, oldestDay); day <= newestDay; day = nextStartDay(kind, day)) {
     const bucket = {
-      key: keyOf(kind, start),
+      key: keyOfDay(kind, day),
       kind,
-      startMs: start,
-      endMs: nextStart(kind, start),
+      startMs: startOfDayNumber(day),
+      endMs: startOfDayNumber(nextStartDay(kind, day)),
       totals: emptyTotals(),
     }
     buckets.push(bucket)
     byKey.set(bucket.key, bucket)
   }
   for (const activity of activities) {
-    const bucket = byKey.get(keyOf(kind, startOf(activity.startMs)))
+    const bucket = byKey.get(keyOfDay(kind, startDayOf(kind, localDayOf(activity))))
     if (bucket !== undefined) addTo(bucket.totals, activity)
   }
   return buckets
@@ -176,14 +173,17 @@ function numbersOf(text: string, count: number): number[] | null {
 /** The bucket a key names, whole: null when its dates are not real, so nothing here can throw a RangeError. */
 function spanOf(
   kind: BucketKind,
-  startMs: number,
+  startDay: number,
   key: string,
 ): Pick<VolumeBucket, 'kind' | 'startMs' | 'endMs'> | null {
-  const endMs = nextStart(kind, startMs)
-  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return null
   // A key that is not the one its own start would be named by was written by hand: `w:2025-5-2` is real
-  // but `w:2025-05-02`, `w:2025-5-32` (which Date rolls over) and a week that starts on a Tuesday are not.
-  return keyOf(kind, startMs) === key ? { kind, startMs, endMs } : null
+  // but `w:2025-05-02`, `w:2025-5-32` (which rolls over) and a week that starts on a Tuesday are not.
+  if (startDayOf(kind, startDay) !== startDay || keyOfDay(kind, startDay) !== key) return null
+  return {
+    kind,
+    startMs: startOfDayNumber(startDay),
+    endMs: startOfDayNumber(nextStartDay(kind, startDay)),
+  }
 }
 
 /** The span a bucket key names, or null for a key that is not one. Anything the address holds may be wrong. */
@@ -192,42 +192,39 @@ export function bucketSpan(key: string): Pick<VolumeBucket, 'kind' | 'startMs' |
     const [year, month, day] = numbersOf(key.slice(WEEK_PREFIX.length), 3) ?? []
     if (year === undefined || month === undefined || day === undefined) return null
     if (year < MIN_YEAR || month > 11 || day < 1 || day > 31) return null
-    const start = new Date(year, month, day)
-    // A week starts on a Monday.
-    if (start.getDay() !== 1) return null
-    return spanOf('week', start.getTime(), key)
+    return spanOf('week', dayOfCivil(year, month, day), key)
   }
   if (key.startsWith(MONTH_PREFIX)) {
     const [year, month] = numbersOf(key.slice(MONTH_PREFIX.length), 2) ?? []
     if (year === undefined || month === undefined || year < MIN_YEAR || month > 11) return null
-    return spanOf('month', new Date(year, month, 1).getTime(), key)
+    return spanOf('month', dayOfCivil(year, month, 1), key)
   }
   if (key.startsWith(QUARTER_PREFIX)) {
     const [year, quarter] = numbersOf(key.slice(QUARTER_PREFIX.length), 2) ?? []
     if (year === undefined || quarter === undefined || year < MIN_YEAR || quarter > 3) return null
-    return spanOf('quarter', new Date(year, quarter * 3, 1).getTime(), key)
+    return spanOf('quarter', dayOfCivil(year, quarter * 3, 1), key)
   }
   return null
 }
 
 /** The items that started in the span a bucket key names; all of them for no key or one that is not valid. */
-export function inBucket<T extends { startMs: number }>(
-  items: readonly T[],
-  key: string | null,
-): readonly T[] {
+export function inBucket<T extends Dated>(items: readonly T[], key: string | null): readonly T[] {
   const span = key === null ? null : bucketSpan(key)
   if (span === null) return items
-  return items.filter((item) => item.startMs >= span.startMs && item.startMs < span.endMs)
+  // By local day, as the buckets are filled, so a row is in the bucket whose column counted it.
+  const from = localDayOfInstant(span.startMs)
+  const to = localDayOfInstant(span.endMs)
+  return items.filter((item) => localDayOf(item) >= from && localDayOf(item) < to)
 }
 
 /** The bucket's name for a chip or a label: "week of 3 Jun 2025", "Jun 2025" or "Apr to Jun 2025". */
 export function bucketLabel(bucket: Pick<VolumeBucket, 'kind' | 'startMs'>): string {
-  const year = new Date(bucket.startMs).getFullYear()
+  const year = localYearOf(bucket.startMs)
   if (bucket.kind === 'week')
     return `week of ${formatDayMonth(bucket.startMs, bucket.startMs)} ${year}`
   if (bucket.kind === 'month') return formatMonth(bucket.startMs, true)
-  const last = nextStart('quarter', bucket.startMs) - 1
-  return `${formatMonth(bucket.startMs, false)} to ${formatMonth(last, true)}`
+  const next = nextStartDay('quarter', localDayOfInstant(bucket.startMs))
+  return `${formatMonth(bucket.startMs, false)} to ${formatMonth(startOfDayNumber(next) - 1, true)}`
 }
 
 /** The bucket as a phrase after "in": "the week of 3 Jun 2025", "Jun 2025" or "Apr to Jun 2025". */
@@ -284,7 +281,7 @@ export function formatHoursText(seconds: number): string {
 export function monthTotals(activities: readonly ActivitySummary[]): Map<string, TotalsBySport> {
   const months = new Map<string, TotalsBySport>()
   for (const activity of activities) {
-    const key = monthKeyOf(activity.startMs)
+    const key = monthKeyOfDay(localDayOf(activity))
     let totals = months.get(key)
     if (totals === undefined) {
       totals = emptyTotals()
