@@ -16,6 +16,26 @@ async function signedIn(email?: string) {
   return { h, cookies, put, list }
 }
 
+/** Sets how many units of an action the only user has used today (UTC). */
+async function setUsed(used: number, action = 'measurementRead'): Promise<void> {
+  const env = testEnv()
+  const user = await env.DB.prepare('SELECT id FROM users').first<{ id: string }>()
+  await env.DB.prepare(
+    `INSERT INTO daily_budget (user_id, day, action, used) VALUES (?, ?, ?, ?)
+     ON CONFLICT(user_id, day, action) DO UPDATE SET used = excluded.used`,
+  )
+    .bind(user?.id, '2026-01-15', action, used)
+    .run()
+}
+
+async function usedOf(action: string): Promise<number> {
+  const row = await testEnv()
+    .DB.prepare('SELECT used FROM daily_budget WHERE action = ?')
+    .bind(action)
+    .first<{ used: number }>()
+  return row?.used ?? 0
+}
+
 describe('GET /api/measurements', () => {
   it('requires a session', async () => {
     const h = createHarness()
@@ -51,11 +71,12 @@ describe('GET /api/measurements', () => {
     expect(res.status).toBe(403)
   })
 
-  it('spends one measurementRead unit a read, then answers 429 daily_limit', async () => {
+  it('answers 429 daily_limit once the measurementRead units are spent, one unit a read', async () => {
+    // The sweep from an empty day runs in measurements.sim.test.ts; this starts one unit short.
     const { h, cookies } = await signedIn()
-    for (let i = 0; i < DAILY_LIMITS.measurementRead; i++) {
-      expect((await h.send({ path: '/api/measurements', cookies })).status).toBe(200)
-    }
+    await setUsed(DAILY_LIMITS.measurementRead - 1)
+    expect((await h.send({ path: '/api/measurements', cookies })).status).toBe(200)
+    expect(await usedOf('measurementRead')).toBe(DAILY_LIMITS.measurementRead)
     const res = await h.send({ path: '/api/measurements', cookies })
     expect(res.status).toBe(429)
     expect(await res.json()).toMatchObject({ error: { code: 'daily_limit' } })
@@ -185,12 +206,13 @@ describe('PUT /api/measurements', () => {
     expect(used?.used).toBe(1)
   })
 
-  it('spends a measurementWrite unit a write, then answers 429 daily_limit', async () => {
+  it('answers 429 daily_limit once the measurementWrite units are spent, one unit a write', async () => {
+    // The sweep from an empty day runs in measurements.sim.test.ts; this starts one unit short.
     const { put } = await signedIn()
-    for (let i = 0; i < DAILY_LIMITS.measurementWrite; i++) {
-      expect((await put({ ...MASS, value: 70 + (i % 10) })).status).toBe(200)
-    }
-    const res = await put(MASS)
+    await setUsed(DAILY_LIMITS.measurementWrite - 1, 'measurementWrite')
+    expect((await put(MASS)).status).toBe(200)
+    expect(await usedOf('measurementWrite')).toBe(DAILY_LIMITS.measurementWrite)
+    const res = await put({ ...MASS, value: 70 })
     expect(res.status).toBe(429)
     expect(await res.json()).toMatchObject({ error: { code: 'daily_limit' } })
   })
