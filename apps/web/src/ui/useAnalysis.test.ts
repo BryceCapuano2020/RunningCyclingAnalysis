@@ -2389,6 +2389,33 @@ describe('useAnalysis state', () => {
     expect(result.current.importOutcome).toBeNull()
   })
 
+  it('sends Undo for the labels an import applied, and drops them from the summary when the reply comes', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], labelled: 2 }
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(result.current.importOutcome).toEqual(outcome)
+
+    act(() => result.current.undoLabels())
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'undoLabels',
+      settings: SETTINGS,
+      userId: USER_ID,
+    })
+    // The summary stays while the labels are taken off.
+    expect(result.current.importOutcome).toEqual(outcome)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.importOutcome).toEqual({ activities: 2, rejected: 0, duplicates: [] })
+  })
+
+  it('sends no Undo when nobody is signed in', () => {
+    const { result } = setup()
+    const before = worker().posted.length
+    act(() => result.current.undoLabels())
+    expect(worker().posted).toHaveLength(before)
+  })
+
   it('requests a saved-activity rebuild and exposes its partial recovery notice', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     act(() => result.current.rebuildSavedActivities())

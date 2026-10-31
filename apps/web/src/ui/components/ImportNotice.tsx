@@ -28,6 +28,8 @@ export interface ImportNoticeProps {
   detailLine?: { short: string; full: string } | null
   /** Called when the summary is dismissed, so the page can drop what moved with it. */
   onDismiss: () => void
+  /** Takes off the labels the import applied, for an import that applied some. */
+  onUndoLabels?: () => void
 }
 
 /** A change as text, with the arrow hidden from screen readers in favour of the spoken form. */
@@ -55,6 +57,7 @@ export function ImportNotice({
   detailLine = null,
   leftOutLine = null,
   onDismiss,
+  onUndoLabels,
 }: ImportNoticeProps) {
   const [dismissed, setDismissed] = useState<ImportOutcome | null>(null)
   if (outcome === null || outcome === dismissed || busy) return null
@@ -89,6 +92,11 @@ export function ImportNotice({
         )}
         <RejectedFiles outcome={outcome} rejected={rejected} unsupportedFiles={unsupportedFiles} />
       </div>
+      {onUndoLabels !== undefined && (outcome.labelled ?? 0) > 0 && (
+        <button type="button" className="btn" onClick={onUndoLabels}>
+          Undo the labels
+        </button>
+      )}
       {atBalance ? null : <a href={hrefFor({ page: 'balance' })}>See your balance</a>}
       <button type="button" className="btn" onClick={dismiss}>
         Dismiss summary

@@ -18,6 +18,8 @@ import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
 import { outdatedWithOriginal } from './outdatedOriginals'
+import { reloadSession, undoListLabels } from './applyListLabels'
+import { LabelUndo } from './labelUndo'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
@@ -101,8 +103,10 @@ const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
 const sending = new SendingKeys()
+const labelUndo = new LabelUndo()
 const importContext: ImportRunContext = {
   sending,
+  labelUndo,
   session,
   post,
   missingOriginals,
@@ -190,6 +194,18 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         ),
         request.userId,
       )
+    case 'undoLabels': {
+      const applied = labelUndo.take(request.userId, view.libraryEpoch)
+      if (applied.length > 0) {
+        await undoListLabels(applied, request.userId, (fresh) => {
+          savedRecords.clear()
+          for (const record of fresh) savedRecords.set(record.id, record)
+        })
+        reportLibrary()
+        return reloadSession(session, request.settings, [...savedRecords.values()])
+      }
+      return session.setSettings(request.settings)
+    }
     case 'rebuildStale':
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')

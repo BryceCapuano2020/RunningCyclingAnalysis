@@ -83,6 +83,13 @@ export function damagedZips(rejected: readonly RejectedFile[]): DamagedSource[] 
     })
 }
 
+/** The import's outcome without the labels it applied. */
+function withoutLabelled(outcome: ImportOutcome | null): ImportOutcome | null {
+  if (outcome === null) return null
+  const { labelled: _labelled, ...rest } = outcome
+  return rest
+}
+
 /** The library a request changes when it succeeds, for the tabs that must read it again. */
 function changedLibrary(pending: Pending): 'device' | 'account' | null {
   if (pending.provisional === true) return null
@@ -94,6 +101,7 @@ function changedLibrary(pending: Pending): 'device' | 'account' | null {
       return pending.forgetDevice === true ? 'device' : null
     case 'deleteActivity':
     case 'rebuildStale':
+    case 'undoLabels':
       return 'account'
     case 'addFiles':
       return pending.saveToDevice === true ? 'device' : 'account'
@@ -152,6 +160,8 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   }
   // A rebuild replaces the session, and with it the files the last import skipped, so its summary goes.
   if (pending?.kind === 'rebuildStale') imports.setImportOutcome(null)
+  // The labels are off, so the summary no longer says they were applied or offers to take them off.
+  if (pending?.kind === 'undoLabels') imports.setImportOutcome(withoutLabelled)
   const changed = changedLibrary(pending)
   if (changed !== null) deps.libraryChanged(changed)
   imports.setState(message.state)

@@ -51,6 +51,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     loadTrace: vi.fn(async () => ({ kind: 'missing' as const })),
     rebuildNotice: null,
     rebuildSavedActivities: vi.fn(),
+    undoLabels: vi.fn(),
     addFiles: vi.fn(),
     loadSample: vi.fn(),
     setRange: vi.fn(),

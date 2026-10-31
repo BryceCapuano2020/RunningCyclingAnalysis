@@ -76,6 +76,8 @@ export interface AnalysisController {
   loadTrace: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
   rebuildNotice: string | null
   rebuildSavedActivities: () => void
+  /** Takes off the labels the last import applied from its export's list. */
+  undoLabels: () => void
   addFiles: (files: File[]) => void
   loadSample: () => void
   setRange: (choice: PeriodChoice, answered?: (reply: WorkerResponse | null) => void) => void

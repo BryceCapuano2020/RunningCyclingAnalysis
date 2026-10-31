@@ -20,12 +20,15 @@ import type { TraceScope } from './workbenchStore'
 import type { WorkerView } from './workerView'
 import { applyListLabels, reloadSession } from './applyListLabels'
 import { ATHLETE_LABELS_ENABLED } from './labelsConfig'
+import type { LabelUndo } from './labelUndo'
 import { noteWork } from './workerWire'
 
 /** What an import reads and changes in the worker. */
 export interface ImportRunContext {
   /** The workouts being sent to the account, shared with the outbox resume. */
   sending: SendingKeys
+  /** The labels this import applied, which its summary can take off. */
+  labelUndo: LabelUndo
   session: AnalysisSession
   post: (message: WorkerResponse) => void
   missingOriginals: Set<string>
@@ -221,6 +224,7 @@ export async function runImport(
     if (labelled.length > 0) {
       state = reloadSession(session, request.settings, [...savedRecords.values()])
       outcome = { ...outcome, labelled: labelled.length }
+      ctx.labelUndo.remember(sync.userId, view.libraryEpoch, labelled)
     }
   }
   if (sync !== null) {

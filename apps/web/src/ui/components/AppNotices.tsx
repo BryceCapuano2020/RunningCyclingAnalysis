@@ -129,6 +129,7 @@ export function AppNotices({
         detailLine={detailLine}
         leftOutLine={leftOutLine}
         onDismiss={analysis.dismissSummary}
+        onUndoLabels={analysis.undoLabels}
       />
       {sample.pill}
       {analysis.incompleteImport !== null && !analysis.busy && (
