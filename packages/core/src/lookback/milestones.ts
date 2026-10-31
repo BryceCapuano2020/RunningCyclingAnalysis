@@ -147,14 +147,15 @@ export function milestonesOf(
   for (const sport of sports) {
     for (const durationS of EFFORT_LENGTHS_S) {
       const index = DURATIONS_S.indexOf(durationS)
-      const readings: Point[] = (progression[sport][index] as Reading[])
+      const readings: Point[] = (progression[sport].readings[index] as Reading[])
         .filter((r) => !r.alone)
         .map((r) => ({
           id: r.id,
           startMs: r.startMs,
           value: sport === 'run' ? RUN_VALUE(r.value) : r.value,
         }))
-      const unit: MilestoneUnit = sport === 'run' ? 'm/s' : masses.dated ? 'W/kg' : 'W'
+      const unit: MilestoneUnit =
+        sport === 'run' ? 'm/s' : progression[sport].unit === 'W/kg' ? 'W/kg' : 'W'
       const milestones = milestonesFor(
         { kind: 'duration', durationS },
         unit,
