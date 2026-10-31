@@ -6,7 +6,7 @@ import type { ActivityDigest, AthleteSettings, BikeModel, Sport } from '../types
 import { CHANGE } from './constants'
 import { nullBand } from './null'
 import { readingsOf } from './readings'
-import type { DurationReadings } from './readings'
+import type { DurationReadings, Readings } from './readings'
 import type { ChangeBasis, ChangeCall, ChangeEvidence } from './types'
 
 const SPORTS: readonly Sport[] = ['run', 'ride']
@@ -131,4 +131,24 @@ export function changeEvidence(
       return callFor(sport, durationS, every[0][sport][i]!, every[1][sport][i]!, seed)
     })
   return { run: calls(SPORTS[0]!, 0), ride: calls(SPORTS[1]!, 1) }
+}
+
+/**
+ * The call for one length, for a reader that sets two stretches of the history against each other (two calendar years),
+ * made exactly as `changeEvidence` makes it for that length, so a pair of periods and a pair of years are judged alike.
+ */
+export function changeCallBetween(
+  sport: Sport,
+  durationS: number,
+  now: Readings,
+  before: Readings,
+): ChangeCall {
+  const index = (DURATIONS_S as readonly number[]).indexOf(durationS)
+  return callFor(
+    sport,
+    durationS,
+    now[sport][index]!,
+    before[sport][index]!,
+    CHANGE.seed + SPORTS.indexOf(sport) * 64 + index,
+  )
 }

@@ -625,6 +625,36 @@ describe('what the browser kept before sign-in', () => {
   })
 })
 
+describe('the notice that the library is only part of what was added', () => {
+  const INCOMPLETE = {
+    id: 'a',
+    scope: 'device' as const,
+    startedAt: 1,
+    updatedAt: 1,
+    sources: [],
+    expected: 100,
+    read: 40,
+    damaged: [],
+    state: 'interrupted' as const,
+  }
+
+  it('offers Use what I have, and keeps offering it while an import runs: the hold it lifts is on', () => {
+    const accept = vi.fn()
+    render(
+      <AppNotices
+        {...noticesProps({
+          busy: true,
+          incompleteImport: INCOMPLETE,
+          acceptIncompleteImport: accept,
+        })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use what I have' }))
+    expect(accept).toHaveBeenCalledOnce()
+  })
+})
+
 /** A saved activity, for the library count. */
 function makeSaved() {
   return {
