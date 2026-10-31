@@ -9,6 +9,9 @@ import type { EstimatedRideGate, EstimatedStanding } from '../digest/estimatedRi
 import { fitBikeModelOver, pointWkg, runCentralWkg } from '../digest/rideCurves'
 import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
 
+/** What a reading's value is: a run's gross metabolic W/kg at its pace, a ride's watts, or with dated body masses its W/kg. */
+export type ProgressionUnit = 'run W/kg' | 'W' | 'W/kg'
+
 /** One activity's priced point at a duration: the value its sport compares by, and whether it is an estimate that stands alone. */
 export interface Priced {
   value: number
@@ -48,6 +51,43 @@ export function ridePricer(
 }
 
 /**
+ * The record among one duration's readings, given the record at the nearest shorter duration that has one (`shorter`,
+ * infinity with none): the highest reading, where an estimate that stands alone counts only when it is no higher than
+ * `shorter`, as on the curve, so a longer duration never reads higher than a shorter one. A tie goes to the earlier reading.
+ */
+export function recordAt(readings: readonly Reading[], shorter: number): Reading | null {
+  const bests = { held: null as Reading | null, alone: null as Reading | null }
+  for (const reading of readings) {
+    const kind = reading.alone ? 'alone' : 'held'
+    if (reading.alone && reading.value > shorter) continue
+    if (bests[kind] === null || reading.value > bests[kind].value) bests[kind] = reading
+  }
+  const { held, alone } = bests
+  return alone !== null && (held === null || alone.value > held.value) ? alone : held
+}
+
+/**
+ * The readings that can stand in a history of bests: an estimate that stands alone, higher than the record at the
+ * nearest shorter duration, is left out, as the records leave it out, so a history never shows a best the records did
+ * not award.
+ */
+export function withoutOverreach(readings: Reading[][]): Reading[][] {
+  let shorter = Number.POSITIVE_INFINITY
+  return readings.map((atDuration) => {
+    const record = recordAt(atDuration, shorter)
+    const kept = atDuration.filter((r) => !(r.alone && r.value > shorter))
+    if (record !== null) shorter = record.value
+    return kept
+  })
+}
+
+/** A sport's readings at each duration (`readings[i]` is for DURATIONS_S[i]) and what their values are. */
+export interface Progression {
+  unit: ProgressionUnit
+  readings: Reading[][]
+}
+
+/**
  * Every activity's finite priced point at each curve duration (`result[i]` is for DURATIONS_S[i]), in the order the
  * activities are given. The holders of the records and the history of a best are both read from this.
  */
@@ -74,22 +114,31 @@ export function eligibleDigests(digests: ActivityDigest[]): ActivityDigest[] {
 }
 
 /**
- * Each sport's priced points at each duration across a set of digests, the records' own eligibility and pricing:
- * runs in W/kg at their pace, rides in watts priced with the bike model fitted to this set. `gate` is as for
+ * Each sport's priced points at each duration across a set of digests, the records' own eligibility and pricing
+ * (runs in W/kg at their pace, rides in watts priced with the bike model fitted to this set, or W/kg with dated masses;
+ * `unit` says which), less the estimates the records would not award (see withoutOverreach). `gate` is as for
  * `recordHolders`.
  */
 export function effortProgression(
   digests: ActivityDigest[],
   settings: AthleteSettings,
   gate?: EstimatedRideGate | null,
-): Record<Sport, Reading[][]> {
+): Record<Sport, Progression> {
   const ordered = orderedFor('records', digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   const standing = estimatedStanding(gate === undefined ? ownRideGate(ordered) : gate)
   const eligible = ordered.filter(effortsCount)
   return {
-    run: readingsByDuration(ofSport(eligible, 'run'), runPricer),
-    ride: readingsByDuration(ofSport(eligible, 'ride'), ridePricer(masses, bikeModel, standing)),
+    run: {
+      unit: 'run W/kg',
+      readings: withoutOverreach(readingsByDuration(ofSport(eligible, 'run'), runPricer)),
+    },
+    ride: {
+      unit: masses.dated ? 'W/kg' : 'W',
+      readings: withoutOverreach(
+        readingsByDuration(ofSport(eligible, 'ride'), ridePricer(masses, bikeModel, standing)),
+      ),
+    },
   }
 }

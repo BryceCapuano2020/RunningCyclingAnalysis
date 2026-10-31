@@ -14,6 +14,20 @@ export const TRACES = 'traces'
 export const ENTRIES = 'entries'
 export const STATE = 'state'
 export const OWNERS = 'owners'
+/**
+ * The state row that holds the device scope's epoch: a number raised in the transaction that clears the
+ * scope, as the library kept in this browser has one (see DeviceLibrary.epoch). A write that carries the
+ * epoch it loaded under is refused if the row has moved on, so a recording cannot outlive its activity.
+ */
+export const DEVICE_EPOCH_KEY = 'deviceEpoch'
+
+/** The epoch a state row holds, zero for none. */
+export function epochOfRow(row: unknown): number {
+  if (typeof row !== 'object' || row === null || !('epoch' in row)) return 0
+  return typeof row.epoch === 'number' && Number.isInteger(row.epoch) && row.epoch > 0
+    ? row.epoch
+    : 0
+}
 
 export interface StoredTrace {
   key: string
@@ -32,7 +46,8 @@ export interface TraceMetadata {
 }
 
 /** What storing a recording came to: kept, left out because the cache is full of newer ones, or refused. */
-export type PutResult = 'stored' | 'outranked' | 'refused'
+/** `replaced`: the device's library was emptied since the writer loaded it, so the recording is not written. */
+export type PutResult = 'stored' | 'outranked' | 'refused' | 'replaced'
 
 /** The index that lists recordings from the oldest activity to the newest. */
 export const RANK_INDEX = 'rank'

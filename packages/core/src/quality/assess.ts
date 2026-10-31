@@ -284,6 +284,8 @@ function messageFor(kind: QualityKind, durationS: number): string {
         `No altitude was recorded for ${seconds}, so slope-based running cost, virtual power ` +
         'and calibration are left out'
       )
+    case 'hr-cadence-lock':
+      return `Heart rate matched cadence for ${seconds}`
   }
 }
 

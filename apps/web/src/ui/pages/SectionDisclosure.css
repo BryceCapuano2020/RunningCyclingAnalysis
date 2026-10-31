@@ -1,9 +1,6 @@
-/* A section behind a disclosure: a card whose closed row names the section and says what it found. */
+/* A section behind a disclosure: a panel whose closed row names the section and says what it found. */
 .sport-disclosure {
   min-width: 0;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
 }
 
 .sport-disclosure__details {

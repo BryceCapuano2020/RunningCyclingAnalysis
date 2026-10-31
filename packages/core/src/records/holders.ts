@@ -8,7 +8,7 @@ import { estimatedStanding, ownRideGate } from '../digest/estimatedRide'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import { fitBikeModelOver } from '../digest/rideCurves'
 import type { ActivityDigest, AthleteSettings } from '../types'
-import { eligibleDigests, readingsByDuration, ridePricer, runPricer } from './progression'
+import { eligibleDigests, readingsByDuration, recordAt, ridePricer, runPricer } from './progression'
 import type { Reading } from './progression'
 
 /** A best effort an activity holds across a library: a duration best, or a run distance best. */
@@ -30,14 +30,7 @@ function durationHolders(readings: Reading[][]): Holder[] {
   const holders: Holder[] = []
   let shorter = Number.POSITIVE_INFINITY
   for (const [index, durationS] of DURATIONS_S.entries()) {
-    const bests = { held: null as Reading | null, alone: null as Reading | null }
-    for (const reading of readings[index]!) {
-      const kind = reading.alone ? 'alone' : 'held'
-      if (reading.alone && reading.value > shorter) continue
-      if (bests[kind] === null || reading.value > bests[kind].value) bests[kind] = reading
-    }
-    const { held, alone } = bests
-    const best = alone !== null && (held === null || alone.value > held.value) ? alone : held
+    const best = recordAt(readings[index]!, shorter)
     if (best !== null) {
       holders.push({ id: best.id, durationS })
       shorter = best.value

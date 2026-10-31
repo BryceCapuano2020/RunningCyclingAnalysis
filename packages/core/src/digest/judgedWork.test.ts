@@ -29,7 +29,11 @@ function givenBy(judgement: ReturnType<typeof judgeHeartRate>): CombineOptions {
   return {
     heartRateSetAside: new Set(judgement.setAside),
     calibration: judgement.calibration,
-    references: { referenceHr: judgement.referenceHr, observedMaxHr: judgement.observedMaxHr },
+    references: {
+      referenceHr: judgement.referenceHr,
+      observedMaxHr: judgement.observedMaxHr,
+      effortReference: judgement.effortReference,
+    },
     rideGate: judgement.rideGate,
   }
 }
@@ -55,6 +59,8 @@ describe('an analysis that takes the work of the judgement', () => {
     const heavier = { ...SETTINGS, massKg: SETTINGS.massKg + 5 }
     const cases: [ActivityDigest[], typeof SETTINGS, CombineOptions][] = [
       [library, heavier, given],
+      // The year of birth moves the reference the effort gate reads, so the judgement's work is not the answer.
+      [library, { ...SETTINGS, birthYear: 1985 }, given],
       [library.slice(1), SETTINGS, given],
       [library, SETTINGS, { ...given, rideGate: null }],
       [library, SETTINGS, { ...given, heartRateSetAside: new Set() }],

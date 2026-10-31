@@ -31,6 +31,7 @@
     "test:ops": "node --test scripts/ops/*.test.mjs",
     "test:deploy-config": "node --test apps/api/scripts/check-deploy-config.test.mjs apps/api/scripts/check-migrations.test.mjs apps/api/scripts/prepare-d1-restore.test.mjs",
     "smoke:prod": "node scripts/ops/smoke.mjs",
+    "pr:queue": "node scripts/ops/pr-queue.mjs",
     "verify:release": "npm run check && npm run e2e && npm run e2e:worker -w @rca/web",
     "deploy:bootstrap": "npm run build && npm run deploy:bootstrap -w @rca/api"
   },

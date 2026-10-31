@@ -12,6 +12,7 @@ import { formatSpan } from '../format/date'
 import { countSport } from '../records'
 import { seasonSwing } from '../fitnessModel'
 import { FitnessRuns } from './FitnessRuns'
+import './FitnessEvidence.css'
 
 const M = FITNESS.monitor
 
