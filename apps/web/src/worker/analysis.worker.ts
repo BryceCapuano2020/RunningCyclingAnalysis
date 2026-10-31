@@ -12,6 +12,7 @@ import { deviceKeeper } from './deviceKeeper'
 import { clearOutbox, openOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
 import { resumeOutbox } from './outboxResume'
+import { resumeAsWriter } from './writerResume'
 import type { Resume } from './outboxResume'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
@@ -107,14 +108,17 @@ const reportDetail = detailReporter(workbench, post, () =>
 /** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
 let resume: Resume | null = null
 function finishLoad(state: SessionState, userId: string): SessionState {
-  resume = resumeOutbox({
-    userId,
-    outbox: openOutbox(userId),
-    savedRecords,
-    sending,
-    // Apart from any request: stamped with one, the page would drop it as late.
-    post: (message) => self.postMessage(message),
-  })
+  // In the tab that holds the account's writer lock only: with two tabs open, one sends.
+  resume = resumeAsWriter(userId, () =>
+    resumeOutbox({
+      userId,
+      outbox: openOutbox(userId),
+      savedRecords,
+      sending,
+      // Apart from any request: stamped with one, the page would drop it as late.
+      post: (message) => self.postMessage(message),
+    }),
+  )
   return state
 }
 

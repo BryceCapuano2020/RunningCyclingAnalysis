@@ -1,4 +1,6 @@
 import { digestActivity, serializeDigest } from '@rca/core/digest'
+import { REVISIONS, withRevisionTableAsync } from '@rca/core/digest/revisions'
+import type { RevisionDeclaration } from '@rca/core/digest/revisions'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { ActivityRecord } from '@rca/contract'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -325,5 +327,27 @@ describe('resuming the saves an earlier visit left', () => {
     })
     await resume.finished
     expect(rows.get(workoutKeyOf(digests[0]!))?.digestId).toBe('a-better-copy')
+  })
+
+  it('sends a row from an older analysis that the current one reads beside its own', async () => {
+    // Revision 7 changes nothing the older digests rely on, so a revision 6 row is compatible and is sent.
+    const seven: RevisionDeclaration = {
+      revision: 7,
+      kind: 'additive',
+      adds: [],
+      changes: [],
+      affects: [],
+    }
+    await withRevisionTableAsync([...REVISIONS, seven], async () => {
+      const older = serializeDigest({ ...digests[0]!, modelRevision: 6 })
+      const current = serializeDigest({ ...digests[1]!, modelRevision: 7 })
+      const { resume, left } = setup([
+        rowFor(0, { digestJson: older }),
+        rowFor(1, { digestJson: current }),
+      ])
+      await resume.finished
+      expect(createActivity).toHaveBeenCalledTimes(2)
+      expect(left.size).toBe(0)
+    })
   })
 })

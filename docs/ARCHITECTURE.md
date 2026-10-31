@@ -141,9 +141,11 @@ When the library for an account loads, the worker resumes any rows an earlier vi
 same gate, the same shared stop and the same one-wait rate-limit rule as an import, and posts an
 unstamped `outbox` message with the counts so the page can say how many are left and read the library
 again once some were saved. A workout an import is sending (`SendingKeys`, shared by both) is left to
-that import. Only a refusal counts against a row, and after five it is let go and counted as failed.
+that import. The resume runs only in the tab that holds the account's writer lock
+(`rca-flush-<userId>`, `asWriter`), so two tabs open on the account never send the same rows. Only a refusal counts against a row, and after five it is let go and counted as failed.
 A stop (a limit, a signed-out account), a lost connection or a row a newer version wrote leaves the
-row untouched; a row from an older analysis is let go unsent. A session that ends on its own (expiry,
+row untouched; a row from a stale analysis is let go unsent, while one the current model reads beside its own
+(compatible) is sent. A session that ends on its own (expiry,
 seen by a save or by a refresh) keeps the rows. An explicit sign-out (after a warning when rows wait)
 and account deletion forget the account's rows, and Remove all (signed out) forgets every account's.
 The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the

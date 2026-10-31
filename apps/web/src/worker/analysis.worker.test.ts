@@ -2972,6 +2972,26 @@ describe('the saves an earlier visit left in the outbox', () => {
     expect(outboxRows.get(USER_ID)?.size).toBe(0)
   })
 
+  it('sends nothing from a tab whose account another tab is already writing for', async () => {
+    seedRow(SAMPLE_DIGEST)
+    mocked.listActivities.mockResolvedValue([])
+    // Another tab holds the account's writer lock.
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (_name: string, _options: object, callback: (l: null) => unknown) =>
+          callback(null),
+      },
+    })
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect(posted.some((m) => m.type === 'outbox')).toBe(false)
+    expect(outboxRows.get(USER_ID)?.size).toBe(1)
+  })
+
   it('leaves another account’s rows alone', async () => {
     seedRow(SAMPLE_DIGEST, 'someone-else')
     mocked.listActivities.mockResolvedValue([])

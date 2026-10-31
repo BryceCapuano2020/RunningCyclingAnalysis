@@ -75,7 +75,8 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
       const revision = revisionStatus(digest.modelRevision)
       // A newer version of the app wrote it: it is left alone, as the kept library leaves such a row.
       if (revision === 'newer') return 'kept'
-      if (revision !== 'current') {
+      // Only a digest the server would refuse is let go; one it reads beside the current model (compatible) is sent.
+      if (revision === 'stale') {
         await ctx.outbox.done(row.key, row.digestId)
         return 'let-go'
       }
