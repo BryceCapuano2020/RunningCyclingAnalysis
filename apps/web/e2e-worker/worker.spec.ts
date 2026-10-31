@@ -34,7 +34,7 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   // The meter is named by the balance in words, each sport's level is a line with its grade, and the ride on
   // foot is a tile with its pace and the ride behind it.
   await expect(
-    page.getByRole('img', { name: /^Running grades \d+ points? higher than cycling/ }),
+    page.getByRole('img', { name: /^Cycling grades \d+ points? higher than running/ }),
   ).toBeVisible()
   await expect(page.locator('.balance-levels__row')).toHaveCount(2)
   await expect(page.locator('.balance-levels__row').first()).toContainText(/\d+%/)

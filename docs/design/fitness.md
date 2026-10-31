@@ -117,9 +117,13 @@ status's own level, so the chart and the sentence give one figure. The line it i
 began is `onsetMs`. The runs behind the level now are `evidence.recent.ids`.
 
 The sample athlete carries one planted effect, a slip in easy running (`EASY_SLIP` in `synthetic/sampleSeason.ts`): the
-cost of easy running rises by 11% in a straight line over 4 weeks, starting 9 weeks before the season's end, with a seeded
-wobble of up to 1.2% from week to week on every easy run so the line is not noise-free. The detector finds it; nothing in
-the season says what the status is, and a test checks that the planted change lies within the reported range.
+cost of easy running rises by 14% in a straight line over 4 weeks, starting 9 weeks before the season's end. The sample is
+drawn from the generator's `measured` noise model, so each easy run also carries the model's weekly wander (AR(1), 2% a week) and
+its own Student t draw (3.8%). A deeper step than the 11% of the noise-free sample is what the detector needs to read the slip
+through that noise: on the first 40 seeds it fires on about seven in ten. The sample uses the first of `SAMPLE_SEEDS`, the seeds
+whose season also gives the ride's "not enough" state, passes the effort gate in both sports and fills every threshold and
+profile; `sampleSeason.sim.test.ts` replays them. The detector finds the slip; nothing in the season says what the status is,
+and a test checks that the planted change lies within the reported range.
 
 A step of the series is dated by the last day it includes (a Sunday) and says how many weeks it is read over (4 to 16), so the
 page can say "the 8 weeks to 25 Oct" and not "four weeks".
