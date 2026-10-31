@@ -21,10 +21,9 @@ import { accountPending, drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerWatchdog } from './analysis/workerWatchdog'
 import { useWorkerTransport } from './analysis/workerTransport'
-import { replyOf } from './routeReply'
-import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
 import { useActivityTraceRequest } from './analysis/useActivityTraceRequest'
+import { useRouteRequest } from './analysis/useRouteRequest'
 
 export type { LibraryStatus }
 export { DEVICE_GRACE_MS } from './analysis/keptLibraryLoad'
@@ -172,20 +171,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryWaitRef,
   })
 
-  /** Asks the worker for a saved activity's route, under the signed-in account when there is one. */
-  const loadRoute = useCallback(
-    (id: string, fromOriginal: boolean) =>
-      new Promise<RouteReply>((resolve) => {
-        const { status, me } = accountRef.current
-        const userId = status === 'signed-in' ? me?.user.id : undefined
-        sendToWorker(
-          { type: 'routeShape', id, fromOriginal, ...(userId === undefined ? {} : { userId }) },
-          undefined,
-          (message) => resolve(replyOf(message)),
-        )
-      }),
-    [sendToWorker],
-  )
+  const loadRoute = useRouteRequest(sendToWorker, accountRef)
 
   const libraryActions = useLibraryActions({
     library,

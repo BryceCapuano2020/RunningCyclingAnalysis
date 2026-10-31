@@ -210,7 +210,7 @@ function gpxFile(name = 'run.gpx'): File {
 beforeEach(() => {
   vi.resetModules()
   vi.useRealTimers()
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   limits.maxFileBytes = 50 * 1024 * 1024
   kept.library = null
   outboxRows.clear()
