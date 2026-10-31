@@ -73,6 +73,14 @@ export function ImportNotice({
     }
   }
 
+  function undo(event: MouseEvent<HTMLButtonElement>) {
+    onUndoLabels?.()
+    // The button leaves with the labels it undoes, so focus that was on it moves to the page heading.
+    if (document.activeElement === event.currentTarget) {
+      document.getElementById(PAGE_HEADING_ID)?.focus({ preventScroll: true })
+    }
+  }
+
   return (
     <div className="import-notice">
       <div className="import-notice__body">
@@ -93,7 +101,7 @@ export function ImportNotice({
         <RejectedFiles outcome={outcome} rejected={rejected} unsupportedFiles={unsupportedFiles} />
       </div>
       {onUndoLabels !== undefined && (outcome.labelled ?? 0) > 0 && (
-        <button type="button" className="btn" onClick={onUndoLabels}>
+        <button type="button" className="btn" onClick={undo}>
           Undo the labels
         </button>
       )}

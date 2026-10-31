@@ -221,10 +221,11 @@ export async function runImport(
       savedRecords.clear()
       for (const record of fresh) savedRecords.set(record.id, record)
     })
+    // Also when nothing was labelled: the newest import's labels are the ones Undo takes off, and an older set is not.
+    ctx.labelUndo.remember(sync.userId, view.libraryEpoch, labelled)
     if (labelled.length > 0) {
       state = reloadSession(session, request.settings, [...savedRecords.values()])
       outcome = { ...outcome, labelled: labelled.length }
-      ctx.labelUndo.remember(sync.userId, view.libraryEpoch, labelled)
     }
   }
   if (sync !== null) {

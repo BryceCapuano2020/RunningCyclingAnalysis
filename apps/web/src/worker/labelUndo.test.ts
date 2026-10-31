@@ -20,6 +20,13 @@ describe('LabelUndo', () => {
     expect(undo.take('u1', 3)).toEqual([])
   })
 
+  it('forgets them on clear', () => {
+    const undo = new LabelUndo()
+    undo.remember('u1', 3, applied)
+    undo.clear()
+    expect(undo.take('u1', 3)).toEqual([])
+  })
+
   it('keeps nothing for an import that applied none, and the newest import replaces the one before', () => {
     const undo = new LabelUndo()
     undo.remember('u1', 1, applied)

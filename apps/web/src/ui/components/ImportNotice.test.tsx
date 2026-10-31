@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ImportOutcome } from '../../worker/protocol'
 import type { MovedItem } from '../analysis/whatMoved'
 import { openDisclosures } from '../test/openDisclosures'
+import { PAGE_HEADING_ID } from '../pages/pageHeading'
 import { ImportNotice } from './ImportNotice'
 import type { ImportNoticeProps } from './ImportNotice'
 
@@ -217,6 +218,21 @@ describe('ImportNotice: the labels an import applied', () => {
     ).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Undo the labels' }))
     expect(onUndoLabels).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves focus to the page heading when Undo is pressed, as Dismiss does', () => {
+    render(
+      <>
+        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
+          Page
+        </h1>
+        <ImportNotice {...noticeProps({ outcome: LABELLED, onUndoLabels: vi.fn() })} />
+      </>,
+    )
+    const undo = screen.getByRole('button', { name: 'Undo the labels' })
+    undo.focus()
+    fireEvent.click(undo)
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Page' }))
   })
 
   it('offers no Undo for an import that applied no labels, or where nothing can undo them', () => {

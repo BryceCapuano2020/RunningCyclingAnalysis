@@ -18,7 +18,8 @@ import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
 import { outdatedWithOriginal } from './outdatedOriginals'
-import { reloadSession, undoListLabels } from './applyListLabels'
+import { undoLabelsRequest } from './undoLabelsRequest'
+import type { UndoLabelsContext } from './undoLabelsRequest'
 import { LabelUndo } from './labelUndo'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
@@ -104,6 +105,13 @@ const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 observeRequests(noteWork)
 const sending = new SendingKeys()
 const labelUndo = new LabelUndo()
+const undoContext: UndoLabelsContext = {
+  labelUndo,
+  session,
+  savedRecords,
+  epoch: () => view.libraryEpoch,
+  reportLibrary,
+}
 const importContext: ImportRunContext = {
   sending,
   labelUndo,
@@ -177,6 +185,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return session.loadSample(request.settings, view.sampleClock)
     case 'loadServer':
       view.libraryEpoch++
+      labelUndo.clear()
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
@@ -194,18 +203,9 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         ),
         request.userId,
       )
-    case 'undoLabels': {
-      const applied = labelUndo.take(request.userId, view.libraryEpoch)
-      if (applied.length > 0) {
-        await undoListLabels(applied, request.userId, (fresh) => {
-          savedRecords.clear()
-          for (const record of fresh) savedRecords.set(record.id, record)
-        })
-        reportLibrary()
-        return reloadSession(session, request.settings, [...savedRecords.values()])
-      }
-      return session.setSettings(request.settings)
-    }
+    case 'undoLabels':
+      // Answered with the state and how many labels are left, from onmessage.
+      throw new Error('An undo is not a session request')
     case 'rebuildStale':
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')
@@ -230,6 +230,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return device.load(request.settings)
     case 'clear':
       view.libraryEpoch++
+      labelUndo.clear()
       resume?.cancel()
       resume = null
       provisionalItems.clear()
@@ -356,6 +357,9 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const rebuilt = await rebuildStale(libraryContext, event.data.settings, event.data.userId)
         await reportDetail()
         post({ type: 'rebuildComplete', ...rebuilt, ...rebuildable() })
+      } else if (event.data.type === 'undoLabels') {
+        const { state, left } = await undoLabelsRequest(undoContext, event.data)
+        post({ type: 'state', state, ...(left > 0 ? { labelsLeft: left } : {}), ...rebuildable() })
       } else if (event.data.type === 'exportData') {
         post({ type: 'exportReady', file: await exportAccount(event.data) })
       } else if (event.data.type === 'activitySplits') {

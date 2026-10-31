@@ -12,6 +12,11 @@ export class LabelUndo {
     this.held = applied.length === 0 ? null : { userId, epoch, applied }
   }
 
+  /** Forgets them, as a clear or a load of the library makes them stale. */
+  clear(): void {
+    this.held = null
+  }
+
   /** The labels to take off for this account and library, once: they are forgotten as they are returned. */
   take(userId: string, epoch: number): readonly LabelProposal[] {
     const held = this.held

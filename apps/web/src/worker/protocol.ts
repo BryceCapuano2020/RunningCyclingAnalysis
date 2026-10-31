@@ -257,6 +257,8 @@ export type WorkerResponse =
       outcome?: ImportOutcome
       saved?: number
       outdatedWithOriginal?: number
+      /** After an Undo: how many of the import's labels could not be taken off and are still applied. Absent when none. */
+      labelsLeft?: number
     }
   | {
       type: 'rebuildComplete'

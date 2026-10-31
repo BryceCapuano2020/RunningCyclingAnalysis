@@ -3386,6 +3386,31 @@ describe('an import of an export whose list labels activities the account holds'
       expect(mocked.patchLabels).toHaveBeenCalledTimes(2)
     })
 
+    it('keeps the labels it could not take off, says how many are left, and takes them off on the next Undo', async () => {
+      const { send } = await importHikeExport()
+      mocked.listActivities.mockResolvedValue([savedAs('hike')])
+      mocked.patchLabels.mockRejectedValueOnce(new Error('offline'))
+      const first = await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      expect(first.at(-1)).toMatchObject({
+        type: 'state',
+        labelsLeft: 1,
+        state: { labelledRuns: 1 },
+      })
+
+      mocked.listActivities.mockResolvedValue([savedAs()])
+      const second = await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      expect(second.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+      expect(second.at(-1)).not.toHaveProperty('labelsLeft')
+      expect(mocked.patchLabels).toHaveBeenCalledTimes(3)
+    })
+
+    it('forgets the labels when the library is cleared', async () => {
+      const { send } = await importHikeExport()
+      await send({ type: 'clear' })
+      await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      expect(mocked.patchLabels).toHaveBeenCalledTimes(1)
+    })
+
     it('sends nothing for an Undo that follows a reload of the library', async () => {
       const { send } = await importHikeExport()
       mocked.listActivities.mockResolvedValue([savedAs('hike')])
