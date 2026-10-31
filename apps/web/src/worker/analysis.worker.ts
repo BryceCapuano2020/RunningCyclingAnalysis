@@ -1,7 +1,6 @@
 /// <reference lib="webworker" />
 import type { ActivityRecord } from '@rca/contract'
 import { periodChoiceOf } from '@rca/core/period'
-import { AnalysisSession } from '@rca/core/session'
 import type { SyncItem } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import type { Activity } from '@rca/core/types'
@@ -16,7 +15,7 @@ import {
   offerDevice,
 } from './adoptionRequests'
 import type { AdoptionRequestContext } from './adoptionRequests'
-import { deviceZone } from './viewerZone'
+import { newSession } from './newSession'
 import { deviceKeeper } from './deviceKeeper'
 import { clearOutbox, openOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
@@ -54,9 +53,7 @@ import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
 import type { ActivityTraceReply } from './workbench'
 
-const session = new AnalysisSession()
-// Where a file recorded no local day, days and weeks are cut in the device's zone.
-session.setZone(deviceZone)
+const session = newSession()
 const post = (message: WorkerResponse) => self.postMessage(stamped(message))
 /** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
 const missingOriginals = new Set<string>()
