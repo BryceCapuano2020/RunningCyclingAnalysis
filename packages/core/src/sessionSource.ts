@@ -3,6 +3,7 @@ import type { ExtractLimits, FitFile, RangedSource } from './fit'
 import { ACTIVITY } from './fit/zipDirectory'
 import { parseActivityFile } from './import'
 import { listedFor, listedOnly, readActivityList } from './import/activitiesCsv'
+import { sportOfType } from './import/sportType'
 import type { ListedActivity } from './import/activitiesCsv'
 import { readGarminList } from './import/garminList'
 import type { GarminList } from './import/garminList'
@@ -47,7 +48,12 @@ export interface SourceImport {
    * were read is in `read`, and `rejected` counts exactly the files in `refused` and the unreadable
    * formats.
    */
-  outcome: { activities: number; rejected: number; notActivities: number }
+  outcome: {
+    activities: number
+    rejected: number
+    notActivities: number
+    listedAsOtherSport?: number
+  }
   /**
    * The refused files, in the order they were refused, shared by the import. Every refusal is listed,
    * including two files of one name. A file read cleanly takes back the refusals of its own source
@@ -62,6 +68,11 @@ export interface SourceImport {
   skippedTypes?: Record<string, number>
   /** Whether each file's bytes are hashed, which the sink needs. */
   hashFiles: boolean
+  /**
+   * The type the export's list gives each file, by the file's name, for the files it names one for (also those not
+   * parsed because the index knows them): what `applyLabels` reads to label the workouts a library already holds.
+   */
+  listedTypes?: Map<string, string>
   /**
    * The index of files already read, when the caller keeps one. A file it knows is not parsed: see `heldNameOf`.
    */
@@ -126,6 +137,7 @@ async function importFile(
   garmin: GarminList | null,
   ctx: SourceImport,
 ): Promise<void> {
+  if (listed?.type !== undefined) ctx.listedTypes?.set(file.fileName, listed.type)
   const sessionKey = await sessionHashOf(file.bytes)
   const id: FileId | null =
     sessionKey === undefined || ctx.held === undefined
@@ -158,6 +170,12 @@ async function importFile(
     const imported = { fileName: file.fileName, fileHash, bytes: file.bytes }
     const result: ReadFile = { fileName: file.fileName, added: [], held: [] }
     for (const activity of parsed.activities) {
+      // The file says what sport it is and wins; a list that names the other one is counted, and said.
+      const listedSport =
+        listed?.type === undefined ? null : sportOfType(undefined, undefined, listed.type).sport
+      if (listedSport !== null && listedSport !== activity.sport) {
+        ctx.outcome.listedAsOtherSport = (ctx.outcome.listedAsOtherSport ?? 0) + 1
+      }
       const considered = await ctx.consider(activity, imported)
       if ('added' in considered) result.added.push(considered.added)
       else result.held.push(considered.held)

@@ -120,6 +120,7 @@ export class AnalysisSession {
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
+    const listedTypes = new Map<string, string>()
     const skippedTypes: Record<string, number> = {}
     const listeners: ActivityListeners = { kept: onActivity, replaced: onReplaced }
     try {
@@ -134,6 +135,7 @@ export class AnalysisSession {
           unsupported: this.unsupported,
           skippedTypes,
           hashFiles: sink !== undefined,
+          listedTypes,
           held,
           heldNameOf: (keys) => this.heldNameOf(keys, sink !== undefined),
           consider: (activity, file) =>
@@ -160,6 +162,7 @@ export class AnalysisSession {
       ...files,
       added,
       upgraded,
+      ...(listedTypes.size === 0 ? {} : { listedTypes }),
       ...(Object.keys(skippedTypes).length === 0 ? {} : { skippedTypes }),
     })
     return this.state(settings)
