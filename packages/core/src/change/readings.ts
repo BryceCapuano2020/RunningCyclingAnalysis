@@ -45,13 +45,17 @@ export function readingsOf(
   bikeModel: BikeModel,
   gate: EstimatedRideGate | null | undefined,
   rule: ReadingRule = EVERY_EFFORT,
+  /** A reader of the longer lengths only: the curve points shorter than this many seconds are not priced, and the readings at and above it are the same (a length's reading depends on the longer ones only). */
+  shortestS = 0,
 ): Readings {
   const masses = massesOf(settings)
   const standing = estimatedStanding(gate ?? null)
   const out: Readings = { run: empty(), ride: empty() }
   for (const digest of orderedFor('change', digests)) {
     if (!rule.activity(digest)) continue
-    const points = digest.curve.map((point) =>
+    const curve =
+      shortestS > 0 ? digest.curve.filter((point) => point.durationS >= shortestS) : digest.curve
+    const points = curve.map((point) =>
       rule.point(digest, point)
         ? pointWkg(point, digest, masses, bikeModel, standing)
         : { wkg: Number.NaN, watts: Number.NaN, alone: false },
@@ -64,7 +68,7 @@ export function readingsOf(
       const finite = Number.isFinite(wkg)
       if (finite && !alone && wkg > held) held = wkg
       const here = finite && alone ? Math.max(held, wkg) : held
-      const index = INDEX_OF.get(digest.curve[i]!.durationS)
+      const index = INDEX_OF.get(curve[i]!.durationS)
       if (index === undefined || !Number.isFinite(here)) continue
       const value = COMPARED[digest.sport](here)
       if (!(value > 0)) continue

@@ -24,7 +24,7 @@ export type EpisodeKind =
   | 'slip-back'
   /** Fell and came part of the way back; `remaining` is what is still missing. */
   | 'slip-partly-back'
-  /** Fell and had not come back by the horizon. */
+  /** Fell and had not come back: by the horizon (`toMs` null), or when a further fall began (`toMs` the date it did). */
   | 'slip-open'
   /** Rose and held. */
   | 'improvement'

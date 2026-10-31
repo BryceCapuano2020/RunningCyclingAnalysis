@@ -33,6 +33,25 @@ export const LOOKBACK = {
   lead: { delta: 0.07, z: 5.5, years: 5 },
   /** The card's slip belongs to a hindsight fall when it was declared within this many weeks before it, or twice as many after. */
   liveMatchWeeks: 8,
+  /**
+   * A change the fitness card declared is kept as an episode when the runs do not contradict it: a step of `delta` that is
+   * `z` standard errors clear of the floor (the back test's one-sided 90% bound: the card's own test is the evidence, this only has to agree), both lower than the bar for a change the look-back finds alone. The card has
+   * already vouched for it, so this only has to agree. Its date is the week where the runs split best, looked for from
+   * `fallLeadWeeks` before the card declared it (it trails a change by weeks) or, for a return, from `riseLeadWeeks`
+   * before the card said back; the level before is read over `beforeWeeks` and the level after over `afterWeeks`, each
+   * needing `sideRuns` runs.
+   */
+  card: {
+    delta: 0.025,
+    z: 1.28,
+    fallLeadWeeks: 14,
+    riseLeadWeeks: 26,
+    beforeWeeks: 26,
+    afterWeeks: 12,
+    sideWeeks: 8,
+    guardWeeks: 4,
+    sideRuns: 6,
+  },
   /** A break is this many weeks with no run of any kind; a boundary this close to one is a step after a break. */
   gapWeeks: 8,
   afterBreakWeeks: 4,
