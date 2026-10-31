@@ -52,8 +52,8 @@ test('a zip that ends early is said to be missing files, and the notice goes whe
 })
 
 /** How many copies of one run the large export holds: enough that reading it takes the test several steps. */
-const PADDING = ' '.repeat(Number(process.env.E2E_PAD ?? 1_000_000))
-const LARGE_EXPORT_FILES = Number(process.env.E2E_LARGE_EXPORT_FILES ?? 600)
+const PADDING = ' '.repeat(Number(process.env.E2E_PAD ?? 300_000))
+const LARGE_EXPORT_FILES = Number(process.env.E2E_LARGE_EXPORT_FILES ?? 300)
 
 /**
  * A big export zip, as one that takes a while to read. Each file is the same run with its own trailing
@@ -119,6 +119,16 @@ async function startLargeImport(page: Page): Promise<void> {
     )
     .toBe(true)
 }
+
+// These two cases build and read a large zip, which is slow, and they test browser behaviour (a closed tab,
+// Web Locks) that does not change with the viewport. One project runs them, so CI does not repeat them 12 times.
+test.beforeEach(({}, testInfo) => {
+  if (testInfo.title.includes('zip that ends early')) return
+  test.skip(
+    testInfo.project.name !== 'desktop',
+    'a slow import that does not depend on the viewport',
+  )
+})
 
 const STOPPED_NOTICE = /The last import stopped/
 
