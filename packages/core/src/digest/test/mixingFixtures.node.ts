@@ -11,7 +11,7 @@ import { parseDigest } from '../serialize'
 const DIRECTORY = new URL('./fixtures/rev6/', import.meta.url)
 
 /** The most the fixtures may weigh together, bytes. */
-export const REV6_FIXTURES_MAX_BYTES = 4_000_000
+export const REV6_FIXTURES_MAX_BYTES = 5_000_000
 
 export function rev6FixtureNames(): string[] {
   return readdirSync(DIRECTORY)

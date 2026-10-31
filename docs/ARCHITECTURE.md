@@ -506,8 +506,9 @@ readers it moves. `revisionStatus` is the one place revisions are compared: a di
 `compatible` (read, marked as the previous model), `stale` (listed, held out of the analysis) or `newer`
 (listed, "need a newer app"). `MODEL_REVISION` is the last entry. Revision 7 is `exclusive`, as the mixing
 study decided (`digest/test/mixingStudy.node.test.ts`, section 1.8 of the D12 design): long best efforts of a hilly
-library move by up to 2% against revision 6, which is more than a third of the least change the app states, so a
-library is not analysed while it holds both. A signed-in library with stale digests keeps its activities listed,
+library move by up to 2% against revision 6, which is more than a third of the least change the app states, the
+warm-day term moves the fitness of a library with temperatures by 5% (and flips its status in two mixtures), and a
+run over the marathon sets a record only revision 7 can hold, so a library is not analysed while it holds both. A signed-in library with stale digests keeps its activities listed,
 shows the update panel and holds its results until it is rebuilt, and never falls back to the landing page.
 
 A stale digest is replaced in one of two ways. The browser can re-digest a retained original (the updater,

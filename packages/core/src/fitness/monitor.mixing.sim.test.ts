@@ -15,6 +15,8 @@ vi.setConfig({ testTimeout: 600_000 })
  * credit only of kilometres with a descent steeper than 4%. A step of 1.4% (the credit of the descent library read
  * whole, which the strict unit of a library under 300 km would take) is not tolerated: its false slips reach 0.27 an
  * athlete-year. The 0.5% here is what the monitor does tolerate, so a library that stays inside it is safe to mix.
+ * The library with a temperature (E2) is not inside it: the warm-day term moves its fitness by 5% when the library holds both
+ * revisions, so revision 7 is `exclusive` (the mixing study, `mixingStudy.node.test.ts`) and this step is the monitor's tolerance, not a licence to mix.
  *
  * Criteria: false slips an athlete-year at most the budget of monitor.sim.test.ts (0.2) plus 10% relative, and a
  * planted persistent loss detected within 0.1 of the rate with no step.

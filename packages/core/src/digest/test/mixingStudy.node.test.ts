@@ -14,7 +14,9 @@ vi.setConfig({ testTimeout: 600_000 })
 /*
  * The mixing study of D12 section 1.8. Libraries: two seasons of the sample athlete (runs and rides, a planted slip in
  * easy running), a hilly and a flat run library, and a library of steady runs with short steep descents (alone, and cut
- * to its newest 30 runs, which the strict fitness unit reads). Each is digested at revision 6 (the checked-in fixtures)
+ * to its newest 30 runs, which the strict fitness unit reads), a library with a run over the marathon every fourth week (E6:
+ * the record revision 6 did not keep) and a library of runs with a temperature and a pace that falls with the heat (E2: the
+ * warm-day term of fitness, which revision 6 digests cannot feed). Each is digested at revision 6 (the checked-in fixtures)
  * and at revision 7 (now), and read as a whole library under a table that makes revision 7 `mixable` with nothing held
  * back, with the newest k% on revision 7 and the rest on 6, and the oldest k% on 7, for k in 10, 25, 50, 75, 90.
  * Every output is compared with the library on revision 7 alone: best efforts, the weekly best 20 minutes, the
@@ -77,16 +79,43 @@ describe('the mixing study', () => {
     })
   })
 
-  it('finds the zones, the thresholds, the lean and the fitness status unmoved by the revision', () => {
+  it('finds the zones, the thresholds and the lean unmoved by the revision', () => {
     const { findings } = study
     expect(findings.referenceHrBpm).toBeLessThanOrEqual(BOUNDS.zoneBpm)
     expect(findings.threshold).toBeLessThanOrEqual(BOUNDS.best)
     expect(findings.lean).toBeLessThanOrEqual(BOUNDS.best)
-    expect(findings.fitnessStateChanges).toBe(0)
-    expect(findings.fitness).toBeLessThanOrEqual(BOUNDS.fitness)
+    expect(findings.within).toMatchObject({ zones: true })
+  })
+
+  it('finds the fitness unmoved by the revision on every library but the one with a temperature (E2)', () => {
+    const rest = study.results.filter((result) => result.name !== 'warm')
+    const cases = rest.flatMap((result) => result.cases.map((c) => c.distance))
+    expect(cases.every((distance) => distance.fitnessState)).toBe(true)
+    expect(Math.max(...cases.map((distance) => distance.fitness))).toBeLessThanOrEqual(
+      BOUNDS.fitness,
+    )
     // And far under the step the monitor is shown to tolerate (monitor.mixing.sim.test.ts).
-    expect(findings.fitness).toBeLessThan(MIXING_STEP)
-    expect(findings.within).toMatchObject({ zones: true, fitness: true })
+    expect(Math.max(...cases.map((distance) => distance.fitness))).toBeLessThan(MIXING_STEP)
+  })
+
+  it('finds the warm-day term of fitness (E2) moves it when a library holds both revisions', () => {
+    // A revision 6 digest has no temperature, so its runs get no heat credit and a revision 7 run does: a library with
+    // some of each reads a different fitness, by 5% (a log-change) here, and the status of one sport flips when the
+    // older three quarters are on 7. This is why revision 7 is `exclusive` and not `mixable` holding fitness back.
+    const warm = study.results.find((result) => result.name === 'warm')!
+    const distances = warm.cases.map((c) => c.distance)
+    expect(Math.max(...distances.map((distance) => distance.fitness))).toBeGreaterThan(
+      BOUNDS.fitness,
+    )
+    expect(Math.max(...distances.map((distance) => distance.fitness))).toBeGreaterThan(MIXING_STEP)
+    expect(distances.filter((distance) => !distance.fitnessState).length).toBeGreaterThan(0)
+    expect(study.findings.within.fitness).toBe(false)
+  })
+
+  it('finds the best over the marathon (E6) held by a different activity in a mixed library', () => {
+    // Revision 6 keeps no best over 42,195 m: a library with some of each reads a record only revision 7 can set.
+    const long = study.results.find((result) => result.name === 'long')!
+    expect(Math.max(...long.cases.map((c) => c.distance.holders.differ))).toBeGreaterThan(0)
   })
 
   it('has revision 7 `exclusive`, by the rule of 1.8: a consumer other than fitness is out of bound', () => {
@@ -120,6 +149,8 @@ describe('the mixing study', () => {
       'hilly',
       'flat',
       'descent',
+      'long',
+      'warm',
       'descent-small',
     ])
   })
