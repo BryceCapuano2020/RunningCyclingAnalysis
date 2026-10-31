@@ -23,6 +23,7 @@ import type {
 import type { ActivityDigest } from '@rca/core/types'
 import { readableRecords } from './pageRecords'
 import { ApiRequestError } from './apiError'
+import { gzipSmaller } from './gzip'
 import { noteRequestActivity } from './requestActivity'
 import type { RequestOptions } from './requestOptions'
 import {
@@ -46,7 +47,7 @@ export interface CreatedActivity {
 }
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-type Body = { json: unknown } | { bytes: Uint8Array }
+type Body = { json: unknown } | { bytes: Uint8Array; encoding?: 'gzip' }
 
 /** Keep a stalled connection from pinning the worker queue indefinitely. */
 const REQUEST_TIMEOUT_MS = 15_000
@@ -98,6 +99,7 @@ export async function request(
     payload = JSON.stringify(body.json)
   } else if (body !== undefined) {
     headers.set('Content-Type', 'application/octet-stream')
+    if (body.encoding !== undefined) headers.set('Content-Encoding', body.encoding)
     // A FIT file read from disk is always backed by a plain ArrayBuffer.
     payload = body.bytes as Uint8Array<ArrayBuffer>
   }
@@ -244,7 +246,10 @@ export async function uploadFile(
   userId?: string,
 ): Promise<ActivityRecord> {
   const path = `/api/activities/${encodeURIComponent(id)}/file`
-  return readJson(await request('PUT', path, { bytes }, userId), ActivityRecordSchema)
+  // Sent gzipped when that is smaller: the server checks the hash of the file itself and stores, and counts, what it gets.
+  const zipped = await gzipSmaller(bytes)
+  const body = zipped === null ? { bytes } : { bytes: zipped, encoding: 'gzip' as const }
+  return readJson(await request('PUT', path, body, userId), ActivityRecordSchema)
 }
 
 /** Downloads one original FIT file without allowing a missing length header to grow unbounded. */

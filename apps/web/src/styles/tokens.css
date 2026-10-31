@@ -130,6 +130,7 @@
   /* The narrowest column each other responsive grid wraps at, named by what it holds. */
   --column-steps: 240px;
   --column-stat: 9rem;
+  --column-figure: 6rem;
   --column-export: 8.5rem;
   --column-field: 10rem;
   --column-zones: 22rem;

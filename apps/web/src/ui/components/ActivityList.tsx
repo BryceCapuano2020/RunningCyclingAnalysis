@@ -14,6 +14,7 @@ import { ActivityRow } from './ActivityRow'
 import { Pager } from './Pager'
 import { PAGE_SIZE, usePagination } from './usePagination'
 import './ActivityList.css'
+import './ActivityListSessions.css'
 
 export interface ActivityListProps {
   activities: ActivitySummary[]

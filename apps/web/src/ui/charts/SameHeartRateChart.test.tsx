@@ -186,6 +186,10 @@ describe('SameHeartRateChart', () => {
       />,
     )
     expect(container.querySelector('.chart-frame__empty')).not.toBeNull()
+    // It names the gate that failed, with its numbers.
+    expect(container.querySelector('.chart-frame__empty')?.textContent).toContain(
+      'a week needs 8 steady 5-minute stretches from 6 activities in 2 different weeks, and the chart needs 4 weeks with a reading',
+    )
     expect(container.querySelectorAll('[data-testid="same-hr-marker"]')).toHaveLength(0)
   })
 

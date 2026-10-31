@@ -76,6 +76,7 @@ describe('the shared control height', () => {
     ['header tab', sheets.header, '.header__tab'],
     ['header profile link', sheets.header, '.header__profile'],
     ['link arrow', sheets.app, '.link-arrow'],
+    ['cross-sport link', sheets.crossSportCard, '.cross-sport__link'],
     ['file retention choice', sheets.app, '.file-retention__choice'],
     ['number field input', sheets.numberField, '.number-field__input input'],
     ['activity page back link', sheets.activityPage, '.activity-page__back'],
@@ -107,10 +108,10 @@ function coarseBodyOf(css: string, selector: string): string {
 }
 
 describe('inline links on a finger', () => {
-  it.each([
-    ['record link', sheets.sportRecords, '.records__link'],
-    ['cross-sport link', sheets.crossSportCard, '.cross-sport__link'],
-  ])('%s is a control height tall on a coarse pointer', (_name, css, selector) => {
-    expect(coarseBodyOf(css, selector)).toMatch(/min-height:\s*var\(--control-height\)/)
-  })
+  it.each([['record link', sheets.sportRecords, '.records__link']])(
+    '%s is a control height tall on a coarse pointer',
+    (_name, css, selector) => {
+      expect(coarseBodyOf(css, selector)).toMatch(/min-height:\s*var\(--control-height\)/)
+    },
+  )
 })
