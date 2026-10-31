@@ -64,12 +64,12 @@ export function monthsBetween(fromMs: number, toMs: number): string {
 }
 
 /** What each sport's level is called, and how a change in it is worded. */
-const SAY: Record<Sport, { subject: string; down: string; up: string }> = {
+export const SAY: Record<Sport, { subject: string; down: string; up: string }> = {
   run: { subject: 'pace', down: 'slower', up: 'faster' },
   ride: { subject: 'power', down: 'lower', up: 'higher' },
 }
 
-const level = (sport: SportLookBack): string =>
+export const level = (sport: SportLookBack): string =>
   `your ${SAY[sport.sport].subject} at ${sport.referenceHr === null ? 'the same heart rate' : `${sport.referenceHr} bpm`}`
 
 /** The size of a change and its range, as the page writes it, and which way it went. */

@@ -7,6 +7,7 @@ import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { EFFORT_LENGTHS_S, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
+import type { LookBack } from '@rca/core/lookback'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { FLAT_RUN_COST, HEADLINE_DURATION_S, RESTING_W_PER_KG } from '@rca/core/constants'
 import { formatPace } from '@rca/core/units'
@@ -26,6 +27,7 @@ import { RangePicker } from '../components/RangePicker'
 import { closedRow, openSection } from '../test/openSection'
 import { SportPage } from './SportPage'
 import { changeOf } from '../charts/changeFixtures'
+import { YEARS_LOOKBACK } from '../yearsFixtures'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
 const NOW = new Date(2026, 5, 10, 12).getTime()
@@ -62,6 +64,7 @@ function renderPage(
   emptyText = 'Nothing in this period.',
   missingAge: AgeGap | null = profile === null ? 'year of birth and sex' : null,
   sameHeartRate: SameHeartRate = NO_SAME_HEART_RATE[sport],
+  lookBack?: LookBack,
 ) {
   return render(
     <SportPage
@@ -71,6 +74,7 @@ function renderPage(
       previousLabel={previousLabel}
       trends={trends}
       sameHeartRate={sameHeartRate}
+      lookBack={lookBack}
       lateEvidence={NO_LATE_EVIDENCE[sport]}
       change={previous === null ? null : changeOf('higher')}
       units={units}
@@ -111,6 +115,49 @@ function recordNamed(records: HTMLElement, eyebrow: string): HTMLElement {
   if (item === null) throw new Error(`No record named ${eyebrow}`)
   return item
 }
+
+describe('SportPage: your years', () => {
+  const result = makeResult({ activities: [morningRun] })
+  const page = (lookBack?: LookBack) =>
+    renderPage(
+      'run',
+      result,
+      'metric',
+      null,
+      null,
+      null,
+      NO_TRENDS,
+      true,
+      null,
+      42,
+      'Nothing.',
+      null,
+      NO_SAME_HEART_RATE.run,
+      lookBack,
+    )
+
+  it('is the first section, closed, named by its own finding', () => {
+    page(YEARS_LOOKBACK)
+    expect(closedRow('Your years')).toBe(
+      'Your yearsYour pace at 148 bpm slipped in 2021 and came back',
+    )
+    expect(document.querySelector('[data-section="years"], #years, details')).not.toBeNull()
+  })
+
+  it('draws the chart and lists the episodes once opened', () => {
+    page(YEARS_LOOKBACK)
+    const years = openSection('Your years')
+    expect(
+      within(years).getByRole('figure', { name: 'Pace at 148 bpm over the years' }),
+    ).toBeInTheDocument()
+    expect(within(years).getByRole('region', { name: 'Episodes' })).toBeInTheDocument()
+  })
+
+  it('is not on the page when there are no years to tell', () => {
+    page(undefined)
+    expect(screen.queryByRole('region', { name: 'Your years' })).toBeNull()
+  })
+})
 
 describe('SportPage', () => {
   it('is the sport’s own page heading, with the period control under the answer, not in the heading row', () => {
