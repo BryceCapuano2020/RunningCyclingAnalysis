@@ -41,5 +41,7 @@ export const LOOKBACK = {
   /** A quiet stretch: a plateau this long, with this many steady runs; its blocks are this many weeks. */
   quiet: { weeks: 26, runs: 40, blockWeeks: 12, blockRuns: 4 },
   /** The most each list holds, and what is dropped is counted. */
-  caps: { levels: 16, episodes: 10, spans: 6 },
+  caps: { levels: 16, episodes: 10, spans: 6, years: 15, steps: 8, verdicts: 6 },
+  /** An effort has milestones from this many readings on this many different days. */
+  milestones: { readings: 10, days: 3 },
 } as const
