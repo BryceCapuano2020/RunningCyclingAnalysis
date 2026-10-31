@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { DeviceIssue, SavedActivity, WorkerRequest } from '../../worker/protocol'
 import { hasRemovedMark } from '../activitiesView'
 import { keptLibraryHinted } from './keptLibrary'
-import type { DetailCoverage, LibraryStatus } from './model'
+import type { DetailCoverage, LibraryStatus, OutboxStatus } from './model'
 
 /**
  * Whether a request writes to the library kept in this browser again, so a refusal reported earlier no
@@ -37,6 +37,7 @@ export function useLibraryState() {
   const [detail, setDetail] = useState<DetailCoverage | null>(null)
   const [outdatedWithOriginal, setOutdatedWithOriginal] = useState(0)
   const [libraryUnreadable, setLibraryUnreadable] = useState(0)
+  const [outbox, setOutbox] = useState<OutboxStatus | null>(null)
   const [deviceIssue, setDeviceIssueState] = useState<DeviceIssue | null>(null)
   // The issue on screen, current the moment it is set, so a notice that waits for a free place can ask.
   const deviceIssueRef = useRef<DeviceIssue | null>(null)
@@ -96,6 +97,8 @@ export function useLibraryState() {
         setDetail(null)
       if (request.type === 'loadSample' || request.type === 'loadDevice') dropNotSaved()
       if (retriesDevice(request)) setDeviceIssue(null)
+      // Another import replaces the account of the last visit's saves.
+      if (request.type === 'addFiles') setOutbox(null)
     },
     [dropNotSaved, setDeviceIssue],
   )
@@ -122,6 +125,8 @@ export function useLibraryState() {
     libraryUnreadable,
     setLibraryUnreadable,
     deviceIssue,
+    outbox,
+    setOutbox,
     deviceIssueRef,
     setDeviceIssue,
     dropNotSaved,

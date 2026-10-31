@@ -4,6 +4,7 @@ import { accountSaver } from './accountSave'
 import { workoutKeyOf as activityKey } from './device'
 import type { DeviceActions } from './device'
 import { deviceKeeper } from './deviceKeeper'
+import { openOutbox } from './outbox'
 import { ImportReporter } from './importReporter'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import type { RouteMemory } from './routes'
@@ -82,6 +83,7 @@ export async function runImport(
             reporter.activitySaved()
           },
           onPaused: () => reporter.savesPaused(),
+          outbox: openOutbox(sync.userId),
           onStopped: (code) => {
             stoppedBy ??= code
           },

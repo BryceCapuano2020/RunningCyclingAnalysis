@@ -135,6 +135,18 @@
         Clearing this site’s browser data removes all recording caches.
       </p>
 
+      <h2>Saves waiting on this device</h2>
+      <p>
+        Signed in, each activity is first written to a waiting list in this browser’s IndexedDB and
+        saved to your library from there. The list holds the same activity summary the account keeps
+        (name, sport, start, file name and hash, distance, duration, elevation gain and the figures
+        from the analysis). It holds no route, per-second recording or original file. An entry is
+        removed once your library has the activity. If you close the page or lose your connection
+        first, the saves resume the next time you sign in on this device. Signing out asks first
+        when saves are still waiting, then removes the list, and so does deleting your account. When
+        a session ends on its own, the list stays so those saves can finish when you sign in again.
+      </p>
+
       <h2>With an account</h2>
       <p>
         You sign in with Google, using only the <code>openid</code>, <code>email</code> and

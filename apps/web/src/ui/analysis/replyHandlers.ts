@@ -28,6 +28,8 @@ export interface WorkerEventDeps {
   /** Whether the current worker has been asked for the library kept in this browser. */
   deviceLoadedRef: Box<boolean>
   loadDeviceOnce: () => void
+  /** Reads the signed-in account's library again, unless an import is running. */
+  reloadLibrary: () => void
 }
 
 /**

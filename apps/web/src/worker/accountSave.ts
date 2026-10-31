@@ -17,6 +17,13 @@ import type { SyncOptions } from './protocol'
 import { retryAfterRateLimit } from './rateLimitRetry'
 import type { RouteMemory } from './routes'
 import { syncFailureOf } from './syncIssue'
+import type { Outbox } from './outbox'
+
+/** Failures after which a saved row would be tried again for nothing: the server holds another copy, or the account is going. */
+const NEVER_TAKEN: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
+  'activity-conflict',
+  'account-deleting',
+])
 
 /** What saving to the account reads and changes in the worker. */
 export interface AccountSaveContext {
@@ -31,6 +38,8 @@ export interface AccountSaveContext {
   onPaused: () => void
   /** Called with the first failure that stops the import's saves. */
   onStopped: (code: SyncIssueCode) => void
+  /** Where a save is written before it begins, so a reload can finish it (see outbox.ts). Absent: not resumable. */
+  outbox?: Outbox
 }
 
 /**
@@ -74,6 +83,8 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     const { record } = await creates.run(() =>
       createActivity(item.digest, item.fileName, item.fileHash, sync.userId),
     )
+    // The server has it: the row has done its work, whatever becomes of the original file.
+    await ctx.outbox?.done(key)
     savedRecords.set(record.id, record)
     ctx.routes.remember(record.id, item.route ?? null)
     if (record.hasFile) missingOriginals.delete(key)
@@ -92,11 +103,14 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
   }
 
   const save = async (item: SyncItem): Promise<void> => {
+    await ctx.outbox?.add(item)
     try {
       await retryAfterRateLimit(() => saveOnce(item), ctx.onPaused)
     } catch (error) {
       const failure = syncFailureOf(error)
       if (stopsSaving(failure.code)) ctx.onStopped(failure.code)
+      // The row stays for a reload to finish, unless the server will never take this activity.
+      if (NEVER_TAKEN.has(failure.code)) await ctx.outbox?.done(workoutKeyOf(item.digest))
       throw failure
     }
   }

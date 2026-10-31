@@ -9,6 +9,9 @@ import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
 import { deviceKeeper } from './deviceKeeper'
+import { openOutbox } from './outbox'
+import { resumeOutbox } from './outboxResume'
+import type { Resume } from './outboxResume'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
@@ -92,6 +95,19 @@ const reportDetail = detailReporter(workbench, post, () =>
   view.showingSample ? null : view.activeScope,
 )
 
+/** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
+let resume: Resume | null = null
+function finishLoad(state: SessionState, userId: string): SessionState {
+  resume = resumeOutbox({
+    userId,
+    outbox: openOutbox(userId),
+    savedRecords,
+    // Apart from any request: stamped with one, the page would drop it as late.
+    post: (message) => self.postMessage(message),
+  })
+  return state
+}
+
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
   switch (request.type) {
     case 'addFiles':
@@ -121,11 +137,17 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       view.activeScope = { kind: 'account', userId: request.userId }
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
-      return loadServer(
-        libraryContext,
-        request.settings,
+      // A resume belongs to the library it began under.
+      resume?.cancel()
+      resume = null
+      return finishLoad(
+        await loadServer(
+          libraryContext,
+          request.settings,
+          request.userId,
+          periodChoiceOf(request.choice),
+        ),
         request.userId,
-        periodChoiceOf(request.choice),
       )
     case 'rebuildStale':
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
@@ -147,6 +169,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
+      resume?.cancel()
+      resume = null
       provisionalItems.clear()
       view.showingSample = false
       workbench.clearMemory()

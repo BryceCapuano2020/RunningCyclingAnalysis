@@ -124,6 +124,19 @@ as before.
 - `GET /api/activities/:id/file` downloads an original, and `DELETE /api/activities/:id` removes an
   activity and its stored original.
 
+**Outbox for account saves**
+
+A signed-in import writes each activity's digest to the `rca-outbox` IndexedDB database (rows keyed
+`userId|workoutKey`) before it is sent, and removes the row once the server has the activity or
+refuses it for good (a conflict, or an account being deleted). The row holds the summary the server
+keeps, never a route, stream or original. When the library for an account loads, the worker resumes
+any rows an earlier visit left, through the same save gate and rate-limit pause as an import, and
+posts an unstamped `outbox` message with the counts so the page can say how many are left and read
+the library again once some were saved. A row is tried five times, then left for the next visit and
+counted as failed. Session expiry keeps the rows; explicit sign-out (after a warning when rows
+wait) and account deletion forget them. The outbox never rejects: if the browser refuses
+IndexedDB, saves go ahead without a backup and the import still reports its own failures.
+
 **Activity workbench**
 
 The import callback extracts a versioned `ActivityTrace` before releasing the raw activity. The

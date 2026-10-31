@@ -36,6 +36,7 @@ import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
 import { useCountedRuns } from './ui/useCountedRuns'
+import { useSignOutWarning } from './ui/useSignOutWarning'
 import { useSignInProblem } from './ui/signInProblem'
 
 /** A string that changes whenever a different page is on screen. */
@@ -87,6 +88,12 @@ export function App() {
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const countedRuns = useCountedRuns()
+  const signOutWarning = useSignOutWarning(account.me?.user.id, () => {
+    // What this browser noted about the visitor's data goes with their session.
+    forgetSeenNotes()
+    // The runs counted here go once the session has ended, not if signing out failed.
+    void account.signOut().then(countedRuns.clear, () => undefined)
+  })
   const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(settings, measurements.entries, countedRuns.keys)
   // The year of birth and sex the grades need, or null while either is missing.
@@ -263,16 +270,12 @@ export function App() {
             status={account.status}
             me={account.me}
             onSignIn={account.signIn}
-            onSignOut={() => {
-              // What this browser noted about the visitor's data goes with their session.
-              forgetSeenNotes()
-              // The runs counted here go once the session has ended, not if signing out failed.
-              void account.signOut().then(countedRuns.clear, () => undefined)
-            }}
+            onSignOut={signOutWarning.requestSignOut}
           />
         }
       />
       {/* Always mounted: file drops anywhere, the busy strip and announcements. */}
+      {signOutWarning.dialog}
       <ImportStatus
         onFiles={setup.requestImport}
         busy={analysis.busy}

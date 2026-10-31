@@ -11,6 +11,7 @@ import { hrefFor } from '../route'
 import type { CountedRunsController } from '../useCountedRuns'
 import { movedAnything, type MovedItem } from '../analysis/whatMoved'
 import type { Route } from '../route'
+import { outboxText } from '../analysis/outboxCopy'
 import { ImportNotice } from './ImportNotice'
 import { AboutData } from './AboutData'
 import { hiddenCopiesText } from '../analysis/hiddenCopiesCopy'
@@ -101,6 +102,7 @@ export function AppNotices({
     ) : null
   // The runs counted despite walking pace: the way back, where runs are listed or analysed.
   const countedHere = analysis.state.countedWalkingRuns
+  const outboxLine = analysis.outbox === null ? null : outboxText(analysis.outbox)
   const sample = useSampleNotice({ page, shown: result !== null && isSample })
   return (
     <div className="app__notices">
@@ -132,6 +134,7 @@ export function AppNotices({
           fileRetentionAvailable={fileRetentionAvailable}
           onRetry={() => runThenFocus(analysis.retryLibrary)}
         />
+        {outboxLine !== null && <p className="notice">{outboxLine}</p>}
         {bareLibraryNotice !== null && <p className="notice">{bareLibraryNotice}</p>}
         {sample.banner}
         {/* A stop the visitor asked for is news, not a fault, so it is never an alert. */}

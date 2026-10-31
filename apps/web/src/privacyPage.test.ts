@@ -244,6 +244,15 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(saved).not.toContain('flat-pace times')
   })
 
+  it('says what the waiting list of saves holds and when it is removed', () => {
+    expect(text).toContain('Saves waiting on this device')
+    expect(text).toContain('It holds no route, per-second recording or original file.')
+    expect(text).toContain(
+      'Signing out asks first when saves are still waiting, then removes the list',
+    )
+    expect(text).toContain('When a session ends on its own, the list stays')
+  })
+
   it('distinguishes compact summaries from local detailed recordings', () => {
     expect(text).toContain('The summary has no per-second data or original file')
     expect(text).toContain('It contains no GPS coordinates or original files and is not uploaded.')
