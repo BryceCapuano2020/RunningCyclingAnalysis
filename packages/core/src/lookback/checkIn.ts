@@ -2,7 +2,7 @@ import { DAY_MS } from '../constants'
 import type { FitnessState } from '../fitness/types'
 import type { Sport } from '../types'
 import { decodeSeconds } from './snapshot'
-import type { CheckInSnapshot, SnapshotBest, SnapshotEpisode } from './snapshot'
+import type { CheckInSnapshot, SnapshotBest } from './snapshot'
 import type { EpisodeKind, MilestoneEffort, MilestoneUnit } from './types'
 
 /**
@@ -55,8 +55,6 @@ export interface CheckIn {
   bests: NewBest[]
   fitness: FitnessLine[]
   episodes: NewEpisode[]
-  /** The model changed since the baseline, so only the workouts added are told. */
-  modelChanged: boolean
   /** Nothing to tell beyond what was added: no new best, no change of fitness, no new episode, no older files. */
   quiet: boolean
 }
@@ -112,7 +110,8 @@ function fitnessLines(base: CheckInSnapshot, live: CheckInSnapshot): FitnessLine
   return SPORTS.flatMap((sport): FitnessLine[] => {
     const [was, now] = [base.fitness[sport], live.fitness[sport]]
     if (was === null || now === null) return []
-    if (was.state === 'not-enough-evidence' || now.state === 'not-enough-evidence') return []
+    if (now.state === 'not-enough-evidence') return []
+    // A sport that could not be read at the baseline and can now is news; the state it reads is told as a move.
     if (was.state !== now.state) return [{ sport, kind: 'moved', from: was.state, to: now.state }]
     // An event is a state that began since the baseline, not one the baseline already showed.
     if (now.enteredMs !== null && now.enteredMs !== was.enteredMs && now.enteredMs > base.atMs) {
@@ -122,15 +121,12 @@ function fitnessLines(base: CheckInSnapshot, live: CheckInSnapshot): FitnessLine
   })
 }
 
-/** Share of `a` that `b` covers, by time. */
-function covered(a: SnapshotEpisode, b: SnapshotEpisode, endMs: number): number {
-  const [aTo, bTo] = [a.toMs ?? endMs, b.toMs ?? endMs]
-  const length = Math.max(aTo - a.fromMs, 7 * DAY_MS)
-  return Math.max(0, Math.min(aTo, bTo) - Math.max(a.fromMs, b.fromMs)) / length
-}
+/** An episode is the same one when it starts within this long of the baseline's: its kind may change as it ends. */
+const SAME_START_MS = 8 * 7 * DAY_MS
 
 /**
- * Episodes the hindsight now lists that the baseline's did not, that began before the baseline's newest workout and
+ * Episodes the hindsight now lists that the baseline's did not (one starting about when a baseline one did is the same
+ * episode, whatever state it is in now), that began before the baseline's newest workout and
  * hold a workout found in older files: the backfilled data is what produced them.
  */
 function newEpisodes(
@@ -144,8 +140,7 @@ function newEpisodes(
       .filter((e) => e.fromMs < cutoff)
       .filter((e) => olderMs[sport].some((t) => t >= e.fromMs && t <= (e.toMs ?? live.asOfMs)))
       .filter(
-        (e) =>
-          !base.episodes[sport].some((b) => b.kind === e.kind && covered(e, b, live.asOfMs) >= 0.5),
+        (e) => !base.episodes[sport].some((b) => Math.abs(b.fromMs - e.fromMs) <= SAME_START_MS),
       )
       .map((e) => ({ sport, kind: e.kind, fromMs: e.fromMs, toMs: e.toMs })),
   )
@@ -154,9 +149,9 @@ function newEpisodes(
 }
 
 /**
- * The check-in between a baseline and the library as it stands now; null without a baseline (a first import). When the
- * model changed in between only the workouts added are told, because a best or a fitness state from another model is
- * not comparable.
+ * The check-in between a baseline and the library as it stands now; null without a baseline (a first import). The
+ * caller passes only a baseline of the model the live snapshot was taken with (see `usableBaseline`): numbers across
+ * model revisions are never compared.
  */
 export function checkInBetween(
   baseline: CheckInSnapshot | null,
@@ -185,11 +180,6 @@ export function checkInBetween(
       }
     }
   }
-  const modelChanged = baseline.revision !== live.revision
-  const counted = { sinceMs: baseline.atMs, added, older, modelChanged }
-  if (modelChanged) {
-    return { ...counted, bests: [], fitness: [], episodes: [], quiet: false }
-  }
   const bests = newBests(baseline, live, olderKeys)
   const fitness = fitnessLines(baseline, live)
   const episodes = newEpisodes(baseline, live, olderMs)
@@ -199,5 +189,5 @@ export function checkInBetween(
     older.run === null &&
     older.ride === null &&
     fitness.every((l) => l.kind === 'same')
-  return { ...counted, bests, fitness, episodes, quiet }
+  return { sinceMs: baseline.atMs, added, older, bests, fitness, episodes, quiet }
 }

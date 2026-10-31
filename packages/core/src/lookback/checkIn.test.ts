@@ -185,9 +185,12 @@ describe('the fitness card', () => {
     expect(c.quiet).toBe(true)
   })
 
-  it('says nothing of a sport with no readable fitness, or a reference that changed', () => {
+  it('tells a sport that has become readable, and says nothing of one with no fitness or a reference that changed', () => {
     expect(between(null, holding()).fitness).toEqual([])
-    expect(between(holding({ state: 'not-enough-evidence' }), holding()).fitness).toEqual([])
+    expect(between(holding({ state: 'not-enough-evidence' }), holding()).fitness).toEqual([
+      { sport: 'run', kind: 'moved', from: 'not-enough-evidence', to: 'holding' },
+    ])
+    expect(between(holding(), holding({ state: 'not-enough-evidence' })).fitness).toEqual([])
     expect(between(holding(), holding({ referenceHr: 151 })).fitness[0]!.kind).toBe('same')
   })
 })
@@ -206,38 +209,17 @@ describe('new episodes', () => {
     expect(checkInBetween(base, live([was, found], [ago(600)]))!.episodes).toEqual([])
   })
 
+  it('does not tell a slip that was open and has since come back as a new one', () => {
+    const open: SnapshotEpisode = { kind: 'slip-open', fromMs: ago(400), toMs: null }
+    const before = snap({ run: [ago(10)] }, { episodes: { run: [open], ride: [] } })
+    const closed: SnapshotEpisode = { kind: 'slip-back', fromMs: ago(390), toMs: ago(300) }
+    expect(checkInBetween(before, live([closed], [ago(350)]))!.episodes).toEqual([])
+  })
+
   it('does not tell an episode the baseline already had, or a recent one', () => {
     const moved = { ...was, fromMs: ago(880) }
     expect(checkInBetween(base, live([moved], [ago(800)]))!.episodes).toEqual([])
     const recent = { kind: 'improvement', fromMs: ago(10), toMs: null } as const
     expect(checkInBetween(base, live([recent], [ago(5)]))!.episodes).toEqual([])
-  })
-})
-
-describe('a model that changed', () => {
-  it('compares the workouts added and nothing else', () => {
-    const base = snap(
-      { run: [ago(60)] },
-      {
-        revision: 6,
-        bests: { run: [runBest(3.5, ago(60))], ride: [] },
-        fitness: { run: holding(), ride: null },
-      },
-    )
-    const now = snap(
-      { run: [ago(60), ago(1)] },
-      {
-        bests: { run: [runBest(4, ago(1))], ride: [] },
-        fitness: { run: holding({ state: 'slipping' }), ride: null },
-      },
-    )
-    const c = checkInBetween(base, now)!
-    expect(c).toMatchObject({
-      modelChanged: true,
-      bests: [],
-      fitness: [],
-      episodes: [],
-      added: { run: 1, ride: 0 },
-    })
   })
 })
