@@ -10,6 +10,7 @@ import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
+import { lookBackOf, NO_LOOKBACK } from './lookback/compute'
 import { splitPeriods } from './period'
 import type { PeriodCache, PeriodChoice } from './period'
 import type { EarnedRecord } from './records'
@@ -121,6 +122,17 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     fitness: fitnessStatuses(analysed, new Set(held), {
       nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
     }),
+    lookBack:
+      athlete === null
+        ? NO_LOOKBACK
+        : lookBackOf(
+            analysed,
+            athlete,
+            // The runs and rides the card is read from: heart rate set aside, and power set aside.
+            new Set(held),
+            Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
+            judgement.rideGate,
+          ),
     zoneEstimates,
     timeInZones:
       athlete === null || analysis === null

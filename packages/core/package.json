@@ -40,6 +40,7 @@
     "./effort": "./src/effort/index.ts",
     "./findings": "./src/findings/index.ts",
     "./fitness": "./src/fitness/index.ts",
+    "./lookback": "./src/lookback/index.ts",
     "./fitness/types": "./src/fitness/types.ts",
     "./fit": "./src/fit/index.ts",
     "./gpx": "./src/gpx/index.ts",
