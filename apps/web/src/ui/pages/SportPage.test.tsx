@@ -1689,3 +1689,31 @@ describe('SportPage period focus', () => {
     expect(document.activeElement).toBe(pick)
   })
 })
+
+describe('SportPage with activities held indoors', () => {
+  const rides = (indoor: number, total: number) =>
+    Array.from({ length: total }, (_, i) =>
+      makeActivity({ id: `ride-${i}`, sport: 'ride', indoor: i < indoor }),
+    )
+
+  it('says the split of a ride library once, under the answer, and does not exclude the indoor rides', () => {
+    renderPage('ride', makeResult({ activities: rides(6, 40) }))
+    expect(screen.getByTestId('indoor-split')).toHaveTextContent(
+      '6 of your 40 rides were indoors; their power counts like any other.',
+    )
+  })
+
+  it('says nothing of the split when no ride was indoors', () => {
+    renderPage('ride', makeResult({ activities: rides(0, 5) }))
+    expect(screen.queryByTestId('indoor-split')).toBeNull()
+  })
+
+  it('tells a runner with only treadmill runs how many, not to add efforts', () => {
+    const treadmill = Array.from({ length: 4 }, (_, i) =>
+      makeActivity({ id: `run-${i}`, sport: 'run', indoor: true }),
+    )
+    renderPage('run', makeResult({ activities: treadmill, runCp: null, runCurve: [] }))
+    expect(screen.getByText(/^All 4 of your runs were on a treadmill\./)).toBeInTheDocument()
+    expect(screen.queryByText(/Needs efforts between/)).toBeNull()
+  })
+})
