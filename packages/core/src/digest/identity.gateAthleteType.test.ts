@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ActivityDigest } from '../types'
 import { digestActivity, digestActivityAt } from './digestActivity'
 import { digestHash } from './test/digestHashes'
@@ -10,6 +10,19 @@ import { LABEL_CASES } from './test/gateAthleteType'
  * list type, labelled or not: below revision 7 the type changes nothing. At revision 7 the digest less the label
  * is main's hash.
  */
+// An activity's name carries the hour of day in the device's zone ("Evening run"), so the hashes depend on it. They
+// were taken in Pacific time; the test sets that zone so it holds on a machine or a runner in any other.
+type Env = { env: Record<string, string | undefined> }
+const env = (globalThis as { process?: Env }).process!.env
+const savedZone = env.TZ
+beforeAll(() => {
+  env.TZ = 'America/Los_Angeles'
+})
+afterAll(() => {
+  if (savedZone === undefined) delete env.TZ
+  else env.TZ = savedZone
+})
+
 const RUN = '2845bb80bf62c3cb88443aa68b384b4d15955e1f15d3b603383be16102c31f67'
 const RIDE = 'bf2f84e0a543384e53d5958d134f743c37ab05fee8e418bc34326f3a18bef5c1'
 const MAIN: Record<string, string> = {
