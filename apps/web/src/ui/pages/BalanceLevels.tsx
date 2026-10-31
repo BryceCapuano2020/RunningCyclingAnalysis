@@ -17,7 +17,7 @@ export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
         <ul className="balance-levels__list">
           {model.rows.map((row) => (
             <li key={row.sport} className="balance-levels__row" data-sport={row.sport}>
-              <span className="balance-levels__name">
+              <span className="tag tag--ink balance-levels__name">
                 <SportIcon sport={row.sport} className="balance-levels__glyph" />
                 {SPORT_TITLE[row.sport]}
               </span>{' '}

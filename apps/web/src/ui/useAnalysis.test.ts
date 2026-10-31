@@ -447,7 +447,7 @@ describe('useAnalysis account handling', () => {
     expect(worker().posted.at(-1)).toEqual({
       type: 'addFiles',
       files: [FILE],
-      settings: { massKg: 75, bikeMassKg: 12 },
+      settings: { massKg: 75, bikeMassKg: 12, massAssumed: true },
       sync: { keepFiles: true, userId: USER_ID },
     })
   })
@@ -480,6 +480,31 @@ describe('useAnalysis account handling', () => {
       type: 'addFiles',
       files: [FILE],
       settings: { massKg: 77.5, bikeMassKg: 12, measurements: dated.measurements },
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+  })
+
+  it('keeps the rides whose power the athlete kept when a signed-in import is priced at the profile', async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    const kept: AthleteSettings = { ...SETTINGS, keepPower: ['ride-a', 'ride-b'] }
+    const { result } = setup(account, kept)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    act(() => result.current.addFiles([FILE]))
+    await act(async () => {
+      const saved = meWith(true)
+      finish({ ...saved, profile: { ...saved.profile, massKg: 83, bikeMassKg: 12 } })
+      await Promise.resolve()
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'addFiles',
+      files: [FILE],
+      settings: { massKg: 83, bikeMassKg: 12, keepPower: ['ride-a', 'ride-b'] },
       sync: { keepFiles: true, userId: USER_ID },
     })
   })
@@ -1160,6 +1185,26 @@ describe('useAnalysis account handling', () => {
         reportKept(0)
         act(() => worker().reply({ type: 'state', state: STATE }))
         expect(localStorage.getItem(COUNTED_KEY)).toBeNull()
+      })
+
+      it('forgets the rides whose power was kept when Remove all emptied the library, and not when the clear is refused', () => {
+        const KEEP_KEY = 'rca.keepPower.v1'
+        localStorage.setItem(KEEP_KEY, JSON.stringify(['ride-a']))
+        const { result } = setup(SIGNED_OUT)
+        reportKept(2)
+        finishDeviceLoad(WITH_RESULTS)
+
+        // The library refused to clear: what remains is listed, and the kept rides stay with it.
+        act(() => result.current.clear())
+        expect(localStorage.getItem(KEEP_KEY)).not.toBeNull()
+        reportKept(2)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+        expect(localStorage.getItem(KEEP_KEY)).not.toBeNull()
+
+        act(() => result.current.clear())
+        reportKept(0)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+        expect(localStorage.getItem(KEEP_KEY)).toBeNull()
       })
 
       it('takes the mark off when a signed-in delete left nothing kept here, so the next sign-out is not a loss', () => {

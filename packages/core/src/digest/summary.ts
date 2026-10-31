@@ -38,6 +38,11 @@ export interface ActivitySummary {
   walkingPace?: true
   /** The export the activity came from tags it as a race. See ActivityDigest.race. */
   race?: true
+  /**
+   * A ride whose power no rider holds (see implausiblePower): 'set-aside' while it is left out of every best, 'kept'
+   * once the athlete chose to keep it. Absent for every other activity. Set by activitySummaries, which knows the masses.
+   */
+  powerCheck?: 'set-aside' | 'kept'
   /** Revision 7: the athlete's own label when it differs from the file's sport. See ActivityDigest.athleteType. */
   athleteType?: AthleteType
   /** Revision 7: the local calendar date minus the UTC date at the start. See ActivityDigest.localDayShift. */

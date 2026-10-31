@@ -9,6 +9,11 @@ import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
 import { deviceKeeper } from './deviceKeeper'
+import { clearOutbox, openOutbox } from './outbox'
+import { SendingKeys } from './sendingKeys'
+import { resumeOutbox } from './outboxResume'
+import { resumeAsWriter } from './writerResume'
+import type { Resume } from './outboxResume'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
@@ -16,7 +21,14 @@ import { outdatedWithOriginal } from './outdatedOriginals'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
-import { beginRequest, noteWork, stamped } from './workerWire'
+import {
+  beginRequest,
+  noteArrival,
+  noteStart,
+  noteWork,
+  stamped,
+  waitingToChangeLibrary,
+} from './workerWire'
 import { accountScope, clearCheckinScope } from './checkinStore'
 import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
@@ -65,6 +77,7 @@ const device = deviceActions(
   async (activityId) => workbench.remove({ kind: 'device' }, activityId),
   () => workbench.watchDevice(),
 )
+const view = newWorkerView()
 const libraryContext: LibraryContext = {
   session,
   device,
@@ -77,12 +90,19 @@ const libraryContext: LibraryContext = {
   captureTrace: async (activity: Activity, userId: string) => {
     await workbench.capture(activity, { kind: 'account', userId })
   },
+  stamp: () => {
+    const { libraryEpoch, activeScope } = view
+    // A load or a clear moves the epoch, and a load for another user replaces the scope.
+    return () => view.libraryEpoch === libraryEpoch && view.activeScope === activeScope
+  },
+  waitingToChange: waitingToChangeLibrary,
 }
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
-const view = newWorkerView()
+const sending = new SendingKeys()
 const importContext: ImportRunContext = {
+  sending,
   session,
   post,
   missingOriginals,
@@ -97,6 +117,23 @@ const importContext: ImportRunContext = {
 const reportDetail = detailReporter(workbench, post, () =>
   view.showingSample ? null : view.activeScope,
 )
+
+/** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
+let resume: Resume | null = null
+function finishLoad(state: SessionState, userId: string): SessionState {
+  // In the tab that holds the account's writer lock only: with two tabs open, one sends.
+  resume = resumeAsWriter(userId, () =>
+    resumeOutbox({
+      userId,
+      outbox: openOutbox(userId),
+      savedRecords,
+      sending,
+      // Apart from any request: stamped with one, the page would drop it as late.
+      post: (message) => self.postMessage(message),
+    }),
+  )
+  return state
+}
 
 /** The kept library was emptied under an import: the page is told, and starts from what is kept now. */
 function stopEmptied(): SessionState {
@@ -125,6 +162,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return session.setSettings(request.settings)
     }
     case 'loadSample':
+      view.libraryEpoch++
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
@@ -134,16 +172,23 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       session.choosePeriod(periodChoiceOf(request.choice))
       return session.loadSample(request.settings, view.sampleClock)
     case 'loadServer':
+      view.libraryEpoch++
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
-      return loadServer(
-        libraryContext,
-        request.settings,
+      // A resume belongs to the library it began under.
+      resume?.cancel()
+      resume = null
+      return finishLoad(
+        await loadServer(
+          libraryContext,
+          request.settings,
+          request.userId,
+          periodChoiceOf(request.choice),
+        ),
         request.userId,
-        periodChoiceOf(request.choice),
       )
     case 'rebuildStale':
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
@@ -161,12 +206,16 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await device.report()
         return session.setSettings(request.settings)
       }
+      view.libraryEpoch++
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
+      view.libraryEpoch++
+      resume?.cancel()
+      resume = null
       provisionalItems.clear()
       view.showingSample = false
       workbench.clearMemory()
@@ -176,7 +225,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         const forgotten = await device.forget()
         // The index of files read goes with the library it describes.
         await clearCheckinScope('device')
-        if (!(await workbench.clearScope({ kind: 'device' })) && forgotten)
+        const tracesCleared = await workbench.clearScope({ kind: 'device' })
+        // Every waiting save goes too, an expired session's included: nothing kept here stays, and a visitor who is
+        // signed out has no account on screen to ask about them.
+        const outboxCleared = await clearOutbox()
+        if ((!tracesCleared || !outboxCleared) && forgotten)
           post({ type: 'deviceIssue', issue: 'notForgotten' })
       } else device.replaced()
       return session.clear()
@@ -274,7 +327,9 @@ function reportUnreadable(count: number) {
 let queue: Promise<void> = Promise.resolve()
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const requestId = (event.data as Partial<WireRequest>).requestId
+  noteArrival(event.data.type)
   queue = queue.then(async () => {
+    noteStart(event.data.type)
     const endRequest = beginRequest(requestId, (message) => self.postMessage(message))
     try {
       if (event.data.type === 'addFiles') {

@@ -7,6 +7,7 @@ import { gapOfHeadline } from '../balanceGap'
 import { balanceOfPick } from '../components/balanceScale'
 import { plural } from '../components/plural'
 import { heldPick } from '../resultHold'
+import { rideHoldInputs } from '../rideLeftOut'
 import type { HoldInputs } from '../resultHold'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
@@ -116,10 +117,13 @@ function balanceItem(
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
-  const pickBefore = heldPick(before, hold).pick
-  const pickAfter = heldPick(after, hold).pick
-  const gapBefore = profile === null ? null : gapOfHeadline(headlineGrades(before, profile))
-  const gapAfter = profile === null ? null : gapOfHeadline(headlineGrades(after, profile))
+  const gradesBefore = profile === null ? null : headlineGrades(before, profile)
+  const gradesAfter = profile === null ? null : headlineGrades(after, profile)
+  // A ride at the top of the age tables is out of the comparison, as the page leaves it out.
+  const pickBefore = heldPick(before, rideHoldInputs(gradesBefore?.ride ?? null, before, hold)).pick
+  const pickAfter = heldPick(after, rideHoldInputs(gradesAfter?.ride ?? null, after, hold)).pick
+  const gapBefore = gradesBefore === null ? null : gapOfHeadline(gradesBefore)
+  const gapAfter = gradesAfter === null ? null : gapOfHeadline(gradesAfter)
   const readingBefore = balanceOfPick(gapBefore, pickBefore)
   const readingAfter = balanceOfPick(gapAfter, pickAfter)
   if (readingBefore === null || readingAfter === null) return null

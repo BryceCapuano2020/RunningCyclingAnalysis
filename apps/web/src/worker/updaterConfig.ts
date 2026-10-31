@@ -22,7 +22,7 @@ export const WRITER_LOCK_PREFIX = 'rca-flush-'
  * - `breaker`: too many failures in a row.
  * - `outdated`: the server says this app is too old to write; reload the page.
  * - `newer`: the server holds a copy from a newer version of the app.
- * - `refused`: the server refused a rebuilt digest as invalid.
+ * - `refused`: the server refused a rebuilt digest as from a model newer than it supports.
  * - `paused`: a request that changes the library was waiting, so the update stood aside.
  * - `elsewhere`: another tab of this account holds the writer lock.
  * - `discarded`: the library the update ran for was replaced or cleared meanwhile.

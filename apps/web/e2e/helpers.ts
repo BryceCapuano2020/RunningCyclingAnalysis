@@ -19,7 +19,7 @@ export const SAMPLE_BANNER =
  * balance held until a weight is entered.
  */
 export const BALANCE_TITLE =
-  /leans toward|in balance|see your balance|Not enough to compare yet|waits for your weight/
+  /leans toward|in balance|see your balance|so far|Not enough to compare yet|waits for your weight/
 
 /** The axe tags checked: WCAG 2.0, 2.1 and 2.2 A and AA, and axe's best practices. */
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']

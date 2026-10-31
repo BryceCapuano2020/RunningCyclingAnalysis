@@ -3,7 +3,7 @@ import type { EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
-import { HEADLINE_LABEL, gradeParts } from '../grades'
+import { HEADLINE_LABEL, gradeParts, notGradedText } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
 import { SPORT_LABEL, THRESHOLD_GLOSS, THRESHOLD_MEANING } from '../sports'
@@ -32,6 +32,8 @@ export interface ThresholdTileProps {
   weighted: boolean
   /** The heart-rate check of the headline effort, which the tile's grade rests on; null or absent says nothing of effort. */
   effort?: EffortCheck | null
+  /** True where the page's headline already says what the threshold needs (a library of one sport), so the tile does not repeat it. */
+  needInHeadline?: boolean
 }
 
 /** The tile's name: the sport and what the figure is, in the words the card used to carry as its label. */
@@ -49,7 +51,7 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
 /** The grade line under the figure: the level and grade, and the best effort it rests on. */
 function gradeLine(sport: Sport, grade: GradeOutcome | null, effort: string | null): string | null {
   if (grade === null) return null
-  if (grade.kind === 'gap') return grade.reason
+  if (grade.kind !== 'graded') return notGradedText(grade)
   const { level, value, range } = gradeParts(sport, grade.grade, 'row')
   const grades = `${level} · ${value}${range === null ? '' : ` (${range})`}`
   return `${grades} on your best ${HEADLINE_LABEL}${effort === null ? '' : `, ${effort}`}.`
@@ -69,6 +71,7 @@ export function ThresholdTile({
   grade,
   weighted,
   effort: effortCheck = null,
+  needInHeadline = false,
 }: ThresholdTileProps) {
   if (sport === 'ride' && !weighted) {
     return (
@@ -100,7 +103,9 @@ export function ThresholdTile({
   if (hero === null) {
     return (
       <StatTile sport={sport} heading={NAME[sport]} definition={DEFINED[sport]}>
-        <p className="stat-tile__line">{thresholdNeedsLine(result, sport)}</p>
+        {needInHeadline ? null : (
+          <p className="stat-tile__line">{thresholdNeedsLine(result, sport)}</p>
+        )}
         {line === null ? null : <p className="stat-tile__line">{line}</p>}
       </StatTile>
     )
@@ -140,7 +145,7 @@ export function ThresholdTile({
       }
     >
       {bestLine === null ? null : <p className="stat-tile__line">{bestLine}</p>}
-      {withheld === null ? null : <p className="stat-tile__line">{withheld}</p>}
+      {withheld === null || needInHeadline ? null : <p className="stat-tile__line">{withheld}</p>}
       {unchecked === null ? null : <p className="stat-tile__line">{unchecked}</p>}
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
       {chip === null ? null : (
