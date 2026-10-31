@@ -1,8 +1,15 @@
 import { useRef, useState } from 'react'
 import type { SeenEvent } from '../../worker/protocol'
 import type { YearsWords } from '../yearsRow'
+import { focusPageHeading } from './pageHeading'
 import { useSighting } from './useSighting'
 import './CheckInRow.css'
+
+/**
+ * Whether the row was hidden in this page load. A session that stores nothing cannot keep the flag, so the row, which
+ * comes and goes with the page it is on, must not come back after Hide on the next visit to Balance.
+ */
+let hiddenThisLoad = false
 
 export interface YearsRowProps {
   words: YearsWords
@@ -18,10 +25,10 @@ export interface YearsRowProps {
  */
 export function YearsRow({ words, onSeen }: YearsRowProps) {
   const row = useRef<HTMLElement>(null)
-  const [hidden, setHidden] = useState(false)
+  const [hidden, setHidden] = useState(hiddenThisLoad)
   const seen = useSighting(row, onSeen, 'lookBack')
 
-  if (hidden) return null
+  if (hidden || hiddenThisLoad) return null
   return (
     <section
       ref={row}
@@ -53,8 +60,11 @@ export function YearsRow({ words, onSeen }: YearsRowProps) {
             type="button"
             className="checkin-row__hide"
             onClick={() => {
+              hiddenThisLoad = true
               setHidden(true)
               seen.current('hide')
+              // The button that had focus goes with the row: focus goes to the page's heading.
+              focusPageHeading()
             }}
           >
             Hide

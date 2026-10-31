@@ -19,9 +19,14 @@ const MOST_ROWS = 4
 
 const SPORT_NAME: Record<Sport, string> = { run: 'Run', ride: 'Ride' }
 
-/** The lead of the look-back against the cards as they stand, or null when it has nothing to open on. */
+/**
+ * The lead of the look-back against the cards as they stand, or null when it has nothing to open on. The front door never
+ * leads with a best that has stood: "your best 5 min is 8 years old" is true and tells nothing. The bests are on the Run and
+ * Ride pages; the row waits for an episode, a recovery or a quiet stretch.
+ */
 export function yearsLead(lookBack: LookBack, fitness: FitnessBySport): Lead | null {
-  return leadOf(lookBack, { run: fitness.run.state, ride: fitness.ride.state })
+  const lead = leadOf(lookBack, { run: fitness.run.state, ride: fitness.ride.state })
+  return lead === null || lead.kind === 'best' ? null : lead
 }
 
 export function yearsWords(
@@ -39,6 +44,8 @@ export function yearsWords(
   const named = told.length > 1
   const all = told.flatMap(({ sport, years }) =>
     years.episodes
+      // An episode still open at the horizon is the slip the fitness card shows; the card tells it.
+      .filter((episode) => episode.toMs !== null)
       .filter((episode) => !(lead.kind === 'episode' && lead.episode === episode))
       .map((episode) => ({
         episode,

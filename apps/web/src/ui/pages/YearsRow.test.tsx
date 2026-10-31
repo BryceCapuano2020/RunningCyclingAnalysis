@@ -35,7 +35,7 @@ describe('the "Your years" row', () => {
     expect(screen.queryByRole('heading')).toBeNull()
   })
 
-  it('names the disclosure for a screen reader, and lists the other episodes when opened', async () => {
+  it('names the disclosure for a screen reader, and opens to the whole sentence', async () => {
     const Row = await freshRow()
     const onSeen = vi.fn()
     render(<Row words={words()} onSeen={onSeen} />)
@@ -44,9 +44,25 @@ describe('the "Your years" row', () => {
     details.open = true
     fireEvent(details, new Event('toggle'))
     expect(onSeen).toHaveBeenCalledWith('open')
-    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      expect.stringMatching(/^From June 2023\./),
-    ])
+    expect(screen.getByTestId('years-row')).toHaveTextContent(/By January 2022 it was back/)
+  })
+
+  it('moves focus to the page heading when it hides, and stays hidden when the page comes back', async () => {
+    const Row = await freshRow()
+    render(
+      <>
+        <h1 id="page-heading" tabIndex={-1}>
+          Balance
+        </h1>
+        <Row words={words()} onSeen={vi.fn()} />
+      </>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }))
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+    cleanup()
+    // Away to another page and back, with nothing stored to remember it: still hidden.
+    render(<Row words={words()} onSeen={vi.fn()} />)
+    expect(screen.queryByTestId('years-row')).toBeNull()
   })
 
   it('hides on request, and says so once', async () => {
