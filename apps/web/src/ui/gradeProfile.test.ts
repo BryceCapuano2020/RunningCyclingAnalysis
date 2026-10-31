@@ -101,7 +101,11 @@ describe('gradeProfile', () => {
     const result = makeResult({ activities, runCurve, rideCurve, equivalents })
     const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG, result.hr)
     expect(profile.run.map((point) => point.durationS)).toEqual([...PROFILE_DURATIONS_S])
-    expect(profile.ride.map((point) => point.durationS)).toEqual([...PROFILE_DURATIONS_S])
+    // The ride's 3 and 4 min equivalents (9.5 and 7.5 m/s) are faster than the running record for those
+    // lengths, so they are flagged as implausible and left out.
+    expect(profile.ride.map((point) => point.durationS)).toEqual(
+      PROFILE_DURATIONS_S.filter((durationS) => durationS > 240),
+    )
   })
 
   it('gives a run a point and a ride its range', () => {

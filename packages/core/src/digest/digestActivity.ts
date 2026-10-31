@@ -236,6 +236,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
  */
 export function digestActivityAt(activity: Activity, revision: number): ActivityDigest {
   const moving = movingMask(activity)
+  const seven = hasRevision7(revision)
   // Where the file's speed and distance disagree, efforts credit only what both support. The
   // summary and the splits keep the file's own distance. A power-meter ride keeps its own speed,
   // because its measured power does not follow the lowering: its calibration and climb sections
@@ -257,7 +258,7 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
     activity.paused,
     streams.speed,
   )
-  const quality = hasRevision7(revision) ? withCadenceLock(activity, assessed, moving) : assessed
+  const quality = seven ? withCadenceLock(activity, assessed, moving) : assessed
   rememberTraceQuality(activity, quality, streams.speed)
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.
@@ -267,7 +268,9 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
   // The run's metabolic stream feeds its curve, its heart-rate blocks and its splits, so it is built once.
   const metabolic =
     activity.sport === 'run'
-      ? runMetabolicPower(streams.speed, grade, PRIORS.runEconomyScale.mean)
+      ? runMetabolicPower(streams.speed, grade, PRIORS.runEconomyScale.mean, {
+          steepDescent: seven,
+        })
       : null
   const movingS = countKept(moving)
   const occupancy: Occupancy = { moving, minFraction: BEST_WINDOW_MIN_MOVING_FRACTION }
@@ -319,15 +322,12 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
             PRIORS.runEconomyScale.mean,
             agreed.covered,
             moving,
+            seven ? streams.speed : undefined,
           ),
         }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
     ...(activity.race === true ? { race: true as const } : {}),
-    ...(atWalkingPace(
-      hasRevision7(revision) ? walkingPaceView(activity, moving) : activity,
-      moving,
-      movingS,
-    )
+    ...(atWalkingPace(seven ? walkingPaceView(activity, moving) : activity, moving, movingS)
       ? { walkingPace: true as const }
       : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
