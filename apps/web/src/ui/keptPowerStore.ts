@@ -61,6 +61,14 @@ export function clearKeptPower(): void {
   for (const listener of listeners) listener()
 }
 
+/**
+ * Drops the list held in memory so the next read takes it from storage again. The test setup calls it around every
+ * test: the store outlives a rendered hook, so one test's kept rides would otherwise be the next test's.
+ */
+export function resetKeptPowerCache(): void {
+  current = null
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   const onStorage = (event: StorageEvent) => {
