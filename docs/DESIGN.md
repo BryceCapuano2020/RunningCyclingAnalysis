@@ -1369,6 +1369,11 @@ only its own activities), the same-heart-rate and late-effort sections, the zone
 The judgement also carries the library's heart-rate calibration of ride against run efficiency (`calibration`: the
 slope ratio and its error), which every period's running equivalents and comparison read (`combine`'s `calibration`
 option), so one ride is worth the same run pace whichever period is shown; a period's own `hr` stays its own evidence.
+The ratio (`kappa`) and its error are read from the blocks of the days both sports were done in, widened by eight weeks
+each side (`matchedSpan`, `MATCH_SLACK_DAYS`): a sport trained for months before the other began would otherwise be set
+against its own earlier state, not against the other sport. The slopes and their points stay every block. Sports done more than
+sixteen weeks apart, or with fewer than three activities of either sport in the shared stretch, have no ratio. `balanceSensitivity.test.ts` pins how far the Balance verdict moves with the period chip and
+five kilograms of typed body mass, so a flip of the lean is a deliberate change.
 The grade chart's extra durations and the level target use it too, so the ride's grade and the "Ride X W" target
 share one conversion. Because it is the library's, adding files can shift older equivalents (the calibration
 refits over everything), where a period's own check moved only with that period. A ride without a power meter is
