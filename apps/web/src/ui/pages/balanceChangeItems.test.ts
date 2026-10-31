@@ -431,15 +431,55 @@ describe('balanceChanges and an effort the gate could not judge', () => {
 })
 
 describe('balanceChanges and a call made from every effort', () => {
-  it('says the effort was not checked, beside the item, where the call read every effort', () => {
-    const { input, scaled } = measured()
+  /** An effort check at the headline duration for the run: its share of the reference, and what the reference can certify. */
+  const check = (run: number | null, reading: 'trusted' | 'low' | 'thin' = 'trusted') => ({
+    durationS: 1200,
+    runHrFraction: run,
+    rideHrFraction: null,
+    runReference: reading,
+  })
+  /** The strip for a run call that read every effort, with the periods' effort checks given. */
+  const ungated = (now: ReturnType<typeof check>, before: ReturnType<typeof check>) => {
+    const { input, scaled, result } = measured()
     const change = changeOf('higher')
     change.run = change.run.map((call) => ({ ...call, gated: false }))
-    const out = balanceChanges(input(scaled(0.95, 1), { change }))
+    return balanceChanges(
+      input(
+        { ...scaled(0.95, 1), headlineEffort: before },
+        { change, result: { ...result, effort: [now] } },
+      ),
+    )
+  }
+
+  it('says the effort was not checked, beside the item, and why: too few efforts shown hard where both periods have a heart rate', () => {
+    const out = ungated(check(0.95), check(0.93))
     expect(out?.items.some((item) => item.key === 'run-best')).toBe(true)
     expect(out?.unchecked).toEqual([
-      'Effort not checked on the running comparison: too few efforts with heart rate in both periods, so every effort counts.',
+      'Effort not checked: too few running efforts shown hard by heart rate in both periods, so every effort counts.',
     ])
+  })
+
+  it('says there is no heart rate only where neither period has one', () => {
+    expect(ungated(check(null), check(null)).unchecked).toEqual([
+      'Effort not checked: no heart rate on the running efforts, so every effort counts.',
+    ])
+    // One period with a heart rate is not "no heart rate".
+    expect(ungated(check(0.95), check(null)).unchecked[0]).toContain('shown hard by heart rate')
+  })
+
+  it('says a library with too few days has no reference yet', () => {
+    expect(ungated(check(0.95), check(0.95, 'thin')).unchecked).toEqual([
+      'Effort not checked: too few days with heart rate to set a reference, so every effort counts.',
+    ])
+  })
+
+  it('holds the comparison back, in its own words, where the reference cannot show an effort hard', () => {
+    const out = ungated(check(0.7, 'low'), check(0.95))
+    expect(out?.items.some((item) => item.key === 'run-best')).toBe(false)
+    expect(out?.notes).toEqual([
+      'Your best 20 min of running in this period cannot be called a hard effort, so it is not compared.',
+    ])
+    expect(out?.unchecked).toEqual([])
   })
 
   it('says it where the call is none too, and says nothing when the call was gated or not made', () => {

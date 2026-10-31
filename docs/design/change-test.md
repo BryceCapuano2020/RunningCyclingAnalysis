@@ -60,7 +60,7 @@ seeds were called `higher` (run, ride) through every effort, and 2 and 1 of the 
 hard still shows; the strip withholds a comparison whose shown best was not hard (`notHardNote`) and does not withhold one the
 gate could not judge.
 
-**Limit.** The gate reads a session's heart rate, not the effort inside it: a sprint or a hard interval in a session whose
+**Limit.** At 60 s or less easy sessions count, so a swing in hard share is not controlled there. The gate reads a session's heart rate, not the effort inside it: a sprint or a hard interval in a session whose
 peak stayed under the line is counted by length (sprints) or lost (efforts of 1 to 20 minutes), and a library with a strap in
 one period only, or too few hard efforts in either, is read from every effort in both and carries the swing in hard share
 that the gate exists to remove.

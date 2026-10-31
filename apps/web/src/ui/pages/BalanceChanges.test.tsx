@@ -127,14 +127,16 @@ describe('BalanceChanges', () => {
         changes={{
           items: [],
           notes: [],
-          unchecked: ['Effort not checked on the running comparison: too few efforts.'],
+          unchecked: [
+            'Effort not checked: too few running efforts shown hard by heart rate in both periods, so every effort counts.',
+          ],
           compared: true,
         }}
         previousLabel="Previous 12 weeks"
       />,
     )
     expect(screen.getByText(/No clear change/)).toBeInTheDocument()
-    expect(screen.getByText(/Effort not checked on the running comparison/)).toBeInTheDocument()
+    expect(screen.getByText(/Effort not checked: too few running efforts/)).toBeInTheDocument()
   })
 
   it('says in a line, in place of an item, that a best was not compared', () => {

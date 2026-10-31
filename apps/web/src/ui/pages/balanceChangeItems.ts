@@ -147,9 +147,25 @@ function notHardNote(
   return null
 }
 
-/** The line that says a comparison read every effort, because heart rate could not pick the hard ones of both periods. */
-function uncheckedLine(sport: Sport): string {
-  return `Effort not checked on the ${SPORT_NOUN[sport]} comparison: too few efforts with heart rate in both periods, so every effort counts.`
+/**
+ * The line that says a comparison read every effort, because heart rate could not pick the hard ones of both periods, with the
+ * reason that is true: neither period has a heart rate on its best 20 minutes, the library has too few days with one to set a
+ * reference, or both periods have a heart rate and too few efforts were shown hard. A reference that cannot show an effort hard
+ * holds the comparison back instead (`notHardNote`), so it never reaches this line.
+ */
+function uncheckedLine(
+  sport: Sport,
+  shares: readonly (ReturnType<typeof effortShare> | null)[],
+): string {
+  const noun = SPORT_NOUN[sport]
+  const known = shares.filter((share) => share !== null)
+  if (known.length === 0) {
+    return `Effort not checked: no heart rate on the ${noun} efforts, so every effort counts.`
+  }
+  if (known.some((share) => !share.checked)) {
+    return 'Effort not checked: too few days with heart rate to set a reference, so every effort counts.'
+  }
+  return `Effort not checked: too few ${noun} efforts shown hard by heart rate in both periods, so every effort counts.`
 }
 
 /**
@@ -177,7 +193,16 @@ function bestItem(
   const verdict = verdictOfCall(call, 'headline')
   if (verdict === 'untested') return null
   // Where the periods did not both hold enough efforts with a heart rate, every effort was read in both: say so.
-  const unchecked = call?.gated === false ? uncheckedLine(sport) : undefined
+  const unchecked =
+    call?.gated === false
+      ? uncheckedLine(sport, [
+          effortShare(
+            sport,
+            result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
+          ),
+          effortShare(sport, previous.headlineEffort),
+        ])
+      : undefined
   // A move the test does not call is no clear change, so the strip lists nothing, as the curve says nothing.
   if (verdict === 'none') return { item: null, unchecked }
   // Which way it moved is the call's, in the compared unit; the shown figures write the amount.
@@ -360,9 +385,11 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
   const compared = outcomes.some((outcome) => outcome !== null)
   const items = outcomes.flatMap((outcome) => (outcome?.item ? [outcome.item] : []))
   const notes = outcomes.flatMap((outcome) => (outcome?.note === undefined ? [] : [outcome.note]))
-  const unchecked = outcomes.flatMap((outcome) =>
-    outcome?.unchecked === undefined ? [] : [outcome.unchecked],
-  )
+  const unchecked = [
+    ...new Set(
+      outcomes.flatMap((outcome) => (outcome?.unchecked === undefined ? [] : [outcome.unchecked])),
+    ),
+  ]
   return { items: items.slice(0, MAX_CHANGES), notes, unchecked, compared }
 }
 
