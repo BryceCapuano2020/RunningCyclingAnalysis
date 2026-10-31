@@ -1,5 +1,7 @@
 import { withinText } from '../fitness/copy'
-import { effortName, level, monthYear, SAY } from './copy'
+import { level, monthYear, SAY } from './copy'
+import { mayStateHeld } from './lead'
+import type { LiveState } from './lead'
 import type { SportLookBack } from './compute'
 import type { HindsightEpisode } from './types'
 
@@ -35,12 +37,14 @@ export function episodeFinding(episode: HindsightEpisode, sport: SportLookBack):
 
 /**
  * The section's finding for one sport, or null when its years have nothing to say. The most recent episode that has ended
- * leads (a slip and its return is news); else one still open; else the longest quiet stretch; else the best that has stood
- * longest; a sport too short for its years says what it needs.
+ * leads (a slip and its return is news); else one still open; else the longest quiet stretch, only while the card allows
+ * saying a level held (`live`); else, with only bests, "Your best efforts by year"; a sport too short for its years says what
+ * it needs.
  */
-export function yearsFinding(sport: SportLookBack): string | null {
+export function yearsFinding(sport: SportLookBack, live: LiveState = null): string | null {
   const years = sport.fitness
-  if (years.kind === 'too-short') return 'Your years start after a year of steady running'
+  if (years.kind === 'too-short')
+    return `Your years start after a year of ${SAY[sport.sport].doing}`
   if (years.kind === 'ok') {
     const ended = years.episodes.filter((e) => e.toMs !== null)
     const latest = (list: HindsightEpisode[], by: (e: HindsightEpisode) => number) =>
@@ -48,14 +52,13 @@ export function yearsFinding(sport: SportLookBack): string | null {
     const first =
       latest(ended, (e) => e.toMs!) ?? latest(years.episodes, (e) => e.fromMs) ?? undefined
     if (first !== undefined) return episodeFinding(first, sport)
+    // "Stayed within" is a statement about the level that the card could contradict: only while the card allows it.
     const quiet = [...years.quiet].sort((a, b) => b.toMs - b.fromMs - (a.toMs - a.fromMs))[0]
-    if (quiet !== undefined) {
+    if (quiet !== undefined && mayStateHeld(live)) {
       return `From ${monthYear(quiet.fromMs)} to ${monthYear(quiet.toMs)} ${level(sport)} stayed within ${withinText(sport.sport, quiet.within)}`
     }
   }
-  const best = [...sport.milestones].sort((a, b) => a.best.atMs - b.best.atMs)[0]
-  if (best !== undefined) {
-    return `Your best ${effortName(best.effort)} has stood since ${monthYear(best.best.atMs)}`
-  }
+  // Only bests: the years have no episode or quiet stretch to name them by, and a best that has stood is not a finding.
+  if (sport.milestones.length > 0) return 'Your best efforts by year'
   return null
 }

@@ -107,8 +107,11 @@ type Context = SectionContext & { list: ReturnType<typeof bestEffortRows> }
 /** How each section makes its outcome from what the page worked out. */
 const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
   // Closed, named by its own finding; a sport with no years to tell, or no look-back to read, has no section.
-  years: ({ sport, lookBack, units }) => {
-    const finding = lookBack === undefined ? null : yearsFinding(lookBack.sports[sport])
+  years: ({ sport, lookBack, units, fitness }) => {
+    const finding =
+      lookBack === undefined
+        ? null
+        : yearsFinding(lookBack.sports[sport], fitness?.[sport].state ?? null)
     return lookBack === undefined || finding === null
       ? { content: null, lacks: [] }
       : {
