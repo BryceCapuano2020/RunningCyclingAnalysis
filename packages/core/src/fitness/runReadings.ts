@@ -1,3 +1,4 @@
+import { isAnalysed } from '../digest/analysed'
 import { median } from '../findings/stats'
 import type { ActivityDigest, DigestSplit } from '../types'
 import type { KmReading } from './fit'
@@ -75,7 +76,7 @@ export function runReadings(
     km !== undefined &&
     digest.hasHeartRate &&
     !digest.indoor &&
-    digest.walkingPace !== true &&
+    isAnalysed(digest) &&
     !digest.flagCounts['hr-spike'] &&
     !digest.flagCounts['hr-cadence-lock'] &&
     !digest.flagCounts['hr-dropout']

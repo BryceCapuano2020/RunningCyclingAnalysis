@@ -50,6 +50,11 @@ export interface SessionState {
    */
   walkingPaceRuns: number
   /**
+   * Saved activities the athlete labelled something other than a run or a ride (Hike, Walk, a ski, a workout), left out
+   * of the analysis. Disjoint from `walkingPaceRuns`: an activity with both is counted here only. Absent when none.
+   */
+  labelledRuns?: number
+  /**
    * The workout keys (see `workoutKey`) of the runs at walking pace that the athlete counts as runs
    * (`AthleteSettings.countedRuns`). They are in the analysis and carry no mark in the library.
    */
