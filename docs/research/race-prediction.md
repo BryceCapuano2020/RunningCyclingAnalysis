@@ -25,8 +25,8 @@ from published errors, not from the two estimates' spread alone.
     runs, and a run's worth of weight).
   - **Anchors:** the 5 km and 10 km this VO2max would run, by Daniels & Gilbert's formula (Oxygen Power,
     1979), which reproduces the VDOT table to 0.5% (`daniels.test.ts`).
-  - **Why a ramp:** a window held under 80% of the reference counts for nothing and one at 90% or more counts in
-    full, with a straight line between (`vo2maxShare.ts`). Below the ramp the intercept of Swain's relation is a
+  - **Why a ramp:** a window held under 85% of the reference counts for nothing, one at 90% or more counts in
+    full, and between the two it counts by a straight line (`vo2maxShare.ts`). Below the ramp the intercept of Swain's relation is a
     larger part of the estimate and its error grows; near the maximum heart rate plateaus. A hard cut at one share
     (it was 85%) moved the estimate, and every race time carried from it, in one step when a run drifted across the
     line or the reference moved a beat; the ramp moves it with them.

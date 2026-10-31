@@ -102,7 +102,8 @@ describe('vo2maxFromHeartRate', () => {
 })
 
 describe('the share ramp', () => {
-  it('counts nothing under the zero share, everything from the full share, and a straight line between', () => {
+  it('counts nothing under the old line, everything from the full share, and a straight line between', () => {
+    expect(VO2MAX_SHARE_ZERO).toBe(0.85)
     expect(shareWeight(VO2MAX_SHARE_ZERO)).toBe(0)
     expect(shareWeight(0.5)).toBe(0)
     expect(shareWeight(VO2MAX_SHARE_FULL)).toBe(1)
@@ -116,18 +117,29 @@ describe('the share ramp', () => {
     }
   })
 
-  it('takes the ordinary median for equal weights and leans to the heavier value otherwise', () => {
+  it('takes the ordinary median for equal weights, and a weight moves the answer continuously', () => {
     const at = (values: number[]) => weightedMedian(values.map((value) => ({ value, weight: 1 })))
     expect(at([3, 1, 2])).toBe(2)
     expect(at([4, 1, 2, 3])).toBe(2.5)
-    expect(
-      weightedMedian([
-        { value: 1, weight: 0.2 },
-        { value: 5, weight: 1 },
-        { value: 9, weight: 0.2 },
-      ]),
-    ).toBe(5)
+    expect(at([7])).toBe(7)
     expect(weightedMedian([{ value: 1, weight: 0 }])).toBeNaN()
+    // A value of weight w between two full ones: 2 whatever w is, and a high value of weight w lifts the median smoothly
+    // from the middle of {1, 3} (2) towards 3 as it gains weight.
+    const lift = (w: number) =>
+      weightedMedian([
+        { value: 1, weight: 1 },
+        { value: 3, weight: 1 },
+        { value: 9, weight: w },
+      ])
+    let last = lift(0.01)
+    for (let w = 0.05; w <= 1; w += 0.05) {
+      const next = lift(w)
+      expect(next).toBeGreaterThanOrEqual(last)
+      expect(next - last).toBeLessThan(0.6)
+      last = next
+    }
+    expect(lift(0.01)).toBeCloseTo(2, 1)
+    expect(lift(1)).toBe(3)
   })
 
   it('moves smoothly where a run crosses the old line of 85%, which used to move it in one step', () => {
@@ -137,18 +149,31 @@ describe('the share ramp', () => {
       vo2maxFromHeartRate([...full, run('d', { 1200: bpm })], REFERENCE, (p) => p.value)!
     expect(Math.abs(at(171).vo2max / at(169).vo2max - 1)).toBeLessThan(0.03)
     expect(at(171).runs).toBe(at(169).runs)
-    // From a half-hearted 82% up to a full 90%, the estimate walks and never jumps.
-    let last = at(164).vo2max
-    for (let bpm = 165; bpm <= 180; bpm++) {
+    // From the old line up to a full 90%, the estimate walks and never jumps.
+    let last = at(170).vo2max
+    for (let bpm = 171; bpm <= 180; bpm++) {
       const next = at(bpm).vo2max
       expect(Math.abs(next / last - 1)).toBeLessThan(0.03)
       last = next
     }
   })
 
-  it('needs a run’s worth of weight as well as two runs, so faint runs alone do not make an estimate', () => {
-    const faint = (bpm: number) => [run('a', { 1200: bpm }), run('b', { 1200: bpm })]
-    expect(vo2maxFromHeartRate(faint(165), REFERENCE, (p) => p.value)).toBeNull() // 82.5%: 0.25 each
-    expect(vo2maxFromHeartRate(faint(172), REFERENCE, (p) => p.value)).not.toBeNull() // 86%: 0.6 each
+  it('needs two runs’ worth of weight, so faint runs alone do not make an estimate', () => {
+    const faint = (count: number) =>
+      Array.from({ length: count }, (_, i) => run(`f${i}`, { 1200: 176 })) // 88%: 0.6 each
+    expect(vo2maxFromHeartRate(faint(3), REFERENCE, (p) => p.value)).toBeNull() // 1.8
+    expect(vo2maxFromHeartRate(faint(4), REFERENCE, (p) => p.value)).not.toBeNull() // 2.4
+    // Two runs at the line count for nothing, whatever their number.
+    const under = Array.from({ length: 6 }, (_, i) => run(`u${i}`, { 1200: 169 }))
+    expect(vo2maxFromHeartRate(under, REFERENCE, (p) => p.value)).toBeNull()
+  })
+
+  it('counts as its runs those that count for at least half, so “on N hard runs” stays true', () => {
+    const full = [run('a', { 1200: 184 }), run('b', { 1200: 184 })]
+    const light = [171, 172, 173].map((bpm, i) => run(`l${i}`, { 1200: bpm })) // 85.5% to 86.5%: 0.1 to 0.3
+    const found = vo2maxFromHeartRate([...full, ...light], REFERENCE, (p) => p.value)
+    expect(found?.runs).toBe(2)
+    const half = [run('h', { 1200: 175 })] // 87.5%: exactly half
+    expect(vo2maxFromHeartRate([...full, ...half], REFERENCE, (p) => p.value)?.runs).toBe(3)
   })
 })

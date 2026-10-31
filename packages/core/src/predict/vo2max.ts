@@ -4,7 +4,7 @@ import { metabolicToFlatSpeed } from '../metabolic'
 import { METRES_PER_MILE } from '../units'
 import type { ActivityDigest, DigestCurvePoint, Sport } from '../types'
 import { oxygenCost } from './daniels'
-import { shareWeight, weightedMedian } from './vo2maxShare'
+import { COUNTED_WEIGHT, shareWeight, weightedMedian } from './vo2maxShare'
 import type { Weighted } from './vo2maxShare'
 
 /** The sports whose pace this estimate reads: running's oxygen cost is the one Daniels gives. */
@@ -39,13 +39,14 @@ function runEstimate(
   referenceHr: number,
   metabolicOf: (point: DigestCurvePoint) => number,
   speedCap: number,
+  weightOf: (share: number) => number,
 ): RunEstimate | null {
   let chosen: { durationS: number; weight: number; estimate: RunEstimate } | null = null
   for (const point of digest.curve) {
     if (point.durationS < VO2MAX_MIN_WINDOW_S || point.startIndex < 0) continue
     if (point.heartRate === null) continue
     const share = point.heartRate / referenceHr
-    const weight = shareWeight(share)
+    const weight = weightOf(share)
     if (weight === 0) continue
     const speed = metabolicToFlatSpeed(metabolicOf(point))
     if (!(speed > 0)) continue
@@ -84,7 +85,7 @@ export function fastestMileSpeed(digests: readonly ActivityDigest[]): number {
  * VO2max from heart rate against pace, the way a watch estimates it: one estimate from each outdoor run
  * with trusted heart rate and a hard enough window, and their median weighted by how hard the window was
  * (`shareWeight`: a ramp, so a run drifting across a share does not make the estimate jump). Null without a
- * reference heart rate, with fewer than VO2MAX_MIN_RUNS such runs, or with less than one run's worth of weight.
+ * reference heart rate, or with less than VO2MAX_MIN_RUNS runs' worth of weight.
  * Indoor pace is left out, since it can be wrong, and so is a window faster on the flat than speedCap, the
  * fastest mile as run in the digests by default.
  */
@@ -93,20 +94,23 @@ export function vo2maxFromHeartRate(
   referenceHr: number | null,
   metabolicOf: (point: DigestCurvePoint) => number,
   speedCap = fastestMileSpeed(trusted),
+  weightOf: (share: number) => number = shareWeight,
 ): Vo2maxEstimate | null {
   if (referenceHr === null || !(referenceHr > 0)) return null
   const found = trusted
     .filter((digest) => PACED[digest.sport] && digest.hasHeartRate && effortsCount(digest))
-    .map((digest) => runEstimate(digest, referenceHr, metabolicOf, speedCap))
+    .map((digest) => runEstimate(digest, referenceHr, metabolicOf, speedCap, weightOf))
     .filter((value): value is RunEstimate => value !== null)
   const estimates: Weighted[] = found.flatMap((e) =>
     'vo2max' in e && Number.isFinite(e.vo2max) ? [{ value: e.vo2max, weight: e.weight }] : [],
   )
   const total = estimates.reduce((sum, e) => sum + e.weight, 0)
-  if (estimates.length < VO2MAX_MIN_RUNS || total < 1) return null
+  // Two runs' worth of weight: two runs in full, or more runs each counting for part.
+  if (total < VO2MAX_MIN_RUNS) return null
   return {
     vo2max: weightedMedian(estimates),
-    runs: estimates.length,
+    // The runs it rests on, as the note says ("on N hard runs"): those that count for at least half.
+    runs: estimates.filter((e) => e.weight >= COUNTED_WEIGHT).length,
     hillCapped: found.length - estimates.length,
   }
 }
