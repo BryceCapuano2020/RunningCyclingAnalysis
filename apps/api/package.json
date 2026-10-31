@@ -14,6 +14,7 @@
     "deploy:built": "node scripts/check-deploy-config.mjs && node ../../scripts/ops/check-worker-secrets.mjs && node scripts/check-migrations.mjs && node ../../scripts/ops/deploy-built.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:sim": "vitest run --config vitest.sim.config.ts",
     "deploy:bootstrap": "node scripts/check-deploy-config.mjs --bootstrap && wrangler deploy"
   },
   "devDependencies": {
