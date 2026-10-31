@@ -284,7 +284,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       })
       expect(line, units).toContain(
-        `a flat pace of ${formatPaceValue(featured.runSpeed.p50, units)} ${PACE_UNIT[units]} (now `,
+        `a flat pace of ${formatPaceValue(featured.runSpeed.p50, units)} ${PACE_UNIT[units]}. Now `,
       )
     }
   })
