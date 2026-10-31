@@ -1,4 +1,9 @@
-import { HALF_MARATHON_M, MARATHON_M, RUN_RACE_DISTANCES_M } from '@rca/core/constants'
+import {
+  HALF_MARATHON_M,
+  MARATHON_M,
+  RUN_RACE_DISTANCES_M,
+  VO2MAX_MIN_RUNS,
+} from '@rca/core/constants'
 import { effortsCount } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { predictRunRaces, typicalWeeklyDistance } from '@rca/core/predict'
@@ -94,10 +99,11 @@ export const RACE_PREDICTIONS_NAME = 'Race predictions'
 
 /**
  * What each predictor needs before it gives a race, as the sentence the "Not enough yet" list says it in. The
- * running predictor carries a best from the mile up to a race, or reads runs with heart rate.
+ * running predictor carries a best from the mile up to a race, or reads the heart rate of outdoor runs: an estimate of VO2max
+ * needs VO2MAX_MIN_RUNS of them with a reference heart rate that can be trusted, and indoor pace is left out of it.
  */
 export const RACE_PREDICTION_NEED: Partial<Record<Sport, string>> = {
-  run: `Needs a best of a ${raceName(METRES_PER_MILE)} or more, or runs with heart rate`,
+  run: `Needs a best of a ${raceName(METRES_PER_MILE)} or more, or ${VO2MAX_MIN_RUNS} outdoor runs with a heart rate that can be trusted`,
 }
 
 /**

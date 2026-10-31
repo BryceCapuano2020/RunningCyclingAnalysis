@@ -32,6 +32,8 @@ export interface ThresholdTileProps {
   weighted: boolean
   /** The heart-rate check of the headline effort, which the tile's grade rests on; null or absent says nothing of effort. */
   effort?: EffortCheck | null
+  /** True where the page's headline already says what the threshold needs (a library of one sport), so the tile does not repeat it. */
+  needInHeadline?: boolean
 }
 
 /** The tile's name: the sport and what the figure is, in the words the card used to carry as its label. */
@@ -69,6 +71,7 @@ export function ThresholdTile({
   grade,
   weighted,
   effort: effortCheck = null,
+  needInHeadline = false,
 }: ThresholdTileProps) {
   if (sport === 'ride' && !weighted) {
     return (
@@ -100,7 +103,9 @@ export function ThresholdTile({
   if (hero === null) {
     return (
       <StatTile sport={sport} heading={NAME[sport]} definition={DEFINED[sport]}>
-        <p className="stat-tile__line">{thresholdNeedsLine(result, sport)}</p>
+        {needInHeadline ? null : (
+          <p className="stat-tile__line">{thresholdNeedsLine(result, sport)}</p>
+        )}
         {line === null ? null : <p className="stat-tile__line">{line}</p>}
       </StatTile>
     )
@@ -140,7 +145,7 @@ export function ThresholdTile({
       }
     >
       {bestLine === null ? null : <p className="stat-tile__line">{bestLine}</p>}
-      {withheld === null ? null : <p className="stat-tile__line">{withheld}</p>}
+      {withheld === null || needInHeadline ? null : <p className="stat-tile__line">{withheld}</p>}
       {unchecked === null ? null : <p className="stat-tile__line">{unchecked}</p>}
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
       {chip === null ? null : (

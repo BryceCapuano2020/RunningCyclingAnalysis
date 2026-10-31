@@ -42,6 +42,7 @@ import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
 import { clearKeptPower, useKeptPower } from './ui/keptPowerStore'
 import { useCountedRuns } from './ui/useCountedRuns'
+import { useSignOutWarning } from './ui/useSignOutWarning'
 import { useSignInProblem } from './ui/signInProblem'
 
 export function App() {
@@ -73,6 +74,19 @@ export function App() {
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const keptPower = useKeptPower()
   const countedRuns = useCountedRuns()
+  const signOutWarning = useSignOutWarning(account.me?.user.id, () => {
+    // What this browser noted about the visitor's data goes with their session.
+    forgetSeenNotes()
+    // The runs counted here and the rides kept go once the session has really ended; a failed sign-out leaves
+    // the visitor signed in.
+    void account.signOut().then(
+      () => {
+        countedRuns.clear()
+        clearKeptPower()
+      },
+      () => undefined,
+    )
+  })
   const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(
     settings,
@@ -254,23 +268,12 @@ export function App() {
               status={account.status}
               me={account.me}
               onSignIn={account.signIn}
-              onSignOut={() => {
-                // What this browser noted about the visitor's data goes with their session.
-                forgetSeenNotes()
-                // The runs counted here and the rides kept go once the session has really ended; a failed
-                // sign-out leaves the visitor signed in.
-                void account.signOut().then(
-                  () => {
-                    countedRuns.clear()
-                    clearKeptPower()
-                  },
-                  () => undefined,
-                )
-              }}
+              onSignOut={signOutWarning.requestSignOut}
             />
           }
         />
         {/* Always mounted: file drops anywhere, the busy strip and announcements. */}
+        {signOutWarning.dialog}
         <ImportStatus
           onFiles={setup.requestImport}
           busy={analysis.busy}

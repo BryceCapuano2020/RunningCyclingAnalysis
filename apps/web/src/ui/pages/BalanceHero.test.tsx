@@ -458,7 +458,7 @@ describe('BalanceHero without a comparison yet', () => {
     ).toBeInTheDocument()
   })
 
-  it('answers with the run level when the run is graded, and asks for a ride', () => {
+  it('answers with the run level when the run is graded, and leaves the ask to the invitation at the foot', () => {
     const run = makeActivity({ sport: 'run' })
     render(
       <Hero
@@ -476,10 +476,10 @@ describe('BalanceHero without a comparison yet', () => {
         name: 'Your running is at Local level',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Add a ride to compare it with your running.')).toBeInTheDocument()
+    expect(screen.queryByText(/Add a ride/)).toBeNull()
   })
 
-  it('asks for a ride when only runs are present, and points down to the running', () => {
+  it('leads with the running so far when only runs are present, never with a request', () => {
     const run = makeActivity({ sport: 'run' })
     render(
       <Hero
@@ -491,9 +491,31 @@ describe('BalanceHero without a comparison yet', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
+      screen.getByRole('heading', { level: 1, name: 'Your running so far' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Your run results are below.')).toBeInTheDocument()
+    expect(screen.queryByText(/Add a ride/)).toBeNull()
+  })
+
+  it('puts what a withheld threshold still shows ahead of what it needs, for a library of one sport', () => {
+    const run = makeActivity({ sport: 'run' })
+    render(
+      <Hero
+        {...ALL_TIME}
+        library={[run]}
+        soleFloor="At least 4:52 /km, from one effort."
+        result={makeResult({
+          activities: [run],
+          runCp: null,
+          runCpRefusal: 'shape',
+          comparison: { prior: [], calibrated: null },
+        })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(
+      screen.getByText(/^At least 4:52 \/km, from one effort\. Needs a harder effort between/),
+    ).toBeInTheDocument()
   })
 
   it('leaves the file chooser to the empty sport card, so the answer offers none', () => {
@@ -510,7 +532,7 @@ describe('BalanceHero without a comparison yet', () => {
     expect(screen.queryByRole('button', { name: 'Add rides' })).not.toBeInTheDocument()
   })
 
-  it('asks for a run when only rides are present, and points down to the cycling', () => {
+  it('leads with the cycling so far when only rides are present, never with a request', () => {
     const ride = makeActivity({ sport: 'ride' })
     render(
       <Hero
@@ -522,9 +544,9 @@ describe('BalanceHero without a comparison yet', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Add a run to see your balance' }),
+      screen.getByRole('heading', { level: 1, name: 'Your cycling so far' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Your ride results are below.')).toBeInTheDocument()
+    expect(screen.queryByText(/Add a run/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Add runs' })).not.toBeInTheDocument()
   })
 
@@ -825,7 +847,7 @@ describe('BalanceHero without a comparison yet, in a period', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Add a run to see your balance' }),
+      screen.getByRole('heading', { level: 1, name: 'Your cycling so far' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Show all time' })).toBeNull()
   })
@@ -890,7 +912,7 @@ describe('BalanceHero while no weight is entered', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
+      screen.getByRole('heading', { level: 1, name: 'Your running so far' }),
     ).toBeInTheDocument()
   })
 

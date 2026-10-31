@@ -59,14 +59,14 @@ test('a run at walking pace is said to be left out, never that there are no runs
   await expect(page.getByText(/no running or cycling activities/)).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Count this run' }).click()
-  // The run is in the analysis: the page asks for a ride to compare it with, and says so to a screen reader.
-  await expect(heading).toHaveText('Add a ride to see your balance')
+  // The run is in the analysis: the page is the running's own, and says so to a screen reader.
+  await expect(heading).toHaveText('Your running so far')
   await expect(heading).toBeFocused()
   await expect(page.locator('.app__live .sr-only')).toHaveText('Counting 1 run.')
 
   // The choice is kept: after a reload the run is still counted, and its page can go back.
   await page.reload()
-  await expect(heading).toHaveText('Add a ride to see your balance')
+  await expect(heading).toHaveText('Your running so far')
   await openRunPage(page)
   await expect(page.getByText(/You count it as a run/)).toBeVisible()
   await page.getByRole('button', { name: 'Leave this run out' }).click()
