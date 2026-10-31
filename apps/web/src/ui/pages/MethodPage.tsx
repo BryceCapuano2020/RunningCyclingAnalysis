@@ -8,6 +8,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
+import { useHoldInputs } from '../holdContext'
 import { heldPick, heldTexts } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import {
@@ -143,8 +144,9 @@ export function MethodPage({
   const noResultLine = restoring ? RESTORING_EVIDENCE : NO_FILES_EVIDENCE
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
-  const pick = result ? heldPick(result).pick : null
-  const held = result ? heldTexts(result, period) : null
+  const holdInputs = useHoldInputs()
+  const pick = result ? heldPick(result, holdInputs).pick : null
+  const held = result ? heldTexts(result, period, holdInputs) : null
   // Under a hold the reason and what lifts it are the hold's; else the activities or the 20 minute effort a sport lacks.
   const reason =
     held === null ? '' : held.hold === null ? held.reason : `${held.reason} ${held.action}`

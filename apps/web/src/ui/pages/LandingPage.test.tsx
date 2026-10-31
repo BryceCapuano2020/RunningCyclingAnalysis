@@ -237,15 +237,15 @@ describe('LandingPage', () => {
     render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
 
     const example = exampleFigure()
-    expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
-    expect(example.querySelector('.balance-meter__value')?.textContent).toBe('+8pts')
-    expect(example.querySelector('.balance-meter__edges')?.textContent).toBe('2 to 13')
+    expect(within(example).getByText('Your balance leans toward cycling')).toBeInTheDocument()
+    expect(example.querySelector('.balance-meter__value')?.textContent).toBe('+15pts')
+    expect(example.querySelector('.balance-meter__edges')?.textContent).toBe('4 to 27')
     const rows = [...example.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(['Running 67% Local', 'Cycling 59% Recreational to Local'])
+    expect(rows).toEqual(['Running 65% Local', 'Cycling 80% Local to World'])
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()
     // The line is named for a screen reader.
     expect(
-      within(example).getByRole('img', { name: /^Running grades 8 points higher than cycling/ }),
+      within(example).getByRole('img', { name: /^Cycling grades 15 points higher than running/ }),
     ).toBeInTheDocument()
   })
 

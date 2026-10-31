@@ -10,7 +10,9 @@ import { seasonDigests } from './sessionSample'
 import type { SampleClock } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { workoutKey, hiddenDigests } from './duplicates'
+import { revisionStatus } from './digest/revisions'
+import { fileNameOf, workoutKey, hiddenDigests } from './duplicates'
+import type { HeldFiles } from './importHeld'
 import { SessionLibrary, readRank } from './sessionLibrary'
 import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
@@ -29,6 +31,7 @@ import type { ZoneSet } from './zones'
 export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { RejectedFile, SessionState } from './sessionState'
+export type { HeldOutActivity } from './sessionLibrary'
 export type { Period, PeriodChoice } from './period'
 export type { RejectCode, Rejection } from './import/result'
 // The device library keeps one copy per workout by the same rule the analysis uses.
@@ -36,6 +39,7 @@ export { copyOfDigest, workoutKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
 
 export type { SyncItem, SyncSink } from './sessionSync'
+export type { FileId, HeldFiles } from './importHeld'
 
 /**
  * Holds one digest per activity between requests, so that changing a setting re-runs the
@@ -97,6 +101,7 @@ export class AnalysisSession {
     onComplete?: (outcome: ImportCompletion) => void,
     onActivity?: ActivityListeners['kept'],
     onReplaced?: ActivityListeners['replaced'],
+    held?: HeldFiles,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     // The rejected files are those of this import, so the files an earlier import refused are not listed again.
@@ -127,6 +132,8 @@ export class AnalysisSession {
           read,
           unsupported: this.unsupported,
           hashFiles: sink !== undefined,
+          held,
+          heldNameOf: (keys) => this.heldNameOf(keys, sink !== undefined),
           consider: (activity, file) =>
             considerActivity(this.keeping, activity, file, sink, syncExisting, batch, listeners),
         })
@@ -148,6 +155,28 @@ export class AnalysisSession {
     const files = sortRead(read, new Set([...added, ...upgraded]), visible)
     onComplete?.({ ...outcome, ...files, added, upgraded })
     return this.state(settings)
+  }
+
+  /**
+   * The name of the file that holds these workouts, when the library holds every one of them and, with a sink, none is
+   * waiting to be saved: a file known to hold only these can then be left unread. Null when any is missing or waiting.
+   */
+  private heldNameOf(keys: readonly string[], saving: boolean): string | null {
+    const first = keys.length === 0 ? undefined : this.library.digests.get(keys[0]!)
+    if (first === undefined) return null
+    for (const key of keys) {
+      const digest = this.library.digests.get(key)
+      // Only a current digest stands for the file (D12 section 3): one held out or read beside the current model
+      // (compatible, stale, newer) is read from the file again, whatever the index says.
+      if (digest === undefined || revisionStatus(digest.modelRevision) !== 'current') return null
+      if (saving && this.unsynced.has(key)) return null
+    }
+    return fileNameOf(first.id)
+  }
+
+  /** The id of the digest held under each workout key, in the order given; undefined for a key that is not held. */
+  heldIds(keys: readonly string[]): (string | undefined)[] {
+    return keys.map((key) => this.library.digests.get(key)?.id)
   }
 
   /** Removes one saved workout after its owner-scoped server deletion succeeds. */

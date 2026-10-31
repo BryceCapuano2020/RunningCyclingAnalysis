@@ -158,6 +158,8 @@ describe('percentFits', () => {
     expect(percentFits('41%', 60, 16)).toBe(true)
     expect(percentFits('41%', 40, 16)).toBe(false)
     expect(percentFits('41%', 60, 32)).toBe(false)
+    // Text spacing widens each character: two neighbours that fit by the plain width must not touch.
+    expect(percentFits('4%', 60, 32)).toBe(false)
     expect(percentFits('<1%', 20, 16)).toBe(false)
   })
 })

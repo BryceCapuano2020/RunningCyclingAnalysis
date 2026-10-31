@@ -128,3 +128,7 @@ export function fitSeason(runs: readonly RunPoint[], day: number): Season | null
   const scale = amplitude / Math.sqrt(size2)
   return { cos: fit.cos * scale, sin: fit.sin * scale, amplitude }
 }
+
+/** The same swing for the negated series (a rise is followed as a slip of it): its two terms change sign. */
+export const negatedSeason = (season: Season | null): Season | null =>
+  season === null ? null : { ...season, cos: -season.cos, sin: -season.sin }

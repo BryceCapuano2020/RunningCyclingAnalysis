@@ -20,3 +20,16 @@ export function detailCoverageLine(
     full: `Detailed readings kept for ${of}, the newest back to ${formatMonth(detail.oldestStartMs, true)}. Others keep their summaries, bests and splits.`,
   }
 }
+
+/**
+ * What the lists may judge detail by: this browser's own coverage, or null for a library it does not describe. A
+ * signed-in library can read older detail back from a saved original, and the sample has detail for every activity,
+ * since each recording is drawn again when it is opened. What a stored device library held before the sample was
+ * loaded is not the sample's, and would tag every sample row "No detail".
+ */
+export function judgedDetail(
+  detail: DetailCoverage | null,
+  library: { isSample: boolean; signedIn: boolean },
+): DetailCoverage | null {
+  return library.isSample || library.signedIn ? null : detail
+}

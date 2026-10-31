@@ -1,3 +1,4 @@
+import { sweepCheckin } from './checkinStore'
 import { workbenchExists } from './workbenchExists'
 import { accountsWithRecordings, clearWorkbenchScope } from './workbenchStore'
 
@@ -11,6 +12,8 @@ import { accountsWithRecordings, clearWorkbenchScope } from './workbenchStore'
 export async function sweepAccountDetails(keepUserId: string | null): Promise<void> {
   // An environment without IndexedDB could never have kept these recordings.
   if (typeof indexedDB === 'undefined') return
+  // The check-in database is swept whether or not any recording was stored: the index of files read is kept without one.
+  await sweepCheckin(keepUserId).catch(() => undefined)
   try {
     // A visitor who never stored a recording has no database, and looking must not make one.
     if (!(await workbenchExists())) return

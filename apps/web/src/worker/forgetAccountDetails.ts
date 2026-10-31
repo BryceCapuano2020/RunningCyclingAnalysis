@@ -1,4 +1,5 @@
 import { openOutbox } from './outbox'
+import { accountScope, clearCheckinScope } from './checkinStore'
 import { openManifestStore } from '../ui/importManifestStore'
 import { clearWorkbenchScope } from './workbenchStore'
 
@@ -17,6 +18,8 @@ export async function forgetAccountDetails(
   if (userId === undefined || typeof indexedDB === 'undefined') return null
   // Activities still waiting to be saved are the account's data too: a signed-out browser must not keep them.
   if (!keepSaves) await openOutbox(userId).forget()
+  // What the account's imports left in the check-in database (the index of files read) goes with its recordings.
+  await clearCheckinScope(accountScope(userId)).catch(() => false)
   // The record of this account's imports names the files it was given: it goes with the recordings.
   await openManifestStore().forget(`account:${userId}`)
   const cleared = await clearWorkbenchScope({ kind: 'account', userId }).catch(() => false)

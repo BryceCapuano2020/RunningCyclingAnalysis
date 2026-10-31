@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 import { formatGrade } from '../src/ui/gradeFormat.ts'
 import { LANDING_EXAMPLE } from '../src/ui/landingExample.ts'
+import { SPORT_NOUN } from '../src/ui/sports.ts'
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url))
 const FONTS = fileURLToPath(new URL('../../../node_modules/@fontsource/', import.meta.url))
@@ -68,6 +69,9 @@ function card(): string {
   const ride = LANDING_EXAMPLE.grades.ride
   const lead = LANDING_EXAMPLE.gap
   const rideRange = ride.range!
+  // The range is signed toward running; the card states it from the side the balance leans to.
+  const leanRange =
+    lead.lean === 'ride' ? { from: -lead.high, to: -lead.low } : { from: lead.low, to: lead.high }
   const runDot = `<circle cx="${at(run.centre.grade)}" cy="${RUN_TOP + 56}" r="14" fill="${INK.run}" stroke="${INK.surface1}" stroke-width="4"/>`
   const rideBand = `<rect x="${at(rideRange.low.grade)}" y="${RIDE_TOP + 44}" width="${at(rideRange.high.grade) - at(rideRange.low.grade)}" height="24" rx="12" fill="${INK.ride}" fill-opacity="0.35" stroke="${INK.ride}" stroke-width="2"/>`
   const rideRing = `<circle cx="${at(ride.centre.grade)}" cy="${RIDE_TOP + 56}" r="14" fill="${INK.surface1}" stroke="${INK.ride}" stroke-width="5"/>`
@@ -96,9 +100,9 @@ svg{display:block}
   </g>
   <rect x="${PANEL.x}" y="${PANEL.y}" width="${PANEL.width}" height="${PANEL.height}" rx="16" fill="${INK.surface1}" stroke="${INK.border}" stroke-width="2"/>
   <text class="display" x="${LADDER.x}" y="${PANEL.y + 54}" fill="${INK.muted}" font-size="20" letter-spacing="1.6">SAMPLE ATHLETE</text>
-  <text class="display" x="${LADDER.x}" y="${PANEL.y + 168}" fill="${INK.text}" font-size="132">+${Math.round(lead.centre)}</text>
-  <text class="display" x="${LADDER.x + 150}" y="${PANEL.y + 128}" fill="${INK.secondary}" font-size="24" letter-spacing="1.9">PTS TOWARD RUNNING</text>
-  <text x="${LADDER.x + 150}" y="${PANEL.y + 160}" fill="${INK.muted}" font-size="23" font-weight="500">range ${lead.low} to ${lead.high} points</text>
+  <text class="display" x="${LADDER.x}" y="${PANEL.y + 168}" fill="${INK.text}" font-size="132">+${Math.abs(Math.round(lead.centre))}</text>
+  <text class="display" x="${LADDER.x + 150}" y="${PANEL.y + 128}" fill="${INK.secondary}" font-size="24" letter-spacing="1.9">PTS TOWARD ${SPORT_NOUN[lead.lean].toUpperCase()}</text>
+  <text x="${LADDER.x + 150}" y="${PANEL.y + 160}" fill="${INK.muted}" font-size="23" font-weight="500">range ${leanRange.from} to ${leanRange.to} points</text>
   ${ladder(RUN_TOP, `Run · ${run.centre.level} · ${formatGrade(run.centre.grade)}`, INK.run, runDot)}
   ${ladder(RIDE_TOP, `Ride · ${ride.centre.level} · ${formatGrade(ride.centre.grade)}`, INK.ride, rideBand + rideRing)}
   <g fill="${INK.muted}" font-size="17" font-weight="500">

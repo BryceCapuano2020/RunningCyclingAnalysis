@@ -1,5 +1,5 @@
 import type { AnalysisController } from '../useAnalysis'
-import { detailCoverageLine } from '../analysis/detailCoverage'
+import { detailCoverageLine, judgedDetail } from '../analysis/detailCoverage'
 import {
   countedDespiteText,
   leftOutNote,
@@ -45,6 +45,8 @@ export interface AppNoticesProps {
   walkingNote?: boolean
   /** The runs counted despite walking pace: the way back, what the last change did and whether it was kept. */
   countedRuns?: CountedRunsController
+  /** The library page is on screen and says what is out of date itself, so the notices leave it out. */
+  libraryPanel?: boolean
 }
 
 /**
@@ -67,6 +69,7 @@ export function AppNotices({
   pageNotice = '',
   walkingNote = false,
   countedRuns,
+  libraryPanel = false,
 }: AppNoticesProps) {
   const { result, isSample } = analysis.state
   const neutralStop = analysis.error !== null && analysis.errorNeutral
@@ -86,9 +89,10 @@ export function AppNotices({
       : []),
   ]
   // A signed-in library can read older detail back from a saved original, so the line, like the list's tag, is for this browser's own.
-  const detailLine = signedIn
-    ? null
-    : detailCoverageLine(analysis.detail, analysis.savedActivities.length)
+  const detailLine = detailCoverageLine(
+    judgedDetail(analysis.detail, { isSample: analysis.state.isSample, signedIn }),
+    analysis.savedActivities.length,
+  )
   // An import that added only runs the analysis leaves out says so with its sentence, on the pages that do not
   // say it themselves: Balance's headline, and Run's and Activities' own note. It ends with where to count them.
   const leftOutSport = left.runs[0]?.sport
@@ -139,6 +143,7 @@ export function AppNotices({
           signedIn={signedIn}
           keepFiles={keepFiles}
           fileRetentionAvailable={fileRetentionAvailable}
+          panelShown={libraryPanel}
           onRetry={() => runThenFocus(analysis.retryLibrary)}
         />
         {outboxLine !== null && <p className="notice">{outboxLine}</p>}

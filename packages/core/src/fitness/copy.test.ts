@@ -64,6 +64,7 @@ const STATES: FitnessState[] = [
   'recovering',
   'back',
   'improving',
+  'improved',
 ]
 
 describe('the lines of a status', () => {
@@ -135,16 +136,17 @@ describe('the lines of a status', () => {
     expect(faster).not.toContain('within')
   })
 
-  it('says a clear rise plainly, against the weeks before, instead of too little evidence', () => {
-    const lines = fitnessLines(
-      status('run', 'improving', { change: GAIN, onsetMs: null }),
-      'metric',
+  it('says a rise as a rise, dated, and a settled one as holding at the new level', () => {
+    const rising = fitnessLines(status('run', 'improving', { change: GAIN }), 'metric')
+    expect(rising.headline).toBe(
+      'At 150 bpm you now run 5:30 /km, 9.1% (4 to 14%) faster than the 5:00 /km before 28 Feb.',
     )
-    expect(lines.headline).toBe(
-      'At 150 bpm you now run 5:30 /km, 9.1% (4 to 14%) faster than the 5:00 /km in the 36 weeks before.',
+    const settled = fitnessLines(status('run', 'improved', { change: GAIN }), 'metric')
+    expect(settled.headline).toBe(
+      'At 150 bpm you run 5:30 /km, holding 9.1% (4 to 14%) faster than the 5:00 /km before 28 Feb.',
     )
-    expect(lines.support).toBe(
-      '14 steady runs, 14 Apr to 8 Jun, against 22 in the 36 weeks before.',
+    expect(fitnessFindingHeadline(status('run', 'improved', { change: GAIN }))).toBe(
+      'At 150 bpm you now run 9.1% (4 to 14%) faster than before 28 Feb.',
     )
   })
 

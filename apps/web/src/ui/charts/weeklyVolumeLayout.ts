@@ -25,6 +25,11 @@ export const STACK_GAP_PX = 2
 const TOP_RADIUS_PX = 4
 /** How far the peak's label sits above its bar, in px. */
 const PEAK_GAP_PX = 6
+/**
+ * The room kept under the plot's top for the peak's label, in root font sizes: the tallest bar stops short of the top
+ * by the label's line and its gap, so the label lies inside the plot and never meets the axis title above it.
+ */
+const PEAK_ROOM_EM = 1
 
 /** One sport's piece of a bar, in px: the sport it is, where it starts, how tall it is, and its outline. */
 export interface BarSegment {
@@ -160,7 +165,7 @@ export function weeklyVolumeLayout(
   const x = time.x
   const peak = Math.max(...weeks.map((week) => hoursOf(totalSeconds(week))))
   const { domain, ticks } = niceDomain([0, peak], 3, 0)
-  const y = linearScale(domain, [plot.bottom, plot.top])
+  const y = linearScale(domain, [plot.bottom, plot.top + PEAK_GAP_PX + PEAK_ROOM_EM * rootFontPx()])
   const xs = weeks.map((week) => x(week.endMs))
   // The usual space between two rows sets how wide a bar is; a skipped gap is wider, and a partial month closer.
   const room = median(xs.slice(1).map((at, i) => at - xs[i]!))
