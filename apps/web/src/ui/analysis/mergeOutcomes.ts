@@ -25,6 +25,14 @@ export function mergeOutcomes(first: ImportOutcome, second: ImportOutcome): Impo
   const filesAdded = sum(first.filesAdded, second.filesAdded)
   const notActivities = sum(first.notActivities, second.notActivities)
   const skippedTypes = mergeTypes(first.skippedTypes, second.skippedTypes)
+  const listed =
+    first.listed === undefined && second.listed === undefined
+      ? undefined
+      : {
+          named: (first.listed?.named ?? 0) + (second.listed?.named ?? 0),
+          received: (first.listed?.received ?? 0) + (second.listed?.received ?? 0),
+        }
+  const needsList = first.needsList === true || second.needsList === true
   const runs = sum(first.runs, second.runs)
   const rides = sum(first.rides, second.rides)
   const updatedRuns = sum(first.updatedRuns, second.updatedRuns)
@@ -37,6 +45,8 @@ export function mergeOutcomes(first: ImportOutcome, second: ImportOutcome): Impo
     ...(filesAdded === undefined ? {} : { filesAdded }),
     ...(notActivities === undefined ? {} : { notActivities }),
     ...(skippedTypes === undefined ? {} : { skippedTypes }),
+    ...(listed === undefined ? {} : { listed }),
+    ...(needsList ? { needsList: true as const } : {}),
     ...(runs === undefined ? {} : { runs }),
     ...(rides === undefined ? {} : { rides }),
     ...(updatedRuns === undefined ? {} : { updatedRuns }),
