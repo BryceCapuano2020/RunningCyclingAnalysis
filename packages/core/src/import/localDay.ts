@@ -1,5 +1,5 @@
 import { DAY_MS } from '../constants'
-import { SYSTEM_TIME_LIMIT_S } from '../fit/protocol/profile'
+import { fitTimeToEpochMs, SYSTEM_TIME_LIMIT_S } from '../fit/protocol/profile'
 import type { LocalDayShift } from '../types'
 
 /**
@@ -30,9 +30,27 @@ export function fitOffsetS(timestampS?: number, localTimestampS?: number): numbe
   return acceptedOffsetS(localTimestampS - timestampS)
 }
 
-/** An offset a GPX or TCX zone designator gave, if it is a real zone. */
+/**
+ * The offset in force at `startMs` from a FIT file's activity messages. A message is written when an
+ * activity ends, so the one that applies to a start is the first that closes at or after it; a start
+ * after every message takes the last. Files hold one message nearly always, and then this is that one.
+ */
+export function fitOffsetAt(
+  activities: readonly { timestampS?: number; localTimestampS?: number }[],
+  startMs: number,
+): number | undefined {
+  const closing =
+    activities.find(({ timestampS }) => (fitTimeToEpochMs(timestampS) ?? -Infinity) >= startMs) ??
+    activities[activities.length - 1]
+  return closing === undefined ? undefined : fitOffsetS(closing.timestampS, closing.localTimestampS)
+}
+
+/**
+ * An offset a GPX or TCX zone designator gave, if it is a real zone. `+00:00` and `-00:00` say what `Z`
+ * says, that the time is UTC, so they give none either: only a designator that names a zone counts.
+ */
 export function designatorOffsetS(offsetS: number | undefined): number | undefined {
-  return offsetS === undefined ? undefined : acceptedOffsetS(offsetS)
+  return offsetS === undefined || offsetS === 0 ? undefined : acceptedOffsetS(offsetS)
 }
 
 /** The local calendar date at `startMs` minus its UTC date, for a zone `offsetS` seconds east of UTC. */

@@ -3,7 +3,7 @@ import { bodyMassOn } from '@rca/core/athlete'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings } from '@rca/core/types'
 import { forgetSeenNotes } from '../aboutDataStore'
-import { analysisSettings } from '../athlete'
+import { withWeights } from '../athlete'
 import { storedPeriodRequest } from '../periodPreference'
 import {
   ACCOUNT_CHANGED_BEFORE_IMPORT,
@@ -103,21 +103,16 @@ export function useImportActions({
             {
               type: 'addFiles',
               files,
-              settings: analysisSettings(
-                {
-                  // Today's weight by the one rule, so an import is priced as the page is: a dated weight in effect today
-                  // wins over the profile's, which a date passing leaves behind.
-                  massKg: bodyMassOn(
-                    savedMe.profile.massKg,
-                    settingsRef.current.measurements ?? [],
-                    Date.now(),
-                  ),
-                  bikeMassKg: savedMe.profile.bikeMassKg,
-                },
-                settingsRef.current.measurements,
-                settingsRef.current.birthYear ?? null,
-                settingsRef.current.countedRuns,
-              ),
+              settings: withWeights(settingsRef.current, {
+                // Today's weight by the one rule, so an import is priced as the page is: a dated weight in effect today
+                // wins over the profile's, which a date passing leaves behind.
+                massKg: bodyMassOn(
+                  savedMe.profile.massKg,
+                  settingsRef.current.measurements ?? [],
+                  Date.now(),
+                ),
+                bikeMassKg: savedMe.profile.bikeMassKg,
+              }),
               sync: {
                 keepFiles: savedMe.profile.keepFiles && savedMe.fileRetentionAvailable !== false,
                 userId: submittedUserId,

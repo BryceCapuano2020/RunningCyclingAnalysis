@@ -2,7 +2,7 @@ import { DAY_MS } from '../constants'
 import { driftTrend } from '../digest/driftTrend'
 import { periodDurability } from '../digest/durabilityPeriod'
 import { sameHeartRate } from '../digest/sameHeartRate'
-import { weekEndFor, weekEndMs, weekEndsSpan } from '../calendar'
+import { weekEndFor, weekEndInstant, weekEndsSpan } from '../calendar'
 import type { ActivityDigest, Sport } from '../types'
 import { changepoint } from './changepoint'
 import { FINDINGS, perSport } from './constants'
@@ -64,10 +64,11 @@ function weekly<W extends { endMs: number }>(
   if (mine.length === 0) return []
   const span = weekEndsSpan(mine)!
   const first = span.first
-  const last = Math.max(span.last, weekEndMs(asOfMs))
+  const last = Math.max(span.last, weekEndFor({ startMs: asOfMs }))
+  // A week is complete once its Sunday is over at asOfMs, an instant: its end is a label, so it is made one too.
   const weeks: { week: W; digests: ActivityDigest[] }[] = []
   for (let endMs = first; endMs <= last; endMs += WEEK_MS) {
-    weeks.push({ week: empty(endMs, endMs <= asOfMs), digests: [] })
+    weeks.push({ week: empty(endMs, weekEndInstant(endMs) <= asOfMs), digests: [] })
   }
   for (const digest of mine) {
     weeks[Math.round((weekEndFor(digest) - first) / WEEK_MS)]!.digests.push(digest)

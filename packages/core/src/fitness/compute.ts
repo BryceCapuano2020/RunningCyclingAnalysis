@@ -1,9 +1,8 @@
 import { dayShiftFor } from '../calendar'
-import { DAY_MS } from '../constants'
 import { orderedFor } from '../digest/consumers'
 import { memoByDigests } from '../digestMemo'
 import type { ActivityDigest, Sport } from '../types'
-import { dayOfMs, replay, weekOfMs } from './machine'
+import { dayOfMs, localWeekOf, replay } from './machine'
 import { RIDE_FITNESS_ENABLED } from './params'
 import { rideSeries } from './rideUnit'
 import { withoutSeason } from './season'
@@ -11,7 +10,7 @@ import { describe } from './status'
 import { noFitness } from './types'
 import type { FitnessBySport, FitnessStatus } from './types'
 import { runSeries } from './unit'
-import type { UnitSeries } from './unit'
+import type { UnitPoint, UnitSeries } from './unit'
 import type { RunPoint } from './windows'
 
 export interface FitnessOptions {
@@ -38,6 +37,17 @@ const SERIES: Record<
 /** Whether a sport is compared unless the caller says otherwise. */
 const ENABLED: Record<Sport, boolean> = { run: true, ride: RIDE_FITNESS_ENABLED }
 
+/**
+ * The steady runs on the clock of days counted from a Monday; with local weeks on, a run falls on its local day. The
+ * shift moves a run by up to a day either way, so the clock is not in order of start and the runs are put in order
+ * of their day (the sort is stable, so runs on one day keep the order of start). Each keeps its own start.
+ */
+export function runPointsOf(points: readonly UnitPoint[]): RunPoint[] {
+  return points
+    .map((p) => ({ id: p.id, t: dayOfMs(p.startMs) + dayShiftFor(p), x: p.x, startMs: p.startMs }))
+    .sort((a, b) => a.t - b.t)
+}
+
 /** One sport's replay, from its first steady run to the date, and what it says at the end. */
 export function fitnessOfSport(
   digests: readonly ActivityDigest[],
@@ -46,23 +56,14 @@ export function fitnessOfSport(
   asOfMs: number,
 ): FitnessStatus {
   const series = SERIES[sport](digests, sport, setAside)
-  // Runs sit on a clock of days counted from a Monday; with local weeks on, a run falls on its local day.
-  const runs: RunPoint[] = series.points.map((p) => ({
-    id: p.id,
-    t: dayOfMs(p.startMs) + dayShiftFor(p),
-    x: p.x,
-  }))
-  const first = series.points[0]
+  const runs = runPointsOf(series.points)
+  const first = runs[0]
   // The monitor is evaluated at completed week ends only: a week still going has not finished its runs, and
   // evaluating it would count a part of a week as a whole one in the streak and the display hold.
   const { records, season } =
     first === undefined
       ? { records: [], season: null }
-      : replay(
-          runs,
-          weekOfMs(first.startMs + dayShiftFor(first) * DAY_MS),
-          weekOfMs(asOfMs + 1) - 1,
-        )
+      : replay(runs, Math.floor(first.t / 7), localWeekOf(asOfMs + 1) - 1)
   // The status reads the runs as the last week did: with the athlete's own season taken out, when one was found.
   const seen = withoutSeason(runs, season, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
   const method = { ...series.method, seasonal: season?.amplitude ?? null }

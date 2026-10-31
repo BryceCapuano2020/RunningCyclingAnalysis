@@ -17,6 +17,7 @@ const call = (strong: number, record: number): ChangeCall => ({
   strongLow: -strong,
   strongHigh: strong,
   verdict: 'none',
+  gated: true,
 })
 
 describe('the smallest change a sentence may state', () => {
@@ -46,6 +47,9 @@ describe('the sample athlete’s run page', () => {
   it('has efforts at 20 minutes that vary so much (easy runs among hard) that its headline band is not stated', () => {
     const twenty = calls.find((one) => one.durationS === 1200)!
     expect(twenty.verdict).toBe('none')
+    // Its earlier weeks hold too few hard runs with a heart rate for the hard ones to be compared, so every run of both periods
+    // is read, and the call says the effort was not checked (the strip's line).
+    expect(twenty.gated).toBe(false)
     // The band is real: the sample's 20 minute readings run from half the best to the best.
     expect(detectableAt(twenty, 'headline')!).toBeGreaterThan(MAX_STATED_RESOLUTION)
     expect(statedResolutionAt(twenty, 'headline')).toBeNull()

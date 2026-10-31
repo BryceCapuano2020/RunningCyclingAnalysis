@@ -9,9 +9,10 @@ import { orderedFor } from './consumers'
 import { ofSport } from './ordered'
 import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
+import { trustedPower } from './powerCheck'
 import { fitBikeModelOver, pointWkg, runCentralWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
-import { weekEndFor } from '../calendar'
+import { localAxisMs, localWeeksOn, weekEndFor, weekEndsSpan } from '../calendar'
 import { DEFAULT_WINDOW_DAYS, EFFORT_LENGTHS_S, weekEndMs } from './trendPoints'
 
 const WEEK_MS = 7 * DAY_MS
@@ -70,6 +71,8 @@ interface Best {
 interface Reading {
   id: string
   startMs: number
+  /** The start on the axis the weeks are cut on (calendar.ts); the start itself with local weeks off. */
+  weekMs: number
   sport: Sport
   best: Best
 }
@@ -120,8 +123,16 @@ function readingsOf(digests: ActivityDigest[], best: (digest: ActivityDigest) =>
     if (!effortsCount(digest)) continue
     const found = best(digest)
     if (found !== null)
-      readings.push({ id: digest.id, startMs: digest.startMs, sport: digest.sport, best: found })
+      readings.push({
+        id: digest.id,
+        startMs: digest.startMs,
+        weekMs: localAxisMs(digest),
+        sport: digest.sport,
+        best: found,
+      })
   }
+  // Digests are in order of start; the week axis moves a start by up to a day either way, so cut weeks need not be.
+  if (localWeeksOn()) readings.sort((x, y) => x.weekMs - y.weekMs || (x.id < y.id ? -1 : 1))
   return readings
 }
 
@@ -134,13 +145,13 @@ const runReadings = memoByDigests(
   EFFORT_LENGTHS_S.length,
 )
 
-/** Two lists of readings, each in order of start and then id, as one. */
+/** Two lists of readings, each in order of week-axis start and then id, as one. */
 function mergedByStart(a: Reading[], b: Reading[]): Reading[] {
   const merged: Reading[] = []
   let i = 0
   let j = 0
   const before = (x: Reading, y: Reading) =>
-    x.startMs < y.startMs || (x.startMs === y.startMs && x.id < y.id)
+    x.weekMs < y.weekMs || (x.weekMs === y.weekMs && x.id < y.id)
   while (i < a.length && j < b.length) merged.push(before(a[i]!, b[j]!) ? a[i++]! : b[j++]!)
   while (i < a.length) merged.push(a[i++]!)
   while (j < b.length) merged.push(b[j++]!)
@@ -166,14 +177,12 @@ export function fitnessTrend(
   const durationS = opts.durationS ?? HEADLINE_DURATION_S
   const windowMs = (opts.windowDays ?? DEFAULT_WINDOW_DAYS) * DAY_MS
   const ordered = orderedFor('trend', digests)
-  const first = ordered[0]
-  const last = ordered.at(-1)
-  if (first === undefined || last === undefined) return []
+  if (ordered.length === 0) return []
 
   const masses = massesOf(settings)
   const bikeModel = opts.bikeModel ?? fitBikeModelOver(ordered, masses).model
   const standing = estimatedStanding(
-    opts.rideGate === undefined ? ownRideGate(ordered) : opts.rideGate,
+    opts.rideGate === undefined ? ownRideGate(trustedPower(ordered, masses)) : opts.rideGate,
   )
   const readings = mergedByStart(
     runReadings(ofSport(ordered, 'run'), durationS),
@@ -182,19 +191,24 @@ export function fitnessTrend(
     ),
   )
 
-  // The weeks run from the week of the first activity (or of the period's first window) to the last's.
-  const lastEnd = weekEndFor(last)
-  const earliest =
-    opts.fromMs === undefined ? first.startMs : Math.max(first.startMs, opts.fromMs + windowMs)
-  const firstEnd = earliest === first.startMs ? weekEndFor(first) : weekEndMs(earliest)
+  // The weeks run from the week of the first activity (or of the period's first window) to the last's. In local
+  // weeks the first by start is not always in the first week, so the span is read from the weeks themselves.
+  const span = weekEndsSpan(ordered)!
+  const firstEnd =
+    opts.fromMs === undefined
+      ? span.first
+      : Math.max(span.first, weekEndFor({ startMs: opts.fromMs + windowMs }))
   const points: TrendPoint[] = []
-  for (let endMs = firstEnd; endMs <= lastEnd; endMs += WEEK_MS) {
+  for (let endMs = firstEnd; endMs <= span.last; endMs += WEEK_MS) {
     const windowStart = endMs - windowMs
     const top: Record<Sport, Reading | null> = { run: null, ride: null }
     const count: Record<Sport, number> = { run: 0, ride: 0 }
-    // The readings are in order of start, so a week's are found, not filtered out of every reading.
-    const end = firstStartingAfter(readings, endMs)
-    for (let r = firstStartingAfter(readings, windowStart); r < end; r++) {
+    // The readings are in order of week-axis start, so a week's are found, not filtered out of every reading.
+    // A reading is in the window exactly when its week end (weekEndFor) is after the window's and not after
+    // the point's: window edges are week ends, so the week axis and the week end agree on membership.
+    const at = (reading: Reading) => reading.weekMs
+    const end = firstStartingAfter(readings, endMs, at)
+    for (let r = firstStartingAfter(readings, windowStart, at); r < end; r++) {
       const reading = readings[r]!
       count[reading.sport]++
       const current = top[reading.sport]

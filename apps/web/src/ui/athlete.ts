@@ -43,21 +43,40 @@ export function weightKnown(settings: WeightSettings): boolean {
 }
 
 /**
- * The settings the analysis runs on. See PLACEHOLDER_BODY_KG. Dated settings are carried only when
- * there are some, so an athlete with none has exactly the two masses.
+ * The settings the analysis runs on. See PLACEHOLDER_BODY_KG. Dated settings and the rides whose power
+ * the athlete kept are carried only when there are some, so an athlete with none has exactly the two masses.
  */
 export function analysisSettings(
   settings: WeightSettings,
   measurements: readonly Measurement[] = [],
   birthYear: number | null = null,
   countedRuns: readonly string[] = [],
+  keepPower: readonly string[] = [],
 ): AthleteSettings {
   return {
     massKg: settings.massKg ?? PLACEHOLDER_BODY_KG,
     bikeMassKg: settings.bikeMassKg,
+    // The placeholder is not the athlete's weight: ride power is not judged against it.
+    ...(settings.massKg === null ? { massAssumed: true as const } : {}),
     ...(measurements.length > 0 ? { measurements } : {}),
     ...(birthYear === null ? {} : { birthYear }),
     ...(countedRuns.length > 0 ? { countedRuns } : {}),
+    ...(keepPower.length > 0 ? { keepPower } : {}),
+  }
+}
+
+/**
+ * The settings as they stand with another pair of weights: every other choice they carry (dated settings,
+ * the year of birth, the counted runs, the rides whose power was kept) is theirs still, and whether the body mass is a
+ * placeholder follows the new weights. An import for a signed-in profile prices at the profile's weights, and keeps the rest.
+ */
+export function withWeights(settings: AthleteSettings, weights: WeightSettings): AthleteSettings {
+  const { massAssumed: _assumed, ...rest } = settings
+  return {
+    ...rest,
+    massKg: weights.massKg ?? PLACEHOLDER_BODY_KG,
+    bikeMassKg: weights.bikeMassKg,
+    ...(weights.massKg === null ? { massAssumed: true as const } : {}),
   }
 }
 

@@ -15,7 +15,8 @@ import type {
 } from './sameHeartRateTypes'
 import { effortsCount } from './effortTrust'
 import { firstStartingAfter } from './startOrder'
-import { weekEndFor, weekEndMs } from '../calendar'
+import { localAxisMs, localWeeksOn, weekEndFor, weekEndMs, weekEndsSpan } from '../calendar'
+import type { Dated } from '../calendar'
 
 const WEEK_MS = 7 * DAY_MS
 const WINDOW_MS = SAME_HEART_RATE.windowDays * DAY_MS
@@ -45,8 +46,9 @@ const READING: Record<Sport, Reading> = {
 }
 
 /** One steady block, in order of the time of its activity; `activity` counts the activities that give blocks. */
-interface Block {
-  startMs: number
+interface Block extends Dated {
+  /** The start on the axis the weeks are cut on (calendar.ts); the start itself with local weeks off. */
+  weekMs: number
   /** The end of the week of the activity's local day (calendar.ts). */
   weekEnd: number
   activity: number
@@ -68,6 +70,8 @@ function blocksOf(ordered: ActivityDigest[], sport: Sport, setAside: ReadonlySet
       counted = true
       blocks.push({
         startMs: digest.startMs,
+        ...(digest.localDayShift === undefined ? {} : { localDayShift: digest.localDayShift }),
+        weekMs: localAxisMs(digest),
         weekEnd: weekEndFor(digest),
         activity,
         heartRate: block.heartRate,
@@ -75,6 +79,8 @@ function blocksOf(ordered: ActivityDigest[], sport: Sport, setAside: ReadonlySet
       })
     }
   }
+  // Digests are in order of start; the week axis moves a start by up to a day either way, so cut weeks need not be.
+  if (localWeeksOn()) blocks.sort((a, b) => a.weekMs - b.weekMs)
   return blocks
 }
 
@@ -131,9 +137,11 @@ function fitBlocksOf(kept: readonly Block[]): FitBlocks {
 }
 
 function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
+  // A block is in the window exactly when its week end is after the window's and not after the week's.
+  const at = (block: Block) => block.weekMs
   const window = blocks.slice(
-    firstStartingAfter(blocks, endMs - WINDOW_MS),
-    firstStartingAfter(blocks, endMs),
+    firstStartingAfter(blocks, endMs - WINDOW_MS, at),
+    firstStartingAfter(blocks, endMs, at),
   )
   const activities = new Set(window.map((b) => b.activity)).size
   const base = { endMs, blocks: window.length, activities }
@@ -153,11 +161,17 @@ function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): S
  * is read from a window shorter than the others.
  */
 function weekEnds(blocks: readonly Block[], fromMs: number | undefined): number[] {
-  const first = blocks[0]!.startMs
-  const lastEnd = blocks.at(-1)!.weekEnd
-  const earliest = Math.max(first, (fromMs ?? first) + WINDOW_MS)
-  const earliestEnd = earliest === first ? blocks[0]!.weekEnd : weekEndMs(earliest)
-  const firstEnd = Math.max(earliestEnd, lastEnd - (SAME_HEART_RATE.maxWeeks - 1) * WEEK_MS)
+  const span = weekEndsSpan(blocks)!
+  const fromEnd =
+    fromMs === undefined
+      ? weekEndMs(blocks[0]!.weekMs + WINDOW_MS)
+      : weekEndFor({ startMs: fromMs + WINDOW_MS })
+  const firstEnd = Math.max(
+    span.first,
+    fromEnd,
+    span.last - (SAME_HEART_RATE.maxWeeks - 1) * WEEK_MS,
+  )
+  const lastEnd = span.last
   const ends: number[] = []
   for (let end = firstEnd; end <= lastEnd; end += WEEK_MS) ends.push(end)
   return ends
@@ -172,7 +186,7 @@ function referenceOf(library: readonly Block[]): number | null {
   const last = library.at(-1)
   if (last === undefined) return null
   const from = last.weekEnd - SAME_HEART_RATE.referenceWeeks * WEEK_MS
-  const rates = library.filter((b) => b.startMs > from).map((b) => b.heartRate)
+  const rates = library.filter((b) => b.weekMs > from).map((b) => b.heartRate)
   const step = SAME_HEART_RATE.referenceStepBpm
   return Math.round(quantile(rates, 0.5) / step) * step
 }
@@ -197,7 +211,7 @@ function forSport(
   const referenceHeartRate = referenceOf(blocksOf(library, sport, setAside))
   if (all.length === 0 || referenceHeartRate === null) return NO_SAME_HEART_RATE[sport]
   // The period's last week is that of its newest activity, of either sport.
-  const latestWeekEndMs = weekEndFor(ordered.at(-1)!)
+  const latestWeekEndMs = weekEndsSpan(ordered)!.last
   const ends = weekEnds(all, fromMs)
   // Stretches that do not reach a window's length into the period leave no week whose window lies in it.
   if (ends.length === 0) {

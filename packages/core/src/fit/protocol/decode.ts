@@ -79,8 +79,8 @@ export interface DecodedActivity {
 
 export interface DecodedMessages {
   fileId?: DecodedFileId
-  /** The first activity message of the file. */
-  activity?: DecodedActivity
+  /** Every activity message, in file order. Each closes an activity, so its offset is the one at its end. */
+  activities: DecodedActivity[]
   sports: DecodedSport[]
   sessions: DecodedSession[]
   laps: DecodedLap[]
@@ -121,7 +121,14 @@ type Values = Map<number, number | string>
 export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeResult {
   const maxRecords = opts.maxRecords ?? DEFAULT_MAX_RECORDS
   const maxMessages = opts.maxMessages ?? 2 * maxRecords
-  const messages: DecodedMessages = { sports: [], sessions: [], laps: [], records: [], events: [] }
+  const messages: DecodedMessages = {
+    activities: [],
+    sports: [],
+    sessions: [],
+    laps: [],
+    records: [],
+    events: [],
+  }
   const errors: string[] = []
   const compressed = compressedReader()
   let recordCount = 0
@@ -172,10 +179,10 @@ function collect(messages: DecodedMessages, message: FitMessage): void {
       messages.fileId ??= { type: numberOf(v, 0) }
       return
     case MESG.activity:
-      messages.activity ??= {
+      messages.activities.push({
         timestampS: numberOf(v, FIELD.timestamp),
         localTimestampS: numberOf(v, FIELD.localTimestamp),
-      }
+      })
       return
     case MESG.sport:
       messages.sports.push({

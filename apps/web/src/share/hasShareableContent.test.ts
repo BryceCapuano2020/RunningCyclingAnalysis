@@ -54,4 +54,10 @@ describe('hasShareableContent', () => {
   it('is false when neither a comparison nor a grade gap says how the balance leans', () => {
     expect(hasShareableContent(makeResult({ comparison: NO_COMPARISON }), null, true)).toBe(false)
   })
+
+  it('is false while the ride is at the top of the age tables, since the balance leaves it out', () => {
+    const atTop = { rideAtTop: true }
+    expect(hasShareableContent(makeResult(), null, true, atTop)).toBe(false)
+    expect(hasShareableContent(makeResult(), GAP, true, atTop)).toBe(false)
+  })
 })
