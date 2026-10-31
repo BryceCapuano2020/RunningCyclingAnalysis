@@ -409,11 +409,15 @@ adds it back before anything else reads the series, so the season of D2 is fitte
 | device 3 index degrees high from week 80, heat          | 0.26 -> 0.16        | 94%     |
 | device 3 degrees low from week 80, heat                 | 0.26 -> 0.20        | 92%     |
 | device 3 degrees high / low, no heat effect             | 0.17 -> 0.16 / 0.17 | 2% / 1% |
-| the sign flipped (heat 3%)                              | 0.26 -> 0.37        | 94%     |
+| the fitted term applied with the wrong sign (a guard)   | 0.26 -> 0.37        | 94%     |
+| warm days faster (b = -3%)                              | 0.26 -> 0.26        | 0%      |
 | a library of 1.5 years, heat                            | 0.24 -> 0.24        | 0%      |
 | a library of 1 year, heat                               | 0.07 -> 0.07        | 0%      |
 
-A 5% loss is seen within 26 weeks by 62% -> 80% with the heat, and 84% -> 84% without it. Where the heat hides a season the
-athlete's heat loss and fitness swing are in opposite phase, so the monitor alone reads a small sum; taking the heat out leaves the
-season, and the rate rises to that of a season of 1.5% with no heat at all (0.24 here, 0.25 in `episode.sim.test.ts`). Everywhere
-else the fitted rate is no higher than the monitor's.
+A 5% loss is seen within 26 weeks by 62% -> 80% with the heat, and 84% -> 84% without it.
+
+Where the heat hides a season (rows 3 and 4), its loss and the fitness swing are in opposite phase, so the monitor alone reads a small
+sum; the term shows the season, and the rate lands at the same athlete's with no heat at all (0.24 -> 0.24 and 0.41 -> 0.38), not above it.
+
+The "wrong sign" row is not a world: it applies the fitted term with the wrong sign, as a guard on the code. An athlete who is faster on
+warm days gets no term (null, never negative) and reads exactly as the monitor alone. Everywhere else the fitted rate is no higher than the monitor's.

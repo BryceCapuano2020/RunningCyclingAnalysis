@@ -17,19 +17,20 @@ vi.setConfig({ testTimeout: 1_800_000 })
  * Observed, term off -> fitted (on), the figures this file holds the code to:
  *   heat 3%                                       0.26 -> 0.18 (94%)
  *   heat 3% adding to a season of 1.5%            0.37 -> 0.24 (94%)
- *   heat 3% hiding a season of 1.5%               0.16 -> 0.24 (94%)   see below
- *   heat 3% hiding a season of 1.5%, 3% wander    0.32 -> 0.38 (93%)   see below
+ *   heat 3% hiding a season of 1.5%               0.16 -> 0.24 (94%)   see below; no heat at all: 0.24
+ *   heat 3% hiding a season of 1.5%, 3% wander    0.32 -> 0.38 (93%)   see below; no heat at all: 0.41
  *   heat 3%, 3% slow wander                       0.37 -> 0.34 (93%)
  *   no heat effect                                0.17 -> 0.17 (1%)
  *   no heat effect, a season of 1.5%              0.24 -> 0.24 (1%)
  *   device 3 degrees high from week 80, heat 3%   0.26 -> 0.16;  3 low 0.26 -> 0.20
  *   device 3 degrees high / low, no heat effect   0.17 -> 0.16 / 0.17
- *   the sign flipped                              0.26 -> 0.37 (against 0.18 right)
+ *   warm days faster (b = -3%)                    identical to off, the term never used
+ *   the fitted term applied with the wrong sign   0.26 -> 0.37 (against 0.18 right): a guard on the code, not a world
  *   1.5 years, 1 year, heat 3%                    0.24 -> 0.24, 0.07 -> 0.07 (never on)
  *   a 5% loss seen within 26 weeks                heat 62% -> 80%; no heat effect 84% -> 84%
  * Where the heat hides a season, the athlete's own heat loss and fitness swing are in opposite phase and the monitor
  * alone reads their sum, which is small; taking the heat out leaves the season (D2 fits it from the third year), so
- * the rate rises to what a season of 1.5% gives with no heat at all (0.24 here and 0.25 in episode.sim.test.ts).
+ * the rate rises to what the same athlete has with no heat at all (0.24 and 0.41 here; 0.25 for the season in episode.sim.test.ts).
  */
 const RATES = [1.2, 2, 3, 5]
 type Base = Omit<HeatSpec, 'weeks' | 'perWeek'>
@@ -81,7 +82,7 @@ describe('false alarms an athlete-year when nothing changes but the weather', ()
     expect(fit.alarms).toBeLessThan(off.alarms)
   })
 
-  it('is no higher than the monitor alone for libraries of two years or more, unless the heat was hiding a season', () => {
+  it('is no higher than the monitor alone for libraries of two years or more (the two where the heat hides a season are held to their no-heat baseline below)', () => {
     for (const spec of [
       { heat: HEAT },
       { heat: HEAT, level: { seasonAmp: -0.015 } },
@@ -94,12 +95,16 @@ describe('false alarms an athlete-year when nothing changes but the weather', ()
     }
   })
 
-  it('stays under the budget of a season of 1.5% (0.32) when the heat hides it, with and without a 3% wander', () => {
-    // The monitor alone reads the sum of two opposite swings, so the rate rises from 0.16 and 0.32 to 0.24 and 0.38:
-    // the season is then in the series, as it is for any athlete the heat does not touch (0.24).
-    expect(silence({ heat: HEAT, level: { seasonAmp: 0.015 } }, 'fit').alarms).toBeLessThan(0.32)
+  it('is no higher than the same athlete with no heat when the heat was hiding a season, with and without a 3% wander', () => {
+    // The heat loss and the fitness swing are in opposite phase here, so the monitor alone reads their small sum
+    // (0.16 and 0.32). Taking the heat out shows the season (0.24 and 0.38), which is what an athlete the heat does not
+    // touch has: the plain seasonal baseline: 0.24 and 0.41 with no heat at all (hidden: 0.24 and 0.38). The comparison is with that baseline.
     const wander = { seasonAmp: 0.015, wanderSd: 0.03, wanderRho: 0.95 }
-    expect(silence({ heat: HEAT, level: wander }, 'fit').alarms).toBeLessThan(0.45)
+    for (const level of [{ seasonAmp: 0.015 }, wander]) {
+      const hidden = silence({ heat: HEAT, level }, 'fit')
+      const baseline = silence({ heat: CALM, level }, 'off')
+      expect(hidden.alarms, JSON.stringify(level)).toBeLessThanOrEqual(baseline.alarms + 0.02)
+    }
   })
 
   it('does not rise for an athlete the heat does not touch, and the term is used in almost none of them', () => {
@@ -108,7 +113,16 @@ describe('false alarms an athlete-year when nothing changes but the weather', ()
     expect(fit.alarms).toBeLessThanOrEqual(off.alarms + 0.02)
   })
 
-  it('is about twice as high with the sign flipped, so a change of sign fails here', () => {
+  it('is as the monitor alone when the athlete is faster on warm days: the term is null, not negative', () => {
+    // A world with the wrong sign: warm days are faster (b < 0). The fit finds a positive slope, which is no loss.
+    const faster = { heat: { b: -0.03, coverage: 1 } }
+    const { off, fit } = pair(faster)
+    expect(fit.on).toBe(0)
+    expect(fit.alarms).toBe(off.alarms)
+  })
+
+  it('is about twice as high if the code took the loss out with the wrong sign, so a change of sign fails here', () => {
+    // Not a world: the correct term fitted, then applied as `x - b * heat`. Observed 0.37 against 0.18 right and 0.26 off.
     const { off, fit } = pair({ heat: HEAT })
     const flipped = silence({ heat: HEAT }, 'flipped')
     expect(flipped.alarms).toBeGreaterThan(fit.alarms * 1.8)
