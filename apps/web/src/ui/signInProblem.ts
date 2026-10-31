@@ -13,7 +13,7 @@ const REASONS: Record<string, string> = {
   oauth_state_mismatch:
     'That sign-in could not be matched to this browser, or it expired. Start it again.',
   read_only:
-    'Signing in is switched off for a while while the service is looked after. You can use the app without an account: your analysis stays on this device.',
+    'Signing in is paused while the service is looked after. You can use the app without an account: your analysis stays on this device.',
   service_unavailable: 'Sign-in is unavailable right now. Try again shortly.',
   not_on_list:
     'Creating an account is by invitation while the app is in testing, and the Google account you used is not on the list, so nothing was created. If you were invited, ask the person who invited you to add the address of this Google account, then try again. You can also use the app without an account: your analysis stays on this device.',

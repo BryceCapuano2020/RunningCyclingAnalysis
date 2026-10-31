@@ -256,7 +256,7 @@ describe('SyncStatus', () => {
     [
       'read-only',
       2,
-      'Saving is switched off for a while while the service is looked after. Your analysis still works on this device. Add the files again later.',
+      'Saving is paused while the service is looked after. Your analysis still works on this device, and what is waiting is kept here and sent on a later visit.',
     ],
     [
       'activity-conflict',

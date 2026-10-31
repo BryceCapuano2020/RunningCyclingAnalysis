@@ -303,14 +303,16 @@ while you look.
    - The R2 ledger and the day's counts: `SELECT * FROM r2_storage_budget`, and `SELECT action, SUM(used) FROM daily_budget WHERE day = date('now') GROUP BY action`.
    - Refusals in Workers Logs: `storage_budget_refused` (R2 ledger), `rate_limited` and `database_full`.
 2. _Freeze writes_: turn the switch on (above). Nothing else is needed to stop the growth.
-3. _Close the door_: take the address off `ALLOWED_EMAILS` (`wrangler secret put ALLOWED_EMAILS` with the list that remains),
-   then end the account's sessions: `DELETE FROM sessions WHERE user_id = '<id>'`. The account can no longer sign in to
-   create more, and nothing of theirs is lost yet.
+3. _Close the door_: take the address off `ALLOWED_EMAILS` (`wrangler secret put ALLOWED_EMAILS` with the list that remains)
+   so it cannot create another account, and end the account's sessions: `DELETE FROM sessions WHERE user_id = '<id>'`.
+   **The list does not stop an account that exists**: it signs in whatever the secret holds, so once the switch is off it
+   is back. Only deleting the account (step 5) keeps it out. Nothing of theirs is lost yet.
 4. _Cap the damage_: one account's digests are bounded (64 MiB, 5,000 activities), its originals (1 GiB), and a digest's free
    text by the byte caps in `apps/api/LIMITS.md`. A single account cannot fill the guard; several can, which is why step 3
    comes before step 5.
-5. _Remove_: `DELETE /api/me` from their session, or `DELETE FROM users WHERE id = '<id>'` in D1 (the rows cascade; see
-   Sign-up list for what a SQL delete skips). Do this last: it is not reversible.
+5. _Remove_: `DELETE FROM users WHERE id = '<id>'` in D1 (the rows cascade; see Sign-up list for what a SQL delete skips).
+   **`DELETE /api/me` is a write, so the switch refuses it with 503 `read_only`**: use the SQL, or turn the switch off first
+   and delete from the account's session. Do this last: it is not reversible.
 6. _Recover room_: the database guard lifts by itself as rows go. The lifetime R2 ledger is never refunded; see "Operator
    reset" in `apps/api/LIMITS.md` before touching it.
 7. _Turn the switch off_ once the cause is gone, and write down what happened.
