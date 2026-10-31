@@ -81,6 +81,11 @@ export function ZoneTables({
     !weightKnown && set.source === 'estimated' && NEEDS_WEIGHT[set.measure]
   const sets = all.filter((set) => !withheld(set))
   const waitingForWeight = all.some(withheld)
+  // An estimated max far over what a maximum is at the athlete's age: asked about up front, not offered in small print.
+  const suspect = (set: ZoneSet) =>
+    set.measure === 'heartRate' &&
+    set.source === 'estimated' &&
+    estimates?.untrustedMax?.[set.sport] === 'high'
   // Pace and power the library has efforts for but cannot give zones today, with what would give them.
   const missing = useMemo(
     () => missingThresholdZones(now, athlete, estimates),
@@ -119,7 +124,22 @@ export function ZoneTables({
                     id={`${id}-detail`}
                     className="secondary zone-tables__detail"
                   >{`${table.detail}.`}</p>
-                  {table.askable && onSetMaxHeartRate !== undefined && (
+                  {suspect(set) && (
+                    <p className="zone-tables__suspect" role="note">
+                      {`Your ${SPORT_LABEL[set.sport].toLowerCase()} max heart rate of ${Math.round(set.reference)} bpm is well above what a maximum is at your age, so a strap or sensor may be reading too high. Is that right? If not, enter the right one above. `}
+                      {onSetMaxHeartRate !== undefined && (
+                        <button
+                          type="button"
+                          className="btn zone-tables__set"
+                          aria-label={`Set it for your ${SPORT_LABEL[set.sport].toLowerCase()} max heart rate`}
+                          onClick={() => onSetMaxHeartRate(set.sport, Math.round(set.reference))}
+                        >
+                          Set it
+                        </button>
+                      )}
+                    </p>
+                  )}
+                  {table.askable && !suspect(set) && onSetMaxHeartRate !== undefined && (
                     <p className="secondary zone-tables__detail">
                       {'Is that right? '}
                       <button
@@ -142,7 +162,7 @@ export function ZoneTables({
       )}
       {missing.map(({ sport, measure }) => (
         <p key={`${sport}.${measure}`} className="secondary zone-tables__missing">
-          {`No ${SPORT_LABEL[sport].toLowerCase()} ${measure} zones today. ${THRESHOLD_NEEDS[measure]}`}
+          {`No ${SPORT_LABEL[sport].toLowerCase()} ${measure === 'heartRate' ? 'heart rate' : measure} zones today. ${THRESHOLD_NEEDS[measure]}`}
         </p>
       ))}
     </section>

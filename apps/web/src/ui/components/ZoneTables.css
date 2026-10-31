@@ -45,3 +45,11 @@
 .zone-tables__missing {
   margin: 0;
 }
+
+/* A max heart rate far over what a maximum is at the athlete's age: set apart from the plain detail line, not a small control. */
+.zone-tables__suspect {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--status-warning);
+  background: var(--status-warning-bg);
+}

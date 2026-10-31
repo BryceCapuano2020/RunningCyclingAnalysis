@@ -35,7 +35,7 @@
  */
 @media (max-width: 359px) {
   .balance-hero__head h1 {
-    /* A display size with no type token; see DESIGN.md, Type. */
+    /* A display size with no type token; see docs/design/system.md, Type. */
     font-size: 1.7rem;
   }
 }
