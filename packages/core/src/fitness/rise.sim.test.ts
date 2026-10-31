@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { NUISANCES } from './test/episodeSim'
 import { quantile, replaySim, simulate } from './test/runSim'
 import type { SimSpec } from './test/runSim'
 
@@ -48,17 +49,26 @@ describe('rises said when nothing changes, an athlete-year', () => {
   // The confounders a rise has: a heat spell ending (the level climbs back from a depressed baseline), a faster wander,
   // a season, bad runs, hills, and a watch or strap that steps up (indistinguishable from a real gain: documented).
   it.each([
-    ['heat weeks of 3%', { heat: 0.03 }, 0.04],
-    ['a faster, slower wander (3%, correlation 0.95)', { wanderSd: 0.03, wanderRho: 0.95 }, 0.09],
-    ['a season of 1.5% swing', { seasonal: 0.015 }, 0.04],
+    ['heat weeks of 3%', { level: { heatDrop: 0.03 } }, 0.04],
+    [
+      'a faster, slower wander (3%, correlation 0.95)',
+      { level: { wanderSd: 0.03, wanderRho: 0.95 } },
+      0.06,
+    ],
+    ['a season of 1.5% swing', { level: { seasonAmp: 0.015 } }, 0.04],
     ['10% of runs read wrong by the sensor', { bad: 0.1 }, 0.04],
     ['hilly runs, 30% of them 2% slow with wide spread', { hilly: 0.3 }, 0.04],
   ] as const)('stays under budget through %s', (_name, spec, budget) => {
     expect(falseRises(spec).improved).toBeLessThan(budget)
   })
 
+  it('stays under budget through every nuisance at once', () => {
+    // Observed 0.049.
+    expect(falseRises(NUISANCES['every nuisance at once']).improved).toBeLessThan(0.06)
+  })
+
   it('reads a watch or strap that steps up by 3% as a real gain, as documented', () => {
-    const rates = falseRises({ strap: 0.03 }, 20)
+    const rates = falseRises({ level: { strapStep: 0.03 } }, 20)
     expect(rates.improved).toBeLessThan(0.12)
   })
 })
