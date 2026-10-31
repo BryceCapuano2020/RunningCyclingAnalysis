@@ -1,6 +1,7 @@
 import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { AnalysisSession } from '../session'
+import { CHANGE } from './constants'
 import { detectableAt, MAX_STATED_RESOLUTION, statedResolutionAt } from './types'
 import type { ChangeCall } from './types'
 
@@ -43,12 +44,16 @@ describe('the sample athlete’s run page', () => {
     }
   })
 
-  it('has too few hard runs in the earlier period to test at 20 minutes, since easy runs are not readings', () => {
-    const twenty = calls.find((one) => one.durationS === 1200)!
-    // Most of the sample's runs peak under the hard line: of its 28 and 12 runs in the two periods, 6 and 3 are readings.
-    expect(twenty.now).toBeLessThan(10)
-    expect(twenty.before).toBeLessThan(5)
-    expect(twenty.verdict).toBe('untested')
-    expect(statedResolutionAt(twenty, 'headline')).toBeNull()
+  it('tests the sample’s run and ride at 20 minutes: both periods hold hard efforts, which are the readings', () => {
+    // The landing demo must not read "not enough to compare". Most of the last 12 weeks' runs and rides are easy and not readings;
+    // the hard ones (tempo, intervals, tests, the race) are. The weeks before hold hard sessions recorded without a strap, which
+    // the gate cannot judge and so counts. Each side has the 4 and the pooled 12 the test needs.
+    for (const sport of ['run', 'ride'] as const) {
+      const twenty = state.change![sport].find((one) => one.durationS === 1200)!
+      expect(twenty.now).toBeGreaterThanOrEqual(CHANGE.minPerSide)
+      expect(twenty.before).toBeGreaterThanOrEqual(CHANGE.minPerSide)
+      expect(twenty.now + twenty.before).toBeGreaterThanOrEqual(CHANGE.minPooled)
+      expect(twenty.verdict).not.toBe('untested')
+    }
   })
 })

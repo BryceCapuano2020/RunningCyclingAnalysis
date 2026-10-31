@@ -67,9 +67,12 @@ describe('the sample’s recordings', () => {
     expect(runs.filter((e) => !recording(e).indoor && !recording(e).hasAltitude)).toHaveLength(0)
   })
 
-  it('has one run with no heart rate', () => {
-    const none = plan.filter((e) => recording(e).hasHeartRate === false)
+  it('has one easy run with no heart rate, and the older weeks’ hard sessions with none either', () => {
+    const noStrap = plan.filter((e) => recording(e).hasHeartRate === false)
+    const none = noStrap.filter((e) => e.spec.effort === 'easy')
     expect(none).toHaveLength(1)
+    // The older weeks' hard runs and midweek rides were recorded without a strap: readings the change test counts.
+    expect(noStrap.length - none.length).toBeGreaterThan(10)
     expect(none[0]!.spec.sport).toBe('run')
     expect(finite(recording(none[0]!).heartRate)).toHaveLength(0)
   })

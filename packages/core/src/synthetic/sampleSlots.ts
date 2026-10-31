@@ -113,6 +113,12 @@ const GLITCH_RIDE = slot(fixed('Evening Ride'), 'ride', 'tempo', 'rolling', [84,
   hrGlitch: true,
 })
 
+/** The weeks back the new rider's midweek ride goes: the period before the last 12 weeks, which the change test sets them against. */
+const PRE_STRAP_RIDE_WEEKS = 2 * FULL_WEEKS
+
+/** A session recorded without a heart-rate strap, as the older weeks of this athlete's season were. */
+const unstrapped = (planned: Slot): Slot => ({ ...planned, withHeartRate: false })
+
 /** The lighter weeks' ride: a Saturday ride every fourth week, a long one and a hilly one by turns. */
 function lightRide(weekday: number, weeksAgo: number): Slot | null {
   if (weekday !== 6 || weeksAgo % RIDE_LIGHT_EVERY !== 0) return null
@@ -139,8 +145,11 @@ export function slotFor(weekday: number, weeksAgo: number, pick: number): Slot |
     return weekday === 0 && !even ? LONG_RUN : null
   }
   if (weeksAgo >= FULL_WEEKS) {
-    // The lighter weeks: a long run every week and a ride every fourth week.
+    // The lighter weeks: a long run every week, a hard run every other week and a midweek ride, both from before the athlete
+    // wore a strap for them (the change test reads them: a session with no heart rate is a reading), and a ride every fourth week.
     if (weekday === 6) return lightRide(weekday, weeksAgo)
+    if (weekday === 4 && even) return unstrapped(weeksAgo % 4 === 0 ? TEMPO_RUN : TRACK)
+    if (weekday === 3 && weeksAgo < PRE_STRAP_RIDE_WEEKS) return unstrapped(VO2_RIDE)
     return weekday === 0 ? LONG_RUN : null
   }
   // A runner who took up riding this autumn: the full ride week starts RIDE_FULL_WEEKS back, the lighter one before.
