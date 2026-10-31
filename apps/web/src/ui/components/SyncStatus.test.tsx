@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SyncIssue } from '@rca/core/session'
 import { SyncStatus } from './SyncStatus'
 import type { SyncStatusProps } from './SyncStatus'
@@ -121,7 +122,7 @@ describe('SyncStatus', () => {
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue('network', 3)] })} />)
     const status = message()
     expect(status).toHaveTextContent(
-      '3 activities were not fully saved because the connection dropped. Add them again to retry.',
+      '3 activities were not fully saved because the connection dropped. They save automatically when it is back.',
     )
     expect(status).toHaveClass('sync-status__message--failed')
   })
@@ -129,7 +130,7 @@ describe('SyncStatus', () => {
   it('keeps reporting issues while idle, so they are not lost after the upload ends', () => {
     render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
     expect(message()).toHaveTextContent(
-      '1 activity was not fully saved because of a server error. Add it again to retry.',
+      '1 activity was not fully saved because of a server error. It saves automatically once the server answers.',
     )
   })
 
@@ -226,22 +227,22 @@ describe('SyncStatus', () => {
     [
       'network',
       2,
-      '2 activities were not fully saved because the connection dropped. Add them again to retry.',
+      '2 activities were not fully saved because the connection dropped. They save automatically when it is back.',
     ],
     [
       'network',
       1,
-      '1 activity was not fully saved because the connection dropped. Add it again to retry.',
+      '1 activity was not fully saved because the connection dropped. It saves automatically when it is back.',
     ],
     [
       'server',
       2,
-      '2 activities were not fully saved because of a server error. Add them again to retry.',
+      '2 activities were not fully saved because of a server error. They save automatically once the server answers.',
     ],
     [
       'server',
       1,
-      '1 activity was not fully saved because of a server error. Add it again to retry.',
+      '1 activity was not fully saved because of a server error. It saves automatically once the server answers.',
     ],
     [
       'digest-quota',
@@ -395,5 +396,37 @@ describe('SyncStatus: what moved', () => {
     rerender(<SyncStatus {...props({ uploading: 3 })} />)
     rerender(<SyncStatus {...props({ uploading: null })} />)
     expect(message().textContent).toBe('Saved 3 activities to your library.')
+  })
+})
+
+describe('SyncStatus retry', () => {
+  it.each(['network', 'server'] as const)(
+    'offers Try again now for a %s failure, and hands the button to the caller',
+    async (code) => {
+      const onRetry = vi.fn()
+      render(<SyncStatus {...props({ issues: [issue(code, 2)], onRetry })} />)
+      const button = screen.getByRole('button', { name: 'Try again now' })
+      await userEvent.click(button)
+      expect(onRetry).toHaveBeenCalledWith(button)
+    },
+  )
+
+  it('offers no button for a failure that waits on the athlete, or without a way to retry', () => {
+    const { rerender } = render(
+      <SyncStatus {...props({ issues: [issue('signed-out', 1)], onRetry: vi.fn() })} />,
+    )
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    rerender(<SyncStatus {...props({ issues: [issue('network', 1)] })} />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('never tells the athlete to add the files again for a failure that saves itself', () => {
+    render(
+      <SyncStatus
+        {...props({ issues: [issue('network', 1), issue('server', 2)], onRetry: vi.fn() })}
+      />,
+    )
+    expect(message().textContent).not.toMatch(/again to retry|add (it|them) again/i)
+    expect(message().textContent).toMatch(/automatically/)
   })
 })

@@ -122,3 +122,24 @@ test('a sign-in found by a retry takes the files analysed meanwhile, and none re
   // The account loaded in the worker the visit began with.
   expect(workers).toHaveLength(1)
 })
+
+test('Try again looks the account up once the API is back, with no reload', async ({ page }) => {
+  test.setTimeout(60_000)
+  await signInAs(page.request, uniqueEmail(), 'Ada Lovelace')
+  let down = true
+  await page.route('**/api/me', (route) => (down ? route.abort() : route.continue()))
+  await page.goto('/')
+
+  // Nothing here is a reload, a focus or an `online` event: only the visitor's own ask brings the account back.
+  await expect(page.getByText('Sign-in is unavailable right now')).toBeVisible()
+  const retry = page.getByRole('button', { name: 'Try again' })
+  await retry.click()
+  await expect(page.getByText('Sign-in is unavailable right now')).toBeVisible()
+
+  down = false
+  await retry.click()
+  await expect(page.getByRole('button', { name: 'Ada', exact: true })).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(retry).toBeHidden()
+})

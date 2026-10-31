@@ -861,6 +861,52 @@ describe('useAccount', () => {
       }
     })
 
+    it('looks again at once on Try again, inside the 30 s floor, and signs the account in', async () => {
+      vi.useFakeTimers()
+      try {
+        const { result } = await gaveUp()
+        // The browser came back a moment ago and asked: Try again is the visitor's own ask, not that one.
+        await act(async () => {
+          window.dispatchEvent(new Event('online'))
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(result.current.status).toBe('unavailable')
+        mocked.getMe.mockResolvedValue(ME)
+        await act(async () => {
+          result.current.retryLookup()
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(result.current.status).toBe('signed-in')
+        expect(result.current.error).toBeNull()
+        expect(result.current.lookupPending).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('starts the retry schedule over when Try again finds the server still down', async () => {
+      vi.useFakeTimers()
+      try {
+        const { result } = await gaveUp()
+        const calls = mocked.getMe.mock.calls.length
+        await act(async () => {
+          result.current.retryLookup()
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(mocked.getMe.mock.calls.length).toBe(calls + 1)
+        expect(result.current.status).toBe('unavailable')
+        // Waiting to ask again, so nothing is kept on this device meanwhile.
+        expect(result.current.lookupPending).toBe(true)
+        mocked.getMe.mockResolvedValue(ME)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1_000)
+        })
+        expect(result.current.status).toBe('signed-in')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('stays unavailable, quietly, when that last ask fails too', async () => {
       vi.useFakeTimers()
       try {

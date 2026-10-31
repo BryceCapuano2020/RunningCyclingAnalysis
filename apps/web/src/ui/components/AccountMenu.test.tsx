@@ -67,6 +67,22 @@ describe('AccountMenu states', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
+  it('offers Try again beside the status when it can look the account up again', async () => {
+    const onRetry = vi.fn()
+    renderMenu({ status: 'unavailable', me: null, onRetry })
+    expect(screen.getByRole('status')).toHaveTextContent('Sign-in is unavailable right now')
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers no Try again while the account loads or once it is known', () => {
+    const onRetry = vi.fn()
+    const view = renderMenu({ status: 'loading', me: null, onRetry })
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    view.rerender(<AccountMenu {...props({ status: 'signed-out', me: null, onRetry })} />)
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
   it('keeps one status region, so a change from checking to unavailable is announced', () => {
     const view = renderMenu({ status: 'loading', me: null })
     const region = screen.getByRole('status')

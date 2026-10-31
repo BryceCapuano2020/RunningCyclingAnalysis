@@ -258,6 +258,7 @@ export function App() {
               me={account.me}
               onSignIn={account.signIn}
               onSignOut={signOutWarning.requestSignOut}
+              onRetry={account.retryLookup}
             />
           }
         />
