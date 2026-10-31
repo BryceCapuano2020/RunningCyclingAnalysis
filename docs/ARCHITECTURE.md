@@ -126,6 +126,9 @@ repeated network failures one save is the probe and the others wait for its answ
 - `DELETE /api/me` deletes the account (see Security).
 - `GET /api/activities/:id/file` downloads an original, and `DELETE /api/activities/:id` removes an
   activity and its stored original.
+- `PATCH /api/activities/labels` sets or clears the athlete's label on up to 200 saved activities in place.
+  Each change names the revision and label the client read and applies only to a row that still holds
+  both; the digest counter moves in the same batch, and no digest travels up. No client calls it yet.
 
 **Activity workbench**
 

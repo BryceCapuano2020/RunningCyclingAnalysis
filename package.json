@@ -12,6 +12,7 @@
   },
   "scripts": {
     "dev": "npm run dev -w @rca/web",
+    "card": "npm run card -w @rca/web",
     "dev:api": "npm run dev -w @rca/api",
     "build": "npm run build -w @rca/web",
     "lint": "oxlint --deny-warnings",
