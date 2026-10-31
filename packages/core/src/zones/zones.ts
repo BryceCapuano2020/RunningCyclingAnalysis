@@ -16,6 +16,7 @@ import {
   ZONE_OVERRIDE,
   ZONE_SCHEMES,
 } from './schemes'
+import { settledThresholds } from './settleThresholds'
 import { DISTRIBUTION_OF } from './timeInZones'
 import type { ZoneMeasure } from './schemes'
 
@@ -113,7 +114,8 @@ const estimatesOfJudgement = new WeakMap<HeartRateJudgement, ZoneEstimates>()
 
 /**
  * The references of a whole library's judgement as zone estimates: its maxima, as an analysis of it reports
- * them, and its thresholds over time. The same judgement gives the same object, so what is cached by the
+ * them, and its thresholds over time, settled so a hard effort passing through a window does not move the zones, and
+ * off in a sport whose whole-library threshold is refused (`settledThresholds`). The same judgement gives the same object, so what is cached by the
  * estimates is found again.
  */
 export function zoneEstimatesOf(judgement: HeartRateJudgement): ZoneEstimates {
@@ -125,7 +127,7 @@ export function zoneEstimatesOf(judgement: HeartRateJudgement): ZoneEstimates {
       runObservedMaxHeartRate: judgement.observedMaxHr.run,
       rideObservedMaxHeartRate: judgement.observedMaxHr.ride,
       observedMaxSource: judgement.observedMaxSource,
-      thresholds: judgement.thresholdTimeline,
+      thresholds: settledThresholds(judgement.thresholdTimeline, judgement.fit),
     }
     estimatesOfJudgement.set(judgement, found)
   }
@@ -212,8 +214,8 @@ const THRESHOLD_MEASURES: readonly ZoneMeasure[] = ['pace', 'power']
  * A dated setting the athlete entered (settings.measurements) wins: the entry in effect on the local
  * date, by the policy on Measurement. Otherwise the zones come from `estimates` (`zoneEstimatesOf`) and are
  * marked estimated: a heart rate from the library's maximum, the same on every date; a pace or power from the
- * threshold fitted over the half year that ends with the date, so an activity is cut by the athlete's fitness
- * then, under every period. Where that window cannot support a fit the newest earlier one within a year is
+ * threshold fitted over the half year that ends with the date (settled: see `settledThresholds`), so an activity is
+ * cut by the athlete's fitness then, under every period. Where that window cannot support a fit the newest earlier one within a year is
  * used, marked with when its efforts end (`ZoneSet.asOfMs`); beyond that a pace or power has no zones
  * (`missingThresholdZones` says for which). A sport and measure with neither are left out.
  */

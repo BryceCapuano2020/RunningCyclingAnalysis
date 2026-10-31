@@ -83,10 +83,14 @@ export function zoneTimeText(seconds: number): string {
 const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
 const upperFirst = (text: string) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 
-/** The zones that count as easy, such as "zones 1 and 2". */
+/**
+ * The zones that count as easy, named by their measure, such as "pace zones 1 and 2". Pace, heart rate and power cut
+ * their zones from different references, so the same zone number is not the same effort, and the sentence says whose.
+ */
 function easyZones(measure: ZoneMeasure): string {
   const last = EASY_THROUGH[measure]
-  return last === 2 ? 'zones 1 and 2' : `zones 1 to ${last}`
+  const name = IN_SENTENCE[measure]
+  return last === 2 ? `${name} zones 1 and 2` : `${name} zones 1 to ${last}`
 }
 
 /** The measures of a period that have enough time to describe, most time first. */
@@ -126,7 +130,7 @@ export function periodLede(
     return `${upperFirst(name)} zone ${shift.level} took ${percentText(shift.after)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]}, ${direction} from ${percentText(shift.before)} in the ${lowerFirst(previousLabel)}.`
   }
   const split = effortSplit(lead)
-  return `${percentText(split.easy)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]} was easy (${easyZones(lead.measure)}), and ${percentText(split.hard)} was hard (zones ${HARD_FROM[lead.measure]} and up).`
+  return `${percentText(split.easy)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]} was easy (${easyZones(lead.measure)}), and ${percentText(split.hard)} was hard (${IN_SENTENCE[lead.measure]} zones ${HARD_FROM[lead.measure]} and up).`
 }
 
 /** The lede of one activity's measure: the zone that held most of the time, or all of it. Null without time. */

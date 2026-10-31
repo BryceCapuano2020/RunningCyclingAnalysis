@@ -57,6 +57,13 @@ A reference is one of two things, and the zone set says which.
   (`referenceMaxOf`; chosen against alternatives in `referenceMax.sim.test.ts`), with Profile naming the figure's
   source and offering Set. An estimate the analysis refuses, such as a threshold with too few efforts, gives no zones.
   Zones are never made from a guess.
+- **Settled** (`settleThresholds.ts`). A window of 26 weeks moves in one step when a hard effort enters or leaves it,
+  so the zones hold the fit they had until a window's fit differs from it by more than its own standard error and
+  stands: it lasts two weeks, or the next window carries on in the same direction. A hard effort that passes through
+  and goes back leaves the zones where they were. The newest fit is always taken, as the library's own figure.
+  Where the whole library's fit is refused (too few hard efforts, the effort gate, the shape check) no window of that
+  sport gives zones either: a window cannot be trusted where the library it is cut from cannot. The cost is a slower
+  reaction to a real change, by at most two weeks.
 
 Critical power is the app's threshold estimate, not a 20 minute test or a lactate test, so power and pace
 zones from it are an estimate. An entered threshold replaces it.
