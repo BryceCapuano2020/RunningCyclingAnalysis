@@ -10,6 +10,8 @@ export interface ImportCompletion {
   rejected: number
   /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
   notActivities: number
+  /** Activities whose file says one sport and whose export's list names the other (a FIT run listed as a Ride): the file wins. Absent when none. */
+  listedAsOtherSport?: number
   /** The files in a format the app does not read, by extension (such as pwx); absent when there were none. */
   skippedTypes?: Record<string, number>
   /** When the sources included an activities.csv given loose: how many files it names and how many of them were given. */
@@ -21,6 +23,8 @@ export interface ImportCompletion {
   added: ActivityDigest[]
   /** The digests that replaced a workout held out of the analysis by an older model: not new, so never a new best. */
   upgraded: ActivityDigest[]
+  /** The type the export's list gives each file it names one for, by file name. Absent when the import read no list. */
+  listedTypes?: ReadonlyMap<string, string>
 }
 
 /**

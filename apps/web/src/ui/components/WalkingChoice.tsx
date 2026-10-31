@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { countRunsLabel, WALKING_PACE_NOTE } from '../analysis/walkingPaceCopy'
+import type { AthleteType } from '@rca/core/types'
+import { countRunsLabel, labelledNote, WALKING_PACE_NOTE } from '../analysis/walkingPaceCopy'
 import './WalkingChoice.css'
 
 /** Counts runs at walking pace as runs. Whether the browser kept the choice is said by the controller's notKept. */
@@ -35,6 +36,8 @@ export function CountWalkingRuns({ count, onCount }: CountWalkingRunsProps) {
 export interface WalkingPaceSectionProps {
   /** Whether the run is marked as at walking pace, and so left out. */
   walkingPace: boolean
+  /** The athlete's label, when that is why the activity is left out: the line says so instead of the pace. */
+  label?: AthleteType
   /** Absent where the choice is not offered. */
   choice?: WalkingChoice
 }
@@ -44,7 +47,7 @@ export interface WalkingPaceSectionProps {
  * says so and "Count this run"; once it is counted, a line that says so and "Leave this run out". Each button
  * is replaced by the other, so focus follows the press to the one that took its place.
  */
-export function WalkingPaceSection({ walkingPace, choice }: WalkingPaceSectionProps) {
+export function WalkingPaceSection({ walkingPace, label, choice }: WalkingPaceSectionProps) {
   const countRef = useRef<HTMLButtonElement>(null)
   const stopRef = useRef<HTMLButtonElement>(null)
   // The button just pressed; focus moves to its replacement once that has rendered.
@@ -71,7 +74,7 @@ export function WalkingPaceSection({ walkingPace, choice }: WalkingPaceSectionPr
   if (walkingPace) {
     return (
       <div className="walking-choice">
-        <p className="secondary">{WALKING_PACE_NOTE}</p>
+        <p className="secondary">{label === undefined ? WALKING_PACE_NOTE : labelledNote(label)}</p>
         {choice !== undefined && (
           <button
             ref={countRef}
@@ -91,9 +94,7 @@ export function WalkingPaceSection({ walkingPace, choice }: WalkingPaceSectionPr
   if (choice === undefined || !counted) return null
   return (
     <div className="walking-choice">
-      <p className="secondary">
-        This run is at walking pace. You count it as a run, so it is in your run analysis.
-      </p>
+      <p className="secondary">You count it, so it is in your analysis.</p>
       <button
         ref={stopRef}
         type="button"

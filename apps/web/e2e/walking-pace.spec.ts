@@ -68,7 +68,7 @@ test('a run at walking pace is said to be left out, never that there are no runs
   await page.reload()
   await expect(heading).toHaveText('Your running so far')
   await openRunPage(page)
-  await expect(page.getByText(/You count it as a run/)).toBeVisible()
+  await expect(page.getByText(/You count it, so it is in your analysis/)).toBeVisible()
   await page.getByRole('button', { name: 'Leave this run out' }).click()
   await expect(page.getByRole('button', { name: 'Count this run' })).toBeFocused()
   await expect(page.getByText(/left out of your run analysis/)).toBeVisible()
