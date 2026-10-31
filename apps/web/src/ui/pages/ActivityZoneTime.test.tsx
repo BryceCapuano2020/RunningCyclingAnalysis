@@ -215,7 +215,7 @@ describe('ActivityZoneTime, a pace the date has no zones for', () => {
         units="metric"
         loadTrace={async () => ({ kind: 'trace', trace })}
         zoneSets={[setOf('run', 'heartRate', 180)]}
-        missingZones={['pace']}
+        missingZones={[{ measure: 'pace', outgrown: false }]}
       />,
     )
     await screen.findByRole('heading', { name: 'Time in zones' })
@@ -224,6 +224,44 @@ describe('ActivityZoneTime, a pace the date has no zones for', () => {
         'No pace zones for this run. A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
       ),
     ).toBeInTheDocument()
+  })
+})
+
+describe('ActivityZoneTime, efforts above the threshold on file', () => {
+  it('says so for pace, beside the heart rate time that is left', async () => {
+    const trace = twoPartRun()
+    render(
+      <ActivityWorkbench
+        activityId="run-5"
+        units="metric"
+        loadTrace={async () => ({ kind: 'trace', trace })}
+        zoneSets={[setOf('run', 'heartRate', 180)]}
+        missingZones={[{ measure: 'pace', outgrown: true }]}
+      />,
+    )
+    await screen.findByRole('heading', { name: 'Time in zones' })
+    expect(
+      screen.getByText('No pace zones: this run is harder than the threshold on file.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/set your pace zones/)).toBeNull()
+  })
+
+  it('says so for power, beside the heart rate time that is left', async () => {
+    const trace = { ...twoPartRun(), sport: 'ride' as const }
+    render(
+      <ActivityWorkbench
+        activityId="ride-5"
+        units="metric"
+        loadTrace={async () => ({ kind: 'trace', trace })}
+        zoneSets={[setOf('ride', 'heartRate', 180)]}
+        missingZones={[{ measure: 'power', outgrown: true }]}
+      />,
+    )
+    await screen.findByRole('heading', { name: 'Time in zones' })
+    expect(
+      screen.getByText('No power zones: this ride is harder than the threshold on file.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/set your power zones/)).toBeNull()
   })
 })
 
@@ -236,7 +274,7 @@ describe('ActivityZoneTime, a heart rate the date has no zones for', () => {
         units="metric"
         loadTrace={async () => ({ kind: 'trace', trace })}
         zoneSets={[setOf('run', 'pace', 3.5)]}
-        missingZones={['heartRate']}
+        missingZones={[{ measure: 'heartRate', outgrown: false }]}
       />,
     )
     await screen.findByRole('heading', { name: 'Time in zones' })

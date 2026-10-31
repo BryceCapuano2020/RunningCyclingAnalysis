@@ -6,7 +6,7 @@ import {
   DURATIONS_S,
   HEADLINE_DURATION_S,
 } from '../constants'
-import { criticalPowerOutcome, wPrimeFloor } from '../cp'
+import { criticalPowerOutcome, predictCritical, wPrimeFloor } from '../cp'
 import { ENVELOPE_TIE_TOLERANCE } from '../curves/monotoneEnvelope'
 import { isHardShare } from '../effort'
 import type { MaxHeartRates, ReferenceReading } from '../effort'
@@ -232,6 +232,22 @@ function twentyMinuteValue(entry: Entry): number {
 }
 
 /**
+ * How far above what an older fit predicts for 20 minutes a window's best 20 minutes may be before that fit is outgrown:
+ * 10%, twice the reach tolerance, so a point's scatter about the line never decides it.
+ */
+const OUTGROWN_BY = 0.1
+
+/**
+ * Whether the window's best 20 minutes is so far above what `held` predicts for 20 minutes that `held` no longer says where
+ * the athlete is. A steady effort has a flat curve and no fit of its own, so without this the zones of the very activity
+ * that raised the athlete's level would be cut from the older, lower fit.
+ */
+function outgrown(held: CriticalPowerFit, curve: Float64Array): boolean {
+  const best = curve[HEADLINE_INDEX]!
+  return best > NONE && best > predictCritical(held, HEADLINE_DURATION_S) * (1 + OUTGROWN_BY)
+}
+
+/**
  * The steps of one sport. `fitOf` fits a window's curve the way the analysis reports a fit; a window whose best
  * 20 minutes was not hard (`windowHard`, with the sport's reference `reading`) has none, as the analysis has none.
  */
@@ -254,9 +270,11 @@ function stepsOf(
     window.pushTo(hi)
     window.popTo(lo)
     const alone = standingAt.filter((i) => i >= lo && i < hi).map((i) => entries[i]!.standing!)
-    const fit =
-      lo < hi && windowHard(entries, lo, hi, reading) ? fitOf(windowCurve(window, alone)) : null
+    const curve = lo < hi ? windowCurve(window, alone) : null
+    const fit = curve !== null && windowHard(entries, lo, hi, reading) ? fitOf(curve) : null
     if (fit !== null) lastFit = steps.length
+    // A window with no fit of its own leaves the older fit to stand in for it, unless its efforts have outgrown that fit.
+    else if (curve !== null && lastFit >= 0 && outgrown(steps[lastFit]!.fit!, curve)) lastFit = -1
     let newest = hi - 1
     while (newest >= lo && !entries[newest]!.effort) newest--
     steps.push({ fromMs, fit, asOfMs: newest >= lo ? entries[newest]!.startMs : null, lastFit })

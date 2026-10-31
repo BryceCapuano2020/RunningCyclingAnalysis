@@ -39,7 +39,7 @@ describe('heart-rate zones when no effort reached near the maximum', () => {
 
   it('says which are missing, for the page to explain', () => {
     expect(missingThresholdZones(AT, SETTINGS, withReading('habitual'))).toEqual([
-      { sport: 'run', measure: 'heartRate' },
+      { sport: 'run', measure: 'heartRate', outgrown: false },
     ])
     expect(missingThresholdZones(AT, SETTINGS, trusted)).toEqual([])
   })
