@@ -1,4 +1,3 @@
-import { withLocalWeeks } from '@rca/core/calendar'
 import { DAY_MS } from '@rca/core/constants'
 import { describe, expect, it } from 'vitest'
 import { makeActivity } from './components/fixtures'
@@ -60,7 +59,7 @@ describe('weeklyVolume', () => {
     expect(weeks?.[1]?.seconds.run).toBe(200)
   })
 
-  it('counts an activity in the week of its local day once local weeks are on', () => {
+  it('counts an activity in the week of its local day', () => {
     // Sunday evening UTC, on Monday in its own zone.
     const lateSunday = makeActivity({
       id: 'zone',
@@ -69,13 +68,11 @@ describe('weeklyVolume', () => {
       localDayShift: 1,
     })
     const others = [activityOn(14), activityOn(21)]
-    const utc = weeklyVolume([lateSunday, ...others], weekEnds(4))
+    const utc = weeklyVolume([{ ...lateSunday, localDayShift: 0 }, ...others], weekEnds(4))
     expect(utc?.[0]?.seconds.run).toBe(300)
-    withLocalWeeks(true, () => {
-      const local = weeklyVolume([lateSunday, ...others], weekEnds(4))
-      expect(local?.[0]?.seconds.run).toBe(0)
-      expect(local?.[1]?.seconds.run).toBe(300)
-    })
+    const local = weeklyVolume([lateSunday, ...others], weekEnds(4))
+    expect(local?.[0]?.seconds.run).toBe(0)
+    expect(local?.[1]?.seconds.run).toBe(300)
   })
 
   it('times an activity from before moving time was kept by its elapsed time', () => {

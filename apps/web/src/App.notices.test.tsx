@@ -52,15 +52,14 @@ beforeEach(() => {
 })
 
 describe('saved activities that need updating', () => {
-  it('shows the stale count beside the results of the rest, and Update now rebuilds the saved activities', () => {
+  it('holds the results of the rest while any activity needs updating (revision 7 is exclusive), and Update now rebuilds the saved activities', () => {
     showResult()
     setSession({ outdatedActivities: 2, libraryActivities: 12 })
     app.analysis.outdatedWithOriginal = 2
     render(<App />)
+    expect(screen.getByText('Update your library')).toBeInTheDocument()
     expect(
-      screen.getByText(
-        '2 saved activities need a quick update before they count in these results.',
-      ),
+      screen.getByText('2 activities will be rebuilt from your saved files.'),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Update now' }))
     expect(app.analysis.rebuildSavedActivities).toHaveBeenCalledOnce()

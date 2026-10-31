@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { readStylesheet } from './ui/components/stylesheet'
 
 /*
  * "The server stores only what the privacy page lists" (docs/ENGINEERING.md). The analysis summary (the digest)
@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
  * mapped here to the phrase of apps/web/privacy.html that names it, so a field added to the digest fails
  * this test until the page says it. Revision 7 added three, and the page says what the stored shift reveals.
  */
-const page = readFileSync(new URL('../privacy.html', import.meta.url), 'utf8')
+const page = (await readStylesheet(import.meta.url, '../privacy.html'))
   .replace(/<script[\s\S]*?<\/script>/g, ' ')
   .replace(/<style[\s\S]*?<\/style>/g, ' ')
   .replace(/<[^>]+>/g, ' ')
@@ -15,7 +15,7 @@ const page = readFileSync(new URL('../privacy.html', import.meta.url), 'utf8')
   .replace(/\s+/g, ' ')
   .toLowerCase()
 
-const types = readFileSync(new URL('../../../packages/core/src/types.ts', import.meta.url), 'utf8')
+const types = await readStylesheet(import.meta.url, '../../../packages/core/src/types.ts')
 
 /** The keys of `interface ActivityDigest`, read from the source so a new one cannot be missed. */
 function digestFields(): string[] {

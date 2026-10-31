@@ -330,17 +330,17 @@ describe('resuming the saves an earlier visit left', () => {
   })
 
   it('sends a row from an older analysis that the current one reads beside its own', async () => {
-    // Revision 7 changes nothing the older digests rely on, so a revision 6 row is compatible and is sent.
-    const seven: RevisionDeclaration = {
-      revision: 7,
+    // A later revision 8 changes nothing the older digests rely on, so a revision 7 row is compatible and is sent.
+    const eight: RevisionDeclaration = {
+      revision: 8,
       kind: 'additive',
       adds: [],
       changes: [],
       affects: [],
     }
-    await withRevisionTableAsync([...REVISIONS, seven], async () => {
-      const older = serializeDigest({ ...digests[0]!, modelRevision: 6 })
-      const current = serializeDigest({ ...digests[1]!, modelRevision: 7 })
+    await withRevisionTableAsync([...REVISIONS, eight], async () => {
+      const older = serializeDigest({ ...digests[0]!, modelRevision: 7 })
+      const current = serializeDigest({ ...digests[1]!, modelRevision: 8 })
       const { resume, left } = setup([
         rowFor(0, { digestJson: older }),
         rowFor(1, { digestJson: current }),
