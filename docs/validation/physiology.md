@@ -280,3 +280,44 @@ values rise by about 8% at flat. This is expected and correct. `calibrationWeigh
 economy draws by the prior mean (`sampling.ts:33`), which stays 1.0, so the correction enters
 through the observed heart-rate data and not through the draws. The size of the shift was not
 measured separately. The κ test in `pipeline.test.ts` still brackets the true value.
+
+## 11. Steep descents (revision 7, behind the gate)
+
+Revision 7 credits a run with only a share of the saving Minetti's polynomial gives below -4% grade
+(`descentCost` in `packages/core/src/metabolic/power.ts`). The cost at a grade g below -4% is
+`runCost(-0.04) - k * (runCost(-0.04) - runCost(max(g, -0.18)))` with k = `STEEP_DESCENT_CREDIT` = 0.5. It is
+continuous at -4% and never rises as the descent steepens. The grade is held at -18%, the minimum of the
+polynomial (-0.1814); past it the polynomial turns up and would give the saving back.
+
+### 11.1 Readings behind k
+
+| Ref | Source                                                                                                                                                                     | What it says                                                                                                                                                                                                                                        | Status                                                                                      |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| L21 | Lemire M et al. (2021). Level, uphill, and downhill running economy values are correlated except on steep slopes. _Front Physiol_ 12:697315, doi:10.3389/fphys.2021.697315 | Net oxygen uptake (resting 5.0 ml/min/kg subtracted), pooled over 8 to 14 km/h, Table 1: 0%: 39.9, -5%: 32.5, -10%: 28.8, -20%: 26.5 ml/min/kg (n 29, 26, 29, 21). The slope of least cost was -14.1% at 8 km/h and -19.5% at 14 km/h (mean -17.3%) | Read through a page-reading tool, not from the PDF; the table values are pooled over speeds |
+| V17 | Vernillo G et al. (2017). Biomechanics and physiology of uphill and downhill running. _Sports Med_ 47:615-629, doi:10.1007/s40279-016-0605-y                               | Cost falls with negative slope to a minimum, then rises                                                                                                                                                                                             | Abstract only (search snippet)                                                              |
+| R25 | A 2025 review of uphill and downhill running, _Front Bioeng Biotechnol_, doi:10.3389/fbioe.2025.1690023                                                                    | The minimum lies between about -10% and -20% (Lussiana 2013, Vernillo 2017, Minetti 2002)                                                                                                                                                           | Text read through a page-reading tool; it gives no per-slope magnitudes                     |
+| M02 | Minetti 2002 (section 2)                                                                                                                                                   | The polynomial the model uses                                                                                                                                                                                                                       | Coefficients unverified against the PDF, as in section 2                                    |
+
+### 11.2 What L21 implies for k
+
+Against level, the measured saving is 19% at -5%, 28% at -10% and 34% at -20%. The polynomial's saving
+(Minetti's own level cost of 3.6, no correction) is 24%, 40% and 50%, so the measured saving is 0.68 to 0.79 of
+it, and the model's cost at -5% is already a little too low. Solving the formula above for k so that the cost at
+-10% matches the measured saving gives 0.40; at -20% (held at -18%) it gives 0.45. The reading is a net
+oxygen cost pooled over speeds, in a lab, in a group that included trained runners, and the model's own cost
+basis is not settled (section 2), so it fixes a size, not a value.
+
+### 11.3 The value chosen
+
+The heart-rate windows in the audit (pass-through 0.47 of the modelled saving below -8%) are a lower bound on
+the credit, not a fit target: recovery lag after the climb, eccentric load and cardiac drift raise heart rate
+on a descent and so understate the saving. L21 reads 0.40 to 0.45, below the 0.5 to 0.7 range the design
+allowed. k = 0.5 is the value that is not under the heart-rate bound (0.47) and is nearest the oxygen
+reading. It is one constant. A value in the design's range up to 0.7 would give runs back more credit on
+steep descents; nothing here supports more than 0.5.
+
+### 11.4 What moves
+
+Only runs with a sample below -4%: `curve[].value`, `hrBlocks[].value`, the run distributions, the flat-equivalent
+seconds of splits, durability and drift. A run with no such sample is the same digest at revisions 6 and 7
+(`revision7.grade.test.ts`, D3). The level correction (+0.30 J/kg/m) and the air term are not in this change.
