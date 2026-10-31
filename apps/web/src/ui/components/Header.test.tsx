@@ -135,10 +135,10 @@ describe('Header on a phone', () => {
       'scroll-padding-bottom: calc(var(--tab-bar-height) + 1px);',
     )
   })
-  it('sets the four tabs as equal slots that may shrink, with labels at the phone size', () => {
+  it('sets the four tabs as equal slots that never shrink below their label, with labels at the phone size', () => {
     const tab = /\.header__tab \{([^}]*)\}/.exec(phoneBlock(headerCss))?.[1] ?? ''
     expect(tab).toMatch(/flex:\s*1 1 0/)
-    expect(tab).toMatch(/min-width:\s*0/)
+    expect(tab).toMatch(/min-width:\s*min-content/)
     expect(tab).toMatch(/font-size:\s*var\(--text-label\)/)
   })
 

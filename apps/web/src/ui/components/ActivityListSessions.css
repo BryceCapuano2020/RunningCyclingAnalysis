@@ -1,0 +1,31 @@
+/* A row's record chips, and the legs of one file that holds several sessions. */
+.activity-list__records {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.activity-list__more {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* The legs of one file, one session, with the session's total time above them. */
+.activity-list__session-title {
+  margin: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-list__session-title span {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.activity-list__legs {
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+  list-style: none;
+}
