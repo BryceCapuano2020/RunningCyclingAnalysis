@@ -1,3 +1,4 @@
+import { localYearOf } from '@rca/core/calendar'
 import { DEFAULT_ATHLETE, SAMPLE_REFERENCE_NOW_MS } from '@rca/core/synthetic'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -14,7 +15,7 @@ export const SAMPLE_SEX = 'male'
 
 /** The sample athlete's profile for a season that ends in the year of `newestMs`. */
 export function sampleProfileAt(newestMs: number): AgeProfile {
-  return { birthYear: new Date(newestMs).getFullYear() - SAMPLE_AGE, sex: SAMPLE_SEX }
+  return { birthYear: localYearOf(newestMs) - SAMPLE_AGE, sex: SAMPLE_SEX }
 }
 
 /** The profile of the fixed reference season, which tests and fixtures use. */

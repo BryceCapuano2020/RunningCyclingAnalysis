@@ -1,5 +1,5 @@
 import { DAY_MS } from '../constants'
-import { weekEndMs } from '../digest/trendPoints'
+import { weekEndFor } from '../calendar'
 import type { Sport } from '../types'
 import { FINDING_SPORTS, FINDINGS } from './constants'
 import { lintFinding } from './copy'
@@ -58,7 +58,7 @@ const finiteSpan = (s: Span, latestMs: number) =>
  * library, and a sign that agrees with the effect's.
  */
 function wellFormed(c: Candidate, input: FindingInput, ids: () => ReadonlySet<string>): boolean {
-  const latestMs = weekEndMs(input.asOfMs)
+  const latestMs = weekEndFor({ startMs: input.asOfMs })
   const sign = c.support.sign
   const signAgrees =
     sign.kind === 'agree'
