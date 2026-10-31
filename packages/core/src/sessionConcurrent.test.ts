@@ -156,6 +156,8 @@ describe('saves that run in the background while the network is down', () => {
   })
 
   it('sends one probe after the failures, and the files after it wait for its answer instead of each failing', async () => {
+    // Reading the zip takes real time, which only real timers wait for; the fake ones are advanced beside it.
+    const realSetTimeout = globalThis.setTimeout
     vi.useFakeTimers({ toFake: ['setTimeout'] })
     const session = new AnalysisSession()
     const sent: string[] = []
@@ -173,7 +175,11 @@ describe('saves that run in the background while the network is down', () => {
       ended = true
       return state
     })
-    for (let i = 0; i < 200 && !ended; i++) await vi.advanceTimersByTimeAsync(100)
+    // Until the import ends, however slowly the machine reads: a fixed number of rounds ended before it on a slow one.
+    for (let i = 0; i < 5000 && !ended; i++) {
+      await vi.advanceTimersByTimeAsync(100)
+      await new Promise((resolve) => realSetTimeout(resolve, 2))
+    }
     const state = await run
 
     // Three failures, then one probe. The six files after it were never sent.
