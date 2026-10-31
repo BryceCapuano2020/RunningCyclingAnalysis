@@ -2961,6 +2961,28 @@ describe('a reply carries its request number, and nothing follows it', () => {
   })
 })
 
+describe('an import that skips files in a format the app does not read', () => {
+  it('names the formats in its outcome, with the count it always gave', async () => {
+    const { send } = await startWorker()
+    const zip = zipSync({
+      'run.fit': new Uint8Array(RUN_FILE_BYTES),
+      'a.pwx': strToU8('x'),
+      'b.pwx': strToU8('x'),
+      'c.kml': strToU8('x'),
+    })
+
+    const messages = await send({
+      ...signedOutImport(new File([new Uint8Array(zip)], 'export.zip')),
+    })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 3, skippedTypes: { pwx: 2, kml: 1 } },
+      state: { unsupportedFiles: 3 },
+    })
+  })
+})
+
 describe('a signed-in import saves its activities side by side', () => {
   /** A zip of short runs, a day apart, so none is a copy of another. */
   const base: Activity = sampleActivity!

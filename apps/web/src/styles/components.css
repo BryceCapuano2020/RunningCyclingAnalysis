@@ -67,12 +67,32 @@
   max-width: var(--measure);
 }
 
-.eyebrow {
+/*
+ * The tag: the small condensed capitals that name a thing (an eyebrow over a value, a tile's name, a period, a basis, a
+ * change's evidence, a marker on a track). One rule sets the face, size, weight and tracking; a tag is muted by default,
+ * `tag--ink` takes the supporting ink, and `tag--small` the 12 px size. Layout, shape and any chip background stay with
+ * the component that uses it. `.eyebrow` shares the size, weight, tracking and capitals.
+ */
+.eyebrow,
+.tag {
   color: var(--text-muted);
   font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+}
+
+/* The tag is set in the display face. The eyebrow keeps the face it has (the group at the top of this sheet). */
+.tag {
+  font-family: var(--font-display);
+}
+
+.tag--ink {
+  color: var(--text-secondary);
+}
+
+.tag--small {
+  font-size: var(--text-xs);
 }
 
 /*

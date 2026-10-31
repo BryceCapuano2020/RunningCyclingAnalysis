@@ -15,7 +15,11 @@ const BASIS_TEXT: Record<TileBasis, string> = {
 
 /** The chip that says what kind of evidence a figure is, a ring for an estimate and a dot for what was recorded. */
 export function BasisChip({ basis }: { basis: TileBasis }) {
-  return <span className={`stat-tile__basis stat-tile__basis--${basis}`}>{BASIS_TEXT[basis]}</span>
+  return (
+    <span className={`tag tag--ink tag--small stat-tile__basis stat-tile__basis--${basis}`}>
+      {BASIS_TEXT[basis]}
+    </span>
+  )
 }
 
 export interface StatTileProps {
@@ -67,7 +71,7 @@ export function StatTile({
     <article className="stat-tile" data-sport={sport} aria-label={heading}>
       <div className="stat-tile__head">
         <span className="stat-tile__dot" aria-hidden="true" />
-        <h3 className="stat-tile__name">
+        <h3 className="tag stat-tile__name">
           <HeadingText heading={heading} definition={definition} />
         </h3>
         {basis === undefined ? null : <BasisChip basis={basis} />}
