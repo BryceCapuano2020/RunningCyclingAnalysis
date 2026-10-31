@@ -2985,6 +2985,26 @@ describe('the saves an earlier visit left in the outbox', () => {
     expect(mocked.createActivity).not.toHaveBeenCalled()
   })
 
+  it('sends nothing more once Remove all comes while a save waits out a Retry-After', async () => {
+    seedRow(SAMPLE_DIGEST)
+    seedRow(digestActivity(secondSampleActivity))
+    mocked.createActivity.mockRejectedValue(
+      new ApiRequestError(429, 'rate_limited', 'Slow down', 150),
+    )
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() => expect(mocked.createActivity).toHaveBeenCalled())
+    const sent = mocked.createActivity.mock.calls.length
+
+    await send({ type: 'clear', forgetDevice: true })
+    // Longer than the wait the server asked for: a send that was not cancelled would have been made by now.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(sent)
+    expect([...outboxRows.values()].every((rows) => rows.size === 0)).toBe(true)
+  })
+
   it('keeps the waiting saves when the page only clears the session', async () => {
     seedRow(SAMPLE_DIGEST)
     const { send } = await startWorker()

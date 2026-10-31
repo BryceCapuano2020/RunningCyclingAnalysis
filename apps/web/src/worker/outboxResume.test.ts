@@ -243,6 +243,31 @@ describe('resuming the saves an earlier visit left', () => {
     expect(left.size).toBeGreaterThanOrEqual(3)
   })
 
+  it('sends nothing after a cancel that came while a row waited out a Retry-After', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(createActivity).mockRejectedValue(
+        new ApiRequestError(429, 'rate_limited', 'Slow down', 5_000),
+      )
+      const { resume, left, attempts } = setup([rowFor(0), rowFor(1), rowFor(2)])
+      await vi.advanceTimersByTimeAsync(10)
+      const sent = vi.mocked(createActivity).mock.calls.length
+      expect(sent).toBeGreaterThan(0)
+
+      // Remove all comes while the limit is being waited out.
+      resume.cancel()
+      await vi.advanceTimersByTimeAsync(60_000)
+      await resume.finished
+
+      expect(vi.mocked(createActivity)).toHaveBeenCalledTimes(sent)
+      // Nothing was refused by the server for good: the rows are untouched.
+      expect(attempts.size).toBe(0)
+      expect(left.size).toBe(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('lets a row from an older analysis go without sending it, and counts it as one that could not be saved', async () => {
     const old = serializeDigest({ ...digests[0]!, modelRevision: 1 })
     const { resume, posted, left } = setup([rowFor(0, { digestJson: old }), rowFor(1)])

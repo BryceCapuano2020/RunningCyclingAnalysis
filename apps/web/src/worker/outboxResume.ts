@@ -16,6 +16,9 @@ import { noteWork } from './workerWire'
 /** Failures after which a row is let go at once: the server holds another copy, or the account is going. */
 const NEVER_TAKEN = new Set<SyncIssueCode>(['activity-conflict', 'account-deleting'])
 
+/** Thrown in place of a send that was cancelled while it waited: the row is left as it is. */
+class NotSent extends Error {}
+
 export interface ResumeContext {
   userId: string
   outbox: Outbox
@@ -86,14 +89,18 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
       try {
         const { record } = await stop.run(async (leading) => {
           if (!leading) await stop.ready()
-          return ctx.sending.run(row.key, () =>
-            createActivity(digest, row.fileName, row.fileHash, ctx.userId),
-          )
+          // Checked again after any wait (a rate limit's, another send's) and at the moment of sending: a cancel
+          // or a stop that came meanwhile means nothing more is sent.
+          return ctx.sending.run(row.key, () => {
+            if (cancelled) throw new NotSent()
+            return createActivity(digest, row.fileName, row.fileHash, ctx.userId)
+          })
         })
         ctx.savedRecords.set(record.id, record)
         await ctx.outbox.done(row.key, row.digestId)
         return 'saved'
       } catch (error) {
+        if (error instanceof NotSent) return 'kept'
         const failure = syncFailureOf(error)
         stop.noteFailure(failure.code)
         if (NEVER_TAKEN.has(failure.code)) {
