@@ -1,6 +1,7 @@
 import { MAX_KM_SPLITS, MAX_MILE_SPLITS } from '../constants'
 import { EDGE_EPSILON } from '../math'
 import { elevationIncrements } from '../digest/elevationGain'
+import { RESTING_W_PER_KG } from '../constants'
 import { metabolicToFlatSpeed } from '../metabolic'
 import { QUALITY_THRESHOLDS } from '../quality'
 import { restsOf } from './rests'
@@ -20,6 +21,11 @@ interface Streams {
   economyScale: number
   /** 1 for every second where the file's speed and distance disagreed and the metabolic stream was lowered. */
   covered: Uint8Array
+  /**
+   * The speed stream the metabolic stream was built on (after the stream-agreement filter), or absent below
+   * revision 7. Present, a split's cost is corrected for the file's distance against it (see `streamRatio`).
+   */
+  speed?: Float64Array
   /** 1 for every second the device was timing the run: neither paused nor in a gap it did not record. */
   moving: Uint8Array
   /** 1 for every second of a rest: not timed, and the run stood still across it. */
@@ -143,25 +149,59 @@ function timeKnown(
   return seconds !== null && distanceM / seconds <= QUALITY_THRESHOLDS.speedSpike.maxSpeedMs.run
 }
 
+/** The range of file-distance to speed-stream ratios that is corrected; a watch's two streams differ by about 1%. */
+const MIN_STREAM_RATIO = 0.95
+const MAX_STREAM_RATIO = 1.08
+
 /**
  * Seconds on flat ground at the same metabolic cost as the split, from the mean cost of its moving
  * samples, as the best efforts pace is. Null when any moving sample has no known grade. Seconds the
  * device was not timing, a pause or a recording gap, are left out of the mean, so the flat time is
  * the distance at the cost of the running done.
+ *
+ * The clock follows the file's distance but the cost follows its speed stream, and a device's two differ by
+ * a ratio. With `correct` (revision 7, a split clear of any disagreement) the mean cost above rest is
+ * multiplied by `rho`, the distance the file gained over the split's moving seconds over the metres its
+ * speed stream implies, when `rho` is from 0.95 to 1.08. A flat kilometre then shows no credit for the ratio.
  */
-function flatSeconds(s: Streams, from: number, to: number, distanceM: number): number | null {
+function flatSeconds(
+  s: Streams,
+  from: number,
+  to: number,
+  distanceM: number,
+  correct: boolean,
+): number | null {
   const [first, end] = sampleRange(from, to, s.activity.n)
+  const { distance } = s.activity
   let weight = 0
   let cost = 0
+  let fileM = 0
+  let speedM = 0
+  let whole = true
   for (let i = first; i < end; i++) {
     const w = overlap(i, from, to)
-    if (w <= 0 || s.quality.validMotion[i] !== 1 || s.moving[i] !== 1) continue
+    if (w <= 0 || s.moving[i] !== 1) continue
+    // A moving second with no usable motion is in the split's distance but not in its cost.
+    if (s.quality.validMotion[i] !== 1) {
+      whole = false
+      continue
+    }
     if (s.quality.validGrade[i] !== 1) return null
     weight += w
     cost += w * s.metabolic[i]!
+    // Across a recording gap the distance is held and then steps, so the step is not a second's run.
+    if (i > 0 && s.activity.unrecorded?.[i - 1] !== 1 && s.activity.unrecorded?.[i] !== 1) {
+      fileM += w * (distance[i]! - distance[i - 1]!)
+      speedM += w * (s.speed?.[i] ?? 0)
+    }
   }
   if (!(weight > 0)) return null
-  const flatSpeed = metabolicToFlatSpeed(cost / weight, s.economyScale)
+  let mean = cost / weight
+  const rho = correct && whole && speedM > 0 ? fileM / speedM : 1
+  if (rho >= MIN_STREAM_RATIO && rho <= MAX_STREAM_RATIO) {
+    mean = RESTING_W_PER_KG + (mean - RESTING_W_PER_KG) * rho
+  }
+  const flatSpeed = metabolicToFlatSpeed(mean, s.economyScale)
   return flatSpeed > 0 ? distanceM / flatSpeed : null
 }
 
@@ -191,13 +231,14 @@ function splitOf(s: Streams, span: Span): DigestSplit {
   const { timedS, restM } = timedSeconds(s, from, to)
   const paced = timedPace(timedS, restM, distanceM)
   const known = timeKnown(s, from, to, distanceM, paced)
-  const flat = known ? flatSeconds(s, from, to, distanceM) : null
+  const touches = touchesDisagreement(s, from, to)
+  const flat = known ? flatSeconds(s, from, to, distanceM, s.speed !== undefined && !touches) : null
   // The clock time goes by the file's distance, but the cost behind the flat time goes by the lower
   // of its speed and distance streams. Where the speed was the lower one, the same distance read at
   // that slower cost gives a flat time longer than the clock, which only the disagreement explains.
   // A split touching one reads no slower than its clock. Uphill the flat time is already faster,
   // so the cap acts on flat and downhill splits, where a mild downhill's true slowing is lost.
-  const capped = flat !== null && touchesDisagreement(s, from, to) ? Math.min(flat, paced!) : flat
+  const capped = flat !== null && touches ? Math.min(flat, paced!) : flat
   return {
     distanceM,
     seconds: known ? roundTo(paced!, 2) : null,
@@ -246,6 +287,8 @@ function splitsOf(s: Streams, totalM: number, unit: number, limit: number): Dige
  * best-effort pace agree. `covered` marks the seconds where that stream was lowered because the
  * file's speed and distance disagreed. `moving` marks the seconds the device was timing, which every
  * split's time and flat time are counted over. A unit with more splits than its limit has none.
+ * `agreedSpeed` is the speed stream `metabolic` was built on: given (revision 7), each split's flat time is
+ * corrected for the ratio of the file's distance to it.
  */
 export function runSplits(
   activity: Activity,
@@ -254,6 +297,7 @@ export function runSplits(
   economyScale: number,
   covered: Uint8Array,
   moving: Uint8Array,
+  agreedSpeed?: Float64Array,
 ): DigestSplits {
   const totalM = maxDistance(activity.distance)
   if (totalM < MIN_PARTIAL_M) return { km: [], mile: [] }
@@ -271,6 +315,7 @@ export function runSplits(
     metabolic,
     economyScale,
     covered,
+    ...(agreedSpeed === undefined ? {} : { speed: agreedSpeed }),
     moving,
     rest,
     restGain: gain,

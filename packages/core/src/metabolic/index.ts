@@ -4,7 +4,8 @@ export {
   smoothGrade,
   travelledDistance,
 } from './grade'
-export { MIN_RUN_SPEED_MS, minettiCost, runCost, runMetabolicPower } from './power'
+export { descentCost, MIN_RUN_SPEED_MS, minettiCost, runCost, runMetabolicPower } from './power'
+export type { RunPowerOptions } from './power'
 export {
   flatSpeedToMetabolic,
   metabolicToFlatSpeed,

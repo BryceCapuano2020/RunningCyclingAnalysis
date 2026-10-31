@@ -37,6 +37,7 @@ import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
 import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
+import { powerCheckOf, trustedPower } from './powerCheck'
 import { answers } from './judgedWork'
 import type { JudgedWork } from './judgedWork'
 import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
@@ -207,7 +208,12 @@ export function activitySummaries(
   const masses = settings === undefined ? null : massesOf(settings)
   const dated = masses !== null && masses.dated
   return orderedFor('listing', digests)
-    .map((digest) => summaryOf(digest, dated ? masses.bodyKg(digest) : undefined))
+    .map((digest) => {
+      const summary = summaryOf(digest, dated ? masses.bodyKg(digest) : undefined)
+      const check = masses === null ? undefined : powerCheckOf(digest, masses)
+      // A flagged ride gets its own copy; the cached summary is shared and stays as it is.
+      return check === undefined ? summary : Object.assign({}, summary, { powerCheck: check })
+    })
     .sort((a, b) => b.startMs - a.startMs)
 }
 
@@ -264,7 +270,7 @@ export function combine(
   // The library's judgement already did the work of an analysis of the whole library under the same masses.
   const reused =
     opts.judged !== undefined && answers(opts.judged, ordered, settings, opts) ? opts.judged : null
-  const calibrated = calibratedOf(ordered)
+  const calibrated = calibratedOf(trustedPower(ordered, masses))
   const fittedBike =
     reused === null
       ? fitBikeModelOver(ordered, masses)
@@ -288,7 +294,7 @@ export function combine(
   const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = curves
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
-  const rideMeasuredCurve = plainCurve(measuredRideBest(ordered))
+  const rideMeasuredCurve = plainCurve(measuredRideBest(trustedPower(ordered, masses)))
   // What the judgement worked out is shared, so what the result hands out is a copy.
   const rideMetabolicCurve =
     reused === null ? rideMetabolic : rideMetabolic.map((point) => Object.assign({}, point))

@@ -140,17 +140,26 @@ describe('the one rule for what counts as a reading', () => {
     expect(sameAsEverything).toBe(false)
   })
 
-  it('counts the readings the minimum sizes are made of: a rule that leaves efforts out leaves a length untested', () => {
+  it('reads every effort in both periods when the rule leaves too few in either to test, and says so', () => {
     const none: ReadingRule = { activity: () => true, point: () => false }
-    const evidence = changeEvidence(
+    const [selected, previous] = [
       library.filter((d) => d.startMs >= MONDAY + 6 * 7 * DAY_MS),
       library.filter((d) => d.startMs < MONDAY + 6 * 7 * DAY_MS),
-      SETTINGS,
-      DEFAULT_BIKE_MODEL,
-      null,
-      none,
-    )
-    expect(evidence.run.every((call) => call.verdict === 'untested' && call.now === 0)).toBe(true)
+    ]
+    const gated = changeEvidence(selected, previous, SETTINGS, DEFAULT_BIKE_MODEL, null, none)
+    expect(gated).toEqual(changeEvidence(selected, previous, SETTINGS, DEFAULT_BIKE_MODEL, null))
+    expect(gated.run.every((call) => !call.gated)).toBe(true)
+    expect(gated.run.some((call) => call.now > 0)).toBe(true)
+  })
+
+  it('makes the call from the rule’s readings when both periods hold enough of them', () => {
+    const counting: ReadingRule = { activity: EVERY_EFFORT.activity, point: () => true }
+    const [selected, previous] = [
+      library.filter((d) => d.startMs >= MONDAY + 6 * 7 * DAY_MS),
+      library.filter((d) => d.startMs < MONDAY + 6 * 7 * DAY_MS),
+    ]
+    const gated = changeEvidence(selected, previous, SETTINGS, DEFAULT_BIKE_MODEL, null, counting)
+    expect(gated.run.some((call) => call.gated)).toBe(true)
   })
 })
 
@@ -166,6 +175,7 @@ describe('levels, direction and what cannot be told apart', () => {
     strongLow: -0.07,
     strongHigh: 0.07,
     verdict: 'higher' as const,
+    gated: true,
   }
 
   it('holds the headline to the stricter band: a change inside the record band only is none there', () => {

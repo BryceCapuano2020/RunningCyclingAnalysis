@@ -149,7 +149,8 @@ const rideGateMemo = memoByDigests(buildRideGate, sameSet)
 
 /**
  * The gate of digests judged among themselves, for a reader given none from the library: heart rate that reads
- * low for the power across a whole activity is left out of the fit.
+ * low for the power across a whole activity is left out of the fit. The caller passes the rides whose power it
+ * trusts (`trustedPower`), so a ride set aside is neither fitted nor judged.
  */
 export function ownRideGate(ordered: ActivityDigest[]): EstimatedRideGate | null {
   return rideGateOf(ordered, lowForPowerSetAside(ordered))

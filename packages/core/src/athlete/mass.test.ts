@@ -64,6 +64,22 @@ describe('sameMasses', () => {
     expect(sameMasses(base, { ...base, massKg: 73 })).toBe(false)
     expect(sameMasses(base, { ...base, bikeMassKg: 10 })).toBe(false)
   })
+
+  it('differs when the body mass becomes a placeholder, though the number is the same', () => {
+    const base = settingsWith()
+    expect(sameMasses(base, { ...base, massAssumed: true })).toBe(false)
+    expect(sameMasses({ ...base, massAssumed: true }, { ...base, massAssumed: true })).toBe(true)
+  })
+
+  it('differs when the rides kept despite implausible power differ, whatever their order', () => {
+    const base = settingsWith()
+    expect(sameMasses(base, { ...base, keepPower: ['a'] })).toBe(false)
+    expect(sameMasses({ ...base, keepPower: ['a', 'b'] }, { ...base, keepPower: ['b', 'a'] })).toBe(
+      true,
+    )
+    expect(sameMasses({ ...base, keepPower: ['a'] }, { ...base, keepPower: ['b'] })).toBe(false)
+    expect(sameMasses(base, { ...base, keepPower: [] })).toBe(true)
+  })
 })
 
 describe('bodyMassOn', () => {
