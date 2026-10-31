@@ -2983,6 +2983,38 @@ describe('an import that skips files in a format the app does not read', () => {
   })
 })
 
+describe('files given with the export’s activities.csv', () => {
+  it('are read with the sport and name the list gives, and the list is neither refused nor read as an activity', async () => {
+    const { send } = await startWorker()
+    const untyped = new TextDecoder()
+      .decode(encodeGpx(sampleActivity))
+      .replace(/<type>[^<]*<\/type>/, '')
+    const list = new File(
+      [
+        'Activity ID,Activity Name,Activity Type,Filename\n1,Morning Run,Run,activities/run.gpx\n2,Gone,Ride,activities/gone.gpx\n',
+      ],
+      'activities.csv',
+    )
+
+    const messages = await send(signedOutImport(new File([untyped], 'run.gpx')))
+    const withList = await send({
+      ...signedOutImport(new File([untyped], 'run.gpx')),
+      files: [list, new File([untyped], 'run.gpx')],
+    } as WorkerRequest)
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 1, needsList: true },
+    })
+    const reply = withList.at(-1)
+    expect(reply).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 0, listed: { named: 2, received: 1 } },
+    })
+    expect(reply).not.toMatchObject({ outcome: { needsList: true } })
+  })
+})
+
 describe('a signed-in import saves its activities side by side', () => {
   /** A zip of short runs, a day apart, so none is a copy of another. */
   const base: Activity = sampleActivity!

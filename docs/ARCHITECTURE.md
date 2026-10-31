@@ -337,6 +337,14 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    `activities.csv`; or the list names none of the zip's activity files, as when they sit in a folder
    it does not expect or are spelled another way. Files inside a zip nested in the export, and single
    files, are never left out this way.
+   An `activities.csv` given loose beside the files it names (`looseList.ts`; the picker offers `.csv`, and a
+   drop is read only when a file is called exactly that, in any folder) is taken out of the import's sources:
+   it is neither an activity nor refused, and is not in the progress total. It is read before any activity
+   file, and its rows are matched to the loose files by file name alone, since the folder the export put
+   them in is gone. The files of a zip keep the zip's own list, though the ones the list names count as given. The
+   import reports how many files the list names and how many were given, and a loose file that names no sport
+   (and no list came with it) tells the athlete to add the list; a file that names a sport the app does not count
+   (a hike) is refused for it and says nothing of the list.
    A GPX track with no `<type>` or only a number the app does not know, and a TCX activity whose
    Sport is Other or missing, takes its sport from the `Activity Type` column: Run, Trail Run and
    Virtual Run are runs; Ride, Virtual Ride, Gravel Ride and Mountain Bike Ride are rides; Virtual Run

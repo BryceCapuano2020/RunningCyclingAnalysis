@@ -7,7 +7,8 @@ import {
   ridePowerCeilingWkg,
 } from '../curves/powerCeiling'
 import type { ActivityDigest, AthleteSettings } from '../types'
-import { activitySummaries, combine } from './combine'
+import { activitySummaries } from './activitySummaries'
+import { combine } from './combine'
 import { fixedMasses } from './masses'
 import { powerCheckOf } from './powerCheck'
 import { DAY, RUN_TEMPLATE, START, meterRide, steadyRide } from './test/powerFixtures'

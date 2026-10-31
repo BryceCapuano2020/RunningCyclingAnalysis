@@ -4,6 +4,7 @@ import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult, Rejection } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { E_BIKE_REASON, E_BIKE_SKIPPED, isEBikeType } from '../import/sportType'
+import { fitOffsetAt } from '../import/localDay'
 import { decodeFit } from './protocol/decode'
 import type { DecodedRecord, DecodedSession } from './protocol/decode'
 import type { FitSportName, FitSubSportName } from './protocol/profile'
@@ -101,7 +102,15 @@ function parseUnchecked(
   const result = activitiesFromUnits(
     {
       fileName,
-      units: units.map((unit) => toPipelineUnit(unit, sportMesg, origins.get(unit), listedEBike)),
+      units: units.map((unit) =>
+        toPipelineUnit(
+          unit,
+          sportMesg,
+          origins.get(unit),
+          listedEBike,
+          fitOffsetAt(messages.activities, unit.session?.startTimeMs ?? unit.records[0]?.tMs ?? 0),
+        ),
+      ),
     },
     limits,
     opts,
@@ -116,6 +125,7 @@ function toPipelineUnit(
   sportMesg: DecodedSportMessage | undefined,
   distanceOrigin: number | undefined,
   listedEBike: boolean,
+  localOffsetS: number | undefined,
 ): PipelineUnit {
   const { sport, subSport } = resolveSport(unit.session, sportMesg)
   const mapping = mapSport(sport, subSport, listedEBike)
@@ -131,6 +141,7 @@ function toPipelineUnit(
     hasPosition: fixes.some((f) => isUsableLatLon(f.lat, f.lon)),
     distanceOrigin,
     fixes,
+    ...(localOffsetS === undefined ? {} : { localOffsetS }),
   }
   if (!mapping.ok) {
     const refusal = {
