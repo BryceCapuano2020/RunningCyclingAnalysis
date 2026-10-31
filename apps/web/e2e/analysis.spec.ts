@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { SAMPLE_TEXT, rowPattern } from './sampleText.js'
 import {
   BALANCE_TITLE,
   LANDING_TITLE,
@@ -323,7 +324,7 @@ test('at 1440 by 900 the fitness card is on the first screen, whole, and the bal
   expect(order.trackFirst).toBe(true)
   expect(order.firstImage).toContain('balance-meter')
   // The answer is still a line: no scale drawing, no ladder, and the meter is in its place.
-  await expect(page.locator('.balance-meter__value')).toHaveText('+15pts')
+  await expect(page.locator('.balance-meter__value')).toHaveText(SAMPLE_TEXT.value)
   await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
   await expect(page.locator('.balance-hero__pair svg:not(.icon)')).toHaveCount(0)
 })
@@ -461,10 +462,10 @@ test('the meter is named in words and its value and levels are text, none under 
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
   await expect(page.locator(TRACK)).toHaveAccessibleName(
-    /^Cycling grades 15 points higher than running \(range /,
+    new RegExp(`^${SAMPLE_TEXT.name} \\(range `),
   )
-  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Running\s*65%\s*Local/)
-  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(/Cycling\s*80%\s*Local to World/)
+  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
+  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
   const sizes = await page
     .locator(
       '.balance-meter__value > *, .balance-meter__range, .balance-meter__ends, .balance-levels__row > *',
