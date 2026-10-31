@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   localDayNumber,
-  localWeeksOn,
   setViewerZone,
   shiftFromZone,
   UTC_ZONE,
@@ -9,7 +8,6 @@ import {
   weekEndMs,
   weekEndsSpan,
   weekOfDay,
-  withLocalWeeks,
 } from './calendar'
 import { DAY_MS } from './constants'
 import type { Zone } from './calendar'
@@ -91,50 +89,37 @@ describe('weekEndFor', () => {
   const sundayEnd = at(2026, 3, 16) - 1
   const nextSundayEnd = sundayEnd + 7 * DAY_MS
 
-  it('is the UTC week of the start while local weeks are off, whatever shift the file gave', () => {
-    expect(localWeeksOn()).toBe(false)
-    expect(weekEndFor({ startMs: at(2026, 3, 16, 6, 30), localDayShift: -1 })).toBe(nextSundayEnd)
-    expect(weekEndFor({ startMs: at(2026, 3, 15, 11, 30), localDayShift: 1 })).toBe(sundayEnd)
-  })
-
   it('O9: puts Sunday 23:30 local at UTC-7 in Sunday’s week, though its UTC day is Monday', () => {
-    withLocalWeeks(true, () => {
+    {
       expect(weekEndFor({ startMs: at(2026, 3, 16, 6, 30), localDayShift: -1 })).toBe(sundayEnd)
-    })
+    }
   })
 
   it('O9: puts Monday 00:30 local at UTC+13 in Monday’s week, though its UTC day is Sunday', () => {
-    withLocalWeeks(true, () => {
+    {
       expect(weekEndFor({ startMs: at(2026, 3, 15, 11, 30), localDayShift: 1 })).toBe(nextSundayEnd)
-    })
+    }
   })
 
   it('falls back to the viewer’s zone for a file that gave no shift', () => {
     const before = setViewerZone(east(13))
     try {
-      withLocalWeeks(true, () => {
+      {
         expect(weekEndFor({ startMs: at(2026, 3, 15, 11, 30) })).toBe(nextSundayEnd)
         expect(weekEndFor({ startMs: at(2026, 3, 15, 10, 30) })).toBe(sundayEnd)
-      })
+      }
     } finally {
       setViewerZone(before)
     }
   })
 
   it('agrees with weekEndMs for a shift of 0', () => {
-    withLocalWeeks(true, () => {
+    {
       for (let day = 0; day < 400; day += 5) {
         const startMs = at(2026, 1, 1) + day * DAY_MS + 7 * 3600_000
         expect(weekEndFor({ startMs, localDayShift: 0 })).toBe(weekEndMs(startMs))
       }
-    })
-  })
-
-  it('holds the setting only inside the run, and refuses one that waits', () => {
-    expect(withLocalWeeks(true, () => localWeeksOn())).toBe(true)
-    expect(localWeeksOn()).toBe(false)
-    expect(() => withLocalWeeks(true, () => Promise.resolve())).toThrow(TypeError)
-    expect(localWeeksOn()).toBe(false)
+    }
   })
 })
 
@@ -149,14 +134,8 @@ describe('weekEndsSpan', () => {
     const first = { startMs: at(2026, 3, 16, 0, 10), localDayShift: 0 as const }
     const second = { startMs: at(2026, 3, 16, 1, 0), localDayShift: -1 as const }
     const sundayEnd = at(2026, 3, 16) - 1
-    withLocalWeeks(true, () => {
-      expect(weekEndsSpan([first, second])).toEqual({
-        first: sundayEnd,
-        last: sundayEnd + 7 * DAY_MS,
-      })
-    })
     expect(weekEndsSpan([first, second])).toEqual({
-      first: sundayEnd + 7 * DAY_MS,
+      first: sundayEnd,
       last: sundayEnd + 7 * DAY_MS,
     })
   })

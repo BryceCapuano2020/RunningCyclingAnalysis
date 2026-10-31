@@ -1,7 +1,8 @@
 import { writeFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { MIXING_STEP } from '../../fitness/test/runSim'
-import { digestActivityAt } from '../digestActivity'
+import { digestActivity } from '../digestActivity'
+import { REVISIONS } from '../revisions'
 import { readRev6Fixture } from './mixingFixtures.node'
 import { studyLibraries } from './mixingLibraries'
 import { BOUNDS } from './mixingOutputs'
@@ -29,9 +30,9 @@ vi.setConfig({ testTimeout: 600_000 })
 const byTime = <T extends { startMs: number; id: string }>(digests: T[]): T[] =>
   [...digests].sort((a, b) => a.startMs - b.startMs || (a.id < b.id ? -1 : 1))
 
-function pairsOf(name: string, activities: Parameters<typeof digestActivityAt>[0][]): Pairs {
+function pairsOf(name: string, activities: Parameters<typeof digestActivity>[0][]): Pairs {
   const six = readRev6Fixture(name)
-  const seven = byTime(activities.map((activity) => digestActivityAt(activity, 7)))
+  const seven = byTime(activities.map((activity) => digestActivity(activity)))
   expect(
     seven.map((d) => d.id),
     `${name}: the library is not the one the fixtures were made from`,
@@ -90,6 +91,24 @@ describe('the mixing study', () => {
 
   it('has revision 7 `exclusive`, by the rule of 1.8: a consumer other than fitness is out of bound', () => {
     expect(study.decision).toEqual({ kind: 'exclusive', holdsBack: [] })
+  })
+
+  it('agrees with the table: the declared kind, holdsBack and moved readers are the study’s', () => {
+    const declared = REVISIONS.at(-1)!
+    expect(declared.revision).toBe(7)
+    expect(declared.kind).toBe(study.decision.kind)
+    expect(declared.holdsBack ?? []).toEqual(study.decision.holdsBack)
+    // Every consumer the study found out of bound is named as moved.
+    const named: Record<string, string[]> = {
+      combine: ['combine'],
+      trend: ['trend'],
+      change: ['change'],
+      records: ['records'],
+    }
+    for (const [consumer, ok] of Object.entries(study.findings.within)) {
+      if (ok) continue
+      for (const name of named[consumer] ?? []) expect(declared.affects, consumer).toContain(name)
+    }
   })
 
   it('writes its findings where RCA_MIXING_REPORT says, for the PR', () => {

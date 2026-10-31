@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Activity } from '../types'
-import { digestActivity, digestActivityAt } from './digestActivity'
+import { digestActivity } from './digestActivity'
 import { cadenceInSportUnit, resolveGpxRunCadence } from './gpxCadence'
 import { movingMask } from './masks'
 import { readDigest } from './readDigest'
 import { serializeDigest } from './serialize'
 import { gpxRun, lockedRun } from './test/gateFixtures'
-
-const SEVEN = 7
 
 /** A GPX run of 40 minutes at 1.63 m/s whose `<cad>` is constantly `value`, or with `edit` applied. */
 function constantRun(value: number, edit: (a: Activity) => void = () => {}): Activity {
@@ -60,14 +58,14 @@ describe('a GPX run’s cadence unit', () => {
   it('does not change the Activity it reads', () => {
     const run = constantRun(78)
     const before = Float32Array.from(run.cadence!)
-    digestActivityAt(run, SEVEN)
+    digestActivity(run)
     expect(run.cadenceUnit).toBe('unknown')
     expect(Array.from(run.cadence!)).toEqual(Array.from(before))
   })
 })
 
-describe('the walking-pace rule on a GPX run, at revision 7', () => {
-  const walking = (a: Activity) => digestActivityAt(a, SEVEN).walkingPace === true
+describe('the walking-pace rule on a GPX run', () => {
+  const walking = (a: Activity) => digestActivity(a).walkingPace === true
 
   it('G1: a 16:30 run with strides near 78 is not walking', () => {
     expect(walking(gpxRun(78))).toBe(false)
@@ -105,43 +103,34 @@ describe('the walking-pace rule on a GPX run, at revision 7', () => {
     expect(walking(gpxRun(160))).toBe(false)
   })
 
-  it('G8: the same run as a FIT or TCX file is unchanged by the revision', () => {
+  it('G8: the same run as a FIT or TCX file, with the unit written, is read as written', () => {
     const fit = gpxRun(156)
     fit.cadenceUnit = 'steps/min'
-    const before = digestActivityAt(fit, 6)
-    const after = digestActivityAt(fit, SEVEN)
-    expect(after.walkingPace).toBeUndefined()
-    expect({ ...after, modelRevision: 6 }).toEqual(before)
-  })
-
-  it('G9: at revision 6 the same GPX run is still walking: the gate is closed', () => {
-    expect(digestActivityAt(gpxRun(78), 6).walkingPace).toBe(true)
-    expect(digestActivity(gpxRun(78)).walkingPace).toBe(true)
+    expect(digestActivity(fit).walkingPace).toBeUndefined()
   })
 })
 
-describe('the cadence-lock flag in a digest, at revision 7', () => {
-  const at7 = (a: Activity) => digestActivityAt(a, SEVEN)
+describe('the cadence-lock flag in a digest', () => {
+  const at7 = (a: Activity) => digestActivity(a)
 
   it('flags a lock, counts it, and keeps the locked seconds out of the maximum', () => {
     const locked = lockedRun(60)
-    const before = digestActivityAt(locked, 6)
     const after = at7(locked)
-    expect(before.flagCounts['hr-cadence-lock']).toBeUndefined()
     expect(after.flagCounts['hr-cadence-lock']).toBe(1)
     const flag = after.flags.find((f) => f.kind === 'hr-cadence-lock')!
     expect(flag.start).toBe(595)
     expect(flag.end).toBe(665)
     expect(flag.message).toBe('Heart rate matched cadence for 70 seconds')
-    // The lock lifted the strap from about 150 to the cadence's 172; without it the maximum is the honest one.
-    expect(before.maxHeartRate!).toBeGreaterThan(165)
+    // The lock lifted the strap from about 150 to the cadence's 172 (revision 6 took a maximum over 165 from it);
+    // with the locked seconds out the maximum is the honest one.
+    expect(Math.max(...locked.heartRate.slice(595, 665))).toBeGreaterThan(165)
     expect(after.maxHeartRate!).toBeLessThan(158)
-    expect(after.avgHeartRate!).toBeLessThan(before.avgHeartRate!)
   })
 
-  it('does not flag a lock of 20 s, and then the digest is the revision-6 one', () => {
-    const short = lockedRun(20)
-    expect({ ...at7(short), modelRevision: 6 }).toEqual(digestActivityAt(short, 6))
+  it('does not flag a lock of 20 s', () => {
+    const short = at7(lockedRun(20))
+    expect(short.flagCounts['hr-cadence-lock']).toBeUndefined()
+    expect(short.flags.filter((f) => f.kind === 'hr-cadence-lock')).toEqual([])
   })
 
   it('ignores a lock while paused', () => {

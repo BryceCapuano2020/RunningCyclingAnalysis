@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { lonePowerSpikes } from '../quality/powerOutlier'
 import type { ActivityDigest } from '../types'
-import { digestActivityAt } from './digestActivity'
+import { digestActivity } from './digestActivity'
 import { POWER_RIDE_AT, powerRide } from './test/gateFixturesPower'
 
 /**
- * One bad second must neither lose a best nor make one (revision 7, gated). A half-hour ride at a steady 250 W, with
- * one second altered: dropped (NaN) or a lone spike. Below revision 7 the bytes are as they were; the gate's own
- * proof is identity.gate.test.ts, and these show the two behaviours side by side.
+ * One bad second must neither lose a best nor make one (revision 7). A half-hour ride at a steady 250 W, with one
+ * second altered: dropped (NaN) or a lone spike. What revision 6 did with the same rides is recorded in the cases'
+ * names; identity.rev7.test.ts pins the digests that moved.
  */
 
 const AT = POWER_RIDE_AT
@@ -21,21 +21,14 @@ describe('one bad second', () => {
     power[AT] = Number.NaN
   })
 
-  it('removes every best longer than about half the ride below revision 7, since each such window holds it', () => {
-    const six = digestActivityAt(dropped, 6)
-    expect(best(six, 1200)).toBeNaN()
-    expect(best(six, 1800)).toBeNaN()
-    expect(best(six, 600)).toBeCloseTo(250, 6)
-  })
-
-  it('removes none at revision 7: a window may hold 1% unusable seconds and is the mean of the rest', () => {
-    const seven = digestActivityAt(dropped, 7)
-    expect(best(seven, 1200)).toBeCloseTo(250, 6)
-    expect(best(seven, 1800)).toBeCloseTo(250, 6)
+  it('removes no best (revision 6 lost every best longer than about half the ride): a window may hold 1% unusable seconds and is the mean of the rest', () => {
+    const digest = digestActivity(dropped)
+    expect(best(digest, 1200)).toBeCloseTo(250, 6)
+    expect(best(digest, 1800)).toBeCloseTo(250, 6)
   })
 
   it('leaves the short bests as they were away from the gap', () => {
-    const seven = digestActivityAt(dropped, 7)
+    const seven = digestActivity(dropped)
     // A 5 s window away from the gap is untouched: every best is the steady 250 W.
     expect(best(seven, 5)).toBeCloseTo(250, 6)
   })
@@ -46,12 +39,8 @@ describe('a lone power spike', () => {
     power[AT] = 1500
   })
 
-  it('makes the short bests below revision 7', () => {
-    expect(best(digestActivityAt(spiked, 6), 5)).toBeCloseTo((1500 + 4 * 250) / 5, 6)
-  })
-
-  it('makes none at revision 7, and is flagged', () => {
-    const seven = digestActivityAt(spiked, 7)
+  it('makes no best (revision 6 made the 5 s best 550 W), and is flagged', () => {
+    const seven = digestActivity(spiked)
     expect(best(seven, 5)).toBeCloseTo(250, 6)
     expect(best(seven, 60)).toBeCloseTo(250, 6)
     const flags = seven.flags.filter((flag) => flag.kind === 'power-spike')
@@ -62,13 +51,9 @@ describe('a lone power spike', () => {
     const huge = ride((power) => {
       power[AT] = 2500
     })
-    for (const revision of [6, 7]) {
-      const flags = digestActivityAt(huge, revision).flags.filter(
-        (flag) => flag.kind === 'power-spike',
-      )
-      expect(flags, `revision ${revision}`).toHaveLength(1)
-    }
-    expect(best(digestActivityAt(huge, 7), 5)).toBeCloseTo(250, 6)
+    const flags = digestActivity(huge).flags.filter((flag) => flag.kind === 'power-spike')
+    expect(flags).toHaveLength(1)
+    expect(best(digestActivity(huge), 5)).toBeCloseTo(250, 6)
   })
 
   it('leaves a sprint alone: power that rises over seconds and stays is not a lone second', () => {
@@ -78,12 +63,14 @@ describe('a lone power spike', () => {
       power[AT + 6] = 700
     })
     expect(lonePowerSpikes(sprint.power)).toEqual([])
-    expect(best(digestActivityAt(sprint, 7), 5)).toBeCloseTo(1100, 6)
+    expect(best(digestActivity(sprint), 5)).toBeCloseTo(1100, 6)
   })
 
-  it('does not move a ride with nothing wrong, at either revision', () => {
-    const steady = ride(() => undefined)
-    expect(digestActivityAt(steady, 7).curve).toEqual(digestActivityAt(steady, 6).curve)
+  it('does not move a ride with nothing wrong: every best is the steady power', () => {
+    const steady = digestActivity(ride(() => undefined))
+    expect(best(steady, 5)).toBeCloseTo(250, 6)
+    expect(best(steady, 600)).toBeCloseTo(250, 6)
+    expect(steady.flags).toEqual([])
   })
 })
 

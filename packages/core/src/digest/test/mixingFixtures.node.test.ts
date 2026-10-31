@@ -1,38 +1,36 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { digestActivityAt } from '../digestActivity'
-import { serializeDigest } from '../serialize'
 import {
   REV6_FIXTURES_MAX_BYTES,
   readRev6Fixture,
   rev6FixtureNames,
   rev6FixtureText,
-  writeRev6Fixture,
 } from './mixingFixtures.node'
 import { studyLibraries } from './mixingLibraries'
 
 /**
- * The fixtures are the revision-6 digester's output on the study libraries. While that digester exists (the gate of
- * D12 section 1.9) this test remakes them in memory and compares; `RCA_WRITE_REV6_FIXTURES=1` writes them instead.
+ * The revision-6 digests of the study libraries are frozen: they were made by the digester of revision 6 (the
+ * gated digester that existed until the release that wrote revision 7) and cannot be made again. Their hashes
+ * are pinned, so an edit or a regeneration by another digester fails here.
  */
-describe('the checked-in revision-6 digests of the study libraries', () => {
-  const libraries = studyLibraries()
+const SHA256: Record<string, string> = {
+  descent: '773559dcac4e123654ee4a58ebd4a30599d23dd8be4d6b6923cb38262fab9cbe',
+  flat: 'e0bef48a95e243cecdc2a352ffa2e1883cfd9468e4b3177161554be1c1f20116',
+  hilly: 'b81d86191887d0a1c9abf4f2f7230772ade2fd3537dbd070d970ec71905e7a12',
+  'season-a': '2cc2ff0475d8a8b914aafab32ad8fe8091a7620c0f4392e0400a913dd74a94ea',
+  'season-b': '05fa38dc4c663ba4ff861992925ea953a42d306cbf028a756352b73f4ce5fa8a',
+}
 
-  it('are the digests the revision-6 digester makes of the libraries, byte for byte', () => {
-    if (process.env.RCA_WRITE_REV6_FIXTURES === '1') {
-      for (const { name, activities } of libraries) {
-        writeRev6Fixture(
-          name,
-          activities.map((activity) => digestActivityAt(activity, 6)),
-        )
-      }
-    }
-    expect(rev6FixtureNames()).toEqual(libraries.map(({ name }) => name).sort())
-    for (const { name, activities } of libraries) {
-      const made = activities
-        .map((activity) => digestActivityAt(activity, 6))
-        .sort((a, b) => a.startMs - b.startMs || (a.id < b.id ? -1 : 1))
-        .map((digest) => serializeDigest(digest))
-      expect(rev6FixtureText(name).split('\n').filter(Boolean), name).toEqual(made)
+describe('the checked-in revision-6 digests of the study libraries', () => {
+  it('are the files that were made, byte for byte, one for each library', () => {
+    expect(rev6FixtureNames()).toEqual(
+      studyLibraries()
+        .map(({ name }) => name)
+        .sort(),
+    )
+    for (const name of rev6FixtureNames()) {
+      const hash = createHash('sha256').update(rev6FixtureText(name)).digest('hex')
+      expect(hash, name).toBe(SHA256[name])
     }
   })
 
@@ -45,5 +43,15 @@ describe('the checked-in revision-6 digests of the study libraries', () => {
       bytes += rev6FixtureText(name).length
     }
     expect(bytes).toBeLessThan(REV6_FIXTURES_MAX_BYTES)
+  })
+
+  it('are of the activities the libraries make now, by id and start, so the study compares like with like', () => {
+    for (const { name, activities } of studyLibraries()) {
+      const made = activities
+        .map(({ id, startMs }) => `${startMs}:${id}`)
+        .sort((a, b) => Number(a.split(':')[0]) - Number(b.split(':')[0]) || (a < b ? -1 : 1))
+      const kept = readRev6Fixture(name).map(({ id, startMs }) => `${startMs}:${id}`)
+      expect(kept, name).toEqual(made)
+    }
   })
 })
