@@ -1,4 +1,5 @@
-import { localYearOf } from '../calendar'
+import { civilOfDay, localDayOf, localDayOfInstant } from '../calendar'
+import type { Dated } from '../calendar'
 import { runCeilingSpeed } from '../curves/runCeiling'
 import { ROAD_DISTANCES_M, ROAD_STANDARDS_FEMALE, ROAD_STANDARDS_MALE } from './roadStandards'
 
@@ -100,9 +101,11 @@ export function gradeCeiling(durationS: number, age: number, sex: Sex): number |
  * Null when birthYear is not an integer, dateMs is not a finite time, or the age falls outside 0 to
  * 120.
  */
-export function ageAt(birthYear: number, dateMs: number): number | null {
-  if (!Number.isInteger(birthYear) || !Number.isFinite(dateMs)) return null
-  const age = localYearOf(dateMs) - birthYear
+export function ageAt(birthYear: number, date: number | Dated): number | null {
+  const startMs = typeof date === 'number' ? date : date.startMs
+  if (!Number.isInteger(birthYear) || !Number.isFinite(startMs)) return null
+  const day = typeof date === 'number' ? localDayOfInstant(date) : localDayOf(date)
+  const age = civilOfDay(day).year - birthYear
   return age >= 0 && age <= 120 ? age : null
 }
 

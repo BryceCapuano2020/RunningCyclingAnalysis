@@ -12,8 +12,26 @@ const WEB = join(ROOT, 'apps/web/src')
  * calendar.ts may: every figure that depends on a day, a week, a month or a year asks it, so a figure is the
  * same on every device (D12 section 2.5).
  */
-const AMBIENT =
-  /\.(?:getTimezoneOffset|setHours|getHours|getMinutes|getDate|getFullYear|setFullYear|getMonth|getDay|setDate)\(|new Date\([^()]*,/
+const FIELD_CALL =
+  /\.(?:getTimezoneOffset|setHours|getHours|getMinutes|getDate|getFullYear|setFullYear|getMonth|getDay|setDate)\(|Intl\.DateTimeFormat\(/
+
+/** Whether the text builds a date from fields (`new Date(y, m, ...)`, however nested the arguments): two or more top-level arguments. */
+function buildsFromFields(text: string): boolean {
+  for (let at = text.indexOf('new Date('); at !== -1; at = text.indexOf('new Date(', at + 1)) {
+    let depth = 0
+    for (let i = at + 'new Date'.length; i < text.length; i++) {
+      const c = text[i]
+      if (c === '(' || c === '[' || c === '{') depth++
+      else if (c === ')' || c === ']' || c === '}') {
+        depth--
+        if (depth === 0) break
+      } else if (c === ',' && depth === 1) return true
+    }
+  }
+  return false
+}
+
+const reads = (text: string) => FIELD_CALL.test(text) || buildsFromFields(text)
 
 /**
  * The files outside calendar.ts that still read the device's clock, and why. Each shows an instant as the
@@ -25,7 +43,8 @@ const ALLOWED: Record<string, string> = {
   'packages/core/src/units/format.ts': 'the hour of a time on the screen',
   'apps/web/src/worker/viewerZone.ts': 'the adapter that hands the device zone to the calendar',
   'apps/web/src/ui/format/date.ts': 'dates written for the screen, in the device’s own clock',
-  'apps/web/src/share/cardLayout.ts': 'the date written on the share card',
+  'apps/web/src/ui/limitCopy.ts':
+    'the time a daily limit resets, written on the viewer’s own clock',
   'apps/web/src/export/saveExport.ts': 'the date in the name of an export file',
 }
 
@@ -46,7 +65,7 @@ describe('the device’s zone', () => {
 
   it('is read in calendar.ts and the files named here only', () => {
     expect(files.length).toBeGreaterThan(600)
-    const offenders = files.filter(({ text }) => AMBIENT.test(text)).map(({ path }) => path)
+    const offenders = files.filter(({ text }) => reads(text)).map(({ path }) => path)
     expect(offenders.sort()).toEqual(Object.keys(ALLOWED).sort())
   })
 
@@ -59,7 +78,17 @@ describe('the device’s zone', () => {
     }
   })
 
+  it('is found when a date is built from fields, however the arguments nest', () => {
+    expect(reads('new Date(d.getUTCFullYear(), d.getUTCMonth(), 1, 12)')).toBe(true)
+    expect(reads('new Date(f(a, b), 1)')).toBe(true)
+    expect(reads('new Intl.DateTimeFormat(undefined, {})')).toBe(true)
+    expect(reads('Intl.DateTimeFormat(undefined, {})')).toBe(true)
+    expect(reads('new Date(ms)')).toBe(false)
+    expect(reads('new Date(Date.UTC(2020, 1, 2))')).toBe(false)
+    expect(reads('new Date(f(a, b))')).toBe(false)
+  })
+
   it('is read by calendar.ts, which is where the guard looks for it', () => {
-    expect(files.find((f) => f.path === 'packages/core/src/calendar.ts')!.text).toMatch(AMBIENT)
+    expect(files.find((f) => f.path === 'packages/core/src/calendar.ts')!.text).toSatisfy(reads)
   })
 })

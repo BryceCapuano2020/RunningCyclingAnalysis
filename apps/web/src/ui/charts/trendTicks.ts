@@ -1,3 +1,4 @@
+import { noonOnLabelDate } from '@rca/core/calendar'
 import { DAY_MS } from '@rca/core/constants'
 import { MONTHLY_AFTER_DAYS, inGap } from '@rca/core/digest/trendSeries'
 import type { QuietGap } from '@rca/core/digest/trendSeries'
@@ -15,10 +16,7 @@ const END_CLEARANCE_MS = 14 * DAY_MS
  * The local-zone noon on the UTC calendar date of ms. A trend's weeks end on UTC Sundays, so naming
  * them through this names the same day in every zone.
  */
-export function utcDayLocal(ms: number): number {
-  const date = new Date(ms)
-  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12).getTime()
-}
+export const utcDayLocal = noonOnLabelDate
 
 /** The UTC day of an instant and its month, such as "12 Jan". */
 export function shortDate(ms: number): string {

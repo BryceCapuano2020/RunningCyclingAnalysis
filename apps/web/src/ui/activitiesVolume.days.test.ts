@@ -3,6 +3,8 @@ import { localDayOf, setViewerZone, UTC_ZONE, withLocalWeeks } from '@rca/core/c
 import { makeActivity } from './components/fixtures'
 import { bucketLabel, bucketSpan, inBucket, monthTotals, volumeBuckets } from './activitiesVolume'
 import { sampleProfileAt } from './sampleAthlete'
+import { groupByMonth } from './activitySort'
+import { periodWeekEnds } from './charts/periodWeeks'
 import { deviceZone } from '../worker/viewerZone'
 
 /**
@@ -81,5 +83,35 @@ describe('the sample athlete’s year', () => {
     expect(sampleProfileAt(newestMs).birthYear).toBe(2026 - 37)
     vi.stubEnv('TZ', 'UTC')
     expect(sampleProfileAt(newestMs).birthYear).toBe(2027 - 37)
+  })
+})
+
+describe('the list under its headings and the hours under the trend', () => {
+  it('puts a row under the month of its local day, as the month totals count it', () => {
+    // 1 April 2026, 02:00 UTC was still 31 March where the file was recorded.
+    const late = run(at(2026, 4, 1, 2), -1)
+    const early = run(at(2026, 4, 1, 12), 0)
+    setViewerZone(deviceZone)
+    withLocalWeeks(true, () => {
+      const groups = groupByMonth([late, early])
+      expect(groups.map((g) => g.items.length)).toEqual([1, 1])
+      expect(groups[0]!.key).toBe([...monthTotals([late]).keys()][0])
+      expect(groups[0]!.label).toMatch(/Mar/)
+      expect(groups[1]!.label).toMatch(/Apr/)
+    })
+  })
+
+  it('starts the hours at the week of the period’s first local day', () => {
+    // Monday 9 March, 02:00 UTC is Sunday evening at UTC-7: the week before.
+    const sundayEnd = at(2026, 3, 9) - 1
+    const trendEnds = [sundayEnd + 7 * 86_400_000]
+    withLocalWeeks(true, () => {
+      setViewerZone(() => -7 * 60)
+      expect(periodWeekEnds(trendEnds, at(2026, 3, 9, 2))).toEqual([
+        sundayEnd,
+        sundayEnd + 7 * 86_400_000,
+      ])
+    })
+    expect(periodWeekEnds(trendEnds, at(2026, 3, 9, 2))).toEqual(trendEnds)
   })
 })

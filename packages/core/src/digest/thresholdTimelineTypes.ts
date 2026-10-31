@@ -1,6 +1,7 @@
 import { DAY_MS } from '../constants'
 import type { CriticalPowerFit, Sport } from '../types'
 import { weekEndFor } from '../calendar'
+import type { Dated } from '../calendar'
 
 /** The trailing window a threshold is fitted over, in weeks: about half a year of the athlete's efforts. */
 export const THRESHOLD_WINDOW_WEEKS = 26
@@ -41,8 +42,11 @@ export interface ThresholdAt {
  * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`.
  * Null when neither exists.
  */
-export function thresholdAt(steps: readonly ThresholdStep[], at: number): ThresholdAt | null {
-  const end = weekEndFor({ startMs: at })
+export function thresholdAt(
+  steps: readonly ThresholdStep[],
+  at: number | Dated,
+): ThresholdAt | null {
+  const end = weekEndFor(typeof at === 'number' ? { startMs: at } : at)
   let low = 0
   let high = steps.length - 1
   let found = -1
@@ -58,7 +62,8 @@ export function thresholdAt(steps: readonly ThresholdStep[], at: number): Thresh
   if (step.fit !== null) return { fit: step.fit, asOfMs: null }
   const older = steps[step.lastFit]
   if (older?.fit == null || older.asOfMs === null) return null
-  return at - older.asOfMs <= STALE_THRESHOLD_DAYS * DAY_MS
+  const startMs = typeof at === 'number' ? at : at.startMs
+  return startMs - older.asOfMs <= STALE_THRESHOLD_DAYS * DAY_MS
     ? { fit: older.fit, asOfMs: older.asOfMs }
     : null
 }

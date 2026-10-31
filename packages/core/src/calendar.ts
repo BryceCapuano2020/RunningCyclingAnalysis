@@ -235,6 +235,14 @@ export function mondayOnOrBefore(day: number): number {
   return day - ((((day - MONDAY_DAY_NUMBER) % 7) + 7) % 7)
 }
 
+/**
+ * Noon, in the zone days are cut in, on the date a label on the week axis reads (its UTC date). A week end is such a
+ * label, and a chart names it by the date it reads, so the name is the same in every zone.
+ */
+export function noonOnLabelDate(label: number): number {
+  return startOfDayNumber(Math.floor(label / DAY_MS)) + 12 * 3_600_000
+}
+
 /** The instant the local day numbered `day` starts. */
 export function startOfDayNumber(day: number): number {
   if (!localWeeks) {

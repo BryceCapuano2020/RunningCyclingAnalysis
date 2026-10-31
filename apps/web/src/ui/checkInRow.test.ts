@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CheckIn } from '@rca/core/lookback'
 import { BUSY_CHECK_IN, QUIET_CHECK_IN } from './checkInFixtures'
 import { checkInWords, firstRowOf } from './checkInRow'
+
+// The dates are told in the reader's zone and the fixtures' baseline is noon UTC: the words are for a zone within 11 hours of it.
+beforeEach(() => vi.stubEnv('TZ', 'UTC'))
+afterEach(() => vi.unstubAllEnvs())
 
 const view = (checkIn: CheckIn | null, seen = false) => ({ checkIn, seen })
 

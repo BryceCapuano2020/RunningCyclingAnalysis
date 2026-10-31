@@ -77,7 +77,7 @@ export function secondsOf(totals: TotalsBySport): number {
 }
 
 /** The month a day number is in, as the list's month headings group by: `2025-5` for June 2025. */
-function monthKeyOfDay(day: number): string {
+export function monthKeyOfDay(day: number): string {
   const { year, month } = civilOfDay(day)
   return `${year}-${month}`
 }

@@ -7,6 +7,7 @@ import {
   localDateText,
   localDayOfInstant,
   localYearOf,
+  noonOnLabelDate,
   setViewerZone,
   startOfDayText,
   startOfLocalDay,
@@ -188,6 +189,46 @@ describe('thresholdAt', () => {
         // Monday morning there is the next week, which no step covers yet, so the last one holds.
         expect(thresholdAt(steps, at(2026, 3, 9, 15))?.fit).toBe(FIT)
         expect(thresholdAt([step(sunday + 7 * DAY_MS, FIT)], evening)).toBeNull()
+      } finally {
+        setViewerZone(before)
+      }
+    })
+  })
+})
+
+describe('the day shift an activity carries', () => {
+  // 1 January 2027 at 01:00 UTC was still 31 December 2026 where the file was recorded.
+  const newYear = { startMs: at(2027, 1, 1, 1), localDayShift: -1 as const }
+
+  it('sets the age by the year of its local day', () => {
+    withLocalWeeks(true, () => {
+      expect(ageAt(1990, newYear)).toBe(36)
+      expect(ageAt(1990, { startMs: newYear.startMs, localDayShift: 0 })).toBe(37)
+      expect(ageAt(1990, newYear.startMs)).toBe(37)
+    })
+  })
+
+  it('sets the week a threshold is read in', () => {
+    const FIT = { cp: 5 } as unknown as NonNullable<ThresholdStep['fit']>
+    const sunday = at(2026, 3, 9) - 1
+    const steps: ThresholdStep[] = [
+      { fromMs: sunday + 7 * DAY_MS, fit: FIT, asOfMs: null, lastFit: 0 },
+    ]
+    const evening = { startMs: at(2026, 3, 9, 1), localDayShift: -1 as const }
+    withLocalWeeks(true, () => {
+      expect(thresholdAt(steps, evening)).toBeNull()
+      expect(thresholdAt(steps, { startMs: evening.startMs, localDayShift: 0 })?.fit).toBe(FIT)
+    })
+  })
+})
+
+describe('noonOnLabelDate', () => {
+  it('is noon on the date a week end reads, in the zone days are cut in', () => {
+    const sundayEnd = at(2026, 3, 16) - 1
+    withLocalWeeks(true, () => {
+      const before = setViewerZone(fixed(-7))
+      try {
+        expect(noonOnLabelDate(sundayEnd)).toBe(at(2026, 3, 15, 19))
       } finally {
         setViewerZone(before)
       }
