@@ -106,7 +106,7 @@ describe('the outbox', () => {
     expect(await bob.pending()).toEqual([])
   })
 
-  it('sweeps every account’s rows but the signed-in one’s, and nothing while nobody is signed in', async () => {
+  it('sweeps every account’s rows but the signed-in one’s, and nothing while nobody is signed in or the id is empty', async () => {
     const alice = openOutbox('alice')
     const bob = openOutbox('bob')
     await alice.add(item(FIRST))
@@ -115,6 +115,9 @@ describe('the outbox', () => {
 
     await sweepOutbox(null)
     expect(await alice.pending()).toHaveLength(2)
+    await sweepOutbox('')
+    expect(await alice.pending()).toHaveLength(2)
+    expect(await bob.pending()).toHaveLength(1)
 
     await sweepOutbox('bob')
     expect(await alice.pending()).toEqual([])

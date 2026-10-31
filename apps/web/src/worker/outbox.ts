@@ -116,7 +116,8 @@ export async function clearOutbox(): Promise<boolean> {
  * is tried again at the next load. Never rejects.
  */
 export async function sweepOutbox(keepUserId: string | null): Promise<void> {
-  if (keepUserId === null) return
+  // An empty id names no account, so it would sweep every row: treat it as nobody signed in.
+  if (keepUserId === null || keepUserId === '') return
   const db = await openDatabase()
   if (db === null) return
   try {
