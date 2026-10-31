@@ -1,4 +1,5 @@
-import type { EstimatedPower } from '@rca/core/digest'
+import type { EstimatedPower, PowerHeartRate } from '@rca/core/digest'
+import { isHardShare } from '@rca/core/effort'
 
 /*
  * A ride whose power no rider holds at the athlete's weight (`ActivitySummary.powerCheck`). The core leaves it out
@@ -36,11 +37,29 @@ export function powerCheckChip(check: 'set-aside' | 'kept' | undefined): string 
   return check === 'kept' ? POWER_KEPT_CHIP : POWER_SET_ASIDE_CHIP
 }
 
+/** A length of effort in words: whole minutes from two minutes, seconds under. Never "0 min". */
+function lengthText(durationS: number): string {
+  return durationS < 120 ? `${Math.round(durationS)} s` : `${Math.round(durationS / 60)} min`
+}
+
 /**
  * The line on an activity page while the power of a ride without a meter is set aside: what was seen (the estimate from
  * speed and climbs needs more than riders hold), what else would show it, and the action. It does not say the ride was assisted.
  */
 export function estimatedPowerNote(estimate: EstimatedPower): string {
-  const minutes = Math.round(estimate.durationS / 60)
-  return `This ride has no power meter, so its power is estimated from your speed and the climbs. Over its best ${minutes} min the estimate needs ${estimate.wkg.toFixed(1)} W/kg, more than riders hold at your weight, so it is left out of your bests, grades and the balance. An assisted bike, a tow or a wrong weight setting would read like this. If you rode it unassisted, keep its power.`
+  return `This ride has no power meter, so its power is estimated from your speed and the climbs. Over its best ${lengthText(estimate.durationS)} the estimate needs ${estimate.wkg.toFixed(1)} W/kg, more than riders hold at your weight, so it is left out of your bests, grades and the balance. An assisted bike, a tow or a wrong weight setting would read like this. If you rode it unassisted, keep its power.`
+}
+
+/**
+ * What the heart rate over the questioned effort shows, as a fact beside the power: the share of the athlete's reference
+ * heart rate it averaged, and whether that is as high as a hard effort reads. It does not say the power was right or wrong.
+ */
+export function powerHeartRateNote(evidence: PowerHeartRate): string {
+  const minutes = Math.round(evidence.durationS / 60)
+  const share = Math.round(evidence.heartRateShare * 100)
+  const seen = `Over its best ${minutes} min, at ${evidence.wkg.toFixed(1)} W/kg, your heart rate averaged ${share}% of your reference heart rate.`
+  const reading = isHardShare(evidence.heartRateShare)
+    ? 'That is as high as a hard effort reads.'
+    : 'That is lower than an effort at that power usually shows.'
+  return `${seen} ${reading} Heart rate cannot say whether the power was right.`
 }

@@ -9,6 +9,7 @@ import type {
   Sport,
 } from '../types'
 import type { EstimatedPower } from './estimatedPower'
+import type { PowerHeartRate } from './powerEvidence'
 
 /** One activity as the library lists it: its identity, its headline numbers and its data issues. */
 export interface ActivitySummary {
@@ -49,6 +50,11 @@ export interface ActivitySummary {
    * needs the most power over the ceiling, and what it needs. Absent for a measured ride and for every other activity.
    */
   estimatedPower?: EstimatedPower
+  /**
+   * For a ride with a `powerCheck`: the heart rate over its longest effort above the ceiling, as a share of the athlete's
+   * reference, when that can be read (see PowerHeartRate). Absent otherwise.
+   */
+  powerHeartRate?: PowerHeartRate
   /** Revision 7: the athlete's own label when it differs from the file's sport. See ActivityDigest.athleteType. */
   athleteType?: AthleteType
   /** Revision 7: the local calendar date minus the UTC date at the start. See ActivityDigest.localDayShift. */

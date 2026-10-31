@@ -31,14 +31,15 @@ import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
 import { gatedThreshold } from './effortGating'
 import { effortGatesOf } from './twentyMinute'
-import { summaryOf, type ActivitySummary } from './summary'
+import { activitySummaries } from './activitySummaries'
+import type { ActivitySummary } from './summary'
 import type { BikeModelSource } from '../virtualPower'
 import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
 import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
-import { flagged } from './flaggedSummary'
 import { trustedPower } from './powerCheck'
+import { rideReferenceOf } from './powerEvidence'
 import { answers } from './judgedWork'
 import type { JudgedWork } from './judgedWork'
 import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
@@ -198,24 +199,6 @@ export {
   sportCurves,
 } from './rideCurves'
 
-/**
- * The activities of a library as summaries, newest first, as the analysis lists them. With dated body
- * masses each summary also carries the mass in effect on its date, which prices its W/kg.
- */
-export function activitySummaries(
-  digests: ActivityDigest[],
-  settings?: AthleteSettings,
-): ActivitySummary[] {
-  const masses = settings === undefined ? null : massesOf(settings)
-  const dated = masses !== null && masses.dated
-  return orderedFor('listing', digests)
-    .map((digest) => {
-      const summary = summaryOf(digest, dated ? masses.bodyKg(digest) : undefined)
-      return flagged(summary, digest, masses)
-    })
-    .sort((a, b) => b.startMs - a.startMs)
-}
-
 export interface CombineOptions {
   /**
    * The activities whose heart rate is set aside, judged over the whole library (`judgeHeartRate`). Given,
@@ -365,7 +348,7 @@ export function combine(
   const ride = gatedThreshold(effortGate.ride, rideOutcome, rideCpUneven)
 
   return {
-    activities: activitySummaries(digests, settings),
+    activities: activitySummaries(digests, settings, rideReferenceOf(judged)),
     runCurve,
     rideCurve,
     rideMetabolicCurve,

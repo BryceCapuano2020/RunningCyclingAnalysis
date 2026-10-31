@@ -24,6 +24,8 @@ interface SkippedProps {
   /** Files added, which are not the copies left out. */
   added?: number
   unlisted?: number
+  /** The files in a format the app does not read, by extension. */
+  types?: Record<string, number>
 }
 
 const NONE: RejectedFile[] = []
@@ -35,12 +37,14 @@ function Skipped({
   duplicates = NONE,
   added = 0,
   unlisted,
+  types,
 }: SkippedProps) {
   const outcome = {
     filesAdded: added,
     rejected: rejected.length + unsupportedFiles,
     duplicates,
     notActivities: unlisted,
+    skippedTypes: types,
   }
   return <RejectedFiles outcome={outcome} rejected={rejected} unsupportedFiles={unsupportedFiles} />
 }
@@ -277,6 +281,20 @@ describe('RejectedFiles: the files that need a look', () => {
         '2 files in a format this app does not read. Export your activities as FIT, GPX or TCX files, then add them again.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('names the formats of the files it does not read, when they account for all of them', () => {
+    render(<Skipped unsupportedFiles={3} types={{ pwx: 2, kml: 1 }} />)
+
+    expect(
+      screen.getByText(/^3 files in a format this app does not read: 2 \.pwx, 1 \.kml\./),
+    ).toBeInTheDocument()
+  })
+
+  it('names none when the formats do not add up to the files counted', () => {
+    render(<Skipped unsupportedFiles={3} types={{ pwx: 1 }} />)
+
+    expect(screen.getByText(/^3 files in a format this app does not read\./)).toBeInTheDocument()
   })
 
   it('says the export advice once when a named file and unnamed ones need it', () => {

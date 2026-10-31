@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ridePowerCeilingWkg } from '../curves'
-import { activitySummaries, combine } from './combine'
+import { activitySummaries } from './activitySummaries'
+import { combine } from './combine'
 import { estimatedPowerOver } from './estimatedPower'
 import { fixedMasses, massesOf } from './masses'
 import { powerCheckOf } from './powerCheck'

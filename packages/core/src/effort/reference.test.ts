@@ -135,7 +135,11 @@ describe('readReferences', () => {
   })
 
   it('lets an entered maximum win, as trusted, over every check', () => {
-    const settings: ReferenceSettings = { birthYear: null, entered: { run: 188, ride: null } }
+    const settings: ReferenceSettings = {
+      birthYear: null,
+      sex: null,
+      entered: { run: 188, ride: null },
+    }
     const low = { run: 140, ride: null }
     const read = readReferences(
       input({
@@ -191,5 +195,61 @@ describe('enteredReferences', () => {
     expect(enteredReferences({ run: 186, ride: null })).toEqual({ run: 186, ride: 180 })
     expect(enteredReferences({ run: null, ride: 176 })).toEqual({ run: 176, ride: 176 })
     expect(enteredReferences({ run: null, ride: null })).toEqual({ run: null, ride: null })
+  })
+})
+
+describe('the age band by sex', () => {
+  const at60 = (bpm: number, sex: 'female' | 'male' | null) => {
+    const found = { run: bpm, ride: null }
+    return readReferences(
+      input({
+        reference: found,
+        observedMax: found,
+        typical: { run: days(0.7), ride: null },
+        ageYears: 60,
+        settings: { ...NO_REFERENCE_SETTINGS, sex },
+      }),
+    ).reading.run
+  }
+
+  it('predicts 166 at 60 for Tanaka, and 153 for a woman by Gulati', () => {
+    expect(predictedMaxHeartRate(60)).toBe(166)
+    expect(predictedMaxHeartRate(60, null)).toBe(166)
+    expect(predictedMaxHeartRate(60, 'male')).toBe(166)
+    expect(predictedMaxHeartRate(60, 'female')).toBe(153)
+  })
+
+  it('puts the high band 25 over the sex’s own prediction: 185 at 60 is high for a woman and fine otherwise', () => {
+    expect(at60(185, 'female')).toBe('high')
+    expect(at60(185, 'male')).toBe('trusted')
+    expect(at60(185, null)).toBe('trusted')
+    // The edges: 25 over 153 is 178, over 166 is 191.
+    expect(at60(178, 'female')).toBe('trusted')
+    expect(at60(179, 'female')).toBe('high')
+    expect(at60(191, null)).toBe('trusted')
+    expect(at60(192, null)).toBe('high')
+  })
+
+  it('puts the floor 30 under it: 133 at 60 is low for Tanaka and fine for a woman', () => {
+    expect(referenceFloorBpm(60)).toBe(136)
+    expect(referenceFloorBpm(60, 'female')).toBe(FLOOR_MINIMUM_BPM)
+    expect(at60(133, null)).toBe('low')
+    expect(at60(133, 'female')).toBe('trusted')
+  })
+
+  it('stands in the sex’s own prediction for a library of under 12 days', () => {
+    const found = { run: 150, ride: null }
+    const young = (sex: 'female' | null) =>
+      readReferences(
+        input({
+          reference: found,
+          observedMax: found,
+          typical: { run: days(0.7, HABITUAL_MIN_DAYS - 1), ride: null },
+          ageYears: 60,
+          settings: { ...NO_REFERENCE_SETTINGS, sex },
+        }),
+      ).referenceHr.run
+    expect(young(null)).toBe(166)
+    expect(young('female')).toBe(153)
   })
 })

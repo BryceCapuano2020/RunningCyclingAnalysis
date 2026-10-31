@@ -4,6 +4,7 @@ import {
   POWER_KEPT_NOTE,
   POWER_SET_ASIDE_NOTE,
   estimatedPowerNote,
+  powerHeartRateNote,
   SET_POWER_ASIDE_LABEL,
 } from '../analysis/powerCheckCopy'
 import { useKeptPower } from '../keptPowerStore'
@@ -25,6 +26,9 @@ export function PowerCheck({ activity }: { activity: ActivitySummary }) {
             ? POWER_SET_ASIDE_NOTE
             : estimatedPowerNote(activity.estimatedPower)}
       </p>
+      {activity.powerHeartRate !== undefined && (
+        <p className="secondary">{powerHeartRateNote(activity.powerHeartRate)}</p>
+      )}
       <button
         type="button"
         className="btn"

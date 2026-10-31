@@ -13,7 +13,7 @@ const POWER_JUDGED: Record<Sport, boolean> = { run: false, ride: true }
  * no body weight is known: power per kilo cannot be judged at a placeholder mass.
  */
 export function powerCheckOf(
-  digest: ActivityDigest,
+  digest: Pick<ActivityDigest, 'id' | 'curve' | 'sport' | 'startMs'>,
   masses: Masses,
 ): 'set-aside' | 'kept' | undefined {
   if (!POWER_JUDGED[digest.sport] || !masses.massKnown) return undefined

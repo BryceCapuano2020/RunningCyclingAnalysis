@@ -28,7 +28,7 @@ import {
   unreadable,
   UNSUPPORTED_COMPRESSION,
 } from './archiveReasons'
-import { ACTIVITY, isIgnored, OTHER_ACTIVITY, ZIP } from './zipDirectory'
+import { ACTIVITY, isIgnored, OTHER_ACTIVITY, otherExtensionOf, ZIP } from './zipDirectory'
 
 /**
  * One zip being read as a stream: the top-level source, or a zip inside it, fed by the entry that holds
@@ -232,6 +232,7 @@ export class ZipReader {
     const unlisted = this.depth === 0 && sink.listed?.(entry) === false
     if (OTHER_ACTIVITY.test(entry)) {
       sink.summary[unlisted ? 'notActivities' : 'otherActivityFiles']++
+      if (!unlisted) sink.skipped?.(otherExtensionOf(entry))
       return this.skip(file)
     }
     const nested = ZIP.test(entry)
