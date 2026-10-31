@@ -67,17 +67,11 @@
 .fitness-track__tag {
   position: absolute;
   bottom: calc(100% + 6px);
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
   transform: translateX(-50%);
   white-space: nowrap;
 }
 
-.fitness-track__tag--now {
+.tag.fitness-track__tag--now {
   left: var(--at);
   color: var(--text-primary);
 }
