@@ -1,10 +1,21 @@
 import { CP_FIT_MAX_S, CP_FIT_MIN_S, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
+import { cpBand } from '@rca/core/cp'
 import { metabolicToRidePower } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { isEstimatedRecord, paceFigure, powerFigure } from './records'
 import type { Figure } from './records'
+
+/**
+ * The share of the reference that sets the band's allowance: the judged effort's, where the gate judged it hard. Where it could
+ * not judge (no heart rate, too few days) the share it worked out, if any, says nothing of how hard the effort was, so the
+ * band takes the allowance of an effort at the hard line.
+ */
+export function bandShareOf(result: AnalysisResult, sport: Sport): number | null {
+  const gate = result.effortGate[sport]
+  return gate.verdict === 'hard' ? gate.share : null
+}
 
 /** Whether a ride's fit draws on an effort in its window whose watts are estimated, from virtual power. */
 export function fitRestsOnEstimate(result: AnalysisResult): boolean {
@@ -66,8 +77,8 @@ interface RangeCps {
  * The critical powers a threshold's range spans, or null where it has none. When the sport has an uneven
  * fit, the range runs from the main threshold to the uneven one, since the bests that were left out only
  * set a floor. With the main threshold refused, its low end is that floor, the lowest bests left out.
- * Otherwise it is the standard error of the critical-power fit either side of the critical power, a rough
- * spread of the fit rather than a confidence interval. Null without a fit or a floor; when the low end is
+ * Otherwise it is the fit's band (`cpBand`): down by the regression error, up by an allowance for how hard the effort
+ * behind the fit was, a rough spread of the fit rather than a confidence interval. Null without a fit or a floor; when the low end is
  * not above resting metabolic rate, since a work rate that low is no estimate of a threshold; and, for a
  * ride's standard-error range only, when its fit draws on an effort whose watts are estimated.
  */
@@ -80,8 +91,9 @@ function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
     return { low, centre: low, high: uneven.fit.cp, spread: false }
   }
   if (!fit || (sport === 'ride' && fitRestsOnEstimate(result))) return null
-  if (!(fit.cp - fit.cpSe > RESTING_W_PER_KG)) return null
-  return { low: fit.cp - fit.cpSe, centre: fit.cp, high: fit.cp + fit.cpSe, spread: true }
+  const { low, high } = cpBand(fit, bandShareOf(result, sport))
+  if (!(low > RESTING_W_PER_KG)) return null
+  return { low, centre: fit.cp, high, spread: true }
 }
 
 /**

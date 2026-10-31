@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { sameCountedRuns, sameMasses } from '@rca/core/athlete'
+import { sameAnalysisSettings, sameCountedRuns } from '@rca/core/athlete'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import type { WorkerRequest } from '../worker/protocol'
@@ -14,6 +14,7 @@ import { isQuietRequest, keepsError } from './analysis/quietRequests'
 import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
+import { useLibraryTabs } from './analysis/libraryTabs'
 import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/model'
 import { accountPending, drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
@@ -277,6 +278,14 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     if (accountRef.current.status !== 'signed-in') forgetManifest('device')
   }, [clearAll, failManifest, forgetManifest])
 
+  const { libraryChanged } = useLibraryTabs({
+    accountRef,
+    settingsRef,
+    send: sendToWorker,
+    libraryStatus: library.libraryStatus,
+    loadLibrary: libraryActions.loadLibrary,
+    busy: imports.busy,
+  })
   const eventDeps = {
     transport,
     imports,
@@ -292,6 +301,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     deviceLoadedRef,
     loadDeviceOnce,
     manifest,
+    libraryChanged,
   }
   useWorkerEvents(eventDeps)
   useWorkerWatchdog({
@@ -303,11 +313,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   })
 
   const { send } = transport
-  // The analysis is redone when a mass changes, dated ones included, or when the runs counted at walking pace
-  // change. Other dated settings only ride along on later requests, since no analysis depends on them.
+  // The analysis is redone when a mass changes, dated ones included, when what the heart-rate reference reads changes
+  // (the year of birth and an entered maximum heart rate), or when the runs counted at walking pace change. Other dated
+  // settings only ride along on later requests, since no analysis depends on them.
   useEffect(() => {
     const changed =
-      !sameMasses(settingsRef.current, settings) || !sameCountedRuns(settingsRef.current, settings)
+      !sameAnalysisSettings(settingsRef.current, settings) ||
+      !sameCountedRuns(settingsRef.current, settings)
     settingsRef.current = settings
     if (changed) send({ type: 'setSettings', settings })
   }, [settings, send])

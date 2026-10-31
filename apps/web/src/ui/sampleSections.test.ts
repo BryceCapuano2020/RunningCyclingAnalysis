@@ -52,6 +52,21 @@ describe('the sample athlete fills every section of the app', () => {
     expect(Math.sign(relative)).toBe(SAME_HEART_RATE_SIGN[sport])
   })
 
+  it.each(SPORTS)(
+    'reads %s as a hard effort against a reference it trusts, at every period',
+    (sport) => {
+      // The effort gate holds a library whose best 20 minutes was not hard. The sample is the first thing a visitor sees, so
+      // it must pass: if it fails, the sample's generator is what to fix, never the gate.
+      for (const choice of ['default', 365, 'all'] as const) {
+        const { result } = at(choice)
+        const gate = result!.effortGate[sport]
+        expect(gate.verdict, `${sport} at ${String(choice)}`).toBe('hard')
+        expect(gate.reference, `${sport} at ${String(choice)}`).toBe('trusted')
+        expect(gate.share).toBeGreaterThanOrEqual(0.9)
+      }
+    },
+  )
+
   it.each(SPORTS)('has durability and drift evidence for %s', (sport) => {
     const { durability, drift } = at('default').lateEvidence[sport]
     expect(durability.length).toBeGreaterThan(0)

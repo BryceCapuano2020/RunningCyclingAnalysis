@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
+import { NO_EFFORT_REFERENCE } from '@rca/core/effort'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { setAsideActivityText, setAsideText } from './setAsideCopy'
 
@@ -10,6 +11,7 @@ const JUDGED: HeartRateJudgement = {
   referenceHr: { run: 200.4, ride: 194 },
   observedMaxHr: { run: 200.4, ride: 188 },
   observedMaxSource: { run: null, ride: null },
+  effortReference: NO_EFFORT_REFERENCE,
   fit: { run: null, ride: null },
   thresholdTimeline: { run: [], ride: [] },
   threshold: { run: 5, ride: 4 },

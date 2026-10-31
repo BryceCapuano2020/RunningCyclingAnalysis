@@ -1,4 +1,7 @@
 import { mulberry32, normal } from '../../math'
+import { weeklyLevel } from '../../synthetic/noise/level'
+import { NOISE_PRESETS } from '../../synthetic/noise/presets'
+import type { LevelNoise } from '../../synthetic/noise/types'
 import { monitor } from '../machine'
 import type { WeekRecord } from '../machine'
 import type { RunPoint } from '../windows'
@@ -6,8 +9,9 @@ import type { RunPoint } from '../windows'
 /**
  * A run-level generator for the monitor: the weekly level (planted steps and ramps, a slow wander,
  * a season, heat weeks, a strap step) plus the spread of one run (Student t on 5 degrees of freedom),
- * a few bad runs, and runs arriving at a Poisson rate of steady runs a week. The spreads are those
- * measured on a real library's steady runs: 3.8% a run, 2% of wander with a weekly correlation of 0.9.
+ * a few bad runs, and runs arriving at a Poisson rate of steady runs a week. The level and its spreads
+ * are the synthetic tier's shared `NOISE_PRESETS.measured.level` (3.8% a run, 2% of wander with a weekly
+ * correlation of 0.9, measured on a real library's steady runs), with `level` laid over it field by field.
  */
 export interface SimSpec {
   weeks: number
@@ -15,14 +19,10 @@ export interface SimSpec {
   perWeek: number
   /** Planted: a step of `size` (negative is slower) at `week`, or a ramp reaching `size` over `weeks`. */
   planted?: { type: 'step' | 'ramp'; week: number; size: number; weeks?: number }[]
-  runSd?: number
-  wanderSd?: number
-  wanderRho?: number
+  /** Fields of the level noise (run spread, wander, season, heat, strap step) that differ from the measured preset. */
+  level?: Partial<LevelNoise>
   /** Share of runs read 5 to 12% slow or 4 to 10% fast by the sensor. */
   bad?: number
-  seasonal?: number
-  heat?: number
-  strap?: number
   /** Share of runs 2% slow with 5% more spread (hills). */
   hilly?: number
 }
@@ -59,33 +59,13 @@ export function plantedAt(spec: SimSpec, week: number): number {
 
 export function simulate(spec: SimSpec, seed: number): RunPoint[] {
   const random = mulberry32(seed * 7919 + 13)
-  const rho = spec.wanderRho ?? 0.9
-  const runSd = spec.runSd ?? 0.038
-  const wander: number[] = []
-  let a = 0
-  for (let w = 0; w < spec.weeks; w++) {
-    a = rho * a + Math.sqrt(1 - rho * rho) * normal(random)
-    wander.push((spec.wanderSd ?? 0.02) * a)
-  }
-  const heat = new Set<number>()
-  if (spec.heat) {
-    for (let i = 0; i < Math.ceil((spec.weeks / 52) * 1.5); i++) {
-      const w0 = Math.floor(random() * (spec.weeks - 3))
-      for (let k = 0; k < 3; k++) heat.add(w0 + k)
-    }
-  }
-  const strapAt = spec.strap ? Math.floor(spec.weeks * (0.3 + 0.4 * random())) : -1
-  const strapSign = random() < 0.5 ? -1 : 1
+  const noise = { ...NOISE_PRESETS.measured.level, ...spec.level }
+  const level = weeklyLevel(noise, spec.weeks, random)
   const points: RunPoint[] = []
   for (let w = 0; w < spec.weeks; w++) {
-    const base =
-      plantedAt(spec, w) +
-      wander[w]! +
-      (spec.seasonal ? spec.seasonal * Math.sin((2 * Math.PI * (w + 10)) / 52) : 0) -
-      (heat.has(w) ? spec.heat! : 0) +
-      (strapAt >= 0 && w >= strapAt ? strapSign * spec.strap! : 0)
+    const base = plantedAt(spec, w) + level[w]!
     for (let i = 0, n = poisson(random, spec.perWeek); i < n; i++) {
-      let x = base + runSd * student5(random)
+      let x = base + noise.runSd * student5(random)
       if (spec.hilly && random() < spec.hilly) x += -0.02 + 0.05 * normal(random)
       if (spec.bad && random() < spec.bad) {
         x += random() < 0.6 ? -(0.05 + 0.07 * random()) : 0.04 + 0.06 * random()

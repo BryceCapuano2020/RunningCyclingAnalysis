@@ -412,7 +412,7 @@ describe('MethodPage energy view', () => {
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
       within(section).getByText(
-        'The comparison is held. A hard 20 min run or ride would let them be compared.',
+        'The comparison is held. Your running and cycling have no 20 min effort yet.',
       ),
     ).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/this view is that ratio|cross-check|90% model range/)
@@ -563,12 +563,12 @@ describe('MethodPage energy view', () => {
     ).toBeInTheDocument()
   })
 
-  it('says both best efforts were hard efforts, with no hedge after it', () => {
+  it('says both best efforts reached the hard line, and what heart rate cannot tell', () => {
     renderPage(withEffort({ durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 }))
 
     expect(
       screen.getByText(
-        'Both best efforts reached at least 90% of each sport’s reference heart rate, so both were hard efforts.',
+        'Both best efforts reached at least 90% of each sport’s reference heart rate. Heart rate cannot tell a hard 20 min from an all-out one.',
       ),
     ).toBeInTheDocument()
   })
@@ -576,7 +576,7 @@ describe('MethodPage energy view', () => {
   it('leaves out the hard-efforts fact when either best effort was below 90%', () => {
     renderPage(withEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 }))
 
-    expect(screen.queryByText(/so both were hard efforts/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Both best efforts reached at least 90%/)).not.toBeInTheDocument()
   })
 
   it('shows no facts when there is no comparison to check', () => {
@@ -960,7 +960,7 @@ describe('MethodPage without a weight', () => {
     expect(
       within(section).getByText(/Best efforts are judged against running 188 bpm/),
     ).toBeInTheDocument()
-    expect(within(section).getByText(/so both were hard efforts/)).toBeInTheDocument()
+    expect(within(section).getByText(/Both best efforts reached at least 90%/)).toBeInTheDocument()
     // The reference heart rate is defined in one sentence, where the heart-rate check is explained.
     expect(
       within(section).getByText(

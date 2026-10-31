@@ -163,7 +163,7 @@ describe('heldReason for rides known by the model’s watts', () => {
     )
   })
 
-  it('keeps the general reason for rides a meter measured', () => {
-    expect(reason(THREE_EACH)).toBe('A hard 20 min run or ride would let them be compared.')
+  it('names no effort yet, without a climb, for rides a meter measured', () => {
+    expect(reason(THREE_EACH)).toBe('Your cycling has no 20 min effort yet.')
   })
 })

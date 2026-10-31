@@ -9,3 +9,11 @@ import { DAY_MS } from '../constants'
 export function localDayNumber(ms: number): number {
   return Math.floor((ms - new Date(ms).getTimezoneOffset() * 60_000) / DAY_MS)
 }
+
+/**
+ * The time zone the local days are cut in. A result that groups by `localDayNumber` is kept only for the zone it was made in:
+ * a process whose zone changes (a test that sets TZ) must not take an answer made for another one.
+ */
+export function localZoneKey(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}

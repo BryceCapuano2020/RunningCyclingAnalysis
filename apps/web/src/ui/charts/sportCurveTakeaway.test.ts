@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { CurveRow } from './curveTable'
 import { changeOf } from './changeFixtures'
+import { DURATIONS_S } from '@rca/core/constants'
+import type { ChangeEvidence } from '@rca/core/change/types'
 import { citedDurationS, curveTakeaway, takeawayAt } from './sportCurveTakeaway'
 
 const row = (
@@ -263,5 +265,35 @@ describe('citedDurationS', () => {
         rows: [row(900, 250, 240)],
       }),
     ).toBeNull()
+  })
+})
+
+describe('a no-clear-change title whose band is too wide to name a size', () => {
+  /** A 20 minute call whose headline band is +-60% (a band of 83% either way), as easy runs mixed with hard ones make. */
+  const widened = (strong: number): ChangeEvidence => {
+    const evidence = changeOf('none')
+    for (const sport of ['run', 'ride'] as const) {
+      const index = DURATIONS_S.indexOf(1200)
+      evidence[sport][index] = {
+        ...evidence[sport][index]!,
+        strongLow: -strong,
+        strongHigh: strong,
+      }
+    }
+    return evidence
+  }
+  const title = (strong: number) =>
+    curveTakeaway({ ...base, sport: 'run', rows: [row(1200, 4.0, 3.9)], change: widened(strong) })
+
+  it('names no size, and says the efforts vary too much', () => {
+    expect(title(0.6)).toBe(
+      'No clear change in 20 min from the previous 12 weeks; the efforts vary too much to show a change',
+    )
+  })
+
+  it('names the size up to a quarter, and not beyond it', () => {
+    expect(title(0.2)).toContain("changes under 23% can't be told apart here")
+    expect(title(0.25)).toContain('vary too much')
+    expect(title(0.22)).not.toContain('vary too much')
   })
 })

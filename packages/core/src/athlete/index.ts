@@ -15,3 +15,10 @@ export { bodyMassOn, currentMass, hasDatedMass, massAtFor, sameMasses } from './
 export type { MassAt } from './mass'
 export { sameCountedRuns } from './countedRuns'
 export type { AthleteSettings } from './settings'
+export {
+  NO_REFERENCE_SETTINGS,
+  referenceSettingsOf,
+  sameAnalysisSettings,
+  sameReferenceSettings,
+} from './references'
+export type { ReferenceSettings } from './references'

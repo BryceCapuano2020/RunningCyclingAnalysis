@@ -1,4 +1,4 @@
-import { sameMasses } from './athlete/mass'
+import { sameAnalysisSettings } from './athlete/references'
 import { changeEvidence } from './change/evidence'
 import type { ChangeEvidence } from './change/types'
 import { EVERY_EFFORT_KEYED } from './digest/readingRule'
@@ -9,8 +9,9 @@ import type { AnalysisResult } from './digest/combine'
 import { rideGateKey } from './digest/estimatedRide'
 import type { JudgedWork } from './digest/judgedWork'
 import type { EstimatedRideGate } from './digest/estimatedRide'
-import type { MaxHeartRates } from './effort'
+import type { EffortReference } from './effort'
 import { lateEvidence } from './digest/lateEvidence'
+import type { LateReference } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import { sameHeartRate } from './digest/sameHeartRate'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
@@ -47,7 +48,7 @@ function sameInputs(
   selected: ActivityDigest[],
   settings: AthleteSettings,
 ): boolean {
-  return sameMasses(cached.settings, settings) && sameDigests(cached.selected, selected)
+  return sameAnalysisSettings(cached.settings, settings) && sameDigests(cached.selected, selected)
 }
 
 /** The ids of a set among these digests, sorted and joined: what in a library's set-aside can move their analysis. */
@@ -290,9 +291,16 @@ export class PeriodCache {
     return result
   }
 
-  /** Each sport's late-effort evidence over the selected period, reused while the digests and the set-aside are the same. */
-  late(selected: ActivityDigest[], setAside: readonly string[]): LateEvidenceBySport {
-    const key = setAside.join(',')
+  /**
+   * Each sport's late-effort evidence over the selected period, reused while the digests, the set-aside and the
+   * reference it judges sessions by are the same.
+   */
+  late(
+    selected: ActivityDigest[],
+    setAside: readonly string[],
+    judged?: LateReference,
+  ): LateEvidenceBySport {
+    const key = `${setAside.join(',')}|${JSON.stringify(judged ?? null)}`
     const hit = this.lateEntries.findIndex(
       (entry) => entry.setAside === key && sameDigests(entry.selected, selected),
     )
@@ -301,7 +309,7 @@ export class PeriodCache {
       this.lateEntries.unshift(entry!)
       return entry!.result
     }
-    const result = lateEvidence(selected, new Set(setAside))
+    const result = lateEvidence(selected, new Set(setAside), judged)
     this.lateEntries.unshift({ selected, setAside: key, result })
     this.lateEntries.length = Math.min(this.lateEntries.length, ANALYSES_KEPT)
     return result
@@ -314,7 +322,7 @@ export class PeriodCache {
     settings: AthleteSettings,
     bikeModel: BikeModel,
     rideGate?: EstimatedRideGate | null,
-    judged?: { referenceHr: MaxHeartRates; setAside: readonly string[] },
+    judged?: { effortReference: EffortReference; setAside: readonly string[] },
   ): SportCurves {
     const cached = this.previousEntry
     const gate = rideGateKey(rideGate)
@@ -322,7 +330,7 @@ export class PeriodCache {
     const hardness =
       judged === undefined
         ? 'none'
-        : `${judged.referenceHr.run}|${judged.referenceHr.ride}|${setAsideAmong(previous, judged.setAside)}`
+        : `${JSON.stringify(judged.effortReference)}|${setAsideAmong(previous, judged.setAside)}`
     if (
       cached !== null &&
       cached.gate === gate &&
@@ -339,7 +347,7 @@ export class PeriodCache {
       rideGate,
       judged === undefined
         ? undefined
-        : { reference: judged.referenceHr, setAside: new Set(judged.setAside) },
+        : { effort: judged.effortReference, setAside: new Set(judged.setAside) },
     )
     this.previousEntry = { selected, settings, previous, gate, hardness, curves }
     return curves

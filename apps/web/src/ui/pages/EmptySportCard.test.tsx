@@ -38,7 +38,7 @@ describe('EmptySportCard', () => {
     const { container } = render(
       <EmptySportCard sport="run" inLibrary={0} period={SIX_WEEKS} onAddFiles={vi.fn()} />,
     )
-    expect(container.querySelector('.card')).toBeNull()
+    expect(container.querySelector('.panel, .band')).toBeNull()
     expect(container.querySelector('.empty-sport')).not.toBeNull()
   })
 
