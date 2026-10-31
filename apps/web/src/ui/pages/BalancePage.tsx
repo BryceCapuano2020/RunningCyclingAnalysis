@@ -34,6 +34,7 @@ import { EvidenceLine } from './EvidenceLine'
 import { FitnessSection } from './FitnessSection'
 import { useBalanceVolume } from './useBalanceVolume'
 import { GradeProfileSection } from './GradeProfileSection'
+import { SoleSportRecords } from './SoleSportRecords'
 import { SportInvitation } from './SportInvitation'
 import './BalancePage.css'
 
@@ -288,6 +289,17 @@ export function BalancePage({
       />
 
       {sourceLine}
+
+      {soleSport === null ? null : (
+        <SoleSportRecords
+          sport={soleSport}
+          result={result}
+          massKg={settings.massKg}
+          units={units}
+          profile={profile}
+          library={library}
+        />
+      )}
 
       {missingAge !== null && (
         <div className="balance__profile">

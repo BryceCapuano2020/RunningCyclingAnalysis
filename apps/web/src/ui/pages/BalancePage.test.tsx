@@ -199,7 +199,9 @@ describe('BalancePage', () => {
     renderPage(makeResult({ activities: [run] }), { state: { library: [run] } })
 
     const row = screen.getByTestId('sport-invitation')
-    expect(within(row).getByText('Add rides to compare them with your running.')).toBeInTheDocument()
+    expect(
+      within(row).getByText('Add rides to compare them with your running.'),
+    ).toBeInTheDocument()
     expect(within(row).getByRole('button', { name: 'Add rides' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Ride' })).toBeNull()
   })
@@ -748,6 +750,20 @@ describe('BalancePage with one sport', () => {
     })
     expect(screen.getByText('Your level needs your year of birth and sex.')).toBeInTheDocument()
     expect(screen.queryByText(/The balance in points and levels needs/)).toBeNull()
+  })
+
+  it('shows the one sport’s other best efforts under its tiles, and a library of both sports does not', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const curve = [
+      curvePoint(300, 330, 'ride-1'),
+      curvePoint(HEADLINE_DURATION_S, 270, 'ride-1'),
+      curvePoint(3600, 230, 'ride-1'),
+    ]
+    renderPage(makeResult({ activities: [ride], rideCurve: curve }), { state: { library: [ride] } })
+    expect(screen.getByRole('list', { name: 'Best efforts' })).toBeInTheDocument()
+    cleanup()
+    renderPage(BOTH_SPORTS)
+    expect(screen.queryByRole('list', { name: 'Best efforts' })).toBeNull()
   })
 
   it('writes no level line for the one sport while its grade is missing', () => {
