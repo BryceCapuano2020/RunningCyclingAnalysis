@@ -46,3 +46,22 @@ export function lockedRun(lockS: number, seed = 9): Activity {
   for (let i = 600; i < 600 + lockS; i++) run.heartRate[i] = cadence[i]!
   return run
 }
+
+/** A 40 minute run whose watch recorded a temperature that warms from 12 to 20 degrees, with a 3 minute sunny spike. */
+export function warmRun(seed = 13): Activity {
+  const run = steadyRun('warm-run', 2400, 3, seed)
+  run.temperature = Float32Array.from({ length: run.n }, (_, i) =>
+    i >= 1500 && i < 1680 ? 38 : 12 + (8 * i) / run.n,
+  )
+  return run
+}
+
+/** A power-meter ride of 40 minutes with a temperature of 25 degrees recorded on half the seconds. */
+export function warmRide(seed = 17): Activity {
+  const rand = mulberry32(seed)
+  const n = 2400
+  const power = Float64Array.from({ length: n }, () => 200 + Math.round((rand() - 0.5) * 20))
+  const ride = syntheticActivity({ id: 'warm-ride', sport: 'ride', n, power })
+  ride.temperature = Float32Array.from({ length: n }, (_, i) => (i % 2 === 0 ? 25 : NaN))
+  return ride
+}

@@ -97,6 +97,11 @@ export function seasonSwing(status: FitnessStatus): string | null {
   return swing === null ? null : `up to ${(swing * 100).toFixed(1)}% either side`
 }
 
+/** Whether the athlete's warm days were added back to the runs behind a status (revision 7, once their files carry a temperature). */
+export function adjustedForWarmDays(status: FitnessStatus): boolean {
+  return status.evidence?.method.heat !== undefined
+}
+
 /** Whether a status has anything to say on screen: a state, or a count of what it is waiting for. */
 export function worthShowing(status: FitnessStatus): boolean {
   const { shortfall } = status

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { haversineM, trackFromFixes, type GpsFix } from './gps'
+import { acceptFixes, haversineM, trackFromFixes, type GpsFix } from './gps'
 
 const EARTH_R = 6_371_008.8
 const DEG = 180 / Math.PI
@@ -208,5 +208,24 @@ describe('trackFromFixes', () => {
     expect(track.rejected).toBe(1)
     expect(track.tMs.length).toBe(before.length + after.length)
     expect(Math.abs(actual - expected) / expected).toBeLessThan(0.005)
+  })
+})
+
+describe('acceptFixes at the step limit', () => {
+  // Steady 3 m/s north for 20 s, with the fix at second 10 moved east. The limit is twice the sport's top
+  // speed (25 m/s for a run) over the step's time, so a one-second step of 24 m stands and one of 26 m goes.
+  const track = (eastM: number) => seconds(0, 20).map((s) => fixAt(s, 3 * s, s === 10 ? eastM : 0))
+
+  it('drops a fix whose step is just over twice the top speed', () => {
+    const { accepted, rejected } = acceptFixes(track(26), RUN_MAX_MS)
+    expect(rejected).toBe(1)
+    expect(accepted).toHaveLength(19)
+    expect(accepted.some((fix) => fix.t === T0 + 10_000)).toBe(false)
+  })
+
+  it('keeps a fix whose step is just under twice the top speed', () => {
+    const { accepted, rejected } = acceptFixes(track(24), RUN_MAX_MS)
+    expect(rejected).toBe(0)
+    expect(accepted).toHaveLength(20)
   })
 })
