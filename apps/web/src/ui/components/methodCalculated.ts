@@ -41,7 +41,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Thresholds and their range',
     state: 'calculated',
-    line: `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts, with the range of the fit, which is not a 90% range.`,
+    line: `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts. Its range is the fit’s own, not the balance’s 90% range.`,
   },
   {
     name: 'Best efforts and curves',
