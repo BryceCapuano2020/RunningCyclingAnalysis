@@ -177,7 +177,7 @@ test('statistical simulations run in their own job, without coverage, and never 
   assert.match(sim, /^ {4}name: Simulations \(\$\{\{ matrix\.shard \}\} of 2\)$/m)
   assert.match(
     sim,
-    /^ {6}- run: npm run test:sim -- -- --shard=\$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}$/m,
+    /^ {6}- run: npm run test:sim\n {8}env:\n {10}SIM_SHARD: \$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}$/m,
   )
   assert.match(sim, /fail-fast: false/)
   assert.doesNotMatch(sim, /coverage/)
