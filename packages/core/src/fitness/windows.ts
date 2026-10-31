@@ -10,6 +10,8 @@ export interface RunPoint {
   id: string
   t: number
   x: number
+  /** The day's warmth as the file's sensor read it (the digest's temperature index), when it had one. */
+  c?: number
   /**
    * The run's own start. `t` puts it on its local day, so it is not the instant; where this is absent (tests, sims)
    * the instant is read from `t`.

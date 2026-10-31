@@ -41,6 +41,7 @@ import {
   withCadenceLock,
   withLonePowerSpikes,
 } from './revision7Gate'
+import { temperatureSummary } from './temperature'
 import { digestEvidence } from './evidence'
 import { revision7Fields } from './revision7Fields'
 import type { OutputStream } from './evidence'
@@ -313,6 +314,8 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
     parts = virtualParts(streams, quality, grade, source, occupancy)
   }
 
+  const temperature = hasRevision7(revision) ? temperatureSummary(activity, moving) : undefined
+
   return {
     version: DIGEST_VERSION,
     modelRevision: revision,
@@ -361,6 +364,7 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
       ? { walkingPace: true as const }
       : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
+    ...(temperature === undefined ? {} : { temperature }),
     ...revision7Fields(activity, revision),
   }
 }
