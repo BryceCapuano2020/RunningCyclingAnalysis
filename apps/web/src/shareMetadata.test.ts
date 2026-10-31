@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { LANDING_EXAMPLE } from './ui/landingExample'
-import { SPORT_NOUN } from './ui/sports'
+import { cardInk, cardStamp, fillLandingOg, ogAlt } from './ui/landingFigures'
+import { declared } from './styles/tokenSheet'
 import { readStylesheet } from './ui/components/stylesheet'
 
 /*
  * The page's share metadata, its manifest and its 404 page, read from the files that carry them.
  * The e2e-worker suite checks the same files as the running Worker serves them.
  */
-const index = await readStylesheet(import.meta.url, '../index.html')
+const indexSource = await readStylesheet(import.meta.url, '../index.html')
+/** index.html as the build serves it: its placeholders filled from the landing figures (scripts/landingFigures.ts). */
+const index = fillLandingOg(indexSource, LANDING_EXAMPLE)
 const wrangler = await readStylesheet(import.meta.url, '../../api/wrangler.toml')
 const wranglerLocal = await readStylesheet(import.meta.url, '../../api/wrangler.local.toml')
 const manifestText = await readStylesheet(import.meta.url, '../public/manifest.webmanifest')
@@ -61,11 +64,17 @@ describe('share metadata in index.html', () => {
     expect(metaContent('name', 'twitter:image')).toBe(`${APP_URL}/social-card.png`)
   })
 
-  it('describes the image with the figures it shows, which are the landing example’s', () => {
-    const { grades, gap } = LANDING_EXAMPLE
-    const alt = `A sample athlete's result: running at ${grades.run.centre.level} level, cycling at ${grades.ride.centre.level}, balance leaning ${Math.abs(gap.centre)} points toward ${SPORT_NOUN[gap.lean]}.`
+  it('describes the image with the figures it shows, which the build fills in from the sample', () => {
+    // The source holds a placeholder on each alt, never figures typed by hand.
+    expect(indexSource.match(/%LANDING_OG_ALT%/g)).toHaveLength(2)
+    expect(indexSource).not.toMatch(/balance leaning \d+ points/)
+    const alt = ogAlt(LANDING_EXAMPLE)
+    expect(alt).toMatch(
+      /^A sample athlete's result: running at \w+ level, cycling at \w+, balance leaning \d+ points toward (running|cycling)\.$/,
+    )
     expect(metaContent('property', 'og:image:alt')).toBe(alt)
     expect(metaContent('name', 'twitter:image:alt')).toBe(alt)
+    expect(index).not.toContain('%LANDING_OG')
   })
 
   it('sets a theme colour for each colour scheme, matching the page’s own surface', () => {
@@ -97,6 +106,26 @@ describe('the share image', () => {
     expect(metaContent('property', 'og:image:width')).toBe('1200')
     expect(metaContent('property', 'og:image:height')).toBe('630')
     expect(bytes.byteLength).toBeLessThan(200 * 1024)
+  })
+})
+
+describe('the share image’s stamp', () => {
+  it('is the hash of the figures and colours the image was drawn from; "npm run card" redraws both when it is not', async () => {
+    const stamp = new TextDecoder().decode(await publicFile('social-card.stamp')).trim()
+    const ink = cardInk(await readStylesheet(import.meta.url, './styles/tokens.css'))
+    expect(
+      stamp,
+      'public/social-card.png is older than the sample or the tokens. Run npx playwright install chromium, then npm run card, then commit public/social-card.png, public/social-card.stamp and the icons it rewrites.',
+    ).toBe(cardStamp(LANDING_EXAMPLE, ink))
+  })
+
+  it('takes its colours from the dark theme’s tokens', async () => {
+    const css = await readStylesheet(import.meta.url, './styles/tokens.css')
+    const ink = cardInk(css)
+    for (const colour of Object.values(ink)) expect(colour).toMatch(/^#[0-9a-f]{6}$/)
+    // The light root's surface is the page's; the card is drawn on the dark one.
+    expect(ink.surface0).toBe(declared(css, ":root:not([data-theme='light'])").get('surface-0'))
+    expect(ink.surface0).not.toBe(declared(css, ':root').get('surface-0'))
   })
 })
 

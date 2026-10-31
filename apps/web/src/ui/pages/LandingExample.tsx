@@ -4,7 +4,7 @@ import { gapReading } from '../components/balanceScale'
 import { balanceTitle } from '../components/headlineText'
 import type { GradeOutcome } from '../grades'
 import { LANDING_EXAMPLE } from '../landingExample'
-import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
+import { SAMPLE_AGE, SAMPLE_DESCRIPTION } from '../sampleAthlete'
 import { FITNESS_STATE, trackModel } from '../fitnessModel'
 import { SPORT_ORDER } from '../sports'
 import { balanceLevels } from './levelsModel'
@@ -12,9 +12,6 @@ import { BalanceLevels } from './BalanceLevels'
 import { FitnessGlyph } from './FitnessGlyph'
 import { FitnessTrack } from './FitnessTrack'
 import './LandingExample.css'
-
-/** The sample athlete's age on the newest effort, which the example's grades are taken at. */
-const SAMPLE_AGE = 37
 
 /** The example's grades as the page holds them: both graded, so the levels name each. */
 const GRADES: Record<Sport, GradeOutcome> = {

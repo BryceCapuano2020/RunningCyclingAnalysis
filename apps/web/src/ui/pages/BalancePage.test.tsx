@@ -252,13 +252,12 @@ describe('BalancePage', () => {
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toBeInTheDocument()
   })
 
-  it('lays the tiles out in the sport order, then the lean and the ride on foot', () => {
+  it('lays the tiles out in the sport order, then the ride on foot, with no tile for the lean', () => {
     renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
     const names = screen.getAllByRole('article').map((tile) => tile.getAttribute('aria-label'))
     expect(names).toEqual([
       `${SPORT_LABEL[SPORT_ORDER[0]]} threshold`,
       `${SPORT_LABEL[SPORT_ORDER[1]]} threshold`,
-      'Lean',
       'Ride on foot',
     ])
   })
@@ -622,7 +621,7 @@ describe('BalancePage concept budget', () => {
     }
   })
 
-  it('states the level target once, as the lean tile’s second line', () => {
+  it('states the level target once, as a line under the hero’s lede', () => {
     renderPage(
       makeResult({
         runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
@@ -634,7 +633,8 @@ describe('BalancePage concept budget', () => {
     )
     const sentences = screen.getAllByText(/^To grade level with your/)
     expect(sentences).toHaveLength(1)
-    expect(sentences[0]?.closest('.stat-tile')).toHaveAttribute('aria-label', 'Lean')
+    expect(sentences[0]?.closest('.balance-hero__text')).not.toBeNull()
+    expect(sentences[0]?.previousElementSibling).toHaveClass('balance-hero__lede')
   })
 
   it('has no across-sports section and no second table of the ride on foot at every duration', () => {
@@ -672,18 +672,17 @@ describe('BalancePage concept budget', () => {
         copy.querySelectorAll('.definition__note').forEach((note) => note.remove())
         return copy.textContent
       })
-    // The share sheet's heading and the four tiles: nothing else. The heart-rate check is a chip on a tile.
+    // The share sheet's heading and the three tiles: nothing else. The heart-rate check is a chip on a tile.
     expect(before).toEqual([
       'Share image',
       'Headline numbers',
       'Run threshold',
       'Ride threshold',
-      'Lean',
       'Ride on foot',
     ])
   })
 
-  it('states the gap in points at the dot and in the lean tile, and writes it as a sentence once', () => {
+  it('states the gap in points once at the dot and once in the lede, and nowhere else', () => {
     const { container } = full()
     const lede = container.querySelector('.balance-hero__lede')?.cloneNode(true) as HTMLElement
     lede.querySelectorAll('.definition__note').forEach((note) => note.remove())
@@ -713,13 +712,12 @@ describe('BalancePage while the headline is held for too few activities', () => 
     )
   }
 
-  it('holds the hero, the lean tile and the target together: none states a lean', () => {
+  it('holds the hero and the target together: none states a lean', () => {
     const { container } = held()
     expect(screen.getByRole('heading', { level: 1 })).not.toHaveTextContent(
       /leans toward|in balance/,
     )
     expect(container.querySelector('.balance-meter')).toBeNull()
-    expect(screen.queryByRole('article', { name: 'Lean' })).toBeNull()
     expect(screen.queryByText(/^To grade level with your/)).toBeNull()
     expect(screen.queryByRole('region', { name: 'Level in each sport' })).toBeNull()
   })

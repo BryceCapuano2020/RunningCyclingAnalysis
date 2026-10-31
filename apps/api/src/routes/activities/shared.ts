@@ -2,6 +2,7 @@ import { and, eq, getTableColumns } from 'drizzle-orm'
 import { StoredActivityDigestSchema, type ActivityRecord } from '@rca/contract'
 import type { Db } from '../../env.ts'
 import { HttpError } from '../../errors.ts'
+import { readBody } from '../../http.ts'
 import { activities } from '../../db/schema.ts'
 
 export type ActivityRow = typeof activities.$inferSelect
@@ -64,4 +65,14 @@ export function fileStorageUnavailable(): HttpError {
     'file_storage_unavailable',
     'Original-file storage is not available in this deployment',
   )
+}
+
+/** The request body as parsed JSON, read under a size limit. Anything else is refused. */
+export async function readJsonBody(request: Request, maxBytes: number): Promise<unknown> {
+  const body = await readBody(request, maxBytes)
+  try {
+    return JSON.parse(new TextDecoder().decode(body))
+  } catch {
+    throw new HttpError(400, 'invalid_json', 'Body is not valid JSON')
+  }
 }
