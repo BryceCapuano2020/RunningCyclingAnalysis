@@ -4,6 +4,8 @@ import type { SimSpec } from '../fitness/test/runSim'
 import { WEEK_ORIGIN_MS } from '../fitness/machine'
 import { DAY_MS } from '../constants'
 import type { RunPoint } from '../fitness/windows'
+import { isBackLevel } from '../fitness/episode'
+import { isBack } from './episodes'
 import { hindsightOf } from './hindsight'
 import type { HindsightInput } from './hindsight'
 import type { HindsightFitness } from './types'
@@ -161,5 +163,21 @@ describe('what is posted', () => {
       expect(list.length).toBeLessThanOrEqual(6)
     }
     expect(JSON.stringify(wander).length).toBeLessThan(8000)
+  })
+})
+
+describe('the back test', () => {
+  const level = (m: number, se: number) => ({ fromWeek: 0, toWeek: 10, m, se, n: 30 })
+
+  it('is the live monitor test, with the model-error floor in the standard error', () => {
+    const pre = level(0, 0.002)
+    const post = level(-0.009, 0.002)
+    // Tight levels and no floor: -0.9% is back (the point bar -1%, the lower bound over -2%).
+    expect(isBack(pre, post, 0)).toBe(true)
+    // The same levels under a 1.5% floor have a lower bound past -2%: partly back, as the live state would call it.
+    expect(isBack(pre, post, 0.015)).toBe(false)
+    const se = Math.sqrt(0.002 ** 2 + 0.002 ** 2 + 0.015 ** 2)
+    expect(isBack(pre, post, 0.015)).toBe(isBackLevel(-0.009, se))
+    expect(isBack(pre, level(-0.011, 0.002), 0)).toBe(false)
   })
 })

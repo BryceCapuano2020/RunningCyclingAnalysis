@@ -13,6 +13,7 @@ import { effortProgression } from '../records/progression'
 import type { Reading } from '../records/progression'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { LOOKBACK } from './params'
+import { sig } from './round'
 import type { EffortMilestones, MilestoneEffort, MilestoneUnit } from './types'
 
 const M = LOOKBACK.milestones
@@ -75,12 +76,17 @@ export function milestonesFor(
     .sort((a, b) => jump(b) - jump(a))
     .slice(0, LOOKBACK.caps.steps)
     .sort((a, b) => a.p.startMs - b.p.startMs)
-    .map((r) => ({ atMs: r.p.startMs, value: r.p.value, previous: r.previous!, id: r.p.id }))
+    .map((r) => ({
+      atMs: r.p.startMs,
+      value: sig(r.p.value),
+      previous: sig(r.previous!),
+      id: r.p.id,
+    }))
   const thisYear = yearOf(asOfMs)
   const years = yearly(points, better).map(([year, { best: b, n }]) => ({
     year,
     partial: year === thisYear,
-    value: b.value,
+    value: sig(b.value),
     id: b.id,
     n,
   }))
@@ -93,7 +99,7 @@ export function milestonesFor(
   return {
     effort,
     unit,
-    best: { value: best.value, atMs: best.startMs, id: best.id },
+    best: { value: sig(best.value), atMs: best.startMs, id: best.id },
     years: kept,
     omittedYears: years.length - kept.length,
     steps,

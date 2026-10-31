@@ -37,6 +37,7 @@ describe('what each state is called, and the shape that says it', () => {
         recovering: 'Recovering',
         back: 'Back',
         improving: 'Improving',
+        improved: 'Improved',
         'not-enough-evidence': 'Not enough evidence yet',
       },
     )

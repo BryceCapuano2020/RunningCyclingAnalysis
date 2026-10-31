@@ -49,7 +49,7 @@ A reference is one of two things, and the zone set says which.
 - **From your rides** or **from your runs** (`source: 'estimated'`). The app's own figures. A pace or power is the
   critical-power fit (a run's flat speed, or a ride's metabolic W/kg turned into watts at the body mass in effect on
   that date) over the 26 weeks that end with the activity's week (`thresholdTimeline`), so an activity is cut by the
-  athlete's fitness then, not by their best ever. When that half year holds no fit (no effort as long as about 20
+  athlete's fitness then, not by their best ever. When that window holds no fit (no effort as long as about 20
   minutes), the newest earlier fit within 12 months is used and the table says "up to Mar 2025" (`ZoneSet.asOfMs`);
   beyond that there are no pace or power zones, and the page says what would give them: a hard, even 3 to 5 minute
   effort and a hard 20 minute effort. A heart rate is the reference of each sport (`HeartRateJudgement.referenceHr`): the
@@ -57,6 +57,14 @@ A reference is one of two things, and the zone set says which.
   (`referenceMaxOf`; chosen against alternatives in `referenceMax.sim.test.ts`), with Profile naming the figure's
   source and offering Set. An estimate the analysis refuses, such as a threshold with too few efforts, gives no zones.
   Zones are never made from a guess.
+- **Settled** (`settleThresholds.ts`). The fit is over the trailing 26 weeks, which moves in one step when a hard effort enters or leaves it,
+  so the zones hold the fit they had until a window's fit differs from it by more than its own standard error and
+  stands: it has lasted about two weeks, or the next window carries on in the same direction. A fit with no standard
+  error (two points) never moves a held one. The newest step is held the same way: a hard effort that entered the
+  window this week does not move today's zones. A hard effort that passes through
+  and goes back leaves the zones where they were. Where the whole library's fit is refused (too few hard efforts, the effort gate, the shape check) no window of that
+  sport gives zones either: a window cannot be trusted where the library it is cut from cannot. The cost is a slower
+  reaction to a real change, by at most two weeks.
 
 Critical power is the app's threshold estimate, not a 20 minute test or a lactate test, so power and pace
 zones from it are an estimate. An entered threshold replaces it.

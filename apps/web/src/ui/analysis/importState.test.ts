@@ -19,6 +19,14 @@ const window12: Period = {
 const allTime: Period = { ...window12, days: null, fellBack: true }
 
 describe('baselineOf', () => {
+  it('compares an import against nothing when the library was held and showed no result', () => {
+    const held = session({ result: null, outdatedActivities: 40, libraryActivities: 40 })
+    expect(baselineOf(held)).toBeNull()
+    expect(
+      comparableBefore(baselineOf(held), session({ result: makeResult(), period: window12 })),
+    ).toBeNull()
+  })
+
   it('compares an import against the result on screen, and the period it was made under', () => {
     const shown = makeResult()
     expect(baselineOf(session({ result: shown, period: window12 }))).toEqual({

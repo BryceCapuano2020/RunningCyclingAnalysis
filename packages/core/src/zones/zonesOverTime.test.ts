@@ -24,7 +24,7 @@ function fallen(): ActivityDigest[] {
 }
 
 function estimatesFor(library: ActivityDigest[]) {
-  return zoneEstimatesOf(new HeartRateJudge().of(library, SETTINGS))
+  return zoneEstimatesOf(new HeartRateJudge().of(library, SETTINGS), Number.MAX_SAFE_INTEGER)
 }
 
 describe('zones from current fitness', () => {

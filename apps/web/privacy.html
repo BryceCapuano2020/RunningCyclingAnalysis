@@ -96,11 +96,31 @@
           holds no activity data.
         </li>
         <li>
+          A database in this browser, named rca-checkin, remembers which files of yours the app has
+          already read, so adding the same export again does not read each file again. For each file
+          it keeps a SHA-256 hash of the file, its size, the sport and start second of the workouts
+          in it, a short signature of what the export's list says about it, and the model revision
+          it was read with. It holds no names, routes or heart rates, and it is never uploaded.
+          Remove all my activities, signing out and deleting your account clear it, and signing in
+          as someone else clears the other account's rows. Nothing is written for a session that
+          keeps nothing in this browser.
+        </li>
+        <li>
           A second flag, named rca.deviceKept.v1, says whether the summaries kept in this browser
           were there at the last visit, so the app can tell you when the browser has cleared them.
           It holds no activity data. After your first import is kept, the app also asks the browser
           to keep this site's storage, which sends nothing anywhere. If the browser will not, the
           app says so once and notes that in a third flag, rca.persistNote.v1.
+        </li>
+        <li>
+          A short record of each import is kept in this browser (database rca-import-meta): the
+          names and sizes of the files it was given (the first 50 of a large drop), how many
+          activity files it read, and whether it finished. It lets a page that loads after an import
+          was cut off say so. The last five per library are kept. A record is dropped once a later
+          import makes it whole. A random id for the tab, with no link to you, is kept in this tab's
+          session storage (rca.importTab.v1) so a reload can tell what it left behind. It is never
+          uploaded. Signing out and deleting your account clear the account's, and so does Remove
+          all my activities, which is offered only when signed out.
         </li>
         <li>
           If you choose to count a run that is at walking pace, the choice is kept in this browser's

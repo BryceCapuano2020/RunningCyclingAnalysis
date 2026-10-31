@@ -56,7 +56,7 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
     did: 'ran',
     adjusted: 'the heart rate and the climb of each',
     promise:
-      'A change of 8% it sees within weeks, reliably. A change of 5% it usually sees within a few months, and not always. Anything smaller sits inside the spread from one run to the next, about 4%, and is not reported.',
+      'A change of 8% it sees within weeks, reliably. A change of 5% it usually sees within a few months, and not always. Anything smaller sits inside the spread from one run to the next, about 4%, and is not reported. In your first two years, an athlete with a strong season can see about one false "Slipping" every two years, then about one every four.',
     ...run,
     steadyMeaning: (hr, units) =>
       `A run outdoors with heart rate on file, where pace changes by about ${Math.round(U.maxPaceChange * 100)}% or less from ${run.stretch(units)}. Its ${run.reading(units)} are read: the ones within ${U.hrHalfBand} bpm of ${hr} bpm and with little climb, at least ${U.minKm} of them. Intervals, hilly runs and treadmill runs do not count.`,
@@ -72,7 +72,7 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
     did: 'rode',
     adjusted: 'the heart rate of each',
     promise:
-      'A change of 8% it usually sees within three months. A change of 5% it often takes longer to see, and does not always. Anything smaller sits inside the spread from one ride to the next, 2% to 5%, and is not reported.',
+      'A change of 8% it usually sees within three months. A change of 5% it often takes longer to see, and does not always. Anything smaller sits inside the spread from one ride to the next, 2% to 5%, and is not reported. In your first two years, an athlete with a strong season can see about one false "Slipping" every two years, then about one every four.',
     reading: () => 'five-minute blocks',
     stretch: () => 'one five-minute block to the next',
     steadyMeaning: (hr) =>

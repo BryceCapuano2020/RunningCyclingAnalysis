@@ -49,7 +49,10 @@ export const RETENTION_UNAVAILABLE =
   'Original file storage is unavailable right now. Your saved preference is preserved; new imports save summaries only and original files are not kept. Existing saved originals are not deleted.'
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
 /** What an import reports for its summary: the files it read and could not use, and what it added. */
-export type ImportCounts = Pick<ImportOutcome, 'activities' | 'rejected' | 'detailRestored'> &
+export type ImportCounts = Pick<
+  ImportOutcome,
+  'activities' | 'rejected' | 'detailRestored' | 'updatedRuns' | 'updatedRides'
+> &
   ImportSummary & { duplicates?: readonly unknown[] }
 
 /** Said after a summary's sentence when the list under it says what moved in the numbers. */
@@ -133,9 +136,28 @@ export function addedSentence(summary: ImportSummary, nowMs = Date.now()): strin
   return `Added ${counts.join(' and ')}, ${span}.`
 }
 
-/** Every import's summary sentence: what it added, or that nothing was new. Shown and announced alike. */
+/**
+ * The sentence for workouts the import brought up to date, such as "Updated 12 runs and 3 rides." They were in
+ * the library already, held from an older model, so they are said apart from what was added. Null when none.
+ */
+export function updatedSentence({
+  updatedRuns = 0,
+  updatedRides = 0,
+}: ImportCounts): string | null {
+  if (updatedRuns + updatedRides === 0) return null
+  const counts = [
+    updatedRuns > 0 ? plural(updatedRuns, 'run') : '',
+    updatedRides > 0 ? plural(updatedRides, 'ride') : '',
+  ].filter((text) => text !== '')
+  return `Updated ${counts.join(' and ')}.`
+}
+
+/** Every import's summary sentence: what it added and updated, or that nothing was new. Shown and announced alike. */
 export function importSentence(summary: ImportCounts, nowMs = Date.now()): string {
-  const sentence = addedSentence(summary, nowMs) ?? notAddedSentence(summary.activities)
+  const said = [addedSentence(summary, nowMs), updatedSentence(summary)].filter(
+    (text) => text !== null,
+  )
+  const sentence = said.length > 0 ? said.join(' ') : notAddedSentence(summary.activities)
   const { detailRestored = 0 } = summary
   return detailRestored > 0
     ? `${sentence} Detail restored for ${plural(detailRestored, 'activity', 'activities')}.`

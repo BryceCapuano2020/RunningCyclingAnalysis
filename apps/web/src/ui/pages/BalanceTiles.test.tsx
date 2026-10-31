@@ -4,15 +4,12 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import type { Period } from '@rca/core/period'
-import { gapOfHeadline } from '../balanceGap'
-import { gapReading } from '../components/balanceScale'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { headlineGrades } from '../grades'
 import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { thresholdRange } from '../thresholdRange'
 import { BalanceTiles } from './BalanceTiles'
-import { LeanTile } from './LeanTile'
 import { RangeTrack } from './RangeTrack'
 
 afterEach(cleanup)
@@ -24,13 +21,11 @@ function sample() {
   const { result } = state
   if (result === null) throw new Error('The sample has no result')
   const headline = headlineGrades(result, SAMPLE_PROFILE)
-  const gap = gapOfHeadline(headline)
-  if (gap === null) throw new Error('The sample has no gap')
-  return { state, result, grades: { run: headline.run, ride: headline.ride }, gap }
+  return { state, result, grades: { run: headline.run, ride: headline.ride } }
 }
 
 function renderTiles(over: Partial<Parameters<typeof BalanceTiles>[0]> = {}) {
-  const { state, result, grades, gap } = sample()
+  const { state, result, grades } = sample()
   return render(
     <BalanceTiles
       result={result}
@@ -40,7 +35,6 @@ function renderTiles(over: Partial<Parameters<typeof BalanceTiles>[0]> = {}) {
       grades={grades}
       weighted
       period={PERIOD}
-      reading={gapReading(gap)}
       onAddFiles={vi.fn()}
       {...over}
     />,
@@ -78,13 +72,12 @@ describe('RangeTrack', () => {
 })
 
 describe('BalanceTiles', () => {
-  it('shows four tiles with both sports: each threshold, the lean, and the ride on foot', () => {
+  it('shows three tiles with both sports, each threshold and the ride on foot, and none for the lean', () => {
     const { container } = renderTiles()
-    expect(container.querySelector('.balance-tiles')).toHaveAttribute('data-tiles', '4')
+    expect(container.querySelector('.balance-tiles')).toHaveAttribute('data-tiles', '3')
     expect(screen.getAllByRole('article').map((tile) => tile.getAttribute('aria-label'))).toEqual([
       'Run threshold',
       'Ride threshold',
-      'Lean',
       'Ride on foot',
     ])
   })
@@ -131,32 +124,11 @@ describe('BalanceTiles', () => {
     )
   })
 
-  it('sets the lean tile’s figure from the headline gap, signed, with its 90% range as a track', () => {
-    const { gap } = sample()
-    renderTiles()
-    const tile = screen.getByRole('article', { name: 'Lean' })
-    expect(tile.querySelector('.stat-tile__number')).toHaveTextContent(`+${Math.round(gap.centre)}`)
-    expect(tile.querySelector('.stat-tile__unit')).toHaveTextContent('pts')
-    expect(tile.querySelector('.stat-tile__side')).toHaveTextContent('toward running')
-    expect(within(tile).getByText('90% range')).toBeInTheDocument()
-    // The sample's rides have power meters, so its lean rests on measured power read through the run equivalent.
-    expect(within(tile).getByText('Equivalent')).toBeInTheDocument()
-    expect(within(tile).queryByText('Estimated')).toBeNull()
-  })
-
-  it('does not repeat the level target on the lean tile, which the scale shows', () => {
-    renderTiles()
-    expect(screen.getByRole('article', { name: 'Lean' })).not.toHaveTextContent(
-      /would need|to level/i,
-    )
-  })
-
-  it('holds the ride’s tiles for the weight, and leaves the lean out', () => {
-    const { container } = renderTiles({ weighted: false, reading: null })
+  it('holds the ride’s tiles for the weight', () => {
+    const { container } = renderTiles({ weighted: false })
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
       /Add your weight on/,
     )
-    expect(screen.queryByRole('article', { name: 'Lean' })).toBeNull()
     expect(screen.getByRole('article', { name: 'Ride on foot' })).toHaveTextContent(
       /Add your weight on/,
     )
@@ -164,7 +136,7 @@ describe('BalanceTiles', () => {
     expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(1)
   })
 
-  it('puts a prompt in the empty sport’s place, and leaves the lean and the ride on foot out', () => {
+  it('puts a prompt in the empty sport’s place, and leaves the ride on foot out', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const { container } = render(
       <BalanceTiles
@@ -175,14 +147,13 @@ describe('BalanceTiles', () => {
         grades={{ run: null, ride: null }}
         weighted
         period={PERIOD}
-        reading={null}
         onAddFiles={vi.fn()}
       />,
     )
     expect(container.querySelector('.balance-tiles')).toHaveAttribute('data-tiles', '2')
     expect(screen.getByRole('region', { name: 'Ride' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add rides' })).toBeInTheDocument()
-    expect(screen.queryByRole('article', { name: 'Lean' })).toBeNull()
+    expect(screen.queryByRole('article', { name: 'Ride on foot' })).toBeNull()
   })
 
   it('says what a missing threshold needs, in the tile, with no range shape', () => {
@@ -197,7 +168,6 @@ describe('BalanceTiles', () => {
         grades={{ run: null, ride: null }}
         weighted
         period={PERIOD}
-        reading={null}
         onAddFiles={vi.fn()}
       />,
     )
@@ -206,66 +176,12 @@ describe('BalanceTiles', () => {
     expect(tile.querySelector('.range-track')).toBeNull()
     // With no figure there is nothing for a chip to say the evidence of.
     expect(tile.querySelector('.stat-tile__basis')).toBeNull()
-    expect(container.querySelectorAll('.stat-tile__number').length).toBeLessThan(4)
+    expect(container.querySelectorAll('.stat-tile__number')).toHaveLength(0)
   })
 
   it('names each tile’s evidence with a chip: a ring for an estimate, an equivalent for the ride on foot', () => {
     const { container } = renderTiles()
     expect(container.querySelectorAll('.stat-tile__basis--estimated')).toHaveLength(2)
-    expect(container.querySelectorAll('.stat-tile__basis--equivalent')).toHaveLength(2)
-  })
-})
-
-describe('LeanTile chip', () => {
-  const lean = (basis: 'recorded' | 'estimated' | 'equivalent') =>
-    render(
-      <LeanTile
-        reading={{ unit: 'points', lean: 'run', lead: { centre: 6, low: 1, high: 12 } }}
-        basis={basis}
-      />,
-    ).container.querySelector('.stat-tile__basis')
-
-  it('says Estimated, Equivalent or Recorded, so measured power is never called estimated', () => {
-    expect(lean('estimated')).toHaveTextContent('Estimated')
-    cleanup()
-    expect(lean('equivalent')).toHaveTextContent('Equivalent')
-    cleanup()
-    expect(lean('recorded')).toHaveTextContent('Recorded')
-  })
-})
-
-describe('LeanTile caption', () => {
-  const reading = (centre: number, low: number, high: number) =>
-    ({
-      unit: 'points',
-      lean: centre > 2 ? 'run' : centre < -2 ? 'ride' : 'even',
-      lead: { centre, low, high },
-    }) as const
-
-  it('says how far the run’s grade sits above the ride’s for a lean toward running', () => {
-    render(<LeanTile reading={reading(6, 1, 12)} basis="estimated" />)
-    expect(
-      screen.getByText('How far your running grade sits above cycling’s, at your best 20 min.'),
-    ).toBeInTheDocument()
-  })
-
-  it('reads a lean toward cycling from cycling’s side', () => {
-    render(<LeanTile reading={reading(-6, -12, -1)} basis="estimated" />)
-    expect(
-      screen.getByText('How far your cycling grade sits above running’s, at your best 20 min.'),
-    ).toBeInTheDocument()
-    expect(document.querySelector('.stat-tile__number')).toHaveTextContent('+6')
-  })
-
-  it('names no side for a gap of nothing', () => {
-    render(<LeanTile reading={reading(0, -3, 3)} basis="estimated" />)
-    expect(
-      screen.getByText('How far apart your running and cycling grades sit, at your best 20 min.'),
-    ).toBeInTheDocument()
-  })
-
-  it('never says ahead of', () => {
-    const { container } = render(<LeanTile reading={reading(6, 1, 12)} basis="estimated" />)
-    expect(container.textContent).not.toMatch(/ahead of/i)
+    expect(container.querySelectorAll('.stat-tile__basis--equivalent')).toHaveLength(1)
   })
 })

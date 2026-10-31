@@ -120,6 +120,7 @@ describe('the hold on the Balance headline', () => {
     })!
     expect(hold).toEqual({
       reason: 'implausible-ride',
+      scope: 'headline',
       sports: ['ride'],
       text: 'The ride is implausible.',
       action: 'Check it.',

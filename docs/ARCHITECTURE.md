@@ -91,6 +91,17 @@ script that asks for the same routes still gets the JSON error.
    per-account quota and the deployment-wide R2 budget, streams the bytes to R2 under a per-user key
    prefix, and records the key and size on the row.
 
+A signed-in import saves a new activity in the background while it goes on reading: up to three creates and two
+original-file uploads (the server's two upload slots) are open at once, and the import waits for all of them
+before it ends. At most six saves, and 48 MiB of file bytes, are in flight; the reader waits when the saves are
+full, so a large library stays flat in memory. A replacement of a held copy, or a retry of an activity whose
+save failed, is saved before the next file is looked at, so two saves of one workout never overlap. A failure
+belongs to the activity that had it. One that ends the saves (a full library, a spent day, a rate limit that
+holds) is shared: the saves still waiting fail with the same cause without being sent. A rate limit is waited out
+by one save, and the others wait for how its second try ends. A second copy of a workout whose first save is
+in flight waits for that save, so it is the retry if the first fails, as when saves run one at a time. After
+repeated network failures one save is the probe and the others wait for its answer.
+
 **View** (combine in the browser)
 
 1. The web app calls `GET /api/activities` with optional `since`, `limit` and `cursor` query
@@ -115,6 +126,9 @@ script that asks for the same routes still gets the JSON error.
 - `DELETE /api/me` deletes the account (see Security).
 - `GET /api/activities/:id/file` downloads an original, and `DELETE /api/activities/:id` removes an
   activity and its stored original.
+- `PATCH /api/activities/labels` sets or clears the athlete's label on up to 200 saved activities in place.
+  Each change names the revision and label the client read and applies only to a row that still holds
+  both; the digest counter moves in the same batch, and no digest travels up. No client calls it yet.
 
 **Activity workbench**
 
@@ -164,6 +178,22 @@ stalled request again. A page that lost time itself (a suspended laptop, a froze
 again instead of reading the gap as silence. Single reads (a route, splits, a detail trace) are let go as
 unread after 30 s (150 s from a kept original), say nothing, and never restart the worker. A request the
 browser cannot copy to the worker fails at once with a message.
+
+**Import record**
+
+Each import is recorded in the page's own database (`rca-import-meta`, the last five per library): the names and
+sizes of the files it was given, how many activity files it read, which zips could not be read to their end,
+and whether it finished. While an import runs, its tab holds a Web Lock named for it, so a page that loads
+later can tell an import still going in another tab from one that was cut off (a browser without locks goes by
+when the record was last written). The record is the only thing that tells the truth after a tab closes or a
+phone discards it, which is why a `beforeunload` guard is only a courtesy on top. An import that was cut off,
+or that read a damaged zip, leaves a notice that the library is only part of what was added, with what to do;
+"Use what I have" takes it away for good, and a later import of the same files finishes it. It goes with
+Remove all, and an account's goes at sign-out and deletion. Storage that refuses it only loses the notice.
+Each event is found by the request it names, a record is rewritten only while the store still holds it (so
+another tab's Remove all is not undone), a running import is written every 10 s whatever it reads, and a
+worker that is replaced or dropped marks its import cut off at once. An earlier cut-off import keeps its notice
+until one that read the same files, or at least as many, finishes; those it made whole are deleted.
 
 **Several tabs**
 

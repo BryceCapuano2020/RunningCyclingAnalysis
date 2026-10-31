@@ -185,6 +185,30 @@ describe('what leads', () => {
     }
   })
 
+  it('does not lead on a slip still open at the horizon while the card shows a slip, a plateau, a recovery or a rise', () => {
+    const open = years({
+      episodes: [
+        episode({
+          kind: 'slip-open',
+          toMs: null,
+          fromMs: T0 + 3 * YEAR,
+          change: { value: -0.1, low: -0.13, high: -0.07 },
+          z: -7,
+        }),
+      ],
+    })
+    expect(meetsLeadBar(open.episodes[0]!, open)).toBe(true)
+    for (const status of ['slipping', 'holding-below', 'recovering', 'improving'] as LiveState[]) {
+      expect(leadOf(look(open), live(status))).toBeNull()
+    }
+    // An episode that has ended still leads beside it: the open slip is the card's to tell.
+    const both = years({ episodes: [episode(), ...open.episodes] })
+    expect(leadOf(look(both), live('slipping'))).toMatchObject({
+      kind: 'episode',
+      episode: { kind: 'improvement' },
+    })
+  })
+
   it('is never a statement that a library too short for its years has nothing yet', () => {
     const short = {
       kind: 'too-short',
@@ -285,6 +309,31 @@ describe('the words', () => {
     expect(rows).toContain('Faster in 2021 than in 2020.')
     expect(rows).toContain('No clear change from 2019 to 2020.')
     expect(rows.join(' ')).not.toMatch(/level with last time/)
+  })
+
+  it('writes a ride in power: higher and lower, never faster and slower', () => {
+    const ride = (unit: 'W' | 'W/kg') =>
+      bestRows(
+        {
+          effort: { kind: 'duration', durationS: 1200 },
+          unit,
+          best: { value: 280, atMs: Date.UTC(2021, 4, 14), id: 'a' },
+          years: [],
+          omittedYears: 0,
+          steps: [],
+          verdicts: [
+            { year: 2021, verdict: 'higher' },
+            { year: 2022, verdict: 'lower' },
+          ],
+        },
+        Date.UTC(2022, 5, 1),
+        'metric',
+      ).join(' ')
+    for (const unit of ['W', 'W/kg'] as const) {
+      expect(ride(unit)).toContain('Higher in 2021 than in 2020.')
+      expect(ride(unit)).toContain('Lower in 2022 than in 2021.')
+      expect(ride(unit)).not.toMatch(/faster|slower/i)
+    }
   })
 
   it('uses none of the words the copy rules ban, and no cause', () => {

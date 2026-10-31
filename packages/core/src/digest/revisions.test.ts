@@ -9,6 +9,7 @@ import {
   missingFields,
   oldestCompatibleRevision,
   revisionStatus,
+  withRevisionTable,
 } from './revisions'
 import type { RevisionDeclaration, RevisionStatus } from './revisions'
 
@@ -116,5 +117,18 @@ describe('what a digest knows', () => {
     expect(missingFields({ modelRevision: 2 }, ADDITIVE)).toEqual(['drift'])
     expect(missingFields({ modelRevision: 3 }, ADDITIVE)).toEqual([])
     expect(missingFields({ modelRevision: MODEL_REVISION })).toEqual([])
+  })
+})
+
+describe('withRevisionTable', () => {
+  it('changes what the defaults read for the length of the call only, even when it throws', () => {
+    expect(revisionStatus(2)).toBe('stale')
+    withRevisionTable(ADDITIVE, () => expect(revisionStatus(2)).toBe('compatible'))
+    expect(() =>
+      withRevisionTable(ADDITIVE, () => {
+        throw new Error('stop')
+      }),
+    ).toThrow('stop')
+    expect(revisionStatus(2)).toBe('stale')
   })
 })

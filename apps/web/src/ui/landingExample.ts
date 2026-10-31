@@ -1,38 +1,9 @@
-import type { Ranged } from '@rca/core/fitness'
-import type { Sport } from '@rca/core/types'
-import type { SportGrade } from './grades'
+import { LANDING_EXAMPLE as figures } from 'virtual:landing-figures'
+import type { LandingFigures } from './landingFigures'
 
 /**
- * The example's numbers, which are the sample athlete's own: the sample's analysis gives them, and
- * LandingExample.test.tsx checks that it still does. They are those of the sample on the fixed reference
- * clock (SAMPLE_CLOCK). The season is anchored to a Sunday and keyed to the days before it, so the app's own
- * sample, loaded on any day, gives the same figures (sampleSections.test.ts checks that over two weeks of
- * clocks): running 67% Local, cycling 59% Recreational with a range of 54% to 65%, a lean of 8 points
- * (2 to 13), and a run that is slipping at the same heart rate.
+ * The landing example's numbers: the sample athlete's own, made from its analysis when the app is built
+ * (scripts/landingFigures.ts), on the fixed reference clock (SAMPLE_CLOCK). The season is anchored to a Sunday,
+ * so the app's own sample, loaded on any day, gives the same figures (sampleSections.test.ts checks that).
  */
-export const LANDING_EXAMPLE: {
-  gap: { centre: number; low: number; high: number; lean: 'run' }
-  grades: Record<Sport, SportGrade>
-  /**
-   * The run's fitness status: its change in output with its 90% range, and the same as the sentence says it in
-   * pace (the percentage and its range), since the example has no dates or units to say the levels in.
-   */
-  fitness: { referenceHr: number; change: Ranged; shown: { size: string; range: string } }
-} = {
-  gap: { centre: 8, low: 2, high: 13, lean: 'run' },
-  fitness: {
-    referenceHr: 130,
-    change: { value: -0.0667, low: -0.0994, high: -0.0328 },
-    shown: { size: '7.1%', range: '3 to 11%' },
-  },
-  grades: {
-    run: { centre: { grade: 0.6742100769874514, level: 'Local' }, range: null },
-    ride: {
-      centre: { grade: 0.5920414288661671, level: 'Recreational' },
-      range: {
-        low: { grade: 0.5413812413974327, level: 'Recreational' },
-        high: { grade: 0.6513208761947022, level: 'Local' },
-      },
-    },
-  },
-}
+export const LANDING_EXAMPLE: LandingFigures = figures
