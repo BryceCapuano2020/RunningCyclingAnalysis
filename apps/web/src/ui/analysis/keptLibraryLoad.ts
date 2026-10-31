@@ -18,6 +18,8 @@ interface KeptLibraryLoadDeps {
   accountRef: Box<Account>
   settingsRef: Box<AthleteSettings>
   send: WorkerTransport['send']
+  /** Whether a worker is running. A first visit has none until a request needs one. */
+  workerRunning: () => boolean
   /** Files analysed while the account is unknown, to be sent again once it is. */
   provisionalImportsRef: Box<File[][]>
   /** Imports that wait for a library read; the reply to the read adds them. */
@@ -35,6 +37,7 @@ export function useKeptLibraryLoad({
   accountRef,
   settingsRef,
   send,
+  workerRunning,
   provisionalImportsRef,
   libraryWaitRef,
 }: KeptLibraryLoadDeps) {
@@ -58,7 +61,9 @@ export function useKeptLibraryLoad({
   }, [libraryWaitRef, provisionalImportsRef, send, settingsRef])
 
   const loadDeviceOnce = useCallback(() => {
-    if (deviceLoadedRef.current) return
+    // Without a worker the read would start one for a visit that may have nothing kept. The worker asks
+    // for it as it starts, so the first request that needs a worker brings the kept library with it.
+    if (deviceLoadedRef.current || !workerRunning()) return
     const account = accountRef.current
     const unknown = accountPending(account)
     clearTimeout(graceTimerRef.current)
@@ -83,7 +88,7 @@ export function useKeptLibraryLoad({
       // a brief flash, never a mixed library.
       askAgainRef.current()
     }, wait)
-  }, [accountRef, graceEndsAt, sendLoadDevice])
+  }, [accountRef, graceEndsAt, sendLoadDevice, workerRunning])
 
   useEffect(() => {
     askAgainRef.current = loadDeviceOnce

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { localDateOf } from '@rca/core/athlete'
 import type { Measurement } from '@rca/core/athlete'
 import { App } from './App'
+import { preloadAllPages } from './ui/lazyPages'
 import { AUTO_RETRY_MS } from './ui/useMeasurements'
 import {
   app,
@@ -14,6 +15,9 @@ import {
   setPreferences,
   updateProfile,
 } from './test/appMocks'
+
+// The pages load on first use in the app; these tests render one the moment its route is chosen.
+beforeAll(preloadAllPages)
 
 vi.mock('./ui/useAccount', async () => ({
   useAccount: (await import('./test/appMocks')).useAccountMock,

@@ -17,12 +17,14 @@ function focusWasLost(): boolean {
  * or where the visitor left it when Back returns to it. A link the user followed always moves them; a page that
  * changes by itself, such as a library that loads, only takes focus that was lost with the old page. The first
  * render keeps the browser's own focus and scroll. `key` changes whenever a different page is on screen.
+ * A page that loads on first use has no heading yet when its key changes, so the move waits until `shownKey`,
+ * the key of the page that has appeared, catches up with `key`.
  */
-export function usePageFocus(key: string): void {
+export function usePageFocus(key: string, shownKey: string = key): void {
   const previousKey = useRef(key)
   const previousHash = useRef(window.location.hash)
   useEffect(() => {
-    if (previousKey.current === key) return
+    if (previousKey.current === key || shownKey !== key) return
     const fromLanding = previousKey.current === 'landing'
     previousKey.current = key
     const followed = previousHash.current !== window.location.hash
@@ -34,5 +36,5 @@ export function usePageFocus(key: string): void {
     else restoreScroll()
     // Focus without a scroll of its own, so the position just restored is kept.
     focusPageHeading({ preventScroll: true })
-  }, [key])
+  }, [key, shownKey])
 }
