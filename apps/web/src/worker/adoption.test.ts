@@ -171,6 +171,26 @@ describe('adding what the kept library holds to the account', () => {
     expect(adopted.sort()).toEqual([digests[0]!.id, digests[1]!.id].sort())
   })
 
+  it('adds a labelled activity with its label, and removes the kept row', async () => {
+    const { library, rows, adopted, run } = setup()
+    await keep(library, 0)
+    await library.setLabel(keyOf(0), digests[0]!.id, { from: null, athleteType: 'hike' })
+
+    const result = await run()
+
+    expect(createActivity).toHaveBeenCalledTimes(1)
+    expect(createActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ id: digests[0]!.id, athleteType: 'hike' }),
+      'run-0.fit',
+      HASH,
+      'u1',
+    )
+    expect(result).toMatchObject({ saved: 1, conflicts: 0, failed: 0 })
+    expect(await library.all()).toEqual([])
+    expect(rows.size).toBe(0)
+    expect(adopted).toEqual([digests[0]!.id])
+  })
+
   it('goes through the outbox first, newest first', async () => {
     const { library, rows, run } = setup()
     await keep(library, 0)
