@@ -1,5 +1,4 @@
-import { DAY_MS } from '../constants'
-import { WEEK_ORIGIN_MS } from '../fitness/machine'
+import { instantOfDay } from '../fitness/machine'
 import type { WeekRecord } from '../fitness/machine'
 import { fitSeason, withoutSeason } from '../fitness/season'
 import { pointOf } from '../fitness/series'
@@ -15,7 +14,7 @@ import type { Level, Segmented } from './segments'
 import type { HindsightEpisode, HindsightFitness, Plateau, Span, TooShort } from './types'
 
 const L = LOOKBACK
-const msOfWeek = (week: number) => WEEK_ORIGIN_MS + week * 7 * DAY_MS
+const msOfWeek = (week: number) => instantOfDay(week * 7)
 const spanOf = (s: WeekSpan): Span => ({ fromMs: msOfWeek(s.fromWeek), toMs: msOfWeek(s.toWeek) })
 
 /** What a sport's years are read from. */

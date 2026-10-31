@@ -1,5 +1,5 @@
 import { DAY_MS } from '../../constants'
-import { WEEK_ORIGIN_MS } from '../../fitness/machine'
+import { WEEK_ORIGIN_MS } from '../../calendar'
 import type { MachineState, WeekRecord } from '../../fitness/machine'
 import { replaySim, simulate } from '../../fitness/test/runSim'
 import type { SimSpec } from '../../fitness/test/runSim'
