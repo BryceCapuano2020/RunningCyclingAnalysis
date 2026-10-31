@@ -1,5 +1,6 @@
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest } from '@rca/core/types'
+import { LibraryReplaced } from '../worker/deviceFile'
 import type { DeviceFile, DeviceLibrary } from '../worker/deviceLibrary'
 
 /**
@@ -7,6 +8,7 @@ import type { DeviceFile, DeviceLibrary } from '../worker/deviceLibrary'
  * the order they were written.
  */
 export function memoryDeviceLibrary(): DeviceLibrary {
+  let epoch = 0
   const entries = new Map<
     string,
     { digest: ActivityDigest; route: RouteShape | null; file: DeviceFile | null }
@@ -23,7 +25,8 @@ export function memoryDeviceLibrary(): DeviceLibrary {
     get: async (workoutKey) => entries.get(workoutKey)?.digest ?? null,
     lookup: async (workoutKey) => entries.get(workoutKey)?.digest ?? null,
     route: async (workoutKey) => entries.get(workoutKey)?.route ?? null,
-    put: async (workoutKey, digest, route = null, file = null) => {
+    put: async (workoutKey, digest, route = null, file = null, expected) => {
+      if (expected !== undefined && expected !== epoch) throw new LibraryReplaced()
       entries.set(workoutKey, { digest, route, file })
     },
     backfillFile: async (workoutKey, digestId, file) => {
@@ -35,6 +38,10 @@ export function memoryDeviceLibrary(): DeviceLibrary {
     remove: async (workoutKey) => {
       entries.delete(workoutKey)
     },
-    clear: async () => entries.clear(),
+    clear: async () => {
+      entries.clear()
+      epoch++
+    },
+    epoch: async () => epoch,
   }
 }

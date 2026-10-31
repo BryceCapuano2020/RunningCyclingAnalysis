@@ -12,6 +12,7 @@ import { isQuietRequest, keepsError } from './analysis/quietRequests'
 import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
+import { useLibraryTabs } from './analysis/libraryTabs'
 import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/model'
 import { drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
@@ -231,6 +232,14 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setWorkerStopped,
   ])
 
+  const { libraryChanged } = useLibraryTabs({
+    accountRef,
+    settingsRef,
+    send: sendToWorker,
+    libraryStatus: library.libraryStatus,
+    loadLibrary: libraryActions.loadLibrary,
+    busy: imports.busy,
+  })
   const eventDeps = {
     transport,
     imports,
@@ -245,6 +254,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     previousUserIdRef,
     deviceLoadedRef,
     loadDeviceOnce,
+    libraryChanged,
   }
   useWorkerEvents(eventDeps)
   useWorkerWatchdog({

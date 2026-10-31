@@ -19,6 +19,8 @@ import { FakeWorker } from '../test/fakeWorker'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
+import { FakeBroadcastChannel } from '../test/fakeBroadcastChannel'
+import { resetTabSync } from './tabSync'
 import { useAnalysis } from './useAnalysis'
 import { SyncStatus } from './components/SyncStatus'
 import { formatDay } from './format/date'
@@ -3619,5 +3621,51 @@ describe('round 7: the baseline when an import is sent, and a library read a Sta
     expect(result.current.error).toBe(
       'An import was cancelled because the account changed. Select the files again.',
     )
+  })
+})
+
+describe('telling the other tabs about a library change', () => {
+  let otherTab: FakeBroadcastChannel
+  let heard: unknown[]
+
+  beforeEach(() => {
+    FakeBroadcastChannel.reset()
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel)
+    resetTabSync()
+    otherTab = FakeBroadcastChannel.other('rca-sync-v1')
+    heard = []
+    otherTab.onmessage = (event) => heard.push(event.data)
+  })
+
+  afterEach(() => {
+    resetTabSync()
+  })
+
+  it('says the kept library changed after an import into it, and after Remove all', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toContainEqual({ type: 'library', scope: 'device' })
+
+    heard.length = 0
+    act(() => result.current.clear())
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toContainEqual({ type: 'library', scope: 'device' })
+  })
+
+  it('stays quiet about the analysis of files added while the account loads', () => {
+    const { result } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toEqual([])
+  })
+
+  it('stays quiet about a clear that leaves the kept library alone, as a signed-in one does', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.clear())
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toEqual([])
   })
 })

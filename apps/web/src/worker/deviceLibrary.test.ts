@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import { deviceActions, KEPT_NOT_READ } from './device'
 import { deviceFileOf } from './deviceFile'
+import { LibraryReplaced } from './deviceFile'
 import { OPEN_TIMEOUT_MS, openDeviceLibrary } from './deviceLibrary'
 import type { WorkerResponse } from './protocol'
 
@@ -308,6 +309,77 @@ describe('device library in IndexedDB', () => {
       await library.backfillFile('run-9', MEASURED.id, FILE)
 
       expect((await library.all()).map((entry) => entry.file)).toEqual([FILE])
+    })
+  })
+
+  describe('the epoch', () => {
+    it('starts at zero and rises each time the library is emptied, in the same transaction as the clear', async () => {
+      const fake = fakeIndexedDb()
+      vi.stubGlobal('indexedDB', fake.indexedDB)
+      const library = openDeviceLibrary()
+      expect(await library.epoch()).toBe(0)
+      await library.put('run-1', MEASURED)
+
+      await library.clear()
+      expect(await library.epoch()).toBe(1)
+      await library.clear()
+      expect(await library.epoch()).toBe(2)
+      expect(await library.all()).toEqual([])
+    })
+
+    it('is not a row: no listing, count or lookup includes it', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      await library.put('run-1', MEASURED)
+      await library.clear()
+      await library.put('run-2', MEASURED)
+
+      expect((await library.all()).map((entry) => entry.workoutKey)).toEqual(['run-2'])
+      expect(library.skipped()).toBe(0)
+      expect(await library.get('__scope__')).toBeNull()
+    })
+
+    it('takes a write made in the epoch the writer loaded', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      await library.clear()
+
+      await library.put('run-1', MEASURED, null, null, 1)
+
+      expect((await library.all()).map((entry) => entry.workoutKey)).toEqual(['run-1'])
+    })
+
+    it('refuses a write begun before the library was emptied, and writes nothing', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      const loaded = await library.epoch()
+      await library.put('run-1', MEASURED, null, null, loaded)
+      // Another tab starts over.
+      await library.clear()
+
+      await expect(library.put('run-2', MEASURED, null, null, loaded)).rejects.toBeInstanceOf(
+        LibraryReplaced,
+      )
+
+      expect(await library.all()).toEqual([])
+      // A refusal is the library's news, and the connection stays usable.
+      await library.put('run-3', MEASURED, null, null, await library.epoch())
+      expect((await library.all()).map((entry) => entry.workoutKey)).toEqual(['run-3'])
+    })
+
+    it('writes without a check when no epoch is given', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      await library.clear()
+
+      await library.put('run-1', MEASURED)
+
+      expect((await library.all()).length).toBe(1)
+    })
+
+    it('reads zero where the browser offers no storage, since nothing was kept', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb({ open: 'no-storage' }).indexedDB)
+      expect(await openDeviceLibrary().epoch()).toBe(0)
     })
   })
 
