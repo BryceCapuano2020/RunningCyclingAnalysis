@@ -14,6 +14,7 @@ import {
 } from '@rca/core/units'
 import { materialSkippedCountOf, movingTimeOf, timeLabelOf } from '../activityFigures'
 import { skippedReadingsText } from '../analysis/flagCopy'
+import { powerCheckChip } from '../analysis/powerCheckCopy'
 import { WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
 import { formatDay, formatRowDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, isEstimatedRecord } from '../records'
@@ -117,6 +118,7 @@ export function ActivityRow({
   const skipped = materialSkippedCountOf(activity)
   const day = dateOrder ? formatRowDay(activity.startMs) : formatDay(activity.startMs)
   const chips = NEEDS_WEIGHT[activity.sport] && !weightKnown ? [] : chipLabels(records)
+  const power = powerCheckChip(activity.powerCheck)
   const hero = heroOf(activity, units)
   return (
     <li
@@ -153,6 +155,7 @@ export function ActivityRow({
             {hero?.estimated && <span className="chip">Estimated power</span>}
             {activity.indoor && <span className="chip">Indoor</span>}
             {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
+            {power !== null && <span className="chip chip--warning">{power}</span>}
             {noDetail && <span className="chip">No detail</span>}
             {skipped > 0 && (
               <span className="chip chip--warning">

@@ -50,11 +50,14 @@ export function hasDatedMass(settings: AthleteSettings): boolean {
 }
 
 /**
- * Whether two settings give every activity the same masses, which is what a cached analysis depends
- * on. Dated settings of other kinds do not enter.
+ * Whether two settings price every activity the same, which is what a cached analysis depends on: the
+ * same masses, and the same rides kept despite implausible power. Dated settings of other kinds do not enter.
  */
 export function sameMasses(a: AthleteSettings, b: AthleteSettings): boolean {
   if (a.massKg !== b.massKg || a.bikeMassKg !== b.bikeMassKg) return false
+  if ((a.massAssumed ?? false) !== (b.massAssumed ?? false)) return false
+  const [keptA, keptB] = [a.keepPower ?? [], b.keepPower ?? []]
+  if (keptA.length !== keptB.length || !keptA.every((id) => keptB.includes(id))) return false
   const [left, right] = [
     entriesOf(a.measurements ?? [], 'massKg'),
     entriesOf(b.measurements ?? [], 'massKg'),

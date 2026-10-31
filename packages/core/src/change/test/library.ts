@@ -8,7 +8,14 @@ import type { ActivityDigest, AthleteSettings, Sport } from '../../types'
 /** The wander's weekly correlation, the synthetic tier's measured one. */
 const WANDER_RHO = NOISE_PRESETS.measured.level.wanderRho
 
-export const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
+/**
+ * The athlete of the harness: 100 kg, so its 330 W at 5 minutes is 3.3 W/kg, a recreational rider. The implausible-power
+ * screen stays on here. The harness draws unbounded log-normal noise (`effortSd`), and at 70 kg a 5 minute draw at 2.4 sd
+ * (1.8 times the rider's own capability, 8.5 W/kg) is above what any rider holds and is set aside, thinning the noise
+ * the calibration says. At 100 kg that draw is 3.7 sd, so the screen leaves the harness alone, as it leaves an honest
+ * library alone.
+ */
+export const SETTINGS: AthleteSettings = { massKg: 100, bikeMassKg: 9 }
 
 const TEMPLATES = sampleDataset().activities.map((activity) => digestActivity(activity))
 const TEMPLATE: Record<Sport, ActivityDigest> = {
@@ -54,6 +61,11 @@ export interface Spec {
    * week, is found by 39% of seeds at 0.10 and 60% at 0.0765), so the two stay apart.
    */
   effortSd?: number
+  /**
+   * The peak heart rate (30 s) a hard and an easy effort carry, bpm, with no seconds-by-heart-rate distribution so the peak
+   * alone is judged, and an average of 85% of it. Absent, an activity has no heart rate (the template's is kept).
+   */
+  peakHeartRate?: { hard: number; easy: number }
 }
 
 function poisson(random: () => number, mean: number): number {
@@ -113,6 +125,13 @@ export function effortLibrary(spec: Spec): ActivityDigest[] {
         id: `${spec.sport}-${spec.seed}-${week}-${i}`,
         startMs: Math.round(startMs),
         indoor: false,
+        ...(spec.peakHeartRate === undefined
+          ? {}
+          : {
+              maxHeartRate: hard ? spec.peakHeartRate.hard : spec.peakHeartRate.easy,
+              avgHeartRate: (hard ? spec.peakHeartRate.hard : spec.peakHeartRate.easy) * 0.85,
+              distributions: undefined,
+            }),
         curve: template.curve.map((point, k) =>
           Object.assign({}, point, { value: values[k]!, terms: null }),
         ),

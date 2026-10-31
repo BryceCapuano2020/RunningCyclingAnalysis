@@ -573,6 +573,22 @@ describe('whatMoved: balance in grade points', () => {
   })
 })
 
+describe('whatMoved: a ride at the top of the age tables', () => {
+  it('lists no balance, since the page leaves that ride out of the comparison', () => {
+    // The ride's 9 m/s equivalent is faster than the running record for a man of 40, so it tops the scale.
+    const before = gradedResult(9, { comparison: balance(interval(1.05, 1.12, 1.2)) })
+    const after = gradedResult(9.5, { comparison: balance(interval(1.02, 1.08, 1.14)) })
+    expect(headlineGrades(before, MAN_BORN_1986).ride.kind).toBe('top-of-scale')
+    const texts = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map(
+      (item) => item.text,
+    )
+    expect(texts.some((text) => /balance/.test(text))).toBe(false)
+    // Control: with no age and sex the same two results compare by energy, and the move is listed.
+    const unprofiled = whatMoved(before, after, SETTINGS, 'metric', null).map((item) => item.text)
+    expect(unprofiled.some((text) => /balance/.test(text))).toBe(true)
+  })
+})
+
 describe('whatMoved while no weight is entered', () => {
   it('lists the running threshold but holds the ride threshold until a weight is entered', () => {
     const before = resultWith({ runCp: fit(15.749), rideCp: rideFit(250) })
