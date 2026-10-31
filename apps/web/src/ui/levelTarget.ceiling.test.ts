@@ -33,7 +33,9 @@ const input = (run: number, ride: number) => ({
 
 describe('the level target above the top of the scale', () => {
   it('is still given just under 100%', () => {
-    expect(levelTargetText(input(0.97, 0.6))).toMatch(/^To match your running at 20 min: about \d+ W/)
+    expect(levelTargetText(input(0.97, 0.6))).toMatch(
+      /^To match your running at 20 min: about \d+ W/,
+    )
   })
 
   it('is hidden when the target would be above 100%', () => {

@@ -191,7 +191,7 @@ describe('levelTargetText', () => {
       rideCurve: [curvePoint(HEADLINE_DURATION_S, 300, 'ride-1')],
     })
     const line = levelTargetText({ ...base, result: heavier, massKg: 80, lean: 'run' })
-    expect(line).toMatch(/now 300 W, 240 W at today’s weight\)\.$/)
+    expect(line).toMatch(/Now 300 W, 240 W at today’s weight\.$/)
   })
 
   it('says nothing of weight when the lower sport is a run, whose pace has no mass, even with dated masses', () => {
@@ -210,9 +210,7 @@ describe('levelTargetText', () => {
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
-    expect(line).toMatch(
-      /a flat pace of about \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/,
-    )
+    expect(line).toMatch(/a flat pace of about \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/)
     expect(line).not.toContain('today’s weight')
   })
 
@@ -261,9 +259,7 @@ describe('levelTargetText on the sample athlete', () => {
         units: 'metric',
         calibration,
       }),
-    ).toBe(
-      'To match your cycling at 20 min: a flat pace of about 3:15 /km. Now 4:01 /km.',
-    )
+    ).toBe('To match your cycling at 20 min: a flat pace of about 3:15 /km. Now 4:01 /km.')
   })
 
   it('has watts that the page grades back to the target through the sample heart-rate weights', () => {
@@ -340,7 +336,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
         calibration,
       })
     expect(at(levelled)).toBeNull()
-    expect(at(levelled - 1)).toContain(`; now ${levelled - 1} W).`)
+    expect(at(levelled - 1)).toContain(`. Now ${levelled - 1} W.`)
   })
 })
 
@@ -370,7 +366,7 @@ describe('levelTarget', () => {
     expect(target?.now).toBe('230 W')
     expect(target?.sentence).toBe(levelTargetText({ ...base, lean: 'run' }))
     expect(target?.sentence).toContain(
-      `about ${target?.centre} (roughly ${target?.range?.replace(' to ', ' to ')}; now ${target?.now})`,
+      `about ${target?.centre} (${target?.range}). Now ${target?.now}`,
     )
   })
 

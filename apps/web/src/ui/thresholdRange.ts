@@ -107,9 +107,7 @@ export function thresholdRange(
   units: UnitSystem,
 ): string | null {
   const cps = rangeCps(result, sport)
-  return cps === null
-    ? null
-    : rangeOf(sport, cps.low, cps.high, massKg, units, RANGE)
+  return cps === null ? null : rangeOf(sport, cps.low, cps.high, massKg, units, RANGE)
 }
 
 /**

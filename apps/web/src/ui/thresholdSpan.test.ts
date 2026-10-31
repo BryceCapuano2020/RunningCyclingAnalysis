@@ -21,9 +21,7 @@ describe('thresholdSpan', () => {
     const line = thresholdRange(result, 'run', SAMPLE_SETTINGS.massKg, 'metric')
     const span = thresholdSpan(result, 'run', SAMPLE_SETTINGS.massKg, 'metric')
     expect(line).not.toBeNull()
-    expect(line).toMatch(
-      new RegExp(`^Range ${span?.ends[0].text} to ${span?.ends[1].text} `),
-    )
+    expect(line).toMatch(new RegExp(`^Range ${span?.ends[0].text} to ${span?.ends[1].text} `))
   })
 
   it('reads a running range from its faster end, which is the higher critical power', () => {

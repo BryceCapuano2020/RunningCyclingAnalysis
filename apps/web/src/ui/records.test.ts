@@ -68,9 +68,7 @@ describe('thresholdRange', () => {
   it('gives a running threshold’s range from the faster pace to the slower', () => {
     // The fixture’s critical power is 4.0 W/kg, with a standard error of 0.05 W/kg, and the model error floor widens it.
     expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Range 20:54 to 23:49 /km')
-    expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe(
-      'Range 33:38 to 38:19 /mi',
-    )
+    expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe('Range 33:38 to 38:19 /mi')
   })
 
   it('gives a cycling threshold’s range in watts, from the lower to the higher', () => {

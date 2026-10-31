@@ -401,7 +401,11 @@ describe('BalancePage age grades', () => {
 
     const tile = screen.getByRole('article', { name: 'Run threshold' })
     expect(tile).toHaveTextContent(/Your best 20 min was faster: \d+:\d{2} \/(mi|km)/)
-    expect(tile).toHaveTextContent(/Local · 67% on your best 20 min\./)
+    // The levels row says the level and grade; the tile does not say them again.
+    expect(tile).not.toHaveTextContent(/Local|67%/)
+    expect(screen.getByRole('region', { name: 'Level in each sport' })).toHaveTextContent(
+      /Running\s*67%\s*Local/,
+    )
   })
 
   it('drops the standards line from each tile, since the source line at the foot names it', () => {
