@@ -4,6 +4,13 @@ import type { MethodPage as MethodPageComponent } from './pages/MethodPage'
 import type { ProfilePage as ProfilePageComponent } from './pages/ProfilePage'
 import type { ResultPage as ResultPageComponent } from './pages/ResultPage'
 
+const resets = new Set<() => void>()
+
+/** Lets every page that has not loaded try its import again, after a load failed. */
+export function retryPages(): void {
+  for (const reset of resets) reset()
+}
+
 /**
  * The pages that are not the landing page, loaded when they are first needed. The landing page and
  * the restoring page stay in the main bundle: they are what a first visit and a reload show.
@@ -11,17 +18,22 @@ import type { ResultPage as ResultPageComponent } from './pages/ResultPage'
  * A page that has been loaded renders directly, so it never suspends again. A page that was preloaded
  * is in that state before the visitor reaches it, so the common flows show no loading state at all.
  */
-function lazyPage<Props extends object>(load: () => Promise<ComponentType<Props>>) {
+export function lazyPage<Props extends object>(load: () => Promise<ComponentType<Props>>) {
   let loaded: ComponentType<Props> | null = null
   const read = async () => {
     loaded = await load()
     return loaded
   }
-  const Lazy = lazy(async () => ({ default: await read() }))
+  // React.lazy keeps a rejected import for good, so a failed load needs a fresh one to be tried again.
+  const fresh = () => lazy(async () => ({ default: await read() }))
+  let Lazy = fresh()
   function Page(props: Props) {
     const Component = loaded ?? Lazy
     return createElement(Component, props)
   }
+  resets.add(() => {
+    if (loaded === null) Lazy = fresh()
+  })
   return { Page, preload: async () => void (loaded ?? (await read())) }
 }
 

@@ -14,11 +14,13 @@ const DIST_DIR = fileURLToPath(new URL('../../apps/web/dist/', import.meta.url))
  * - initial: the script the page loads, the chunks it preloads and its stylesheets, which every visit pays.
  * - worker: the analysis worker, fetched when a request first needs it.
  * - chunk: any one other script, which loads when its page is first opened.
+ * - style: any one other stylesheet, which loads with its page.
  */
 export const BUDGETS = {
   initial: 250_000,
   worker: 133_000,
   chunk: 70_000,
+  style: 13_000,
 }
 
 const REFERENCE = /<(?:script|link)\b[^>]*?(?:src|href)="\.\/(assets\/[^"]+\.(?:js|css))"[^>]*>/g
@@ -51,19 +53,24 @@ export async function measureBundle(dist = DIST_DIR) {
   }
   let worker = 0
   const chunks = []
+  const styles = []
   for (const [file, size] of sizes) {
-    if (!file.endsWith('.js')) continue
+    if (file.endsWith('.css')) {
+      styles.push({ file, size })
+      continue
+    }
     if (WORKER.test(file.slice('assets/'.length))) worker = Math.max(worker, size)
     else chunks.push({ file, size })
   }
   chunks.sort((a, b) => b.size - a.size)
-  return { initial, worker, chunks }
+  styles.sort((a, b) => b.size - a.size)
+  return { initial, worker, chunks, styles }
 }
 
 const kb = (bytes) => `${(bytes / 1000).toFixed(1)} KB`
 
 /** The budgets the measured build is over, one line each; empty when it fits. */
-export function overBudget({ initial, worker, chunks }, budgets = BUDGETS) {
+export function overBudget({ initial, worker, chunks, styles = [] }, budgets = BUDGETS) {
   const problems = []
   if (initial > budgets.initial)
     problems.push(`initial load is ${kb(initial)} gzip (budget ${kb(budgets.initial)})`)
@@ -73,6 +80,10 @@ export function overBudget({ initial, worker, chunks }, budgets = BUDGETS) {
     if (size > budgets.chunk)
       problems.push(`${file} is ${kb(size)} gzip (budget ${kb(budgets.chunk)} for one chunk)`)
   }
+  for (const { file, size } of styles) {
+    if (size > budgets.style)
+      problems.push(`${file} is ${kb(size)} gzip (budget ${kb(budgets.style)} for one stylesheet)`)
+  }
   return problems
 }
 
@@ -80,7 +91,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const measured = await measureBundle()
   console.log(
     `initial ${kb(measured.initial)} of ${kb(BUDGETS.initial)}, worker ${kb(measured.worker)} of ${kb(BUDGETS.worker)}, ` +
-      `largest chunk ${kb(measured.chunks[0]?.size ?? 0)} of ${kb(BUDGETS.chunk)} (gzip)`,
+      `largest chunk ${kb(measured.chunks[0]?.size ?? 0)} of ${kb(BUDGETS.chunk)}, ` +
+      `largest stylesheet ${kb(measured.styles[0]?.size ?? 0)} of ${kb(BUDGETS.style)} (gzip)`,
   )
   const problems = overBudget(measured)
   if (problems.length > 0) {

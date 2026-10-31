@@ -4,7 +4,8 @@
  */
 .page-loading {
   margin: var(--space-5) 0;
-  min-height: 12rem;
+  /* Holds about the height of a page, so the footer waits below the fold instead of jumping when the page arrives. */
+  min-height: 70vh;
   color: var(--text-muted);
   opacity: 0;
   animation: page-loading-show 0s linear 0.25s forwards;

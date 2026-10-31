@@ -38,6 +38,7 @@ test('adds up what the page loads at once, and keeps the worker and the other ch
   const measured = await measureBundle(dir)
   assert.ok(measured.initial > 6000 && measured.initial < 6300, `initial ${measured.initial}`)
   assert.ok(measured.worker > 4000 && measured.worker < 4100, `worker ${measured.worker}`)
+  assert.deepEqual(measured.styles, [])
   assert.deepEqual(
     measured.chunks.map((chunk) => chunk.file),
     ['assets/ResultPage-a.js', 'assets/ProfilePage-a.js'],
@@ -55,11 +56,13 @@ test('names each part that is over its budget, and nothing when all fit', () => 
       { file: 'assets/Small-a.js', size: 10 },
     ],
   }
+  over.styles = [{ file: 'assets/Page-a.css', size: BUDGETS.style + 1 }]
   const problems = overBudget(over)
-  assert.equal(problems.length, 3)
+  assert.equal(problems.length, 4)
   assert.match(problems[0], /initial load/)
   assert.match(problems[1], /analysis worker/)
   assert.match(problems[2], /assets\/Big-a\.js/)
+  assert.match(problems[3], /assets\/Page-a\.css.*stylesheet/)
 })
 
 test('refuses a build it cannot read', async () => {

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import './PageLoading.css'
 
 /**
@@ -6,11 +6,12 @@ import './PageLoading.css'
  * from the cache replaces nothing, and it is a status for a screen reader.
  */
 export function PageLoading() {
-  return (
-    <p className="page-loading" role="status">
-      Loading
-    </p>
-  )
+  // The status is in the page empty and filled once it is there, so a screen reader announces the change.
+  const status = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (status.current !== null) status.current.textContent = 'Loading'
+  }, [])
+  return <p className="page-loading" role="status" ref={status} />
 }
 
 /**

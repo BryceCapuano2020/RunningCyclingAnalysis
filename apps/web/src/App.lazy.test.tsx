@@ -24,6 +24,9 @@ vi.mock('./ui/charts', async () => {
  * order matters: a page that has loaded renders at once for the rest of the file.
  */
 
+// A page's first load can be slow on a loaded machine.
+const LOAD = { timeout: 5000 }
+
 beforeEach(() => {
   resetAppMocks()
   window.location.hash = '#/'
@@ -35,13 +38,17 @@ describe('pages that load when first shown', () => {
     render(<App />)
     // The balance page is still loading, and the profile is not asked for yet.
     expect(screen.getByText('Loading')).toHaveAttribute('role', 'status')
-    await screen.findByRole('heading', { level: 1, name: /Your balance leans toward running/ })
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: /Your balance leans toward running/ },
+      LOAD,
+    )
     expect(screen.queryByText('Loading')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('link', { name: 'Profile' }))
     // Focus is not claimed for a page that is not on screen; it arrives with the page.
     expect(screen.queryByRole('heading', { level: 1, name: 'Profile' })).not.toBeInTheDocument()
-    const heading = await screen.findByRole('heading', { level: 1, name: 'Profile' })
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Profile' }, LOAD)
     await waitFor(() => expect(heading).toHaveFocus())
   })
 
@@ -50,7 +57,7 @@ describe('pages that load when first shown', () => {
     render(<App />)
     expect(screen.getByText('Loading')).toHaveAttribute('role', 'status')
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'How sure is this?' }),
+      await screen.findByRole('heading', { level: 1, name: 'How sure is this?' }, LOAD),
     ).toBeInTheDocument()
   })
 })

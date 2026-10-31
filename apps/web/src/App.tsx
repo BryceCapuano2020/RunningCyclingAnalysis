@@ -9,6 +9,7 @@ import { WALKING_NOTE_PAGES } from './ui/analysis/walkingPaceCopy'
 import { ImportStatus } from './ui/components/ImportStatus'
 import { SetupDialog } from './ui/components/SetupDialog'
 import { SkipLink } from './ui/components/SkipLink'
+import { PageLoadBoundary } from './ui/components/PageLoadBoundary'
 import { PageLoading, PageShown } from './ui/components/PageLoading'
 import { LandingPage } from './ui/pages/LandingPage'
 import { listedMoves } from './ui/analysis/whatMoved'
@@ -307,58 +308,60 @@ export function App() {
           }
           walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
         />
-        <Suspense fallback={<PageLoading />}>
-          {route.page === 'profile' ? (
-            <ProfilePage
-              analysis={analysis}
-              settings={settings}
-              athlete={analysisAthlete}
-              units={units}
-              birthYear={athleteValues.birthYear}
-              sex={athleteValues.sex}
-              signedIn={signedIn}
-              accountsAvailable={accountsAvailable}
-              accountLoading={account.status === 'loading'}
-              email={account.me?.user.email ?? null}
-              keepFiles={keepFiles}
-              fileRetentionAvailable={fileRetentionAvailable}
-              onSaveProfile={saveProfile}
-              dated={measurements}
-              onAddSetting={addSetting}
-              onRemoveSetting={removeSetting}
-              onSignIn={account.signIn}
-              onDownloadData={downloadData}
-              onDeleteAccount={deleteAccount}
-              onRemoveAll={removeAll}
-            />
-          ) : analysis.state.result ? (
-            <ResultPage
-              route={route}
-              analysis={analysis}
-              result={analysis.state.result}
-              settings={analysisAthlete}
-              weightKnown={weighted}
-              units={units}
-              birthYear={athleteValues.birthYear}
-              sex={athleteValues.sex}
-              signedIn={signedIn}
-            />
-          ) : restoringPage ? (
-            <RestoringPage onFiles={setup.requestImport} />
-          ) : route.page === 'method' ? (
-            <MethodPage
-              result={null}
-              heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
-              units={units}
-              profile={null}
-              weightKnown={weighted}
-              restoring={analysis.restoring}
-            />
-          ) : (
-            <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
-          )}
-          <PageShown pageKey={key} onShown={onShown} />
-        </Suspense>
+        <PageLoadBoundary pageKey={key}>
+          <Suspense fallback={<PageLoading />}>
+            {route.page === 'profile' ? (
+              <ProfilePage
+                analysis={analysis}
+                settings={settings}
+                athlete={analysisAthlete}
+                units={units}
+                birthYear={athleteValues.birthYear}
+                sex={athleteValues.sex}
+                signedIn={signedIn}
+                accountsAvailable={accountsAvailable}
+                accountLoading={account.status === 'loading'}
+                email={account.me?.user.email ?? null}
+                keepFiles={keepFiles}
+                fileRetentionAvailable={fileRetentionAvailable}
+                onSaveProfile={saveProfile}
+                dated={measurements}
+                onAddSetting={addSetting}
+                onRemoveSetting={removeSetting}
+                onSignIn={account.signIn}
+                onDownloadData={downloadData}
+                onDeleteAccount={deleteAccount}
+                onRemoveAll={removeAll}
+              />
+            ) : analysis.state.result ? (
+              <ResultPage
+                route={route}
+                analysis={analysis}
+                result={analysis.state.result}
+                settings={analysisAthlete}
+                weightKnown={weighted}
+                units={units}
+                birthYear={athleteValues.birthYear}
+                sex={athleteValues.sex}
+                signedIn={signedIn}
+              />
+            ) : restoringPage ? (
+              <RestoringPage onFiles={setup.requestImport} />
+            ) : route.page === 'method' ? (
+              <MethodPage
+                result={null}
+                heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
+                units={units}
+                profile={null}
+                weightKnown={weighted}
+                restoring={analysis.restoring}
+              />
+            ) : (
+              <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
+            )}
+            <PageShown pageKey={key} onShown={onShown} />
+          </Suspense>
+        </PageLoadBoundary>
       </main>
 
       <footer className="app__footer muted">

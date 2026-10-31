@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { WorkerRequest } from '../../worker/protocol'
 import { NOT_SENT, STOPPED } from './copy'
+import { whenIdle } from './workerStart'
 import type { Baseline, Box, Pending, SetError, Setter } from './model'
 
 /** What a reply needs besides its request: its settle, its baseline and the session it was made in. */
@@ -100,10 +101,15 @@ export function useWorkerTransport({
   const workerRef = useRef<Worker | null>(null)
   const workerGenerationRef = useRef(0)
   const [workerGeneration, setWorkerGeneration] = useState(0)
-  // The worker is a 350 KB script, so a visit that has nothing to analyse does not fetch it. It starts
-  // with the page when the browser kept results (the hint), and otherwise on the first request that
-  // needs it. A request made before then waits in `unsentRef`, as it does during a restart.
+  // The worker is a 350 KB script, so it stays off the page's critical path. It starts with the page
+  // when the browser kept results (the hint), and otherwise on the first request that needs it or when
+  // the browser is idle, whichever comes first: the idle start is what restores a library whose hint is
+  // missing. A request made before then waits in `unsentRef`, as it does during a restart.
   const [workerWanted, setWorkerWanted] = useState(startWorker)
+  useEffect(
+    () => (workerWanted ? undefined : whenIdle(() => setWorkerWanted(true))),
+    [workerWanted],
+  )
   // Set when the worker has stopped for good. Imports are refused, not queued, until a restart.
   const stoppedRef = useRef(false)
   const [workerStopped, setWorkerStopped] = useState(false)
@@ -163,6 +169,10 @@ export function useWorkerTransport({
           )
             setError(STOPPED)
           return false
+        }
+        // Only the newest settings matter to the next worker.
+        if (request.type === 'setSettings') {
+          unsentRef.current = unsentRef.current.filter(({ request: r }) => r.type !== 'setSettings')
         }
         unsentRef.current.push({ request, entry })
         if (needsWorker(request)) setWorkerWanted(true)
