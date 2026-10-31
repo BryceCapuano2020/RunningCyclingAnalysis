@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { zipSync } from 'fflate'
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Page, TestInfo } from '@playwright/test'
 import { BALANCE_TITLE, completeSetup, fixturePath } from './helpers.js'
 
 /** The export zip cut short, as a download that stopped would leave it. */
@@ -122,19 +122,19 @@ async function startLargeImport(page: Page): Promise<void> {
 
 // These two cases build and read a large zip, which is slow, and they test browser behaviour (a closed tab,
 // Web Locks) that does not change with the viewport. One project runs them, so CI does not repeat them 12 times.
-test.beforeEach((_fixtures, testInfo) => {
-  if (testInfo.title.includes('zip that ends early')) return
+function skipUnlessDesktop(testInfo: TestInfo): void {
   test.skip(
     testInfo.project.name !== 'desktop',
     'a slow import that does not depend on the viewport',
   )
-})
+}
 
 const STOPPED_NOTICE = /The last import stopped/
 
 test('a tab closed in the middle of an import is said to have stopped, in the next page that loads', async ({
   browser,
-}) => {
+}, testInfo) => {
+  skipUnlessDesktop(testInfo)
   const context = await browser.newContext()
   const importing = await context.newPage()
   await startLargeImport(importing)
@@ -156,7 +156,8 @@ test('a tab closed in the middle of an import is said to have stopped, in the ne
 
 test('a second tab that opens while the first is still importing does not call the import cut off', async ({
   browser,
-}) => {
+}, testInfo) => {
+  skipUnlessDesktop(testInfo)
   const context = await browser.newContext()
   const importing = await context.newPage()
   await startLargeImport(importing)
