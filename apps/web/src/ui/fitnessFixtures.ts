@@ -78,7 +78,13 @@ export function fitnessStatus(
         runs: 28,
         weeks: 20,
       },
-      method: { tier: 'steady-pace', gradePassThrough: 0.8, speedPerBpm: 0.005, fitted: 400 },
+      method: {
+        tier: 'steady-pace',
+        gradePassThrough: 0.8,
+        speedPerBpm: 0.005,
+        fitted: 400,
+        seasonal: null,
+      },
     },
     series,
     shortfall: null,
@@ -114,6 +120,63 @@ export const IMPROVING = fitnessStatus('improving', (i) => 0.012 * i - 0.04, {
   lowMs: null,
   entered: null,
 })
+
+/** The rides a ride status rests on, newest last. */
+export const FITNESS_RIDE_IDS = Array.from({ length: 12 }, (_, i) => `ride-${i + 1}`)
+
+/** The rides as the library lists them, two days apart, newest last, with a power meter. */
+export const FITNESS_RIDE_LIBRARY: ActivitySummary[] = FITNESS_RIDE_IDS.map((id, i) => ({
+  id,
+  name: `Evening ride ${i + 1}`,
+  sport: 'ride',
+  startMs: FITNESS_AS_OF_MS - (FITNESS_RIDE_IDS.length - 1 - i) * 2 * DAY_MS,
+  durationS: 4200,
+  distanceM: 30_000,
+  elevationGainM: 200,
+  hasHeartRate: true,
+  indoor: false,
+  powerSource: 'measured',
+  flags: [],
+  flagCounts: {},
+  maxHeartRate: 170,
+}))
+
+/** Watts at the reference heart rate for each m/s of the run fixtures' level: 3.3 m/s is 200 W. */
+const WATTS_PER_MS = 200 / FITNESS_BEFORE
+
+/** The same story as a run status, told for a ride: the level in watts, the evidence the rides above, the method the power blocks. */
+export function rideStatus(status: FitnessStatus): FitnessStatus {
+  const scale = (v: number | null) => (v === null ? null : v * WATTS_PER_MS)
+  return {
+    ...status,
+    sport: 'ride',
+    referenceHr: 140,
+    now: scale(status.now),
+    before: scale(status.before),
+    series: status.series.map((p) => ({
+      ...p,
+      value: p.value * WATTS_PER_MS,
+      low: p.low * WATTS_PER_MS,
+      high: p.high * WATTS_PER_MS,
+    })),
+    evidence:
+      status.evidence === null
+        ? null
+        : {
+            ...status.evidence,
+            recent: { ...status.evidence.recent, ids: FITNESS_RIDE_IDS },
+            method: {
+              tier: 'power',
+              gradePassThrough: null,
+              speedPerBpm: 0.007,
+              fitted: 90,
+              seasonal: null,
+            },
+          },
+  }
+}
+
+export const RIDE_SLIPPING = rideStatus(SLIPPING)
 
 /** A status that waits on what `shortfall` says, with `steady` steady runs in all. */
 export function waitingStatus(shortfall: Shortfall, steady = 7): FitnessStatus {

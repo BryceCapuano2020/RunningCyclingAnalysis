@@ -186,7 +186,7 @@ describe('BalanceHero answer on the energy ratio', () => {
         gap={null}
       />,
     )
-    expect(container.querySelector('.card')).toBeNull()
+    expect(container.querySelector('.panel, .band')).toBeNull()
   })
 
   it('never states a categorical superiority such as the best sport or all-out efforts', () => {

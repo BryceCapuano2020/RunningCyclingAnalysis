@@ -58,6 +58,7 @@ const SHORT = {
     if (issue.issue === 'notRead' || (issue.issue === 'notSaved' && issue.unread === true)) {
       return 'Kept results could not be read'
     }
+    if (issue.issue === 'replaced') return 'Import stopped'
     return issue.issue === 'notSaved'
       ? 'Not kept in this browser'
       : 'Could not remove from this browser'

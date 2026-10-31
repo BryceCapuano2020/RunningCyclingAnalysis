@@ -62,7 +62,11 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : judge.of(analysed, athlete)
   const setAside = judgement.setAside
   // A period with no activities still has a result, so the page can say what is missing from it.
-  const references = { referenceHr: judgement.referenceHr, observedMaxHr: judgement.observedMaxHr }
+  const references = {
+    referenceHr: judgement.referenceHr,
+    observedMaxHr: judgement.observedMaxHr,
+    effortReference: judgement.effortReference,
+  }
   const analysis =
     athlete !== null && visible.length > 0
       ? periods.analysis(
@@ -90,7 +94,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     analysis === null
       ? NO_SAME_HEART_RATE
       : periods.sameHeartRate(selected, analysed, fromMs, setAside)
-  const late = analysis === null ? NO_LATE_EVIDENCE : periods.late(selected, setAside)
+  const late =
+    analysis === null
+      ? NO_LATE_EVIDENCE
+      : periods.late(selected, setAside, { effortReference: judgement.effortReference })
   return {
     result: analysis,
     trend: efforts[HEADLINE_DURATION_S],
@@ -110,7 +117,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     previous:
       athlete !== null && bikeModel !== undefined && previous.length > 0
         ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate, {
-            referenceHr: judgement.referenceHr,
+            effortReference: judgement.effortReference,
             setAside,
           })
         : null,

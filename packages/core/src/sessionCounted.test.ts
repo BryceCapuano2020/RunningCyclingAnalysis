@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dedupeKey } from './duplicates'
+import { workoutKey } from './duplicates'
 import { digestActivity } from './digest/digestActivity'
 import { AnalysisSession } from './session'
 import { sampleDataset } from './synthetic'
@@ -17,7 +17,7 @@ function hike(): ActivityDigest {
 }
 
 const walker = hike()
-const KEY = dedupeKey('run', walker.startMs)
+const KEY = workoutKey('run', walker.startMs)
 
 describe('counting a run at walking pace as a run', () => {
   it('puts the run in the analysis, unmarked, and out of the walking count', () => {
@@ -84,7 +84,7 @@ describe('counting a run at walking pace as a run', () => {
     const ordinary = digests.find((d) => d.sport === 'run')!
     const state = new AnalysisSession().loadDigests([...digests, walker], {
       ...SETTINGS,
-      countedRuns: [dedupeKey('run', ordinary.startMs), 'run-1'],
+      countedRuns: [workoutKey('run', ordinary.startMs), 'run-1'],
     })
 
     expect(state.countedWalkingRuns).toEqual([])

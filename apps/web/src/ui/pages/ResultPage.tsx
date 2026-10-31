@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { Sex } from '@rca/core/grade'
-import { outranks } from '@rca/core/session'
-import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
+import type { AnalysisResult } from '@rca/core/pipeline'
 import { periodDays, sameChoice, sportsMissingFromDefault } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
@@ -15,7 +14,6 @@ import { sameAsShorterText } from '../periodSame'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
 import { latestActivityText, sportEmptyText } from '../periodCopy'
-import type { SavedActivity } from '../../worker/protocol'
 import { hrefFor } from '../route'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
@@ -28,26 +26,7 @@ import { ProfileFootnote } from '../components/ProfileFootnote'
 import { MethodPage } from './MethodPage'
 import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
 import { SportPage } from './SportPage'
-
-/**
- * The library id of the saved copy the analysis keeps for each activity, by activity id. Among the saved
- * copies that start with an activity, the one that outranks the others by the analysis's own rule. An
- * activity with no saved copy, as with the sample, is absent.
- */
-function keptIdsOf(library: ActivitySummary[], saved: SavedActivity[]): Map<string, string> {
-  const kept = new Map<string, SavedActivity>()
-  for (const s of saved) {
-    const key = `${s.sport}|${s.startMs}`
-    const current = kept.get(key)
-    if (current === undefined || outranks(s.copy, current.copy)) kept.set(key, s)
-  }
-  const ids = new Map<string, string>()
-  for (const activity of library) {
-    const copy = kept.get(`${activity.sport}|${activity.startMs}`)
-    if (copy !== undefined) ids.set(activity.id, copy.id)
-  }
-  return ids
-}
+import { keptIdsOf } from './keptIds'
 
 export interface ResultPageProps {
   route: Route

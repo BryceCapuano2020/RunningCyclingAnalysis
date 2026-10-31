@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
 import type { ActivityDigest } from '../types'
 import { fitGrade } from './fit'
+import type { DatedKm, KmReading } from './fit'
+import { mulberry32, normal } from '../math'
 import { runReadings } from './runReadings'
 import { rideSeries } from './rideUnit'
 import { runSeries } from './unit'
@@ -179,13 +181,91 @@ describe('the reference heart rate', () => {
 describe('the grade fit', () => {
   const hilly = steadyLibrary(80, { hilly: true, passThrough: 0.3, seed: 3 })
 
-  it('recovers a planted pass-through of 0.3 to within 0.1', () => {
+  it('recovers a planted coefficient of 0.3 when the heart rate is set first, the forward model it fits', () => {
     const result = series(hilly)
     expect(result.method.tier).toBe('steady-pace')
     expect(result.method.gradePassThrough).toBeGreaterThan(0.2)
     expect(result.method.gradePassThrough).toBeLessThan(0.4)
     expect(result.method.speedPerBpm).toBeGreaterThan(0.003)
     expect(result.method.speedPerBpm).toBeLessThan(0.005)
+  })
+
+  /**
+   * The structural model: heart rate answers to speed and to the credit, `hr = 150 + s * (ln v - mean + gamma * credit) + noise`,
+   * with the pace varying from kilometre to kilometre and the runner easing off a little on a climb. The planted
+   * pass-through gamma is 1 (the model's whole credit shows at the same heart rate). Regressing the other way round,
+   * as `fitGrade` does, is attenuated by the noise in the heart rate and by that habit.
+   */
+  function structural(gamma: number, seed: number) {
+    const random = mulberry32(seed)
+    const s = 45
+    const runs: DatedKm[] = []
+    const kms: { lnv: number; credit: number; hr: number }[] = []
+    for (let r = 0; r < 120; r++) {
+      const readings: KmReading[] = []
+      for (let k = 0; k < 8; k++) {
+        const credit = Math.max(-0.12, Math.min(0.12, 0.05 * normal(random)))
+        // Easing off on a climb: a pace habit that is part of the speed, not of the credit.
+        const lnv = Math.log(3.3) + 0.03 * normal(random) - 0.3 * credit
+        const hr = 150 + s * (lnv - Math.log(3.3) + gamma * credit) + 4.85 * normal(random)
+        readings.push({ hr, lnClock: lnv, credit })
+        kms.push({ lnv, credit, hr })
+      }
+      runs.push({
+        startMs: START + Math.floor(r / 3) * 7 * DAY_MS + (r % 3) * 2 * DAY_MS,
+        kms: readings,
+      })
+    }
+    return { runs, kms }
+  }
+
+  it('returns a fraction of a planted structural pass-through of 1: the coefficient is not a physiological measure', () => {
+    const { runs, kms } = structural(1, 11)
+    const fit = fitGrade(runs)
+    expect(fit.stable).toBe(true)
+    // The nuisance coefficient is about a third of the planted value (0.34 to 0.38 over five seeds), and not a share of anything.
+    expect(-fit.kappa).toBeGreaterThan(0.25)
+    expect(-fit.kappa).toBeLessThan(0.45)
+    // The structural estimate (heart rate as the response, gamma = credit coefficient over speed coefficient) finds the planted one.
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
+    const [ml, mc, mh] = [
+      mean(kms.map((k) => k.lnv)),
+      mean(kms.map((k) => k.credit)),
+      mean(kms.map((k) => k.hr)),
+    ]
+    let [sll, scc, slc, slh, sch] = [0, 0, 0, 0, 0]
+    for (const k of kms) {
+      const [a, b, c] = [k.lnv - ml, k.credit - mc, k.hr - mh]
+      sll += a * a
+      scc += b * b
+      slc += a * b
+      slh += a * c
+      sch += b * c
+    }
+    const det = sll * scc - slc * slc
+    const speedCoef = (slh * scc - sch * slc) / det
+    const creditCoef = (sch * sll - slh * slc) / det
+    expect(creditCoef / speedCoef).toBeGreaterThan(0.8)
+    expect(creditCoef / speedCoef).toBeLessThan(1.2)
+  })
+
+  it('returns the planted coefficient, not its attenuation, only when the heart rate is set first', () => {
+    // Same kilometres, but the heart rate drawn first and the speed answering to it with the credit passed through by 0.6.
+    const random = mulberry32(12)
+    const runs: DatedKm[] = Array.from({ length: 120 }, (_, r) => ({
+      startMs: START + Math.floor(r / 3) * 7 * DAY_MS + (r % 3) * 2 * DAY_MS,
+      kms: Array.from({ length: 8 }, () => {
+        const credit = Math.max(-0.12, Math.min(0.12, 0.05 * normal(random)))
+        const hr = 150 + 8 * normal(random)
+        return {
+          hr,
+          credit,
+          lnClock: Math.log(3.3) + 0.004 * (hr - 150) - 0.6 * credit + 0.01 * normal(random),
+        }
+      }),
+    }))
+    expect(-fitGrade(runs).kappa).toBeGreaterThan(0.5)
+    expect(-fitGrade(runs).kappa).toBeLessThan(0.7)
   })
 
   it('takes the whole credit, and plain grade-adjusted speed, with no grade to fit', () => {
@@ -248,6 +328,7 @@ describe('rides', () => {
       ride('virtual', 3, { powerSource: 'virtual' }),
       ride('spiked', 4, { flagCounts: { 'hr-spike': 1 } }),
       ride('far', 5, {}, 200),
+      ride('trainer', 7, { indoor: true }),
       ride('terms', 6, {
         hrBlocks: [
           { heartRate: 140, value: 180, terms: { gravityAccel: 1, rolling: 1, aero: 1 } },
@@ -260,6 +341,11 @@ describe('rides', () => {
     expect(result.referenceHr).toBe(140)
     expect(Math.exp(result.points[0]!.x)).toBeGreaterThan(150)
     expect(result.method.tier).toBe('power')
+  })
+
+  it('leaves indoor rides out: a trainer is not compared with the road', () => {
+    const indoor = [ride('a', 1, { indoor: true }), ride('b', 2, { indoor: true })]
+    expect(rideSeries(indoor, 'ride', NONE).points).toEqual([])
   })
 
   it('has nothing without a measured ride', () => {

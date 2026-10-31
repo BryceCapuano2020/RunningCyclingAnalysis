@@ -83,6 +83,12 @@ function weekOf(entryMs: number): string {
 /** A figure keeps its unit on its line: a pace and its "/km" are one word to the eye. */
 const tidy = (text: string) => text.replace(/(\d) (\/(?:km|mi))/g, '$1\u00a0$2')
 
+/** The seasonal swing taken out of a status, said as a size on either side ("up to 2.1% either side"), or null when none was. */
+export function seasonSwing(status: FitnessStatus): string | null {
+  const swing = status.evidence?.method.seasonal ?? null
+  return swing === null ? null : `up to ${(swing * 100).toFixed(1)}% either side`
+}
+
 /** Whether a status has anything to say on screen: a state, or a count of what it is waiting for. */
 export function worthShowing(status: FitnessStatus): boolean {
   const { shortfall } = status

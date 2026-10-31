@@ -1,4 +1,4 @@
-import { dedupeKey } from '@rca/core/session'
+import { workoutKey } from '@rca/core/session'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -6,7 +6,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { gapOfHeadline } from '../balanceGap'
 import { balanceOfPick } from '../components/balanceScale'
 import { plural } from '../components/plural'
-import { headlinePick } from '../components/pickHeadline'
+import { heldPick } from '../resultHold'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
 import { headlineGrades } from '../grades'
@@ -75,7 +75,7 @@ function addedOnScreen(before: AnalysisResult, after: AnalysisResult, sport: Spo
   const onFile = workoutsOn(before)
   return after.activities.some(
     (activity) =>
-      activity.sport === sport && !onFile.has(dedupeKey(activity.sport, activity.startMs)),
+      activity.sport === sport && !onFile.has(workoutKey(activity.sport, activity.startMs)),
   )
 }
 
@@ -91,7 +91,7 @@ function setHeadlineBest(before: AnalysisResult, after: AnalysisResult, sport: S
   const activity = after.activities.find((candidate) => candidate.id === point.activityId)
   if (
     activity === undefined ||
-    workoutsOn(before).has(dedupeKey(activity.sport, activity.startMs))
+    workoutsOn(before).has(workoutKey(activity.sport, activity.startMs))
   ) {
     return false
   }
@@ -114,8 +114,8 @@ function balanceItem(
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
-  const pickBefore = headlinePick(before)
-  const pickAfter = headlinePick(after)
+  const pickBefore = heldPick(before).pick
+  const pickAfter = heldPick(after).pick
   const gapBefore = profile === null ? null : gapOfHeadline(headlineGrades(before, profile))
   const gapAfter = profile === null ? null : gapOfHeadline(headlineGrades(after, profile))
   const readingBefore = balanceOfPick(gapBefore, pickBefore)
@@ -178,7 +178,7 @@ function spokenFigure(record: SportRecord, sport: Sport, units: UnitSystem): str
  * whatever its activity id. A copy that replaces one is not new.
  */
 function workoutsOn(result: AnalysisResult): Set<string> {
-  return new Set(result.activities.map((activity) => dedupeKey(activity.sport, activity.startMs)))
+  return new Set(result.activities.map((activity) => workoutKey(activity.sport, activity.startMs)))
 }
 
 /**
@@ -199,7 +199,7 @@ function bestItems(
     const earlierRecords = sportRecords(before, sport, massKg, units)
     for (const record of sportRecords(after, sport, massKg, units)) {
       const activity = record.activity
-      if (activity === null || onFile.has(dedupeKey(activity.sport, activity.startMs))) continue
+      if (activity === null || onFile.has(workoutKey(activity.sport, activity.startMs))) continue
       if (!isFigure(record)) continue
       const earlier = earlierRecords.find((r) => r.durationS === record.durationS)
       if (earlier?.value === record.value) continue
@@ -232,7 +232,7 @@ function distanceItems(
   const earlier = distanceRecords(before.activities, units).records
   const items: MovedItem[] = []
   for (const record of distanceRecords(after.activities, units).records) {
-    if (onFile.has(dedupeKey(record.activity.sport, record.activity.startMs))) continue
+    if (onFile.has(workoutKey(record.activity.sport, record.activity.startMs))) continue
     const earlierBest = earlier.find((candidate) => candidate.distanceM === record.distanceM)
     if (earlierBest !== undefined && earlierBest.seconds <= record.seconds) continue
     items.push({

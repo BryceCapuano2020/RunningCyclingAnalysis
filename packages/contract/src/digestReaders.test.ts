@@ -57,8 +57,28 @@ function bases(): Array<[string, DigestWire]> {
       pick((w) => w.indoor === true && w.powerSource === 'measured'),
     ],
     ['a race at walking pace', { ...run, race: true, walkingPace: true }],
+    ['a run with every revision-7 field', { ...run, ...REVISION_7_FIELDS }],
   ]
 }
+
+/**
+ * The optional fields revision 7 first writes, to values that are valid for them. The quality kind it
+ * adds is not here: the rollback floor refuses a flag of it, so a create refuses it too and the floor
+ * test below carries it in its own cases.
+ */
+const REVISION_7_FIELDS = {
+  temperature: { c: 14.5, coverage: 0.9 },
+  athleteType: 'hike',
+  localDayShift: 1,
+}
+
+const LOCK_FLAG = {
+  kind: 'hr-cadence-lock',
+  start: 100,
+  end: 140,
+  message: 'Heart rate matched cadence',
+}
+const LOCK_COUNT = { 'hr-cadence-lock': 1 }
 
 const NO_DISTANCE = 'the run does not cover this distance'
 
@@ -76,6 +96,13 @@ const IDENTITY_PATHS = new Set([
   'powerSource',
   'modelRevision',
 ])
+
+/**
+ * Fields the rollback floor does not know: it strips them, so it reads a row whatever they hold. A
+ * stored row with damage in one of them is refused by the readers that know them, as for any other
+ * optional field; no activity's identity is in them.
+ */
+const FIELDS_THE_FLOOR_STRIPS = new Set(Object.keys(REVISION_7_FIELDS))
 
 /** The digest a create makes of a wire, which the others are compared with. */
 function createOf(wire: unknown): Verdict {
@@ -162,8 +189,9 @@ describe('every reader of a digest gives the same verdict', () => {
       const stored = ofCore('stored', mutant.wire)
       if (stored.ok) continue
       refused++
+      const field = stored.path.split('.')[0]!
       expect(
-        IDENTITY_PATHS.has(stored.path.split('.')[0]!),
+        IDENTITY_PATHS.has(field) || FIELDS_THE_FLOOR_STRIPS.has(field),
         `${label}: ${mutant.name}: ${stored.path}`,
       ).toBe(true)
     }
@@ -173,14 +201,32 @@ describe('every reader of a digest gives the same verdict', () => {
 
   it('has a create refuse what a rollback floor could not read back', () => {
     const unsafe: string[] = []
-    for (const [label, mutant] of all) {
-      if (!createOf(mutant.wire).ok) continue
-      const floor = [FloorCreateDigestSchema, FloorStoredDigestSchema].map((schema) =>
-        ofZod(schema, mutant.wire),
+    const wires = all.map(([label, mutant]): [string, unknown] => [
+      `${label}: ${mutant.name}`,
+      mutant.wire,
+    ])
+    // The floor refuses a flag of the cadence-lock kind, in a stored row too. The mutants are made from
+    // digests without one, so these cases carry it, as a flag and as a count, on a run and on a ride.
+    for (const [label, base] of bases()) {
+      wires.push(
+        [`${label}: a cadence-lock flag`, { ...base, flags: [LOCK_FLAG], flagCounts: LOCK_COUNT }],
+        [`${label}: a cadence-lock count`, { ...base, flagCounts: LOCK_COUNT }],
       )
-      if (!floor.every((verdict) => verdict.ok)) unsafe.push(`${label}: ${mutant.name}`)
+    }
+    for (const [where, wire] of wires) {
+      if (!createOf(wire).ok) continue
+      const floor = [FloorCreateDigestSchema, FloorStoredDigestSchema].map((schema) =>
+        ofZod(schema, wire),
+      )
+      if (!floor.every((verdict) => verdict.ok)) unsafe.push(where)
     }
     expect(unsafe).toEqual([])
+    // The cases do hold what they are for: the floor refuses them and a stored row reads them.
+    const flagged = { ...bases()[0]![1], flags: [LOCK_FLAG], flagCounts: LOCK_COUNT }
+    expect(ofZod(FloorStoredDigestSchema, flagged).ok).toBe(false)
+    expect(createOf(flagged).ok).toBe(false)
+    expect(ofCore('stored', flagged).ok).toBe(true)
+    expect(ofDevice(JSON.stringify(flagged)).ok).toBe(true)
   })
 })
 

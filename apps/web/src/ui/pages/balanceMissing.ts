@@ -1,6 +1,7 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import { countedPhrase, heldAction, needLine } from '../components/headlineNeed'
+import { countedPhrase, needLine, unconfirmedSports } from '../components/headlineNeed'
+import { heldTexts } from '../resultHold'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
@@ -85,7 +86,7 @@ export function missingText(
       }
     }
     // One sport: its level is the title, and the one thing to do is the line under it.
-    const title = levelsTitle({ run: levels.run })
+    const title = levelsTitle({ run: levels.run }, unconfirmedSports(result))
     return {
       title: title ?? 'Add a ride to see your balance',
       detail: title ? 'Add a ride to compare it with your running.' : 'Your run results are below.',
@@ -100,7 +101,7 @@ export function missingText(
         canShowAll: true,
       }
     }
-    const title = levelsTitle({ ride: levels.ride })
+    const title = levelsTitle({ ride: levels.ride }, unconfirmedSports(result))
     if (leftOut > 0) {
       return {
         title: title ?? leftOutTitle(leftOut),
@@ -128,7 +129,9 @@ function heldMissing(
   period: Period,
   levels: { run: string | null; ride: string | null },
 ): Missing {
-  const action = heldAction(result, period)
+  // The hold says why and what lifts it; without one the action alone says which activities or which 20 minute effort a sport lacks.
+  const { reason, action, hold } = heldTexts(result, period)
+  const why = hold === null ? '' : `${reason} `
   const allTimeEnough =
     needLine(headlineShortfall(result.activities), period, result.activities) !== null &&
     period.days !== null &&
@@ -137,8 +140,8 @@ function heldMissing(
   const rides = countedPhrase(result.activities, 'ride')
   return {
     // The levels the files do show are the title; "not enough" is the title only when there is none to show.
-    title: levelsTitle(levels) ?? HARDER_EFFORTS_TITLE,
-    detail: `From ${runs} and ${rides}. ${action}`,
+    title: levelsTitle(levels, unconfirmedSports(result)) ?? HARDER_EFFORTS_TITLE,
+    detail: `From ${runs} and ${rides}. ${why}${action}`,
     canShowAll: allTimeEnough,
   }
 }

@@ -273,6 +273,11 @@ Service limits (per-account quotas, byte caps, edge rate limits and the applicat
 budgets) are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). This document describes how
 they behave in production; the limits page is the reference for values.
 
+**Moving to Workers Paid.** The database guard stays at the Free figure (450 MiB) until the owner sets
+the plain Worker variable `DATABASE_SOFT_LIMIT_MIB` in `apps/api/wrangler.toml` under `[vars]`, through a
+reviewed commit, for example `"9000"` for D1 Paid's 10 GB. The other capacity limits are separate and are
+listed in LIMITS.md. A value outside 64 to 9216 is ignored.
+
 ## Request isolation and limits
 
 Current browser requests carry `X-RCA-User` for the account that initiated the operation. The API

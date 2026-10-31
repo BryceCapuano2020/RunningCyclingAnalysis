@@ -111,7 +111,13 @@ describe('combine', () => {
     expect(empty.runCp).toBeNull()
     expect(empty.rideCp).toBeNull()
     expect(empty.equivalents).toEqual([])
-    expect(empty.effort).toEqual([])
+    // Nothing to judge: an entry for each duration, none with a share, and a gate that cannot say.
+    expect(empty.effort.map((e) => e.durationS)).toEqual([...DURATIONS_S])
+    expect(empty.effort.every((e) => e.runHrFraction === null && e.rideHrFraction === null)).toBe(
+      true,
+    )
+    expect(empty.effortGate.run.verdict).toBe('unknown')
+    expect(empty.effortGate.ride.verdict).toBe('unknown')
     expect(empty.maxHeartRate).toBeNull()
     expect(empty.bikeModel).toEqual(DEFAULT_BIKE_MODEL)
     expect(empty.virtualAccuracy).toBeNull()

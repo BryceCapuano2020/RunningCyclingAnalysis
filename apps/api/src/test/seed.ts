@@ -1,4 +1,4 @@
-import { dedupeKeyFor } from '../routes/activities/shared.ts'
+import { workoutKey } from '@rca/core/duplicates'
 import { START, digestFixture } from './harness.ts'
 
 export interface SeedSpec {
@@ -36,7 +36,7 @@ export async function seedActivityRow(db: D1Database, spec: SeedSpec): Promise<s
       .bind(
         id,
         spec.userId,
-        dedupeKeyFor(sport, startMs),
+        workoutKey(sport, startMs),
         sport,
         startMs,
         digest.name,
