@@ -30,6 +30,15 @@ export function shortDateWithYear(ms: number): string {
   return `${shortDate(ms)} ${new Date(ms).getUTCFullYear()}`
 }
 
+/**
+ * The viewer's own day, month and year of an activity's moment, such as "12 Jan 2025". An activity is dated by
+ * the viewer's day everywhere else (its list, its badges), so a chart naming the day an effort was done uses this;
+ * shortDate names the UTC day of a trend's week end.
+ */
+export function activityDate(ms: number): string {
+  return `${new Date(ms).getDate()} ${formatMonth(ms, false)} ${new Date(ms).getFullYear()}`
+}
+
 /** The most month starts one axis lists: 500 years, far past any trend, so a bad bound cannot run the loop away. */
 const MAX_MONTH_STARTS = 6000
 
