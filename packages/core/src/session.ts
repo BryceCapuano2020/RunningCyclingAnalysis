@@ -23,9 +23,8 @@ import type { PeriodChoice } from './period'
 import { countIssues } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
-import { analysedOf, buildState } from './sessionBuild'
-import { MODEL_REVISION } from './digest/modelRevision'
-import { snapshotOf } from './lookback/snapshot'
+import { buildState } from './sessionBuild'
+import { checkInSnapshotOf } from './sessionCheckIn'
 import type { CheckInSnapshot } from './lookback/snapshot'
 import {
   beginImportUnsynced,
@@ -346,14 +345,9 @@ export class AnalysisSession {
    */
   checkInSnapshot(state: SessionState, nowMs: number): CheckInSnapshot | null {
     if (this.isSample || this.library.size === 0) return null
-    const { analysed } = analysedOf(this.library.analysable().map(([, digest]) => digest))
-    return snapshotOf(
-      {
-        digests: analysed,
-        fitness: state.fitness,
-        lookBack: state.lookBack,
-        revision: MODEL_REVISION,
-      },
+    return checkInSnapshotOf(
+      this.library.analysable().map(([, digest]) => digest),
+      state,
       nowMs,
     )
   }
