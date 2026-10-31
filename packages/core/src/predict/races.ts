@@ -31,6 +31,8 @@ export interface RacePrediction {
   /** The 10th to 90th percentile of likely times, s, from published errors and the methods' disagreement. */
   low: number
   high: number
+  /** Whether the time was moved onto the athlete's own best at this distance, which it would otherwise be slower than. */
+  floored: boolean
   /** Each method's own time, performances first. */
   methods: MethodTime[]
 }
@@ -93,6 +95,7 @@ function predictionOf(
     low: Math.exp(mean - RACE_RANGE_Z * sd) * move,
     high: Math.exp(mean + RACE_RANGE_Z * sd) * move,
     methods,
+    floored: move !== 1,
   }
 }
 

@@ -168,7 +168,7 @@ describe('RacePredictions', () => {
     const row = within(table).getAllByRole('row')[1]!
     expect(within(row).getAllByRole('cell')[2]!.textContent).toMatch(/^\d+:\d\d to \d+:\d\d$/)
     expect(
-      screen.getByText(/^From your best runs: 2[01]:\d\d, led by your best 5 km$/),
+      screen.getByText(/^From your best runs: 2[01]:\d\d, mostly from your best 5 km$/),
     ).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -298,7 +298,22 @@ describe('RacePredictions', () => {
       const ten = found.races.find((r) => r.distanceM === 10_000)!
       expect(ten.seconds).toBe(40 * 60 + 7)
       expect(ten.high).toBeGreaterThan(ten.seconds)
-      expect(renderPredictions(slowHeartRate).container.querySelector('.race-row__ran')).toBeNull()
+      expect(ten.floored).toBe(true)
+    })
+
+    it('says a floored row is no slower than a time run, and the method note says a time run is the limit', () => {
+      const view = renderPredictions(slowHeartRate)
+      const row = Array.from(view.container.querySelectorAll('.race-row')).find(
+        (el) => el.querySelector('.race-row__race')?.textContent === '10 km',
+      )!
+      expect(row.querySelector('.race-row__ran')?.textContent).toBe(
+        'No slower than a time you have run',
+      )
+      expect(row.querySelector('.race-bar')?.getAttribute('aria-label')).toMatch(
+        /No slower than a time you have run\.$/,
+      )
+      openAbout()
+      expect(screen.getByText(/the prediction is no slower than that time/)).toBeInTheDocument()
     })
 
     it('says what was run and when on the row, and marks it as a dot labelled Run on the bar', () => {
@@ -351,7 +366,10 @@ describe('RacePredictions', () => {
 
     it('shows nothing of a run that is neither faster than its prediction nor outside its spread', () => {
       const view = renderPredictions(makeResult({ activities: [withBests] }))
-      expect(view.container.querySelector('.race-row__ran')).toBeNull()
+      // The 10 km is held to the 10 km already run; that is the only note on any row.
+      expect(
+        Array.from(view.container.querySelectorAll('.race-row__ran')).map((el) => el.textContent),
+      ).toEqual(['No slower than a time you have run'])
       expect(view.container.querySelector('.race-bar__ran')).toBeNull()
       expect(screen.queryByText(/^Run:/)).not.toBeInTheDocument()
       openAbout()

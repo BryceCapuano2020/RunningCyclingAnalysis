@@ -7,7 +7,13 @@ import { Definition } from '../components/Definition'
 import { DEFINITIONS } from './balanceDefinitions'
 import { useScrollRegion } from '../useScrollRegion'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
-import { methodNote, originText, predictionsLede, spreadText } from './racePredictionCopy'
+import {
+  FLOORED_TEXT,
+  methodNote,
+  originText,
+  predictionsLede,
+  spreadText,
+} from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
 import { ranText } from './raceRan'
@@ -37,7 +43,7 @@ function barLabel(prediction: RacePrediction, ran: RanBest | undefined): string 
   const estimates = prediction.methods
     .map((m) => `${METHOD_NAME[m.method].toLowerCase()} ${formatRecordTime(m.seconds)}`)
     .join(', ')
-  return `${raceName(prediction.distanceM)} predicted ${formatRecordTime(prediction.seconds)}, assumed spread ${spreadText(prediction)}${estimates ? `. ${estimates}` : ''}.${ran ? ` ${ranText(ran)}.` : ''}`
+  return `${raceName(prediction.distanceM)} predicted ${formatRecordTime(prediction.seconds)}, assumed spread ${spreadText(prediction)}${estimates ? `. ${estimates}` : ''}.${ran ? ` ${ranText(ran)}.` : ''}${prediction.floored && !ran ? ` ${FLOORED_TEXT}.` : ''}`
 }
 
 /**
@@ -107,6 +113,7 @@ function RaceRow({
           {formatPace(prediction.distanceM / prediction.seconds, units)}
         </span>
         {ran && <span className="race-row__ran">{ranText(ran)}</span>}
+        {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
       </p>
       <RaceBar prediction={prediction} ran={ran} scale={scale} />
       <p className="race-row__time">{formatRecordTime(prediction.seconds)}</p>

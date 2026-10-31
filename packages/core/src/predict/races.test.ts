@@ -58,8 +58,10 @@ describe('predictRunRaces', () => {
     ]
     const five = predictRunRaces({ bests: quick, vo2max: null, weeklyM }).races[0]!
     expect(five.seconds).toBe(19 * 60)
+    expect(five.floored).toBe(true)
     const free = predictRunRaces({ bests: [quick[1]!], vo2max: null, weeklyM }).races[0]!
     expect(free.seconds).toBeGreaterThan(19 * 60)
+    expect(free.floored).toBe(false)
     expect(five.high / five.seconds).toBeGreaterThan(1)
     expect(Math.log(five.high / five.seconds)).toBeCloseTo(RACE_RANGE_Z * RACE_LOG_SD[5000], 6)
     // The unmoved 10 km is not touched by it.

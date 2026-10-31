@@ -15,13 +15,13 @@ export function spreadText(prediction: RacePrediction): string {
   return `${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
 }
 
-/** Where one estimate came from, such as "From your best runs: 20:25, led by your best 10 km". */
+/** Where one estimate came from, such as "From your best runs: 20:25, mostly from your best 10 km". */
 export function originText(method: MethodTime, vo2max: number | null): string {
   const time = formatRecordTime(method.seconds)
   if (method.method === 'heartRate') {
     return `${METHOD_NAME.heartRate}: ${time}, at a VO2max of ${Math.round(vo2max ?? 0)}`
   }
-  return `${METHOD_NAME.performances}: ${time}, led by your best ${raceName(method.fromM).toLowerCase()}`
+  return `${METHOD_NAME.performances}: ${time}, mostly from your best ${raceName(method.fromM).toLowerCase()}`
 }
 
 /** A sentence when the runs and the heart rate point to different fitness, or nothing. */
@@ -40,6 +40,18 @@ const ALL_TIME_NOTE =
   ' In All time they reflect your best period. A shorter period shows your recent form.'
 
 const FLAT = 'for a flat course on a good day'
+
+/** What a row says when its time was held to a time already run at the distance. */
+export const FLOORED_TEXT = 'No slower than a time you have run'
+
+/** The method note's clause for a list with such a row. */
+const FLOOR_NOTE =
+  ' Where you have already run a race distance, the prediction is no slower than that time.'
+
+/** Whether some race was held to a time already run. */
+function anyFloored({ races }: RunPredictions): boolean {
+  return races.some((race) => race.floored)
+}
 
 /** Whether some race has an estimate from the athlete's runs, as opposed to heart rate alone. */
 function fromRuns({ races }: RunPredictions): boolean {
@@ -65,11 +77,11 @@ export function methodNote(found: RunPredictions, allTime: boolean): string {
   const when = allTime ? ALL_TIME_NOTE : ''
   const times = allTime ? 'your best times on file' : 'your best times in this period'
   if (!fromRuns(found) || vo2max === null) {
-    return `From ${fromRuns(found) ? times : 'your heart rate against pace'} alone, ${FLAT}.${when}`
+    return `From ${fromRuns(found) ? times : 'your heart rate against pace'} alone, ${FLAT}.${when}${anyFloored(found) ? FLOOR_NOTE : ''}`
   }
   const capped =
     vo2max.hillCapped > 0
       ? ` ${plural(vo2max.hillCapped, 'hilly run')} left out of the heart-rate side, since ${vo2max.hillCapped === 1 ? 'its' : 'their'} flat-equivalent pace beat your fastest mile.`
       : ''
-  return `Each sits in the middle of two estimates: ${times}, carried to the distance, and the times a VO2max of ${Math.round(vo2max.vo2max)} would run, from your heart rate against pace on ${plural(vo2max.runs, 'hard run')}. Both allow for your weekly distance in the marathon, ${FLAT}.${capped}${disagreement(runsVdot, vo2max.vo2max)}${when}`
+  return `Each sits in the middle of two estimates: ${times}, carried to the distance, and the times a VO2max of ${Math.round(vo2max.vo2max)} would run, from your heart rate against pace on ${plural(vo2max.runs, 'hard run')}. Both allow for your weekly distance in the marathon, ${FLAT}.${capped}${disagreement(runsVdot, vo2max.vo2max)}${when}${anyFloored(found) ? FLOOR_NOTE : ''}`
 }
