@@ -29,6 +29,7 @@ import { elevationGain } from './elevationGain'
 import { atWalkingPace } from './walkingPace'
 import { hasRevision7, walkingPaceView, withCadenceLock } from './revision7Gate'
 import { digestEvidence } from './evidence'
+import { revision7Fields } from './revision7Fields'
 import type { OutputStream } from './evidence'
 import { and, countKept, meanWhere, movingMask, not, recordedSeconds } from './masks'
 import type { SampleTerms } from './terms'
@@ -330,5 +331,6 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
       ? { walkingPace: true as const }
       : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
+    ...revision7Fields(activity, revision),
   }
 }
