@@ -89,4 +89,25 @@ describe('originals held until the import is read', () => {
     await originals.finish(new Set())
     expect(uploaded).toEqual([a.record.id])
   })
+
+  it('fails an original that can never be kept at once, and holds none of its bytes', async () => {
+    const uploaded: string[] = []
+    const originals = new DeferredOriginals({
+      upload: async (record) => void uploaded.push(record.id),
+      hiddenNow: () => new Set(),
+      codeOf: () => 'server',
+      refuse: (item) => (item.bytes.byteLength > 5 ? 'file-too-large' : null),
+    })
+    const big = entry(first, 10)
+    const small = entry(second, 3)
+
+    await originals.add(big.record, big.item)
+    await originals.add(small.record, small.item)
+    const failures = await originals.finish(new Set())
+
+    expect(failures).toEqual([
+      { key: expect.stringMatching(/^(run|ride)-\d+$/), code: 'file-too-large' },
+    ])
+    expect(uploaded).toEqual([small.record.id])
+  })
 })

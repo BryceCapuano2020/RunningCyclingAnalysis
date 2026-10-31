@@ -21,6 +21,8 @@ export interface DeferredOriginalsOptions {
   hiddenNow: () => ReadonlySet<string>
   /** Says why an upload failed, as a code the page words. */
   codeOf: (error: unknown) => SyncIssueCode
+  /** Why an original can never be kept (too large), so it is failed at once and its bytes are not held to the end. */
+  refuse?: (item: SyncItem) => SyncIssueCode | null
   budgetBytes?: number
 }
 
@@ -42,6 +44,11 @@ export class DeferredOriginals {
 
   /** Holds an original until the import's copies are known, deciding the oldest early if the budget is passed. */
   async add(record: ActivityRecord, item: SyncItem): Promise<void> {
+    const refused = this.options.refuse?.(item) ?? null
+    if (refused !== null) {
+      this.failures.push({ key: workoutKeyOf(item.digest), code: refused })
+      return
+    }
     this.held.push({ record, item })
     this.heldBytes += item.bytes.byteLength
     const budget = this.options.budgetBytes ?? DEFER_BYTES

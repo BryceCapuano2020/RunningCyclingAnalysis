@@ -307,7 +307,9 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    are hidden copies. An original is kept for the shown copy only: it is held until every file of the import is
    read, then uploaded if its digest is shown (the sink's `finish`, called with the ids the analysis hides), so a
    copy that arrives first and is outranked later gets none. The bytes held are bounded (64 MiB); past that the
-   oldest are decided with the copies known so far. Deleting the shown activity deletes its whole group, or a
+   oldest are decided with the copies known so far. A better copy that a later import brings does not replace the
+   old shown copy's file: it stays in R2, orphaned, and counts against the original-file budget until a delete of the
+   group removes it. Deleting the shown activity deletes its whole group, or a
    hidden copy would take its place. A saved activity is tied to the hash of its original file, so replacing it with a different file
    requires deleting that activity and importing the preferred file again.
 7. **Activity list** (`readActivityList` in `packages/core/src/import/activitiesCsv.ts`, and

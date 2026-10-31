@@ -91,6 +91,8 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
   }
 
   const originals = new DeferredOriginals({
+    // An original over the limit is failed at once: holding it to the end would only hold its bytes.
+    refuse: (item) => (item.bytes.byteLength > MAX_FILE_BYTES ? 'file-too-large' : null),
     upload: async (record, item) => {
       await upload(record, item)
       missingOriginals.delete(workoutKeyOf(item.digest))
@@ -123,6 +125,8 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     if (record.hasFile) missingOriginals.delete(key)
     else missingOriginals.add(key)
     // The original is held until the import is read, then kept for the shown copy of the workout only (rule R).
+    // A better copy that a later import brings does not replace this one's file: the server keeps it, orphaned, and it
+    // counts against the original-file budget until a delete of the group removes it.
     if (sync.keepFiles && !record.hasFile) await originals.add(record, item)
     ctx.onSaved()
   }
