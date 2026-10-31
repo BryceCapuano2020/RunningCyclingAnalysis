@@ -214,23 +214,45 @@ describe('checkEfforts', () => {
     point(1200, 153, 'ride1', 153),
   ]
   const durations = [60, 300, 600, 900, 1200, 1800, 3600]
+  const trusted = {
+    reading: { run: 'trusted', ride: 'trusted' },
+    source: { run: 'data', ride: 'data' },
+  } as const
+  /** An entry with no heart-rate share, for a duration the curves do not give. */
+  const none = (durationS: number) => ({
+    durationS,
+    runHrFraction: null,
+    rideHrFraction: null,
+    runReference: 'trusted',
+    rideReference: 'trusted',
+    runReferenceSource: 'data',
+    rideReferenceSource: 'data',
+  })
 
   it('computes exact fractions of max heart rate with null where data is missing', () => {
-    const result = checkEfforts(runCurve, rideCurve, maxHr, durations)
+    const result = checkEfforts(runCurve, rideCurve, maxHr, durations, trusted)
     expect(result).toHaveLength(durations.length)
-    expect(result[0]).toEqual({ durationS: 60, runHrFraction: 0.9, rideHrFraction: 153 / 180 })
+    expect(result[0]).toEqual({
+      durationS: 60,
+      runHrFraction: 0.9,
+      rideHrFraction: 153 / 180,
+      runReference: 'trusted',
+      rideReference: 'trusted',
+      runReferenceSource: 'data',
+      rideReferenceSource: 'data',
+    })
     expect(result[1]!.durationS).toBe(300)
     expect(result[1]!.runHrFraction).toBeCloseTo(110 / 180, 12)
     expect(result[1]!.rideHrFraction).toBeCloseTo(0.85, 12)
     // Run value NaN; ride point has no activity.
-    expect(result[2]).toEqual({ durationS: 600, runHrFraction: null, rideHrFraction: null })
+    expect(result[2]).toEqual(none(600))
     // Heart rate unknown for the run window; ride point missing.
-    expect(result[3]).toEqual({ durationS: 900, runHrFraction: null, rideHrFraction: null })
+    expect(result[3]).toEqual(none(900))
     expect(result[4]!.runHrFraction).toBeNull()
     expect(result[4]!.rideHrFraction).toBeCloseTo(0.85, 12)
-    expect(result[5]).toEqual({ durationS: 1800, runHrFraction: null, rideHrFraction: null })
+    expect(result[5]).toEqual(none(1800))
     // Neither curve has the point.
-    expect(result[6]).toEqual({ durationS: 3600, runHrFraction: null, rideHrFraction: null })
+    expect(result[6]).toEqual(none(3600))
   })
 
   it('ignores a heart rate when the point has no value or no activity', () => {
@@ -239,32 +261,37 @@ describe('checkEfforts', () => {
       [],
       maxHr,
       [600, 900],
+      trusted,
     )
-    expect(result).toEqual([
-      { durationS: 600, runHrFraction: null, rideHrFraction: null },
-      { durationS: 900, runHrFraction: null, rideHrFraction: null },
-    ])
+    expect(result).toEqual([none(600), none(900)])
   })
 
   it('returns one entry per duration in the order requested, even when both are null', () => {
-    const result = checkEfforts([], [], maxHr, [1800, 60])
-    expect(result).toEqual([
-      { durationS: 1800, runHrFraction: null, rideHrFraction: null },
-      { durationS: 60, runHrFraction: null, rideHrFraction: null },
-    ])
+    const result = checkEfforts([], [], maxHr, [1800, 60], trusted)
+    expect(result).toEqual([none(1800), none(60)])
   })
 
   it('returns null fractions when max heart rate is unknown or not positive', () => {
     for (const bad of [null, 0, -5, NaN]) {
-      const result = checkEfforts(runCurve, rideCurve, { run: bad, ride: bad }, [60])
-      expect(result).toEqual([{ durationS: 60, runHrFraction: null, rideHrFraction: null }])
+      const result = checkEfforts(runCurve, rideCurve, { run: bad, ride: bad }, [60], trusted)
+      expect(result).toEqual([none(60)])
     }
   })
 
   it('divides the cycling fraction by the cycling reference, not the running one', () => {
     // Ride heart rate 153 over a cycling reference of 170 is 0.9; the run side keeps 180.
-    const result = checkEfforts(runCurve, rideCurve, { run: 180, ride: 170 }, [60])
-    expect(result).toEqual([{ durationS: 60, runHrFraction: 0.9, rideHrFraction: 153 / 170 }])
+    const result = checkEfforts(runCurve, rideCurve, { run: 180, ride: 170 }, [60], trusted)
+    expect(result).toEqual([
+      {
+        durationS: 60,
+        runHrFraction: 0.9,
+        rideHrFraction: 153 / 170,
+        runReference: 'trusted',
+        rideReference: 'trusted',
+        runReferenceSource: 'data',
+        rideReferenceSource: 'data',
+      },
+    ])
   })
 })
 

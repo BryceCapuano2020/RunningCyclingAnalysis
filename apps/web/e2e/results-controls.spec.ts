@@ -204,12 +204,12 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
 test('How sure is this? says that both best efforts were hard efforts', async ({ page }) => {
   await openSample(page)
   // The sample's best 20 minute efforts both reach 90% of their reference heart rate, so the
-  // tiles say so in a chip with the share, one line each, and the method page says they were hard efforts.
+  // tiles say so in a chip with the share, one line each, and the method page says they reached the hard line.
   await expect(page.getByRole('button', { name: /^Hard effort · \d+%$/ })).toHaveCount(2)
 
   await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
-  await expect(page.getByText(/so both were hard efforts\./)).toBeVisible()
+  await expect(page.getByText(/Both best efforts reached at least 90% of each sport/)).toBeVisible()
 })
 
 test('focus moves to the Balance heading after sample data, and to the landing heading after removing all activities', async ({

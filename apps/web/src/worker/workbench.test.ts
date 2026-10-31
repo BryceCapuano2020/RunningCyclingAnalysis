@@ -14,19 +14,35 @@ function scopeKey(scope: TraceScope, id: string): string {
   return JSON.stringify([scope.kind === 'device' ? 'device' : scope.userId, id])
 }
 
+/** A workbench that has read the device scope's epoch, as the worker's does when it loads the library. */
+async function watched(store: WorkbenchStore): Promise<Workbench> {
+  const workbench = new Workbench(store)
+  await workbench.watchDevice()
+  return workbench
+}
+
 function memoryStore(overrides: Partial<WorkbenchStore> = {}) {
   const rows = new Map<string, ActivityTrace>()
   const deleted = new Set<string>()
+  // The device scope's epoch, as storage keeps it: it rises when the scope is cleared.
+  let deviceEpoch = 0
   const store: WorkbenchStore = {
     get: vi.fn(async (scope, id) => rows.get(scopeKey(scope, id)) ?? null),
     has: vi.fn(async (scope, id) => rows.has(scopeKey(scope, id))),
     list: vi.fn(async () => []),
-    put: vi.fn(async (scope, trace) => {
+    put: vi.fn(async (scope, trace, _startMs, epoch) => {
+      if (scope.kind === 'device' && epoch !== undefined && epoch !== deviceEpoch) {
+        return 'replaced' as const
+      }
       rows.set(scopeKey(scope, trace.activityId), trace)
       return 'stored' as const
     }),
+    deviceEpoch: vi.fn(async () => deviceEpoch),
     remove: vi.fn(async (scope, id) => rows.delete(scopeKey(scope, id)) || true),
-    clearScope: vi.fn(async () => true),
+    clearScope: vi.fn(async (scope) => {
+      if (scope.kind === 'device') deviceEpoch++
+      return true
+    }),
     deleteScope: vi.fn(async () => true),
     reopenScope: vi.fn(async () => true),
     isDeleted: vi.fn(async (scope) => scope.kind === 'account' && deleted.has(scope.userId)),
@@ -41,7 +57,7 @@ const first = activities[0]!
 describe('workbench evidence cache', () => {
   it('keeps account scopes separate and never falls back across owners', async () => {
     const { store } = memoryStore()
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const trace = await workbench.capture(first, { kind: 'account', userId: 'alice' })
     expect(trace).not.toBeNull()
     workbench.clearMemory()
@@ -54,7 +70,7 @@ describe('workbench evidence cache', () => {
     const heartRate = new Float64Array(first.n).fill(150)
     heartRate[60] = 240
     const { store } = memoryStore()
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const trace = await workbench.capture(
       { ...first, hasHeartRate: true, heartRate },
       { kind: 'device' },
@@ -64,7 +80,7 @@ describe('workbench evidence cache', () => {
 
   it('bounds each cached trace and drops the oldest memory entries', async () => {
     const { store } = memoryStore()
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const oversized: Activity = {
       ...first,
       n: 600_000,
@@ -88,7 +104,7 @@ describe('workbench evidence cache', () => {
 
   it('treats a refused evidence write as optional and still keeps an in-memory trace', async () => {
     const { store } = memoryStore({ put: vi.fn(async () => 'refused' as const) })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const trace = await workbench.capture(first, { kind: 'device' })
     expect(trace?.activityId).toBe(first.id)
     expect(await workbench.get({ kind: 'device' }, first.id)).toEqual(trace)
@@ -96,7 +112,7 @@ describe('workbench evidence cache', () => {
 
   it('does not serve a stored trace from memory once another tab removed it', async () => {
     const { rows, store } = memoryStore()
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const trace = await workbench.capture(first, { kind: 'device' })
     expect(await workbench.get({ kind: 'device' }, first.id)).toEqual(trace)
 
@@ -107,7 +123,7 @@ describe('workbench evidence cache', () => {
 
   it('serves a memory-only trace without asking storage, since storage never held it', async () => {
     const { store } = memoryStore()
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     workbench.captureMemory(first, { kind: 'device' })
 
     expect(await workbench.get({ kind: 'device' }, first.id)).not.toBeNull()
@@ -120,7 +136,7 @@ describe('workbench evidence cache', () => {
         throw new Error('storage unavailable')
       }),
     })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const scope = { kind: 'account' as const, userId: 'alice' }
 
     const trace = await workbench.capture(first, scope)
@@ -132,7 +148,7 @@ describe('workbench evidence cache', () => {
 
   it('serves a stored trace from memory when storage cannot say whether it is still there', async () => {
     const { rows, store } = memoryStore({ has: vi.fn(async () => null) })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const trace = await workbench.capture(first, { kind: 'device' })
     rows.clear()
 
@@ -146,7 +162,7 @@ describe('workbench evidence cache', () => {
       if (down) throw new Error('backing off')
       return scope.kind === 'account' && false
     })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const scope = { kind: 'account' as const, userId: 'alice' }
     await workbench.capture(activities[0]!, scope)
     await workbench.capture(activities[1]!, scope)
@@ -177,7 +193,7 @@ describe('workbench evidence cache', () => {
       if (down) throw new Error('backing off')
       return false
     })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const scope: TraceScope = { kind: 'device' }
     const [a, b, c, d, e] = activities
     for (const activity of [a!, b!, c!]) await workbench.capture(activity, scope)
@@ -211,7 +227,7 @@ describe('workbench evidence cache', () => {
 
     it('writes nothing until asked, then writes the newest first', async () => {
       const { rows, store } = memoryStore()
-      const workbench = new Workbench(store)
+      const workbench = await watched(store)
 
       for (const [id, startMs] of [
         ['old', 1_000],
@@ -241,7 +257,7 @@ describe('workbench evidence cache', () => {
       const { store } = memoryStore({
         put: vi.fn(async (_scope, trace) => (trace.activityId === 'full' ? 'outranked' : 'stored')),
       })
-      const workbench = new Workbench(store)
+      const workbench = await watched(store)
       workbench.captureDeferred(startingAt('gone', 2_000), scope)
       workbench.captureDeferred(startingAt('full', 3_000), scope)
       workbench.captureDeferred(startingAt('kept', 4_000), scope)
@@ -258,7 +274,7 @@ describe('workbench evidence cache', () => {
 
     it('holds no more than the cache can, dropping the oldest activities first', async () => {
       const { store } = memoryStore()
-      const workbench = new Workbench(store)
+      const workbench = await watched(store)
       const n = 380_000
       const big = (id: string, startMs: number): Activity => ({
         ...startingAt(id, startMs),
@@ -294,13 +310,13 @@ describe('workbench evidence cache', () => {
     const startingAt = (id: string, startMs: number): Activity => ({ ...first, id, startMs })
     const scope: TraceScope = { kind: 'device' }
 
-    function fullOfNewer() {
+    async function fullOfNewer() {
       const { store } = memoryStore({ put: vi.fn(async () => 'outranked' as const) })
-      return { store, workbench: new Workbench(store) }
+      return { store, workbench: await watched(store) }
     }
 
     it('does not offer storage a recording that started no later and is no larger', async () => {
-      const { store, workbench } = fullOfNewer()
+      const { store, workbench } = await fullOfNewer()
       await workbench.capture(startingAt('a', 5_000), scope)
       expect(store.put).toHaveBeenCalledTimes(1)
 
@@ -316,7 +332,7 @@ describe('workbench evidence cache', () => {
     })
 
     it('still offers one that started later, or is smaller', async () => {
-      const { store, workbench } = fullOfNewer()
+      const { store, workbench } = await fullOfNewer()
       await workbench.capture(startingAt('a', 5_000), scope)
 
       await workbench.capture(startingAt('newer', 6_000), scope)
@@ -346,7 +362,7 @@ describe('workbench evidence cache', () => {
       ['a new import', (workbench: Workbench) => workbench.forgetOutranked()],
       ['clearing the memory', (workbench: Workbench) => workbench.clearMemory()],
     ])('asks storage again after %s, since room may have opened up', async (_name, free) => {
-      const { store, workbench } = fullOfNewer()
+      const { store, workbench } = await fullOfNewer()
       await workbench.capture(startingAt('a', 5_000), scope)
       await free(workbench)
 
@@ -364,7 +380,7 @@ describe('workbench evidence cache', () => {
       if (down) throw new Error('backing off')
       return isDeleted(scope)
     })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const scope = { kind: 'account' as const, userId: 'alice' }
     workbench.captureMemory(activities[0]!, { kind: 'device' })
     await workbench.capture(activities[1]!, scope)
@@ -388,7 +404,7 @@ describe('workbench evidence cache', () => {
       if (calls.isDeleted <= 2) throw new Error('backing off')
       return calls.isDeleted > 3
     })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const scope = { kind: 'account' as const, userId: 'alice' }
     await workbench.capture(first, scope)
     expect(store.put).not.toHaveBeenCalled()
@@ -405,7 +421,7 @@ describe('workbench evidence cache', () => {
       if (down) throw new Error('backing off')
       return isDeleted(scope)
     })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     await workbench.capture(first, { kind: 'device' })
     await workbench.remove({ kind: 'device' }, first.id)
 
@@ -418,7 +434,7 @@ describe('workbench evidence cache', () => {
 
   it('knows whether a recording is kept, in storage or in memory alone', async () => {
     const { store, rows } = memoryStore()
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const device: TraceScope = { kind: 'device' }
     expect(await workbench.holds(device, first.id)).toBe(false)
 
@@ -434,14 +450,15 @@ describe('workbench evidence cache', () => {
 
   it('ranks a stored recording by the start of its activity', async () => {
     const { store } = memoryStore()
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     await workbench.capture(first, { kind: 'device' })
-    expect(store.put).toHaveBeenCalledWith({ kind: 'device' }, expect.anything(), first.startMs)
+    // The fourth argument is the library's epoch, which this store reports as zero.
+    expect(store.put).toHaveBeenCalledWith({ kind: 'device' }, expect.anything(), first.startMs, 0)
   })
 
   it('keeps a recording in memory alone when the cache is full of newer activities, and never writes it later', async () => {
     const { rows, store } = memoryStore({ put: vi.fn(async () => 'outranked' as const) })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const scope: TraceScope = { kind: 'device' }
     const trace = await workbench.capture(first, scope)
     expect(trace).not.toBeNull()
@@ -461,7 +478,7 @@ describe('workbench evidence cache', () => {
 
   it('reports a refused removal and still drops the memory copy', async () => {
     const { store } = memoryStore({ remove: vi.fn(async () => false) })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     await workbench.capture(first, { kind: 'device' })
 
     expect(await workbench.remove({ kind: 'device' }, first.id)).toBe(false)
@@ -477,7 +494,7 @@ describe('workbench evidence cache', () => {
       cadenceUnit: 'unknown',
     }
     const { store } = memoryStore()
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const captured = await workbench.capture(activity, { kind: 'device' })
     expect(captured?.cadenceUnit).toBe('unknown')
 
@@ -499,7 +516,7 @@ describe('workbench evidence cache', () => {
         return true
       }),
     })
-    const workbench = new Workbench(store)
+    const workbench = await watched(store)
     const scope = { kind: 'account' as const, userId: 'deleted-user' }
     expect(await workbench.capture(first, scope)).not.toBeNull()
     expect(await workbench.deleteScope(scope)).toBe(true)
@@ -517,5 +534,94 @@ describe('workbench evidence cache', () => {
       first,
     )
     expect(matchOriginalActivity([sameStartWrong], digestActivity(first), first.id)).toBeUndefined()
+  })
+})
+
+describe('device recordings when the library’s epoch is not known', () => {
+  const device: TraceScope = { kind: 'device' }
+
+  it('keeps a recording in memory and writes none, when a write runs before the epoch was read', async () => {
+    const { store } = memoryStore()
+    const workbench = new Workbench(store)
+
+    const trace = await workbench.capture(first, device)
+
+    expect(trace).not.toBeNull()
+    expect(store.put).not.toHaveBeenCalled()
+    // It still opens for this visit.
+    expect(await workbench.get(device, first.id)).toEqual(trace)
+  })
+
+  it('keeps a recording in memory and writes none, when storage would not say the epoch', async () => {
+    const { store } = memoryStore({
+      deviceEpoch: vi.fn(async () => {
+        throw new Error('Workbench storage failed')
+      }),
+    })
+    const workbench = new Workbench(store)
+    await workbench.watchDevice()
+
+    const trace = await workbench.capture(first, device)
+
+    expect(store.put).not.toHaveBeenCalled()
+    expect(await workbench.holds(device, first.id)).toBe(true)
+    expect(await workbench.get(device, first.id)).toEqual(trace)
+  })
+
+  it('writes none of the deferred recordings either', async () => {
+    const { store } = memoryStore({
+      deviceEpoch: vi.fn(async () => {
+        throw new Error('Workbench storage failed')
+      }),
+    })
+    const workbench = new Workbench(store)
+    await workbench.watchDevice()
+    workbench.captureDeferred(first, device)
+
+    const stored = await workbench.storeDeferred()
+
+    expect(store.put).not.toHaveBeenCalled()
+    expect(stored.size).toBe(0)
+  })
+
+  it('writes under the epoch once it is read', async () => {
+    const { store } = memoryStore()
+    const workbench = await watched(store)
+
+    await workbench.capture(first, device)
+
+    expect(store.put).toHaveBeenCalledWith(device, expect.anything(), first.startMs, 0)
+  })
+
+  it('does not write what waited for storage under an epoch read afterwards', async () => {
+    const { store, rows } = memoryStore({ put: vi.fn(async () => 'refused' as const) })
+    const workbench = await watched(store)
+    await workbench.capture(first, device)
+    // Storage was refusing, so the recording waits. The library is then loaded again and the epoch re-read.
+    vi.mocked(store.put).mockImplementation(async (s, t) => {
+      rows.set(scopeKey(s, t.activityId), t)
+      return 'stored'
+    })
+
+    await workbench.watchDevice()
+    await workbench.capture(activities[1]!, device)
+
+    expect(rows.size).toBe(1)
+    expect(await workbench.get(device, first.id)).not.toBeNull()
+    expect(rows.has(scopeKey(device, first.id))).toBe(false)
+  })
+
+  it('leaves account recordings out of it', async () => {
+    const { store } = memoryStore()
+    const workbench = new Workbench(store)
+
+    await workbench.capture(first, { kind: 'account', userId: 'alice' })
+
+    expect(store.put).toHaveBeenCalledWith(
+      { kind: 'account', userId: 'alice' },
+      expect.anything(),
+      first.startMs,
+      undefined,
+    )
   })
 })

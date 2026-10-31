@@ -21,7 +21,7 @@ export interface SectionDisclosureProps {
 export function SectionDisclosure({ id, title, finding, children }: SectionDisclosureProps) {
   const [mounted, setMounted] = useState(false)
   return (
-    <section className="sport-disclosure" aria-label={title}>
+    <section className="panel sport-disclosure" aria-label={title}>
       <details
         id={id}
         className="sport-disclosure__details"

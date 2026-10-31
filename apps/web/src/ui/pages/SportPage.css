@@ -13,7 +13,7 @@
   color: var(--sport-colour);
 }
 
-/* The page is a column of cards and disclosures with room between, closer than the other pages' sections. */
+/* The page is a column of bands and disclosures with room between, closer than the other pages' sections. */
 .sport-page {
   gap: var(--stack-gap);
 }
@@ -37,7 +37,7 @@
   min-width: 0;
 }
 
-/* A section's card: its content in one column that may shrink to the page. */
+/* A section's band: its content in one column that may shrink to the page. */
 .sport-panel {
   display: grid;
   align-content: start;
@@ -48,12 +48,6 @@
 .section-head {
   display: grid;
   gap: var(--space-1);
-}
-
-@media (min-width: 761px) {
-  .sport-panel {
-    padding: var(--space-5) var(--space-6);
-  }
 }
 
 /* A jump from "On this page" lands the section clear of the header and of the row held under it on a desktop: scroll-padding (--sticky-extra) holds both, so the margin is a gap only. */

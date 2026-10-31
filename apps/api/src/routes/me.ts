@@ -12,7 +12,7 @@ import { currentUser, optionalUser, requireUser, requireUserEvenIfDeleting } fro
 import { invalidRequest, limitBody } from '../http.ts'
 import { hasStoredFiles, sweepUserFiles } from '../storage.ts'
 import { must } from '../util.ts'
-import { activities, profiles } from '../db/schema.ts'
+import { activities, profiles, users } from '../db/schema.ts'
 
 const PROFILE_BODY_BYTES = 4 * 1024
 
@@ -38,8 +38,24 @@ meRoutes.get('/me', optionalUser, async (c) => {
   // A constant-size read, bounded by the edge rate limiter. The daily read budget is for library
   // listings, whose cost grows with the library; charging page loads here would lock people out.
   const units = unitsForAcceptLanguage(c.req.header('accept-language'))
-  return c.json(await buildMe(db, deps, user, Boolean(c.env.FILES), units), 200)
+  const me = await buildMe(db, deps, user, Boolean(c.env.FILES), units)
+  return c.json({ ...me, libraryRevision: await libraryRevision(db, user.id) }, 200)
 })
+
+/**
+ * A tag that changes whenever the library does: the count of stored activities and the bytes of their
+ * digests, both kept by the same statements that insert, upgrade and delete rows. Another tab or device
+ * compares it for inequality only, as a hint that its copy of the library may be out of date. It is
+ * not a version: an edit that changes neither number is not seen, and nothing relies on it being exact.
+ */
+async function libraryRevision(db: AppEnv['Variables']['db'], userId: string): Promise<string> {
+  const row = await db
+    .select({ count: users.activityCount, bytes: users.digestBytes })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get()
+  return row === undefined ? '0.0' : `${row.count}.${row.bytes}`
+}
 
 meRoutes.put(
   '/profile',
