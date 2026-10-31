@@ -31,6 +31,26 @@ export interface Dated {
 
 let localWeeks = LOCAL_WEEKS
 let viewerZone: Zone = UTC_ZONE
+/** Counts every change of the setting or the zone, so a cache that read either can tell it is stale. */
+let calendarVersion = 0
+
+/**
+ * What a remembered answer must also match: it changes whenever local weeks or the viewer's zone do.
+ * Memos keyed by digests alone would otherwise serve a week cut in one zone to a reader in another.
+ */
+export function calendarKey(): number {
+  return calendarVersion
+}
+
+/** A function that is true once each time the calendar (local weeks, the viewer's zone) has changed since it was last asked. */
+export function calendarWatch(): () => boolean {
+  let seen = calendarVersion
+  return () => {
+    const moved = seen !== calendarVersion
+    seen = calendarVersion
+    return moved
+  }
+}
 
 /**
  * Runs `run` with local weeks on or off. For tests: the setting is put back when `run` returns, so a run that
@@ -39,6 +59,7 @@ let viewerZone: Zone = UTC_ZONE
 export function withLocalWeeks<T>(on: boolean, run: () => T): T {
   const before = localWeeks
   localWeeks = on
+  calendarVersion++
   try {
     const result = run()
     if (result instanceof Promise) {
@@ -47,6 +68,7 @@ export function withLocalWeeks<T>(on: boolean, run: () => T): T {
     return result
   } finally {
     localWeeks = before
+    calendarVersion++
   }
 }
 
@@ -59,6 +81,7 @@ export function localWeeksOn(): boolean {
 export function setViewerZone(zone: Zone): Zone {
   const before = viewerZone
   viewerZone = zone
+  calendarVersion++
   return before
 }
 
@@ -96,6 +119,19 @@ export function weekEndMs(ms: number): number {
 }
 
 /**
+ * The start of an activity on the axis the week ends are on. A week end is a Sunday 23:59:59.999 counted as if
+ * the local day were the UTC one, so an instant (a start, a window's edge) cannot be compared with it: at UTC-7 a
+ * run at 18:00 on Sunday starts after Monday 00:00 UTC. This puts the start on that axis, at its own time of day
+ * on its local date, so `localAxisMs(a) <= end` is exactly `weekEndFor(a) <= end` for a week end, and a window
+ * of whole days cut at week ends holds the same activities as the weeks it spans. With local weeks off it is the
+ * start itself.
+ */
+export function localAxisMs(item: Dated, zone: Zone = viewerZone): number {
+  if (!localWeeks) return item.startMs
+  return item.startMs + (localDayNumber(item, zone) - Math.floor(item.startMs / DAY_MS)) * DAY_MS
+}
+
+/**
  * The first and last week ends of a set of activities, or null for none. Activities are in order of start,
  * but a week is that of the local day, so the first by start is not always in the first week.
  */
@@ -115,7 +151,18 @@ export function weekEndsSpan(items: readonly Dated[]): { first: number; last: nu
  * that is the week of its UTC start. With them on it is the week of its local day, so a run that starts at
  * 00:30 Monday local time belongs to that Monday's week wherever the zone puts it against UTC.
  */
-export function weekEndFor(item: Dated): number {
+export function weekEndFor(item: Dated, zone: Zone = viewerZone): number {
   if (!localWeeks) return weekEndMs(item.startMs)
-  return (MONDAY_DAY_NUMBER + (weekOfDay(localDayNumber(item)) + 1) * 7) * DAY_MS - 1
+  return (MONDAY_DAY_NUMBER + (weekOfDay(localDayNumber(item, zone)) + 1) * 7) * DAY_MS - 1
+}
+
+/**
+ * The instant a week end is, in the viewer's zone: the last millisecond of that local Sunday. The week end itself
+ * is a label on the week axis (see `localAxisMs`); this is the instant to hand to code that compares instants
+ * (a start `<=` an as-of date). With local weeks off the label is the instant.
+ */
+export function weekEndInstant(weekEnd: number, zone: Zone = viewerZone): number {
+  if (!localWeeks) return weekEnd
+  const guess = weekEnd - zone(weekEnd) * 60_000
+  return weekEnd - zone(guess) * 60_000
 }

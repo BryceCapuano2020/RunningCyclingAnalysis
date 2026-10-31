@@ -43,7 +43,27 @@ needs no table of cases. The band is not symmetric when the periods hold differe
 bests. The pooled null assumes the efforts of the two periods are exchangeable, which a swing in how many hard efforts a
 period holds breaks: a period of mostly easy efforts against one of mostly hard ones is called `higher` in about a quarter of
 equal-capability pairs (efforts clipped at the capability, hard share 0.2 against 0.8). That is the gap the reading rule is
-for; it closes when the hard-effort gate (D1) is plugged into it. The strip keeps its own `notHardNote` until then.
+for, and the effort gate (D1) is plugged into it (`digest/hardEffortRule.ts`, built by the session from the library's
+references and its set-aside list). A point counts when heart rate shows it was a hard effort: up to 20 minutes by its
+session's peak (the late-best session test), beyond 20 minutes by the session's average at 80% of the reference or more
+(a steady hour sits there, not at the hard line, as in the race predictions), and a sprint of a minute or less counts, since a
+30 s heart rate cannot show one. A point with no heart rate, a heart rate set aside, or a reference too thin to judge does not
+count, and none does against a reference that cannot certify a maximum.
+
+The two periods are always read alike. At each length the call is made from those hard readings when both periods hold
+enough of them (the minimum sizes count readings), and otherwise from every effort in both periods; `ChangeCall.gated` says
+which, and the strip adds "Effort not checked on the running comparison" when it is false. Dropping the efforts without a
+heart rate from one period while keeping them in the other would bring the swing back, which is why a strap worn in one
+period only sends the call to every effort. At 4 efforts a week, equal capability, 30% hard against 90%: 19 and 20 of 60
+seeds were called `higher` (run, ride) through every effort, and 2 and 1 of the 55 whose calls were made from the hard efforts
+(the other 5 fell back to every effort and say so). The curves' bests keep every effort, so a demonstrated best that was not
+hard still shows; the strip withholds a comparison whose shown best was not hard (`notHardNote`) and does not withhold one the
+gate could not judge.
+
+**Limit.** At 60 s or less easy sessions count, so a swing in hard share is not controlled there. The gate reads a session's heart rate, not the effort inside it: a sprint or a hard interval in a session whose
+peak stayed under the line is counted by length (sprints) or lost (efforts of 1 to 20 minutes), and a library with a strap in
+one period only, or too few hard efforts in either, is read from every effort in both and carries the swing in hard share
+that the gate exists to remove.
 
 ## Calibration (`change/change.sim.test.ts`)
 

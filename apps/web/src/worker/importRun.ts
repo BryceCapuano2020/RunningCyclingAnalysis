@@ -6,6 +6,8 @@ import type { DeviceActions } from './device'
 import { accountScope } from './checkinStore'
 import type { CheckinScope } from './checkinStore'
 import { deviceKeeper } from './deviceKeeper'
+import { openOutbox } from './outbox'
+import type { SendingKeys } from './sendingKeys'
 import { openHeldIndex } from './heldIndex'
 import type { HeldIndexHandle } from './heldIndex'
 import { ImportReporter } from './importReporter'
@@ -20,6 +22,8 @@ import { noteWork } from './workerWire'
 
 /** What an import reads and changes in the worker. */
 export interface ImportRunContext {
+  /** The workouts being sent to the account, shared with the outbox resume. */
+  sending: SendingKeys
   session: AnalysisSession
   post: (message: WorkerResponse) => void
   missingOriginals: Set<string>
@@ -109,6 +113,8 @@ export async function runImport(
             reporter.activitySaved()
           },
           onPaused: () => reporter.savesPaused(),
+          outbox: openOutbox(sync.userId),
+          sending: ctx.sending,
           onStopped: (code) => {
             stoppedBy ??= code
           },

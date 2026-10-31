@@ -22,6 +22,7 @@ export function callOf(
     strongLow: judged ? -0.06 : null,
     strongHigh: judged ? 0.06 : null,
     verdict,
+    gated: true,
   }
 }
 

@@ -181,7 +181,9 @@ describe('PeriodCache.change', () => {
     const gated = { rule: { activity: () => true, point: () => false }, key: 'nothing counts' }
     const other = cache.change(p.selected, p.previous, SETTINGS, DEFAULT_BIKE_MODEL, null, gated)
     expect(other).not.toBe(first)
-    expect(other.run.every((call) => call.verdict === 'untested')).toBe(true)
+    // Nothing counts under the rule, so the call falls back to every effort in both periods: the same as without one.
+    expect(other).toEqual(first)
+    expect(other.run.every((call) => !call.gated)).toBe(true)
   })
 
   it('lets go of the change test and the previous curves of a digest the library no longer holds', () => {
