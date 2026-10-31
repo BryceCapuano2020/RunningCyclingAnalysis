@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ActivityDigest } from '../types'
 import { digestActivity, digestActivityAt } from './digestActivity'
 import { digestHash } from './test/digestHashes'
@@ -20,6 +20,20 @@ import type { Activity } from '../types'
  * main (2b6a75cd) before the importer read it, on files that each carry a local time. `identity.test.ts` and
  * `sessionIdentity.test.ts` are the same proof on the sample dataset and are unchanged.
  */
+
+// An activity's name carries the hour of day in the device's zone ("Evening run"), so the hashes depend on it. They
+// were taken in Pacific time; the test sets that zone so it holds on a machine or a runner in any other.
+type Env = { env: Record<string, string | undefined> }
+const env = (globalThis as { process?: Env }).process!.env
+const savedZone = env.TZ
+beforeAll(() => {
+  env.TZ = 'America/Los_Angeles'
+})
+afterAll(() => {
+  if (savedZone === undefined) delete env.TZ
+  else env.TZ = savedZone
+})
+
 const GPX_LATE_UTC_MS = Date.UTC(2026, 2, 14, 23, 0, 0)
 const TCX_MORNING_UTC_MS = Date.UTC(2026, 2, 15, 6, 30, 0)
 
