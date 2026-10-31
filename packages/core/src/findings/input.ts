@@ -1,6 +1,6 @@
 import { DAY_MS } from '../constants'
 import { orderedFor } from '../digest/consumers'
-import { weekEndsSpan } from '../calendar'
+import { weekEndInstant, weekEndsSpan } from '../calendar'
 import type { ActivityDigest } from '../types'
 import { buildTables } from './tables'
 import { zoneTablesOf } from './zoneTables'
@@ -48,8 +48,9 @@ export function inputAt(source: FindingSource, asOfMs?: number): FindingInput {
 }
 
 /**
- * The weekly marks to evaluate at: the Sunday end of each week from the first activity's to the last's,
- * oldest first. `fromMs` and `toMs` narrow them to the weeks ending in that stretch.
+ * The weekly marks to evaluate at: the instant each week from the first activity's to the last's ends (the end
+ * of its Sunday in the viewer's zone), oldest first. `fromMs` and `toMs` narrow them to the weeks ending in
+ * that stretch.
  */
 export function weeklyMarks(
   digests: ActivityDigest[],
@@ -59,7 +60,8 @@ export function weeklyMarks(
   if (ordered.length === 0) return []
   const marks: number[] = []
   const span = weekEndsSpan(ordered)!
-  for (let end = span.first; end <= span.last; end += WEEK_MS) {
+  for (let label = span.first; label <= span.last; label += WEEK_MS) {
+    const end = weekEndInstant(label)
     if (end >= (range.fromMs ?? -Infinity) && end <= (range.toMs ?? Infinity)) marks.push(end)
   }
   return marks
