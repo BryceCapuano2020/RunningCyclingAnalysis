@@ -4,7 +4,7 @@ import { metabolicToFlatSpeed } from '../metabolic'
 import { METRES_PER_MILE } from '../units'
 import type { ActivityDigest, DigestCurvePoint, Sport } from '../types'
 import { oxygenCost } from './daniels'
-import { COUNTED_WEIGHT, shareWeight, weightedMedian } from './vo2maxShare'
+import { shareWeight, weightedMedian } from './vo2maxShare'
 import type { Weighted } from './vo2maxShare'
 
 /** The sports whose pace this estimate reads: running's oxygen cost is the one Daniels gives. */
@@ -30,9 +30,9 @@ function vo2maxShare(heartRateShare: number): number {
 }
 
 /**
- * One run's estimate: from its best window of at least VO2MAX_MIN_WINDOW_S that earns the most weight for its share of
- * the reference heart rate (`shareWeight`; the longest of those that tie), the oxygen cost of its flat-equivalent pace
- * divided by the share of VO2max that heart rate implies. Null when no window earns any weight.
+ * One run's estimate: from its longest best window of at least VO2MAX_MIN_WINDOW_S held at or over the line
+ * (VO2MAX_SHARE_ZERO, as the estimate always chose it), the oxygen cost of its flat-equivalent pace divided by the share
+ * of VO2max that heart rate implies, weighted by `shareWeight` of that window's share. Null when no window qualifies.
  */
 function runEstimate(
   digest: ActivityDigest,
@@ -41,7 +41,7 @@ function runEstimate(
   speedCap: number,
   weightOf: (share: number) => number,
 ): RunEstimate | null {
-  let chosen: { durationS: number; weight: number; estimate: RunEstimate } | null = null
+  let chosen: { durationS: number; estimate: RunEstimate } | null = null
   for (const point of digest.curve) {
     if (point.durationS < VO2MAX_MIN_WINDOW_S || point.startIndex < 0) continue
     if (point.heartRate === null) continue
@@ -56,12 +56,8 @@ function runEstimate(
       speed > speedCap
         ? { capped: true }
         : { vo2max: oxygenCost(speed * 60) / vo2maxShare(Math.min(share, 1)), weight }
-    if (
-      chosen === null ||
-      weight > chosen.weight ||
-      (weight === chosen.weight && point.durationS > chosen.durationS)
-    ) {
-      chosen = { durationS: point.durationS, weight, estimate }
+    if (chosen === null || point.durationS > chosen.durationS) {
+      chosen = { durationS: point.durationS, estimate }
     }
   }
   return chosen?.estimate ?? null
@@ -85,7 +81,7 @@ export function fastestMileSpeed(digests: readonly ActivityDigest[]): number {
  * VO2max from heart rate against pace, the way a watch estimates it: one estimate from each outdoor run
  * with trusted heart rate and a hard enough window, and their median weighted by how hard the window was
  * (`shareWeight`: a ramp, so a run drifting across a share does not make the estimate jump). Null without a
- * reference heart rate, or with less than VO2MAX_MIN_RUNS runs' worth of weight.
+ * reference heart rate, or with fewer than VO2MAX_MIN_RUNS runs at or over the line.
  * Indoor pace is left out, since it can be wrong, and so is a window faster on the flat than speedCap, the
  * fastest mile as run in the digests by default.
  */
@@ -104,13 +100,12 @@ export function vo2maxFromHeartRate(
   const estimates: Weighted[] = found.flatMap((e) =>
     'vo2max' in e && Number.isFinite(e.vo2max) ? [{ value: e.vo2max, weight: e.weight }] : [],
   )
-  const total = estimates.reduce((sum, e) => sum + e.weight, 0)
-  // Two runs' worth of weight: two runs in full, or more runs each counting for part.
-  if (total < VO2MAX_MIN_RUNS) return null
+  // The old rule: there is an estimate from two runs at or over the line, however lightly the ramp weighs them.
+  if (estimates.length < VO2MAX_MIN_RUNS) return null
   return {
     vo2max: weightedMedian(estimates),
-    // The runs it rests on, as the note says ("on N hard runs"): those that count for at least half.
-    runs: estimates.filter((e) => e.weight >= COUNTED_WEIGHT).length,
+    // The runs it rests on, as the note says ("on N hard runs"): every one at or over the line.
+    runs: estimates.length,
     hillCapped: found.length - estimates.length,
   }
 }

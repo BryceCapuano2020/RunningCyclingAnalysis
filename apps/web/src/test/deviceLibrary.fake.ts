@@ -38,6 +38,11 @@ export function memoryDeviceLibrary(): DeviceLibrary {
     remove: async (workoutKey) => {
       entries.delete(workoutKey)
     },
+    removeIfDigest: async (workoutKey, digestId) => {
+      if (entries.get(workoutKey)?.digest.id !== digestId) return false
+      entries.delete(workoutKey)
+      return true
+    },
     clear: async () => {
       entries.clear()
       epoch++

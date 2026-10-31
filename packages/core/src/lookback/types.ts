@@ -84,3 +84,31 @@ export interface TooShort {
 }
 
 export type SportYears = HindsightFitness | TooShort | { kind: 'unavailable' }
+
+/** What a best is measured in: a run's flat speed (m/s, which the page writes as a pace), a ride's power, or a time. */
+export type MilestoneUnit = 'm/s' | 'W' | 'W/kg' | 's'
+
+export type MilestoneEffort =
+  { kind: 'duration'; durationS: number } | { kind: 'distance'; distanceM: number }
+
+export interface Mark {
+  value: number
+  atMs: number
+  /** The activity that set it. */
+  id: string
+}
+
+/** One effort's bests over the years: demonstrated, never capability. */
+export interface EffortMilestones {
+  effort: MilestoneEffort
+  unit: MilestoneUnit
+  /** The best there is, and since when it has stood. */
+  best: Mark
+  /** The best of each calendar year (UTC) that has one, oldest first, at most `caps.years`; the oldest are dropped and counted. */
+  years: { year: number; partial: boolean; value: number; id: string; n: number }[]
+  omittedYears: number
+  /** The largest jumps of the all-time best, oldest first, at most `caps.steps`. */
+  steps: { atMs: number; value: number; previous: number; id: string }[]
+  /** Each complete calendar year against the one before it, by the change test; only durations are tested. */
+  verdicts: { year: number; verdict: 'higher' | 'lower' | 'none' | 'untested' }[]
+}
