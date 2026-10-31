@@ -1,11 +1,8 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import type { Me } from '@rca/contract'
-import { digestActivity } from '@rca/core/digest'
-import { parseFit } from '@rca/core/fit'
 import { lbToKg } from '@rca/core/units'
 import {
   CLIENT_HEADERS,
@@ -20,7 +17,7 @@ import {
   uniqueEmail,
   uploadFixtures,
 } from './helpers.js'
-import { setStoredRevision } from './storedRevision.js'
+import { LEGACY_REVISION, legacyEmail } from './legacySeed.js'
 
 const NAME = 'Ada Lovelace'
 const FIRST_NAME = 'Ada'
@@ -303,32 +300,13 @@ test('new accounts save summaries without retaining original files by default', 
 })
 test('rebuilds a legacy saved activity from its original file without changing its library identity', async ({
   page,
-}) => {
-  const email = uniqueEmail()
-  await signInAs(page.request, email, NAME)
-  await enableFileRetention(page.request)
-
-  const bytes = await readFile(fixturePath('one-run.fit'))
-  const parsed = parseFit(new Uint8Array(bytes), 'one-run.fit')
-  if (!parsed.ok) throw new Error(`Could not parse rebuild fixture: ${parsed.reason}`)
-  const activity = parsed.activities[0]
-  if (!activity) throw new Error('Rebuild fixture contains no activities')
-  const digest = digestActivity(activity)
-  const fileHash = createHash('sha256').update(bytes).digest('hex')
-  const created = await page.request.post('/api/activities', {
-    headers: CLIENT_HEADERS,
-    data: { digest, fileName: 'one-run.fit', fileHash },
-  })
-  expect(created.status()).toBe(201)
-  const legacyRecord = await created.json()
-  const upload = await page.request.put(`/api/activities/${legacyRecord.id}/file`, {
-    headers: { ...CLIENT_HEADERS, 'Content-Type': 'application/octet-stream' },
-    data: bytes,
-  })
-  expect(upload.status()).toBe(200)
-  expect(await upload.json()).toMatchObject({ id: legacyRecord.id, hasFile: true })
-  // The server refuses a digest from an older model, so the row is set back to revision 1 in its database.
-  setStoredRevision(legacyRecord.id, 1)
+}, testInfo) => {
+  // The library was made before the tests started (legacySeed.ts), with its row set back to an older model.
+  await signInAs(page.request, legacyEmail(testInfo), NAME)
+  const [legacyRecord] = await apiActivities(page.request)
+  if (legacyRecord === undefined) throw new Error('The legacy library has no activity')
+  expect(legacyRecord).toMatchObject({ hasFile: true })
+  expect(legacyRecord.digest.modelRevision).toBe(LEGACY_REVISION)
 
   await page.goto('/')
   await expect(savedActivityUpdates(page)).toContainText(
