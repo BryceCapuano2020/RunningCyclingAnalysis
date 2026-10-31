@@ -10,6 +10,8 @@ export interface ImportCompletion {
   rejected: number
   /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
   notActivities: number
+  /** The files in a format the app does not read, by extension (such as pwx); absent when there were none. */
+  skippedTypes?: Record<string, number>
   duplicates: RejectedFile[]
   /** The digests of workouts the library gained. */
   added: ActivityDigest[]

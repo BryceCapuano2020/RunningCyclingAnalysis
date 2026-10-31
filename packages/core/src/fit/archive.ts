@@ -18,7 +18,7 @@ import {
   UNSUPPORTED_FORMAT,
 } from './archiveReasons'
 import { readSource } from './archiveSource'
-import { ACTIVITY, OTHER_ACTIVITY, ZIP } from './zipDirectory'
+import { ACTIVITY, OTHER_ACTIVITY, otherExtensionOf, ZIP } from './zipDirectory'
 import type { EntryFilter } from './zipDirectory'
 import { ZipReader } from './zipReader'
 import { DECOMPRESS_INPUT_CHUNK_BYTES, deliver, newBudget, ZipRun } from './zipRun'
@@ -66,9 +66,10 @@ export async function extractFitFiles(
   onError: FitErrorHandler = () => undefined,
   limits: ExtractLimits = DEFAULT_EXTRACT_LIMITS,
   listed?: EntryFilter,
+  skipped?: (extension: string) => void,
 ): Promise<ExtractSummary> {
   const summary: ExtractSummary = { fitFiles: 0, otherActivityFiles: 0, notActivities: 0 }
-  const sink: Sink = { summary, onFile, onError, limits, listed }
+  const sink: Sink = { summary, onFile, onError, limits, listed, skipped }
   const name = source.name
   if (source.size !== undefined && source.size > limits.maxSourceBytes) {
     onError(name, sourceTooLarge(limits.maxSourceBytes))
@@ -76,6 +77,7 @@ export async function extractFitFiles(
   }
   if (OTHER_ACTIVITY.test(name)) {
     summary.otherActivityFiles = 1
+    sink.skipped?.(otherExtensionOf(name))
   } else if (ACTIVITY.test(name)) {
     await extractSingle(source, sink)
   } else if (ZIP.test(name)) {
