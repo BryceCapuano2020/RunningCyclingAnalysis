@@ -1,12 +1,10 @@
-import { FITNESS } from '../fitness/params'
+import { isBackLevel } from '../fitness/episode'
 import { halfWidth, ranged } from '../fitness/status'
 import type { Ranged } from '../fitness/types'
 import { LOOKBACK } from './params'
 import { stepZ } from './segments'
 import type { Level } from './segments'
 import type { EpisodeKind } from './types'
-
-const E = FITNESS.episode
 
 /** An episode before its dates are turned into time: weeks since the origin. */
 export interface WeekEpisode {
@@ -34,14 +32,12 @@ const rising = (r: Ranged) => r.low > 0
 const falling = (r: Ranged) => r.high < 0
 
 /**
- * Whether the level after a return is back: the test the live monitor holds a "back" to. The level is not more than
- * `backPoint` under the one before the fall, and its lower bound (one-sided, `boundZ` standard errors) is not more than
- * `backTol` under it. The constants are read from FITNESS.episode, so a retune of the live state retunes this.
+ * Whether the level after a return is back: the test the live monitor holds a "back" to (`isBackLevel`). The standard
+ * error is the two levels' with the model-error floor added in quadrature, as the live one adds `tau` and the
+ * reference's own error to the level's.
  */
-export function isBack(pre: Level, post: Level): boolean {
-  const d = post.m - pre.m
-  const se = Math.sqrt(pre.se ** 2 + post.se ** 2)
-  return d >= -E.backPoint && d - E.boundZ * se >= -E.backTol
+export function isBack(pre: Level, post: Level, floor: number): boolean {
+  return isBackLevel(post.m - pre.m, Math.sqrt(pre.se ** 2 + post.se ** 2 + floor ** 2))
 }
 
 /** A step beside a break: the boundary is within `afterBreakWeeks` of either end of a span with no run at all. */
@@ -157,7 +153,7 @@ export function episodesOf(
         regained,
         runs: runsIn(fall.from, move.to),
       }
-      if (isBack(pre, post)) {
+      if (isBack(pre, post, floor)) {
         out.push(episode('slip-back', fall.from, fall.to, fall.steps, returned))
         // Back, and clear above where it was: the return, then the excess as a rise of its own.
         const excess = changeBetween(pre, post)
