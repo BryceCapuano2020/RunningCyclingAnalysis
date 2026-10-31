@@ -86,7 +86,10 @@ export const BEST_WINDOW_GAP_SHARE = 0.01
  */
 export function withLonePowerSpikes(activity: Activity, quality: QualityReport): QualityReport {
   if (!activity.hasPower) return quality
-  const spikes = lonePowerSpikes(activity.power)
+  // A second over the 2,000 W rule's ceiling is already flagged (with its margin) there; it is not flagged twice.
+  const spikes = lonePowerSpikes(activity.power).filter(
+    (i) => activity.power[i]! <= QUALITY_THRESHOLDS.powerSpike.maxW,
+  )
   if (spikes.length === 0) return quality
   const validPower = Uint8Array.from(quality.validPower)
   const found: QualityFlag[] = spikes.map((i) => {

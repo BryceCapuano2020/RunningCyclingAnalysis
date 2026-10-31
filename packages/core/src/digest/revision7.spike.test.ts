@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { lonePowerSpikes } from '../quality/powerOutlier'
-import type { Activity, ActivityDigest } from '../types'
+import type { ActivityDigest } from '../types'
 import { digestActivityAt } from './digestActivity'
-import { syntheticActivity } from './test/syntheticActivity'
+import { POWER_RIDE_AT, powerRide } from './test/gateFixturesPower'
 
 /**
  * One bad second must neither lose a best nor make one (revision 7, gated). A half-hour ride at a steady 250 W, with
@@ -10,20 +10,8 @@ import { syntheticActivity } from './test/syntheticActivity'
  * proof is identity.gate.test.ts, and these show the two behaviours side by side.
  */
 
-const N = 1800
-const AT = 900
-
-function ride(change: (power: Float64Array) => void): Activity {
-  const power = new Float64Array(N).fill(250)
-  change(power)
-  return syntheticActivity({
-    id: 'ride',
-    sport: 'ride',
-    n: N,
-    power,
-    speed: new Float64Array(N).fill(8),
-  })
-}
+const AT = POWER_RIDE_AT
+const ride = (change: (power: Float64Array) => void) => powerRide('ride', change)
 
 const best = (digest: ActivityDigest, durationS: number) =>
   digest.curve.find((point) => point.durationS === durationS)!.value
@@ -68,6 +56,19 @@ describe('a lone power spike', () => {
     expect(best(seven, 60)).toBeCloseTo(250, 6)
     const flags = seven.flags.filter((flag) => flag.kind === 'power-spike')
     expect(flags.map((flag) => [flag.start, flag.end])).toEqual([[AT - 1, AT + 2]])
+  })
+
+  it('flags a second over 2,000 W once, by the rule that always did, not again by this one', () => {
+    const huge = ride((power) => {
+      power[AT] = 2500
+    })
+    for (const revision of [6, 7]) {
+      const flags = digestActivityAt(huge, revision).flags.filter(
+        (flag) => flag.kind === 'power-spike',
+      )
+      expect(flags, `revision ${revision}`).toHaveLength(1)
+    }
+    expect(best(digestActivityAt(huge, 7), 5)).toBeCloseTo(250, 6)
   })
 
   it('leaves a sprint alone: power that rises over seconds and stays is not a lone second', () => {
