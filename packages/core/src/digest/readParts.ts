@@ -55,8 +55,16 @@ const QUALITY_KIND_SET: Record<QualityKind, true> = {
 }
 const QUALITY_KINDS = Object.keys(QUALITY_KIND_SET) as QualityKind[]
 
-function kindOf(value: string): QualityKind | undefined {
-  return QUALITY_KINDS.find((kind) => kind === value)
+/**
+ * The kinds a reader takes. A create refuses the cadence-lock kind until revision 7 is written: the
+ * rollback floor refuses a flag of it even in a stored row, so a row with one could not be listed there.
+ */
+function kindsOf(rules: DigestRules): QualityKind[] {
+  return QUALITY_KINDS.filter((kind) => kind !== 'hr-cadence-lock' || rules.acceptsCadenceLock)
+}
+
+function kindOf(value: string, rules: DigestRules): QualityKind | undefined {
+  return kindsOf(rules).find((kind) => kind === value)
 }
 
 /**
@@ -166,9 +174,9 @@ function readFlag(
     return { start, end, message: asString(o.message, `${path}.message`) }
   })
   // A kind is a string. A string this build does not know is another build's; anything else is damage.
-  const kind = typeof o.kind === 'string' ? kindOf(o.kind) : undefined
+  const kind = typeof o.kind === 'string' ? kindOf(o.kind, rules) : undefined
   if (kind === undefined && (typeof o.kind !== 'string' || !rules.tolerant)) {
-    fail(`${path}.kind`, `must be one of ${QUALITY_KINDS.join(', ')}`)
+    fail(`${path}.kind`, `must be one of ${kindsOf(rules).join(', ')}`)
   }
   return kind === undefined || placed === null ? null : { kind, ...placed }
 }
@@ -191,7 +199,7 @@ export function readFlagCounts(
   const counts: Partial<Record<QualityKind, number>> = {}
   for (const [key, count] of Object.entries(o)) {
     const path = `flagCounts.${key}`
-    const kind = kindOf(key)
+    const kind = kindOf(key, rules)
     if (kind === undefined) {
       if (rules.tolerant) continue
       fail(path, 'is not a quality kind')

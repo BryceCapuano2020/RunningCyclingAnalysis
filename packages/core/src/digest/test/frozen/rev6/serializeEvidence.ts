@@ -2,8 +2,9 @@ import {
   DISTRIBUTION_BINS,
   DURABILITY_AFTER_S,
   DURABILITY_DURATIONS_S,
-} from '../../../../constants'
-import type { DistributionMeasure } from '../../../../constants'
+  MEASURES_OF_SPORT,
+} from './constants'
+import type { DistributionMeasure } from './constants'
 import type {
   DigestDistribution,
   DigestDistributions,
@@ -11,7 +12,6 @@ import type {
   DigestDurabilityPoint,
 } from './types'
 import type { Sport } from './types'
-import { MEASURES_OF_SPORT } from '../../../distributions'
 import {
   asArray,
   asBetween,

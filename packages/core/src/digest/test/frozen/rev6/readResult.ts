@@ -1,5 +1,5 @@
 import type { ActivityDigest, Sport } from './types'
-import { DIGEST_VERSION } from '../../../modelRevision'
+import { DIGEST_VERSION } from './constants'
 
 /** The model revision this build wrote and read; a digest above it is a newer build's. */
 const FROZEN_MODEL_REVISION = 6

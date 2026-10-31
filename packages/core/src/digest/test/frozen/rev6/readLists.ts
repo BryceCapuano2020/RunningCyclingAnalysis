@@ -3,7 +3,7 @@ import {
   MAX_KM_SPLITS,
   MAX_MILE_SPLITS,
   RUN_RECORD_DISTANCES_M,
-} from '../../../../constants'
+} from './constants'
 import type { DigestDistanceBest, DigestSplit, DigestSplits } from './types'
 import {
   asArray,

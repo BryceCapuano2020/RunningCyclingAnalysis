@@ -1,5 +1,5 @@
 import type { ActivityDigest, PowerSource, Sport } from './types'
-import { DIGEST_VERSION } from '../../../modelRevision'
+import { DIGEST_VERSION } from './constants'
 import { asDistributions, asDrift, asDurability } from './serializeEvidence'
 import {
   asBetween,

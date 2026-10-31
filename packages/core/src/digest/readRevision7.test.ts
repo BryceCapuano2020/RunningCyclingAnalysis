@@ -107,20 +107,33 @@ describe('the heart-rate cadence-lock flag', () => {
   }
   const flagged = { ...wire, flags: [flag], flagCounts: { 'hr-cadence-lock': 1 } }
 
-  it('is read as a quality kind by every view, with its count', () => {
-    for (const view of VIEWS) {
+  it('is read as a quality kind by a stored row and the device library, with its count', () => {
+    for (const view of ['stored', 'device'] as const) {
       const digest = readDigest(flagged, view)
       expect(digest.flags, view).toEqual([flag])
       expect(digest.flagCounts, view).toEqual({ 'hr-cadence-lock': 1 })
     }
   })
 
+  it('is refused by a create, in a flag and in a count, until the release that writes revision 7', () => {
+    expect(() => readDigest(flagged, 'create')).toThrow(/flags\[0\]\.kind/)
+    expect(() => readDigest({ ...wire, flagCounts: { 'hr-cadence-lock': 1 } }, 'create')).toThrow(
+      /flagCounts\.hr-cadence-lock/,
+    )
+    // The refusal is of the kind alone: the same digest with another kind is a digest.
+    expect(
+      readDigest({ ...flagged, flags: [{ ...flag, kind: 'hr-spike' }], flagCounts: {} }, 'create'),
+    ).toBeTruthy()
+  })
+
   it('has its flag held to the same rules as any other', () => {
     const outside = { ...flagged, flags: [{ ...flag, end: 1e9 }] }
-    expect(() => readDigest(outside, 'create')).toThrow(/flags\[0\]/)
+    expect(() => readDigest(outside, 'stored')).not.toThrow()
+    expect(readDigest(outside, 'stored').flags).toEqual([])
+    expect(() => readDigest(outside, 'device')).not.toThrow()
     expect(() =>
-      readDigest({ ...flagged, flagCounts: { 'hr-cadence-lock': -1 } }, 'create'),
-    ).toThrow()
+      readDigest({ ...flagged, flagCounts: { 'hr-cadence-lock': 1.5 } }, 'device'),
+    ).not.toThrow()
   })
 })
 

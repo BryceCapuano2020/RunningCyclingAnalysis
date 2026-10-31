@@ -1,4 +1,4 @@
-import { DURATIONS_S } from '../../../../constants'
+import { DURATIONS_S } from './constants'
 import type {
   CalibrationSums,
   DigestClimbSection,

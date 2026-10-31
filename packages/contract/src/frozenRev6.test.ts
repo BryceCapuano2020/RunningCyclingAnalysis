@@ -103,17 +103,26 @@ describe('a reader from before revision 7', () => {
 })
 
 describe('the readers of this release', () => {
-  it('read every revision-7 digest with every field kept, by every reader', () => {
+  it('read every revision-7 digest with every field kept, by every reader that takes it', () => {
     for (const w of [...WITHOUT_LOCK, ...WITH_LOCK]) {
-      const where = `${String(w.sport)} with ${String(w.flagCounts && Object.keys(w.flagCounts).length)} counts`
+      const locked = 'hr-cadence-lock' in (w.flagCounts as object)
+      const where = `${String(w.sport)}${locked ? ' with a lock flag' : ''}`
       const readers = {
-        create: ActivityDigestSchema.parse(w),
         stored: StoredActivityDigestSchema.parse(w),
         device: parseDigest(JSON.stringify(w)),
+        ...(locked ? {} : { create: ActivityDigestSchema.parse(w) }),
       }
       for (const [name, digest] of Object.entries(readers)) {
         expect(wireOf(digest), `${where}: ${name}`).toEqual(JSON.parse(JSON.stringify(w)))
       }
+    }
+  })
+
+  it('refuse a create of a lock flag until the release that writes revision 7', () => {
+    for (const w of WITH_LOCK) {
+      const read = tryReadDigest(w, 'create')
+      expect(!read.ok && read.path, String(w.sport)).toBe('flags[0].kind')
+      expect(ActivityDigestSchema.safeParse(w).success, String(w.sport)).toBe(false)
     }
   })
 
