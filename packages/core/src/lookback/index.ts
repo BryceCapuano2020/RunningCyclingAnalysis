@@ -38,3 +38,13 @@ export {
   tooShortText,
 } from './copy'
 export type { EffortMilestones, MilestoneEffort, MilestoneUnit, Mark } from './types'
+export { checkInBetween, beatsShown, OLDER_DAYS } from './checkIn'
+export type { CheckIn, FitnessLine, NewBest, NewEpisode } from './checkIn'
+export { decodeSeconds, encodeSeconds, snapshotOf } from './snapshot'
+export type {
+  CheckInSnapshot,
+  SnapshotBest,
+  SnapshotEpisode,
+  SnapshotFitness,
+  SnapshotInputs,
+} from './snapshot'
