@@ -1,6 +1,8 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
+import { ActivityDigestSchema, MAX_DIGEST_BYTES } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
-import { START, createHarness, digestFixture, type Harness } from '../test/harness.ts'
+import { START, createHarness, digestFixture, testEnv, type Harness } from '../test/harness.ts'
+import { racingDb } from '../test/racingDb.ts'
 import { seedActivityRow } from '../test/seed.ts'
 import { keepStoredLabel } from './activities/storedLabel.ts'
 
@@ -148,5 +150,82 @@ describe('a rebuild of a labelled activity', () => {
     })
     await rebuild(h, token, { id: 'source-2', startMs: START + 3_600_000, athleteType: 'ski' })
     expect((await stored(h, other)).athleteType).toBe('ski')
+  })
+
+  it('counts the label it keeps against the size limit, so a digest at the limit without it is refused with it', async () => {
+    const h = createHarness()
+    const { token, userId } = await account(h)
+    const id = await seedActivityRow(h.env.DB, {
+      userId,
+      revision: STALE,
+      fileHash: HASH,
+      digest: { id: 'source-1', startMs: START, athleteType: 'other' },
+    })
+    const sizeWith = (name: string) =>
+      new TextEncoder().encode(
+        JSON.stringify(
+          ActivityDigestSchema.parse(
+            JSON.parse(JSON.stringify(digestFixture({ id: 'source-1', startMs: START, name }))),
+          ),
+        ),
+      ).byteLength
+    const fits = 'n'.repeat(MAX_DIGEST_BYTES - sizeWith(''))
+    // Exactly at the limit, with no label to carry: the digest is the limit, and the label does not fit beside it.
+    const res = await rebuild(h, token, { name: fits })
+    expect(res.status).toBe(413)
+    expect(await res.json()).toMatchObject({ error: { code: 'digest_too_large' } })
+    expect((await stored(h, id)).modelRevision).toBe(STALE)
+    const sizes = await bytes(h, userId)
+    expect(sizes.counter).toBe(sizes.actual)
+    // A little under it, the label fits and is kept.
+    const room = 'n'.repeat(MAX_DIGEST_BYTES - sizeWith('') - 40)
+    const ok = await rebuild(h, token, { name: room })
+    expect(ok.status).toBe(200)
+    expect((await stored(h, id)).athleteType).toBe('other')
+  })
+
+  it('keeps a label that lands inside the upgrade itself: the upgrade is refused once, and the retry carries it', async () => {
+    const first = createHarness()
+    const { token, userId } = await account(first)
+    const id = await seedActivityRow(first.env.DB, {
+      userId,
+      revision: STALE,
+      fileHash: HASH,
+      digest: { id: 'source-1', startMs: START },
+    })
+    // Between the server reading the row and reserving the bytes for the upgrade, the athlete labels it.
+    const racing = racingDb(
+      testEnv().DB,
+      /^UPDATE users SET digest_bytes = digest_bytes \+ \?1/,
+      async () => {
+        const labelled = await first.send({
+          method: 'PATCH',
+          path: '/api/activities/labels',
+          json: { labels: [{ id, revision: STALE, from: null, athleteType: 'hike' }] },
+          ...as(token),
+        })
+        expect(await labelled.json()).toMatchObject({ applied: 1 })
+      },
+    )
+    const h = createHarness({}, { DB: racing })
+
+    // The upgrade’s exact-digest check fails, so it answers with the row as it is: labelled, at the old revision.
+    const refused = await rebuild(h, token)
+    expect(await refused.json()).toMatchObject({
+      digest: { modelRevision: STALE, athleteType: 'hike' },
+    })
+    expect(await stored(h, id)).toMatchObject({ modelRevision: STALE, athleteType: 'hike' })
+
+    // The updater sees the revision unchanged and sends the same digest again: it now carries the label.
+    const retried = await rebuild(h, token)
+    expect(await retried.json()).toMatchObject({
+      digest: { modelRevision: MODEL_REVISION, athleteType: 'hike' },
+    })
+    expect(await stored(h, id)).toMatchObject({
+      modelRevision: MODEL_REVISION,
+      athleteType: 'hike',
+    })
+    const sizes = await bytes(h, userId)
+    expect(sizes.counter).toBe(sizes.actual)
   })
 })

@@ -79,6 +79,8 @@ export interface ImportOutcome {
    * when none were.
    */
   labelled?: number
+  /** Activities whose file says one sport and whose export's list names the other: the file wins. Absent when none. */
+  listedAsOtherSport?: number
 }
 
 /** Whether imported activities are saved to the signed-in account, and whether their files are kept. */

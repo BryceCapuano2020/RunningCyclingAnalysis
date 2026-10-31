@@ -109,11 +109,35 @@ describe('applyListLabels', () => {
     expect(mocked.patchLabels).not.toHaveBeenCalled()
   })
 
-  it('costs the import nothing when a write fails: no labels, no new listing', async () => {
+  it('reads the library back and returns the labels already applied when a later request fails', async () => {
+    mocked.patchLabels
+      .mockResolvedValueOnce(taken)
+      .mockRejectedValueOnce(new ApiRequestError(0, 'network_error', 'Offline'))
+    // The first request’s 200 labels stand; the second’s 50 did not reach the account.
+    const after = [...held(250).values()].map((r, i) => (i < 200 ? asHike(r) : r))
+    mocked.listActivities.mockResolvedValue(after)
+    const reload = vi.fn()
+    const applied = await applyListLabels(held(250), hikes(250), 'u1', reload)
+
+    expect(mocked.patchLabels).toHaveBeenCalledTimes(2)
+    expect(reload).toHaveBeenCalledWith(after)
+    expect(applied).toHaveLength(200)
+    expect(applied.every((p) => Number(p.id.slice(3)) < 200)).toBe(true)
+  })
+
+  it('returns nothing when the first request fails and the library shows no label', async () => {
     mocked.patchLabels.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+    mocked.listActivities.mockResolvedValue([...held(2).values()])
     const reload = vi.fn()
     expect(await applyListLabels(held(2), hikes(2), 'u1', reload)).toEqual([])
-    expect(mocked.listActivities).not.toHaveBeenCalled()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it('costs the import nothing when the account cannot be read back: no labels are claimed', async () => {
+    mocked.patchLabels.mockResolvedValue(taken)
+    mocked.listActivities.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+    const reload = vi.fn()
+    expect(await applyListLabels(held(2), hikes(2), 'u1', reload)).toEqual([])
     expect(reload).not.toHaveBeenCalled()
   })
 })

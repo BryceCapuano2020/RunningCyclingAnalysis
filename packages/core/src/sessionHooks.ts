@@ -10,6 +10,8 @@ export interface ImportCompletion {
   rejected: number
   /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
   notActivities: number
+  /** Activities whose file says one sport and whose export's list names the other (a FIT run listed as a Ride): the file wins. Absent when none. */
+  listedAsOtherSport?: number
   duplicates: RejectedFile[]
   /** The digests of workouts the library gained. */
   added: ActivityDigest[]

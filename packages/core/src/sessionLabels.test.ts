@@ -121,3 +121,41 @@ describe('applyLabels', () => {
     expect(undoLabels(undoLabels(applied))).toEqual(applied)
   })
 })
+
+describe('A8: a list that names the other sport', () => {
+  async function counted(types: [string, string, string]) {
+    let completion: { listedAsOtherSport?: number } = {}
+    const saved: ActivityDigest[] = []
+    const state = await new AnalysisSession().addFiles(
+      [exportZip(types)],
+      SETTINGS,
+      undefined,
+      async ({ digest }) => {
+        saved.push(digest)
+      },
+      false,
+      (done) => {
+        completion = done
+      },
+    )
+    return { completion, saved, state }
+  }
+
+  it('leaves the file’s sport, counts the activity in the analysis, and says how many it was', async () => {
+    const { completion, saved, state } = await counted(['Ride', 'Run', 'Ride'])
+    expect(completion.listedAsOtherSport).toBe(2)
+    expect(saved.map((digest) => digest.sport)).toEqual(['run', 'run', 'run'])
+    expect(saved.every((digest) => digest.athleteType === undefined)).toBe(true)
+    expect(state.totalActivities).toBe(3)
+    expect(state.labelledRuns).toBeUndefined()
+  })
+
+  it('counts none when the list agrees with the files, or names a label', async () => {
+    expect((await counted(['Run', 'Trail Run', 'Virtual Run'])).completion).not.toHaveProperty(
+      'listedAsOtherSport',
+    )
+    expect((await counted(['Hike', 'Walk', 'Swim'])).completion).not.toHaveProperty(
+      'listedAsOtherSport',
+    )
+  })
+})

@@ -38,8 +38,8 @@ async function send(chunk: readonly LabelProposal[], userId: string): Promise<vo
 
 /**
  * Labels the workouts the account holds from the types the import's list gave their files, then reads the library
- * again so the page shows what the account now holds. A failed write costs nothing: the labels are applied by the next
- * import of the export. Returns the proposals the account took, so they can be undone.
+ * again so the page shows what the account now holds, also when a write failed part way: the requests before it
+ * stand, and they are the ones returned, so they can be undone. Nothing else is lost: the next import applies the rest. Returns the proposals the account took, so they can be undone.
  */
 export async function applyListLabels(
   records: ReadonlyMap<string, ActivityRecord>,
@@ -57,11 +57,16 @@ export async function applyListLabels(
       noteWork()
       await send(chunk, userId)
     }
+  } catch {
+    // A write that fails part way leaves the requests before it applied: they are read back below.
+  }
+  try {
     const fresh = await listActivities(undefined, userId, undefined, undefined, noteWork)
     reload(fresh)
     const byId = new Map(fresh.map((record) => [record.id, record]))
     return proposals.filter((p) => byId.get(p.id)?.digest.athleteType === p.athleteType)
   } catch {
+    // The account cannot be read: nothing is known to be applied, and the next import tries again.
     return []
   }
 }
