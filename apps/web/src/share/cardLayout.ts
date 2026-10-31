@@ -1,3 +1,4 @@
+import { localDateText } from '@rca/core/calendar'
 import type { Period } from '@rca/core/period'
 
 /** The shapes the card is drawn in: a square post and a story. */
@@ -47,13 +48,6 @@ export const CARD_FORMATS: Record<CardFormat, CardLayout> = {
   },
 }
 
-/** A local calendar day as YYYY-MM-DD, so a file name reads the same wherever it is saved. */
-function dayOf(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${date.getFullYear()}-${month}-${day}`
-}
-
 /**
  * The file a card is saved as: the period's first and last day when it has dates, otherwise all
  * time with the day it was made, then the shape. Such as balance-2025-05-12_2025-08-03-square.png.
@@ -61,8 +55,8 @@ function dayOf(date: Date): string {
 export function cardFileName(format: CardFormat, period: Period, today: Date): string {
   const span =
     period.startMs !== null && period.endMs !== null
-      ? `${dayOf(new Date(period.startMs))}_${dayOf(new Date(period.endMs))}`
-      : `all-time-${dayOf(today)}`
+      ? `${localDateText(period.startMs)}_${localDateText(period.endMs)}`
+      : `all-time-${localDateText(today.getTime())}`
   return `balance-${span}-${format}.png`
 }
 
