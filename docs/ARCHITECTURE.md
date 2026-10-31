@@ -208,8 +208,10 @@ and whether it finished. While an import runs, its tab holds a Web Lock named fo
 later can tell an import still going in another tab from one that was cut off (a browser without locks goes by
 when the record was last written). The record is the only thing that tells the truth after a tab closes or a
 phone discards it, which is why a `beforeunload` guard is only a courtesy on top. An import that was cut off,
-or that read a damaged zip, leaves a notice that the library is only part of what was added, with what to do;
-"Use what I have" takes it away for good, and a later import of the same files finishes it. It goes with
+or that read a damaged zip, leaves a notice that the library is only part of what was added, with what to do, and holds the headline
+comparison of the two sports (the `partialImport` input of `resultHold.ts`, the one place holds are read) while
+the notice stands; the results themselves show. "Use what I have" takes both away for good, and a later import
+of the same files finishes it. It goes with
 Remove all, and an account's goes at sign-out and deletion. Storage that refuses it only loses the notice.
 Each event is found by the request it names, a record is rewritten only while the store still holds it (so
 another tab's Remove all is not undone), a running import is written every 10 s whatever it reads, and a

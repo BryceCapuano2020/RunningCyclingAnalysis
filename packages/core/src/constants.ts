@@ -281,13 +281,10 @@ export const RUN_RACE_DISTANCES_M = [5_000, 10_000, HALF_MARATHON_M, MARATHON_M]
 export const RIEGEL_EXPONENT = 1.07
 
 /**
- * The heart-rate estimate of VO2max uses windows of at least this long, s, at or above this share of the
- * running reference heart rate, from at least this many runs. Below the share, the intercept of Swain's
- * relation is a larger part of the estimate and its error grows; near the maximum, heart rate plateaus,
- * so the share is a floor, not a target.
+ * The heart-rate estimate of VO2max uses windows of at least this long, s, from at least this many runs. How much a
+ * window counts by its share of the reference heart rate is a ramp: see predict/vo2maxShare.ts.
  */
 export const VO2MAX_MIN_WINDOW_S = 600
-export const VO2MAX_MIN_HR_SHARE = 0.85
 export const VO2MAX_MIN_RUNS = 2
 
 /**

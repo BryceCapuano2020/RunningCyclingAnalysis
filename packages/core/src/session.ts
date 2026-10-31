@@ -121,6 +121,7 @@ export class AnalysisSession {
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
     const listedTypes = new Map<string, string>()
+    const skippedTypes: Record<string, number> = {}
     const listeners: ActivityListeners = { kept: onActivity, replaced: onReplaced }
     try {
       for (const [index, source] of sources.entries()) {
@@ -132,6 +133,7 @@ export class AnalysisSession {
           refused: this.rejected,
           read,
           unsupported: this.unsupported,
+          skippedTypes,
           hashFiles: sink !== undefined,
           listedTypes,
           held,
@@ -161,6 +163,7 @@ export class AnalysisSession {
       added,
       upgraded,
       ...(listedTypes.size === 0 ? {} : { listedTypes }),
+      ...(Object.keys(skippedTypes).length === 0 ? {} : { skippedTypes }),
     })
     return this.state(settings)
   }

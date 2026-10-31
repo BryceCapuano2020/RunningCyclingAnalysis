@@ -55,6 +55,11 @@ export interface ImportOutcome {
    * unread, and are not in `rejected`. Absent from outcomes that do not count them.
    */
   notActivities?: number
+  /**
+   * The activity files in a format the app does not read, by extension (such as pwx), which are counted in
+   * `rejected` and named here. Absent when there were none.
+   */
+  skippedTypes?: Record<string, number>
   /** Files whose every activity is a workout the library already holds or shows as a copy: a copy, or the file added again. */
   duplicates: RejectedFile[]
   /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */

@@ -64,6 +64,8 @@ export interface SourceImport {
   read: ReadFile[]
   /** The activity files the sources hold in formats the app does not read, which are counted, not listed. */
   unsupported: { files: number }
+  /** The files in a format the app does not read, by extension (lowercase, no dot), which the import adds to. */
+  skippedTypes?: Record<string, number>
   /** Whether each file's bytes are hashed, which the sink needs. */
   hashFiles: boolean
   /**
@@ -252,6 +254,10 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
     },
     extractLimits,
     listed,
+    (extension) => {
+      if (ctx.skippedTypes !== undefined)
+        ctx.skippedTypes[extension] = (ctx.skippedTypes[extension] ?? 0) + 1
+    },
   )
   takeBack(ctx, ctx.read.slice(filesBefore))
   // An archive that stops early, or loses an entry, reports nothing for the files it did not

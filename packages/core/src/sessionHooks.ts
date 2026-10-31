@@ -12,6 +12,8 @@ export interface ImportCompletion {
   notActivities: number
   /** Activities whose file says one sport and whose export's list names the other (a FIT run listed as a Ride): the file wins. Absent when none. */
   listedAsOtherSport?: number
+  /** The files in a format the app does not read, by extension (such as pwx); absent when there were none. */
+  skippedTypes?: Record<string, number>
   duplicates: RejectedFile[]
   /** The digests of workouts the library gained. */
   added: ActivityDigest[]
