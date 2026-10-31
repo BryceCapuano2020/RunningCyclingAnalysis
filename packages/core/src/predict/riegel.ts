@@ -1,4 +1,5 @@
-import { RIEGEL_EXPONENT, RIEGEL_MAX_RATIO } from '../constants'
+import { RIEGEL_EXPONENT } from '../constants'
+import { ANCHOR_PROXIMITY_LOG_SD, RIEGEL_MAX_RATIO } from './reach'
 
 /** A performance a prediction is carried from: a distance, m, and the time it took, s. */
 export interface Performance {
@@ -6,9 +7,9 @@ export interface Performance {
   seconds: number
 }
 
-/** Whether a best is near enough a race to carry it there: within RIEGEL_MAX_RATIO either way. */
-function nearEnough(best: Performance, targetM: number): boolean {
-  return Math.max(targetM / best.distanceM, best.distanceM / targetM) <= RIEGEL_MAX_RATIO
+/** How many times apart two distances are: at least 1, whichever is longer. */
+export function distanceRatio(aM: number, bM: number): number {
+  return Math.max(aM / bM, bM / aM)
 }
 
 /** One best carried to targetM by Riegel's law. */
@@ -22,23 +23,46 @@ export interface CarriedTime {
   fromM: number
 }
 
-/** The fastest of the carried times, the earlier on a tie; null when there are none. */
-export function fastest(times: readonly CarriedTime[]): CarriedTime | null {
-  return times.reduce<CarriedTime | null>(
-    (best, time) => (best === null || time.seconds < best.seconds ? time : best),
-    null,
-  )
+/** How much an anchor counts for, from 1 at the race's own distance, falling as the log of the ratio grows. */
+function proximity(ratio: number): number {
+  return Math.exp(-(Math.log(ratio) ** 2) / (2 * ANCHOR_PROXIMITY_LOG_SD ** 2))
 }
 
 /**
- * The time for targetM: the fastest any near-enough best implies, with that best's distance. A best is a
- * lower bound on what the runner can do, since it may not have been all-out, so the best that implies the
- * most is taken. Null when no best is within RIEGEL_MAX_RATIO of the target.
+ * The time for a race from the times its anchors carry to it: their mean in log time, weighted by how near each anchor's
+ * distance is to the race's, so a best at the race's distance leads and a far one only nudges. `fromM` is the nearest
+ * anchor's distance (the earlier on a tie). Null when there are none.
  */
-export function riegelTime(bests: readonly Performance[], targetM: number): CarriedTime | null {
-  return fastest(
+export function proximityMean(times: readonly CarriedTime[], targetM: number): CarriedTime | null {
+  let weights = 0
+  let logs = 0
+  let nearest: CarriedTime | null = null
+  let nearestWeight = 0
+  for (const time of times) {
+    const weight = proximity(distanceRatio(time.fromM, targetM))
+    weights += weight
+    logs += weight * Math.log(time.seconds)
+    if (weight > nearestWeight) {
+      nearest = time
+      nearestWeight = weight
+    }
+  }
+  return nearest === null ? null : { seconds: Math.exp(logs / weights), fromM: nearest.fromM }
+}
+
+/**
+ * The time for targetM: the bests within `maxRatio` of its distance, carried to it and averaged with the nearest
+ * counting most (`proximityMean`). Null when no best is that near.
+ */
+export function riegelTime(
+  bests: readonly Performance[],
+  targetM: number,
+  maxRatio: number = RIEGEL_MAX_RATIO,
+): CarriedTime | null {
+  return proximityMean(
     bests
-      .filter((b) => nearEnough(b, targetM))
+      .filter((b) => distanceRatio(b.distanceM, targetM) <= maxRatio)
       .map((b) => ({ seconds: carried(b, targetM), fromM: b.distanceM })),
+    targetM,
   )
 }
