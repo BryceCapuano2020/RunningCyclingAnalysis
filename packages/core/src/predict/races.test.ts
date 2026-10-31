@@ -82,4 +82,34 @@ describe('predictRunRaces', () => {
       expect(race.methods.map((m) => m.method)).toEqual(['heartRate'])
     }
   })
+  it('reads the fastest best at each distance, not the average of every run’s', () => {
+    // One hard 5 km among many easy runs' 5 km bests: the easy ones are not the athlete's 5 km.
+    const easy = Array.from({ length: 12 }, () => ({ distanceM: 5000, seconds: 30 * 60 }))
+    const mixed = [{ distanceM: 5000, seconds: 20 * 60 }, ...easy]
+    const alone = predictRunRaces({ bests: [mixed[0]!], vo2max: null, weeklyM }).races[0]!
+    const crowd = predictRunRaces({ bests: mixed, vo2max: null, weeklyM }).races[0]!
+    expect(crowd.methods[0]!.seconds).toBeCloseTo(alone.methods[0]!.seconds, 6)
+    expect(crowd.seconds).toBeLessThanOrEqual(20 * 60)
+  })
+
+  it('holds every estimate at a time already run, so none is slower than it or outside the range', () => {
+    const quick = [
+      { distanceM: 5000, seconds: 19 * 60 },
+      { distanceM: 10000, seconds: 50 * 60 },
+    ]
+    const five = predictRunRaces({
+      bests: quick,
+      vo2max: { vo2max: 40, runs: 4, hillCapped: 0 },
+      weeklyM,
+    }).races[0]!
+    expect(five.floored).toBe(true)
+    for (const method of five.methods) {
+      expect(method.seconds).toBeLessThanOrEqual(19 * 60)
+      expect(method.seconds).toBeGreaterThanOrEqual(five.low)
+      expect(method.seconds).toBeLessThanOrEqual(five.high)
+    }
+    expect(five.seconds).toBeLessThanOrEqual(19 * 60)
+    expect(five.seconds).toBeGreaterThanOrEqual(five.low)
+    expect(five.seconds).toBeLessThanOrEqual(five.high)
+  })
 })

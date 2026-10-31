@@ -1,14 +1,24 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { BestsOverTimeChart } from './BestsOverTimeChart'
 import type { BestsOverTimeChartProps } from './BestsOverTimeChart'
 
+beforeAll(() => {
+  // The viewer's zone is pinned, so the days the table names do not depend on the machine running the suite.
+  vi.stubEnv('TZ', 'UTC')
+})
+
+afterAll(() => {
+  vi.unstubAllEnvs()
+})
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.stubEnv('TZ', 'UTC')
 })
 
 function chartWidth(width: number) {
@@ -118,10 +128,38 @@ describe('BestsOverTimeChart', () => {
     expect(rows[0]![1]).toBe('4:23 /km')
   })
 
+  it('dates an effort on the viewer’s own day, as the activity list does, not the UTC day', () => {
+    chartWidth(640)
+    vi.stubEnv('TZ', 'America/Los_Angeles')
+    // 03:00 UTC on 7 Jan is the evening of 6 Jan in Los Angeles.
+    const late = { ...POINTS[0]!, runAtMs: Date.UTC(2026, 0, 7, 3) }
+    const { container } = render(
+      <BestsOverTimeChart {...PROPS} points={[late, ...POINTS.slice(2)]} />,
+    )
+    expect(container.querySelector('tbody tr th, tbody tr td')?.textContent).toBe('6 Jan 2026')
+  })
+
   it('says what it waits for with fewer than two dots', () => {
     chartWidth(640)
     render(<BestsOverTimeChart {...PROPS} points={[POINTS[0]!]} />)
     expect(screen.getByText('Add runs on more than one day to see them here')).toBeInTheDocument()
+  })
+
+  it('names the effort gate, not the days, when it is what left the dots too few', () => {
+    chartWidth(640)
+    render(<BestsOverTimeChart {...PROPS} points={[POINTS[0]!]} gateWithheld />)
+    expect(
+      screen.getByText('No dots to show: efforts your heart rate shows were not hard are left out'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/on more than one day/)).toBeNull()
+  })
+
+  it('says in plain words that efforts shown not hard are left out, once there are dots', () => {
+    chartWidth(640)
+    render(<BestsOverTimeChart {...PROPS} />)
+    expect(
+      screen.getByText(/Efforts your heart rate shows were not hard are left out\./),
+    ).toBeInTheDocument()
   })
 
   it('draws its dots and axes at 320 px, inside the plot', () => {

@@ -2,7 +2,6 @@ import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ACCOUNT_SCOPE_HEADER,
-  ActivityDigestSchema,
   MAX_ACTIVITIES_PER_USER,
   MAX_DIGEST_BYTES,
   MAX_PAGE_BODY_BYTES,
@@ -13,6 +12,7 @@ import {
 } from '@rca/contract'
 import { activityFileKey } from '../storage.ts'
 import { createHarness, digestFixture, START, testEnv, type Harness } from '../test/harness.ts'
+import { bulk, sizedTo } from '../test/sized.ts'
 import { seedActivityRow } from '../test/seed.ts'
 import { sha256Hex, toBase64Url } from '../util.ts'
 import { workoutKey } from '@rca/core/duplicates'
@@ -1034,7 +1034,7 @@ describe('GET /api/activities paging', () => {
     const h = createHarness()
     const token = await h.signIn()
     const ids: string[] = []
-    const largeMessage = 'x'.repeat(259_000)
+    const large = bulk(259_000)
     for (let index = 0; index < 7; index += 1) {
       h.clock.now += 1_000
       ids.push(
@@ -1044,8 +1044,8 @@ describe('GET /api/activities paging', () => {
             token,
             { fileName: 'é'.repeat(255) },
             {
+              ...large,
               startMs: START + index * 60_000,
-              flags: [{ kind: 'hr-spike', start: 0, end: 1, message: largeMessage }],
             },
           ),
         ),
@@ -1475,12 +1475,6 @@ describe('original file reservations', () => {
   })
 })
 
-/** Bytes the server stores for a digest with this name: the JSON it re-serialises after parsing. */
-function storedDigestBytes(name: string): number {
-  const wire = JSON.parse(JSON.stringify(digestFixture({ name })))
-  return new TextEncoder().encode(JSON.stringify(ActivityDigestSchema.parse(wire))).byteLength
-}
-
 describe('boundary pins', () => {
   it('derives the dedupe key by rounding to the nearest second, half up', () => {
     expect(workoutKey('ride', 1_499)).toBe('ride-1')
@@ -1491,15 +1485,14 @@ describe('boundary pins', () => {
   it('accepts a digest of exactly 256 KB and refuses one byte more', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    const sizeWithName = (name: string) => storedDigestBytes(name)
-    const base = sizeWithName('')
-    const exact = await createActivity(h, token, {}, { name: 'n'.repeat(MAX_DIGEST_BYTES - base) })
+    const { overrides, nameLength } = sizedTo(MAX_DIGEST_BYTES)
+    const exact = await createActivity(h, token, {}, { ...overrides, name: 'n'.repeat(nameLength) })
     expect(exact.status).toBe(201)
     const over = await createActivity(
       h,
       token,
       {},
-      { name: 'n'.repeat(MAX_DIGEST_BYTES - base + 1), startMs: START + 60_000 },
+      { ...overrides, name: 'n'.repeat(nameLength + 1), startMs: START + 60_000 },
     )
     expect(over.status).toBe(413)
     expect(await over.json()).toMatchObject({ error: { code: 'digest_too_large' } })
@@ -1508,7 +1501,7 @@ describe('boundary pins', () => {
   it('fills a page exactly to its digest byte budget, and includes the row that exactly fits', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    const base = storedDigestBytes('')
+    const { overrides, nameLength } = sizedTo(MAX_DIGEST_BYTES)
     const each = MAX_DIGEST_BYTES
     expect(MAX_PAGE_DIGEST_BYTES % each).toBe(0)
     for (let i = 0; i < MAX_PAGE_DIGEST_BYTES / each; i += 1) {
@@ -1517,7 +1510,7 @@ describe('boundary pins', () => {
         h,
         token,
         {},
-        { name: 'n'.repeat(each - base), startMs: START + i * 60_000 },
+        { ...overrides, name: 'n'.repeat(nameLength), startMs: START + i * 60_000 },
       )
       expect(res.status).toBe(201)
     }

@@ -116,7 +116,7 @@ const ANALYSIS_FIGURES = [
 
 describe('privacy page date', () => {
   it('is dated 30 October 2026', () => {
-    expect(page).toContain('<p class="updated">Last updated 30 October 2026</p>')
+    expect(page).toContain('<p class="updated">Last updated 31 October 2026</p>')
   })
 })
 

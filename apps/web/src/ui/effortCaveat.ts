@@ -2,7 +2,13 @@ import { isHardShare } from '@rca/core/effort'
 import type { ReferenceReading, ReferenceSource } from '@rca/core/effort'
 import type { EffortCheck, Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
-import { REFERENCE_ACTION, THIN_ACTION, THIN_WHY, referenceWords } from './effortWords'
+import {
+  REFERENCE_ACTION,
+  THIN_ACTION,
+  THIN_WHY,
+  borrowedText,
+  referenceWords,
+} from './effortWords'
 import { SPORT_NOUN, SPORT_ORDER } from './sports'
 
 /*
@@ -74,14 +80,28 @@ const SOURCE_TEXT: Record<ReferenceSource, string> = {
   age: 'estimated from your age',
 }
 
+/**
+ * Where a sport's reference heart rate comes from, as the parenthesis names it: the other sport's max when that sport set
+ * it ("your running max less 6 bpm"), else the source of the figure.
+ */
+function sourceNote(effort: EffortCheck, sport: Sport): string {
+  const supplier = { run: effort.runReferenceFrom, ride: effort.rideReferenceFrom }[sport]
+  const source = sourceOf(effort, sport)
+  return supplier !== undefined && source === 'data'
+    ? borrowedText(sport, supplier)
+    : SOURCE_TEXT[source]
+}
+
+/** The parenthesis of the two-reference line: "both set from your highest heart rates on file", or each said when they differ. */
+function bothSources(effort: EffortCheck): string {
+  const run = sourceNote(effort, 'run')
+  const ride = sourceNote(effort, 'ride')
+  return run === ride ? `both ${run}` : `running's ${run}; cycling's ${ride}`
+}
+
 /** A best effort's heart rate as a share of its sport's reference, in words, without its ending. */
-function reachedText(
-  sport: Sport,
-  duration: string,
-  fraction: number,
-  source: ReferenceSource = 'data',
-): string {
-  return REACHED[sport](duration, percentOf(fraction), SOURCE_TEXT[source])
+function reachedText(sport: Sport, duration: string, fraction: number, source: string): string {
+  return REACHED[sport](duration, percentOf(fraction), source)
 }
 
 const REACHED: Record<Sport, (duration: string, share: number, source: string) => string> = {
@@ -121,7 +141,7 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
       title: 'Neither best effort reached a hard heart rate',
       text:
         `Your best ${duration} reached ${percentOf(run)}% of your running reference heart rate ` +
-        `and ${percentOf(ride)}% of your cycling one (both ${SOURCE_TEXT.data}). ` +
+        `and ${percentOf(ride)}% of your cycling one (${bothSources(effort)}). ` +
         `Both are under the 90% that marks a hard effort.`,
       short: `Best efforts over ${duration} did not reach a hard heart rate.`,
     }
@@ -129,14 +149,14 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   if (ride !== null && !isHard(ride)) {
     return {
       title: 'Your best ride did not reach a hard heart rate',
-      text: `${reachedText('ride', duration, ride, sourceOf(effort, 'ride'))}${verdictAfter(ride, duration, TOP[sourceOf(effort, 'ride')])}`,
+      text: `${reachedText('ride', duration, ride, sourceNote(effort, 'ride'))}${verdictAfter(ride, duration, TOP[sourceOf(effort, 'ride')])}`,
       short: `Best cycling effort over ${duration} did not reach a hard heart rate.`,
     }
   }
   if (run !== null && !isHard(run)) {
     return {
       title: 'Your best run did not reach a hard heart rate',
-      text: `${reachedText('run', duration, run, sourceOf(effort, 'run'))}${verdictAfter(run, duration, TOP[sourceOf(effort, 'run')])}`,
+      text: `${reachedText('run', duration, run, sourceNote(effort, 'run'))}${verdictAfter(run, duration, TOP[sourceOf(effort, 'run')])}`,
       short: `Best running effort over ${duration} did not reach a hard heart rate.`,
     }
   }
@@ -181,7 +201,7 @@ export function effortShare(
   const source = sourceOf(effort, sport)
   const hard = isHard(fraction)
   return {
-    line: `${reachedText(sport, duration, fraction, source)}${verdictAfter(fraction, duration, TOP[source])}`,
+    line: `${reachedText(sport, duration, fraction, sourceNote(effort, sport))}${verdictAfter(fraction, duration, TOP[source])}`,
     hard,
     percent: percentOf(fraction),
     confirmed: true,

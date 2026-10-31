@@ -12,6 +12,7 @@ export type SyncIssueCode =
   | 'account-deleting'
   | 'digest-quota'
   | 'database-full'
+  | 'read-only'
   | 'activity-conflict'
   | 'originals-off'
   | 'network'
@@ -48,6 +49,7 @@ const HALTING_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
   'account-deleting',
   'digest-quota',
   'database-full',
+  'read-only',
 ])
 
 /**

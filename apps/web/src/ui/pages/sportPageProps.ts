@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import type { ChangeEvidence } from '@rca/core/change/types'
 import type { LateEvidence, SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
-import type { EffortLengthS } from '@rca/core/digest/trendPoints'
+import type { DotsWithheld, EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { FitnessBySport } from '@rca/core/fitness'
+import type { LookBack } from '@rca/core/lookback'
 import type { MeasureTime } from '@rca/core/zones'
 import type { UnitSystem } from '@rca/core/units'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
@@ -22,10 +23,14 @@ export interface SportPageProps {
   change: ChangeEvidence | null
   /** The weekly trend of each effort length over the period. */
   trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
+  /** The effort lengths whose dots the effort gate left too few to draw: their empty state names the gate. Absent: none. */
+  dotsWithheld?: DotsWithheld
   /** This sport's output at one heart rate, week by week over the period. */
   sameHeartRate: SameHeartRate
   /** Each sport's fitness at the same heart rate over the whole library, whatever the period: the page leads with its own sport's. */
   fitness?: FitnessBySport
+  /** Each sport's years in hindsight, whatever the period: the page's "Your years" section reads its own sport's. */
+  lookBack?: LookBack
   /** This sport's best efforts late in long sessions, and the drift of its steady efforts, over the period. */
   lateEvidence: LateEvidence
   /** This sport's time in each zone over the period, one row for each measure. Absent: none counted. */

@@ -1,9 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
-import type { ZoneMeasure, ZoneSet } from '@rca/core/zones'
+import type { ZoneSet } from '@rca/core/zones'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import { ActivityZoneTime } from './ActivityZoneTime'
+import type { MissingMeasure } from './ActivityZoneTime'
 import { LapChoices } from './ActivityWorkbenchLaps'
 import { ActivityWorkbenchStack } from './ActivityWorkbenchStack'
 import { RepFadeTable } from './ActivityWorkbenchReps'
@@ -27,7 +28,7 @@ export interface ActivityWorkbenchProps {
   /** The zones in effect on the activity's date, for its time in zones. Absent: no zones section. */
   zoneSets?: readonly ZoneSet[]
   /** The pace or power the activity has efforts for but no zones on its date, which the zones section says what would give. */
-  missingZones?: readonly ZoneMeasure[]
+  missingZones?: readonly MissingMeasure[]
   /** Whether the activity's heart rate is set aside, which its zones say instead of reading it. */
   heartRateSetAside?: boolean
   /**
@@ -230,7 +231,7 @@ function ReadyWorkbench({
   units: UnitSystem
   indoor: boolean
   zoneSets?: readonly ZoneSet[]
-  missingZones?: readonly ZoneMeasure[]
+  missingZones?: readonly MissingMeasure[]
   heartRateSetAside?: boolean
   selectionHost?: HTMLElement | null
   fromOriginal: boolean

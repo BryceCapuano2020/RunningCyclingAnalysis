@@ -11,7 +11,12 @@ import { bestCurves } from './rideCurves'
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { sampleDataset } from '../synthetic'
 import { thresholdTimeline } from './thresholdTimeline'
-import { STALE_THRESHOLD_DAYS, THRESHOLD_WINDOW_WEEKS, thresholdAt } from './thresholdTimelineTypes'
+import {
+  STALE_THRESHOLD_DAYS,
+  THRESHOLD_WINDOW_WEEKS,
+  outgrownAt,
+  thresholdAt,
+} from './thresholdTimelineTypes'
 import { weekEndMs } from './trendPoints'
 import { FIRST_MONDAY_MS, levelRun, shortRun, weeklyRuns } from './test/runLibrary'
 import type { ActivityDigest, AthleteSettings } from '../types'
@@ -73,6 +78,31 @@ describe('thresholdTimeline', () => {
     const after = thresholdAt(run, weekMs(50) + 2 * DAY_MS)
     expect(after).toMatchObject({ asOfMs: lastHard })
     expect(after!.fit).toEqual(during!.fit)
+  })
+
+  it('does not stand an older fit in for a window whose steady effort is far above it', () => {
+    // 20 weeks at one level, then a steady run: every duration holds one value, 50% over what the older fit predicts for 20
+    // minutes. A flat curve has no fit of its own, so the older fit would otherwise cut the zones of the run that outgrew it.
+    const steady = levelRun('steady', 20 * 7 + 2, 1)
+    const flat = (14 + 900 / 1200) * 1.5
+    steady.curve = steady.curve.map((point) => ({ ...point, value: flat }))
+    const { run } = timelineOf([...weeklyRuns(0, 20, () => 1), steady])
+    expect(thresholdAt(run, weekMs(19) + 2 * DAY_MS)).not.toBeNull()
+    expect(thresholdAt(run, steady.startMs)).toBeNull()
+    expect(thresholdAt(run, steady.startMs + 3 * WEEK_MS)).toBeNull()
+    // It says why there is none: before any fit, and where a fit holds, it is not an outgrown window.
+    expect(outgrownAt(run, steady.startMs)).toBe(true)
+    expect(outgrownAt(run, weekMs(19) + 2 * DAY_MS)).toBe(false)
+    expect(outgrownAt(run, FIRST_MONDAY_MS - 30 * DAY_MS)).toBe(false)
+  })
+
+  it('keeps an older fit for a window whose best 20 minutes is within reach of it', () => {
+    // The same steady run 5% over what the older fit predicts for 20 minutes: not outgrown, so the older fit answers.
+    const near = levelRun('near', 20 * 7 + 2, 1)
+    near.curve = near.curve.map((point) => ({ ...point, value: (14 + 900 / 1200) * 1.05 }))
+    const { run } = timelineOf([...weeklyRuns(0, 20, () => 1), near])
+    expect(thresholdAt(run, near.startMs)).not.toBeNull()
+    expect(outgrownAt(run, near.startMs)).toBe(false)
   })
 
   it('has nothing for a sport with no efforts, and none from an indoor run', () => {

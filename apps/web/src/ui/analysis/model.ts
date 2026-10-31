@@ -4,7 +4,7 @@ import type { Period } from '@rca/core/period'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
-import { NO_TRENDS } from '@rca/core/digest/trendPoints'
+import { NONE_WITHHELD, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_LOOKBACK } from '@rca/core/lookback'
@@ -145,6 +145,7 @@ export const EMPTY_SESSION: SessionState = {
   previous: null,
   change: null,
   effortTrends: NO_TRENDS,
+  dotsWithheld: NONE_WITHHELD,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
   heartRateJudgement: NO_HEART_RATE_JUDGEMENT,

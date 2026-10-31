@@ -56,6 +56,7 @@ export interface AnalysisController {
   checkIn: CheckInView
   /** The athlete opened, hid or was shown the check-in row. */
   markCheckInSeen: (event: SeenEvent) => void
+  markLookBackSeen: (event: SeenEvent) => void
   /** Stored activities that could not be read in the last library load, and so are hidden. */
   libraryUnreadable: number
   /** What this browser failed to keep or delete, until the next try; null when nothing failed. */
@@ -99,6 +100,8 @@ export interface AnalysisController {
   loadTrace: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
   rebuildNotice: string | null
   rebuildSavedActivities: () => void
+  /** Takes off the labels the last import applied from its export's list. */
+  undoLabels: () => void
   addFiles: (files: File[]) => void
   loadSample: () => void
   setRange: (choice: PeriodChoice, answered?: (reply: WorkerResponse | null) => void) => void

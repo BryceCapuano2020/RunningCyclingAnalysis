@@ -1,6 +1,8 @@
 import { localYearOf } from '@rca/core/calendar'
 import { DEFAULT_ATHLETE, SAMPLE_REFERENCE_NOW_MS } from '@rca/core/synthetic'
 import type { AthleteSettings } from '@rca/core/types'
+import type { UnitSystem } from '@rca/core/units'
+import { displayWeight, weightUnit } from './athlete'
 import type { AgeProfile } from './grades'
 
 /**
@@ -25,5 +27,13 @@ export const SAMPLE_SETTINGS: AthleteSettings = {
   bikeMassKg: DEFAULT_ATHLETE.bikeMassKg,
 }
 
-/** The persona in words, for the banner and the landing example: "a 37-year-old man at 75 kg". */
-export const SAMPLE_DESCRIPTION = `a ${SAMPLE_AGE}-year-old man at ${SAMPLE_SETTINGS.massKg} kg`
+/**
+ * The persona in words, with the weight in the visitor's units as Profile shows it: "a 37-year-old man at 75 kg",
+ * or "at 165.3 lb" for imperial.
+ */
+export function sampleDescription(units: UnitSystem): string {
+  return `a ${SAMPLE_AGE}-year-old man at ${displayWeight(SAMPLE_SETTINGS.massKg, units)} ${weightUnit(units)}`
+}
+
+/** The persona in the metric units the landing example, which is shown before any units are chosen, is captioned in. */
+export const SAMPLE_DESCRIPTION = sampleDescription('metric')
