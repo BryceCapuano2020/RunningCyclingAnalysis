@@ -172,6 +172,11 @@ export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerRe
 ])
 
 export type WorkerResponse =
+  /**
+   * How the saves an earlier visit left in the outbox are going, sent apart from any request. `finished` ends
+   * it: `saved` were saved, `failed` could not be and will not be tried again, `pending` were left for another load.
+   */
+  | { type: 'outbox'; pending: number; saved: number; failed: number; finished: boolean }
   /** Sent when the worker begins a request, so a request waiting its turn is not timed as if it ran. */
   | { type: 'started' }
   /**

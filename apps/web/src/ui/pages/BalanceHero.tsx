@@ -11,6 +11,8 @@ import { levelsTitle } from '../components/headlineText'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
+import { holdWithRideOut } from '../rideLeftOut'
+import type { RideLeftOut } from '../rideLeftOut'
 import { eyebrowText, titleParts } from './balanceCopy'
 import { useHoldInputs } from '../holdContext'
 import { fewEffortsText, missingText } from './balanceMissing'
@@ -41,6 +43,8 @@ export interface BalanceHeroProps {
   /** Each sport's level as the tiles show it, when it is graded. A missing sport's title can name the other's. */
   runLevel?: string | null
   rideLevel?: string | null
+  /** Why the ride is out of the comparison when it is not for want of efforts, so the held balance says so. */
+  rideLeftOut?: RideLeftOut | null
   /** Each sport's level, as one line under the meter; with the meter's grades missing, the one sport on file's. */
   levels?: ReactNode
   /** The period control, under the levels it changes. */
@@ -66,6 +70,7 @@ export function BalanceHero({
   action = null,
   runLevel = null,
   rideLevel = null,
+  rideLeftOut = null,
   levels = null,
   controls = null,
   leftOut,
@@ -105,7 +110,7 @@ export function BalanceHero({
       period,
       { run: runLevel, ride: rideLevel },
       leftOut?.count ?? 0,
-      hold,
+      holdWithRideOut(rideLeftOut, hold),
     )
     return (
       <div className="balance-hero__pair">
