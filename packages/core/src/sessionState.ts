@@ -4,7 +4,7 @@ import type { Period } from './period'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import type { TrendPoint } from './digest/trend'
-import type { EffortLengthS } from './digest/trendPoints'
+import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
 import type { SportCurves } from './types'
 import type { SyncIssue } from './saveFailure'
 import type { EarnedRecord } from './records'
@@ -72,6 +72,8 @@ export interface SessionState {
   trend: readonly TrendPoint[]
   /** The same weekly trend for each effort length, of which `trend` is the 20-minute one. */
   effortTrends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
+  /** The effort lengths whose dots the effort gate left too few to draw, that the period has without it: their empty state names the gate. */
+  dotsWithheld: DotsWithheld
   /** Each sport's output at one heart rate, week by week over the period. */
   sameHeartRate: SameHeartRateBySport
   /** Each sport's best efforts late in long sessions, and the drift of its steady efforts, over the period. */

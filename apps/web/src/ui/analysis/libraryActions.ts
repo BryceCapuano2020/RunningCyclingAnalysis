@@ -200,6 +200,19 @@ export function useLibraryActions({
     [library, send, workerRef],
   )
 
+  /** The same for "Your years": the worker keeps it and says whether the row is now seen. */
+  const markLookBackSeen = useCallback(
+    (event: SeenEvent) => {
+      if (workerRef.current === null) return
+      send({ type: 'markSeen', row: 'lookBack', event }, undefined, (message) => {
+        if (message?.type === 'checkInSaved') {
+          library.setCheckIn((previous) => ({ ...previous, lookBackSeen: message.seen }))
+        }
+      })
+    },
+    [library, send, workerRef],
+  )
+
   /** The athlete goes on with an import that stopped short: the worker moves the baseline now. */
   const acceptPartialImport = useCallback(() => {
     if (workerRef.current !== null) send({ type: 'acceptPartialImport' })
@@ -207,6 +220,7 @@ export function useLibraryActions({
 
   return {
     markCheckInSeen,
+    markLookBackSeen,
     acceptPartialImport,
     loadLibrary,
     holdForLibrary,

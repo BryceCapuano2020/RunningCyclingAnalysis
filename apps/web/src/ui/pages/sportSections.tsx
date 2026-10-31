@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Sport } from '@rca/core/types'
+import { yearsFinding } from '@rca/core/lookback'
 import { LATE_IN_EFFORT_NAME, lateFinding, lateInEffort } from '../lateInEffort'
 import { thresholdUncheckedLine } from '../thresholdWithheld'
 import { RACE_PREDICTIONS_NAME, racePredictionNeed, racePredictionsOf } from '../racePredictions'
@@ -23,12 +24,14 @@ import { StandOutSection } from './StandOutSection'
 import { standOutFinding, standOutOf } from './standOut'
 import { standOutLack } from './standOutLack'
 import { TimeInZonesSection } from './TimeInZonesSection'
+import { YearsSection } from './YearsSection'
 import { BestsOverTimeSection } from './BestsOverTimeSection'
 import { lackLine } from './lackLine'
 import type { SectionContext } from './sportPageProps'
 
 /** The sections that can follow a sport page's answer. */
 export type SectionId =
+  | 'years'
   | 'bestEfforts'
   | 'racePredictions'
   | 'timeInZones'
@@ -53,6 +56,7 @@ export interface SectionOutcome {
 
 /** What the page's "On this page" row calls each section. */
 const NAV_LABEL: Record<SectionId, string> = {
+  years: 'Your years',
   bestEfforts: 'Best efforts',
   racePredictions: 'Race predictions',
   timeInZones: 'Time in zones',
@@ -66,11 +70,13 @@ const NAV_LABEL: Record<SectionId, string> = {
 /**
  * The rows of each sport's page, in the order they are read. Two sections in a row sit side by side, 60 and 40, on
  * a desktop: what the best efforts predict beside how the time was spread across zones. The answer comes first
- * and these follow, the open sections before the closed ones, which say their finding on their closed row. A sport
+ * and these follow, the open sections before the closed ones, which say their finding on their closed row. Your years
+ * is the one closed row that comes first, directly after the answer: it is named by its own finding. A sport
  * without race predictions leaves that section out and its zones take the whole row.
  */
 export const SPORT_ROWS: Record<Sport, readonly (readonly SectionId[])[]> = {
   run: [
+    ['years'],
     ['bestEfforts'],
     ['racePredictions', 'timeInZones'],
     ['bestsOverTime'],
@@ -80,6 +86,7 @@ export const SPORT_ROWS: Record<Sport, readonly (readonly SectionId[])[]> = {
     ['evidence'],
   ],
   ride: [
+    ['years'],
     ['bestEfforts'],
     ['timeInZones'],
     ['bestsOverTime'],
@@ -100,6 +107,20 @@ type Context = SectionContext & { list: ReturnType<typeof bestEffortRows> }
 
 /** How each section makes its outcome from what the page worked out. */
 const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
+  // Closed, named by its own finding; a sport with no years to tell, or no look-back to read, has no section.
+  years: ({ sport, lookBack, units, fitness }) => {
+    const finding =
+      lookBack === undefined
+        ? null
+        : yearsFinding(lookBack.sports[sport], fitness?.[sport].state ?? null)
+    return lookBack === undefined || finding === null
+      ? { content: null, lacks: [] }
+      : {
+          content: <YearsSection sport={sport} lookBack={lookBack} units={units} />,
+          lacks: [],
+          closed: { title: 'Your years', finding },
+        }
+  },
   bestEfforts: (context) => ({ content: <BestEffortsSection {...context} />, lacks: [] }),
   racePredictions: ({ sport, result, units, rangeDays, openedAt }) => {
     const found = racePredictionsOf(sport, result)
@@ -144,13 +165,24 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
         }
       : { content: null, lacks: [lack] }
   },
-  bestsOverTime: ({ sport, result, previous, previousLabel, change, trends, massKg, units }) => {
+  bestsOverTime: ({
+    sport,
+    result,
+    previous,
+    previousLabel,
+    change,
+    trends,
+    dotsWithheld,
+    massKg,
+    units,
+  }) => {
     const { current, earlier } = curvesOf({ sport, result, previous, previousLabel })
     return {
       content: (
         <BestsOverTimeSection
           sport={sport}
           trends={trends}
+          withheld={dotsWithheld}
           massKg={massKg}
           units={units}
           finding={

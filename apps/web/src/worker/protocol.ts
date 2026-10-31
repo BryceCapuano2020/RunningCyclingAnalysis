@@ -142,6 +142,8 @@ export type WorkerRequest =
       uploadTitles?: boolean
     } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string; uploadTitles?: boolean }
+  /** Takes off the labels the last import applied from its export's list (its summary's Undo). */
+  | { type: 'undoLabels'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
   | { type: 'setRange'; choice: PeriodChoice; settings: AthleteSettings }
   /** `forgetDevice` also empties the library kept in this browser. */
@@ -301,6 +303,8 @@ export type WorkerResponse =
       outcome?: ImportOutcome
       saved?: number
       outdatedWithOriginal?: number
+      /** After an Undo: how many of the import's labels could not be taken off and are still applied. Absent when none. */
+      labelsLeft?: number
       checkIn?: CheckInView
     }
   | {

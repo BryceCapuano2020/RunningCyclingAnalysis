@@ -307,6 +307,52 @@ describe('saving several activities at once', () => {
   })
 })
 
+describe('uploading an original under a rate limit', () => {
+  const refused = () => new ApiRequestError(429, 'rate_limited', 'Slow down', 1)
+
+  it('waits the Retry-After and sends the same original again, with no file added again', async () => {
+    vi.mocked(uploadFile)
+      .mockRejectedValueOnce(refused())
+      .mockResolvedValueOnce({ ...record, hasFile: true, fileSize: 1 })
+    const ctx = context(true)
+    const save = accountSaver(ctx)
+
+    await save(item)
+    const failures = await save.finish?.(new Set())
+
+    expect(failures).toEqual([])
+    expect(uploadFile).toHaveBeenCalledTimes(2)
+    expect(ctx.onPaused).toHaveBeenCalledOnce()
+    expect(ctx.onStopped).not.toHaveBeenCalled()
+    expect(ctx.missingOriginals.has(workoutKeyOf(digest))).toBe(false)
+  })
+
+  it('stops after the one more try when the limit holds, and says so for every original left', async () => {
+    vi.mocked(uploadFile).mockRejectedValue(refused())
+    const ctx = context(true)
+    const save = accountSaver(ctx)
+    const other = {
+      ...item,
+      digest: { ...digest, id: 'other', startMs: digest.startMs + 3_600_000 },
+    }
+    vi.mocked(createActivity).mockResolvedValueOnce({ record, created: true })
+    vi.mocked(createActivity).mockResolvedValueOnce({
+      record: { ...record, id: 'rec-2', digest: other.digest },
+      created: true,
+    })
+
+    await save(item)
+    await save(other)
+    const failures = await save.finish?.(new Set())
+
+    // The two first tries, then one upload waits and tries once more; the other follows how that ends and is not sent again.
+    expect(uploadFile).toHaveBeenCalledTimes(3)
+    expect(failures).toHaveLength(2)
+    for (const failure of failures ?? []) expect(failure.code).toBe('rate-limited')
+    expect(ctx.onStopped).toHaveBeenCalledWith('rate-limited')
+  })
+})
+
 describe('saving through the outbox', () => {
   function recordingOutbox() {
     const calls: string[] = []

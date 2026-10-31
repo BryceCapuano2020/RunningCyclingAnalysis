@@ -74,19 +74,27 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     const spent = () =>
       new SyncFailure('storage-budget', 'Original-file storage allowance is exhausted')
     if (storageBudgetExhausted) throw spent()
-    const saved = await retryAfterUploadSlot(() =>
-      uploads.run(() => {
-        // Saves stopped while this one waited for an upload slot send nothing more, nor does an allowance spent.
-        stop.check()
-        if (storageBudgetExhausted) throw spent()
-        // Noted before the slot is given up, so the upload waiting for it finds the allowance spent.
-        return uploadFile(record.id, item.bytes, sync.userId).catch((error: unknown) => {
-          if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
-            storageBudgetExhausted = true
-          }
-          throw error
-        })
-      }),
+    // A rate limit is waited out the way a create's is: one upload waits the Retry-After for all and tries again, the
+    // uploads that meet it meanwhile follow how that try ends, and a second refusal ends the saves (see SaveStop).
+    const saved = await stop.run(
+      (leading) =>
+        retryAfterUploadSlot(() =>
+          uploads.run(async () => {
+            // Held behind a limit being waited out (the try that ends the wait is not), and not sent once the saves
+            // have stopped or the allowance is spent.
+            if (leading) stop.check()
+            else await stop.ready()
+            if (storageBudgetExhausted) throw spent()
+            // Noted before the slot is given up, so the upload waiting for it finds the allowance spent.
+            return uploadFile(record.id, item.bytes, sync.userId).catch((error: unknown) => {
+              if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
+                storageBudgetExhausted = true
+              }
+              throw error
+            })
+          }),
+        ),
+      ctx.onPaused,
     )
     savedRecords.set(record.id, saved)
   }
