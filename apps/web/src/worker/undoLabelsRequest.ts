@@ -2,7 +2,8 @@ import type { ActivityRecord } from '@rca/contract'
 import type { AnalysisSession, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { reloadSession, undoListLabels } from './applyListLabels'
-import type { LabelUndo } from './labelUndo'
+import { LabelUndo } from './labelUndo'
+import type { WorkerResponse } from './protocol'
 
 /** What taking the labels off needs of the worker. */
 export interface UndoLabelsContext {
@@ -36,5 +37,23 @@ export async function undoLabelsRequest(
   return {
     state: reloadSession(ctx.session, request.settings, [...ctx.savedRecords.values()]),
     left: remaining.length,
+  }
+}
+
+/**
+ * What the worker keeps for taking labels off: the labels the last import applied (`labelUndo`, which a clear or a load
+ * of the library forgets) and the reply to an Undo, the state with how many labels are left when some could not be taken off.
+ */
+export function undoLabelsHandler(deps: Omit<UndoLabelsContext, 'labelUndo'>) {
+  const labelUndo = new LabelUndo()
+  return {
+    labelUndo,
+    async reply(
+      request: { userId: string; settings: AthleteSettings },
+      extra: { outdatedWithOriginal?: number },
+    ): Promise<WorkerResponse> {
+      const { state, left } = await undoLabelsRequest({ labelUndo, ...deps }, request)
+      return { type: 'state', state, ...(left > 0 ? { labelsLeft: left } : {}), ...extra }
+    },
   }
 }
