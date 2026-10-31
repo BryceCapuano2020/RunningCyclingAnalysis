@@ -1,5 +1,5 @@
 import { digestActivity } from './digest'
-import { dedupeKey, fileNameOf, heldCopyOf, outranksHeld } from './duplicates'
+import { workoutKey, fileNameOf, heldCopyOf, outranksHeld } from './duplicates'
 import {
   NETWORK_FAILURES_BEFORE_PROBE,
   NETWORK_PROBE_DELAY_MS,
@@ -54,7 +54,7 @@ export async function considerActivity(
   listeners?: ActivityListeners,
 ): Promise<Considered> {
   const copyOf = heldCopyOf(
-    comparable(state.library, dedupeKey(activity.sport, activity.startMs)),
+    comparable(state.library, workoutKey(activity.sport, activity.startMs)),
     activity,
     file.fileName,
   )
@@ -79,7 +79,7 @@ async function keepActivity(
   batch: SaveBatch,
   listeners?: ActivityListeners,
 ): Promise<Considered> {
-  const key = dedupeKey(activity.sport, activity.startMs)
+  const key = workoutKey(activity.sport, activity.startMs)
   const held = state.library.digests.get(key)
   // The same workout held from an older model: a fresh copy replaces it, and the import reports it upgraded.
   const older = held === undefined ? state.library.notCurrent(key) : undefined

@@ -5,8 +5,10 @@ import { activityTraceOf } from '@rca/core/workbench'
 import type { Activity } from '@rca/core/types'
 import { openWorkbenchStore } from './workbenchStore'
 import { activityFitsEntry } from './workbenchFit'
+import { DeferredTraces } from './workbenchDeferred'
+import { DeviceEpoch } from './workbenchEpoch'
 import { scopeKey } from './workbenchSchema'
-import { activityTraceBytes, WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES } from './workbenchStore'
+import { activityTraceBytes, WORKBENCH_ENTRY_BYTES } from './workbenchStore'
 import type { PutResult, TraceScope, WorkbenchStore } from './workbenchStore'
 
 export type ActivityTraceReply =
@@ -45,13 +47,6 @@ interface MemoryEntry {
   startMs: number
 }
 
-interface DeferredTrace {
-  scope: TraceScope
-  trace: ActivityTrace
-  bytes: number
-  startMs: number
-}
-
 /** A recording the cache turned away for being older than everything it could drop, and its size. */
 interface Outranked {
   startMs: number
@@ -69,11 +64,27 @@ export class Workbench {
    */
   private outranked: Outranked | null = null
   /** Recordings waiting for `storeDeferred`, by memory key. Their sizes add up to at most the cache's. */
-  private readonly deferred = new Map<string, DeferredTrace>()
-  private deferredBytes = 0
+  private readonly deferred = new DeferredTraces()
 
   constructor(store: WorkbenchStore = openWorkbenchStore()) {
     this.store = store
+  }
+
+  /** The device scope's epoch, so recordings written for the library kept in this browser cannot outlive it. */
+  private readonly device = new DeviceEpoch(() => this.store)
+
+  /** Reads the device scope's epoch: called when a session loads the library kept in this browser. */
+  async watchDevice(): Promise<void> {
+    await this.device.watch()
+    // What waited for storage belongs to the library as it was, so it is not written under the epoch just read.
+    for (const entry of this.traces.values()) {
+      if (entry.scope.kind === 'device' && entry.home === 'pending') entry.home = 'memory'
+    }
+  }
+
+  /** Whether a recording was refused because the library kept in this browser was emptied since it was loaded. */
+  get libraryReplaced(): boolean {
+    return this.device.replaced
   }
 
   /**
@@ -121,10 +132,7 @@ export class Workbench {
       if (built === null) return null
       const { trace, bytes } = built
       const key = memoryKey(scope, trace.activityId)
-      this.undefer(key)
-      this.deferred.set(key, { scope, trace, bytes, startMs: activity.startMs })
-      this.deferredBytes += bytes
-      while (this.deferredBytes > WORKBENCH_TOTAL_BYTES) this.dropOldestDeferred()
+      this.deferred.hold(key, { scope, trace, bytes, startMs: activity.startMs })
       this.remember(scope, trace, 'memory', activity.startMs)
       return trace
     } catch {
@@ -137,32 +145,21 @@ export class Workbench {
    * that were stored. One that storage leaves out or refuses is handled as `capture` handles it.
    */
   async storeDeferred(): Promise<Set<string>> {
-    const items = [...this.deferred.values()].sort((a, b) => b.startMs - a.startMs)
-    this.deferred.clear()
-    this.deferredBytes = 0
+    const items = this.deferred.takeAll()
     const stored = new Set<string>()
     for (const { scope, trace, bytes, startMs } of items) {
       noteWork()
+      // Nothing more of an import belongs in a library that was emptied under it.
+      if (this.device.replaced) break
       const kept = await this.keep(scope, trace, bytes, startMs).catch(() => null)
       if (kept === 'stored') stored.add(trace.activityId)
     }
     return stored
   }
 
-  private undefer(key: string): void {
-    const held = this.deferred.get(key)
-    if (held === undefined) return
-    this.deferredBytes -= held.bytes
-    this.deferred.delete(key)
-  }
-
-  private dropOldestDeferred(): void {
-    let oldest: string | undefined
-    for (const [key, item] of this.deferred) {
-      if (oldest === undefined || item.startMs < this.deferred.get(oldest)!.startMs) oldest = key
-    }
-    if (oldest === undefined) this.deferredBytes = 0
-    else this.undefer(oldest)
+  /** Forgets the recordings waiting to be stored, without storing them: the library they belong to was emptied. */
+  dropDeferred(): void {
+    this.deferred.clear()
   }
 
   /**
@@ -175,16 +172,19 @@ export class Workbench {
     bytes: number,
     startMs: number,
   ): Promise<TraceHome | null> {
-    if (this.knownOutranked(startMs, bytes)) {
+    if (
+      this.knownOutranked(startMs, bytes) ||
+      (scope.kind === 'device' && this.device.current === null)
+    ) {
       this.remember(scope, trace, 'memory', startMs)
       return 'memory'
     }
     const before = await this.deleted(scope)
     if (before === true) return null
     const put: PutResult =
-      before === false
-        ? await this.store.put(scope, trace, startMs).catch((): PutResult => 'refused')
-        : 'refused'
+      before === false ? await this.device.put(scope, trace, startMs) : 'refused'
+    // The library was emptied: the recording belongs to nothing now, and is not remembered anywhere.
+    if (put === 'replaced') return null
     if (put === 'outranked') this.noteOutranked(startMs, bytes)
     if (put !== 'stored' && (await this.deleted(scope)) === true) return null
     const home: TraceHome = put === 'stored' ? 'stored' : put === 'outranked' ? 'memory' : 'pending'
@@ -315,10 +315,9 @@ export class Workbench {
       const deleted = await this.deleted(entry.scope)
       if (deleted === true && this.traces.get(key) === entry) this.traces.delete(key)
       if (deleted !== false || this.traces.get(key) !== entry) continue
-      const saved = await this.store
-        .put(entry.scope, entry.trace, entry.startMs)
-        .catch((): PutResult => 'refused')
-      if (saved === 'refused') continue
+      const saved = await this.device.put(entry.scope, entry.trace, entry.startMs)
+      if (saved === 'replaced' && this.traces.get(key) === entry) this.traces.delete(key)
+      if (saved === 'refused' || saved === 'replaced') continue
       if (this.traces.get(key) !== entry) {
         // It was removed while it was being written, so the write must not bring it back.
         if (saved === 'stored')
@@ -332,12 +331,11 @@ export class Workbench {
     this.traces.clear()
     this.outranked = null
     this.deferred.clear()
-    this.deferredBytes = 0
   }
 
   /** Drops one memory-only trace, for an activity that was never stored. */
   dropMemory(scope: TraceScope, activityId: string): void {
-    this.undefer(memoryKey(scope, activityId))
+    this.deferred.release(memoryKey(scope, activityId))
     this.traces.delete(memoryKey(scope, activityId))
   }
 
@@ -355,7 +353,10 @@ export class Workbench {
       if ((entry.scope.kind === 'device' ? 'device' : `account:${entry.scope.userId}`) === owner)
         this.traces.delete(key)
     }
-    return await this.store.clearScope(scope).catch(() => false)
+    const cleared = await this.store.clearScope(scope).catch(() => false)
+    // This tab emptied the scope itself, and writes under the epoch that began.
+    if (scope.kind === 'device') await this.device.watch()
+    return cleared
   }
 
   async deleteScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean> {

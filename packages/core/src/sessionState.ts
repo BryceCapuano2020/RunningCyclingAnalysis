@@ -49,7 +49,7 @@ export interface SessionState {
    */
   walkingPaceRuns: number
   /**
-   * The workout keys (see `dedupeKey`) of the runs at walking pace that the athlete counts as runs
+   * The workout keys (see `workoutKey`) of the runs at walking pace that the athlete counts as runs
    * (`AthleteSettings.countedRuns`). They are in the analysis and carry no mark in the library.
    */
   countedWalkingRuns: string[]

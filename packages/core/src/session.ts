@@ -10,7 +10,7 @@ import { seasonDigests } from './sessionSample'
 import type { SampleClock } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { dedupeKey, hiddenDigests } from './duplicates'
+import { workoutKey, hiddenDigests } from './duplicates'
 import { SessionLibrary, readRank } from './sessionLibrary'
 import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
@@ -32,7 +32,7 @@ export type { RejectedFile, SessionState } from './sessionState'
 export type { Period, PeriodChoice } from './period'
 export type { RejectCode, Rejection } from './import/result'
 // The device library keeps one copy per workout by the same rule the analysis uses.
-export { copyOfDigest, dedupeKey, outranks } from './duplicates'
+export { copyOfDigest, workoutKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
 
 export type { SyncItem, SyncSink } from './sessionSync'
@@ -139,7 +139,7 @@ export class AnalysisSession {
 
   /** Removes one saved workout after its owner-scoped server deletion succeeds. */
   removeActivity(sport: Sport, startMs: number, settings: AthleteSettings): SessionState {
-    const key = dedupeKey(sport, startMs)
+    const key = workoutKey(sport, startMs)
     this.library.drop(key)
     clearUnsynced(this.keeping, key)
     return this.state(settings)
@@ -147,7 +147,7 @@ export class AnalysisSession {
 
   /** Whether a saved workout is held out of the analysis for being made by an older model. */
   hasOutdated(sport: Sport, startMs: number): boolean {
-    return this.library.heldOut.get(dedupeKey(sport, startMs))?.status === 'stale'
+    return this.library.heldOut.get(workoutKey(sport, startMs))?.status === 'stale'
   }
 
   /**
@@ -163,7 +163,7 @@ export class AnalysisSession {
     const before = new Map(this.library.digests)
     this.resetLibrary()
     for (const digest of digests) {
-      const key = dedupeKey(digest.sport, digest.startMs)
+      const key = workoutKey(digest.sport, digest.startMs)
       // The copy of a workout that the analysis reads most wins, whatever the order they arrive in.
       // A key that arrives both stale and newer is one row held back, the first of them; main counted it in both.
       const kept = this.library.digests.get(key) ?? this.library.notCurrent(key)

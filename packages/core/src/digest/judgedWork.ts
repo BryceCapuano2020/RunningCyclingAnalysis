@@ -1,4 +1,4 @@
-import { sameMasses } from '../athlete/mass'
+import { sameAnalysisSettings } from '../athlete/references'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -45,7 +45,7 @@ export function judgedWorkOf(judgement: HeartRateJudgement): JudgedWork | undefi
 }
 
 /**
- * Whether the work answers an analysis of these digests: the same activities and masses, the same ride gate, and
+ * Whether the work answers an analysis of these digests: the same activities, masses and reference settings, the same ride gate, and
  * the same heart rates set aside, so every figure the analysis would work out is the work's.
  */
 export function answers(
@@ -59,7 +59,7 @@ export function answers(
   return (
     named !== undefined &&
     given.rideGate === work.gate &&
-    sameMasses(work.settings, settings) &&
+    sameAnalysisSettings(work.settings, settings) &&
     work.ordered.length === ordered.length &&
     work.ordered.every((digest, i) => digest === ordered[i]) &&
     named.size === setAside.size &&

@@ -9,12 +9,13 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { MeasureTime } from '@rca/core/zones'
 import { makeActivity, makeResult } from '../components/fixtures'
+import { NO_HEART_RATE, UNKNOWN } from '../effortGateFixtures'
 import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { closedRow, openSection } from '../test/openSection'
 import { NO_FITNESS } from '@rca/core/fitness/types'
-import { SLIPPING, waitingStatus } from '../fitnessFixtures'
+import { RIDE_SLIPPING, SLIPPING, waitingStatus } from '../fitnessFixtures'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)
@@ -234,6 +235,26 @@ describe('a sport page with everything to show', () => {
   })
 })
 
+describe('race predictions where the effort could not be checked', () => {
+  it('says so under the predictions, which carry every run’s bests', () => {
+    const result = { ...fullRun(), effortGate: { run: NO_HEART_RATE, ride: UNKNOWN } }
+    renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    openSection('Race predictions')
+    // Once under the threshold, once under the predictions.
+    expect(
+      screen.getAllByText(
+        'Effort not checked: no heart rate on your best 20 min run. Add a run with heart rate to check it.',
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('says nothing of it where the effort was checked', () => {
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    openSection('Race predictions')
+    expect(screen.queryByText(/Effort not checked/)).toBeNull()
+  })
+})
+
 describe('a sport page with sections that have nothing to show', () => {
   const newRun = () => makeResult({ activities: [makeActivity({ id: 'run-1', sport: 'run' })] })
 
@@ -258,7 +279,7 @@ describe('a sport page with sections that have nothing to show', () => {
       expect.stringMatching(
         /^Same heart rate, week by week: needs at least \d+ steady 5-minute stretches/,
       ),
-      'Best efforts late in long sessions: add 3 runs longer than an hour.',
+      'Best efforts late in long sessions: add 3 runs, each longer than an hour and reaching a hard heart rate.',
       'Output per heartbeat over an hour: needs 3 steady runs with heart rate.',
       expect.stringMatching(/^Where your bests stand out: needs bests at 5 or more durations/),
     ])
@@ -337,7 +358,10 @@ describe('a sport page’s fitness', () => {
   const withFitness = (
     sport: Sport,
     result: AnalysisResult,
-    fitness = { run: SLIPPING, ride: NO_FITNESS.ride },
+    fitness: { run: typeof SLIPPING; ride: typeof RIDE_SLIPPING | typeof NO_FITNESS.ride } = {
+      run: SLIPPING,
+      ride: NO_FITNESS.ride,
+    },
     sameHeartRate: SameHeartRate = NO_SAME_HEART_RATE[sport],
   ) =>
     render(
@@ -374,9 +398,20 @@ describe('a sport page’s fitness', () => {
     expect(within(fitness).queryByText('Run')).not.toBeInTheDocument()
   })
 
-  it('says nothing about fitness on the ride page while rides are not compared', () => {
+  it('says nothing about fitness on the ride page for a library with no ride status', () => {
     withFitness('ride', makeResult({ activities: profileActivities('ride') }))
     expect(screen.queryByRole('region', { name: 'Your fitness' })).not.toBeInTheDocument()
+  })
+
+  it('leads the ride page with the ride’s status, in watts, and not the run’s', () => {
+    withFitness('ride', makeResult({ activities: profileActivities('ride') }), {
+      run: SLIPPING,
+      ride: RIDE_SLIPPING,
+    })
+    const fitness = screen.getByRole('region', { name: 'Your fitness' })
+    expect(within(fitness).getAllByRole('article')).toHaveLength(1)
+    expect(fitness.textContent).toMatch(/you now ride at \d+ W/)
+    expect(fitness.textContent).not.toMatch(/you now run/)
   })
 
   it('claims no change in the weekly same-heart-rate section, and points to the status above it', () => {

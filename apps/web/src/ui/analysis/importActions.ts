@@ -115,6 +115,8 @@ export function useImportActions({
                   bikeMassKg: savedMe.profile.bikeMassKg,
                 },
                 settingsRef.current.measurements,
+                settingsRef.current.birthYear ?? null,
+                settingsRef.current.countedRuns,
               ),
               sync: {
                 keepFiles: savedMe.profile.keepFiles && savedMe.fileRetentionAvailable !== false,

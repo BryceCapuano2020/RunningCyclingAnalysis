@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { criticalPowerOutcome, fitCriticalPowerUnchecked } from '../cp'
+import { criticalPowerOutcome, fitCriticalPowerUnchecked, wPrimeFloor } from '../cp'
 import { generateActivity, sampleDataset, DEFAULT_ATHLETE } from '../synthetic'
 import type { AthleteSettings } from '../types'
 import { combine } from './combine'
@@ -60,8 +60,20 @@ describe('the threshold on the sample', () => {
   it('keeps the sample’s Morning Run alone, whose work capacity is above the run floor', () => {
     // Its work capacity is 79 J per kg, about 20 m of running, above the 15 m floor.
     const result = combine([digestNamed('Morning Run')], SETTINGS)
+    const outcome = criticalPowerOutcome(result.runCurve, {
+      minWPrime: wPrimeFloor('run', SETTINGS.massKg),
+    })
+    expect(outcome.fit).not.toBeNull()
+    expect(outcome.refusal).toBeNull()
+    // One run is too few days with a heart rate to set a reference without the age, so the effort gate cannot judge it:
+    // the fit is the rules', it is shown, and the effort is said not to have been checked.
     expect(result.runCp).not.toBeNull()
-    expect(result.runCpRefusal).toBeNull()
+    expect(result.effortGate.run).toMatchObject({ verdict: 'unknown', unchecked: 'thin' })
+    // With the age the reference is the age-predicted maximum, and an easy run is not a hard effort against it.
+    const aged = combine([digestNamed('Morning Run')], { ...SETTINGS, birthYear: 1985 })
+    expect(aged.effortGate.run.reference).toBe('trusted')
+    expect(aged.runCp).toBeNull()
+    expect(aged.runCpRefusal).toBe('effort')
   })
 
   it('refuses the sample’s Saturday Long Ride alone by the ride floor and by nothing else', () => {

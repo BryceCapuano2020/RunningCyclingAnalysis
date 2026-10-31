@@ -441,3 +441,182 @@ describe('the rows a library keeps but cannot read', () => {
     expect(plainPosted).toEqual([{ type: 'libraryActivities', activities: [] }])
   })
 })
+
+describe('the file kept with a saved workout', () => {
+  const HASH = 'c'.repeat(64)
+  const fileItem = (digest: ActivityDigest, fileHash = HASH): SyncItem => ({
+    digest,
+    fileName: 'run.fit',
+    fileHash,
+    bytes: new Uint8Array(),
+  })
+
+  it('keeps the file name and hash with the digest', async () => {
+    const { actions, library } = setup()
+
+    await actions.save(fileItem(FIRST))
+
+    expect(await library.all()).toEqual([
+      {
+        workoutKey: workoutKeyOf(FIRST),
+        digest: FIRST,
+        file: { fileName: 'run.fit', fileHash: HASH },
+      },
+    ])
+  })
+
+  it('keeps no file when the hash is missing, as in a browser with no crypto', async () => {
+    const { actions, library } = setup()
+
+    await actions.save(fileItem(FIRST, ''))
+
+    expect((await library.all())[0]?.file).toBeUndefined()
+  })
+
+  it('gives a row kept before files were recorded its hash when the same file is added again', async () => {
+    const { actions, library } = setup()
+    await library.put(workoutKeyOf(FIRST), FIRST)
+
+    await actions.save(fileItem(FIRST))
+
+    expect((await library.all())[0]?.file).toEqual({ fileName: 'run.fit', fileHash: HASH })
+  })
+
+  it('does not give it the hash of a different copy of the workout', async () => {
+    const { actions, library } = setup()
+    const kept = copyFrom(FIRST, 'run.fit')
+    await library.put(workoutKeyOf(FIRST), kept)
+
+    // A poorer copy: it is not kept, and its hash is not the kept copy's.
+    await actions.save(fileItem(copyFrom(FIRST, 'run.gpx')))
+
+    expect((await library.all())[0]?.file).toBeUndefined()
+  })
+})
+
+describe('a library emptied under a session', () => {
+  it('refuses the writes of a session that loaded it before another tab emptied it', async () => {
+    const { actions, library } = setup()
+    await library.put(workoutKeyOf(FIRST), FIRST)
+    await actions.load(SETTINGS)
+    // Another tab chooses Remove all.
+    await library.clear()
+
+    expect(await actions.save(itemFor(SECOND, 'h2'))).toBe('replaced')
+
+    expect(await library.all()).toEqual([])
+    expect(await actions.current()).toBe(false)
+  })
+
+  it('writes again after it is told to load the library again', async () => {
+    const { actions, library } = setup()
+    await actions.load(SETTINGS)
+    await library.clear()
+    expect(await actions.save(itemFor(FIRST, 'h1'))).toBe('replaced')
+
+    actions.replaced()
+    await actions.load(SETTINGS)
+
+    expect(await actions.save(itemFor(FIRST, 'h1'))).toBe('kept')
+    expect(await actions.current()).toBe(true)
+  })
+
+  it('takes the epoch a session finds at its first write when it never loaded the library', async () => {
+    const { actions, library } = setup()
+    await library.clear()
+    await library.clear()
+
+    expect(await actions.save(itemFor(FIRST, 'h1'))).toBe('kept')
+    await library.clear()
+    expect(await actions.save(itemFor(SECOND, 'h2'))).toBe('replaced')
+  })
+
+  it('writes to the library it emptied itself, in the epoch that began', async () => {
+    const { actions, library } = setup()
+    await actions.load(SETTINGS)
+    await actions.forget()
+
+    expect(await actions.save(itemFor(FIRST, 'h1'))).toBe('kept')
+    expect((await library.all()).length).toBe(1)
+  })
+})
+
+describe('a library whose epoch cannot be read', () => {
+  const unreadable = (library: DeviceLibrary): DeviceLibrary => ({
+    ...library,
+    epoch: async () => {
+      throw new Error('Device storage failed')
+    },
+  })
+
+  it('is not loaded, since it could not be written to safely', async () => {
+    const { actions } = setup(unreadable(memoryDeviceLibrary()))
+    await expect(actions.load(SETTINGS)).rejects.toThrow(/could not be read/)
+  })
+
+  it('is not taken for unchanged: the import is stopped, not trusted', async () => {
+    const library = memoryDeviceLibrary()
+    const { actions } = setup(library)
+    await actions.load(SETTINGS)
+    const failing = unreadable(library)
+    // The same session, now with storage that will not answer.
+    const { actions: afterwards } = setup(failing)
+    expect(await afterwards.current()).toBe(true)
+    await expect(afterwards.save(itemFor(FIRST, 'h1'))).resolves.toBe('refused')
+    // A session that had loaded it at an epoch asks again and gets no answer.
+    const flaky: DeviceLibrary = {
+      ...library,
+      epoch: vi.fn().mockResolvedValueOnce(0).mockRejectedValue(new Error('x')),
+    }
+    const { actions: loaded } = setup(flaky)
+    await loaded.load(SETTINGS)
+    expect(await loaded.current()).toBe(false)
+  })
+
+  it('refuses the write of a session that never loaded it', async () => {
+    const { actions, library } = setup(unreadable(memoryDeviceLibrary()))
+    expect(await actions.save(itemFor(FIRST, 'h1'))).toBe('refused')
+    expect(await library.all()).toEqual([])
+  })
+})
+
+describe('results that show but could not be kept', () => {
+  it('are remembered until the library is loaded again, so a reload does not drop them', async () => {
+    const { actions, library } = setup({
+      ...memoryDeviceLibrary(),
+      put: async () => {
+        throw new Error('full')
+      },
+    })
+    await actions.load(SETTINGS)
+    expect(actions.hasUnkept()).toBe(false)
+
+    expect(await actions.save(itemFor(FIRST, 'h1'))).toBe('refused')
+    expect(actions.hasUnkept()).toBe(true)
+
+    actions.replaced()
+    expect(actions.hasUnkept()).toBe(false)
+    expect(await library.all()).toEqual([])
+  })
+})
+
+describe('what is told when the library’s epoch is read', () => {
+  it('is told on loading, at a first write, and after a Remove all', async () => {
+    const told = vi.fn(async () => undefined)
+    const posted: WorkerResponse[] = []
+    const actions = deviceActions(
+      new AnalysisSession(),
+      memoryDeviceLibrary(),
+      (message) => posted.push(message),
+      async () => true,
+      told,
+    )
+    await actions.load(SETTINGS)
+    expect(told).toHaveBeenCalledTimes(1)
+    actions.replaced()
+    await actions.save(itemFor(FIRST, 'h1'))
+    expect(told).toHaveBeenCalledTimes(2)
+    await actions.forget()
+    expect(told).toHaveBeenCalledTimes(3)
+  })
+})

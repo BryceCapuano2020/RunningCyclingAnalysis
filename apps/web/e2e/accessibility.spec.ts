@@ -96,7 +96,9 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
         .getByRole('button', { name: /^At \d+ bpm$/ })
         .focus()
       await page.keyboard.press('Enter')
-      await expect(page.locator('.fitness-card .definition__note').first()).toBeVisible()
+      await expect(
+        page.locator('.fitness-card[data-sport="run"] .definition__note').first(),
+      ).toBeVisible()
     },
   },
   {
@@ -419,8 +421,8 @@ test('the fitness card and its evidence fit a 320 px screen, in both schemes', a
     await page.emulateMedia({ colorScheme: scheme })
     await openSample(page)
     await openFitnessEvidence(page)
-    await page.locator('.fitness-card').getByText('View as table').click()
-    await expect(page.locator('.fitness-card table').first()).toBeVisible()
+    await page.locator('.fitness-card[data-sport="run"]').getByText('View as table').click()
+    await expect(page.locator('.fitness-card[data-sport="run"] table').first()).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
     ).toBeLessThanOrEqual(0)

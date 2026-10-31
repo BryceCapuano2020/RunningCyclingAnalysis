@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dedupeKey } from '@rca/core/session'
+import { workoutKey } from '@rca/core/session'
 import { makeActivity } from '../components/fixtures'
 import {
   countRunsLabel,
@@ -28,7 +28,7 @@ describe('walking pace copy', () => {
 
   it('keys a run by its sport and start second, as the library keys a workout', () => {
     const run = makeActivity({ sport: 'run', startMs: 1_700_000_123_456 })
-    expect(workoutKeyOf(run)).toBe(dedupeKey('run', 1_700_000_123_456))
+    expect(workoutKeyOf(run)).toBe(workoutKey('run', 1_700_000_123_456))
   })
 })
 

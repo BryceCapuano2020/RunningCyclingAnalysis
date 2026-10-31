@@ -26,6 +26,7 @@ const NOWHERE: WorkbenchStore = {
   deleteScope: async () => true,
   reopenScope: async () => true,
   isDeleted: async () => false,
+  deviceEpoch: async () => 0,
 }
 
 describe('workbench capture performance', () => {

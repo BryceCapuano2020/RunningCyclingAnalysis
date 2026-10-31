@@ -236,10 +236,15 @@ describe('effort check', () => {
     expect(Math.abs(result.maxHeartRate! - athlete.hrMax)).toBeLessThan(3)
   })
 
-  it('has one effort entry per comparison duration, in the same order', () => {
-    expect(result.effort.map((e) => e.durationS)).toEqual(
-      result.comparison.prior.map((p) => p.durationS),
+  it('has one effort entry per curve duration, in order, so a library of one sport has them too', () => {
+    expect(result.effort.map((e) => e.durationS)).toEqual([...DURATIONS_S])
+    const runnerOnly = analyze(
+      activities.filter((a) => a.sport === 'run'),
+      settings,
     )
+    expect(runnerOnly.comparison.prior).toEqual([])
+    expect(runnerOnly.effort.map((e) => e.durationS)).toEqual([...DURATIONS_S])
+    expect(runnerOnly.effort.find((e) => e.durationS === 1200)!.runHrFraction).not.toBeNull()
   })
 
   it('finds both 20 minute efforts close to all-out for the sample data', () => {

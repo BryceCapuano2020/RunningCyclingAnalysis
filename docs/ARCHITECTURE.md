@@ -4,7 +4,8 @@ RunningCyclingAnalysis is browser-first with an optional account. The browser pa
 and runs the analysis. When a user signs in, the API stores per-activity digests in D1 and optional
 original activity files (FIT, GPX or TCX) in R2. Without an account, the browser keeps the same
 per-activity digests in its own IndexedDB storage (database `rca-device-library`), so a reload keeps
-the results; nothing from them reaches the server. One Cloudflare Worker serves both the built web app
+the results, each with the name and SHA-256 of the file it came from (so a later sign-in can add it to
+the account; rows kept before this have none); nothing from them reaches the server. One Cloudflare Worker serves both the built web app
 and the API.
 
 This page describes the source on `main`. For what is deployed and when it was released, see the
@@ -163,6 +164,23 @@ stalled request again. A page that lost time itself (a suspended laptop, a froze
 again instead of reading the gap as silence. Single reads (a route, splits, a detail trace) are let go as
 unread after 30 s (150 s from a kept original), say nothing, and never restart the worker. A request the
 browser cannot copy to the worker fails at once with a message.
+
+**Several tabs**
+
+Tabs of one browser share its storage and the session cookie, and talk over one `BroadcastChannel`
+(`rca-sync-v1`) whose messages carry no data, only what changed: a profile was saved, the session ended,
+dated settings or a library changed. The tab that hears one reads the source again. Preferences and dated
+settings are written field by field over what is stored, and followed through the `storage` event.
+
+The library kept in this browser has an epoch: a number kept as the reserved row `__scope__` in the same
+IndexedDB store, raised in the transaction that empties the store. A session writes only in the epoch it
+loaded, checked in the transaction of each write, so an import running in one tab cannot put rows back into
+a library another tab just emptied. The recordings cache (`rca-workbench-evidence`) keeps its own epoch for the
+device scope, raised in the transaction that clears the scope, and checks it the same way in the transaction
+that writes a recording, so a recording cannot outlive its activity either. Such an import stops, drops its
+waiting recordings, and the page says why. `GET /api/me` also carries `libraryRevision`, the stored count and digest bytes, which a tab that comes
+back into view compares with the one it loaded as a hint that another device changed the library. It is a
+hint only: an equal tag proves nothing, and a different one just makes the tab read the library again.
 
 ## Data model
 

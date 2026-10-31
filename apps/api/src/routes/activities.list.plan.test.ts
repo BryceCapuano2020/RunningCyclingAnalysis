@@ -15,22 +15,20 @@ async function seedTwoUsers(h: Harness): Promise<{ token: string }> {
   const users = (
     await h.env.DB.prepare('SELECT id, email FROM users').all<{ id: string; email: string }>()
   ).results
-  const statements: D1PreparedStatement[] = []
-  for (const user of users) {
-    for (let n = 0; n < PER_USER; n += 1) {
-      const id = `${user.email.slice(0, 3)}-${String(n).padStart(4, '0')}`
-      statements.push(
-        h.env.DB.prepare(
-          `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
-             digest_json, file_name, file_hash, created_at)
-           VALUES (?, ?, ?, 'run', ?, 'n', 1, '{"name":"n"}', 'f.fit', 'h', ?)`,
-        ).bind(id, user.id, id, START + n, START + Math.floor(n / 3) * 1000),
-      )
-    }
-  }
-  for (let i = 0; i < statements.length; i += 100) {
-    await h.env.DB.batch(statements.slice(i, i + 100))
-  }
+  // One statement per user: a recursive CTE writes the rows inside SQLite, where hundreds of
+  // inserts sent one by one through Miniflare took most of this test's time.
+  await h.env.DB.batch(
+    users.map((user) =>
+      h.env.DB.prepare(
+        `WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i + 1 < ?)
+         INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+           digest_json, file_name, file_hash, created_at)
+         SELECT substr(?, 1, 3) || '-' || printf('%04d', i), ?, substr(?, 1, 3) || '-' || printf('%04d', i),
+           'run', ? + i, 'n', 1, '{"name":"n"}', 'f.fit', 'h', ? + (i / 3) * 1000
+         FROM n`,
+      ).bind(PER_USER, user.email, user.id, user.email, START, START),
+    ),
+  )
   return { token }
 }
 

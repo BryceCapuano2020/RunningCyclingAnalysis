@@ -232,6 +232,9 @@ export function deviceIssueText(notice: DeviceIssue, signedIn: boolean): string 
     return `Your results are kept in this browser only, and it has not agreed to hold them. Clearing site data, low storage or, in Safari, a week away can remove them.${signIn}`
   }
   if (notice.issue === 'notRead') return NOT_READ_TEXT
+  if (notice.issue === 'replaced') {
+    return 'The results kept in this browser were removed while this import ran, or this browser could not check them, so the import stopped and was not kept. Add the files again to start over.'
+  }
   if (notice.issue === 'notSaved') {
     const one = notice.count === 1
     const refused =

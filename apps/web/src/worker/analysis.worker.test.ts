@@ -1581,6 +1581,9 @@ function refusingLibrary(): DeviceLibrary {
     lookup: async () => null,
     route: async () => null,
     put: refused,
+    backfillFile: refused,
+    // Storage the browser does not offer holds nothing, and so has no epoch to move.
+    epoch: async () => 0,
     remove: refused,
     clear: refused,
   }
@@ -2182,7 +2185,12 @@ describe('keeping what was analysed while the account was unknown', () => {
     const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
 
     expect(await keptDevice().all()).toEqual([
-      { workoutKey: workoutKeyOf(digest), digest: expect.objectContaining({ id: digest.id }) },
+      {
+        workoutKey: workoutKeyOf(digest),
+        digest: expect.objectContaining({ id: digest.id }),
+        // Kept with the file it came from, so the workout can be added to an account later.
+        file: { fileName: expect.any(String), fileHash: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      },
     ])
     expect(messages).toContainEqual({
       type: 'libraryActivities',
@@ -2785,5 +2793,55 @@ describe('a reply carries its request number, and nothing follows it', () => {
       'rebuildComplete',
       14,
     )
+  })
+})
+
+describe('a kept library changed by another tab', () => {
+  it('stops an import into a library that was emptied, writes nothing, and says so', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    // Another tab chooses Remove all.
+    await kept.library!.clear()
+
+    const messages = await send(signedOutImport(fitFile()))
+
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'replaced' })
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+    expect(reply).not.toHaveProperty('outcome')
+    expect(await kept.library!.all()).toEqual([])
+  })
+
+  it('keeps an import that nothing interrupted', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const messages = await send(signedOutImport(fitFile()))
+
+    expect(messages.some((message) => message.type === 'deviceIssue')).toBe(false)
+    expect((await kept.library!.all()).length).toBe(1)
+  })
+
+  it('reads the library again when asked to, though this tab holds it', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    // Another tab keeps an activity.
+    await kept.library!.put(workoutKeyOf(SAMPLE_DIGEST), SAMPLE_DIGEST)
+
+    const unchanged = await send({ type: 'loadDevice', settings: SETTINGS })
+    expect(unchanged.at(-1)).toMatchObject({ state: { totalActivities: 0 } })
+    const reloaded = await send({ type: 'loadDevice', settings: SETTINGS, reload: true })
+    expect(reloaded.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
+  })
+
+  it('does not drop results that show here but could not be kept, when asked to read the library again', async () => {
+    kept.library = refusingLibrary()
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    await send(signedOutImport(fitFile()))
+
+    const reloaded = await send({ type: 'loadDevice', settings: SETTINGS, reload: true })
+
+    expect(reloaded.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
   })
 })
