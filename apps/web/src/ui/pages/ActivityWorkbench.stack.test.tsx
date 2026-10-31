@@ -40,6 +40,8 @@ describe('the stack’s crosshair and readout', () => {
     // A hundredth of ten minutes is six seconds.
     await user.keyboard('{ArrowRight}')
     expect(status).toHaveTextContent('Elapsed0:06')
+    // The values are rolling means, and the row says how wide: 3 s for this ten-minute window.
+    expect(status).toHaveTextContent('3 s averages')
     expect(status).toHaveTextContent('Pace5:33/km')
     expect(status).toHaveTextContent('Heart rate140bpm')
     await user.keyboard('{End}')

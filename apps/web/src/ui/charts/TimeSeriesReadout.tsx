@@ -5,6 +5,7 @@ import { ReadoutContext } from './readoutContext'
 import './TimeSeriesReadout.css'
 import type { StackChannel } from './timeSeriesTypes'
 import type { CursorHead } from './timeSeriesTypes'
+import { windowText } from './timeSeriesModel'
 
 /**
  * The fixed row above the stack, which is the chart system's readout row (ChartFrame keeps one above a phone's
@@ -31,6 +32,8 @@ export function TimeSeriesReadout({
   // The row sticks under the header on a phone, so the page's scroll padding clears it too.
   useStickyExtra(host)
   const at = cursor === null ? null : head(cursor)
+  // At the cursor each value is the rolling mean round it, so the row says how wide it is; the selection's average is the whole selection's.
+  const windowS = channels[0]?.columns.windowS
   const readout = (
     <div id={id} role="status" aria-live={announce ? 'polite' : 'off'} className="ts-readout">
       {/* The title class is what the readout row looks for to know it holds a reading, not its hint. */}
@@ -39,6 +42,9 @@ export function TimeSeriesReadout({
         <span className="ts-readout__value">{at === null ? 'Average' : at.time}</span>
         {at !== null && at.distance !== null && (
           <span className="ts-readout__unit">{at.distance}</span>
+        )}
+        {at !== null && windowS !== undefined && (
+          <span className="ts-readout__unit">{`${windowText(windowS)} averages`}</span>
         )}
       </div>
       {channels.map((channel) => {
