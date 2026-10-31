@@ -281,9 +281,7 @@ export function ActivityPage({
           {activity.athleteType !== undefined ? (
             <span className="chip">{ATHLETE_LABEL_CHIP[activity.athleteType]}</span>
           ) : (
-            (activity.walkingPace || walkingChoice?.counted) && (
-              <span className="chip">{WALKING_PACE_CHIP}</span>
-            )
+            activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>
           )}
           {power !== null && <span className="chip chip--warning">{power}</span>}
         </p>
