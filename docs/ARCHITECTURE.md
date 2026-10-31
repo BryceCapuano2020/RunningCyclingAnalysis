@@ -151,6 +151,18 @@ and account deletion forget the account's rows, and Remove all (signed out) forg
 The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the
 import still reports its own failures.
 
+**Adding the kept library to an account**
+
+Activities a signed-out visitor kept in this browser (`rca-device-library`) are offered to the account that
+signs in. The worker tells the page, apart from any request, how many rows can be added (they have the hash of
+their file and the current model revision or one the current model reads beside its own, and the account does not hold the workout), how many need their files
+added again, and how many the account holds. Add writes each adoptable digest to the outbox, newest first, and
+saves it through the same gate as an import, in the tab that holds the account's writer lock. The device epoch is asked again at the moment of each send, so another tab's Remove all during a rate limit's wait sends nothing. A kept row is removed only after the account has the activity, and
+only if it still holds the digest that was saved (`removeIfDigest`, checked in the removing transaction), so a row
+another tab replaced is not lost. A conflict (same second, another file), a failure and a stopped run leave the row
+and are counted. Routes are not copied. Remove from this browser empties the kept library without touching the
+account. Not now is remembered per account and count in local storage.
+
 **Activity workbench**
 
 The import callback extracts a versioned `ActivityTrace` before releasing the raw activity. The

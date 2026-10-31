@@ -19,6 +19,8 @@ export interface OutboxRow {
   digestJson: string
   fileName: string
   fileHash: string
+  /** See OutboxItem. Absent for an import's own rows. */
+  fromDevice?: boolean
   /** How many times a resumed save failed. A row that keeps failing is let go. */
   attempts: number
 }
@@ -30,6 +32,8 @@ export interface OutboxItem {
   digest: ActivityDigest
   fileName: string
   fileHash: string
+  /** The activity was kept in this browser from before sign-in, and that copy goes once the account has it. */
+  fromDevice?: boolean
 }
 
 export interface Outbox {
@@ -173,7 +177,7 @@ export function openOutbox(userId: string): Outbox {
       )
     ).sort((a, b) => a.seq - b.seq)
   return {
-    add: async ({ digest, fileName, fileHash }) => {
+    add: async ({ digest, fileName, fileHash, fromDevice }) => {
       const key = workoutKeyOf(digest)
       const row: OutboxRow = {
         id: idOf(key),
@@ -185,6 +189,7 @@ export function openOutbox(userId: string): Outbox {
         fileName,
         fileHash,
         attempts: 0,
+        ...(fromDevice === true ? { fromDevice } : {}),
       }
       await run('readwrite', (store) => store.put(row), undefined)
     },

@@ -93,6 +93,16 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         if (finished && saved > 0) current.reloadLibrary()
         return
       }
+      if (message.type === 'deviceOffer') {
+        const { adoptable, again, held } = message
+        current.library.setDeviceOffer({ adoptable, again, held })
+        return
+      }
+      if (message.type === 'adoption') {
+        const { saved, conflicts, failed, again, held } = message
+        current.library.setAdoption({ saved, conflicts, failed, again, held })
+        return
+      }
       if (message.type === 'missingOriginals') {
         current.library.setMissingOriginals(message.count)
         return
