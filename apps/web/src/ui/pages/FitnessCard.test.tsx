@@ -7,6 +7,7 @@ import {
   FITNESS_RIDE_LIBRARY,
   RIDE_SLIPPING,
   HOLDING,
+  IMPROVED,
   IMPROVING,
   RECOVERING,
   SLIPPING,
@@ -191,7 +192,7 @@ describe('FitnessSection', () => {
   })
 
   it('has a label and a track for each state that has a change, and the track stays out of the reading order', () => {
-    for (const run of [SLIPPING, RECOVERING, HOLDING, IMPROVING]) {
+    for (const run of [SLIPPING, RECOVERING, HOLDING, IMPROVING, IMPROVED]) {
       const { container } = renderSection({ run })
       expect(container.querySelector('.fitness-track')).not.toBeNull()
       expect(container.querySelector('.fitness-track__bar')).toHaveAttribute('aria-hidden', 'true')

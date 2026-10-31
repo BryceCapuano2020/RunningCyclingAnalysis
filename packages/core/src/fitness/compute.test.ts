@@ -96,10 +96,15 @@ describe('fitnessStatuses', () => {
     expect(improving.length).toBeGreaterThan(3)
     for (const s of improving) {
       expect(s.change!.low).toBeGreaterThan(0)
-      expect(s.entered).toBeNull()
+      expect(s.entered!.z).toBeGreaterThan(3)
+      expect(s.onsetMs).not.toBeNull()
       expect(s.shortfall).toBeNull()
     }
-    expect(states([]).some((s) => s.state === 'improving')).toBe(false)
+    // The rise settles and is told as improved, holding at the new level, with the same statistic that opened it.
+    const improved = up.filter((s) => s.state === 'improved')
+    expect(improved.length).toBeGreaterThan(3)
+    for (const s of improved) expect(s.change!.low).toBeGreaterThan(0)
+    expect(states([]).some((s) => s.state === 'improving' || s.state === 'improved')).toBe(false)
   })
 
   it('reports the runs behind the earlier level by count and span, not by id', () => {
@@ -114,7 +119,7 @@ describe('fitnessStatuses', () => {
   })
 
   it('withholds "holding" when the level is not known to within 6%', () => {
-    const status = fitnessStatuses(library().digests, NONE).run
+    const status = fitnessStatuses(library({ seed: 6, perWeek: 2, noise: 0.05 }).digests, NONE).run
     expect(status.shortfall).toMatchObject({ kind: 'imprecise' })
     expect((status.shortfall as { within: number }).within).toBeGreaterThan(0.06)
   })

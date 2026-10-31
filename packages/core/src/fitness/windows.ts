@@ -198,6 +198,22 @@ export function slipAt(
   return best
 }
 
+/** The slip test and the rise test of one week, from one set of contrasts. */
+export function slipAndRiseAt(
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  dips: readonly Dip[] = [],
+): { slip: Slip | null; rise: Slip | null } {
+  let slip: Slip | null = null
+  let rise: Slip | null = null
+  for (const c of contrasts(runs, day, sigma, dips)) {
+    if (slip === null || c.z < slip.z) slip = { ...c, fire: c.z <= -M.zSlip && c.delta <= -M.delta }
+    if (rise === null || c.z > rise.z) rise = { ...c, fire: c.z >= M.zSlip && c.delta >= M.delta }
+  }
+  return { slip, rise }
+}
+
 /**
  * The non-seasonal check for a library with no fitted season: whether the scale that fired read as low a year earlier
  * (the same recent and baseline weeks, 52 weeks back, by at least `yoyShare` of `delta`). A drop that came at this
@@ -209,6 +225,7 @@ export function lowLastYear(
   day: number,
   slip: Slip,
   sigma: number,
+  up = false,
 ): boolean {
   const last = day - 52 * 7
   const recent = slice(runs, last - slip.weeks * 7, last)
@@ -216,23 +233,22 @@ export function lowLastYear(
   if (recent.length < M.minRecentRuns || distinctWeeks(recent) < M.minRecentWeeks) return false
   if (base.length < M.minRefRuns || distinctWeeks(base) < M.minRefWeeks) return false
   const mu = medianOf(base)
-  return levelOf(recent, mu, sigma)!.m - levelOf(base, mu, sigma)!.m <= -M.yoyShare * M.delta
+  const delta = levelOf(recent, mu, sigma)!.m - levelOf(base, mu, sigma)!.m
+  // For a rise, the mirror: the same weeks a year earlier read as high.
+  return up ? delta >= M.yoyShare * M.delta : delta <= -M.yoyShare * M.delta
 }
 
 /**
- * Whether the level is clearly up on a week: the mirror of the slip test, at the same scales, z of at
- * least 3.3 and a gain of at least 4%. The status line asks it on two weeks running before it says
- * "improving"; there is no episode and no finding.
+ * The rise test of one week, the mirror of `slipAt` on the same contrasts: the scale with the highest z is the one
+ * judged, and it fires when z is at least 3.3 and the gain at least 4%. `delta` and `z` are positive for a rise.
  */
-export function risenAt(
+export function riseAt(
   runs: readonly RunPoint[],
   day: number,
   sigma: number,
   dips: readonly Dip[] = [],
-): boolean {
-  let best: { delta: number; z: number } | null = null
-  for (const c of contrasts(runs, day, sigma, dips)) if (best === null || c.z > best.z) best = c
-  return best !== null && best.z >= M.zSlip && best.delta >= M.delta
+): Slip | null {
+  return slipAndRiseAt(runs, day, sigma, dips).rise
 }
 
 export interface Onset {
@@ -243,9 +259,18 @@ export interface Onset {
   referenceRuns: number
 }
 
-/** Where a declared slip began: the split of the last 40 weeks that separates the runs after it from the 32 weeks before it most. */
-export function locateOnset(runs: readonly RunPoint[], day: number, sigma: number): Onset | null {
+/**
+ * Where a declared slip began: the split of the last 40 weeks that separates the runs after it from the 32 weeks before it most.
+ * For a rise (`up`), the split that separates them most upward.
+ */
+export function locateOnset(
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  up = false,
+): Onset | null {
   let best: (Onset & { z: number }) | null = null
+  const sign = up ? -1 : 1
   for (let k = M.onsetMinWeeks; k <= M.onsetMaxWeeks; k++) {
     const split = day - k * 7
     const after = slice(runs, split, day)
@@ -254,7 +279,7 @@ export function locateOnset(runs: readonly RunPoint[], day: number, sigma: numbe
     const mu = medianOf(before)
     const a = levelOf(after, mu, sigma)!
     const b = levelOf(before, mu, sigma)!
-    const z = (a.m - b.m) / Math.sqrt(a.se ** 2 + b.se ** 2 + M.tau ** 2)
+    const z = (sign * (a.m - b.m)) / Math.sqrt(a.se ** 2 + b.se ** 2 + M.tau ** 2)
     if (best === null || z < best.z)
       best = { day: split, reference: mu, referenceRuns: before.length, z }
   }
