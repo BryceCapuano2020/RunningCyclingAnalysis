@@ -16,8 +16,9 @@ export const HALF_MARATHON_M = 21_097.5
 export const MARATHON_M = 42_195
 
 /**
- * Distances, m, at which a run's fastest time is recorded: 1 km, 1 mile, 5 km, 10 km and a half
- * marathon. A run keeps the time at each one it covers.
+ * Distances, m, at which a run's fastest time is recorded: 1 km, 1 mile, 5 km, 10 km, a half marathon and, from
+ * revision 7, the marathon. A run keeps the time at each one it covers. A digest may hold any of them; a digest of
+ * revision 6 has none for the marathon (`RUN_RECORD_DISTANCES_BEFORE_7`).
  */
 export const RUN_RECORD_DISTANCES_M = [
   METRES_PER_KM,
@@ -25,8 +26,12 @@ export const RUN_RECORD_DISTANCES_M = [
   5 * METRES_PER_KM,
   10 * METRES_PER_KM,
   HALF_MARATHON_M,
+  MARATHON_M,
 ] as const
 export type RunRecordDistanceM = (typeof RUN_RECORD_DISTANCES_M)[number]
+/** The record distances revision 6 computes: all but the marathon. */
+export const RUN_RECORD_DISTANCES_BEFORE_7: readonly RunRecordDistanceM[] =
+  RUN_RECORD_DISTANCES_M.filter((distanceM) => distanceM !== MARATHON_M)
 
 /**
  * The open men's world-record flat speed, m/s, at the durations a run's best is held over, from the
