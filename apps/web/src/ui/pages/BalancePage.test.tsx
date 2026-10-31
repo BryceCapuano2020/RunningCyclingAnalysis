@@ -199,7 +199,9 @@ describe('BalancePage', () => {
     renderPage(makeResult({ activities: [run] }), { state: { library: [run] } })
 
     const row = screen.getByTestId('sport-invitation')
-    expect(within(row).getByText('Add rides to compare them with your running.')).toBeInTheDocument()
+    expect(
+      within(row).getByText('Add rides to compare them with your running.'),
+    ).toBeInTheDocument()
     expect(within(row).getByRole('button', { name: 'Add rides' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Ride' })).toBeNull()
   })
