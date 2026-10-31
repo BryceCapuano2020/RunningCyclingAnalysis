@@ -28,7 +28,7 @@ import { BalanceHero } from './BalanceHero'
 import { BalanceLevels } from './BalanceLevels'
 import { BalanceTiles } from './BalanceTiles'
 import { EvidenceLine } from './EvidenceLine'
-import { FitnessSection } from './FitnessSection'
+import { FitnessAndCheckIn } from './FitnessAndCheckIn'
 import { useBalanceVolume } from './useBalanceVolume'
 import { GradeProfileSection } from './GradeProfileSection'
 import './BalancePage.css'
@@ -222,7 +222,7 @@ export function BalancePage({
   return (
     <div className="page-stack">
       {/* Fitness leads the home page: the finding that moves comes before the balance it sits beside. */}
-      <FitnessSection fitness={analysis.state.fitness} units={units} library={library} />
+      <FitnessAndCheckIn analysis={analysis} units={units} library={library} />
 
       <BalanceHero
         result={result}
