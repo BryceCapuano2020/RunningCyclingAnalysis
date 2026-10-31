@@ -4,7 +4,7 @@ import { digestActivity, digestActivityAt } from './digestActivity'
 import { digestHash } from './test/digestHashes'
 import { gpxRun, lockedRun, warmRide, warmRun } from './test/gateFixtures'
 import { droppedSecondRide, loneSpikeRide } from './test/gateFixturesPower'
-import { hillRun, ratioRun } from './test/gateFixturesE5'
+import { hillRun, longRun, ratioRun } from './test/gateFixturesE5'
 
 /**
  * The revision-7 gate is closed in production: a digest made at `MODEL_REVISION` 6 is byte for byte what it
@@ -61,6 +61,19 @@ const MAIN: Record<string, { make: () => Activity; hash: string }> = {
     make: droppedSecondRide,
     hash: 'a0bf264f0121e2e58e894d956d12da81a822ae0111f10096ac1253941fb48b6c',
   },
+  // The three below were taken from main 9758c736, before the marathon was a record distance.
+  'run of 43 km': {
+    make: () => longRun(43),
+    hash: '61bc45cf01e64511e696589844857057757324d6701b8bb25dce77a739f80cb5',
+  },
+  'run of 41.9 km, within 1% of the marathon': {
+    make: () => longRun(41.9),
+    hash: 'ebb8d316bb4f164f3efe247898730ae25d3d1f2339d054203426d41fa0cba86d',
+  },
+  'run of 40 km': {
+    make: () => longRun(40),
+    hash: '7ceda5adbb6c38eece737208b7c7bafa7200242366826e5dd35306cd9f43471a',
+  },
 }
 
 describe('the digest below revision 7', () => {
@@ -85,6 +98,9 @@ describe('the digest below revision 7', () => {
       'flat run with distance 1.1% over its speed': true,
       'power ride with one lone 1,500 W second': true,
       'power ride with one dropped second': true,
+      'run of 43 km': true,
+      'run of 41.9 km, within 1% of the marathon': true,
+      'run of 40 km': false,
     }
     expect(Object.keys(moves).sort()).toEqual(Object.keys(MAIN).sort())
     for (const [name, moved] of Object.entries(moves)) {
