@@ -6,6 +6,7 @@ import type { RouteShape } from '@rca/core/route/routeShape'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ExportAccount } from '../export/accountExport'
 import type { ActivityTraceReply } from './workbench'
+import type { UpdateStop } from './updaterConfig'
 export type { ActivityTraceReply } from './workbench'
 
 export interface SavedActivity {
@@ -278,6 +279,8 @@ export type WorkerResponse =
       limitKind: 'daily' | 'rate' | null
       /** When the limit resets, in epoch ms; null when no limit was reached. */
       limitResetsAtMs: number | null
+      /** Why the update ended before it had tried every activity, besides a limit. Absent when it did not. */
+      stopped?: UpdateStop
     }
   /** `issue` is set when the failure means the account ended or changed, so the app can act on it. */
   | { type: 'error'; message: string; issue?: SyncIssueCode }
