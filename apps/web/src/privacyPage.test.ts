@@ -202,6 +202,18 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('It holds no activity data.')
   })
 
+  it('names the record of imports this browser keeps, and says what clears it', async () => {
+    const manifest = await readStylesheet(import.meta.url, './ui/importManifestStore.ts')
+    const manifestSource = await readStylesheet(import.meta.url, './ui/importManifest.ts')
+    expect(text).toContain('database rca-import-meta')
+    expect(manifest).toContain("DB_NAME = 'rca-import-meta'")
+    expect(text).toContain('The last five per library are kept.')
+    expect(manifest).toContain('KEPT_PER_SCOPE = 5')
+    expect(text).toContain('Signing out and deleting your account clear the account')
+    expect(text).toContain('rca.importTab.v1')
+    expect(manifestSource).toContain("TAB_KEY = 'rca.importTab.v1'")
+  })
+
   it('names the flags and choices this browser keeps beyond the summaries, as the app stores them', async () => {
     const keptLibrary = await readStylesheet(import.meta.url, './ui/analysis/keptLibrary.ts')
     const countedRuns = await readStylesheet(import.meta.url, './ui/countedRunsStore.ts')
@@ -215,6 +227,30 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(countedRuns).toContain("COUNTED_RUNS_KEY = 'rca.countedRuns.v1'")
     expect(text).toContain('It is never uploaded, signed in or not')
     expect(text).toContain("asks the browser to keep this site's storage")
+  })
+
+  it('names the database of files already read, as the worker opens it, and what it keeps and does not', async () => {
+    const store = await readStylesheet(import.meta.url, './worker/checkinStore.ts')
+    const held = await readStylesheet(import.meta.url, './worker/heldIndex.ts')
+    const name = /CHECKIN_DB = '([^']+)'/.exec(store)?.[1]
+    expect(name).toBeDefined()
+    expect(text).toContain(`named ${name}`)
+    // What an entry holds is the fields of HeldEntry, and nothing else.
+    expect(
+      /interface HeldEntry \{([^}]*)\}/
+        .exec(held)?.[1]
+        ?.match(/^\s+(\w+):/gm)
+        ?.map((f) => f.trim()),
+    ).toEqual(['size:', 'keys:', 'revision:', 'meta:'])
+    // What the export's list said is kept as a signature, never as the words (the worker test reads the stored rows).
+    const held2 = await readStylesheet(import.meta.url, '../../../packages/core/src/importHeld.ts')
+    expect(held2).toMatch(/return signatureOf\(\s*`csv:/)
+    expect(held2).toMatch(/return signatureOf\(\s*`garmin:/)
+    expect(text).toMatch(/SHA-256 hash of the file, its size, the sport and start second/)
+    expect(text).toMatch(/no names, routes or heart rates/)
+    expect(text).toMatch(/never uploaded/)
+    expect(text).toMatch(/signing in as someone else clears the other account's rows/)
+    expect(text).toMatch(/Nothing is written for a session that keeps nothing/)
   })
 
   it('says signed-in visitors do not see the summaries kept in this browser', () => {

@@ -17,6 +17,8 @@ import {
 import { hasShareableContent } from '../../share/hasShareableContent'
 import type { BalanceGap } from '../balanceGap'
 import type { GradeOutcome } from '../grades'
+import { useHoldInputs } from '../holdContext'
+import type { HoldInputs } from '../resultHold'
 import { CardNameField } from './CardNameField'
 import { SegmentedControl, type SegmentedControlOption } from './SegmentedControl'
 import { useModalDialog } from './useModalDialog'
@@ -42,7 +44,7 @@ export interface ShareImageButtonProps {
 }
 
 /** What the card is drawn from: the page's inputs, without the analysis state. */
-type CardInputs = Omit<ShareImageButtonProps, 'disabled'> & { name: string }
+type CardInputs = Omit<ShareImageButtonProps, 'disabled'> & { name: string; hold: HoldInputs }
 
 interface Preview {
   format: CardFormat
@@ -119,6 +121,7 @@ async function makeFile(
     inputs.gap,
     inputs.grades,
     inputs.name,
+    inputs.hold,
   )
   if (card === null) return null
   const canvas = document.createElement('canvas')
@@ -136,6 +139,7 @@ async function makeFile(
 export function ShareImageButton(props: ShareImageButtonProps) {
   const { result, settings, units, period, isSample, effort, weightKnown, gap, grades, disabled } =
     props
+  const hold = useHoldInputs()
   const [open, setOpen] = useState(false)
   const [format, setFormat] = useState<CardFormat>('square')
   const [status, setStatus] = useState('')
@@ -241,6 +245,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
       gap,
       grades,
       name,
+      hold,
     }
     makeFile(source, format, new Date(), loadCard).then(
       (file) => {
@@ -266,10 +271,11 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     gap,
     grades,
     name,
+    hold,
     loadCard,
   ])
 
-  if (!hasShareableContent(result, gap, weightKnown)) return null
+  if (!hasShareableContent(result, gap, weightKnown, hold)) return null
 
   const shown = preview?.format === format ? preview : null
   // The action has a file to share or save only once this shape is drawn; until then it is held.

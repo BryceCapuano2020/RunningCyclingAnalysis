@@ -14,6 +14,14 @@ export type Phase = 'slipping' | 'low' | 'recovering' | 'back'
  * frozen at declaration, so a level that settles lower is still measured against the old one.
  */
 export interface Episode {
+  /**
+   * A rise, not a slip. A rise is followed as a slip of the negated series, so its `reference`, levels and
+   * statistics are all in negated units until the monitor turns them back for the page: "slipping" is rising,
+   * a plateau under the reference is a plateau above it.
+   */
+  up: boolean
+  /** The statistic that declared a rise, positive; NaN for a slip. */
+  riseZ: number
   reference: number
   referenceRuns: number
   sigma: number
@@ -44,8 +52,11 @@ export function openEpisode(
   referenceRuns: number,
   onsetDay: number | null,
   season: Season | null,
+  rise: { z: number } | null = null,
 ): Episode {
   return {
+    up: rise !== null,
+    riseZ: rise?.z ?? Number.NaN,
     reference,
     referenceRuns,
     sigma,
@@ -221,6 +232,16 @@ export function quietNow(runs: readonly RunPoint[], day: number, ep: Episode): b
 }
 
 /**
+ * The test a level must pass to be back: not more than `backPoint` under the reference, and its lower bound (one-sided,
+ * `boundZ` standard errors) not more than `backTol` under it. `d` is the level's distance from the reference in log
+ * units and `se` its standard error with the model-error floor and the reference's own error included. The live
+ * monitor and the look-back both call this, so a retune of one is a retune of the other.
+ */
+export function isBackLevel(d: number, se: number): boolean {
+  return d >= -E.backPoint && d - E.boundZ * se >= -E.backTol
+}
+
+/**
  * One weekly step of an open episode (week `w`, evaluated at the end of day `day`): back when a 12-week
  * level has been within tolerance of the reference three weeks running; recovering when the level is rising
  * two weeks running; a plateau under the old level (holding) when 24 weeks show no trend; otherwise slipping.
@@ -241,8 +262,7 @@ export function episodeStep(runs: readonly RunPoint[], day: number, w: number, e
   if (longer !== null) {
     const d = longer.m - ep.reference
     backSe = refSe(longer.se)
-    backNow =
-      d >= -E.backPoint && d - E.boundZ * backSe >= -E.backTol && w - ep.declared >= E.backMinWeeks
+    backNow = isBackLevel(d, backSe) && w - ep.declared >= E.backMinWeeks
   }
   ep.backRun = backNow ? ep.backRun + 1 : 0
   ep.quietRun = quietNow(runs, day, ep) ? ep.quietRun + 1 : 0

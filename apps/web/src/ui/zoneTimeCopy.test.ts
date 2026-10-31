@@ -38,7 +38,7 @@ describe('zoneTimeText', () => {
 describe('periodLede', () => {
   it('says how much of the time was easy and how much hard when there is nothing to compare', () => {
     expect(periodLede('run', [easyRun], null, null)).toBe(
-      '60% of your running time with heart rate was easy (zones 1 and 2), and 10% was hard (zones 4 and up).',
+      '60% of your running time with heart rate was easy (heart rate zones 1 and 2), and 10% was hard (heart rate zones 4 and up).',
     )
   })
 
@@ -80,7 +80,7 @@ describe('periodLede', () => {
     const power = measureTime('ride', 'power', [3600, 3600, 3600, 3600, 3600, 3600, 3600])
     const hr = measureTime('ride', 'heartRate', [3600, 3600, 3600, 3600, 3600])
     expect(periodLede('ride', [hr, power], null, null)).toMatch(
-      /^\d+% of your riding time with measured power was easy \(zones 1 and 2\)/,
+      /^\d+% of your riding time with measured power was easy \(power zones 1 and 2\)/,
     )
   })
 

@@ -10,6 +10,7 @@ import {
 import type { SyncIssueCode } from './saveFailure'
 import { noteKept } from './sessionHooks'
 import type { ActivityListeners } from './sessionHooks'
+import type { SessionLibrary } from './sessionLibrary'
 import type { Considered } from './sessionSource'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
 import type { Activity, ActivityDigest } from './types'
@@ -19,13 +20,20 @@ import type { Activity, ActivityDigest } from './types'
  * session's own (never replaced, only emptied), so this object and the session always agree.
  */
 export interface KeepState {
-  digests: Map<string, ActivityDigest>
+  library: SessionLibrary
   /** Activities whose last sink call failed, and why. Re-importing the file tries them again. */
   unsynced: Map<string, SyncIssueCode>
   /** The keys the latest import left in `unsynced`, so its own failures can be told from earlier ones. */
   latestUnsynced: Set<string>
-  outdatedKeys: Set<string>
-  incompatibleKeys: Set<string>
+}
+
+/**
+ * The digests a new copy is compared with: the current ones, and the compatible ones of other workouts. A
+ * compatible digest of this very workout is replaced by the new copy whatever its richness, so it is not one.
+ */
+function* comparable(library: SessionLibrary, key: string): Iterable<ActivityDigest> {
+  yield* library.digests.values()
+  for (const [other, digest] of library.readable) if (other !== key) yield digest
 }
 
 /**
@@ -45,7 +53,11 @@ export async function considerActivity(
   batch: SaveBatch,
   listeners?: ActivityListeners,
 ): Promise<Considered> {
-  const copyOf = heldCopyOf(state.digests.values(), activity, file.fileName)
+  const copyOf = heldCopyOf(
+    comparable(state.library, workoutKey(activity.sport, activity.startMs)),
+    activity,
+    file.fileName,
+  )
   if (copyOf !== null) return { held: copyOf }
   return keepActivity(state, activity, file, sink, syncExisting, batch, listeners)
 }
@@ -68,7 +80,12 @@ async function keepActivity(
   listeners?: ActivityListeners,
 ): Promise<Considered> {
   const key = workoutKey(activity.sport, activity.startMs)
-  const held = state.digests.get(key)
+  // A save of this workout still in flight decides what its other copies do: when it fails, the next copy is
+  // the retry, as it is when saves run one after another. So the outcome is read before the copy is judged.
+  await batch.inflightByKey.get(key)
+  const held = state.library.digests.get(key)
+  // The same workout held from an older model: a fresh copy replaces it, and the import reports it upgraded.
+  const older = held === undefined ? state.library.notCurrent(key) : undefined
   const replaces = held !== undefined && outranksHeld(activity, file.fileName, held)
   if (
     held !== undefined &&
@@ -83,10 +100,9 @@ async function keepActivity(
   const adding = held === undefined || batch.added.has(key)
   const retry = !adding && state.unsynced.has(key)
   const digest = held !== undefined && !replaces ? held : digestActivity(activity)
-  state.digests.set(key, digest)
+  state.library.put(key, digest)
   if (adding) batch.added.set(key, digest)
-  state.outdatedKeys.delete(key)
-  state.incompatibleKeys.delete(key)
+  if (older !== undefined) batch.upgraded.add(key)
   // A replacing copy is swapped in only once the sink answers: the server may refuse it (409) and keep its own.
   const swapAfterSink = replaces && sink !== undefined && batch.halt === null
   if (!swapAfterSink) await noteKept(activity, digest, held, listeners)
@@ -97,6 +113,9 @@ async function keepActivity(
       : { held: fileNameOf(held.id) }
   }
   if (sink === undefined) return considered(false)
+  // After a run of network failures one save is the probe, sent once the outage has had a moment to pass. The
+  // others wait for its answer: if it fails too the network is down and the saves stop; if not, the import goes on.
+  const probing = await claimProbe(batch)
   if (batch.halt !== null) {
     // An activity already saved, offered again to keep its file, is not waiting for a save.
     if (held === undefined || replaces || state.unsynced.has(key)) {
@@ -104,32 +123,104 @@ async function keepActivity(
     }
     return considered(false)
   }
-  // After a run of network failures the next save is a probe, sent once the outage has had a moment
-  // to pass. If it fails too the network is down and the saves stop; if not, the import carries on.
-  const probing = batch.networkStreak >= NETWORK_FAILURES_BEFORE_PROBE
-  if (probing) await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
+  // A workout new to the library has nothing to wait for, so its save may run beside the others. Anything else
+  // (a replacement, a retry) is settled after the saves already begun, so two saves of one workout never overlap.
+  const queueable = adding && !replaces && !retry && held === undefined
+  if (!queueable) await Promise.all(batch.inflight)
+  let handedOver = false
   try {
-    await sink({ digest, route: activity.route, ...file })
+    const sent = await sink({ digest, route: activity.route, ...file, queueable })
+    if (sent !== undefined) {
+      handedOver = true
+      const settled = settleLater(state, batch, key, probing, sent.done)
+      batch.inflight.push(settled)
+      batch.inflightByKey.set(key, settled)
+      return considered(false)
+    }
     clearUnsynced(state, key)
     batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
   } catch (error) {
-    const code = error instanceof SyncFailure ? error.code : 'server'
-    markUnsynced(state, key, code)
-    // The server answered when only the original file failed to upload, so the network is up.
-    const answered = error instanceof SyncFailure && error.digestSaved
-    batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
-    if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
-    if (swapAfterSink && code === 'activity-conflict') {
+    const code = failureOf(error)
+    markUnsynced(state, key, code.code)
+    batch.networkStreak = networkStreakAfter(batch.networkStreak, code.answered ? null : code.code)
+    if (stopsSaving(code.code) || (probing && !code.answered && code.code === 'network')) {
+      batch.halt = code.code
+    }
+    if (swapAfterSink && code.code === 'activity-conflict') {
       // The server keeps the copy it holds, so the screen keeps it too, as a reload would show it.
-      state.digests.set(key, held)
+      state.library.put(key, held)
       if (adding) batch.added.set(key, held)
       return adding ? { added: held } : { held: fileNameOf(held.id) }
     }
     if (swapAfterSink) await noteKept(activity, digest, held, listeners)
     return considered(false)
+  } finally {
+    if (probing && !handedOver) endProbe(batch)
   }
   if (swapAfterSink) await noteKept(activity, digest, held, listeners)
   return considered(true)
+}
+
+/** Why a save failed, and whether the server answered (only the original file failed, so the network is up). */
+function failureOf(error: unknown): { code: SyncIssueCode; answered: boolean } {
+  const code = error instanceof SyncFailure ? error.code : 'server'
+  return { code, answered: error instanceof SyncFailure && error.digestSaved }
+}
+
+/**
+ * Settles a save that ran in the background as the inline path does: saved, or unsaved with its reason, and
+ * the network and halting rules applied. Never rejects, so the import can wait for every save together.
+ */
+function settleLater(
+  state: KeepState,
+  batch: SaveBatch,
+  key: string,
+  probing: boolean,
+  done: Promise<void>,
+): Promise<void> {
+  const settled: Promise<void> = done
+    .then(
+      () => {
+        clearUnsynced(state, key)
+        batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
+      },
+      (error: unknown) => {
+        const { code, answered } = failureOf(error)
+        markUnsynced(state, key, code)
+        batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
+        if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
+      },
+    )
+    .finally(() => {
+      if (batch.inflightByKey.get(key) === settled) batch.inflightByKey.delete(key)
+      if (probing) endProbe(batch)
+    })
+  return settled
+}
+
+/**
+ * Whether this save is the network probe. While the network is thought to be down, the first save to arrive is the
+ * probe and waits out the delay; the others wait for its answer, then go on or find the saves halted.
+ */
+async function claimProbe(batch: SaveBatch): Promise<boolean> {
+  while (batch.halt === null && batch.networkStreak >= NETWORK_FAILURES_BEFORE_PROBE) {
+    if (batch.probe !== null) {
+      await batch.probe.settled
+      continue
+    }
+    let end: () => void = () => undefined
+    batch.probe = { settled: new Promise<void>((resolve) => (end = resolve)), end }
+    await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
+    return true
+  }
+  return false
+}
+
+/** The probe has its answer: the saves waiting on it go on. */
+function endProbe(batch: SaveBatch): void {
+  const probe = batch.probe
+  batch.probe = null
+  probe?.end()
 }
 
 /** Notes that the activity is not saved, and why, as a failure of the import in progress. */

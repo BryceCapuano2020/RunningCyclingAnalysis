@@ -75,8 +75,8 @@ export const SPORT_LABEL: Record<Sport, string> = { run: 'Run', ride: 'Ride' }
  */
 export const SPORT_TITLE: Record<Sport, string> = { run: 'Running', ride: 'Cycling' }
 
-/** The sport as the noun in a sentence, lower case, such as "running and cycling in balance". */
-export const SPORT_NOUN: Record<Sport, string> = { run: 'running', ride: 'cycling' }
+// In a module of its own so the build's config can read it without the analysis (scripts/landingFiguresPlugin.ts).
+export { SPORT_NOUN } from '../domain/sportNoun'
 
 export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' }
 

@@ -33,13 +33,17 @@ export interface Candidate {
   leader?: PlacedAnnotation['leader']
 }
 
+/**
+ * Whether a box lies in the plot. A loose box may stand a few pixels past the sides, never past the top or the floor:
+ * the x axis's labels sit under the floor, and text taller than its room must not run into them.
+ */
 export function inside(box: Box, plot: PlotBox, loose = false): boolean {
   const slack = loose ? 6 : 0
   return (
     box.left >= plot.left - slack &&
     box.right <= plot.right + slack &&
-    box.top >= plot.top - slack &&
-    box.bottom <= plot.bottom + slack
+    box.top >= plot.top &&
+    box.bottom <= plot.bottom
   )
 }
 

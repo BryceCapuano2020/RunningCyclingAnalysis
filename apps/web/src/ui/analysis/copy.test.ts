@@ -10,6 +10,7 @@ import {
   notAddedSentence,
   rebuildNoticeText,
   importSentence,
+  updatedSentence,
   RETENTION_UNAVAILABLE,
   STOPPED_BY_USER,
   workerFailureText,
@@ -290,6 +291,28 @@ describe('notAddedSentence', () => {
 
   it('says no activities were analysed when the import read none', () => {
     expect(notAddedSentence(0)).toBe('No activities were analysed.')
+  })
+})
+
+describe('importSentence: updated workouts', () => {
+  it('says updated workouts apart from what was added, never as new', () => {
+    expect(
+      importSentence({ activities: 15, rejected: 0, updatedRuns: 12, updatedRides: 3 }, NOW),
+    ).toBe('Updated 12 runs and 3 rides.')
+    const both = {
+      activities: 16,
+      rejected: 0,
+      runs: 1,
+      rides: 0,
+      firstStartMs: NOW,
+      lastStartMs: NOW,
+      updatedRuns: 1,
+    }
+    expect(importSentence(both, NOW)).toBe(`${addedSentence(both, NOW)} Updated 1 run.`)
+  })
+
+  it('says nothing about updates when none were updated', () => {
+    expect(updatedSentence({ activities: 1, rejected: 0 })).toBeNull()
   })
 })
 

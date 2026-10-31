@@ -26,6 +26,7 @@ function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
     !digest.indoor &&
     digest.hasHeartRate &&
     !digest.flagCounts['hr-spike'] &&
+    !digest.flagCounts['hr-cadence-lock'] &&
     !digest.flagCounts['hr-dropout']
   const found: RideBlocks | null = eligible
     ? {

@@ -50,7 +50,7 @@ test('See the evidence opens a chart with its table twin, the method, the limit 
   const chart = page.getByRole('figure', { name: CHART })
   await expect(chart).toBeVisible()
   // The chart: a ring and a range for each four-week step, the line it is read against, the month it began, and now.
-  expect(await chart.locator('[data-testid="fitness-point"]').count()).toBeGreaterThanOrEqual(7)
+  expect(await chart.locator('[data-testid="fitness-point"]').count()).toBeGreaterThanOrEqual(5)
   await expect(chart.locator('[data-testid="fitness-now"]')).toHaveCount(1)
   await expect(chart.locator('[data-annotation="before"]')).toContainText(/^Before /)
   await expect(chart.locator('[data-testid="fitness-onset"]')).toContainText(/^Began /)
@@ -213,15 +213,16 @@ test('the Run page leads with the same status above the threshold', async ({ pag
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
 })
 
-// The sample's rides are enough in number but too varied to call level (a count shortfall reads "not enough steady rides yet, N of M"; see FitnessCard.test.tsx): home says so in one line and does not draw a waiting card,
-// and the Ride page holds the ride's own card, with the count it is waiting on and no run on it.
+// The sample is a runner who took up riding this autumn, so it has too few steady rides from before the last 8 weeks
+// (a count shortfall reads "not enough steady rides yet, N of M"; see FitnessCard.test.tsx): home says so in one line and
+// does not draw a waiting card, and the Ride page holds the ride's own card, with the count it is waiting on and no run on it.
 test('Balance shows a ride that is still waiting as one line, and the Ride page holds its card', async ({
   page,
 }) => {
   await openSample(page)
   await expect(page.locator('.fitness-card')).toHaveCount(1)
   const line = page.getByTestId('ride-fitness-line')
-  await expect(line).toContainText('Ride fitness: too uncertain to call yet')
+  await expect(line).toContainText(/Ride fitness: not enough steady rides yet, \d+ of 12/)
   await line.getByRole('link').click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ride')
   const ride = page.locator('.fitness-card[data-sport="ride"]')
@@ -239,7 +240,7 @@ test('the landing page’s example shows the same finding as a second panel unde
   const example = page.locator('.landing-example')
   await expect(example.locator('.landing-example__state')).toHaveText('Slipping')
   await expect(example.locator('.landing-example__sentence')).toHaveText(
-    /^At 130 bpm you now run [\d.]+% \(\d+ to \d+%\) slower than before\.$/,
+    /^At 120 bpm you now run [\d.]+% \(\d+ to \d+%\) slower than before\.$/,
   )
   await expect(example.locator('.fitness-track__band')).toBeVisible()
   // The balance comes first; the fitness finding is the panel under it.

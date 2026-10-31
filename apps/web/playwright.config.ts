@@ -6,6 +6,8 @@ const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
 
 export default defineConfig({
   testDir: 'e2e',
+  // Makes the legacy libraries before any test runs; see legacySeed.ts.
+  globalSetup: './e2e/legacySeed.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // The sample's wait (openSample, 20 s) must fit inside a test, so each test gets 60 s.

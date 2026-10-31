@@ -70,11 +70,16 @@ export function layoutAnnotations(
     const candidates = (
       CANDIDATES[annotation.kind] as (a: Annotation, s: AnnotationSpace) => Candidate[]
     )(annotation, space)
-    // A right-margin label may sit outside the plot sideways, but not above or below it; the others stay inside.
-    const fits = candidates.map((candidate) =>
-      annotation.kind === 'reference' || annotation.kind === 'end'
-        ? candidate.box.top >= space.plot.top - 2 && candidate.box.bottom <= space.plot.bottom + 2
-        : inside(candidate.box, space.plot, annotation.kind === 'bracket'),
+    // A right-margin label may sit outside the plot sideways, but not above or below it; the others stay inside. Every
+    // label stays within the chart's width, and none meets an axis label drawn in the plot.
+    const fits = candidates.map(
+      (candidate) =>
+        (annotation.kind === 'reference' || annotation.kind === 'end'
+          ? candidate.box.top >= space.plot.top && candidate.box.bottom <= space.plot.bottom
+          : inside(candidate.box, space.plot, annotation.kind === 'bracket')) &&
+        candidate.box.left >= 0 &&
+        candidate.box.right <= space.width &&
+        !meetsBoxes(candidate.box, space.ticks ?? [], 0),
     )
     const free = candidates.findIndex(
       (candidate, i) =>
@@ -83,9 +88,11 @@ export function layoutAnnotations(
         !leaderCrosses(candidate.leader, texts),
     )
     if (free < 0 && annotation.optional === true) continue
-    const choice = free >= 0 ? free : cheapest(candidates, fits, taken)
-    const picked = candidates[choice]
+    // With no place that fits, the text is left out (a reference keeps its rule and band): the table twin has the value.
+    const choice = free >= 0 ? free : fits.some(Boolean) ? cheapest(candidates, fits, taken) : -1
+    const picked = choice < 0 ? bare(annotation, space) : candidates[choice]
     if (picked === undefined) continue
+    if (choice < 0 && annotation.kind !== 'reference') continue
     taken.push(picked.box)
     texts.push(picked.box)
     // A reference line keeps the others off its rule and its band as well as off its label.
@@ -133,6 +140,18 @@ function leaderCrosses(leader: Candidate['leader'], placed: readonly Box[]): boo
     2,
   )
   return along.some((piece) => meetsBoxes(piece, placed, 0))
+}
+
+/** A reference line with no room for its words: the rule and the band, and no text. */
+function bare(annotation: Annotation, space: AnnotationSpace): Candidate | undefined {
+  if (annotation.kind !== 'reference') return undefined
+  const box = {
+    left: space.plot.left,
+    right: space.plot.left,
+    top: annotation.y,
+    bottom: annotation.y,
+  }
+  return { box, texts: [] }
 }
 
 function cheapest(

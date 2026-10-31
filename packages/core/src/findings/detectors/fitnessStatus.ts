@@ -29,12 +29,16 @@ const EXCLUSIONS: Record<Sport, string[]> = {
  */
 const SPREAD: Record<string, number> = {
   slipping: F.quietSpread,
+  improved: F.quietSpread,
   recovering: F.quietSpread,
   back: FITNESS.episode.boundZ / FINDINGS.minSurpriseZ,
 }
 
-/** The states that are findings. Holding, holding below and not enough evidence are status lines, never findings. */
-const SPOKEN = new Set(['slipping', 'recovering', 'back'])
+/**
+ * The states that are findings. Holding, holding below and not enough evidence are status lines, never findings, and
+ * neither is the first sign of a rise (`improving`): a rise is spoken once it has settled (`improved`).
+ */
+const SPOKEN = new Set(['slipping', 'recovering', 'back', 'improved'])
 
 const percent = (r: { value: number; low: number; high: number }) => ({
   value: r.value * 100,
@@ -49,7 +53,7 @@ function candidateOf(status: FitnessStatus, sport: Sport, asOfMs: number): Candi
   }
   if (weekOfMs(asOfMs) - weekOfMs(entered.atMs) >= FITNESS.display.freshWeeks) return null
   const slipping = status.state === 'slipping'
-  const shift = slipping ? change : gain
+  const shift = slipping || status.state === 'improved' ? change : gain
   if (shift === null || !Number.isFinite(entered.z)) return null
   // A finding states a direction, so its whole range has to lie on that side of level.
   if (!oneSided(shift) || (slipping ? !(shift.value < 0) : !(shift.value > 0))) return null
