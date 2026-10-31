@@ -64,9 +64,15 @@ describe('request timeouts', () => {
   })
 
   it('aborts an original-file transfer exactly at the 120 second deadline', async () => {
-    vi.useFakeTimers()
+    // Only the deadline's own timer is faked: the file is gzipped (real stream work) before the request is sent, and the
+    // deadline is for the transfer, so it starts when the request does.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     stalledFetch()
     const outcome = uploadFile('a1', new Uint8Array([1, 2, 3])).catch((error: unknown) => error)
+    for (let tick = 0; tick < 200 && signalOf.current === undefined; tick++) {
+      await new Promise((resolve) => setImmediate(resolve))
+    }
+    expect(signalOf.current).toBeDefined()
 
     await vi.advanceTimersByTimeAsync(TRANSFER_TIMEOUT_MS - 1)
     expect(signalOf.current?.aborted).toBe(false)
