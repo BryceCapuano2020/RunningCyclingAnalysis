@@ -165,13 +165,24 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
         }
       : { content: null, lacks: [lack] }
   },
-  bestsOverTime: ({ sport, result, previous, previousLabel, change, trends, massKg, units }) => {
+  bestsOverTime: ({
+    sport,
+    result,
+    previous,
+    previousLabel,
+    change,
+    trends,
+    dotsWithheld,
+    massKg,
+    units,
+  }) => {
     const { current, earlier } = curvesOf({ sport, result, previous, previousLabel })
     return {
       content: (
         <BestsOverTimeSection
           sport={sport}
           trends={trends}
+          withheld={dotsWithheld}
           massKg={massKg}
           units={units}
           finding={

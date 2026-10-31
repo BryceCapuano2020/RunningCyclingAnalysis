@@ -145,6 +145,23 @@ describe('BestsOverTimeChart', () => {
     expect(screen.getByText('Add runs on more than one day to see them here')).toBeInTheDocument()
   })
 
+  it('names the effort gate, not the days, when it is what left the dots too few', () => {
+    chartWidth(640)
+    render(<BestsOverTimeChart {...PROPS} points={[POINTS[0]!]} gateWithheld />)
+    expect(
+      screen.getByText('No dots to show: efforts your heart rate shows were not hard are left out'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/on more than one day/)).toBeNull()
+  })
+
+  it('says in plain words that efforts shown not hard are left out, once there are dots', () => {
+    chartWidth(640)
+    render(<BestsOverTimeChart {...PROPS} />)
+    expect(
+      screen.getByText(/Efforts your heart rate shows were not hard are left out\./),
+    ).toBeInTheDocument()
+  })
+
   it('draws its dots and axes at 320 px, inside the plot', () => {
     chartWidth(320)
     const { container } = render(<BestsOverTimeChart {...PROPS} />)
