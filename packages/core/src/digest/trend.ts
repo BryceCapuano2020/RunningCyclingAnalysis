@@ -14,6 +14,8 @@ import { fitBikeModelOver, pointWkg, runCentralWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
 import { localAxisMs, localWeeksOn, weekEndFor, weekEndsSpan } from '../calendar'
 import { DEFAULT_WINDOW_DAYS, EFFORT_LENGTHS_S, weekEndMs } from './trendPoints'
+import { EVERY_EFFORT_KEYED } from './readingRule'
+import type { KeyedReadingRule, ReadingRule } from './readingRule'
 
 const WEEK_MS = 7 * DAY_MS
 
@@ -54,6 +56,11 @@ export interface TrendOptions {
    * it does in the analysis. Built from the digests when absent; null counts every estimated point.
    */
   rideGate?: EstimatedRideGate | null
+  /**
+   * Which of an activity's efforts may lead a window. Every effort when absent; the bests-over-time dots pass the rule that
+   * leaves out an effort heart rate shows was not hard (`dotsRule`), so a week with only easy efforts has no dot.
+   */
+  rule?: KeyedReadingRule
 }
 
 export { weekEndMs }
@@ -89,10 +96,11 @@ function bestAtOrAbove(
   masses: Masses,
   bikeModel: BikeModel,
   standing: EstimatedStanding,
+  counts: ReadingRule['point'],
 ): Best | null {
   let best: Best | null = null
   for (const point of digest.curve) {
-    if (point.durationS < durationS) continue
+    if (point.durationS < durationS || !counts(digest, point)) continue
     const priced = pointWkg(point, digest, masses, bikeModel, standing)
     // An unbacked estimate counts at its own duration only: the envelope does not take it to a shorter one.
     if (priced.alone && point.durationS !== durationS) continue
@@ -104,10 +112,14 @@ function bestAtOrAbove(
 }
 
 /** The same for a run, whose pace is priced without mass, a model or a gate; its `massKg` is NaN, as it is not read. */
-function bestRunAtOrAbove(digest: ActivityDigest, durationS: number): Best | null {
+function bestRunAtOrAbove(
+  digest: ActivityDigest,
+  durationS: number,
+  counts: ReadingRule['point'],
+): Best | null {
   let best: Best | null = null
   for (const point of digest.curve) {
-    if (point.durationS < durationS) continue
+    if (point.durationS < durationS || !counts(digest, point)) continue
     const wkg = runCentralWkg(point)
     if (Number.isFinite(wkg) && (best === null || wkg > best.wkg)) {
       best = { wkg, watts: Number.NaN, massKg: Number.NaN }
@@ -138,9 +150,9 @@ function readingsOf(digests: ActivityDigest[], best: (digest: ActivityDigest) =>
 
 /** The runs' readings at a trend duration: they read nothing but the runs, so a change of body mass takes the ones kept. */
 const runReadings = memoByDigests(
-  (runs: ActivityDigest[], durationS: number) =>
-    readingsOf(runs, (run) => bestRunAtOrAbove(run, durationS)),
-  (a, b) => a === b,
+  (runs: ActivityDigest[], { durationS, rule }: { durationS: number; rule: KeyedReadingRule }) =>
+    readingsOf(runs, (run) => bestRunAtOrAbove(run, durationS, rule.rule.point)),
+  (a, b) => a.durationS === b.durationS && a.rule.key === b.rule.key,
   undefined,
   EFFORT_LENGTHS_S.length,
 )
@@ -184,10 +196,11 @@ export function fitnessTrend(
   const standing = estimatedStanding(
     opts.rideGate === undefined ? ownRideGate(trustedPower(ordered, masses)) : opts.rideGate,
   )
+  const rule = opts.rule ?? EVERY_EFFORT_KEYED
   const readings = mergedByStart(
-    runReadings(ofSport(ordered, 'run'), durationS),
+    runReadings(ofSport(ordered, 'run'), { durationS, rule }),
     readingsOf(ofSport(ordered, 'ride'), (ride) =>
-      bestAtOrAbove(ride, durationS, masses, bikeModel, standing),
+      bestAtOrAbove(ride, durationS, masses, bikeModel, standing, rule.rule.point),
     ),
   )
 

@@ -1,7 +1,7 @@
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { isAnalysed, leftOutCounts } from './digest/analysed'
 import { activitySummaries } from './digest'
-import { hardEffortRule } from './digest/hardEffortRule'
+import { dotsRule, hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
@@ -113,7 +113,15 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const efforts =
     athlete === null
       ? NO_TRENDS
-      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate)
+      : periods.trends(
+          selected,
+          athlete,
+          period.days,
+          fromMs,
+          bikeModel,
+          judgement.rideGate,
+          dotsRule(judgement.effortReference, held),
+        )
   const sameHeartRate =
     analysis === null ? NO_SAME_HEART_RATE : periods.sameHeartRate(selected, analysed, fromMs, held)
   const late =

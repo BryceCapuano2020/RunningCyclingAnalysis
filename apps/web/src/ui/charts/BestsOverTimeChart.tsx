@@ -106,7 +106,7 @@ export function BestsOverTimeChart({
       }
       note={
         hasData
-          ? 'Each dot is a best, not a typical effort: a day with no dot has no best, not a poor one.'
+          ? 'Each dot is a best, not a typical effort: a day with no dot has no best, not a poor one. An effort heart rate shows was not hard is left out.'
           : undefined
       }
       table={{
