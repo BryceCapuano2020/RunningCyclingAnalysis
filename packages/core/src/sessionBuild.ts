@@ -127,7 +127,8 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         : lookBackOf(
             analysed,
             athlete,
-            new Set(setAside),
+            // The runs and rides the card is read from: heart rate set aside, and power set aside.
+            new Set(held),
             Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
             judgement.rideGate,
           ),

@@ -140,7 +140,7 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * Added the `lookBack` field (each sport's years in hindsight and its bests over the years, library-wide): a new key under every period,
  * the same under all four, and no existing hash moves. The 400-activity library is too short to tell years, so what it pins is the
  * too-short statement and the bests of its efforts; they depend on the body mass (a ride is priced in W/kg with dated masses), so the
- * fixed setting has its own hash and the three dated ones share another.
+ * fixed setting has its own hash, and the dated ones are cut in the zone they are taken in (Auckland's is its own; UTC and Los Angeles agree). The look-back is read from the runs and rides the card is, power set aside included.
  *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one
  * body mass in UTC, then three dated masses (each ride priced at its own weight) in UTC, in Los Angeles
@@ -373,7 +373,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/lateEvidence': '366eecf73fe2bfba',
     '"default"/heartRateJudgement': '87e836221b11ae92',
     '"default"/fitness': '264de0a5e04e650e',
-    '"default"/lookBack': '3f105fb444d6a4ec',
+    '"default"/lookBack': '8a18cb57d38649a9',
     '"default"/zoneEstimates': '5b5be0cc1f06bcbe',
     '"default"/timeInZones': '54c30cf4c9ba2cd0',
     '"default"/previous': '08f65c180a0c3b6c',
@@ -388,7 +388,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/lateEvidence': '1f7591427943c04f',
     '"all"/heartRateJudgement': '87e836221b11ae92',
     '"all"/fitness': '264de0a5e04e650e',
-    '"all"/lookBack': '3f105fb444d6a4ec',
+    '"all"/lookBack': '8a18cb57d38649a9',
     '"all"/zoneEstimates': '5b5be0cc1f06bcbe',
     '"all"/timeInZones': '71011fbcc6ed1cea',
     '"all"/previous': '74234e98afe7498f',
@@ -403,7 +403,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/lateEvidence': '1c60ca68e4e9ef59',
     '42/heartRateJudgement': '87e836221b11ae92',
     '42/fitness': '264de0a5e04e650e',
-    '42/lookBack': '3f105fb444d6a4ec',
+    '42/lookBack': '8a18cb57d38649a9',
     '42/zoneEstimates': '5b5be0cc1f06bcbe',
     '42/timeInZones': '2df256f9939609a7',
     '42/previous': 'ae116e6f0a9ac5b1',
@@ -418,7 +418,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/lateEvidence': 'eb9091f7e5f3948b',
     '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '87e836221b11ae92',
     '{"from":"2021-03-10","to":"2021-03-20"}/fitness': '264de0a5e04e650e',
-    '{"from":"2021-03-10","to":"2021-03-20"}/lookBack': '3f105fb444d6a4ec',
+    '{"from":"2021-03-10","to":"2021-03-20"}/lookBack': '8a18cb57d38649a9',
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '5b5be0cc1f06bcbe',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '9ca2885d5b8c4d13',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '3c34eaf0926b3798',

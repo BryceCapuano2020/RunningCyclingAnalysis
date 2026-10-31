@@ -1,5 +1,6 @@
 import { DAY_MS } from '../constants'
 import { orderedFor } from '../digest/consumers'
+import { localZoneKey } from '../digest/localDay'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import { memoByDigests } from '../digestMemo'
 import { fitnessHistories, fitnessStatuses } from '../fitness/compute'
@@ -44,6 +45,8 @@ export interface LookBackInput {
   /** The wall clock, cut to the day by the caller so the memory still hits. */
   nowMs: number
   gate: EstimatedRideGate | null | undefined
+  /** The zone the local days of dated body masses are cut in: an answer made in another one is not taken. */
+  zone: string
 }
 
 function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
@@ -85,6 +88,7 @@ const remembered = memoByDigests<LookBackInput, LookBack>(
     sameSet(a.setAside, b.setAside) &&
     a.nowMs === b.nowMs &&
     a.gate === b.gate &&
+    a.zone === b.zone &&
     a.settings.massKg === b.settings.massKg &&
     a.settings.bikeMassKg === b.settings.bikeMassKg &&
     a.settings.measurements === b.settings.measurements,
@@ -102,7 +106,7 @@ export function lookBackOf(
   nowMs: number,
   gate?: EstimatedRideGate | null,
 ): LookBack {
-  return remembered(digests, { settings, setAside, nowMs, gate })
+  return remembered(digests, { settings, setAside, nowMs, gate, zone: localZoneKey() })
 }
 
 export { SPORTS as LOOKBACK_SPORTS }
