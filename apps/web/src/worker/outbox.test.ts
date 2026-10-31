@@ -4,7 +4,14 @@ import { digestActivity } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { workoutKeyOf } from './device'
-import { clearOutbox, digestOf, MAX_ATTEMPTS, openOutbox, waitingCount } from './outbox'
+import {
+  clearOutbox,
+  digestOf,
+  MAX_ATTEMPTS,
+  openOutbox,
+  sweepOutbox,
+  waitingCount,
+} from './outbox'
 
 const [firstActivity, secondActivity] = sampleDataset().activities
 const FIRST = digestActivity(firstActivity!)
@@ -147,6 +154,29 @@ describe('the outbox', () => {
 
     expect(await alice.pending()).toEqual([])
     expect(await bob.pending()).toEqual([])
+  })
+
+  it('sweeps every account’s rows but the signed-in one’s, and nothing while nobody is signed in or the id is empty', async () => {
+    const alice = openOutbox('alice')
+    const bob = openOutbox('bob')
+    await alice.add(item(FIRST))
+    await alice.add(item(SECOND))
+    await bob.add(item(FIRST))
+
+    await sweepOutbox(null)
+    expect(await alice.pending()).toHaveLength(2)
+    await sweepOutbox('')
+    expect(await alice.pending()).toHaveLength(2)
+    expect(await bob.pending()).toHaveLength(1)
+
+    await sweepOutbox('bob')
+    expect(await alice.pending()).toEqual([])
+    expect(await bob.pending()).toHaveLength(1)
+  })
+
+  it('sweeps nothing, and does not reject, where storage is not offered', async () => {
+    vi.stubGlobal('indexedDB', undefined)
+    await expect(sweepOutbox('bob')).resolves.toBeUndefined()
   })
 
   it('has nothing to clear where storage is not offered', async () => {

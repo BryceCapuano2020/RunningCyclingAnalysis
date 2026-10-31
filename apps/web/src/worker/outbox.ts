@@ -120,6 +120,39 @@ export async function clearOutbox(): Promise<boolean> {
   }
 }
 
+/**
+ * Removes the waiting saves of every account but the signed-in one: a session that ended by itself, or an account
+ * deleted on another device, leaves its rows (summaries and file names) behind, and the next person to sign in on a
+ * shared browser must not inherit them. Nothing is swept while nobody is signed in: the rows of a session that
+ * expired wait for that account's next sign-in, and Remove all clears them for good. Best effort: what storage refuses
+ * is tried again at the next load. Never rejects.
+ */
+export async function sweepOutbox(keepUserId: string | null): Promise<void> {
+  // An empty id names no account, so it would sweep every row: treat it as nobody signed in.
+  if (keepUserId === null || keepUserId === '') return
+  const db = await openDatabase()
+  if (db === null) return
+  try {
+    await new Promise<void>((resolve) => {
+      const transaction = db.transaction(STORE, 'readwrite')
+      const cursor = transaction.objectStore(STORE).openCursor()
+      cursor.onsuccess = () => {
+        const at = cursor.result
+        if (at === null) return
+        if ((at.value as OutboxRow).userId !== keepUserId) at.delete()
+        at.continue()
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => resolve()
+      transaction.onabort = () => resolve()
+    })
+  } catch {
+    // The rows stay until a later load tries again.
+  } finally {
+    db.close()
+  }
+}
+
 /** The outbox of one account in IndexedDB. Never rejects: storage that is missing or refuses holds nothing. */
 export function openOutbox(userId: string): Outbox {
   let opened: Promise<IDBDatabase | null> | null = null
