@@ -7,6 +7,9 @@ import { ApiRequestError, createActivity, uploadFile } from '../api/client'
 import { accountSaver } from './accountSave'
 import { SAVE_CONCURRENCY } from './saveLimits'
 import type { AccountSaveContext } from './accountSave'
+import { workoutKeyOf } from './device'
+import type { Outbox } from './outbox'
+import { SendingKeys } from './sendingKeys'
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
@@ -273,6 +276,94 @@ describe('saving several activities at once', () => {
     await save(item)
 
     expect(uploadFile).toHaveBeenCalledTimes(2)
+    expect(ctx.onSaved).toHaveBeenCalledOnce()
+  })
+})
+
+describe('saving through the outbox', () => {
+  function recordingOutbox() {
+    const calls: string[] = []
+    const outbox: Outbox = {
+      add: async (added) => void calls.push(`add:${added.fileName}`),
+      done: async (key, digestId) => void calls.push(`done:${key}:${digestId}`),
+      failed: async () => false,
+      pending: async () => [],
+      forget: async () => undefined,
+    }
+    return { outbox, calls }
+  }
+  const withOutbox = (outbox: Outbox, keepFiles = false): AccountSaveContext => ({
+    ...context(keepFiles),
+    outbox,
+  })
+
+  it('writes the row before the save begins and removes it once the server has the activity', async () => {
+    const { outbox, calls } = recordingOutbox()
+    vi.mocked(createActivity).mockImplementation(async () => {
+      calls.push('create')
+      return { record, created: true }
+    })
+
+    await accountSaver(withOutbox(outbox))(item)
+
+    expect(calls).toEqual(['add:run.fit', 'create', `done:${workoutKeyOf(digest)}:${digest.id}`])
+  })
+
+  it('removes the row when only the original file failed to upload: the digest is saved', async () => {
+    const { outbox, calls } = recordingOutbox()
+    vi.mocked(uploadFile).mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+
+    await accountSaver(withOutbox(outbox, true))(item).catch(() => undefined)
+
+    expect(calls).toContain(`done:${workoutKeyOf(digest)}:${digest.id}`)
+  })
+
+  it('keeps the row when the digest could not be saved, for a reload to finish', async () => {
+    const { outbox, calls } = recordingOutbox()
+    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+
+    await accountSaver(withOutbox(outbox))(item).catch(() => undefined)
+
+    expect(calls).toEqual(['add:run.fit'])
+  })
+
+  it('lets the row go when the server will never take the activity', async () => {
+    const { outbox, calls } = recordingOutbox()
+    vi.mocked(createActivity).mockRejectedValue(
+      new ApiRequestError(409, 'activity_conflict', 'Saved from another file'),
+    )
+
+    await accountSaver(withOutbox(outbox))(item).catch(() => undefined)
+
+    expect(calls).toEqual(['add:run.fit', `done:${workoutKeyOf(digest)}:${digest.id}`])
+  })
+
+  it('removes only the row of the digest it sent, so a file added again keeps its own', async () => {
+    const { outbox, calls } = recordingOutbox()
+    await accountSaver(withOutbox(outbox))(item)
+    expect(calls.at(-1)).toBe(`done:${workoutKeyOf(digest)}:${digest.id}`)
+  })
+
+  it('waits for a send of the same workout that is under way, such as the outbox resume’s', async () => {
+    const sending = new SendingKeys()
+    let release: () => void = () => undefined
+    const resuming = sending.run(
+      workoutKeyOf(digest),
+      () => new Promise<void>((r) => (release = r)),
+    )
+    const saved = accountSaver({ ...context(false), sending })(item)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(createActivity).not.toHaveBeenCalled()
+
+    release()
+    await resuming
+    await saved
+    expect(createActivity).toHaveBeenCalledOnce()
+  })
+
+  it('saves as before where there is no outbox', async () => {
+    const ctx = context(false)
+    await accountSaver(ctx)(item)
     expect(ctx.onSaved).toHaveBeenCalledOnce()
   })
 })

@@ -304,12 +304,12 @@ describe('status messages go into regions that are already mounted', () => {
 })
 
 describe('what the app noted about the data', () => {
-  it('is forgotten when the visitor signs out', () => {
+  it('is forgotten when the visitor signs out', async () => {
     window.localStorage.setItem('rca.aboutDataSeen', '{"walking":3}')
     render(<App />)
     fireEvent.click(document.querySelector('.account-menu__trigger')!)
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
-    expect(app.account.signOut).toHaveBeenCalledOnce()
+    await waitFor(() => expect(app.account.signOut).toHaveBeenCalledOnce())
     expect(window.localStorage.getItem('rca.aboutDataSeen')).toBeNull()
   })
 

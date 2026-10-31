@@ -1,5 +1,5 @@
 import { REPLY_TYPES } from './protocol'
-import type { WireStamp, WorkerResponse } from './protocol'
+import type { WireStamp, WorkerRequest, WorkerResponse } from './protocol'
 
 /** How often a running request tells the page it is alive. */
 export const HEARTBEAT_MS = 2_000
@@ -42,4 +42,35 @@ export function beginRequest(
     HEARTBEAT_MS,
   )
   return () => clearInterval(timer)
+}
+
+/**
+ * The requests that change the library the session holds. An update that is rebuilding stands aside for
+ * one, so the athlete's import or delete is not queued behind thousands of rebuilds.
+ */
+const CHANGES_LIBRARY: ReadonlySet<WorkerRequest['type']> = new Set<WorkerRequest['type']>([
+  'addFiles',
+  'keepProvisional',
+  'clear',
+  'deleteActivity',
+  'deleteDeviceActivity',
+  'loadServer',
+  'loadDevice',
+  'loadSample',
+])
+let waitingToChange = 0
+
+/** A request has reached the worker and waits its turn. */
+export function noteArrival(type: WorkerRequest['type']): void {
+  if (CHANGES_LIBRARY.has(type)) waitingToChange++
+}
+
+/** A request that arrived is now being handled. */
+export function noteStart(type: WorkerRequest['type']): void {
+  if (CHANGES_LIBRARY.has(type)) waitingToChange--
+}
+
+/** How many requests that change the library are waiting behind the one being handled. */
+export function waitingToChangeLibrary(): number {
+  return waitingToChange
 }
