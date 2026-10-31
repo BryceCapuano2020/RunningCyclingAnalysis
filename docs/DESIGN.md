@@ -96,7 +96,7 @@ and an Apply button on a row of its own. The fields are a control tall (`--contr
 finger) with 16 px text, side by side when two fit and stacked below that. The range applies on Apply,
 not on each change. A reversed range is swapped, and the caption then says "Swapped so From comes
 first." The control's dates sit beneath it, with the count of activities in the period when some are
-left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for
+left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. When Balance and the sport pages are on a shorter period, a line under its control says so ("Balance, Run and Ride show the last 12 weeks. This list has its own period.") and goes once the list is set to the same length. Its view is kept in the address (for
 example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A
 period only narrows what is analysed: an activity outside it still opens from the list or a link.
 The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and
@@ -1195,7 +1195,7 @@ ticks are evenly spaced (4:30, 5:00, 5:30), which an axis even in speed would no
 pace, so the fast end clears the line as the slow end does (`timeSeriesModel.ts`, `AxisScale`). A raw reading past the axis (a power spike, a standing start) clips at the row's edge. It is marked only where it is more than
 15% of the axis's span past it (measured as the axis is drawn), with one small tick, in the row's colour at reduced opacity, to each 8 px, and keyed "Reading beyond
 the chart edge" under the plot while any is drawn. The band is a spread, not the extremes: the table twin keeps
-the true lowest and highest of every reading, spikes included, while the interval summary gives each measure's average and its typical range (5th to 95th percentile), as
+the true lowest and highest of every reading, spikes included, while the interval summary gives each measure's average and its typical range (10th to 90th percentile, the same spread as the band), as
 a lowest and highest are set by one stray second. Its
 ticks fall on round paces (4:30, not 4:32). There is no histogram: the time in zones says how
 time was spread, with its own table.

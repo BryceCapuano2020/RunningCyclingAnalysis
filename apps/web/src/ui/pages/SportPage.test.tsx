@@ -1006,7 +1006,9 @@ describe('SportPage distance records', () => {
     )
     // The 1 km row has no grade of its own: the list says once that no standard covers under a mile.
     expect(recordNamed(records, '1 km').querySelector('.records__grade')).toBeNull()
-    expect(within(records).getAllByText('No age standard under 1 mile')).toHaveLength(1)
+    expect(within(records).getAllByText('No age standard under 1 mile, for the 1 km')).toHaveLength(
+      1,
+    )
   })
 
   it('says the distance records may not be the fastest when some runs predate distance bests', () => {
@@ -1227,7 +1229,9 @@ describe('SportPage depth', () => {
 
     const records = openSection('All best efforts')
     expect(recordNamed(records, '5 min').querySelector('.records__grade')).toBeNull()
-    expect(within(records).getByText('No age standard under 1 mile')).toBeInTheDocument()
+    expect(
+      within(records).getByText('No age standard under 1 mile, for the 5 min'),
+    ).toBeInTheDocument()
   })
 
   it('puts the flat pace note under the record tiles, not above them', () => {

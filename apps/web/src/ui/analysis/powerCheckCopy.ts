@@ -1,4 +1,4 @@
-import type { PowerHeartRate } from '@rca/core/digest'
+import type { EstimatedPower, PowerHeartRate } from '@rca/core/digest'
 import { isHardShare } from '@rca/core/effort'
 
 /*
@@ -35,6 +35,19 @@ export const SET_POWER_ASIDE_LABEL = 'Set this power aside'
 export function powerCheckChip(check: 'set-aside' | 'kept' | undefined): string | null {
   if (check === undefined) return null
   return check === 'kept' ? POWER_KEPT_CHIP : POWER_SET_ASIDE_CHIP
+}
+
+/** A length of effort in words: whole minutes from two minutes, seconds under. Never "0 min". */
+function lengthText(durationS: number): string {
+  return durationS < 120 ? `${Math.round(durationS)} s` : `${Math.round(durationS / 60)} min`
+}
+
+/**
+ * The line on an activity page while the power of a ride without a meter is set aside: what was seen (the estimate from
+ * speed and climbs needs more than riders hold), what else would show it, and the action. It does not say the ride was assisted.
+ */
+export function estimatedPowerNote(estimate: EstimatedPower): string {
+  return `This ride has no power meter, so its power is estimated from your speed and the climbs. Over its best ${lengthText(estimate.durationS)} the estimate needs ${estimate.wkg.toFixed(1)} W/kg, more than riders hold at your weight, so it is left out of your bests, grades and the balance. An assisted bike, a tow or a wrong weight setting would read like this. If you rode it unassisted, keep its power.`
 }
 
 /**
