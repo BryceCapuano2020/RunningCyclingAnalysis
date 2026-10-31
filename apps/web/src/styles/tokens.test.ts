@@ -5,21 +5,22 @@ import { colour, declarations, declared, resolved, type Tokens } from './tokenSh
 import { LABEL_REM } from '../ui/charts/rootFont'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
+const systemMd = await readStylesheet(import.meta.url, '../../../../docs/design/system.md')
 const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
 const privacyCss = await readStylesheet(import.meta.url, './privacy.css')
 const ladderCss = await readStylesheet(import.meta.url, '../ui/components/LevelLadder.css')
 
-/** The Colour section of docs/DESIGN.md, up to the Type section. */
+/** The Colour section of docs/design/system.md, up to its Type section. */
 function colourSection(markdown: string): string {
   const start = markdown.indexOf('## Colour')
   const end = markdown.indexOf('## Type')
-  if (start < 0 || end < start) throw new Error('no Colour section in docs/DESIGN.md')
+  if (start < 0 || end < start) throw new Error('no Colour section in docs/design/system.md')
   return markdown.slice(start, end)
 }
 
 const TABLE_ROW = '| `--'
 
-/** The colour rows of the DESIGN.md table: each token with its light and dark value. */
+/** The colour rows of the system.md table: each token with its light and dark value. */
 function colourTable(section: string): Map<string, { light: string; dark: string }> {
   const rows = new Map<string, { light: string; dark: string }>()
   const row = /^\|\s*`--([a-z0-9-]+)`\s*\|\s*`(#[0-9a-f]{6,8})`\s*\|\s*`(#[0-9a-f]{6,8})`/
@@ -42,14 +43,14 @@ const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
 const light = resolved(lightRaw)
 const dark = resolved(new Map([...lightRaw, ...darkRaw]))
 
-const section = colourSection(designMd)
+const section = colourSection(systemMd)
 const table = colourTable(section)
 const rowCount = section.split('\n').filter((line) => line.startsWith(TABLE_ROW)).length
 
 const TEXT = 4.5
 const GRAPHIC = 3
 
-/** Each pair docs/DESIGN.md promises, as foreground, background and the least ratio it reaches. */
+/** Each pair docs/design/system.md promises, as foreground, background and the least ratio it reaches. */
 const PAIRS: [string, string, number][] = [
   ['text-primary', 'surface-0', TEXT],
   ['text-primary', 'surface-1', TEXT],
@@ -91,9 +92,16 @@ const CASES = [
 ]
 
 describe('colour tokens', () => {
-  it('parses one entry for every colour row in the DESIGN.md table', () => {
+  it('parses one entry for every colour row in the system.md table', () => {
     expect(rowCount).toBeGreaterThan(0)
     expect(table.size).toBe(rowCount)
+  })
+
+  it('keeps the table in one place: DESIGN.md points to system.md and holds no colour row', () => {
+    expect(designMd).toContain('(design/system.md)')
+    // The level bands table is DESIGN.md's own (levelTokens.test.ts); every other colour row is system.md's.
+    const rows = designMd.split('\n').filter((line) => line.startsWith(TABLE_ROW))
+    expect(rows.filter((line) => !line.startsWith('| `--level-'))).toEqual([])
   })
 
   it('has a table row for every colour token in tokens.css', () => {
@@ -102,10 +110,13 @@ describe('colour tokens', () => {
     expect(missing).toEqual([])
   })
 
-  it.each([...table])('--%s has the light and dark values in docs/DESIGN.md', (name, values) => {
-    expect(light.get(name)).toBe(values.light.toLowerCase())
-    expect(dark.get(name)).toBe(values.dark.toLowerCase())
-  })
+  it.each([...table])(
+    '--%s has the light and dark values in docs/design/system.md',
+    (name, values) => {
+      expect(light.get(name)).toBe(values.light.toLowerCase())
+      expect(dark.get(name)).toBe(values.dark.toLowerCase())
+    },
+  )
 })
 
 /** The privacy page's colour properties, mapped to the tokens they copy in each theme. */
@@ -187,7 +198,7 @@ describe('contrast on the ratio chart’s tints', () => {
 })
 
 /**
- * The band's fill is deliberately faint (DESIGN.md: about 1.2:1 against the card), so the fill alone
+ * The band's fill is deliberately faint (system.md: about 1.2:1 against the card), so the fill alone
  * never carries it; the band's edge is the neutral-mark outline checked above. This pins the faint
  * fill so that it stays visible over either tint.
  */

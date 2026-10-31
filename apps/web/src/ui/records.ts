@@ -196,6 +196,11 @@ const THRESHOLD_OF: Record<Sport, Threshold> = {
   },
 }
 
+/** Whether a sport's threshold was fitted: false when its fit is missing or refused. */
+export function hasThreshold(result: AnalysisResult, sport: Sport): boolean {
+  return { run: result.runCp, ride: result.rideCp }[sport] !== null
+}
+
 /** Why a sport has no threshold, once its efforts are there to fit: null when it has one. */
 export function refusalOf(result: AnalysisResult, sport: Sport): CriticalPowerRefusal | null {
   return { run: result.runCpRefusal, ride: result.rideCpRefusal }[sport]
