@@ -769,3 +769,68 @@ describe('SetupDialog focus', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Landing' })).toHaveFocus()
   })
 })
+
+describe('SetupDialog, the weight the export’s own profile gives', () => {
+  const FROM = 68.4
+
+  it('starts an unset weight with it, and says whose it is', () => {
+    render(
+      <SetupDialog initial={UNSET} exportWeightKg={FROM} onConfirm={vi.fn()} onSkip={vi.fn()} />,
+    )
+    expect(weight()).toHaveValue('68.4')
+    expect(
+      screen.getByText('From your export’s profile. Change it if it is not right.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows it in the units chosen, and keeps it for Analyse as the weight', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+    render(
+      <SetupDialog initial={UNSET} exportWeightKg={FROM} onConfirm={onConfirm} onSkip={vi.fn()} />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: FROM } })
+  })
+
+  it('leaves the weight unanswered for Skip and Escape, since the athlete did not type it', async () => {
+    const user = userEvent.setup()
+    const { onSkip } = (() => {
+      const onSkip = vi.fn()
+      render(
+        <SetupDialog initial={UNSET} exportWeightKg={FROM} onConfirm={vi.fn()} onSkip={onSkip} />,
+      )
+      return { onSkip }
+    })()
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(onSkip).toHaveBeenCalledWith({})
+  })
+
+  it('keeps a weight the athlete typed over it, and a saved weight over both', async () => {
+    const user = userEvent.setup()
+    const onSkip = vi.fn()
+    render(
+      <SetupDialog initial={UNSET} exportWeightKg={FROM} onConfirm={vi.fn()} onSkip={onSkip} />,
+    )
+    await user.clear(weight())
+    await user.type(weight(), '72')
+    expect(screen.queryByText(/From your export’s profile/)).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(onSkip).toHaveBeenCalledWith({ settings: { massKg: 72 } })
+    cleanup()
+    render(
+      <SetupDialog initial={INITIAL} exportWeightKg={FROM} onConfirm={vi.fn()} onSkip={vi.fn()} />,
+    )
+    expect(weight()).toHaveValue('75')
+    expect(screen.queryByText(/From your export’s profile/)).toBeNull()
+  })
+
+  it('takes it when the profile is read after the dialog opens, until a weight is typed', async () => {
+    const view = render(<SetupDialog initial={UNSET} onConfirm={vi.fn()} onSkip={vi.fn()} />)
+    expect(weight()).toHaveValue('')
+    view.rerender(
+      <SetupDialog initial={UNSET} exportWeightKg={FROM} onConfirm={vi.fn()} onSkip={vi.fn()} />,
+    )
+    expect(weight()).toHaveValue('68.4')
+  })
+})
