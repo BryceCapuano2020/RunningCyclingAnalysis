@@ -1,9 +1,10 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import { ActivityDigestSchema, MAX_DIGEST_BYTES } from '@rca/contract'
+import { MAX_DIGEST_BYTES } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
 import { START, createHarness, digestFixture, testEnv, type Harness } from '../test/harness.ts'
 import { racingDb } from '../test/racingDb.ts'
 import { seedActivityRow } from '../test/seed.ts'
+import { sizedTo } from '../test/sized.ts'
 import { keepStoredLabel } from './activities/storedLabel.ts'
 
 const HASH = 'd'.repeat(64)
@@ -161,25 +162,18 @@ describe('a rebuild of a labelled activity', () => {
       fileHash: HASH,
       digest: { id: 'source-1', startMs: START, athleteType: 'other' },
     })
-    const sizeWith = (name: string) =>
-      new TextEncoder().encode(
-        JSON.stringify(
-          ActivityDigestSchema.parse(
-            JSON.parse(JSON.stringify(digestFixture({ id: 'source-1', startMs: START, name }))),
-          ),
-        ),
-      ).byteLength
-    const fits = 'n'.repeat(MAX_DIGEST_BYTES - sizeWith(''))
+    const { overrides, nameLength } = sizedTo(MAX_DIGEST_BYTES)
+    const fits = 'n'.repeat(nameLength)
     // Exactly at the limit, with no label to carry: the digest is the limit, and the label does not fit beside it.
-    const res = await rebuild(h, token, { name: fits })
+    const res = await rebuild(h, token, { ...overrides, name: fits })
     expect(res.status).toBe(413)
     expect(await res.json()).toMatchObject({ error: { code: 'digest_too_large' } })
     expect((await stored(h, id)).modelRevision).toBe(STALE)
     const sizes = await bytes(h, userId)
     expect(sizes.counter).toBe(sizes.actual)
     // A little under it, the label fits and is kept.
-    const room = 'n'.repeat(MAX_DIGEST_BYTES - sizeWith('') - 40)
-    const ok = await rebuild(h, token, { name: room })
+    const room = 'n'.repeat(Math.max(0, nameLength - 40))
+    const ok = await rebuild(h, token, { ...overrides, name: room })
     expect(ok.status).toBe(200)
     expect((await stored(h, id)).athleteType).toBe('other')
   })
