@@ -1,5 +1,6 @@
 import type { RejectCode, RejectedFile } from '@rca/core/session'
 import { plural } from '../components/plural'
+import { formatCount } from '../format/count'
 import { sizeText } from '../format/units'
 
 /** The one place a refused file's reason becomes words. The core's English reason is never shown. */
@@ -169,8 +170,19 @@ export function rejectionCopy(file: RejectedFile, carriesAdvice = true): string 
  * The line for the files in a format the app does not read, which are counted and not named. It carries
  * the advice of a file that is not an activity, unless a named one has already said it.
  */
-export function unreadFormatsCopy(count: number, carriesAdvice: boolean): string {
-  const sentence = `${plural(count, 'file')} in a format this app does not read.`
+export function unreadFormatsCopy(
+  count: number,
+  carriesAdvice: boolean,
+  types: Readonly<Record<string, number>> = {},
+): string {
+  const named = Object.entries(types)
+    .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+    .map(([extension, many]) => `${formatCount(many)} .${extension}`)
+  // The types name the files when they account for all of them; otherwise the count stands alone.
+  const accounted = named.length > 0 && Object.values(types).reduce((a, b) => a + b, 0) === count
+  const sentence = accounted
+    ? `${plural(count, 'file')} in a format this app does not read: ${named.join(', ')}.`
+    : `${plural(count, 'file')} in a format this app does not read.`
   return carriesAdvice ? `${sentence} ${ADVICE['not-activity']}` : sentence
 }
 

@@ -11,6 +11,7 @@ import { parseActivityFile } from './import'
 import { generatedName } from './import/names'
 import { windowEnding } from './period'
 import { NO_FITNESS } from './fitness/types'
+import { NO_LOOKBACK } from './lookback/compute'
 import { AnalysisSession, SyncFailure } from './session'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
@@ -428,6 +429,7 @@ describe('AnalysisSession', () => {
       lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
+      lookBack: NO_LOOKBACK,
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
@@ -527,6 +529,7 @@ describe('AnalysisSession', () => {
       lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
+      lookBack: NO_LOOKBACK,
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
@@ -1303,7 +1306,7 @@ describe('the same workout in more than one format', () => {
     expect(await addedSports([fit, gpx])).toEqual(['run'])
   })
 
-  it('skips a GPX copy that arrives after its FIT in the same zip, and does not sync it', async () => {
+  it('keeps and syncs a GPX copy that arrives after its FIT in the same zip, and hides it', async () => {
     const session = new AnalysisSession()
     const bytes = zipSync({
       'activities/1.fit.gz': gzipSync(encodeFit(run, { gps: true })),
@@ -1326,8 +1329,9 @@ describe('the same workout in more than one format', () => {
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.result?.activities[0]?.id).toContain('1.fit')
-    expect(state.hiddenDuplicates).toBe(0)
-    expect(synced).toEqual(['activities/1.fit'])
+    expect(state.hiddenDuplicates).toBe(1)
+    // Every distinct second is stored (rule R); the analysis shows the FIT and the summary names the GPX a copy.
+    expect(synced.sort()).toEqual(['activities/1.fit', 'activities/1.gpx'])
     expect(duplicates).toEqual([
       {
         fileName: 'activities/1.gpx',
@@ -1360,7 +1364,7 @@ describe('the same workout in more than one format', () => {
     expect(state.hiddenDuplicates).toBe(1)
   })
 
-  it('skips a GPX imported after a saved FIT copy of the same workout, and does not sync it', async () => {
+  it('keeps and syncs a GPX imported after a saved FIT copy of the same workout, and hides it', async () => {
     const session = new AnalysisSession()
     const fit = digestOf(new Uint8Array(encodeFit(run, { gps: true })), 'run.fit')
     session.loadDigests([fit], SETTINGS)
@@ -1376,8 +1380,8 @@ describe('the same workout in more than one format', () => {
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.result?.activities[0]?.id).toContain('run.fit')
-    expect(state.hiddenDuplicates).toBe(0)
-    expect(synced).toBe(0)
+    expect(state.hiddenDuplicates).toBe(1)
+    expect(synced).toBe(1)
   })
 
   it('saves a higher-ranked copy that arrives after a saved GPX, and hides the GPX', async () => {
@@ -1489,7 +1493,7 @@ describe('near-duplicate copies of one workout in the same format', () => {
     }
   })
 
-  it('does not save a poorer copy that arrives after a richer one', async () => {
+  it('saves a poorer copy that arrives after a richer one, and hides it', async () => {
     const session = new AnalysisSession()
     const bare = fitFile('bare.fit', shifted(withoutHeartRate(run), 2_000))
     let synced = 0
@@ -1503,7 +1507,8 @@ describe('near-duplicate copies of one workout in the same format', () => {
     )
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(synced).toBe(1)
+    expect(state.hiddenDuplicates).toBe(1)
+    expect(synced).toBe(2)
   })
 })
 

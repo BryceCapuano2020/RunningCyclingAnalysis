@@ -1,7 +1,7 @@
 import type { SameHeartRateBySport } from '../digest/sameHeartRateTypes'
 import type { DriftPoint } from '../digest/driftTrend'
 import type { PeriodDurabilityRow } from '../digest/durabilityPeriod'
-import type { ActivityDigest, Sport } from '../types'
+import type { ActivityDigest, LocalDayShift, Sport } from '../types'
 import type { UnitSystem } from '../units'
 
 /** What a finding is about, which also decides how many may share the top of a list. */
@@ -193,6 +193,8 @@ export interface ZoneActivity {
   id: string
   sport: Sport
   startMs: number
+  /** The local day shift the activity's file recorded, where it recorded one. */
+  localDayShift?: LocalDayShift
   movingS: number
   easyS: number
   middleS: number
