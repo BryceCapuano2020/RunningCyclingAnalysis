@@ -64,6 +64,15 @@ function noneOnScreen(
   }
 }
 
+/**
+ * What a one-sport library is told to do. While the library is only part of what was added, the other sport may be in
+ * the files that were not read, so "Add a ride" would send the athlete the wrong way: the hold's own words say to finish.
+ */
+function oneSportDetail(add: string, holdInputs: HoldInputs): string {
+  const partial = holdInputs.partialImport
+  return partial === undefined || partial === null ? add : `${partial.text} ${partial.action}`
+}
+
 /** What a ride left out of the comparison says, and the title it takes when there is no run level to lead with. */
 const LEFT_OUT: Record<RideLeftOut, { title: string; detail: string }> = {
   'top-of-scale': {
@@ -104,7 +113,9 @@ export function missingText(
     const title = levelsTitle({ run: levels.run }, unconfirmedSports(result))
     return {
       title: title ?? 'Add a ride to see your balance',
-      detail: title ? 'Add a ride to compare it with your running.' : 'Your run results are below.',
+      detail: title
+        ? oneSportDetail('Add a ride to compare it with your running.', holdInputs)
+        : 'Your run results are below.',
       canShowAll: false,
     }
   }
@@ -126,7 +137,9 @@ export function missingText(
     }
     return {
       title: title ?? 'Add a run to see your balance',
-      detail: title ? 'Add a run to compare it with your cycling.' : 'Your ride results are below.',
+      detail: title
+        ? oneSportDetail('Add a run to compare it with your cycling.', holdInputs)
+        : 'Your ride results are below.',
       canShowAll: false,
     }
   }

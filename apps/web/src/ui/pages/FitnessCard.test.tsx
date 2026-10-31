@@ -13,7 +13,11 @@ import {
   SLIPPING,
   waitingStatus,
 } from '../fitnessFixtures'
+import { fitnessViews } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
+import { HoldInputsContext } from '../holdContext'
+import type { HoldInputs } from '../resultHold'
+import { FitnessCard } from './FitnessCard'
 import { FitnessSection } from './FitnessSection'
 import type { FitnessSectionProps } from './FitnessSection'
 
@@ -356,5 +360,74 @@ describe('the false-alarm rate in the first two years', () => {
     ).toHaveLength(1)
     expect(promise).not.toMatch(BANNED)
     expect(promise).not.toContain('\u2014')
+  })
+})
+
+describe('fitness while the library is only part of what was added', () => {
+  const PARTIAL: HoldInputs = {
+    partialImport: {
+      text: 'The last import stopped before it finished, so your balance and your fitness wait.',
+      action: 'Add the same files again to finish, or choose Use what I have.',
+    },
+  }
+  const HELD_LINE =
+    'The last import stopped before it finished, so your balance and your fitness wait. Add the same files again to finish, or choose Use what I have.'
+
+  it('holds the section: it says why and what lifts it, and shows no card', () => {
+    render(
+      <HoldInputsContext.Provider value={PARTIAL}>
+        <FitnessSection
+          fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
+          units="metric"
+          library={FITNESS_LIBRARY}
+        />
+      </HoldInputsContext.Provider>,
+    )
+
+    const region = screen.getByRole('region', { name: 'Your fitness' })
+    expect(within(region).getByTestId('fitness-held')).toHaveTextContent(HELD_LINE)
+    expect(within(region).queryByRole('article')).toBeNull()
+    expect(screen.queryByText('Slipping')).toBeNull()
+  })
+
+  it('holds a card shown on its own, and a sport’s page, the same way', () => {
+    const [view] = fitnessViews({ run: SLIPPING, ride: NO_FITNESS.ride }, 'metric')
+    render(
+      <HoldInputsContext.Provider value={PARTIAL}>
+        <FitnessCard view={view!} units="metric" library={FITNESS_LIBRARY} />
+        <FitnessSection
+          fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
+          units="metric"
+          library={FITNESS_LIBRARY}
+          sport="run"
+        />
+      </HoldInputsContext.Provider>,
+    )
+
+    expect(screen.getAllByTestId('fitness-held')).toHaveLength(2)
+    expect(screen.getByRole('article', { name: 'Held' })).toHaveAttribute('data-state', 'held')
+    expect(screen.queryByText('Slipping')).toBeNull()
+  })
+
+  it('draws nothing for a library with no status, held or not', () => {
+    const { container } = render(
+      <HoldInputsContext.Provider value={PARTIAL}>
+        <FitnessSection fitness={NO_FITNESS} units="metric" library={[]} />
+      </HoldInputsContext.Provider>,
+    )
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('shows the cards again once the hold is lifted', () => {
+    render(
+      <HoldInputsContext.Provider value={{}}>
+        <FitnessSection
+          fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
+          units="metric"
+          library={FITNESS_LIBRARY}
+        />
+      </HoldInputsContext.Provider>,
+    )
+    expect(screen.getByRole('article', { name: 'Slipping' })).toBeInTheDocument()
   })
 })

@@ -32,7 +32,7 @@ describe('the hold while the library is only part of what was added', () => {
   it('feeds the one hold mechanism for an import that stopped, with what lifts it', () => {
     const { holdInputs } = page(manifest())
     expect(holdInputs.partialImport).toEqual({
-      text: 'The last import stopped before it finished, so the comparison of your running and cycling waits.',
+      text: 'The last import stopped before it finished, so your balance and your fitness wait.',
       action: 'Add the same files again to finish, or choose Use what I have.',
     })
   })

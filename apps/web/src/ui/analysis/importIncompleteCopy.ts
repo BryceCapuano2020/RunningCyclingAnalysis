@@ -48,12 +48,12 @@ export function incompleteText(manifest: ImportManifest): string {
 export function partialHold(manifest: ImportManifest): { text: string; action: string } {
   if (manifest.state === 'partial-source') {
     return {
-      text: 'A zip you added is damaged, so the comparison of your running and cycling waits.',
+      text: 'A zip you added is damaged, so your balance and your fitness wait.',
       action: 'Download the export again and add it, or choose Use what I have.',
     }
   }
   return {
-    text: 'The last import stopped before it finished, so the comparison of your running and cycling waits.',
+    text: 'The last import stopped before it finished, so your balance and your fitness wait.',
     action: 'Add the same files again to finish, or choose Use what I have.',
   }
 }
