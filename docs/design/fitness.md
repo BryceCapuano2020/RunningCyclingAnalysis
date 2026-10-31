@@ -325,7 +325,9 @@ wander, three rides a week; `rideSeason.sim.test.ts`), and on the run-level gene
   so it is not made here. No ride-specific floor is justified: the sims show rides and runs behaving the same, and there is
   no power-meter library to say rides wander more.
 
-Options, for the owner: (1) keep ride fitness on and state the rate (about half an alarm an athlete-year for a rider with a
+Decision (owner, 30 Oct): option 1. No behaviour change; ride fitness stays on and the rate is stated on the evidence panel ("In your first two years, an athlete with a strong season can see about one false Slipping every two years, then about one every four").
+
+Options, as put to the owner: (1) keep ride fitness on and state the rate (about half an alarm an athlete-year for a rider with a
 marked season in their first two years, about a quarter after); (2) a warm-up floor of 1.5%, which halves it and costs a 5% loss
 about 20 points of early detection in those years, in runs too; (3) turn rides off until a ride library can say what the
 wander is. The sims call for (1) or (2); nothing here argues for (3).
