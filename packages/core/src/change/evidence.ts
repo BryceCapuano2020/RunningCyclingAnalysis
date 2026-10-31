@@ -93,8 +93,9 @@ function callFor(
  * are few or scattered. Calibrated on the athlete's own efforts: nothing in it is a fixed percentage. See
  * docs/design/change-test.md.
  *
- * The periods are priced alike (the selected period's bike model, the library's ride gate) and read through the one
- * rule the curves' bests are made through, so an effort the curves leave out is not a reading here.
+ * The periods are priced alike (the selected period's bike model, the library's ride gate) and read through one rule:
+ * the session builds it from the effort gate (`hardEffortRule`), so an effort that heart rate shows was not hard, or a
+ * treadmill run, is not a reading, and the sizes the test asks for count the readings that are.
  */
 export function changeEvidence(
   selected: ActivityDigest[],

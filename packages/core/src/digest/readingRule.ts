@@ -5,8 +5,9 @@ import { effortsCount } from './effortTrust'
  * What counts as a reading, in one place: the curves' bests (`bestCurves`) and the change test's readings
  * (`readingsOf`) both take their efforts through it, so the test is calibrated on the very efforts the numbers it
  * judges are made of. Two levels: whether an activity's efforts can hold a best at all, and whether one of its curve
- * points counts. A rule that needs the athlete's reference heart rate (a hard-effort gate) is made from it and passed
- * to both, with a key that says what it was made from.
+ * points counts. A rule that needs the athlete's reference heart rate is made from it with a key that says what it
+ * was made from. The hard-effort rule (`hardEffortRule`) is the change test's only: the curves' bests keep every
+ * effort, so a demonstrated best that was not hard still shows as one.
  */
 export interface ReadingRule {
   /** Whether an activity's efforts can hold a reading at all. */

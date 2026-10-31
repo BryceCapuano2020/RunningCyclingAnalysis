@@ -117,7 +117,9 @@ function setOn(words: string, source: ActivitySummary | null): string {
 
 /**
  * The line that says a best was not compared, or null when it can be: neither period's best 20 minutes is known to
- * have been easy. The 90% heart-rate line is the effort check's own; where heart rate does not say, the best stands.
+ * have been easy. The 90% heart-rate line is the effort gate's own; a best the gate could not judge (no heart rate on it,
+ * too few days with one to set a reference) is not held, as the headline is not: nothing shows it was easy, and the
+ * headline's note says the effort was not checked.
  */
 function notHardNote(
   sport: Sport,
@@ -132,18 +134,12 @@ function notHardNote(
   const before = effortShare(sport, previous.headlineEffort)
   const noun = SPORT_NOUN[sport]
   // Where the reference cannot show an effort hard, a harder effort is not what is missing: say it cannot be called hard.
-  if (before !== null && !before.hard) {
-    if (!before.checked) {
-      return `The best ${HEADLINE_LABEL} of ${noun} in the ${label.toLowerCase()} was not checked for effort, so it is not compared.`
-    }
+  if (before !== null && before.checked && !before.hard) {
     return before.confirmed
       ? `No comparable hard ${HEADLINE_LABEL} of ${noun} in the ${label.toLowerCase()}.`
       : `No best ${HEADLINE_LABEL} of ${noun} in the ${label.toLowerCase()} can be called hard, so it is not compared.`
   }
-  if (now !== null && !now.hard) {
-    if (!now.checked) {
-      return `Your best ${HEADLINE_LABEL} of ${noun} in this period was not checked for effort, so it is not compared.`
-    }
+  if (now !== null && now.checked && !now.hard) {
     return now.confirmed
       ? `Your best ${HEADLINE_LABEL} of ${noun} in this period was not a hard effort, so it is not compared.`
       : `Your best ${HEADLINE_LABEL} of ${noun} in this period cannot be called a hard effort, so it is not compared.`

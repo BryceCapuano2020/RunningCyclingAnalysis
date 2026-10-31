@@ -43,7 +43,15 @@ needs no table of cases. The band is not symmetric when the periods hold differe
 bests. The pooled null assumes the efforts of the two periods are exchangeable, which a swing in how many hard efforts a
 period holds breaks: a period of mostly easy efforts against one of mostly hard ones is called `higher` in about a quarter of
 equal-capability pairs (efforts clipped at the capability, hard share 0.2 against 0.8). That is the gap the reading rule is
-for; it closes when the hard-effort gate (D1) is plugged into it. The strip keeps its own `notHardNote` until then.
+for, and the effort gate (D1) is plugged into it (`digest/hardEffortRule.ts`, built by the session from the library's
+references and its set-aside list). An activity is a reading unless its own heart rate shows it was not a hard effort: its
+peak is under the hard line of a trusted reference, or it has a heart rate against a reference that cannot certify a maximum
+(the late-best session test). An activity that cannot be judged (no heart rate, a heart rate set aside, too few days with
+one to set a reference) is a reading, as the Balance headline is not held for it. The minimum sizes count the readings that
+are. At 4 efforts a week, equal capability, 30% hard against 90%: 19 and 20 of 60 seeds were called `higher` (run, ride)
+through every effort and 2 and 1 through the rule, with 5 untested. The curves' bests keep every effort, so a demonstrated
+best that was not hard still shows; the strip withholds a comparison whose shown best was not hard (`notHardNote`) and does
+not withhold one the gate could not judge.
 
 ## Calibration (`change/change.sim.test.ts`)
 

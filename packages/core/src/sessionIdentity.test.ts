@@ -119,6 +119,15 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * hard library does not. `change` is therefore hashed at 10 significant digits (`PLATFORM_DIGITS` in test/stateHashes.ts), and
  * only `change` moved: under the default, 42 day and custom periods, in both libraries. Nothing else is rounded.
  *
+ * Re-pinned for the effort gate in the change test (D1 into D5). The change test now reads efforts through `hardEffortRule`: an
+ * activity whose peak heart rate was under the hard line of a trusted reference, or any activity with a heart rate against a
+ * reference that cannot certify a maximum, is not a reading; activities without a heart rate, or with it set aside, still are.
+ * Only `change` moved, under the default, 42 day and custom periods of the 400-activity library, in all four settings (twelve
+ * hashes): its easy runs and rides no longer count (68 of its 400 activities are readings, its references are trusted), so each
+ * call's counts, band and verdict are those of the hard efforts. Nothing else read the rule: the curves, the analysis, `previous`, `trend`,
+ * `effortTrends`, the judgement and every other field are as they were. The set-aside library's `change` is as it was: its references are
+ * thin (too few days with a heart rate), so every one of its activities is a reading.
+ *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one
  * body mass in UTC, then three dated masses (each ride priced at its own weight) in UTC, in Los Angeles
  * and in Auckland. The masses change inside the library's span, and both zones change clocks inside it,
@@ -167,7 +176,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/zoneEstimates': 'de94f0e550ef0830',
     '"default"/timeInZones': 'bc835390d8785729',
     '"default"/previous': '239b29825765230b',
-    '"default"/change': '5a2a6b647de4d276',
+    '"default"/change': '3109f0a14ee14c35',
     '"default"/records': 'e230de84b581960a',
     '"default"/library': '574d46370edbd9ae',
     '"default"/period': '6f360d1647ca0139',
@@ -195,7 +204,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/zoneEstimates': 'de94f0e550ef0830',
     '42/timeInZones': '684dbf01344ec1d1',
     '42/previous': 'e4e86c2b7cc671e4',
-    '42/change': 'd8200e8d1b545d4f',
+    '42/change': '9ee156210ed4c318',
     '42/records': 'e230de84b581960a',
     '42/library': '574d46370edbd9ae',
     '42/period': 'f52586cd25d95522',
@@ -209,7 +218,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': 'de94f0e550ef0830',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '9cc0c656681e65d9',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': 'cb6f59923f461647',
-    '{"from":"2021-03-10","to":"2021-03-20"}/change': '0b0c7e8a9d852c9e',
+    '{"from":"2021-03-10","to":"2021-03-20"}/change': 'ce161cffa8edd4ea',
     '{"from":"2021-03-10","to":"2021-03-20"}/records': 'e230de84b581960a',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '574d46370edbd9ae',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
@@ -225,7 +234,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/zoneEstimates': '0a3ad93d0a53eb5d',
     '"default"/timeInZones': '54c30cf4c9ba2cd0',
     '"default"/previous': '08f65c180a0c3b6c',
-    '"default"/change': 'b7b81bbe0a604c83',
+    '"default"/change': 'e8d183132336c570',
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '4915398ed45b1efd',
     '"default"/period': '6f360d1647ca0139',
@@ -253,7 +262,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/zoneEstimates': '0a3ad93d0a53eb5d',
     '42/timeInZones': '2df256f9939609a7',
     '42/previous': 'ae116e6f0a9ac5b1',
-    '42/change': 'd8200e8d1b545d4f',
+    '42/change': '9ee156210ed4c318',
     '42/records': '45d6f3b6516eb072',
     '42/library': '4915398ed45b1efd',
     '42/period': 'f52586cd25d95522',
@@ -267,7 +276,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '0a3ad93d0a53eb5d',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': 'ec5fef81637b4f3f',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '3c34eaf0926b3798',
-    '{"from":"2021-03-10","to":"2021-03-20"}/change': '0b0c7e8a9d852c9e',
+    '{"from":"2021-03-10","to":"2021-03-20"}/change': 'ce161cffa8edd4ea',
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '45d6f3b6516eb072',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '4915398ed45b1efd',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
@@ -283,7 +292,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/zoneEstimates': '5b5be0cc1f06bcbe',
     '"default"/timeInZones': '54c30cf4c9ba2cd0',
     '"default"/previous': '08f65c180a0c3b6c',
-    '"default"/change': 'b7b81bbe0a604c83',
+    '"default"/change': 'e8d183132336c570',
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '4915398ed45b1efd',
     '"default"/period': '7cbdf77a690f6297',
@@ -311,7 +320,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/zoneEstimates': '5b5be0cc1f06bcbe',
     '42/timeInZones': '2df256f9939609a7',
     '42/previous': 'ae116e6f0a9ac5b1',
-    '42/change': 'd8200e8d1b545d4f',
+    '42/change': '9ee156210ed4c318',
     '42/records': '45d6f3b6516eb072',
     '42/library': '4915398ed45b1efd',
     '42/period': 'ee8d1f6b756898a2',
@@ -325,7 +334,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '5b5be0cc1f06bcbe',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': 'd31af9c49d1601f0',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '3c34eaf0926b3798',
-    '{"from":"2021-03-10","to":"2021-03-20"}/change': 'c1d89854365333c8',
+    '{"from":"2021-03-10","to":"2021-03-20"}/change': 'ce161cffa8edd4ea',
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '45d6f3b6516eb072',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '4915398ed45b1efd',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '7de40011ebc2b6a9',
@@ -341,7 +350,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/zoneEstimates': '5b5be0cc1f06bcbe',
     '"default"/timeInZones': '54c30cf4c9ba2cd0',
     '"default"/previous': '08f65c180a0c3b6c',
-    '"default"/change': 'b7b81bbe0a604c83',
+    '"default"/change': 'e8d183132336c570',
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '1038bb267703371b',
     '"default"/period': 'c102373861471840',
@@ -369,7 +378,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/zoneEstimates': '5b5be0cc1f06bcbe',
     '42/timeInZones': '2df256f9939609a7',
     '42/previous': 'ae116e6f0a9ac5b1',
-    '42/change': 'd8200e8d1b545d4f',
+    '42/change': '9ee156210ed4c318',
     '42/records': '45d6f3b6516eb072',
     '42/library': '1038bb267703371b',
     '42/period': '8f564f063b3bbb04',
@@ -383,7 +392,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/zoneEstimates': '5b5be0cc1f06bcbe',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '9ca2885d5b8c4d13',
     '{"from":"2021-03-10","to":"2021-03-20"}/previous': '3c34eaf0926b3798',
-    '{"from":"2021-03-10","to":"2021-03-20"}/change': '091b6e8a35b8a709',
+    '{"from":"2021-03-10","to":"2021-03-20"}/change': 'ce161cffa8edd4ea',
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '45d6f3b6516eb072',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '1038bb267703371b',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': 'aa4c803ea5ad72ed',

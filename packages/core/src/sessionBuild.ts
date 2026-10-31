@@ -1,5 +1,6 @@
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { activitySummaries } from './digest'
+import { hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
@@ -123,7 +124,15 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         : null,
     change:
       athlete !== null && bikeModel !== undefined && previous.length > 0
-        ? periods.change(selected, previous, athlete, bikeModel, judgement.rideGate)
+        ? // The test reads the efforts the effort gate does not show easy, so a swing in how many hard efforts a period holds is no change.
+          periods.change(
+            selected,
+            previous,
+            athlete,
+            bikeModel,
+            judgement.rideGate,
+            hardEffortRule(judgement.effortReference, setAside),
+          )
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,

@@ -394,6 +394,41 @@ describe('balanceChanges and how hard the bests were', () => {
   })
 })
 
+describe('balanceChanges and an effort the gate could not judge', () => {
+  const thin = {
+    durationS: 1200,
+    runHrFraction: 0.5,
+    rideHrFraction: 0.5,
+    runReference: 'thin' as const,
+    rideReference: 'thin' as const,
+  }
+
+  it('compares a best whose reference is too thin to judge, as the headline is not held for it', () => {
+    const { input, scaled, result } = measured()
+    const out = balanceChanges(
+      input(
+        { ...scaled(0.95, 1), headlineEffort: thin },
+        { result: { ...result, effort: [thin] } },
+      ),
+    )
+    expect(out?.items.some((item) => item.key === 'run-best')).toBe(true)
+    expect(out?.notes).toEqual([])
+  })
+
+  it('still withholds a best that a trusted reference shows was not hard', () => {
+    const { input, scaled, result } = measured()
+    const easy = { ...thin, runReference: 'trusted' as const, rideReference: 'trusted' as const }
+    const out = balanceChanges(
+      input(
+        { ...scaled(0.95, 1), headlineEffort: thin },
+        { result: { ...result, effort: [easy] } },
+      ),
+    )
+    expect(out?.items.some((item) => item.key === 'run-best')).toBe(false)
+    expect(out?.notes[0]).toContain('was not a hard effort')
+  })
+})
+
 describe('previousGap', () => {
   it('is the page’s own gap when the previous curves are this period’s: centre, low and high', () => {
     const { result, scaled, grading } = sample()

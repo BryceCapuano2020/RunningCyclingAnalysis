@@ -43,11 +43,12 @@ describe('the sample athlete’s run page', () => {
     }
   })
 
-  it('has efforts at 20 minutes that vary so much (easy runs among hard) that its headline band is not stated', () => {
+  it('has too few hard runs in the earlier period to test at 20 minutes, since easy runs are not readings', () => {
     const twenty = calls.find((one) => one.durationS === 1200)!
-    expect(twenty.verdict).toBe('none')
-    // The band is real: the sample's 20 minute readings run from half the best to the best.
-    expect(detectableAt(twenty, 'headline')!).toBeGreaterThan(MAX_STATED_RESOLUTION)
+    // Most of the sample's runs peak under the hard line: of its 28 and 12 runs in the two periods, 6 and 3 are readings.
+    expect(twenty.now).toBeLessThan(10)
+    expect(twenty.before).toBeLessThan(5)
+    expect(twenty.verdict).toBe('untested')
     expect(statedResolutionAt(twenty, 'headline')).toBeNull()
   })
 })
