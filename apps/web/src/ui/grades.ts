@@ -346,10 +346,26 @@ export function distanceGrade(
   return { kind: 'graded', age: ageAndSex.age, grade: { centre, range: null } }
 }
 
-/** A run under a mile has no standard, so a record row names that rather than the full reason. */
-export const NO_STANDARD_RECORD_TEXT: Record<Sport, string> = {
-  run: 'No age standard under 1 mile',
-  ride: 'No age standard for this duration',
+/** The labels of the records that have no standard, as a phrase: "5 min", "3 min and 5 min". */
+function labelList(labels: readonly string[]): string {
+  return labels.length < 2
+    ? (labels[0] ?? '')
+    : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+}
+
+/**
+ * A record's missing standard in a few words, naming the records it is for so it can sit apart from their rows:
+ * a run has none under a mile, a ride none at some durations. Without a label it speaks of the one it is under.
+ */
+export const NO_STANDARD_RECORD_TEXT: Record<Sport, (labels: readonly string[]) => string> = {
+  run: (labels) =>
+    labels.length === 0
+      ? 'No age standard under 1 mile'
+      : `No age standard under 1 mile, for the ${labelList(labels)}`,
+  ride: (labels) =>
+    labels.length === 0
+      ? 'No age standard for this duration'
+      : `No age standard for the ${labelList(labels)}`,
 }
 
 /** Whether a record's gap is the one a run under a mile, or a ride with no standard, has. */
@@ -364,21 +380,24 @@ export function isNoStandardGap(outcome: GradeOutcome | null): boolean {
 export function gapRecordText(sport: Sport, outcome: GradeOutcome): string | null {
   if (outcome.kind === 'graded') return null
   if (outcome.kind === 'top-of-scale') return TOP_OF_SCALE_SHORT
-  return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport] : notGradedText(outcome)
+  return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport]([]) : notGradedText(outcome)
 }
 
 /**
  * The notes a list of records says once under it, rather than on each row: a ride's lead when a record
- * is graded through its running equivalent, and the no-standard gap when a record has none. Each is
- * named once, whatever the number of rows it would have repeated on.
+ * is graded through its running equivalent, and the no-standard gap when a record has none, which names the
+ * records it is for (`labels`, one for each outcome) since it sits apart from their rows. Each is named once,
+ * whatever the number of rows it would have repeated on.
  */
 export function listedGradeNotes(
   sport: Sport,
   outcomes: readonly (GradeOutcome | null)[],
+  labels: readonly string[],
 ): string[] {
   const notes: string[] = []
   const lead = leadOf(sport, 'record')
   if (lead !== null && outcomes.some((outcome) => outcome?.kind === 'graded')) notes.push(lead)
-  if (outcomes.some(isNoStandardGap)) notes.push(NO_STANDARD_RECORD_TEXT[sport])
+  const ungraded = labels.filter((_, i) => isNoStandardGap(outcomes[i] ?? null))
+  if (ungraded.length > 0) notes.push(NO_STANDARD_RECORD_TEXT[sport](ungraded))
   return notes
 }

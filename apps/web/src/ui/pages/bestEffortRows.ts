@@ -111,6 +111,7 @@ function distanceRowsOf(input: BestEffortInput): {
   rows: RecordRow[]
   partial: boolean
   outcomes: (GradeOutcome | null)[]
+  labels: string[]
 } {
   const { sport, result, units, profile, openedAt } = input
   const distance = sport === 'run' ? distanceRecords(result.activities, units) : null
@@ -132,7 +133,12 @@ function distanceRowsOf(input: BestEffortInput): {
     setDays: setDaysOf(record.activity, openedAt),
     activity: record.activity,
   }))
-  return { rows, partial: distance?.partial ?? false, outcomes }
+  return {
+    rows,
+    partial: distance?.partial ?? false,
+    outcomes,
+    labels: records.map((record) => record.label),
+  }
 }
 
 /** The best-effort list's rows and the notes under it. */
@@ -171,10 +177,11 @@ export function bestEffortRows(input: BestEffortInput): BestEffortRows {
   return {
     rows: [...durationRows, ...distance.rows],
     distanceCount: distance.rows.length,
-    listNotes: listedGradeNotes(sport, [
-      ...graded.map(({ outcome }) => outcome),
-      ...distance.outcomes,
-    ]),
+    listNotes: listedGradeNotes(
+      sport,
+      [...graded.map(({ outcome }) => outcome), ...distance.outcomes],
+      [...graded.map(({ record }) => effortLabel(record.durationS)), ...distance.labels],
+    ),
     someEstimated: records.some((record) => isEstimatedRecord(sport, record.activity)),
     partial: distance.partial,
   }
