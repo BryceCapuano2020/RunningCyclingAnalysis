@@ -17,14 +17,22 @@ const TAGGED = [
 const FACE = /(font-family|font-size|font-weight|letter-spacing|text-transform)\s*:/
 
 describe('the tag', () => {
-  it('sets the face, size, weight, tracking and capitals once, as the eyebrow has them', () => {
+  it('sets the size, weight, tracking and capitals once, for the tag and the eyebrow alike', () => {
     const body = ruleBody(components, '.eyebrow,\n.tag')
-    expect(body).toMatch(/font-family:\s*var\(--font-display\)/)
     expect(body).toMatch(/font-size:\s*var\(--text-sm\)/)
     expect(body).toMatch(/font-weight:\s*700/)
     expect(body).toMatch(/letter-spacing:\s*var\(--tracking-caps\)/)
     expect(body).toMatch(/text-transform:\s*uppercase/)
     expect(ruleBody(components, '.tag--small')).toMatch(/font-size:\s*var\(--text-xs\)/)
+  })
+
+  it('sets the display face on the tag only, and leaves the eyebrow the face it already had', () => {
+    expect(ruleBody(components, '.eyebrow,\n.tag')).not.toMatch(/font-family/)
+    expect(ruleBody(components, '.tag')).toMatch(/font-family:\s*var\(--font-display\)/)
+    // The eyebrow's face is the group at the head of the sheet, which this change does not touch.
+    expect(
+      ruleBody(components, '.eyebrow,\n.hero-number,\n.stat-number,\n.chip,\n.btn-primary'),
+    ).toMatch(/font-family:\s*var\(--font-display\)/)
   })
 
   it.each(TAGGED)('leaves %s only its layout, shape and state', (selector) => {

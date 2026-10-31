@@ -25,9 +25,6 @@
   background: var(--sport-colour, var(--text-primary));
 }
 
-.stat-tile__name {
-}
-
 /* The chip is a shape as well as a word: a ring for an estimate, a solid dot for what was recorded. */
 .stat-tile__basis {
   display: inline-flex;

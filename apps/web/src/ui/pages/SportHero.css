@@ -92,10 +92,6 @@
   white-space: normal;
 }
 
-/* The period the figure is for, set in the eyebrow's own small capitals, beside the name. */
-.sport-hero__period {
-}
-
 .sport-hero__level {
   display: flex;
   flex-wrap: wrap;
