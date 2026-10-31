@@ -19,6 +19,7 @@ import type { BalanceGap } from '../balanceGap'
 import type { GradeOutcome } from '../grades'
 import { useHoldInputs } from '../holdContext'
 import type { HoldInputs } from '../resultHold'
+import { rideHoldInputs } from '../rideLeftOut'
 import { CardNameField } from './CardNameField'
 import { SegmentedControl, type SegmentedControlOption } from './SegmentedControl'
 import { useModalDialog } from './useModalDialog'
@@ -275,7 +276,8 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     loadCard,
   ])
 
-  if (!hasShareableContent(result, gap, weightKnown, hold)) return null
+  if (!hasShareableContent(result, gap, weightKnown, rideHoldInputs(grades.ride, result, hold)))
+    return null
 
   const shown = preview?.format === format ? preview : null
   // The action has a file to share or save only once this shape is drawn; until then it is held.

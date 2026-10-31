@@ -385,6 +385,31 @@ describe('deleting the account', () => {
     expect(await screen.findByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
   })
 
+  it('forgets the rides whose power was kept, once the account is gone', async () => {
+    window.location.hash = '#/profile'
+    window.localStorage.setItem('rca.keepPower.v1', '["ride-1"]')
+    app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))
+    render(<App />)
+
+    await confirmDeletion()
+
+    await waitFor(() => expect(window.localStorage.getItem('rca.keepPower.v1')).toBeNull())
+  })
+
+  it('keeps them when the account could not be deleted', async () => {
+    window.location.hash = '#/profile'
+    window.localStorage.setItem('rca.keepPower.v1', '["ride-1"]')
+    app.account.deleteAccount = vi.fn(async () => {
+      throw new Error('Busy')
+    })
+    render(<App />)
+
+    await confirmDeletion()
+
+    await screen.findByText('Your account could not be deleted. Try again.')
+    expect(window.localStorage.getItem('rca.keepPower.v1')).toBe('["ride-1"]')
+  })
+
   it('forgets the runs counted at walking pace with the account, and not when the deletion fails', async () => {
     window.localStorage.setItem('rca.countedRuns.v1', '["run-5"]')
     window.location.hash = '#/profile'

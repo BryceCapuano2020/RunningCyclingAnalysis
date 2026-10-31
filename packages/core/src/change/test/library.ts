@@ -8,7 +8,14 @@ import type { ActivityDigest, AthleteSettings, Sport } from '../../types'
 /** The wander's weekly correlation, the synthetic tier's measured one. */
 const WANDER_RHO = NOISE_PRESETS.measured.level.wanderRho
 
-export const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
+/**
+ * The athlete of the harness: 100 kg, so its 330 W at 5 minutes is 3.3 W/kg, a recreational rider. The implausible-power
+ * screen stays on here. The harness draws unbounded log-normal noise (`effortSd`), and at 70 kg a 5 minute draw at 2.4 sd
+ * (1.8 times the rider's own capability, 8.5 W/kg) is above what any rider holds and is set aside, thinning the noise
+ * the calibration says. At 100 kg that draw is 3.7 sd, so the screen leaves the harness alone, as it leaves an honest
+ * library alone.
+ */
+export const SETTINGS: AthleteSettings = { massKg: 100, bikeMassKg: 9 }
 
 const TEMPLATES = sampleDataset().activities.map((activity) => digestActivity(activity))
 const TEMPLATE: Record<Sport, ActivityDigest> = {
