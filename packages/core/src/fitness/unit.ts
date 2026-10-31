@@ -17,17 +17,21 @@ export interface UnitPoint {
   x: number
   /** The local day shift the activity's file recorded (revision 7), when it has one. */
   localDayShift?: LocalDayShift
+  /** The day's warmth as the file's sensor read it, when the digest carries one. */
+  c?: number
 }
 
-/** A point, with the day shift of its digest only when it has one. */
+/** A point, with the day shift and the warmth of its digest only when it has them. */
 export function unitPoint(
   id: string,
   startMs: number,
   x: number,
   localDayShift: LocalDayShift | undefined,
+  c?: number,
 ): UnitPoint {
   const point: UnitPoint = { id, startMs, x }
   if (localDayShift !== undefined) point.localDayShift = localDayShift
+  if (c !== undefined) point.c = c
   return point
 }
 
@@ -56,6 +60,15 @@ export function referenceOf(heartRates: readonly number[]): number | null {
   if (heartRates.length === 0) return null
   return Math.round(median(heartRates) / U.referenceStepBpm) * U.referenceStepBpm
 }
+
+/** A run's point: its value, and the day's temperature index when its digest carried one (absent otherwise, so the point is as it was). */
+export const pointOf = (
+  r: { id: string; startMs: number; c?: number | undefined },
+  x: number,
+): UnitPoint =>
+  r.c === undefined
+    ? { id: r.id, startMs: r.startMs, x }
+    : { id: r.id, startMs: r.startMs, x, c: r.c }
 
 const valueOf = (kms: readonly KmReading[], ref: number, kappa: number, beta: number) =>
   median(kms.map((k) => k.lnClock - kappa * k.credit - beta * (k.hr - ref)))
@@ -100,7 +113,13 @@ export function runSeries(
   const fit = fitGrade(dated)
   if (fit.stable) {
     const points = steady.map((z) =>
-      unitPoint(z.r.id, z.r.startMs, valueOf(z.kms, ref, fit.kappa, fit.beta), z.r.localDayShift),
+      unitPoint(
+        z.r.id,
+        z.r.startMs,
+        valueOf(z.kms, ref, fit.kappa, fit.beta),
+        z.r.localDayShift,
+        z.r.c,
+      ),
     )
     return {
       points: points.sort(byTime),
@@ -122,7 +141,7 @@ export function runSeries(
   )
   const beta = fitHeartRateSlope(rows, RUN_SLOPE)
   const points = strict.map((z) =>
-    unitPoint(z.r.id, z.r.startMs, valueOf(z.kms, ref, -1, beta), z.r.localDayShift),
+    unitPoint(z.r.id, z.r.startMs, valueOf(z.kms, ref, -1, beta), z.r.localDayShift, z.r.c),
   )
   return {
     points: points.sort(byTime),

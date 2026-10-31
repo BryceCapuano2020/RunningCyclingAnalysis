@@ -1,7 +1,4 @@
-import { DAY_MS } from '@rca/core/constants'
-import { weekEndMs } from '@rca/core/digest/trendPoints'
-
-const WEEK_MS = 7 * DAY_MS
+import { WEEK_MS, weekEndFor } from '@rca/core/calendar'
 
 /**
  * The weeks the hours trained are drawn on: from the week the period starts in through the weekly trend's last. A
@@ -16,7 +13,8 @@ export function periodWeekEnds(
   const first = trendEndsMs[0]
   const last = trendEndsMs.at(-1)
   if (first === undefined || last === undefined) return []
-  const from = periodStartMs === null ? first : Math.min(first, weekEndMs(periodStartMs))
+  const from =
+    periodStartMs === null ? first : Math.min(first, weekEndFor({ startMs: periodStartMs }))
   const ends: number[] = []
   for (let end = from; end <= last; end += WEEK_MS) ends.push(end)
   return ends
