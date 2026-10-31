@@ -1,3 +1,4 @@
+import { accountScope, clearCheckinScope } from './checkinStore'
 import { clearWorkbenchScope } from './workbenchStore'
 
 /**
@@ -9,6 +10,8 @@ import { clearWorkbenchScope } from './workbenchStore'
 export async function forgetAccountDetails(userId: string | undefined): Promise<string | null> {
   // An environment without IndexedDB could never have kept these recordings.
   if (userId === undefined || typeof indexedDB === 'undefined') return null
+  // What the account's imports left in the check-in database (the index of files read) goes with its recordings.
+  await clearCheckinScope(accountScope(userId)).catch(() => false)
   const cleared = await clearWorkbenchScope({ kind: 'account', userId }).catch(() => false)
   return cleared
     ? null

@@ -17,6 +17,8 @@ import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
 import { beginRequest, noteWork, stamped } from './workerWire'
+import { accountScope, clearCheckinScope } from './checkinStore'
+import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
 import { newWorkerView } from './workerView'
@@ -154,12 +156,15 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       if (request.forgetDevice) {
         // The page is told once: forget() has already told it when the library would not clear.
         const forgotten = await device.forget()
+        // The index of files read goes with the library it describes.
+        await clearCheckinScope('device')
         if (!(await workbench.clearScope({ kind: 'device' })) && forgotten)
           post({ type: 'deviceIssue', issue: 'notForgotten' })
       } else device.replaced()
       return session.clear()
     case 'deleteDeviceActivity':
       workbench.clearMemory()
+      await forgetHeldKeys('device', [request.id])
       return device.remove(request.id, request.settings)
     case 'exportData':
       // Answered by exportAccount with the export file, not with a session state.
@@ -184,6 +189,9 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       unmatchedOriginals.delete(record.id)
       routes.forget(record.id)
       missingOriginals.delete(activityKey(record.digest))
+      // The file this activity came from is read again if it is added again.
+      await forgetHeldKeys(accountScope(request.userId), [activityKey(record.digest)])
+      await forgetHeldKeys('device', [activityKey(record.digest)])
       const traceCleared = await workbench.remove(
         { kind: 'account', userId: request.userId },
         record.digest.id,
