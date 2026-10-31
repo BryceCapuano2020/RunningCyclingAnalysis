@@ -301,9 +301,12 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    or within 60 seconds of each other. Groups are transitive: if A matches B and B matches C, all
    three are one group. From a group, the copy from the richest format is kept: FIT, then TCX, then
    GPX. Within one format, the copy with a power meter is kept, then the copy with heart rate, then
-   the longer duration. This preference applies to files analyzed together. A saved activity is tied
-   to the hash of its original file, so replacing it with a different file requires deleting that
-   activity and importing the preferred file again.
+   the longer duration. Whether a file is stored never depends on the copies already held (rule R): every
+   distinct start second is stored, in any order, and the analysis alone hides all but the best copy of a
+   group. What is listed, counted and exported is the shown copy; a full library says how many of its rows
+   are hidden copies. Deleting the shown activity deletes its whole group, or a hidden copy would take its
+   place. A saved activity is tied to the hash of its original file, so replacing it with a different file
+   requires deleting that activity and importing the preferred file again.
 7. **Activity list** (`readActivityList` in `packages/core/src/import/activitiesCsv.ts`, and
    `packages/core/src/import/names.ts`). Before any file in a Strava export zip is parsed, the zip's
    `activities.csv` is read by range, from the top-level zip's central directory only, so it may sit

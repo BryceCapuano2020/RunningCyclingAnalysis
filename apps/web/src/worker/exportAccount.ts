@@ -4,12 +4,14 @@ import { exportActivitiesJson, exportFooterJson, exportHeaderJson } from '../exp
 import type { WorkerRequest } from './protocol'
 
 /**
- * Lists the account's library and writes its export as it goes. Each page is written to the file
+ * Lists the account's library and writes its export as it goes, without the copies the analysis hides. Each page is written to the file
  * as soon as it arrives, so the library is never held as one text. The file is a Blob, so only its
  * parts, not one large string, cross back to the page. The listing costs one read.
  */
 export async function exportAccount(
   request: Extract<WorkerRequest, { type: 'exportData' }>,
+  /** Saved records that are copies the analysis hides: the export lists the shown copy of each workout. */
+  hidden: ReadonlySet<string> = new Set(),
 ): Promise<Blob> {
   const parts: BlobPart[] = [
     exportHeaderJson({
@@ -28,7 +30,7 @@ export async function exportAccount(
       unreadable += count
     },
     (items) => {
-      const text = exportActivitiesJson(items)
+      const text = exportActivitiesJson(items.filter(({ id }) => !hidden.has(id)))
       if (text === '') return
       if (!firstPage) parts.push(',')
       firstPage = false
