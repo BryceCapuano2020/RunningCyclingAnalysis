@@ -17,6 +17,8 @@ export interface Sink {
   limits: ExtractLimits
   /** Which entries of the top-level zip may be activities. Absent when every activity file may. */
   listed: EntryFilter | undefined
+  /** Told the extension (lowercase, no dot) of each activity file in a format the app does not read, as it is skipped. */
+  skipped?: (extension: string) => void
 }
 
 /** Counters shared by a top-level zip and every zip nested inside it. */
