@@ -1,3 +1,5 @@
+import { dayShiftFor } from '../calendar'
+import { DAY_MS } from '../constants'
 import { orderedFor } from '../digest/consumers'
 import { memoByDigests } from '../digestMemo'
 import type { ActivityDigest, Sport } from '../types'
@@ -44,14 +46,23 @@ export function fitnessOfSport(
   asOfMs: number,
 ): FitnessStatus {
   const series = SERIES[sport](digests, sport, setAside)
-  const runs: RunPoint[] = series.points.map((p) => ({ id: p.id, t: dayOfMs(p.startMs), x: p.x }))
+  // Runs sit on a clock of days counted from a Monday; with local weeks on, a run falls on its local day.
+  const runs: RunPoint[] = series.points.map((p) => ({
+    id: p.id,
+    t: dayOfMs(p.startMs) + dayShiftFor(p),
+    x: p.x,
+  }))
   const first = series.points[0]
   // The monitor is evaluated at completed week ends only: a week still going has not finished its runs, and
   // evaluating it would count a part of a week as a whole one in the streak and the display hold.
   const { records, season } =
     first === undefined
       ? { records: [], season: null }
-      : replay(runs, weekOfMs(first.startMs), weekOfMs(asOfMs + 1) - 1)
+      : replay(
+          runs,
+          weekOfMs(first.startMs + dayShiftFor(first) * DAY_MS),
+          weekOfMs(asOfMs + 1) - 1,
+        )
   // The status reads the runs as the last week did: with the athlete's own season taken out, when one was found.
   const seen = withoutSeason(runs, season, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
   const method = { ...series.method, seasonal: season?.amplitude ?? null }

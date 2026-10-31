@@ -8,6 +8,7 @@ import type { Activity } from '@rca/core/types'
 import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
+import { deviceZone } from './viewerZone'
 import { deviceKeeper } from './deviceKeeper'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
@@ -31,6 +32,8 @@ import { Workbench } from './workbench'
 import type { ActivityTraceReply } from './workbench'
 
 const session = new AnalysisSession()
+// Where a file recorded no local day, days and weeks are cut in the device's zone.
+session.setZone(deviceZone)
 const post = (message: WorkerResponse) => self.postMessage(stamped(message))
 /** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
 const missingOriginals = new Set<string>()

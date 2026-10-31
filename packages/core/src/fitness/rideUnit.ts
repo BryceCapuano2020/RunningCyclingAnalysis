@@ -1,10 +1,10 @@
 import { DAY_MS } from '../constants'
 import { median } from '../findings/stats'
-import type { ActivityDigest, Sport } from '../types'
+import type { ActivityDigest, LocalDayShift, Sport } from '../types'
 import { fitHeartRateSlope } from './fit'
 import type { SlopeLimits } from './fit'
 import { FITNESS } from './params'
-import { byTime, emptySeries, referenceOf } from './unit'
+import { byTime, emptySeries, referenceOf, unitPoint } from './unit'
 import type { UnitSeries } from './unit'
 
 const R = FITNESS.ride
@@ -12,6 +12,7 @@ const R = FITNESS.ride
 interface RideBlocks {
   id: string
   startMs: number
+  localDayShift: LocalDayShift | undefined
   blocks: { hr: number; ln: number }[]
 }
 
@@ -32,6 +33,7 @@ function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
     ? {
         id: digest.id,
         startMs: digest.startMs,
+        localDayShift: digest.localDayShift,
         blocks: digest.hrBlocks
           .filter((b) => b.terms === null && b.value > 0 && Number.isFinite(b.heartRate))
           .map((b) => ({ hr: b.heartRate, ln: Math.log(b.value) })),
@@ -81,6 +83,7 @@ export function rideSeries(
     .map((z) => ({
       id: z.r.id,
       startMs: z.r.startMs,
+      localDayShift: z.r.localDayShift,
       hr: median(z.blocks.map((b) => b.hr)),
       ln: median(z.blocks.map((b) => b.ln)),
     }))
@@ -90,7 +93,7 @@ export function rideSeries(
   )
   return {
     points: rows
-      .map((r) => ({ id: r.id, startMs: r.startMs, x: r.ln - beta * (r.hr - ref) }))
+      .map((r) => unitPoint(r.id, r.startMs, r.ln - beta * (r.hr - ref), r.localDayShift))
       .sort(byTime),
     referenceHr: ref,
     method: {

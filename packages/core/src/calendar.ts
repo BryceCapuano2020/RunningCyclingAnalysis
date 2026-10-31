@@ -75,6 +75,16 @@ export function localDayNumber(item: Dated, zone: Zone = viewerZone): number {
   )
 }
 
+/**
+ * How many days later than its UTC day an activity falls, for the code that places activities on a continuous
+ * clock of days (the fitness monitor): its shift, or the viewer's zone's where the file gave none. Zero while
+ * local weeks are off.
+ */
+export function dayShiftFor(item: Dated): number {
+  if (!localWeeks) return 0
+  return item.localDayShift ?? shiftFromZone(viewerZone, item.startMs)
+}
+
 /** The Monday-start week a day number falls in, counted from 5 January 1970. */
 export function weekOfDay(day: number): number {
   return Math.floor((day - MONDAY_DAY_NUMBER) / 7)
