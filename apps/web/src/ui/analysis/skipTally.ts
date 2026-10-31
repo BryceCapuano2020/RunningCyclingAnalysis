@@ -7,7 +7,7 @@ import { groupRejected } from './rejectCopy'
 /** What an import's tally is worked out from: its counts, and the refused files it lists. */
 export type Counted = Pick<
   ImportOutcome,
-  'filesAdded' | 'rejected' | 'duplicates' | 'notActivities'
+  'filesAdded' | 'rejected' | 'duplicates' | 'notActivities' | 'skippedTypes'
 >
 
 /** Where each file of an import went. The parts add up to the files the import saw. */
