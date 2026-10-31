@@ -67,6 +67,7 @@ export const REVISIONS: readonly RevisionDeclaration[] = [
       'splits',
       'distanceBests',
       'distributions',
+      'durability',
       'drift',
       'walkingPace',
     ],

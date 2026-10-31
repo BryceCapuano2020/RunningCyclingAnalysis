@@ -1,4 +1,4 @@
-import { traceQualityOf } from '@rca/core/quality'
+import { traceQualityOf } from '@rca/core/digest'
 import { activityTraceOf, parseActivityTrace } from '@rca/core/workbench'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { sampleDataset } from '@rca/core/synthetic'

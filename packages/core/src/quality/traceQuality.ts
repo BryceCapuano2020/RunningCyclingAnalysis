@@ -1,6 +1,4 @@
 import type { Activity, QualityReport } from '../types'
-import { agreedStreams, keepsOwnSpeed } from './agreement'
-import { assessQuality } from './assess'
 
 /**
  * What a trace carries of an activity's assessment: the masks of the streams a zone is cut from, and the
@@ -35,21 +33,7 @@ export function rememberTraceQuality(
   })
 }
 
-/**
- * The assessment of an activity as the digest makes it: its own when it was made from this activity object,
- * else a fresh one, with the same speed rule as the digest's.
- */
-export function traceQualityOf(activity: Activity): TraceQuality {
-  const remembered = assessed.get(activity)
-  if (remembered !== undefined) return remembered
-  const agreed = agreedStreams(activity)
-  const quality = assessQuality(activity, agreed.stretches)
-  return {
-    validMotion: quality.validMotion,
-    validPower: quality.validPower,
-    validHeartRate: quality.validHeartRate,
-    ...(keepsOwnSpeed(activity) || agreed.speed === activity.speed
-      ? {}
-      : { agreedSpeed: agreed.speed }),
-  }
+/** The assessment the digest of this activity object made, or undefined when it has not been digested. */
+export function rememberedTraceQuality(activity: Activity): TraceQuality | undefined {
+  return assessed.get(activity)
 }

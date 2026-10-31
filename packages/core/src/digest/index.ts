@@ -1,4 +1,5 @@
 export { countFlags, digestActivity, DIGEST_VERSION } from './digestActivity'
+export { traceQualityOf } from './traceQuality'
 export { MODEL_REVISION } from './modelRevision'
 export { activitySummaries } from './activitySummaries'
 export { combine, equivalenceFor, equivalentRunSpeed, sportCurves } from './combine'

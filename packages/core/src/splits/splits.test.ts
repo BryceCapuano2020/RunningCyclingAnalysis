@@ -173,10 +173,12 @@ describe('run splits: moving time', () => {
     expect(km[1]!.seconds).toBe(300)
   })
 
-  it('leaves time paused out of the split, with the same grade-adjusted time', () => {
+  it('leaves time paused out of the split, with the same grade-adjusted time to within the stream ratio', () => {
     const { km } = splitsOf(pausedRun(1000, 4, 400, 450))
     expect(km[1]!.seconds).toBe(250)
-    expect(km[1]!.gradeAdjustedSeconds).toBeCloseTo(250, 2)
+    // The fixture's distance does not step into the first second after the pause, so the file gains 996 m over the 250
+    // moving seconds the speed stream says are 1000 m: revision 7 corrects the cost for that ratio of 0.996, 0.4% here.
+    expect(Math.abs(km[1]!.gradeAdjustedSeconds! / 250 - 1)).toBeLessThan(0.005)
   })
 
   it('counts the second of running that a resumed file holds in the step into its first timed sample', () => {

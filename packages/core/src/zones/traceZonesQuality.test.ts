@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { digestActivity } from '../digest/digestActivity'
 import { syntheticActivity } from '../digest/test/syntheticActivity'
-import { assessQuality, traceQualityOf } from '../quality'
+import { assessQuality } from '../quality'
+import { traceQualityOf } from '../digest/traceQuality'
 import type { Activity } from '../types'
 import { activityTraceOf, parseActivityTrace } from '../workbench/trace'
 import type { ZoneMeasure } from './schemes'
@@ -84,6 +85,22 @@ describe('the activity page and the sport page count the same seconds in zones',
         expect(remembered[key]).toEqual(fresh[key])
       }
     }
+  })
+
+  it('takes out what revision 7 takes out, for an activity read back that was never digested: a lone power spike, a cadence lock', () => {
+    const ride = syntheticActivity({
+      n: N,
+      sport: 'ride',
+      power: Float64Array.from({ length: N }, () => 200),
+    })
+    ride.power[100] = 1500
+    // Fresh, as an original read back would be: no digest has been made of this object.
+    const fresh = traceQualityOf(ride)
+    expect(fresh.validPower.slice(99, 102)).toEqual(new Uint8Array(3))
+    expect(fresh.validPower[50]).toBe(1)
+    const { fromDigest, masked } = bothWays(ride, 'power', 200)
+    expect(masked.seconds).toEqual(fromDigest)
+    expect(masked.total).toBe(N - 3)
   })
 
   it('counts pace the way the digest does over a stretch where speed and distance disagree', () => {
