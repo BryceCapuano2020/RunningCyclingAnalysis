@@ -4,7 +4,16 @@ import type { Activity, Sport } from '../types'
 import { DEFAULT_ATHLETE } from './athlete'
 import type { SyntheticAthlete } from './athlete'
 import { generateActivity } from './generate'
-import type { ActivitySpec, Effort, Terrain } from './spec'
+import { raceOfDistance } from './noise/library'
+import { weeklyLevel } from './noise/level'
+import { NOISE_PRESETS } from './noise/presets'
+import { studentT5 } from './noise/random'
+import type { NoiseModel } from './noise/types'
+import { noiseWith } from './noise/variants'
+import { withRecordGap } from './sampleRecording'
+import type { RecordGap } from './sampleRecording'
+import { FULL_WEEKS, isFeatured, nameOf, slotFor, variantOf } from './sampleSlots'
+import type { ActivitySpec } from './spec'
 
 /**
  * The sample athlete's season, drawn relative to a clock so the sample always reads as recent: a
@@ -16,6 +25,12 @@ import type { ActivitySpec, Effort, Terrain } from './spec'
  * of days before that Sunday, not before today. So the plan, its sessions and every figure from it are the
  * same on each day of a week and in every week: only the dates move, a week at a time. The newest activity
  * is therefore up to a week old, which the sample's own period dates say.
+ *
+ * It is drawn from the generator's sensor and behaviour model (the `measured` preset: a wrist watch's heart rate
+ * and a watch's GPS, hard efforts that vary, an easy week that wanders) and holds the awkward recordings a real
+ * library does: two treadmill runs, a run with no heart rate, a stretch the watch did not record, a 5K that is
+ * 5.0 km. Its hard efforts (tests, tempo, intervals, a race, a time trial) reach the top of the athlete's heart
+ * rate, so the effort gate passes. The ride's fitness card is the one honest "not enough" state.
  */
 
 /** The clock the sample uses when none is given, so tests and fixtures see the same season each run. */
@@ -34,19 +49,59 @@ export interface SampleClock {
 
 export const SAMPLE_CLOCK: SampleClock = { nowMs: SAMPLE_REFERENCE_NOW_MS }
 
+/**
+ * The seeds, of the first 40, whose season tells the sample's whole story on every clock tried: the shipped detector
+ * finds the planted easy slip with a range clear of zero, the ride's fitness card says it has too few steady rides to
+ * compare, both sports' best efforts pass the effort gate with a margin, and every threshold and stand-out profile
+ * has what it needs. A seed is another draw of the same athlete, and most do not: the detector fires on about
+ * seven in ten, the gate on most, and the rest of the story on a few (five of forty). The sample uses the first, which
+ * also keeps the chart labels of the 200% text e2e apart (a threshold label can meet a tick label on a phone).
+ * `sampleSeason.sim.test.ts` replays the list.
+ */
+export const SAMPLE_SEEDS: readonly number[] = [15, 26, 4, 31, 37]
+export const SAMPLE_SEED = SAMPLE_SEEDS[0]!
+
+/**
+ * The sample athlete's body: the default athlete with a heart-rate line that puts easy running near 80% of a
+ * maximum of 176 bpm and threshold running near 90%, so the zones from pace and from heart rate sit within one of each other.
+ */
+export const SAMPLE_ATHLETE: SyntheticAthlete = {
+  ...DEFAULT_ATHLETE,
+  grossEfficiency: 0.185,
+  hrIntercept: 44,
+  hrSlope: 7,
+  hrMax: 176,
+}
+
+/**
+ * The watch and the athlete's habits: the `measured` model, the one every synthetic tier shares, on a route with
+ * few lights (up to two stops of 5 to 30 s) and a wrist sensor that rarely loses the pulse for long (at most one
+ * gap, and one in three of those under the 10 s that flags a run). The model's own ranges flag most runs, which is
+ * a harsher watch than the sample means to show.
+ */
+export const SAMPLE_NOISE: NoiseModel = noiseWith(NOISE_PRESETS.measured, {
+  gps: { stops: { max: 2, minS: 5, maxS: 30 } },
+  heartRate: { dropouts: { max: 1, minS: 3, maxS: 14 } },
+})
+/** The same athlete on a treadmill: belt speed, no altitude, no route. */
+const TREADMILL_NOISE: NoiseModel = noiseWith(SAMPLE_NOISE, { behaviour: { treadmillShare: 1 } })
+
 /** One planned activity: what to generate and with which athlete, before any samples exist. */
 export interface SampleEntry {
   spec: ActivitySpec
   /** The athlete's form on that day: the same body, with the threshold the season had reached. */
   athlete: SyntheticAthlete
   seed: number
+  /** The sensor and behaviour model the recording is drawn with. */
+  noise: NoiseModel
+  /** A race recorded from the start line over exactly this distance, m. */
+  raceM?: number
+  /** A stretch the watch did not record. */
+  gap?: RecordGap
 }
 
 /** The season's length: the early history ends this many weeks before its last Sunday. */
 const SEASON_WEEKS = 56
-/** Weeks back from the last Sunday that hold the full training week, then the lighter one. */
-const FULL_WEEKS = 12
-const STEADY_WEEKS = 35
 /**
  * How far the season has come, as the share of today's value each quantity started at: the thresholds,
  * the bike's gross efficiency, and the running cost (which falls as economy improves, so it starts above 1).
@@ -62,14 +117,14 @@ const START_SHARE = { cpRun: 0.965, cpRide: 0.9, grossEfficiency: 0.91, runEcono
  * drawn from the threshold as before, so the bests and the grades do not move by it. (The heart-rate
  * cross-check reads every run's pace against its heart rate, so the lean between the sports moves a little.)
  */
-const EASY_SLIP = { startWeeks: 9, fallWeeks: 4, depth: 0.11 }
+const EASY_SLIP = { startWeeks: 9, fallWeeks: 4, depth: 0.14 }
 /**
- * A real athlete's easy pace is not a straight line: its cost wobbles by up to `amplitude` from one week to the
- * next, the same for every easy run of a week, from a seeded draw for the week, so the season is the same on every
- * load and the status reads a slip through some noise.
+ * A real athlete's easy pace is not a straight line. The model's weekly level wanders (AR(1), the same for every
+ * run of a week) and each run adds its own Student t draw, both from seeded streams, so the season is the same on
+ * every load and the status reads a slip through some noise.
  */
-const EASY_WOBBLE = { amplitude: 0.012, seed: 17 }
-/** The sports whose easy running carries the slip and the wobble, a table so no sport is named in the plan. */
+const EASY_LEVEL = { weeklySeed: 17, runSeed: 29 }
+/** The sports whose easy running carries the slip and the wander, a table so no sport is named in the plan. */
 const EASY_COST_MOVES: Record<Sport, boolean> = { run: true, ride: false }
 
 /** The share of the season's climb made by the start of the last twelve weeks: the build is steeper after it. */
@@ -77,106 +132,6 @@ const CLIMB_BEFORE_BUILD = 0.5
 /** How far a day's form sits off the season's line, up or down. */
 const FORM_SPREAD = 0.015
 const SKIP_CHANCE = 0.08
-
-/** The weeks back that hold a threshold test, which anchors the fit: the newest is in the default period. */
-const RUN_TEST_WEEKS: readonly number[] = [3, 16, 34, 52]
-const RIDE_TEST_WEEKS: readonly number[] = [2, 15, 33, 51]
-/** The week back that holds the 5K race, run harder than the tests, so one best stands apart from the rest. */
-const RACE_WEEK = 1
-const TIME_TRIAL_WEEK = 4
-const GLITCH_WEEK = 5
-const NO_POWER_WEEKS: readonly number[] = [6, 22, 41]
-
-interface Slot {
-  name: string
-  sport: Sport
-  effort: Effort
-  terrain: Terrain
-  /** Shortest and longest length, minutes. */
-  minutes: readonly [number, number]
-  /** The hour the start falls in (24 h clock) and how far past it may drift, hours. */
-  hour: readonly [number, number]
-  withPower?: boolean
-  hrGlitch?: boolean
-}
-
-const slot = (
-  name: string,
-  sport: Sport,
-  effort: Effort,
-  terrain: Terrain,
-  minutes: readonly [number, number],
-  hour: readonly [number, number],
-  extra: Pick<Slot, 'withPower' | 'hrGlitch'> = {},
-): Slot => ({ name, sport, effort, terrain, minutes, hour, ...extra })
-
-const MORNING: readonly [number, number] = [6, 1]
-const LUNCH: readonly [number, number] = [12, 0.6]
-const EVENING: readonly [number, number] = [17.4, 1.4]
-const WEEKEND: readonly [number, number] = [7.3, 1.9]
-
-const EASY_RUN = slot('Morning Run', 'run', 'easy', 'flat', [38, 48], MORNING)
-const LUNCH_RUN = slot('Lunch Run', 'run', 'easy', 'flat', [35, 45], LUNCH)
-const LONG_RUN = slot('Sunday Long Run', 'run', 'easy', 'rolling', [76, 98], WEEKEND)
-const TEMPO_RUN = slot('Tempo Run', 'run', 'tempo', 'flat', [45, 55], EVENING)
-const TRACK = slot('Track Intervals', 'run', 'intervals', 'flat', [46, 55], EVENING)
-const RACE_5K = slot('Parkrun 5K', 'run', 'race', 'flat', [34, 36], WEEKEND)
-const RACE_TT = slot('Club Time Trial', 'ride', 'race', 'flat', [44, 46], WEEKEND)
-const RUN_TEST = slot(
-  'Threshold test: 3, 6, 12 and 20 minute efforts',
-  'run',
-  'test',
-  'flat',
-  [98, 102],
-  EVENING,
-)
-const LONG_RIDE = slot('Saturday Long Ride', 'ride', 'easy', 'rolling', [126, 150], WEEKEND)
-const TEMPO_RIDE = slot('Tempo Ride', 'ride', 'tempo', 'rolling', [62, 78], EVENING)
-const VO2_RIDE = slot('VO2 Intervals', 'ride', 'intervals', 'flat', [56, 66], EVENING)
-const CLIMB = slot('Canyon Climb', 'ride', 'tempo', 'climb', [82, 100], WEEKEND)
-const HILLS = slot('Hill Repeats', 'ride', 'intervals', 'climb', [68, 80], WEEKEND)
-const RIDE_TEST = slot('Power Test', 'ride', 'test', 'flat', [108, 112], WEEKEND)
-const NO_POWER_CLIMB = slot('Mountain Climb', 'ride', 'tempo', 'climb', [76, 90], WEEKEND, {
-  withPower: false,
-})
-const GLITCH_RIDE = slot('Evening Ride', 'ride', 'tempo', 'rolling', [84, 96], EVENING, {
-  hrGlitch: true,
-})
-
-/** The slot a day holds, or null for a rest day. `weekday` counts from Sunday = 0, as Date does. */
-function slotFor(weekday: number, weeksAgo: number, pick: number): Slot | null {
-  const even = weeksAgo % 2 === 0
-  if (weekday === 4 && RUN_TEST_WEEKS.includes(weeksAgo)) return RUN_TEST
-  if (weekday === 6 && weeksAgo === RACE_WEEK) return RACE_5K
-  if (weekday === 6 && weeksAgo === TIME_TRIAL_WEEK) return RACE_TT
-  if (weekday === 6 && RIDE_TEST_WEEKS.includes(weeksAgo)) return RIDE_TEST
-  if (weekday === 3 && weeksAgo === GLITCH_WEEK) return GLITCH_RIDE
-  if (weekday === 6 && NO_POWER_WEEKS.includes(weeksAgo)) return NO_POWER_CLIMB
-  if (weeksAgo >= STEADY_WEEKS) {
-    // The early history: one session a week, the sports taking turns.
-    if (weekday === 6) return even ? LONG_RIDE : null
-    return weekday === 0 && !even ? LONG_RUN : null
-  }
-  if (weeksAgo >= FULL_WEEKS) {
-    // The lighter weeks: a long run every week and a ride every other.
-    if (weekday === 6) return even ? (weeksAgo % 4 === 0 ? HILLS : LONG_RIDE) : null
-    return weekday === 0 ? LONG_RUN : null
-  }
-  switch (weekday) {
-    case 2:
-      return pick < 0.5 ? EASY_RUN : LUNCH_RUN
-    case 3:
-      return even ? TEMPO_RIDE : VO2_RIDE
-    case 4:
-      return even ? (weeksAgo % 4 === 0 ? TEMPO_RUN : TRACK) : null
-    case 6:
-      return weeksAgo % 4 === 3 ? CLIMB : LONG_RIDE
-    case 0:
-      return LONG_RUN
-    default:
-      return null
-  }
-}
 
 /** How far along the season is, 0 at its start and 1 on its last day: a slow climb, then a steeper build in the full weeks. */
 function seasonProgress(daysAgo: number): number {
@@ -193,10 +148,10 @@ function athleteOn(daysAgo: number, runForm: number, rideForm: number): Syntheti
   const progress = seasonProgress(daysAgo)
   const along = (key: keyof typeof START_SHARE, form = 0.5) => {
     const line = START_SHARE[key] + (1 - START_SHARE[key]) * progress
-    return DEFAULT_ATHLETE[key] * line * (1 + (2 * form - 1) * FORM_SPREAD)
+    return SAMPLE_ATHLETE[key] * line * (1 + (2 * form - 1) * FORM_SPREAD)
   }
   return {
-    ...DEFAULT_ATHLETE,
+    ...SAMPLE_ATHLETE,
     cpRun: along('cpRun', runForm),
     cpRide: along('cpRide', rideForm),
     grossEfficiency: along('grossEfficiency'),
@@ -211,15 +166,28 @@ export function easySlipOn(daysAgo: number): number {
   return depth * Math.min(1, Math.max(0, weeksIn / fallWeeks))
 }
 
-/** The week's wobble in an easy run's cost, from -`amplitude` to `amplitude`, the same on every day of the week. */
+/** The model's weekly level (log units, up is fitter) for the weeks of the season, the first week first. */
+const WEEKLY_LEVEL = weeklyLevel(
+  SAMPLE_NOISE.level,
+  SEASON_WEEKS,
+  mulberry32(EASY_LEVEL.weeklySeed),
+)
+
+/** The week's wander in an easy run's cost, the same on every day of the week: a few percent either way. */
 export function easyWobbleOn(daysAgo: number): number {
-  const week = Math.floor(daysAgo / 7)
-  return (2 * mulberry32(EASY_WOBBLE.seed * 1000 + week)() - 1) * EASY_WOBBLE.amplitude
+  const week = Math.min(SEASON_WEEKS - 1, Math.floor(daysAgo / 7))
+  return Math.exp(-WEEKLY_LEVEL[SEASON_WEEKS - 1 - week]!) - 1
 }
 
-/** An easy run's cost on a day, against the season's line: the slip and the week's wobble together. */
+/** One easy run's own draw (Student t, the model's run-to-run spread) in its cost, from a stream of its day. */
+export function easyRunDrawOn(daysAgo: number): number {
+  const t = studentT5(mulberry32(EASY_LEVEL.runSeed * 1000 + daysAgo))
+  return Math.exp(-SAMPLE_NOISE.level.runSd * t) - 1
+}
+
+/** An easy run's cost on a day, against the season's line: the slip, the week's wander and the run's own draw. */
 export function easyCostOn(daysAgo: number): number {
-  return (1 + easySlipOn(daysAgo)) * (1 + easyWobbleOn(daysAgo))
+  return (1 + easySlipOn(daysAgo)) * (1 + easyWobbleOn(daysAgo)) * (1 + easyRunDrawOn(daysAgo))
 }
 
 function offsetOf(clock: SampleClock): (ms: number) => number {
@@ -232,21 +200,11 @@ function instantOf(localMs: number, offsetAt: (ms: number) => number): number {
   return localMs - offsetAt(guess) * 60_000
 }
 
-/** Whether a slot is one the season's story rests on, which a random skip never takes away. */
-function isFeatured(session: Slot): boolean {
-  return (
-    session.effort === 'test' ||
-    session.effort === 'race' ||
-    session.hrGlitch === true ||
-    session.withPower === false
-  )
-}
-
 /**
  * The season's activities, oldest first, as a plan: no samples are generated until an entry is. The last
  * Sunday on or before the day before `clock.nowMs`'s day ends it. Ids are numbered in time order.
  */
-export function samplePlan(clock: SampleClock = SAMPLE_CLOCK, seed = 1): SampleEntry[] {
+export function samplePlan(clock: SampleClock = SAMPLE_CLOCK, seed = SAMPLE_SEED): SampleEntry[] {
   const offsetAt = offsetOf(clock)
   const nowLocalMs = clock.nowMs + offsetAt(clock.nowMs) * 60_000
   const todayLocalMs = Math.floor(nowLocalMs / DAY_MS) * DAY_MS
@@ -257,26 +215,35 @@ export function samplePlan(clock: SampleClock = SAMPLE_CLOCK, seed = 1): SampleE
   const entries: SampleEntry[] = []
   for (let daysBefore = SEASON_WEEKS * 7 - 1; daysBefore >= 0; daysBefore--) {
     // Five draws a day, used or not, so a rest day does not shift the days after it.
-    const [skip, pick, hourDraw, lengthDraw, seedDraw] = [rand(), rand(), rand(), rand(), rand()]
+    const [skip, pick, hourDraw, lengthDraw, seedDraw, nameDraw] = [
+      rand(),
+      rand(),
+      rand(),
+      rand(),
+      rand(),
+      rand(),
+    ]
     const form = athleteOn(daysBefore, rand(), rand())
     // The anchor is a Sunday, so a day's weekday follows from its distance from it alone.
     const weekday = (7 - (daysBefore % 7)) % 7
-    const planned = slotFor(weekday, Math.floor(daysBefore / 7), pick)
+    const weeksAgo = Math.floor(daysBefore / 7)
+    const planned = variantOf(slotFor(weekday, weeksAgo, pick), weekday, weeksAgo)
     if (planned === null || (skip < SKIP_CHANCE && !isFeatured(planned))) continue
     const [hour, spread] = planned.hour
     const [shortest, longest] = planned.minutes
-    const startLocalMs =
-      anchorLocalMs - daysBefore * DAY_MS + Math.round((hour + spread * hourDraw) * 60) * 60_000
+    const startHour = hour + spread * hourDraw
+    const startLocalMs = anchorLocalMs - daysBefore * DAY_MS + Math.round(startHour * 60) * 60_000
     entries.push({
       spec: {
         id: `sample-${String(entries.length + 1).padStart(3, '0')}`,
-        name: planned.name,
+        name: nameOf(planned, startHour, nameDraw),
         sport: planned.sport,
         startMs: instantOf(startLocalMs, offsetAt),
         durationS: (shortest + Math.round(lengthDraw * (longest - shortest))) * 60,
         effort: planned.effort,
         terrain: planned.terrain,
         withPower: planned.withPower,
+        withHeartRate: planned.withHeartRate,
         hrGlitch: planned.hrGlitch,
       },
       athlete:
@@ -284,6 +251,9 @@ export function samplePlan(clock: SampleClock = SAMPLE_CLOCK, seed = 1): SampleE
           ? { ...form, runEconomyScale: form.runEconomyScale * easyCostOn(daysBefore) }
           : form,
       seed: Math.floor(seedDraw * 0x100000000),
+      noise: planned.treadmill ? TREADMILL_NOISE : SAMPLE_NOISE,
+      ...(planned.raceM === undefined ? {} : { raceM: planned.raceM }),
+      ...(planned.gap === undefined ? {} : { gap: planned.gap }),
     })
   }
   return entries
@@ -291,7 +261,9 @@ export function samplePlan(clock: SampleClock = SAMPLE_CLOCK, seed = 1): SampleE
 
 /** Generates one planned activity, second by second. */
 export function generateSampleActivity(entry: SampleEntry): Activity {
-  return generateActivity(entry.athlete, entry.spec, entry.seed)
+  const drawn = generateActivity(entry.athlete, entry.spec, entry.seed, entry.noise)
+  const raced = entry.raceM === undefined ? drawn : raceOfDistance(drawn, entry.raceM)
+  return entry.gap === undefined ? raced : withRecordGap(raced, entry.gap)
 }
 
 /**
@@ -300,10 +272,10 @@ export function generateSampleActivity(entry: SampleEntry): Activity {
  */
 export function sampleSeason(
   clock: SampleClock = SAMPLE_CLOCK,
-  seed = 1,
+  seed = SAMPLE_SEED,
 ): { athlete: SyntheticAthlete; activities: Activity[] } {
   return {
-    athlete: DEFAULT_ATHLETE,
+    athlete: SAMPLE_ATHLETE,
     activities: samplePlan(clock, seed).map(generateSampleActivity),
   }
 }

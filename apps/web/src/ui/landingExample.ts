@@ -7,11 +7,12 @@ import type { SportGrade } from './grades'
  * LandingExample.test.tsx checks that it still does. They are those of the sample on the fixed reference
  * clock (SAMPLE_CLOCK). The season is anchored to a Sunday and keyed to the days before it, so the app's own
  * sample, loaded on any day, gives the same figures (sampleSections.test.ts checks that over two weeks of
- * clocks): running 67% Local, cycling 59% Recreational with a range of 54% to 65%, a lean of 8 points
- * (2 to 13), and a run that is slipping at the same heart rate.
+ * clocks): running 64% Local, cycling 71% Regional with a range of 61% to 83%, a lean of 7 points to cycling
+ * (3 toward running to 19 toward cycling), and a run that is slipping at the same heart rate. The generator
+ * draws the sample, so these move with it; build-time generation of this file is G4's.
  */
 export const LANDING_EXAMPLE: {
-  gap: { centre: number; low: number; high: number; lean: 'run' }
+  gap: { centre: number; low: number; high: number; lean: Sport }
   grades: Record<Sport, SportGrade>
   /**
    * The run's fitness status: its change in output with its 90% range, and the same as the sentence says it in
@@ -19,19 +20,19 @@ export const LANDING_EXAMPLE: {
    */
   fitness: { referenceHr: number; change: Ranged; shown: { size: string; range: string } }
 } = {
-  gap: { centre: 8, low: 2, high: 13, lean: 'run' },
+  gap: { centre: -7, low: -19, high: 3, lean: 'ride' },
   fitness: {
-    referenceHr: 130,
-    change: { value: -0.0667, low: -0.0994, high: -0.0328 },
-    shown: { size: '7.1%', range: '3 to 11%' },
+    referenceHr: 140,
+    change: { value: -0.0898, low: -0.1234, high: -0.055 },
+    shown: { size: '9.9%', range: '6 to 14%' },
   },
   grades: {
-    run: { centre: { grade: 0.6742100769874514, level: 'Local' }, range: null },
+    run: { centre: { grade: 0.6430111582722373, level: 'Local' }, range: null },
     ride: {
-      centre: { grade: 0.5920414288661671, level: 'Recreational' },
+      centre: { grade: 0.7174593304790404, level: 'Regional' },
       range: {
-        low: { grade: 0.5413812413974327, level: 'Recreational' },
-        high: { grade: 0.6513208761947022, level: 'Local' },
+        low: { grade: 0.6123153136406498, level: 'Local' },
+        high: { grade: 0.8328553568162148, level: 'National' },
       },
     },
   },

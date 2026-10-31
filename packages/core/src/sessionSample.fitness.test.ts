@@ -31,12 +31,12 @@ describe('the sample athlete’s fitness story', () => {
   })
 
   it('rests on enough steady runs to show the evidence behind it', () => {
-    expect(status.steady).toBeGreaterThanOrEqual(40)
+    expect(status.steady).toBeGreaterThanOrEqual(25)
     expect(status.evidence!.recent.runs).toBeGreaterThanOrEqual(6)
     expect(status.evidence!.baseline!.runs).toBeGreaterThanOrEqual(12)
     const ids = new Set(samplePlan().map((entry) => entry.spec.id))
     expect(status.evidence!.recent.ids.every((id) => ids.has(id))).toBe(true)
-    expect(status.series.length).toBeGreaterThanOrEqual(8)
+    expect(status.series.length).toBeGreaterThanOrEqual(6)
   })
 
   it('reports a change whose range holds the one planted: the true change in easy pace at one heart rate', () => {
@@ -106,18 +106,24 @@ describe('the sample athlete’s fitness story', () => {
       const other = runStatus(clock)
       expect(other.state).toBe(status.state)
       expect(other.steady).toBe(status.steady)
-      // A zone can move a run across a week's edge, so the windows differ a little: the size stays within a point.
-      expect(Math.abs(other.change!.value - status.change!.value)).toBeLessThan(0.01)
+      // A zone can move a run across a week's edge, so the windows differ a little: the size stays within two points.
+      expect(Math.abs(other.change!.value - status.change!.value)).toBeLessThan(0.02)
       expect(other.change!.high).toBeLessThan(0)
     },
   )
 
-  it('compares the rides as well: the sample has measured-power rides, too few and too varied to call level yet', () => {
+  it('compares the rides as well, and says it has too few from before the last 8 weeks: the sample’s one not-enough state', () => {
     const rides = new AnalysisSession().loadSample(SETTINGS, SAMPLE_CLOCK).fitness.ride
-    expect(rides.shortfall?.kind).not.toBe('unavailable')
-    expect(rides.steady).toBeGreaterThanOrEqual(20)
+    expect(rides.state).toBe('not-enough-evidence')
+    expect(rides.shortfall).toMatchObject({ kind: 'history' })
+    const shortfall = rides.shortfall as Extract<typeof rides.shortfall, { kind: 'history' }>
+    expect(shortfall.have).toBeGreaterThan(0)
+    expect(shortfall.have).toBeLessThan(shortfall.need)
+    expect(rides.steady).toBeGreaterThanOrEqual(12)
     expect(rides.referenceHr).not.toBeNull()
-    expect(rides.evidence!.method.tier).toBe('power')
+    expect(fitnessLines(rides, 'metric').headline).toMatch(
+      /^Not enough evidence yet\. Power at the same heart rate is read from \d+ steady rides/,
+    )
   })
 })
 
@@ -138,10 +144,10 @@ describe('the planted slip', () => {
     expect(easySlipOn(0)).toBeGreaterThan(0.05)
   })
 
-  it('wobbles from one week to the next, the same on every day of a week and on every load, within a point or so', () => {
+  it('wanders from one week to the next, the same on every day of a week and on every load, by a few points', () => {
     const weeks = Array.from({ length: 20 }, (_, week) => easyWobbleOn(week * 7 + 3))
     expect(new Set(weeks.map((w) => w.toFixed(6))).size).toBeGreaterThan(15)
-    for (const wobble of weeks) expect(Math.abs(wobble)).toBeLessThanOrEqual(0.012)
+    for (const wobble of weeks) expect(Math.abs(wobble)).toBeLessThanOrEqual(0.08)
     expect(easyWobbleOn(14)).toBe(easyWobbleOn(20))
     expect(easyWobbleOn(14)).not.toBe(easyWobbleOn(21))
   })
@@ -154,12 +160,16 @@ describe('the planted slip', () => {
       (entry) => isEasyRun(entry) && weeksBefore(entry.spec.startMs) < 5,
     )
     expect(recentEasy.length).toBeGreaterThan(4)
-    for (const entry of recentEasy) expect(seasonLine(entry)).toBeGreaterThan(1.05)
+    const mean = (entries: typeof plan) =>
+      entries.reduce((sum, entry) => sum + seasonLine(entry), 0) / entries.length
+    // The slip is 14% over the season's line, the week's wander and each run's own draw (a few points) on top.
+    expect(mean(recentEasy)).toBeGreaterThan(1.08)
     const earlierEasy = plan.filter(
       (entry) => isEasyRun(entry) && weeksBefore(entry.spec.startMs) > 10,
     )
-    // Before the slip an easy run is on the season's line to within the week's wobble.
+    // Before the slip an easy run is on the season's line, give or take the week's wander and its own draw.
     expect(earlierEasy.length).toBeGreaterThan(10)
-    for (const entry of earlierEasy) expect(seasonLine(entry)).toBeLessThanOrEqual(1.05 * 1.0121)
+    expect(mean(earlierEasy)).toBeLessThanOrEqual(1.05 * 1.03)
+    for (const entry of earlierEasy) expect(seasonLine(entry)).toBeLessThanOrEqual(1.05 * 1.25)
   })
 })

@@ -7,6 +7,7 @@ import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
 import { fallbackNote, periodDates, previousPeriodLabel } from '../components/rangeOptions'
+import { judgedDetail } from '../analysis/detailCoverage'
 import { leftOutRuns, withoutWalking, workoutKeyOf } from '../analysis/walkingPaceCopy'
 import { plural } from '../components/plural'
 import { usePeriodChoice } from '../periodPreference'
@@ -237,8 +238,9 @@ export function ResultPage({
           keptIds={keptIds}
           weightKnown={weightKnown}
           busy={removing}
-          // A signed-in library can read older detail back from a saved original, so only this browser's own is judged.
-          detailIds={signedIn ? null : (analysis.detail?.ids ?? null)}
+          // Only this browser's own library is judged: a signed-in one reads older detail back from a saved original,
+          // and the sample has detail for every activity.
+          detailIds={judgedDetail(analysis.detail, { isSample, signedIn })?.ids ?? null}
           signedIn={signedIn}
           onDelete={analysis.deleteActivity}
           libraryNotice={analysis.libraryNotice}
