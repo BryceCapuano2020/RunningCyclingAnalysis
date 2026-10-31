@@ -5,7 +5,7 @@ import {
   DURATIONS_S,
   MAX_KM_SPLITS,
   MAX_MILE_SPLITS,
-  RUN_RECORD_DISTANCES_M,
+  RUN_RECORD_DISTANCES_BEFORE_7 as RUN_RECORD_DISTANCES_M,
 } from '@rca/core/constants'
 import { checkEvidence, evidenceFields } from './floorEvidence.ts'
 import { MAX_DIGEST_BYTES } from '../limits.ts'

@@ -117,13 +117,21 @@ function readsBackAsCreate(digest: unknown): boolean {
   return read.ok || read.problem === NO_DISTANCE
 }
 
+// The unit run reads every tenth mutant: each reader is run over all of them, which takes seconds on a loaded runner. The
+// sweep over every mutant runs in the simulation job (test:sim, through digestReaders.sim.test.ts), which sets FUZZ_SCALE.
+const FUZZ_SCALE = (globalThis as { process?: { env: Record<string, string | undefined> } }).process
+  ?.env.FUZZ_SCALE
+const STRIDE = Math.max(1, Math.round(10 / Number(FUZZ_SCALE ?? 1)))
+
 describe('every reader of a digest gives the same verdict', () => {
-  const all = bases().flatMap(([label, base]) =>
+  const every = bases().flatMap(([label, base]) =>
     mutantsOf(base).map((mutant): [string, Mutant] => [label, mutant]),
   )
+  const all = every.filter((_, index) => index % STRIDE === 0)
 
   it('is run over many mutants', () => {
-    expect(all.length).toBeGreaterThan(5000)
+    expect(every.length).toBeGreaterThan(5000)
+    expect(all.length).toBeGreaterThan(5000 / STRIDE)
   })
 
   it.each([
@@ -170,7 +178,7 @@ describe('every reader of a digest gives the same verdict', () => {
         expect(readsBackAsCreate(device.digest), where).toBe(true)
       }
     }
-    expect(repaired).toBeGreaterThan(300)
+    expect(repaired).toBeGreaterThan(300 / STRIDE)
   })
 
   it('has a stored row drop a name nobody knows and read the rest as it was', () => {
@@ -237,11 +245,14 @@ describe('every reader of a digest gives the same verdict', () => {
   })
 })
 
+// The corpus is drawn once, as the collection reads this file, not inside the first test that asks for it.
+const CORPUS = corpusWires()
+
 describe('digests in existing libraries read as they did', () => {
   const REVISIONS: Array<number | undefined> = [undefined, 1, 2, 6]
 
   it('has the corpus include runs and rides, with and without heart rate and power', () => {
-    const wires = corpusWires()
+    const wires = CORPUS
     expect(wires.length).toBeGreaterThan(60)
     for (const sport of ['run', 'ride']) expect(wires.some((w) => w.sport === sport)).toBe(true)
     expect(wires.some((w) => w.hasHeartRate === false)).toBe(true)
@@ -251,7 +262,9 @@ describe('digests in existing libraries read as they did', () => {
   })
 
   it('is read by every reader as the floor reads it, with nothing stripped or changed', () => {
-    for (const wire of corpusWires()) {
+    // The unit run reads a quarter of the corpus, and always the digest the floor cannot read; the sweep reads all of it.
+    const step = Math.ceil(STRIDE / 3)
+    for (const wire of CORPUS.filter((w, i) => i % step === 0 || w.distanceM === null)) {
       for (const revision of REVISIONS) {
         const { modelRevision: _drop, ...rest } = wire
         const input = revision === undefined ? rest : { ...rest, modelRevision: revision }

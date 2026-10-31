@@ -21,6 +21,11 @@ export interface ZoneTablesProps {
   weightKnown: boolean
   units: UnitSystem
   /**
+   * The sport page's newest threshold fit, in the sport's own number (m/s for a run, watts for a ride), where there is one.
+   * An estimated threshold that reads differently says so beside its figure.
+   */
+  newestFits?: Partial<Record<Sport, number>>
+  /**
    * Offers the way to correct an estimated max heart rate: the Set control beside the figure calls this with
    * the sport and the figure, and the page opens its dated-settings form to that setting. Without it the figure
    * is stated and not offered for correction.
@@ -72,6 +77,7 @@ export function ZoneTables({
   estimates,
   weightKnown,
   units,
+  newestFits,
   onSetMaxHeartRate,
 }: ZoneTablesProps) {
   const titleId = useId()
@@ -115,7 +121,7 @@ export function ZoneTables({
           </p>
           <div className="zone-tables__grid">
             {sets.map((set) => {
-              const table = zoneTable(set, units)
+              const table = zoneTable(set, units, newestFits?.[set.sport])
               const id = `${titleId}-${set.sport}-${set.measure}`
               return (
                 <div key={`${set.sport}.${set.measure}`} className="zone-tables__table">
@@ -160,9 +166,11 @@ export function ZoneTables({
           </div>
         </>
       )}
-      {missing.map(({ sport, measure }) => (
+      {missing.map(({ sport, measure, outgrown }) => (
         <p key={`${sport}.${measure}`} className="secondary zone-tables__missing">
-          {`No ${SPORT_LABEL[sport].toLowerCase()} ${measure === 'heartRate' ? 'heart rate' : measure} zones today. ${THRESHOLD_NEEDS[measure]}`}
+          {outgrown
+            ? `No ${SPORT_LABEL[sport].toLowerCase()} ${measure} zones today: your efforts are harder than the threshold on file.`
+            : `No ${SPORT_LABEL[sport].toLowerCase()} ${measure === 'heartRate' ? 'heart rate' : measure} zones today. ${THRESHOLD_NEEDS[measure]}`}
         </p>
       ))}
     </section>

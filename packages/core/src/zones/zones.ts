@@ -1,3 +1,4 @@
+import type { Dated } from '../calendar'
 import { massAtFor } from '../athlete/mass'
 import { entryAt } from '../athlete/measurements'
 import type { AthleteSettings } from '../athlete/settings'
@@ -5,7 +6,7 @@ import { DISTRIBUTION_BINS, PRIORS } from '../constants'
 import { EDGE_EPSILON } from '../math'
 import type { ReferenceMax } from '../digest/referenceMax'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
-import { thresholdAt } from '../digest/thresholdTimelineTypes'
+import { outgrownAt, thresholdAt } from '../digest/thresholdTimelineTypes'
 import type { ThresholdTimeline } from '../digest/thresholdTimelineTypes'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
 import type { Sport } from '../types'
@@ -171,7 +172,7 @@ interface Estimated {
   asOfMs?: number
 }
 
-type Estimate = (estimates: ZoneEstimates, massKg: number, at: number) => Estimated | null
+type Estimate = (estimates: ZoneEstimates, massKg: number, when: Dated) => Estimated | null
 
 const OTHER_SPORT: Record<Sport, Sport> = { run: 'ride', ride: 'run' }
 
@@ -202,10 +203,10 @@ function heartRate(
 function threshold(
   sport: Sport,
   estimates: ZoneEstimates,
-  at: number,
+  when: Dated,
   convert: (cp: number) => number,
 ): Estimated | null {
-  const found = thresholdAt(estimates.thresholds[sport], at)
+  const found = thresholdAt(estimates.thresholds[sport], when)
   if (found === null) return null
   return {
     reference: convert(found.fit.cp),
@@ -224,7 +225,7 @@ const ESTIMATE: Record<Sport, Partial<Record<ZoneMeasure, Estimate>>> = {
       noNearMaximalEffort(e, 'run')
         ? null
         : heartRate('run', e.runMaxHeartRate, e.runObservedMaxHeartRate, e.observedMaxSource.run),
-    pace: (e, _massKg, at) => threshold('run', e, at, metabolicToFlatSpeed),
+    pace: (e, _massKg, when) => threshold('run', e, when, metabolicToFlatSpeed),
   },
   ride: {
     heartRate: (e) =>
@@ -236,8 +237,8 @@ const ESTIMATE: Record<Sport, Partial<Record<ZoneMeasure, Estimate>>> = {
             e.rideObservedMaxHeartRate,
             e.observedMaxSource.ride,
           ),
-    power: (e, massKg, at) =>
-      threshold('ride', e, at, (cp) =>
+    power: (e, massKg, when) =>
+      threshold('ride', e, when, (cp) =>
         metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean),
       ),
   },
@@ -259,16 +260,23 @@ const THRESHOLD_MEASURES: readonly ZoneMeasure[] = ['pace', 'power']
  * (`missingThresholdZones` says for which). A sport and measure with neither are left out.
  */
 export function zonesAt(
-  at: number,
+  at: number | Dated,
   settings: AthleteSettings,
   estimates: ZoneEstimates | null,
 ): ZoneSet[] {
-  const massKg = massAtFor(settings)(at)
+  const when = typeof at === 'number' ? { startMs: at } : at
+  const massKg = massAtFor(settings)(when.startMs)
   const sets: ZoneSet[] = []
   for (const sport of Object.keys(ZONE_MEASURES) as Sport[]) {
     for (const measure of ZONE_MEASURES[sport]) {
-      const entered = entryAt(settings.measurements ?? [], ZONE_OVERRIDE[measure], sport, at)
-      const estimate = estimates === null ? null : ESTIMATE[sport][measure]?.(estimates, massKg, at)
+      const entered = entryAt(
+        settings.measurements ?? [],
+        ZONE_OVERRIDE[measure],
+        sport,
+        when.startMs,
+      )
+      const estimate =
+        estimates === null ? null : ESTIMATE[sport][measure]?.(estimates, massKg, when)
       const source: ZoneSource = entered === null ? 'estimated' : 'entered'
       const raw = entered?.value ?? estimate?.reference ?? null
       if (raw === null || !Number.isFinite(raw)) continue
@@ -296,6 +304,8 @@ export function zonesAt(
 export interface MissingZones {
   sport: Sport
   measure: ZoneMeasure
+  /** A pace or power whose efforts on the date are above the threshold on file: the older fit is left out as too low. */
+  outgrown: boolean
 }
 
 /**
@@ -304,7 +314,7 @@ export interface MissingZones {
  * entered and no effort reached near the athlete's maximum (`ZoneEstimates.untrustedMax`). The page says what would give them.
  */
 export function missingThresholdZones(
-  at: number,
+  at: number | Dated,
   settings: AthleteSettings,
   estimates: ZoneEstimates | null,
 ): MissingZones[] {
@@ -320,6 +330,11 @@ export function missingThresholdZones(
           ? estimates.thresholds[sport].length > 0
           : measure === 'heartRate' && noNearMaximalEffort(estimates, sport),
       )
-      .map((measure) => ({ sport, measure })),
+      .map((measure) => ({
+        sport,
+        measure,
+        outgrown:
+          THRESHOLD_MEASURES.includes(measure) && outgrownAt(estimates.thresholds[sport], at),
+      })),
   )
 }

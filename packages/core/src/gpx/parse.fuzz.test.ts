@@ -8,7 +8,11 @@ import type { ParseResult } from '../import/result'
 const NOW_MS = Date.UTC(2026, 9, 22)
 const START_MS = Date.UTC(2025, 4, 1, 7, 30, 0)
 const HOUR = 3_600_000
-const FILES = 500
+// The unit run keeps a small seeded sample. The heavy fuzz (20 times as many files) runs in the simulation job
+// (test:sim, through parse.fuzz.sim.test.ts), so a mutation only it finds fails there, not here.
+const FUZZ_SCALE = (globalThis as { process?: { env: Record<string, string | undefined> } }).process
+  ?.env.FUZZ_SCALE
+const FILES = 150 * Number(FUZZ_SCALE ?? 1)
 const MAX_SAMPLES = 172_800
 const SPEED_LIMIT = { ride: 30, run: 12.5 } as const
 const SPLICES = ['<', '>', '&', '"', "'", '/', '![CDATA[', ']]>', '<!--', '-->', '<?', '?>', '\0']
@@ -132,9 +136,7 @@ function violations(result: ParseResult): string[] {
   return problems
 }
 
-// The input count is fixed, so the timeout only guards against a hang; coverage
-// instrumentation on a shared CI runner can take several times the local run.
-describe('parseGpx under mutation', { timeout: 60_000 }, () => {
+describe('parseGpx under mutation', () => {
   it('never throws, and returns only plausible results', () => {
     const rng = random(0x6a9e)
     const bases = baseFiles()
@@ -151,5 +153,5 @@ describe('parseGpx under mutation', { timeout: 60_000 }, () => {
     expect(broken).toEqual([])
     // Most mutations break the document, but some survive intact.
     expect(accepted).toBeGreaterThan(0)
-  }, 60_000)
+  })
 })

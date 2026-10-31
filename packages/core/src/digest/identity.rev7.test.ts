@@ -3,9 +3,10 @@ import type { Activity, ActivityDigest } from '../types'
 import { digestActivity } from './digestActivity'
 import { REVISIONS } from './revisions'
 import { digestHash } from './test/digestHashes'
-import { gpxRun, lockedRun } from './test/gateFixtures'
+import { gpxRun, lockedRun, warmRide, warmRun } from './test/gateFixtures'
 import { droppedSecondRide, loneSpikeRide } from './test/gateFixturesPower'
-import { hillRun, ratioRun } from './test/gateFixturesE5'
+import { hillRun, longRun, ratioRun } from './test/gateFixturesE5'
+import { MARATHON_M } from '../constants'
 
 /**
  * The digest at revision 7 of fixtures that each reach one revision-7 change, pinned, with the fields the change moved
@@ -108,6 +109,71 @@ const FIXTURES: Record<
   },
 }
 
+/**
+ * Fixtures whose change only adds to the digest (a temperature, the marathon's best): `back` takes the addition out and
+ * puts the revision back, and the result must hash to what main made, which proves nothing else moved. `moved` lists
+ * what the change added.
+ */
+const ADDED: Record<
+  string,
+  {
+    make: () => Activity
+    main: string
+    moved: string[]
+    hash: string
+    back: (digest: ActivityDigest) => ActivityDigest
+  }
+> = {
+  'run with a recorded temperature': {
+    make: () => warmRun(),
+    main: '639376b74ea7a25fc90c075837a7cf744ec93a16c7319fa7557de14361370cdf',
+    moved: ['temperature'],
+    hash: '383438f20403caf338c9b3279526e3c03aec216955c9a09b04b9ece05c5397b7',
+    back: withoutTemperature,
+  },
+  'ride with a temperature on half the seconds': {
+    make: () => warmRide(),
+    main: '245a6a3cb151410e6ecde3fb71f760b5e1a4a4d58e2d5c2b5a1ef75e766227c1',
+    moved: ['temperature'],
+    hash: 'fbdae5876c5493fd7d8d2d0a2beab5a6f075903cd0a8c3d47fa59432669cd5a4',
+    back: withoutTemperature,
+  },
+  'run of 43 km': {
+    make: () => longRun(43),
+    main: '61bc45cf01e64511e696589844857057757324d6701b8bb25dce77a739f80cb5',
+    moved: ['distanceBests'],
+    hash: '1222de643de0c4ff6572896a30179aae5cf930b08bc2c4baaea5ed356885a16c',
+    back: withoutMarathon,
+  },
+  'run of 41.9 km, within 1% of the marathon': {
+    make: () => longRun(41.9),
+    main: 'ebb8d316bb4f164f3efe247898730ae25d3d1f2339d054203426d41fa0cba86d',
+    moved: ['distanceBests'],
+    hash: '00eaa7a43b3d3e2d6ec0e238d24dc6b272c6c234766aabf8c2a5567430dd886d',
+    back: withoutMarathon,
+  },
+  'run of 40 km': {
+    make: () => longRun(40),
+    main: '7ceda5adbb6c38eece737208b7c7bafa7200242366826e5dd35306cd9f43471a',
+    moved: [],
+    hash: 'c991018367d0a2f587e8297bd8158bf4d5bdd11ff19ba2d9ad3bf75c58175729',
+    back: (digest) => ({ ...digest, modelRevision: 6 }),
+  },
+}
+
+function withoutTemperature(digest: ActivityDigest): ActivityDigest {
+  const { temperature: _temperature, ...rest } = digest
+  return { ...rest, modelRevision: 6 }
+}
+
+function withoutMarathon(digest: ActivityDigest): ActivityDigest {
+  return {
+    ...digest,
+    modelRevision: 6,
+    distanceBests: digest.distanceBests?.filter((best) => best.distanceM !== MARATHON_M),
+  }
+}
+
 /** The digest less the fields a change moved and the model revision. */
 function without(digest: ActivityDigest, fields: readonly string[]): ActivityDigest {
   const copy: Record<string, unknown> = { ...digest }
@@ -136,6 +202,16 @@ describe('the digest at revision 7', () => {
     })
   }
 
+  for (const [name, { make, moved: fields, hash, back, main }] of Object.entries(ADDED)) {
+    it(`of a ${name} is the pinned digest, and is main's once ${
+      fields.length === 0 ? 'its revision' : `the ${fields.join(', ')} added`
+    } is taken out`, async () => {
+      const digest = digestActivity(make())
+      expect(await digestHash(digest)).toBe(hash)
+      expect(await digestHash(back(digest))).toBe(main)
+    })
+  }
+
   it('moves for the fixtures a change reaches, and only for those', async () => {
     const reached = Object.entries(FIXTURES).filter(([, fixture]) => fixture.moved.length > 0)
     expect(reached.map(([name]) => name)).toEqual([
@@ -159,6 +235,12 @@ describe('the digest at revision 7', () => {
     const declared = new Set<string>(REVISIONS.at(-1)!.changes)
     for (const [name, fixture] of Object.entries(FIXTURES)) {
       for (const field of fixture.moved) expect(declared.has(field), `${name}: ${field}`).toBe(true)
+    }
+    const added = new Set<string>(REVISIONS.at(-1)!.adds)
+    for (const [name, fixture] of Object.entries(ADDED)) {
+      for (const field of fixture.moved) {
+        expect(declared.has(field) || added.has(field), `${name}: ${field}`).toBe(true)
+      }
     }
     expect(moved(digestActivity(hillRun(-0.1)), digestActivity(hillRun(-0.1)))).toEqual([])
   })

@@ -93,6 +93,14 @@ Decided on 30 Oct 2026:
   Research: [age-grading.md](research/age-grading.md).
 - **Public links** (future, opt-in only). Today sharing is the downloaded image (PR #15).
 
+## Product edge
+
+Most per-sport numbers are free elsewhere and update by themselves. RCA's edge is the quality of its
+evidence: effort gates, ranges and plain refusals, read across many years and many devices from the
+athlete's own files. Build for that edge. Don't add per-sport charts that other apps already give
+away. The MCP stage waits for a small, stable evidence ledger of findings with ranges and provenance;
+it does not serve raw digests (audit RCA-017).
+
 ## Coaching loop
 
 The order is stages E, G and H in [design/README.md](design/README.md). Lifting (stage F) is Phase 3.
@@ -143,6 +151,11 @@ The order is stages E, G and H in [design/README.md](design/README.md). Lifting 
    independent data.
 6. **Done: sport-specific all-out heart-rate reference, signed virtual-power bias and altitude-aware
    air density (model revision 4).**
+7. **Running level cost.** The model adds 0.30 J/kg/m to Minetti's fitted intercept of 3.6, so flat
+   running costs 3.9. Minetti's measured level cost is 3.40. Changing it moves every run's W/kg and
+   so the Balance lean. Decide it with the cross-sport harness, together with item 2.
+8. **Altitude noise on hills (B-34).** Noisy elevation adds false climbing and descending, and the
+   cost curve is convex, so the noise does not cancel. Measure it on real files before correcting it.
 
 ## Input formats
 
@@ -154,6 +167,8 @@ The order is stages E, G and H in [design/README.md](design/README.md). Lifting 
    accepted records into per-activity processing to reduce retained data
    ([PERFORMANCE.md](PERFORMANCE.md)).
 4. **Done: GPX and TCX import (PR #13).** GPS-derived speed makes short efforts less reliable than FIT.
+5. **Ask for the sport on a typeless GPX.** A GPX with no activity type is read by its speed today.
+   A short prompt at import would remove the guess. It changes no digest.
 
 ## Activity labelling (opt-in)
 
@@ -189,7 +204,13 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
 
 ## Engineering
 
-1. **Remove dead exports.** Trim exports no app uses, so each package's public surface is what the
+1. **Detail for the whole library (RCA-046).** The 64 MiB detail budget leaves most of a multi-year
+   library without a workbench. Keep a compact summary for every activity, rebuild full traces on
+   demand from originals, count only detail that is stored, and name the real reason when detail is
+   missing.
+2. **Originals kept by default.** Keeping original files lets a model change rebuild a library with no
+   re-import. It is decided (Architecture I) but not yet the account default.
+3. **Remove dead exports.** Trim exports no app uses, so each package's public surface is what the
    apps depend on.
-2. **Shared chart scaffolding.** Finish consolidating the axis, hover and frame code the charts still
+4. **Shared chart scaffolding.** Finish consolidating the axis, hover and frame code the charts still
    repeat.

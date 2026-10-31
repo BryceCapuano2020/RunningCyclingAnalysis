@@ -182,3 +182,48 @@ describe('effortShare', () => {
     expect(effortShare('run', null)).toBeNull()
   })
 })
+
+describe('a reference the other sport set', () => {
+  const ride = {
+    durationS: 1200,
+    runHrFraction: 0.95,
+    rideHrFraction: 0.82,
+    rideReferenceFrom: 'run' as const,
+  }
+
+  it('says the cycling reference is the running max less 6 bpm, on the card and in the sport line', () => {
+    expect(effortCaveat(ride)?.text).toBe(
+      'Your best 20 min on the bike reached 82% of your cycling reference heart rate (your running max less 6 bpm). That is under the 90% that marks a hard effort.',
+    )
+    expect(effortShare('ride', ride)?.line).toBe(
+      'Your best 20 min on the bike reached 82% of your cycling reference heart rate (your running max less 6 bpm). That is under the 90% that marks a hard effort.',
+    )
+  })
+
+  it('says the running reference is the cycling max when the ride set it', () => {
+    const run = {
+      durationS: 1200,
+      runHrFraction: 0.8,
+      rideHrFraction: 0.95,
+      runReferenceFrom: 'ride' as const,
+    }
+    expect(effortCaveat(run)?.text).toBe(
+      'Your best 20 min running reached 80% of your running reference heart rate (your cycling max). That is under the 90% that marks a hard effort.',
+    )
+  })
+
+  it('names each source when the two references differ, and one when they match', () => {
+    const both = effortCaveat({ ...ride, runHrFraction: 0.7 })
+    expect(both?.text).toBe(
+      "Your best 20 min reached 70% of your running reference heart rate and 82% of your cycling one (running's set from your highest heart rates on file; cycling's your running max less 6 bpm). Both are under the 90% that marks a hard effort.",
+    )
+    expect(
+      effortCaveat({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })?.text,
+    ).toContain('(both set from your highest heart rates on file)')
+  })
+
+  it('keeps the entered max as it is: a borrowed note only for a reference the activities gave', () => {
+    const entered = { ...ride, rideReferenceSource: 'entered' as const }
+    expect(effortCaveat(entered)?.text).toContain('(the max heart rate you entered)')
+  })
+})

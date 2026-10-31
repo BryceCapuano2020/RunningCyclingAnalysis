@@ -179,6 +179,7 @@ describe('the check-in database', () => {
       const r = db.transaction('marks', 'readonly').objectStore('marks').getAllKeys()
       r.onsuccess = () => resolve(r.result)
     })
-    expect(left).toEqual(['device'])
+    // A cleared scope keeps only its epoch, a count that lets a stale writer be refused; it holds no record.
+    expect(left.filter((key) => !String(key).endsWith('|epoch'))).toEqual(['device'])
   })
 })

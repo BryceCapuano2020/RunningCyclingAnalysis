@@ -292,7 +292,7 @@ describe('status messages go into regions that are already mounted', () => {
     view.rerender(<App />)
     expectAnnouncedFromMountedRegion(
       regions,
-      /^Sample athlete, a 37-year-old man at 75 kg\. Not kept: add files to replace it\.$/,
+      /^Sample athlete, a 37-year-old man at 165\.3 lb\. Not kept: add files to replace it\.$/,
     )
   })
 

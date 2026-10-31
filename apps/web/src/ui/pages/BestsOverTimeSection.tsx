@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
-import type { EffortLengthS } from '@rca/core/digest/trendPoints'
+import { NONE_WITHHELD } from '@rca/core/digest/trendPoints'
+import type { DotsWithheld, EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { BestsOverTimeChart } from '../charts/BestsOverTimeChart'
 import { SegmentedControl } from '../components/SegmentedControl'
-import { takeawayAt } from '../charts/sportCurveTakeaway'
+import { namedChangeAt } from '../charts/sportCurveTakeaway'
 import type { TakeawayInput } from '../charts/sportCurveTakeaway'
 import { EFFORT_OPTIONS, effortOf } from '../records'
 
@@ -14,6 +15,8 @@ export interface BestsOverTimeSectionProps {
   sport: Sport
   /** The weekly trend of each effort length over the period: the efforts that led its windows are the dots. */
   trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
+  /** The lengths whose dots the effort gate left too few to draw: such a length's empty state names the gate. Absent: none. */
+  withheld?: DotsWithheld
   massKg: number
   units: UnitSystem
   /** The curve rows and change test the finding about a length is read from; null where no period before can be compared. */
@@ -28,13 +31,14 @@ export interface BestsOverTimeSectionProps {
 export function BestsOverTimeSection({
   sport,
   trends,
+  withheld = NONE_WITHHELD,
   massKg,
   units,
   finding,
 }: BestsOverTimeSectionProps) {
   const [effort, setEffort] = useState<EffortLengthS>(HEADLINE_DURATION_S)
   const takeaway = useMemo(
-    () => (finding === null ? null : takeawayAt(finding, effort)),
+    () => (finding === null ? null : namedChangeAt(finding, effort)),
     [finding, effort],
   )
   return (
@@ -52,6 +56,7 @@ export function BestsOverTimeSection({
       <BestsOverTimeChart
         sport={sport}
         points={trends[effort]}
+        gateWithheld={withheld[sport][effort]}
         massKg={massKg}
         units={units}
         effortS={effort}

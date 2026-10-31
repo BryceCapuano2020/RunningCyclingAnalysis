@@ -271,5 +271,12 @@ export function useImportActions({
     send({ type: 'rebuildStale', settings: settingsRef.current, userId })
   }, [accountRef, send, setRebuildNotice, settingsRef])
 
-  return { addFiles, loadSample, setRange, clear, rebuildSavedActivities }
+  const undoLabels = useCallback(() => {
+    const current = accountRef.current
+    const userId = current.status === 'signed-in' ? current.me?.user.id : undefined
+    if (userId === undefined) return
+    send({ type: 'undoLabels', settings: settingsRef.current, userId })
+  }, [accountRef, send, settingsRef])
+
+  return { addFiles, loadSample, setRange, clear, rebuildSavedActivities, undoLabels }
 }

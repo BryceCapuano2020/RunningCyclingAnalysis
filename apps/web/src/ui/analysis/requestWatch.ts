@@ -37,6 +37,7 @@ const READ_ORIGINAL: StallRule = { noticeMs: Infinity, stallMs: 150_000, action:
 const RULES: Record<WorkerRequest['type'], StallRule> = {
   addFiles: LONG,
   rebuildStale: LONG,
+  undoLabels: LONG,
   loadServer: LONG,
   loadDevice: LONG,
   exportData: LONG,
@@ -51,6 +52,8 @@ const RULES: Record<WorkerRequest['type'], StallRule> = {
   activitySplits: READ,
   activityTrace: READ,
   forgetRoutes: READ,
+  markSeen: READ,
+  acceptPartialImport: SHORT,
   adoptDevice: LONG,
   forgetDeviceLibrary: SHORT,
 }

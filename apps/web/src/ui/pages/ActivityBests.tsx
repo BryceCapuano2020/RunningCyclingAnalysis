@@ -156,12 +156,15 @@ export function ActivityBests({
     outcome:
       profile === null || !counts
         ? null
-        : distanceGrade(record.distanceM, record.seconds, activity.startMs, profile),
+        : distanceGrade(record.distanceM, record.seconds, activity, profile),
   }))
   const outcomes = [...durationItems, ...distanceItems].map((item) => item.outcome)
   const anyGraded = outcomes.some((outcome) => outcome?.kind === 'graded')
   // The list says a ride's lead and a run's no-standard gap once under it, so each row leaves them off.
-  const listNotes = listedGradeNotes(sport, outcomes)
+  const listNotes = listedGradeNotes(sport, outcomes, [
+    ...durationItems.map(({ record }) => effortLabel(record.durationS)),
+    ...distanceItems.map(({ record }) => record.label),
+  ])
   // A record of all time says so; else a best of the period says which period. Only one of them shows.
   const scopeMark = (allTime: boolean, ofPeriod: boolean): string[] => {
     if (allTime) return [ALL_TIME_MARK]

@@ -16,6 +16,7 @@ import { betweenClause } from '../periodCopy'
 import { countEfforts, countSport, hasThreshold } from '../records'
 import { otherSport } from '../soleSport'
 import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL } from '../sports'
+import { basisOf, notHardWords, uncheckedWords } from '../effortWords'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 
 /** The count under the lede when either sport has few efforts; null when both have enough, or one is missing. */
@@ -78,6 +79,19 @@ const LEFT_OUT: Record<RideLeftOut, { title: string; detail: string }> = {
 }
 
 /**
+ * What would confirm a level that rests on a best 20 minutes the gate did not show hard: the gate's own action (a harder
+ * effort, a reference, or a heart rate to check it). Empty when the level is confirmed, so a graded sport is never
+ * asked for more than the gate asks.
+ */
+function gateAsk(result: AnalysisResult, sport: Sport): string {
+  const gate = result.effortGate[sport]
+  if (basisOf(gate) === null) return ''
+  return gate.verdict === 'notHard'
+    ? notHardWords(sport, gate, 'confirm the level').action
+    : (uncheckedWords(sport, gate)?.action ?? '')
+}
+
+/**
  * A period that holds one sport. When the library holds the other sport elsewhere, that is the news (with a way to see it).
  * When the library holds one sport, the page is that sport's: its level leads, never a request, and under it only what its
  * threshold still needs. What would add the other sport is the invitation at the page's foot, not this headline.
@@ -109,6 +123,8 @@ function soleSportMissing(
       canShowAll: false,
     }
   }
+  // A sport with a level is graded, not held: the line under the level never asks for a harder effort, which would say the
+  // grade is not there. What its threshold needs is said by the threshold's own tile.
   // While the library is only part of what was added, the other sport may be in the files that were not read: the
   // hold's own words say to finish the import, where a line about what the sport needs would send the athlete elsewhere.
   const partial = holdInputs.partialImport
@@ -117,9 +133,11 @@ function soleSportMissing(
     detail:
       partial !== undefined && partial !== null
         ? `${partial.text} ${partial.action}`
-        : hasThreshold(result, sport)
-          ? ''
-          : thresholdNeedsLine(result, sport),
+        : level !== null
+          ? gateAsk(result, sport)
+          : hasThreshold(result, sport)
+            ? ''
+            : thresholdNeedsLine(result, sport),
     canShowAll: false,
   }
 }

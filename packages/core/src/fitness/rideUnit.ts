@@ -1,5 +1,6 @@
 import { DAY_MS } from '../constants'
 import { median } from '../findings/stats'
+import { revisionStatus } from '../digest/revisions'
 import type { ActivityDigest, LocalDayShift, Sport } from '../types'
 import { fitHeartRateSlope } from './fit'
 import type { SlopeLimits } from './fit'
@@ -12,6 +13,8 @@ const R = FITNESS.ride
 interface RideBlocks {
   id: string
   startMs: number
+  /** The day's warmth as the file's sensor read it (revision 7), when it had a usable reading. */
+  c?: number
   localDayShift: LocalDayShift | undefined
   blocks: { hr: number; ln: number }[]
 }
@@ -33,6 +36,9 @@ function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
     ? {
         id: digest.id,
         startMs: digest.startMs,
+        ...(digest.temperature === undefined || revisionStatus(digest.modelRevision) !== 'current'
+          ? {}
+          : { c: digest.temperature.c }),
         localDayShift: digest.localDayShift,
         blocks: digest.hrBlocks
           .filter((b) => b.terms === null && b.value > 0 && Number.isFinite(b.heartRate))
@@ -86,6 +92,7 @@ export function rideSeries(
       localDayShift: z.r.localDayShift,
       hr: median(z.blocks.map((b) => b.hr)),
       ln: median(z.blocks.map((b) => b.ln)),
+      c: z.r.c,
     }))
   const beta = fitHeartRateSlope(
     rows.map((r) => ({ startMs: r.startMs, hr: r.hr, value: r.ln })),
@@ -93,7 +100,7 @@ export function rideSeries(
   )
   return {
     points: rows
-      .map((r) => unitPoint(r.id, r.startMs, r.ln - beta * (r.hr - ref), r.localDayShift))
+      .map((r) => unitPoint(r.id, r.startMs, r.ln - beta * (r.hr - ref), r.localDayShift, r.c))
       .sort(byTime),
     referenceHr: ref,
     method: {
