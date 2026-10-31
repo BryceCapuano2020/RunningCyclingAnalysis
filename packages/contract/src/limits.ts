@@ -103,6 +103,17 @@ export const DEFAULT_PAGE_SIZE = MAX_PAGE_SIZE
  */
 export const MAX_PAGE_DIGEST_BYTES = 512 * 1024
 
+/**
+ * The longest free text a digest may carry, in UTF-8 bytes: its name (a title is at most 255 characters), its id (a start
+ * time and a file name of at most 255 characters), its session key and each quality flag's message. The digest reader
+ * allows 256 KiB of any text; the API refuses more than these, so a crafted digest cannot spend its whole digest budget
+ * on one string and fill the database with a few accounts (see apps/api/LIMITS.md).
+ */
+export const MAX_DIGEST_NAME_BYTES = 1024
+export const MAX_DIGEST_ID_BYTES = 1100
+export const MAX_DIGEST_SESSION_KEY_BYTES = 1100
+export const MAX_DIGEST_FLAG_MESSAGE_BYTES = 1024
+
 /** Longest record id, original file name and list cursor the API schemas accept, in characters. */
 export const MAX_RECORD_ID_CHARS = 64
 export const MAX_FILE_NAME_CHARS = 255

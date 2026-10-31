@@ -33,6 +33,7 @@ import { datedWeightActions } from './ui/datedWeight'
 import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
 import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
+import { useExportWeight } from './ui/useExportWeight'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
@@ -126,6 +127,7 @@ export function App() {
     addFiles: analysis.addFiles,
     save: saveProfile,
   })
+  const exportWeightKg = useExportWeight(setup.files)
   const hasResult = analysis.state.result !== null
   // A library is more than a result: one whose digests are all held out has none, and is still a library.
   const { knowledge, holdInputs, page } = useLibraryPage(analysis, route, signedIn)
@@ -300,6 +302,7 @@ export function App() {
             walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
             countedRuns={countedRuns}
             libraryPanel={page === 'held'}
+            units={units}
           />
           <PageFrame pageKey={key} onShown={onShown}>
             {route.page === 'profile' ? (
@@ -359,7 +362,12 @@ export function App() {
                 restoring={analysis.restoring}
               />
             ) : (
-              <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
+              <LandingPage
+                analysis={analysis}
+                signedIn={signedIn}
+                units={units}
+                onFiles={setup.requestImport}
+              />
             )}
           </PageFrame>
         </main>
@@ -379,6 +387,7 @@ export function App() {
         {setup.open && (
           <SetupDialog
             initial={athleteValues}
+            exportWeightKg={exportWeightKg}
             saving={setup.saving}
             error={setup.saveError}
             onConfirm={(patch) => void setup.finish(patch)}

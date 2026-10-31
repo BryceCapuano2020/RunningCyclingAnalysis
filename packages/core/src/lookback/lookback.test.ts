@@ -15,7 +15,7 @@ import { orderedFor } from '../digest/consumers'
 import { ownRideGate } from '../digest/estimatedRide'
 import { hasEstimatedRide } from '../records/progression'
 import { milestonesOf } from './milestones'
-import type { HindsightEpisode, HindsightFitness, Plateau } from './types'
+import type { EffortMilestones, HindsightEpisode, HindsightFitness, Plateau } from './types'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 const NONE: ReadonlySet<string> = new Set()
@@ -256,6 +256,32 @@ describe('what leads', () => {
     })
   })
 
+  it('prefers a slip and its return, or one that was followed by a further fall, to a best that has stood', () => {
+    const best: EffortMilestones = {
+      effort: { kind: 'duration', durationS: 300 },
+      unit: 'm/s',
+      best: { value: 4.2, atMs: T0, id: 'a' },
+      years: [],
+      omittedYears: 0,
+      steps: [],
+      verdicts: [],
+    }
+    // Under the bar for a lead (7%, z 5.5), but listed and ended: news a best that has stood is not.
+    const small = episode({
+      kind: 'slip-back',
+      change: { value: -0.05, low: -0.08, high: -0.02 },
+      z: -3.5,
+    })
+    const quiet = years({ episodes: [small] })
+    const lead = leadOf(look(quiet, { milestones: [best] }), live('holding'))
+    expect(lead).toMatchObject({ kind: 'episode', sport: 'run', held: false })
+    // One still open at the horizon is the card's to tell, and a best is all that is left.
+    const open = years({ episodes: [{ ...small, kind: 'slip-open', toMs: null }] })
+    expect(leadOf(look(open, { milestones: [best] }), live('holding'))).toMatchObject({
+      kind: 'best',
+    })
+  })
+
   it('is never a statement that a library too short for its years has nothing yet', () => {
     const short = {
       kind: 'too-short',
@@ -356,6 +382,13 @@ describe('the words', () => {
     expect(rows).toContain('Faster in 2021 than in 2020.')
     expect(rows).toContain('No clear change from 2019 to 2020.')
     expect(rows.join(' ')).not.toMatch(/level with last time/)
+  })
+
+  it('tells a slip that was followed by a further fall as lower until then, not as still lower', () => {
+    const closed = { ...fit.episodes[0]!, kind: 'slip-open' as const, toMs: Date.UTC(2023, 2, 1) }
+    const said = [episodeSentence(closed, sport, fit), episodeRow(closed, sport, fit)].join(' ')
+    expect(said).toContain('stayed lower until it fell again')
+    expect(said).not.toMatch(/still lower/)
   })
 
   it('writes a ride in power: higher and lower, never faster and slower', () => {

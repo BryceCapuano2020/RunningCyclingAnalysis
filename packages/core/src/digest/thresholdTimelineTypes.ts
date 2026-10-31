@@ -1,6 +1,7 @@
 import { DAY_MS } from '../constants'
 import type { CriticalPowerFit, Sport } from '../types'
-import { weekEndMs } from './trendPoints'
+import { weekEndFor } from '../calendar'
+import type { Dated } from '../calendar'
 
 /** The trailing window a threshold is fitted over, in weeks: about half a year of the athlete's efforts. */
 export const THRESHOLD_WINDOW_WEEKS = 26
@@ -14,7 +15,7 @@ export const STALE_THRESHOLD_DAYS = 365
  * leaves the window, so a step is kept for those weeks alone. Plain data, so the session can post it.
  */
 export interface ThresholdStep {
-  /** The end of the first week this step holds for (`weekEndMs`), ms. */
+  /** The end of the first week this step holds for (`weekEndFor`), ms. */
   fromMs: number
   /** The threshold of the window, as the analysis reports a fit (a refused fit is null); gross metabolic W/kg. */
   fit: CriticalPowerFit | null
@@ -37,8 +38,8 @@ export interface ThresholdAt {
 }
 
 /** The index of the step in effect at an instant: the last whose week has ended by the instant's week's end, -1 for none. */
-function stepIndexAt(steps: readonly ThresholdStep[], at: number): number {
-  const end = weekEndMs(at)
+function stepIndexAt(steps: readonly ThresholdStep[], at: number | Dated): number {
+  const end = weekEndFor(typeof at === 'number' ? { startMs: at } : at)
   let low = 0
   let high = steps.length - 1
   let found = -1
@@ -57,13 +58,17 @@ function stepIndexAt(steps: readonly ThresholdStep[], at: number): number {
  * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`, unless the
  * window's efforts have outgrown that fit. Null when none exists.
  */
-export function thresholdAt(steps: readonly ThresholdStep[], at: number): ThresholdAt | null {
+export function thresholdAt(
+  steps: readonly ThresholdStep[],
+  at: number | Dated,
+): ThresholdAt | null {
   const step = steps[stepIndexAt(steps, at)]
   if (step === undefined) return null
   if (step.fit !== null) return { fit: step.fit, asOfMs: null }
   const older = steps[step.lastFit]
   if (older?.fit == null || older.asOfMs === null) return null
-  return at - older.asOfMs <= STALE_THRESHOLD_DAYS * DAY_MS
+  const startMs = typeof at === 'number' ? at : at.startMs
+  return startMs - older.asOfMs <= STALE_THRESHOLD_DAYS * DAY_MS
     ? { fit: older.fit, asOfMs: older.asOfMs }
     : null
 }
@@ -72,7 +77,7 @@ export function thresholdAt(steps: readonly ThresholdStep[], at: number): Thresh
  * Whether the window at an instant has no fit and has outgrown the fits before it: its best 20 minutes is far above what
  * the newest of them predicts, so none stands in (`lastFit` -1, though an earlier step had a fit).
  */
-export function outgrownAt(steps: readonly ThresholdStep[], at: number): boolean {
+export function outgrownAt(steps: readonly ThresholdStep[], at: number | Dated): boolean {
   const i = stepIndexAt(steps, at)
   const step = steps[i]
   return (
