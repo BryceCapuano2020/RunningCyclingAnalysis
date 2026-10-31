@@ -2,6 +2,7 @@ import { orderedFor } from '../digest/consumers'
 import { memoByDigests } from '../digestMemo'
 import type { ActivityDigest, Sport } from '../types'
 import { dayOfMs, replay, weekOfMs } from './machine'
+import type { WeekRecord } from './machine'
 import { RIDE_FITNESS_ENABLED } from './params'
 import { rideSeries } from './rideUnit'
 import { withoutSeason } from './season'
@@ -43,9 +44,11 @@ const ENABLED: Record<Sport, boolean> = { run: true, ride: RIDE_FITNESS_ENABLED 
 export interface FitnessHistory {
   runs: RunPoint[]
   referenceHr: number | null
+  /** What the monitor said week by week, from the first steady run to the date: the look-back reads where the card reached "back". */
+  records: WeekRecord[]
 }
 
-const NO_HISTORY: FitnessHistory = { runs: [], referenceHr: null }
+const NO_HISTORY: FitnessHistory = { runs: [], referenceHr: null, records: [] }
 
 /** One sport's replay, from its first steady run to the date, and what it says at the end. */
 export function fitnessOfSport(
@@ -77,7 +80,7 @@ function readSport(
   const method = { ...series.method, seasonal: season?.amplitude ?? null }
   return {
     status: describe(sport, { ...series, method }, seen, records, asOfMs),
-    history: { runs, referenceHr: series.referenceHr },
+    history: { runs, referenceHr: series.referenceHr, records },
   }
 }
 

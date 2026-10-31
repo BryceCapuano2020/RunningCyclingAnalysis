@@ -8,6 +8,9 @@ import type { LiveState } from './lead'
 import { bestRows, episodeRow, episodeSentence, leadSentence, tooShortText } from './copy'
 import { lookBackOf, NO_LOOKBACK } from './compute'
 import type { LookBack, SportLookBack } from './compute'
+import { fitnessHistories } from '../fitness/compute'
+import { dayOfMs } from '../fitness/machine'
+import { hindsightOf } from './hindsight'
 import { milestonesOf } from './milestones'
 import type { HindsightEpisode, HindsightFitness, Plateau } from './types'
 
@@ -70,6 +73,30 @@ describe('a library through lookBackOf', () => {
           ? Math.max(0, ...Object.values(value).map(longest))
           : 0
     expect(longest(look)).toBeLessThanOrEqual(16)
+  })
+
+  it('reads the years with what the card said week by week, so a recovery it confirmed is not called less', () => {
+    const dip = plantedLibrary({
+      seed: 8,
+      weeks: 260,
+      perWeek: 3,
+      ...NOISE,
+      effects: [
+        { type: 'efficiency-shift', atWeek: 90, size: -0.1 },
+        { type: 'efficiency-shift', atWeek: 150, size: 0.1 },
+      ],
+    })
+    const asOfMs = dip.lastMs
+    const history = fitnessHistories(dip.digests, NONE, { nowMs: asOfMs }).run
+    expect(history.records.length).toBeGreaterThan(200)
+    const told = lookBackOf(dip.digests, SETTINGS, NONE, asOfMs).sports.run.fitness
+    const direct = hindsightOf({
+      runs: history.runs,
+      activeDays: dip.digests.filter((d) => d.sport === 'run').map((d) => dayOfMs(d.startMs)),
+      asOfDay: dayOfMs(asOfMs),
+      records: history.records,
+    })
+    expect(told).toEqual(direct)
   })
 
   it('is the session state field, built with the state', () => {
