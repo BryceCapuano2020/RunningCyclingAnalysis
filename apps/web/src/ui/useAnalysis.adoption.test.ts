@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   apart,
   ready,
@@ -10,6 +10,11 @@ import {
   stubFakeWorker,
   worker,
 } from '../test/signedInAnalysis'
+
+vi.mock(
+  './analysis/workerStart',
+  async () => (await import('../test/workerStartsAtOnce')).workerStart,
+)
 
 stubFakeWorker()
 

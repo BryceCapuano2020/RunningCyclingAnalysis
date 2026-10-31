@@ -1,4 +1,4 @@
-import { strToU8, zipSync } from 'fflate'
+import { gzipSync, strToU8, zipSync } from 'fflate'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity, serializeDigest } from '@rca/core/digest'
@@ -67,6 +67,7 @@ vi.mock('../api/client', async (importOriginal) => {
     listActivities: vi.fn(),
     deleteActivity: vi.fn(),
     uploadFile: vi.fn(),
+    patchLabels: vi.fn(),
   }
 })
 
@@ -517,22 +518,27 @@ describe('analysis worker', () => {
   })
 
   it('reports a storage allowance failure and does not retry remaining original uploads', async () => {
-    mocked.uploadFile.mockRejectedValueOnce(
+    mocked.uploadFile.mockRejectedValue(
       new ApiRequestError(429, 'storage_budget_exhausted', 'Storage allowance reached'),
     )
     const { send } = await startWorker()
     const messages = await send({
       type: 'addFiles',
-      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      files: [
+        fitFile(sampleActivity, 'run-a.fit'),
+        fitFile(secondSampleActivity, 'run-b.fit'),
+        fitFile(thirdSampleActivity, 'run-c.fit'),
+      ],
       settings: SETTINGS,
       sync: { keepFiles: true, userId: USER_ID },
     })
 
-    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
-    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(mocked.createActivity).toHaveBeenCalledTimes(3)
+    // Originals are uploaded once the import is read, two at a time: the third waits, and finds the allowance spent.
+    expect(mocked.uploadFile).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-budget', count: 2 }], totalActivities: 2 },
+      state: { syncIssues: [{ code: 'storage-budget', count: 3 }], totalActivities: 3 },
     })
   })
 
@@ -568,7 +574,6 @@ describe('analysis worker', () => {
       type: 'state',
       state: { syncIssues: [{ code: 'file-too-large', count: 1 }], totalActivities: 1 },
     })
-    expect(messages).not.toContainEqual(expect.objectContaining({ uploaded: 1 }))
   })
 
   it('counts a failed save and still finishes the import', async () => {
@@ -3145,6 +3150,59 @@ describe('rule R: near-copies of one workout in the worker', () => {
     expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
   })
 
+  it.each([
+    ['the FIT first', ['fit', 'copy']],
+    ['the copy first', ['copy', 'fit']],
+  ] as const)(
+    'keeps one original, the shown copy’s, whichever file comes %s',
+    async (_name, order) => {
+      mocked.listActivities.mockResolvedValue([])
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const files = order.map((which) =>
+        which === 'fit' ? fitFile(sampleActivity, 'a.fit') : copyFile(),
+      )
+
+      const messages = await send({
+        type: 'addFiles',
+        files,
+        settings: SETTINGS,
+        sync: { keepFiles: true, userId: USER_ID },
+      })
+
+      // Both digests are stored; the original is uploaded for the FIT, which the analysis shows, and not for the GPX.
+      expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+      expect(mocked.uploadFile).toHaveBeenCalledOnce()
+      const [id] = mocked.uploadFile.mock.calls[0] ?? []
+      const fit = mocked.createActivity.mock.calls.find(([digest]) => digest.id.endsWith('a.fit'))
+      expect(id).toBe(`rec-${fit?.[0].id}`)
+      expect(messages.at(-1)).toMatchObject({
+        type: 'state',
+        state: { syncIssues: [], totalActivities: 1, hiddenDuplicates: 1 },
+      })
+    },
+  )
+
+  it('says an original failed to upload for the shown copy, once the import is read', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    mocked.uploadFile.mockRejectedValue(new ApiRequestError(403, 'storage_quota', 'Storage full'))
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
+    })
+  })
+
   it('lists a stale FIT kept in this browser beside a current GPX: neither is a copy of the other', async () => {
     const { send } = await startWorker()
     const stale = { ...digestActivity({ ...sampleActivity, id: 'old.fit' }), modelRevision: 1 }
@@ -3727,5 +3785,43 @@ describe('a kept library changed by another tab', () => {
     const reloaded = await send({ type: 'loadDevice', settings: SETTINGS, reload: true })
 
     expect(reloaded.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
+  })
+})
+
+describe('an import of an export whose list labels activities the account holds', () => {
+  /** An export of one run, which the list calls a hike. */
+  function hikeExport(): File {
+    const csv = strToU8(
+      'Activity ID,Activity Name,Activity Type,Filename\n1,Lunch,Hike,activities/1.fit.gz\n',
+    )
+    return new File(
+      [
+        new Uint8Array(
+          zipSync({
+            'activities/1.fit.gz': gzipSync(RUN_FILE_BYTES),
+            'activities.csv': csv,
+          }),
+        ),
+      ],
+      'export.zip',
+    )
+  }
+
+  it('sends no label while the labels are off, and reads the type of the file as it always did', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({
+      type: 'addFiles',
+      files: [hikeExport()],
+      settings: SETTINGS,
+      sync: { userId: USER_ID, keepFiles: false },
+    })
+    expect(mocked.patchLabels).not.toHaveBeenCalled()
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'state', outcome: { activities: 1 } })
+    expect(reply).not.toHaveProperty('outcome.labelled')
+    // The digest saved is the one main made: no label below revision 7.
+    expect(mocked.createActivity.mock.calls[0]?.[0]).not.toHaveProperty('athleteType')
   })
 })

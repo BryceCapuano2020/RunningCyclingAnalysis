@@ -88,6 +88,13 @@ export interface ImportOutcome {
    * their file was added again. Absent when none were. Never counts an activity the import added.
    */
   detailRestored?: number
+  /**
+   * Saved activities the import's list labelled (Hike, Walk, a ski or another type), now left out of the analysis. Absent
+   * when none were.
+   */
+  labelled?: number
+  /** Activities whose file says one sport and whose export's list names the other: the file wins. Absent when none. */
+  listedAsOtherSport?: number
 }
 
 /** Whether imported activities are saved to the signed-in account, and whether their files are kept. */

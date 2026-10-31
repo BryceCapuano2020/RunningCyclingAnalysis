@@ -1,4 +1,5 @@
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
+import { isAnalysed, leftOutCounts } from './digest/analysed'
 import { activitySummaries } from './digest'
 import { hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
@@ -49,15 +50,16 @@ export interface StateInputs {
 
 /**
  * What the analysis reads of a library: the digests that are not hidden copies of another, and of those the ones that
- * are not a run at walking pace (which stays in the library and is left out of every analysis).
+ * are not left out (a run at walking pace, or one the athlete labelled Hike or Walk, which stays in the library).
  */
 export function analysedOf(all: ActivityDigest[]): {
+  hidden: ReadonlySet<ActivityDigest>
   visible: ActivityDigest[]
   analysed: ActivityDigest[]
 } {
   const hidden = hiddenDigests(all)
   const visible = all.filter((d) => !hidden.has(d))
-  return { visible, analysed: visible.filter((d) => d.walkingPace !== true) }
+  return { hidden, visible, analysed: visible.filter(isAnalysed) }
 }
 
 /**
@@ -70,7 +72,8 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   // Every change to the library is followed by a state, so the analyses it made stale go here.
   periods.releaseAbsent(all)
   judge.release(all)
-  const { visible, analysed } = analysedOf(all)
+  const { hidden, visible, analysed } = analysedOf(all)
+  const leftOut = leftOutCounts(visible)
   const { period, selected, previous } = splitPeriods(analysed, inputs.choice)
   // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
   const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : judge.of(analysed, athlete)
@@ -175,8 +178,9 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     incompatibleActivities: inputs.incompatibleActivities,
     libraryActivities: inputs.libraryActivities,
     heldOut: inputs.heldOut,
-    hiddenDuplicates: all.length - visible.length,
-    walkingPaceRuns: visible.length - analysed.length,
+    hiddenDuplicates: hidden.size,
+    walkingPaceRuns: leftOut.walking,
+    ...(leftOut.labelled === 0 ? {} : { labelledRuns: leftOut.labelled }),
     countedWalkingRuns: inputs.countedWalkingRuns,
     period,
     library:

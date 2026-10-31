@@ -46,6 +46,8 @@ export async function originalActivity(
     activityType: savedType(record.digest),
     // The tag came from the export's list, which the file does not carry, so the saved digest keeps it.
     race: record.digest.race === true,
+    // Likewise the athlete's own label: the export's list is not at hand, so the saved digest keeps it.
+    ...(record.digest.athleteType === undefined ? {} : { athleteType: record.digest.athleteType }),
     sessionKey: fileHash,
   })
   if (!parsed.ok) return { fileHash, activity: undefined }

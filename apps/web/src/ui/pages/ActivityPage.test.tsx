@@ -1344,10 +1344,10 @@ describe('ActivityPage: a run at walking pace the athlete may count', () => {
     renderPage(counted, undefined, undefined, undefined, undefined, undefined, undefined, {
       walkingChoice: { counted: true, onCount: vi.fn(() => null), onStop },
     })
-    expect(
-      screen.getByText(/You count it as a run, so it is in your run analysis\./),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Walking pace')).toHaveClass('chip')
+    expect(screen.getByText(/You count it, so it is in your analysis\./)).toBeInTheDocument()
+    // Counting takes the cause away, whatever it was, so no cause is named: the chip is for a run still at walking pace.
+    expect(screen.queryByText('Walking pace')).not.toBeInTheDocument()
+    expect(screen.queryByText(/walking pace/i)).not.toBeInTheDocument()
     expect(
       screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
     ).toBeInTheDocument()
