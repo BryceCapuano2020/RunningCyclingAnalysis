@@ -1016,6 +1016,34 @@ describe('ProfilePage zones and dated settings', () => {
     )
   })
 
+  it('says a held threshold is not the newest fit only where the two differ', () => {
+    const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
+    const held = estimatesFrom(result)
+    renderProfile({}, { state: { result, zoneEstimates: held } })
+    expect(screen.getByRole('table', { name: /^Run pace zones/ })).not.toHaveAccessibleName(
+      /newest fit/,
+    )
+    cleanup()
+
+    // The zones hold an earlier, slower fit while the sport page shows the newest.
+    const fit = result.runCp!
+    const earlier = {
+      ...held,
+      thresholds: {
+        ...held.thresholds,
+        run: [{ fromMs: 0, fit: { ...fit, cp: fit.cp * 0.95 }, asOfMs: null, lastFit: 0 }],
+      },
+    }
+    renderProfile({}, { state: { result, zoneEstimates: earlier } })
+    expect(screen.getByRole('table', { name: /^Run pace zones/ })).toHaveAccessibleName(
+      /Zones keep this threshold until the fit moves by more than its error; the Run page shows the newest fit/,
+    )
+    // A ride whose held fit is the newest says nothing.
+    expect(screen.getByRole('table', { name: /^Ride power zones/ })).not.toHaveAccessibleName(
+      /newest fit/,
+    )
+  })
+
   it('opens the dated max heart rate form to the figure when Set it is pressed beside an estimate', () => {
     const result = makeResult({ runMaxHeartRate: 201, rideMaxHeartRate: 195 })
     const estimates = {
