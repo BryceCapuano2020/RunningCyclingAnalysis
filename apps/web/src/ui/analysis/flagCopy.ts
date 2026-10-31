@@ -53,6 +53,7 @@ const KIND_COPY: Record<QualityKind, KindCopy> = {
   'hr-implausible-for-power': skipped('Heart rate looked too low for your power'),
   'hr-dropout': skipped('Heart rate was missing or too low while moving'),
   'hr-spike': skipped('Heart rate jumped suddenly'),
+  'hr-cadence-lock': skipped('Heart rate matched cadence'),
   'power-spike': skipped('The power meter reported a sudden spike'),
   'power-dropout': skipped('The power meter stopped reporting while moving'),
   'speed-spike': skipped((indoor) =>

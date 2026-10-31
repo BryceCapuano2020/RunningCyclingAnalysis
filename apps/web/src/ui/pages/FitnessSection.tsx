@@ -54,7 +54,7 @@ export function FitnessSection({ fitness, units, library, sport }: FitnessSectio
   const cards = views.filter((view) => view !== waitingRide)
   if (cards.length === 0 && waitingRide === undefined) return null
   return (
-    <section className="fitness-section" aria-labelledby={id} data-testid="fitness-section">
+    <section className="band fitness-section" aria-labelledby={id} data-testid="fitness-section">
       {/* Not a heading either: on Balance the page's h1 follows, and the region is named by this line. */}
       <p id={id} className="eyebrow">
         Your fitness

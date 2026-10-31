@@ -18,6 +18,14 @@ const ACTIVITIES = 2000
 const ALL_TIME_BUDGET_MS = 300
 const DEFAULT_BUDGET_MS = 80
 const MASS_CHANGE_BUDGET_MS = 80
+/**
+ * The same library with hard efforts in both sports, whose thresholds the effort gate keeps: the path that fits them, cuts the
+ * zones' thresholds by week and reads the sessions that reached a hard heart rate. The default library has none, so its figures
+ * above time the gate's refusals only. These efforts are longer and steadier, so the same activities cost more to digest into
+ * a state (a heart-rate check of about a third more blocks), and the budgets are their own.
+ */
+const HARD_ALL_TIME_BUDGET_MS = 1200
+const HARD_DEFAULT_BUDGET_MS = 1000
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
 describe('session performance on a large library', () => {
@@ -55,5 +63,30 @@ describe('session performance on a large library', () => {
     }, 5)
     expect(kept).toBe(ACTIVITIES)
     expect(ms).toBeLessThan(MASS_CHANGE_BUDGET_MS)
+  })
+
+  describe('with hard efforts, where the thresholds are fitted', () => {
+    const hard = copiedLibrary(ACTIVITIES, { hard: true })
+
+    it(`loads and analyses all of ${ACTIVITIES} activities in under ${HARD_ALL_TIME_BUDGET_MS} ms`, () => {
+      let fitted: unknown = null
+      const ms = fastestMs(() => {
+        const session = new AnalysisSession()
+        session.choosePeriod('all')
+        fitted = session.loadDigests(hard, SETTINGS).result?.runCp ?? null
+      }, 5)
+      // The fit is kept, so the time is of the path that fits it and not of a refusal.
+      expect(fitted).not.toBeNull()
+      expect(ms).toBeLessThan(HARD_ALL_TIME_BUDGET_MS)
+    })
+
+    it(`loads the default 12 weeks in under ${HARD_DEFAULT_BUDGET_MS} ms`, () => {
+      let period = 0
+      const ms = fastestMs(() => {
+        period = new AnalysisSession().loadDigests(hard, SETTINGS).period.days ?? 0
+      }, 5)
+      expect(period).toBeGreaterThan(0)
+      expect(ms).toBeLessThan(HARD_DEFAULT_BUDGET_MS)
+    })
   })
 })

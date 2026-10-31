@@ -161,6 +161,9 @@ The bound on `startMs` closes that.
 | `MAX_DRIFT_RATIO`            | 1,000,000             | The largest output per heart rate in a drift reading                                             |
 | `MAX_SPLIT_DISTANCE_M`       | 100,000               | The longest split                                                                                |
 | `MAX_DISTANCE_BESTS_READ`    | 32                    | Entries in a list of record-distance bests, before the reader drops those it does not know       |
+| `MIN_DIGEST_TEMPERATURE_C`   | -30                   | The coldest a temperature summary may read, degrees Celsius                                      |
+| `MAX_DIGEST_TEMPERATURE_C`   | 55                    | The warmest a temperature summary may read, degrees Celsius                                      |
+| `MIN_TEMPERATURE_COVERAGE`   | 0.5                   | The least share of seconds a temperature summary may rest on                                     |
 
 Not every bound is a plain maximum. A new digest is also held to the rules that tie one field to
 another (a flag lies inside the activity, moving time is part of the duration, a heart-rate block

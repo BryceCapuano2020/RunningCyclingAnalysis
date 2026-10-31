@@ -66,11 +66,16 @@ class Best {
  * The period's best output at each durability duration, from fresh legs against after 1, 1.5 and 2
  * hours of moving time, for one sport's digests among those given. Digests from before durability was
  * kept support nothing after the first hour, but still count for the fresh best. The ties of a best go
- * to the first digest given, so a caller that orders its digests gets the same activity every time.
+ * to the first digest given, so a caller that orders its digests gets the same activity every time. `qualifies`
+ * keeps out the sessions that cannot speak for late output, such as an easy long run (see `lateEvidence`).
  */
-export function periodDurability(digests: ActivityDigest[], sport: Sport): PeriodDurabilityRow[] {
+export function periodDurability(
+  digests: ActivityDigest[],
+  sport: Sport,
+  qualifies: (digest: ActivityDigest) => boolean = () => true,
+): PeriodDurabilityRow[] {
   const rule = SPORT_RULES[sport]
-  const mine = digests.filter((d) => d.sport === sport && rule.counts(d))
+  const mine = digests.filter((d) => d.sport === sport && rule.counts(d) && qualifies(d))
   return DURABILITY_DURATIONS_S.map((durationS) => {
     const fresh = new Best()
     const after = new Map<number, Best>(DURABILITY_AFTER_S.map((afterS) => [afterS, new Best()]))

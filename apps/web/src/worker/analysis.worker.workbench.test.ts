@@ -77,11 +77,21 @@ function scopeKey(scope: TraceScope, id: string): string {
 function spyStore() {
   const rows = new Map<string, ActivityTrace>()
   const starts = new Map<string, number>()
+  // The device scope's epoch, which clearing the scope raises.
+  const epoch = { device: 0 }
   const store = {
     get: vi.fn(async (scope: TraceScope, id: string) => rows.get(scopeKey(scope, id)) ?? null),
     has: vi.fn(async (scope: TraceScope, id: string) => rows.has(scopeKey(scope, id))),
     put: vi.fn(
-      async (scope: TraceScope, trace: ActivityTrace, startMs: number): Promise<PutResult> => {
+      async (
+        scope: TraceScope,
+        trace: ActivityTrace,
+        startMs: number,
+        writerEpoch?: number,
+      ): Promise<PutResult> => {
+        if (scope.kind === 'device' && writerEpoch !== undefined && writerEpoch !== epoch.device) {
+          return 'replaced'
+        }
         rows.set(scopeKey(scope, trace.activityId), trace)
         starts.set(scopeKey(scope, trace.activityId), startMs)
         return 'stored'
@@ -99,12 +109,19 @@ function spyStore() {
       rows.delete(scopeKey(scope, id))
       return true
     }),
-    clearScope: vi.fn(async () => true),
+    clearScope: vi.fn(async (scope: TraceScope) => {
+      if (scope.kind === 'device') epoch.device++
+      for (const key of [...rows.keys()]) {
+        if (scopeKey(scope, (JSON.parse(key) as string[])[1]!) === key) rows.delete(key)
+      }
+      return true
+    }),
     deleteScope: vi.fn(async () => true),
     reopenScope: vi.fn(async () => true),
     isDeleted: vi.fn(async () => false),
+    deviceEpoch: vi.fn(async () => epoch.device),
   } satisfies WorkbenchStore
-  return { rows, store }
+  return { rows, store, epoch }
 }
 
 async function startWorker() {
@@ -193,6 +210,8 @@ describe('where an import keeps recordings', () => {
       { kind: 'device' },
       expect.objectContaining({ activityId: id }),
       expect.any(Number),
+      // The epoch of the library the import loaded, which storage checks.
+      expect.any(Number),
     )
     vi.resetModules()
     const restarted = await startWorker()
@@ -257,6 +276,7 @@ describe('where an import keeps recordings', () => {
     expect(spy.store.put).toHaveBeenCalledWith(
       { kind: 'device' },
       expect.anything(),
+      expect.any(Number),
       expect.any(Number),
     )
   })
@@ -531,5 +551,71 @@ describe('what the worker says after reading a recording from the original', () 
     expect(coverage).toBeGreaterThanOrEqual(0)
     expect(coverage).toBeLessThan(messages.length - 1)
     expect(messages.filter((message) => message.type === 'activityTrace')).toHaveLength(1)
+  })
+})
+
+describe('recordings of a library emptied under an import', () => {
+  const request = (file: File, over: object = {}): WorkerRequest =>
+    ({ type: 'addFiles', files: [file], settings: SETTINGS, sync: null, ...over }) as WorkerRequest
+
+  it('writes none when another tab emptied the recordings after the import began', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    // Another tab chooses Remove all: the recordings' epoch moves, though this tab has not heard.
+    await spy.store.clearScope({ kind: 'device' })
+
+    const messages = await send(request(fitFile(), { saveToDevice: true }))
+
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'replaced' })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+    expect(spy.rows.size).toBe(0)
+  })
+
+  it('stops, saying so, when storage refuses the recordings though the library check had passed', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    // The clear lands between the check and the writes: storage is the last word.
+    spy.store.put.mockImplementationOnce(async () => 'replaced')
+
+    const messages = await send(request(fitFile(), { saveToDevice: true }))
+
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'replaced' })
+    expect(spy.rows.size).toBe(0)
+  })
+
+  it('writes none of a provisional import’s recordings into a library that was emptied, and says so', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    await send(request(fitFile(), { provisional: true }))
+    await kept.library!.clear()
+
+    const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
+
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'replaced' })
+    expect(spy.store.put).not.toHaveBeenCalled()
+    expect(await kept.library!.all()).toEqual([])
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+  })
+
+  it('writes none of a provisional import’s recordings when storage refuses them as replaced', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    await send(request(fitFile(), { provisional: true }))
+    spy.store.put.mockImplementationOnce(async () => 'replaced')
+
+    const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
+
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'replaced' })
+    expect(spy.rows.size).toBe(0)
+  })
+
+  it('keeps an import that nothing interrupted, recordings included', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const messages = await send(request(fitFile(), { saveToDevice: true }))
+
+    expect(messages.some((message) => message.type === 'deviceIssue')).toBe(false)
+    expect(spy.rows.size).toBe(1)
   })
 })

@@ -136,11 +136,14 @@ export function mutantsOf(base: Wire): Mutant[] {
       // A string in the place of a flag's kind is a kind nobody knows: the flag is dropped.
       const unknownKind = replacement === 'x' && path[0] === 'flags' && path[2] === 'kind'
       const without = unknownKind ? (base.flags as unknown[]).filter((_, i) => i !== path[1]) : []
+      // A string in the place of the athlete's label is a class nobody knows: the label is dropped.
+      const unknownLabel = replacement === 'x' && path.length === 1 && path[0] === 'athleteType'
+      const { athleteType: _label, ...withoutLabel } = base
       add(
         `${name} as ${label}`,
         withValue(base, path, replacement),
-        unknownKind ? ['forward'] : [],
-        unknownKind ? { ...base, flags: without } : undefined,
+        unknownKind || unknownLabel ? ['forward'] : [],
+        unknownKind ? { ...base, flags: without } : unknownLabel ? withoutLabel : undefined,
       )
     }
     add(`${name} as infinity`, withValue(base, path, '__SENTINEL__'))

@@ -82,7 +82,43 @@ describe('GET /api/me', () => {
         updatedAt: START,
       },
       fileRetentionAvailable: true,
+      libraryRevision: '0.0',
     })
+  })
+
+  it('changes the library revision when the library changes, and not otherwise', async () => {
+    const h = createHarness()
+    const token = await h.signIn('rider@example.com', 'Rider')
+    const revision = async () =>
+      (
+        (await (await h.send({ path: '/api/me', cookies: { rca_session: token } })).json()) as {
+          libraryRevision: string
+        }
+      ).libraryRevision
+    const empty = await revision()
+    expect(await revision()).toBe(empty)
+
+    const created = await h.send({
+      method: 'POST',
+      path: '/api/activities',
+      json: {
+        digest: digestFixture({ startMs: 1_700_000_000_000 }),
+        fileName: 'a.fit',
+        fileHash: await sha256Hex(new Uint8Array([1])),
+      },
+      cookies: { rca_session: token },
+    })
+    expect(created.status).toBe(201)
+    const one = await revision()
+    expect(one).not.toBe(empty)
+
+    const { id } = (await created.json()) as { id: string }
+    await h.send({
+      method: 'DELETE',
+      path: `/api/activities/${id}`,
+      cookies: { rca_session: token },
+    })
+    expect(await revision()).toBe(empty)
   })
 
   it('creates a missing profile with the defaults, and no body mass', async () => {

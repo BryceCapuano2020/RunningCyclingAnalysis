@@ -1,5 +1,6 @@
 import type { ActivityTrace } from '@rca/core/workbench'
 import {
+  DEVICE_EPOCH_KEY,
   ENTRIES,
   OWNERS,
   STATE,
@@ -7,6 +8,7 @@ import {
   abortQuietly,
   activityTraceBytes,
   entryKey,
+  epochOfRow,
   parseBoundedTrace,
   requestResult,
   scopeKey,
@@ -32,7 +34,13 @@ export interface WorkbenchStore {
    * result is `outranked`. `refused` is storage that would not take it, or a trace over a cache limit.
    * The trace is the app's own (from activityTraceOf), so it is not validated; `get` validates what it reads.
    */
-  put(scope: TraceScope, trace: ActivityTrace, startMs: number): Promise<PutResult>
+  put(scope: TraceScope, trace: ActivityTrace, startMs: number, epoch?: number): Promise<PutResult>
+  /**
+   * The device scope's epoch: a number that rises each time the scope is cleared, in the transaction that
+   * clears it. A device write that carries the epoch it loaded under is refused (`replaced`) once it has moved.
+   * Rejects when storage cannot say.
+   */
+  deviceEpoch(): Promise<number>
   /**
    * The recordings stored for the scope: each one's activity id and when the activity started. Null when
    * storage cannot say. Reads only the metadata, never a trace.
@@ -126,6 +134,11 @@ export function openWorkbenchStore(): WorkbenchStore {
         }
       })
       await rebuildLedger(transaction)
+      if (scope.kind === 'device') {
+        const stateStore = transaction.objectStore(STATE)
+        const next = epochOfRow(await requestResult(stateStore.get(DEVICE_EPOCH_KEY))) + 1
+        stateStore.put({ key: DEVICE_EPOCH_KEY, epoch: next })
+      }
       if (scope.kind === 'account')
         await closeScope(transaction.objectStore(OWNERS), scope, closing)
       await done
@@ -193,6 +206,19 @@ export function openWorkbenchStore(): WorkbenchStore {
     },
 
     put: putTrace,
+
+    async deviceEpoch() {
+      try {
+        const db = await workbenchDatabase()
+        const transaction = db.transaction(STATE, 'readonly')
+        const row = await requestResult(transaction.objectStore(STATE).get(DEVICE_EPOCH_KEY))
+        await transactionDone(transaction)
+        return epochOfRow(row)
+      } catch (error) {
+        resetWorkbenchDatabase()
+        throw error
+      }
+    },
 
     async has(scope, activityId) {
       try {

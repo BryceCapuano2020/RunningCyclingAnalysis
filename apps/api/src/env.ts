@@ -19,6 +19,11 @@ export interface Bindings {
    * sign in whatever it holds. Never set in the repository (see docs/PRODUCTION.md).
    */
   ALLOWED_EMAILS?: string
+  /**
+   * Optional plain variable: the database size in MiB at which creates are refused. Unset keeps the
+   * Workers Free cap of 450 MiB; set it only after moving to Workers Paid (see databaseGuard.ts).
+   */
+  DATABASE_SOFT_LIMIT_MIB?: string
   /** HMAC key for session cookies. Worker secret in production; fixed in .dev.vars.example. */
   SESSION_SIGNING_KEY: string
   /** Cloudflare edge bindings; required outside local development. */

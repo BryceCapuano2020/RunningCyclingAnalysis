@@ -2,4 +2,5 @@
   display: grid;
   justify-items: start;
   gap: var(--space-3);
+  padding: var(--space-5);
 }
