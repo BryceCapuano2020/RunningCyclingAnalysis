@@ -31,6 +31,8 @@ export const LOOKBACK = {
   list: { delta: 0.04, z: 3.3, shortWeeks: 104, shortDelta: 0.08 },
   /** An episode is the lead of the look-back only on a stronger bar, and only within the last `years`. */
   lead: { delta: 0.07, z: 5.5, years: 5 },
+  /** The card's slip belongs to a hindsight fall when it was declared within this many weeks before it, or twice as many after. */
+  liveMatchWeeks: 8,
   /** A break is this many weeks with no run of any kind; a boundary this close to one is a step after a break. */
   gapWeeks: 8,
   afterBreakWeeks: 4,

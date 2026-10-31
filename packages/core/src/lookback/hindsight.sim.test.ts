@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { simulate } from '../fitness/test/runSim'
+import { replaySim, simulate } from '../fitness/test/runSim'
 import type { SimSpec } from '../fitness/test/runSim'
 import { WEEK_ORIGIN_MS } from '../fitness/machine'
 import { DAY_MS } from '../constants'
@@ -23,9 +23,17 @@ const weekMs = (w: number) => WEEK_ORIGIN_MS + w * 7 * DAY_MS
 function told(
   spec: Partial<SimSpec> & Pick<SimSpec, 'weeks'>,
   seed: number,
+  withCard = false,
 ): HindsightFitness | null {
   const runs = simulate({ perWeek: 3, ...spec }, seed)
-  const result = hindsightOf({ runs, activeDays: runs.map((r) => r.t), asOfDay: spec.weeks * 7 })
+  // With the card: what the monitor said week by week, which a recovery it confirmed is not called less than back from.
+  const records = withCard ? replaySim(runs, spec.weeks) : undefined
+  const result = hindsightOf({
+    runs,
+    activeDays: runs.map((r) => r.t),
+    asOfDay: spec.weeks * 7,
+    records,
+  })
   return result.kind === 'ok' ? result : null
 }
 
@@ -130,7 +138,7 @@ describe('planted changes', () => {
     let hit = 0
     let range = 0
     for (let seed = 1; seed <= SEEDS; seed++) {
-      const result = told(spec, seed)
+      const result = told(spec, seed, true)
       if (result === null) continue
       const near = weeks.every((w) =>
         result.episodes.some(
@@ -179,10 +187,11 @@ describe('planted changes', () => {
       [60],
       'slip-back',
     )
-    // Observed 0.42 (the rest are found at both edges and called partly back). The test is the live monitor's `isBackLevel` with the
-    // model-error floor in the standard error, so a return has to reach the old level within about 0.1% to pass; it was 0.7
-    // before the floor was added, at the cost of calling back a return the card would not.
-    expect(out.hit).toBeGreaterThanOrEqual(0.3)
+    // Observed 0.62. A return is back when it passes the live monitor's back test with the model-error floor (`isBackLevel`)
+    // or when the card itself said back for this slip and nothing after contradicts it; the rest are called partly back, and the
+    // card had not said back for them either (see agreement.sim.test.ts: the card says back for this dip in 0.46 of libraries,
+    // hindsight in 0.69). It was 0.42 on the floor test alone and about 0.7 before the floor.
+    expect(out.hit).toBeGreaterThanOrEqual(0.55)
   })
 
   it('does not claim a step of 3%, and lists one of 5% about two times in five', () => {
@@ -231,6 +240,7 @@ describe('planted changes', () => {
             ],
           },
           seed,
+          true,
         )
         if (result === null) continue
         const dip = result.episodes.find(
@@ -242,5 +252,35 @@ describe('planted changes', () => {
       }
       expect(back / Math.max(1, dipFound)).toBeLessThanOrEqual(0.15)
     }
+  })
+
+  it('keeps a real partial recovery open, with the card consulted: a return that leaves 5.5% missing is not called back', () => {
+    let dipFound = 0
+    let back = 0
+    for (const perWeek of [2, 3, 5]) {
+      for (let seed = 1; seed <= 100; seed++) {
+        const result = told(
+          {
+            weeks: 200,
+            perWeek,
+            planted: [
+              { type: 'step', week: 100, size: -0.08 },
+              { type: 'step', week: 140, size: 0.025 },
+            ],
+          },
+          seed,
+          true,
+        )
+        const dip = result?.episodes.find(
+          (e) => e.kind !== 'improvement' && Math.abs(e.fromMs - weekMs(100)) < 8 * 7 * DAY_MS,
+        )
+        if (dip === undefined) continue
+        dipFound++
+        if (dip.kind === 'slip-back') back++
+      }
+    }
+    // Observed 2 of 267 found.
+    expect(dipFound).toBeGreaterThan(200)
+    expect(back / dipFound).toBeLessThanOrEqual(0.02)
   })
 })

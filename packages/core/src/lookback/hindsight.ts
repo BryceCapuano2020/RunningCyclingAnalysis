@@ -1,10 +1,12 @@
 import { DAY_MS } from '../constants'
 import { WEEK_ORIGIN_MS } from '../fitness/machine'
+import type { WeekRecord } from '../fitness/machine'
 import { fitSeason, withoutSeason } from '../fitness/season'
 import { pointOf } from '../fitness/series'
 import { slice } from '../fitness/windows'
 import type { RunPoint } from '../fitness/windows'
 import { episodesOf } from './episodes'
+import { liveEpisodes } from './live'
 import type { WeekEpisode, WeekSpan } from './episodes'
 import { LOOKBACK } from './params'
 import { quietLevels } from './quiet'
@@ -24,6 +26,11 @@ export interface HindsightInput {
   activeDays: readonly number[]
   /** The newest activity's day: the years are told through `horizonWeeks` before it. */
   asOfDay: number
+  /**
+   * What the fitness monitor said week by week (`FitnessHistory.records`). Without it nothing is known of what the card
+   * said; with it a recovery the card confirmed is not called less than back.
+   */
+  records?: readonly WeekRecord[]
 }
 
 /** The days since the origin of the horizon, a whole number of weeks. */
@@ -153,7 +160,8 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
     runs.map((r) => r.t),
     L.gapWeeks,
   ).filter((g) => holdsActivity(g, active))
-  const episodes = episodesOf(levels, breaks, floor, bar.delta).map(dated)
+  const live = liveEpisodes(input.records ?? [], Math.floor(endDay / 7) - 1)
+  const episodes = episodesOf(levels, breaks, floor, bar.delta, live).map(dated)
   const keepEpisodes = [...episodes]
     .sort((a, b) => Math.abs(b.change.value) - Math.abs(a.change.value) || b.fromMs - a.fromMs)
     .slice(0, L.caps.episodes)
