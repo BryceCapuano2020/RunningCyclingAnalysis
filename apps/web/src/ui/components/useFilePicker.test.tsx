@@ -40,10 +40,10 @@ describe('useFilePicker', () => {
     expect(pick).toHaveBeenCalledTimes(1)
   })
 
-  it('lets the chooser pick several FIT, GPX, TCX, gzip and zip files', () => {
+  it('lets the chooser pick several FIT, GPX, TCX, gzip and zip files, and the export’s list', () => {
     const { input } = renderPicker()
     expect(input).toHaveAttribute('multiple')
-    expect(input).toHaveAttribute('accept', '.fit,.gpx,.tcx,.gz,.zip')
+    expect(input).toHaveAttribute('accept', '.fit,.gpx,.tcx,.gz,.zip,.csv')
     expect(input).toHaveAttribute('hidden')
   })
 

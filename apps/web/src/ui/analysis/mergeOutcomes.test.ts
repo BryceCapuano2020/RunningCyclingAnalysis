@@ -66,4 +66,17 @@ describe('mergeOutcomes', () => {
     })
     expect(mergeOutcomes(base, base)).not.toHaveProperty('skippedTypes')
   })
+
+  it('adds the listed files of two imports, and keeps the advice when either needed it', () => {
+    const base = { activities: 1, rejected: 0, duplicates: [] }
+    expect(
+      mergeOutcomes(
+        { ...base, listed: { named: 10, received: 4 }, needsList: true },
+        { ...base, listed: { named: 5, received: 5 } },
+      ),
+    ).toMatchObject({ listed: { named: 15, received: 9 }, needsList: true })
+    const none = mergeOutcomes(base, base)
+    expect(none).not.toHaveProperty('listed')
+    expect(none).not.toHaveProperty('needsList')
+  })
 })

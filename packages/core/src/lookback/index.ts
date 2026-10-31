@@ -16,3 +16,35 @@ export type {
   Span,
   TooShort,
 } from './types'
+export { lookBackOf, NO_LOOKBACK } from './compute'
+export type { LookBack, SportLookBack } from './compute'
+export { leadOf, mayStateHeld } from './lead'
+export type { Lead, LiveState } from './lead'
+export { milestonesOf } from './milestones'
+export {
+  bestRows,
+  bestValue,
+  breakRow,
+  dayMonthYear,
+  effortName,
+  episodeRow,
+  episodeSentence,
+  leadSentence,
+  monthYear,
+  monthsBetween,
+  quietRow,
+  standing,
+  thinRow,
+  tooShortText,
+} from './copy'
+export type { EffortMilestones, MilestoneEffort, MilestoneUnit, Mark } from './types'
+export { checkInBetween, beatsShown, OLDER_DAYS } from './checkIn'
+export type { CheckIn, FitnessLine, NewBest, NewEpisode } from './checkIn'
+export { decodeSeconds, encodeSeconds, snapshotOf } from './snapshot'
+export type {
+  CheckInSnapshot,
+  SnapshotBest,
+  SnapshotEpisode,
+  SnapshotFitness,
+  SnapshotInputs,
+} from './snapshot'

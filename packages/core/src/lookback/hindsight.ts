@@ -10,6 +10,7 @@ import { liveEpisodes } from './live'
 import type { WeekEpisode, WeekSpan } from './episodes'
 import { LOOKBACK } from './params'
 import { quietLevels } from './quiet'
+import { sig, sigRanged } from './round'
 import { segmentLevels, sigmaOver } from './segments'
 import type { Level, Segmented } from './segments'
 import type { HindsightEpisode, HindsightFitness, Plateau, Span, TooShort } from './types'
@@ -118,10 +119,10 @@ const dated = (e: WeekEpisode): HindsightEpisode => ({
   kind: e.kind,
   fromMs: msOfWeek(e.fromWeek),
   toMs: e.toWeek === null ? null : msOfWeek(e.toWeek),
-  change: e.change,
-  regained: e.regained,
-  remaining: e.remaining,
-  z: e.z,
+  change: sigRanged(e.change),
+  regained: sigRanged(e.regained),
+  remaining: sigRanged(e.remaining),
+  z: sig(e.z, 4),
   steps: e.steps,
   runs: e.runs,
 })
@@ -168,7 +169,7 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
   const quiet = quietLevels(levels, runs, sigma, [...breaks, ...thin]).map(({ index, within }) => ({
     fromMs: msOfWeek(levels[index]!.fromWeek),
     toMs: msOfWeek(levels[index]!.toWeek),
-    within,
+    within: sig(within, 4),
     runs: levels[index]!.n,
   }))
   const quietCut = longest(quiet, L.caps.spans)
@@ -180,9 +181,9 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
     return {
       fromMs: msOfWeek(l.fromWeek),
       toMs: msOfWeek(l.toWeek),
-      value: point.value,
-      low: point.low,
-      high: point.high,
+      value: sig(point.value, 4),
+      low: sig(point.low, 4),
+      high: sig(point.high, 4),
       runs: l.n,
     }
   }
