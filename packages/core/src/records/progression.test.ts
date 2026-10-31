@@ -3,7 +3,7 @@ import { DURATIONS_S } from '../constants'
 import { digestActivity } from '../digest/digestActivity'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from '../types'
 import { recordHolders } from './holders'
-import { effortProgression, recordAt, withoutOverreach } from './progression'
+import { effortProgression, hasEstimatedRide, recordAt, withoutOverreach } from './progression'
 import type { Reading } from './progression'
 
 const settings: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
@@ -66,6 +66,29 @@ describe('effortProgression', () => {
       ['r3', 3000],
     ])
     expect(progression.ride.readings[at]!.map((r) => r.id)).toEqual(['b1', 'b2'])
+  })
+
+  it('reads the durations asked for alone, the same readings there and none elsewhere, while no ride is an estimate', () => {
+    const wanted = [DURATIONS_S.indexOf(300), DURATIONS_S.indexOf(1200)]
+    const all = effortProgression(digests, settings)
+    const some = effortProgression(digests, settings, undefined, wanted)
+    for (const [index] of DURATIONS_S.entries()) {
+      const there = wanted.includes(index)
+      expect(some.run.readings[index]).toEqual(there ? all.run.readings[index] : [])
+      expect(some.ride.readings[index]).toEqual(there ? all.ride.readings[index] : [])
+    }
+  })
+
+  it('reads a ride at every duration when the library has an estimated ride, which is judged against the next shorter', () => {
+    const estimate = ride('e1', 3500, { 300: 260, 1200: 220 })
+    estimate.curve[0] = { ...estimate.curve[0]!, terms: {} as never }
+    const withEstimate = [...digests, estimate]
+    const wanted = [DURATIONS_S.indexOf(300)]
+    expect(hasEstimatedRide(withEstimate)).toBe(true)
+    expect(hasEstimatedRide(digests)).toBe(false)
+    const all = effortProgression(withEstimate, settings)
+    const some = effortProgression(withEstimate, settings, undefined, wanted)
+    expect(some.ride).toEqual(all.ride)
   })
 
   it('has the record holder as the highest reading at every duration, for runs and rides', () => {
