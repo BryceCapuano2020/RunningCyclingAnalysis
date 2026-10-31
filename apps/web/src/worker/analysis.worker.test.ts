@@ -1,7 +1,7 @@
 import { strToU8, zipSync } from 'fflate'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
-import { digestActivity } from '@rca/core/digest'
+import { digestActivity, serializeDigest } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
 import { parseActivityFile } from '@rca/core/import'
@@ -73,6 +73,56 @@ vi.mock('../api/client', async (importOriginal) => {
 /** The device library the worker opens. It outlives a fresh worker import, as IndexedDB does. */
 const kept = vi.hoisted(() => ({ library: null as DeviceLibrary | null }))
 
+/** The outbox in memory, shared by every account the test opens: rows by account and workout. */
+const outboxRows = vi.hoisted(() => new Map<string, Map<string, unknown>>())
+vi.mock('./outbox', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./outbox')>()
+  const { serializeDigest } = await import('@rca/core/digest')
+  return {
+    ...actual,
+    clearOutbox: async () => {
+      for (const rows of outboxRows.values()) rows.clear()
+      return true
+    },
+    openOutbox: (userId: string) => {
+      const mine = outboxRows.get(userId) ?? new Map<string, unknown>()
+      outboxRows.set(userId, mine)
+      let seq = 0
+      return {
+        add: async ({
+          digest,
+          fileName,
+          fileHash,
+        }: {
+          digest: Parameters<typeof serializeDigest>[0]
+          fileName: string
+          fileHash: string
+        }) => {
+          const key = `${digest.sport}-${Math.round(digest.startMs / 1000)}`
+          mine.set(key, {
+            id: `${userId}|${key}`,
+            userId,
+            key,
+            digestId: digest.id,
+            seq: seq++,
+            digestJson: serializeDigest(digest),
+            fileName,
+            fileHash,
+            attempts: 0,
+          })
+        },
+        done: async (key: string, digestId?: string) => {
+          const row = mine.get(key) as { digestId: string } | undefined
+          if (digestId === undefined || row?.digestId === digestId) mine.delete(key)
+        },
+        failed: async () => false,
+        pending: async () => [...mine.values()],
+        forget: async () => mine.clear(),
+      }
+    },
+  }
+})
+
 vi.mock('./deviceLibrary', async () => {
   const { memoryDeviceLibrary } = await import('../test/deviceLibrary.fake')
   return {
@@ -132,22 +182,12 @@ async function startWorker() {
   async function send(request: WorkerRequest): Promise<WorkerResponse[]> {
     const start = posted.length
     fakeSelf.onmessage?.({ data: request } as MessageEvent<WorkerRequest>)
+    // The reply ends the request. What the worker says apart from it, such as an outbox resume, may follow.
+    const replyAt = () => posted.findIndex((m, i) => i >= start && REPLY_TYPES.has(m.type))
     await vi.waitFor(() => {
-      const last = posted.at(-1)
-      if (
-        posted.length === start ||
-        (last?.type !== 'state' &&
-          last?.type !== 'error' &&
-          last?.type !== 'rebuildComplete' &&
-          last?.type !== 'exportReady' &&
-          last?.type !== 'splits' &&
-          last?.type !== 'activityTrace' &&
-          last?.type !== 'routeShape')
-      ) {
-        throw new Error('still working')
-      }
+      if (replyAt() < 0) throw new Error('still working')
     }, WAIT_FOR_MS)
-    return posted.slice(start)
+    return posted.slice(start, replyAt() + 1)
   }
   return { send, posted }
 }
@@ -170,6 +210,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   limits.maxFileBytes = 50 * 1024 * 1024
   kept.library = null
+  outboxRows.clear()
   vi.unstubAllGlobals()
   mocked.createActivity.mockImplementation(async (digest) => ({
     record: recordFor(digest),
@@ -2988,6 +3029,176 @@ describe('a signed-in import saves its activities side by side', () => {
       saved: 7,
       state: { totalActivities: 8, syncIssues: [{ code: 'server', count: 1 }] },
     })
+  })
+})
+
+describe('the saves an earlier visit left in the outbox', () => {
+  /** A row as an import cut off before its save finished leaves it. */
+  function seedRow(digest: ActivityDigest, userId = USER_ID) {
+    const key = workoutKeyOf(digest)
+    const mine = outboxRows.get(userId) ?? new Map<string, unknown>()
+    outboxRows.set(userId, mine)
+    mine.set(key, {
+      id: `${userId}|${key}`,
+      userId,
+      key,
+      digestId: digest.id,
+      seq: mine.size,
+      digestJson: serializeDigest(digest),
+      fileName: 'run.fit',
+      fileHash: 'a'.repeat(64),
+      attempts: 0,
+    })
+  }
+
+  it('finishes them after the library loads, apart from the request, and tells the page how it ended', async () => {
+    seedRow(SAMPLE_DIGEST)
+    seedRow(digestActivity(secondSampleActivity))
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
+    )
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(posted.filter((m) => m.type === 'outbox').at(-1)).toEqual({
+      type: 'outbox',
+      pending: 0,
+      saved: 2,
+      failed: 0,
+      finished: true,
+    })
+    expect(outboxRows.get(USER_ID)?.size).toBe(0)
+    // Said apart from the request: stamped with it, the page would drop it as late.
+    expect(posted.filter((m) => m.type === 'outbox').every((m) => !('during' in m))).toBe(true)
+  })
+
+  it('does not send what the account already holds', async () => {
+    seedRow(SAMPLE_DIGEST)
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
+    )
+
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect(outboxRows.get(USER_ID)?.size).toBe(0)
+  })
+
+  it('sends nothing from a tab whose account another tab is already writing for', async () => {
+    seedRow(SAMPLE_DIGEST)
+    mocked.listActivities.mockResolvedValue([])
+    // Another tab holds the account's writer lock.
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (_name: string, _options: object, callback: (l: null) => unknown) =>
+          callback(null),
+      },
+    })
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect(posted.some((m) => m.type === 'outbox')).toBe(false)
+    expect(outboxRows.get(USER_ID)?.size).toBe(1)
+  })
+
+  it('leaves another account’s rows alone', async () => {
+    seedRow(SAMPLE_DIGEST, 'someone-else')
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(posted.some((m) => m.type === 'outbox')).toBe(false)
+    expect(outboxRows.get('someone-else')?.size).toBe(1)
+  })
+
+  it('writes a row before an import saves an activity and removes it once the account has it', async () => {
+    let during = -1
+    mocked.createActivity.mockImplementation(async (digest) => {
+      during = outboxRows.get(USER_ID)?.size ?? 0
+      return { record: recordFor(digest), created: true }
+    })
+    const { send } = await startWorker()
+    mocked.listActivities.mockResolvedValue([])
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(during).toBe(1)
+    expect(outboxRows.get(USER_ID)?.size).toBe(0)
+  })
+
+  it('is dropped by Remove all, every account’s rows, so a failed row is not sent on the next load', async () => {
+    seedRow(SAMPLE_DIGEST)
+    seedRow(digestActivity(secondSampleActivity), 'someone-else')
+    const { send } = await startWorker()
+
+    await send({ type: 'clear', forgetDevice: true })
+
+    expect([...outboxRows.values()].every((rows) => rows.size === 0)).toBe(true)
+    mocked.listActivities.mockResolvedValue([])
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+  })
+
+  it('sends nothing more once Remove all comes while a save waits out a Retry-After', async () => {
+    seedRow(SAMPLE_DIGEST)
+    seedRow(digestActivity(secondSampleActivity))
+    mocked.createActivity.mockRejectedValue(
+      new ApiRequestError(429, 'rate_limited', 'Slow down', 150),
+    )
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() => expect(mocked.createActivity).toHaveBeenCalled())
+    const sent = mocked.createActivity.mock.calls.length
+
+    await send({ type: 'clear', forgetDevice: true })
+    // Longer than the wait the server asked for: a send that was not cancelled would have been made by now.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(sent)
+    expect([...outboxRows.values()].every((rows) => rows.size === 0)).toBe(true)
+  })
+
+  it('keeps the waiting saves when the page only clears the session', async () => {
+    seedRow(SAMPLE_DIGEST)
+    const { send } = await startWorker()
+
+    await send({ type: 'clear', forgetDevice: false })
+
+    expect(outboxRows.get(USER_ID)?.size).toBe(1)
+  })
+
+  it('keeps the row of an activity the account could not take, for a reload to finish', async () => {
+    mocked.createActivity.mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(outboxRows.get(USER_ID)?.size).toBe(1)
   })
 })
 

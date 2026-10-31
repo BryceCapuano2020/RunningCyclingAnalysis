@@ -32,6 +32,8 @@ export interface WorkerEventDeps {
   /** Whether the current worker has been asked for the library kept in this browser. */
   deviceLoadedRef: Box<boolean>
   loadDeviceOnce: () => void
+  /** Reads the signed-in account's library again, unless an import is running. */
+  reloadLibrary: () => void
   /** The record of imports (see importManifest.ts): how far the running one got, and how it ended. */
   manifest: Pick<ImportManifestController, 'progress' | 'finish' | 'fail'>
   /** Tells the other tabs that this tab changed a library, and takes the account's revision after it as the baseline. */
