@@ -317,6 +317,7 @@ export function App() {
                 email={account.me?.user.email ?? null}
                 keepFiles={keepFiles}
                 fileRetentionAvailable={fileRetentionAvailable}
+                userId={account.me?.user.id ?? null}
                 onSaveProfile={saveProfile}
                 dated={measurements}
                 onAddSetting={addSetting}

@@ -1,5 +1,6 @@
 import type { ActivityRecord } from '@rca/contract'
 import { revisionStatus } from '@rca/core/digest/revisions'
+import { hashedDigestId } from '@rca/core/import/minimise'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { ActivityDigest } from '@rca/core/types'
 import { workoutKeyOf } from './device'
@@ -91,10 +92,14 @@ export async function followUpAdopted(
 ): Promise<void> {
   if (row.fromDevice !== true) return
   // 'held': a save that an earlier visit made and did not hear back from counts when the account's copy is this file.
+  // The ids are compared by their hashed form: the account's row may have been saved before revision 7 under the plain
+  // file name, and the kept one imported since under its hash (import/minimise.ts).
   const accountHas =
     outcome === 'saved' ||
     (outcome === 'held' &&
-      [...ctx.savedRecords.values()].some((record) => record.digest.id === row.digestId))
+      [...ctx.savedRecords.values()].some(
+        (record) => hashedDigestId(record.digest.id) === hashedDigestId(row.digestId),
+      ))
   if (accountHas && (await ctx.library.removeIfDigest(row.key, row.digestId)))
     await ctx.adopted?.(row.digestId)
 }

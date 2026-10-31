@@ -62,6 +62,14 @@ const activitiesCsvSource = await readStylesheet(
 )
 const periodPreference = await readStylesheet(import.meta.url, './ui/periodPreference.ts')
 const cardName = await readStylesheet(import.meta.url, './share/cardName.ts')
+const uploadTitlesPreference = await readStylesheet(
+  import.meta.url,
+  './ui/uploadTitlesPreference.ts',
+)
+const minimiseSource = await readStylesheet(
+  import.meta.url,
+  '../../../packages/core/src/import/minimise.ts',
+)
 const apiSchema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
 const rateLimit = await readStylesheet(import.meta.url, '../../api/src/rateLimit.ts')
 const apiList = await readStylesheet(import.meta.url, '../../api/src/routes/activities/list.ts')
@@ -405,6 +413,21 @@ describe('privacy page describes what is stored as the app stores it', () => {
   it('names the view period key the app reads, among the settings kept in this browser', () => {
     expect(periodPreference).toContain("PERIOD_KEY = 'rca.period.v1'")
     expect(sentenceWith('Settings are kept')).toContain('rca.period.v1')
+  })
+
+  it('says titles are saved only by choice, file names are hashed, and the choice stays in this browser under its key', () => {
+    expect(uploadTitlesPreference).toContain("UPLOAD_TITLES_KEY = 'rca.uploadTitles.v1'")
+    expect(minimiseSource).toContain('`rca-${sha256TextHex(fileName).slice(0, 16)}${extension}`')
+    expect(sentenceWith('an activity saved from now on keeps its title')).toContain(
+      'Send my activity titles to my library',
+    )
+    expect(text).toContain('rca- and sixteen characters')
+    expect(text).toContain(
+      'Activities saved before keep the title and file name they were saved with',
+    )
+    expect(text).not.toContain('model revision 7')
+    expect(text).toContain('it is not secrecy')
+    expect(text).toContain('rca.uploadTitles.v1')
   })
 
   it('says the name printed on a shared card stays in this browser, under the key the app reads', () => {
