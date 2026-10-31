@@ -103,13 +103,7 @@
   padding: 4px 7px;
   border-radius: 4px;
   background: var(--surface-2);
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
   line-height: 1;
-  text-transform: uppercase;
 }
 
 .balance-changes__tag svg {
@@ -117,7 +111,7 @@
   height: 14px;
 }
 
-.balance-changes__tag--recorded {
+.tag.balance-changes__tag--recorded {
   background: var(--status-good-bg);
   color: var(--status-good);
 }

@@ -34,12 +34,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
 }
 
 /* The sport colour marks the glyph only; the name stays in ink. */

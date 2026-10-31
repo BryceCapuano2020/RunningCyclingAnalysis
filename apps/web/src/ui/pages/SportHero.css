@@ -94,12 +94,6 @@
 
 /* The period the figure is for, set in the eyebrow's own small capitals, beside the name. */
 .sport-hero__period {
-  color: var(--text-muted);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
 }
 
 .sport-hero__level {
