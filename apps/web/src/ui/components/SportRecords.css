@@ -34,7 +34,7 @@
 
 .records__value {
   font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
+  /* A display size with no type token; see docs/design/system.md, Type. */
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1.05;
@@ -44,7 +44,7 @@
 .records__sub {
   color: var(--text-secondary);
   font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
+  /* A display size with no type token; see docs/design/system.md, Type. */
   font-size: var(--heading);
   font-weight: 700;
 }

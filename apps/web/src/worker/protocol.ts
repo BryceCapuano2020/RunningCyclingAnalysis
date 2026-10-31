@@ -6,6 +6,7 @@ import type { RouteShape } from '@rca/core/route/routeShape'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ExportAccount } from '../export/accountExport'
 import type { ActivityTraceReply } from './workbench'
+import type { UpdateStop } from './updaterConfig'
 export type { ActivityTraceReply } from './workbench'
 
 export interface SavedActivity {
@@ -54,6 +55,11 @@ export interface ImportOutcome {
    * unread, and are not in `rejected`. Absent from outcomes that do not count them.
    */
   notActivities?: number
+  /**
+   * The activity files in a format the app does not read, by extension (such as pwx), which are counted in
+   * `rejected` and named here. Absent when there were none.
+   */
+  skippedTypes?: Record<string, number>
   /** Files whose every activity is a workout the library already holds or shows as a copy: a copy, or the file added again. */
   duplicates: RejectedFile[]
   /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */
@@ -257,6 +263,8 @@ export type WorkerResponse =
       limitKind: 'daily' | 'rate' | null
       /** When the limit resets, in epoch ms; null when no limit was reached. */
       limitResetsAtMs: number | null
+      /** Why the update ended before it had tried every activity, besides a limit. Absent when it did not. */
+      stopped?: UpdateStop
     }
   /** `issue` is set when the failure means the account ended or changed, so the app can act on it. */
   | { type: 'error'; message: string; issue?: SyncIssueCode }
