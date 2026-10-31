@@ -88,20 +88,18 @@ describe('the layout tokens', () => {
     expect(holders.sort()).toEqual([...SHADOW_HOLDERS].sort())
   })
 
-  it('draw a band as a rule across the top, with no box, and give the sport page its sections as bands', () => {
+  it('draw a band as a 3:1 rule across the top, with no box, and let each section reuse it', () => {
     const band = ruleBody(sheet('components.css'), '.band')
-    expect(band).toMatch(/border-top:\s*2px solid var\(--border\)/)
+    expect(band).toMatch(/border-top:\s*2px solid var\(--divider\)/)
     expect(band).not.toMatch(/box-shadow|border-radius|background/)
-    for (const name of ['SportHero.css', 'FitnessCard.css']) {
-      const css = sheet(name)
-      expect(
-        ruleBody(css, name === 'SportHero.css' ? '.sport-hero' : '.fitness-card'),
-        name,
-      ).toMatch(/border-top:\s*2px solid var\(--border\)/)
-      expect(
-        ruleBody(css, name === 'SportHero.css' ? '.sport-hero' : '.fitness-card'),
-        name,
-      ).not.toMatch(/box-shadow|border-radius|background/)
+    // The hero and the fitness card carry the band's class, so their own rules add no edge.
+    for (const [name, selector] of [
+      ['SportHero.css', '.sport-hero'],
+      ['FitnessCard.css', '.fitness-card'],
+    ] as const) {
+      expect(ruleBody(sheet(name), selector), name).not.toMatch(
+        /box-shadow|border-radius|background|border-top/,
+      )
     }
   })
 

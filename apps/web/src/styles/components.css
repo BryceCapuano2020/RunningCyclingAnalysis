@@ -57,7 +57,7 @@
 .band {
   min-width: 0;
   padding-top: var(--space-4);
-  border-top: 2px solid var(--border);
+  border-top: 2px solid var(--divider);
   margin-top: calc(var(--section-gap) - var(--stack-gap));
 }
 
