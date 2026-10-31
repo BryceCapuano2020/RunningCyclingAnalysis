@@ -18,8 +18,7 @@ import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
 import { beginRequest, noteWork, stamped } from './workerWire'
 import { accountScope, clearCheckinScope } from './checkinStore'
-import { CheckInKeeper } from './checkinKeeper'
-import type { CheckInView } from './checkinKeeper'
+import { checkInWorker } from './checkinWorker'
 import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
@@ -31,19 +30,6 @@ import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
 import type { ActivityTraceReply } from './workbench'
-
-/** The requests whose state can change what "since your last import" says, or which library it is about. */
-const CHECKIN_CHANGING: ReadonlySet<WorkerRequest['type']> = new Set<WorkerRequest['type']>([
-  'loadServer',
-  'loadDevice',
-  'loadSample',
-  'keepProvisional',
-  'clear',
-  'deleteActivity',
-  'deleteDeviceActivity',
-  'setSettings',
-  'setRange',
-])
 
 const session = new AnalysisSession()
 const post = (message: WorkerResponse) => self.postMessage(stamped(message))
@@ -97,9 +83,9 @@ const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
 const view = newWorkerView()
-const checkIns = new CheckInKeeper()
+const checkIns = checkInWorker(session, view)
 const importContext: ImportRunContext = {
-  checkIns,
+  checkIns: checkIns.keeper,
   lastImport: null,
   session,
   post,
@@ -124,14 +110,6 @@ function stopEmptied(): SessionState {
   return session.clear()
 }
 
-/** What "since your last import" says for the library on screen, to go with the state it was made against; nothing when it says nothing. */
-async function checkInOf(state: SessionState): Promise<{ checkIn?: CheckInView }> {
-  const shown = await checkIns.view(view.checkinScope, () =>
-    session.checkInSnapshot(state, Date.now()),
-  )
-  return shown.checkIn === null && !shown.seen ? {} : { checkIn: shown }
-}
-
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
   switch (request.type) {
     case 'addFiles':
@@ -142,9 +120,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       provisionalItems.clear()
       for (const item of held) await keeper.keep(item)
       // The files are kept in this browser now: the snapshot taken before them is the baseline of this library.
-      view.checkinScope = 'device'
-      checkIns.forget('device')
-      await checkIns.adopt('device')
+      await checkIns.keepProvisional('device')
       // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
       const emptied = keeper.replaced || workbench.libraryReplaced || !(await device.current())
       if (emptied) workbench.dropDeferred()
@@ -156,23 +132,22 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     }
     case 'loadSample':
       provisionalItems.clear()
-      checkIns.dropProvisional()
+      checkIns.keeper.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
       view.showingSample = true
-      view.checkinScope = null
+      checkIns.use(null)
       view.sampleClock = deviceClock()
       device.replaced()
       session.choosePeriod(periodChoiceOf(request.choice))
       return session.loadSample(request.settings, view.sampleClock)
     case 'loadServer':
       provisionalItems.clear()
-      checkIns.dropProvisional()
+      checkIns.keeper.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
-      view.checkinScope = accountScope(request.userId)
       // What the store holds is read again: another tab, or an earlier sign-in, may have changed it.
-      checkIns.forget(view.checkinScope)
+      checkIns.use(accountScope(request.userId))
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
       return loadServer(
@@ -198,18 +173,16 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         return session.setSettings(request.settings)
       }
       provisionalItems.clear()
-      checkIns.dropProvisional()
+      checkIns.keeper.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
-      view.checkinScope = 'device'
-      checkIns.forget('device')
+      checkIns.use('device')
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
       provisionalItems.clear()
       view.showingSample = false
-      view.checkinScope = null
-      checkIns.forgetAll()
+      checkIns.clear()
       workbench.clearMemory()
       routes.clear()
       if (request.forgetDevice) {
@@ -325,28 +298,27 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       if (event.data.type === 'addFiles') {
         const imported = await runImport(importContext, event.data)
         await reportDetail()
-        post({ type: 'state', ...imported, ...rebuildable(), ...(await checkInOf(imported.state)) })
+        post({
+          type: 'state',
+          ...imported,
+          ...rebuildable(),
+          ...(await checkIns.of(imported.state)),
+        })
       } else if (event.data.type === 'rebuildStale') {
         const rebuilt = await rebuildStale(libraryContext, event.data.settings, event.data.userId)
         // A baseline from before the rebuild is of the old model: the next import writes a fresh one.
-        if (rebuilt.rebuilt > 0) await checkIns.rebuilt(view.checkinScope)
+        if (rebuilt.rebuilt > 0) await checkIns.keeper.rebuilt(view.checkinScope)
         await reportDetail()
         post({
           type: 'rebuildComplete',
           ...rebuilt,
           ...rebuildable(),
-          ...(await checkInOf(rebuilt.state)),
+          ...(await checkIns.of(rebuilt.state)),
         })
       } else if (event.data.type === 'markSeen') {
-        const seen = await checkIns.markSeen(view.checkinScope, event.data.row, event.data.event)
-        post({ type: 'checkInSaved', seen })
+        post({ type: 'checkInSaved', seen: await checkIns.markSeen(event.data) })
       } else if (event.data.type === 'acceptPartialImport') {
-        // Taken now, from the snapshot the import began with; the count is the import's, or one after a reload.
-        const last = importContext.lastImport
-        await checkIns.settle(view.checkinScope, {
-          manifest: 'accepted-partial',
-          added: last !== null && last.scope === view.checkinScope ? last.added : 1,
-        })
+        await checkIns.acceptPartial(importContext.lastImport)
         post({ type: 'checkInSaved', seen: false })
       } else if (event.data.type === 'exportData') {
         post({ type: 'exportReady', file: await exportAccount(event.data) })
@@ -372,7 +344,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           type: 'state',
           state,
           ...rebuildable(),
-          ...(CHECKIN_CHANGING.has(type) ? await checkInOf(state) : {}),
+          ...(checkIns.changes(type) ? await checkIns.of(state) : {}),
         })
       }
     } catch (error) {
