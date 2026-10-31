@@ -440,3 +440,43 @@ describe('saving through the outbox', () => {
     expect(ctx.onSaved).toHaveBeenCalledOnce()
   })
 })
+
+describe('saving a file for a workout the account holds from an older analysis', () => {
+  const older: ActivityRecord = {
+    ...record,
+    id: 'rec-old',
+    digest: {
+      ...digest,
+      id: `${digest.startMs}-activities/55.fit`,
+      name: 'My own title',
+      modelRevision: 5,
+    },
+    fileName: 'activities/55.fit',
+  }
+  const newer = {
+    ...item,
+    digest: { ...digest, id: `${digest.startMs}-rca-0123456789abcdef.fit`, name: 'Morning Run' },
+    fileName: 'run.fit',
+  }
+
+  it('upgrades that row under its id, file name and title, so the title is kept', async () => {
+    const ctx = { ...context(false), savedRecords: new Map([[older.id, older]]) }
+    await accountSaver(ctx)(newer)
+    expect(createActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ id: older.digest.id, name: 'My own title' }),
+      'activities/55.fit',
+      'hash',
+      'u1',
+      'rec-old',
+    )
+  })
+
+  it('creates as before when the account holds no row for the workout, or one that is current', async () => {
+    await accountSaver(context(false))(newer)
+    expect(createActivity).toHaveBeenLastCalledWith(newer.digest, 'run.fit', 'hash', 'u1')
+    const current = { ...older, digest: { ...older.digest, modelRevision: digest.modelRevision } }
+    const ctx = { ...context(false), savedRecords: new Map([[current.id, current]]) }
+    await accountSaver(ctx)(newer)
+    expect(createActivity).toHaveBeenLastCalledWith(newer.digest, 'run.fit', 'hash', 'u1')
+  })
+})

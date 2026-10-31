@@ -270,6 +270,30 @@ repository and not in `wrangler.toml`.
   object to `/api/auth/dev-login` and requires 404, so a Worker deployed with the gate open fails the
   release.
 
+## What is sent of an activity
+
+An activity's digest, file name and hash are sent to the account when it is saved (the privacy page lists them).
+From model revision 7 (D12 E7, RCA-032):
+
+- **The file name is a hash.** The id an activity is given at import is made from `rca-` and sixteen hex digits of the
+  SHA-256 of the file's name, with the FIT, TCX or GPX extension kept (`import/minimise.ts`), so the id on the device, in
+  the recording cache and in the account are one, and a reload finds a recording by it. The name of a Strava export's
+  file is the activity's number on Strava. The hash has no key: a number has few values, so it keeps the number out of
+  plain sight and out of a join with Strava, it is not secrecy.
+- **The title is sent only on opt-in** (Profile, kept per account on the device). Otherwise the account keeps a
+  generated name such as "Morning Run".
+- **Nothing is minimised after the fact.** A replace, an upgrade and a rebuild send the id, file name and title the
+  activity already has, and a recording is read back under them; an existing row's `file_name` column is not changed.
+  Cleaning the rows saved before is a server-side maintenance step.
+- **The start time is not rounded.** The start is exact to the second, and that is deliberate. `workoutKey(sport,
+startMs)` is the key every workout is matched by, at the second: the `dedupe_key` of a row (unique per account), the keys
+  of the device library and the outbox, the counted-runs list, rule R's and adoption's matching. A digest with a start
+  rounded to the minute would find no row to upgrade (the server would insert a copy, or refuse the replace as a
+  conflict), and a rounded and an exact digest of one workout would never match, so a stale and a rebuilt copy would both
+  show. Rounding safely needs a minute-resolution key introduced everywhere first, the server to find a legacy
+  second-key within the minute (a range lookup, no migration) and the updater to rewrite `dedupe_key` on an upgrade.
+  That is a stage of its own.
+
 ## Read-only switch and abuse response
 
 **The switch.** The plain Worker variable `READ_ONLY` ("true", "1" or "on", any case) makes the API refuse every request that

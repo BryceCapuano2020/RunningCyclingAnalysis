@@ -29,6 +29,7 @@ import { hiddenRecordIds } from './hiddenCopies'
 import { reportLibraryActivities } from './libraryReport'
 import { openDeviceLibrary } from './deviceLibrary'
 import { outdatedWithOriginal } from './outdatedOriginals'
+import { noteUploadTitles } from '../api/uploadPolicy'
 import { undoLabelsHandler } from './undoLabelsRequest'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
@@ -330,6 +331,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   noteArrival(event.data.type)
   queue = queue.then(async () => {
     noteStart(event.data.type)
+    noteUploadTitles(event.data as Parameters<typeof noteUploadTitles>[0])
     const endRequest = beginRequest(requestId, (message) => self.postMessage(message))
     try {
       if (event.data.type === 'addFiles') {

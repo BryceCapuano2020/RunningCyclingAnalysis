@@ -1,6 +1,7 @@
 import type { ActivityRecord, LabelChange } from '@rca/contract'
 import { MAX_LABELS_PER_REQUEST } from '@rca/contract'
 import { applyLabels, undoLabels } from '@rca/core/import/applyLabels'
+import { hashedFileName } from '@rca/core/import/minimise'
 import type { LabelProposal } from '@rca/core/import/applyLabels'
 import type { AnalysisSession } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
@@ -76,9 +77,13 @@ export async function applyListLabels(
   userId: string,
   reload: (records: ActivityRecord[]) => void,
 ): Promise<LabelProposal[]> {
+  // A workout imported from revision 7 holds a hash of its file's name (import/minimise.ts), so the list's names are
+  // offered in both forms: as they are, for the workouts saved before, and hashed, for those saved since.
+  const names = new Map(listedTypes)
+  for (const [file, type] of listedTypes) names.set(hashedFileName(file), type)
   const proposals = applyLabels(
     [...records.values()].map(({ id, digest }) => ({ id, digest })),
-    listedTypes,
+    names,
   )
   return proposals.length === 0 ? [] : write(proposals, userId, reload)
 }

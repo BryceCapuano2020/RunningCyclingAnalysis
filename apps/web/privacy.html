@@ -213,7 +213,9 @@
         first, the saves resume the next time you sign in on this device. Signing out asks first
         when saves are still waiting, then removes the list, and so does deleting your account.
         Remove all my activities removes every waiting save from this browser too. When a session
-        ends on its own, the list stays so those saves can finish when you sign in again.
+        ends on its own, the list stays so those saves can finish when you sign in again, unless
+        somebody else signs in to this browser first: their sign-in removes the list of any other
+        account.
       </p>
 
       <p>
@@ -258,6 +260,19 @@
           and the analysis summary, the same figures as the summary kept in this browser. No
           per-second recording or route data. A name can name a place, and in a Strava export the
           file name is the number of the activity on Strava.
+        </li>
+        <li>
+          <strong>Titles and file names of new activities:</strong> an activity saved from now on
+          keeps its title in your library only if you choose
+          <strong>Send my activity titles to my library</strong> on Profile. Otherwise the library
+          keeps a generated name such as Morning Run, and your title stays in the file you imported.
+          The name of the file is saved as a hash of the name, <code>rca-</code> and sixteen
+          characters, with the file's extension, so the number of an activity on Strava is not
+          stored as it is. A number has few values, so this keeps it out of plain sight; it is not
+          secrecy. The choice is kept in this browser's local storage under
+          <code>rca.uploadTitles.v1</code> and your account id, and is never uploaded. Activities
+          saved before keep the title and file name they were saved with, also when they are
+          rebuilt.
         </li>
         <li>
           <strong>Original files:</strong> only while
