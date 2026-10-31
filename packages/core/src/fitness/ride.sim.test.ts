@@ -26,26 +26,31 @@ describe('the monitor on ride values at the research spreads, one to three rides
   // Observed (three years, 80 libraries): quiet alarms an athlete-year 0.06 to 0.16; with a 3% wander and a 1.5% season 0.26 to 0.59.
   it.each(SPREADS)('stays under the budget when nothing changes, at %s a ride', (runSd) => {
     for (const perWeek of [1, 2, 3]) {
-      const quiet = silence({ runSd }, 60, 3, perWeek)
+      const quiet = silence({ level: { runSd } }, 60, 3, perWeek)
       expect(quiet.alarms).toBeLessThan(0.25)
       expect(quiet.endingNotHolding).toBeLessThan(0.2)
-      const stressed = silence({ runSd, wanderSd: 0.03, seasonal: 0.015 }, 60, 3, perWeek)
+      const stressed = silence(
+        { level: { runSd, wanderSd: 0.03, seasonAmp: 0.015 } },
+        60,
+        3,
+        perWeek,
+      )
       expect(stressed.alarms).toBeLessThan(0.65)
     }
   })
 
   // Observed an 8% loss: median 4 to 8 weeks, 67% to 93% within 12 and 87% to 97% within 26; a 5% loss that stays: median 6 to 22 weeks, 56% to 84% within 26.
   it.each(SPREADS)('sees a loss of 8% at %s a ride, and keeps it open', (runSd) => {
-    const two = planted({ size: -0.08, perWeek: 2, runSd }, 100)
+    const two = planted({ size: -0.08, perWeek: 2, level: { runSd } }, 100)
     expect(quantile(two.lags, 0.5)).toBeLessThanOrEqual(8)
     expect(within(two.lags, 26)).toBeGreaterThanOrEqual(0.88)
     expect(two.open / two.seen).toBeGreaterThanOrEqual(0.9)
-    const one = planted({ size: -0.08, perWeek: 1, runSd }, 100)
+    const one = planted({ size: -0.08, perWeek: 1, level: { runSd } }, 100)
     expect(within(one.lags, 26)).toBeGreaterThanOrEqual(0.78)
   })
 
   it.each(SPREADS)('sees a loss of 5% that stays, at two rides a week and %s a ride', (runSd) => {
-    const two = planted({ size: -0.05, perWeek: 2, runSd }, 100)
+    const two = planted({ size: -0.05, perWeek: 2, level: { runSd } }, 100)
     expect(within(two.lags, 40)).toBeGreaterThanOrEqual(0.65)
     expect(two.open / two.seen).toBeGreaterThanOrEqual(0.88)
   })

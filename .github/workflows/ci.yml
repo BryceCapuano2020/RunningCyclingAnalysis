@@ -214,7 +214,9 @@ jobs:
   # The statistical simulations (*.sim.test.ts) replay many seeded libraries to measure a detector's
   # hit rate and its silence on nulls. They take minutes under coverage, so they are their own job,
   # run without coverage and in parallel with the unit tests. They are deterministic (seeded), so a
-  # failure is a real change in a rate and the job does not retry.
+  # failure is a real change in a rate and the job does not retry. It also runs the API's heavy sweeps
+  # (apps/api/*.sim.test.ts: a daily limit request by request, a worst-case maintenance backlog, long
+  # keyset walks), which the API unit tests decide from a few requests.
   sim:
     name: Statistical simulations
     needs: changes
