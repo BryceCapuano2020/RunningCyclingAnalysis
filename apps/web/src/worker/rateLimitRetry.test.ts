@@ -1,10 +1,14 @@
 import { SyncFailure } from '@rca/core/session'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiRequestError } from '../api/client'
-import { RATE_LIMIT_WINDOW_MS, retryAfterRateLimit } from './rateLimitRetry'
+import { RATE_LIMIT_WINDOW_MS, retryAfterUploadSlot, SaveStop } from './rateLimitRetry'
 
 const limited = (retryAfterMs?: number) =>
   new ApiRequestError(429, 'rate_limited', 'Slow down', retryAfterMs)
+
+/** One save, with nothing else sharing its stop. */
+const retryAfterRateLimit = <T>(attempt: () => Promise<T>, onWait?: () => void) =>
+  new SaveStop(() => undefined).run(attempt, onWait)
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -14,7 +18,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('retryAfterRateLimit', () => {
+describe('a save that meets a rate limit', () => {
   it('returns the result of a save that works, without waiting', async () => {
     const attempt = vi.fn().mockResolvedValue('saved')
     await expect(retryAfterRateLimit(attempt)).resolves.toBe('saved')
@@ -99,6 +103,98 @@ describe('retryAfterRateLimit', () => {
   ])('does not retry %s', async (_label, error) => {
     const attempt = vi.fn().mockRejectedValue(error)
     await expect(retryAfterRateLimit(attempt)).rejects.toBe(error)
+    expect(attempt).toHaveBeenCalledOnce()
+  })
+})
+
+describe('saves that share a stop', () => {
+  it('has one save wait out a rate limit and try again, while the others wait for how that try ends', async () => {
+    const stop = new SaveStop(() => undefined)
+    const onWait = vi.fn()
+    const sends: boolean[] = []
+    const attempt = async (leading: boolean) => {
+      sends.push(leading)
+      if (sends.length <= 3) throw limited(1_000)
+      return 'saved'
+    }
+    const results = [1, 2, 3].map(() => stop.run(attempt, onWait))
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    await expect(Promise.all(results)).resolves.toEqual(['saved', 'saved', 'saved'])
+    // Three first tries, the leader's, then the two that waited for it. One wait was announced.
+    expect(sends).toEqual([false, false, false, true, false, false])
+    expect(onWait).toHaveBeenCalledOnce()
+  })
+
+  it('fails the saves that waited, and the ones that come after, with the cause that stopped them, sending nothing', async () => {
+    const onStopped = vi.fn()
+    const stop = new SaveStop(onStopped)
+    const attempt = vi.fn(async (_leading: boolean): Promise<string> => {
+      throw limited(1_000)
+    })
+    const results = [1, 2, 3].map(() => stop.run(attempt).catch((error: unknown) => error))
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    const failures = await Promise.all(results)
+    // Three first tries and the leader's second; the two followers did not try again.
+    expect(attempt).toHaveBeenCalledTimes(4)
+    expect(failures[0]).toMatchObject({ status: 429 })
+    expect(failures[1]).toMatchObject({ code: 'rate-limited' })
+    expect(failures[2]).toMatchObject({ code: 'rate-limited' })
+    expect(onStopped).toHaveBeenCalledOnce()
+    expect(onStopped).toHaveBeenCalledWith('rate-limited')
+
+    await expect(stop.run(attempt)).rejects.toMatchObject({ code: 'rate-limited' })
+    await expect(stop.ready()).rejects.toMatchObject({ code: 'rate-limited' })
+    expect(attempt).toHaveBeenCalledTimes(4)
+  })
+
+  it('reports only the first failure that stops saving, and ignores one that does not', () => {
+    const onStopped = vi.fn()
+    const stop = new SaveStop(onStopped)
+
+    stop.noteFailure('server')
+    stop.noteFailure('activity-conflict')
+    expect(onStopped).not.toHaveBeenCalled()
+    stop.noteFailure('activity-quota')
+    stop.noteFailure('rate-limited')
+
+    expect(onStopped).toHaveBeenCalledOnce()
+    expect(onStopped).toHaveBeenCalledWith('activity-quota')
+    expect(() => stop.check()).toThrow(expect.objectContaining({ code: 'activity-quota' }))
+  })
+})
+
+describe("an upload that finds the account's upload slots full", () => {
+  const full = (retryAfterMs?: number) =>
+    new ApiRequestError(429, 'upload_in_progress', 'Finish your other uploads', retryAfterMs)
+
+  it('waits for the server Retry-After and tries once more', async () => {
+    const attempt = vi.fn().mockRejectedValueOnce(full(5_000)).mockResolvedValueOnce('saved')
+    const result = retryAfterUploadSlot(attempt)
+
+    await vi.advanceTimersByTimeAsync(4_999)
+    expect(attempt).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    await expect(result).resolves.toBe('saved')
+  })
+
+  it('waits five seconds when the server did not say, and gives up after one more try', async () => {
+    const attempt = vi.fn().mockRejectedValue(full())
+    const result = retryAfterUploadSlot(attempt)
+    const rejection = expect(result).rejects.toMatchObject({ code: 'upload_in_progress' })
+
+    await vi.advanceTimersByTimeAsync(4_999)
+    expect(attempt).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    await rejection
+    expect(attempt).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry another failure', async () => {
+    const error = new ApiRequestError(500, 'internal_error', 'Oops')
+    const attempt = vi.fn().mockRejectedValue(error)
+    await expect(retryAfterUploadSlot(attempt)).rejects.toBe(error)
     expect(attempt).toHaveBeenCalledOnce()
   })
 })

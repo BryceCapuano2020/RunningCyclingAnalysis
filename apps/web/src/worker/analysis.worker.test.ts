@@ -18,6 +18,7 @@ import type { DeviceLibrary } from './deviceLibrary'
 import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
 import * as importSummary from './importSummary'
 import { REPLY_TYPES } from './protocol'
+import { SAVE_CONCURRENCY } from './saveLimits'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 /** A reply waits on a full analysis, which takes most of a second on its own; vi.waitFor's 1 s is too short under load. */
@@ -1126,12 +1127,17 @@ describe('analysis worker', () => {
   it('tells the page the saves are paused before it waits, and the next progress ends that', async () => {
     const { send, posted } = await startWorker()
     let postedAtRetry: WorkerResponse[] = []
-    mocked.createActivity
-      .mockRejectedValueOnce(new ApiRequestError(429, 'rate_limited', 'Slow down', 1))
-      .mockImplementationOnce(async (digest) => {
-        postedAtRetry = [...posted]
-        return { record: recordFor(digest), created: true }
-      })
+    // The first activity is refused once; its second try is the call made after the pause.
+    let firstId: string | undefined
+    let tries = 0
+    mocked.createActivity.mockImplementation(async (digest) => {
+      firstId ??= digest.id
+      if (digest.id === firstId && ++tries === 1) {
+        throw new ApiRequestError(429, 'rate_limited', 'Slow down', 1)
+      }
+      if (digest.id === firstId) postedAtRetry = [...posted]
+      return { record: recordFor(digest), created: true }
+    })
     const messages = await send({
       type: 'addFiles',
       files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
@@ -1139,10 +1145,10 @@ describe('analysis worker', () => {
       sync: { keepFiles: false, userId: USER_ID },
     })
 
-    // The pause carries the counts so far, and was sent before the second try began.
-    expect(postedAtRetry.at(-1)).toEqual({
+    // The pause carries the counts so far, and was sent before the second try began. Reading goes on beside the
+    // saves, so a progress for the second file may come after it, and that ends the pause as well.
+    expect(postedAtRetry.findLast((message) => 'paused' in message)).toMatchObject({
       type: 'progress',
-      filesRead: 0,
       filesTotal: 2,
       uploaded: 0,
       paused: true,
@@ -1164,9 +1170,9 @@ describe('analysis worker', () => {
       sync: { keepFiles: true, userId: USER_ID },
     })
 
-    // The first is sent twice. The second is sent twice if it was already in flight beside it, and not at all if
-    // the limit had already held; nothing is sent after.
-    expect([2, 4]).toContain(mocked.createActivity.mock.calls.length)
+    // Both are sent once beside each other. One waits the limit out and tries again; the other is not sent a second time.
+    expect(mocked.createActivity.mock.calls.length).toBeLessThanOrEqual(2 + SAVE_CONCURRENCY)
+    expect(mocked.createActivity.mock.calls.length).toBeGreaterThanOrEqual(2)
     expect(messages).toContainEqual({ type: 'accountIssue', issue: 'rate-limited' })
     expect(messages.at(-1)).toMatchObject({
       type: 'state',

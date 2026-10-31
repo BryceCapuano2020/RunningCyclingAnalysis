@@ -107,7 +107,14 @@ export class AnalysisSession {
     this.rejected.length = 0
     this.unsupported.files = 0
     beginImportUnsynced(this.keeping)
-    const batch: SaveBatch = { halt: null, networkStreak: 0, added: new Map(), inflight: [] }
+    const batch: SaveBatch = {
+      halt: null,
+      networkStreak: 0,
+      added: new Map(),
+      inflight: [],
+      inflightByKey: new Map(),
+      probe: null,
+    }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []

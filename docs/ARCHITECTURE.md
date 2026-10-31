@@ -96,8 +96,11 @@ original-file uploads (the server's two upload slots) are open at once, and the 
 before it ends. At most six saves, and 48 MiB of file bytes, are in flight; the reader waits when the saves are
 full, so a large library stays flat in memory. A replacement of a held copy, or a retry of an activity whose
 save failed, is saved before the next file is looked at, so two saves of one workout never overlap. A failure
-belongs to the activity that had it, and one that ends the saves (a full library, a spent day) stops the rest
-as before.
+belongs to the activity that had it. One that ends the saves (a full library, a spent day, a rate limit that
+holds) is shared: the saves still waiting fail with the same cause without being sent. A rate limit is waited out
+by one save, and the others wait for how its second try ends. A second copy of a workout whose first save is
+in flight waits for that save, so it is the retry if the first fails, as when saves run one at a time. After
+repeated network failures one save is the probe and the others wait for its answer.
 
 **View** (combine in the browser)
 
