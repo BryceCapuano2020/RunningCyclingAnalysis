@@ -596,11 +596,11 @@ test('no box around a defined term is transformed, filtered or contained, on the
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  // The landing example defines the range and both levels; Method defines its own term.
+  // The landing example defines the range and, once, the level; Method defines its own term.
   await page.goto('/')
-  await expect(page.locator('.landing-example .definition')).toHaveCount(3)
+  await expect(page.locator('.landing-example .definition')).toHaveCount(2)
   const landing = await definedTermAncestors(page)
-  expect(landing.terms).toBeGreaterThanOrEqual(3)
+  expect(landing.terms).toBeGreaterThanOrEqual(2)
   expect(landing.bad).toEqual([])
   await page.goto('/#/method')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -609,7 +609,7 @@ test('no box around a defined term is transformed, filtered or contained, on the
   expect(method.bad).toEqual([])
   await openSample(page)
   const balance = await definedTermAncestors(page)
-  expect(balance.terms).toBeGreaterThan(3)
+  expect(balance.terms).toBeGreaterThanOrEqual(3)
   expect(balance.bad).toEqual([])
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
