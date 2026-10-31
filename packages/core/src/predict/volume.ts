@@ -1,3 +1,4 @@
+import { localDayOfInstant } from '../calendar'
 import { DAY_MS } from '../constants'
 
 /** The weeks a typical training week is averaged over, as Tanda (2011) and most training logs do. */
@@ -27,6 +28,5 @@ export function typicalWeeklyDistance(
 
 /** The number of the local calendar day that holds `ms`, in the zone the code runs in. */
 function localDay(ms: number): number {
-  const date = new Date(ms)
-  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS
+  return localDayOfInstant(ms)
 }

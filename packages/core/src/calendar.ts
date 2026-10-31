@@ -4,7 +4,12 @@ import type { LocalDayShift } from './types'
 /**
  * The one module that does calendar arithmetic (D12 section 2.5). An activity's local day is its UTC day plus
  * the shift its file records (-1, 0 or +1, see import/localDay.ts); where a file records none, the viewer's
- * zone, given once at the edge, says. No UTC offset is kept and `Date`'s ambient zone is never read.
+ * zone, given once at the edge, says. No UTC offset is kept.
+ *
+ * The days of a period, a custom range, a dated setting and an age are cut in the viewer's zone, given once
+ * at the edge (`setViewerZone`), and `Date`'s own zone is not read: a figure is the same on every device. Until
+ * the flag is set they are cut in the device's zone as they always were, and this is the one module that
+ * reads it (calendar.guard.test.ts forbids every other).
  *
  * Weeks run Monday to Sunday. Until the release that writes revision 7 they are cut in UTC, as they always
  * were: `LOCAL_WEEKS` is false, every function here gives the UTC answer, and nothing in a digest or a figure
@@ -31,6 +36,8 @@ export interface Dated {
 
 let localWeeks = LOCAL_WEEKS
 let viewerZone: Zone = UTC_ZONE
+/** Counts the zones the viewer has been given, so a result kept for one is not taken for another's. */
+let zoneVersion = 0
 
 /**
  * Runs `run` with local weeks on or off. For tests: the setting is put back when `run` returns, so a run that
@@ -58,6 +65,7 @@ export function localWeeksOn(): boolean {
 /** Sets the viewer's zone, once, at the edge that knows it (the worker). Returns the one it replaced. */
 export function setViewerZone(zone: Zone): Zone {
   const before = viewerZone
+  zoneVersion++
   viewerZone = zone
   return before
 }
@@ -118,4 +126,111 @@ export function weekEndsSpan(items: readonly Dated[]): { first: number; last: nu
 export function weekEndFor(item: Dated): number {
   if (!localWeeks) return weekEndMs(item.startMs)
   return (MONDAY_DAY_NUMBER + (weekOfDay(localDayNumber(item)) + 1) * 7) * DAY_MS - 1
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Days of a period, a custom range, a dated setting and an age.
+
+/** The device's zone at an instant: what `Date` has always used here. The only read of it. */
+const deviceZone: Zone = (ms) => -new Date(ms).getTimezoneOffset()
+
+/** The zone days are cut in: the viewer's with local weeks on, the device's before. */
+function dayZone(): Zone {
+  return localWeeks ? viewerZone : deviceZone
+}
+
+/** The number of the local calendar day that holds the instant, counted from 1 January 1970. */
+export function localDayOfInstant(ms: number): number {
+  return Math.floor((ms + dayZone()(ms) * 60_000) / DAY_MS)
+}
+
+/** The key of the zone days are cut in. A result grouped by local day is kept only for the zone it was made in. */
+export function dayZoneKey(): string {
+  return localWeeks ? `viewer:${zoneVersion}` : Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+const pad = (n: number, width = 2) => String(n).padStart(width, '0')
+
+/** The local calendar date of an instant, as `YYYY-MM-DD`. */
+export function localDateText(ms: number): string {
+  const date = new Date(localDayOfInstant(ms) * DAY_MS)
+  return `${pad(date.getUTCFullYear(), 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
+}
+
+/** The local calendar year of an instant. */
+export function localYearOf(ms: number): number {
+  return new Date(localDayOfInstant(ms) * DAY_MS).getUTCFullYear()
+}
+
+/**
+ * The instant the local time `localMs` (a wall clock read as if it were UTC) happens at in a zone. A zone whose
+ * offset differs either side of a clock change is settled by taking the offset at the guess, twice.
+ */
+function instantOfLocal(localMs: number, zone: Zone): number {
+  let at = localMs - zone(localMs) * 60_000
+  at = localMs - zone(at) * 60_000
+  return localMs - zone(at) * 60_000
+}
+
+/** The first millisecond of the local day that holds ms. */
+export function startOfLocalDay(ms: number): number {
+  if (!localWeeks) {
+    const date = new Date(ms)
+    date.setHours(0, 0, 0, 0)
+    return date.getTime()
+  }
+  return instantOfLocal(localDayOfInstant(ms) * DAY_MS, viewerZone)
+}
+
+/** The last millisecond of the local day that holds ms, so a period ends with its last day. */
+export function endOfLocalDay(ms: number): number {
+  if (!localWeeks) {
+    const date = new Date(ms)
+    date.setHours(23, 59, 59, 999)
+    return date.getTime()
+  }
+  return instantOfLocal((localDayOfInstant(ms) + 1) * DAY_MS, viewerZone) - 1
+}
+
+/** The instant that falls the given number of local calendar days before ms, at the same time of day. */
+export function daysBefore(ms: number, days: number): number {
+  if (!localWeeks) {
+    const date = new Date(ms)
+    date.setDate(date.getDate() - days)
+    return date.getTime()
+  }
+  return instantOfLocal(ms + viewerZone(ms) * 60_000 - days * DAY_MS, viewerZone)
+}
+
+/** The local calendar days from the day of startMs to the day of endMs, both counted. */
+export function calendarDays(startMs: number, endMs: number): number {
+  return Math.round((startOfLocalDay(endMs) - startOfLocalDay(startMs)) / DAY_MS) + 1
+}
+
+/** The local midnight that starts a real day, or null when the year, month and day name none (31 June). */
+export function startOfRealDay(year: number, month: number, day: number): number | null {
+  if (!localWeeks) {
+    const date = new Date(year, month - 1, day)
+    const real =
+      date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    return real ? date.getTime() : null
+  }
+  const date = new Date(Date.UTC(year, month - 1, day))
+  const real =
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  return real ? instantOfLocal(date.getTime(), viewerZone) : null
+}
+
+/** The local midnight that starts the day a `YYYY-MM-DD` names, without checking that it is a day. */
+export function startOfDayText(text: string): number {
+  const [year = 0, month = 1, day = 1] = text.split('-').map(Number)
+  if (!localWeeks) {
+    const start = new Date(0)
+    start.setFullYear(year, month - 1, day)
+    start.setHours(0, 0, 0, 0)
+    return start.getTime()
+  }
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  return instantOfLocal(date.getTime(), viewerZone)
 }

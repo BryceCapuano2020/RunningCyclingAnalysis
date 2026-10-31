@@ -1,3 +1,4 @@
+import { localYearOf } from '../calendar'
 import { ROAD_DISTANCES_M, ROAD_STANDARDS_FEMALE, ROAD_STANDARDS_MALE } from './roadStandards'
 
 export type Sex = 'female' | 'male'
@@ -87,7 +88,7 @@ export function ageGradeForEffort(
  */
 export function ageAt(birthYear: number, dateMs: number): number | null {
   if (!Number.isInteger(birthYear) || !Number.isFinite(dateMs)) return null
-  const age = new Date(dateMs).getFullYear() - birthYear
+  const age = localYearOf(dateMs) - birthYear
   return age >= 0 && age <= 120 ? age : null
 }
 
