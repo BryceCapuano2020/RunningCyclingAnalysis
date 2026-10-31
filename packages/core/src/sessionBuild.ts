@@ -7,6 +7,7 @@ import { NO_TRENDS } from './digest/trendPoints'
 import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
+import { lookBackOf, NO_LOOKBACK } from './lookback/compute'
 import { splitPeriods } from './period'
 import type { PeriodCache, PeriodChoice } from './period'
 import type { EarnedRecord } from './records'
@@ -96,6 +97,16 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     fitness: fitnessStatuses(analysed, new Set(setAside), {
       nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
     }),
+    lookBack:
+      athlete === null
+        ? NO_LOOKBACK
+        : lookBackOf(
+            analysed,
+            athlete,
+            new Set(setAside),
+            Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
+            judgement.rideGate,
+          ),
     zoneEstimates,
     timeInZones:
       athlete === null || analysis === null

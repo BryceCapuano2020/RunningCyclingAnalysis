@@ -90,7 +90,7 @@ const rangeText = (r: Ranged): string => {
 }
 
 /** "6% (3 to 9%)": the size of a change and the range it may lie in. */
-const sized = (sport: Sport, r: Ranged) => {
+export const sized = (sport: Sport, r: Ranged) => {
   const shown = shownChange(sport, r)
   return `${formatRelative(shown.value)} (${rangeText(shown)})`
 }
@@ -102,7 +102,7 @@ const side = (w: Words, r: Ranged) => (r.value < 0 ? w.less : w.more)
  * How far from level the runs allow the athlete to be, as a percentage in the athlete's terms: the log distance
  * read as a change each way (more speed or power, less), the larger side said, which for a run is the pace.
  */
-function withinText(sport: Sport, within: number): string {
+export function withinText(sport: Sport, within: number): string {
   const f = WORDS[sport].shown
   return formatRelative(Math.max(Math.abs(f(Math.expm1(within))), Math.abs(f(Math.expm1(-within)))))
 }

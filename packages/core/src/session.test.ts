@@ -11,6 +11,7 @@ import { parseActivityFile } from './import'
 import { generatedName } from './import/names'
 import { windowEnding } from './period'
 import { NO_FITNESS } from './fitness/types'
+import { NO_LOOKBACK } from './lookback/compute'
 import { AnalysisSession, SyncFailure } from './session'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
@@ -426,6 +427,7 @@ describe('AnalysisSession', () => {
       lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
+      lookBack: NO_LOOKBACK,
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
@@ -523,6 +525,7 @@ describe('AnalysisSession', () => {
       lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
+      lookBack: NO_LOOKBACK,
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
