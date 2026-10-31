@@ -20,6 +20,9 @@ export type CheckinScope = 'device' | `account:${string}`
 
 export const accountScope = (userId: string): CheckinScope => `account:${userId}`
 
+/** The key of a scope's epoch in the `marks` store: a count of how many times the scope has been cleared. */
+export const epochKey = (scope: CheckinScope): string => `${scope}|epoch`
+
 let opening: Promise<IDBDatabase | null> | null = null
 
 /** The database, or null where storage cannot be opened (a private window, a blocked or refused open). */
@@ -74,16 +77,29 @@ export const scopeRange = (scope: CheckinScope): IDBKeyRange =>
   IDBKeyRange.bound(`${scope}|`, `${scope}|￿`)
 
 /** Removes everything the scope has in the database. Resolves false when storage refused. */
-export async function clearCheckinScope(scope: CheckinScope): Promise<boolean> {
+export async function clearCheckinScope(
+  scope: CheckinScope,
+  options: { dropEpoch?: boolean } = {},
+): Promise<boolean> {
   // Clearing must not make a database for a visitor who never imported.
   if (typeof indexedDB === 'undefined' || !(await databaseExists(CHECKIN_DB))) return true
   const db = await openCheckinDb()
   if (db === null) return true
   try {
     const tx = db.transaction([...CHECKIN_STORES], 'readwrite')
-    tx.objectStore('marks').delete(scope)
+    const marks = tx.objectStore('marks')
+    marks.delete(scope)
     tx.objectStore('seen').delete(scope)
     tx.objectStore('held').delete(scopeRange(scope))
+    if (options.dropEpoch === true) {
+      // An account that is gone for good (deleted, or swept for another's sign-in) leaves nothing, not even its count.
+      marks.delete(epochKey(scope))
+    } else {
+      // A writer that read the scope before this clear is refused by the epoch (see checkinMarks.ts).
+      const epoch = marks.get(epochKey(scope))
+      epoch.onsuccess = () =>
+        marks.put((typeof epoch.result === 'number' ? epoch.result : 0) + 1, epochKey(scope))
+    }
     return await settle(tx)
   } catch {
     return false
@@ -91,7 +107,7 @@ export async function clearCheckinScope(scope: CheckinScope): Promise<boolean> {
 }
 
 /** The accounts the database holds anything for, so a different user's sign-in can sweep the others. */
-export async function accountsWithCheckin(): Promise<string[]> {
+export async function accountsWithCheckin(includeEpochs = false): Promise<string[]> {
   if (typeof indexedDB === 'undefined' || !(await databaseExists(CHECKIN_DB))) return []
   const db = await openCheckinDb()
   if (db === null) return []
@@ -104,7 +120,9 @@ export async function accountsWithCheckin(): Promise<string[]> {
         request.onsuccess = () => {
           const cursor = request.result
           if (cursor === null) return resolve()
-          scopes.add(String(cursor.key).split('|')[0]!)
+          // A scope's epoch is a count, not a record: it does not make the scope one that holds anything.
+          if (includeEpochs || !String(cursor.key).endsWith('|epoch'))
+            scopes.add(String(cursor.key).split('|')[0]!)
           cursor.continue()
         }
         request.onerror = () => resolve()
@@ -118,9 +136,9 @@ export async function accountsWithCheckin(): Promise<string[]> {
 
 /** Clears every account's rows except the signed-in one's (or all of them with none), as the recordings are swept. */
 export async function sweepCheckin(keepUserId: string | null): Promise<void> {
-  for (const scope of await accountsWithCheckin()) {
+  for (const scope of await accountsWithCheckin(true)) {
     if (scope !== (keepUserId === null ? null : accountScope(keepUserId))) {
-      await clearCheckinScope(scope as CheckinScope)
+      await clearCheckinScope(scope as CheckinScope, { dropEpoch: true })
     }
   }
 }

@@ -1,0 +1,82 @@
+/* Since your last import: one line under the fitness card, 48 px or less closed at every width. */
+.checkin-row {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.checkin-row__summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-4);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+/* The sentence is cut after two lines; the panel gives it whole. */
+.checkin-row__summary::-webkit-details-marker {
+  display: none;
+}
+
+.checkin-row__line {
+  display: -webkit-box;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* A chevron, so the line keeps the width: the summary is the disclosure and says so to a screen reader. */
+.checkin-row__toggle {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: var(--space-1);
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.checkin-row__details[open] .checkin-row__toggle {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.checkin-row__panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.checkin-row__full,
+.checkin-row__list {
+  margin: 0;
+}
+
+.checkin-row__list {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+}
+
+.checkin-row__hide {
+  justify-self: start;
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}

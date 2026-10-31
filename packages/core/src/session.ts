@@ -24,6 +24,8 @@ import { countIssues } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
+import { checkInSnapshotOf } from './sessionCheckIn'
+import type { CheckInSnapshot } from './lookback/snapshot'
 import {
   beginImportUnsynced,
   clearUnsynced,
@@ -334,6 +336,20 @@ export class AnalysisSession {
     for (const digest of [...this.library.digests.values(), ...this.library.readable.values()])
       if (digest.id === id) return digest.splits ?? null
     return null
+  }
+
+  /**
+   * The library as the analysis reads it, summarised for "since your last import" (see lookback/snapshot.ts), with the
+   * fitness and look-back of `state`. Null when the session holds nothing to compare or shows the sample, which
+   * keeps no baseline.
+   */
+  checkInSnapshot(state: SessionState, nowMs: number): CheckInSnapshot | null {
+    if (this.isSample || this.library.size === 0) return null
+    return checkInSnapshotOf(
+      this.library.analysable().map(([, digest]) => digest),
+      state,
+      nowMs,
+    )
   }
 
   private reset(): void {
