@@ -87,6 +87,13 @@ describe('LandingExample', () => {
     expect(screen.getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap)))).toBeInTheDocument()
   })
 
+  it('names the sample’s weight in the visitor’s units', () => {
+    render(<LandingExample units="imperial" />)
+    expect(
+      screen.getByText('Illustrative: the sample athlete, a 37-year-old man at 165.3 lb'),
+    ).toBeInTheDocument()
+  })
+
   it('draws the real meter and levels from the sample’s figures: the gap with its range, and each sport’s grade and level', () => {
     const { container } = render(<LandingExample />)
     const text = landingText(LANDING_EXAMPLE)

@@ -19,6 +19,11 @@ import type { Me } from '@rca/contract'
 
 import type { RejectedFile } from '@rca/core/session'
 
+vi.mock(
+  './analysis/workerStart',
+  async () => (await import('../test/workerStartsAtOnce')).workerStart,
+)
+
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const SIGNED_OUT = { status: 'signed-out' as const, me: null }
 const ZIP = new File(['x'], 'export.zip')

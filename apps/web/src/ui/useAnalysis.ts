@@ -20,6 +20,7 @@ import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/mo
 import { accountPending, drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerWatchdog } from './analysis/workerWatchdog'
+import { workerStartsWithPage } from './analysis/workerStart'
 import { useWorkerTransport } from './analysis/workerTransport'
 import type { AccountStatus } from './useAccount'
 import { useActivityTraceRequest } from './analysis/useActivityTraceRequest'
@@ -158,6 +159,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     onSend,
     onDropped: refreshBusy,
     setError,
+    startWorker: workerStartsWithPage,
   })
   const { dropPendingReplies, dropUnsent, restartWorker, setWorkerStopped } = transport
   const { automaticRestartCountRef, send: sendToWorker } = transport
@@ -167,6 +169,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     accountRef,
     settingsRef,
     send: sendToWorker,
+    workerRunning: () => transport.workerRef.current !== null,
     provisionalImportsRef,
     libraryWaitRef,
   })
@@ -357,6 +360,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     detail: library.detail,
     missingOriginals: library.missingOriginals,
     outdatedWithOriginal: library.outdatedWithOriginal,
+    checkIn: library.checkIn,
+    markCheckInSeen: libraryActions.markCheckInSeen,
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
     outbox: library.outbox,
@@ -367,7 +372,10 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     dismissAdoption,
     importOutcome: imports.importOutcome,
     incompleteImport: manifest.incomplete,
-    acceptIncompleteImport: manifest.accept,
+    acceptIncompleteImport: () => {
+      manifest.accept()
+      libraryActions.acceptPartialImport()
+    },
     // The change belongs to the outcome on screen; a cleared or replaced summary drops it.
     importChange:
       imports.importChange?.outcome === imports.importOutcome ? imports.importChange : null,
@@ -381,6 +389,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     activitySplits: libraryActions.activitySplits,
     rebuildNotice: imports.rebuildNotice,
     rebuildSavedActivities: importActions.rebuildSavedActivities,
+    undoLabels: importActions.undoLabels,
     addFiles: importActions.addFiles,
     loadSample: importActions.loadSample,
     setRange: importActions.setRange,

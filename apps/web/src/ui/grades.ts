@@ -1,3 +1,4 @@
+import type { Dated } from '@rca/core/calendar'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import {
   FIRST_GRADED_AGE,
@@ -105,8 +106,8 @@ export const SEX_NOUN: Record<Sex, string> = { female: 'woman', male: 'man' }
  * The athlete's age on atMs, from the year of birth. Null outside the ages the standards cover,
  * so an age the standards cannot grade is never used.
  */
-export function ageAndSexAt(profile: AgeProfile, atMs: number): AgeAndSex | null {
-  const age = ageAt(profile.birthYear, atMs)
+export function ageAndSexAt(profile: AgeProfile, at: number | Dated): AgeAndSex | null {
+  const age = ageAt(profile.birthYear, at)
   if (age === null || age < FIRST_GRADED_AGE || age > LAST_GRADED_AGE) return null
   return { age, sex: profile.sex }
 }
@@ -121,10 +122,10 @@ function gap(reason: string): GradeOutcome {
   return { kind: 'gap', reason }
 }
 
-/** The start of the activity with this id, or null when it is not among the result's activities. */
-function startOf(result: AnalysisResult, activityId: string | null): number | null {
+/** The start (with its day shift) of the activity with this id, or null when it is not among the result's activities. */
+function startOf(result: AnalysisResult, activityId: string | null): Dated | null {
   if (activityId === null) return null
-  return result.activities.find((activity) => activity.id === activityId)?.startMs ?? null
+  return result.activities.find((activity) => activity.id === activityId) ?? null
 }
 
 /**
@@ -208,9 +209,9 @@ export function sportGrade(
   const curve = curveOf(result, sport)
   const point = curve.find((candidate) => candidate.durationS === durationS)
   if (point === undefined || !Number.isFinite(point.value)) return gap(NEEDS_EFFORT_TEXT)
-  const startMs = startOf(result, point.activityId)
-  if (startMs === null) return gap(NO_DATE_TEXT)
-  const ageAndSex = ageAndSexAt(profile, startMs)
+  const started = startOf(result, point.activityId)
+  if (started === null) return gap(NO_DATE_TEXT)
+  const ageAndSex = ageAndSexAt(profile, started)
   if (ageAndSex === null) return gap(AGE_RANGE_TEXT)
   if (sport === 'run') {
     const grade = runGradeAt(metabolicToFlatSpeed(point.value), durationS, ageAndSex)
@@ -258,6 +259,8 @@ export function gradedSexOf(
   return shown ? profile.sex : null
 }
 
+import { NO_STANDARD_RECORD_TEXT } from './gradeNotes'
+
 export * from './gradeNotes'
 
 /**
@@ -278,12 +281,12 @@ export function gradeRangeText(range: { low: Grade; high: Grade }): string {
 
 /**
  * A grade on the share card's hero: its centre level and whole percent, and the effort it grades,
- * such as "Local · 64% on best 20 min". A ride names its centre level only, so the line fits two lines
- * of the card; the page's grade line gives the range. The card's threshold label already says the
- * figure is estimated, so the line does not repeat it.
+ * such as "Local · 64% on best 20 min". A ride whose range crosses a level names both ends, as the page
+ * does ("Local to World"), so the card and the page never give two levels for one grade. The card's
+ * threshold label already says the figure is estimated, so the line does not repeat it.
  */
 export function heroGradeLine(grade: SportGrade): string {
-  return `${grade.centre.level} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
+  return `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
 }
 
 /**
@@ -335,20 +338,14 @@ export function gradeParts(
 export function distanceGrade(
   distanceM: number,
   seconds: number,
-  startMs: number,
+  started: number | Dated,
   profile: AgeProfile,
 ): GradeOutcome {
-  const ageAndSex = ageAndSexAt(profile, startMs)
+  const ageAndSex = ageAndSexAt(profile, started)
   if (ageAndSex === null) return gap(AGE_RANGE_TEXT)
   const centre = gradeAtSpeed(distanceM / seconds, seconds, ageAndSex)
   if (centre === null) return gap(NO_STANDARD_TEXT)
   return { kind: 'graded', age: ageAndSex.age, grade: { centre, range: null } }
-}
-
-/** A run under a mile has no standard, so a record row names that rather than the full reason. */
-export const NO_STANDARD_RECORD_TEXT: Record<Sport, string> = {
-  run: 'No age standard under 1 mile',
-  ride: 'No age standard for this duration',
 }
 
 /** Whether a record's gap is the one a run under a mile, or a ride with no standard, has. */
@@ -363,21 +360,24 @@ export function isNoStandardGap(outcome: GradeOutcome | null): boolean {
 export function gapRecordText(sport: Sport, outcome: GradeOutcome): string | null {
   if (outcome.kind === 'graded') return null
   if (outcome.kind === 'top-of-scale') return TOP_OF_SCALE_SHORT
-  return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport] : notGradedText(outcome)
+  return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport]([]) : notGradedText(outcome)
 }
 
 /**
  * The notes a list of records says once under it, rather than on each row: a ride's lead when a record
- * is graded through its running equivalent, and the no-standard gap when a record has none. Each is
- * named once, whatever the number of rows it would have repeated on.
+ * is graded through its running equivalent, and the no-standard gap when a record has none, which names the
+ * records it is for (`labels`, one for each outcome) since it sits apart from their rows. Each is named once,
+ * whatever the number of rows it would have repeated on.
  */
 export function listedGradeNotes(
   sport: Sport,
   outcomes: readonly (GradeOutcome | null)[],
+  labels: readonly string[],
 ): string[] {
   const notes: string[] = []
   const lead = leadOf(sport, 'record')
   if (lead !== null && outcomes.some((outcome) => outcome?.kind === 'graded')) notes.push(lead)
-  if (outcomes.some(isNoStandardGap)) notes.push(NO_STANDARD_RECORD_TEXT[sport])
+  const ungraded = labels.filter((_, i) => isNoStandardGap(outcomes[i] ?? null))
+  if (ungraded.length > 0) notes.push(NO_STANDARD_RECORD_TEXT[sport](ungraded))
   return notes
 }

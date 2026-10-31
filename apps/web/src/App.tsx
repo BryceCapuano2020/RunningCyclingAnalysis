@@ -12,19 +12,18 @@ import { LandingPage } from './ui/pages/LandingPage'
 import { listedMoves } from './ui/analysis/whatMoved'
 import { ageProfileOf } from './ui/grades'
 import { documentTitleFor, useDocumentTitle } from './ui/documentTitle'
-import { ProfilePage } from './ui/pages/ProfilePage'
 import { RestoringPage } from './ui/pages/RestoringPage'
 import { HeldLibraryPage, UnavailableLibraryPage } from './ui/pages/HeldLibraryPage'
 import { libraryPageTitle, pageKeyOf } from './ui/libraryPage'
 import { heldViewFor } from './ui/pages/heldLibraryView'
 import { useLibraryPage } from './ui/useLibraryPage'
 import { HoldInputsContext } from './ui/holdContext'
-import { ResultPage } from './ui/pages/ResultPage'
-import { MethodPage } from './ui/pages/MethodPage'
+import { MethodPage, ProfilePage, ResultPage } from './ui/lazyPages'
+import { PageFrame } from './ui/components/PageLoading'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { hrefFor, useRoute } from './ui/route'
 import { useRouteHistory } from './ui/routeHistory'
-import { usePageFocus } from './ui/usePageFocus'
+import { useLoadedPages } from './ui/useLoadedPages'
 import { focusPageHeading } from './ui/pages/pageHeading'
 import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
@@ -34,6 +33,7 @@ import { datedWeightActions } from './ui/datedWeight'
 import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
 import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
+import { useExportWeight } from './ui/useExportWeight'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
@@ -127,6 +127,7 @@ export function App() {
     addFiles: analysis.addFiles,
     save: saveProfile,
   })
+  const exportWeightKg = useExportWeight(setup.files)
   const hasResult = analysis.state.result !== null
   // A library is more than a result: one whose digests are all held out has none, and is still a library.
   const { knowledge, holdInputs, page } = useLibraryPage(analysis, route, signedIn)
@@ -166,7 +167,9 @@ export function App() {
     settled,
   })
 
-  usePageFocus(key)
+  // Pages that load on first use: they preload while results are on their way, and focus and scroll wait
+  // for the new page to report it is on screen.
+  const onShown = useLoadedPages(key, analysis.busy || analysis.restoring || signedIn)
 
   // Removing all activities clears the analysis in the worker. The landing page shows once the old
   // result is gone, so it never flashes on the way. Leaving Profile first cancels the move; it
@@ -299,66 +302,74 @@ export function App() {
             walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
             countedRuns={countedRuns}
             libraryPanel={page === 'held'}
+            units={units}
           />
-          {route.page === 'profile' ? (
-            <ProfilePage
-              analysis={analysis}
-              settings={settings}
-              athlete={analysisAthlete}
-              units={units}
-              birthYear={athleteValues.birthYear}
-              sex={athleteValues.sex}
-              signedIn={signedIn}
-              accountsAvailable={accountsAvailable}
-              accountLoading={account.status === 'loading'}
-              email={account.me?.user.email ?? null}
-              keepFiles={keepFiles}
-              fileRetentionAvailable={fileRetentionAvailable}
-              onSaveProfile={saveProfile}
-              dated={measurements}
-              onAddSetting={addSetting}
-              onRemoveSetting={removeSetting}
-              onSignIn={account.signIn}
-              onDownloadData={downloadData}
-              onDeleteAccount={deleteAccount}
-              onRemoveAll={removeAll}
-            />
-          ) : page === 'result' && analysis.state.result ? (
-            <ResultPage
-              route={route}
-              analysis={analysis}
-              result={analysis.state.result}
-              settings={analysisAthlete}
-              weightKnown={weighted}
-              units={units}
-              birthYear={athleteValues.birthYear}
-              sex={athleteValues.sex}
-              signedIn={signedIn}
-              countedRuns={countedRuns}
-            />
-          ) : restoringPage ? (
-            <RestoringPage onFiles={setup.requestImport} />
-          ) : page === 'unavailable' ? (
-            <UnavailableLibraryPage canRetry={signedIn} />
-          ) : page === 'held' ? (
-            <HeldLibraryPage
-              analysis={analysis}
-              signedIn={signedIn}
-              fileRetentionAvailable={fileRetentionAvailable}
-              onFiles={setup.requestImport}
-            />
-          ) : route.page === 'method' ? (
-            <MethodPage
-              result={null}
-              heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
-              units={units}
-              profile={null}
-              weightKnown={weighted}
-              restoring={analysis.restoring}
-            />
-          ) : (
-            <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
-          )}
+          <PageFrame pageKey={key} onShown={onShown}>
+            {route.page === 'profile' ? (
+              <ProfilePage
+                analysis={analysis}
+                settings={settings}
+                athlete={analysisAthlete}
+                units={units}
+                birthYear={athleteValues.birthYear}
+                sex={athleteValues.sex}
+                signedIn={signedIn}
+                accountsAvailable={accountsAvailable}
+                accountLoading={account.status === 'loading'}
+                email={account.me?.user.email ?? null}
+                keepFiles={keepFiles}
+                fileRetentionAvailable={fileRetentionAvailable}
+                onSaveProfile={saveProfile}
+                dated={measurements}
+                onAddSetting={addSetting}
+                onRemoveSetting={removeSetting}
+                onSignIn={account.signIn}
+                onDownloadData={downloadData}
+                onDeleteAccount={deleteAccount}
+                onRemoveAll={removeAll}
+              />
+            ) : page === 'result' && analysis.state.result ? (
+              <ResultPage
+                route={route}
+                analysis={analysis}
+                result={analysis.state.result}
+                settings={analysisAthlete}
+                weightKnown={weighted}
+                units={units}
+                birthYear={athleteValues.birthYear}
+                sex={athleteValues.sex}
+                signedIn={signedIn}
+                countedRuns={countedRuns}
+              />
+            ) : restoringPage ? (
+              <RestoringPage onFiles={setup.requestImport} />
+            ) : page === 'unavailable' ? (
+              <UnavailableLibraryPage canRetry={signedIn} />
+            ) : page === 'held' ? (
+              <HeldLibraryPage
+                analysis={analysis}
+                signedIn={signedIn}
+                fileRetentionAvailable={fileRetentionAvailable}
+                onFiles={setup.requestImport}
+              />
+            ) : route.page === 'method' ? (
+              <MethodPage
+                result={null}
+                heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
+                units={units}
+                profile={null}
+                weightKnown={weighted}
+                restoring={analysis.restoring}
+              />
+            ) : (
+              <LandingPage
+                analysis={analysis}
+                signedIn={signedIn}
+                units={units}
+                onFiles={setup.requestImport}
+              />
+            )}
+          </PageFrame>
         </main>
 
         <footer className="app__footer muted">
@@ -376,6 +387,7 @@ export function App() {
         {setup.open && (
           <SetupDialog
             initial={athleteValues}
+            exportWeightKg={exportWeightKg}
             saving={setup.saving}
             error={setup.saveError}
             onConfirm={(patch) => void setup.finish(patch)}

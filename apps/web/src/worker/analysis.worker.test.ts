@@ -8,7 +8,7 @@ import { parseActivityFile } from '@rca/core/import'
 import { AnalysisSession } from '@rca/core/session'
 import { SAMPLE_REFERENCE_NOW_MS, sampleDataset } from '@rca/core/synthetic'
 import type { Activity, ActivityDigest } from '@rca/core/types'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as client from '../api/client'
 import { ApiRequestError } from '../api/client'
 import { buildAccountExport } from '../export/accountExport'
@@ -1183,6 +1183,7 @@ describe('analysis worker', () => {
   it.each([
     ['a full saved-analysis quota', 403, 'digest_quota', 'digest-quota'],
     ['a full database', 503, 'database_full', 'database-full'],
+    ['a read-only service', 503, 'read_only', 'read-only'],
     ['a full library', 403, 'activity_quota', 'activity-quota'],
     ['the daily limit on saves', 429, 'daily_limit', 'daily-limit'],
   ])('stops saving at %s and names it as the cause', async (_label, status, code, cause) => {
@@ -3823,5 +3824,113 @@ describe('an import of an export whose list labels activities the account holds'
     expect(reply).not.toHaveProperty('outcome.labelled')
     // The digest saved is the one main made: no label below revision 7.
     expect(mocked.createActivity.mock.calls[0]?.[0]).not.toHaveProperty('athleteType')
+  })
+
+  describe('with the labels switched on', () => {
+    afterEach(() => {
+      vi.doUnmock('./labelsConfig')
+    })
+
+    /** The account holds the workout the export's file holds, saved from a file of that name, with no label. */
+    const savedAs = (athleteType?: 'hike') =>
+      recordFor({
+        ...SAMPLE_DIGEST,
+        id: `${sampleActivity.startMs}-activities/1.fit`,
+        ...(athleteType === undefined ? {} : { athleteType }),
+      })
+
+    async function importHikeExport() {
+      vi.doMock('./labelsConfig', () => ({ ATHLETE_LABELS_ENABLED: true }))
+      const labelled = savedAs('hike')
+      mocked.listActivities.mockResolvedValueOnce([savedAs()]).mockResolvedValueOnce([labelled])
+      mocked.patchLabels.mockResolvedValue({ applied: 1, skipped: 0, refused: 0, missed: [] })
+      const worker = await startWorker()
+      await worker.send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const messages = await worker.send({
+        type: 'addFiles',
+        files: [hikeExport()],
+        settings: SETTINGS,
+        sync: { userId: USER_ID, keepFiles: false },
+      })
+      return { ...worker, messages }
+    }
+
+    it('labels the workout the list calls a hike, tells the summary how many, and leaves it out of the analysis', async () => {
+      const { messages } = await importHikeExport()
+
+      expect(mocked.patchLabels).toHaveBeenCalledOnce()
+      expect(mocked.patchLabels.mock.calls[0]?.[0]).toEqual([
+        {
+          id: savedAs().id,
+          revision: SAMPLE_DIGEST.modelRevision,
+          from: null,
+          athleteType: 'hike',
+        },
+      ])
+      expect(messages.at(-1)).toMatchObject({
+        type: 'state',
+        outcome: { labelled: 1 },
+        state: { labelledRuns: 1, totalActivities: 0 },
+      })
+    })
+
+    it('takes the label off again on Undo, with the inverse change, and puts the workout back in the analysis', async () => {
+      const { send } = await importHikeExport()
+      mocked.listActivities.mockResolvedValueOnce([savedAs()])
+      const undone = await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+
+      expect(mocked.patchLabels).toHaveBeenCalledTimes(2)
+      expect(mocked.patchLabels.mock.calls[1]?.[0]).toEqual([
+        {
+          id: savedAs().id,
+          revision: SAMPLE_DIGEST.modelRevision,
+          from: 'hike',
+          athleteType: null,
+        },
+      ])
+      expect(undone.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+      expect(undone.at(-1)).not.toHaveProperty('state.labelledRuns')
+    })
+
+    it('undoes once: a second Undo, or one after the library changed, sends nothing', async () => {
+      const { send } = await importHikeExport()
+      mocked.listActivities.mockResolvedValue([savedAs()])
+      await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      expect(mocked.patchLabels).toHaveBeenCalledTimes(2)
+    })
+
+    it('keeps the labels it could not take off, says how many are left, and takes them off on the next Undo', async () => {
+      const { send } = await importHikeExport()
+      mocked.listActivities.mockResolvedValue([savedAs('hike')])
+      mocked.patchLabels.mockRejectedValueOnce(new Error('offline'))
+      const first = await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      expect(first.at(-1)).toMatchObject({
+        type: 'state',
+        labelsLeft: 1,
+        state: { labelledRuns: 1 },
+      })
+
+      mocked.listActivities.mockResolvedValue([savedAs()])
+      const second = await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      expect(second.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+      expect(second.at(-1)).not.toHaveProperty('labelsLeft')
+      expect(mocked.patchLabels).toHaveBeenCalledTimes(3)
+    })
+
+    it('forgets the labels when the library is cleared', async () => {
+      const { send } = await importHikeExport()
+      await send({ type: 'clear' })
+      await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      expect(mocked.patchLabels).toHaveBeenCalledTimes(1)
+    })
+
+    it('sends nothing for an Undo that follows a reload of the library', async () => {
+      const { send } = await importHikeExport()
+      mocked.listActivities.mockResolvedValue([savedAs('hike')])
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
+      expect(mocked.patchLabels).toHaveBeenCalledTimes(1)
+    })
   })
 })

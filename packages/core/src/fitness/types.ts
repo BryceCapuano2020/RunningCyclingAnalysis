@@ -64,6 +64,8 @@ export interface FitnessMethod {
   fitted: number
   /** The size of the athlete's own seasonal swing that was taken out of every run (a fraction), or null when none was found. */
   seasonal: number | null
+  /** Revision 7: the log speed (or power) an athlete loses per 10 index degrees of a warm day, added back to every run that has a temperature. Absent when the term is off. */
+  heat?: number
 }
 
 export interface FitnessEvidence {

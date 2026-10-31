@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { preloadAllPages } from './ui/lazyPages'
 import {
   announcements,
   app,
@@ -13,6 +14,9 @@ import {
 } from './test/appMocks'
 import { ORIGINALS_UNAVAILABLE } from './ui/analysis/copy'
 import { makeActivity, makeResult } from './ui/components/fixtures'
+
+// The pages load on first use in the app; these tests render one the moment its route is chosen.
+beforeAll(preloadAllPages)
 
 const SAVED_COPY: Copy = {
   id: 'saved-copy',
@@ -289,7 +293,7 @@ describe('status messages go into regions that are already mounted', () => {
     view.rerender(<App />)
     expectAnnouncedFromMountedRegion(
       regions,
-      /^Sample athlete, a 37-year-old man at 75 kg\. Not kept: add files to replace it\.$/,
+      /^Sample athlete, a 37-year-old man at 165\.3 lb\. Not kept: add files to replace it\.$/,
     )
   })
 

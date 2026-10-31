@@ -4,6 +4,7 @@ import { accountSaver } from './accountSave'
 import { workoutKeyOf as activityKey } from './device'
 import type { DeviceActions } from './device'
 import { accountScope } from './checkinStore'
+import type { CheckInKeeper } from './checkinKeeper'
 import type { CheckinScope } from './checkinStore'
 import { deviceKeeper } from './deviceKeeper'
 import { shownCount } from './hiddenCopies'
@@ -21,12 +22,15 @@ import type { TraceScope } from './workbenchStore'
 import type { WorkerView } from './workerView'
 import { applyListLabels, reloadSession } from './applyListLabels'
 import { ATHLETE_LABELS_ENABLED } from './labelsConfig'
+import type { LabelUndo } from './labelUndo'
 import { noteWork } from './workerWire'
 
 /** What an import reads and changes in the worker. */
 export interface ImportRunContext {
   /** The workouts being sent to the account, shared with the outbox resume. */
   sending: SendingKeys
+  /** The labels this import applied, which its summary can take off. */
+  labelUndo: LabelUndo
   session: AnalysisSession
   post: (message: WorkerResponse) => void
   missingOriginals: Set<string>
@@ -39,6 +43,10 @@ export interface ImportRunContext {
   view: WorkerView
   /** Posts the account's saved activities, newest first. */
   reportLibrary: () => void
+  /** The baseline "since your last import" compares with, moved as each import ends. */
+  checkIns: CheckInKeeper
+  /** What the last import that kept files added, and where: for a partial one the athlete later accepts. */
+  lastImport: { scope: CheckinScope | null; added: number } | null
 }
 
 /** Runs one import: each new activity is saved, and its file uploaded when files are kept. */
@@ -103,6 +111,12 @@ export async function runImport(
             missingOriginals: sync?.keepFiles === true ? missingOriginals : null,
           }),
         })
+  // The library as it stands before any file of this import is kept: what "since your last import" compares with.
+  if (heldScope !== null || request.provisional === true) {
+    const before = session.checkInSnapshot(session.setSettings(request.settings), Date.now())
+    await ctx.checkIns.begin(heldScope, before)
+  }
+  view.checkinScope = heldScope
   const save =
     sync === null
       ? undefined
@@ -221,11 +235,25 @@ export async function runImport(
       savedRecords.clear()
       for (const record of fresh) savedRecords.set(record.id, record)
     })
+    // Also when nothing was labelled: the newest import's labels are the ones Undo takes off, and an older set is not.
+    ctx.labelUndo.remember(sync.userId, view.libraryEpoch, labelled)
     if (labelled.length > 0) {
       state = reloadSession(session, request.settings, [...savedRecords.values()])
       outcome = { ...outcome, labelled: labelled.length }
     }
   }
+  // A zip that could not be read to its end leaves the library short: that import moves the baseline only if accepted.
+  const damaged = state.rejected.some(
+    ({ code, fileName }) => code === 'corrupt' && /\.zip$/i.test(fileName),
+  )
+  const added = (outcome.runs ?? 0) + (outcome.rides ?? 0)
+  ctx.lastImport = { scope: heldScope, added }
+  if (heldScope !== null) {
+    await ctx.checkIns.settle(heldScope, {
+      manifest: damaged ? 'partial-source' : 'complete',
+      added,
+    })
+  } else ctx.checkIns.noteProvisionalAdded(added)
   if (sync !== null) {
     reportLibrary()
   } else if (request.saveToDevice) {

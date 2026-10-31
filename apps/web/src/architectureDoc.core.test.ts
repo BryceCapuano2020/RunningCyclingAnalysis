@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DISTANCE_BEST_TOLERANCE,
   HALF_MARATHON_M,
+  MARATHON_M,
   HR_BLOCK_S,
   HR_SKIP_S,
   RUN_RECORD_DISTANCES_M,
@@ -48,8 +49,11 @@ describe('architecture doc: run distance bests', () => {
       5000,
       10_000,
       HALF_MARATHON_M,
+      MARATHON_M,
     ])
-    expect(doc, HINT).toContain('(1 km, 1 mi, 5 km, 10 km and the half marathon)')
+    expect(doc, HINT).toContain(
+      '(1 km, 1 mi, 5 km, 10 km, the half marathon and, from revision 7, the marathon)',
+    )
   })
 
   it('gives the tolerance for a run that falls a little short of a distance', () => {

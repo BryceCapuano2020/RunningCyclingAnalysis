@@ -22,18 +22,22 @@ describe('the slips the card declared', () => {
       ['holding-below', true],
     )
     expect(liveEpisodes(records, 100)).toEqual([
-      { declaredWeek: 1, backWeek: 4, relapsed: false },
-      { declaredWeek: 7, backWeek: null, relapsed: false },
+      { declaredWeek: 1, backWeek: 4, recoveringWeek: 3, relapsed: false },
+      { declaredWeek: 7, backWeek: null, recoveringWeek: null, relapsed: false },
     ])
   })
 
   it('marks a slip reopened straight out of back, as the same episode', () => {
     const records = weeks(['slipping', true], ['back', true], ['slipping', true])
-    expect(liveEpisodes(records, 100)).toEqual([{ declaredWeek: 0, backWeek: 1, relapsed: true }])
+    expect(liveEpisodes(records, 100)).toEqual([
+      { declaredWeek: 0, backWeek: 1, recoveringWeek: null, relapsed: true },
+    ])
   })
 
   it('reads nothing past the horizon', () => {
     const records = weeks(['slipping', true], ['slipping'], ['back', true])
-    expect(liveEpisodes(records, 1)).toEqual([{ declaredWeek: 0, backWeek: null, relapsed: false }])
+    expect(liveEpisodes(records, 1)).toEqual([
+      { declaredWeek: 0, backWeek: null, recoveringWeek: null, relapsed: false },
+    ])
   })
 })

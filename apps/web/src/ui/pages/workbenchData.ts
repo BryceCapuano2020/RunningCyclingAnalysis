@@ -12,6 +12,7 @@ import type {
   TraceMetric,
 } from '@rca/core/workbench'
 import { reduceSeries, smoothedStream } from '../charts/timeSeriesModel'
+import { usualSpread } from '../charts/usualSpread'
 import type { SeriesColumns, SmoothedStream } from '../charts/timeSeriesModel'
 import { SPORT_READING, TRIMMED_METRICS } from './workbenchFormat'
 
@@ -91,11 +92,8 @@ export function axisFor(
   })
 }
 
-/** The share of a selection's readings cut from each end of its typical range. */
-const TYPICAL_CUT = 0.05
-
 /**
- * The span most of a measure's readings in a selection lie in, its 5th to 95th percentile, or null with none.
+ * The span most of a measure's readings in a selection lie in, its usual spread (the band the chart draws), or null with none.
  * A lowest and a highest are set by one stray second (a dropout to zero watts, a pace while stopped), so the
  * page reads this instead. It is a presentation of the readings, not an analysis figure, and leaves every
  * other number as it was.
@@ -116,10 +114,7 @@ export function typicalBand(
     }
     if (seen.length === 0) return null
     seen.sort((a, b) => a - b)
-    return {
-      low: seen[Math.floor(seen.length * TYPICAL_CUT)]!,
-      high: seen[Math.max(0, Math.ceil(seen.length * (1 - TYPICAL_CUT)) - 1)]!,
-    }
+    return usualSpread(seen)
   })
 }
 

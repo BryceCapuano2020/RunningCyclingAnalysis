@@ -24,6 +24,11 @@ export interface Bindings {
    * Workers Free cap of 450 MiB; set it only after moving to Workers Paid (see databaseGuard.ts).
    */
   DATABASE_SOFT_LIMIT_MIB?: string
+  /**
+   * Optional plain variable, the operator's read-only switch: "true", "1" or "on" refuses every request that would
+   * change data with 503 `read_only` (see readOnly.ts and docs/PRODUCTION.md). Unset or anything else is off.
+   */
+  READ_ONLY?: string
   /** HMAC key for session cookies. Worker secret in production; fixed in .dev.vars.example. */
   SESSION_SIGNING_KEY: string
   /** Cloudflare edge bindings; required outside local development. */

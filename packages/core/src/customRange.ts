@@ -1,3 +1,5 @@
+import { localDateText, startOfRealDay } from './calendar'
+
 /**
  * A period the athlete names by its first and last local calendar day, both inclusive. Each day is
  * `YYYY-MM-DD` in the device's zone, so a stored range reads the same on the next visit.
@@ -13,21 +15,12 @@ const DAY_FORMAT = /^(\d{4})-(\d{2})-(\d{2})$/
 export function dayStartMs(day: string): number | null {
   const match = DAY_FORMAT.exec(day)
   if (match === null) return null
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const dayOfMonth = Number(match[3])
-  const date = new Date(year, month - 1, dayOfMonth)
-  // A day that rolls over, such as 31 June, is not a day.
-  const real =
-    date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === dayOfMonth
-  return real ? date.getTime() : null
+  return startOfRealDay(Number(match[1]), Number(match[2]), Number(match[3]))
 }
 
 /** The `YYYY-MM-DD` of the local calendar day that holds ms. */
 export function dayOf(ms: number): string {
-  const date = new Date(ms)
-  const pad = (part: number) => String(part).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  return localDateText(ms)
 }
 
 /** Whether a value is a custom range: two real days, in either order. The one validator for the choice. */

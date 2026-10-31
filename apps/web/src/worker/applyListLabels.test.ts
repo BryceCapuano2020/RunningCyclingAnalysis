@@ -4,7 +4,7 @@ import { sampleDataset } from '@rca/core/synthetic'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as client from '../api/client'
 import { ApiRequestError } from '../api/client'
-import { applyListLabels } from './applyListLabels'
+import { applyListLabels, undoListLabels } from './applyListLabels'
 import { ATHLETE_LABELS_ENABLED } from './labelsConfig'
 
 vi.mock('../api/client', async (importOriginal) => ({
@@ -139,5 +139,52 @@ describe('applyListLabels', () => {
     const reload = vi.fn()
     expect(await applyListLabels(held(2), hikes(2), 'u1', reload)).toEqual([])
     expect(reload).not.toHaveBeenCalled()
+  })
+})
+
+describe('undoListLabels', () => {
+  const appliedHike = (n: number) => ({
+    id: `rec${n}`,
+    revision: record(n).digest.modelRevision,
+    from: null,
+    athleteType: 'hike' as const,
+  })
+  const labelledRecords = (count: number) =>
+    Array.from({ length: count }, (_, i) => asHike(record(i)))
+
+  it('sends each label taken off, at the revision it was put on, and returns those the account now shows undone', async () => {
+    mocked.patchLabels.mockResolvedValue(taken)
+    mocked.listActivities.mockResolvedValue([record(0), asHike(record(1))])
+    const undone = await undoListLabels([appliedHike(0), appliedHike(1)], 'u1', () => undefined)
+
+    expect(mocked.patchLabels.mock.calls[0]?.[0]).toEqual([
+      { id: 'rec0', revision: appliedHike(0).revision, from: 'hike', athleteType: null },
+      { id: 'rec1', revision: appliedHike(1).revision, from: 'hike', athleteType: null },
+    ])
+    expect(undone.map((p) => p.id)).toEqual(['rec0'])
+  })
+
+  it('tries a row a rebuild moved once more at its new revision while it still holds the label, and not once the athlete changed it', async () => {
+    mocked.patchLabels
+      .mockResolvedValueOnce({
+        ...taken,
+        missed: [
+          { id: 'rec0', revision: 7, athleteType: 'hike' },
+          { id: 'rec1', revision: 7, athleteType: 'ski' },
+        ],
+      })
+      .mockResolvedValueOnce(taken)
+    mocked.listActivities.mockResolvedValue(labelledRecords(2))
+    await undoListLabels([appliedHike(0), appliedHike(1)], 'u1', () => undefined)
+
+    expect(mocked.patchLabels).toHaveBeenCalledTimes(2)
+    expect(mocked.patchLabels.mock.calls[1]?.[0]).toEqual([
+      { id: 'rec0', revision: 7, from: 'hike', athleteType: null },
+    ])
+  })
+
+  it('does nothing without labels to take off', async () => {
+    expect(await undoListLabels([], 'u1', () => undefined)).toEqual([])
+    expect(mocked.patchLabels).not.toHaveBeenCalled()
   })
 })
