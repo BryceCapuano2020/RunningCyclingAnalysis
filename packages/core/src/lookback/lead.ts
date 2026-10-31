@@ -56,7 +56,7 @@ const YEARS_MS = 365.25 * 86_400_000
 /**
  * What the look-back opens on, or null when nothing earns it: (1) the most recent episode that meets the lead bar and
  * has ended (an open one is on the fitness card; the sport with more steady runs on a tie), (2) a quiet stretch of a year or more that reaches the horizon, only when the
- * sport's live status allows it, (3) the best that has stood longest. A sport that is too short leads with nothing,
+ * sport's live status allows it, (3) the most recent listed episode that has ended, (4) the best that has stood longest. A sport that is too short leads with nothing,
  * and a library under two years has no episode or quiet lead.
  */
 export function leadOf(lookBack: LookBack, live: Record<Sport, LiveState>): Lead | null {
@@ -99,6 +99,18 @@ export function leadOf(lookBack: LookBack, live: Record<Sport, LiveState>): Lead
     )
     .sort((a, b) => b.stretch.toMs - b.stretch.fromMs - (a.stretch.toMs - a.stretch.fromMs))
   if (quiet[0] !== undefined) return { kind: 'quiet', ...quiet[0] }
+  // A slip and what became of it, or a rise, is news a best that has stood is not: the most recent that ended before the horizon.
+  const ended = told
+    .filter(({ years }) => years.toMs - years.fromMs >= LOOKBACK.list.shortWeeks * 7 * 86_400_000)
+    .flatMap(({ s, years }) =>
+      years.episodes
+        .filter((e) => e.toMs !== null)
+        .map((episode) => ({ sport: s.sport, episode, runs: years.runs })),
+    )
+    .sort((a, b) => b.episode.toMs! - a.episode.toMs! || b.runs - a.runs)
+  if (ended[0] !== undefined) {
+    return { kind: 'episode', sport: ended[0].sport, episode: ended[0].episode, held: false }
+  }
   const bests = sports
     .flatMap((s) => s.milestones.map((best) => ({ sport: s.sport, best })))
     .sort((a, b) => a.best.best.atMs - b.best.best.atMs)
