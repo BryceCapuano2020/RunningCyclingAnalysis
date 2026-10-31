@@ -154,15 +154,6 @@ export function timelineMarks(trace: ActivityTrace): StackMark[] {
   return [...pauses, ...gaps].sort((a, b) => a.startS - b.startS)
 }
 
-/** The laps the device recorded, or the intervals found in the readings when it recorded none; empty when there is nothing to choose. */
-export function lapChoicesOf(trace: ActivityTrace): { recorded: boolean; laps: ActivityLap[] } {
-  const recorded = trace.laps.length > 0
-  const laps: ActivityLap[] = recorded ? trace.laps : suggestedIntervals(trace)
-  // One recorded lap is the whole activity, which the whole-activity selection already is. A lone suggestion is a finding.
-  if (laps.length === 0 || (recorded && laps.length < MIN_LAPS)) return { recorded, laps: [] }
-  return { recorded, laps }
-}
-
 /**
  * The laps the device recorded and the intervals found in the readings, both: the suggestions sit beside the device's laps and
  * do not replace them, since the readings find work the device's own laps cut across (or never marked). One recorded lap is the whole

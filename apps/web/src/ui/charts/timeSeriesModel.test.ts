@@ -94,6 +94,17 @@ describe('reduceSeries', () => {
     expect([stopped.lo[0], stopped.hi[0]]).toEqual([0, 0])
   })
 
+  it('reads the lowest speed above zero as a column’s trough, so a stopped second has no pace to fall to', () => {
+    const values = Float32Array.from([3, 3, 0, 3, 2.5, 3])
+    expect(reduceSeries(smoothedStream(values), 0, 6, 1).trough[0]).toBe(0)
+    expect(reduceSeries(smoothedStream(values), 0, 6, 1, false, true).trough[0]).toBe(2.5)
+    // Only stopped seconds: nothing to fall to, so no trough at all.
+    const stopped = reduceSeries(smoothedStream(new Float32Array(6)), 0, 6, 1, false, true)
+    expect(stopped.trough[0]).toBeNaN()
+    // A peak is unchanged.
+    expect(reduceSeries(smoothedStream(values), 0, 6, 1, false, true).peak[0]).toBe(3)
+  })
+
   it('shows a spike in the band of a column narrow enough to be mostly it, and smooths it out of the line', () => {
     const values = steady(600, 100)
     values[300] = 400

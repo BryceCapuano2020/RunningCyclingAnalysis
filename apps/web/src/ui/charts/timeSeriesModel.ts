@@ -128,6 +128,8 @@ const BAND_CUT = 0.1
 /**
  * The stream over [startS, endS) as at most `columns` columns. With `ignoreZero` the band leaves out zero
  * readings (a power meter's coasting seconds), unless the column holds nothing else; the line's mean keeps them.
+ * With `stoppedHasNoValue` the column's lowest reading is its lowest above zero: a stopped second has no pace, so
+ * the pace channel never reads a trough of "—" (a column of only stopped seconds has no trough at all).
  */
 export function reduceSeries(
   stream: SmoothedStream,
@@ -135,6 +137,7 @@ export function reduceSeries(
   endS: number,
   columns: number,
   ignoreZero = false,
+  stoppedHasNoValue = false,
 ): SeriesColumns {
   const length = stream.values.length
   const from = Math.max(0, Math.floor(startS))
@@ -149,18 +152,21 @@ export function reduceSeries(
     const last = Math.max(first + 1, from + Math.floor(((k + 1) * span) / count))
     let seen = 0
     let positive = 0
+    let lowestAboveZero = Number.POSITIVE_INFINITY
     for (let i = first; i < last; i += 1) {
       const value = stream.values[i]!
       if (!Number.isFinite(value)) continue
       scratch[seen] = value
       seen += 1
       if (value !== 0) positive += 1
+      if (value > 0 && value < lowestAboveZero) lowestAboveZero = value
     }
     let readings = scratch.subarray(0, seen)
     readings.sort()
     // The raw extremes are read before coasting is left out of the band: a spike is a spike whatever the band says.
     out.peak.push(seen === 0 ? Number.NaN : readings[seen - 1]!)
-    out.trough.push(seen === 0 ? Number.NaN : readings[0]!)
+    const lowest = stoppedHasNoValue ? lowestAboveZero : (readings[0] ?? Number.NaN)
+    out.trough.push(seen === 0 || lowest === Number.POSITIVE_INFINITY ? Number.NaN : lowest)
     // Coasting is not the spread of the effort: leave its zeros out of the band, where the column has other readings.
     if (ignoreZero && positive > 0 && positive < seen) readings = readings.subarray(seen - positive)
     const centre = (first + last) / 2

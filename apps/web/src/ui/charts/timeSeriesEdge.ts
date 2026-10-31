@@ -19,9 +19,11 @@ const TICK_HEIGHT_PX = 3
 export function clippedColumns(channel: StackChannel): { top: boolean[]; bottom: boolean[] } {
   // Read as the axis is drawn, so a pace's margin is a share of its height in pace and not in speed.
   const at = (value: number) => axisPosition(channel.scale, channel.low, channel.high, value)
+  // A stopped second has no pace: a non-positive speed is no reading to fall to, so it is never a bottom clip.
+  const hasPace = (value: number) => channel.scale !== 'pace' || value > 0
   return {
     top: channel.columns.peak.map((value) => at(value) > 1 + CLIP_SHARE),
-    bottom: channel.columns.trough.map((value) => at(value) < -CLIP_SHARE),
+    bottom: channel.columns.trough.map((value) => hasPace(value) && at(value) < -CLIP_SHARE),
   }
 }
 

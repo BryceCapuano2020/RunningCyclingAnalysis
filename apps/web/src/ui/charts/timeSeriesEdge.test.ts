@@ -44,6 +44,24 @@ describe('clippedColumns', () => {
   })
 })
 
+describe('a stopped second on a pace axis', () => {
+  it('is no reading to fall to: a non-positive speed is never marked or written as the pace it fell to', () => {
+    const pace = {
+      ...channel([4, 4, 4], [3, 3, 3], { trough: [3, 0, -1] }),
+      scale: 'pace',
+      low: 2,
+      high: 4,
+      write: (value: number) => ({ value: value > 0 ? '5:00' : '—', unit: '/km' }),
+    } as unknown as StackChannel
+    expect(clippedColumns(pace).bottom).toEqual([false, false, false])
+    expect(edgeReadings(pace).below).toBeNull()
+    // A slow but real pace well past the axis still is.
+    const slow = { ...pace, columns: { ...pace.columns, trough: [3, 0, 0.5] } } as StackChannel
+    expect(clippedColumns(slow).bottom).toEqual([false, false, true])
+    expect(edgeReadings(slow).below).toBe('5:00 /km')
+  })
+})
+
 describe('a spike the band leaves out', () => {
   it('is marked by the raw maximum, though the band’s 90th percentile sits inside the axis', () => {
     // A lone 300 in a column whose band tops out at 90: the band says nothing past the edge, the raw reading does.
