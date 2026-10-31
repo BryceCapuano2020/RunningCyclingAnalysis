@@ -21,16 +21,31 @@ beforeEach(() => {
 })
 
 describe('the outbox', () => {
-  it('keeps what a save began with, in the order it was written', async () => {
+  it('keeps what a save began with, the most recent activity first', async () => {
+    const [older, newer] = FIRST.startMs <= SECOND.startMs ? [FIRST, SECOND] : [SECOND, FIRST]
     const outbox = openOutbox('u1')
-    await outbox.add(item(SECOND))
-    await outbox.add(item(FIRST))
+    await outbox.add(item(older))
+    await outbox.add(item(newer))
 
     const rows = await outbox.pending()
 
-    expect(rows.map((row) => row.key)).toEqual([workoutKeyOf(SECOND), workoutKeyOf(FIRST)])
+    expect(rows.map((row) => row.key)).toEqual([workoutKeyOf(newer), workoutKeyOf(older)])
     expect(rows[0]).toMatchObject({ userId: 'u1', fileHash: 'a'.repeat(64), attempts: 0 })
-    expect(digestOf(rows[1]!)).toEqual(FIRST)
+    expect(digestOf(rows[1]!)).toEqual(older)
+  })
+
+  it('lists rows of one start time as they were written, after any more recent', async () => {
+    const outbox = openOutbox('u1')
+    const base = { ...FIRST, startMs: 2_000_000_000_000 }
+    const a = { ...base, id: 'tie-a', sport: 'run' as const }
+    const b = { ...base, id: 'tie-b', sport: 'ride' as const }
+    await outbox.add(item(SECOND))
+    await outbox.add(item(a))
+    await outbox.add(item(b))
+
+    const ids = (await outbox.pending()).map((row) => row.digestId)
+
+    expect(ids).toEqual(['tie-a', 'tie-b', SECOND.id])
   })
 
   it('writes a workout once: a second write replaces the first', async () => {
