@@ -1,13 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CheckInText } from '@rca/core/lookback'
 import type { SeenEvent } from '../../worker/protocol'
+import { useSighting } from './useSighting'
 import './CheckInRow.css'
 
-/** A row counts as shown when it has been in view, on a visible page, this long. */
-export const IMPRESSION_MS = 3_000
-
-/** Whether a showing has been counted in this page load: a row that comes and goes with the page it is on counts once. */
-let counted = false
+export { IMPRESSION_MS } from './useSighting'
 
 export interface CheckInRowProps {
   words: CheckInText
@@ -25,46 +22,7 @@ export interface CheckInRowProps {
 export function CheckInRow({ words, onSeen }: CheckInRowProps) {
   const row = useRef<HTMLElement>(null)
   const [hidden, setHidden] = useState(false)
-  const seen = useRef(onSeen)
-  // The latest callback, read when a timer fires or a control is used.
-  useEffect(() => {
-    seen.current = onSeen
-  })
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null
-    let inView = typeof IntersectionObserver === 'undefined'
-    const visible = () => document.visibilityState !== 'hidden'
-    const arm = () => {
-      if (counted || timer !== null || !inView || !visible()) return
-      timer = setTimeout(() => {
-        timer = null
-        if (counted) return
-        counted = true
-        seen.current('impression')
-      }, IMPRESSION_MS)
-    }
-    const disarm = () => {
-      if (timer !== null) clearTimeout(timer)
-      timer = null
-    }
-    const watch = () => (visible() ? arm() : disarm())
-    document.addEventListener('visibilitychange', watch)
-    let observer: IntersectionObserver | null = null
-    if (typeof IntersectionObserver !== 'undefined' && row.current !== null) {
-      observer = new IntersectionObserver((entries) => {
-        inView = entries.some((entry) => entry.isIntersecting)
-        if (inView) arm()
-        else disarm()
-      })
-      observer.observe(row.current)
-    } else arm()
-    return () => {
-      disarm()
-      observer?.disconnect()
-      document.removeEventListener('visibilitychange', watch)
-    }
-  }, [])
+  const seen = useSighting(row, onSeen, 'checkIn')
 
   if (hidden) return null
   return (

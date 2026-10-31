@@ -35,6 +35,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     outdatedWithOriginal: 0,
     checkIn: { checkIn: null, seen: false },
     markCheckInSeen: vi.fn(),
+    markLookBackSeen: vi.fn(),
     libraryUnreadable: 0,
     deviceIssue: null,
     outbox: null,

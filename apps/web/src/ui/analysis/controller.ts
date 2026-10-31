@@ -56,6 +56,7 @@ export interface AnalysisController {
   checkIn: CheckInView
   /** The athlete opened, hid or was shown the check-in row. */
   markCheckInSeen: (event: SeenEvent) => void
+  markLookBackSeen: (event: SeenEvent) => void
   /** Stored activities that could not be read in the last library load, and so are hidden. */
   libraryUnreadable: number
   /** What this browser failed to keep or delete, until the next try; null when nothing failed. */

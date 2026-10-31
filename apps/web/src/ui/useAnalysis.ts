@@ -362,6 +362,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     outdatedWithOriginal: library.outdatedWithOriginal,
     checkIn: library.checkIn,
     markCheckInSeen: libraryActions.markCheckInSeen,
+    markLookBackSeen: libraryActions.markLookBackSeen,
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
     outbox: library.outbox,
