@@ -34,6 +34,7 @@ import { distanceBests } from '../records/distanceBests'
 import { elevationGain } from './elevationGain'
 import { atWalkingPace } from './walkingPace'
 import { digestEvidence } from './evidence'
+import { revision7Fields } from './revision7Fields'
 import type { OutputStream } from './evidence'
 import { and, countKept, meanWhere, movingMask, not, recordedSeconds } from './masks'
 import type { SampleTerms } from './terms'
@@ -296,6 +297,14 @@ function virtualParts(
  * itself, never on the athlete's settings, so it can be computed once at import and combined later.
  */
 export function digestActivity(activity: Activity): ActivityDigest {
+  return digestActivityAt(activity, MODEL_REVISION)
+}
+
+/**
+ * The digest as revision `revision` makes it. Below 7 the revision-7 fields are not written and the bytes
+ * are those of `MODEL_REVISION` 6; tests pass 7 to cover them (revision7Fields.ts).
+ */
+export function digestActivityAt(activity: Activity, revision: number): ActivityDigest {
   // Where the file's speed and distance disagree, efforts credit only what both support. The
   // summary and the splits keep the file's own distance. A power-meter ride keeps its own speed,
   // because its measured power does not follow the lowering: its calibration and climb sections
@@ -342,7 +351,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
 
   return {
     version: DIGEST_VERSION,
-    modelRevision: MODEL_REVISION,
+    modelRevision: revision,
     id: activity.id,
     name: activity.name,
     sport: activity.sport,
@@ -385,5 +394,6 @@ export function digestActivity(activity: Activity): ActivityDigest {
     ...(activity.race === true ? { race: true as const } : {}),
     ...(atWalkingPace(activity, moving, movingS) ? { walkingPace: true as const } : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
+    ...revision7Fields(activity, revision),
   }
 }

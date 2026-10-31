@@ -4,6 +4,7 @@ import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult, Rejection } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { E_BIKE_REASON, E_BIKE_SKIPPED, isEBikeType } from '../import/sportType'
+import { fitOffsetS } from '../import/localDay'
 import { decodeFit } from './protocol/decode'
 import type { DecodedRecord, DecodedSession } from './protocol/decode'
 import type { FitSportName, FitSubSportName } from './protocol/profile'
@@ -96,12 +97,15 @@ function parseUnchecked(
   const units = assignUnits(messages.sessions, timed, messages.events, messages.laps, skipped)
   const sportMesg = messages.sports[0]
   const origins = distanceOrigins(units, timed)
+  const localOffsetS = fitOffsetS(messages.activity?.timestampS, messages.activity?.localTimestampS)
   // The file names its own sport and keeps it, except that a list which says e-bike refuses the file.
   const listedEBike = opts.activityType !== undefined && isEBikeType(opts.activityType)
   const result = activitiesFromUnits(
     {
       fileName,
-      units: units.map((unit) => toPipelineUnit(unit, sportMesg, origins.get(unit), listedEBike)),
+      units: units.map((unit) =>
+        toPipelineUnit(unit, sportMesg, origins.get(unit), listedEBike, localOffsetS),
+      ),
     },
     limits,
     opts,
@@ -116,6 +120,7 @@ function toPipelineUnit(
   sportMesg: DecodedSportMessage | undefined,
   distanceOrigin: number | undefined,
   listedEBike: boolean,
+  localOffsetS: number | undefined,
 ): PipelineUnit {
   const { sport, subSport } = resolveSport(unit.session, sportMesg)
   const mapping = mapSport(sport, subSport, listedEBike)
@@ -131,6 +136,7 @@ function toPipelineUnit(
     hasPosition: fixes.some((f) => isUsableLatLon(f.lat, f.lon)),
     distanceOrigin,
     fixes,
+    ...(localOffsetS === undefined ? {} : { localOffsetS }),
   }
   if (!mapping.ok) {
     const refusal = {
