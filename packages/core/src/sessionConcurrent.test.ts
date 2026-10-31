@@ -1,5 +1,5 @@
 import { zipSync } from 'fflate'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encodeFit } from './fit'
 import { AnalysisSession, SyncFailure } from './session'
 import type { SyncSink } from './session'
@@ -146,6 +146,39 @@ describe('saves that run in the background', () => {
     const state = await run
 
     expect(state.totalActivities).toBe(1)
+  })
+})
+
+describe('saves that run in the background while the network is down', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('sends one probe after the failures, and the files after it wait for its answer instead of each failing', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    const session = new AnalysisSession()
+    const sent: string[] = []
+    const sink: SyncSink = async (item) => {
+      sent.push(item.fileName)
+      // The first three fail on the network at once. The probe takes a while to fail, as a hung request does.
+      const offline = new SyncFailure('network', 'Offline')
+      if (sent.length <= 3) return { done: Promise.reject(offline) }
+      const done = new Promise<void>((_, reject) => setTimeout(() => reject(offline), 50))
+      return { done }
+    }
+
+    let ended = false
+    const run = session.addFiles([zipOfRuns(10)], SETTINGS, undefined, sink).then((state) => {
+      ended = true
+      return state
+    })
+    for (let i = 0; i < 200 && !ended; i++) await vi.advanceTimersByTimeAsync(100)
+    const state = await run
+
+    // Three failures, then one probe. The six files after it were never sent.
+    expect(sent).toHaveLength(4)
+    expect(state.totalActivities).toBe(10)
+    expect(state.syncIssues).toEqual([{ code: 'network', count: 10 }])
   })
 })
 

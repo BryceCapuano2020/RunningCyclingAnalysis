@@ -44,4 +44,8 @@ export interface SaveBatch {
   added: Map<string, ActivityDigest>
   /** Saves begun in the background and not yet settled. Each settles itself and never rejects. */
   inflight: Promise<void>[]
+  /** The background save of each workout key still in flight, so a second copy of the key can wait for its outcome. */
+  inflightByKey: Map<string, Promise<void>>
+  /** The save sent to find out whether the network is back, while it is out. The other saves wait on it. */
+  probe: { settled: Promise<void>; end: () => void } | null
 }
