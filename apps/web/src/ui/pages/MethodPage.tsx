@@ -8,8 +8,8 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
+import { useHoldInputs } from '../holdContext'
 import { heldPick, heldTexts } from '../resultHold'
-import type { HoldInputs } from '../resultHold'
 import { rideHoldInputs } from '../rideLeftOut'
 import { balanceOfPick } from '../components/balanceScale'
 import {
@@ -145,12 +145,13 @@ export function MethodPage({
   const noResultLine = restoring ? RESTORING_EVIDENCE : NO_FILES_EVIDENCE
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
+  const holdInputs = useHoldInputs()
   const headline = profile === null || result === null ? null : headlineGrades(result, profile)
   // A ride at the top of the age tables, or one with no usable power, is out of the comparison as Balance leaves it out.
-  const rideHold: HoldInputs =
+  const rideHold =
     result === null || headline === null || !weightKnown
-      ? {}
-      : rideHoldInputs(headline.ride, result)
+      ? holdInputs
+      : rideHoldInputs(headline.ride, result, holdInputs)
   const pick = result ? heldPick(result, rideHold).pick : null
   const held = result ? heldTexts(result, period, rideHold) : null
   // Under a hold the reason and what lifts it are the hold's; else the activities or the 20 minute effort a sport lacks.

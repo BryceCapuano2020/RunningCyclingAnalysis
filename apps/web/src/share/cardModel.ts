@@ -9,6 +9,7 @@ import { balanceOfPick, type BalanceReading } from '../ui/components/balanceScal
 import { effortCaveat } from '../ui/effortCaveat'
 import { balanceTitle, leadSentence } from '../ui/components/headlineText'
 import { heldPick } from '../ui/resultHold'
+import type { HoldInputs } from '../ui/resultHold'
 import { rideHoldInputs } from '../ui/rideLeftOut'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
@@ -191,9 +192,12 @@ export function buildShareCard(
   gap: BalanceGap | null,
   grades: Record<Sport, GradeOutcome | null>,
   name: string | null = null,
+  hold: HoldInputs = {},
 ): ShareCardModel | null {
-  if (!hasShareableContent(result, gap, weightKnown, grades.ride)) return null
-  const { pick } = heldPick(result, rideHoldInputs(grades.ride, result))
+  // The ride's own reason to be out of the comparison joins what the app holds, as it does on screen.
+  const held = rideHoldInputs(grades.ride, result, hold)
+  if (!hasShareableContent(result, gap, weightKnown, held)) return null
+  const { pick } = heldPick(result, held)
   const reading = balanceOfPick(gap, pick)
   const heroes = heroesFor(result, settings, units, grades)
   if (reading === null || heroes === null) return null

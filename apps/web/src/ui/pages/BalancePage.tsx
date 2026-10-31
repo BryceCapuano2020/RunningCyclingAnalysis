@@ -5,6 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { WeeklyVolumeChart } from '../charts'
 import { ShareImageButton } from '../components'
 import { levelBasis } from '../components/headlineNeed'
+import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
@@ -17,7 +18,7 @@ import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { LEVEL_NOT_RANKING, gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
-import { rideHoldInputs, rideLeftOut } from '../rideLeftOut'
+import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
@@ -89,6 +90,7 @@ export function BalancePage({
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
   const { calibration } = heartRateJudgement
+  const hold = useHoldInputs()
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
   // They are memoised on the analysis and the two profile values, not the profile object, which the
   // caller builds afresh on each render. The share preview is drawn from them, so a new object each
@@ -113,7 +115,7 @@ export function BalancePage({
   )
   // A ride at the top of the age tables is left out of the comparison, so the energy view cannot carry it in.
   const rideOut = rideLeftOut(grades.ride, result)
-  const { pick } = heldPick(result, rideHoldInputs(grades.ride, result))
+  const { pick } = heldPick(result, holdWithRideOut(rideOut, hold))
   const basis = useMemo(() => levelBasis(result), [result])
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // The balance is stated once the headline can compare the sports; without a pick it is held, and the gap is

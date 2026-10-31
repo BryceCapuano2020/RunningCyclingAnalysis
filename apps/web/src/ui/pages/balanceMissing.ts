@@ -2,11 +2,13 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import { countedPhrase, needLine, unconfirmedSports } from '../components/headlineNeed'
 import { heldTexts } from '../resultHold'
+import type { HoldInputs } from '../resultHold'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
 import { POWER_IMPLAUSIBLE_TEXT, POWER_IMPLAUSIBLE_TITLE } from '../analysis/powerCheckCopy'
 import { TOP_OF_SCALE_TEXT } from '../grades'
+import { rideOutOf } from '../rideLeftOut'
 import type { RideLeftOut } from '../rideLeftOut'
 import { leftOutNote } from '../analysis/walkingPaceCopy'
 import { betweenClause } from '../periodCopy'
@@ -71,12 +73,6 @@ const LEFT_OUT: Record<RideLeftOut, { title: string; detail: string }> = {
   'implausible-power': { title: POWER_IMPLAUSIBLE_TITLE, detail: POWER_IMPLAUSIBLE_TEXT },
 }
 
-/** The inputs to what is missing beyond the period, the library and the levels on screen. */
-export interface MissingOptions {
-  /** Why the ride is not in the comparison, when it is not for want of efforts. */
-  rideLeftOut?: RideLeftOut | null
-}
-
 /**
  * What is missing before the two sports can be compared, in the period on screen. `leftOut` is how many runs
  * the files hold that are all at walking pace, 0 when there are none or some runs are analysed: a page with
@@ -88,7 +84,7 @@ export function missingText(
   period: Period,
   levels: { run: string | null; ride: string | null },
   leftOut = 0,
-  options: MissingOptions = {},
+  holdInputs: HoldInputs = {},
 ): Missing {
   const runs = countSport(result.activities, 'run')
   const rides = countSport(result.activities, 'ride')
@@ -136,15 +132,16 @@ export function missingText(
   }
   if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when, leftOut)
   // Both sports are here, and the ride is out of the comparison: say why rather than ask for harder efforts.
-  if (options.rideLeftOut) {
-    const said = LEFT_OUT[options.rideLeftOut]
+  const out = rideOutOf(holdInputs)
+  if (out !== null) {
+    const said = LEFT_OUT[out]
     return {
       title: levelsTitle({ run: levels.run }) ?? said.title,
       detail: said.detail,
       canShowAll: false,
     }
   }
-  return heldMissing(result, library, period, levels)
+  return heldMissing(result, library, period, levels, holdInputs)
 }
 
 /**
@@ -156,9 +153,10 @@ function heldMissing(
   library: ActivitySummary[],
   period: Period,
   levels: { run: string | null; ride: string | null },
+  holdInputs: HoldInputs,
 ): Missing {
   // The hold says why and what lifts it; without one the action alone says which activities or which 20 minute effort a sport lacks.
-  const { reason, action, hold } = heldTexts(result, period)
+  const { reason, action, hold } = heldTexts(result, period, holdInputs)
   const why = hold === null ? '' : `${reason} `
   const allTimeEnough =
     needLine(headlineShortfall(result.activities), period, result.activities) !== null &&

@@ -18,7 +18,7 @@ import {
 } from './grades'
 import type { AgeProfile, GradeOutcome } from './grades'
 import { missingText } from './pages/balanceMissing'
-import { rideHoldInputs, rideLeftOut } from './rideLeftOut'
+import { holdWithRideOut, rideHoldInputs, rideLeftOut } from './rideLeftOut'
 import { heldPick } from './resultHold'
 import { POWER_IMPLAUSIBLE_TEXT } from './analysis/powerCheckCopy'
 import { gradeCeiling } from '@rca/core/grade'
@@ -167,9 +167,14 @@ describe('the balance leaves a ride at the top of the scale out', () => {
     const levels = { run: null, ride: null }
     const left = rideLeftOut(headlineGrades(result, profile).ride, result)
     expect(left).toBe('top-of-scale')
-    const held = missingText(result, result.activities, BALANCE_PERIOD, levels, 0, {
-      rideLeftOut: left,
-    })
+    const held = missingText(
+      result,
+      result.activities,
+      BALANCE_PERIOD,
+      levels,
+      0,
+      holdWithRideOut(left),
+    )
     expect(held.detail).toBe(TOP_OF_SCALE_TEXT)
     expect(missingText(result, result.activities, BALANCE_PERIOD, levels).detail).not.toBe(
       TOP_OF_SCALE_TEXT,
@@ -211,7 +216,7 @@ describe('the balance leaves a ride at the top of the scale out', () => {
       BALANCE_PERIOD,
       { run: null, ride: null },
       0,
-      { rideLeftOut: 'implausible-power' },
+      holdWithRideOut('implausible-power'),
     )
     expect(held.detail).toBe(POWER_IMPLAUSIBLE_TEXT)
     expect(POWER_IMPLAUSIBLE_TEXT).toMatch(/power meter calibration.*weight setting.*e-bike/)

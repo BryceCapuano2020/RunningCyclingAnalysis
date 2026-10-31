@@ -10,6 +10,7 @@ import { makeActivity, makeResult } from '../components/fixtures'
 import { headlineGrades } from '../grades'
 import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
+import { SPORT_NOUN } from '../sports'
 import { thresholdRange } from '../thresholdRange'
 import { BalanceTiles } from './BalanceTiles'
 import { LeanTile } from './LeanTile'
@@ -133,11 +134,16 @@ describe('BalanceTiles', () => {
 
   it('sets the lean tile’s figure from the headline gap, signed, with its 90% range as a track', () => {
     const { gap } = sample()
+    if (gap.lean === 'even') throw new Error('The sample leans one way')
     renderTiles()
     const tile = screen.getByRole('article', { name: 'Lean' })
-    expect(tile.querySelector('.stat-tile__number')).toHaveTextContent(`+${Math.round(gap.centre)}`)
+    expect(tile.querySelector('.stat-tile__number')).toHaveTextContent(
+      `+${Math.abs(Math.round(gap.centre))}`,
+    )
     expect(tile.querySelector('.stat-tile__unit')).toHaveTextContent('pts')
-    expect(tile.querySelector('.stat-tile__side')).toHaveTextContent('toward running')
+    expect(tile.querySelector('.stat-tile__side')).toHaveTextContent(
+      `toward ${SPORT_NOUN[gap.lean]}`,
+    )
     expect(within(tile).getByText('90% range')).toBeInTheDocument()
     // The sample's rides have power meters, so its lean rests on measured power read through the run equivalent.
     expect(within(tile).getByText('Equivalent')).toBeInTheDocument()

@@ -52,8 +52,9 @@ beforeEach(() => {
 })
 
 describe('saved activities that need updating', () => {
-  it('shows the stale count, and Update now rebuilds the saved activities', () => {
-    setSession({ outdatedActivities: 2 })
+  it('shows the stale count beside the results of the rest, and Update now rebuilds the saved activities', () => {
+    showResult()
+    setSession({ outdatedActivities: 2, libraryActivities: 12 })
     app.analysis.outdatedWithOriginal = 2
     render(<App />)
     expect(
@@ -65,8 +66,9 @@ describe('saved activities that need updating', () => {
     expect(app.analysis.rebuildSavedActivities).toHaveBeenCalledOnce()
   })
 
-  it('shows the newer-version notice on the landing page, without an update button', () => {
-    setSession({ incompatibleActivities: 1 })
+  it('shows the newer-version notice beside the results, without an update button', () => {
+    showResult()
+    setSession({ incompatibleActivities: 1, libraryActivities: 11 })
     render(<App />)
     expect(
       screen.getByText(
@@ -74,16 +76,17 @@ describe('saved activities that need updating', () => {
       ),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', {
+      screen.queryByRole('heading', {
         level: 1,
         name: 'Are you a better runner or a better cyclist?',
       }),
-    ).toBeInTheDocument()
+    ).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
   })
 
   it('shows Updating… and disables the button while a rebuild runs', () => {
-    setSession({ outdatedActivities: 2 })
+    showResult()
+    setSession({ outdatedActivities: 2, libraryActivities: 12 })
     app.analysis.outdatedWithOriginal = 2
     app.analysis.busy = true
     render(<App />)
@@ -95,7 +98,8 @@ describe('saved activities that need updating', () => {
 
   it('disables Update now and says why when original file storage is unavailable', () => {
     setAccount('signed-in', { fileRetentionAvailable: false })
-    setSession({ outdatedActivities: 2 })
+    showResult()
+    setSession({ outdatedActivities: 2, libraryActivities: 12 })
     app.analysis.outdatedWithOriginal = 2
     render(<App />)
     expect(screen.getByRole('button', { name: 'Update now' })).toBeDisabled()

@@ -143,6 +143,27 @@ describe('weeklyVolumeLayout', () => {
     expect(layout?.peak?.y).toBeLessThan(layout?.ys[1] ?? 0)
   })
 
+  it('keeps the peak label inside the plot, under the axis title, wherever the peak is', () => {
+    for (const hours of [
+      [4, 0],
+      [10, 6],
+      [0.5, 0.2],
+    ] as [number, number][]) {
+      for (const peakAt of [0, 1, 2]) {
+        const rows: [number, number][] = [
+          [1, 0],
+          [1, 0],
+          [1, 0],
+        ]
+        rows[peakAt] = hours
+        const size = sizeOf(390, 260)
+        const peak = weeklyVolumeLayout(weeksOf(...rows), size)?.peak
+        // The label's line is a root font size tall: its top is the plot's, or below.
+        expect(peak!.y - 16, `${hours} at ${peakAt}`).toBeGreaterThanOrEqual(size.plot.top)
+      }
+    }
+  })
+
   it('keeps the peak label inside the chart when the peak is the first or the last bar', () => {
     const size = sizeOf(320)
     const first = weeklyVolumeLayout(weeksOf([9, 0], [1, 0], [1, 0]), size)

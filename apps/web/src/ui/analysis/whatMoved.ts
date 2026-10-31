@@ -8,6 +8,7 @@ import { balanceOfPick } from '../components/balanceScale'
 import { plural } from '../components/plural'
 import { heldPick } from '../resultHold'
 import { rideHoldInputs } from '../rideLeftOut'
+import type { HoldInputs } from '../resultHold'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
 import { headlineGrades } from '../grades'
@@ -112,14 +113,15 @@ function balanceItem(
   profile: AgeProfile | null,
   weighted: boolean,
   added: Sport | null,
+  hold: HoldInputs,
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
   const gradesBefore = profile === null ? null : headlineGrades(before, profile)
   const gradesAfter = profile === null ? null : headlineGrades(after, profile)
   // A ride at the top of the age tables is out of the comparison, as the page leaves it out.
-  const pickBefore = heldPick(before, rideHoldInputs(gradesBefore?.ride ?? null, before)).pick
-  const pickAfter = heldPick(after, rideHoldInputs(gradesAfter?.ride ?? null, after)).pick
+  const pickBefore = heldPick(before, rideHoldInputs(gradesBefore?.ride ?? null, before, hold)).pick
+  const pickAfter = heldPick(after, rideHoldInputs(gradesAfter?.ride ?? null, after, hold)).pick
   const gapBefore = gradesBefore === null ? null : gapOfHeadline(gradesBefore)
   const gapAfter = gradesAfter === null ? null : gapOfHeadline(gradesAfter)
   const readingBefore = balanceOfPick(gapBefore, pickBefore)
@@ -270,6 +272,7 @@ export function whatMoved(
   profile: AgeProfile | null,
   weighted = true,
   added: Sport | null = null,
+  hold: HoldInputs = {},
 ): MovedItem[] {
   if (before === null) return []
   // Without a weight the ride's figures are worked out from the placeholder, so they wait for it.
@@ -277,7 +280,7 @@ export function whatMoved(
     thresholdItem(before, after, 'run', settings, units),
     weighted ? thresholdItem(before, after, 'ride', settings, units) : null,
   ])
-  const balance = balanceItem(before, after, profile, weighted, added)
+  const balance = balanceItem(before, after, profile, weighted, added, hold)
   const sports: readonly Sport[] = weighted ? SPORT_ORDER : ['run']
   const bests = [
     ...bestItems(before, after, settings.massKg, units, sports),
@@ -298,10 +301,11 @@ export function listedMoves(
   units: UnitSystem,
   profile: AgeProfile | null,
   weighted = true,
+  hold: HoldInputs = {},
 ): MovedItem[] {
   if (change === null || change.after === null || addedSentence(change.outcome) === null) {
     return []
   }
   const added = addedSportOf(change.outcome)
-  return whatMoved(change.before, change.after, settings, units, profile, weighted, added)
+  return whatMoved(change.before, change.after, settings, units, profile, weighted, added, hold)
 }

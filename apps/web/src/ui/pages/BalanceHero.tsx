@@ -11,8 +11,10 @@ import { levelsTitle } from '../components/headlineText'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
+import { holdWithRideOut } from '../rideLeftOut'
 import type { RideLeftOut } from '../rideLeftOut'
 import { eyebrowText, titleParts } from './balanceCopy'
+import { useHoldInputs } from '../holdContext'
 import { fewEffortsText, missingText } from './balanceMissing'
 import { BalanceLede } from './BalanceLede'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -70,6 +72,7 @@ export function BalanceHero({
   controls = null,
   leftOut,
 }: BalanceHeroProps) {
+  const hold = useHoldInputs()
   const head = (title: ReactNode, className?: string) => (
     <div className="balance-hero__head">
       <h1 id={PAGE_HEADING_ID} tabIndex={-1} className={className}>
@@ -104,7 +107,7 @@ export function BalanceHero({
       period,
       { run: runLevel, ride: rideLevel },
       leftOut?.count ?? 0,
-      { rideLeftOut },
+      holdWithRideOut(rideLeftOut, hold),
     )
     return (
       <div className="balance-hero__pair">

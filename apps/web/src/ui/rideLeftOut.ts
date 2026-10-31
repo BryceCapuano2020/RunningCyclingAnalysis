@@ -26,12 +26,33 @@ export function rideLeftOut(ride: GradeOutcome | null, result: AnalysisResult): 
     : null
 }
 
-/** What the ride's grade adds to the hold on a result's comparison (see HoldInputs): read through `heldPick`. */
-export function rideHoldInputs(ride: GradeOutcome | null, result: AnalysisResult): HoldInputs {
-  const left = rideLeftOut(ride, result)
-  if (left === 'top-of-scale') return { rideAtTop: true }
+/**
+ * The hold inputs for a reason the ride is out of the comparison, on top of `base` (what the app knows, such as the
+ * held-out digests). The one place a ride's reason becomes a hold input: top of the scale leaves the ride out with no
+ * fault to name (`rideAtTop`), implausible power is a hold with a reason and an action (`implausibleRide`).
+ */
+export function holdWithRideOut(left: RideLeftOut | null, base: HoldInputs = {}): HoldInputs {
+  if (left === 'top-of-scale') return { ...base, rideAtTop: true }
   if (left === 'implausible-power') {
-    return { implausibleRide: { text: POWER_IMPLAUSIBLE_REASON, action: POWER_IMPLAUSIBLE_ACTION } }
+    return {
+      ...base,
+      implausibleRide: { text: POWER_IMPLAUSIBLE_REASON, action: POWER_IMPLAUSIBLE_ACTION },
+    }
   }
-  return {}
+  return base
+}
+
+/** The hold on a result's comparison with what the ride's grade adds to it, read through `heldPick` or `heldTexts`. */
+export function rideHoldInputs(
+  ride: GradeOutcome | null,
+  result: AnalysisResult,
+  base: HoldInputs = {},
+): HoldInputs {
+  return holdWithRideOut(rideLeftOut(ride, result), base)
+}
+
+/** The reason a ride is out of the comparison that these inputs carry, which the held balance names. */
+export function rideOutOf(inputs: HoldInputs): RideLeftOut | null {
+  if (inputs.rideAtTop === true) return 'top-of-scale'
+  return inputs.implausibleRide ? 'implausible-power' : null
 }

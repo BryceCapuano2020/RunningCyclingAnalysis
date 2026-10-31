@@ -246,14 +246,14 @@ describe('levelTargetText', () => {
 })
 
 describe('levelTargetText on the sample athlete', () => {
-  it('names the ride watts that would grade level with the sample run, as the sample shows them', () => {
+  it('names the run pace that would grade level with the sample ride, as the sample shows it', () => {
     const { result, calibration } = loadedSample()
     const grades = headlineGrades(result, SAMPLE_PROFILE)
     const gap = gapOfHeadline(grades)
-    expect(gap?.lean).toBe('run')
+    expect(gap?.lean).toBe('ride')
     expect(
       levelTargetText({
-        lean: 'run',
+        lean: 'ride',
         grades,
         result,
         sex: SAMPLE_PROFILE.sex,
@@ -262,7 +262,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       }),
     ).toBe(
-      'To grade level with your running at 20 min, your best ride would need about 275 W (roughly 245 to 295 W; now 243 W).',
+      'To grade level with your cycling at 20 min, your best run would need a flat pace of about 3:15 /km (now 4:01 /km).',
     )
   })
 
