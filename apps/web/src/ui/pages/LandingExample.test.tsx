@@ -61,7 +61,7 @@ describe('LandingExample', () => {
     const { container } = render(<LandingFitnessExample />)
     expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
     expect(
-      screen.getByText(/^At 130 bpm you now run 7\.1% \(3 to 11%\) slower than before\.$/),
+      screen.getByText(/^At 120 bpm you now run 12% \(7 to 16%\) slower than before\.$/),
     ).toBeInTheDocument()
     expect(container.querySelector('.fitness-track__band')).not.toBeNull()
     expect(screen.getByText('Fitness at the same heart rate')).toBeInTheDocument()
@@ -78,20 +78,20 @@ describe('LandingExample', () => {
     expect(
       screen.getByText('Illustrative: the sample athlete, a 37-year-old man at 75 kg'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Your balance leans toward running')).toBeInTheDocument()
+    expect(screen.getByText('Your balance leans toward cycling')).toBeInTheDocument()
   })
 
   it('draws the real meter and levels from the sample’s figures: the gap with its range, and each sport’s grade and level', () => {
     const { container } = render(<LandingExample />)
     expect(
       screen.getByRole('img', {
-        name: /^Running grades 8 points higher than cycling \(range 2 to 13/,
+        name: /^Cycling grades 15 points higher than running \(range /,
       }),
     ).toBeInTheDocument()
-    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+8pts')
-    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('2 to 13')
+    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+15pts')
+    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('4 to 27')
     const rows = [...container.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(['Running 67% Local', 'Cycling 59% Recreational to Local'])
+    expect(rows).toEqual(['Running 65% Local', 'Cycling 80% Local to World'])
   })
 
   it('draws no level scale, ring or table: the meter, one line a sport and the fitness finding are all it shows', () => {

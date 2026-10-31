@@ -8,7 +8,14 @@ import { SPORT_FORMAT, SPORT_ORDER } from './sports'
 
 /** The shapes that say a state without colour: each is drawn by FitnessGlyph. */
 export type FitnessGlyphKey =
-  'slipping' | 'holding' | 'holding-below' | 'recovering' | 'back' | 'improving' | 'waiting'
+  | 'slipping'
+  | 'holding'
+  | 'holding-below'
+  | 'recovering'
+  | 'back'
+  | 'improving'
+  | 'improved'
+  | 'waiting'
 
 /** What each state is called on screen, and the shape that stands for it. */
 export const FITNESS_STATE: Record<FitnessState, { label: string; glyph: FitnessGlyphKey }> = {
@@ -18,6 +25,7 @@ export const FITNESS_STATE: Record<FitnessState, { label: string; glyph: Fitness
   recovering: { label: 'Recovering', glyph: 'recovering' },
   back: { label: 'Back', glyph: 'back' },
   improving: { label: 'Improving', glyph: 'improving' },
+  improved: { label: 'Improved', glyph: 'improved' },
   'not-enough-evidence': { label: 'Not enough evidence yet', glyph: 'waiting' },
 }
 

@@ -181,8 +181,17 @@ export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines
       }
     case 'improving':
       return {
-        headline: `At ${hr} you now ${w.verb} ${now}, ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was} in the ${reference} weeks before.`,
-        support: support(s, `${runs} in the ${reference} weeks before`),
+        headline: level
+          ? `At ${hr} you now ${w.verb} ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
+          : `At ${hr} you now ${w.verb} ${now}, ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
+        support: support(s, weeksBefore(M.onsetBaseWeeks)),
+      }
+    case 'improved':
+      return {
+        headline: level
+          ? `At ${hr} you ${w.verb} ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
+          : `At ${hr} you ${w.verb} ${now}, holding ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
+        support: support(s, null),
       }
     case 'holding-below':
       return {
@@ -220,6 +229,7 @@ export function fitnessFindingHeadline(s: FitnessStatus): string {
   const since = before(s.onsetMs, s.asOfMs)
   switch (s.state) {
     case 'slipping':
+    case 'improved':
       return `At ${hr} you now ${w.verb} ${sized(s.sport, s.change!)} ${side(w, s.change!)}${w.tail}${since ? ` than${since}` : ''}.`
     case 'recovering':
       return `At ${hr} you have ${oneSided(s.gain!) ? `regained ${sized(s.sport, s.gain!)}` : 'regained ground'} since your low in ${monthOf(s.lowMs!, s.asOfMs)}.`

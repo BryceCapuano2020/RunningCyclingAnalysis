@@ -261,10 +261,12 @@
   align-items: center;
   gap: var(--space-1);
   margin-inline-start: var(--space-3);
-  white-space: nowrap;
+  /* A key's words wrap inside the note, so at 200% text on a phone they never push the page sideways. */
+  max-width: 100%;
 }
 
 .ts-key__swatch {
+  flex: none;
   display: inline-block;
   width: 10px;
   height: 8px;

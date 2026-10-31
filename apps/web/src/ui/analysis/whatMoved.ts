@@ -7,6 +7,7 @@ import { gapOfHeadline } from '../balanceGap'
 import { balanceOfPick } from '../components/balanceScale'
 import { plural } from '../components/plural'
 import { heldPick } from '../resultHold'
+import type { HoldInputs } from '../resultHold'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
 import { headlineGrades } from '../grades'
@@ -111,11 +112,12 @@ function balanceItem(
   profile: AgeProfile | null,
   weighted: boolean,
   added: Sport | null,
+  hold: HoldInputs,
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
-  const pickBefore = heldPick(before).pick
-  const pickAfter = heldPick(after).pick
+  const pickBefore = heldPick(before, hold).pick
+  const pickAfter = heldPick(after, hold).pick
   const gapBefore = profile === null ? null : gapOfHeadline(headlineGrades(before, profile))
   const gapAfter = profile === null ? null : gapOfHeadline(headlineGrades(after, profile))
   const readingBefore = balanceOfPick(gapBefore, pickBefore)
@@ -266,6 +268,7 @@ export function whatMoved(
   profile: AgeProfile | null,
   weighted = true,
   added: Sport | null = null,
+  hold: HoldInputs = {},
 ): MovedItem[] {
   if (before === null) return []
   // Without a weight the ride's figures are worked out from the placeholder, so they wait for it.
@@ -273,7 +276,7 @@ export function whatMoved(
     thresholdItem(before, after, 'run', settings, units),
     weighted ? thresholdItem(before, after, 'ride', settings, units) : null,
   ])
-  const balance = balanceItem(before, after, profile, weighted, added)
+  const balance = balanceItem(before, after, profile, weighted, added, hold)
   const sports: readonly Sport[] = weighted ? SPORT_ORDER : ['run']
   const bests = [
     ...bestItems(before, after, settings.massKg, units, sports),
@@ -294,10 +297,11 @@ export function listedMoves(
   units: UnitSystem,
   profile: AgeProfile | null,
   weighted = true,
+  hold: HoldInputs = {},
 ): MovedItem[] {
   if (change === null || change.after === null || addedSentence(change.outcome) === null) {
     return []
   }
   const added = addedSportOf(change.outcome)
-  return whatMoved(change.before, change.after, settings, units, profile, weighted, added)
+  return whatMoved(change.before, change.after, settings, units, profile, weighted, added, hold)
 }
