@@ -119,7 +119,7 @@ without difficulty, and exercise just above it sustained for "perhaps 30 minutes
 at about the value of a 40 minute effort (0.98 to 1.05 times it, in the audit's simulations). Half an hour, between those, is a convention
 stated in the constant. A published 20 to 40 minute range for time to exhaustion at critical power could not be verified and is not cited.
 
-## Calibration (synthetic harness, `effort/gate.sim.test.ts`)
+## Calibration (synthetic harness, `effort/gate.*.sim.test.ts` (harness: `effort/test/gateSim.ts`))
 
 100 synthetic athletes an arm (critical power 13 to 20 W/kg, work capacity 900 to 1600 J/kg, maximum heart rate 165 to 200,
 heart rate at critical power 88% to 95% of it unless the arm says), 12 weeks of 3 to 4 sessions a week unless it says, each session varied by

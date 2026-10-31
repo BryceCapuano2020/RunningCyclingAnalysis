@@ -107,7 +107,7 @@ The status-check names are the job names shown on pull requests and must match e
   `Performance budgets`, `Statistical simulations` and `Dependency audit`. `Performance budgets`
   (the wall-clock timing job) and `Statistical simulations` (the seeded detector simulations) are
   split out of the first check so a loaded runner cannot fail the unit tests. The unit tests run in
-  two shards and the end-to-end tests in three. The two shard-backed checks are small jobs that pass
+  two shards, the simulations in two and the end-to-end tests in three. The three shard-backed checks are small jobs that pass
   only when every shard passed; the first also merges the unit shards and applies the coverage
   thresholds to the whole run. A documentation-only pull request (every changed file is Markdown,
   under `docs/` or `LICENSE`) skips the end-to-end, unit-test, budget and simulation jobs and the

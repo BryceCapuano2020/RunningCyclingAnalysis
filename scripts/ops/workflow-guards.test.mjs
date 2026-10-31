@@ -174,8 +174,12 @@ test('statistical simulations run in their own job, without coverage, and never 
   const verify = blocks.get('verify').join('\n')
   const sim = blocks.get('sim').join('\n')
   assert.doesNotMatch(verify, /test:sim/)
-  assert.match(sim, /^ {4}name: Statistical simulations$/m)
-  assert.match(sim, /^ {6}- run: npm run test:sim$/m)
+  assert.match(sim, /^ {4}name: Simulations \(\$\{\{ matrix\.shard \}\} of 2\)$/m)
+  assert.match(
+    sim,
+    /^ {6}- run: npm run test:sim -- -- --shard=\$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}$/m,
+  )
+  assert.match(sim, /fail-fast: false/)
   assert.doesNotMatch(sim, /coverage/)
   const pkg = JSON.parse(await readFile(new URL('package.json', root), 'utf8'))
   assert.match(
@@ -284,6 +288,12 @@ test('the required checks collect their shards and pass a skipped shard only on 
   assert.match(verify, /if \[ "\$UNIT" = skipped \] && \[ "\$CODE" = false \]; then exit 0; fi/)
   assert.match(verify, /if \[ "\$UNIT" != success \]; then/)
   assert.match(verify, /npx vitest --mergeReports \.vitest\/blob --coverage/)
+  const simResult = blocks.get('sim-result').join('\n')
+  assert.match(simResult, /^ {4}name: Statistical simulations$/m)
+  assert.match(simResult, /^ {4}needs: \[changes, sim\]$/m)
+  assert.match(simResult, /^ {4}if: \$\{\{ !cancelled\(\) \}\}$/m)
+  assert.match(simResult, /if \[ "\$SIM" = skipped \] && \[ "\$CODE" = false \]; then exit 0; fi/)
+  assert.match(simResult, /if \[ "\$SIM" != success \]; then/)
   const result = blocks.get('e2e-result').join('\n')
   assert.match(result, /^ {4}name: End-to-end \(Playwright\)$/m)
   assert.match(result, /^ {4}needs: \[changes, e2e\]$/m)
@@ -339,7 +349,7 @@ test('a draft pull request runs no long jobs, and its required checks fail until
   }
   // The two required checks still run on a draft and fail, so a skipped (and so passing) check can
   // never let a draft, or a pull request just marked ready, merge before its real run.
-  for (const job of ['verify', 'e2e-result']) {
+  for (const job of ['verify', 'e2e-result', 'sim-result']) {
     const block = blocks.get(job).join('\n')
     assert.doesNotMatch(block, /^ {4}if: [^\n]*draft/m, `${job} itself runs on a draft`)
     assert.match(block, /^ {6}pull-requests: read$/m, job)
