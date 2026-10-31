@@ -27,8 +27,15 @@ import { valueBlocks, valueCurve, windowedEnvelope, withKnownGrade } from './cur
 import { distanceBests } from '../records/distanceBests'
 import { elevationGain } from './elevationGain'
 import { atWalkingPace } from './walkingPace'
-import { hasRevision7, walkingPaceView, withCadenceLock } from './revision7Gate'
+import {
+  BEST_WINDOW_GAP_SHARE,
+  hasRevision7,
+  walkingPaceView,
+  withCadenceLock,
+  withLonePowerSpikes,
+} from './revision7Gate'
 import { digestEvidence } from './evidence'
+import { revision7Fields } from './revision7Fields'
 import type { OutputStream } from './evidence'
 import { and, countKept, meanWhere, movingMask, not, recordedSeconds } from './masks'
 import type { SampleTerms } from './terms'
@@ -257,7 +264,9 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
     activity.paused,
     streams.speed,
   )
-  const quality = seven ? withCadenceLock(activity, assessed, moving) : assessed
+  const quality = seven
+    ? withLonePowerSpikes(activity, withCadenceLock(activity, assessed, moving))
+    : assessed
   rememberTraceQuality(activity, quality, streams.speed)
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.
@@ -272,7 +281,11 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
         })
       : null
   const movingS = countKept(moving)
-  const occupancy: Occupancy = { moving, minFraction: BEST_WINDOW_MIN_MOVING_FRACTION }
+  const occupancy: Occupancy = {
+    moving,
+    minFraction: BEST_WINDOW_MIN_MOVING_FRACTION,
+    ...(seven ? { gapShare: BEST_WINDOW_GAP_SHARE } : {}),
+  }
   let parts: Parts
   if (metabolic !== null) {
     parts = runParts(streams, activity.distance, quality, metabolic, source, occupancy)
@@ -330,5 +343,6 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
       ? { walkingPace: true as const }
       : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
+    ...revision7Fields(activity, revision),
   }
 }
