@@ -241,6 +241,16 @@ approach the shared allowance; this is a bound on one account, not on the whole 
 - The size reservation is restored after a failed upload only while the row still has the file key it
   started with, so a concurrent upload that completed keeps the size it stored.
 - A repeat of a stored file with the same length returns 200 without reading the body or charging anything.
+- The web app sends the file gzipped (`Content-Encoding: gzip`) when that is smaller. The declared length, the
+  R2 ledgers, the object and `file_size` (so the 1 GiB per-user quota) count the gzipped bytes, which is what is
+  stored. The hash is of the file itself: the Worker unzips the body in pieces, feeding each to the hash as it
+  comes (so the file is not held), and refuses a body that unzips past 50 MiB or past 50 times its own size (**413
+  `payload_too_large`**). It then stores the body as it came, with `contentEncoding: gzip`. Because unzipping is
+  work the daily allowance is for, the file's unzipped size is what the 1 GiB daily upload-bytes budget is
+  charged. A download sends the stored bytes back with `Content-Encoding: gzip` and the stored length (the
+  response is built with `encodeBody: 'manual'`, so the runtime does not compress it again), and the browser
+  unzips it. Files stored before this are plain and sent as they are. Unzipping and hashing a 1 to 2 MB
+  original is a few milliseconds of CPU; a file near 50 MiB would not fit the free plan's 10 ms.
 
 ## Free text in a digest
 
@@ -452,6 +462,8 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 | 400    | `oauth_denied`             | Google sign-in was cancelled.                                                                                                      |
 | 400    | `oauth_missing_code`       | Google returned no authorization code.                                                                                             |
 | 400    | `oauth_state_mismatch`     | Sign-in state is missing or does not match, usually an expired sign-in attempt.                                                    |
+| 400    | `bad_encoding`             | The body is named gzip and is not valid gzip.                                                                                      |
+| 400    | `unsupported_encoding`     | Original-file upload with a `Content-Encoding` other than gzip or identity.                                                        |
 | 400    | `oauth_token_expired`      | Google ID token has expired.                                                                                                       |
 | 403    | `csrf_rejected`            | Non-GET `/api` request without `X-RCA-Client: web`.                                                                                |
 | 403    | `email_not_verified`       | Google account email is not verified.                                                                                              |

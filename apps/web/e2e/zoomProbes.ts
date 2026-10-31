@@ -100,3 +100,31 @@ export async function clippedContent(page: Page): Promise<string[]> {
     return found
   })
 }
+
+/** Before the app starts: the charts measure their labels at the larger root size, with age grades on. */
+export async function zoomText(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    // A style rule, not an inline style: the parser can replace the root before the page's own scripts run.
+    const add = (): boolean => {
+      if (document.documentElement === null) return false
+      const rule = document.createElement('style')
+      rule.textContent = 'html { font-size: 200% !important; }'
+      document.documentElement.appendChild(rule)
+      return true
+    }
+    if (!add())
+      new MutationObserver((_, watcher) => add() && watcher.disconnect()).observe(document, {
+        childList: true,
+      })
+    localStorage.setItem(
+      'rca.preferences.v1',
+      JSON.stringify({
+        settings: { massKg: 75, bikeMassKg: 9 },
+        units: 'metric',
+        birthYear: 1986,
+        sex: 'male',
+        setupDone: true,
+      }),
+    )
+  })
+}

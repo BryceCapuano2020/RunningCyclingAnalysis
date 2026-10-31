@@ -126,17 +126,12 @@
   margin: 0;
 }
 
-/* The link to the road standards is an inline source link at the body size. A finger needs a control's height to tap it. */
+/* The link to the road standards is a source link at the body size, on a line of its own: a control's height tall. */
 .age-grade__standards {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
   font-size: var(--text-md);
-}
-
-@media (pointer: coarse) {
-  .age-grade__standards {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--control-height);
-  }
 }
 
 @media (min-width: 1081px) {

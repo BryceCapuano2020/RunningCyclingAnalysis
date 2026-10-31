@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   channelsFor,
-  lapChoicesOf,
+  lapGroupsOf,
   overviewOf,
   plotDomain,
   skippedStretches,
   timelineMarks,
 } from './workbenchChannels'
+import { edgeReadings } from '../charts/timeSeriesEdge'
 import { movingAverageSpeed, selectionOf } from './workbenchData'
 import { repsTrace, runTrace, steadyTrace } from './workbenchFixtures'
 import { readingOf } from './workbenchScale'
@@ -50,13 +51,12 @@ describe('skippedStretches', () => {
   })
 })
 
-describe('lapChoicesOf', () => {
-  it('offers recorded laps, none for a single lap, and suggested intervals when there are no laps', () => {
-    expect(lapChoicesOf(runTrace())).toMatchObject({ recorded: true })
-    expect(lapChoicesOf(runTrace()).laps).toHaveLength(2)
+describe('lapGroupsOf', () => {
+  it('gives the recorded laps, none for a single lap, and suggested intervals beside them', () => {
+    expect(lapGroupsOf(runTrace()).recorded).toHaveLength(2)
     const single = runTrace()
     single.laps = [{ startS: 0, endS: 10 }]
-    expect(lapChoicesOf(single).laps).toEqual([])
+    expect(lapGroupsOf(single).recorded).toEqual([])
     // Three efforts with a rest between, inside a warm-up and a cool-down.
     const reps = repsTrace('ride', [
       { seconds: 300, power: 100 },
@@ -67,9 +67,9 @@ describe('lapChoicesOf', () => {
       { seconds: 120, power: 300 },
       { seconds: 300, power: 100 },
     ])
-    const suggested = lapChoicesOf(reps)
-    expect(suggested.recorded).toBe(false)
-    expect(suggested.laps.length).toBeGreaterThan(1)
+    const found = lapGroupsOf(reps)
+    expect(found.recorded).toEqual([])
+    expect(found.suggested.length).toBeGreaterThan(1)
   })
 })
 
@@ -87,6 +87,17 @@ describe('channelsFor', () => {
     expect(heart.at(10)).toMatchObject({ unit: 'bpm' })
     expect(heart.average).toEqual({ value: '130', unit: 'bpm' })
     expect(channels[0]!.colour).toBe('pace')
+  })
+
+  it('never reads a stopped second as the pace the run fell to', () => {
+    const trace = steadyTrace(300)
+    // Walking pace on the move, a stop of ten seconds, and a slow stretch well past the axis's low edge.
+    trace.streams.speed = Float32Array.from({ length: 300 }, (_, i) =>
+      i >= 100 && i < 110 ? 0 : i >= 200 && i < 203 ? 0.3 : 3,
+    )
+    const [pace] = channelsFor(trace, ['speed'], 'metric', 0, 300, 300, 3)
+    expect(String(edgeReadings(pace!).below)).not.toMatch(/—/)
+    expect(pace!.columns.trough.every((value) => Number.isNaN(value) || value > 0)).toBe(true)
   })
 
   it('draws elevation as an area on its own colour, and never lets a power axis go below zero', () => {
