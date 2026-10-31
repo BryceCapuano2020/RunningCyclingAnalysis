@@ -6,6 +6,7 @@ import { MOVED_NOTE } from '../analysis/copy'
 import { megabytes } from '../format/units'
 import { resetSentence } from '../limitCopy'
 import { plural } from './plural'
+import { hasRetryableIssue } from '../useSaveRetry'
 import './SyncStatus.css'
 
 export interface SyncStatusProps {
@@ -26,6 +27,11 @@ export interface SyncStatusProps {
    * says how many of its rows these are.
    */
   hiddenCopies?: number
+  /**
+   * Sends the saves that failed again now. The failures it can clear (the connection, the server) show a
+   * "Try again now" button; the rest wait on something the athlete does.
+   */
+  onRetry?: (control: Element) => void
 }
 
 const MAX_FILE_MB = megabytes(MAX_FILE_BYTES)
@@ -93,9 +99,9 @@ function issueSentence(issue: SyncIssue, saved: number | null, hiddenCopies: num
     case 'originals-off':
       return `Original files are turned off in your profile, so ${originals} ${wereOrWas} not kept. ${summaries} Turn on Keep original files in my library on Profile to keep them.`
     case 'network':
-      return `${activities} ${wereOrWas} not fully saved because the connection dropped. Add ${them} again to retry.`
+      return `${activities} ${wereOrWas} not fully saved because the connection dropped. ${count === 1 ? 'It saves' : 'They save'} automatically when it is back.`
     case 'server':
-      return `${activities} ${wereOrWas} not fully saved because of a server error. Add ${them} again to retry.`
+      return `${activities} ${wereOrWas} not fully saved because of a server error. ${count === 1 ? 'It saves' : 'They save'} automatically once the server answers.`
   }
 }
 
@@ -113,6 +119,7 @@ export function SyncStatus({
   signedIn,
   moved = false,
   hiddenCopies = 0,
+  onRetry,
 }: SyncStatusProps) {
   const [previous, setPrevious] = useState(uploading)
   // The completion keeps whether its import moved the numbers, so the note outlives the list.
@@ -149,6 +156,15 @@ export function SyncStatus({
   return (
     <div className="sync-status">
       {text !== '' && <p className={messageClass}>{text}</p>}
+      {signedIn && onRetry !== undefined && hasRetryableIssue(issues) && (
+        <button
+          type="button"
+          className="btn sync-status__retry"
+          onClick={(event) => onRetry(event.currentTarget)}
+        >
+          Try again now
+        </button>
+      )}
       {showCount && (
         <span className="sync-status__count" aria-hidden="true">
           {`${formatCount(uploading ?? 0)} saved`}

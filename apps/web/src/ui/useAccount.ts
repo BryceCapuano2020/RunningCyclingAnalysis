@@ -33,6 +33,11 @@ export interface AccountController {
   markExpired: () => void
   /** Fetches the server's current account and adopts it. Rejects when the server cannot be reached. */
   refresh: () => Promise<Me | null>
+  /**
+   * Looks the account up again now, whatever the retry schedule says, for the visitor who pressed Try again. A
+   * failure leaves the account unavailable and the schedule starting over; it never rejects.
+   */
+  retryLookup: () => void
   /** The last account action's failure, or why the account is unavailable. */
   error: string | null
   /**
@@ -96,6 +101,9 @@ export function useAccount(): AccountController {
   const endingSessionRef = useRef(false)
   // The error the account lookup itself left, so only it is taken back when a later ask gets through.
   const lookupErrorRef = useRef<string | null>(null)
+  // Set by the lookup effect: starts a lookup now and puts the retry schedule back to its first step.
+  const retryLookupRef = useRef<() => void>(() => undefined)
+  const retryLookup = useCallback(() => retryLookupRef.current(), [])
   const clearLookupError = useCallback(
     () => setError((shown) => (shown !== null && shown === lookupErrorRef.current ? null : shown)),
     [],
@@ -158,18 +166,21 @@ export function useAccount(): AccountController {
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let retries = 0
     let failed = false
+    // Each lookup is numbered, so an answer to one that a Try again has since replaced is not acted on.
+    let latest = 0
     const lookup = () => {
       const lastAttempt = retries >= LOOKUP_RETRY_DELAYS_MS.length
+      const mine = ++latest
       api.getMe(lastAttempt ? undefined : LOOKUP_ATTEMPT).then(
         (found) => {
-          if (!current) return
+          if (!current || mine !== latest) return
           adopt(found)
           setLookupPending(false)
           // A retry that got through takes back the account's earlier "unavailable".
           if (failed) clearLookupError()
         },
         (failure: unknown) => {
-          if (!current) return
+          if (!current || mine !== latest) return
           // Nobody is known to be signed in, so the visitor works as a signed-out one at once: the
           // browser's own library and files do not wait on the API. The lookup goes on in the
           // background, and a retry that finds an account signs it in as any later sign-in.
@@ -193,9 +204,18 @@ export function useAccount(): AccountController {
       )
     }
     lookup()
+    retryLookupRef.current = () => {
+      if (!current) return
+      clearTimeout(retryTimer)
+      retries = 0
+      // Pending, so nothing is kept on this device while the answer is awaited, as for the first lookup.
+      setLookupPending(true)
+      lookup()
+    }
     return () => {
       current = false
       clearTimeout(retryTimer)
+      retryLookupRef.current = () => undefined
     }
   }, [adopt, clearLookupError])
 
@@ -316,6 +336,7 @@ export function useAccount(): AccountController {
       updateProfile,
       markExpired: expireSession,
       refresh,
+      retryLookup,
       flushProfileWrites,
       error,
       lookupPending,
@@ -330,6 +351,7 @@ export function useAccount(): AccountController {
       updateProfile,
       expireSession,
       refresh,
+      retryLookup,
       flushProfileWrites,
       error,
       lookupPending,

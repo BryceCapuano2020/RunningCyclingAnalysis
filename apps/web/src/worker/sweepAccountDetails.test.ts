@@ -55,6 +55,26 @@ describe('sweeping the accounts that are no longer this browser’s', () => {
     const { sweepAccountDetails } = await import('./sweepAccountDetails')
     await expect(sweepAccountDetails(null)).resolves.toBeUndefined()
   })
+
+  it('does nothing where the browser refuses site storage, so naming IndexedDB throws', async () => {
+    // A browser that blocks site data can throw from the property itself; the sweep is called as `void`, so a
+    // rejection would reach the console as an unhandled one.
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB')
+    Object.defineProperty(globalThis, 'indexedDB', {
+      configurable: true,
+      get() {
+        throw new DOMException('blocked', 'SecurityError')
+      },
+    })
+    try {
+      vi.resetModules()
+      const { sweepAccountDetails } = await import('./sweepAccountDetails')
+      await expect(sweepAccountDetails('alice')).resolves.toBeUndefined()
+    } finally {
+      if (original === undefined) Reflect.deleteProperty(globalThis, 'indexedDB')
+      else Object.defineProperty(globalThis, 'indexedDB', original)
+    }
+  })
 })
 
 describe('sweeping a browser that never stored a recording', () => {
