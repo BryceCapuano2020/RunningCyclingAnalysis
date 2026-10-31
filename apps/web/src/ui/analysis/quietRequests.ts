@@ -18,6 +18,8 @@ export function isQuietRequest(kind: Pending['kind']): boolean {
     kind === 'keepProvisional' ||
     kind === 'routeShape' ||
     kind === 'forgetRoutes' ||
+    kind === 'markSeen' ||
+    kind === 'acceptPartialImport' ||
     kind === 'forgetDeviceLibrary' ||
     kind === 'setRange'
   )
@@ -37,6 +39,8 @@ export function keepsError(request: WorkerRequest): boolean {
     request.type === 'activitySplits' ||
     request.type === 'activityTrace' ||
     request.type === 'routeShape' ||
-    request.type === 'forgetRoutes'
+    request.type === 'forgetRoutes' ||
+    request.type === 'markSeen' ||
+    request.type === 'acceptPartialImport'
   )
 }

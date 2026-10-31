@@ -255,6 +255,33 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toMatch(/Nothing is written for a session that keeps nothing/)
   })
 
+  it('says what the summary taken before an import holds, and that it holds no names, routes or heart rates', async () => {
+    const snapshot = await readStylesheet(
+      import.meta.url,
+      '../../../packages/core/src/lookback/snapshot.ts',
+    )
+    // The summary is the fields of CheckInSnapshot, none of which can carry a name, a route or a heart rate.
+    expect(
+      /interface CheckInSnapshot \{([\s\S]*?)\n\}/
+        .exec(snapshot)?.[1]
+        ?.match(/^\s{2}(\w+):/gm)
+        ?.map((f) => f.trim()),
+    ).toEqual([
+      'v:',
+      'revision:',
+      'atMs:',
+      'asOfMs:',
+      'keys:',
+      'counts:',
+      'bests:',
+      'fitness:',
+      'episodes:',
+    ])
+    expect(text).toMatch(/summary of the library as it stood\s+before your last import/)
+    expect(text).toMatch(/values and dates of your best efforts/)
+    expect(text).toMatch(/whether you have seen what was said/)
+  })
+
   it('says signed-in visitors do not see the summaries kept in this browser', () => {
     expect(text).toMatch(/signed in[^.]*not shown|not shown[^.]*signed in/i)
   })

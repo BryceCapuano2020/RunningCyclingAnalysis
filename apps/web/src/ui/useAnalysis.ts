@@ -360,6 +360,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     detail: library.detail,
     missingOriginals: library.missingOriginals,
     outdatedWithOriginal: library.outdatedWithOriginal,
+    checkIn: library.checkIn,
+    markCheckInSeen: libraryActions.markCheckInSeen,
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
     outbox: library.outbox,
@@ -370,7 +372,10 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     dismissAdoption,
     importOutcome: imports.importOutcome,
     incompleteImport: manifest.incomplete,
-    acceptIncompleteImport: manifest.accept,
+    acceptIncompleteImport: () => {
+      manifest.accept()
+      libraryActions.acceptPartialImport()
+    },
     // The change belongs to the outcome on screen; a cleared or replaced summary drops it.
     importChange:
       imports.importChange?.outcome === imports.importOutcome ? imports.importChange : null,
