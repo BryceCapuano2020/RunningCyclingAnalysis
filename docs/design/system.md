@@ -51,8 +51,8 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                                                                                   |
 | `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                                                                                 |
 | `--series-run`         | `#e44f27`   | `#f56333`   | Running data                                                                                                                               |
-| `--run-ink`            | `#b83a12`   | `#f56333`   | Text in the run hue (4.5:1); staged with `--ride-ink` for sport-coloured text, a later D10 PR                                              |
-| `--ride-ink`           | `#2f56e8`   | `#5c7bf7`   | Text in the ride hue (4.5:1); staged, nothing reads it yet                                                                                 |
+| `--run-ink`            | `#b83a12`   | `#f56333`   | Text in the run hue (4.5:1); defined, and read by nothing yet                                                                              |
+| `--ride-ink`           | `#2f56e8`   | `#5c7bf7`   | Text in the ride hue (4.5:1); defined, and read by nothing yet                                                                             |
 | `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                                                                                               |
 | `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                                                                                   |
 | `--series-run-soft`    | `#e44f2726` | `#f5633333` | Running band and area fill                                                                                                                 |
@@ -104,8 +104,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Surface** (`--surface-0` page, `--surface-1` cards and inputs, `--surface-2` hover, tiles and tracks) and **ink**
   (`--text-primary`, `--text-secondary`, `--text-muted`). Text is 4.5:1 or better on the surface it sits on.
 - **Sport identity** (`--series-run` coral, `--series-ride` blue, `--series-swim` reserved) marks a sport's data, glyph and
-  card edge. It is never alone for text. `--run-ink` and `--ride-ink` are the text forms, 4.5:1 on the surfaces; they are staged,
-  and nothing reads them yet (`runColour.test.ts` checks the values).
+  card edge. It is never alone for text. `--run-ink` and `--ride-ink` are the text forms, 4.5:1 on the surfaces (`runColour.test.ts`
+  checks the values). No surface sets text in a sport hue, since sport colours never colour text, so nothing reads them yet.
 - **Highlight** (`--highlight` volt, `--highlight-ink`) is a fill behind ink for "now": the selected segment, the current
   page, the new marker. It is never a line or a text colour on the light page. `--brand` is the same volt as the brand
   mark; `--accent` is the one primary action.
@@ -180,9 +180,12 @@ Two surfaces, and a page is mostly the second.
 - **`.band`** is not a box: a 2 px rule across the top in `--divider` (3:1, not a hairline), the heading, and the section gap
   under it. The sport page's sections, its answer and the fitness card are bands, with a 4 px sport rule beside the fitness
   card's heading.
-- **Labels.** `.eyebrow` (condensed 700, upper case, muted) over a value, and `.chip` for a small status or a record's
-  level. They are the label classes; the plan to merge the rest into one `.tag` is not built, and the other label classes
-  stay as they are.
+- **Labels.** `.tag` is the small condensed capitals that name a thing: condensed 700, upper case, `--tracking-caps`, muted
+  by default, `tag--ink` for the supporting ink and `tag--small` for 12 px. `.eyebrow` is the same rule. A tile's name and
+  basis, the sport page's period, the levels' name, a change's evidence tag, the fitness card's sport and the track's
+  markers take it and keep only their layout, shape and state (`styles/tag.test.ts`). A state that sets its own colour
+  compounds with `.tag` (`.tag.balance-changes__tag--recorded`), since the tag is later in the bundle. `.chip` is the
+  boxed form for a small status or a record's level.
 - **The box ratchet.** `e2e/box-census.spec.ts` counts the elements with a border and a radius or a shadow on Run and Ride
   at 1440 and 390 px, in normal and forced colours, and fails above 8% of `main`'s height on a desktop and 12% on a phone
   (about 2 points over what is measured). Lower the cap when a PR lowers the share; a new card on a sport page fails it.
