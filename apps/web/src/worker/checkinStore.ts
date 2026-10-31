@@ -20,6 +20,9 @@ export type CheckinScope = 'device' | `account:${string}`
 
 export const accountScope = (userId: string): CheckinScope => `account:${userId}`
 
+/** The key of a scope's epoch in the `marks` store: a count of how many times the scope has been cleared. */
+export const epochKey = (scope: CheckinScope): string => `${scope}|epoch`
+
 let opening: Promise<IDBDatabase | null> | null = null
 
 /** The database, or null where storage cannot be opened (a private window, a blocked or refused open). */
@@ -81,9 +84,14 @@ export async function clearCheckinScope(scope: CheckinScope): Promise<boolean> {
   if (db === null) return true
   try {
     const tx = db.transaction([...CHECKIN_STORES], 'readwrite')
-    tx.objectStore('marks').delete(scope)
+    const marks = tx.objectStore('marks')
+    marks.delete(scope)
     tx.objectStore('seen').delete(scope)
     tx.objectStore('held').delete(scopeRange(scope))
+    // A writer that read the scope before this clear is refused by the epoch (see checkinMarks.ts).
+    const epoch = marks.get(epochKey(scope))
+    epoch.onsuccess = () =>
+      marks.put((typeof epoch.result === 'number' ? epoch.result : 0) + 1, epochKey(scope))
     return await settle(tx)
   } catch {
     return false
@@ -104,7 +112,8 @@ export async function accountsWithCheckin(): Promise<string[]> {
         request.onsuccess = () => {
           const cursor = request.result
           if (cursor === null) return resolve()
-          scopes.add(String(cursor.key).split('|')[0]!)
+          // A scope's epoch is a count, not a record: it does not make the scope one that holds anything.
+          if (!String(cursor.key).endsWith('|epoch')) scopes.add(String(cursor.key).split('|')[0]!)
           cursor.continue()
         }
         request.onerror = () => resolve()

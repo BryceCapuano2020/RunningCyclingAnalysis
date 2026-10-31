@@ -33,6 +33,8 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     detail: null,
     missingOriginals: 0,
     outdatedWithOriginal: 0,
+    checkIn: { checkIn: null, seen: false },
+    markCheckInSeen: vi.fn(),
     libraryUnreadable: 0,
     deviceIssue: null,
     importOutcome: null,
