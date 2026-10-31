@@ -11,10 +11,16 @@ export interface DriftPoint {
   durationS: number
   /** (first - second) / first, in percent. Positive means the second half cost more heart rate for the same output. */
   decouplingPct: number
+  /** The effort's average heart rate over the sport's reference heart rate: its ruler. Null when either is unknown. */
+  share?: number | null
 }
 
 /** The drift of every steady effort of one sport among the digests, earliest first. */
-export function driftTrend(digests: ActivityDigest[], sport: Sport): DriftPoint[] {
+export function driftTrend(
+  digests: ActivityDigest[],
+  sport: Sport,
+  referenceBpm: number | null = null,
+): DriftPoint[] {
   const points: DriftPoint[] = []
   for (const digest of digests) {
     const { drift } = digest
@@ -27,6 +33,10 @@ export function driftTrend(digests: ActivityDigest[], sport: Sport): DriftPoint[
       secondRatio: drift.secondRatio,
       durationS: drift.durationS,
       decouplingPct: (100 * (drift.firstRatio - drift.secondRatio)) / drift.firstRatio,
+      share:
+        referenceBpm !== null && referenceBpm > 0 && typeof digest.avgHeartRate === 'number'
+          ? digest.avgHeartRate / referenceBpm
+          : null,
     })
   }
   return points.sort((a, b) => a.startMs - b.startMs || (a.activityId < b.activityId ? -1 : 1))

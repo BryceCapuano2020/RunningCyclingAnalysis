@@ -12,16 +12,24 @@ const HASH_CHARS = 16
  * 0, and leaves out a key set to undefined. Every string is tagged too, so no string can pass for one
  * of those, and a Map is written as its entries.
  */
-function exactJson(value: unknown): string {
+function exactJson(value: unknown, digits?: number): string {
   return JSON.stringify(value, (_key, entry: unknown) => {
     if (entry === undefined) return 'undefined'
     if (typeof entry === 'string') return `string:${entry}`
     if (entry instanceof Map) return { map: [...entry] }
     if (typeof entry !== 'number') return entry
     if (Object.is(entry, -0)) return 'number:-0'
-    return Number.isFinite(entry) ? entry : `number:${entry}`
+    if (!Number.isFinite(entry)) return `number:${entry}`
+    return digits === undefined ? entry : Number(entry.toPrecision(digits))
   })
 }
+
+/**
+ * The fields that hold the logarithm of a ratio of efforts (the change test's bands), whose last bits depend on the processor:
+ * V8's Math.log is compiled with fused multiply-add on arm64 and without it on x64, so the same state differs there by one
+ * unit in the last place. They are hashed at 10 significant digits, which no real change loses.
+ */
+const PLATFORM_DIGITS: Partial<Record<(typeof FIELDS)[number], number>> = { change: 10 }
 
 const FIELDS = [
   'result',
@@ -59,7 +67,7 @@ export async function stateHashes(
     session.choosePeriod(choice)
     const state = session.loadDigests(library, settings)
     for (const field of FIELDS) {
-      const hash = await sha256Hex(encoder.encode(exactJson(state[field])))
+      const hash = await sha256Hex(encoder.encode(exactJson(state[field], PLATFORM_DIGITS[field])))
       hashes[`${JSON.stringify(choice)}/${field}`] = hash.slice(0, HASH_CHARS)
     }
   }

@@ -1,11 +1,13 @@
 import { fitCriticalPowerUnchecked } from '../cp'
 import { lowForPowerSetAside } from '../hr'
+import type { AthleteSettings } from '../athlete/settings'
 import type { ActivityDigest, BikeModel, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
 import { plainCurve } from './bestCurve'
 import { estimatedStanding, rideGateOf } from './estimatedRide'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { Masses } from './masses'
-import { bestCurves, pointWkg } from './rideCurves'
+import { exemptHabitual, judgedTwentyMinutes } from '../effort'
+import { bestCurves, pointWkg, twentyMinutePoints } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { trustedHeartRate } from './trustedHeartRate'
 import type { TrustedHeartRate } from './trustedHeartRate'
@@ -57,12 +59,19 @@ export function judgedCurves(
   bikeModel: BikeModel,
   todayKg: number,
   given: Given = {},
+  athlete: Pick<AthleteSettings, 'measurements' | 'birthYear'> = {},
 ): JudgedCurves {
   const first = given.heartRateSetAside ?? lowForPowerSetAside(ordered)
   let gate = given.rideGate === undefined ? rideGateOf(ordered, first) : given.rideGate
   let curves = bestCurves(ordered, masses, bikeModel, todayKg, gate)
   let fits = fitsOf(curves)
-  const heart = trustedHeartRate(ordered, fits, unitsOf(masses, bikeModel), given.heartRateSetAside)
+  const heart = trustedHeartRate(
+    ordered,
+    fits,
+    unitsOf(masses, bikeModel),
+    given.heartRateSetAside,
+    athlete,
+  )
   if (given.heartRateSetAside === undefined && given.rideGate === undefined) {
     if (heart.setAside.size !== first.size) {
       gate = rideGateOf(ordered, heart.setAside)
@@ -70,5 +79,23 @@ export function judgedCurves(
       fits = fitsOf(curves)
     }
   }
-  return { curves, fits, heart, gate }
+  return { curves, fits, heart: withShapeExemption(heart, ordered, masses, bikeModel, gate), gate }
+}
+
+/**
+ * The heart rate with a ride's `habitual` reference lifted when the ride's judged best 20 minutes is a power meter's
+ * measurement (see `exemptHabitual`): the effort gate judges that point, so the reading is of that point.
+ */
+function withShapeExemption(
+  heart: TrustedHeartRate,
+  ordered: ActivityDigest[],
+  masses: Masses,
+  bikeModel: BikeModel,
+  gate: EstimatedRideGate | null,
+): TrustedHeartRate {
+  if (heart.effort.reading.ride !== 'habitual') return heart
+  const rides = twentyMinutePoints(ordered, masses, bikeModel, gate, heart.setAside).ride
+  return judgedTwentyMinutes(rides).measured
+    ? { ...heart, effort: exemptHabitual(heart.effort, 'ride') }
+    : heart
 }

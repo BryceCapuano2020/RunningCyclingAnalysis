@@ -28,13 +28,19 @@ tool limits, so a reviewer really cannot write. A session loads agent types when
   The app's CI monitor wakes the session when a check fails, a conflict appears or a review comment
   arrives.
 - Never poll CI (`gh pr checks`, `gh run watch`, sleep loops). Each poll re-reads the whole context.
+  To see the queue, run `npm run pr:queue` once: one line per open pull request with what it needs
+  next (a run that saw a draft, failing checks, a conflict, auto-merge off, running, merging, draft)
+  and whether `main` is green.
+- Keep about six pull requests open. Start a new builder when one merges, not before.
 - Never end a turn on a question while queued work is unblocked. Ask, then carry on with the work
   the answer does not affect.
 - The queue lives in the stage plan (`.claude/stage-<x>/PLAN.md`) and its status file, so "what
   next" never needs the owner.
 
 Why: the coordinator was idle about two thirds of its active time, mostly between a pull request
-going green and the next instruction, and CI polling was 14% of its calls.
+going green and the next instruction, and CI polling was 14% of its calls. A day later polling was
+40% of its shell calls, and with 14 pull requests open and none merging for three hours the weekly
+usage limit ran out.
 
 ## Sessions and context
 
@@ -52,8 +58,13 @@ subagent reports were most of it.
 
 - One package per pull request, at about 600 changed lines or fewer, tests included. Split a large
   package by finding.
-- Open a draft pull request as soon as the first commit builds, so CI runs the full suite on a clean
-  runner while review happens.
+- Open a draft pull request as soon as the first commit builds, so review can start. A draft runs
+  no long CI jobs; the full suite runs when it is marked ready.
+- Mark a pull request ready before its final push, never in the same moment after one. A push and
+  `gh pr ready` seconds apart gave #213, #227 and #232 a single run that saw a draft and failed on
+  purpose. CI now reads the draft state when it runs, so re-running all jobs fixes such a run.
+- Keep one pull request that changes pinned results (the identity tests) in flight at a time, and
+  merge it before the next one starts. Two at once re-pin against each other until one is held.
 - Push ordinary commits and never squash locally: GitHub squashes on merge. Two local squashes
   reverted merged work (#41 undid #39, and #158 undid #155).
 - Never rebase a green pull request. `main` does not require branches to be up to date. Rebase
@@ -79,6 +90,8 @@ timeout at random.
 
 ## CI
 
+- Dependabot pull requests are in the queue like any other. One that sits on a red `main` needs a
+  rebase (comment `@dependabot rebase`). The Node types stay on the Node major in `.nvmrc`.
 - A documentation-only pull request (every changed file is Markdown, under `docs/` or `LICENSE`)
   takes a short lane: format, lint, the ops tests and the unit tests that read Markdown.
 - Unit tests run in two shards and end-to-end tests in three, so a code pull request finishes in

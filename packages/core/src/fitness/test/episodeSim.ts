@@ -1,22 +1,18 @@
+import { NOISE_PRESETS } from '../../synthetic/noise/presets'
 import { firstWeekOf, quantile, replaySim, simulate, slipWeeks } from './runSim'
 import type { SimSpec } from './runSim'
 
-/** The nuisances of the silence budget, as generator settings: nothing in the athlete changes in any of them. */
+/**
+ * The nuisances of the silence budget, as generator settings: nothing in the athlete changes in any of them. The levels are
+ * the synthetic tier's presets (`strapStep`, `nuisanceAll`), or the generator's default (`measured`) with the one field changed.
+ */
 export const NUISANCES = {
   quiet: {},
-  'a season of 1.5%': { seasonal: 0.015 },
-  'a season of 3%': { seasonal: 0.03 },
-  'a slow wander of 3%': { wanderSd: 0.03, wanderRho: 0.95 },
-  'a watch or strap change of 3%': { strap: 0.03 },
-  'every nuisance at once': {
-    wanderSd: 0.03,
-    wanderRho: 0.95,
-    seasonal: 0.02,
-    strap: 0.03,
-    heat: 0.03,
-    hilly: 0.3,
-    bad: 0.1,
-  },
+  'a season of 1.5%': { level: { seasonAmp: 0.015 } },
+  'a season of 3%': { level: { seasonAmp: 0.03 } },
+  'a slow wander of 3%': { level: { wanderSd: 0.03, wanderRho: 0.95 } },
+  'a watch or strap change of 3%': { level: NOISE_PRESETS.strapStep.level },
+  'every nuisance at once': { level: NOISE_PRESETS.nuisanceAll.level, hilly: 0.3, bad: 0.1 },
 } as const satisfies Record<string, Partial<SimSpec>>
 
 export interface Silence {

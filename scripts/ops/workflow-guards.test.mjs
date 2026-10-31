@@ -192,7 +192,7 @@ test('the unit tests also run in a shuffled order with fixed seeds, in their own
   assert.match(order, /^ {4}needs: changes$/m, 'skipped on a documentation-only pull request')
   assert.match(
     order,
-    /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.code != 'false' \}\}$/m,
+    /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.draft != 'true' && needs\.changes\.outputs\.code != 'false' \}\}$/m,
   )
   assert.match(order, /^ {6}- run: npm run test:shuffle$/m)
   for (const sharded of ['static', 'unit']) {
@@ -241,14 +241,14 @@ test('documentation-only pull requests skip the long CI work, and everything els
     assert.match(block, /^ {4}needs: changes$/m, job)
     assert.match(
       block,
-      /^ {4}if: \$\{\{ !cancelled\(\) && !github\.event\.pull_request\.draft && needs\.changes\.outputs\.code != 'false' \}\}$/m,
+      /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.draft != 'true' && needs\.changes\.outputs\.code != 'false' \}\}$/m,
       `${job} skips only on an explicit 'false', so a failed classification runs it`,
     )
   }
   const staticJob = blocks.get('static').join('\n')
   assert.match(
     staticJob,
-    /^ {4}if: \$\{\{ !cancelled\(\) && !github\.event\.pull_request\.draft \}\}$/m,
+    /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.draft != 'true' \}\}$/m,
   )
   for (const step of ['typecheck', 'build']) {
     assert.match(
@@ -310,12 +310,31 @@ test('shards cover the whole suite: the shard count comes from the matrix, and o
 test('a draft pull request runs no long jobs, and its required checks fail until it is marked ready', async () => {
   const ci = await workflow('ci')
   assert.match(ci, /^ {4}types: \[opened, synchronize, reopened, ready_for_review\]$/m)
+  // The event's draft flag is a snapshot: a push and `gh pr ready` seconds apart gave #213 and #227
+  // one run that still saw a draft. Only the pull request's state when the run looks decides.
+  assert.doesNotMatch(
+    ci,
+    /github\.event\.pull_request\.draft/,
+    'no job decides on the event snapshot',
+  )
   const blocks = jobBlocks(ci)
-  for (const job of ['changes', 'static', 'unit', 'perf', 'sim', 'e2e', 'audit']) {
+  const changes = blocks.get('changes').join('\n')
+  assert.doesNotMatch(changes, /^ {4}if:/m, 'the changes job runs on every event, drafts included')
+  assert.match(changes, /^ {6}pull-requests: read$/m)
+  assert.match(changes, /^ {6}draft: \$\{\{ steps\.draft\.outputs\.draft \}\}$/m)
+  assert.match(changes, /gh api "repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR" --jq \.draft\)/)
+  assert.match(
+    changes,
+    /if \[ -z "\$PR" \]; then\n\s+echo "draft=false"/,
+    'a push to main is never a draft',
+  )
+  for (const job of ['static', 'unit', 'perf', 'sim', 'order', 'e2e', 'audit']) {
+    const block = blocks.get(job).join('\n')
+    assert.match(block, /^ {4}needs: changes$/m, job)
     assert.match(
-      blocks.get(job).join('\n'),
-      /^ {4}if: \$\{\{ [^\n]*!github\.event\.pull_request\.draft/m,
-      `${job} is skipped on a draft`,
+      block,
+      /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.draft != 'true'[ }&]/m,
+      `${job} skips on a draft, and runs if the changes job fails`,
     )
   }
   // The two required checks still run on a draft and fail, so a skipped (and so passing) check can
@@ -323,10 +342,16 @@ test('a draft pull request runs no long jobs, and its required checks fail until
   for (const job of ['verify', 'e2e-result']) {
     const block = blocks.get(job).join('\n')
     assert.doesNotMatch(block, /^ {4}if: [^\n]*draft/m, `${job} itself runs on a draft`)
+    assert.match(block, /^ {6}pull-requests: read$/m, job)
     assert.match(
       block,
-      /- name: A draft pull request runs no checks\n {8}if: github\.event\.pull_request\.draft\n {8}run: \|\n[^\n]*\n {10}exit 1/,
+      /- name: A draft pull request runs no checks\n {8}if: needs\.changes\.outputs\.draft == 'true'\n/,
       `${job} fails on a draft`,
+    )
+    assert.match(
+      block,
+      /Re-run all jobs or push a commit to run CI\."\n[^\n]*\n[^\n]*\n {10}fi\n {10}exit 1/,
+      job,
     )
   }
 })

@@ -35,6 +35,7 @@ import {
   MAX_DIGEST_OUTPUT,
   MAX_DIGEST_REVISION,
 } from './readLimits'
+import { readAthleteType, readLocalDayShift, readTemperature } from './readRevision7'
 import { RULES_OF_VIEW } from './readRules'
 import type { DigestRules, DigestView } from './readRules'
 
@@ -165,6 +166,12 @@ export function readDigest(value: unknown, view: DigestView): ActivityDigest {
     distributions: optional(o.distributions, (v) => asDistributions(v, evidence)),
     durability: optional(o.durability, (v) => asDurability(v, evidence)),
     drift: optional(o.drift, (v) => asDrift(v, evidence)),
+    temperature: optional(o.temperature, (v) => readTemperature(v, 'temperature', rules) ?? ABSENT),
+    athleteType: optional(o.athleteType, (v) => readAthleteType(v, 'athleteType', rules) ?? ABSENT),
+    localDayShift: optional(
+      o.localDayShift,
+      (v) => readLocalDayShift(v, 'localDayShift', rules) ?? ABSENT,
+    ),
   })
 }
 
