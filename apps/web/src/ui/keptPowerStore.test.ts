@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearKeptPower, parseKeptPower, useKeptPower } from './keptPowerStore'
+
+// The store remembers its list between renders, so a test that kept rides leaves them for the next: each test
+// starts from, and leaves, an empty store whatever order the tests run in.
+beforeEach(() => clearKeptPower())
 
 afterEach(() => {
   cleanup()
+  clearKeptPower()
   localStorage.clear()
 })
 

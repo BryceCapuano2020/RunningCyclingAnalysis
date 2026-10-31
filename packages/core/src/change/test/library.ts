@@ -8,7 +8,13 @@ import type { ActivityDigest, AthleteSettings, Sport } from '../../types'
 /** The wander's weekly correlation, the synthetic tier's measured one. */
 const WANDER_RHO = NOISE_PRESETS.measured.level.wanderRho
 
-export const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
+/**
+ * The athlete of the harness. Its weight is marked a placeholder (`massAssumed`), so the implausible-power screen does not
+ * run: the harness draws noise with no ceiling (`effortSd`) and is calibrated to the spread a real library's bests have, and the
+ * screen would set aside the rides drawn above 2.4 sd (a ride's 5 minutes at 1.8 times its capability), thinning the noise
+ * the calibration says. The screen has its own tests (digest/powerSetAside.test.ts); this harness measures the change test alone.
+ */
+export const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9, massAssumed: true }
 
 const TEMPLATES = sampleDataset().activities.map((activity) => digestActivity(activity))
 const TEMPLATE: Record<Sport, ActivityDigest> = {
