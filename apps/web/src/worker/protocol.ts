@@ -55,6 +55,18 @@ export interface ImportOutcome {
    * unread, and are not in `rejected`. Absent from outcomes that do not count them.
    */
   notActivities?: number
+  /**
+   * The activity files in a format the app does not read, by extension (such as pwx), which are counted in
+   * `rejected` and named here. Absent when there were none.
+   */
+  skippedTypes?: Record<string, number>
+  /**
+   * When an activities.csv came with the files: how many files the list names and how many of them were given.
+   * Absent when there was none, or it named nothing.
+   */
+  listed?: { named: number; received: number }
+  /** A loose file was refused for want of a sport, and no list came with it to give one. Absent otherwise. */
+  needsList?: true
   /** Files whose every activity is a workout the library already holds or shows as a copy: a copy, or the file added again. */
   duplicates: RejectedFile[]
   /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */

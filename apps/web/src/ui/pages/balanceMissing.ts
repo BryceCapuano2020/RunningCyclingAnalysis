@@ -89,6 +89,7 @@ function soleSportMissing(
   levels: { run: string | null; ride: string | null },
   when: string,
   leftOut: number,
+  holdInputs: HoldInputs,
 ): Missing {
   const other = otherSport(sport)
   const inLibrary = countSport(library, other)
@@ -108,9 +109,17 @@ function soleSportMissing(
       canShowAll: false,
     }
   }
+  // While the library is only part of what was added, the other sport may be in the files that were not read: the
+  // hold's own words say to finish the import, where a line about what the sport needs would send the athlete elsewhere.
+  const partial = holdInputs.partialImport
   return {
     title: level ?? `Your ${SPORT_NOUN[sport]} so far`,
-    detail: hasThreshold(result, sport) ? '' : thresholdNeedsLine(result, sport),
+    detail:
+      partial !== undefined && partial !== null
+        ? `${partial.text} ${partial.action}`
+        : hasThreshold(result, sport)
+          ? ''
+          : thresholdNeedsLine(result, sport),
     canShowAll: false,
   }
 }
@@ -136,7 +145,7 @@ export function missingText(
   const when = period.days === null ? '' : ` ${betweenClause(period)}`
   const present = SPORT_ORDER.filter((sport) => countSport(result.activities, sport) > 0)
   if (present.length === 1) {
-    return soleSportMissing(present[0]!, result, library, levels, when, leftOut)
+    return soleSportMissing(present[0]!, result, library, levels, when, leftOut, holdInputs)
   }
   if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when, leftOut)
   // Both sports are here, and the ride is out of the comparison: say why rather than ask for harder efforts.

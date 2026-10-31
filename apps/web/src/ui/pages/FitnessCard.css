@@ -39,12 +39,6 @@
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
 }
 
 .fitness-card__sport .icon {

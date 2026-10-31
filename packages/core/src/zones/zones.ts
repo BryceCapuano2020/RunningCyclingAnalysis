@@ -108,6 +108,32 @@ export interface ZoneEstimates {
   observedMaxSource: Record<Sport, ReferenceMax | null>
   /** The thresholds the pace and power zones are cut from, by week: see `ThresholdTimeline`. */
   thresholds: ThresholdTimeline
+  /**
+   * The sports whose estimated maximum heart rate is not one a maximum can be: `low` (under what a maximum is at the
+   * athlete's age) and `habitual` (the typical day already sits at it) mean no effort reached near the athlete's
+   * maximum, so no heart-rate zones are cut from it; `high` (far over what a maximum is at their age) keeps its zones
+   * and is asked about. Absent when every sport's maximum can be trusted or was entered.
+   */
+  untrustedMax?: Partial<Record<Sport, UntrustedMax>>
+}
+
+/** Why a sport's estimated maximum heart rate is not trusted: see `ZoneEstimates.untrustedMax`. */
+export type UntrustedMax = 'low' | 'habitual' | 'high'
+
+/** The maxima that are not trusted as the judgement read them, or nothing when all can be. */
+function untrustedMaxOf(judgement: HeartRateJudgement): Pick<ZoneEstimates, 'untrustedMax'> {
+  const found: Partial<Record<Sport, UntrustedMax>> = {}
+  for (const sport of Object.keys(ZONE_MEASURES) as Sport[]) {
+    const reading = judgement.effortReference.reading[sport]
+    if (reading === 'low' || reading === 'habitual' || reading === 'high') found[sport] = reading
+  }
+  return Object.keys(found).length === 0 ? {} : { untrustedMax: found }
+}
+
+/** Whether a sport has no heart-rate zones for want of a maximum: no effort reached near it. */
+function noNearMaximalEffort(estimates: ZoneEstimates, sport: Sport): boolean {
+  const reading = estimates.untrustedMax?.[sport]
+  return reading === 'low' || reading === 'habitual'
 }
 
 const estimatesOfJudgement = new WeakMap<
@@ -132,6 +158,7 @@ export function zoneEstimatesOf(judgement: HeartRateJudgement, nowMs: number): Z
     rideObservedMaxHeartRate: judgement.observedMaxHr.ride,
     observedMaxSource: judgement.observedMaxSource,
     thresholds: settledThresholds(judgement.thresholdTimeline, judgement.fit, nowMs),
+    ...untrustedMaxOf(judgement),
   }
   estimatesOfJudgement.set(judgement, { nowMs, found })
   return found
@@ -194,12 +221,21 @@ function threshold(
 const ESTIMATE: Record<Sport, Partial<Record<ZoneMeasure, Estimate>>> = {
   run: {
     heartRate: (e) =>
-      heartRate('run', e.runMaxHeartRate, e.runObservedMaxHeartRate, e.observedMaxSource.run),
+      noNearMaximalEffort(e, 'run')
+        ? null
+        : heartRate('run', e.runMaxHeartRate, e.runObservedMaxHeartRate, e.observedMaxSource.run),
     pace: (e, _massKg, at) => threshold('run', e, at, metabolicToFlatSpeed),
   },
   ride: {
     heartRate: (e) =>
-      heartRate('ride', e.rideMaxHeartRate, e.rideObservedMaxHeartRate, e.observedMaxSource.ride),
+      noNearMaximalEffort(e, 'ride')
+        ? null
+        : heartRate(
+            'ride',
+            e.rideMaxHeartRate,
+            e.rideObservedMaxHeartRate,
+            e.observedMaxSource.ride,
+          ),
     power: (e, massKg, at) =>
       threshold('ride', e, at, (cp) =>
         metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean),
@@ -256,15 +292,16 @@ export function zonesAt(
   return sets
 }
 
-/** A pace or power the athlete has efforts in the sport for but no zones on a date. */
+/** A zone measure the athlete has activities in the sport for but no zones on a date: a pace or power, or heart rate with no near-maximal effort. */
 export interface MissingZones {
   sport: Sport
   measure: ZoneMeasure
 }
 
 /**
- * The thresholds with no zones on a date although the library holds activities of the sport: no threshold is entered,
- * the half year ending then supports no fit and no earlier fit is within a year. The page says what would give them.
+ * The measures with no zones on a date although the library holds activities of the sport. A pace or power: no threshold
+ * is entered, the window ending then supports no fit and no earlier fit is within a year. A heart rate: no maximum is
+ * entered and no effort reached near the athlete's maximum (`ZoneEstimates.untrustedMax`). The page says what would give them.
  */
 export function missingThresholdZones(
   at: number,
@@ -277,9 +314,11 @@ export function missingThresholdZones(
   )
   return (Object.keys(ZONE_MEASURES) as Sport[]).flatMap((sport) =>
     ZONE_MEASURES[sport]
-      .filter((measure) => THRESHOLD_MEASURES.includes(measure))
-      .filter(
-        (measure) => estimates.thresholds[sport].length > 0 && !present.has(`${sport}.${measure}`),
+      .filter((measure) => !present.has(`${sport}.${measure}`))
+      .filter((measure) =>
+        THRESHOLD_MEASURES.includes(measure)
+          ? estimates.thresholds[sport].length > 0
+          : measure === 'heartRate' && noNearMaximalEffort(estimates, sport),
       )
       .map((measure) => ({ sport, measure })),
   )

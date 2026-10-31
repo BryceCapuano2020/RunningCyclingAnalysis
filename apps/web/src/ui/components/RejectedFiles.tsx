@@ -89,6 +89,7 @@ export function RejectedFiles({ outcome, rejected, unsupportedFiles }: RejectedF
               files={problems}
               carriers={carriers}
               unsupportedFiles={unsupportedFiles}
+              types={outcome.skippedTypes}
               namesNotActivity={problems.some((file) => file.code === 'not-activity')}
             />
           )}
@@ -143,9 +144,10 @@ function NeedALook(props: {
   files: RejectedFile[]
   carriers: Carriers
   unsupportedFiles: number
+  types: Readonly<Record<string, number>> | undefined
   namesNotActivity: boolean
 }) {
-  const { count, files, carriers, unsupportedFiles, namesNotActivity } = props
+  const { count, files, carriers, unsupportedFiles, types, namesNotActivity } = props
   return (
     <div className="rejected-files__group">
       <Title>{groupTitle('need-a-look', count)}</Title>
@@ -153,7 +155,7 @@ function NeedALook(props: {
         <ul className="rejected-files__list">
           <FileList files={files} carriers={carriers} />
           {unsupportedFiles > 0 && (
-            <li>{unreadFormatsCopy(unsupportedFiles, !namesNotActivity)}</li>
+            <li>{unreadFormatsCopy(unsupportedFiles, !namesNotActivity, types)}</li>
           )}
         </ul>
       )}

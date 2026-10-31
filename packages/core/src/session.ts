@@ -2,7 +2,9 @@ import { applyCountedRuns } from './countedRuns'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import type { ExtractLimits } from './fit'
+import { ZIP } from './fit/zipDirectory'
 import { countImportFiles } from './import/activitiesCsv'
+import { isCompanion, takeCompanion } from './import/looseList'
 import type { ImportProgress, ReadFile, Refused } from './sessionSource'
 import { importSource, sortRead } from './sessionSource'
 import { DEFAULT_ATHLETE, SAMPLE_CLOCK } from './synthetic'
@@ -91,7 +93,11 @@ export class AnalysisSession {
    * and the lists of the exports among them, without reading the files. Null when it is not known.
    */
   countFiles(sources: readonly RangedSource[]): Promise<number | null> {
-    return countImportFiles(sources, this.limits)
+    // The export's list given loose is not an activity file, so it is not in the count.
+    return countImportFiles(
+      sources.filter((source) => !isCompanion(source.name)),
+      this.limits,
+    )
   }
 
   async addFiles(
@@ -119,12 +125,16 @@ export class AnalysisSession {
       probe: null,
       upgraded: new Set(),
     }
+    // An export's list given loose names the loose files; it is read before any of them.
+    const { rest, companion } = await takeCompanion(sources)
+    const hints = { needsList: false }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
+    const skippedTypes: Record<string, number> = {}
     const listeners: ActivityListeners = { kept: onActivity, replaced: onReplaced }
     try {
-      for (const [index, source] of sources.entries()) {
+      for (const [index, source] of rest.entries()) {
         await importSource(source, {
           limits: this.limits,
           progress,
@@ -133,6 +143,10 @@ export class AnalysisSession {
           refused: this.rejected,
           read,
           unsupported: this.unsupported,
+          skippedTypes,
+          companion,
+          hints,
+          loose: !ZIP.test(source.name),
           hashFiles: sink !== undefined,
           held,
           heldNameOf: (keys) => this.heldNameOf(keys, sink !== undefined),
@@ -155,7 +169,17 @@ export class AnalysisSession {
       .map(([, digest]) => digest)
     const visible = analysable.filter((digest) => !hidden.has(digest))
     const files = sortRead(read, new Set([...added, ...upgraded]), visible)
-    onComplete?.({ ...outcome, ...files, added, upgraded })
+    onComplete?.({
+      ...outcome,
+      ...files,
+      added,
+      upgraded,
+      ...(Object.keys(skippedTypes).length === 0 ? {} : { skippedTypes }),
+      ...(companion === null || companion.named === 0
+        ? {}
+        : { listed: { named: companion.named, received: companion.received } }),
+      ...(hints.needsList ? { needsList: true as const } : {}),
+    })
     return this.state(settings)
   }
 
