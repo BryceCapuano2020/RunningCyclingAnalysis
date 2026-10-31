@@ -6,7 +6,7 @@ import { makeResult } from './components/fixtures'
 import { gate, NO_HEART_RATE, THIN, UNKNOWN, withheld } from './effortGateFixtures'
 import { ThresholdPanel } from './pages/ThresholdPanel'
 import { ThresholdTile } from './pages/ThresholdTile'
-import { floorThreshold } from './thresholdFloor'
+import { floorThreshold, withheldFloorLine } from './thresholdFloor'
 import { thresholdNeedsLine } from './thresholdNeeds'
 import { heldBestHeading, thresholdUncheckedLine, thresholdWithheldLine } from './thresholdWithheld'
 
@@ -22,6 +22,14 @@ describe('a threshold the effort gate withheld', () => {
       heldBestHeading(withheld({ floor: { durationS: HEADLINE_DURATION_S, value: 3.4 } }), 'run'),
     ).toBe('Best 20 min pace')
     expect(heldBestHeading(makeResult(), 'run')).toBeNull()
+  })
+
+  it('says in the headline of a one-sport page what the held best still shows, as a floor from one effort', () => {
+    expect(withheldFloorLine(withheld(), 'run', 70, 'metric')).toMatch(
+      /^At least \d+:\d{2} \/km, from one effort\.$/,
+    )
+    expect(withheldFloorLine(withheld({ floor: null }), 'run', 70, 'metric')).toBeNull()
+    expect(withheldFloorLine(makeResult(), 'run', 70, 'metric')).toBeNull()
   })
 
   it('asks for a harder effort only when the reference can show one hard', () => {

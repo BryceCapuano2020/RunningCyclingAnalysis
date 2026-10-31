@@ -107,7 +107,14 @@ describe('the heart-rate check when a threshold is refused', () => {
     // Canyon Climb with the runs: its ride fit is refused, and the check must still have its kappa.
     const canyonClimb = digestNamed('Canyon Climb')
     const runs = DIGESTS.filter((digest) => digest.sport === 'run')
-    const result = combine([...runs, canyonClimb], SETTINGS)
+    // Three copies on three days, since a ratio is read from at least three activities of a sport.
+    const climbs = [0, 1, 2].map((day) =>
+      Object.assign({}, canyonClimb, {
+        id: `${canyonClimb.id}-${day}`,
+        startMs: canyonClimb.startMs + day * 86_400_000,
+      }),
+    )
+    const result = combine([...runs, ...climbs], SETTINGS)
     expect(result.rideCpRefusal).not.toBeNull()
     expect(result.hr.kappa).not.toBeNull()
     expect(result.hr.kappa).toBeCloseTo(0.975, 4)

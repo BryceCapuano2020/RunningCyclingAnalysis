@@ -1,5 +1,6 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
+import type { Sport } from '@rca/core/types'
 import { countedPhrase, needLine, unconfirmedSports } from '../components/headlineNeed'
 import { heldTexts } from '../resultHold'
 import type { HoldInputs } from '../resultHold'
@@ -12,7 +13,10 @@ import { rideOutOf } from '../rideLeftOut'
 import type { RideLeftOut } from '../rideLeftOut'
 import { leftOutNote } from '../analysis/walkingPaceCopy'
 import { betweenClause } from '../periodCopy'
-import { countEfforts, countSport } from '../records'
+import { countEfforts, countSport, hasThreshold } from '../records'
+import { otherSport } from '../soleSport'
+import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL } from '../sports'
+import { thresholdNeedsLine } from '../thresholdNeeds'
 
 /** The count under the lede when either sport has few efforts; null when both have enough, or one is missing. */
 export function fewEffortsText(result: AnalysisResult): string | null {
@@ -74,6 +78,44 @@ const LEFT_OUT: Record<RideLeftOut, { title: string; detail: string }> = {
 }
 
 /**
+ * A period that holds one sport. When the library holds the other sport elsewhere, that is the news (with a way to see it).
+ * When the library holds one sport, the page is that sport's: its level leads, never a request, and under it only what its
+ * threshold still needs. What would add the other sport is the invitation at the page's foot, not this headline.
+ */
+function soleSportMissing(
+  sport: Sport,
+  result: AnalysisResult,
+  library: ActivitySummary[],
+  levels: { run: string | null; ride: string | null },
+  when: string,
+  leftOut: number,
+): Missing {
+  const other = otherSport(sport)
+  const inLibrary = countSport(library, other)
+  if (inLibrary > 0) {
+    return {
+      title: `No ${SPORT_PLURAL[other]}${when}`,
+      detail: `You have ${plural(inLibrary, SPORT_ACTIVITY[other])} in All time.`,
+      canShowAll: true,
+    }
+  }
+  const level = levelsTitle({ [sport]: levels[sport] }, unconfirmedSports(result))
+  // Runs that are all at walking pace are the missing sport's: say how many, and that they can be counted.
+  if (leftOut > 0) {
+    return {
+      title: level ?? leftOutTitle(leftOut),
+      detail: leftOutNote(leftOut),
+      canShowAll: false,
+    }
+  }
+  return {
+    title: level ?? `Your ${SPORT_NOUN[sport]} so far`,
+    detail: hasThreshold(result, sport) ? '' : thresholdNeedsLine(result, sport),
+    canShowAll: false,
+  }
+}
+
+/**
  * What is missing before the two sports can be compared, in the period on screen. `leftOut` is how many runs
  * the files hold that are all at walking pace, 0 when there are none or some runs are analysed: a page with
  * no runs to use says it has runs it left out rather than that it has none.
@@ -92,43 +134,9 @@ export function missingText(
   const libraryRides = countSport(library, 'ride')
   // All time names no period; a dated one says which dates it is missing a sport between.
   const when = period.days === null ? '' : ` ${betweenClause(period)}`
-  if (runs > 0 && rides === 0) {
-    if (libraryRides > 0) {
-      return {
-        title: `No rides${when}`,
-        detail: `You have ${plural(libraryRides, 'ride')} in All time.`,
-        canShowAll: true,
-      }
-    }
-    // One sport: its level is the title, and the one thing to do is the line under it.
-    const title = levelsTitle({ run: levels.run }, unconfirmedSports(result))
-    return {
-      title: title ?? 'Add a ride to see your balance',
-      detail: title ? 'Add a ride to compare it with your running.' : 'Your run results are below.',
-      canShowAll: false,
-    }
-  }
-  if (rides > 0 && runs === 0) {
-    if (libraryRuns > 0) {
-      return {
-        title: `No runs${when}`,
-        detail: `You have ${plural(libraryRuns, 'run')} in All time.`,
-        canShowAll: true,
-      }
-    }
-    const title = levelsTitle({ ride: levels.ride }, unconfirmedSports(result))
-    if (leftOut > 0) {
-      return {
-        title: title ?? leftOutTitle(leftOut),
-        detail: leftOutNote(leftOut),
-        canShowAll: false,
-      }
-    }
-    return {
-      title: title ?? 'Add a run to see your balance',
-      detail: title ? 'Add a run to compare it with your cycling.' : 'Your ride results are below.',
-      canShowAll: false,
-    }
+  const present = SPORT_ORDER.filter((sport) => countSport(result.activities, sport) > 0)
+  if (present.length === 1) {
+    return soleSportMissing(present[0]!, result, library, levels, when, leftOut)
   }
   if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when, leftOut)
   // Both sports are here, and the ride is out of the comparison: say why rather than ask for harder efforts.

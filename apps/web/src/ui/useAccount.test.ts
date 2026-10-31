@@ -600,17 +600,18 @@ describe('useAccount', () => {
       expect(forgetAccountDetails).not.toHaveBeenCalled()
       act(() => result.current.markExpired())
 
-      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
+      // The server ended the session, so what was waiting to be saved is kept for the next sign-in.
+      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1', true)
     })
 
-    it('clears them when the server no longer knows the user', async () => {
+    it('clears them when the server no longer knows the user, and keeps the saves that were waiting', async () => {
       const { result } = await renderSignedIn()
       mocked.getMe.mockResolvedValue(null)
       await act(async () => {
         await result.current.refresh()
       })
 
-      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
+      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1', true)
     })
 
     it('clears the earlier account when a different one signs in', async () => {
@@ -620,7 +621,7 @@ describe('useAccount', () => {
         await result.current.refresh()
       })
 
-      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
+      expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1', true)
     })
 
     it('clears nothing while the same account stays signed in, or for a visitor who was signed out', async () => {
