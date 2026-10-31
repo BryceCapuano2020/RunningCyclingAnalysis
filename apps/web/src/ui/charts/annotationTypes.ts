@@ -114,6 +114,11 @@ export interface AnnotationSpace {
   rootPx: number
   /** The data's own marks, as boxes the text keeps off, such as a line sampled along its length. */
   obstacles?: readonly Box[]
+  /**
+   * The axis's own labels drawn inside the plot, as boxes no annotation's text may meet, whatever the room: an annotation
+   * with no place clear of them is shifted by its candidates, and where none is, left out (a reference keeps its rule).
+   */
+  ticks?: readonly Box[]
   /** A phone sets display values smaller. */
   phone?: boolean
 }
