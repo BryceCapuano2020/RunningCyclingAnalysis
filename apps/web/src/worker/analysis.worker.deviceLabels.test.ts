@@ -148,6 +148,7 @@ describe('an import into the library kept in this browser, of an export whose li
       expect(stale.at(-1)).toMatchObject({ state: { labelledRuns: 1 } })
       expect((await kept.library!.all())[0]!.digest.athleteType).toBe('hike')
       await send({ type: 'clear', forgetDevice: true })
+      expect(await kept.library!.all()).toEqual([])
       const cleared = await send(undo)
       expect(cleared.at(-1)).toMatchObject({ state: { totalActivities: 0 } })
     })
