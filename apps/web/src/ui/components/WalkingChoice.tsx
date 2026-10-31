@@ -94,9 +94,7 @@ export function WalkingPaceSection({ walkingPace, label, choice }: WalkingPaceSe
   if (choice === undefined || !counted) return null
   return (
     <div className="walking-choice">
-      <p className="secondary">
-        This run is at walking pace. You count it as a run, so it is in your run analysis.
-      </p>
+      <p className="secondary">You count it, so it is in your analysis.</p>
       <button
         ref={stopRef}
         type="button"

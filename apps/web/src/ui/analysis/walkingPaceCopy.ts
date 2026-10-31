@@ -45,9 +45,12 @@ export function walkingPaceText(count: number, offer = true): string {
   return offer ? `${said} Open ${one ? 'it' : 'one'} to count it as a run.` : said
 }
 
-/** The line about runs counted despite their walking pace, with the button to leave them out beside it. */
+/**
+ * The line about left-out runs the athlete counts, with the button to leave them out beside it. A run is left out for
+ * its pace or for the athlete's label, and counting it takes either away, so the line names neither.
+ */
 export function countedDespiteText(count: number): string {
-  return `${plural(count, 'run is', 'runs are')} counted despite walking pace.`
+  return `${plural(count, 'left-out run is', 'left-out runs are')} counted.`
 }
 
 /**
