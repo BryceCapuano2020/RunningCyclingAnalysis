@@ -32,7 +32,7 @@ export function firstRowOf({
 }: RowInputs): FirstRow {
   if (importIncomplete || isSample) return null
   if (checkIn.checkIn !== null && !checkIn.seen) return 'checkIn'
-  // Nothing new since the last import (or it has been seen): the years take the place until they are seen too.
+  // The check-in has nothing new, or has been seen: the years take the place until they are seen too.
   return hasYears && checkIn.lookBackSeen !== true ? 'lookBack' : null
 }
 
