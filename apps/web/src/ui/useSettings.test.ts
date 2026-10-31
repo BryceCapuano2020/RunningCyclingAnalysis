@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultPreferences, parsePreferences, usePreferences } from './useSettings'
 import type { Preferences } from './useSettings'
+import { forgetPreferences } from './preferencesStorage'
 
 const KEY = 'rca.preferences.v1'
 
@@ -304,5 +305,18 @@ describe('usePreferences across tabs', () => {
 
     expect(result.current[0]).toEqual({ ...SAVED, units: 'imperial' })
     vi.restoreAllMocks()
+  })
+})
+
+describe('forgetting the preferences', () => {
+  it('empties storage and puts the open tab back to the defaults', () => {
+    localStorage.setItem(KEY, JSON.stringify(SAVED))
+    const { result } = renderHook(() => usePreferences())
+    expect(result.current[0]).toEqual(SAVED)
+
+    act(() => forgetPreferences())
+
+    expect(localStorage.getItem(KEY)).toBeNull()
+    expect(result.current[0]).toEqual(defaultPreferences())
   })
 })
