@@ -88,10 +88,13 @@ const importZip = (result: { current: ReturnType<typeof useAnalysis> }) =>
 beforeEach(async () => {
   FakeWorker.instances = []
   vi.stubGlobal('Worker', FakeWorker)
-  // The record is kept in the browser: each test starts from none.
-  for (const database of await indexedDB.databases()) {
-    if (database.name !== undefined) indexedDB.deleteDatabase(database.name)
-  }
+  // The record is kept in the browser: each test starts from none, once the last one's writes have landed.
+  await new Promise<void>((resolve) => {
+    const gone = indexedDB.deleteDatabase('rca-import-meta')
+    gone.onsuccess = () => resolve()
+    gone.onerror = () => resolve()
+    gone.onblocked = () => resolve()
+  })
 })
 
 afterEach(() => {

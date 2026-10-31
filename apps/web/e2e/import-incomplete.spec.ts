@@ -122,7 +122,7 @@ async function startLargeImport(page: Page): Promise<void> {
 
 // These two cases build and read a large zip, which is slow, and they test browser behaviour (a closed tab,
 // Web Locks) that does not change with the viewport. One project runs them, so CI does not repeat them 12 times.
-test.beforeEach(({}, testInfo) => {
+test.beforeEach((_fixtures, testInfo) => {
   if (testInfo.title.includes('zip that ends early')) return
   test.skip(
     testInfo.project.name !== 'desktop',
