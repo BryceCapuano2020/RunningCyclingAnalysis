@@ -1,3 +1,4 @@
+import { localDateText, startOfDayText } from '../calendar'
 import type { Sport } from '../types'
 
 /** The settings an athlete can date. Body mass is a single value; the others are kept per sport. */
@@ -49,18 +50,12 @@ export function isLocalDate(text: string): boolean {
 
 /** The local calendar date of an instant, as YYYY-MM-DD, in the time zone the code runs in. */
 export function localDateOf(ms: number): string {
-  const date = new Date(ms)
-  const pad = (n: number, width = 2) => String(n).padStart(width, '0')
-  return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  return localDateText(ms)
 }
 
 /** The instant a local date starts, ms, in the time zone the code runs in. */
 export function localDayStartMs(date: string): number {
-  const [year = 0, month = 1, day = 1] = date.split('-').map(Number)
-  const start = new Date(0)
-  start.setFullYear(year, month - 1, day)
-  start.setHours(0, 0, 0, 0)
-  return start.getTime()
+  return startOfDayText(date)
 }
 
 /** The one text that names an entry, such as `maxHeartRate.run.2026-03-01`. It is the entry's identity. */

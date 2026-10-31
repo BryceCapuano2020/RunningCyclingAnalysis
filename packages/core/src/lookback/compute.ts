@@ -1,9 +1,11 @@
-import { dayShiftFor } from '../calendar'
+import { dayShiftFor, WEEK_ORIGIN_MS } from '../calendar'
+import { DAY_MS } from '../constants'
 import { orderedFor } from '../digest/consumers'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
+import { localZoneKey } from '../digest/localDay'
 import { memoByDigests } from '../digestMemo'
 import { fitnessHistories, fitnessStatuses } from '../fitness/compute'
-import { dayOfMs, instantOfDay } from '../fitness/machine'
+import { dayOfMs } from '../fitness/machine'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { hindsightOf, horizonDay } from './hindsight'
 import { milestonesOf } from './milestones'
@@ -26,19 +28,6 @@ export interface LookBack {
   sports: Record<Sport, SportLookBack>
 }
 
-/**
- * The zone the dated body masses' local days are cut in, as the offsets from UTC in January and July of the first and the
- * last year of the library: enough to tell the zones apart that cut it differently, and cheap (the zone's name costs
- * the first caller milliseconds to find).
- */
-const zoneOf = (firstMs: number, nowMs: number): string =>
-  [firstMs, nowMs]
-    .flatMap((ms) => {
-      const year = new Date(ms).getUTCFullYear()
-      return [new Date(year, 0, 1), new Date(year, 6, 1)].map((d) => d.getTimezoneOffset())
-    })
-    .join('|')
-
 const SPORTS: readonly Sport[] = ['run', 'ride']
 
 /** Nothing to say: no library. */
@@ -57,7 +46,7 @@ export interface LookBackInput {
   /** The wall clock, cut to the day by the caller so the memory still hits. */
   nowMs: number
   gate: EstimatedRideGate | null | undefined
-  /** How the zone cuts local days (see `zoneOf`): an answer made in another zone is not taken. */
+  /** How the zone cuts local days (see `localZoneKey`): an answer made in another zone is not taken. */
   zone: string
 }
 
@@ -99,7 +88,8 @@ function yearsOf(digests: ActivityDigest[], input: YearsInput): Years | null {
   })
   return {
     asOfMs,
-    horizonMs: instantOfDay(horizonDay(asOfDay)),
+    // A label on the day clock, read in UTC like the spans it ends.
+    horizonMs: WEEK_ORIGIN_MS + horizonDay(asOfDay) * DAY_MS,
     sports: { run: sport('run'), ride: sport('ride') },
   }
 }
@@ -185,7 +175,7 @@ export function lookBackOf(
     setAside,
     nowMs,
     gate,
-    zone: zoneOf(digests[0]?.startMs ?? nowMs, nowMs),
+    zone: localZoneKey(),
   })
 }
 

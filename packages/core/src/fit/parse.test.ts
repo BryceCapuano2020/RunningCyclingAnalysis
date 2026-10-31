@@ -3,7 +3,7 @@ import type { Activity, Sport } from '../types'
 import { encodeFit } from './encode'
 import { DEFAULT_PARSE_LIMITS } from '../import/result'
 import type { ParseResult } from '../import/result'
-import { generatedName } from '../import/names'
+import { generatedName, withStartTimesWhereShared } from '../import/names'
 import { parseFit } from './parse'
 import { buildFit, secondly } from './fitTestFiles'
 import type { TestRecord } from './fitTestFiles'
@@ -1149,10 +1149,14 @@ describe('parseFit hardening', () => {
     if (!result.ok) throw new Error(result.reason)
     expect(result.activities.map((a) => a.n)).toEqual([3600, 3600])
     expect(result.activities.map((a) => a.startMs)).toEqual([START_MS, second])
-    expect(result.activities.map((a) => a.name)).toEqual([
-      generatedName(START_MS, 'run'),
-      generatedName(second, 'run'),
-    ])
+    // Two legs of one file that fall in the same part of the day (Night, in a zone far east) take their start times.
+    const named = [START_MS, second].map((startMs) => ({
+      startMs,
+      name: generatedName(startMs, 'run'),
+    }))
+    expect(result.activities.map((a) => a.name)).toEqual(
+      withStartTimesWhereShared(named).map((a) => a.name),
+    )
     expect(result.activities[0]?.id).not.toBe(result.activities[1]?.id)
   })
 

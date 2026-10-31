@@ -1,3 +1,4 @@
+import { civilOfDay, localDayOfInstant } from '../calendar'
 import { formatDuration } from '../units/format'
 import { formatPace, formatPower } from '../units'
 import type { UnitSystem } from '../units'
@@ -51,8 +52,8 @@ export const dayMonthYear = (ms: number): string => {
 
 /** "14 May 2021" in the viewer's own zone, for a moment of the wall clock (an import) rather than of a workout. */
 export const localDayMonthYear = (ms: number): string => {
-  const date = new Date(ms)
-  return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`
+  const { year, month, date } = civilOfDay(localDayOfInstant(ms))
+  return `${date} ${MONTHS[month]} ${year}`
 }
 
 /** A stretch of months: "January to April 2020", "November 2019 to February 2020". */

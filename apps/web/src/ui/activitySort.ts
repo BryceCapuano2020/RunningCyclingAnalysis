@@ -1,5 +1,7 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { monthKeyOf } from './activitiesVolume'
+import { localDayOf, startOfDayNumber } from '@rca/core/calendar'
+import type { Dated } from '@rca/core/calendar'
+import { monthKeyOfDay } from './activitiesVolume'
 import { movingTimeOf } from './activityFigures'
 import { formatMonth } from './format/date'
 
@@ -44,15 +46,17 @@ export interface MonthGroup<T> {
 }
 
 /** Runs of items that fall in the same calendar month, in the order given. */
-export function groupByMonth<T extends { startMs: number }>(items: readonly T[]): MonthGroup<T>[] {
+export function groupByMonth<T extends Dated>(items: readonly T[]): MonthGroup<T>[] {
   const groups: MonthGroup<T>[] = []
   for (const item of items) {
-    const key = monthKeyOf(item.startMs)
+    // By local day, as the month totals are keyed, so a row is under the heading whose totals count it.
+    const day = localDayOf(item)
+    const key = monthKeyOfDay(day)
     const last = groups.at(-1)
     if (last?.key === key) {
       last.items.push(item)
     } else {
-      groups.push({ key, label: formatMonth(item.startMs, true), items: [item] })
+      groups.push({ key, label: formatMonth(startOfDayNumber(day), true), items: [item] })
     }
   }
   return groups

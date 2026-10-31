@@ -1,3 +1,4 @@
+import { localYearOf } from '@rca/core/calendar'
 import { formatCount } from '../format/count'
 import { DAILY_LIMITS } from '@rca/contract'
 import type { DeviceIssue, SavedActivity, WorkerResponse } from '../../worker/protocol'
@@ -146,9 +147,8 @@ export function addedSentence(summary: ImportSummary, nowMs = Date.now()): strin
     return `Added ${counts.join(' and ')}, on ${formatDayMonth(firstStartMs, nowMs)}.`
   }
   // The year is shown on both ends when they fall in different years, or when either is not this year.
-  const firstYear = new Date(firstStartMs).getFullYear()
-  const withYear =
-    firstYear !== new Date(lastStartMs).getFullYear() || firstYear !== new Date(nowMs).getFullYear()
+  const firstYear = localYearOf(firstStartMs)
+  const withYear = firstYear !== localYearOf(lastStartMs) || firstYear !== localYearOf(nowMs)
   const first = formatMonth(firstStartMs, withYear)
   const last = formatMonth(lastStartMs, withYear)
   const span = first === last ? `in ${first}` : `from ${first} to ${last}`
