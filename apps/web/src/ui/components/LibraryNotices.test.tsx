@@ -404,3 +404,24 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
     expect(screen.getByRole('region', { name: 'Browser storage problem' })).toBeInTheDocument()
   })
 })
+
+describe('LibraryNotices: the library page', () => {
+  it('leaves out the update and newer-app notices while the library page says them itself', () => {
+    render(
+      <LibraryNotices
+        analysis={analysisStub({
+          state: { outdatedActivities: 2, incompatibleActivities: 1 },
+          outdatedWithOriginal: 2,
+        })}
+        signedIn
+        keepFiles
+        fileRetentionAvailable
+        panelShown
+        onRetry={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Saved activity updates')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Incompatible saved activities')).not.toBeInTheDocument()
+  })
+})

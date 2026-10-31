@@ -27,6 +27,10 @@ describe('coldNoticeFor', () => {
     expect(coldNoticeFor({ route: { page: 'profile' }, ...cold })).toBeNull()
   })
 
+  it('says nothing for a library that is there but holds no result yet', () => {
+    expect(coldNoticeFor({ route: { page: 'run' }, ...cold, libraryPresent: true })).toBeNull()
+  })
+
   it('says nothing while a result is on screen', () => {
     expect(coldNoticeFor({ route: { page: 'run' }, ...cold, hasResult: true })).toBeNull()
   })

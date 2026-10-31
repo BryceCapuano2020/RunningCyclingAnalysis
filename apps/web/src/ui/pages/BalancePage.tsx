@@ -5,6 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { WeeklyVolumeChart } from '../charts'
 import { ShareImageButton } from '../components'
 import { levelBasis } from '../components/headlineNeed'
+import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
@@ -88,7 +89,8 @@ export function BalancePage({
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
   const { calibration } = heartRateJudgement
-  const { pick } = heldPick(result)
+  const hold = useHoldInputs()
+  const { pick } = heldPick(result, hold)
   const basis = useMemo(() => levelBasis(result), [result])
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
