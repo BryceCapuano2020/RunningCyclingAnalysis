@@ -451,11 +451,7 @@ describe('BalancePage age grades', () => {
     expect(screen.queryByRole('link', { name: ROAD_STANDARDS_SOURCE.name })).not.toBeInTheDocument()
   })
 
-  it('says rides are graded through their running equivalent only when a ride grade is shown', () => {
-    const { unmount } = renderPage(GRADED_RUN, {}, MAN_BORN_1986)
-    expect(screen.queryByText(/Rides are graded through/)).not.toBeInTheDocument()
-    unmount()
-
+  it('does not say again how a ride is graded: the ride on foot tile says it, once', () => {
     renderPage(
       makeResult({
         equivalents: [makeEquivalence()],
@@ -464,8 +460,9 @@ describe('BalancePage age grades', () => {
       {},
       MAN_BORN_1986,
     )
+    expect(screen.queryByText(/Rides are graded through/)).not.toBeInTheDocument()
     expect(
-      screen.getByText(/Rides are graded through their running equivalent/),
+      screen.getByText(/takes the same effort as running this pace on the flat/),
     ).toBeInTheDocument()
   })
 
@@ -488,9 +485,6 @@ describe('BalancePage age grades', () => {
     )
     // The ride's grade is held with its card, so nothing graded is on screen to cite a standard for.
     expect(screen.queryByText(/^Graded for a/)).not.toBeInTheDocument()
-    expect(
-      screen.queryByText(/Rides are graded through their running equivalent/),
-    ).not.toBeInTheDocument()
   })
 
   it('shows the standards line only when a grade is shown', () => {
