@@ -32,6 +32,7 @@ import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedFor } from './consumers'
 import { ofSport } from './ordered'
+import { powerCheckOf, trustedPower } from './powerCheck'
 import { powerAt } from './terms'
 import { withoutSetAside } from './trustedHeartRate'
 
@@ -63,7 +64,10 @@ export function centralWkgFromWatts(watts: number, massKg: number): number {
  * it rode at, so a ride from a year ago is not refitted at today's weight.
  */
 export function fitBikeModelOver(ordered: ActivityDigest[], masses: Masses) {
-  const pool = new CalibrationPool(calibratedOf(ordered), (digest) => masses.totalKg(digest))
+  // A ride whose power is set aside is not a calibration of the bike: a wrong meter would bend the fit.
+  const pool = new CalibrationPool(calibratedOf(trustedPower(ordered, masses)), (digest) =>
+    masses.totalKg(digest),
+  )
   return fitBikeModel(pool.stats())
 }
 
@@ -78,6 +82,7 @@ export function ridePriced(
   model: BikeModel,
   standing: EstimatedStanding,
 ): { watts: number; alone: boolean } {
+  if (powerCheckOf(digest, masses) === 'set-aside') return { watts: Number.NaN, alone: false }
   const watts = rideWattsAt(point, masses.totalKg(digest), model)
   const how = standing(point, watts)
   return { watts: how === 'drops' ? Number.NaN : watts, alone: how === 'stands' }
@@ -274,7 +279,7 @@ export function sportCurves(
 ): SportCurves {
   const masses = massesOf(settings)
   const ordered = orderedFor('rideCurves', digests)
-  const rideGate = gate === undefined ? ownRideGate(ordered) : gate
+  const rideGate = gate === undefined ? ownRideGate(trustedPower(ordered, masses)) : gate
   const { runBest, rideBest } = bestCurves(ordered, masses, bikeModel, settings.massKg, rideGate)
   const curves = { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
   if (hardness === undefined) return curves
@@ -318,6 +323,8 @@ export function heartRatePoints(
 ): { runPoints: HrPoint[]; ridePoints: HrPoint[] } {
   const blockMetabolic = (digest: ActivityDigest, block: DigestHrBlock): number => {
     if (digest.sport === 'run') return possibleRunWkg(HR_BLOCK_S, block.value)
+    // A ride whose power is set aside gives no point either: its watts would bend the heart-rate line.
+    if (powerCheckOf(digest, masses) === 'set-aside') return Number.NaN
     const watts =
       block.terms === null ? block.value : powerAt(block.terms, masses.totalKg(digest), bikeModel)
     return centralWkgFromWatts(watts, masses.bodyKg(digest))

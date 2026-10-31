@@ -9,6 +9,7 @@ import { orderedFor } from './consumers'
 import { ofSport } from './ordered'
 import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
+import { trustedPower } from './powerCheck'
 import { fitBikeModelOver, pointWkg, runCentralWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
 import { DEFAULT_WINDOW_DAYS, EFFORT_LENGTHS_S, weekEndMs } from './trendPoints'
@@ -172,7 +173,7 @@ export function fitnessTrend(
   const masses = massesOf(settings)
   const bikeModel = opts.bikeModel ?? fitBikeModelOver(ordered, masses).model
   const standing = estimatedStanding(
-    opts.rideGate === undefined ? ownRideGate(ordered) : opts.rideGate,
+    opts.rideGate === undefined ? ownRideGate(trustedPower(ordered, masses)) : opts.rideGate,
   )
   const readings = mergedByStart(
     runReadings(ofSport(ordered, 'run'), durationS),

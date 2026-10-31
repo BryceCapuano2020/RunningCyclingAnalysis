@@ -76,6 +76,7 @@ const removeRoute = await readStylesheet(
   '../../api/src/routes/activities/remove.ts',
 )
 const measurementStore = await readStylesheet(import.meta.url, './ui/measurementStore.ts')
+const keptPowerStore = await readStylesheet(import.meta.url, './ui/keptPowerStore.ts')
 const measurementRoutes = await readStylesheet(
   import.meta.url,
   '../../api/src/routes/measurements.ts',
@@ -426,6 +427,11 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toMatch(/At most 200\./)
     expect(measurementRoutes).toContain('MAX_MEASUREMENTS_PER_USER')
     expect(apiSchema).toContain("'athlete_measurements'")
+  })
+
+  it('says where the rides whose implausible power was kept are remembered', () => {
+    expect(text).toContain('rca.keepPower.v1')
+    expect(keptPowerStore).toContain("const KEY = 'rca.keepPower.v1'")
   })
 
   it('says when an account was created and when an activity was saved', () => {
