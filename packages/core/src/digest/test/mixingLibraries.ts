@@ -99,7 +99,63 @@ function descentRuns(weeks: number, seed: number): Activity[] {
   return activities
 }
 
-/** The five libraries of the study, built when asked (generating them takes a second or two). */
+/** A steady outdoor run of `n` seconds: a pace that holds, a heart rate that holds, a little of each's wobble. */
+function steadyRun(
+  id: string,
+  startMs: number,
+  n: number,
+  pace: number,
+  rand: () => number,
+): Activity {
+  const speed = Float64Array.from({ length: n }, () => pace * (1 + 0.004 * (rand() - 0.5)))
+  const heartRate = Float64Array.from({ length: n }, () => 150 + Math.round(2 * (rand() - 0.5)))
+  return { ...syntheticActivity({ id, n, speed, heartRate }), name: id, startMs }
+}
+
+/**
+ * Easy runs two a week, and every fourth week a run of 3.5 hours at a steady pace that covers the marathon (E6): the case
+ * where revision 7 keeps a best over 42,195 m and revision 6 did not, so the records and the look-back differ by it.
+ */
+function longRuns(weeks: number, seed: number): Activity[] {
+  const rand = mulberry32(seed)
+  const activities: Activity[] = []
+  for (let week = 0; week < weeks; week++) {
+    for (const [i, day] of [1, 4].entries()) {
+      const startMs = FIRST_MONDAY_MS + (week * 7 + day) * DAY_MS + 7 * 3_600_000
+      activities.push(
+        steadyRun(`long-${week}-${i}`, startMs, 2400, 3.3 * (1 + 0.02 * (rand() - 0.5)), rand),
+      )
+    }
+    if (week % 4 === 3) {
+      const startMs = FIRST_MONDAY_MS + (week * 7 + 6) * DAY_MS + 6 * 3_600_000
+      activities.push(steadyRun(`long-${week}-run`, startMs, 12_600, 3.45, rand))
+    }
+  }
+  return activities
+}
+
+/**
+ * Two years and a half of steady runs, two a week, each with a temperature (a year's swing of 5 to 30 degrees and the
+ * day's wobble) and a pace that loses 4% for each ten degrees over 15, so the warm-day term of fitness (E2) has a
+ * response to find. Revision 6 digests carry no temperature; revision 7 digests do.
+ */
+function warmRuns(weeks: number, seed: number): Activity[] {
+  const rand = mulberry32(seed)
+  const activities: Activity[] = []
+  for (let week = 0; week < weeks; week++) {
+    for (const [i, day] of [1, 4].entries()) {
+      const startMs = FIRST_MONDAY_MS + (week * 7 + day) * DAY_MS + 7 * 3_600_000
+      const dayOfYear = ((week * 7 + day) % 365) / 365
+      const degrees = 17.5 - 12.5 * Math.cos(2 * Math.PI * dayOfYear) + 3 * (rand() - 0.5)
+      const heat = Math.max(0, degrees - 15) / 10
+      const run = steadyRun(`warm-${week}-${i}`, startMs, 1800, 3.4 * Math.exp(-0.04 * heat), rand)
+      activities.push({ ...run, temperature: new Float32Array(run.n).fill(degrees) })
+    }
+  }
+  return activities
+}
+
+/** The libraries of the study, built when asked (generating them takes a few seconds). */
 export function studyLibraries(): StudyLibrary[] {
   return [
     { name: 'season-a', activities: season(90) },
@@ -107,5 +163,7 @@ export function studyLibraries(): StudyLibrary[] {
     { name: 'hilly', activities: terrainRuns('hilly', ['climb', 'rolling'], 30, 11) },
     { name: 'flat', activities: terrainRuns('flat', ['flat'], 30, 12) },
     { name: 'descent', activities: descentRuns(40, 13) },
+    { name: 'long', activities: longRuns(28, 14) },
+    { name: 'warm', activities: warmRuns(130, 15) },
   ]
 }
