@@ -1,5 +1,6 @@
 import type { ActivityDigest, AthleteSettings } from '../types'
 import { orderedFor } from './consumers'
+import { estimatedPowerOver } from './estimatedPower'
 import { massesOf } from './masses'
 import { powerCheckOf } from './powerCheck'
 import { powerHeartRateOf } from './powerEvidence'
@@ -23,12 +24,15 @@ export function activitySummaries(
       const check = masses === null ? undefined : powerCheckOf(digest, masses)
       // A flagged ride gets its own copy; the cached summary is shared and stays as it is.
       if (check === undefined || masses === null) return summary
+      // What the heart rate shows over the effort, for a ride with a meter; what the estimate needs, for one without.
       const heart = powerHeartRateOf(digest, masses.bodyKg(digest), rideReferenceHr)
+      const estimate = estimatedPowerOver(digest, masses)
       return Object.assign(
         {},
         summary,
         { powerCheck: check },
         heart === undefined ? {} : { powerHeartRate: heart },
+        estimate === undefined ? {} : { estimatedPower: estimate },
       )
     })
     .sort((a, b) => b.startMs - a.startMs)

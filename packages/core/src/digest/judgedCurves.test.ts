@@ -24,9 +24,9 @@ const good = (count: number) =>
   Array.from({ length: count }, (_, i) => steady(`s${i}`, i, 0.9 + 0.04 * i))
 /** A ride held above threshold for 10 min at 60 bpm, which the judgement sets aside. */
 const BROKEN = steady('broken', 7, 1.4, 60)
-/** A ride without a power meter that is drafted at 10 min: far more watts than any measured one, at an easy heart rate. */
+/** A ride without a power meter that is drafted at 10 min: far more watts than any measured one, at an easy heart rate (still under what riders hold, which would set it aside anyway). */
 const DRAFTED = ride('drafted', 20, 'virtual', {
-  [HR_SET_ASIDE_MIN_S]: { watts: 600, heartRate: 100 },
+  [HR_SET_ASIDE_MIN_S]: { watts: 480, heartRate: 100 },
 })
 
 describe('the gate when the judgement sets more heart rate aside than the first pass', () => {

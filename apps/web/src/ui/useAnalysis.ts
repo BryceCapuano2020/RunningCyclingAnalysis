@@ -390,6 +390,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     activitySplits: libraryActions.activitySplits,
     rebuildNotice: imports.rebuildNotice,
     rebuildSavedActivities: importActions.rebuildSavedActivities,
+    undoLabels: importActions.undoLabels,
     addFiles: importActions.addFiles,
     loadSample: importActions.loadSample,
     setRange: importActions.setRange,

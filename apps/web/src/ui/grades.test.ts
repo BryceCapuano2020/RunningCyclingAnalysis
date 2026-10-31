@@ -369,17 +369,31 @@ describe('grade parts', () => {
     const gap: GradeOutcome = { kind: 'gap', reason: NO_STANDARD_TEXT }
     expect(gradeParts('ride', ride, 'row').lead).toBeNull()
     expect(gradeParts('ride', ride, 'row').level).toBe('Local')
-    expect(listedGradeNotes('ride', [graded, null])).toEqual([
+    expect(listedGradeNotes('ride', [graded, null], ['20 min', '60 min'])).toEqual([
       'Estimated through its running equivalent',
     ])
-    expect(listedGradeNotes('run', [graded, gap])).toEqual(['No age standard under 1 mile'])
-    expect(listedGradeNotes('ride', [gap])).toEqual(['No age standard for this duration'])
+    expect(listedGradeNotes('run', [graded, gap], ['5 km', '1 km'])).toEqual([
+      'No age standard under 1 mile, for the 1 km',
+    ])
+    expect(listedGradeNotes('ride', [gap], ['5 min'])).toEqual(['No age standard for the 5 min'])
+  })
+
+  it('names which records have no standard, so the note under a list is never read against the wrong row', () => {
+    const graded: GradeOutcome = {
+      kind: 'graded',
+      age: 40,
+      grade: { centre: { grade: 0.8, level: 'Local' }, range: null },
+    }
+    const gap: GradeOutcome = { kind: 'gap', reason: NO_STANDARD_TEXT }
+    expect(listedGradeNotes('ride', [gap, graded, gap], ['3 min', '20 min', '5 min']).at(-1)).toBe(
+      'No age standard for the 3 min and 5 min',
+    )
   })
 
   it('names nothing under a list with no graded ride and no no-standard gap', () => {
-    expect(listedGradeNotes('run', [])).toEqual([])
-    expect(listedGradeNotes('ride', [{ kind: 'gap', reason: NO_DATE_TEXT }])).toEqual([])
-    expect(listedGradeNotes('run', [null])).toEqual([])
+    expect(listedGradeNotes('run', [], [])).toEqual([])
+    expect(listedGradeNotes('ride', [{ kind: 'gap', reason: NO_DATE_TEXT }], ['5 min'])).toEqual([])
+    expect(listedGradeNotes('run', [null], ['1 km'])).toEqual([])
   })
 
   it('keeps the reason of any other gap, and gives no gap for a graded record', () => {
@@ -444,7 +458,7 @@ describe('heroGradeLine', () => {
     expect(heroGradeLine(grade('Local', 0.64))).toBe('Local · 64% on best 20 min')
   })
 
-  it('names a ride with its centre level only, since the card label already says it is estimated', () => {
+  it('names a ride whose range crosses a level with both ends, as the page does', () => {
     const ride: SportGrade = {
       centre: { grade: 0.61, level: 'Recreational' },
       range: {
@@ -452,6 +466,6 @@ describe('heroGradeLine', () => {
         high: { grade: 0.67, level: 'Local' },
       },
     }
-    expect(heroGradeLine(ride)).toBe('Recreational · 61% on best 20 min')
+    expect(heroGradeLine(ride)).toBe('Recreational to Local · 61% on best 20 min')
   })
 })

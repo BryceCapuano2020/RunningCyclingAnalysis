@@ -1,3 +1,4 @@
+import { HALF_MARATHON_M, MARATHON_M } from '../constants'
 import { civilOfDay, localDayOfInstant } from '../calendar'
 import { formatDuration } from '../units/format'
 import { formatPace, formatPower } from '../units'
@@ -169,7 +170,8 @@ export const breakRow = (s: Span): string => `No runs from ${monthsBetween(s.fro
 /** What an effort is called: "5 min", "20 min", "60 min", "5 km", "10 km", "half marathon". */
 export function effortName(effort: EffortMilestones['effort']): string {
   if (effort.kind === 'duration') return `${effort.durationS / 60} min`
-  if (effort.distanceM === 21097.5) return 'half marathon'
+  if (effort.distanceM === MARATHON_M) return 'marathon'
+  if (effort.distanceM === HALF_MARATHON_M) return 'half marathon'
   return `${effort.distanceM / 1000} km`
 }
 
