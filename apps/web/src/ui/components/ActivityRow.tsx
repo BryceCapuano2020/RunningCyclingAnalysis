@@ -15,7 +15,7 @@ import {
 import { materialSkippedCountOf, movingTimeOf, timeLabelOf } from '../activityFigures'
 import { skippedReadingsText } from '../analysis/flagCopy'
 import { powerCheckChip } from '../analysis/powerCheckCopy'
-import { WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
+import { ATHLETE_LABEL_CHIP, WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
 import { formatDay, formatRowDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, isEstimatedRecord } from '../records'
 import { hrefFor } from '../route'
@@ -154,7 +154,11 @@ export function ActivityRow({
           <div className="activity-list__tags">
             {hero?.estimated && <span className="chip">Estimated power</span>}
             {activity.indoor && <span className="chip">Indoor</span>}
-            {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
+            {activity.athleteType !== undefined ? (
+              <span className="chip">{ATHLETE_LABEL_CHIP[activity.athleteType]}</span>
+            ) : (
+              activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>
+            )}
             {power !== null && <span className="chip chip--warning">{power}</span>}
             {noDetail && <span className="chip">No detail</span>}
             {skipped > 0 && (

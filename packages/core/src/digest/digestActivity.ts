@@ -326,6 +326,8 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
         }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
     ...(activity.race === true ? { race: true as const } : {}),
+    // Revision 7: the athlete's own label, when the export's list says the activity is not a run or a ride.
+    ...(seven && activity.athleteType !== undefined ? { athleteType: activity.athleteType } : {}),
     ...(atWalkingPace(seven ? walkingPaceView(activity, moving) : activity, moving, movingS)
       ? { walkingPace: true as const }
       : {}),

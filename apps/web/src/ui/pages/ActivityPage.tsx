@@ -32,7 +32,8 @@ import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
 import { setAsideActivityText } from '../analysis/setAsideCopy'
 import { powerCheckChip } from '../analysis/powerCheckCopy'
-import { WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
+import { ATHLETE_LABEL_CHIP, WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
+import { isAnalysed } from '@rca/core/digest/analysed'
 import { WalkingPaceSection } from '../components/WalkingChoice'
 import type { WalkingChoice } from '../components/WalkingChoice'
 import { ActivityIssues } from './ActivityIssues'
@@ -277,8 +278,12 @@ export function ActivityPage({
           <span>{formatDay(activity.startMs)}</span>
           <span>{formatTimeOfDay(activity.startMs)}</span>
           {activity.indoor && <span className="chip">Indoor</span>}
-          {(activity.walkingPace || walkingChoice?.counted) && (
-            <span className="chip">{WALKING_PACE_CHIP}</span>
+          {activity.athleteType !== undefined ? (
+            <span className="chip">{ATHLETE_LABEL_CHIP[activity.athleteType]}</span>
+          ) : (
+            (activity.walkingPace || walkingChoice?.counted) && (
+              <span className="chip">{WALKING_PACE_CHIP}</span>
+            )
           )}
           {power !== null && <span className="chip chip--warning">{power}</span>}
         </p>
@@ -342,8 +347,12 @@ export function ActivityPage({
       )}
 
       {/* A run at walking pace is outside the analysis unless the athlete counts it, so there are no bests to give. */}
-      <WalkingPaceSection walkingPace={activity.walkingPace === true} choice={walkingChoice} />
-      {activity.walkingPace !== true && (
+      <WalkingPaceSection
+        walkingPace={!isAnalysed(activity)}
+        label={activity.athleteType}
+        choice={walkingChoice}
+      />
+      {isAnalysed(activity) && (
         <ActivityBests
           activity={activity}
           result={result}

@@ -1,5 +1,5 @@
 import { DAY_MS } from '../constants'
-import type { Activity, Sport } from '../types'
+import type { Activity, AthleteType, Sport } from '../types'
 import { routeFromFixes } from '../route/routeShape'
 import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
@@ -12,6 +12,7 @@ import { fileTitle, nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
 import { cleanRecord } from './cleanRecord'
 import { lapsForSegment } from './laps'
+import { athleteTypeFields } from './athleteType'
 import { subtractDistance, unexplainedStart } from './distanceStart'
 
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
@@ -109,6 +110,7 @@ export function activitiesFromUnits(
     nameAt: opts.nameAt,
     sessionKey: opts.sessionKey,
     race: opts.race === true,
+    athleteType: athleteTypeFields(opts),
   }
 
   const outcomes: Outcome[] = []
@@ -157,6 +159,8 @@ interface Context {
   sessionKey?: string
   /** The export tags the file's activities as races. */
   race: boolean
+  /** The athlete's label for the file's activities, when the options or the list type give one. */
+  athleteType: { athleteType?: AthleteType }
 }
 
 /**
@@ -338,6 +342,7 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     ...(route ? { route } : {}),
     ...(sessioned ? { sessionKey: context.sessionKey } : {}),
     ...(context.race ? { race: true as const } : {}),
+    ...context.athleteType,
   }
   return { ok: true, activity, dropped }
 }

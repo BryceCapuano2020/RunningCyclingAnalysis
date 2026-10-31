@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { workoutKey } from '@rca/core/session'
 import { makeActivity } from '../components/fixtures'
 import {
+  ATHLETE_LABEL_CHIP,
   countRunsLabel,
+  labelledNote,
+  labelledText,
   leftOutNote,
   leftOutRuns,
   walkingPaceText,
+  withoutWalking,
   workoutKeyOf,
 } from './walkingPaceCopy'
 
@@ -47,5 +51,32 @@ describe('leftOutRuns', () => {
 
   it('has nothing left out of a library with no walking-pace run', () => {
     expect(leftOutRuns([run, ride])).toEqual({ runs: [], allLeftOut: false })
+  })
+})
+
+describe('activities the athlete labelled', () => {
+  const hike = makeActivity({ id: 'h', athleteType: 'hike' })
+  const both = makeActivity({ id: 'b', athleteType: 'walk', walkingPace: true })
+  const run = makeActivity({ id: 'r' })
+
+  it('are left out of the library the analysis rests on, with those at walking pace', () => {
+    expect(withoutWalking([hike, both, run])).toEqual([run])
+  })
+
+  it('are said apart from the runs left out at walking pace, which the athlete counts by their pace', () => {
+    expect(leftOutRuns([hike, both, run])).toEqual({ runs: [], allLeftOut: false })
+    const walking = makeActivity({ id: 'w', walkingPace: true })
+    expect(leftOutRuns([hike, walking])).toEqual({ runs: [walking], allLeftOut: true })
+  })
+
+  it('have a note under the notices and one on the activity page, naming the label', () => {
+    expect(labelledText(1)).toBe(
+      '1 saved activity is labelled Hike, Walk or another type in your export, so it stays in your activities and is left out of your analysis. Open it to count it as a run or ride.',
+    )
+    expect(labelledText(3)).toMatch(/^3 saved activities are labelled .* they stay .* are left out/)
+    expect(labelledNote('hike')).toBe(
+      'You labelled this activity Hike in your export, so it is left out of your run and ride analysis.',
+    )
+    expect(ATHLETE_LABEL_CHIP.ski).toBe('Ski')
   })
 })
