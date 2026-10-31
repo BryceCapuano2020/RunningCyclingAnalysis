@@ -210,6 +210,44 @@ export function localYearOf(ms: number): number {
 }
 
 /**
+ * The local calendar day of an activity, counted from 1 January 1970: from the shift its file recorded where local
+ * weeks are on, else the day its start falls on in the zone days are cut in.
+ */
+export function localDayOf(item: Dated): number {
+  return localWeeks ? localDayNumber(item) : localDayOfInstant(item.startMs)
+}
+
+/** The year, month (0 to 11) and day of the month a day number is. */
+export function civilOfDay(day: number): { year: number; month: number; date: number } {
+  const date = new Date(day * DAY_MS)
+  return { year: date.getUTCFullYear(), month: date.getUTCMonth(), date: date.getUTCDate() }
+}
+
+/** The day number of a year, month (0 to 11) and day of the month; a month or day out of range rolls over. */
+export function dayOfCivil(year: number, month: number, date: number): number {
+  const at = new Date(0)
+  at.setUTCFullYear(year, month, date)
+  return Math.floor(at.getTime() / DAY_MS)
+}
+
+/** The Monday on or before a day number: weeks start there. */
+export function mondayOnOrBefore(day: number): number {
+  return day - ((((day - MONDAY_DAY_NUMBER) % 7) + 7) % 7)
+}
+
+/** The instant the local day numbered `day` starts. */
+export function startOfDayNumber(day: number): number {
+  if (!localWeeks) {
+    const { year, month, date } = civilOfDay(day)
+    const start = new Date(0)
+    start.setFullYear(year, month, date)
+    start.setHours(0, 0, 0, 0)
+    return start.getTime()
+  }
+  return instantOfLocal(day * DAY_MS, viewerZone)
+}
+
+/**
  * The instant the local time `localMs` (a wall clock read as if it were UTC) happens at in a zone. A zone whose
  * offset differs either side of a clock change is settled by taking the offset at the guess, twice.
  */

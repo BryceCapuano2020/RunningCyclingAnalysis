@@ -1,6 +1,6 @@
 import { DAY_MS } from '../constants'
 import type { CriticalPowerFit, Sport } from '../types'
-import { weekEndMs } from './trendPoints'
+import { weekEndFor } from '../calendar'
 
 /** The trailing window a threshold is fitted over, in weeks: about half a year of the athlete's efforts. */
 export const THRESHOLD_WINDOW_WEEKS = 26
@@ -14,7 +14,7 @@ export const STALE_THRESHOLD_DAYS = 365
  * leaves the window, so a step is kept for those weeks alone. Plain data, so the session can post it.
  */
 export interface ThresholdStep {
-  /** The end of the first week this step holds for (`weekEndMs`), ms. */
+  /** The end of the first week this step holds for (`weekEndFor`), ms. */
   fromMs: number
   /** The threshold of the window, as the analysis reports a fit (a refused fit is null); gross metabolic W/kg. */
   fit: CriticalPowerFit | null
@@ -42,7 +42,7 @@ export interface ThresholdAt {
  * Null when neither exists.
  */
 export function thresholdAt(steps: readonly ThresholdStep[], at: number): ThresholdAt | null {
-  const end = weekEndMs(at)
+  const end = weekEndFor({ startMs: at })
   let low = 0
   let high = steps.length - 1
   let found = -1

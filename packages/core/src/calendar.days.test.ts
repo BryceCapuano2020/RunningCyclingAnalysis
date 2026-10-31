@@ -19,6 +19,8 @@ import { localDateOf, localDayStartMs } from './athlete/measurements'
 import { dayOf, dayStartMs } from './customRange'
 import { ageAt } from './grade/ageGrade'
 import { windowEnding } from './period'
+import { thresholdAt } from './digest/thresholdTimelineTypes'
+import type { ThresholdStep } from './digest/thresholdTimelineTypes'
 
 const at = (y: number, m: number, d: number, h = 0, min = 0, s = 0, ms = 0) =>
   Date.UTC(y, m - 1, d, h, min, s, ms)
@@ -159,5 +161,36 @@ describe('the zone’s key', () => {
 
   it('is the device’s zone name while local weeks are off', () => {
     expect(dayZoneKey()).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  })
+})
+
+describe('thresholdAt', () => {
+  const FIT = { cp: 5 } as unknown as NonNullable<ThresholdStep['fit']>
+  const step = (fromMs: number, fit: ThresholdStep['fit']): ThresholdStep => ({
+    fromMs,
+    fit,
+    asOfMs: null,
+    lastFit: fit === null ? -1 : 0,
+  })
+  // Sunday 8 March 2026, 18:00 at UTC-7 is Monday 9 March 01:00 UTC; the steps start at week ends.
+  const sunday = at(2026, 3, 9) - 1
+  const steps = [step(sunday - 7 * DAY_MS, null), step(sunday, FIT)]
+
+  it('reads the week an instant is in in the viewer’s zone, not the UTC week', () => {
+    const evening = at(2026, 3, 9, 1)
+    // In UTC weeks that Monday 01:00 is the week after, which the second step already holds.
+    expect(thresholdAt([step(sunday + 7 * DAY_MS, FIT)], evening)?.fit).toBe(FIT)
+    withLocalWeeks(true, () => {
+      const before = setViewerZone(fixed(-7))
+      try {
+        // Sunday evening is Sunday's week: the step that starts at that Sunday's end holds.
+        expect(thresholdAt(steps, evening)?.fit).toBe(FIT)
+        // Monday morning there is the next week, which no step covers yet, so the last one holds.
+        expect(thresholdAt(steps, at(2026, 3, 9, 15))?.fit).toBe(FIT)
+        expect(thresholdAt([step(sunday + 7 * DAY_MS, FIT)], evening)).toBeNull()
+      } finally {
+        setViewerZone(before)
+      }
+    })
   })
 })

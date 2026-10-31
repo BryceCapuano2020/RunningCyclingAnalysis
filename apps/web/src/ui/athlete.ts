@@ -1,3 +1,4 @@
+import { localYearOf } from '@rca/core/calendar'
 import { FIRST_GRADED_AGE } from '@rca/core/grade'
 import type { Measurement } from '@rca/core/athlete'
 import type { AthleteSettings } from '@rca/core/types'
@@ -144,7 +145,7 @@ const EARLIEST_BIRTH_YEAR = 1920
  * Birth years the year field accepts: from EARLIEST_BIRTH_YEAR to the year the youngest graded age was
  * born, counted this year. The year is only asked for age grading.
  */
-export function birthYearLimits(thisYear = new Date().getFullYear()): { min: number; max: number } {
+export function birthYearLimits(thisYear = localYearOf(Date.now())): { min: number; max: number } {
   return { min: EARLIEST_BIRTH_YEAR, max: thisYear - FIRST_GRADED_AGE }
 }
 
@@ -157,7 +158,7 @@ const EARLIEST_PLAUSIBLE_BIRTH_YEAR = 1900
  */
 export function isPlausibleBirthYear(
   value: unknown,
-  thisYear = new Date().getFullYear(),
+  thisYear = localYearOf(Date.now()),
 ): value is number {
   return (
     typeof value === 'number' &&
