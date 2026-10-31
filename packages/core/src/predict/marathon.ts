@@ -1,9 +1,7 @@
 import { MARATHON_M, RIEGEL_EXPONENT } from '../constants'
 import { METRES_PER_MILE } from '../units'
-import { fastest, type CarriedTime, type Performance } from './riegel'
-
-/** The shortest race Vickers & Vertosick's runners predicted from: 5 km. */
-const MIN_RACE_M = 5_000
+import { MARATHON_MAX_RATIO } from './reach'
+import { distanceRatio, proximityMean, type CarriedTime, type Performance } from './riegel'
 
 /**
  * Vickers & Vertosick (2016, BMC Sports Sci Med Rehabil 8:26, Additional file 1), model 1: the marathon
@@ -15,18 +13,19 @@ function modelOneSpeed(riegelSpeed: number, weeklyMiles: number): number {
 }
 
 /**
- * The marathon, s, from the race of 5 km or more that implies the fastest, and the runner's typical weekly
- * distance, m. Null without such a race.
+ * The marathon, s, from the bests within MARATHON_MAX_RATIO of its distance (a 10 km or longer), each through the model
+ * and weighted by how near it is (`proximityMean`), and the runner's typical weekly distance, m. Null without such a best.
  */
 export function marathonTime(bests: readonly Performance[], weeklyM: number): CarriedTime | null {
   const weeklyMiles = Math.max(0, weeklyM) / METRES_PER_MILE
-  return fastest(
+  return proximityMean(
     bests
-      .filter((b) => b.distanceM >= MIN_RACE_M)
+      .filter((b) => distanceRatio(b.distanceM, MARATHON_M) <= MARATHON_MAX_RATIO)
       .map((race) => {
         const riegel = race.seconds * (MARATHON_M / race.distanceM) ** RIEGEL_EXPONENT
         const seconds = MARATHON_M / modelOneSpeed(MARATHON_M / riegel, weeklyMiles)
         return { seconds, fromM: race.distanceM }
       }),
+    MARATHON_M,
   )
 }
