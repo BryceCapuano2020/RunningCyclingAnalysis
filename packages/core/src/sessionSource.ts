@@ -61,6 +61,11 @@ export interface SourceImport {
   /** Whether each file's bytes are hashed, which the sink needs. */
   hashFiles: boolean
   /**
+   * The type the export's list gives each file, by the file's name, for the files it names one for (also those not
+   * parsed because the index knows them): what `applyLabels` reads to label the workouts a library already holds.
+   */
+  listedTypes?: Map<string, string>
+  /**
    * The index of files already read, when the caller keeps one. A file it knows is not parsed: see `heldNameOf`.
    */
   held?: HeldFiles
@@ -124,6 +129,7 @@ async function importFile(
   garmin: GarminList | null,
   ctx: SourceImport,
 ): Promise<void> {
+  if (listed?.type !== undefined) ctx.listedTypes?.set(file.fileName, listed.type)
   const sessionKey = await sessionHashOf(file.bytes)
   const id: FileId | null =
     sessionKey === undefined || ctx.held === undefined

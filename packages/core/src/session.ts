@@ -120,6 +120,7 @@ export class AnalysisSession {
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
+    const listedTypes = new Map<string, string>()
     const listeners: ActivityListeners = { kept: onActivity, replaced: onReplaced }
     try {
       for (const [index, source] of sources.entries()) {
@@ -132,6 +133,7 @@ export class AnalysisSession {
           read,
           unsupported: this.unsupported,
           hashFiles: sink !== undefined,
+          listedTypes,
           held,
           heldNameOf: (keys) => this.heldNameOf(keys, sink !== undefined),
           consider: (activity, file) =>
@@ -153,7 +155,13 @@ export class AnalysisSession {
       .map(([, digest]) => digest)
     const visible = analysable.filter((digest) => !hidden.has(digest))
     const files = sortRead(read, new Set([...added, ...upgraded]), visible)
-    onComplete?.({ ...outcome, ...files, added, upgraded })
+    onComplete?.({
+      ...outcome,
+      ...files,
+      added,
+      upgraded,
+      ...(listedTypes.size === 0 ? {} : { listedTypes }),
+    })
     return this.state(settings)
   }
 

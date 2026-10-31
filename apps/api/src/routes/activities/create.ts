@@ -27,6 +27,7 @@ import {
 } from './shared.ts'
 import { databaseSoftLimitBytes } from '../../databaseGuard.ts'
 import { requireCurrentRevision } from './revisionCheck.ts'
+import { keepStoredLabel } from './storedLabel.ts'
 import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
@@ -190,7 +191,8 @@ async function upgradeExisting(
   // A matching source file can be re-digested after a model change. The update only applies
   // while the stored revision is older, so simultaneous retries cannot downgrade the digest.
   const upgraded = await upgradeDigest(c, userId, existing, {
-    digestJson: input.digestJson,
+    // The athlete's own label, set since the file was read, is kept (storedLabel.ts).
+    digestJson: keepStoredLabel(existing.digestJson, input.digest, input.digestJson),
     digestVersion: input.digest.version,
     name: input.digest.name,
     modelRevision: input.digest.modelRevision,

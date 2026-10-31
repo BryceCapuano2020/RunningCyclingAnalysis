@@ -1,4 +1,4 @@
-import { strToU8, zipSync } from 'fflate'
+import { gzipSync, strToU8, zipSync } from 'fflate'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity, serializeDigest } from '@rca/core/digest'
@@ -67,6 +67,7 @@ vi.mock('../api/client', async (importOriginal) => {
     listActivities: vi.fn(),
     deleteActivity: vi.fn(),
     uploadFile: vi.fn(),
+    patchLabels: vi.fn(),
   }
 })
 
@@ -3249,5 +3250,43 @@ describe('a kept library changed by another tab', () => {
     const reloaded = await send({ type: 'loadDevice', settings: SETTINGS, reload: true })
 
     expect(reloaded.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
+  })
+})
+
+describe('an import of an export whose list labels activities the account holds', () => {
+  /** An export of one run, which the list calls a hike. */
+  function hikeExport(): File {
+    const csv = strToU8(
+      'Activity ID,Activity Name,Activity Type,Filename\n1,Lunch,Hike,activities/1.fit.gz\n',
+    )
+    return new File(
+      [
+        new Uint8Array(
+          zipSync({
+            'activities/1.fit.gz': gzipSync(RUN_FILE_BYTES),
+            'activities.csv': csv,
+          }),
+        ),
+      ],
+      'export.zip',
+    )
+  }
+
+  it('sends no label while the labels are off, and reads the type of the file as it always did', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({
+      type: 'addFiles',
+      files: [hikeExport()],
+      settings: SETTINGS,
+      sync: { userId: USER_ID, keepFiles: false },
+    })
+    expect(mocked.patchLabels).not.toHaveBeenCalled()
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'state', outcome: { activities: 1 } })
+    expect(reply).not.toHaveProperty('outcome.labelled')
+    // The digest saved is the one main made: no label below revision 7.
+    expect(mocked.createActivity.mock.calls[0]?.[0]).not.toHaveProperty('athleteType')
   })
 })

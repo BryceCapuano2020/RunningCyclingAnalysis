@@ -15,6 +15,8 @@ export interface ImportCompletion {
   added: ActivityDigest[]
   /** The digests that replaced a workout held out of the analysis by an older model: not new, so never a new best. */
   upgraded: ActivityDigest[]
+  /** The type the export's list gives each file it names one for, by file name. Absent when the import read no list. */
+  listedTypes?: ReadonlyMap<string, string>
 }
 
 /**
