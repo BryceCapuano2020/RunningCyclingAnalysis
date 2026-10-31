@@ -253,22 +253,36 @@ describe('PATCH /api/activities/labels', () => {
       expect(big.status).toBe(413)
     })
 
-    it('carries the same app_outdated pre-check as a create, before anything is read or charged', async () => {
+    it('refuses a revision that is not a whole number from 1 as invalid, before anything is charged', async () => {
       const h = createHarness()
       const { token, userId } = await account(h)
       const id = await seed(h, userId)
-      for (const revision of [1, MODEL_REVISION - 1]) {
-        const res = await patch(h, token, [change(id, null, 'walk', revision)])
-        expect(res.status).toBe(409)
-        expect(await res.json()).toMatchObject({ error: { code: 'app_outdated' } })
-      }
-      // An entry with no usable revision counts as revision 1, as it does for a create.
-      for (const revision of [undefined, 1.5, 'six', null]) {
-        const odd = await patch(h, token, [{ id, revision, from: null, athleteType: 'walk' }])
-        expect(odd.status, String(revision)).toBe(409)
+      for (const revision of [0, -1, 1.5, 'six', null, undefined]) {
+        const res = await patch(h, token, [{ id, revision, from: null, athleteType: 'walk' }])
+        expect(res.status, String(revision)).toBe(400)
       }
       expect((await stored(h, id)).athleteType).toBeUndefined()
       expect(await profileWrites(h)).toBe(0)
+    })
+
+    it('lets the revision check decide a stale claim: a miss if the row moved, a hit if it did not', async () => {
+      const h = createHarness()
+      const { token, userId } = await account(h)
+      const moved = await seed(h, userId)
+      const unmoved = await seed(h, userId, MODEL_REVISION - 1)
+      const res = await patch(h, token, [
+        change(moved, null, 'walk', MODEL_REVISION - 1),
+        change(unmoved, null, 'walk', MODEL_REVISION - 1),
+      ])
+      expect(await res.json()).toEqual({
+        applied: 1,
+        skipped: 0,
+        refused: 0,
+        missed: [{ id: moved, revision: MODEL_REVISION, athleteType: null }],
+      })
+      expect((await stored(h, unmoved)).athleteType).toBe('walk')
+      const sizes = await bytes(h, userId)
+      expect(sizes.counter).toBe(sizes.actual)
     })
 
     it('counts one profile-write unit a request, and answers 429 when the day is spent', async () => {
@@ -284,6 +298,68 @@ describe('PATCH /api/activities/labels', () => {
       expect(res.status).toBe(429)
       expect((await stored(h, id)).athleteType).toBeUndefined()
     })
+  })
+
+  it('keeps the counter equal to the real bytes after hits, misses, refusals and skips in one request', async () => {
+    const h = createHarness()
+    const mine = await account(h)
+    const other = await account(h, 'other@example.com')
+    const a = await seed(h, mine.userId)
+    const b = await seed(h, mine.userId, MODEL_REVISION, 'ski')
+    const c = await seed(h, mine.userId, MODEL_REVISION, 'hike')
+    const d = await seed(h, mine.userId, MODEL_REVISION - 1)
+    const e = await seed(h, mine.userId)
+    const f = await seed(h, mine.userId)
+    const theirs = await seed(h, other.userId)
+    // A value that is not a label sits in one row; it must read as a change, never as a refusal.
+    await h.env.DB.prepare(
+      `UPDATE activities SET digest_json = json_set(digest_json, '$.athleteType', 'cat') WHERE id = ?`,
+    )
+      .bind(f)
+      .run()
+    await h.env.DB.prepare(
+      'UPDATE users SET digest_bytes = (SELECT sum(length(CAST(digest_json AS BLOB))) FROM activities WHERE user_id = ?) WHERE id = ?',
+    )
+      .bind(mine.userId, mine.userId)
+      .run()
+    const start = await bytes(h, mine.userId)
+    expect(start.counter).toBe(start.actual)
+    // At the cap: changes that shrink or stay are admitted, and a growing one after them is refused.
+    await h.env.DB.prepare('UPDATE users SET digest_bytes = ? WHERE id = ?')
+      .bind(MAX_DIGEST_BYTES_PER_USER, mine.userId)
+      .run()
+    const res = await patch(h, mine.token, [
+      change(b, 'ski', null), // hit, shrinks
+      change(c, 'hike', 'ski'), // hit, same size
+      change(a, null, 'other'), // refused: grows at the cap
+      change(d, null, 'walk'), // revision miss
+      change(e, 'walk', 'hike'), // label miss
+      change(f, null, 'walk'), // the stored value is not a label: a miss
+      change(theirs, null, 'walk'), // skipped
+    ])
+    expect(await res.json()).toEqual({
+      applied: 2,
+      skipped: 1,
+      refused: 1,
+      missed: [
+        { id: d, revision: MODEL_REVISION - 1, athleteType: null },
+        { id: e, revision: MODEL_REVISION, athleteType: null },
+        { id: f, revision: MODEL_REVISION, athleteType: null },
+      ],
+    })
+    const end = await bytes(h, mine.userId)
+    const counter = await h.env.DB.prepare('SELECT digest_bytes AS n FROM users WHERE id = ?')
+      .bind(mine.userId)
+      .first<{ n: number }>()
+    // The counter moved by exactly what the rows changed by.
+    expect(counter!.n - MAX_DIGEST_BYTES_PER_USER).toBe(end.actual - start.actual)
+    const theirSizes = await bytes(h, other.userId)
+    expect(theirSizes.counter).toBe(theirSizes.actual)
+    // Nothing is left marked.
+    const leftover = await h.env.DB.prepare(
+      `SELECT count(*) AS n FROM activities WHERE digest_json LIKE '%pending:%'`,
+    ).first<{ n: number }>()
+    expect(leftover!.n).toBe(0)
   })
 
   describe('the byte cap', () => {

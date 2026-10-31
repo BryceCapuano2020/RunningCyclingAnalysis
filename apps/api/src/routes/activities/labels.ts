@@ -12,12 +12,11 @@ import { databaseSoftLimitBytes } from '../../databaseGuard.ts'
 import { invalidRequest, limitBody } from '../../http.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
 import { recordDatabaseSize } from '../../storage.ts'
-import { requireCurrentLabelRevisions } from './revisionCheck.ts'
 import { readJsonBody } from './shared.ts'
 
 const LABEL_BODY_BYTES = 64 * 1024
 
-/** Changes sent to D1 in one batch. Each is two statements, so a batch is 50. */
+/** Changes sent to D1 in one batch. Each is three statements, so a batch is 75. */
 const CHANGES_PER_BATCH = 25
 
 /** D1 binds at most 100 values to one statement. */
@@ -35,32 +34,51 @@ const DELTA = `(length(CAST(${NEXT_JSON} AS BLOB)) - length(CAST(digest_json AS 
 
 /**
  * The row a change applies to: the account's own, still holding the model revision (?4) and the label
- * (?5, empty for none) the client read. One fragment, so the counter and the row cannot disagree.
+ * (?5, empty for none) the client read.
  */
 const SAME_ROW = `id = ?2 AND user_id = ?3 AND json_valid(digest_json)
     AND coalesce(json_extract(digest_json, '$.modelRevision'), 1) = ?4
     AND coalesce(json_extract(digest_json, '$.athleteType'), '') = ?5`
 
 /**
- * First of a change's two statements: moves the account's digest counter by the change's size, but only
- * for the row above, while the account is open, and a change that grows the digest only while the account
- * is under its cap and the database under its soft limit. It reads the text before the row changes.
+ * A change is three statements in one D1 batch, which commits or rolls back whole. The first marks the
+ * row: it writes a pending label that records the row's size before the change. The marker is what the
+ * other two read, so each is conditioned on the state the first left, not on a count of rows changed. A
+ * legitimate label is one of four words, so no stored value looks like the marker.
  */
-const RESERVE = `UPDATE users
-  SET digest_bytes = digest_bytes + (SELECT ${DELTA} FROM activities WHERE ${SAME_ROW})
-  WHERE id = ?3 AND deleting_at IS NULL
-    AND EXISTS (
-      SELECT 1 FROM activities WHERE ${SAME_ROW}
-        AND (${DELTA} <= 0 OR (
-          users.digest_bytes + ${DELTA} <= ?6
-          AND coalesce((SELECT d1_size_bytes FROM r2_storage_budget WHERE id = 1), 0) <= ?7)))`
+const PENDING = 'pending:'
+const IS_MARKED = `json_valid(digest_json)
+    AND substr(coalesce(json_extract(digest_json, '$.athleteType'), ''), 1, ${PENDING.length}) = '${PENDING}'`
 
 /**
- * Second: writes the label, but only if the statement before it moved the counter (`changes()` is the rows
- * that one changed), so the row and the counter move together or not at all.
+ * 1. Marks the row, but only the row above, while the account is open, and a change that grows the digest
+ * only while the account is under its cap and the database under its soft limit. It reads the counter
+ * before anything has moved it.
  */
-const APPLY = `UPDATE activities SET digest_json = ${NEXT_JSON}
-  WHERE id = ?2 AND user_id = ?3 AND changes() = 1`
+const MARK = `UPDATE activities
+  SET digest_json = json_set(digest_json, '$.athleteType',
+    '${PENDING}' || length(CAST(digest_json AS BLOB)))
+  WHERE ${SAME_ROW}
+    AND EXISTS (SELECT 1 FROM users WHERE id = ?3 AND deleting_at IS NULL)
+    AND (${DELTA} <= 0 OR (
+      (SELECT digest_bytes FROM users WHERE id = ?3) + ${DELTA} <= ?6
+      AND coalesce((SELECT d1_size_bytes FROM r2_storage_budget WHERE id = 1), 0) <= ?7))`
+
+/**
+ * 2. Moves the counter by the size the row will have once the label is written, less the size the marker
+ * recorded. It does nothing unless the row is marked.
+ */
+const COUNT = `UPDATE users
+  SET digest_bytes = digest_bytes + (
+    SELECT length(CAST(${NEXT_JSON} AS BLOB))
+      - CAST(substr(json_extract(digest_json, '$.athleteType'), ${PENDING.length + 1}) AS INTEGER)
+    FROM activities WHERE id = ?2 AND user_id = ?3 AND ${IS_MARKED})
+  WHERE id = ?3
+    AND EXISTS (SELECT 1 FROM activities WHERE id = ?2 AND user_id = ?3 AND ${IS_MARKED})`
+
+/** 3. Writes the label over the marker, or removes the key. Again only a marked row. */
+const WRITE = `UPDATE activities SET digest_json = ${NEXT_JSON}
+  WHERE id = ?2 AND user_id = ?3 AND ${IS_MARKED}`
 
 /** The rows a lookup finds: what a missed change's row holds now. */
 interface HeldRow {
@@ -105,7 +123,6 @@ export const labelRoutes = new Hono<AppEnv>()
 labelRoutes.patch('/labels', limitBody(LABEL_BODY_BYTES), requireUser, async (c) => {
   const userId = currentUser(c).id
   const body = await readJsonBody(c.req.raw, LABEL_BODY_BYTES)
-  requireCurrentLabelRevisions(body)
   const parsed = ActivityLabelsSchema.safeParse(body)
   if (!parsed.success) return c.json(invalidRequest(parsed.error), 400)
   const { labels } = parsed.data
@@ -120,7 +137,7 @@ labelRoutes.patch('/labels', limitBody(LABEL_BODY_BYTES), requireUser, async (c)
     const group = labels.slice(start, start + CHANGES_PER_BATCH)
     const results = await c.env.DB.batch(
       group.flatMap((change) => [
-        c.env.DB.prepare(RESERVE).bind(
+        c.env.DB.prepare(MARK).bind(
           change.athleteType,
           change.id,
           userId,
@@ -129,11 +146,12 @@ labelRoutes.patch('/labels', limitBody(LABEL_BODY_BYTES), requireUser, async (c)
           MAX_DIGEST_BYTES_PER_USER,
           softLimit,
         ),
-        c.env.DB.prepare(APPLY).bind(change.athleteType, change.id, userId),
+        c.env.DB.prepare(COUNT).bind(change.athleteType, change.id, userId),
+        c.env.DB.prepare(WRITE).bind(change.athleteType, change.id, userId),
       ]),
     )
     group.forEach((change, index) => {
-      if (results[2 * index + 1]?.meta.changes === 1) applied++
+      if (results[3 * index + 2]?.meta.changes === 1) applied++
       else unapplied.push(change)
     })
     sizeAfter = results.at(-1)?.meta.size_after ?? sizeAfter
@@ -154,7 +172,11 @@ labelRoutes.patch('/labels', limitBody(LABEL_BODY_BYTES), requireUser, async (c)
   for (const change of unapplied) {
     const row = held.get(change.id)
     if (row === undefined) result.skipped++
-    else if (row.revision === change.revision && labelOf(row.athleteType) === change.from) {
+    else if (
+      row.revision === change.revision &&
+      // The raw stored value, so something that is not a label reads as a change, not a refusal.
+      (row.athleteType ?? '') === (change.from ?? '')
+    ) {
       result.refused++
     } else {
       result.missed.push({
