@@ -43,8 +43,7 @@ const END_SPAN = 0.15
 /** The first power tried when a ride's watts are bracketed, and how many times it doubles to reach a speed. */
 const FIRST_WATTS = 100
 const MAX_DOUBLINGS = 16
-/** The pace is named on a 5 s step, and the watts on a 5 W step. */
-const PACE_STEP_S = 5
+/** The watts are named on a 5 W step; a pace is named to the whole second, as the page names every pace. */
 const WATTS_STEP = 5
 
 /** Rounds up to the next multiple of step. */
@@ -214,22 +213,47 @@ const AT_TODAYS_MASS: Record<Sport, (own: number, rideKg: number, todayKg: numbe
 /** Whether a sport's own number depends on body mass: a ride's watts do, a run's pace does not. */
 const MASS_DEPENDENT: Record<Sport, boolean> = { run: false, ride: true }
 
-/** A pace, m/s, taken at the faster whole 5 s, so the rounded pace reaches the target. */
-function levelledSpeed(speedMs: number, units: UnitSystem): number {
-  const seconds = paceSeconds(speedMs, units)
-  const levelled = Math.max(PACE_STEP_S, floorTo(seconds, PACE_STEP_S))
-  return speedMs * (seconds / levelled)
+/**
+ * What a rounded target has to reach: the higher sport's whole-percent grade, over the headline duration, for the
+ * athlete the lower sport is graded as.
+ */
+export interface Reach {
+  wholePercent: number
+  durationS: number
+  athlete: TargetAthlete
+}
+
+/** The most whole seconds a pace is moved faster to reach its grade: the nearest second is within one of it. */
+const MAX_PACE_STEPS = 3
+
+/**
+ * A pace, m/s, named to the nearest whole second, as the Ride on foot tile names the same pace, and the
+ * faster second where the nearer one would grade a whole percent short.
+ */
+function namedPace(speedMs: number, units: UnitSystem, reach: Reach): number {
+  const metres = paceSeconds(1, units)
+  const { wholePercent, durationS, athlete } = reach
+  const reaches = (seconds: number) =>
+    wholeGrade(ageGradeForEffort(metres / seconds, durationS, athlete.age, athlete.sex) ?? 0) >=
+    wholePercent
+  let seconds = Math.max(1, Math.round(paceSeconds(speedMs, units)))
+  for (let step = 0; step < MAX_PACE_STEPS && seconds > 1 && !reaches(seconds); step++) seconds -= 1
+  return metres / seconds
 }
 
 /**
- * A target rounded toward the side that levels, in the sport's own unit: a run's pace is taken at the
- * faster whole 5 s, and a ride's centre watts up to the next 5 W. The range's low end rounds down and its
+ * A target named as the page names it, in the sport's own unit: a run's pace to the whole second, nearest the exact
+ * pace its grade needs (so it reads as the pace the tile gives the same effort), and held a second faster when
+ * that would fall a whole percent short; a ride's centre watts up to the next 5 W. The range's low end rounds down and its
  * high end rounds up, so the rounded range still holds the centre. Whole-percent grades floor, so a
  * figure rounded the other way could leave the balance a percent short of level.
  */
-const LEVELLED: Record<Sport, (range: NativeRange, units: UnitSystem) => NativeRange> = {
-  run: (range, units) => {
-    const pace = levelledSpeed(range.centre, units)
+const LEVELLED: Record<
+  Sport,
+  (range: NativeRange, units: UnitSystem, reach: Reach) => NativeRange
+> = {
+  run: (range, units, reach) => {
+    const pace = namedPace(range.centre, units, reach)
     return { low: pace, centre: pace, high: pace }
   },
   ride: (range) => ({
@@ -240,13 +264,23 @@ const LEVELLED: Record<Sport, (range: NativeRange, units: UnitSystem) => NativeR
 }
 
 /** The range rounded toward the side that levels: see LEVELLED. */
-export function levelledRange(sport: Sport, range: NativeRange, units: UnitSystem): NativeRange {
-  return LEVELLED[sport](range, units)
+export function levelledRange(
+  sport: Sport,
+  range: NativeRange,
+  units: UnitSystem,
+  reach: Reach,
+): NativeRange {
+  return LEVELLED[sport](range, units, reach)
 }
 
 /** The centre of a single figure, rounded toward the side that levels: see LEVELLED. */
-export function levelledNative(sport: Sport, native: number, units: UnitSystem): number {
-  return levelledRange(sport, { low: native, centre: native, high: native }, units).centre
+export function levelledNative(
+  sport: Sport,
+  native: number,
+  units: UnitSystem,
+  reach: Reach,
+): number {
+  return levelledRange(sport, { low: native, centre: native, high: native }, units, reach).centre
 }
 
 /**
@@ -256,7 +290,7 @@ export function levelledNative(sport: Sport, native: number, units: UnitSystem):
 const SHOWN_TEXT: Record<Sport, (levelled: NativeRange, now: string, units: UnitSystem) => string> =
   {
     run: (levelled, now, units) =>
-      `a flat pace of about ${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]} (now ${now})`,
+      `a flat pace of ${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]} (now ${now})`,
     ride: (levelled, now) =>
       `about ${formatWatts(levelled.centre)} W (roughly ${formatWatts(levelled.low)} to ${formatWatts(levelled.high)} W; now ${now})`,
   }
@@ -286,6 +320,16 @@ const RANGE_TEXT: Record<Sport, (levelled: NativeRange) => string> = {
 
 /** The best effort as a noun in a sentence: "your best run", "your best ride". */
 const BEST_NOUN: Record<Sport, string> = { run: 'run', ride: 'ride' }
+
+/**
+ * The grade the inverse is worked out at, for the lower sport: a run's is the higher grade exactly, so the pace is the one the
+ * Ride on foot tile names for the same effort (that tile's pace is what the ride's grade is read from); a ride's is the whole
+ * percent, since its watts are named up to the next 5 W and a whole percent is all the page says of the run.
+ */
+const INVERSE_GRADE: Record<Sport, (exact: number, whole: number) => number> = {
+  run: (exact) => exact,
+  ride: (_, whole) => whole,
+}
 
 /** The sport the balance does not lean toward: the one a level target is named for. */
 const OTHER_SPORT: Record<Sport, Sport> = { run: 'ride', ride: 'run' }
@@ -354,7 +398,12 @@ export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   // would itself be flagged at: the same ceiling that holds a ride's grade down holds the target down.
   const ceiling = gradeCeiling(HEADLINE_DURATION_S, athlete.age, sex)
   if (target > 1 || (ceiling !== null && beyondCeiling(lower, target, ceiling))) return null
-  const needed = nativeRangeAtGrade(lower, target, HEADLINE_DURATION_S, athlete)
+  const needed = nativeRangeAtGrade(
+    lower,
+    INVERSE_GRADE[lower](higherGrade.grade.centre.grade, target),
+    HEADLINE_DURATION_S,
+    athlete,
+  )
   const curve = curveOf(result, lower)
   const shown = OWN_OF_CURVE[lower](valueAt(curve, HEADLINE_DURATION_S))
   // A ride held at another weight is compared at today's, as the target is; every other effort is as shown.
@@ -364,7 +413,12 @@ export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   const reweighted = MASS_DEPENDENT[lower] && rideKg !== undefined && rideKg !== massKg
   const now = reweighted ? AT_TODAYS_MASS[lower](shown, rideKg, massKg) : shown
   if (needed === null || !Number.isFinite(now)) return null
-  const levelled = levelledRange(lower, needed, units)
+  const reach = {
+    wholePercent: wholeGrade(higherGrade.grade.centre.grade),
+    durationS: HEADLINE_DURATION_S,
+    athlete,
+  }
+  const levelled = levelledRange(lower, needed, units, reach)
   if (!BEYOND_SHOWN[lower](levelled.centre, now, units)) return null
   const level = `To grade level with your ${SPORT_NOUN[higher]} at ${HEADLINE_LABEL}`
   // The figure the page shows for the ride stays the one named, with today's weight beside it when it differs.
