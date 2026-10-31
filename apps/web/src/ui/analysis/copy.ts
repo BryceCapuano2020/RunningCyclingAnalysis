@@ -90,11 +90,29 @@ export function limitedSentence(
   return `${formatCount(count)} ${noun} not updated. Try again later.`
 }
 
+/** What the page says when an update ended early, by the reason the worker gave. */
+const UPDATE_STOPPED: Record<NonNullable<RebuildOutcome['stopped']>, string> = {
+  breaker:
+    'The update stopped after several activities in a row could not be updated. Try again later.',
+  outdated:
+    'The update stopped. This version of the app is out of date; reload the page to update it.',
+  newer:
+    'The update stopped. Some activities were saved by a newer version of the app; reload the page to get it.',
+  refused: 'The update stopped. The server did not accept an updated activity. Try again later.',
+  paused: 'The update paused so your other change could finish. Press Update now to continue.',
+  elsewhere: 'Another tab is updating your activities. Wait for it to finish.',
+  discarded:
+    'The update was set aside because your library changed. Press Update now to start again.',
+}
+
 /** The notice after a rebuild: what was rebuilt, and what was not, and why. */
 export function rebuildNoticeText(outcome: RebuildOutcome): string {
+  // Nothing was tried here, so there is no count to give.
+  if (outcome.stopped === 'elsewhere') return UPDATE_STOPPED.elsewhere
   const notice = [
     `Updated ${formatCount(outcome.rebuilt)} saved ${outcome.rebuilt === 1 ? 'activity' : 'activities'}.`,
   ]
+  if (outcome.stopped !== undefined) notice.push(UPDATE_STOPPED[outcome.stopped])
   if (outcome.missing > 0) {
     notice.push(
       `${formatCount(outcome.missing)} original ${outcome.missing === 1 ? 'file is' : 'files are'} missing or could not be matched; add ${outcome.missing === 1 ? 'that original file' : 'those original files'} again.`,

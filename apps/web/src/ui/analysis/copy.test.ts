@@ -145,6 +145,24 @@ describe('rebuildNoticeText', () => {
     )
   })
 
+  it('says why an update ended early, after what it did', () => {
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 12, stopped: 'breaker' })).toBe(
+      'Updated 12 saved activities. The update stopped after several activities in a row could not be updated. Try again later.',
+    )
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 1, stopped: 'outdated' })).toContain(
+      'reload the page to update it',
+    )
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 1, stopped: 'paused' })).toContain(
+      'Press Update now to continue',
+    )
+  })
+
+  it('gives no count when another tab holds the update', () => {
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, stopped: 'elsewhere' })).toBe(
+      'Another tab is updating your activities. Wait for it to finish.',
+    )
+  })
+
   it('adds the limited sentence last', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(

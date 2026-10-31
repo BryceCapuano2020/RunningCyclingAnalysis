@@ -16,7 +16,14 @@ import { outdatedWithOriginal } from './outdatedOriginals'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
-import { beginRequest, noteWork, stamped } from './workerWire'
+import {
+  beginRequest,
+  noteArrival,
+  noteStart,
+  noteWork,
+  stamped,
+  waitingToChangeLibrary,
+} from './workerWire'
 import { accountScope, clearCheckinScope } from './checkinStore'
 import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
@@ -65,6 +72,7 @@ const device = deviceActions(
   async (activityId) => workbench.remove({ kind: 'device' }, activityId),
   () => workbench.watchDevice(),
 )
+const view = newWorkerView()
 const libraryContext: LibraryContext = {
   session,
   device,
@@ -77,11 +85,16 @@ const libraryContext: LibraryContext = {
   captureTrace: async (activity: Activity, userId: string) => {
     await workbench.capture(activity, { kind: 'account', userId })
   },
+  stamp: () => {
+    const { libraryEpoch, activeScope } = view
+    // A load or a clear moves the epoch, and a load for another user replaces the scope.
+    return () => view.libraryEpoch === libraryEpoch && view.activeScope === activeScope
+  },
+  waitingToChange: waitingToChangeLibrary,
 }
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
-const view = newWorkerView()
 const importContext: ImportRunContext = {
   session,
   post,
@@ -125,6 +138,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return session.setSettings(request.settings)
     }
     case 'loadSample':
+      view.libraryEpoch++
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
@@ -134,6 +148,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       session.choosePeriod(periodChoiceOf(request.choice))
       return session.loadSample(request.settings, view.sampleClock)
     case 'loadServer':
+      view.libraryEpoch++
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
@@ -161,12 +176,14 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await device.report()
         return session.setSettings(request.settings)
       }
+      view.libraryEpoch++
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
+      view.libraryEpoch++
       provisionalItems.clear()
       view.showingSample = false
       workbench.clearMemory()
@@ -274,7 +291,9 @@ function reportUnreadable(count: number) {
 let queue: Promise<void> = Promise.resolve()
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const requestId = (event.data as Partial<WireRequest>).requestId
+  noteArrival(event.data.type)
   queue = queue.then(async () => {
+    noteStart(event.data.type)
     const endRequest = beginRequest(requestId, (message) => self.postMessage(message))
     try {
       if (event.data.type === 'addFiles') {
