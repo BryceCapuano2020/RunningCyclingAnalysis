@@ -150,7 +150,9 @@ export function mergeLevels(
     out = withCores(
       runs,
       sigma,
-      out.map((level) => (level.core === undefined ? level : { ...level, core: undefined })),
+      out.map((level) =>
+        level.core === undefined ? level : Object.assign({}, level, { core: undefined }),
+      ),
     )
   }
 }
