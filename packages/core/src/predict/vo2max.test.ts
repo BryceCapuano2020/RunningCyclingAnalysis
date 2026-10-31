@@ -178,9 +178,11 @@ describe('the share ramp', () => {
     expect(vo2maxFromHeartRate(light(2, 170), REFERENCE, (p) => p.value)).not.toBeNull()
     // Under the line counts for nothing, whatever their number.
     expect(vo2maxFromHeartRate(light(6, 169), REFERENCE, (p) => p.value)).toBeNull()
-    // The same two runs in full give the same estimate as two light ones at the same pace and heart rate share.
-    const old = vo2maxFromHeartRate(light(2, 180), REFERENCE, (p) => p.value)
-    expect(old?.runs).toBe(2)
+    // Two runs of the same pace and heart rate share give one estimate, whatever they weigh: equal weights, one value.
+    const same = (bpm: number) => vo2maxFromHeartRate(light(2, bpm), REFERENCE, (p) => p.value)
+    expect(same(171)?.runs).toBe(2)
+    expect(same(171)?.vo2max).toBeCloseTo(oxygenCost(240) / (((171 / 200) * 100 - 37) / 64), 6)
+    expect(same(180)?.vo2max).toBeCloseTo(AT_90, 6)
   })
 
   it('counts as its runs every one at or over the line, so “on N hard runs” is the old count', () => {

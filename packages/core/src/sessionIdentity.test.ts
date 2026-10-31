@@ -138,8 +138,8 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * days, does not move.
  *
  * Re-pinned for the VO2max share ramp (D6c, RCA-005). Only the 400-activity library moves, and only `result` (16 hashes: the four settings
- * under every period): `runVo2max`, which the heart-rate VO2max now takes as a weighted median over runs, a window counting from nothing at
- * 85% of the reference heart rate to in full at 90%, where it counted in full from 85%. Every other field of both libraries is as it was, and
+ * under every period): `runVo2max`, which the heart-rate VO2max now takes as a weighted median over runs, a window counting for half at
+ * 85% of the reference heart rate and in full at 90%, where it counted in full from 85%. Every other field of both libraries is as it was, and
  * the set-aside library does not move.
  *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one

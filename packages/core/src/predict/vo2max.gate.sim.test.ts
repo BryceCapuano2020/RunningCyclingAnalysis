@@ -16,13 +16,13 @@ import { VO2MAX_SHARE_ZERO } from './vo2maxShare'
  * level: the same trailing 12 weeks the default period holds, moved a week at a time. What matters is how far the estimate
  * jumps from one week to the next, how far the ramp sits from the old gate, and how many weeks gain or lose an estimate.
  *
- * Measured (4 personas x 6 seeds x 52 weeks, 984 weekly reads; jumps are |ln change| between consecutive weeks):
- * - old gate: median 0, p90 2.7%, max 22.6% (738 jumps);
- * - ramp:     median 0, p90 2.6%, max 29.2% (738 jumps);
- * - ramp against old gate, same week: median 0.5%, p90 2.6%, max 11.6% (780 weeks);
+ * Measured (4 personas x 6 seeds x 52 weeks, 984 weekly reads; jumps are |ln change| between consecutive weeks, all in %):
+ * - old gate: median 0, p90 2.7, max 22.6 (738 jumps);
+ * - ramp:     median 0, p90 2.5, max 25.6 (738 jumps);
+ * - ramp against the old gate, same week: median 0.4, p90 1.9, max 9.9 (780 weeks);
  * - weeks that gain or lose an estimate: 0 and 0 (the ramp keeps the old rule: two runs at or over the line).
  * The largest jump, in the old gate and the ramp alike, is one treadmill-heavy library (seed 4): few outdoor runs, so an
- * estimate rests on two or three and one leaving the window moves it. The next largest ramp jump is 10.7%.
+ * estimate rests on two or three and one leaving the window moves it. The next largest ramp jump is 13.9.
  */
 
 const OLD_GATE = (share: number) => (share >= VO2MAX_SHARE_ZERO ? 1 : 0)
@@ -106,6 +106,8 @@ describe('the heart-rate VO2max gate on generated libraries', () => {
       worst: worst.sort((a, b) => b.jump - a.jump).slice(0, 5),
     }
     expect(report.ramp.p90).toBeLessThanOrEqual(report.old.p90)
+    // The one library with a large jump has it under either gate; the ramp may add a little, not a lot.
+    expect(report.ramp.max).toBeLessThanOrEqual(report.old.max * 1.25)
     expect(report.gained).toBe(0)
     expect(report.lost).toBe(0)
   }, 600_000)
