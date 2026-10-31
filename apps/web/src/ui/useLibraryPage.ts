@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { partialHold } from './analysis/importIncompleteCopy'
 import { libraryKnowledgeOf } from './analysis/libraryKnowledge'
 import type { LibraryKnowledge } from './analysis/libraryKnowledge'
 import { holdOf } from './resultHold'
@@ -32,9 +33,19 @@ export function useLibraryPage(
   })
   const stale = state.outdatedActivities
   const newer = state.incompatibleActivities
+  // The one hold for a library known to be only part of what was added (the notice's "Use what I have" lifts it).
+  const incomplete = analysis.incompleteImport
+  const partial = incomplete === null ? null : partialHold(incomplete)
+  const partialText = partial?.text
+  const partialAction = partial?.action
   const holdInputs = useMemo<HoldInputs>(
-    () => ({ updating: { knowledge, stale, newer } }),
-    [knowledge, stale, newer],
+    () => ({
+      updating: { knowledge, stale, newer },
+      ...(partialText === undefined || partialAction === undefined
+        ? {}
+        : { partialImport: { text: partialText, action: partialAction } }),
+    }),
+    [knowledge, stale, newer, partialText, partialAction],
   )
   const hold = holdOf(state.result, holdInputs)
   const page = libraryPageOf({

@@ -1,4 +1,5 @@
-import { instantOfDay } from '../fitness/machine'
+import { WEEK_ORIGIN_MS } from '../calendar'
+import { DAY_MS } from '../constants'
 import type { WeekRecord } from '../fitness/machine'
 import { fitSeason, withoutSeason } from '../fitness/season'
 import { pointOf } from '../fitness/series'
@@ -9,12 +10,14 @@ import { liveEpisodes } from './live'
 import type { WeekEpisode, WeekSpan } from './episodes'
 import { LOOKBACK } from './params'
 import { quietLevels } from './quiet'
+import { sig, sigRanged } from './round'
 import { segmentLevels, sigmaOver } from './segments'
 import type { Level, Segmented } from './segments'
 import type { HindsightEpisode, HindsightFitness, Plateau, Span, TooShort } from './types'
 
 const L = LOOKBACK
-const msOfWeek = (week: number) => instantOfDay(week * 7)
+// A week boundary on the day clock, a label read in UTC (monthYear): the local week's own date, in any zone.
+const msOfWeek = (week: number) => WEEK_ORIGIN_MS + week * 7 * DAY_MS
 const spanOf = (s: WeekSpan): Span => ({ fromMs: msOfWeek(s.fromWeek), toMs: msOfWeek(s.toWeek) })
 
 /** What a sport's years are read from. */
@@ -117,10 +120,10 @@ const dated = (e: WeekEpisode): HindsightEpisode => ({
   kind: e.kind,
   fromMs: msOfWeek(e.fromWeek),
   toMs: e.toWeek === null ? null : msOfWeek(e.toWeek),
-  change: e.change,
-  regained: e.regained,
-  remaining: e.remaining,
-  z: e.z,
+  change: sigRanged(e.change),
+  regained: sigRanged(e.regained),
+  remaining: sigRanged(e.remaining),
+  z: sig(e.z, 4),
   steps: e.steps,
   runs: e.runs,
 })
@@ -167,7 +170,7 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
   const quiet = quietLevels(levels, runs, sigma, [...breaks, ...thin]).map(({ index, within }) => ({
     fromMs: msOfWeek(levels[index]!.fromWeek),
     toMs: msOfWeek(levels[index]!.toWeek),
-    within,
+    within: sig(within, 4),
     runs: levels[index]!.n,
   }))
   const quietCut = longest(quiet, L.caps.spans)
@@ -179,9 +182,9 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
     return {
       fromMs: msOfWeek(l.fromWeek),
       toMs: msOfWeek(l.toWeek),
-      value: point.value,
-      low: point.low,
-      high: point.high,
+      value: sig(point.value, 4),
+      low: sig(point.low, 4),
+      high: sig(point.high, 4),
       runs: l.n,
     }
   }

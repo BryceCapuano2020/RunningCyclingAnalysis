@@ -3,7 +3,9 @@ import type { ExtractLimits, FitFile, RangedSource } from './fit'
 import { ACTIVITY } from './fit/zipDirectory'
 import { parseActivityFile } from './import'
 import { listedFor, listedOnly, readActivityList } from './import/activitiesCsv'
+import { sportOfType } from './import/sportType'
 import type { ListedActivity } from './import/activitiesCsv'
+import type { Companion } from './import/looseList'
 import { readGarminList } from './import/garminList'
 import type { GarminList } from './import/garminList'
 import { fileNameOf, isSameWorkout, workoutKey } from './duplicates'
@@ -47,7 +49,12 @@ export interface SourceImport {
    * were read is in `read`, and `rejected` counts exactly the files in `refused` and the unreadable
    * formats.
    */
-  outcome: { activities: number; rejected: number; notActivities: number }
+  outcome: {
+    activities: number
+    rejected: number
+    notActivities: number
+    listedAsOtherSport?: number
+  }
   /**
    * The refused files, in the order they were refused, shared by the import. Every refusal is listed,
    * including two files of one name. A file read cleanly takes back the refusals of its own source
@@ -58,8 +65,21 @@ export interface SourceImport {
   read: ReadFile[]
   /** The activity files the sources hold in formats the app does not read, which are counted, not listed. */
   unsupported: { files: number }
+  /** The files in a format the app does not read, by extension (lowercase, no dot), which the import adds to. */
+  skippedTypes?: Record<string, number>
+  /** The export's list given loose beside its files, which names the loose files (a zip's own list names its own). */
+  companion?: Companion | null
+  /** Set when a loose file was refused for want of a sport that a list could have given: see `needsList`. */
+  hints?: { needsList: boolean }
+  /** The source is a file given by itself (not a zip), as the list's files are when it is given loose. */
+  loose?: boolean
   /** Whether each file's bytes are hashed, which the sink needs. */
   hashFiles: boolean
+  /**
+   * The type the export's list gives each file, by the file's name, for the files it names one for (also those not
+   * parsed because the index knows them): what `applyLabels` reads to label the workouts a library already holds.
+   */
+  listedTypes?: Map<string, string>
   /**
    * The index of files already read, when the caller keeps one. A file it knows is not parsed: see `heldNameOf`.
    */
@@ -89,6 +109,10 @@ export async function sessionHashOf(bytes: Uint8Array): Promise<string | undefin
 /** Lists a refused file, and counts it. */
 function reject(ctx: SourceImport, fileName: string, rejection: Rejection): void {
   const { reason, code, detail, listed } = rejection
+  // A loose file that names no sport may be a run or ride in the export's list. One that names a sport (a hike) is
+  // refused for it, and no list changes that.
+  if (ctx.hints !== undefined && ctx.loose === true && ctx.companion == null && code === 'no-sport')
+    ctx.hints.needsList = true
   ctx.refused.push({ source: ctx.source, file: { fileName, reason, code, detail, listed } })
   ctx.outcome.rejected++
 }
@@ -124,6 +148,7 @@ async function importFile(
   garmin: GarminList | null,
   ctx: SourceImport,
 ): Promise<void> {
+  if (listed?.type !== undefined) ctx.listedTypes?.set(file.fileName, listed.type)
   const sessionKey = await sessionHashOf(file.bytes)
   const id: FileId | null =
     sessionKey === undefined || ctx.held === undefined
@@ -156,6 +181,12 @@ async function importFile(
     const imported = { fileName: file.fileName, fileHash, bytes: file.bytes }
     const result: ReadFile = { fileName: file.fileName, added: [], held: [] }
     for (const activity of parsed.activities) {
+      // The file says what sport it is and wins; a list that names the other one is counted, and said.
+      const listedSport =
+        listed?.type === undefined ? null : sportOfType(undefined, undefined, listed.type).sport
+      if (listedSport !== null && listedSport !== activity.sport) {
+        ctx.outcome.listedAsOtherSport = (ctx.outcome.listedAsOtherSport ?? 0) + 1
+      }
       const considered = await ctx.consider(activity, imported)
       if ('added' in considered) result.added.push(considered.added)
       else result.held.push(considered.held)
@@ -225,7 +256,16 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   }
   const summary = await extractFitFiles(
     source,
-    (file) => importFile(file, listedFor(list?.files, file.fileName), garmin, ctx),
+    (file) => {
+      ctx.companion?.note(file.fileName)
+      return importFile(
+        file,
+        listedFor(list?.files, file.fileName) ??
+          (ctx.loose === true ? ctx.companion?.lookup(file.fileName) : undefined),
+        garmin,
+        ctx,
+      )
+    },
     (fileName, rejection) => {
       undecodable++
       reject(ctx, fileName, rejection)
@@ -234,6 +274,10 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
     },
     extractLimits,
     listed,
+    (extension) => {
+      if (ctx.skippedTypes !== undefined)
+        ctx.skippedTypes[extension] = (ctx.skippedTypes[extension] ?? 0) + 1
+    },
   )
   takeBack(ctx, ctx.read.slice(filesBefore))
   // An archive that stops early, or loses an entry, reports nothing for the files it did not

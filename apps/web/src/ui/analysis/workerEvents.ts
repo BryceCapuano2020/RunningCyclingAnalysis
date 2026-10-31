@@ -21,10 +21,13 @@ const UNREADABLE_LIMIT = 3
  * not replace the worker.
  */
 export function useWorkerEvents(deps: WorkerEventDeps): void {
-  const { workerGeneration } = deps.transport
+  const { workerGeneration, workerWanted } = deps.transport
   const latest = useLatest(deps)
 
   useEffect(() => {
+    // A first visit has no worker until a request needs one (see useWorkerTransport). Nothing was
+    // created here, so there is nothing to clean up, and the account passes keep their state.
+    if (!workerWanted) return
     const generation = workerGeneration
     const { transport, previousStatusRef, previousUserIdRef } = latest()
     const { workerRef } = transport
@@ -88,6 +91,16 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         current.library.setOutbox({ pending: left, saved, failed, finished })
         // What was saved is in the account, not yet in the library on screen: read it again.
         if (finished && saved > 0) current.reloadLibrary()
+        return
+      }
+      if (message.type === 'deviceOffer') {
+        const { adoptable, again, held } = message
+        current.library.setDeviceOffer({ adoptable, again, held })
+        return
+      }
+      if (message.type === 'adoption') {
+        const { saved, conflicts, failed, again, held } = message
+        current.library.setAdoption({ saved, conflicts, failed, again, held })
         return
       }
       if (message.type === 'missingOriginals') {
@@ -178,7 +191,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       previousStatusRef.current = 'loading'
       previousUserIdRef.current = null
     }
-  }, [workerGeneration, latest])
+  }, [workerGeneration, workerWanted, latest])
 }
 
 /**

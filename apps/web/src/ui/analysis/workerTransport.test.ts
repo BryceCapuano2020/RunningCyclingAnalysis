@@ -14,7 +14,7 @@ function setup() {
   const onDropped = vi.fn()
   const setError = vi.fn()
   const hook = renderHook(() =>
-    useWorkerTransport({ pendingRepliesRef, onSend, onDropped, setError }),
+    useWorkerTransport({ pendingRepliesRef, onSend, onDropped, setError, startWorker: () => true }),
   )
   return { ...hook, pendingRepliesRef, setError, onDropped }
 }
@@ -123,6 +123,7 @@ function renderTransport() {
       onSend: vi.fn(),
       onDropped: vi.fn(),
       setError: vi.fn(),
+      startWorker: () => true,
     }),
   )
 }
@@ -167,6 +168,7 @@ describe('useWorkerTransport: an import already sent when the analysis is droppe
         onSend: vi.fn(),
         onDropped: vi.fn(),
         setError: vi.fn(),
+        startWorker: () => true,
       }),
     )
     const posted: unknown[] = []

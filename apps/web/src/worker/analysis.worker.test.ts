@@ -1,4 +1,4 @@
-import { strToU8, zipSync } from 'fflate'
+import { gzipSync, strToU8, zipSync } from 'fflate'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity, serializeDigest } from '@rca/core/digest'
@@ -67,6 +67,7 @@ vi.mock('../api/client', async (importOriginal) => {
     listActivities: vi.fn(),
     deleteActivity: vi.fn(),
     uploadFile: vi.fn(),
+    patchLabels: vi.fn(),
   }
 })
 
@@ -93,10 +94,12 @@ vi.mock('./outbox', async (importOriginal) => {
           digest,
           fileName,
           fileHash,
+          fromDevice,
         }: {
           digest: Parameters<typeof serializeDigest>[0]
           fileName: string
           fileHash: string
+          fromDevice?: boolean
         }) => {
           const key = `${digest.sport}-${Math.round(digest.startMs / 1000)}`
           mine.set(key, {
@@ -109,6 +112,7 @@ vi.mock('./outbox', async (importOriginal) => {
             fileName,
             fileHash,
             attempts: 0,
+            ...(fromDevice === true ? { fromDevice } : {}),
           })
         },
         done: async (key: string, digestId?: string) => {
@@ -207,7 +211,7 @@ function gpxFile(name = 'run.gpx'): File {
 beforeEach(() => {
   vi.resetModules()
   vi.useRealTimers()
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   limits.maxFileBytes = 50 * 1024 * 1024
   kept.library = null
   outboxRows.clear()
@@ -514,22 +518,27 @@ describe('analysis worker', () => {
   })
 
   it('reports a storage allowance failure and does not retry remaining original uploads', async () => {
-    mocked.uploadFile.mockRejectedValueOnce(
+    mocked.uploadFile.mockRejectedValue(
       new ApiRequestError(429, 'storage_budget_exhausted', 'Storage allowance reached'),
     )
     const { send } = await startWorker()
     const messages = await send({
       type: 'addFiles',
-      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      files: [
+        fitFile(sampleActivity, 'run-a.fit'),
+        fitFile(secondSampleActivity, 'run-b.fit'),
+        fitFile(thirdSampleActivity, 'run-c.fit'),
+      ],
       settings: SETTINGS,
       sync: { keepFiles: true, userId: USER_ID },
     })
 
-    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
-    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(mocked.createActivity).toHaveBeenCalledTimes(3)
+    // Originals are uploaded once the import is read, two at a time: the third waits, and finds the allowance spent.
+    expect(mocked.uploadFile).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-budget', count: 2 }], totalActivities: 2 },
+      state: { syncIssues: [{ code: 'storage-budget', count: 3 }], totalActivities: 3 },
     })
   })
 
@@ -565,7 +574,6 @@ describe('analysis worker', () => {
       type: 'state',
       state: { syncIssues: [{ code: 'file-too-large', count: 1 }], totalActivities: 1 },
     })
-    expect(messages).not.toContainEqual(expect.objectContaining({ uploaded: 1 }))
   })
 
   it('counts a failed save and still finishes the import', async () => {
@@ -1008,7 +1016,8 @@ describe('analysis worker', () => {
 
   it('lists the library newest first, with ties ordered by id', async () => {
     const older = { ...SAMPLE_DIGEST, id: 'older', startMs: SAMPLE_DIGEST.startMs - 86_400_000 }
-    const tieB = { ...SAMPLE_DIGEST, id: 'tie-b' }
+    // Two activities that start together are one workout unless they are of different sports.
+    const tieB = { ...SAMPLE_DIGEST, id: 'tie-b', sport: 'ride' as const }
     const tieA = { ...SAMPLE_DIGEST, id: 'tie-a' }
     mocked.listActivities.mockResolvedValue([recordFor(older), recordFor(tieB), recordFor(tieA)])
     const { send } = await startWorker()
@@ -1747,6 +1756,7 @@ function refusingLibrary(): DeviceLibrary {
     route: async () => null,
     put: refused,
     backfillFile: refused,
+    removeIfDigest: refused,
     // Storage the browser does not offer holds nothing, and so has no epoch to move.
     epoch: async () => 0,
     remove: refused,
@@ -2961,6 +2971,364 @@ describe('a reply carries its request number, and nothing follows it', () => {
   })
 })
 
+describe('rule R: near-copies of one workout in the worker', () => {
+  /** The same workout as the first sample activity, a few seconds later: another second, so another stored row. */
+  const COPY_ACTIVITY: Activity = { ...sampleActivity, startMs: sampleActivity.startMs + 4_000 }
+  const copyFile = () => new File([new Uint8Array(encodeGpx(COPY_ACTIVITY))], 'copy.gpx')
+  const FIT_DIGEST = digestActivity({ ...sampleActivity, id: 'a.fit' })
+  const GPX_DIGEST = digestActivity({ ...COPY_ACTIVITY, id: 'copy.gpx' })
+  const records = [recordFor(FIT_DIGEST), recordFor(GPX_DIGEST)]
+
+  async function loadedAccount() {
+    mocked.listActivities.mockResolvedValue(records)
+    const started = await startWorker()
+    const loaded = await started.send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    return { ...started, loaded }
+  }
+
+  it('lists, counts and reports the shown copy only, though both are stored', async () => {
+    const { loaded } = await loadedAccount()
+
+    const list = loaded.find((message) => message.type === 'libraryActivities')
+    expect(list).toMatchObject({ activities: [{ id: records[0]!.id }] })
+    // Neither has an original, and only the shown one is missed.
+    expect(loaded).toContainEqual({ type: 'missingOriginals', count: 1 })
+    expect(loaded.at(-1)).toMatchObject({
+      type: 'state',
+      state: { totalActivities: 1, hiddenDuplicates: 1 },
+    })
+  })
+
+  it('stores both copies of a signed-in import, and lists one', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      saved: 2,
+      state: { totalActivities: 1, hiddenDuplicates: 1 },
+    })
+  })
+
+  it('deletes the whole group of copies when the one shown is deleted', async () => {
+    const { send } = await loadedAccount()
+    mocked.deleteActivity.mockResolvedValue(undefined)
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: records[0]!.id,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(mocked.deleteActivity.mock.calls.map(([id]) => id).sort()).toEqual(
+      records.map((record) => record.id).sort(),
+    )
+    expect(messages).toContainEqual({ type: 'libraryActivities', activities: [] })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+  })
+
+  it('deletes nothing of the group, and keeps it, when the server refuses the first delete', async () => {
+    const { send } = await loadedAccount()
+    mocked.deleteActivity.mockRejectedValue(new ApiRequestError(503, 'unavailable', 'Try later'))
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: records[0]!.id,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(mocked.deleteActivity).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+  })
+
+  it('leaves the hidden copy out of the export', async () => {
+    const { send } = await loadedAccount()
+    mocked.listActivities.mockImplementation(async (_since, _userId, _onUnreadable, onPage) => {
+      onPage?.(records)
+      return []
+    })
+
+    const messages = await send({
+      type: 'exportData',
+      userId: USER_ID,
+      account: { name: 'Ada', email: 'ada@example.com' },
+      profile: {
+        massKg: 75,
+        bikeMassKg: 9,
+        units: 'metric',
+        keepFiles: false,
+        birthYear: null,
+        sex: null,
+        updatedAt: 1,
+      },
+    })
+
+    const reply = messages.at(-1)
+    if (reply?.type !== 'exportReady') throw new Error('expected an export')
+    const text = await reply.file.text()
+    expect(text).toContain(records[0]!.id)
+    expect(text).not.toContain(records[1]!.id)
+  })
+
+  it('counts a copy only among the digests the analysis reads: a stale FIT hides nothing', async () => {
+    const stale = digestActivity({ ...sampleActivity, id: 'old.fit' })
+    const staleRecord = recordFor({ ...stale, modelRevision: 1 })
+    const current = recordFor(GPX_DIGEST)
+    mocked.listActivities.mockResolvedValue([staleRecord, current])
+    const { send } = await startWorker()
+    const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const list = loaded.find((message) => message.type === 'libraryActivities')
+    // The stale one is held out of the analysis, so the current GPX is not a copy of it: both are listed.
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    expect(list.activities.map((activity) => activity.id).sort()).toEqual(
+      [current.id, staleRecord.id].sort(),
+    )
+    mocked.listActivities.mockImplementation(async (_since, _userId, _onUnreadable, onPage) => {
+      onPage?.([staleRecord, current])
+      return []
+    })
+    const exported = await send({
+      type: 'exportData',
+      userId: USER_ID,
+      account: { name: 'Ada', email: 'ada@example.com' },
+      profile: {
+        massKg: 75,
+        bikeMassKg: 9,
+        units: 'metric',
+        keepFiles: false,
+        birthYear: null,
+        sex: null,
+        updatedAt: 1,
+      },
+    })
+    const reply = exported.at(-1)
+    if (reply?.type !== 'exportReady') throw new Error('expected an export')
+    const text = await reply.file.text()
+    expect(text).toContain(staleRecord.id)
+    expect(text).toContain(current.id)
+  })
+
+  it('takes the members already deleted out of the list and the session when a later delete fails', async () => {
+    const third = recordFor(
+      digestActivity({ ...sampleActivity, id: 'c.tcx', startMs: sampleActivity.startMs + 8_000 }),
+    )
+    mocked.listActivities.mockResolvedValue([...records, third])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    mocked.deleteActivity
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new ApiRequestError(503, 'unavailable', 'Try later'))
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: records[0]!.id,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+    // The first was deleted at the server, so it is gone from what the page lists; the others are still there.
+    const list = messages.findLast((message) => message.type === 'libraryActivities')
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    const listed = list.activities.map((activity) => activity.id)
+    expect(listed).not.toContain(records[0]!.id)
+    expect(mocked.deleteActivity).toHaveBeenCalledTimes(2)
+    // And the session no longer holds it: the two left are copies of each other, one shown.
+    const next = await send({ type: 'setSettings', settings: SETTINGS })
+    expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
+  })
+
+  it.each([
+    ['the FIT first', ['fit', 'copy']],
+    ['the copy first', ['copy', 'fit']],
+  ] as const)(
+    'keeps one original, the shown copy’s, whichever file comes %s',
+    async (_name, order) => {
+      mocked.listActivities.mockResolvedValue([])
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const files = order.map((which) =>
+        which === 'fit' ? fitFile(sampleActivity, 'a.fit') : copyFile(),
+      )
+
+      const messages = await send({
+        type: 'addFiles',
+        files,
+        settings: SETTINGS,
+        sync: { keepFiles: true, userId: USER_ID },
+      })
+
+      // Both digests are stored; the original is uploaded for the FIT, which the analysis shows, and not for the GPX.
+      expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+      expect(mocked.uploadFile).toHaveBeenCalledOnce()
+      const [id] = mocked.uploadFile.mock.calls[0] ?? []
+      const fit = mocked.createActivity.mock.calls.find(([digest]) => digest.id.endsWith('a.fit'))
+      expect(id).toBe(`rec-${fit?.[0].id}`)
+      expect(messages.at(-1)).toMatchObject({
+        type: 'state',
+        state: { syncIssues: [], totalActivities: 1, hiddenDuplicates: 1 },
+      })
+    },
+  )
+
+  it('says an original failed to upload for the shown copy, once the import is read', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    mocked.uploadFile.mockRejectedValue(new ApiRequestError(403, 'storage_quota', 'Storage full'))
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
+    })
+  })
+
+  it('lists a stale FIT kept in this browser beside a current GPX: neither is a copy of the other', async () => {
+    const { send } = await startWorker()
+    const stale = { ...digestActivity({ ...sampleActivity, id: 'old.fit' }), modelRevision: 1 }
+    await kept.library!.put(workoutKeyOf(stale), stale)
+    await kept.library!.put(workoutKeyOf(GPX_DIGEST), GPX_DIGEST)
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const list = messages.find((message) => message.type === 'libraryActivities')
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    expect(list.activities).toHaveLength(2)
+  })
+
+  it('takes the copies already removed from this browser out of the session when a later removal fails', async () => {
+    const { send } = await startWorker()
+    const added = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+    const listed = added.filter((message) => message.type === 'libraryActivities').at(-1)
+    if (listed?.type !== 'libraryActivities') throw new Error('no list')
+    const library = kept.library!
+    const removing = library.remove.bind(library)
+    let removals = 0
+    library.remove = async (key) => {
+      if (++removals === 2) throw new Error('storage refused')
+      return removing(key)
+    }
+
+    const messages = await send({
+      type: 'deleteDeviceActivity',
+      id: listed.activities[0]!.id,
+      settings: SETTINGS,
+    })
+
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+    expect((await library.all()).length).toBe(1)
+    const next = await send({ type: 'setSettings', settings: SETTINGS })
+    // The one removed is out of the session; the one left is the only one it holds, shown.
+    expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 0 } })
+  })
+
+  it('lists one copy kept in this browser, and deletes the whole group with it', async () => {
+    const { send } = await startWorker()
+
+    const added = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+    expect(added.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
+    expect((await kept.library?.all())?.length).toBe(2)
+    const listed = added.filter((message) => message.type === 'libraryActivities').at(-1)
+    if (listed?.type !== 'libraryActivities') throw new Error('no list')
+    expect(listed.activities).toHaveLength(1)
+
+    const removed = await send({
+      type: 'deleteDeviceActivity',
+      id: listed.activities[0]!.id,
+      settings: SETTINGS,
+    })
+
+    expect(await kept.library?.all()).toEqual([])
+    expect(removed.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+  })
+})
+
+describe('an import that skips files in a format the app does not read', () => {
+  it('names the formats in its outcome, with the count it always gave', async () => {
+    const { send } = await startWorker()
+    const zip = zipSync({
+      'run.fit': new Uint8Array(RUN_FILE_BYTES),
+      'a.pwx': strToU8('x'),
+      'b.pwx': strToU8('x'),
+      'c.kml': strToU8('x'),
+    })
+
+    const messages = await send({
+      ...signedOutImport(new File([new Uint8Array(zip)], 'export.zip')),
+    })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 3, skippedTypes: { pwx: 2, kml: 1 } },
+      state: { unsupportedFiles: 3 },
+    })
+  })
+})
+
+describe('files given with the export’s activities.csv', () => {
+  it('are read with the sport and name the list gives, and the list is neither refused nor read as an activity', async () => {
+    const { send } = await startWorker()
+    const untyped = new TextDecoder()
+      .decode(encodeGpx(sampleActivity))
+      .replace(/<type>[^<]*<\/type>/, '')
+    const list = new File(
+      [
+        'Activity ID,Activity Name,Activity Type,Filename\n1,Morning Run,Run,activities/run.gpx\n2,Gone,Ride,activities/gone.gpx\n',
+      ],
+      'activities.csv',
+    )
+
+    const messages = await send(signedOutImport(new File([untyped], 'run.gpx')))
+    const withList = await send({
+      ...signedOutImport(new File([untyped], 'run.gpx')),
+      files: [list, new File([untyped], 'run.gpx')],
+    } as WorkerRequest)
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 1, needsList: true },
+    })
+    const reply = withList.at(-1)
+    expect(reply).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 0, listed: { named: 2, received: 1 } },
+    })
+    expect(reply).not.toMatchObject({ outcome: { needsList: true } })
+  })
+})
+
 describe('a signed-in import saves its activities side by side', () => {
   /** A zip of short runs, a day apart, so none is a copy of another. */
   const base: Activity = sampleActivity!
@@ -3202,6 +3570,174 @@ describe('the saves an earlier visit left in the outbox', () => {
   })
 })
 
+describe('what the browser kept before sign-in, offered to the account', () => {
+  const FILE = { fileName: 'run.fit', fileHash: 'a'.repeat(64) }
+  const SECOND_DIGEST = digestActivity(secondSampleActivity)
+
+  async function keptOne(digest: ActivityDigest, file: typeof FILE | null = FILE) {
+    if (kept.library === null) throw new Error('the worker did not open the device library')
+    await kept.library.put(workoutKeyOf(digest), digest, null, file)
+  }
+
+  it('tells the page what the kept library holds, apart from the request, once the account loads', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await keptOne(SECOND_DIGEST, null)
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual({ type: 'deviceOffer', adoptable: 1, again: 1, held: 0 }),
+    )
+    expect(posted.filter((m) => m.type === 'deviceOffer').every((m) => !('during' in m))).toBe(true)
+  })
+
+  it('says nothing when the kept library is empty', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(posted.some((m) => m.type === 'deviceOffer')).toBe(false)
+  })
+
+  it('adds the kept activities to the account, removes them from the kept library and reads the library again', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await keptOne(SECOND_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    // The account lists what was added once it is read again.
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST), recordFor(SECOND_DIGEST)])
+
+    const messages = await send({ type: 'adoptDevice', userId: USER_ID, settings: SETTINGS })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(mocked.createActivity).toHaveBeenCalledWith(
+      SAMPLE_DIGEST,
+      'run.fit',
+      'a'.repeat(64),
+      USER_ID,
+    )
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'adoption',
+        saved: 2,
+        conflicts: 0,
+        failed: 0,
+        again: 0,
+        held: 0,
+      }),
+    )
+    expect(await kept.library?.all()).toEqual([])
+    expect(messages).toContainEqual({ type: 'deviceHolds', holds: false })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 2 } })
+    expect(posted.filter((m) => m.type === 'outbox')).toEqual([])
+    expect(outboxRows.get(USER_ID)?.size).toBe(0)
+  })
+
+  it('finishes an Add that a reload cut short: the saved activity leaves the kept library too', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await keptOne(SECOND_DIGEST)
+    // An Add queued both and stopped before sending: the rows wait in the outbox, marked as kept activities.
+    const mine = new Map<string, unknown>()
+    outboxRows.set(USER_ID, mine)
+    for (const digest of [SAMPLE_DIGEST, SECOND_DIGEST]) {
+      const key = workoutKeyOf(digest)
+      mine.set(key, {
+        id: `${USER_ID}|${key}`,
+        userId: USER_ID,
+        key,
+        digestId: digest.id,
+        seq: mine.size,
+        digestJson: serializeDigest(digest),
+        fileName: 'run.fit',
+        fileHash: 'a'.repeat(64),
+        attempts: 0,
+        fromDevice: true,
+      })
+    }
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
+    )
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(await kept.library?.all()).toEqual([])
+  })
+
+  it('leaves the kept copy of an activity an ordinary import saved alone', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect((await kept.library?.all())?.length).toBe(1)
+  })
+
+  it('adds nothing from a tab whose account another tab is already writing for', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (_name: string, _options: object, callback: (lock: null) => unknown) =>
+          callback(null),
+      },
+    })
+
+    const messages = await send({ type: 'adoptDevice', userId: USER_ID, settings: SETTINGS })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'error',
+      message: expect.stringMatching(/Another tab/),
+    })
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect((await kept.library?.all())?.length).toBe(1)
+  })
+
+  it('refuses when the account on screen is not the one asked for', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({ type: 'adoptDevice', userId: 'someone-else', settings: SETTINGS })
+
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect((await kept.library?.all())?.length).toBe(1)
+  })
+
+  it('removes the kept library from this browser and leaves the account on screen', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SECOND_DIGEST)])
+    const { send } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({ type: 'forgetDeviceLibrary', settings: SETTINGS })
+
+    expect(await kept.library?.all()).toEqual([])
+    expect(messages).toContainEqual({ type: 'deviceHolds', holds: false })
+    expect(messages).toContainEqual({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+    expect(mocked.deleteActivity).not.toHaveBeenCalled()
+  })
+})
+
 describe('a kept library changed by another tab', () => {
   it('stops an import into a library that was emptied, writes nothing, and says so', async () => {
     const { send } = await startWorker()
@@ -3249,5 +3785,43 @@ describe('a kept library changed by another tab', () => {
     const reloaded = await send({ type: 'loadDevice', settings: SETTINGS, reload: true })
 
     expect(reloaded.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
+  })
+})
+
+describe('an import of an export whose list labels activities the account holds', () => {
+  /** An export of one run, which the list calls a hike. */
+  function hikeExport(): File {
+    const csv = strToU8(
+      'Activity ID,Activity Name,Activity Type,Filename\n1,Lunch,Hike,activities/1.fit.gz\n',
+    )
+    return new File(
+      [
+        new Uint8Array(
+          zipSync({
+            'activities/1.fit.gz': gzipSync(RUN_FILE_BYTES),
+            'activities.csv': csv,
+          }),
+        ),
+      ],
+      'export.zip',
+    )
+  }
+
+  it('sends no label while the labels are off, and reads the type of the file as it always did', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({
+      type: 'addFiles',
+      files: [hikeExport()],
+      settings: SETTINGS,
+      sync: { userId: USER_ID, keepFiles: false },
+    })
+    expect(mocked.patchLabels).not.toHaveBeenCalled()
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'state', outcome: { activities: 1 } })
+    expect(reply).not.toHaveProperty('outcome.labelled')
+    // The digest saved is the one main made: no label below revision 7.
+    expect(mocked.createActivity.mock.calls[0]?.[0]).not.toHaveProperty('athleteType')
   })
 })

@@ -13,6 +13,7 @@ import type { HeartRateJudgement } from './digest/setAsideTypes'
 import type { PeriodZoneTimes } from './zones/timeCache'
 import type { ZoneEstimates } from './zones'
 import type { FitnessBySport } from './fitness/types'
+import type { LookBack } from './lookback/compute'
 import type { ChangeEvidence } from './change/types'
 
 /** An activity file this import could not use, with why. */
@@ -49,6 +50,11 @@ export interface SessionState {
    */
   walkingPaceRuns: number
   /**
+   * Saved activities the athlete labelled something other than a run or a ride (Hike, Walk, a ski, a workout), left out
+   * of the analysis. Disjoint from `walkingPaceRuns`: an activity with both is counted here only. Absent when none.
+   */
+  labelledRuns?: number
+  /**
    * The workout keys (see `workoutKey`) of the runs at walking pace that the athlete counts as runs
    * (`AthleteSettings.countedRuns`). They are in the analysis and carry no mark in the library.
    */
@@ -80,6 +86,11 @@ export interface SessionState {
    * holding, recovering, back, or not enough evidence yet, with the figures and runs behind it.
    */
   fitness: FitnessBySport
+  /**
+   * Each sport's years told in hindsight, through twelve weeks before the newest activity, and its bests over the years:
+   * library-wide whatever period is picked, and small however long the library (no list past its cap).
+   */
+  lookBack: LookBack
   /**
    * The references that estimated zones are cut from: the thresholds and reference heart rates of the whole
    * library, whatever period is picked, so an activity has the same zones everywhere. Null without an analysis.

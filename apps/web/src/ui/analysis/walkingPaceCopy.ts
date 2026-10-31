@@ -1,4 +1,6 @@
+import { isAnalysed } from '@rca/core/digest/analysed'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import type { AthleteType } from '@rca/core/types'
 import { workoutKey } from '@rca/core/session'
 import type { Sport } from '@rca/core/types'
 import { plural } from '../components/plural'
@@ -43,9 +45,12 @@ export function walkingPaceText(count: number, offer = true): string {
   return offer ? `${said} Open ${one ? 'it' : 'one'} to count it as a run.` : said
 }
 
-/** The line about runs counted despite their walking pace, with the button to leave them out beside it. */
+/**
+ * The line about left-out runs the athlete counts, with the button to leave them out beside it. A run is left out for
+ * its pace or for the athlete's label, and counting it takes either away, so the line names neither.
+ */
 export function countedDespiteText(count: number): string {
-  return `${plural(count, 'run is', 'runs are')} counted despite walking pace.`
+  return `${plural(count, 'left-out run is', 'left-out runs are')} counted.`
 }
 
 /**
@@ -83,11 +88,14 @@ export function leftOutRuns(library: ActivitySummary[]): {
   runs: ActivitySummary[]
   allLeftOut: boolean
 } {
-  const runs = library.filter((activity) => activity.walkingPace === true)
+  // The runs the athlete can count by their pace; one the athlete labelled is left out for that, and is said apart.
+  const runs = library.filter(
+    (activity) => activity.walkingPace === true && activity.athleteType === undefined,
+  )
   const sport = runs[0]?.sport
   const allLeftOut =
     sport !== undefined &&
-    !library.some((activity) => activity.sport === sport && activity.walkingPace !== true)
+    !library.some((activity) => activity.sport === sport && isAnalysed(activity))
   return { runs, allLeftOut }
 }
 
@@ -96,5 +104,32 @@ export function leftOutRuns(library: ActivitySummary[]): {
  * of what the analysis rests on come from here, so a library of hikes does not read as one of runs.
  */
 export function withoutWalking(library: ActivitySummary[]): ActivitySummary[] {
-  return library.filter((activity) => activity.walkingPace !== true)
+  return library.filter(isAnalysed)
+}
+
+/** The mark on a list row of an activity the athlete labelled, by the label. */
+export const ATHLETE_LABEL_CHIP: Record<AthleteType, string> = {
+  walk: 'Walk',
+  hike: 'Hike',
+  ski: 'Ski',
+  other: 'Other activity',
+}
+
+/** The line on an activity page the athlete labelled in the export, in the place of its best efforts. */
+export function labelledNote(label: AthleteType): string {
+  return `You labelled this activity ${ATHLETE_LABEL_CHIP[label]} in your export, so it is left out of your run and ride analysis.`
+}
+
+/**
+ * The line under the import notices for saved activities the athlete labelled Hike, Walk, a ski or another type in
+ * the export: they stay in the activities and are left out of the run and ride analysis. Said once, apart from
+ * the walking-pace line, and counted apart: an activity with both is in this count only.
+ */
+export function labelledText(count: number): string {
+  const one = count === 1
+  return (
+    `${plural(count, 'saved activity is', 'saved activities are')} labelled Hike, Walk or another type in your export, so ` +
+    `${one ? 'it stays' : 'they stay'} in your activities and ${one ? 'is' : 'are'} left out of your analysis. ` +
+    `Open ${one ? 'it' : 'one'} to count it as a run or ride.`
+  )
 }
