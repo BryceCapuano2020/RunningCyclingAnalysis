@@ -21,6 +21,11 @@ export interface SyncStatusProps {
   signedIn: boolean
   /** The import's summary lists what moved in the athlete's numbers, so the completion says so. */
   moved?: boolean
+  /**
+   * Stored copies of workouts that the analysis hides. The library's cap counts every stored row, so a full library
+   * says how many of its rows these are.
+   */
+  hiddenCopies?: number
 }
 
 const MAX_FILE_MB = megabytes(MAX_FILE_BYTES)
@@ -37,12 +42,19 @@ function stoppedCounts({ count, latest }: SyncIssue, saved: number | null): stri
   return saved === null ? waiting : `${formatCount(saved)} saved, ${waiting}`
 }
 
+/** The rows of a full library that are copies of workouts held in another file, which the analysis hides. */
+function copiesNote(hiddenCopies: number): string {
+  return hiddenCopies > 0
+    ? `, ${formatCount(hiddenCopies)} of them ${hiddenCopies === 1 ? 'a copy of another workout' : 'copies of other workouts'} that the analysis hides`
+    : ''
+}
+
 /**
  * One sentence per cause: what happened, and the action that works. A summary is saved before its
  * original is uploaded, so the failures that can hit either step say 'not fully saved'. A limit
  * stops the import, so its sentence counts what was saved and what is waiting instead.
  */
-function issueSentence(issue: SyncIssue, saved: number | null): string {
+function issueSentence(issue: SyncIssue, saved: number | null, hiddenCopies: number): string {
   const { code, count } = issue
   const activities = plural(count, 'activity', 'activities')
   const originals = plural(count, 'original')
@@ -55,7 +67,7 @@ function issueSentence(issue: SyncIssue, saved: number | null): string {
     case 'account-changed':
       return `Your account changed in another tab, so ${activities} ${wereOrWas} not saved. Reload this page.`
     case 'activity-quota':
-      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities). ${stoppedCounts(issue, saved)} Delete older activities to make room, then add the rest again.`
+      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities${copiesNote(hiddenCopies)}). ${stoppedCounts(issue, saved)} Delete older activities to make room, then add the rest again.`
     case 'storage-quota':
       return `Your original-file storage is full, so ${originals} ${wereOrWas} not kept. ${summaries}`
     case 'storage-budget':
@@ -100,6 +112,7 @@ export function SyncStatus({
   issues,
   signedIn,
   moved = false,
+  hiddenCopies = 0,
 }: SyncStatusProps) {
   const [previous, setPrevious] = useState(uploading)
   // The completion keeps whether its import moved the numbers, so the note outlives the list.
@@ -117,7 +130,9 @@ export function SyncStatus({
 
   let text: string
   if (issues.length > 0) {
-    text = issues.map((issue) => issueSentence(issue, finished?.saved ?? null)).join(' ')
+    text = issues
+      .map((issue) => issueSentence(issue, finished?.saved ?? null, hiddenCopies))
+      .join(' ')
   } else if (finished?.saved === 0) {
     text = NOTHING_SAVED
   } else if (finished !== null) {

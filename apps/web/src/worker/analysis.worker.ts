@@ -15,6 +15,7 @@ import { resumeOutbox } from './outboxResume'
 import { resumeAsWriter } from './writerResume'
 import type { Resume } from './outboxResume'
 import { exportAccount } from './exportAccount'
+import { copiesOf, hiddenRecordIds, shownCount, visibleRecords } from './hiddenCopies'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
 import { outdatedWithOriginal } from './outdatedOriginals'
@@ -54,7 +55,7 @@ const rebuildable = (): { outdatedWithOriginal?: number } => {
 
 /** Newest first; records that start together are ordered by id so the list is stable. */
 function reportLibrary() {
-  const records = [...savedRecords.values()].sort(
+  const records = visibleRecords(savedRecords.values()).sort(
     (a, b) => b.digest.startMs - a.digest.startMs || a.id.localeCompare(b.id),
   )
   post({
@@ -128,6 +129,29 @@ function stopEmptied(): SessionState {
   device.replaced()
   workbench.clearMemory()
   return session.clear()
+}
+
+/**
+ * Forgets one saved record that the server no longer has: its place in the worker, the file index, its recordings and
+ * the copy kept in this browser, so the activity cannot return after a sign-out. The account copy is already gone, so
+ * a copy that cannot be removed here does not fail the delete; the caller tells the page, once. True when all was cleared.
+ */
+async function forgetRecord(record: ActivityRecord, userId: string): Promise<boolean> {
+  const key = activityKey(record.digest)
+  savedRecords.delete(record.id)
+  unmatchedOriginals.delete(record.id)
+  routes.forget(record.id)
+  missingOriginals.delete(key)
+  // The file this activity came from is read again if it is added again.
+  await forgetHeldKeys(accountScope(userId), [key])
+  await forgetHeldKeys('device', [key])
+  const traceCleared = await workbench.remove({ kind: 'account', userId }, record.digest.id)
+  const deviceTraceCleared = await workbench.remove({ kind: 'device' }, record.digest.id)
+  const keptDropped = await device.dropKept(key).then(
+    () => true,
+    () => false,
+  )
+  return traceCleared && deviceTraceCleared && keptDropped
 }
 
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
@@ -233,36 +257,26 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         throw new Error('Reload your library before deleting this activity.')
       const record = savedRecords.get(request.id)
       if (!record) throw new Error('Reload your library before deleting this activity.')
-      try {
-        await deleteActivity(request.id, request.userId)
-      } catch (error) {
-        // Another tab may already have deleted this exact record.
-        if (!(error instanceof ApiRequestError && error.status === 404)) throw error
+      // The activity the athlete sees stands for its whole group of near-copies (rule R): deleting only it would let a
+      // hidden copy take its place. The one asked for goes first, so a failure leaves the others as they were.
+      const group = copiesOf(savedRecords.values(), record)
+      let cleared = true
+      for (const member of group) {
+        try {
+          await deleteActivity(member.id, request.userId)
+        } catch (error) {
+          // Another tab may already have deleted this exact record.
+          if (!(error instanceof ApiRequestError && error.status === 404)) throw error
+        }
+        cleared = (await forgetRecord(member, request.userId)) && cleared
       }
-      savedRecords.delete(record.id)
-      unmatchedOriginals.delete(record.id)
-      routes.forget(record.id)
-      missingOriginals.delete(activityKey(record.digest))
-      // The file this activity came from is read again if it is added again.
-      await forgetHeldKeys(accountScope(request.userId), [activityKey(record.digest)])
-      await forgetHeldKeys('device', [activityKey(record.digest)])
-      const traceCleared = await workbench.remove(
-        { kind: 'account', userId: request.userId },
-        record.digest.id,
-      )
-      const deviceTraceCleared = await workbench.remove({ kind: 'device' }, record.digest.id)
-      // The copy kept in this browser goes too, so the activity cannot return after a sign-out. The
-      // account copy is already gone, so a copy that cannot be removed here does not fail the delete;
-      // the page is told, once, since it could return after a sign-out.
-      const keptDropped = await device.dropKept(activityKey(record.digest)).then(
-        () => true,
-        () => false,
-      )
-      if (!traceCleared || !deviceTraceCleared || !keptDropped)
-        post({ type: 'deviceIssue', issue: 'notForgotten' })
+      if (!cleared) post({ type: 'deviceIssue', issue: 'notForgotten' })
       reportLibrary()
-      post({ type: 'missingOriginals', count: missingOriginals.size })
-      return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)
+      post({ type: 'missingOriginals', count: shownCount(missingOriginals, savedRecords.values()) })
+      let state: SessionState | null = null
+      for (const member of group)
+        state = session.removeActivity(member.digest.sport, member.digest.startMs, request.settings)
+      return state!
     }
   }
 }
@@ -322,7 +336,10 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         await reportDetail()
         post({ type: 'rebuildComplete', ...rebuilt, ...rebuildable() })
       } else if (event.data.type === 'exportData') {
-        post({ type: 'exportReady', file: await exportAccount(event.data) })
+        post({
+          type: 'exportReady',
+          file: await exportAccount(event.data, hiddenRecordIds(savedRecords.values())),
+        })
       } else if (event.data.type === 'activitySplits') {
         post({ type: 'splits', id: event.data.id, splits: session.splitsOf(event.data.id) })
       } else if (event.data.type === 'routeShape' || event.data.type === 'forgetRoutes') {

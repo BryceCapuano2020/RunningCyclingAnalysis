@@ -329,6 +329,34 @@ describe('SyncStatus', () => {
     )
   })
 
+  it('says how many of a full library’s rows are copies the analysis hides', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(
+      <SyncStatus
+        {...props({
+          uploading: null,
+          issues: [{ code: 'activity-quota', count: 10, latest: 0 }],
+          hiddenCopies: 120,
+        })}
+      />,
+    )
+    expect(message()).toHaveTextContent(
+      'Your library is full (5,000 activities, 120 of them copies of other workouts that the analysis hides). 10 waiting.',
+    )
+    rerender(
+      <SyncStatus
+        {...props({
+          uploading: null,
+          issues: [{ code: 'activity-quota', count: 10, latest: 0 }],
+          hiddenCopies: 1,
+        })}
+      />,
+    )
+    expect(message()).toHaveTextContent(
+      '1 of them a copy of another workout that the analysis hides',
+    )
+  })
+
   it('says none were saved when the limit came before the first save', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue('rate-limited', 40)] })} />)

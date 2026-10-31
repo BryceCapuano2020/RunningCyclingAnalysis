@@ -1,5 +1,11 @@
 import { revisionStatus } from '@rca/core/digest/revisions'
-import { copyOfDigest, outranks, workoutKey as storedKey } from '@rca/core/duplicates'
+import {
+  copyGroupOf,
+  copyOfDigest,
+  hiddenDigests,
+  outranks,
+  workoutKey as storedKey,
+} from '@rca/core/duplicates'
 import type { AnalysisSession, SessionState, SyncItem } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
@@ -83,7 +89,10 @@ function replaces(next: ActivityDigest, kept: ActivityDigest | null): boolean {
 }
 
 function newestFirst(entries: DeviceEntry[]) {
+  // Every distinct second is kept (rule R); the list shows the best copy of each workout.
+  const hidden = hiddenDigests(entries.map(({ digest }) => digest))
   return entries
+    .filter(({ digest }) => !hidden.has(digest))
     .map(({ workoutKey, digest }) => savedActivityOf(workoutKey, digest))
     .sort((a, b) => b.startMs - a.startMs || a.id.localeCompare(b.id))
 }
@@ -211,11 +220,36 @@ export function deviceActions(
       if (found === null) throw new Error('This activity is no longer kept in this browser.')
       if (typeof found === 'string') throw new Error(KEPT_NOT_READ_FOR_REMOVE)
       const kept = found
-      await device.remove(id)
-      if (!(await onRemoved(kept.id).catch(() => false)))
-        post({ type: 'deviceIssue', issue: 'notForgotten' })
+      // The activity the athlete sees stands for its whole group of near-copies: deleting only it would let a hidden
+      // copy take its place. The one asked for goes first.
+      const entries = await device.all().catch(() => {
+        throw new Error(KEPT_NOT_READ_FOR_REMOVE)
+      })
+      const self = entries.find((entry) => entry.workoutKey === id)
+      const group =
+        self === undefined
+          ? []
+          : copyGroupOf(
+              entries.map((e) => e.digest),
+              self.digest,
+            )
+      const members = [
+        { workoutKey: id, digest: kept },
+        ...entries.filter(
+          (entry) => entry.workoutKey !== id && group.some((digest) => digest === entry.digest),
+        ),
+      ]
+      let cleared = true
+      for (const member of members) {
+        await device.remove(member.workoutKey)
+        cleared = (await onRemoved(member.digest.id).catch(() => false)) && cleared
+      }
+      if (!cleared) post({ type: 'deviceIssue', issue: 'notForgotten' })
       await report()
-      return session.removeActivity(kept.sport, kept.startMs, settings)
+      let state: SessionState | null = null
+      for (const { digest } of members)
+        state = session.removeActivity(digest.sport, digest.startMs, settings)
+      return state!
     },
     async dropKept(workoutKey) {
       // A strict read, then a removal of whatever is there, so a copy is never claimed gone that may not be.

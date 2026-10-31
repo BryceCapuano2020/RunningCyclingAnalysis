@@ -7,6 +7,7 @@ import type { AthleteSettings } from '@rca/core/types'
 import type { Activity } from '@rca/core/types'
 import { createActivity, listActivities } from '../api/client'
 import { workoutKeyOf, type DeviceActions } from './device'
+import { shownCount } from './hiddenCopies'
 import { originalActivity } from './originalActivity'
 import type { WorkerResponse } from './protocol'
 import { RATE_LIMIT_WINDOW_MS } from './rateLimitRetry'
@@ -63,7 +64,10 @@ export async function loadServer(
   for (const record of records) {
     if (!record.hasFile) ctx.missingOriginals.add(workoutKeyOf(record.digest))
   }
-  ctx.post({ type: 'missingOriginals', count: ctx.missingOriginals.size })
+  ctx.post({
+    type: 'missingOriginals',
+    count: shownCount(ctx.missingOriginals, ctx.savedRecords.values()),
+  })
   ctx.device.replaced()
   // The first analysis is of the period the page shows, so the page need not ask for it afterwards.
   ctx.session.choosePeriod(choice)
