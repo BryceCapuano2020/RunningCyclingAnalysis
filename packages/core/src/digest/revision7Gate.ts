@@ -1,4 +1,5 @@
 import { cadenceLockStretches, CADENCE_LOCK } from '../quality/cadenceLock'
+import { POWER_OUTLIER, lonePowerSpikes } from '../quality/powerOutlier'
 import { compareKinds, messageFor, QUALITY_THRESHOLDS } from '../quality/assess'
 import type { Range } from '../quality/runs'
 import type { Activity, QualityFlag, QualityReport } from '../types'
@@ -69,4 +70,33 @@ export function withCadenceLock(
 export function walkingPaceView(activity: Activity, moving: Uint8Array): Activity {
   const steps = resolveGpxRunCadence(activity, moving)
   return steps === null ? activity : { ...activity, cadence: steps, cadenceUnit: 'steps/min' }
+}
+
+/**
+ * The share of a best window that may be unusable seconds (a dropped sample, a flagged spike) before the window no
+ * longer counts: 1%, so a window of a few minutes survives one bad second and a window of a minute and a half or less
+ * survives none. Revision 7 reads it in `meanMaximal`; below 7 no unusable second is allowed in a window.
+ */
+export const BEST_WINDOW_GAP_SHARE = 0.01
+
+/**
+ * The quality of an activity with its lone power spikes left out: the second and a second either side are cleared from
+ * `validPower` (as the 2,000 W rule clears them) and flagged `power-spike`, so one dropped packet cannot make a best.
+ * An activity without power comes back as it was.
+ */
+export function withLonePowerSpikes(activity: Activity, quality: QualityReport): QualityReport {
+  if (!activity.hasPower) return quality
+  const spikes = lonePowerSpikes(activity.power)
+  if (spikes.length === 0) return quality
+  const validPower = Uint8Array.from(quality.validPower)
+  const found: QualityFlag[] = spikes.map((i) => {
+    const start = Math.max(0, i - POWER_OUTLIER.marginS)
+    const end = Math.min(activity.n, i + POWER_OUTLIER.marginS + 1)
+    validPower.fill(0, start, end)
+    return { kind: 'power-spike', start, end, message: messageFor('power-spike', end - start) }
+  })
+  const flags = [...quality.flags, ...found].sort(
+    (a, b) => a.start - b.start || compareKinds(a.kind, b.kind),
+  )
+  return { ...quality, flags, validPower }
 }
