@@ -1,4 +1,5 @@
 import type { Activity, ActivityDigest } from '../types'
+import { temperatureSummary } from './temperature'
 
 /**
  * The gate every revision-7 field reads (D12 section 1.9). A digest is made at `MODEL_REVISION` unless a test
@@ -14,7 +15,12 @@ export const hasRevision7 = (revision: number): boolean => revision >= REVISION_
 export function revision7Fields(
   activity: Activity,
   revision: number,
-): Pick<ActivityDigest, 'localDayShift'> {
+  moving: Uint8Array,
+): Pick<ActivityDigest, 'localDayShift' | 'temperature'> {
   if (!hasRevision7(revision)) return {}
-  return activity.localDayShift === undefined ? {} : { localDayShift: activity.localDayShift }
+  const temperature = temperatureSummary(activity.temperature, moving)
+  return {
+    ...(activity.localDayShift === undefined ? {} : { localDayShift: activity.localDayShift }),
+    ...(temperature === undefined ? {} : { temperature }),
+  }
 }

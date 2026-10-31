@@ -394,6 +394,6 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
     ...(activity.race === true ? { race: true as const } : {}),
     ...(atWalkingPace(activity, moving, movingS) ? { walkingPace: true as const } : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
-    ...revision7Fields(activity, revision),
+    ...revision7Fields(activity, revision, moving),
   }
 }
