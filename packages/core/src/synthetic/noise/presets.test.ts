@@ -85,23 +85,11 @@ describe('noise presets', () => {
     expect(Math.sqrt(meanOf(xs.map((x) => x * x)))).toBeLessThan(1.03)
   })
 
-  it('weeklyLevel makes the draws runSim makes: same seed, same weekly level', () => {
+  it('runSim takes its weekly level from weeklyLevel: same seed, same values', () => {
     const level = NOISE_PRESETS.nuisanceAll.level
     const weeks = 200
     const levels = weeklyLevel(level, weeks, mulberry32(4 * 7919 + 13))
-    const points = simulate(
-      {
-        weeks,
-        perWeek: 1,
-        runSd: 0,
-        wanderSd: level.wanderSd,
-        wanderRho: level.wanderRho,
-        seasonal: level.seasonAmp,
-        heat: level.heatDrop,
-        strap: level.strapStep,
-      },
-      4,
-    )
+    const points = simulate({ weeks, perWeek: 1, level: { ...level, runSd: 0 } }, 4)
     expect(points.length).toBeGreaterThan(100)
     for (const p of points) {
       const week = Number(p.id.split('-')[1])
