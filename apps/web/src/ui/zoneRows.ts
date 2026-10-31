@@ -121,6 +121,17 @@ export interface ZoneTable {
   rows: string[][]
 }
 
+/**
+ * What an estimated threshold is said to be beside its figure. The zones hold the threshold they had until a window's
+ * fit moves by more than its own error and stays there, so it can differ by a second or a watt from the newest fit
+ * the sport pages give; the words say which one this is. A heart rate is a maximum, not a fitted threshold.
+ */
+const HELD_NOTE: Record<ZoneMeasure, string> = {
+  power: ', held until a real change',
+  pace: ', held until a real change',
+  heartRate: '',
+}
+
 const REFERENCE_NAME: Record<ZoneMeasure, string> = {
   power: 'threshold power',
   heartRate: 'max heart rate',
@@ -137,7 +148,7 @@ export function zoneTable(set: ZoneSet, units: UnitSystem): ZoneTable {
     detail:
       basis !== null
         ? `Max heart rate: ${basis}`
-        : `${sourceText(set)}: ${REFERENCE_NAME[set.measure]} ${REFERENCE_TEXT[set.measure](set.reference, units)}`,
+        : `${sourceText(set)}: ${REFERENCE_NAME[set.measure]} ${REFERENCE_TEXT[set.measure](set.reference, units)}${set.source === 'estimated' ? HELD_NOTE[set.measure] : ''}`,
     citation: set.citation,
     columns: ['Zone', 'Name', 'Range'],
     rows: set.zones.map((zone) => [
