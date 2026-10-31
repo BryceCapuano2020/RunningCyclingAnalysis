@@ -43,6 +43,28 @@ describe('a saved activity read again from its original file', () => {
   })
 })
 
+describe('a saved activity the athlete labelled', () => {
+  it('keeps its label when it is read again, since the export’s list is not at hand', async () => {
+    vi.mocked(client.downloadActivityFile).mockResolvedValue(
+      new Uint8Array(encodeFit(run, { gps: true })),
+    )
+    const digest = { ...digestActivity(run), athleteType: 'hike' as const }
+    const record = {
+      id: 'a1',
+      digest,
+      fileName: 'run.fit',
+      hasFile: true,
+      fileSize: 1,
+      createdAt: 0,
+    }
+    const { activity } = await originalActivity(record, 'u1')
+
+    expect(activity?.athleteType).toBe('hike')
+    // The label is written at revision 7 only; at the current revision the rebuilt digest is as it always was.
+    expect(digestActivity(activity!)).not.toHaveProperty('athleteType')
+  })
+})
+
 describe('a rebuild after an import from an export', () => {
   /** Imports the zip, and returns the digest saved for its one activity with the original file's bytes. */
   async function imported(zip: Uint8Array): Promise<{ digest: ActivityDigest; bytes: Uint8Array }> {

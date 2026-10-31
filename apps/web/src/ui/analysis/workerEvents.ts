@@ -21,10 +21,13 @@ const UNREADABLE_LIMIT = 3
  * not replace the worker.
  */
 export function useWorkerEvents(deps: WorkerEventDeps): void {
-  const { workerGeneration } = deps.transport
+  const { workerGeneration, workerWanted } = deps.transport
   const latest = useLatest(deps)
 
   useEffect(() => {
+    // A first visit has no worker until a request needs one (see useWorkerTransport). Nothing was
+    // created here, so there is nothing to clean up, and the account passes keep their state.
+    if (!workerWanted) return
     const generation = workerGeneration
     const { transport, previousStatusRef, previousUserIdRef } = latest()
     const { workerRef } = transport
@@ -188,7 +191,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       previousStatusRef.current = 'loading'
       previousUserIdRef.current = null
     }
-  }, [workerGeneration, latest])
+  }, [workerGeneration, workerWanted, latest])
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   countedDespiteText,
   leftOutNote,
   leftOutRuns,
+  labelledText,
   walkingPaceText,
 } from '../analysis/walkingPaceCopy'
 import { SPORT_LABEL } from '../sports'
@@ -83,7 +84,11 @@ export function AppNotices({
   const bareLibraryNotice = result === null ? analysis.libraryNotice : null
   const bareLibraryError = result === null ? analysis.libraryError : null
   // Notes about the data that need no action. The walking-pace count is said where runs are listed or analysed.
-  const { hiddenDuplicates: copies, walkingPaceRuns: walking } = analysis.state
+  const {
+    hiddenDuplicates: copies,
+    walkingPaceRuns: walking,
+    labelledRuns: labelled = 0,
+  } = analysis.state
   const left = leftOutRuns(analysis.state.library)
   // Run, when every run is left out, has its own button to count them, so it leaves the offer to open one out.
   const offerToOpen = !(left.allLeftOut && left.runs[0]?.sport === page)
@@ -91,6 +96,9 @@ export function AppNotices({
     ...(copies > 0 ? [{ id: 'copies', count: copies, text: hiddenCopiesText(copies) }] : []),
     ...(walkingNote && walking > 0
       ? [{ id: 'walking', count: walking, text: walkingPaceText(walking, offerToOpen) }]
+      : []),
+    ...(walkingNote && labelled > 0
+      ? [{ id: 'labelled', count: labelled, text: labelledText(labelled) }]
       : []),
   ]
   // A signed-in library can read older detail back from a saved original, so the line, like the list's tag, is for this browser's own.

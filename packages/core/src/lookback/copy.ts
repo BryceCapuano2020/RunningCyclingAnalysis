@@ -49,6 +49,12 @@ export const dayMonthYear = (ms: number): string => {
   return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`
 }
 
+/** "14 May 2021" in the viewer's own zone, for a moment of the wall clock (an import) rather than of a workout. */
+export const localDayMonthYear = (ms: number): string => {
+  const date = new Date(ms)
+  return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`
+}
+
 /** A stretch of months: "January to April 2020", "November 2019 to February 2020". */
 export function monthsBetween(fromMs: number, toMs: number): string {
   const [a, b] = [new Date(fromMs), new Date(toMs)]
@@ -167,7 +173,11 @@ export function effortName(effort: EffortMilestones['effort']): string {
 }
 
 /** A best as the page writes it: a pace or a power for a length of time, a time for a distance. */
-export function bestValue(m: EffortMilestones, value: number, system: UnitSystem): string {
+export function bestValue(
+  m: Pick<EffortMilestones, 'unit'>,
+  value: number,
+  system: UnitSystem,
+): string {
   if (m.unit === 'm/s') return formatPace(value, system)
   if (m.unit === 'W') return formatPower(value)
   if (m.unit === 'W/kg') return `${value.toFixed(2)} W/kg`

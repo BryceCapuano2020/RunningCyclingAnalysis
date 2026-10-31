@@ -1,9 +1,9 @@
-import { DAY_MS } from '../constants'
+import { dayShiftFor } from '../calendar'
 import { orderedFor } from '../digest/consumers'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import { memoByDigests } from '../digestMemo'
 import { fitnessHistories, fitnessStatuses } from '../fitness/compute'
-import { dayOfMs, WEEK_ORIGIN_MS } from '../fitness/machine'
+import { dayOfMs, instantOfDay } from '../fitness/machine'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { hindsightOf, horizonDay } from './hindsight'
 import { milestonesOf } from './milestones'
@@ -66,7 +66,8 @@ function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
   if (current.length === 0) return NO_LOOKBACK
   const options = { nowMs: input.nowMs }
   const asOfMs = Math.max(current.at(-1)!.startMs, input.nowMs)
-  const asOfDay = dayOfMs(asOfMs)
+  // Days are on the fitness clock: a day is the local one, as the runs' are.
+  const asOfDay = dayOfMs(asOfMs) + dayShiftFor({ startMs: asOfMs })
   const statuses = fitnessStatuses(digests, input.setAside, options)
   const histories = fitnessHistories(digests, input.setAside, options)
   const milestones = milestonesOf(digests, input.settings, input.gate)
@@ -78,7 +79,9 @@ function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
         ? { kind: 'unavailable' }
         : hindsightOf({
             runs: histories[s].runs,
-            activeDays: current.filter((d) => d.sport === s).map((d) => dayOfMs(d.startMs)),
+            activeDays: current
+              .filter((d) => d.sport === s)
+              .map((d) => dayOfMs(d.startMs) + dayShiftFor(d)),
             asOfDay,
             records: histories[s].records,
           }),
@@ -86,7 +89,7 @@ function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
   })
   return {
     asOfMs,
-    horizonMs: WEEK_ORIGIN_MS + horizonDay(asOfDay) * DAY_MS,
+    horizonMs: instantOfDay(horizonDay(asOfDay)),
     sports: { run: sport('run'), ride: sport('ride') },
   }
 }

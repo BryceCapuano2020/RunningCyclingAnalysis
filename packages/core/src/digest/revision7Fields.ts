@@ -5,7 +5,11 @@ import { hasRevision7 } from './revision7Gate'
 export function revision7Fields(
   activity: Activity,
   revision: number,
-): Pick<ActivityDigest, 'localDayShift'> {
+): Pick<ActivityDigest, 'localDayShift' | 'athleteType'> {
   if (!hasRevision7(revision)) return {}
-  return activity.localDayShift === undefined ? {} : { localDayShift: activity.localDayShift }
+  return {
+    ...(activity.localDayShift === undefined ? {} : { localDayShift: activity.localDayShift }),
+    // The athlete's own label, when the export's list says the activity is not a run or a ride.
+    ...(activity.athleteType === undefined ? {} : { athleteType: activity.athleteType }),
+  }
 }

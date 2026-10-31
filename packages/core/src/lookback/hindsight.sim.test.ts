@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { replaySim, simulate } from '../fitness/test/runSim'
 import type { SimSpec } from '../fitness/test/runSim'
-import { WEEK_ORIGIN_MS } from '../fitness/machine'
+import { WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
 import { hindsightOf } from './hindsight'
 import { meetsLeadBar } from './lead'

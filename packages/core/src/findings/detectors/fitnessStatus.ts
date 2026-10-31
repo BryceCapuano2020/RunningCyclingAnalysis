@@ -1,6 +1,6 @@
 import { fitnessFindingHeadline, oneSided, shownChange } from '../../fitness/copy'
 import { fitnessStatuses } from '../../fitness/compute'
-import { weekOfMs } from '../../fitness/machine'
+import { localWeekOf } from '../../fitness/machine'
 import { FITNESS } from '../../fitness/params'
 import type { FitnessStatus } from '../../fitness/types'
 import type { Sport } from '../../types'
@@ -51,7 +51,7 @@ function candidateOf(status: FitnessStatus, sport: Sport, asOfMs: number): Candi
   if (!SPOKEN.has(status.state) || entered === null || evidence === null || change === null) {
     return null
   }
-  if (weekOfMs(asOfMs) - weekOfMs(entered.atMs) >= FITNESS.display.freshWeeks) return null
+  if (localWeekOf(asOfMs) - localWeekOf(entered.atMs) >= FITNESS.display.freshWeeks) return null
   const slipping = status.state === 'slipping'
   const shift = slipping || status.state === 'improved' ? change : gain
   if (shift === null || !Number.isFinite(entered.z)) return null

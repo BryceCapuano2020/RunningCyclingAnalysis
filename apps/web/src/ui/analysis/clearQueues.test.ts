@@ -13,6 +13,8 @@ import { FakeWorker } from '../../test/fakeWorker'
 import { useAnalysis } from '../useAnalysis'
 import { EMPTY_PERIOD } from './model'
 
+vi.mock('./workerStart', async () => (await import('../../test/workerStartsAtOnce')).workerStart)
+
 type Account = Parameters<typeof useAnalysis>[1]
 type Settings = Parameters<typeof useAnalysis>[0]
 

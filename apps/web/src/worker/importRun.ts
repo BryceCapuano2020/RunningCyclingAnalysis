@@ -19,6 +19,8 @@ import { skipAllowance } from './skipAllowance'
 import type { Workbench } from './workbench'
 import type { TraceScope } from './workbenchStore'
 import type { WorkerView } from './workerView'
+import { applyListLabels, reloadSession } from './applyListLabels'
+import { ATHLETE_LABELS_ENABLED } from './labelsConfig'
 import { noteWork } from './workerWire'
 
 /** What an import reads and changes in the worker. */
@@ -116,6 +118,7 @@ export async function runImport(
           onPaused: () => reporter.savesPaused(),
           outbox: openOutbox(sync.userId),
           sending: ctx.sending,
+          hiddenIds: () => session.hiddenIds(),
           onStopped: (code) => {
             stoppedBy ??= code
           },
@@ -135,6 +138,8 @@ export async function runImport(
     provisionalItems.set(activityKey(item.digest), { ...item, bytes: new Uint8Array() })
   }
   let state: SessionState
+  // The type the export's list gave each file, which labels the workouts the account already holds.
+  let listedTypes: ReadonlyMap<string, string> | undefined
   let emptied = false
   try {
     state = await session.addFiles(
@@ -147,7 +152,8 @@ export async function runImport(
       save ??
         (request.provisional ? holdForDevice : request.saveToDevice ? keeper.keep : undefined),
       sync?.keepFiles === true,
-      ({ added, upgraded, ...completed }) => {
+      ({ added, upgraded, listedTypes: types, ...completed }) => {
+        listedTypes = types
         for (const digest of [...added, ...upgraded]) addedIds.add(digest.id)
         // Counts only: the digests stay in the worker.
         const updated = summarizeAdded(upgraded)
@@ -210,6 +216,16 @@ export async function runImport(
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }
+  if (sync !== null && ATHLETE_LABELS_ENABLED && listedTypes !== undefined) {
+    const labelled = await applyListLabels(savedRecords, listedTypes, sync.userId, (fresh) => {
+      savedRecords.clear()
+      for (const record of fresh) savedRecords.set(record.id, record)
+    })
+    if (labelled.length > 0) {
+      state = reloadSession(session, request.settings, [...savedRecords.values()])
+      outcome = { ...outcome, labelled: labelled.length }
+    }
+  }
   if (sync !== null) {
     reportLibrary()
   } else if (request.saveToDevice) {
