@@ -13,6 +13,7 @@ import {
   SLIPPING,
   waitingStatus,
 } from '../fitnessFixtures'
+import { FITNESS_WORDS } from '../fitnessWords'
 import { FitnessSection } from './FitnessSection'
 import type { FitnessSectionProps } from './FitnessSection'
 
@@ -248,6 +249,9 @@ describe('the evidence panel', () => {
     )
     expect(panel.textContent).toMatch(/spread from one run to the next, about 4%/)
     expect(spoken(panel).match(/usually sees within a few months/g)).toHaveLength(1)
+    expect(panel.textContent).toMatch(
+      /In your first two years, an athlete with a strong season can see about one false "Slipping" every two years, then about one every four\./,
+    )
     expect(spoken(panel)).toMatch(/Of your 12 runs on file, 64 are steady runs\./)
     expect(spoken(panel)).not.toMatch(BANNED)
   })
@@ -341,5 +345,16 @@ describe('the evidence panel', () => {
     details.open = true
     fireEvent(details, new Event('toggle'))
     expect(document.querySelectorAll('.fitness-runs a')).toHaveLength(6)
+  })
+})
+
+describe('the false-alarm rate in the first two years', () => {
+  it.each(['run', 'ride'] as const)('is told once in the %s promise, in plain words', (sport) => {
+    const { promise } = FITNESS_WORDS[sport]
+    expect(
+      promise.match(/one false "Slipping" every two years, then about one every four\./g),
+    ).toHaveLength(1)
+    expect(promise).not.toMatch(BANNED)
+    expect(promise).not.toContain('\u2014')
   })
 })

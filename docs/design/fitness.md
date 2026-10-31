@@ -289,6 +289,53 @@ Home shows a card for each sport that has a status, run first; a ride that is st
 rate. A library with no outdoor ride with a power meter shows none. Findings already covered rides. The sample's rides read "not
 enough evidence" (33 steady rides known to within 7%, too loosely to call level).
 
+### Ride false alarms in the first two years (found at G5, not fixed)
+
+The held-out rider (configuration F, three years, 8 libraries) showed about 0.5 false slips an athlete-year in its first two
+years, twice the 0.25 of the quiet budget. Diagnosed on tuning configuration S (`tuningConfigs.ts`, a 2.5% season on a 2.5%
+wander, three rides a week; `rideSeason.sim.test.ts`), and on the run-level generator (`fitness/test/runSim.ts`, 120 libraries):
+
+- The ride is not the cause. The season term and the learned floor are the same code for rides and runs, and neither is live
+  before two whole years of history (the season needs two years, the floor 14 six-week blocks back to 108 weeks). The held-out
+  window is exactly those two years. Alarms an athlete-year by year of the library:
+
+  | athlete, nothing changes                      | year 1 | year 2 | year 3 |
+  | --------------------------------------------- | ------ | ------ | ------ |
+  | S through the unit and monitor (16 libraries) | 0.63   | 0.56   | 0.44   |
+  | run generator, same nuisance (season, wander) | 0.64   | 0.57   | 0.49   |
+  | run generator, quiet                          | 0.07   | 0.24   | 0.16   |
+  | run generator, season 2.5% alone              | 0.57   | 0.52   | 0.33   |
+  | run generator, wander 2.5% alone              | 0.17   | 0.45   | 0.31   |
+
+  The season does most of the harm in year 1; the wander, which the floor can only learn from the second year, in year 2.
+  Year 3 is better but not at the quiet budget: a fitted season is shrunk, and a 2.5% wander is a real change of level to the
+  slip test (the same finding as the 5-year table above, where the nuisance rows are 0.25 to 0.47).
+
+- The figure sits where D2 already recorded it for an athlete with this nuisance (0.44 to 0.47 over five years, and 0.26 to
+  0.59 for rides at a 3% wander and 1.5% season in `ride.sim.test.ts`). It is over the quiet budget because F is not a quiet
+  athlete, and it falls in the two years nobody has history for. Nothing in the ride unit makes it worse; a power-meter offset
+  step is a nuisance of the strap-step kind, which the learned floor reads from year 2 on and the sims do not generate for rides.
+- One lever moves it, and it is a trade, not a fix. A prior for the floor until the library's own can be learned (in place of the
+  plain 1%), tried at 1.5% and 2% on both sports:
+
+  | warm-up floor | alarms years 1 and 2, season+wander 2.5% | 8% loss seen within 12 / 26 weeks (loss at week 30) | 5% loss seen within 26 weeks (loss at week 60) |
+  | ------------- | ---------------------------------------- | --------------------------------------------------- | ---------------------------------------------- |
+  | 1% (today)    | 0.64, 0.57                               | 94%, 97%                                            | 86%                                            |
+  | 1.5%          | 0.32, 0.37                               | 89%, 94%                                            | 64%                                            |
+  | 2%            | 0.13, 0.24                               | 65%, 78%                                            | 33%                                            |
+
+  Every row buys silence with the early detection of a real loss, in runs as in rides. It is the owner's Balanced dial applied
+  to the one stretch where the library cannot yet vouch for itself, and it moves the first two years of every run library too,
+  so it is not made here. No ride-specific floor is justified: the sims show rides and runs behaving the same, and there is
+  no power-meter library to say rides wander more.
+
+Decision (owner, 30 Oct): option 1. No behaviour change; ride fitness stays on and the rate is stated on the evidence panel ("In your first two years, an athlete with a strong season can see about one false Slipping every two years, then about one every four").
+
+Options, as put to the owner: (1) keep ride fitness on and state the rate (about half an alarm an athlete-year for a rider with a
+marked season in their first two years, about a quarter after); (2) a warm-up floor of 1.5%, which halves it and costs a 5% loss
+about 20 points of early detection in those years, in runs too; (3) turn rides off until a ride library can say what the
+wander is. The sims call for (1) or (2); nothing here argues for (3).
+
 ### The owner's labels: the first real back-test
 
 The detector as shipped (before D2) declared four slips on the owner's library. The owner's verdicts, month and verdict only:
