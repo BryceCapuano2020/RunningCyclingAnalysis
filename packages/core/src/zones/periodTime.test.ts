@@ -170,7 +170,7 @@ describe('periodTimeInZones', () => {
 
   it('shares a lookup across a week when nothing is dated, with the result a lookup for each day gives', () => {
     const digests = sampleDataset().activities.map((activity) => digestActivity(activity))
-    const estimates = zoneEstimatesOf(judgeHeartRate(digests, settings))
+    const estimates = zoneEstimatesOf(judgeHeartRate(digests, settings), Number.MAX_SAFE_INTEGER)
     const undated = periodTimeInZones(digests, settings, estimates)
     // A dated mass that is the profile's: the zones are looked up for each day and come out the same.
     const dated = periodTimeInZones(

@@ -1332,10 +1332,11 @@ is left out of zones.") instead of asking for zones. With no zones the block say
 each measure with enough time (3 activities and an hour, `MIN_ZONE_ACTIVITIES` and `MIN_ZONE_SECONDS`), under one
 lede. The lede reads the measure with the most time. When a zone's share moved by at least 5 points against the
 period before, it says so ("Heart rate zone 2 took 41% of your running time with heart rate, up from 28% in the previous 6 weeks."),
-and otherwise it gives the easy and hard shares ("60% of your running time with heart rate was easy (zones 1 and 2),
-and 10% was hard (zones 4 and up)."). The shares are of the time with a reading, so the sentence says "with heart rate",
+and otherwise it gives the easy and hard shares ("60% of your running time with heart rate was easy (heart rate zones 1 and 2),
+and 10% was hard (heart rate zones 4 and up)."). The shares are of the time with a reading, so the sentence says "with heart rate",
 "with measured power" or "with a pace reading". Easy is zones 1 and 2 and hard is zone 4 and up for every measure
-(`EASY_THROUGH`, `HARD_FROM`). The period before is cut by the same estimated zones as the period on screen, so the two are
+(`EASY_THROUGH`, `HARD_FROM`), and the sentence names the measure ("pace zones 1 and 2"), since pace, heart rate and power
+cut their zones from different references and an easy share is not comparable between them. The period before is cut by the same estimated zones as the period on screen, so the two are
 compared in the same zones. An entered setting that changed between the periods means the zones differ (an estimate is the same in both, and a
 dated weight moving an estimated ride threshold does not stop the comparison), as would one period using an estimate for
 some activities and the other not (a guard for a future back-fill policy; today the earliest entry applies before its own date, so a
