@@ -6,14 +6,10 @@ import type { Activity, QualityFlag, QualityReport } from '../types'
 import { cadenceInSportUnit, resolveGpxRunCadence } from './gpxCadence'
 
 /**
- * The gate every revision-7 change reads (D12 section 1.9). A digest is made at `MODEL_REVISION` unless a test
- * asks for another; below 7 none of the changes here runs, so the bytes of a digest do not move until the
- * release that writes revision 7 removes the gate.
+ * The changes revision 7 makes to a digest (D12 section 2). They were built behind a gate on the revision a digest is
+ * made at, so the bytes of a digest did not move before the release that writes revision 7; that release removed the
+ * gate, and every digest has them.
  */
-export const REVISION_7 = 7
-
-/** Whether a digest made at `revision` has the revision-7 changes. */
-export const hasRevision7 = (revision: number): boolean => revision >= REVISION_7
 
 /** The seconds of the stretches, widened by the margin, with those closer than the flag merge gap joined. */
 function lockRanges(stretches: Range[], n: number): Range[] {
