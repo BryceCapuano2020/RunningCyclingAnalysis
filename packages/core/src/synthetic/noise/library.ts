@@ -52,7 +52,7 @@ export interface LibraryEntry {
   effort: Effort
   /** Week of the span, 0 up from the first week. */
   week: number
-  /** The weekly level the athlete was at (wander, season, heat, strap), log units. */
+  /** The weekly level the athlete was at (wander, season, heat, strap, and any planted change), log units. */
   weeklyLevel: number
   /** The run-to-run draw added on top of the weekly level, log units. */
   runDraw: number
@@ -168,9 +168,15 @@ function gapWeeks(rand: () => number, weeks: number, gapsPerYear: number): Set<n
 /**
  * A training history for `spec`, `weeks` weeks long ending at LIBRARY_END_MS. The weekly level is
  * the one runSim.ts draws (wander, season, heat, strap); each run adds a Student t draw of the
- * level's `runSd`. Activities carry the sensor noise of the spec. Deterministic in `seed`.
+ * level's `runSd`. Activities carry the sensor noise of the spec. Deterministic in `seed`. `planted` adds
+ * a known change of level (log units, negative is a loss) by week, for a power check; absent, nothing changes.
  */
-export function buildLibrary(spec: PersonaSpec, seed: number, weeks: number): Library {
+export function buildLibrary(
+  spec: PersonaSpec,
+  seed: number,
+  weeks: number,
+  planted?: (week: number) => number,
+): Library {
   const rand = mulberry32(seed * 7919 + 17)
   const levels = weeklyLevel(spec.noise.level, weeks, mulberry32(seed * 7919 + 13))
   const gaps = gapWeeks(rand, weeks, spec.gapsPerYear)
@@ -202,7 +208,7 @@ export function buildLibrary(spec: PersonaSpec, seed: number, weeks: number): Li
         if (race) sinceRace[sport] = week
         else if (!session) sinceTest[sport] = week
         const draw = sport === 'run' ? spec.noise.level.runSd * studentT5(rand) : 0
-        const level = levels[week]!
+        const level = levels[week]! + (planted?.(week) ?? 0)
         const id = `${sport}-${String(entries.length + 1).padStart(4, '0')}`
         const raw = generateActivity(
           athleteAtLevel(spec.athlete, level + draw),
