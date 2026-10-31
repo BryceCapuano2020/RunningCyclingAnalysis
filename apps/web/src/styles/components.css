@@ -41,15 +41,27 @@
   position: relative;
 }
 
-.card {
+/*
+ * The two surfaces. A panel is a box: disclosure rows and the error notice keep one, because the box is what says
+ * "open me" or "this broke". A band is not a box: a 2 px rule across the top, the heading, and the section gap
+ * under it. Everything else on a sport page is a band, so the answer is the one thing with weight (D10, fewer boxes).
+ */
+.panel {
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--space-5);
   min-width: 0;
 }
 
-.card > h2 + p {
+/* The rule sits above the section gap's share of the stack gap, so a band is a section-gap under the one before it. */
+.band {
+  min-width: 0;
+  padding-top: var(--space-4);
+  border-top: 2px solid var(--border);
+  margin-top: calc(var(--section-gap) - var(--stack-gap));
+}
+
+.band > h2 + p {
   color: var(--text-secondary);
   margin-top: var(--space-1);
   max-width: var(--measure);

@@ -11,26 +11,14 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* The card carries its sport on its left edge, as the records' cards do; the figures stay in ink. */
+/* The card is a band: a rule across the top and no box. It carries its sport as a 4 px rule beside the state; the figures stay in ink. */
 .fitness-card {
   position: relative;
   display: grid;
   gap: var(--space-4);
   min-width: 0;
-  padding: var(--space-5) var(--space-5) var(--space-4) calc(var(--space-5) + 4px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
-  box-shadow: var(--shadow);
-}
-
-.fitness-card::before {
-  content: '';
-  position: absolute;
-  inset: -1px auto -1px -1px;
-  width: 6px;
-  border-radius: var(--radius) 0 0 var(--radius);
-  background: var(--sport-colour);
+  padding: var(--space-4) 0 var(--space-2);
+  border-top: 2px solid var(--border);
 }
 
 .fitness-card__top {
@@ -117,7 +105,7 @@
   .fitness-card__top {
     position: absolute;
     top: var(--space-3);
-    right: var(--space-4);
+    right: 0;
   }
 
   .fitness-card__new-week {
@@ -153,7 +141,7 @@
   .fitness-card__top {
     position: absolute;
     top: var(--space-3);
-    right: var(--space-4);
+    right: 0;
   }
 
   .fitness-card__sport {
@@ -175,6 +163,8 @@
   align-items: center;
   gap: var(--space-3);
   margin: 0;
+  padding-left: var(--space-3);
+  border-left: 4px solid var(--sport-colour);
   /* A long word hyphenates, then breaks, rather than spill at 200% text. */
   overflow-wrap: anywhere;
   hyphens: auto;
@@ -257,8 +247,8 @@
 }
 
 @media (forced-colors: active) {
-  .fitness-card::before {
-    background: CanvasText;
+  .fitness-card__state {
+    border-left-color: CanvasText;
   }
 
   .fitness-progress__cell {

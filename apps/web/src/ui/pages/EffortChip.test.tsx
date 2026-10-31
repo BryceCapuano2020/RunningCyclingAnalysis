@@ -26,7 +26,7 @@ describe('EffortChip', () => {
     expect(container.querySelector('.chip')).toHaveClass('chip--warning')
     expect(container.querySelector('.chip svg')).toHaveAttribute('aria-hidden', 'true')
     // One chip, with no card, heading or paragraph of detail beside it.
-    expect(container.querySelector('h2, h3, p, .card')).toBeNull()
+    expect(container.querySelector('h2, h3, p, .panel, .band')).toBeNull()
   })
 
   it('keeps the detail in a definition that opens from the chip, with what would change it', () => {
