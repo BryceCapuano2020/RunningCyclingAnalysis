@@ -100,7 +100,7 @@ function pick(rand: () => number, sessions: readonly Session[]): Session {
 }
 
 /** The first `distanceM` of a race, as the device would record it: the warm-up and the cool-down are cut off. */
-function raceOfDistance(a: Activity, distanceM: number): Activity {
+export function raceOfDistance(a: Activity, distanceM: number): Activity {
   const start = Math.min(a.n, RACE_WARMUP_S)
   let end = start
   while (end < a.n && a.distance[end]! - a.distance[start]! < distanceM) end++

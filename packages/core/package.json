@@ -9,8 +9,6 @@
     "./athlete": "./src/athlete/index.ts",
     "./change": "./src/change/index.ts",
     "./change/types": "./src/change/types.ts",
-    "./change": "./src/change/index.ts",
-    "./change/types": "./src/change/types.ts",
     "./types": "./src/types.ts",
     "./constants": "./src/constants.ts",
     "./customRange": "./src/customRange.ts",

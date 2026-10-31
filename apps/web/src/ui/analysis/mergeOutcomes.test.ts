@@ -44,4 +44,12 @@ describe('mergeOutcomes', () => {
     )
     expect(merged).toEqual({ activities: 0, rejected: 3, duplicates: [] })
   })
+
+  it('adds the updated counts, and leaves them out when neither import updated any', () => {
+    const base = { activities: 1, rejected: 0, duplicates: [] }
+    expect(
+      mergeOutcomes({ ...base, updatedRuns: 2, updatedRides: 0 }, { ...base, updatedRuns: 1 }),
+    ).toMatchObject({ updatedRuns: 3, updatedRides: 0 })
+    expect(mergeOutcomes(base, base)).not.toHaveProperty('updatedRuns')
+  })
 })

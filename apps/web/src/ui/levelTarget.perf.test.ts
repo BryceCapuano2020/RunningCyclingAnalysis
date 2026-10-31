@@ -27,7 +27,14 @@ describe('levelTargetText performance', () => {
     const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
     const { result } = state
     if (result === null) throw new Error('The sample has no result')
-    const grades = headlineGrades(result, SAMPLE_PROFILE)
+    const sampleGrades = headlineGrades(result, SAMPLE_PROFILE)
+    const run = sampleGrades.run
+    if (run.kind !== 'graded') throw new Error('The sample has no run grade')
+    // The sample's ride is the higher sport, so the run is given a higher grade: the ride is then the one to level.
+    const grades = {
+      ...sampleGrades,
+      run: { ...run, grade: { ...run.grade, centre: { grade: 0.85, level: 'National' as const } } },
+    }
     let line: string | null = null
     const ms = fastestMs(() => {
       line = levelTargetText({

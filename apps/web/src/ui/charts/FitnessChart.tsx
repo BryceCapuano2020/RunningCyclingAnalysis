@@ -203,16 +203,14 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
             />
             <ChartAnnotations
               size={size}
-              obstacles={[
-                ...lineObstacles(m.line, LINE_CLEARANCE_PX),
-                // The level's labels, where a phone sets them inside the plot, are not to be written over.
-                ...insideLabelBoxes(
-                  m.yTicks,
-                  plot,
-                  axisTitle(sport, units),
-                  axisFontSize(size.width),
-                ),
-              ]}
+              obstacles={lineObstacles(m.line, LINE_CLEARANCE_PX)}
+              // The level's labels, where a phone sets them inside the plot, are not to be written over.
+              ticks={insideLabelBoxes(
+                m.yTicks,
+                plot,
+                axisTitle(sport, units),
+                axisFontSize(size.width),
+              )}
               annotations={[
                 {
                   kind: 'reference',

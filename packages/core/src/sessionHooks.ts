@@ -11,7 +11,10 @@ export interface ImportCompletion {
   /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
   notActivities: number
   duplicates: RejectedFile[]
+  /** The digests of workouts the library gained. */
   added: ActivityDigest[]
+  /** The digests that replaced a workout held out of the analysis by an older model: not new, so never a new best. */
+  upgraded: ActivityDigest[]
 }
 
 /**

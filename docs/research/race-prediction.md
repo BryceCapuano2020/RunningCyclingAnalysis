@@ -40,12 +40,18 @@ Both sources' anchors are carried the same way, so they differ only in what they
   - The anchors are carried by Riegel's law, t2 = t1 × (d2/d1)^1.07. The 1.06 exponent is Riegel's 1977
     figure; Vickers & Vertosick (2016, BMC Sports Sci Med Rehabil 8:26) found 1.07 well calibrated up to
     the half in 2,303 recreational runners.
-  - The anchor that implies the fastest time is taken, since a best is a lower bound: a 5 km run inside a
-    longer effort was not all-out.
-  - No anchor is carried more than ten times its distance.
+  - The anchors within about three times the race's distance are carried (`RIEGEL_MAX_RATIO`), and their
+    times are averaged in log time, each weighted by how near its distance is to the race's (a normal in the
+    log of the ratio, a ratio of two counting for about 0.6). Taking the fastest implied time instead read
+    every best as all-out; a forward test of the old rule found it optimistic, and the bias larger the
+    further the anchor from the race.
+  - A prediction is never slower than the athlete's own best at that distance among the bests it rests on:
+    a time already run is a floor, and the range moves with it. A recorded best slower than the top of the
+    range is named on the row, since the race was carried from other distances.
 - **Marathon:**
   - Vickers & Vertosick's model 1, speed = 0.16018617 + 0.83076202 × v_Riegel + 0.06423826 × (miles per
-    week / 10), from the anchor of 5 km or more that implies the fastest.
+    week / 10), applied to each anchor within 4.5 times the marathon's distance (10 km up, since the
+    correction is fitted to that reach) and averaged with the same distance weights.
   - It corrects Riegel, which ran about 10 min fast at the median, for training volume.
   - The weekly distance is the running distance in the eight weeks ending with the newest run, per week
     (`volume.ts`).
@@ -63,6 +69,9 @@ Both sources' anchors are carried the same way, so they differ only in what they
 
 ## Known limits
 
+- **The marathon is not a record distance:** the digest keeps bests at the mile, 5 km, 10 km and half
+  marathon, so a marathon run is not kept as a best to compare with. Adding it changes the digest, so it
+  waits for a revision.
 - **The reference heart rate:** it is the highest on file in the period, not a tested maximum. A spike
   raises the heart-rate VO2max, and an easy period lowers it.
 - **Hills:** the flat-equivalent pace leans on a grade model whose downhill correction is unvalidated. The

@@ -12,7 +12,7 @@ import {
 import type { AppEnv, Db } from '../../env.ts'
 import { accountDeleting, HttpError } from '../../errors.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
-import { invalidRequest, limitBody, readBody } from '../../http.ts'
+import { invalidRequest, limitBody } from '../../http.ts'
 import { chargeDaily } from '../../budget.ts'
 import { recordDatabaseSize } from '../../storage.ts'
 import { activities } from '../../db/schema.ts'
@@ -20,6 +20,7 @@ import { must } from '../../util.ts'
 import {
   ACTIVITY_COLUMNS,
   findOwnedActivity,
+  readJsonBody,
   toRecord,
   toRecordHolding,
   type ActivityRow,
@@ -49,16 +50,6 @@ type CreateInput = z.infer<typeof ActivityCreateSchema> & {
 /** A stored digest's size: UTF-8 bytes, as SQLite's length(CAST(digest_json AS BLOB)) counts them. */
 function digestByteLength(digestJson: string): number {
   return new TextEncoder().encode(digestJson).byteLength
-}
-
-/** The request body as parsed JSON, read under the create limit. Anything else is refused. */
-async function readJsonBody(request: Request): Promise<unknown> {
-  const body = await readBody(request, MAX_CREATE_BODY_BYTES)
-  try {
-    return JSON.parse(new TextDecoder().decode(body))
-  } catch {
-    throw new HttpError(400, 'invalid_json', 'Body is not valid JSON')
-  }
 }
 
 /** The validated body with its derived values. A digest over the size limit is refused here. */
@@ -337,7 +328,7 @@ createRoutes.post(
     const userId = currentUser(c).id
     const { replace } = c.req.valid('query')
 
-    const body = await readJsonBody(c.req.raw)
+    const body = await readJsonBody(c.req.raw, MAX_CREATE_BODY_BYTES)
     requireCurrentRevision(body)
     const parsed = ActivityCreateSchema.safeParse(body)
     if (!parsed.success) return c.json(invalidRequest(parsed.error), 400)

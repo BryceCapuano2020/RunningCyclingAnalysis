@@ -21,7 +21,18 @@ describe('marathonTime', () => {
     )
   })
 
-  it('needs a race of 5 km or more', () => {
+  it('needs a race of 10 km or more, as a 5 km is too far from it to carry', () => {
     expect(marathonTime([{ distanceM: 1609.344, seconds: 360 }], 30000)).toBeNull()
+    expect(marathonTime([{ distanceM: 5000, seconds: 1300 }], 30000)).toBeNull()
+  })
+
+  it('leads with the half marathon over a 10 km, the nearer race, and names it', () => {
+    const half = { distanceM: 21097.5, seconds: 5700 }
+    const both = marathonTime([tenK, half], 30000)!
+    expect(both.fromM).toBe(21097.5)
+    const tenOnly = marathonTime([tenK], 30000)!.seconds
+    const halfOnly = marathonTime([half], 30000)!.seconds
+    expect(both.seconds).toBeGreaterThan(Math.min(tenOnly, halfOnly))
+    expect(both.seconds).toBeLessThan(Math.max(tenOnly, halfOnly))
   })
 })
