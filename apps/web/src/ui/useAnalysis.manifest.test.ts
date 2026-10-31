@@ -43,6 +43,8 @@ function stateWith(totalActivities: number): SessionState {
     unsupportedFiles: 0,
     isSample: false,
     totalActivities,
+    libraryActivities: totalActivities,
+    heldOut: [],
     period: EMPTY_PERIOD,
     library: [],
     syncIssues: [],
