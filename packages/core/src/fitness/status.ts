@@ -12,7 +12,7 @@ import type {
   Shortfall,
 } from './types'
 import { levelSeries, pointOf } from './series'
-import { distinctWeeks, levelOf, referenceOf, risenAt, sigmaAt, slice } from './windows'
+import { distinctWeeks, levelOf, referenceOf, sigmaAt, slice } from './windows'
 import type { Dip, RunPoint } from './windows'
 import type { Sport } from '../types'
 
@@ -72,7 +72,7 @@ export function enteredAt(records: readonly WeekRecord[]): FitnessEntry | null {
   return { atMs: weekEndOf(records[first]!.w), z: Number.NaN }
 }
 
-const NOW_STATES = new Set<FitnessState>(['slipping', 'recovering'])
+const NOW_STATES = new Set<FitnessState>(['slipping', 'recovering', 'improving'])
 
 /** The level over the shortest of the `nowWeeks` stretches that holds enough runs, or the monitor's own level when none does. */
 function shortLevel(
@@ -168,7 +168,7 @@ function earlierRuns(
 
 /**
  * No episode open: the last 8 weeks against the reference window. Holding when the level is known to within
- * 6%; improving when it is clearly up; otherwise too uncertain to say.
+ * 6%, otherwise too uncertain to say. A rise is an episode of the monitor, not read here.
  */
 function calm(
   base: FitnessStatus,
@@ -196,27 +196,13 @@ function calm(
   const half = halfWidth(a.se, b.se)
   const within = Math.abs(delta) + half
   const change = ranged(delta, half)
-  // A clear rise is said plainly rather than as too little evidence: the mirror of the slip test on two weeks
-  // running, with the range clear of zero. There is no episode and no finding.
-  // The earlier level must be free of a dip: while the weeks 8 to 44 ago hold any of an episode that has since
-  // closed (or one still open), an athlete back at their old level would read as faster than their dip.
-  const dipBehind =
-    records.at(-1)?.episode != null ||
-    records.some(
-      (r) => r.closes !== null && r.closes < window.to && dayOfWeekEnd(r.w) >= window.from,
-    )
-  const rising =
-    !dipBehind &&
-    change.low > 0 &&
-    risenAt(runs, day, sigma, dips) &&
-    risenAt(runs, day - 7, sigmaAt(runs, day - 7), dips)
   // A level an episode has just closed on is said as it stands, however wide its range: it cannot turn "holding below" into "not enough evidence".
-  if (!rising && !settled && within > D.maxWithin) {
+  if (!settled && within > D.maxWithin) {
     return lacking(base, { kind: 'imprecise', within })
   }
   return {
     ...base,
-    state: rising ? 'improving' : 'holding',
+    state: 'holding',
     now: exp(a.m),
     before: exp(b.m),
     change,
