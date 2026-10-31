@@ -15,13 +15,13 @@ export function spreadText(prediction: RacePrediction): string {
   return `${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
 }
 
-/** Where one estimate came from, such as "From your best runs: 20:25, carried from your best 10 km". */
+/** Where one estimate came from, such as "From your best runs: 20:25, led by your best 10 km". */
 export function originText(method: MethodTime, vo2max: number | null): string {
   const time = formatRecordTime(method.seconds)
   if (method.method === 'heartRate') {
     return `${METHOD_NAME.heartRate}: ${time}, at a VO2max of ${Math.round(vo2max ?? 0)}`
   }
-  return `${METHOD_NAME.performances}: ${time}, carried from your best ${raceName(method.fromM).toLowerCase()}`
+  return `${METHOD_NAME.performances}: ${time}, led by your best ${raceName(method.fromM).toLowerCase()}`
 }
 
 /** A sentence when the runs and the heart rate point to different fitness, or nothing. */

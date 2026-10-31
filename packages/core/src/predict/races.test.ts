@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { RACE_LOG_SD, RACE_RANGE_Z, RUN_RACE_DISTANCES_M } from '../constants'
 import { danielsTime } from './daniels'
-import { carried } from './riegel'
+import { riegelTime } from './riegel'
 import { predictRunRaces } from './races'
 
 const bests = [
@@ -18,10 +18,10 @@ describe('predictRunRaces', () => {
       weeklyM,
     })
     const fiveK = races[0]!
-    const fromHeart = Math.min(
-      danielsTime(5000, 55),
-      carried({ distanceM: 10000, seconds: danielsTime(10000, 55) }, 5000),
-    )
+    const fromHeart = riegelTime(
+      [5000, 10000].map((distanceM) => ({ distanceM, seconds: danielsTime(distanceM, 55) })),
+      5000,
+    )!.seconds
     expect(fiveK.methods.map((m) => m.method)).toEqual(['performances', 'heartRate'])
     expect(fiveK.methods[1]!.seconds).toBeCloseTo(fromHeart, 6)
     expect(fiveK.seconds).toBeCloseTo(Math.sqrt(fiveK.methods[0]!.seconds * fromHeart), 6)
@@ -48,5 +48,36 @@ describe('predictRunRaces', () => {
 
   it('predicts nothing without bests or heart rate', () => {
     expect(predictRunRaces({ bests: [], vo2max: null, weeklyM }).races).toEqual([])
+  })
+
+  it('does not predict beyond a time already run at the distance, and moves the range with it', () => {
+    // A 5 km faster than the 10 km implies: the carried middle would be slower than the run itself.
+    const quick = [
+      { distanceM: 5000, seconds: 19 * 60 },
+      { distanceM: 10000, seconds: 41 * 60 },
+    ]
+    const five = predictRunRaces({ bests: quick, vo2max: null, weeklyM }).races[0]!
+    expect(five.seconds).toBe(19 * 60)
+    const free = predictRunRaces({ bests: [quick[1]!], vo2max: null, weeklyM }).races[0]!
+    expect(free.seconds).toBeGreaterThan(19 * 60)
+    expect(five.high / five.seconds).toBeGreaterThan(1)
+    expect(Math.log(five.high / five.seconds)).toBeCloseTo(RACE_RANGE_Z * RACE_LOG_SD[5000], 6)
+    // The unmoved 10 km is not touched by it.
+    const ten = predictRunRaces({ bests: quick, vo2max: null, weeklyM }).races[1]!
+    expect(ten.seconds).toBeLessThanOrEqual(41 * 60)
+  })
+
+  it('leaves a race with no best near it to the heart rate, and a short best does not set a long race', () => {
+    const mileOnly = [{ distanceM: 1609.344, seconds: 330 }]
+    const races = predictRunRaces({ bests: mileOnly, vo2max: null, weeklyM }).races
+    expect(races.map((r) => r.distanceM)).toEqual([5000])
+    const withHeart = predictRunRaces({
+      bests: mileOnly,
+      vo2max: { vo2max: 50, runs: 3, hillCapped: 0 },
+      weeklyM,
+    }).races
+    for (const race of withHeart.filter((r) => r.distanceM > 5000)) {
+      expect(race.methods.map((m) => m.method)).toEqual(['heartRate'])
+    }
   })
 })

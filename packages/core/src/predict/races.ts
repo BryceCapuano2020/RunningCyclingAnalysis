@@ -16,14 +16,17 @@ export type PredictionMethod = 'performances' | 'heartRate'
 export interface MethodTime {
   method: PredictionMethod
   seconds: number
-  /** The distance, m, of the best (or, for heart rate, the race at its VO2max) it was carried from. */
+  /** The distance, m, of the nearest best (or, for heart rate, the race at its VO2max) it was carried from. */
   fromM: number
 }
 
 /** A predicted race, by its distance. The shape holds for any sport with set distances. */
 export interface RacePrediction {
   distanceM: number
-  /** The predicted time, s: the geometric mean of the methods that could judge the race. */
+  /**
+   * The predicted time, s: the geometric mean of the methods that could judge the race, and never slower than the
+   * runner's own best at this distance among the bests it was worked out from (a run already done is a floor).
+   */
   seconds: number
   /** The 10th to 90th percentile of likely times, s, from published errors and the methods' disagreement. */
   low: number
@@ -69,20 +72,34 @@ function heartRateAnchors(vo2max: Vo2maxEstimate): Performance[] {
 
 /**
  * The prediction from the methods' times: their geometric mean, and a range whose spread combines the
- * race's published error with half the methods' log disagreement, since both are uncertainty.
+ * race's published error with half the methods' log disagreement, since both are uncertainty. Where the runner
+ * has already run the race's distance faster (`demonstrated`, s), a mean slower than that is moved onto it, the
+ * range with it: a time already run is not one to predict beyond.
  */
-function predictionOf(distanceM: RaceM, methods: MethodTime[]): RacePrediction {
+function predictionOf(
+  distanceM: RaceM,
+  methods: MethodTime[],
+  demonstrated: number | null,
+): RacePrediction {
   const logs = methods.map((m) => Math.log(m.seconds))
   const mean = logs.reduce((sum, value) => sum + value, 0) / logs.length
   const disagreement = (Math.max(...logs) - Math.min(...logs)) / 2
   const sd = Math.hypot(RACE_LOG_SD[distanceM], disagreement)
+  const seconds = methods.length === 1 ? methods[0]!.seconds : Math.exp(mean)
+  const move = demonstrated !== null && demonstrated < seconds ? demonstrated / seconds : 1
   return {
     distanceM,
-    seconds: methods.length === 1 ? methods[0]!.seconds : Math.exp(mean),
-    low: Math.exp(mean - RACE_RANGE_Z * sd),
-    high: Math.exp(mean + RACE_RANGE_Z * sd),
+    seconds: seconds * move,
+    low: Math.exp(mean - RACE_RANGE_Z * sd) * move,
+    high: Math.exp(mean + RACE_RANGE_Z * sd) * move,
     methods,
   }
+}
+
+/** The fastest of the bests at exactly this distance, s, or null when none was run there. */
+function demonstratedAt(bests: readonly Performance[], distanceM: number): number | null {
+  const same = bests.filter((b) => b.distanceM === distanceM).map((b) => b.seconds)
+  return same.length === 0 ? null : Math.min(...same)
 }
 
 /**
@@ -99,7 +116,9 @@ export function predictRunRaces(input: RunPredictionInput): RunPredictions {
       const time = timeFrom(anchors, distanceM, input.weeklyM)
       return time === null ? [] : [{ method, ...time }]
     })
-    return methods.length === 0 ? [] : [predictionOf(distanceM, methods)]
+    return methods.length === 0
+      ? []
+      : [predictionOf(distanceM, methods, demonstratedAt(bests, distanceM))]
   })
   const vdots = bests.map((b) => vdotOf(b.distanceM, b.seconds))
   return { races, runsVdot: vdots.length === 0 ? null : Math.max(...vdots), vo2max: input.vo2max }
