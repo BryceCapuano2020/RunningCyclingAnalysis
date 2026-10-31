@@ -1,5 +1,6 @@
 import { MAX_FILE_BYTES } from '@rca/contract'
 import type { ActivityRecord } from '@rca/contract'
+import { revisionStatus } from '@rca/core/digest/revisions'
 import { SyncFailure } from '@rca/core/session'
 import type { SyncItem, SyncSink } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
@@ -107,7 +108,23 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
 
   const saveOnce = async (item: SyncItem, leading: boolean): Promise<void> => {
     const key = workoutKeyOf(item.digest)
-    const create = () => createActivity(item.digest, item.fileName, item.fileHash, sync.userId)
+    // A file added again for a workout the account holds from an older analysis upgrades that row, under the id, file
+    // name and title it has, so the title it was saved with is kept (a create would send a generated one).
+    const stale = [...savedRecords.values()].find(
+      (held) =>
+        workoutKeyOf(held.digest) === key &&
+        revisionStatus(held.digest.modelRevision) !== 'current',
+    )
+    const create = () =>
+      stale === undefined
+        ? createActivity(item.digest, item.fileName, item.fileHash, sync.userId)
+        : createActivity(
+            { ...item.digest, id: stale.digest.id, name: stale.digest.name },
+            stale.fileName,
+            item.fileHash,
+            sync.userId,
+            stale.id,
+          )
     const send = () => (ctx.sending === undefined ? create() : ctx.sending.run(key, create))
     // The try that follows a rate limit goes round the gate, which the saves waiting out the same limit may hold
     // full; it is one request beyond the gate's limit.

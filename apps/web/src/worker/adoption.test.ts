@@ -358,6 +358,17 @@ describe('following up a save that was cut short', () => {
     expect(await library.all()).toEqual([])
   })
 
+  it('removes it when the account row was saved before under the plain name and the kept one since under its hash', async () => {
+    const plainId = `${digests[0]!.startMs}-run.fit`
+    const hashed = { ...digests[0]!, id: hashedDigestId(plainId) }
+    const library = memoryDeviceLibrary()
+    await library.put(keyOf(0), hashed, null, { fileName: 'run.fit', fileHash: HASH })
+    const row = { ...rowFor(0), digestId: hashed.id, digestJson: serializeDigest(hashed) }
+    const older = { ...recordOf(0), digest: { ...digests[0]!, id: plainId, modelRevision: 5 } }
+    await followUpAdopted({ library, savedRecords: new Map([['rec0', older]]) }, row, 'held')
+    expect(await library.all()).toEqual([])
+  })
+
   it('leaves it when the account holds another file for the workout', async () => {
     const other = { ...recordOf(0), digest: { ...digests[0]!, id: 'another-file' } }
     const { left } = await run(rowFor(0), 'held', [other])
