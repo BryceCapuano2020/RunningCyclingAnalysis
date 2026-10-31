@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { NO_EFFORT_REFERENCE } from '../effort'
 import type { EffortReference } from '../effort'
 import type { ActivityDigest, AthleteSettings } from '../types'
-import { dotsRule, shownNotHard } from './hardEffortRule'
+import { PeriodCache } from '../periodCache'
+import { dotsRule, hardEffortRule, shownNotHard } from './hardEffortRule'
 import { fitnessTrend } from './trend'
+import { dotCount } from './trendPoints'
 import { levelRun } from './test/runLibrary'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
@@ -72,5 +74,64 @@ describe('the bests-over-time dots and the effort gate', () => {
     expect(shownNotHard(EASY, EASY.curve[10]!, reference('trusted'), new Set())).toBe(true)
     expect(rule.key).not.toBe(dotsRule(reference('low'), []).key)
     expect(rule.key).not.toBe(dotsRule(reference('trusted'), ['x']).key)
+  })
+})
+
+describe('the dots and the change test read the one gate', () => {
+  const NOT_HARD = run('easy2', 10, 1.1, 140)
+  const NO_HEART_RATE = run('blank', 11, 1.1, null)
+  const SPRINT = { ...HARD, curve: [{ ...HARD.curve[0]!, durationS: 30 }] } as ActivityDigest
+  const outcomes = (rule: ReturnType<typeof dotsRule>, digest: ActivityDigest) =>
+    rule.rule.point(digest, digest.curve[digest.curve.length > 10 ? 10 : 0]!)
+
+  it('agree on a hard effort, an easy one and a sprint, and differ only where heart rate cannot judge', () => {
+    const trusted = reference('trusted')
+    const dots = dotsRule(trusted, ['set-aside'])
+    const change = hardEffortRule(trusted, ['set-aside'])
+    // Agree: hard counts, shown easy does not, a sprint (no heart rate to judge it by) counts.
+    expect([outcomes(dots, HARD), outcomes(change, HARD)]).toEqual([true, true])
+    expect([outcomes(dots, NOT_HARD), outcomes(change, NOT_HARD)]).toEqual([false, false])
+    expect([outcomes(dots, SPRINT), outcomes(change, SPRINT)]).toEqual([true, true])
+    // Differ, and only here: no heart rate, one set aside, a reference that cannot say. The change test needs evidence
+    // of a hard effort and leaves them out; the dots withhold only what is shown easy, so they stay.
+    const aside = { ...NOT_HARD, id: 'set-aside' }
+    for (const digest of [NO_HEART_RATE, aside]) {
+      expect([outcomes(dots, digest), outcomes(change, digest)], digest.id).toEqual([true, false])
+    }
+    const thin = [dotsRule(reference('thin'), []), hardEffortRule(reference('thin'), [])] as const
+    expect([outcomes(thin[0], NOT_HARD), outcomes(thin[1], NOT_HARD)]).toEqual([true, false])
+  })
+})
+
+describe('which lengths the dots rule left empty', () => {
+  const EASY_ONLY = [run('e1', 0, 1.1, 140), run('e2', 35, 1.0, 140)]
+  const cache = new PeriodCache()
+  const read = (rule?: ReturnType<typeof dotsRule>) => {
+    const shown = cache.trends(EASY_ONLY, SETTINGS, 42, null, undefined, undefined, rule)
+    const withheld = cache.dotsWithheld(
+      EASY_ONLY,
+      SETTINGS,
+      42,
+      null,
+      undefined,
+      shown,
+      undefined,
+      rule,
+    )
+    return { shown, withheld }
+  }
+
+  it('names the gate when it leaves a length too few dots that the period has without it', () => {
+    const { shown, withheld } = read(dotsRule(reference('trusted'), []))
+    expect(dotCount(shown[1200], 'run')).toBe(0)
+    expect(withheld.run[1200]).toBe(true)
+    expect(withheld.ride[1200]).toBe(false)
+  })
+
+  it('names nothing without the rule, or where the dots still draw', () => {
+    expect(read().withheld.run[1200]).toBe(false)
+    const kept = read(dotsRule(reference('thin'), []))
+    expect(dotCount(kept.shown[1200], 'run')).toBeGreaterThanOrEqual(2)
+    expect(kept.withheld.run[1200]).toBe(false)
   })
 })

@@ -1,4 +1,6 @@
 import { sameAnalysisSettings } from './athlete/references'
+import { sameDigests } from './sameDigests'
+import { TrendMemo } from './trendMemo'
 import { calendarWatch } from './calendar'
 import { changeEvidence } from './change/evidence'
 import type { ChangeEvidence } from './change/types'
@@ -16,10 +18,8 @@ import type { LateReference } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import { sameHeartRate } from './digest/sameHeartRate'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
-import { fitnessTrend } from './digest/trend'
-import type { TrendOptions, TrendPoint } from './digest/trend'
-import { EFFORT_LENGTHS_S, trendWindowDays } from './digest/trendPoints'
-import type { EffortLengthS } from './digest/trendPoints'
+import type { TrendPoint } from './digest/trend'
+import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -30,10 +30,7 @@ import type {
 
 /* The cache behind a session's periods: each period's analysis, trends and same-heart-rate points, reused while their inputs hold. */
 
-/** Whether two lists hold the same digest objects in the same order. */
-export function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
-  return a.length === b.length && a.every((digest, i) => digest === b[i])
-}
+export { sameDigests }
 
 /** The settings and digests that a cached result was computed from. */
 interface Inputs {
@@ -77,15 +74,7 @@ const ANALYSES_KEPT = 4
  */
 export class PeriodCache {
   private moved = { trend: calendarWatch(), same: calendarWatch() }
-  private trendEntries = new Map<
-    EffortLengthS,
-    Inputs & {
-      rangeDays: number | null
-      startMs: number | null
-      gate: string
-      points: TrendPoint[]
-    }
-  >()
+  private trendMemo = new TrendMemo()
   // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
   private changeEntries: (Inputs & {
     previous: ActivityDigest[]
@@ -201,7 +190,8 @@ export class PeriodCache {
   }
 
   /**
-   * The weekly trend of each effort length over the selected period, reused while its inputs are the same.
+   * The weekly trend of each effort length over the selected period, reused while its inputs are the same, and which lengths
+   * the dots' rule left too few dots to draw (see `TrendMemo.withheld`).
    */
   trends(
     selected: ActivityDigest[],
@@ -212,53 +202,29 @@ export class PeriodCache {
     rideGate?: EstimatedRideGate | null,
     rule?: KeyedReadingRule,
   ): Record<EffortLengthS, TrendPoint[]> {
-    if (this.moved.trend()) this.trendEntries.clear()
-    const extras = { rideGate, rule }
-    return Object.fromEntries(
-      EFFORT_LENGTHS_S.map((durationS) => [
-        durationS,
-        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, extras),
-      ]),
-    ) as Record<EffortLengthS, TrendPoint[]>
+    if (this.moved.trend()) this.trendMemo.clear()
+    return this.trendMemo.trends(
+      { selected, settings, rangeDays, startMs, bikeModel },
+      { rideGate, rule },
+    )
   }
 
-  /** The weekly trend of one effort length: a third of the period in each window, within the period. */
-  private trend(
+  /** The lengths the rule left without dots that the period has without it: asked after `trends`, with the same inputs. */
+  dotsWithheld(
     selected: ActivityDigest[],
     settings: AthleteSettings,
     rangeDays: number | null,
     startMs: number | null,
     bikeModel: BikeModel | undefined,
-    durationS: EffortLengthS,
-    extras: Pick<TrendOptions, 'rideGate' | 'rule'>,
-  ): TrendPoint[] {
-    const gate = `${rideGateKey(extras.rideGate)}|${extras.rule?.key ?? ''}`
-    const cached = this.trendEntries.get(durationS)
-    if (
-      cached &&
-      cached.rangeDays === rangeDays &&
-      cached.startMs === startMs &&
-      cached.gate === gate &&
-      sameInputs(cached, selected, settings)
-    ) {
-      return cached.points
-    }
-    const points = fitnessTrend(selected, settings, {
-      durationS,
-      windowDays: trendWindowDays(rangeDays),
-      fromMs: startMs ?? undefined,
-      bikeModel,
-      ...extras,
-    })
-    this.trendEntries.set(durationS, {
-      selected,
-      settings,
-      rangeDays,
-      startMs,
-      gate,
-      points,
-    })
-    return points
+    shown: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>,
+    rideGate?: EstimatedRideGate | null,
+    rule?: KeyedReadingRule,
+  ): DotsWithheld {
+    return this.trendMemo.withheld(
+      { selected, settings, rangeDays, startMs, bikeModel },
+      { rideGate, rule },
+      shown,
+    )
   }
 
   /**

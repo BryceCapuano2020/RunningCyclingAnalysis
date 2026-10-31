@@ -312,7 +312,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
     test's finding about that length against the previous period with the window named ("20 min is 11 s/km faster than
     the previous 12 weeks", "No clear change in 20 min from the previous 12 weeks; changes under 7% can't be told apart here"), and the plain description ("Best 20 min runs by
     day") when there is no previous period (All time) or the test could not judge the length. The fitness status above is the
-    sport's trend. A dot is the effort that led some trailing window, once; the hard-effort filter waits for the effort gate in core.
+    sport's trend. A dot is the effort that led some trailing window, once. The effort gate leaves out an effort heart rate shows was not hard (`dotsRule`); one it cannot judge (no heart rate, set aside, a thin library) stays. The note says so in plain words ("Efforts your heart rate shows were not hard are left out."), and where the gate is why a length has too few dots to draw, the empty state names the gate and not the days.
   - **Late in long sessions** is a closed section. It holds two readings, each titled by what it found, with its
     chart and note, and each shown only once 3 activities stand behind it (`LATE_IN_EFFORT` in
     `packages/core/src/constants.ts`). The first compares the best 5 and 20 min overall, from any point in an

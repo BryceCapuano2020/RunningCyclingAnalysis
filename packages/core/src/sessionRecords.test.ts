@@ -72,6 +72,7 @@ describe('AnalysisSession records', () => {
       [
         'countedWalkingRuns',
         'effortTrends',
+        'dotsWithheld',
         'fitness',
         'lookBack',
         'heartRateJudgement',

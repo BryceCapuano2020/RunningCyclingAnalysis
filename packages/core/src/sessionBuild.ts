@@ -5,7 +5,7 @@ import { dotsRule, hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
-import { NO_TRENDS } from './digest/trendPoints'
+import { NONE_WITHHELD, NO_TRENDS } from './digest/trendPoints'
 import { powerSetAsideIds } from './digest/powerCheck'
 import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
@@ -110,17 +110,24 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const bikeModel = analysis?.bikeModel
   // All time is not clipped at a start, so its trend begins at the first activity.
   const fromMs = period.days === null ? null : period.startMs
+  // The dots leave out an effort heart rate shows was not hard: the library's set-aside list is the heart-rate one, as the change test takes it.
+  const dots = dotsRule(judgement.effortReference, setAside)
   const efforts =
     athlete === null
       ? NO_TRENDS
-      : periods.trends(
+      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate, dots)
+  const dotsWithheld =
+    athlete === null
+      ? NONE_WITHHELD
+      : periods.dotsWithheld(
           selected,
           athlete,
           period.days,
           fromMs,
           bikeModel,
+          efforts,
           judgement.rideGate,
-          dotsRule(judgement.effortReference, held),
+          dots,
         )
   const sameHeartRate =
     analysis === null ? NO_SAME_HEART_RATE : periods.sameHeartRate(selected, analysed, fromMs, held)
@@ -136,6 +143,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     result: analysis,
     trend: efforts[HEADLINE_DURATION_S],
     effortTrends: efforts,
+    dotsWithheld,
     sameHeartRate,
     lateEvidence: late,
     heartRateJudgement: judgement,

@@ -194,6 +194,7 @@ export function ResultPage({
           previousLabel={previousPeriodLabel(period.days)}
           change={analysis.state.change}
           trends={analysis.state.effortTrends}
+          dotsWithheld={analysis.state.dotsWithheld}
           sameHeartRate={analysis.state.sameHeartRate[route.page]}
           fitness={analysis.state.fitness}
           lateEvidence={analysis.state.lateEvidence[route.page]}

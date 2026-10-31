@@ -154,7 +154,8 @@ const runReadings = memoByDigests(
     readingsOf(runs, (run) => bestRunAtOrAbove(run, durationS, rule.rule.point)),
   (a, b) => a.durationS === b.durationS && a.rule.key === b.rule.key,
   undefined,
-  EFFORT_LENGTHS_S.length,
+  // The gated and the open reading of each length are both kept, so asking what the rule withheld evicts neither.
+  EFFORT_LENGTHS_S.length * 2,
 )
 
 /** Two lists of readings, each in order of week-axis start and then id, as one. */
