@@ -26,11 +26,24 @@ export interface QueuedSave {
   done: Promise<void>
 }
 
+/** An activity whose deferred work failed once the import ended, and why. */
+export interface DeferredFailure {
+  /** The workout key of the activity. */
+  key: string
+  code: SyncIssueCode
+}
+
 /**
  * Saves one activity. Resolves when it is saved, or throws a SyncFailure saying why not. A sink that was
  * allowed to (`queueable`) may instead resolve at once with a QueuedSave, so several saves run together.
+ *
+ * A sink may also hold some of its work back until every file is read, so it can be decided with the whole library
+ * in view: `finish` is called once the saves have settled, with the ids of the digests the analysis hides (the
+ * copies of a workout that are not its best), and says which of the activities it held back then failed.
  */
-export type SyncSink = (item: SyncItem) => Promise<void | QueuedSave>
+export type SyncSink = ((item: SyncItem) => Promise<void | QueuedSave>) & {
+  finish?: (hidden: ReadonlySet<string>) => Promise<readonly DeferredFailure[]>
+}
 
 /** An activity file as the sink receives it. */
 export type ImportedFile = Omit<SyncItem, 'digest' | 'route' | 'queueable'>

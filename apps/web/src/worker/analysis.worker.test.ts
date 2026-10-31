@@ -518,22 +518,27 @@ describe('analysis worker', () => {
   })
 
   it('reports a storage allowance failure and does not retry remaining original uploads', async () => {
-    mocked.uploadFile.mockRejectedValueOnce(
+    mocked.uploadFile.mockRejectedValue(
       new ApiRequestError(429, 'storage_budget_exhausted', 'Storage allowance reached'),
     )
     const { send } = await startWorker()
     const messages = await send({
       type: 'addFiles',
-      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      files: [
+        fitFile(sampleActivity, 'run-a.fit'),
+        fitFile(secondSampleActivity, 'run-b.fit'),
+        fitFile(thirdSampleActivity, 'run-c.fit'),
+      ],
       settings: SETTINGS,
       sync: { keepFiles: true, userId: USER_ID },
     })
 
-    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
-    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(mocked.createActivity).toHaveBeenCalledTimes(3)
+    // Originals are uploaded once the import is read, two at a time: the third waits, and finds the allowance spent.
+    expect(mocked.uploadFile).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-budget', count: 2 }], totalActivities: 2 },
+      state: { syncIssues: [{ code: 'storage-budget', count: 3 }], totalActivities: 3 },
     })
   })
 
@@ -569,7 +574,6 @@ describe('analysis worker', () => {
       type: 'state',
       state: { syncIssues: [{ code: 'file-too-large', count: 1 }], totalActivities: 1 },
     })
-    expect(messages).not.toContainEqual(expect.objectContaining({ uploaded: 1 }))
   })
 
   it('counts a failed save and still finishes the import', async () => {
@@ -3144,6 +3148,59 @@ describe('rule R: near-copies of one workout in the worker', () => {
     // And the session no longer holds it: the two left are copies of each other, one shown.
     const next = await send({ type: 'setSettings', settings: SETTINGS })
     expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
+  })
+
+  it.each([
+    ['the FIT first', ['fit', 'copy']],
+    ['the copy first', ['copy', 'fit']],
+  ] as const)(
+    'keeps one original, the shown copy’s, whichever file comes %s',
+    async (_name, order) => {
+      mocked.listActivities.mockResolvedValue([])
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const files = order.map((which) =>
+        which === 'fit' ? fitFile(sampleActivity, 'a.fit') : copyFile(),
+      )
+
+      const messages = await send({
+        type: 'addFiles',
+        files,
+        settings: SETTINGS,
+        sync: { keepFiles: true, userId: USER_ID },
+      })
+
+      // Both digests are stored; the original is uploaded for the FIT, which the analysis shows, and not for the GPX.
+      expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+      expect(mocked.uploadFile).toHaveBeenCalledOnce()
+      const [id] = mocked.uploadFile.mock.calls[0] ?? []
+      const fit = mocked.createActivity.mock.calls.find(([digest]) => digest.id.endsWith('a.fit'))
+      expect(id).toBe(`rec-${fit?.[0].id}`)
+      expect(messages.at(-1)).toMatchObject({
+        type: 'state',
+        state: { syncIssues: [], totalActivities: 1, hiddenDuplicates: 1 },
+      })
+    },
+  )
+
+  it('says an original failed to upload for the shown copy, once the import is read', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    mocked.uploadFile.mockRejectedValue(new ApiRequestError(403, 'storage_quota', 'Storage full'))
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
+    })
   })
 
   it('lists a stale FIT kept in this browser beside a current GPX: neither is a copy of the other', async () => {

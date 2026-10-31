@@ -22,7 +22,13 @@ import { countIssues } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
-import { beginImportUnsynced, clearUnsynced, considerActivity, resetUnsynced } from './sessionKeep'
+import {
+  beginImportUnsynced,
+  clearUnsynced,
+  considerActivity,
+  markUnsynced,
+  resetUnsynced,
+} from './sessionKeep'
 import type { KeepState } from './sessionKeep'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import type { SaveBatch, SyncSink } from './sessionSync'
@@ -40,7 +46,7 @@ export type { RejectCode, Rejection } from './import/result'
 export { copyOfDigest, workoutKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
 
-export type { SyncItem, SyncSink } from './sessionSync'
+export type { DeferredFailure, SyncItem, SyncSink } from './sessionSync'
 export type { FileId, HeldFiles } from './importHeld'
 
 /**
@@ -162,6 +168,12 @@ export class AnalysisSession {
     // replaced one held out of the analysis is upgraded, not added: it is a workout the library already had.
     const analysable = this.library.analysable().map(([, digest]) => digest)
     const hidden = hiddenDigests(analysable)
+    // Work a sink held back until the copies of each workout were known (an original is kept for the shown copy only).
+    if (sink?.finish !== undefined && batch.halt === null) {
+      const hiddenIds = new Set([...hidden].map((digest) => digest.id))
+      for (const { key, code } of await sink.finish(hiddenIds))
+        markUnsynced(this.keeping, key, code)
+    }
     const visibleNew = [...batch.added].filter(([, digest]) => !hidden.has(digest))
     const added = visibleNew.filter(([key]) => !batch.upgraded.has(key)).map(([, digest]) => digest)
     const upgraded = visibleNew
@@ -199,6 +211,12 @@ export class AnalysisSession {
       if (saving && this.unsynced.has(key)) return null
     }
     return fileNameOf(first.id)
+  }
+
+  /** The ids of the digests the analysis hides as copies of a better one, as the library stands now. */
+  hiddenIds(): Set<string> {
+    const analysable = this.library.analysable().map(([, digest]) => digest)
+    return new Set([...hiddenDigests(analysable)].map((digest) => digest.id))
   }
 
   /** The id of the digest held under each workout key, in the order given; undefined for a key that is not held. */

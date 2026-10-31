@@ -121,6 +121,7 @@ export async function runImport(
           onPaused: () => reporter.savesPaused(),
           outbox: openOutbox(sync.userId),
           sending: ctx.sending,
+          hiddenIds: () => session.hiddenIds(),
           onStopped: (code) => {
             stoppedBy ??= code
           },

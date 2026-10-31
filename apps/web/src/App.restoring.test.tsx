@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import { act, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { preloadAllPages } from './ui/lazyPages'
 import { keptLibraryHinted } from './ui/analysis/keptLibrary'
 import { app, resetAppMocks, setAccount, showResult } from './test/appMocks'
+
+// The pages load on first use in the app; these tests render one the moment its route is chosen.
+beforeAll(preloadAllPages)
 
 vi.mock('./ui/useAccount', async () => ({
   useAccount: (await import('./test/appMocks')).useAccountMock,
