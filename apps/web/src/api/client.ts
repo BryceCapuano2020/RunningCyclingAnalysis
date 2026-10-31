@@ -12,6 +12,8 @@ import {
   ProfileSchema,
 } from '@rca/contract'
 import { ActivityLabelsResultSchema } from '@rca/contract'
+import { minimisedForUpload } from '@rca/core/import/minimise'
+import { uploadTitles } from './uploadPolicy'
 import type {
   ActivityLabelsResult,
   ActivityRecord,
@@ -224,10 +226,15 @@ export async function createActivity(
   replaceId?: string,
 ): Promise<CreatedActivity> {
   const query = replaceId === undefined ? '' : `?${new URLSearchParams({ replace: replaceId })}`
+  // From revision 7 the account gets a generated title unless the athlete chose to send titles, and a hash of the file name.
+  const sent = await minimisedForUpload(digest, fileName, {
+    titles: uploadTitles(),
+    account: userId ?? '',
+  })
   const response = await request(
     'POST',
     `/api/activities${query}`,
-    { json: { digest, fileName, fileHash } },
+    { json: { digest: sent.digest, fileName: sent.fileName, fileHash } },
     userId,
     CREATE_RETRY_BACKOFF_MS,
   )

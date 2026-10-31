@@ -8,6 +8,7 @@ import { AccountSection } from '../components/AccountSection'
 import { AthleteFields } from '../components/AthleteFields'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { FileRetention } from '../components/FileRetention'
+import { TitleUpload } from '../components/TitleUpload'
 import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { SampleSettings } from '../components/SampleSettings'
@@ -47,6 +48,8 @@ export interface ProfilePageProps {
   email: string | null
   keepFiles: boolean
   fileRetentionAvailable: boolean
+  /** The signed-in account's id, for the choice to send titles; absent or null when signed out. */
+  userId?: string | null
   /** Resolves when the change is saved. Rejects when it is refused, and the account shows why. */
   onSaveProfile: (next: ProfilePatch) => Promise<void>
   /** The dated settings, and how they load. */
@@ -77,6 +80,7 @@ export function ProfilePage({
   email,
   keepFiles,
   fileRetentionAvailable,
+  userId = null,
   onSaveProfile,
   dated,
   onAddSetting,
@@ -326,6 +330,13 @@ export function ProfilePage({
             onAskingChange={setRetentionAsking}
             onChange={(next) => onSaveProfile({ keepFiles: next })}
           />
+        </section>
+      )}
+
+      {signedIn && userId !== null && (
+        <section className="section" aria-labelledby="profile-titles">
+          <h2 id="profile-titles">Activity titles</h2>
+          <TitleUpload key={userId} userId={userId} />
         </section>
       )}
 
