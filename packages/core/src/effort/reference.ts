@@ -1,4 +1,5 @@
 import type { ReferenceSettings } from '../athlete/references'
+import type { Sex } from '../grade/ageGrade'
 import type { Sport } from '../types'
 import { RIDE_MAX_OFFSET_BPM } from './effort'
 import type { MaxHeartRates } from './effort'
@@ -37,11 +38,12 @@ export const NO_EFFORT_REFERENCE: EffortReference = {
 }
 
 /**
- * The age-predicted maximum heart rate, bpm: 208 - 0.7 x age (Tanaka, Monahan and Seals 2001, J Am Coll Cardiol 37:153,
- * a meta-analysis of 18,712 people; the spread between people is about 10 bpm).
+ * The age-predicted maximum heart rate, bpm. For a woman: 206 - 0.88 x age (Gulati et al. 2010, Circulation 122:130, 5,437
+ * asymptomatic women). Otherwise, and when the sex is not given: 208 - 0.7 x age (Tanaka, Monahan and Seals 2001, J Am Coll
+ * Cardiol 37:153, a meta-analysis of 18,712 people). The spread between people is about 10 bpm either way.
  */
-export function predictedMaxHeartRate(ageYears: number): number {
-  return Math.round(208 - 0.7 * ageYears)
+export function predictedMaxHeartRate(ageYears: number, sex: Sex | null = null): number {
+  return Math.round(sex === 'female' ? 206 - 0.88 * ageYears : 208 - 0.7 * ageYears)
 }
 
 /** The lowest reference, bpm, that can be a maximum when the age is not known: the mean maximum at 80 is 152. */
@@ -55,9 +57,12 @@ export const FLOOR_MINIMUM_BPM = 130
 export const HIGH_OVER_PREDICTED_BPM = 25
 
 /** The floor under which a reference is low: by the age when it is known, else the one absolute number. */
-export function referenceFloorBpm(ageYears: number | null): number {
+export function referenceFloorBpm(ageYears: number | null, sex: Sex | null = null): number {
   if (ageYears === null) return REFERENCE_FLOOR_BPM
-  return Math.max(FLOOR_MINIMUM_BPM, predictedMaxHeartRate(ageYears) - FLOOR_UNDER_PREDICTED_BPM)
+  return Math.max(
+    FLOOR_MINIMUM_BPM,
+    predictedMaxHeartRate(ageYears, sex) - FLOOR_UNDER_PREDICTED_BPM,
+  )
 }
 
 /**
@@ -130,7 +135,7 @@ export interface ReferenceInput {
 export function readReferences(input: ReferenceInput): EffortReference {
   const { reference, observedMax, typical, settings, ageYears } = input
   const entered = enteredReferences(settings.entered)
-  const predicted = ageYears === null ? null : predictedMaxHeartRate(ageYears)
+  const predicted = ageYears === null ? null : predictedMaxHeartRate(ageYears, settings.sex)
   const readOne = (sport: Sport): One | null => {
     const bpm = entered[sport]
     if (bpm !== null) return { bpm, reading: 'trusted', source: 'entered', from: null }
@@ -145,7 +150,7 @@ export function readReferences(input: ReferenceInput): EffortReference {
     }
     const own = observedMax[supplier] ?? data
     let reading: ReferenceReading = 'trusted'
-    if (own < referenceFloorBpm(ageYears)) reading = 'low'
+    if (own < referenceFloorBpm(ageYears, settings.sex)) reading = 'low'
     else if (predicted !== null && own > predicted + HIGH_OVER_PREDICTED_BPM) reading = 'high'
     else if (
       day.share >= HABITUAL_PEAK_RATIO &&

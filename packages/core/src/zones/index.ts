@@ -1,5 +1,5 @@
 export { missingThresholdZones, zoneEstimatesOf, zonesAt, zonesFor } from './zones'
-export type { MissingZones, Zone, ZoneEstimates, ZoneSet, ZoneSource } from './zones'
+export type { MissingZones, UntrustedMax, Zone, ZoneEstimates, ZoneSet, ZoneSource } from './zones'
 export { ZONE_MEASURES, ZONE_SCHEMES } from './schemes'
 export type { ZoneMeasure, ZoneScheme } from './schemes'
 export { DISTRIBUTION_OF, activityTimeInZones, secondsByZone } from './timeInZones'

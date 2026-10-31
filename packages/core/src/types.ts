@@ -95,6 +95,11 @@ export interface Activity {
    */
   athleteType?: AthleteType
   /**
+   * The local calendar date at the start minus the UTC date, from the zone the file records. Absent when the
+   * file gives none (a UTC time, no activity message). No offset is kept, only this.
+   */
+  localDayShift?: LocalDayShift
+  /**
    * The outline of an outdoor GPS track, with its position removed. Kept on the device only, never
    * in a digest or sent to the server. See route/routeShape.ts.
    */

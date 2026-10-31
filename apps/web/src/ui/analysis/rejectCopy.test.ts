@@ -7,6 +7,7 @@ import {
   groupRejected,
   rejectionCopy,
   sportLabel,
+  unreadFormatsCopy,
 } from './rejectCopy'
 import type { SkippedGroup } from './rejectCopy'
 
@@ -387,5 +388,29 @@ describe('rejectionCopy: a file with too many tracks, activities or laps', () =>
     )
     // The core's own English is never shown.
     expect(rejectionCopy(many)).not.toContain('core reason')
+  })
+})
+
+describe('unreadFormatsCopy', () => {
+  it('counts the files alone when it is not told their formats', () => {
+    expect(unreadFormatsCopy(2, false)).toBe('2 files in a format this app does not read.')
+  })
+
+  it('names the formats, the most common first, when they account for every file', () => {
+    expect(unreadFormatsCopy(1_203, false, { kml: 3, pwx: 1_200 })).toBe(
+      '1,203 files in a format this app does not read: 1,200 .pwx, 3 .kml.',
+    )
+  })
+
+  it('breaks a tie by name, and carries the advice after the names', () => {
+    expect(unreadFormatsCopy(2, true, { pwx: 1, hrm: 1 })).toMatch(
+      /^2 files in a format this app does not read: 1 \.hrm, 1 \.pwx\. \S/,
+    )
+  })
+
+  it('does not name formats that do not add up to the count', () => {
+    expect(unreadFormatsCopy(5, false, { pwx: 2 })).toBe(
+      '5 files in a format this app does not read.',
+    )
   })
 })

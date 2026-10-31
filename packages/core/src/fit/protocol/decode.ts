@@ -71,8 +71,16 @@ export interface DecodedEvent {
   eventType: FitEventType | undefined
 }
 
+/** The activity message: the file's end time and the device's local time at that instant, both as written. */
+export interface DecodedActivity {
+  timestampS: number | undefined
+  localTimestampS: number | undefined
+}
+
 export interface DecodedMessages {
   fileId?: DecodedFileId
+  /** Every activity message, in file order. Each closes an activity, so its offset is the one at its end. */
+  activities: DecodedActivity[]
   sports: DecodedSport[]
   sessions: DecodedSession[]
   laps: DecodedLap[]
@@ -113,7 +121,14 @@ type Values = Map<number, number | string>
 export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeResult {
   const maxRecords = opts.maxRecords ?? DEFAULT_MAX_RECORDS
   const maxMessages = opts.maxMessages ?? 2 * maxRecords
-  const messages: DecodedMessages = { sports: [], sessions: [], laps: [], records: [], events: [] }
+  const messages: DecodedMessages = {
+    activities: [],
+    sports: [],
+    sessions: [],
+    laps: [],
+    records: [],
+    events: [],
+  }
   const errors: string[] = []
   const compressed = compressedReader()
   let recordCount = 0
@@ -162,6 +177,12 @@ function collect(messages: DecodedMessages, message: FitMessage): void {
   switch (message.globalNum) {
     case MESG.fileId:
       messages.fileId ??= { type: numberOf(v, 0) }
+      return
+    case MESG.activity:
+      messages.activities.push({
+        timestampS: numberOf(v, FIELD.timestamp),
+        localTimestampS: numberOf(v, FIELD.localTimestamp),
+      })
       return
     case MESG.sport:
       messages.sports.push({

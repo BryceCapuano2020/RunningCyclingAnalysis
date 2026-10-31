@@ -4,6 +4,11 @@ import type { ExtractLimits, FitSource } from './archive'
 export const ACTIVITY = /\.(fit|gpx|tcx)(\.gz)?$/i
 /** Activity formats this app does not read. They are counted, not delivered. */
 export const OTHER_ACTIVITY = /\.(kml|kmz|pwx|hrm)(\.gz)?$/i
+
+/** The extension, lowercase and without the dot, of a file that matches OTHER_ACTIVITY. */
+export function otherExtensionOf(name: string): string {
+  return (OTHER_ACTIVITY.exec(name)?.[1] ?? '').toLowerCase()
+}
 export const ZIP = /\.zip$/i
 
 /**
