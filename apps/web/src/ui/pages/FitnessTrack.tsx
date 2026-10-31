@@ -25,9 +25,13 @@ export function FitnessTrack({ track }: { track: FitnessTrackModel }) {
         <span className="fitness-track__zero" />
         {track.floor === null ? null : <span className="fitness-track__floor" />}
         <span className="fitness-track__ring" />
-        <span className="fitness-track__tag fitness-track__tag--now">Now</span>
+        <span className="tag tag--ink tag--small fitness-track__tag fitness-track__tag--now">
+          Now
+        </span>
         {track.floor === null ? null : (
-          <span className="fitness-track__tag fitness-track__tag--floor">Low</span>
+          <span className="tag tag--ink tag--small fitness-track__tag fitness-track__tag--floor">
+            Low
+          </span>
         )}
       </div>
       <p className="fitness-track__ends">
