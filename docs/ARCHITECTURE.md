@@ -479,11 +479,26 @@ needed to fit the bike model against power-meter rides, so it can be refitted wi
 
 The trade-off: a model change that needs a per-sample quantity the digest does not hold requires
 re-digesting the original. Each digest carries a `modelRevision` inside its JSON; this is separate
-from the `digest_version` column, which remains the schema version. Digests at the current `MODEL_REVISION`
-(`packages/core/src/digest/modelRevision.ts`) are analysed on their own, while older
-digests are shown as outdated and excluded until the original activity file is re-imported. If its hash matches the stored activity, the API atomically replaces only the
+from the `digest_version` column, which remains the schema version.
+
+What a revision does to the digests of the one before it is declared, once, in
+`packages/core/src/digest/revisions.ts`: each entry says whether the previous revision's digests are
+`additive` (only optional fields are new), `mixable` (values move a little; they are read beside the new ones)
+or `exclusive` (they must not be combined with the new ones), which fields it adds and changes, and which
+readers it moves. `revisionStatus` is the one place revisions are compared: a digest is `current`,
+`compatible` (read, marked as the previous model), `stale` (listed, held out of the analysis) or `newer`
+(listed, "need a newer app"). `MODEL_REVISION` is the last entry. Revision 7 is `exclusive`, as the mixing
+study decided (`digest/test/mixingStudy.node.test.ts`, section 1.8 of the D12 design): long best efforts of a hilly
+library move by up to 2% against revision 6, which is more than a third of the least change the app states, so a
+library is not analysed while it holds both. A signed-in library with stale digests keeps its activities listed,
+shows the update panel and holds its results until it is rebuilt, and never falls back to the landing page.
+
+A stale digest is replaced in one of two ways. The browser can re-digest a retained original (the updater,
+`apps/web/src/worker/updater.ts`: newest first, two at a time, each upgrade verified before and after it is
+written, a circuit breaker after five failures, started by "Update now"; the automatic start is off,
+`AUTO_UPDATE_ENABLED`). Or the original file can be added again. In both, if its hash matches the stored activity, the API atomically replaces only the
 derived digest and preserves the activity id, original-file metadata and quota reservation. Retained
-R2 files can be downloaded by the browser to drive that recovery; no database migration is needed.
+R2 files can be downloaded by the browser to drive the first; no database migration is needed.
 
 ## Security
 

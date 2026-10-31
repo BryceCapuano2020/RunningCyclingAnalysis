@@ -20,6 +20,10 @@ Newest first. One row per `deploy:built`, including a deploy that was rolled bac
 
 A rollback floor only moves forward. It moves when a release applies a migration that older Workers
 cannot read, changes what a stored digest holds, or makes a browser storage upgrade one-way.
+
+The release that writes model revision 7 (R2) moves the floor to the Worker of the release before it (R1, which
+reads revision 7 and writes none), so R1 is a separate deploy that goes first and must be live and in use before R2.
+R2's row records that Worker's version id as its floor. See PRODUCTION.md, the digest paragraph, for why.
 `RCA_SAFE_ROLLBACK_VERSION` (see PRODUCTION.md) must never name a version older than the latest
 floor here. A rollback floor also does not protect the sign-up list: any Worker older than the release that
 carries `ALLOWED_EMAILS` ignores it, so rolling back to one reopens public sign-up (see PRODUCTION.md, Sign-up
