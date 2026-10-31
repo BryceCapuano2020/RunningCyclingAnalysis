@@ -40,4 +40,28 @@ describe('missingText for a library of one sport', () => {
       missingText(result, library, ALL_TIME, { run: 'Local', ride: null }).detail,
     ).not.toContain('Use what I have')
   })
+
+  describe('when the sport has a level and no threshold', () => {
+    const withRefusedFit = () => {
+      const ride = makeActivity({ sport: 'ride' })
+      return {
+        result: makeResult({ activities: [ride], rideCp: null, rideCpRefusal: 'shape' }),
+        library: [ride],
+      }
+    }
+
+    it('shows the level without asking for a harder effort: the threshold tile says what it needs', () => {
+      const { result, library } = withRefusedFit()
+      const missing = missingText(result, library, ALL_TIME, { run: null, ride: 'Recreational' })
+      expect(missing.title).toContain('Recreational')
+      expect(missing.detail).toBe('')
+    })
+
+    it('asks for what the threshold needs while the sport has no level to show', () => {
+      const { result, library } = withRefusedFit()
+      const missing = missingText(result, library, ALL_TIME, { run: null, ride: null })
+      expect(missing.title).toBe('Your cycling so far')
+      expect(missing.detail).toBe('Needs a harder effort between 3 and 20 min')
+    })
+  })
 })

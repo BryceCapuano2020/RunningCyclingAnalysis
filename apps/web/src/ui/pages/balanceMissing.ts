@@ -109,6 +109,8 @@ function soleSportMissing(
       canShowAll: false,
     }
   }
+  // A sport with a level is graded, not held: the line under the level never asks for a harder effort, which would say the
+  // grade is not there. What its threshold needs is said by the threshold's own tile.
   // While the library is only part of what was added, the other sport may be in the files that were not read: the
   // hold's own words say to finish the import, where a line about what the sport needs would send the athlete elsewhere.
   const partial = holdInputs.partialImport
@@ -117,7 +119,7 @@ function soleSportMissing(
     detail:
       partial !== undefined && partial !== null
         ? `${partial.text} ${partial.action}`
-        : hasThreshold(result, sport)
+        : level !== null || hasThreshold(result, sport)
           ? ''
           : thresholdNeedsLine(result, sport),
     canShowAll: false,
