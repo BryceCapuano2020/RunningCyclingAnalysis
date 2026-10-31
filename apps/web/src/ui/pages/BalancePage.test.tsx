@@ -193,17 +193,15 @@ describe('BalancePage', () => {
     expect(screen.getAllByRole('button', { name: 'Add rides' })).toHaveLength(1)
   })
 
-  it('tells a sport with no files at all that its files have none, and asks for them', () => {
+  it('invites the sport the files lack in one row at the foot, not in a card of its own', () => {
     pinClock()
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     renderPage(makeResult({ activities: [run] }), { state: { library: [run] } })
 
-    const card = screen.getByRole('region', { name: 'Ride' })
-    expect(
-      within(card).getByText(
-        'Your files have no rides yet. Add rides to compare them with your running.',
-      ),
-    ).toBeInTheDocument()
+    const row = screen.getByTestId('sport-invitation')
+    expect(within(row).getByText('Add rides to compare them with your running.')).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: 'Add rides' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Ride' })).toBeNull()
   })
 
   it('draws the meter under the answer once both sports are graded, named for a screen reader', () => {
@@ -724,7 +722,7 @@ describe('BalancePage while the headline is held for too few activities', () => 
 })
 
 describe('BalancePage with one sport', () => {
-  it('writes the one sport’s level as a line of its own under the line that asks for the other', () => {
+  it('writes the one sport’s level as a line of its own, with the ask for the other at the foot', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const result = makeResult({
       activities: [run],
@@ -735,7 +733,7 @@ describe('BalancePage with one sport', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your running is at Local level' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Add a ride to compare it with your running.')).toBeInTheDocument()
+    expect(screen.getByTestId('sport-invitation')).toBeInTheDocument()
     const rows = container.querySelectorAll('.balance-levels__row')
     expect(rows).toHaveLength(1)
     expect(rows[0]).toHaveAttribute('data-sport', 'run')

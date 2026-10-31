@@ -183,15 +183,19 @@ test('uploading a GPX ride and a TCX run shows the results', async ({ page }) =>
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toHaveCount(0)
 })
 
-test('uploading a single run names cycling as the missing sport and keeps the run tile', async ({
+test('uploading a single run is the running\'s own page, invites a ride at the foot and keeps the run tile', async ({
   page,
 }) => {
   await page.goto('/')
   await uploadFixtures(page, ['one-run.fit'])
 
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
-  ).toBeVisible()
+  const heading = page.getByRole('heading', { level: 1, name: 'Your running so far' })
+  await expect(heading).toBeVisible()
+  // The headline is never a request; the ask is one row at the foot.
+  await expect(heading).not.toHaveText(/Add a (run|ride)/)
+  await expect(page.getByTestId('sport-invitation')).toContainText(
+    'Add rides to compare them with your running.',
+  )
   const run = page.getByRole('article', { name: 'Run threshold' })
   await expect(run).toBeVisible()
   await expect(run.getByText('Estimated', { exact: true })).toBeVisible()

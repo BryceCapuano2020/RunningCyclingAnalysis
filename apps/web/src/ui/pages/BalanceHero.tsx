@@ -116,7 +116,7 @@ export function BalanceHero({
       <div className="balance-hero__pair">
         <section className="balance-hero">
           {head(title)}
-          <p className="lede secondary">{detail}</p>
+          {detail === '' ? null : <p className="lede secondary">{detail}</p>}
           {canShowAll && (
             <p>
               <button type="button" className="btn" onClick={onShowAll}>

@@ -81,3 +81,9 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
       `The others were indoors, had no power meter, no heart rate or one that was set aside, or had too little riding within ${FITNESS.ride.hrHalfBand} bpm of ${hr} bpm.`,
   },
 }
+
+/** What a library's one sport needs before it has a fitness status at all, said as a line when the page has no card to show. */
+export const FITNESS_LACK_LINE: Record<Sport, string> = {
+  run: 'Fitness at the same effort needs heart rate: add runs recorded with a strap or watch.',
+  ride: 'Fitness at the same effort needs power: add rides recorded with a power meter.',
+}

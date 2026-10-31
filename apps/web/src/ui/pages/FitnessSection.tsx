@@ -4,6 +4,7 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { fitnessViews } from '../fitnessModel'
+import { FITNESS_LACK_LINE } from '../fitnessWords'
 import type { FitnessView } from '../fitnessModel'
 import { FitnessCard } from './FitnessCard'
 import './FitnessCard.css'
@@ -34,6 +35,8 @@ export interface FitnessSectionProps {
   library: readonly ActivitySummary[]
   /** The sport a page is about, which shows only its own status; the home page shows every sport that has one. */
   sport?: Sport
+  /** The one sport a library holds: with no status for it, one quiet line says what would give one. */
+  soleSport?: Sport | null
 }
 
 /**
@@ -41,7 +44,13 @@ export interface FitnessSectionProps {
  * has none (a library with no steady run, or no ride with a power meter), and with no card the section is not
  * drawn.
  */
-export function FitnessSection({ fitness, units, library, sport }: FitnessSectionProps) {
+export function FitnessSection({
+  fitness,
+  units,
+  library,
+  sport,
+  soleSport = null,
+}: FitnessSectionProps) {
   const id = useId()
   // Made once for a status: the library-wide status does not move with the period, so a period switch repeats nothing.
   const views = useMemo(
@@ -52,7 +61,14 @@ export function FitnessSection({ fitness, units, library, sport }: FitnessSectio
   // On the home page a ride that is still waiting on its count is one line, not a card of its own: the full card is on the Ride page.
   const waitingRide = sport === undefined ? views.find(isWaitingRide) : undefined
   const cards = views.filter((view) => view !== waitingRide)
-  if (cards.length === 0 && waitingRide === undefined) return null
+  if (cards.length === 0 && waitingRide === undefined) {
+    // A line, not a card: it says what would produce a status, and is gone once there is one.
+    return soleSport === null ? null : (
+      <p className="fitness-section__line" data-testid="fitness-lack-line">
+        {FITNESS_LACK_LINE[soleSport]}
+      </p>
+    )
+  }
   return (
     <section className="band fitness-section" aria-labelledby={id} data-testid="fitness-section">
       {/* Not a heading either: on Balance the page's h1 follows, and the region is named by this line. */}

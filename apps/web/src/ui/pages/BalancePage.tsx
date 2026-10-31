@@ -19,6 +19,7 @@ import { LEVEL_NOT_RANKING, gradedSexOf, headlineGrades, SEX_NOUN } from '../gra
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
+import { soleSportOf } from '../soleSport'
 import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
@@ -32,6 +33,7 @@ import { EvidenceLine } from './EvidenceLine'
 import { FitnessSection } from './FitnessSection'
 import { useBalanceVolume } from './useBalanceVolume'
 import { GradeProfileSection } from './GradeProfileSection'
+import { SportInvitation } from './SportInvitation'
 import './BalancePage.css'
 
 export interface BalancePageProps {
@@ -202,6 +204,9 @@ export function BalancePage({
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
+  // A library of one sport is that sport's home: no comparison slots, an invitation to add the other at the foot.
+  const only = soleSportOf(library)
+  const soleSport = only !== null && inPeriod[only] > 0 ? only : null
   // With one sport in the period, the comparison slots say nothing, so they are left out.
   const bothInPeriod = runCount > 0 && rideCount > 0
   // A ride is named as graded only when its grade is on screen, which waits for the weight.
@@ -225,7 +230,12 @@ export function BalancePage({
   return (
     <div className="page-stack">
       {/* Fitness leads the home page: the finding that moves comes before the balance it sits beside. */}
-      <FitnessSection fitness={analysis.state.fitness} units={units} library={library} />
+      <FitnessSection
+        fitness={analysis.state.fitness}
+        units={units}
+        library={library}
+        soleSport={soleSport}
+      />
 
       <BalanceHero
         result={result}
@@ -269,6 +279,7 @@ export function BalancePage({
         weighted={weightKnown}
         period={period}
         onAddFiles={analysis.addFiles}
+        soleSport={soleSport}
         leftOut={leftOut}
       />
 
@@ -301,6 +312,10 @@ export function BalancePage({
           {/* Hours are counted, not estimated, so this strip states what the weeks held and no change test is needed. */}
           <WeeklyVolumeChart weeks={volume} lede={volumeCaption(volume)} axis={axis} />
         </section>
+      )}
+
+      {soleSport === null ? null : (
+        <SportInvitation sport={soleSport} onAddFiles={analysis.addFiles} />
       )}
 
       {footnote}

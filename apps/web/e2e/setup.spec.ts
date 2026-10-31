@@ -13,13 +13,13 @@ test('the first upload asks for the athlete once, and a later upload after a rel
   await setup.getByRole('button', { name: 'Analyse my files' }).click()
   await expect(setup).toBeHidden()
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
+    page.getByRole('heading', { level: 1, name: 'Your running so far' }),
   ).toBeVisible()
 
   // The kept summaries bring the result back on reload, and the next file joins it without a dialog.
   await page.reload()
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
+    page.getByRole('heading', { level: 1, name: 'Your running so far' }),
   ).toBeVisible()
   await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-ride.gpx'))
   await expect(await activitiesRows(page)).toHaveCount(2)
@@ -95,7 +95,7 @@ test('skipping the setup dialog keeps a weight typed before it, as a valid answe
 
   await expect(setup).toBeHidden()
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
+    page.getByRole('heading', { level: 1, name: 'Your running so far' }),
   ).toBeVisible()
   await goTo(page, 'Profile')
   await expect(page.getByLabel('Body weight')).toHaveValue(/^185(\.0)?$/)
