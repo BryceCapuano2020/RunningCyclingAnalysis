@@ -505,14 +505,6 @@ describe('useAnalysis account handling', () => {
     })
   })
 
-  it('forgets the rides whose power was kept when the library is cleared (Remove all)', () => {
-    localStorage.setItem('rca.keepPower.v1', '["ride-a"]')
-    const { result } = setup(SIGNED_IN_NO_KEEP)
-    act(() => worker().reply({ type: 'state', state: STATE }))
-    act(() => result.current.clear())
-    expect(localStorage.getItem('rca.keepPower.v1')).toBeNull()
-  })
-
   it('reports a profile-write failure and does not silently import with retention off', async () => {
     const failure = new Error('profile save failed')
     const account: Account = {
@@ -1189,6 +1181,26 @@ describe('useAnalysis account handling', () => {
         reportKept(0)
         act(() => worker().reply({ type: 'state', state: STATE }))
         expect(localStorage.getItem(COUNTED_KEY)).toBeNull()
+      })
+
+      it('forgets the rides whose power was kept when Remove all emptied the library, and not when the clear is refused', () => {
+        const KEEP_KEY = 'rca.keepPower.v1'
+        localStorage.setItem(KEEP_KEY, JSON.stringify(['ride-a']))
+        const { result } = setup(SIGNED_OUT)
+        reportKept(2)
+        finishDeviceLoad(WITH_RESULTS)
+
+        // The library refused to clear: what remains is listed, and the kept rides stay with it.
+        act(() => result.current.clear())
+        expect(localStorage.getItem(KEEP_KEY)).not.toBeNull()
+        reportKept(2)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+        expect(localStorage.getItem(KEEP_KEY)).not.toBeNull()
+
+        act(() => result.current.clear())
+        reportKept(0)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+        expect(localStorage.getItem(KEEP_KEY)).toBeNull()
       })
 
       it('takes the mark off when a signed-in delete left nothing kept here, so the next sign-out is not a loss', () => {
