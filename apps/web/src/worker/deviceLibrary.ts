@@ -65,6 +65,11 @@ export interface DeviceLibrary {
    */
   backfillFile(workoutKey: string, digestId: string, file: DeviceFile): Promise<void>
   remove(workoutKey: string): Promise<void>
+  /**
+   * Removes the row only if it still holds the digest `digestId`, checked in the same transaction that deletes it,
+   * so a row replaced since (by another tab, or by the same file added again) is not lost. True when it removed one.
+   */
+  removeIfDigest(workoutKey: string, digestId: string): Promise<boolean>
   /** Empties the library, and starts a new epoch in the same transaction. */
   clear(): Promise<void>
   /**
@@ -322,6 +327,17 @@ export function openDeviceLibrary(): DeviceLibrary {
         undefined,
       ),
     remove: (workoutKey) => write((store) => store.delete(workoutKey)),
+    removeIfDigest: (workoutKey, digestId) =>
+      withStore(
+        'readwrite',
+        async (store) => {
+          const row = readRow(await done(store.get(workoutKey)))
+          if (row === null || row.digest.id !== digestId) return false
+          store.delete(workoutKey)
+          return true
+        },
+        false,
+      ),
     clear: () =>
       withStore(
         'readwrite',

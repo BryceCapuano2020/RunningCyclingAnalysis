@@ -76,6 +76,7 @@ function setup(
   rows: OutboxRow[],
   saved: ActivityRecord[] = [],
   sending: SendingKeys = new SendingKeys(),
+  allowed?: (row: OutboxRow) => Promise<boolean>,
 ) {
   const posted: WorkerResponse[] = []
   const { outbox, rows: left, attempts } = memoryOutbox(rows)
@@ -85,6 +86,7 @@ function setup(
     outbox,
     savedRecords,
     sending,
+    ...(allowed === undefined ? {} : { allowed }),
     post: (message) => posted.push(message),
   })
   return { resume, posted, left, attempts, savedRecords }
@@ -349,5 +351,35 @@ describe('resuming the saves an earlier visit left', () => {
       expect(createActivity).toHaveBeenCalledTimes(2)
       expect(left.size).toBe(0)
     })
+  })
+
+  it('asks again at the moment of sending: a row whose source was emptied during a Retry-After wait is not sent', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(createActivity).mockRejectedValue(
+        new ApiRequestError(429, 'rate_limited', 'Slow down', 5_000),
+      )
+      let sourceStands = true
+      const { resume, left } = setup(
+        [rowFor(0), rowFor(1), rowFor(2)],
+        [],
+        new SendingKeys(),
+        async () => sourceStands,
+      )
+      await vi.advanceTimersByTimeAsync(10)
+      const sent = vi.mocked(createActivity).mock.calls.length
+      expect(sent).toBeGreaterThan(0)
+
+      // Another tab chooses Remove all while the limit is being waited out.
+      sourceStands = false
+      await vi.advanceTimersByTimeAsync(60_000)
+      await resume.finished
+
+      expect(vi.mocked(createActivity)).toHaveBeenCalledTimes(sent)
+      // The rows came from what was emptied, so they go with it.
+      expect(left.size).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
