@@ -113,7 +113,7 @@ for (const size of SIZES) {
   })
 }
 
-test('opening the row shows the whole sentence and the other episodes, and Hide takes the row away for good', async ({
+test('opening the row shows the whole sentence, and Hide takes the row away for good', async ({
   page,
 }) => {
   test.setTimeout(120_000)
