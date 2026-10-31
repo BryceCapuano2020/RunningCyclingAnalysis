@@ -57,6 +57,7 @@ const CHANGES_LIBRARY: ReadonlySet<WorkerRequest['type']> = new Set<WorkerReques
   'loadServer',
   'loadDevice',
   'loadSample',
+  'undoLabels',
 ])
 let waitingToChange = 0
 

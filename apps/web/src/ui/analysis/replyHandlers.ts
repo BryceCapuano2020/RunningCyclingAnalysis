@@ -90,6 +90,24 @@ export function damagedZips(rejected: readonly RejectedFile[]): DamagedSource[] 
   return [...lostBy].map(([name, lost]) => ({ name, lost }))
 }
 
+/** The import's outcome without the labels it applied. */
+function withoutLabelled(outcome: ImportOutcome | null): ImportOutcome | null {
+  if (outcome === null) return null
+  const { labelled: _labelled, ...rest } = outcome
+  return rest
+}
+
+/** The import's outcome with the labels still applied after an Undo that could not take every one off. */
+function withLabelsLeft(left: number): (outcome: ImportOutcome | null) => ImportOutcome | null {
+  return (outcome) => (outcome === null ? null : { ...outcome, labelled: left })
+}
+
+/** Said when an Undo left some labels on. */
+function labelsLeftNotice(left: number): string {
+  const these = left === 1 ? '1 label' : `${left} labels`
+  return `${these} could not be taken off, as they could not be saved. Press Undo the labels to try again.`
+}
+
 /** The library a request changes when it succeeds, for the tabs that must read it again. */
 function changedLibrary(pending: Pending): 'device' | 'account' | null {
   if (pending.provisional === true) return null
@@ -101,6 +119,7 @@ function changedLibrary(pending: Pending): 'device' | 'account' | null {
       return pending.forgetDevice === true ? 'device' : null
     case 'deleteActivity':
     case 'rebuildStale':
+    case 'undoLabels':
       return 'account'
     case 'addFiles':
       return pending.saveToDevice === true ? 'device' : 'account'
@@ -164,6 +183,13 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   }
   // A rebuild replaces the session, and with it the files the last import skipped, so its summary goes.
   if (pending?.kind === 'rebuildStale') imports.setImportOutcome(null)
+  // The labels are off, so the summary no longer says they were applied or offers to take them off.
+  // Some stay on when a write failed (offline, say): the count is kept and Undo stays, until every one is off.
+  const labelsLeft = message.type === 'state' ? (message.labelsLeft ?? 0) : 0
+  if (pending?.kind === 'undoLabels') {
+    imports.setImportOutcome(labelsLeft > 0 ? withLabelsLeft(labelsLeft) : withoutLabelled)
+    library.setLibraryNotice(labelsLeft > 0 ? labelsLeftNotice(labelsLeft) : null)
+  }
   const changed = changedLibrary(pending)
   if (changed !== null) deps.libraryChanged(changed)
   imports.setState(message.state)
