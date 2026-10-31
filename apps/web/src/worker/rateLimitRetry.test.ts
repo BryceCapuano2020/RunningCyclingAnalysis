@@ -149,6 +149,44 @@ describe('saves that share a stop', () => {
     expect(attempt).toHaveBeenCalledTimes(4)
   })
 
+  it("does not send the leader's second try when another save stopped the saves during its wait", async () => {
+    const stop = new SaveStop(() => undefined)
+    const attempt = vi.fn(async (_leading: boolean): Promise<string> => {
+      throw limited(1_000)
+    })
+    const result = stop.run(attempt).catch((error: unknown) => error)
+
+    await vi.advanceTimersByTimeAsync(500)
+    stop.noteFailure('activity-quota')
+    await vi.advanceTimersByTimeAsync(500)
+
+    await expect(result).resolves.toMatchObject({ code: 'activity-quota' })
+    expect(attempt).toHaveBeenCalledOnce()
+  })
+
+  it('fails a waiting save at once when the saves have already stopped, without waiting behind a limit', async () => {
+    const stop = new SaveStop(() => undefined)
+    const leader = stop
+      .run(async () => {
+        throw limited(60_000)
+      })
+      .catch((error: unknown) => error)
+    await vi.advanceTimersByTimeAsync(0)
+
+    stop.noteFailure('signed-out')
+    // The leader is still in its wait; a save asking now is told the cause without waiting for it.
+    let outcome: unknown = 'pending'
+    stop.ready().then(
+      () => (outcome = 'ready'),
+      (error: unknown) => (outcome = error),
+    )
+    await vi.advanceTimersByTimeAsync(0)
+    expect(outcome).toMatchObject({ code: 'signed-out' })
+
+    await vi.advanceTimersByTimeAsync(60_000)
+    await leader
+  })
+
   it('reports only the first failure that stops saving, and ignores one that does not', () => {
     const onStopped = vi.fn()
     const stop = new SaveStop(onStopped)

@@ -60,8 +60,10 @@ export class SaveStop {
     this.onStopped(code)
   }
 
-  /** Waits while a rate limit is being waited out, then throws if the saves have stopped. */
+  /** Throws if the saves have stopped; otherwise waits while a rate limit is being waited out, and checks again. */
   async ready(): Promise<void> {
+    // A stop already known is not waited behind a limit's wait, which can last two minutes.
+    this.check()
     while (this.leader !== null) await this.leader
     this.check()
   }
@@ -81,7 +83,8 @@ export class SaveStop {
       if (waitMs === null) throw error
       this.check()
       if (this.leader !== null) {
-        // Another save is already waiting this limit out. Its try decides whether this one goes on.
+        // Another save is already waiting this limit out. Its try decides whether this one goes on. If the limit
+        // lifts and this save is refused again, that second refusal stops the import: one retry, by design.
         await this.ready()
         return await attempt(false)
       }
@@ -90,6 +93,8 @@ export class SaveStop {
       try {
         onWait?.()
         await waitNoting(waitMs)
+        // A stop recorded during the wait (a full library, a sign-out) means this try is not sent.
+        this.check()
         return await attempt(true)
       } catch (retryError) {
         // Recorded before the others wake, so they find the saves stopped.
