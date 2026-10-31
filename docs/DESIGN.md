@@ -198,6 +198,7 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                                                                                                       |
 | `--grid`               | `#d0d5de`   | `#343b47`   | Chart gridlines: about 1.5:1 on the card, visible but recessive                                                                            |
 | `--control-border`     | `#7f8694`   | `#6b7380`   | Input and button outlines (3:1 or better)                                                                                                  |
+| `--divider`            | `#7f8694`   | `#6b7380`   | The 2 px rule that opens a band (a section with no box), so it is a 3:1 line and not a hairline                                            |
 | `--text-primary`       | `#0e1116`   | `#eef0f3`   | Ink                                                                                                                                        |
 | `--text-secondary`     | `#474f5c`   | `#b6bcc6`   | Supporting text                                                                                                                            |
 | `--text-muted`         | `#5f6774`   | `#8d95a2`   | Captions, axis labels (4.5:1 or better)                                                                                                    |

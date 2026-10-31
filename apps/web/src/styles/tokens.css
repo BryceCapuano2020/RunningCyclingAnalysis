@@ -9,6 +9,7 @@
   --surface-pressed: #dde2ea;
   --border: #e1e4ea;
   --control-border: #7f8694;
+  --divider: #7f8694;
   --text-primary: #0e1116;
   --text-secondary: #474f5c;
   --text-muted: #5f6774;
@@ -187,6 +188,7 @@
     --surface-pressed: #101318;
     --border: #2a2f38;
     --control-border: #6b7380;
+    --divider: #6b7380;
     --text-primary: #eef0f3;
     --text-secondary: #b6bcc6;
     --text-muted: #8d95a2;

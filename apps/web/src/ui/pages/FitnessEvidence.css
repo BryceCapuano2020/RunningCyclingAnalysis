@@ -1,0 +1,121 @@
+/* The panel behind the disclosure: the chart across the card, then how it is measured and the runs it rests on side by side. */
+.fitness-evidence {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--space-3) 0 var(--space-2);
+}
+
+.fitness-evidence__text {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+@media (min-width: 901px) {
+  .fitness-evidence__text {
+    gap: var(--space-5) var(--space-6);
+    grid-template:
+      'method runs' auto
+      'why runs' 1fr / minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .fitness-evidence__block[data-area='method'] {
+    grid-area: method;
+  }
+
+  .fitness-evidence__block[data-area='runs'] {
+    grid-area: runs;
+  }
+
+  .fitness-evidence__block[data-area='why'] {
+    grid-area: why;
+  }
+}
+
+.fitness-evidence__block {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.fitness-evidence__block h2 {
+  margin: 0;
+  /* The eyebrow's own line, not the section heading's tight one. */
+  line-height: inherit;
+}
+
+.fitness-evidence__block p {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: var(--text-md);
+}
+
+.fitness-evidence__earlier > summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+}
+
+.fitness-runs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fitness-runs__row {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.fitness-runs__row a {
+  /* One underline for a row, under the name: a flex link's two cells would each carry the line. */
+  text-decoration: none;
+  display: flex;
+  flex: 1;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block: 2px;
+}
+
+.fitness-runs__date {
+  flex: none;
+  min-width: 4.5rem;
+  color: var(--text-secondary);
+}
+
+.fitness-runs__name {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fitness-runs__figure {
+  flex: none;
+}
+
+@media (pointer: coarse) {
+  .fitness-runs__row a {
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
+.fitness-runs__row a:hover .fitness-runs__name {
+  text-decoration-thickness: 2px;
+}
