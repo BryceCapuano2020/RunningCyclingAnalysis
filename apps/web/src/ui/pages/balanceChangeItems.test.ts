@@ -460,15 +460,15 @@ describe('balanceChanges and a call made from every effort', () => {
   })
 
   it('says there is no heart rate only where neither period has one', () => {
-    expect(ungated(check(null), check(null)).unchecked).toEqual([
+    expect(ungated(check(null), check(null))?.unchecked).toEqual([
       'Effort not checked: no heart rate on the running efforts, so every effort counts.',
     ])
     // One period with a heart rate is not "no heart rate".
-    expect(ungated(check(0.95), check(null)).unchecked[0]).toContain('shown hard by heart rate')
+    expect(ungated(check(0.95), check(null))?.unchecked[0]).toContain('shown hard by heart rate')
   })
 
   it('says a library with too few days has no reference yet', () => {
-    expect(ungated(check(0.95), check(0.95, 'thin')).unchecked).toEqual([
+    expect(ungated(check(0.95), check(0.95, 'thin'))?.unchecked).toEqual([
       'Effort not checked: too few days with heart rate to set a reference, so every effort counts.',
     ])
   })
