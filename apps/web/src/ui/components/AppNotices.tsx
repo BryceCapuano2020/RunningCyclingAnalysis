@@ -123,7 +123,8 @@ export function AppNotices({
         onDismiss={analysis.dismissSummary}
       />
       {sample.pill}
-      {analysis.incompleteImport !== null && !analysis.busy && (
+      {/* Shown while an import runs too: the hold it explains stays on, and so must its way out. */}
+      {analysis.incompleteImport !== null && (
         <IncompleteImportNotice
           manifest={analysis.incompleteImport}
           onAccept={analysis.acceptIncompleteImport}
