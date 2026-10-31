@@ -34,6 +34,10 @@ export interface ThresholdTileProps {
   effort?: EffortCheck | null
   /** True where the page's headline already says what the threshold needs (a library of one sport), so the tile does not repeat it. */
   needInHeadline?: boolean
+  /** True where the levels row under the meter already gives each sport's level and grade: the tile then keeps only the effort. */
+  levelShown?: boolean
+  /** False on a second threshold tile in the same view, where the word is already defined: the screen defines it once. */
+  defineTerm?: boolean
 }
 
 /** The tile's name: the sport and what the figure is, in the words the card used to carry as its label. */
@@ -48,10 +52,19 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
   ride: { term: 'threshold', meaning: THRESHOLD_MEANING.ride },
 }
 
-/** The grade line under the figure: the level and grade, and the best effort it rests on. */
-function gradeLine(sport: Sport, grade: GradeOutcome | null, effort: string | null): string | null {
+/**
+ * The grade line under the figure: the level and grade, and the best effort it rests on. Where the levels row
+ * already says the level and grade, it keeps only the effort, so a level is said once on the screen.
+ */
+function gradeLine(
+  sport: Sport,
+  grade: GradeOutcome | null,
+  effort: string | null,
+  levelShown: boolean,
+): string | null {
   if (grade === null) return null
   if (grade.kind !== 'graded') return notGradedText(grade)
+  if (levelShown) return effort === null ? null : `Best ${HEADLINE_LABEL}: ${effort}.`
   const { level, value, range } = gradeParts(sport, grade.grade, 'row')
   const grades = `${level} · ${value}${range === null ? '' : ` (${range})`}`
   return `${grades} on your best ${HEADLINE_LABEL}${effort === null ? '' : `, ${effort}`}.`
@@ -72,10 +85,13 @@ export function ThresholdTile({
   weighted,
   effort: effortCheck = null,
   needInHeadline = false,
+  levelShown = false,
+  defineTerm = true,
 }: ThresholdTileProps) {
+  const definition = defineTerm ? DEFINED[sport] : undefined
   if (sport === 'ride' && !weighted) {
     return (
-      <StatTile sport={sport} heading={NAME[sport]} definition={DEFINED[sport]}>
+      <StatTile sport={sport} heading={NAME[sport]} definition={definition}>
         {/* What needs no weight: how many rides, how long, when the latest was, and a best a meter measured. Then the one ask. */}
         <HeldSportFacts
           sport={sport}
@@ -99,10 +115,10 @@ export function ThresholdTile({
   const chip = withheld === null ? effortChipText(sport, effortCheck) : null
   // Where the best 20 minutes has its own line, the grade line leaves its figure out rather than say it twice.
   const bestLine = fitted === null ? null : bestBeyondThresholdLine(result, sport, effort)
-  const line = gradeLine(sport, grade, bestLine === null ? effort : null)
+  const line = gradeLine(sport, grade, bestLine === null ? effort : null, levelShown)
   if (hero === null) {
     return (
-      <StatTile sport={sport} heading={NAME[sport]} definition={DEFINED[sport]}>
+      <StatTile sport={sport} heading={NAME[sport]} definition={definition}>
         {needInHeadline ? null : (
           <p className="stat-tile__line">{thresholdNeedsLine(result, sport)}</p>
         )}
@@ -125,7 +141,7 @@ export function ThresholdTile({
     <StatTile
       sport={sport}
       heading={heldHeading ?? NAME[sport]}
-      definition={DEFINED[sport]}
+      definition={definition}
       gloss={fitted === null ? undefined : THRESHOLD_GLOSS[sport]}
       basis={fitted === null ? (heldHeading === null ? 'floor' : 'recorded') : 'estimated'}
       figure={{
@@ -138,7 +154,7 @@ export function ThresholdTile({
           <RangeTrack
             ends={[span.ends[0].text, span.ends[1].text]}
             at={at}
-            label={span.spread ? 'fit spread' : 'range'}
+            label="range"
             spread={span.spread}
           />
         )

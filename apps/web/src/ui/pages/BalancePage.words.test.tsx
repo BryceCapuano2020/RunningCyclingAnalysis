@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
+import { wordsOf } from '../../test/wordsOf'
 import { curvePoint } from '../charts/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
@@ -29,23 +30,6 @@ vi.mock('../../share/renderCard', () => ({
 afterEach(cleanup)
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
-
-/**
- * The words on the page, as a reader meets them on opening it: not a drawing's own labels, a definition's note (one press
- * away), screen-reader text, or what a closed disclosure holds beyond its summary.
- */
-function wordsOf(container: HTMLElement): string[] {
-  const clone = container.cloneNode(true) as HTMLElement
-  clone
-    .querySelectorAll(
-      'svg, script, style, [hidden], .sr-only, .definition__note, dialog:not([open])',
-    )
-    .forEach((node) => node.remove())
-  clone.querySelectorAll('details:not([open])').forEach((details) => {
-    for (const child of [...details.children]) if (child.tagName !== 'SUMMARY') child.remove()
-  })
-  return (clone.textContent ?? '').split(/\s+/).filter((word) => word !== '')
-}
 
 describe('the Balance page’s first screen', () => {
   it('stays within its word budget', () => {

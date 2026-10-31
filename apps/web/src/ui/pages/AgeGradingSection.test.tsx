@@ -20,7 +20,7 @@ describe('AgeGradingSection', () => {
       screen.getByRole('heading', { level: 2, name: 'Age grades and levels' }),
     ).toHaveAttribute('tabindex', '-1')
     expect(section()).toHaveTextContent(
-      'A run is graded against the USATF road standards for your age and sex: the standard time for the distance covered, divided by the time taken. A grade of 70% means the run was at 70% of the standard pace. Levels are bands of that grade: Local from 60%, Regional from 70%, National from 80%, World from 90%. Below 60% is Recreational.',
+      'A run’s grade is the USATF road standards time for its distance, at your age and sex, divided by your time: 70% means 70% of standard pace. Levels are bands of the grade: Local from 60%, Regional from 70%, National from 80%, World from 90%. Below 60% is Recreational.',
     )
   })
 

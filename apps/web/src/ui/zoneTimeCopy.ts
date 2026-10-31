@@ -197,10 +197,10 @@ export function zoneSourceNote(rows: readonly MeasureTime[]): string {
   const counted = rows.reduce((n, row) => n + row.counted, 0)
   const entered = rows.reduce((n, row) => n + row.entered, 0)
   if (entered === 0) {
-    return "Zones are the app's estimate: heart rate from your max, pace and power from your best efforts, held steady until a real change. Enter a max heart rate or a threshold on Profile to use your own."
+    return 'Estimated from your activities. Set your own on Profile.'
   }
   if (entered === counted) return 'Zones follow the settings you entered on Profile.'
-  return "Zones follow the settings you entered on Profile where you have them, and the app's estimate where you do not."
+  return 'Zones follow your Profile settings where you have them, and are estimated where you do not.'
 }
 
 /** What each sport needs to show its time in zones, for the "Not enough yet" list. */

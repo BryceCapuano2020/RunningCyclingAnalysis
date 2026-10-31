@@ -65,16 +65,16 @@ describe('threshold', () => {
 })
 
 describe('thresholdRange', () => {
-  it('calls a running threshold’s spread a fit spread, not a range, from the faster pace to the slower', () => {
+  it('gives a running threshold’s range from the faster pace to the slower', () => {
     // The fixture’s critical power is 4.0 W/kg, with a standard error of 0.05 W/kg, and the model error floor widens it.
-    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Fit spread 20:54 to 23:49 /km')
+    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Range 20:54 to 23:49 /km')
     expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe(
-      'Fit spread 33:38 to 38:19 /mi',
+      'Range 33:38 to 38:19 /mi',
     )
   })
 
-  it('gives a cycling threshold’s fit spread in watts, from the lower to the higher', () => {
-    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('Fit spread 48 to 52 W')
+  it('gives a cycling threshold’s range in watts, from the lower to the higher', () => {
+    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('Range 48 to 52 W')
   })
 
   it('is null without a fit, and when the low end would not be a positive work rate', () => {
@@ -111,13 +111,13 @@ describe('thresholdRange', () => {
     const outside = [curvePoint(3600, 2.5, 'ride-1'), curvePoint(600, 3.0, 'ride-2')]
     expect(
       thresholdRange(makeResult({ activities, rideCurve: outside }), 'ride', 75, 'metric'),
-    ).toBe('Fit spread 48 to 52 W')
+    ).toBe('Range 48 to 52 W')
   })
 })
 
 describe('thresholdRange when both ends print the same', () => {
   it('says "About" and the one figure rather than "A to A", on either sport', () => {
-    // The fit spread always carries a model error floor, so only a range between two fits can collapse: here the
+    // The fit’s range always carries a model error floor, so only a range between two fits can collapse: here the
     // second fit sits a hair above the main one, and neither end moves a displayed second or watt.
     const hair = (cp: number) => ({
       fit: { cp: cp + 1e-6, wPrime: 20, cpSe: 0.01, r2: 0.99, nPoints: 6 },

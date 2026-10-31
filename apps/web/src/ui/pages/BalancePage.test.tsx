@@ -625,7 +625,7 @@ describe('BalancePage concept budget', () => {
       {},
       MAN_BORN_1986,
     )
-    const sentences = screen.getAllByText(/^To grade level with your/)
+    const sentences = screen.getAllByText(/^To match your/)
     expect(sentences).toHaveLength(1)
     expect(sentences[0]?.closest('.balance-hero__text')).not.toBeNull()
     expect(sentences[0]?.previousElementSibling).toHaveClass('balance-hero__lede')
@@ -712,7 +712,7 @@ describe('BalancePage while the headline is held for too few activities', () => 
       /leans toward|in balance/,
     )
     expect(container.querySelector('.balance-meter')).toBeNull()
-    expect(screen.queryByText(/^To grade level with your/)).toBeNull()
+    expect(screen.queryByText(/^To match your/)).toBeNull()
     expect(screen.queryByRole('region', { name: 'Level in each sport' })).toBeNull()
   })
 })

@@ -153,12 +153,12 @@ describe('levelTargetText', () => {
     calibration: result.hr,
   }
 
-  it('says what a ride would need to grade level with the run, in watts rounded to 5, with the ride now', () => {
+  it('says what a ride would need to match the run, in watts rounded to 5, with the ride now', () => {
     const line = levelTargetText({ ...base, lean: 'run' })
     expect(line).toMatch(
-      /^To grade level with your running at 20 min, your best ride would need about \d+ W \(roughly \d+ to \d+ W; now 230 W\)\.$/,
+      /^To match your running at 20 min: about \d+ W \(\d+ to \d+ W\)\. Now 230 W\.$/,
     )
-    const [, centre, low, high] = /about (\d+) W \(roughly (\d+) to (\d+) W/.exec(line ?? '') ?? []
+    const [, centre, low, high] = /about (\d+) W \((\d+) to (\d+) W/.exec(line ?? '') ?? []
     expect(Number(centre) % 5).toBe(0)
     expect(Number(low) % 5).toBe(0)
     expect(Number(high) % 5).toBe(0)
@@ -167,14 +167,14 @@ describe('levelTargetText', () => {
     expect(Number(centre)).toBeGreaterThan(230)
   })
 
-  it('says what a run would need to grade level with the ride, as a flat pace rounded to 5 s', () => {
+  it('says what a run would need to match the ride, as a flat pace rounded to 5 s', () => {
     const line = levelTargetText({
       ...base,
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
     expect(line).toMatch(
-      /^To grade level with your cycling at 20 min, your best run would need a flat pace of about \d+:\d\d \/km \(now \d+:\d\d \/km\)\.$/,
+      /^To match your cycling at 20 min: a flat pace of about \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/,
     )
     const seconds = Number(/about \d+:(\d\d) \/km/.exec(line ?? '')?.[1])
     expect(seconds % 5).toBe(0)
@@ -211,7 +211,7 @@ describe('levelTargetText', () => {
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
     expect(line).toMatch(
-      /your best run would need a flat pace of about \d+:\d\d \/km \(now \d+:\d\d \/km\)\.$/,
+      /a flat pace of about \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/,
     )
     expect(line).not.toContain('today’s weight')
   })
@@ -246,7 +246,7 @@ describe('levelTargetText', () => {
 })
 
 describe('levelTargetText on the sample athlete', () => {
-  it('names the run pace that would grade level with the sample ride, as the sample shows it', () => {
+  it('names the run pace that would match the sample ride, as the sample shows it', () => {
     const { result, calibration } = loadedSample()
     const grades = headlineGrades(result, SAMPLE_PROFILE)
     const gap = gapOfHeadline(grades)
@@ -262,7 +262,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       }),
     ).toBe(
-      'To grade level with your cycling at 20 min, your best run would need a flat pace of about 3:15 /km (now 4:01 /km).',
+      'To match your cycling at 20 min: a flat pace of about 3:15 /km. Now 4:01 /km.',
     )
   })
 

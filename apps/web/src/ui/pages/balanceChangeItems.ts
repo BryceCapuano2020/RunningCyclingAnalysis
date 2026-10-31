@@ -10,8 +10,6 @@ import { formatPace, formatPower } from '@rca/core/units'
 import { activityMasses } from '../activityMasses'
 import { gapOfHeadline } from '../balanceGap'
 import type { BalanceGap } from '../balanceGap'
-import { gapReading } from '../components/balanceScale'
-import { isPoint, rangeText } from '../components/headlineText'
 import { plural } from '../components/plural'
 import { formatDayMonth } from '../format/date'
 import { HEADLINE_LABEL, headlineGrades } from '../grades'
@@ -273,8 +271,8 @@ function leanSupported(moved: number, verdicts: Record<Sport, ChangeVerdict>): b
 
 /**
  * The balance's lean against the previous period's. The arrow says whether the lean grew or eased, whichever
- * sport it favours. It is listed only when a best the change test called explains the move (leanSupported); the
- * range it states is this period's own 90% range, written from the side the balance leans to, as the headline writes it.
+ * sport it favours. It is listed only when a best the change test called explains the move (leanSupported). Its body
+ * gives only where the lean was: the range is the meter's to state, once, and the tag says it is an estimate.
  */
 export function leanItem(
   now: BalanceGap,
@@ -293,14 +291,12 @@ export function leanItem(
     : crossed
       ? `Lean moved toward ${SPORT_NOUN[favoured(to)]}`
       : `Lean ${grew ? 'grew' : 'eased'} ${plural(Math.abs(Math.abs(to) - Math.abs(from)), 'pt')}`
-  // A range that rounds to one value says nothing the figure does not, so no range is written.
-  const reading = gapReading(now)
-  const range = isPoint(reading) ? '' : ` 90% range now ${rangeText(reading)}.`
+  const was = crossed || stillLevel ? 'Was' : grew ? 'Up from' : 'Down from'
   return {
     key: 'lean',
     direction: grew ? 'up' : 'down',
     title,
-    body: `From ${leanWords(before)} to ${leanWords(now)}.${range}`,
+    body: `${was} ${leanWords(before)}.`,
     tag: 'estimated',
   }
 }

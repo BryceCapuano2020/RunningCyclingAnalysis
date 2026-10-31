@@ -283,6 +283,7 @@ export function BalancePage({
         onAddFiles={analysis.addFiles}
         soleSport={soleSport}
         leftOut={leftOut}
+        levelShown={levels !== null}
       />
 
       {sourceLine}

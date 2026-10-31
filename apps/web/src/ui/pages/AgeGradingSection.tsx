@@ -39,10 +39,9 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         Age grades and levels
       </h2>
       <p className="secondary">
-        A run is graded against the {ROAD_STANDARDS_SOURCE.shortName} for your age and sex: the
-        standard time for the distance covered, divided by the time taken. A grade of 70% means the
-        run was at 70% of the standard pace. Levels are bands of that grade: {BAND_TEXT}. Below{' '}
-        {RECREATIONAL_BELOW}% is Recreational.
+        A run’s grade is the {ROAD_STANDARDS_SOURCE.shortName} time for its distance, at your age and
+        sex, divided by your time: 70% means 70% of standard pace. Levels are bands of the grade:{' '}
+        {BAND_TEXT}. Below {RECREATIONAL_BELOW}% is Recreational.
       </p>
       <p className="secondary">
         A run’s grade is read as recorded, from its flat pace: the recorded pace, corrected for

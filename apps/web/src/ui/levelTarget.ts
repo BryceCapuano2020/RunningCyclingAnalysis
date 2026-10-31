@@ -256,9 +256,9 @@ export function levelledNative(sport: Sport, native: number, units: UnitSystem):
 const SHOWN_TEXT: Record<Sport, (levelled: NativeRange, now: string, units: UnitSystem) => string> =
   {
     run: (levelled, now, units) =>
-      `a flat pace of about ${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]} (now ${now})`,
+      `a flat pace of about ${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]}. Now ${now}`,
     ride: (levelled, now) =>
-      `about ${formatWatts(levelled.centre)} W (roughly ${formatWatts(levelled.low)} to ${formatWatts(levelled.high)} W; now ${now})`,
+      `about ${formatWatts(levelled.centre)} W (${formatWatts(levelled.low)} to ${formatWatts(levelled.high)} W). Now ${now}`,
   }
 
 /**
@@ -283,9 +283,6 @@ const RANGE_TEXT: Record<Sport, (levelled: NativeRange) => string> = {
   run: () => '',
   ride: (levelled) => `${formatWatts(levelled.low)} to ${formatWatts(levelled.high)} W`,
 }
-
-/** The best effort as a noun in a sentence: "your best run", "your best ride". */
-const BEST_NOUN: Record<Sport, string> = { run: 'run', ride: 'ride' }
 
 /** The sport the balance does not lean toward: the one a level target is named for. */
 const OTHER_SPORT: Record<Sport, Sport> = { run: 'ride', ride: 'run' }
@@ -366,13 +363,13 @@ export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   if (needed === null || !Number.isFinite(now)) return null
   const levelled = levelledRange(lower, needed, units)
   if (!BEYOND_SHOWN[lower](levelled.centre, now, units)) return null
-  const level = `To grade level with your ${SPORT_NOUN[higher]} at ${HEADLINE_LABEL}`
+  const level = `To match your ${SPORT_NOUN[higher]} at ${HEADLINE_LABEL}`
   // The figure the page shows for the ride stays the one named, with today's weight beside it when it differs.
   const shownText = SPORT_FORMAT[lower].formatted(shown, units)
   const nowText = reweighted
     ? `${shownText}, ${SPORT_FORMAT[lower].formatted(now, units)} at today’s weight`
     : shownText
-  const sentence = `${level}, your best ${BEST_NOUN[lower]} would need ${SHOWN_TEXT[lower](levelled, nowText, units)}.`
+  const sentence = `${level}: ${SHOWN_TEXT[lower](levelled, nowText, units)}.`
   return {
     higher,
     lower,

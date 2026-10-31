@@ -22,7 +22,7 @@ describe('thresholdSpan', () => {
     const span = thresholdSpan(result, 'run', SAMPLE_SETTINGS.massKg, 'metric')
     expect(line).not.toBeNull()
     expect(line).toMatch(
-      new RegExp(`^(?:Fit spread|Range) ${span?.ends[0].text} to ${span?.ends[1].text} `),
+      new RegExp(`^Range ${span?.ends[0].text} to ${span?.ends[1].text} `),
     )
   })
 

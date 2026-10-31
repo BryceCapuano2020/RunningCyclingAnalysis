@@ -206,7 +206,9 @@ describe('zonesChangedNotes', () => {
 
 describe('zoneSourceNote', () => {
   it('says whether the zones were estimated, entered or both', () => {
-    expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1])])).toMatch(/estimate/)
+    expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1])])).toBe(
+      'Estimated from your activities. Set your own on Profile.',
+    )
     expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { entered: 8 })])).toBe(
       'Zones follow the settings you entered on Profile.',
     )
