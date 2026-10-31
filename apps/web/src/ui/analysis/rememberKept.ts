@@ -21,6 +21,7 @@ export type ReplyResponse = Exclude<
       | 'started'
       | 'heartbeat'
       | 'progress'
+      | 'outbox'
       | 'missingOriginals'
       | 'detailCoverage'
       | 'libraryActivities'
