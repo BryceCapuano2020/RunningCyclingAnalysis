@@ -6,7 +6,7 @@ import type { UnitSystem } from '@rca/core/units'
 import type { AgeProfile } from '../grades'
 import { ArrowRightIcon } from '../components/icons'
 import { hrefFor } from '../route'
-import { SPORT_LABEL } from '../sports'
+import { SPORT_LABEL, SPORT_NEEDS_WEIGHT } from '../sports'
 import { bestEffortRows } from './bestEffortRows'
 import { RecordTiles } from './RecordTiles'
 import { tileRows } from './tileRows'
@@ -19,6 +19,8 @@ export interface SoleSportRecordsProps {
   units: UnitSystem
   profile: AgeProfile | null
   library: ActivitySummary[]
+  /** False while no body weight is entered: a ride's W/kg and levels are priced at one, so the strip waits for it. */
+  weightKnown: boolean
 }
 
 /**
@@ -34,10 +36,14 @@ export function SoleSportRecords({
   units,
   profile,
   library,
+  weightKnown,
 }: SoleSportRecordsProps) {
+  // Held as the sport's page holds a ride's figures: the tile above carries the one ask for the weight.
+  const held = SPORT_NEEDS_WEIGHT[sport] && !weightKnown
   // A record's age counts from the time the page was opened, as on the sport's page.
   const [openedAt] = useState(() => Date.now())
   const tiles = useMemo(() => {
+    if (held) return []
     const list = bestEffortRows({
       sport,
       result,
@@ -51,7 +57,7 @@ export function SoleSportRecords({
       openedAt,
     })
     return tileRows(sport, list.rows).filter((row) => row.key !== String(HEADLINE_DURATION_S))
-  }, [sport, result, massKg, units, profile, library, openedAt])
+  }, [held, sport, result, massKg, units, profile, library, openedAt])
   if (tiles.length === 0) return null
   return (
     <section className="section" aria-labelledby="balance-records">

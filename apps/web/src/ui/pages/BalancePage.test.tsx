@@ -766,6 +766,19 @@ describe('BalancePage with one sport', () => {
     expect(screen.queryByRole('list', { name: 'Best efforts' })).toBeNull()
   })
 
+  it('draws no ride best efforts while no weight is entered, as the Ride page holds them', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const curve = [curvePoint(300, 330, 'ride-1'), curvePoint(3600, 230, 'ride-1')]
+    renderPage(
+      makeResult({ activities: [ride], rideCurve: curve }),
+      { state: { library: [ride] } },
+      null,
+      false,
+    )
+    expect(screen.queryByRole('list', { name: 'Best efforts' })).toBeNull()
+    expect(document.body.textContent).not.toMatch(/W\/kg/)
+  })
+
   it('writes no level line for the one sport while its grade is missing', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const { container } = renderPage(

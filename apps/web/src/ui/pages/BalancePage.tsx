@@ -298,6 +298,7 @@ export function BalancePage({
           units={units}
           profile={profile}
           library={library}
+          weightKnown={weightKnown}
         />
       )}
 

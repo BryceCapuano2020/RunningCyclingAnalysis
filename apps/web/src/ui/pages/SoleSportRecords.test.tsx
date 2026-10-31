@@ -18,7 +18,7 @@ const RIDE_RESULT = makeResult({
   ],
 })
 
-function renderStrip(result = RIDE_RESULT, sport: 'run' | 'ride' = 'ride') {
+function renderStrip(result = RIDE_RESULT, sport: 'run' | 'ride' = 'ride', weightKnown = true) {
   return render(
     <SoleSportRecords
       sport={sport}
@@ -27,6 +27,7 @@ function renderStrip(result = RIDE_RESULT, sport: 'run' | 'ride' = 'ride') {
       units="metric"
       profile={null}
       library={result.activities}
+      weightKnown={weightKnown}
     />,
   )
 }
@@ -57,5 +58,11 @@ describe('SoleSportRecords', () => {
     })
     const { container } = renderStrip(only)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('holds a ride’s figures until the weight is entered, so no W/kg is priced at the placeholder', () => {
+    const { container } = renderStrip(RIDE_RESULT, 'ride', false)
+    expect(container).toBeEmptyDOMElement()
+    expect(container.textContent).not.toMatch(/W\/kg/)
   })
 })
