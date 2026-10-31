@@ -246,6 +246,7 @@ export function ResultPage({
           libraryNotice={analysis.libraryNotice}
           libraryError={analysis.libraryError}
           heldOut={analysis.state.heldOut}
+          analysisPeriod={period}
         />
       )
     case 'activity': {

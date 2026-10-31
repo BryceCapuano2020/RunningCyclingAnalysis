@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import { startedWithin, windowEnding } from '@rca/core/period'
-import type { PeriodChoice } from '@rca/core/period'
+import type { Period, PeriodChoice } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
 import { ACTIVITY_SORTS, SORT_LABELS, sortActivities } from '../activitySort'
 import { bucketInPhrase, bucketSpan, inBucket } from '../activitiesVolume'
 import { DEFAULT_VIEW, hasRemovedMark, queryFromView, viewFromQuery } from '../activitiesView'
 import type { ActivitiesView, SportFilter } from '../activitiesView'
 import { ActivityList } from '../components/ActivityList'
-import { LIBRARY_RANGE_OPTIONS } from '../components/rangeOptions'
+import { LIBRARY_RANGE_OPTIONS, periodName } from '../components/rangeOptions'
 import { listEmptyText, periodClause } from '../periodCopy'
 import { SPORT_PLURAL } from '../sports'
 import { RangePicker } from '../components/RangePicker'
@@ -45,6 +45,11 @@ export interface ActivitiesPageProps {
   libraryError?: string | null
   /** Saved activities held out of the analysis, listed after the others with why. */
   heldOut?: readonly HeldOutActivity[]
+  /**
+   * The period Balance and the sport pages are showing. This list keeps its own, which starts with the whole
+   * library, so when the analysis is on a shorter one the page says the two are apart.
+   */
+  analysisPeriod?: Period
 }
 
 const NONE_HELD: readonly HeldOutActivity[] = []
@@ -78,6 +83,7 @@ export function ActivitiesPage({
   libraryNotice = null,
   libraryError = null,
   heldOut = NONE_HELD,
+  analysisPeriod,
 }: ActivitiesPageProps) {
   // A page that removed an activity sends the list here marked, so the list announces the outcome.
   const [arrivedAfterRemoval] = useState(() => hasRemovedMark(window.location.hash))
@@ -185,6 +191,19 @@ export function ActivitiesPage({
               answered(null)
             }}
           />
+          {analysisPeriod !== undefined &&
+            analysisPeriod.days !== null &&
+            // The same period is the same named length, counted back from the newest activity. A custom range or the
+            // default window is never the list's own, whatever its length in days.
+            analysisPeriod.choice !== period && (
+              <p className="secondary activities__period-note">
+                {`Balance, Run and Ride show ${
+                  typeof analysisPeriod.choice === 'object'
+                    ? 'your custom range'
+                    : `the last ${periodName(analysisPeriod.days)}`
+                }. This list has its own period.`}
+              </p>
+            )}
           <div className="activities__filters">
             <SegmentedControl
               legend="Sport"
