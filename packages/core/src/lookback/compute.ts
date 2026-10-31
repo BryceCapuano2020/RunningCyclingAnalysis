@@ -65,6 +65,7 @@ function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
             runs: histories[s].runs,
             activeDays: current.filter((d) => d.sport === s).map((d) => dayOfMs(d.startMs)),
             asOfDay,
+            records: histories[s].records,
           }),
     milestones: milestones[s],
   })

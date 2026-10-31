@@ -1,6 +1,6 @@
 import { DAY_MS } from '../../constants'
 import { WEEK_ORIGIN_MS } from '../../fitness/machine'
-import type { MachineState } from '../../fitness/machine'
+import type { MachineState, WeekRecord } from '../../fitness/machine'
 import { replaySim, simulate } from '../../fitness/test/runSim'
 import type { SimSpec } from '../../fitness/test/runSim'
 import { fitnessHistories, fitnessStatuses } from '../../fitness/compute'
@@ -25,6 +25,10 @@ export interface Agreement {
   years: HindsightFitness | null
   /** The weeks at which the monitor declared a slip or a rise, through the horizon. */
   declared: number[]
+  /** The weeks at which the monitor said "back", through the horizon. */
+  backs: number[]
+  /** The monitor's weeks, for a test that follows a particular slip. */
+  records: readonly WeekRecord[]
   horizonWeek: number
 }
 
@@ -56,9 +60,14 @@ export function agreement(
   seed: number,
 ): Agreement {
   const runs = simulate({ perWeek: 3, ...spec }, seed)
-  const result = hindsightOf({ runs, activeDays: runs.map((r) => r.t), asOfDay: spec.weeks * 7 })
-  const years = result.kind === 'ok' ? result : null
   const records = replaySim(runs, spec.weeks)
+  const result = hindsightOf({
+    runs,
+    activeDays: runs.map((r) => r.t),
+    asOfDay: spec.weeks * 7,
+    records,
+  })
+  const years = result.kind === 'ok' ? result : null
   const horizonWeek =
     years === null ? spec.weeks : Math.floor((years.toMs - WEEK_ORIGIN_MS) / (7 * DAY_MS))
   return {
@@ -69,6 +78,10 @@ export function agreement(
       .filter(
         (r) => (r.state === 'slipping' || r.state === 'improving') && r.fresh && r.w <= horizonWeek,
       )
+      .map((r) => r.w),
+    records,
+    backs: records
+      .filter((r) => r.state === 'back' && r.fresh && r.w <= horizonWeek)
       .map((r) => r.w),
     horizonWeek,
   }
@@ -99,9 +112,9 @@ export function rideAgreement(spec: RideSpec): Agreement {
   const digests = rideLibrary(spec)
   const lastMs = Math.max(...digests.map((d) => d.startMs))
   const options = { nowMs: Math.floor(lastMs / DAY_MS) * DAY_MS }
-  const { runs } = fitnessHistories(digests, NONE, options).ride
+  const { runs, records } = fitnessHistories(digests, NONE, options).ride
   const asOfDay = Math.max(...runs.map((r) => r.t)) + 1
-  const result = hindsightOf({ runs, activeDays: runs.map((r) => r.t), asOfDay })
+  const result = hindsightOf({ runs, activeDays: runs.map((r) => r.t), asOfDay, records })
   const years = result.kind === 'ok' ? result : null
   const status = fitnessStatuses(digests, NONE, options).ride.state
   return {
@@ -109,6 +122,8 @@ export function rideAgreement(spec: RideSpec): Agreement {
     live: status === 'not-enough-evidence' ? 'none' : status,
     years,
     declared: [],
+    backs: [],
+    records,
     horizonWeek: spec.weeks,
   }
 }
