@@ -114,11 +114,15 @@ describe('applyLabels', () => {
     expect(applyLabels(held, new Map())).toEqual([])
   })
 
-  it('matches a file by its key: case, a .gz and the path do not matter', async () => {
+  it('matches a file by its key: a .gz does not matter, and for a workout saved before revision 7 nor do case or the path', async () => {
     const { saved } = await imported(['Run', 'Run', 'Run'])
     const held = [{ id: 'x', digest: saved[0]! }]
-    expect(applyLabels(held, new Map([['Activities/1.FIT', 'Hike']]))).toHaveLength(1)
+    expect(applyLabels(held, new Map([['activities/1.fit.gz', 'Hike']]))).toHaveLength(1)
     expect(applyLabels(held, new Map([['activities/9.fit.gz', 'Hike']]))).toHaveLength(0)
+    const before = { ...saved[0]!, id: saved[0]!.id.replace(/-.*$/, '-activities/1.fit') }
+    expect(
+      applyLabels([{ id: 'x', digest: before }], new Map([['Activities/1.FIT', 'Hike']])),
+    ).toHaveLength(1)
   })
 
   it('is undone by its inverse: each label taken off at the revision it was put on', () => {

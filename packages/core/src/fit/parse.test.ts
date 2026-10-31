@@ -1,3 +1,4 @@
+import { hashedFileName } from '../import/minimise'
 import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { encodeFit } from './encode'
@@ -234,7 +235,7 @@ describe('parseFit round trip', () => {
     const a = result.activities[0]!
     expect(a.sport).toBe('ride')
     expect(a.name).toBe(generatedName(START_MS, 'ride'))
-    expect(a.id).toBe(`${START_MS}-Morning Ride.fit`)
+    expect(a.id).toBe(`${START_MS}-${hashedFileName('Morning Ride.fit')}`)
     expect(a.startMs).toBe(START_MS)
     expect(a.n).toBe(120)
     expect(a.hasPower).toBe(true)
@@ -768,11 +769,11 @@ describe('parseFit multi-session files', () => {
     expect(result.skipped).toEqual([])
     expect(result.activities.map((a) => a.sport)).toEqual(['run', 'ride'])
     const [run, ride] = result.activities
-    expect(run?.id).toBe(`${START_MS}-duathlon.fit#0`)
+    expect(run?.id).toBe(`${START_MS}-${hashedFileName('duathlon.fit')}#0`)
     expect(run?.name).toBe(generatedName(START_MS, 'run'))
     expect(run?.startMs).toBe(START_MS)
     expect(run?.n).toBe(600)
-    expect(ride?.id).toBe(`${START_MS + 700_000}-duathlon.fit#1`)
+    expect(ride?.id).toBe(`${START_MS + 700_000}-${hashedFileName('duathlon.fit')}#1`)
     expect(ride?.name).toBe(generatedName(START_MS + 700_000, 'ride'))
     expect(ride?.startMs).toBe(START_MS + 700_000)
     expect(ride?.n).toBe(900)
@@ -899,7 +900,10 @@ describe('parseFit multi-session files', () => {
     if (!result.ok) return
     expect(result.skipped).toEqual(['swimming session skipped'])
     expect(result.activities.map((a) => a.sport)).toEqual(['ride', 'run'])
-    expect(result.activities.map((a) => a.id)).toEqual([`${t1}-tri.fit#1`, `${t2}-tri.fit#2`])
+    expect(result.activities.map((a) => a.id)).toEqual([
+      `${t1}-${hashedFileName('tri.fit')}#1`,
+      `${t2}-${hashedFileName('tri.fit')}#2`,
+    ])
   })
 
   it('skips an e-bike session in a multi-session file with a short reason', () => {

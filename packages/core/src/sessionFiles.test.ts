@@ -1,3 +1,4 @@
+import { hashedFileName } from './import/minimise'
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { buildFit, secondly } from './fit/fitTestFiles'
@@ -79,7 +80,11 @@ describe('an import counts files, not the activities they hold', () => {
     ])
     expect(outcome).toEqual({ activities: 2, filesAdded: 0, rejected: 0, notActivities: 0 })
     expect(duplicates).toEqual([
-      expect.objectContaining({ fileName: 'two.fit', code: 'duplicate', detail: 'held-0.fit' }),
+      expect.objectContaining({
+        fileName: 'two.fit',
+        code: 'duplicate',
+        detail: hashedFileName('held-0.fit'),
+      }),
     ])
   })
 
@@ -113,8 +118,8 @@ describe('an import adds only files that hold a workout the library did not', ()
     ])
     expect(outcome).toEqual({ activities: 2, filesAdded: 0, rejected: 0, notActivities: 0 })
     expect(duplicates.map(({ fileName, detail }) => ({ fileName, detail }))).toEqual([
-      { fileName: 'held-0.fit', detail: 'held-0.fit' },
-      { fileName: 'held-1.fit', detail: 'held-1.fit' },
+      { fileName: 'held-0.fit', detail: hashedFileName('held-0.fit') },
+      { fileName: 'held-1.fit', detail: hashedFileName('held-1.fit') },
     ])
   })
 
@@ -125,7 +130,7 @@ describe('an import adds only files that hold a workout the library did not', ()
     ])
     expect(outcome.filesAdded).toBe(0)
     expect(duplicates).toEqual([
-      expect.objectContaining({ fileName: 'same-run.fit', detail: 'held-0.fit' }),
+      expect.objectContaining({ fileName: 'same-run.fit', detail: hashedFileName('held-0.fit') }),
     ])
   })
 
@@ -137,7 +142,7 @@ describe('an import adds only files that hold a workout the library did not', ()
     ])
     expect(outcome.filesAdded).toBe(0)
     expect(duplicates).toEqual([
-      expect.objectContaining({ fileName: 'rich.fit', detail: 'poor.fit' }),
+      expect.objectContaining({ fileName: 'rich.fit', detail: hashedFileName('poor.fit') }),
     ])
   })
 
@@ -159,7 +164,10 @@ describe('an import adds only files that hold a workout the library did not', ()
     expect(added).toEqual([])
     expect(outcome.filesAdded).toBe(0)
     expect(duplicates).toEqual([
-      expect.objectContaining({ fileName: 'a-second-later.fit', detail: 'held-0.fit' }),
+      expect.objectContaining({
+        fileName: 'a-second-later.fit',
+        detail: hashedFileName('held-0.fit'),
+      }),
     ])
   })
 

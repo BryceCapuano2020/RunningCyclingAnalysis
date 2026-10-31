@@ -1,3 +1,4 @@
+import { hashedFileName } from './import/minimise'
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'
 import { encodeGpx } from './gpx/encode'
@@ -47,7 +48,9 @@ describe('AnalysisSession when the server refuses a richer copy', () => {
     // The session still holds the GPX copy: its recording is not dropped, and the FIT one is not kept.
     expect(replaced).toEqual([])
     expect(kept).toEqual([])
-    expect(state.result?.activities.map((a) => a.id)).toEqual([`${ride.startMs}-ride.gpx`])
+    expect(state.result?.activities.map((a) => a.id)).toEqual([
+      `${ride.startMs}-${hashedFileName('ride.gpx')}`,
+    ])
   })
 
   it('swaps the richer copy in once the server accepts it', async () => {
@@ -90,9 +93,11 @@ describe('AnalysisSession when the server refuses a richer copy', () => {
     )
 
     expect(state.syncIssues).toEqual([{ code: 'network', count: 1 }])
-    expect(state.result?.activities.map((a) => a.id)).toEqual([`${ride.startMs}-ride.fit`])
-    expect(replaced).toEqual([`${ride.startMs}-ride.gpx`])
-    expect(kept).toEqual([`${ride.startMs}-ride.fit`])
+    expect(state.result?.activities.map((a) => a.id)).toEqual([
+      `${ride.startMs}-${hashedFileName('ride.fit')}`,
+    ])
+    expect(replaced).toEqual([`${ride.startMs}-${hashedFileName('ride.gpx')}`])
+    expect(kept).toEqual([`${ride.startMs}-${hashedFileName('ride.fit')}`])
   })
 
   it('swaps the richer copy in at once after saving has stopped, since nothing is sent', async () => {
@@ -129,8 +134,10 @@ describe('AnalysisSession when the server refuses a richer copy', () => {
     )
 
     expect(sent).toEqual(['earlier.fit'])
-    expect(replaced).toEqual([`${ride.startMs}-ride.gpx`])
-    expect(state.result?.activities.map((a) => a.id)).toContain(`${ride.startMs}-ride.fit`)
+    expect(replaced).toEqual([`${ride.startMs}-${hashedFileName('ride.gpx')}`])
+    expect(state.result?.activities.map((a) => a.id)).toContain(
+      `${ride.startMs}-${hashedFileName('ride.fit')}`,
+    )
     expect(state.syncIssues).toEqual([{ code: 'signed-out', count: 2 }])
   })
 
@@ -148,8 +155,12 @@ describe('AnalysisSession when the server refuses a richer copy', () => {
       (outcome) => void (completed = outcome),
     )
 
-    expect(state.result?.activities.map((a) => a.id)).toEqual([`${ride.startMs}-ride.gpx`])
+    expect(state.result?.activities.map((a) => a.id)).toEqual([
+      `${ride.startMs}-${hashedFileName('ride.gpx')}`,
+    ])
     expect(state.syncIssues).toEqual([{ code: 'activity-conflict', count: 1 }])
-    expect(completed?.added.map((digest) => digest.id)).toEqual([`${ride.startMs}-ride.gpx`])
+    expect(completed?.added.map((digest) => digest.id)).toEqual([
+      `${ride.startMs}-${hashedFileName('ride.gpx')}`,
+    ])
   })
 })

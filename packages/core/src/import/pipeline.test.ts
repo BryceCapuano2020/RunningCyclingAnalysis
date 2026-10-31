@@ -1,3 +1,4 @@
+import { hashedFileName } from './minimise'
 import { describe, expect, it } from 'vitest'
 import type { RawRecord } from '../fit/resample'
 import type { GpsFix } from './gps'
@@ -54,7 +55,7 @@ describe('activitiesFromRecords', () => {
     expect(result.droppedValues).toBe(0)
     expect(result.activities).toHaveLength(1)
     expect(result.activities[0]).toMatchObject({
-      id: `${START}-morning.gpx`,
+      id: `${START}-${hashedFileName('morning.gpx')}`,
       name: generatedName(START, 'run'),
       sport: 'run',
       indoor: false,
@@ -221,8 +222,8 @@ describe('activitiesFromRecords', () => {
     )
 
     expect(result.activities.map((a) => a.id)).toEqual([
-      `${START}-long.gpx.1`,
-      `${START + 5 * HOUR_MS}-long.gpx.2`,
+      `${START}-${hashedFileName('long.gpx')}.1`,
+      `${START + 5 * HOUR_MS}-${hashedFileName('long.gpx')}.2`,
     ])
     expect(result.activities.map((a) => a.name)).toEqual(['Long day (part 1)', 'Long day (part 2)'])
   })
@@ -394,8 +395,8 @@ describe('activitiesFromUnits', () => {
     )
 
     expect(result.activities.map((a) => a.id)).toEqual([
-      `${localMs(6, 11)}-week.fit#0`,
-      `${localMs(8, 20)}-week.fit#1`,
+      `${localMs(6, 11)}-${hashedFileName('week.fit')}#0`,
+      `${localMs(8, 20)}-${hashedFileName('week.fit')}#1`,
     ])
     expect(result.activities.map((a) => a.name)).toEqual([
       'Week (Run, 6:11 am)',

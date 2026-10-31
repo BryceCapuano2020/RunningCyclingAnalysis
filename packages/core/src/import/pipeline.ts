@@ -1,6 +1,4 @@
 import { DAY_MS } from '../constants'
-import { MODEL_REVISION } from '../digest/modelRevision'
-import { hasRevision7 } from '../digest/revision7Gate'
 import { hashedFileName } from './minimise'
 import type { Activity, AthleteType, Sport } from '../types'
 import { routeFromFixes } from '../route/routeShape'
@@ -109,7 +107,7 @@ export function activitiesFromUnits(
   const { fileName, units } = input
   const context: Context = {
     fileName,
-    idName: (opts.hashedIds ?? hasRevision7(MODEL_REVISION)) ? hashedFileName(fileName) : fileName,
+    idName: (opts.hashedIds ?? true) ? hashedFileName(fileName) : fileName,
     multi: units.length > 1,
     limits,
     nowMs: opts.nowMs ?? Date.now(),

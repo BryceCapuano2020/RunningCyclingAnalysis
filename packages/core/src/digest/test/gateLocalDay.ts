@@ -140,7 +140,10 @@ export const tcxBytes = (activity: Activity): Uint8Array => encodeTcx(activity, 
 
 /** The file read as the importer reads it; throws if it does not read. */
 export function readFile(bytes: Uint8Array, name: string): Activity {
-  const parsed = parseActivityFile(bytes, name, undefined, { activityType: 'Run' })
+  const parsed = parseActivityFile(bytes, name, undefined, {
+    activityType: 'Run',
+    hashedIds: false,
+  })
   const first = parsed.ok ? parsed.activities[0] : undefined
   if (first === undefined) throw new Error(`${name} did not read`)
   return first

@@ -1,3 +1,4 @@
+import { hashedFileName } from '../import/minimise'
 import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { digestActivity } from '../digest/digestActivity'
@@ -211,7 +212,7 @@ describe('parseTcx round trip', () => {
     const a = result.activities[0]!
     expect(a.sport).toBe('ride')
     expect(a.name).toBe(generatedName(START_MS, 'ride'))
-    expect(a.id).toBe(`${START_MS}-Morning Ride.tcx`)
+    expect(a.id).toBe(`${START_MS}-${hashedFileName('Morning Ride.tcx')}`)
     expect(a.startMs).toBe(START_MS)
     expect(a.n).toBe(120)
     expect(a.indoor).toBe(false)
