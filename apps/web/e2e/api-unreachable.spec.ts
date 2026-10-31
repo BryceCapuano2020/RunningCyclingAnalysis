@@ -41,7 +41,7 @@ test.describe('with the API unreachable', () => {
     const workers: string[] = []
     page.on('worker', (worker) => workers.push(worker.url()))
     await page.goto('/')
-    await uploadFixtures(page, ['one-run.tcx', 'one-ride.gpx'])
+    await uploadFixtures(page, ['one-run.tcx', 'one-ride.gpx'], undefined, { settled: false })
     // Analysed at once, in this session only, while the lookup is still being retried.
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
     // Nothing is kept in this browser while the lookup may still find a sign-in.
@@ -64,7 +64,7 @@ test.describe('with the API unreachable', () => {
 
   test('the library kept in this browser opens at once on a reload', async ({ page }) => {
     await page.goto('/')
-    await uploadFixtures(page, ['one-run.tcx'])
+    await uploadFixtures(page, ['one-run.tcx'], undefined, { settled: false })
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
     // Kept in this browser once the retries have given up and nobody is signed in.
     await expect.poll(() => deviceLibraryCount(page), { timeout: PAST_THE_RETRIES_MS }).toBe(1)
@@ -102,7 +102,7 @@ test('a sign-in found by a retry takes the files analysed meanwhile, and none re
   })
 
   await page.goto('/')
-  await uploadFixtures(page, ['one-run.tcx', 'one-ride.gpx'])
+  await uploadFixtures(page, ['one-run.tcx', 'one-ride.gpx'], undefined, { settled: false })
   // Analysed in this session only, while nobody is known to be signed in.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.getByText('Sign-in is unavailable right now')).toBeVisible()

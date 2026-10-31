@@ -488,3 +488,18 @@ describe('buildShareCard while no weight is entered', () => {
     expect(card?.meter).not.toBeNull()
   })
 })
+
+describe('buildShareCard with a ride at the top of the age tables', () => {
+  const top: Record<Sport, GradeOutcome | null> = {
+    run: null,
+    ride: { kind: 'top-of-scale', age: 30 },
+  }
+
+  it('offers no card, since the balance leaves that ride out', () => {
+    expect(cardFor(makeResult(), SETTINGS, 'metric', null, false, null, true, null, top)).toBeNull()
+    // Control: the same result with the ride not at the top gets its card.
+    expect(
+      cardFor(makeResult(), SETTINGS, 'metric', null, false, null, true, null, NO_GRADES),
+    ).not.toBeNull()
+  })
+})

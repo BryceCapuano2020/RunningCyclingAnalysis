@@ -67,4 +67,27 @@ describe('useFilePicker', () => {
     expect(setValue).toHaveBeenCalledWith('')
     expect(onFiles).toHaveBeenCalledTimes(1)
   })
+
+  it('still passes the files when the page holding the input is replaced before the change lands', () => {
+    const { input, onFiles } = renderPicker()
+    cleanup()
+    expect(input.isConnected).toBe(false)
+    const files = [fitFile('ride.fit')]
+    // A real chooser sets the files, then fires the change at the input wherever it is.
+    Object.defineProperty(input, 'files', { value: files, configurable: true })
+    input.dispatchEvent(new Event('change'))
+    expect(onFiles).toHaveBeenCalledWith(files)
+  })
+
+  it('calls the latest onFiles, and once per change', () => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const view = render(<Picker onFiles={first} />)
+    view.rerender(<Picker onFiles={second} />)
+    const input = view.container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error('file input missing')
+    fireEvent.change(input, { target: { files: [fitFile('ride.fit')] } })
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledTimes(1)
+  })
 })

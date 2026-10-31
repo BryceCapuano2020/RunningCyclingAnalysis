@@ -1090,6 +1090,21 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   and the session applies it when it builds its state (`countedRuns.ts`), so the digest is unchanged. Where every run is left out, no page says
   there are none: Balance's headline reads "Your runs are at walking pace" with the count, and Run says "22 runs are at walking pace, so they
   are left out. Count them as runs to include them.", each with a "Count these runs" button; the import notice says it too.
+- **A ride whose power no rider holds is set aside, whole.** This is the flag that means implausible input, and the
+  only one the athlete can override. A power-meter ride with any best above 1.25 times the world-class edge of a
+  widely published power-profile table (men's row for everyone: 22.8 W/kg at 5 s, 10.6 at 1 min, 6.8 at 5 min, 5.6
+  at 60 min, with a 15 s sprint node of 21; `ridePowerCeilingWkg`, `curves/powerCeiling.ts`), at the body mass of
+  its day, is priced as NaN everywhere a ride is priced: no best, trend point, record or heart-rate point, no
+  calibration of the bike model, no heart-rate line in the estimated-ride gate, no durability or drift reading and
+  no ride fitness. Its heart rate is otherwise trusted: it is neither fitted nor judged by the low-for-power test,
+  which reads heart rate against watts that cannot be right. The next ride takes its place. It is not judged while no body weight is entered. It stays in the
+  library with a **Power set aside** chip on its row and page, where a line names power meter calibration, the
+  weight setting and an e-bike logged as a ride as things to check, and a **Keep this power** button. Keeping it is
+  a choice stored in this browser only (`rca.keepPower.v1`, ids; cleared on a completed sign-out, account deletion and Remove
+  all, not on a session that expires), carried into the analysis as `AthleteSettings.keepPower`, and shows **Power kept**: the ride counts in the
+  bests and thresholds, but a ride that then tops the age tables is still left out of the comparison. The digest is
+  not touched, so nothing is reimported. A ride at the top of the age tables (a different flag, see
+  `docs/research/age-grading.md`) is no fault, names no check and has no override.
 - **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
   period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run
   and 1 ride. Add more runs or rides for a steadier answer." It is left off once each sport has three.

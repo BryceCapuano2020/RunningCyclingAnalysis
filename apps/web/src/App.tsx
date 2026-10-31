@@ -40,6 +40,7 @@ import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
+import { clearKeptPower, useKeptPower } from './ui/keptPowerStore'
 import { useCountedRuns } from './ui/useCountedRuns'
 import { useSignInProblem } from './ui/signInProblem'
 
@@ -70,6 +71,7 @@ export function App() {
   }
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
+  const keptPower = useKeptPower()
   const countedRuns = useCountedRuns()
   const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(
@@ -77,6 +79,7 @@ export function App() {
     measurements.entries,
     athleteValues.birthYear,
     countedRuns.keys,
+    keptPower.ids,
   )
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
@@ -197,6 +200,7 @@ export function App() {
   }
   const deleteAccount = async () => {
     await account.deleteAccount()
+    clearKeptPower()
     countedRuns.clear()
     setAccountDeleted(true)
     window.location.replace(hrefFor({ page: 'balance' }))
@@ -253,8 +257,15 @@ export function App() {
               onSignOut={() => {
                 // What this browser noted about the visitor's data goes with their session.
                 forgetSeenNotes()
-                // The runs counted here go once the session has ended, not if signing out failed.
-                void account.signOut().then(countedRuns.clear, () => undefined)
+                // The runs counted here and the rides kept go once the session has really ended; a failed
+                // sign-out leaves the visitor signed in.
+                void account.signOut().then(
+                  () => {
+                    countedRuns.clear()
+                    clearKeptPower()
+                  },
+                  () => undefined,
+                )
               }}
             />
           }
