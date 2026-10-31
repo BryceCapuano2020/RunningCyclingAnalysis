@@ -174,6 +174,36 @@ describe('the outbox', () => {
     expect(await bob.pending()).toHaveLength(1)
   })
 
+  it('settles when the sweep is aborted or fails', async () => {
+    // No rows, so the aborted transaction has nothing for the sweep to continue over.
+    const openCursor = IDBObjectStore.prototype.openCursor
+
+    // The transaction is aborted as the sweep reads: the browser ended it (quota, a closing tab).
+    IDBObjectStore.prototype.openCursor = function (this: IDBObjectStore, ...args) {
+      const request = openCursor.apply(this, args)
+      this.transaction.abort()
+      return request
+    }
+    try {
+      await expect(sweepOutbox('bob')).resolves.toBeUndefined()
+    } finally {
+      IDBObjectStore.prototype.openCursor = openCursor
+    }
+
+    // The transaction reports an error as the sweep reads.
+    IDBObjectStore.prototype.openCursor = function (this: IDBObjectStore, ...args) {
+      const request = openCursor.apply(this, args)
+      const transaction = this.transaction
+      queueMicrotask(() => transaction.onerror?.call(transaction, new Event('error')))
+      return request
+    }
+    try {
+      await expect(sweepOutbox('bob')).resolves.toBeUndefined()
+    } finally {
+      IDBObjectStore.prototype.openCursor = openCursor
+    }
+  })
+
   it('sweeps nothing, and does not reject, where storage is not offered', async () => {
     vi.stubGlobal('indexedDB', undefined)
     await expect(sweepOutbox('bob')).resolves.toBeUndefined()
