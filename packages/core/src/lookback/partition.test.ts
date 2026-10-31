@@ -3,7 +3,8 @@ import { mulberry32 } from '../math'
 import { LOOKBACK } from './params'
 import { medianInPlace } from '../math'
 import type { RunPoint } from '../fitness/windows'
-import { localMedians, partition } from './segments'
+import { localMedians } from './localMedians'
+import { partition } from './partition'
 
 const S = LOOKBACK.segment
 
