@@ -64,6 +64,10 @@ const measuredIn = (row: CurveRow, key: 'value' | 'previous') =>
   Number.isFinite(row[key]) &&
   (key === 'value' ? row.carried !== true : row.previousCarried !== true)
 
+/** Whether the effort gate holds the best 20 minutes, which it then speaks for, however the change test judged the length. */
+const isHeld = (durationS: number, held: string | null | undefined) =>
+  held != null && durationS === HEADLINE_DURATION_S
+
 /**
  * The effort the comparison reads: the best 20 minutes when both periods have a measured one, else the longest
  * effort both have measured, which holds the most evidence. Only an effort the change test could judge counts: one
@@ -73,12 +77,14 @@ function comparedRow(
   rows: readonly CurveRow[],
   sport: Sport,
   change: ChangeEvidence | null,
+  held: string | null | undefined,
 ): CurveRow | undefined {
   const both = rows.filter(
     (row) =>
       measuredIn(row, 'value') &&
       measuredIn(row, 'previous') &&
-      verdictAt(change, sport, row.durationS, 'headline') !== 'untested',
+      (isHeld(row.durationS, held) ||
+        verdictAt(change, sport, row.durationS, 'headline') !== 'untested'),
   )
   return both.find((row) => row.durationS === HEADLINE_DURATION_S) ?? both.at(-1)
 }
@@ -108,15 +114,17 @@ function comparisonOf(
 ): Comparison | { text: string; durationS: null } {
   const wording = WORDING[sport]
   const call = callAt(change, sport, row.durationS)
+  // A best held for its effort is not compared, whatever the change test says of it: the reason is the gate's, said once as
+  // every page says it.
+  if (held != null && row.durationS === HEADLINE_DURATION_S) {
+    return { text: held, durationS: null }
+  }
   const verdict = verdictOfCall(call, 'headline')
   const shift = plottedValue(sport, row.value, units) - plottedValue(sport, row.previous, units)
   const amount = Math.round(Math.abs(shift))
   const against = `the ${lowerFirst(previousLabel)}`
   const length = effortLabel(row.durationS)
   if (verdict !== 'higher' && verdict !== 'lower') {
-    // A best held for its effort is not "no change": the reason is the gate's, said once as every page says it.
-    if (held != null && row.durationS === HEADLINE_DURATION_S)
-      return { text: held, durationS: null }
     const clause = resolutionClause(call, 'headline')
     const tail = clause === '' ? '' : `; ${clause}`
     return { text: `${NO_CLEAR_CHANGE} in ${length} from ${against}${tail}`, durationS: null }
@@ -144,8 +152,8 @@ function comparisonOf(
  * could judge.
  */
 function comparison(input: TakeawayInput): Comparison | { text: string; durationS: null } | null {
-  const { sport, rows, previousLabel, change } = input
-  const compared = previousLabel === null ? undefined : comparedRow(rows, sport, change)
+  const { sport, rows, previousLabel, change, held } = input
+  const compared = previousLabel === null ? undefined : comparedRow(rows, sport, change, held)
   if (previousLabel === null || compared === undefined) return null
   return comparisonOf(compared, { ...input, previousLabel })
 }
@@ -180,7 +188,8 @@ function changeAt(
     row === undefined ||
     !measuredIn(row, 'value') ||
     !measuredIn(row, 'previous') ||
-    verdictAt(change, sport, durationS, 'headline') === 'untested'
+    (!isHeld(durationS, input.held) &&
+      verdictAt(change, sport, durationS, 'headline') === 'untested')
   ) {
     return null
   }
