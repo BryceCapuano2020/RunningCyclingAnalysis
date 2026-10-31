@@ -105,8 +105,8 @@ export function useAccount(): AccountController {
    * Clears an account's detail recordings from this browser once the account is no longer this
    * browser's, as an explicit sign-out does. Only that account's scope: the signed-out library stays.
    */
-  const forgetEnded = useCallback((userId: string) => {
-    void forgetAccountDetails(userId).then((notice) => {
+  const forgetEnded = useCallback((userId: string, keepSaves = false) => {
+    void forgetAccountDetails(userId, keepSaves).then((notice) => {
       if (notice !== null) setError((earlier) => (earlier ? `${earlier} ${notice}` : notice))
     })
   }, [])
@@ -117,8 +117,11 @@ export function useAccount(): AccountController {
       const previous = meRef.current
       const wasSignedIn = previous !== null
       meRef.current = found
-      // The session ended, or another account signed in, without a sign-out here.
-      if (previous !== null && previous.user.id !== found?.user.id) forgetEnded(previous.user.id)
+      // The session ended, or another account signed in, without a sign-out here. The server ended it, not the
+      // athlete, so what was waiting to be saved waits for the next sign-in, as it does when a save finds the
+      // session expired. (A sign-out in another tab asked first and forgot them there.)
+      if (previous !== null && previous.user.id !== found?.user.id)
+        forgetEnded(previous.user.id, true)
       // A definite answer: any other account's recordings are not this browser's to keep, even one
       // that ended while no tab was open.
       void sweepAccountDetails(found?.user.id ?? null)
@@ -144,7 +147,8 @@ export function useAccount(): AccountController {
     setStatus('signed-out')
     setSessionExpired(true)
     setError(SESSION_ENDED)
-    forgetEnded(ended.user.id)
+    // The server ended it, not the athlete: what was waiting to be saved waits for the next sign-in.
+    forgetEnded(ended.user.id, true)
     void sweepAccountDetails(null)
     tellOtherTabs({ type: 'account', change: 'expired' })
   }, [forgetEnded])

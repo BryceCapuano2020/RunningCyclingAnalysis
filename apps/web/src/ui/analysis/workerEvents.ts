@@ -83,6 +83,23 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         current.imports.setSavedCount(null)
         return
       }
+      if (message.type === 'outbox') {
+        const { pending: left, saved, failed, finished } = message
+        current.library.setOutbox({ pending: left, saved, failed, finished })
+        // What was saved is in the account, not yet in the library on screen: read it again.
+        if (finished && saved > 0) current.reloadLibrary()
+        return
+      }
+      if (message.type === 'deviceOffer') {
+        const { adoptable, again, held } = message
+        current.library.setDeviceOffer({ adoptable, again, held })
+        return
+      }
+      if (message.type === 'adoption') {
+        const { saved, conflicts, failed, again, held } = message
+        current.library.setAdoption({ saved, conflicts, failed, again, held })
+        return
+      }
       if (message.type === 'missingOriginals') {
         current.library.setMissingOriginals(message.count)
         return

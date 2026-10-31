@@ -4,7 +4,13 @@ import { NO_CHECKIN } from '../../worker/checkinKeeper'
 import type { CheckInView } from '../../worker/checkinKeeper'
 import { hasRemovedMark } from '../activitiesView'
 import { keptLibraryHinted } from './keptLibrary'
-import type { DetailCoverage, LibraryStatus } from './model'
+import type {
+  AdoptionOutcome,
+  DetailCoverage,
+  DeviceOfferStatus,
+  LibraryStatus,
+  OutboxStatus,
+} from './model'
 
 /**
  * Whether a request writes to the library kept in this browser again, so a refusal reported earlier no
@@ -41,6 +47,9 @@ export function useLibraryState() {
   // "Since your last import" for the library on screen, and whether it has been seen (see worker/checkinKeeper.ts).
   const [checkIn, setCheckIn] = useState<CheckInView>(NO_CHECKIN)
   const [libraryUnreadable, setLibraryUnreadable] = useState(0)
+  const [outbox, setOutbox] = useState<OutboxStatus | null>(null)
+  const [deviceOffer, setDeviceOffer] = useState<DeviceOfferStatus | null>(null)
+  const [adoption, setAdoption] = useState<AdoptionOutcome | null>(null)
   const [deviceIssue, setDeviceIssueState] = useState<DeviceIssue | null>(null)
   // The issue on screen, current the moment it is set, so a notice that waits for a free place can ask.
   const deviceIssueRef = useRef<DeviceIssue | null>(null)
@@ -100,6 +109,19 @@ export function useLibraryState() {
         setDetail(null)
       if (request.type === 'loadSample' || request.type === 'loadDevice') dropNotSaved()
       if (retriesDevice(request)) setDeviceIssue(null)
+      // Another import replaces the account of the last visit's saves.
+      if (request.type === 'addFiles') setOutbox(null)
+      // The library kept in this browser is offered to the account that loaded; another scope has no offer.
+      if (request.type === 'loadServer') setDeviceOffer(null)
+      if (
+        request.type === 'loadSample' ||
+        request.type === 'loadDevice' ||
+        request.type === 'clear'
+      ) {
+        setDeviceOffer(null)
+        setAdoption(null)
+        setOutbox(null)
+      }
     },
     [dropNotSaved, setDeviceIssue],
   )
@@ -128,6 +150,12 @@ export function useLibraryState() {
     libraryUnreadable,
     setLibraryUnreadable,
     deviceIssue,
+    outbox,
+    setOutbox,
+    deviceOffer,
+    setDeviceOffer,
+    adoption,
+    setAdoption,
     deviceIssueRef,
     setDeviceIssue,
     dropNotSaved,

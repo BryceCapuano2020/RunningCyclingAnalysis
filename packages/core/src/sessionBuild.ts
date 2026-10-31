@@ -1,9 +1,12 @@
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { activitySummaries } from './digest'
+import { hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_TRENDS } from './digest/trendPoints'
+import { powerSetAsideIds } from './digest/powerCheck'
+import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
@@ -72,6 +75,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
   const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : judge.of(analysed, athlete)
   const setAside = judgement.setAside
+  // A ride whose power is set aside is out of every ride reading below, as one whose heart rate is set aside is out
+  // of the heart-rate readings: the same ids go where the heart-rate list goes.
+  const powerAside = athlete === null ? new Set<string>() : powerSetAsideIds(analysed, athlete)
+  const held = powerAside.size === 0 ? setAside : [...setAside, ...powerAside]
   // A period with no activities still has a result, so the page can say what is missing from it.
   const references = {
     referenceHr: judgement.referenceHr,
@@ -105,13 +112,15 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
       ? NO_TRENDS
       : periods.trends(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate)
   const sameHeartRate =
-    analysis === null
-      ? NO_SAME_HEART_RATE
-      : periods.sameHeartRate(selected, analysed, fromMs, setAside)
+    analysis === null ? NO_SAME_HEART_RATE : periods.sameHeartRate(selected, analysed, fromMs, held)
   const late =
     analysis === null
       ? NO_LATE_EVIDENCE
-      : periods.late(selected, setAside, { effortReference: judgement.effortReference })
+      : periods.late(
+          selected.filter((digest) => !powerAside.has(digest.id)),
+          held,
+          { effortReference: judgement.effortReference },
+        )
   return {
     result: analysis,
     trend: efforts[HEADLINE_DURATION_S],
@@ -120,7 +129,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     lateEvidence: late,
     heartRateJudgement: judgement,
     // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
-    fitness: fitnessStatuses(analysed, new Set(setAside), {
+    fitness: fitnessStatuses(analysed, new Set(held), {
       nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
     }),
     lookBack:
@@ -129,7 +138,8 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         : lookBackOf(
             analysed,
             athlete,
-            new Set(setAside),
+            // The runs and rides the card is read from: heart rate set aside, and power set aside.
+            new Set(held),
             Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
             judgement.rideGate,
           ),
@@ -147,7 +157,15 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         : null,
     change:
       athlete !== null && bikeModel !== undefined && previous.length > 0
-        ? periods.change(selected, previous, athlete, bikeModel, judgement.rideGate)
+        ? // The test reads the efforts the effort gate does not show easy, so a swing in how many hard efforts a period holds is no change.
+          periods.change(
+            selected,
+            previous,
+            athlete,
+            bikeModel,
+            judgement.rideGate,
+            hardEffortRule(judgement.effortReference, setAside),
+          )
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,
@@ -161,7 +179,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     walkingPaceRuns: visible.length - analysed.length,
     countedWalkingRuns: inputs.countedWalkingRuns,
     period,
-    library: athlete === null ? [] : activitySummaries(visible, athlete),
+    library:
+      athlete === null
+        ? []
+        : activitySummaries(visible, athlete, rideReferenceOf(judgement.effortReference)),
     syncIssues: inputs.syncIssues,
     records:
       athlete === null

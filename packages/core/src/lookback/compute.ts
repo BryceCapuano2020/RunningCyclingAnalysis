@@ -26,6 +26,19 @@ export interface LookBack {
   sports: Record<Sport, SportLookBack>
 }
 
+/**
+ * The zone the dated body masses' local days are cut in, as the offsets from UTC in January and July of the first and the
+ * last year of the library: enough to tell the zones apart that cut it differently, and cheap (the zone's name costs
+ * the first caller milliseconds to find).
+ */
+const zoneOf = (firstMs: number, nowMs: number): string =>
+  [firstMs, nowMs]
+    .flatMap((ms) => {
+      const year = new Date(ms).getUTCFullYear()
+      return [new Date(year, 0, 1), new Date(year, 6, 1)].map((d) => d.getTimezoneOffset())
+    })
+    .join('|')
+
 const SPORTS: readonly Sport[] = ['run', 'ride']
 
 /** Nothing to say: no library. */
@@ -44,6 +57,8 @@ export interface LookBackInput {
   /** The wall clock, cut to the day by the caller so the memory still hits. */
   nowMs: number
   gate: EstimatedRideGate | null | undefined
+  /** How the zone cuts local days (see `zoneOf`): an answer made in another zone is not taken. */
+  zone: string
 }
 
 function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
@@ -65,6 +80,7 @@ function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
             runs: histories[s].runs,
             activeDays: current.filter((d) => d.sport === s).map((d) => dayOfMs(d.startMs)),
             asOfDay,
+            records: histories[s].records,
           }),
     milestones: milestones[s],
   })
@@ -84,6 +100,7 @@ const remembered = memoByDigests<LookBackInput, LookBack>(
     sameSet(a.setAside, b.setAside) &&
     a.nowMs === b.nowMs &&
     a.gate === b.gate &&
+    a.zone === b.zone &&
     a.settings.massKg === b.settings.massKg &&
     a.settings.bikeMassKg === b.settings.bikeMassKg &&
     a.settings.measurements === b.settings.measurements,
@@ -101,7 +118,13 @@ export function lookBackOf(
   nowMs: number,
   gate?: EstimatedRideGate | null,
 ): LookBack {
-  return remembered(digests, { settings, setAside, nowMs, gate })
+  return remembered(digests, {
+    settings,
+    setAside,
+    nowMs,
+    gate,
+    zone: zoneOf(digests[0]?.startMs ?? nowMs, nowMs),
+  })
 }
 
 export { SPORTS as LOOKBACK_SPORTS }

@@ -5,31 +5,53 @@ import { AnalysisSession } from '@rca/core/session'
 import type { SyncItem } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import type { Activity } from '@rca/core/types'
-import { ApiRequestError, deleteActivity } from '../api/client'
+import { ApiRequestError } from '../api/client'
 import { messageOf } from '../api/messageOf'
-import { deviceActions, workoutKeyOf as activityKey } from './device'
+import { deviceActions } from './device'
+import { followUpAdopted } from './adoption'
+import {
+  adoptDeviceRequest,
+  forgetDeviceLibraryRequest,
+  keptTraceDropper,
+  offerDevice,
+} from './adoptionRequests'
+import type { AdoptionRequestContext } from './adoptionRequests'
 import { deviceKeeper } from './deviceKeeper'
+import { clearOutbox, openOutbox } from './outbox'
+import { SendingKeys } from './sendingKeys'
+import { resumeOutbox } from './outboxResume'
+import { resumeAsWriter } from './writerResume'
+import type { Writing } from './writerResume'
 import { exportAccount } from './exportAccount'
+import { deleteSavedGroup } from './deleteGroup'
+import type { DeleteGroupContext } from './deleteGroup'
+import { hiddenRecordIds, visibleRecords } from './hiddenCopies'
 import { openDeviceLibrary } from './deviceLibrary'
-import { originalActivity } from './originalActivity'
 import { outdatedWithOriginal } from './outdatedOriginals'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
-import { beginRequest, noteWork, stamped } from './workerWire'
-import { accountScope, clearCheckinScope } from './checkinStore'
-import { checkInWorker } from './checkinWorker'
+import {
+  beginRequest,
+  noteArrival,
+  noteStart,
+  noteWork,
+  stamped,
+  waitingToChangeLibrary,
+} from './workerWire'
+import { clearCheckinScope } from './checkinStore'
 import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
 import { newWorkerView } from './workerView'
 import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCoverage'
-import { deviceClock, sampleActivityById } from './sampleClock'
+import { deviceClock } from './sampleClock'
+import { activityTraceReply } from './traceReply'
+import { checkInWorker } from './checkinWorker'
 import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
-import type { ActivityTraceReply } from './workbench'
 
 const session = new AnalysisSession()
 const post = (message: WorkerResponse) => self.postMessage(stamped(message))
@@ -50,7 +72,7 @@ const rebuildable = (): { outdatedWithOriginal?: number } => {
 
 /** Newest first; records that start together are ordered by id so the list is stable. */
 function reportLibrary() {
-  const records = [...savedRecords.values()].sort(
+  const records = visibleRecords(savedRecords.values()).sort(
     (a, b) => b.digest.startMs - a.digest.startMs || a.id.localeCompare(b.id),
   )
   post({
@@ -59,13 +81,16 @@ function reportLibrary() {
   })
 }
 
+const deviceLibrary = openDeviceLibrary()
 const device = deviceActions(
   session,
-  openDeviceLibrary(),
+  deviceLibrary,
   post,
   async (activityId) => workbench.remove({ kind: 'device' }, activityId),
   () => workbench.watchDevice(),
 )
+const view = newWorkerView()
+const checkIns = checkInWorker(session, view)
 const libraryContext: LibraryContext = {
   session,
   device,
@@ -78,15 +103,21 @@ const libraryContext: LibraryContext = {
   captureTrace: async (activity: Activity, userId: string) => {
     await workbench.capture(activity, { kind: 'account', userId })
   },
+  stamp: () => {
+    const { libraryEpoch, activeScope } = view
+    // A load or a clear moves the epoch, and a load for another user replaces the scope.
+    return () => view.libraryEpoch === libraryEpoch && view.activeScope === activeScope
+  },
+  waitingToChange: waitingToChangeLibrary,
 }
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
-const view = newWorkerView()
-const checkIns = checkInWorker(session, view)
+const sending = new SendingKeys()
 const importContext: ImportRunContext = {
   checkIns: checkIns.keeper,
   lastImport: null,
+  sending,
   session,
   post,
   missingOriginals,
@@ -102,6 +133,45 @@ const reportDetail = detailReporter(workbench, post, () =>
   view.showingSample ? null : view.activeScope,
 )
 
+/** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
+let resume: Writing | null = null
+const adoptionContext: AdoptionRequestContext = {
+  session,
+  deviceLibrary,
+  savedRecords,
+  sending,
+  workbench,
+  view,
+  libraryContext,
+  post,
+  resume: () => resume,
+  resumeEnded: () => {
+    resume = null
+  },
+}
+function finishLoad(state: SessionState, userId: string): SessionState {
+  // In the tab that holds the account's writer lock only: with two tabs open, one sends.
+  resume = resumeAsWriter(userId, () =>
+    resumeOutbox({
+      userId,
+      outbox: openOutbox(userId),
+      savedRecords,
+      sending,
+      // Apart from any request: stamped with one, the page would drop it as late.
+      post: (message) => self.postMessage(message),
+      // Saves of kept activities that an Add began and a stop or a reload cut short finish here: the kept copy goes too.
+      settled: (row, outcome) =>
+        followUpAdopted(
+          { library: deviceLibrary, savedRecords, adopted: keptTraceDropper(workbench) },
+          row,
+          outcome,
+        ),
+    }),
+  )
+  void offerDevice(adoptionContext, userId)
+  return state
+}
+
 /** The kept library was emptied under an import: the page is told, and starts from what is kept now. */
 function stopEmptied(): SessionState {
   post({ type: 'deviceIssue', issue: 'replaced' })
@@ -110,7 +180,20 @@ function stopEmptied(): SessionState {
   return session.clear()
 }
 
+const deleteContext: DeleteGroupContext = {
+  session,
+  savedRecords,
+  unmatchedOriginals,
+  missingOriginals,
+  routes,
+  workbench,
+  device,
+  post,
+  reportLibrary,
+}
+
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
+  checkIns.onRequest(request)
   switch (request.type) {
     case 'addFiles':
       return (await runImport(importContext, request)).state
@@ -119,7 +202,6 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       const held = [...provisionalItems.values()]
       provisionalItems.clear()
       for (const item of held) await keeper.keep(item)
-      // The files are kept in this browser now: the snapshot taken before them is the baseline of this library.
       await checkIns.keepProvisional('device')
       // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
       const emptied = keeper.replaced || workbench.libraryReplaced || !(await device.current())
@@ -131,31 +213,38 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return session.setSettings(request.settings)
     }
     case 'loadSample':
+      view.libraryEpoch++
       provisionalItems.clear()
-      checkIns.keeper.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
       view.showingSample = true
-      checkIns.use(null)
       view.sampleClock = deviceClock()
       device.replaced()
       session.choosePeriod(periodChoiceOf(request.choice))
       return session.loadSample(request.settings, view.sampleClock)
     case 'loadServer':
+      view.libraryEpoch++
       provisionalItems.clear()
-      checkIns.keeper.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
-      // What the store holds is read again: another tab, or an earlier sign-in, may have changed it.
-      checkIns.use(accountScope(request.userId))
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
-      return loadServer(
-        libraryContext,
-        request.settings,
+      // A resume belongs to the library it began under.
+      resume?.cancel()
+      resume = null
+      return finishLoad(
+        await loadServer(
+          libraryContext,
+          request.settings,
+          request.userId,
+          periodChoiceOf(request.choice),
+        ),
         request.userId,
-        periodChoiceOf(request.choice),
       )
+    case 'adoptDevice':
+      return adoptDeviceRequest(adoptionContext, request)
+    case 'forgetDeviceLibrary':
+      return forgetDeviceLibraryRequest(adoptionContext, request)
     case 'rebuildStale':
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')
@@ -172,17 +261,18 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await device.report()
         return session.setSettings(request.settings)
       }
+      view.libraryEpoch++
       provisionalItems.clear()
-      checkIns.keeper.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
-      checkIns.use('device')
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
+      view.libraryEpoch++
+      resume?.cancel()
+      resume = null
       provisionalItems.clear()
       view.showingSample = false
-      checkIns.clear()
       workbench.clearMemory()
       routes.clear()
       if (request.forgetDevice) {
@@ -190,7 +280,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         const forgotten = await device.forget()
         // The index of files read goes with the library it describes.
         await clearCheckinScope('device')
-        if (!(await workbench.clearScope({ kind: 'device' })) && forgotten)
+        const tracesCleared = await workbench.clearScope({ kind: 'device' })
+        // Every waiting save goes too, an expired session's included: nothing kept here stays, and a visitor who is
+        // signed out has no account on screen to ask about them.
+        const outboxCleared = await clearOutbox()
+        if ((!tracesCleared || !outboxCleared) && forgotten)
           post({ type: 'deviceIssue', issue: 'notForgotten' })
       } else device.replaced()
       return session.clear()
@@ -215,71 +309,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         throw new Error('Reload your library before deleting this activity.')
       const record = savedRecords.get(request.id)
       if (!record) throw new Error('Reload your library before deleting this activity.')
-      try {
-        await deleteActivity(request.id, request.userId)
-      } catch (error) {
-        // Another tab may already have deleted this exact record.
-        if (!(error instanceof ApiRequestError && error.status === 404)) throw error
-      }
-      savedRecords.delete(record.id)
-      unmatchedOriginals.delete(record.id)
-      routes.forget(record.id)
-      missingOriginals.delete(activityKey(record.digest))
-      // The file this activity came from is read again if it is added again.
-      await forgetHeldKeys(accountScope(request.userId), [activityKey(record.digest)])
-      await forgetHeldKeys('device', [activityKey(record.digest)])
-      const traceCleared = await workbench.remove(
-        { kind: 'account', userId: request.userId },
-        record.digest.id,
-      )
-      const deviceTraceCleared = await workbench.remove({ kind: 'device' }, record.digest.id)
-      // The copy kept in this browser goes too, so the activity cannot return after a sign-out. The
-      // account copy is already gone, so a copy that cannot be removed here does not fail the delete;
-      // the page is told, once, since it could return after a sign-out.
-      const keptDropped = await device.dropKept(activityKey(record.digest)).then(
-        () => true,
-        () => false,
-      )
-      if (!traceCleared || !deviceTraceCleared || !keptDropped)
-        post({ type: 'deviceIssue', issue: 'notForgotten' })
-      reportLibrary()
-      post({ type: 'missingOriginals', count: missingOriginals.size })
-      return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)
+      return deleteSavedGroup(deleteContext, record, request.userId, request.settings)
     }
-  }
-}
-
-async function activityTraceReply(
-  request: Extract<WorkerRequest, { type: 'activityTrace' }>,
-): Promise<ActivityTraceReply> {
-  const scope =
-    view.activeScope !== null &&
-    (request.userId === undefined
-      ? view.activeScope.kind === 'device'
-      : view.activeScope.kind === 'account' && view.activeScope.userId === request.userId)
-      ? view.activeScope
-      : null
-  if (scope === null) return { kind: 'failed' }
-  const cached = await workbench.get(scope, request.id)
-  if (cached !== null) return { kind: 'trace', trace: cached }
-  if (request.userId === undefined) {
-    if (!view.showingSample) return { kind: 'missing' }
-    const activity = sampleActivityById(view.sampleClock, request.id)
-    if (activity === undefined) return { kind: 'missing' }
-    workbench.captureMemory(activity, scope)
-    const trace = await workbench.get(scope, request.id)
-    return trace === null ? { kind: 'missing' } : { kind: 'trace', trace }
-  }
-  const record = [...savedRecords.values()].find((candidate) => candidate.digest.id === request.id)
-  if (record === undefined || !record.hasFile) return { kind: 'missing' }
-  if (request.fromOriginal !== true) return { kind: 'original' }
-  try {
-    const { activity } = await originalActivity(record, request.userId, request.id)
-    if (activity === undefined) return { kind: 'missing' }
-    const trace = await workbench.capture(activity, scope)
-    return trace === null ? { kind: 'missing' } : { kind: 'trace', trace }
-  } catch {
-    return { kind: 'failed' }
   }
 }
 
@@ -292,36 +323,32 @@ function reportUnreadable(count: number) {
 let queue: Promise<void> = Promise.resolve()
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const requestId = (event.data as Partial<WireRequest>).requestId
+  noteArrival(event.data.type)
   queue = queue.then(async () => {
+    noteStart(event.data.type)
     const endRequest = beginRequest(requestId, (message) => self.postMessage(message))
     try {
       if (event.data.type === 'addFiles') {
         const imported = await runImport(importContext, event.data)
         await reportDetail()
-        post({
-          type: 'state',
-          ...imported,
-          ...rebuildable(),
-          ...(await checkIns.of(imported.state)),
-        })
+        post(await checkIns.attach({ type: 'state', ...imported, ...rebuildable() }, 'addFiles'))
       } else if (event.data.type === 'rebuildStale') {
         const rebuilt = await rebuildStale(libraryContext, event.data.settings, event.data.userId)
-        // A baseline from before the rebuild is of the old model: the next import writes a fresh one.
-        if (rebuilt.rebuilt > 0) await checkIns.keeper.rebuilt(view.checkinScope)
+        await checkIns.afterRebuild(rebuilt.rebuilt)
         await reportDetail()
-        post({
-          type: 'rebuildComplete',
-          ...rebuilt,
-          ...rebuildable(),
-          ...(await checkIns.of(rebuilt.state)),
-        })
-      } else if (event.data.type === 'markSeen') {
-        post({ type: 'checkInSaved', seen: await checkIns.markSeen(event.data) })
-      } else if (event.data.type === 'acceptPartialImport') {
-        await checkIns.acceptPartial(importContext.lastImport)
-        post({ type: 'checkInSaved', seen: false })
+        post(
+          await checkIns.attach(
+            { type: 'rebuildComplete', ...rebuilt, ...rebuildable() },
+            'rebuildStale',
+          ),
+        )
+      } else if (checkIns.answers(event.data)) {
+        post(await checkIns.answer(event.data, importContext.lastImport))
       } else if (event.data.type === 'exportData') {
-        post({ type: 'exportReady', file: await exportAccount(event.data) })
+        post({
+          type: 'exportReady',
+          file: await exportAccount(event.data, hiddenRecordIds(savedRecords.values())),
+        })
       } else if (event.data.type === 'activitySplits') {
         post({ type: 'splits', id: event.data.id, splits: session.splitsOf(event.data.id) })
       } else if (event.data.type === 'routeShape' || event.data.type === 'forgetRoutes') {
@@ -331,7 +358,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         }
         post(await routes.reply(event.data))
       } else if (event.data.type === 'activityTrace') {
-        const reply = await activityTraceReply(event.data)
+        const reply = await activityTraceReply(importContext, event.data)
         // Reading a trace back from an original stores it, which may push an older one out. The page
         // hears of that before the reply: nothing the worker says after its reply is attributed.
         if (event.data.fromOriginal === true) await reportDetail()
@@ -340,12 +367,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const state = await handle(event.data)
         const { type } = event.data
         if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
-        post({
-          type: 'state',
-          state,
-          ...rebuildable(),
-          ...(checkIns.changes(type) ? await checkIns.of(state) : {}),
-        })
+        post(await checkIns.attach({ type: 'state', state, ...rebuildable() }, type))
       }
     } catch (error) {
       post({

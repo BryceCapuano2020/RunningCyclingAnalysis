@@ -8,6 +8,12 @@ import type { LiveState } from './lead'
 import { bestRows, episodeRow, episodeSentence, leadSentence, tooShortText } from './copy'
 import { lookBackOf, NO_LOOKBACK } from './compute'
 import type { LookBack, SportLookBack } from './compute'
+import { fitnessHistories } from '../fitness/compute'
+import { dayOfMs } from '../fitness/machine'
+import { hindsightOf } from './hindsight'
+import { orderedFor } from '../digest/consumers'
+import { ownRideGate } from '../digest/estimatedRide'
+import { hasEstimatedRide } from '../records/progression'
 import { milestonesOf } from './milestones'
 import type { HindsightEpisode, HindsightFitness, Plateau } from './types'
 
@@ -72,6 +78,30 @@ describe('a library through lookBackOf', () => {
     expect(longest(look)).toBeLessThanOrEqual(16)
   })
 
+  it('reads the years with what the card said week by week, so a recovery it confirmed is not called less', () => {
+    const dip = plantedLibrary({
+      seed: 8,
+      weeks: 260,
+      perWeek: 3,
+      ...NOISE,
+      effects: [
+        { type: 'efficiency-shift', atWeek: 90, size: -0.1 },
+        { type: 'efficiency-shift', atWeek: 150, size: 0.1 },
+      ],
+    })
+    const asOfMs = dip.lastMs
+    const history = fitnessHistories(dip.digests, NONE, { nowMs: asOfMs }).run
+    expect(history.records.length).toBeGreaterThan(200)
+    const told = lookBackOf(dip.digests, SETTINGS, NONE, asOfMs).sports.run.fitness
+    const direct = hindsightOf({
+      runs: history.runs,
+      activeDays: dip.digests.map((d) => dayOfMs(d.startMs)),
+      asOfDay: dayOfMs(asOfMs),
+      records: history.records,
+    })
+    expect(told).toEqual(direct)
+  })
+
   it('is the session state field, built with the state', () => {
     const state = new AnalysisSession().loadDigests(planted.digests, SETTINGS)
     expect(state.lookBack.sports.run.fitness.kind).toBe('ok')
@@ -79,6 +109,23 @@ describe('a library through lookBackOf', () => {
 })
 
 describe('milestones', () => {
+  it("are the same with the library's own gate as with none, when no ride is an estimate", () => {
+    const planted = plantedLibrary({
+      seed: 5,
+      weeks: 160,
+      perWeek: 4,
+      sports: ['run', 'ride'],
+      ...NOISE,
+      effects: [],
+    })
+    const ordered = orderedFor('records', planted.digests)
+    expect(hasEstimatedRide(ordered)).toBe(false)
+    expect(ownRideGate(ordered)).not.toBeNull()
+    expect(milestonesOf(planted.digests, SETTINGS)).toEqual(
+      milestonesOf(planted.digests, SETTINGS, ownRideGate(ordered)),
+    )
+  })
+
   it('compare two complete calendar years by the change test and never the one in progress', () => {
     const planted = plantedLibrary({ seed: 3, weeks: 190, perWeek: 3, ...NOISE, effects: [] })
     const run = milestonesOf(planted.digests, SETTINGS)

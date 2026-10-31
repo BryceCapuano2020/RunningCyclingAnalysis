@@ -1,6 +1,6 @@
 /*
  * Custom properties only: colour, spacing, radius, control size, type families and shadow. The
- * colour values are the table in docs/DESIGN.md, and tokens.test.ts keeps the two in step.
+ * colour values are the table in docs/design/system.md, and tokens.test.ts keeps the two in step.
  */
 :root {
   --surface-0: #f5f6f8;
@@ -32,7 +32,7 @@
   --series-run: #e44f27;
   --series-ride: #2f56e8;
   --series-swim: #0f9fb0;
-  /* Staged for sport-coloured text, which a later D10 PR brings; nothing reads the two inks yet. */
+  /* The text forms of the two sport hues (4.5:1). No surface sets text in a sport hue, so nothing reads them yet. */
   --run-ink: #b83a12;
   --ride-ink: #2f56e8;
   --series-run-soft: #e44f2726;

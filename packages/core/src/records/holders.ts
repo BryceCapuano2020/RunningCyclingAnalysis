@@ -6,6 +6,7 @@ import { ofSport } from '../digest/ordered'
 import { memoByDigests } from '../digestMemo'
 import { estimatedStanding, ownRideGate } from '../digest/estimatedRide'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
+import { trustedPower } from '../digest/powerCheck'
 import { fitBikeModelOver } from '../digest/rideCurves'
 import type { ActivityDigest, AthleteSettings } from '../types'
 import { eligibleDigests, readingsByDuration, recordAt, ridePricer, runPricer } from './progression'
@@ -65,7 +66,9 @@ export function recordHolders(
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   const eligible = eligibleDigests(digests)
-  const standing = estimatedStanding(gate === undefined ? ownRideGate(ordered) : gate)
+  const standing = estimatedStanding(
+    gate === undefined ? ownRideGate(trustedPower(ordered, masses)) : gate,
+  )
   const held = new Map<string, EarnedRecord[]>()
   const give = (id: string, record: EarnedRecord) => {
     const list = held.get(id)

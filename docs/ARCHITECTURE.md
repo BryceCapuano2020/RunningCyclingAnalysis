@@ -130,6 +130,39 @@ repeated network failures one save is the probe and the others wait for its answ
   Each change names the revision and label the client read and applies only to a row that still holds
   both; the digest counter moves in the same batch, and no digest travels up. No client calls it yet.
 
+**Outbox for account saves**
+
+A signed-in import writes each activity's digest to the `rca-outbox` IndexedDB database (rows keyed
+`userId|workoutKey`) before it is sent, and removes the row once the server has the activity or
+refuses it for good (a conflict, or an account being deleted). A row is removed only if it still
+holds the digest that was sent, checked in the removing transaction, so a file added again meanwhile
+keeps its own row. The row holds the summary the server keeps, never a route, stream or original.
+When the library for an account loads, the worker resumes any rows an earlier visit left, through the
+same gate, the same shared stop and the same one-wait rate-limit rule as an import, and posts an
+unstamped `outbox` message with the counts so the page can say how many are left and read the library
+again once some were saved. A workout an import is sending (`SendingKeys`, shared by both) is left to
+that import. The resume runs only in the tab that holds the account's writer lock
+(`rca-flush-<userId>`, `asWriter`), so two tabs open on the account never send the same rows. Only a refusal counts against a row, and after five it is let go and counted as failed.
+A stop (a limit, a signed-out account), a lost connection or a row a newer version wrote leaves the
+row untouched; a row from a stale analysis is let go unsent, while one the current model reads beside its own
+(compatible) is sent. A session that ends on its own (expiry,
+seen by a save or by a refresh) keeps the rows. An explicit sign-out (after a warning when rows wait)
+and account deletion forget the account's rows, and Remove all (signed out) forgets every account's.
+The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the
+import still reports its own failures.
+
+**Adding the kept library to an account**
+
+Activities a signed-out visitor kept in this browser (`rca-device-library`) are offered to the account that
+signs in. The worker tells the page, apart from any request, how many rows can be added (they have the hash of
+their file and the current model revision or one the current model reads beside its own, and the account does not hold the workout), how many need their files
+added again, and how many the account holds. Add writes each adoptable digest to the outbox, newest first, and
+saves it through the same gate as an import, in the tab that holds the account's writer lock. The device epoch is asked again at the moment of each send, so another tab's Remove all during a rate limit's wait sends nothing. A kept row is removed only after the account has the activity, and
+only if it still holds the digest that was saved (`removeIfDigest`, checked in the removing transaction), so a row
+another tab replaced is not lost. A conflict (same second, another file), a failure and a stopped run leave the row
+and are counted. Routes are not copied. Remove from this browser empties the kept library without touching the
+account. Not now is remembered per account and count in local storage.
+
 **Activity workbench**
 
 The import callback extracts a versioned `ActivityTrace` before releasing the raw activity. The
@@ -187,8 +220,10 @@ and whether it finished. While an import runs, its tab holds a Web Lock named fo
 later can tell an import still going in another tab from one that was cut off (a browser without locks goes by
 when the record was last written). The record is the only thing that tells the truth after a tab closes or a
 phone discards it, which is why a `beforeunload` guard is only a courtesy on top. An import that was cut off,
-or that read a damaged zip, leaves a notice that the library is only part of what was added, with what to do;
-"Use what I have" takes it away for good, and a later import of the same files finishes it. It goes with
+or that read a damaged zip, leaves a notice that the library is only part of what was added, with what to do, and holds the headline
+comparison of the two sports (the `partialImport` input of `resultHold.ts`, the one place holds are read) while
+the notice stands; the results themselves show. "Use what I have" takes both away for good, and a later import
+of the same files finishes it. It goes with
 Remove all, and an account's goes at sign-out and deletion. Storage that refuses it only loses the notice.
 Each event is found by the request it names, a record is rewritten only while the store still holds it (so
 another tab's Remove all is not undone), a running import is written every 10 s whatever it reads, and a
@@ -278,9 +313,12 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    or within 60 seconds of each other. Groups are transitive: if A matches B and B matches C, all
    three are one group. From a group, the copy from the richest format is kept: FIT, then TCX, then
    GPX. Within one format, the copy with a power meter is kept, then the copy with heart rate, then
-   the longer duration. This preference applies to files analyzed together. A saved activity is tied
-   to the hash of its original file, so replacing it with a different file requires deleting that
-   activity and importing the preferred file again.
+   the longer duration. Whether a file is stored never depends on the copies already held (rule R): every
+   distinct start second is stored, in any order, and the analysis alone hides all but the best copy of a
+   group. What is listed, counted and exported is the shown copy; a full library says how many of its rows
+   are hidden copies. Deleting the shown activity deletes its whole group, or a hidden copy would take its
+   place. A saved activity is tied to the hash of its original file, so replacing it with a different file
+   requires deleting that activity and importing the preferred file again.
 7. **Activity list** (`readActivityList` in `packages/core/src/import/activitiesCsv.ts`, and
    `packages/core/src/import/names.ts`). Before any file in a Strava export zip is parsed, the zip's
    `activities.csv` is read by range, from the top-level zip's central directory only, so it may sit
@@ -314,6 +352,14 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    `activities.csv`; or the list names none of the zip's activity files, as when they sit in a folder
    it does not expect or are spelled another way. Files inside a zip nested in the export, and single
    files, are never left out this way.
+   An `activities.csv` given loose beside the files it names (`looseList.ts`; the picker offers `.csv`, and a
+   drop is read only when a file is called exactly that, in any folder) is taken out of the import's sources:
+   it is neither an activity nor refused, and is not in the progress total. It is read before any activity
+   file, and its rows are matched to the loose files by file name alone, since the folder the export put
+   them in is gone. The files of a zip keep the zip's own list, though the ones the list names count as given. The
+   import reports how many files the list names and how many were given, and a loose file that names no sport
+   (and no list came with it) tells the athlete to add the list; a file that names a sport the app does not count
+   (a hike) is refused for it and says nothing of the list.
    A GPX track with no `<type>` or only a number the app does not know, and a TCX activity whose
    Sport is Other or missing, takes its sport from the `Activity Type` column: Run, Trail Run and
    Virtual Run are runs; Ride, Virtual Ride, Gravel Ride and Mountain Bike Ride are rides; Virtual Run

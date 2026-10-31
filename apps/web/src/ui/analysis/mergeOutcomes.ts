@@ -3,6 +3,18 @@ import type { ImportOutcome } from '../../worker/protocol'
 const sum = (a: number | undefined, b: number | undefined): number | undefined =>
   a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0)
 
+/** The counts of two tallies by extension, added; undefined when neither has any. */
+function mergeTypes(
+  a: Record<string, number> | undefined,
+  b: Record<string, number> | undefined,
+): Record<string, number> | undefined {
+  if (a === undefined && b === undefined) return undefined
+  const merged: Record<string, number> = { ...a }
+  for (const [extension, count] of Object.entries(b ?? {}))
+    merged[extension] = (merged[extension] ?? 0) + count
+  return merged
+}
+
 /**
  * The outcome of two imports read as one, for activities analysed in two or more provisional imports
  * and then kept together. Counts add up, and the span of start times covers both.
@@ -12,6 +24,15 @@ export function mergeOutcomes(first: ImportOutcome, second: ImportOutcome): Impo
   const ends = [first.lastStartMs, second.lastStartMs].filter((ms) => ms !== undefined)
   const filesAdded = sum(first.filesAdded, second.filesAdded)
   const notActivities = sum(first.notActivities, second.notActivities)
+  const skippedTypes = mergeTypes(first.skippedTypes, second.skippedTypes)
+  const listed =
+    first.listed === undefined && second.listed === undefined
+      ? undefined
+      : {
+          named: (first.listed?.named ?? 0) + (second.listed?.named ?? 0),
+          received: (first.listed?.received ?? 0) + (second.listed?.received ?? 0),
+        }
+  const needsList = first.needsList === true || second.needsList === true
   const runs = sum(first.runs, second.runs)
   const rides = sum(first.rides, second.rides)
   const updatedRuns = sum(first.updatedRuns, second.updatedRuns)
@@ -23,6 +44,9 @@ export function mergeOutcomes(first: ImportOutcome, second: ImportOutcome): Impo
     duplicates: [...first.duplicates, ...second.duplicates],
     ...(filesAdded === undefined ? {} : { filesAdded }),
     ...(notActivities === undefined ? {} : { notActivities }),
+    ...(skippedTypes === undefined ? {} : { skippedTypes }),
+    ...(listed === undefined ? {} : { listed }),
+    ...(needsList ? { needsList: true as const } : {}),
     ...(runs === undefined ? {} : { runs }),
     ...(rides === undefined ? {} : { rides }),
     ...(updatedRuns === undefined ? {} : { updatedRuns }),
