@@ -80,6 +80,9 @@ export { SPORT_NOUN } from '../domain/sportNoun'
 
 export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' }
 
+/** Whether a sport's figures are priced at the body weight, so they wait for it: a ride's are, a run's are not. */
+export const SPORT_NEEDS_WEIGHT: Record<Sport, boolean> = { run: false, ride: true }
+
 /** The sport as the activity in a phrase about its hours: "your running and riding hours". */
 export const SPORT_DOING: Record<Sport, string> = { run: 'running', ride: 'riding' }
 
