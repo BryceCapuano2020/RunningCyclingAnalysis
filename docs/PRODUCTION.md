@@ -267,6 +267,54 @@ repository and not in `wrangler.toml`.
   object to `/api/auth/dev-login` and requires 404, so a Worker deployed with the gate open fails the
   release.
 
+## Read-only switch and abuse response
+
+**The switch.** The plain Worker variable `READ_ONLY` ("true", "1" or "on", any case) makes the API refuse every request that
+would change data with **503 `read_only`** and a message the app shows: saves and uploads, profile and measurement changes,
+deletes, labels, and new sign-ins (`POST /api/auth/dev-login` and the Google callback). People who are signed in keep reading
+their library, the health checks answer, and **ending a session still works** (`POST /api/auth/logout`). The web app stops
+its saves without retrying and keeps what is waiting in the browser's outbox for the next visit. Unset, blank or anything
+else is off.
+
+- Turn it on fast: in the Cloudflare dashboard, the API Worker, Settings, Variables, add the plain text variable
+  `READ_ONLY` = `true` and deploy the setting. Or put `READ_ONLY = "true"` under `[vars]` in `apps/api/wrangler.toml` and
+  release through the normal procedure.
+- A release from `wrangler.toml` sets the plain variables to the file's values. After any release, check the switch
+  (`curl -s -X POST -H 'X-RCA-Client: web' https://<host>/api/activities -i` answers 503 `read_only` while it is on).
+- **Rollback to an older Worker ignores it.** Every Worker released before this one, the rollback floor `3e17b541`
+  included, has no switch, so a rollback during an abuse response writes again.
+- The switch does not stop everything that writes. Reads still count against the daily read budgets, sessions refresh
+  their expiry, and the scheduled job (cleanup of deleted accounts, orphan files, the R2 ledger) keeps running; to stop the
+  job as well, remove the cron trigger from the Worker in the dashboard.
+- Turn it off by deleting the variable (or setting it to `false`) and deploying the setting. Saves that waited in people's
+  outboxes then go through on their next visit.
+
+**When to use it:** the database is near its guard and something is still filling it; an account is writing in a loop; you
+are about to restore the database or run operator SQL that must not race with writes; an incident needs the data frozen
+while you look.
+
+**Abuse runbook.** Work from the cheapest step; each one is reversible except the last.
+
+1. _See what is happening_ (read-only SQL, `npx wrangler d1 execute rca --remote --command "..."`):
+   - Size and the heaviest accounts: `SELECT id, email, activity_count, digest_bytes, file_bytes, created_at FROM users ORDER BY digest_bytes + file_bytes DESC LIMIT 10`.
+   - Recent sign-ups: `SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 20`. Sign-up is closed to
+     anyone not on `ALLOWED_EMAILS` (see Sign-up list), so a new row that is not a friend means the list is wrong or the
+     Worker rolled back to one that ignores it.
+   - The R2 ledger and the day's counts: `SELECT * FROM r2_storage_budget`, and `SELECT action, SUM(used) FROM daily_budget WHERE day = date('now') GROUP BY action`.
+   - Refusals in Workers Logs: `storage_budget_refused` (R2 ledger), `rate_limited` and `database_full`.
+2. _Freeze writes_: turn the switch on (above). Nothing else is needed to stop the growth.
+3. _Close the door_: take the address off `ALLOWED_EMAILS` (`wrangler secret put ALLOWED_EMAILS` with the list that remains),
+   then end the account's sessions: `DELETE FROM sessions WHERE user_id = '<id>'`. The account can no longer sign in to
+   create more, and nothing of theirs is lost yet.
+4. _Cap the damage_: one account's digests are bounded (64 MiB, 5,000 activities), its originals (1 GiB), and a digest's free
+   text by the byte caps in `apps/api/LIMITS.md`. A single account cannot fill the guard; several can, which is why step 3
+   comes before step 5.
+5. _Remove_: `DELETE /api/me` from their session, or `DELETE FROM users WHERE id = '<id>'` in D1 (the rows cascade; see
+   Sign-up list for what a SQL delete skips). Do this last: it is not reversible.
+6. _Recover room_: the database guard lifts by itself as rows go. The lifetime R2 ledger is never refunded; see "Operator
+   reset" in `apps/api/LIMITS.md` before touching it.
+7. _Turn the switch off_ once the cause is gone, and write down what happened.
+
 ## Limits
 
 Service limits (per-account quotas, byte caps, edge rate limits and the application-wide R2
