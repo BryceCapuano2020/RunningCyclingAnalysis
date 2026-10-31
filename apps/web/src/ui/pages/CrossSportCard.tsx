@@ -1,9 +1,12 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
-import { EQUIVALENCE_MIN_S } from '@rca/core/constants'
+import { EQUIVALENCE_MIN_S, HEADLINE_DURATION_S } from '@rca/core/constants'
 import { PACE_UNIT, formatDuration, formatPaceValue, formatPower } from '@rca/core/units'
 import { EquivalenceTable } from '../components'
+import { effortChipText } from '../effortCaveat'
+import { thresholdUncheckedLine } from '../thresholdWithheld'
+import { EffortChip } from './EffortChip'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
 import { StatTile } from './StatTile'
@@ -90,6 +93,18 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
   }
   const paceNumber = formatPaceValue(featured.runSpeed.p50, units)
   const duration = effortLabel(featured.durationS)
+  // The pace is worth what the ride was, so a ride that was not shown to be a hard effort says so beside it, at whatever duration
+  // the pace is of. A hard one is said on the ride's own tile, beside this card, and is not said twice.
+  const found = effortChipText(
+    'ride',
+    result.effort.find((check) => check.durationS === featured.durationS),
+  )
+  const chip = found !== null && !found.hard ? found : null
+  // The gate judges the best 20 minutes, so only that carries a "not checked" line.
+  const unchecked =
+    featured.durationS === HEADLINE_DURATION_S && found === null
+      ? thresholdUncheckedLine(result, 'ride')
+      : null
   return (
     <StatTile
       sport="ride"
@@ -111,6 +126,12 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
       <p className="stat-tile__line">
         {`Your best ${duration} on the bike, ${formatPower(featured.ridePowerW)}${estimated ? ' (estimated)' : ''}, takes the same effort as running this pace on the flat.`}
       </p>
+      {chip === null ? null : (
+        <p className="stat-tile__effort">
+          <EffortChip chip={chip} />
+        </p>
+      )}
+      {unchecked === null ? null : <p className="stat-tile__line">{unchecked}</p>}
       {source && (
         <p className="stat-tile__line">
           <a className="cross-sport__link" href={hrefFor({ page: 'activity', id: source.id })}>

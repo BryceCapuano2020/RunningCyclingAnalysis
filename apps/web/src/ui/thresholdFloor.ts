@@ -4,7 +4,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { formatWkg } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
-import { paceFigure, powerFigure, threshold } from './records'
+import { paceFigure, powerFigure, refusalOf, threshold } from './records'
 import type { SportNumber } from './records'
 
 /** A critical power as the sport's figure, the same way the threshold's own figure is made. */
@@ -17,9 +17,9 @@ const FIGURE_AT: Record<Sport, (cp: number, massKg: number, units: UnitSystem) =
 }
 
 /**
- * The figure a sport shows in place of a refused threshold, when its uneven fit set a floor: the lowest of the
- * bests left out, a demonstrated effort the threshold is not shown below. Null when the threshold is there, or when
- * no uneven fit set one.
+ * The figure a sport shows in place of a refused threshold, as a floor: a demonstrated effort the threshold is not
+ * shown below. With the effort gate's refusal, the best 20 minutes (not a hard effort, so not an estimate). With
+ * an uneven fit, the lowest of the bests it left out. Null when the threshold is there, or when neither sets one.
  */
 export function floorThreshold(
   result: AnalysisResult,
@@ -27,8 +27,13 @@ export function floorThreshold(
   massKg: number,
   units: UnitSystem,
 ): SportNumber | null {
+  if (threshold(result, sport, massKg, units) !== null) return null
+  const held = result.effortGate[sport].floor
+  if (refusalOf(result, sport) === 'effort' && held !== null) {
+    return FIGURE_AT[sport](held.value, massKg, units)
+  }
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
-  if (!uneven || threshold(result, sport, massKg, units) !== null) return null
+  if (!uneven) return null
   // A floor at or above the fit would leave no range above it, so it is not shown as the threshold.
   if (!(uneven.fit.cp > uneven.floor)) return null
   return FIGURE_AT[sport](uneven.floor, massKg, units)

@@ -129,8 +129,10 @@ describe('thresholdTimeline against the best curves of the library', () => {
     const masses = massesOf(SETTINGS)
     const bikeModel = fitBikeModelOver(ordered, masses).model
     let compared = 0
+    // Ungated, as the best curves are: the effort gate has its own test below.
+    const timeline = thresholdTimeline(ordered, masses, bikeModel, SETTINGS.massKg, judged.rideGate)
     for (const sport of ['run', 'ride'] as const) {
-      const steps = judged.thresholdTimeline[sport]
+      const steps = timeline[sport]
       steps.forEach((step, i) => {
         if (i % 4 !== 0) return
         const window = ordered.filter(
@@ -155,5 +157,70 @@ describe('thresholdTimeline against the best curves of the library', () => {
     }
     expect(compared).toBeGreaterThan(40)
     expect(judged.rideGate).not.toBeNull()
+  })
+})
+
+describe('thresholdTimeline and the effort gate', () => {
+  /** Weekly runs whose 20 minutes was held at a heart rate, in bpm. */
+  function runsAt(bpm: number, from = 0, weeks = 20): ActivityDigest[] {
+    return weeklyRuns(from, weeks, () => 1).map((run) =>
+      Object.assign({}, run, {
+        hasHeartRate: true,
+        maxHeartRate: bpm,
+        curve: run.curve.map((point) => Object.assign({}, point, { heartRate: bpm })),
+      }),
+    )
+  }
+  const effortOf = (
+    reading: 'trusted' | 'low' | 'habitual' | null,
+    setAside = new Set<string>(),
+  ) => ({
+    referenceHr: { run: 180, ride: 174 },
+    referenceReading: { run: reading, ride: null },
+    setAside,
+  })
+  const timelineWith = (digests: ActivityDigest[], effort?: ReturnType<typeof effortOf>) => {
+    const ordered = orderedCurrent(digests)
+    const masses = massesOf(SETTINGS)
+    return thresholdTimeline(
+      ordered,
+      masses,
+      fitBikeModelOver(ordered, masses).model,
+      70,
+      null,
+      effort,
+    ).run
+  }
+  const fits = (steps: ReturnType<typeof timelineWith>) =>
+    steps.filter((step) => step.fit !== null).length
+
+  it('fits the windows whose best 20 minutes was hard, and none whose was not', () => {
+    expect(fits(timelineWith(runsAt(172), effortOf('trusted')))).toBeGreaterThan(10)
+    expect(fits(timelineWith(runsAt(140), effortOf('trusted')))).toBe(0)
+  })
+
+  it('has no fit where the reference cannot be trusted, and every fit where there is no judge', () => {
+    const library = runsAt(176)
+    expect(fits(timelineWith(library, effortOf('low')))).toBe(0)
+    expect(fits(timelineWith(library, effortOf('habitual')))).toBe(0)
+    expect(fits(timelineWith(library))).toBeGreaterThan(10)
+  })
+
+  it('does not judge a window by a run whose heart rate is set aside, or has none', () => {
+    const library = runsAt(140)
+    expect(
+      fits(timelineWith(library, effortOf('trusted', new Set(library.map((r) => r.id))))),
+    ).toBeGreaterThan(10)
+    expect(fits(timelineWith(library, effortOf(null)))).toBeGreaterThan(10)
+  })
+
+  it('moves with the window: easy weeks after hard ones leave the older fit to answer', () => {
+    // 20 hard weeks, then 20 weeks of runs at an easy heart rate. Once the hard weeks leave the window the steps have no fit,
+    // where the ungated timeline would go on fitting the easy runs.
+    const library = [...runsAt(172, 0, 20), ...runsAt(140, 20, 20)]
+    const gated = timelineWith(library, effortOf('trusted'))
+    const ungated = timelineWith(library)
+    expect(fits(gated)).toBeLessThan(fits(ungated))
+    expect(gated.at(-1)!.fit).toBeNull()
   })
 })

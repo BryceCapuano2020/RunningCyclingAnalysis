@@ -38,7 +38,8 @@ function reachesHeadline(curve: Curve): boolean {
 /**
  * Whether a sport has the evidence the headline needs: an effort as long as the headline's, or a fitted
  * threshold. A sport known only from shorter efforts, such as one estimated 5 minute ride, says too little
- * about its level to be set against the other.
+ * about its level to be set against the other. Whether that effort was hard is not asked here: that is a hold on
+ * the headline (`holdOf`), which the pick is read under, so a pick is the same function of its result as ever.
  */
 export function hasEvidence(result: AnalysisResult, sport: Sport): boolean {
   const { curve, threshold } = EVIDENCE_OF[sport](result)

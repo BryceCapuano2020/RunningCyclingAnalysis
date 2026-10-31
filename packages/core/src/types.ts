@@ -9,6 +9,7 @@ import type {
   DigestDrift,
   DigestDurabilityPoint,
 } from './digest/evidenceTypes'
+import type { ReferenceReading, ReferenceSource } from './effort/reference'
 import type { RouteShape } from './route/routeShape'
 import type {
   DigestClimbSection,
@@ -164,9 +165,10 @@ export type Curve = CurvePoint[]
 /**
  * Why a critical-power fit is refused. 'missing': the efforts are not there, under four in the window
  * or none reaching 20 minutes. 'shape': the efforts are there but show no threshold, being flat, below
- * the least work capacity, or with an intercept above their lowest effort.
+ * the least work capacity, or with an intercept above their lowest effort. 'effort': a fit that passed
+ * both, withheld because the best 20 minutes was not a hard effort (the effort gate, set by the analysis).
  */
-export type CriticalPowerRefusal = 'missing' | 'shape'
+export type CriticalPowerRefusal = 'missing' | 'shape' | 'effort'
 
 export interface CriticalPowerFit {
   /** Asymptote, in the unit of the fitted curve. */
@@ -272,6 +274,16 @@ export interface EffortCheck {
   runHrFraction: number | null
   /** Same for the best cycling window, divided by rideMaxHeartRate. */
   rideHrFraction: number | null
+  /**
+   * What each sport's reference can certify (see ReferenceReading): a share of a reference that is `low` or
+   * `habitual` does not show an effort was hard. Null without a reference. The analysis always sets them; absent reads
+   * as `trusted`, for a check made without one.
+   */
+  runReference?: ReferenceReading | null
+  rideReference?: ReferenceReading | null
+  /** Where each reference came from (the activities, a maximum entered, or the age). Absent reads as the activities. */
+  runReferenceSource?: ReferenceSource | null
+  rideReferenceSource?: ReferenceSource | null
 }
 
 /**

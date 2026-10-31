@@ -3,7 +3,9 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { WeeklyVolumeChart } from '../charts'
-import { ShareImageButton, headlinePick } from '../components'
+import { ShareImageButton } from '../components'
+import { levelBasis } from '../components/headlineNeed'
+import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
 import { gapOfHeadline } from '../balanceGap'
@@ -86,7 +88,8 @@ export function BalancePage({
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
   const { calibration } = heartRateJudgement
-  const pick = headlinePick(result)
+  const { pick } = heldPick(result)
+  const basis = useMemo(() => levelBasis(result), [result])
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
   // They are memoised on the analysis and the two profile values, not the profile object, which the
@@ -148,9 +151,9 @@ export function BalancePage({
   const levels = useMemo(() => {
     const sports = SPORT_ORDER.filter((sport) => hasReading || inPeriod[sport] > 0)
     if (!hasReading && sports.length !== 1) return null
-    const model = balanceLevels({ grades, sports, inPeriod, missingAge })
+    const model = balanceLevels({ grades, sports, inPeriod, missingAge, basis })
     return !hasReading && model.rows.every((row) => row.grade === null) ? null : model
-  }, [hasReading, grades, inPeriod, missingAge])
+  }, [hasReading, grades, inPeriod, missingAge, basis])
   // What moved since the previous period, graded as this period is; the previous gap is priced once here.
   const previousLabel = previousPeriodLabel(period.days)
   const changes = useMemo(
