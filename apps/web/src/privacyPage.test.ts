@@ -76,6 +76,7 @@ const removeRoute = await readStylesheet(
   '../../api/src/routes/activities/remove.ts',
 )
 const measurementStore = await readStylesheet(import.meta.url, './ui/measurementStore.ts')
+const keptPowerStore = await readStylesheet(import.meta.url, './ui/keptPowerStore.ts')
 const measurementRoutes = await readStylesheet(
   import.meta.url,
   '../../api/src/routes/measurements.ts',
@@ -288,6 +289,18 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(saved).not.toContain('flat-pace times')
   })
 
+  it('says what the waiting list of saves holds and when it is removed', () => {
+    expect(text).toContain('Saves waiting on this device')
+    expect(text).toContain('It holds no route, per-second recording or original file.')
+    expect(text).toContain(
+      'Signing out asks first when saves are still waiting, then removes the list',
+    )
+    expect(text).toContain('When a session ends on its own, the list stays')
+    expect(text).toContain(
+      'Remove all my activities removes every waiting save from this browser too.',
+    )
+  })
+
   it('distinguishes compact summaries from local detailed recordings', () => {
     expect(text).toContain('The summary has no per-second data or original file')
     expect(text).toContain('It contains no GPS coordinates or original files and is not uploaded.')
@@ -428,6 +441,11 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(apiSchema).toContain("'athlete_measurements'")
   })
 
+  it('says where the rides whose implausible power was kept are remembered', () => {
+    expect(text).toContain('rca.keepPower.v1')
+    expect(keptPowerStore).toContain("const KEY = 'rca.keepPower.v1'")
+  })
+
   it('says when an account was created and when an activity was saved', () => {
     expect(text).toContain('when the account was created')
     expect(text).toContain('save time')
@@ -467,7 +485,7 @@ describe('privacy page describes what is stored as the app stores it', () => {
   const clearsSeenNotes = (source: string, handler: string) =>
     new RegExp(`${handler}[\\s\\S]{0,400}?forgetSeenNotes\\(\\)`).test(source)
   it.each([
-    ['sign-out', app, 'onSignOut=\\{\\(\\) => \\{', true],
+    ['sign-out', app, 'useSignOutWarning\\(account\\.me\\?\\.user\\.id, \\(\\) => \\{', true],
     [
       'Remove all my activities',
       importActionsSource,

@@ -34,6 +34,12 @@ export interface ChangeCall {
   strongLow: number | null
   strongHigh: number | null
   verdict: ChangeVerdict
+  /**
+   * Whether the call was made from the efforts heart rate shows hard (and sprints, which it cannot judge) in both periods. False
+   * when the periods do not both hold enough of them, and the call is made from every effort in both: the effort was
+   * not checked.
+   */
+  gated: boolean
 }
 
 /** The change test for both sports, one call per curve duration. */

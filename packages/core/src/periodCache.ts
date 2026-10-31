@@ -356,8 +356,8 @@ export class PeriodCache {
   /**
    * Whether the selected period's bests differ from the previous period's by more than chance. Priced with the
    * selected period's bike model, so its key is the same as the previous curves': the two period lists, the masses
-   * and the library's ride gate; and the reading rule the curves' bests are made through (`reading`, with the key that
-   * says what it was made from), so a hard-effort gate moves both together. The last few are kept, so going back to a
+   * and the library's ride gate; and the reading rule the readings are taken through (`reading`, with the key that
+   * says what it was made from), so a change of the effort gate's references or set-aside list re-reads. The last few are kept, so going back to a
    * period just shown costs nothing.
    */
   change(

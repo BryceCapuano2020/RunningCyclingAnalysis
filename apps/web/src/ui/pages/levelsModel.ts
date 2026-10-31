@@ -2,6 +2,7 @@ import type { Sport } from '@rca/core/types'
 import {
   AGE_RANGE_TEXT,
   HEADLINE_LABEL,
+  TOP_OF_SCALE_SHORT,
   NEEDS_EFFORT_TEXT,
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
@@ -52,6 +53,7 @@ function missingFor(
 ): string {
   if (input.inPeriod[sport] === 0) return NONE_IN_PERIOD[sport]
   if (outcome?.kind === 'gap') return SHORT_REASON[outcome.reason] ?? outcome.reason
+  if (outcome?.kind === 'top-of-scale') return TOP_OF_SCALE_SHORT
   // No outcome: the grades wait for the year of birth and sex, or for the weight a ride's grade needs.
   return input.missingAge === null ? 'Needs your weight' : `Needs your ${input.missingAge}`
 }

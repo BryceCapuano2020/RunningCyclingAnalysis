@@ -1,5 +1,6 @@
 import type { WorkerResponse } from '../../worker/protocol'
 import { clearCountedRuns } from '../countedRunsStore'
+import { clearKeptPower } from '../keptPowerStore'
 import type { SavedActivity } from '../../worker/protocol'
 import {
   deviceLibraryMarked,
@@ -20,6 +21,7 @@ export type ReplyResponse = Exclude<
       | 'started'
       | 'heartbeat'
       | 'progress'
+      | 'outbox'
       | 'missingOriginals'
       | 'detailCoverage'
       | 'libraryActivities'
@@ -48,9 +50,12 @@ export function rememberKeptLibrary(
   if (pending.kind === 'clear') {
     if (pending.forgetDevice === true) {
       setKeptLibraryHinted(kept)
-      // The runs counted at walking pace go with the library, once it is known to be gone: a refused clear
-      // leaves what remains, and the choices with it.
-      if (!kept) clearCountedRuns()
+      // The runs counted at walking pace and the rides whose power was kept go with the library, once it is known
+      // to be gone: a refused clear leaves what remains, and the choices with it.
+      if (!kept) {
+        clearCountedRuns()
+        clearKeptPower()
+      }
     }
     return
   }
