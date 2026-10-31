@@ -6,7 +6,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { BestsOverTimeChart } from '../charts/BestsOverTimeChart'
 import { SegmentedControl } from '../components/SegmentedControl'
-import { takeawayAt } from '../charts/sportCurveTakeaway'
+import { namedChangeAt } from '../charts/sportCurveTakeaway'
 import type { TakeawayInput } from '../charts/sportCurveTakeaway'
 import { EFFORT_OPTIONS, effortOf } from '../records'
 
@@ -34,7 +34,7 @@ export function BestsOverTimeSection({
 }: BestsOverTimeSectionProps) {
   const [effort, setEffort] = useState<EffortLengthS>(HEADLINE_DURATION_S)
   const takeaway = useMemo(
-    () => (finding === null ? null : takeawayAt(finding, effort)),
+    () => (finding === null ? null : namedChangeAt(finding, effort)),
     [finding, effort],
   )
   return (

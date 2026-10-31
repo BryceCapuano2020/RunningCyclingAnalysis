@@ -300,6 +300,7 @@ export function App() {
             walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
             countedRuns={countedRuns}
             libraryPanel={page === 'held'}
+            units={units}
           />
           <PageFrame pageKey={key} onShown={onShown}>
             {route.page === 'profile' ? (
@@ -359,7 +360,12 @@ export function App() {
                 restoring={analysis.restoring}
               />
             ) : (
-              <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
+              <LandingPage
+                analysis={analysis}
+                signedIn={signedIn}
+                units={units}
+                onFiles={setup.requestImport}
+              />
             )}
           </PageFrame>
         </main>

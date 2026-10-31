@@ -259,6 +259,8 @@ export function gradedSexOf(
   return shown ? profile.sex : null
 }
 
+import { NO_STANDARD_RECORD_TEXT } from './gradeNotes'
+
 export * from './gradeNotes'
 
 /**
@@ -279,12 +281,12 @@ export function gradeRangeText(range: { low: Grade; high: Grade }): string {
 
 /**
  * A grade on the share card's hero: its centre level and whole percent, and the effort it grades,
- * such as "Local · 64% on best 20 min". A ride names its centre level only, so the line fits two lines
- * of the card; the page's grade line gives the range. The card's threshold label already says the
- * figure is estimated, so the line does not repeat it.
+ * such as "Local · 64% on best 20 min". A ride whose range crosses a level names both ends, as the page
+ * does ("Local to World"), so the card and the page never give two levels for one grade. The card's
+ * threshold label already says the figure is estimated, so the line does not repeat it.
  */
 export function heroGradeLine(grade: SportGrade): string {
-  return `${grade.centre.level} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
+  return `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
 }
 
 /**
@@ -346,12 +348,6 @@ export function distanceGrade(
   return { kind: 'graded', age: ageAndSex.age, grade: { centre, range: null } }
 }
 
-/** A run under a mile has no standard, so a record row names that rather than the full reason. */
-export const NO_STANDARD_RECORD_TEXT: Record<Sport, string> = {
-  run: 'No age standard under 1 mile',
-  ride: 'No age standard for this duration',
-}
-
 /** Whether a record's gap is the one a run under a mile, or a ride with no standard, has. */
 export function isNoStandardGap(outcome: GradeOutcome | null): boolean {
   return outcome !== null && outcome.kind === 'gap' && outcome.reason === NO_STANDARD_TEXT
@@ -364,21 +360,24 @@ export function isNoStandardGap(outcome: GradeOutcome | null): boolean {
 export function gapRecordText(sport: Sport, outcome: GradeOutcome): string | null {
   if (outcome.kind === 'graded') return null
   if (outcome.kind === 'top-of-scale') return TOP_OF_SCALE_SHORT
-  return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport] : notGradedText(outcome)
+  return isNoStandardGap(outcome) ? NO_STANDARD_RECORD_TEXT[sport]([]) : notGradedText(outcome)
 }
 
 /**
  * The notes a list of records says once under it, rather than on each row: a ride's lead when a record
- * is graded through its running equivalent, and the no-standard gap when a record has none. Each is
- * named once, whatever the number of rows it would have repeated on.
+ * is graded through its running equivalent, and the no-standard gap when a record has none, which names the
+ * records it is for (`labels`, one for each outcome) since it sits apart from their rows. Each is named once,
+ * whatever the number of rows it would have repeated on.
  */
 export function listedGradeNotes(
   sport: Sport,
   outcomes: readonly (GradeOutcome | null)[],
+  labels: readonly string[],
 ): string[] {
   const notes: string[] = []
   const lead = leadOf(sport, 'record')
   if (lead !== null && outcomes.some((outcome) => outcome?.kind === 'graded')) notes.push(lead)
-  if (outcomes.some(isNoStandardGap)) notes.push(NO_STANDARD_RECORD_TEXT[sport])
+  const ungraded = labels.filter((_, i) => isNoStandardGap(outcomes[i] ?? null))
+  if (ungraded.length > 0) notes.push(NO_STANDARD_RECORD_TEXT[sport](ungraded))
   return notes
 }

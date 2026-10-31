@@ -37,8 +37,10 @@ test('saves an activity an earlier visit left in the outbox, once the library ha
     attempts: 0,
   }
 
-  // The page opens the outbox itself, so its database exists; the row is put in as a closed tab leaves it.
-  await page.goto('/')
+  // The row is put in as a closed tab leaves it: from a page of this origin that runs no app. With the app open,
+  // its library load sends whatever the outbox holds at the moment it looks, so a row written meanwhile is sent or
+  // not by timing (this test failed 1 run in 5 under load).
+  await page.goto('/robots.txt')
   await page.evaluate(
     (waiting) =>
       new Promise<void>((resolve, reject) => {
@@ -63,7 +65,7 @@ test('saves an activity an earlier visit left in the outbox, once the library ha
   )
   expect(await apiActivities(page.request)).toHaveLength(0)
 
-  await page.reload()
+  await page.goto('/')
 
   await expect
     .poll(async () => (await apiActivities(page.request)).length, { timeout: 30_000 })

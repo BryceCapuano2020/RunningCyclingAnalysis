@@ -329,7 +329,9 @@ describe('ActivityPage', () => {
         distanceBests: [{ distanceM: METRES_PER_KM, seconds: 240 }],
       }),
     )
-    expect(within(bestsSection()).getAllByText('No age standard under 1 mile')).toHaveLength(1)
+    expect(
+      within(bestsSection()).getAllByText('No age standard under 1 mile, for the 5 min and 1 km'),
+    ).toHaveLength(1)
     expect(bestRow('Best 1 km').querySelector('.records__grade')).toBeNull()
   })
 

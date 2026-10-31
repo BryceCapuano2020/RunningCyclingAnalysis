@@ -29,3 +29,9 @@ export function gapRun(gapS: number, n = 2400): Activity {
   run.unrecorded = unrecorded
   return { ...run }
 }
+
+/** A flat run of `km` kilometres at a steady 3.5 m/s: long enough, or not, to hold the marathon. */
+export function longRun(km: number): Activity {
+  const n = Math.round((km * 1000) / 3.5)
+  return syntheticActivity({ id: 'long-run', n, speed: new Float64Array(n).fill(3.5) })
+}

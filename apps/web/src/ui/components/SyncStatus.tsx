@@ -86,6 +86,8 @@ function issueSentence(issue: SyncIssue, saved: number | null, hiddenCopies: num
       return 'Your saved analyses have reached the storage limit. Delete some saved activities to save more.'
     case 'database-full':
       return 'Saving is paused because the service is near its storage capacity. Your analysis still works on this device.'
+    case 'read-only':
+      return 'Saving is paused while the service is looked after. Your analysis still works on this device, and what is waiting is kept here and sent on a later visit.'
     case 'activity-conflict':
       return count === 1
         ? 'This workout is already saved from a different file. Delete the saved copy first to replace it.'
