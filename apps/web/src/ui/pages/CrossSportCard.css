@@ -26,18 +26,13 @@
   color: var(--sport-colour);
 }
 
+/* The link to the activity stands on a line of its own, so it is a control's height tall (40 px, 44 on a finger). */
 .cross-sport__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
   font-size: var(--text-sm);
   overflow-wrap: anywhere;
-}
-
-/* A finger, or a phone's narrow screen, needs a control's height to tap the link to the activity. */
-@media (max-width: 760px), (pointer: coarse) {
-  .cross-sport__link {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--control-height);
-  }
 }
 
 .cross-sport__details {

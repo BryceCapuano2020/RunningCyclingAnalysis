@@ -151,9 +151,10 @@ describe('Definition', () => {
 
     it('keeps the focus ring in the space beside the term, so it never touches the next glyph', () => {
       expect(ruleBody(css, '.definition__term:focus-visible')).toMatch(/outline-offset:\s*0/)
-      // Prose terms add no room of their own, so the gaps around them are ordinary word spaces.
-      expect(ruleBody(css, '.definition__term')).toMatch(/margin:\s*0;/)
-      expect(ruleBody(css, '.definition__term')).toMatch(/padding:\s*0;/)
+      // Prose terms add no room beside them (the 24 px height is above the text, and handed back), so the gaps
+      // around them are ordinary word spaces.
+      expect(ruleBody(css, '.definition__term')).toMatch(/margin:\s*-4px 0 0;/)
+      expect(ruleBody(css, '.definition__term')).toMatch(/padding:\s*4px 0 0;/)
     })
 
     it('wraps its words whatever it sits in, so a term inside a no-wrap line does not make a one-line note', () => {
@@ -258,8 +259,14 @@ describe('Definition', () => {
       expect(ruleBody(css, '.definition__term')).toMatch(/position:\s*relative/)
     })
 
-    it('reaches no further than a pixel above and below a term in a paragraph, so a term on the next line is not covered', () => {
-      expect(ruleBody(css, 'p .definition__term::after')).toMatch(/inset:\s*-1px -6px/)
+    it('reaches no further than a pixel inside a term in a paragraph, so a term on the next line is not covered', () => {
+      expect(ruleBody(css, 'p .definition__term::after')).toMatch(/inset:\s*1px -6px/)
+    })
+
+    it('makes the term itself 24 px tall, with the room added above its text and handed back by a negative margin', () => {
+      const term = ruleBody(css, '.definition__term')
+      expect(term).toMatch(/padding:\s*4px 0 0/)
+      expect(term).toMatch(/margin:\s*-4px 0 0/)
     })
   })
 })

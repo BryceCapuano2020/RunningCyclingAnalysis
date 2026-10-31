@@ -6,8 +6,6 @@
 
 .definition__term {
   position: relative;
-  margin: 0;
-  padding: 0;
   border: 0;
   border-bottom: 1px dotted currentColor;
   background: none;
@@ -18,6 +16,10 @@
   white-space: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+  /* The button is at least 24 px tall (WCAG 2.5.8), though its text may be a line of 20 px. The room is added above the
+     text and handed back by the negative margin, so the underline and a sentence's lines stay where they were. */
+  padding: 4px 0 0;
+  margin: -4px 0 0;
 }
 
 /*
@@ -37,7 +39,7 @@
  * on it opens it and nothing else.
  */
 p .definition__term::after {
-  inset: -1px -6px;
+  inset: 1px -6px;
 }
 
 /* Shown while data-open: a press, which the keyboard makes with the button, or a pointer resting on the term or the note. */

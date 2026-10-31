@@ -8,10 +8,10 @@ describe('Sport hero stylesheet', () => {
     expect(ruleBody(css, '.age-grade__standards')).toMatch(/font-size:\s*var\(--text-md\)/)
   })
 
-  it('gives the road standards link the control height on a coarse pointer, so a finger can tap it', () => {
-    expect(css).toMatch(
-      /@media \(pointer: coarse\) \{\s*\.age-grade__standards \{[^}]*display:\s*inline-flex[^}]*min-height:\s*var\(--control-height\)/,
-    )
+  it('gives the road standards link the control height, so it is never a line-high sliver', () => {
+    const body = ruleBody(css, '.age-grade__standards')
+    expect(body).toMatch(/display:\s*inline-flex/)
+    expect(body).toMatch(/min-height:\s*var\(--control-height\)/)
   })
 
   it('sets the figure at a line height of 1 in forced colours, so its backplate stays off the chip above', () => {
