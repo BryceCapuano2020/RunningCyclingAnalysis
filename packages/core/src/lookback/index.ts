@@ -38,3 +38,17 @@ export {
   tooShortText,
 } from './copy'
 export type { EffortMilestones, MilestoneEffort, MilestoneUnit, Mark } from './types'
+export { checkInBetween, beatsShown, OLDER_DAYS } from './checkIn'
+export type { CheckIn, FitnessLine, NewBest, NewEpisode } from './checkIn'
+export { checkInText } from './checkInCopy'
+export type { CheckInText } from './checkInCopy'
+export { beginImport, endImport, joins, JOIN_WINDOW_MS, usableBaseline } from './marks'
+export type { BaselineCheck, ImportEnd, Marks } from './marks'
+export { decodeSeconds, encodeSeconds, snapshotOf } from './snapshot'
+export type {
+  CheckInSnapshot,
+  SnapshotBest,
+  SnapshotEpisode,
+  SnapshotFitness,
+  SnapshotInputs,
+} from './snapshot'

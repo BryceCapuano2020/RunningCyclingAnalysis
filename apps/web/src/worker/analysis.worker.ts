@@ -1,19 +1,27 @@
 /// <reference lib="webworker" />
 import type { ActivityRecord } from '@rca/contract'
 import { periodChoiceOf } from '@rca/core/period'
-import { AnalysisSession } from '@rca/core/session'
 import type { SyncItem } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import type { Activity } from '@rca/core/types'
 import { ApiRequestError } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deviceActions } from './device'
+import { followUpAdopted } from './adoption'
+import {
+  adoptDeviceRequest,
+  forgetDeviceLibraryRequest,
+  keptTraceDropper,
+  offerDevice,
+} from './adoptionRequests'
+import type { AdoptionRequestContext } from './adoptionRequests'
+import { newSession } from './newSession'
 import { deviceKeeper } from './deviceKeeper'
 import { clearOutbox, openOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
 import { resumeOutbox } from './outboxResume'
 import { resumeAsWriter } from './writerResume'
-import type { Resume } from './outboxResume'
+import type { Writing } from './writerResume'
 import { exportAccount } from './exportAccount'
 import { deleteSavedGroup } from './deleteGroup'
 import type { DeleteGroupContext } from './deleteGroup'
@@ -45,7 +53,7 @@ import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
 import type { ActivityTraceReply } from './workbench'
 
-const session = new AnalysisSession()
+const session = newSession()
 const post = (message: WorkerResponse) => self.postMessage(stamped(message))
 /** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
 const missingOriginals = new Set<string>()
@@ -73,9 +81,10 @@ function reportLibrary() {
   })
 }
 
+const deviceLibrary = openDeviceLibrary()
 const device = deviceActions(
   session,
-  openDeviceLibrary(),
+  deviceLibrary,
   post,
   async (activityId) => workbench.remove({ kind: 'device' }, activityId),
   () => workbench.watchDevice(),
@@ -122,7 +131,21 @@ const reportDetail = detailReporter(workbench, post, () =>
 )
 
 /** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
-let resume: Resume | null = null
+let resume: Writing | null = null
+const adoptionContext: AdoptionRequestContext = {
+  session,
+  deviceLibrary,
+  savedRecords,
+  sending,
+  workbench,
+  view,
+  libraryContext,
+  post,
+  resume: () => resume,
+  resumeEnded: () => {
+    resume = null
+  },
+}
 function finishLoad(state: SessionState, userId: string): SessionState {
   // In the tab that holds the account's writer lock only: with two tabs open, one sends.
   resume = resumeAsWriter(userId, () =>
@@ -133,8 +156,16 @@ function finishLoad(state: SessionState, userId: string): SessionState {
       sending,
       // Apart from any request: stamped with one, the page would drop it as late.
       post: (message) => self.postMessage(message),
+      // Saves of kept activities that an Add began and a stop or a reload cut short finish here: the kept copy goes too.
+      settled: (row, outcome) =>
+        followUpAdopted(
+          { library: deviceLibrary, savedRecords, adopted: keptTraceDropper(workbench) },
+          row,
+          outcome,
+        ),
     }),
   )
+  void offerDevice(adoptionContext, userId)
   return state
 }
 
@@ -205,6 +236,10 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         ),
         request.userId,
       )
+    case 'adoptDevice':
+      return adoptDeviceRequest(adoptionContext, request)
+    case 'forgetDeviceLibrary':
+      return forgetDeviceLibraryRequest(adoptionContext, request)
     case 'rebuildStale':
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')

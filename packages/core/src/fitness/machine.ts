@@ -1,3 +1,4 @@
+import { dayShiftFor, WEEK_MS, WEEK_ORIGIN_MS, weekEndInstant } from '../calendar'
 import { DAY_MS } from '../constants'
 import { episodeStep, openEpisode, troughOf } from './episode'
 import { riseStep } from './rise'
@@ -18,16 +19,20 @@ import type { Dip, RunPoint, Slip } from './windows'
 
 const M = FITNESS.monitor
 
-export const WEEK_MS = 7 * DAY_MS
-/** A Monday at midnight UTC (5 January 1970): weeks count from it, so they line up for every library and match the findings engine's. */
-export const WEEK_ORIGIN_MS = 4 * DAY_MS
-
+/** Weeks count from the Monday `calendar.ts` names, so they line up for every library and match the findings engine's. */
 export const weekOfMs = (ms: number): number => Math.floor((ms - WEEK_ORIGIN_MS) / WEEK_MS)
+/** The week an instant is in, in the viewer's zone. */
+export const localWeekOf = (ms: number): number =>
+  weekOfMs(ms + dayShiftFor({ startMs: ms }) * DAY_MS)
 /** The end of a week, Sunday 23:59:59.999 UTC, as the findings engine's weeks end. */
 export const weekEndOf = (week: number): number => WEEK_ORIGIN_MS + (week + 1) * WEEK_MS - 1
 /** The days since the origin at which a week's evaluation is made: the start of the next Monday. */
 export const dayOfWeekEnd = (week: number): number => (week + 1) * 7
 export const dayOfMs = (ms: number): number => (ms - WEEK_ORIGIN_MS) / DAY_MS
+/** A day on the clock as a label: the midnight that starts it, counted as if the local day were the UTC one. */
+export const msOfDay = (day: number): number => WEEK_ORIGIN_MS + day * DAY_MS
+/** The same midnight as the instant it is in the viewer's zone. */
+export const instantOfDay = (day: number): number => weekEndInstant(msOfDay(day) - 1) + 1
 
 export type MachineState =
   | 'nodata'

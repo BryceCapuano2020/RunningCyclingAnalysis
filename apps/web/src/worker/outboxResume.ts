@@ -16,8 +16,26 @@ import { noteWork } from './workerWire'
 /** Failures after which a row is let go at once: the server holds another copy, or the account is going. */
 const NEVER_TAKEN = new Set<SyncIssueCode>(['activity-conflict', 'account-deleting'])
 
+/** How a row's save ended: the server has it now, had it already, holds another file for it, was let go, or waits. */
+export type RowOutcome = 'saved' | 'held' | 'conflict' | 'let-go' | 'kept'
+
+/** What a resume came to. `stopped` is why it gave up on the rest, when it did. */
+export interface ResumeResult {
+  saved: number
+  /** Rows let go for good: refused too often, from an older analysis, unreadable, or taken by another file. */
+  failed: number
+  /** Of those, the ones the server holds another copy of (same second, different file). */
+  conflicts: number
+  /** Rows still in the outbox when it ended. */
+  kept: number
+  stopped: SyncIssueCode | null
+}
+
 /** Thrown in place of a send that was cancelled while it waited: the row is left as it is. */
 class NotSent extends Error {}
+
+/** Thrown in place of a send whose row no longer stands (`allowed` said so at the moment of sending). */
+class NoLongerAllowed extends Error {}
 
 export interface ResumeContext {
   userId: string
@@ -28,12 +46,16 @@ export interface ResumeContext {
   sending: SendingKeys
   /** Posts a message that answers no request (it is not stamped with one). */
   post: (message: WorkerResponse) => void
+  /** Asked before a row is sent; false lets the row go unsent (what put it there no longer stands). */
+  allowed?: (row: OutboxRow) => Promise<boolean>
+  /** Called after each row's save ends and the row is dealt with, for whoever put the row there to follow up. */
+  settled?: (row: OutboxRow, outcome: RowOutcome) => Promise<void>
 }
 
 export interface Resume {
   /** Stops sending: the account, the library or the worker changed. Rows stay for the next load. */
   cancel: () => void
-  finished: Promise<void>
+  finished: Promise<ResumeResult>
 }
 
 /**
@@ -49,23 +71,31 @@ export interface Resume {
  */
 export function resumeOutbox(ctx: ResumeContext): Resume {
   let cancelled = false
-  const finished = (async () => {
+  const finished = (async (): Promise<ResumeResult> => {
     const rows = await ctx.outbox.pending()
-    if (rows.length === 0 || cancelled) return
+    if (rows.length === 0 || cancelled)
+      return { saved: 0, failed: 0, conflicts: 0, kept: 0, stopped: null }
     const held = new Set([...ctx.savedRecords.values()].map(({ digest }) => workoutKeyOf(digest)))
     ctx.post({ type: 'outbox', pending: rows.length, saved: 0, failed: 0, finished: false })
     const gate = new Gate(SAVE_CONCURRENCY)
     // A limit or an ended session would refuse the rest the same way: one save waits it out, the rest do not ask.
-    const stop = new SaveStop(() => {
+    let stopped: SyncIssueCode | null = null
+    const stop = new SaveStop((code) => {
       cancelled = true
+      stopped = code
     })
     let saved = 0
     let failed = 0
+    let conflicts = 0
     // Rows still in the outbox when this ends.
     let kept = 0
     let left = rows.length
-    /** What became of the row: saved, held already (nothing to say), let go for good, or kept for another day. */
-    const resumeRow = async (row: OutboxRow): Promise<'saved' | 'held' | 'let-go' | 'kept'> => {
+    /** What became of the row. */
+    const resumeRow = async (row: OutboxRow): Promise<RowOutcome> => {
+      if (ctx.allowed !== undefined && !(await ctx.allowed(row))) {
+        await ctx.outbox.done(row.key, row.digestId)
+        return 'held'
+      }
       const digest = digestOf(row)
       if (digest === null) {
         // A summary this version cannot read: nothing to send, and nothing a retry would change.
@@ -92,7 +122,11 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
           if (!leading) await stop.ready()
           // Checked again after any wait (a rate limit's, another send's) and at the moment of sending: a cancel
           // or a stop that came meanwhile means nothing more is sent.
-          return ctx.sending.run(row.key, () => {
+          return ctx.sending.run(row.key, async () => {
+            if (cancelled) throw new NotSent()
+            // Asked at the moment of sending too, not only when the row was taken up: a rate limit's wait is
+            // long enough for another tab to empty the library the row came from.
+            if (ctx.allowed !== undefined && !(await ctx.allowed(row))) throw new NoLongerAllowed()
             if (cancelled) throw new NotSent()
             return createActivity(digest, row.fileName, row.fileHash, ctx.userId)
           })
@@ -102,11 +136,15 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
         return 'saved'
       } catch (error) {
         if (error instanceof NotSent) return 'kept'
+        if (error instanceof NoLongerAllowed) {
+          await ctx.outbox.done(row.key, row.digestId)
+          return 'held'
+        }
         const failure = syncFailureOf(error)
         stop.noteFailure(failure.code)
         if (NEVER_TAKEN.has(failure.code)) {
           await ctx.outbox.done(row.key, row.digestId)
-          return 'let-go'
+          return failure.code === 'activity-conflict' ? 'conflict' : 'let-go'
         }
         // Not the server's refusal of this activity: a limit, an ended session or no connection says nothing about it.
         if (stopsSaving(failure.code) || failure.code === 'network') return 'kept'
@@ -123,8 +161,10 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
           noteWork()
           const outcome = await resumeRow(row)
           if (outcome === 'saved') saved++
-          else if (outcome === 'let-go') failed++
+          else if (outcome === 'let-go' || outcome === 'conflict') failed++
           else if (outcome === 'kept') kept++
+          if (outcome === 'conflict') conflicts++
+          await ctx.settled?.(row, outcome).catch(() => undefined)
           left--
           if (!cancelled) {
             ctx.post({ type: 'outbox', pending: left, saved, failed, finished: false })
@@ -133,6 +173,7 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
       ),
     )
     ctx.post({ type: 'outbox', pending: kept, saved, failed, finished: true })
+    return { saved, failed, conflicts, kept, stopped: stopped as SyncIssueCode | null }
   })()
   return {
     cancel: () => {

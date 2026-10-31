@@ -138,8 +138,8 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * days, does not move.
  *
  * Re-pinned for the VO2max share ramp (D6c, RCA-005). Only the 400-activity library moves, and only `result` (16 hashes: the four settings
- * under every period): `runVo2max`, which the heart-rate VO2max now takes as a weighted median over runs, a window counting from nothing at
- * 85% of the reference heart rate to in full at 90%, where it counted in full from 85%. Every other field of both libraries is as it was, and
+ * under every period): `runVo2max`, which the heart-rate VO2max now takes as a weighted median over runs, a window counting for half at
+ * 85% of the reference heart rate and in full at 90%, where it counted in full from 85%. Every other field of both libraries is as it was, and
  * the set-aside library does not move.
  *
  * Added the `lookBack` field (each sport's years in hindsight and its bests over the years, library-wide): a new key under every period,
@@ -149,8 +149,8 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  *
  * Re-pinned for revision 7 (D12 F), the release that writes the changes that were gated behind it, and makes weeks local. Only the
  * 400-activity library moves (the set-aside library is made from the sample dataset, whose digests move only in the splits of six
- * runs, which no field it pins reads), under every period and setting, in ten fields: `result`, `trend`, `effortTrends`, `lookBack`, `previous`,
- * `change`, `sameHeartRate`, `lateEvidence`, `heartRateJudgement` and `fitness`. The cause is the digests of the library's 24
+ * runs, which no field it pins reads), under every period and setting, in ten fields: `result`, `trend`, `effortTrends`, `lookBack`,
+ * `previous`, `change`, `sameHeartRate`, `lateEvidence`, `heartRateJudgement` and `fitness`. The cause is the digests of the library's 24
  * templates (generated activities, 12 runs): every run's `splits` move (the split ratio against the speed stream, and a steep
  * descent's smaller credit), and three of them (templates 2, 14 and 20, on a climb) move their `curve`, `hrBlocks` and `drift`,
  * template 8 its `curve`, `hrBlocks` and `durability`, as a descent now costs more; the rides do not move, and each digest's model
@@ -158,7 +158,7 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * curves through every best. `zoneEstimates`, `timeInZones` and `records` do not move: no threshold, reference heart rate, zone
  * seconds or record holder changed. The weeks are cut at local Mondays; with no shift in these digests and the process zone not
  * given to the session, they are the UTC weeks, so no week moved. The mixing study (digest/test/mixingStudy.node.test.ts) measured
- * this kind of move on five other libraries.
+ * this kind of move on five other libraries. (Measured against the revision-6 digester before it was removed.)
  *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one
  * body mass in UTC, then three dated masses (each ride priced at its own weight) in UTC, in Los Angeles
@@ -198,7 +198,7 @@ const SETTINGS: Setting[] = [
 
 const PINNED: Record<string, Record<string, string>> = {
   'fixed in UTC': {
-    '"default"/result': 'a5adf5b145b5f01c',
+    '"default"/result': 'efc32903c817624e',
     '"default"/trend': '7ccb6f80238f2aa7',
     '"default"/effortTrends': '5a59e33e6c00e31a',
     '"default"/sameHeartRate': '70e621421815d33b',
@@ -213,7 +213,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/records': 'e230de84b581960a',
     '"default"/library': '574d46370edbd9ae',
     '"default"/period': '6f360d1647ca0139',
-    '"all"/result': '91adc647985e6621',
+    '"all"/result': '43c3a26ba5cf04e7',
     '"all"/trend': 'd82abb8c8f6364c8',
     '"all"/effortTrends': '4b09a23b039903c6',
     '"all"/sameHeartRate': '9b1187fdeee130f6',
@@ -228,7 +228,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/records': 'e230de84b581960a',
     '"all"/library': '574d46370edbd9ae',
     '"all"/period': '47579e1a1fbdd02b',
-    '42/result': 'cc10032bf11b75ed',
+    '42/result': '4392761de2429cbe',
     '42/trend': '63dded71f16ad09b',
     '42/effortTrends': '500f9b1959bff77f',
     '42/sameHeartRate': '1646cd607789eeb4',
@@ -243,7 +243,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/records': 'e230de84b581960a',
     '42/library': '574d46370edbd9ae',
     '42/period': 'f52586cd25d95522',
-    '{"from":"2021-03-10","to":"2021-03-20"}/result': '8031b5878443ae8e',
+    '{"from":"2021-03-10","to":"2021-03-20"}/result': '71c4b72986b81f24',
     '{"from":"2021-03-10","to":"2021-03-20"}/trend': '7a3a73c712399682',
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': 'd471859599c7107d',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': 'cc847208ae91fbcb',
@@ -260,7 +260,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
   },
   'dated in UTC': {
-    '"default"/result': 'eee9a23825dc1d5f',
+    '"default"/result': '51b2a8db99aa799d',
     '"default"/trend': '84c209f35bffb34c',
     '"default"/effortTrends': '6f79278cc35bd233',
     '"default"/sameHeartRate': '70e621421815d33b',
@@ -275,7 +275,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '4915398ed45b1efd',
     '"default"/period': '6f360d1647ca0139',
-    '"all"/result': 'da7868c58487c9c0',
+    '"all"/result': 'a36481b168200aa4',
     '"all"/trend': '84f2f67a75801a28',
     '"all"/effortTrends': 'f902dff715a98bfe',
     '"all"/sameHeartRate': '6c17b634cd6cfb32',
@@ -290,7 +290,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/records': '45d6f3b6516eb072',
     '"all"/library': '4915398ed45b1efd',
     '"all"/period': '47579e1a1fbdd02b',
-    '42/result': '338e805ff500c410',
+    '42/result': 'cb5134a86d06711f',
     '42/trend': '805e8e61f774d8a0',
     '42/effortTrends': '8dc7775a83641669',
     '42/sameHeartRate': '1646cd607789eeb4',
@@ -305,7 +305,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/records': '45d6f3b6516eb072',
     '42/library': '4915398ed45b1efd',
     '42/period': 'f52586cd25d95522',
-    '{"from":"2021-03-10","to":"2021-03-20"}/result': '602e50052d37872a',
+    '{"from":"2021-03-10","to":"2021-03-20"}/result': '313fc83df33186ef',
     '{"from":"2021-03-10","to":"2021-03-20"}/trend': '19100794ed5c91bb',
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': '818f214dc83d57ff',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': 'cc847208ae91fbcb',
@@ -322,7 +322,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
   },
   'dated in Los Angeles': {
-    '"default"/result': 'eee9a23825dc1d5f',
+    '"default"/result': '51b2a8db99aa799d',
     '"default"/trend': '84c209f35bffb34c',
     '"default"/effortTrends': '6f79278cc35bd233',
     '"default"/sameHeartRate': '70e621421815d33b',
@@ -337,7 +337,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '4915398ed45b1efd',
     '"default"/period': '7cbdf77a690f6297',
-    '"all"/result': 'da7868c58487c9c0',
+    '"all"/result': 'a36481b168200aa4',
     '"all"/trend': '84f2f67a75801a28',
     '"all"/effortTrends': 'f902dff715a98bfe',
     '"all"/sameHeartRate': '6c17b634cd6cfb32',
@@ -352,7 +352,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/records': '45d6f3b6516eb072',
     '"all"/library': '4915398ed45b1efd',
     '"all"/period': 'b4022d2b20f6cb24',
-    '42/result': '338e805ff500c410',
+    '42/result': 'cb5134a86d06711f',
     '42/trend': '805e8e61f774d8a0',
     '42/effortTrends': '8dc7775a83641669',
     '42/sameHeartRate': '1646cd607789eeb4',
@@ -367,7 +367,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/records': '45d6f3b6516eb072',
     '42/library': '4915398ed45b1efd',
     '42/period': 'ee8d1f6b756898a2',
-    '{"from":"2021-03-10","to":"2021-03-20"}/result': '673dc5767907d889',
+    '{"from":"2021-03-10","to":"2021-03-20"}/result': '1f46eed2ba6be67d',
     '{"from":"2021-03-10","to":"2021-03-20"}/trend': '19100794ed5c91bb',
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': '818f214dc83d57ff',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': 'cc847208ae91fbcb',
@@ -384,7 +384,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '7de40011ebc2b6a9',
   },
   'dated in Auckland': {
-    '"default"/result': 'c9052496508e0c13',
+    '"default"/result': '5d82fb008b0b0352',
     '"default"/trend': 'a7802d0a587166ad',
     '"default"/effortTrends': '49bbfe8a9b36d2bb',
     '"default"/sameHeartRate': '6d0d2ef87db4b950',
@@ -399,7 +399,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '1038bb267703371b',
     '"default"/period': 'c102373861471840',
-    '"all"/result': 'b684ad1fa8d77492',
+    '"all"/result': 'dbf5e38876b65fab',
     '"all"/trend': '7c38c5d1c2f5478a',
     '"all"/effortTrends': '6be7b7fca3849d4c',
     '"all"/sameHeartRate': '6c17b634cd6cfb32',
@@ -414,7 +414,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/records': '45d6f3b6516eb072',
     '"all"/library': '1038bb267703371b',
     '"all"/period': '4e2b3f99b79165f0',
-    '42/result': '5c6f9fd31ddf38dd',
+    '42/result': 'e17b079189275a6b',
     '42/trend': 'f9984ead178d2f02',
     '42/effortTrends': '8f0fec7c9150f511',
     '42/sameHeartRate': '9f9c506bc04eee06',
@@ -429,7 +429,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/records': '45d6f3b6516eb072',
     '42/library': '1038bb267703371b',
     '42/period': '8f564f063b3bbb04',
-    '{"from":"2021-03-10","to":"2021-03-20"}/result': '5593a4f12eec6023',
+    '{"from":"2021-03-10","to":"2021-03-20"}/result': '2280a433fe556431',
     '{"from":"2021-03-10","to":"2021-03-20"}/trend': '19100794ed5c91bb',
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': '818f214dc83d57ff',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': 'cc847208ae91fbcb',

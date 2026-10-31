@@ -312,6 +312,32 @@ describe('device library in IndexedDB', () => {
     })
   })
 
+  describe('removeIfDigest', () => {
+    const FILE = { fileName: 'run.fit', fileHash: 'a'.repeat(64) }
+
+    it('removes the row that holds the digest asked for', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      await library.put('run-1', MEASURED, null, FILE)
+
+      expect(await library.removeIfDigest('run-1', MEASURED.id)).toBe(true)
+
+      expect(await library.all()).toEqual([])
+    })
+
+    it('keeps a row that another save replaced since, and a workout kept nowhere', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      const replacement = { ...MEASURED, id: `${MEASURED.id}-other` }
+      await library.put('run-1', replacement, null, FILE)
+
+      expect(await library.removeIfDigest('run-1', MEASURED.id)).toBe(false)
+      expect(await library.removeIfDigest('run-9', MEASURED.id)).toBe(false)
+
+      expect((await library.all()).map((entry) => entry.digest.id)).toEqual([replacement.id])
+    })
+  })
+
   describe('the epoch', () => {
     it('starts at zero and rises each time the library is emptied, in the same transaction as the clear', async () => {
       const fake = fakeIndexedDb()

@@ -47,7 +47,7 @@ const READING: Record<Sport, Reading> = {
 
 /** One steady block, in order of the time of its activity; `activity` counts the activities that give blocks. */
 interface Block extends Dated {
-  /** The start on the axis the weeks are cut on (calendar.ts); the start itself with local weeks off. */
+  /** The start on the axis the weeks are cut on (calendar.ts). */
   weekMs: number
   /** The end of the week of the activity's local day (calendar.ts). */
   weekEnd: number

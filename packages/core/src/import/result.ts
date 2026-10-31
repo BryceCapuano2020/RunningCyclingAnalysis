@@ -1,5 +1,5 @@
 import { MIB } from '../constants'
-import type { Activity, Sport } from '../types'
+import type { Activity, AthleteType, Sport } from '../types'
 
 /** The result contract every activity parser (FIT, GPX, TCX) returns, and the limits they enforce. */
 
@@ -81,6 +81,11 @@ export interface ParseOptions {
   sessionKey?: string
   /** The file's export tags it as a race, such as Strava's Competition column. Every activity of the file carries the tag. */
   race?: boolean
+  /**
+   * The athlete's own label, kept from a saved digest when the file is read again: the file cannot give it, and the
+   * export's list is not at hand. Wins over the label the list type names (`activityType`).
+   */
+  athleteType?: AthleteType
 }
 
 /** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */

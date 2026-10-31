@@ -16,6 +16,9 @@ export const WEEK_MS = 7 * DAY_MS
 /** The day number of a Monday: 5 January 1970, from which weeks count, so they line up for every library. */
 const MONDAY_DAY_NUMBER = 4
 
+/** The same Monday as an instant: weeks count from it. */
+export const WEEK_ORIGIN_MS = MONDAY_DAY_NUMBER * DAY_MS
+
 /** Minutes east of UTC at an instant. */
 export type Zone = (ms: number) => number
 
@@ -69,6 +72,14 @@ export function localDayNumber(item: Dated, zone: Zone = viewerZone): number {
   return (
     Math.floor(item.startMs / DAY_MS) + (item.localDayShift ?? shiftFromZone(zone, item.startMs))
   )
+}
+
+/**
+ * How many days later than its UTC day an activity falls, for the code that places activities on a continuous
+ * clock of days (the fitness monitor): its shift, or the viewer's zone's where the file gave none.
+ */
+export function dayShiftFor(item: Dated): number {
+  return item.localDayShift ?? shiftFromZone(viewerZone, item.startMs)
 }
 
 /** The Monday-start week a day number falls in, counted from 5 January 1970. */

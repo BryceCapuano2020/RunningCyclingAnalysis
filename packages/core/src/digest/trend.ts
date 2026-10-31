@@ -71,7 +71,7 @@ interface Best {
 interface Reading {
   id: string
   startMs: number
-  /** The start on the axis the weeks are cut on (calendar.ts); the start itself with local weeks off. */
+  /** The start on the axis the weeks are cut on (calendar.ts). */
   weekMs: number
   sport: Sport
   best: Best

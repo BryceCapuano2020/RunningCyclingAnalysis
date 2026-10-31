@@ -10,9 +10,8 @@ import { zoneTablesOf } from './findings/zoneTables'
 import type { ActivityDigest } from './types'
 
 /**
- * The sites that cut a library into weeks, read with local weeks on. Each is given an activity whose local day
- * is not its UTC day, and must put it in the week of its local day; with every shift 0 each must give exactly
- * the figures it gives with local weeks off.
+ * The sites that cut a library into weeks. Each is given an activity whose local day is not its UTC day, and must
+ * put it in the week of its local day; with every shift 0 each must give exactly the figures of UTC weeks.
  */
 const library = plantedLibrary({
   seed: 4,
