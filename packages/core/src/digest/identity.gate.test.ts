@@ -41,16 +41,19 @@ describe('the digest below revision 7', () => {
     })
   }
 
-  it('moves for the same fixtures once the gate is open, so the proof above can fail', async () => {
-    const moved = [
-      'GPX run, strides near 78',
-      'GPX run, steps near 160',
-      'FIT run with a 60 s cadence lock',
-    ]
-    for (const name of moved) {
-      expect(await digestHash(digestActivityAt(MAIN[name]!.make(), 7)), name).not.toBe(
-        MAIN[name]!.hash,
-      )
+  it('moves for the fixtures a gated change reaches once the gate is open, and only for those', async () => {
+    const moves: Record<string, boolean> = {
+      'GPX run, strides near 78': true,
+      'GPX run, strides near 55': false,
+      'GPX run, steps near 160': true,
+      'FIT run with a 60 s cadence lock': true,
+      'FIT run without a lock': false,
+    }
+    expect(Object.keys(moves).sort()).toEqual(Object.keys(MAIN).sort())
+    for (const [name, moved] of Object.entries(moves)) {
+      // The revision field is set back so that only the digest's content is compared.
+      const open = { ...digestActivityAt(MAIN[name]!.make(), 7), modelRevision: 6 }
+      expect((await digestHash(open)) !== MAIN[name]!.hash, name).toBe(moved)
     }
   })
 })
