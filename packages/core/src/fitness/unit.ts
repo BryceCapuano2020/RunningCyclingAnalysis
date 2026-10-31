@@ -15,7 +15,13 @@ export interface UnitPoint {
   id: string
   startMs: number
   x: number
+  /** The temperature index of the activity, when its digest has one (revision 7). Absent otherwise. */
+  tempC?: number
 }
+
+/** The temperature of a reading as it goes on a point: nothing for a digest that has none. */
+export const withTemperature = (tempC: number | null): { tempC?: number } =>
+  tempC === null ? {} : { tempC }
 
 export interface UnitSeries {
   /** Oldest first, ties by id. */
@@ -89,6 +95,7 @@ export function runSeries(
       id: z.r.id,
       startMs: z.r.startMs,
       x: valueOf(z.kms, ref, fit.kappa, fit.beta),
+      ...withTemperature(z.r.tempC),
     }))
     return {
       points: points.sort(byTime),
@@ -113,6 +120,7 @@ export function runSeries(
     id: z.r.id,
     startMs: z.r.startMs,
     x: valueOf(z.kms, ref, -1, beta),
+    ...withTemperature(z.r.tempC),
   }))
   return {
     points: points.sort(byTime),

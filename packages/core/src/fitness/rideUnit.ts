@@ -4,7 +4,7 @@ import type { ActivityDigest, Sport } from '../types'
 import { fitHeartRateSlope } from './fit'
 import type { SlopeLimits } from './fit'
 import { FITNESS } from './params'
-import { byTime, emptySeries, referenceOf } from './unit'
+import { byTime, emptySeries, referenceOf, withTemperature } from './unit'
 import type { UnitSeries } from './unit'
 
 const R = FITNESS.ride
@@ -12,6 +12,7 @@ const R = FITNESS.ride
 interface RideBlocks {
   id: string
   startMs: number
+  tempC: number | null
   blocks: { hr: number; ln: number }[]
 }
 
@@ -31,6 +32,7 @@ function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
     ? {
         id: digest.id,
         startMs: digest.startMs,
+        tempC: digest.temperature?.c ?? null,
         blocks: digest.hrBlocks
           .filter((b) => b.terms === null && b.value > 0 && Number.isFinite(b.heartRate))
           .map((b) => ({ hr: b.heartRate, ln: Math.log(b.value) })),
@@ -80,6 +82,7 @@ export function rideSeries(
     .map((z) => ({
       id: z.r.id,
       startMs: z.r.startMs,
+      tempC: z.r.tempC,
       hr: median(z.blocks.map((b) => b.hr)),
       ln: median(z.blocks.map((b) => b.ln)),
     }))
@@ -89,7 +92,12 @@ export function rideSeries(
   )
   return {
     points: rows
-      .map((r) => ({ id: r.id, startMs: r.startMs, x: r.ln - beta * (r.hr - ref) }))
+      .map((r) => ({
+        id: r.id,
+        startMs: r.startMs,
+        x: r.ln - beta * (r.hr - ref),
+        ...withTemperature(r.tempC),
+      }))
       .sort(byTime),
     referenceHr: ref,
     method: {

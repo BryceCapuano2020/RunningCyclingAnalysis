@@ -15,6 +15,8 @@ export interface RunReadings {
   id: string
   startMs: number
   steadyPace: boolean
+  /** The temperature index of the run (revision 7), or null when its digest has none. */
+  tempC: number | null
   loose: KmReading[]
   strict: KmReading[]
 }
@@ -79,7 +81,13 @@ export function runReadings(
     !digest.flagCounts['hr-spike'] &&
     !digest.flagCounts['hr-dropout']
   const readings: RunReadings | null = eligible
-    ? { id: digest.id, startMs: digest.startMs, steadyPace: steadyPace(km), ...kilometres(km) }
+    ? {
+        id: digest.id,
+        startMs: digest.startMs,
+        steadyPace: steadyPace(km),
+        tempC: digest.temperature?.c ?? null,
+        ...kilometres(km),
+      }
     : null
   cache.set(digest, readings)
   return readings

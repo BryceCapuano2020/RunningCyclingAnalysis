@@ -138,7 +138,9 @@ function support(s: FitnessStatus, against: string | null): string {
   const ev = s.evidence!
   const w = WORDS[s.sport]
   const recent = `${counted(ev.recent.runs, w.steady)}, ${formatDay(ev.recent.fromMs)} to ${formatDay(ev.recent.toMs)}`
-  return against === null ? `${recent}.` : `${recent}, against ${against}.`
+  // Said once, and only while the warm-day term is in use: the figures above are with warm days added back.
+  const adjusted = ev.method.heat === undefined ? '' : ' Adjusted for warm days.'
+  return `${against === null ? `${recent}.` : `${recent}, against ${against}.`}${adjusted}`
 }
 
 export interface FitnessLines {
