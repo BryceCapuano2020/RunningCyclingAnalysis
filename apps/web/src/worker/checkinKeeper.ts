@@ -43,9 +43,9 @@ export class CheckInKeeper {
     this.now = now
   }
 
-  private async load(scope: CheckinScope): Promise<Held> {
+  private async load(scope: CheckinScope, fresh = false): Promise<Held> {
     const known = this.held.get(scope)
-    if (known !== undefined) return known
+    if (known !== undefined && !fresh) return known
     const read = await readScope(scope)
     const loaded: Held =
       read === null
@@ -63,6 +63,11 @@ export class CheckInKeeper {
   /** Forgets everything held, as when the library on screen is another's. */
   forgetAll(): void {
     this.held.clear()
+    this.provisional = null
+  }
+
+  /** Files analysed with no scope are not going to be kept: the snapshot that waited for them goes. */
+  dropProvisional(): void {
     this.provisional = null
   }
 
@@ -92,14 +97,16 @@ export class CheckInKeeper {
 
   /**
    * An import is about to keep files: `before` is the library as it stands, null when it is empty. With `scope` null
-   * (files that are kept nowhere yet) the snapshot waits in memory for `adopt`.
+   * (files that are kept nowhere yet) the snapshot waits in memory for `adopt`; a second drop while it waits is part of
+   * the same import, so the first library stands and the workouts add up. The records are read again, since another
+   * tab may have moved them since this one loaded.
    */
   async begin(scope: CheckinScope | null, before: CheckInSnapshot | null): Promise<void> {
     if (scope === null) {
-      this.provisional = { before, added: 0 }
+      this.provisional ??= { before, added: 0 }
       return
     }
-    const held = await this.load(scope)
+    const held = await this.load(scope, true)
     held.marks = { ...beginImport(held.marks, before), ...rebuilt(held.marks) }
     await this.write(scope, held, { marks: held.marks })
   }
@@ -110,8 +117,16 @@ export class CheckInKeeper {
    */
   async settle(scope: CheckinScope | null, end: ImportEnd): Promise<void> {
     if (scope === null) return
-    const held = await this.load(scope)
+    const held = await this.load(scope, true)
     if (held.marks === null) return
+    // Accepting an import that is no longer waiting (it was settled, or a reload lost it) must not move the baseline.
+    if (
+      end.manifest === 'accepted-partial' &&
+      held.marks.pending === null &&
+      held.marks.lastImportAtMs !== null
+    ) {
+      return
+    }
     const next = endImport(held.marks, end, this.now(), this.check(held.marks))
     if (next === held.marks) return
     held.marks = { ...next, ...rebuilt(held.marks) }
@@ -120,7 +135,7 @@ export class CheckInKeeper {
 
   /** Files that were kept nowhere added this many workouts. */
   noteProvisionalAdded(added: number): void {
-    if (this.provisional !== null) this.provisional.added = added
+    if (this.provisional !== null) this.provisional.added += added
   }
 
   /** Those files are now kept under `scope`: the snapshot taken before them is committed there. */

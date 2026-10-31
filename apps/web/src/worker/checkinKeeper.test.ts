@@ -145,6 +145,52 @@ describe('the baseline of "since your last import"', () => {
     expect(databases.some((d) => d.name === 'rca-checkin')).toBe(false)
   })
 
+  it('keeps the first library and adds the workouts when a first import is made in two drops during the lookup', async () => {
+    const m = await fresh()
+    const keeper = m.keeper()
+    await keeper.begin(null, null)
+    keeper.noteProvisionalAdded(3)
+    // The second drop begins with the library the first one made: that is not the library before the import.
+    await keeper.begin(null, snap([5, 4, 3], T0))
+    keeper.noteProvisionalAdded(2)
+    await keeper.adopt('device')
+    // Still a first import: no baseline, though the second drop began with the first one's files.
+    expect((await m.readScope('device'))?.marks?.baseline).toBeNull()
+    m.clock.now = T0 + 9 * HOUR
+    await keeper.begin('device', snap([5, 4, 3], T0))
+    await keeper.settle('device', COMPLETE)
+    // Had the second snapshot stood, the first import would have had a baseline of its own files.
+    const view = await keeper.view('device', () => snap([5, 4, 3, 1], m.clock.now))
+    expect(view.checkIn?.added.run).toBe(1)
+    expect((await m.readScope('device'))?.marks?.baseline?.counts.run).toBe(3)
+  })
+
+  it('drops files analysed with no scope when they are not going to be kept', async () => {
+    const m = await fresh()
+    const keeper = m.keeper()
+    await keeper.begin(null, snap([5], T0))
+    keeper.noteProvisionalAdded(3)
+    keeper.dropProvisional()
+    await keeper.adopt('device')
+    expect((await m.readScope('device'))?.marks).toBeNull()
+  })
+
+  it('does not move the baseline for an acceptance when nothing is waiting', async () => {
+    const m = await fresh()
+    const keeper = m.keeper()
+    await keeper.begin('device', null)
+    await keeper.settle('device', COMPLETE)
+    m.clock.now = T0 + 8 * HOUR
+    await keeper.begin('device', snap([5], T0))
+    await keeper.settle('device', COMPLETE)
+    const baseline = (await m.readScope('device'))?.marks?.baseline
+    expect(baseline).not.toBeNull()
+    // The athlete accepts after a reload that lost the import: there is no pending snapshot to commit.
+    m.clock.now += 9 * HOUR
+    await m.keeper().settle('device', { manifest: 'accepted-partial', added: 1 })
+    expect((await m.readScope('device'))?.marks?.baseline).toEqual(baseline)
+  })
+
   it('commits files kept after being analysed with no scope, under the scope that kept them', async () => {
     const m = await fresh()
     const keeper = m.keeper()
@@ -203,22 +249,51 @@ describe('what the athlete has seen', () => {
 })
 
 describe('clearing', () => {
-  it('removes the records, and a writer that read them before is refused', async () => {
+  it('removes the records; an import that ends after the clear cannot bring the baseline back', async () => {
     const m = await fresh()
-    const stale = m.keeper()
-    await stale.begin('device', null)
-    await stale.settle('device', COMPLETE)
-    // Another tab empties the library: the scope is cleared and its epoch moves on.
-    const tab = m.keeper()
-    await tab.markSeen('device', 'lookBack', 'open')
+    const running = m.keeper()
+    await running.begin('device', null)
+    await running.settle('device', COMPLETE)
+    m.clock.now = T0 + 8 * HOUR
+    await running.begin('device', snap([5], T0))
+    // Another tab empties the library while this import runs.
     expect(await m.clearCheckinScope('device')).toBe(true)
     expect((await m.readScope('device'))?.marks).toBeNull()
-    m.clock.now = T0 + 8 * HOUR
-    await stale.begin('device', snap([5], T0))
-    await stale.settle('device', COMPLETE)
+    await running.settle('device', COMPLETE)
     const after = await m.readScope('device')
     expect(after?.marks).toBeNull()
     expect(after?.epoch).toBe(1)
+  })
+
+  it('refuses a write made under the epoch from before the clear', async () => {
+    const m = await fresh()
+    const stale = m.keeper()
+    await stale.markSeen('device', 'lookBack', 'open')
+    expect(await m.clearCheckinScope('device')).toBe(true)
+    await stale.markSeen('device', 'lookBack', 'impression')
+    expect((await m.readScope('device'))?.seen.lookBack.impressions).toBe(0)
+  })
+
+  it('leaves an account no epoch row when it is swept or deleted, and a cleared device keeps its count', async () => {
+    const m = await fresh()
+    const keeper = m.keeper()
+    for (const scope of ['device', 'account:u1', 'account:u2'] as const) {
+      await keeper.begin(scope, null)
+      await keeper.settle(scope, COMPLETE)
+    }
+    // Signing out clears an account and keeps its count; a sweep for another sign-in and a deletion leave nothing.
+    await m.clearCheckinScope('account:u1')
+    await m.clearCheckinScope('device')
+    await m.sweepCheckin('u3')
+    await m.clearCheckinScope('account:u2', { dropEpoch: true })
+    const keys = await new Promise<string[]>((resolve) => {
+      const open = indexedDB.open('rca-checkin')
+      open.onsuccess = () => {
+        const all = open.result.transaction('marks', 'readonly').objectStore('marks').getAllKeys()
+        all.onsuccess = () => resolve(all.result.map(String))
+      }
+    })
+    expect(keys).toEqual(['device|epoch'])
   })
 
   it('is swept for another account and keeps the device and the signed-in account', async () => {
