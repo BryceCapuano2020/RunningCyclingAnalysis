@@ -20,10 +20,10 @@ test.describe('forced colours', () => {
     })
   }
 
+  // In every project: WebKit paints the band through its own forced-colours rules.
   test('Balance: the 90% range band is drawn in a system colour, not the page colour', async ({
     page,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop', ONLY_DESKTOP)
+  }) => {
     await openSample(page)
     const band = page.getByTestId('profile-band').first()
     await band.scrollIntoViewIfNeeded()
