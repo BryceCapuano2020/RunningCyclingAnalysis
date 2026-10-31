@@ -245,6 +245,7 @@ export function ResultPage({
           onDelete={analysis.deleteActivity}
           libraryNotice={analysis.libraryNotice}
           libraryError={analysis.libraryError}
+          heldOut={analysis.state.heldOut}
         />
       )
     case 'activity': {

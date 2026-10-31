@@ -13,15 +13,20 @@ import { LandingPage } from './ui/pages/LandingPage'
 import { listedMoves } from './ui/analysis/whatMoved'
 import { ageProfileOf } from './ui/grades'
 import { documentTitleFor, useDocumentTitle } from './ui/documentTitle'
-import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
 import { RestoringPage } from './ui/pages/RestoringPage'
+import { HeldLibraryPage, UnavailableLibraryPage } from './ui/pages/HeldLibraryPage'
+import { libraryPageTitle, pageKeyOf } from './ui/libraryPage'
+import { heldViewFor } from './ui/pages/heldLibraryView'
+import { useLibraryPage } from './ui/useLibraryPage'
+import { HoldInputsContext } from './ui/holdContext'
 import { ResultPage } from './ui/pages/ResultPage'
 import { MethodPage } from './ui/pages/MethodPage'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
-import type { Route } from './ui/route'
 import { hrefFor, useRoute } from './ui/route'
-import { restoreScroll, useRouteHistory } from './ui/routeHistory'
+import { useRouteHistory } from './ui/routeHistory'
+import { usePageFocus } from './ui/usePageFocus'
+import { focusPageHeading } from './ui/pages/pageHeading'
 import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
@@ -37,27 +42,6 @@ import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
 import { useCountedRuns } from './ui/useCountedRuns'
 import { useSignInProblem } from './ui/signInProblem'
-
-/** A string that changes whenever a different page is on screen. */
-function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
-  if (route.page === 'profile') return 'profile'
-  // Restoring gives way to the landing page on its own, so the two are different pages to focus.
-  // How sure is this? shows without a result, so it is its own page there rather than the landing.
-  // A Method with no result is its own page, so when results arrive the page change moves focus to its heading.
-  if (!hasResult)
-    return restoring ? 'restoring' : route.page === 'method' ? 'method-empty' : 'landing'
-  return route.page === 'activity' ? `activity:${route.id}` : route.page
-}
-
-/**
- * Whether focus was lost with the page that went away. Focus that is still on a control outside
- * the page, such as the header, is where the user put it and is left alone.
- */
-function focusWasLost(): boolean {
-  const active = document.activeElement
-  if (active === null || active === document.body || !active.isConnected) return true
-  return document.querySelector('main')?.contains(active) ?? false
-}
 
 export function App() {
   const [preferences, setPreferences] = usePreferences()
@@ -139,15 +123,27 @@ export function App() {
     save: saveProfile,
   })
   const hasResult = analysis.state.result !== null
+  // A library is more than a result: one whose digests are all held out has none, and is still a library.
+  const { knowledge, holdInputs, page } = useLibraryPage(analysis, route, signedIn)
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
-  const moved = listedMoves(analysis.importChange, analysisAthlete, units, ageProfile, weighted)
-  // The restoring page holds until the kept library replies. Profile and How sure is this? keep their
-  // own pages while results restore, so it stands in for the landing page only.
-  const restoringPage = analysis.restoring && route.page !== 'profile' && route.page !== 'method'
-  const key = pageKey(route, hasResult, restoringPage)
+  const moved = listedMoves(
+    analysis.importChange,
+    analysisAthlete,
+    units,
+    ageProfile,
+    weighted,
+    holdInputs,
+  )
+  const restoringPage = page === 'restoring'
+  const key = pageKeyOf(route, page)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
   useRouteHistory()
-  useDocumentTitle(documentTitleFor(route, analysis.state.result, analysis.state.library))
+  const heldTitle =
+    page === 'held' ? heldViewFor(analysis, signedIn, fileRetentionAvailable).title : ''
+  useDocumentTitle(
+    libraryPageTitle(page, heldTitle) ??
+      documentTitleFor(route, analysis.state.result, analysis.state.library),
+  )
   // The account and a signed-in library must answer before the landing page is the true state.
   const settled =
     account.status !== 'loading' &&
@@ -155,6 +151,7 @@ export function App() {
   const coldNotice = useRouteGuard({
     route,
     hasResult,
+    libraryPresent: knowledge === 'present',
     busy: analysis.busy,
     // A file import queued behind the library, or running while it is not loading.
     waiting: analysis.waitingReason !== null,
@@ -164,26 +161,7 @@ export function App() {
     settled,
   })
 
-  // A new page replaces the old one, so focus moves to the new page's heading and the page shows
-  // from the top, or where the visitor left it when Back returns to it. A link the user followed
-  // always moves them; a page that changes by itself, such as a library that loads, only takes
-  // focus that was lost with the old page. The first render keeps the browser's own focus and scroll.
-  const previousKey = useRef(key)
-  const previousHash = useRef(window.location.hash)
-  useEffect(() => {
-    if (previousKey.current === key) return
-    const fromLanding = previousKey.current === 'landing'
-    previousKey.current = key
-    const followed = previousHash.current !== window.location.hash
-    previousHash.current = window.location.hash
-    if (!followed && !focusWasLost()) return
-    // A first result replaces the landing page, where the visitor may have scrolled down to a sample
-    // button that is now gone. That scroll is not a place they left, so the result starts at the top.
-    if (fromLanding && !followed) window.scrollTo(0, 0)
-    else restoreScroll()
-    // Focus without a scroll of its own, so the position just restored is kept.
-    focusPageHeading({ preventScroll: true })
-  }, [key])
+  usePageFocus(key)
 
   // Removing all activities clears the analysis in the worker. The landing page shows once the old
   // result is gone, so it never flashes on the way. Leaving Profile first cancels the move; it
@@ -252,137 +230,152 @@ export function App() {
   const onLanding = key === 'landing'
 
   return (
-    <div className="page">
-      <SkipLink />
-      {/* While results restore, the tabs show and Add files is left to the restoring page. */}
-      <Header
-        route={route}
-        showTabs={hasResult || analysis.restoring}
-        addFiles={
-          restoringPage || onLanding ? null : (
-            <AddFilesButton onFiles={setup.requestImport} primary={hasResult || signedIn} />
-          )
-        }
-        account={
-          <AccountMenu
-            status={account.status}
-            me={account.me}
-            onSignIn={account.signIn}
-            onSignOut={() => {
-              // What this browser noted about the visitor's data goes with their session.
-              forgetSeenNotes()
-              // The runs counted here go once the session has ended, not if signing out failed.
-              void account.signOut().then(countedRuns.clear, () => undefined)
-            }}
-          />
-        }
-      />
-      {/* Always mounted: file drops anywhere, the busy strip and announcements. */}
-      <ImportStatus
-        onFiles={setup.requestImport}
-        busy={analysis.busy}
-        progress={analysis.progress}
-        waiting={analysis.waitingReason}
-        signedIn={signedIn}
-        outcome={analysis.importOutcome}
-        rejected={analysis.state.rejected}
-        moved={moved}
-        onStop={(control) => runThenFocus(analysis.stop, control)}
-      />
-
-      <main className="app__main">
-        <AppNotices
-          analysis={analysis}
-          signedIn={signedIn}
-          moved={moved}
-          keepFiles={keepFiles}
-          fileRetentionAvailable={fileRetentionAvailable}
-          accountsUnavailable={!accountsAvailable}
-          accountError={account.error}
-          runThenFocus={runThenFocus}
-          atBalance={route.page === 'balance'}
-          page={route.page}
-          pageNotice={
-            accountDeleted && route.page === 'balance'
-              ? 'Your account and data were deleted.'
-              : (signInProblem ?? coldNotice ?? '')
+    <HoldInputsContext.Provider value={holdInputs}>
+      <div className="page">
+        <SkipLink />
+        {/* While results restore, the tabs show and Add files is left to the restoring page. */}
+        <Header
+          route={route}
+          showTabs={hasResult || analysis.restoring || knowledge === 'present'}
+          addFiles={
+            restoringPage || onLanding ? null : (
+              <AddFilesButton
+                onFiles={setup.requestImport}
+                primary={hasResult || signedIn || knowledge === 'present'}
+              />
+            )
           }
-          walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
-          countedRuns={countedRuns}
+          account={
+            <AccountMenu
+              status={account.status}
+              me={account.me}
+              onSignIn={account.signIn}
+              onSignOut={() => {
+                // What this browser noted about the visitor's data goes with their session.
+                forgetSeenNotes()
+                // The runs counted here go once the session has ended, not if signing out failed.
+                void account.signOut().then(countedRuns.clear, () => undefined)
+              }}
+            />
+          }
         />
-        {route.page === 'profile' ? (
-          <ProfilePage
+        {/* Always mounted: file drops anywhere, the busy strip and announcements. */}
+        <ImportStatus
+          onFiles={setup.requestImport}
+          busy={analysis.busy}
+          progress={analysis.progress}
+          waiting={analysis.waitingReason}
+          signedIn={signedIn}
+          outcome={analysis.importOutcome}
+          rejected={analysis.state.rejected}
+          moved={moved}
+          onStop={(control) => runThenFocus(analysis.stop, control)}
+        />
+
+        <main className="app__main">
+          <AppNotices
             analysis={analysis}
-            settings={settings}
-            athlete={analysisAthlete}
-            units={units}
-            birthYear={athleteValues.birthYear}
-            sex={athleteValues.sex}
             signedIn={signedIn}
-            accountsAvailable={accountsAvailable}
-            accountLoading={account.status === 'loading'}
-            email={account.me?.user.email ?? null}
+            moved={moved}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
-            onSaveProfile={saveProfile}
-            dated={measurements}
-            onAddSetting={addSetting}
-            onRemoveSetting={removeSetting}
-            onSignIn={account.signIn}
-            onDownloadData={downloadData}
-            onDeleteAccount={deleteAccount}
-            onRemoveAll={removeAll}
-          />
-        ) : analysis.state.result ? (
-          <ResultPage
-            route={route}
-            analysis={analysis}
-            result={analysis.state.result}
-            settings={analysisAthlete}
-            weightKnown={weighted}
-            units={units}
-            birthYear={athleteValues.birthYear}
-            sex={athleteValues.sex}
-            signedIn={signedIn}
+            accountsUnavailable={!accountsAvailable}
+            accountError={account.error}
+            runThenFocus={runThenFocus}
+            atBalance={route.page === 'balance'}
+            page={route.page}
+            pageNotice={
+              accountDeleted && route.page === 'balance'
+                ? 'Your account and data were deleted.'
+                : (signInProblem ?? coldNotice ?? '')
+            }
+            walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
             countedRuns={countedRuns}
+            libraryPanel={page === 'held'}
           />
-        ) : restoringPage ? (
-          <RestoringPage onFiles={setup.requestImport} />
-        ) : route.page === 'method' ? (
-          <MethodPage
-            result={null}
-            heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
-            units={units}
-            profile={null}
-            weightKnown={weighted}
-            restoring={analysis.restoring}
-          />
-        ) : (
-          <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
-        )}
-      </main>
+          {route.page === 'profile' ? (
+            <ProfilePage
+              analysis={analysis}
+              settings={settings}
+              athlete={analysisAthlete}
+              units={units}
+              birthYear={athleteValues.birthYear}
+              sex={athleteValues.sex}
+              signedIn={signedIn}
+              accountsAvailable={accountsAvailable}
+              accountLoading={account.status === 'loading'}
+              email={account.me?.user.email ?? null}
+              keepFiles={keepFiles}
+              fileRetentionAvailable={fileRetentionAvailable}
+              onSaveProfile={saveProfile}
+              dated={measurements}
+              onAddSetting={addSetting}
+              onRemoveSetting={removeSetting}
+              onSignIn={account.signIn}
+              onDownloadData={downloadData}
+              onDeleteAccount={deleteAccount}
+              onRemoveAll={removeAll}
+            />
+          ) : page === 'result' && analysis.state.result ? (
+            <ResultPage
+              route={route}
+              analysis={analysis}
+              result={analysis.state.result}
+              settings={analysisAthlete}
+              weightKnown={weighted}
+              units={units}
+              birthYear={athleteValues.birthYear}
+              sex={athleteValues.sex}
+              signedIn={signedIn}
+              countedRuns={countedRuns}
+            />
+          ) : restoringPage ? (
+            <RestoringPage onFiles={setup.requestImport} />
+          ) : page === 'unavailable' ? (
+            <UnavailableLibraryPage canRetry={signedIn} />
+          ) : page === 'held' ? (
+            <HeldLibraryPage
+              analysis={analysis}
+              signedIn={signedIn}
+              fileRetentionAvailable={fileRetentionAvailable}
+              onFiles={setup.requestImport}
+            />
+          ) : route.page === 'method' ? (
+            <MethodPage
+              result={null}
+              heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
+              units={units}
+              profile={null}
+              weightKnown={weighted}
+              restoring={analysis.restoring}
+            />
+          ) : (
+            <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
+          )}
+        </main>
 
-      <footer className="app__footer muted">
-        <PrivacyNote
-          signedIn={signedIn}
-          keepFiles={keepFiles}
-          fileRetentionAvailable={fileRetentionAvailable}
-        />
-        <p>
-          <a href={hrefFor({ page: 'method' })}>How sure is this?</a>
-          {' · '}
-          <a href="/privacy">Privacy</a>
-        </p>
-      </footer>
-      {setup.open && (
-        <SetupDialog
-          initial={athleteValues}
-          saving={setup.saving}
-          error={setup.saveError}
-          onConfirm={(patch) => void setup.finish(patch)}
-          onSkip={(patch) => void setup.skip(patch)}
-        />
-      )}
-    </div>
+        <footer className="app__footer muted">
+          <PrivacyNote
+            signedIn={signedIn}
+            keepFiles={keepFiles}
+            fileRetentionAvailable={fileRetentionAvailable}
+          />
+          <p>
+            <a href={hrefFor({ page: 'method' })}>How sure is this?</a>
+            {' · '}
+            <a href="/privacy">Privacy</a>
+          </p>
+        </footer>
+        {setup.open && (
+          <SetupDialog
+            initial={athleteValues}
+            saving={setup.saving}
+            error={setup.saveError}
+            onConfirm={(patch) => void setup.finish(patch)}
+            onSkip={(patch) => void setup.skip(patch)}
+          />
+        )}
+      </div>
+    </HoldInputsContext.Provider>
   )
 }

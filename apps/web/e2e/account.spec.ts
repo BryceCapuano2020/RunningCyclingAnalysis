@@ -47,11 +47,6 @@ function headerSignIn(page: Page) {
   return page.getByRole('banner').getByRole('button', { name: 'Sign in with Google' })
 }
 
-/** The notice about saved activities that need an update, which is only on the page while there is one. */
-function savedActivityUpdates(page: Page) {
-  return page.getByRole('region', { name: 'Saved activity updates' })
-}
-
 /** The saved units and body mass, read together so a test can wait for both writes. */
 async function profileUnitsAndMass(page: Page): Promise<{ units: string; massKg: number | null }> {
   const response = await page.request.get('/api/me')
@@ -331,17 +326,17 @@ test('rebuilds a legacy saved activity from its original file without changing i
   setStoredRevision(legacyRecord.id, 1)
 
   await page.goto('/')
-  await expect(savedActivityUpdates(page)).toContainText(
-    '1 saved activity needs a quick update before it counts',
-  )
+  // The library is there and every digest is held out, so the page says so: not the first-visit landing page.
+  await expect(page.getByRole('heading', { level: 1, name: 'Update your library' })).toBeVisible()
+  await expect(page.getByText('1 activity will be rebuilt from your saved files.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: LANDING_TITLE })).toHaveCount(0)
   await expect(
-    savedActivityUpdates(page).getByText('1 saved activity needs an update'),
+    page.getByRole('region', { name: 'Activities held out of the analysis' }),
   ).toBeVisible()
-  await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
   await page.getByRole('button', { name: 'Update now', exact: true }).click()
 
-  // The notice is added to the page's live region and removed from it once nothing needs an update.
-  await expect(savedActivityUpdates(page)).toHaveCount(0)
+  // The results come back in place of the page once the library is rebuilt.
+  await expect(page.getByRole('heading', { level: 1, name: 'Update your library' })).toHaveCount(0)
   await expect(await activitiesRows(page)).toHaveCount(1)
   const records = await apiActivities(page.request)
   expect(records).toHaveLength(1)

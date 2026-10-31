@@ -44,6 +44,8 @@ export interface AppNoticesProps {
   walkingNote?: boolean
   /** The runs counted despite walking pace: the way back, what the last change did and whether it was kept. */
   countedRuns?: CountedRunsController
+  /** The library page is on screen and says what is out of date itself, so the notices leave it out. */
+  libraryPanel?: boolean
 }
 
 /**
@@ -66,6 +68,7 @@ export function AppNotices({
   pageNotice = '',
   walkingNote = false,
   countedRuns,
+  libraryPanel = false,
 }: AppNoticesProps) {
   const { result, isSample } = analysis.state
   const neutralStop = analysis.error !== null && analysis.errorNeutral
@@ -138,6 +141,7 @@ export function AppNotices({
           signedIn={signedIn}
           keepFiles={keepFiles}
           fileRetentionAvailable={fileRetentionAvailable}
+          panelShown={libraryPanel}
           onRetry={() => runThenFocus(analysis.retryLibrary)}
         />
         {bareLibraryNotice !== null && <p className="notice">{bareLibraryNotice}</p>}
