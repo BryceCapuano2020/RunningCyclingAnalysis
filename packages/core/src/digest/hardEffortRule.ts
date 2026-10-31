@@ -66,3 +66,39 @@ export function hardEffortRule(
     key: `hard2|${JSON.stringify([reference.referenceHr, reference.reading])}|${setAside.join(',')}`,
   }
 }
+
+/**
+ * Whether heart rate shows a point was not a hard effort, against a reference that can say so: a reference that is trusted
+ * and a point held under the hard line. A point heart rate cannot judge (none, set aside, a thin library) or a reference that
+ * cannot certify a maximum shows nothing, so it is not shown to be easy: the gate withholds only what it can see was not hard.
+ */
+export function shownNotHard(
+  digest: ActivityDigest,
+  point: DigestCurvePoint,
+  reference: EffortReference,
+  setAside: ReadonlySet<string>,
+): boolean {
+  return (
+    reference.reading[digest.sport] === 'trusted' &&
+    pointVerdict(digest, point, reference, setAside) === 'notHard'
+  )
+}
+
+/**
+ * The reading rule of the bests-over-time dots: every effort counts but one heart rate shows was not hard (`shownNotHard`),
+ * so a dot is an effort that led its window and was hard, or could not be judged. A week whose window holds only efforts
+ * shown easy has no dot. The curves' bests keep every effort, as the change test's ungated reading does; only the dots are gated.
+ */
+export function dotsRule(
+  reference: EffortReference,
+  setAside: readonly string[],
+): KeyedReadingRule {
+  const aside = new Set(setAside)
+  return {
+    rule: {
+      activity: effortsCount,
+      point: (digest, point) => !shownNotHard(digest, point, reference, aside),
+    },
+    key: `dots1|${JSON.stringify([reference.referenceHr, reference.reading])}|${setAside.join(',')}`,
+  }
+}

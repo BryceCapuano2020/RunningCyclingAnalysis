@@ -17,7 +17,7 @@ import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import { sameHeartRate } from './digest/sameHeartRate'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import { fitnessTrend } from './digest/trend'
-import type { TrendPoint } from './digest/trend'
+import type { TrendOptions, TrendPoint } from './digest/trend'
 import { EFFORT_LENGTHS_S, trendWindowDays } from './digest/trendPoints'
 import type { EffortLengthS } from './digest/trendPoints'
 import type {
@@ -28,10 +28,7 @@ import type {
   SportCurves,
 } from './types'
 
-/*
- * The cache behind a session's periods: the analysis, trends and same-heart-rate points of each period, reused
- * while their inputs hold. Split from period.ts, which dates the periods.
- */
+/* The cache behind a session's periods: each period's analysis, trends and same-heart-rate points, reused while their inputs hold. */
 
 /** Whether two lists hold the same digest objects in the same order. */
 export function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
@@ -213,12 +210,14 @@ export class PeriodCache {
     startMs: number | null,
     bikeModel: BikeModel | undefined,
     rideGate?: EstimatedRideGate | null,
+    rule?: KeyedReadingRule,
   ): Record<EffortLengthS, TrendPoint[]> {
     if (this.moved.trend()) this.trendEntries.clear()
+    const extras = { rideGate, rule }
     return Object.fromEntries(
       EFFORT_LENGTHS_S.map((durationS) => [
         durationS,
-        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, rideGate),
+        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, extras),
       ]),
     ) as Record<EffortLengthS, TrendPoint[]>
   }
@@ -231,14 +230,15 @@ export class PeriodCache {
     startMs: number | null,
     bikeModel: BikeModel | undefined,
     durationS: EffortLengthS,
-    rideGate: EstimatedRideGate | null | undefined,
+    extras: Pick<TrendOptions, 'rideGate' | 'rule'>,
   ): TrendPoint[] {
+    const gate = `${rideGateKey(extras.rideGate)}|${extras.rule?.key ?? ''}`
     const cached = this.trendEntries.get(durationS)
     if (
       cached &&
       cached.rangeDays === rangeDays &&
       cached.startMs === startMs &&
-      cached.gate === rideGateKey(rideGate) &&
+      cached.gate === gate &&
       sameInputs(cached, selected, settings)
     ) {
       return cached.points
@@ -248,14 +248,14 @@ export class PeriodCache {
       windowDays: trendWindowDays(rangeDays),
       fromMs: startMs ?? undefined,
       bikeModel,
-      rideGate,
+      ...extras,
     })
     this.trendEntries.set(durationS, {
       selected,
       settings,
       rangeDays,
       startMs,
-      gate: rideGateKey(rideGate),
+      gate,
       points,
     })
     return points
