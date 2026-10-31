@@ -43,6 +43,8 @@ const ALLOWED: Record<string, string> = {
   'packages/core/src/units/format.ts': 'the hour of a time on the screen',
   'apps/web/src/worker/viewerZone.ts': 'the adapter that hands the device zone to the calendar',
   'apps/web/src/ui/format/date.ts': 'dates written for the screen, in the device’s own clock',
+  'apps/web/src/ui/checkInFixtures.ts':
+    'a test fixture: noon on the reader’s own clock, so its words hold in any zone',
   'apps/web/src/ui/limitCopy.ts':
     'the time a daily limit resets, written on the viewer’s own clock',
   'apps/web/src/export/saveExport.ts': 'the date in the name of an export file',

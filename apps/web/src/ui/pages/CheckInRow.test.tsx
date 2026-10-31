@@ -16,15 +16,12 @@ async function freshRow() {
 
 beforeEach(() => {
   vi.useFakeTimers()
-  // The dates are told in the reader's zone; the fixtures' baseline is noon UTC.
-  vi.stubEnv('TZ', 'UTC')
 })
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
-  vi.unstubAllEnvs()
 })
 
 const words = (busy = false) =>
