@@ -7,122 +7,24 @@ import {
 import { describe, expect, it } from 'vitest'
 import { utcDay } from '../budget.ts'
 import { encodeCursor } from '../cursor.ts'
-import { createHarness, resetTestEnv, START, type Harness } from '../test/harness.ts'
+import { START, type Harness } from '../test/harness.ts'
+import {
+  type Seed,
+  userIdOf,
+  seed,
+  remove,
+  page,
+  walk,
+  inListOrder,
+  decodeCursorText,
+  T,
+  library,
+  setup,
+} from '../test/keyset.ts'
 
 /** The stateless keyset cursor and the list meter (design: .claude/stage-d/D3_DESIGN.md, section 2). */
 
-interface Seed {
-  id: string
-  createdAt: number
-}
-
-const asUser = (token: string) => ({ cookies: { rca_session: token } })
-
-async function userIdOf(h: Harness, email: string): Promise<string> {
-  const row = await h.env.DB.prepare('SELECT id FROM users WHERE email = ?')
-    .bind(email)
-    .first<{ id: string }>()
-  if (!row) throw new Error('no such user')
-  return row.id
-}
-
-function insertStatement(h: Harness, userId: string, row: Seed): D1PreparedStatement {
-  return h.env.DB.prepare(
-    `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
-       digest_json, file_name, file_hash, created_at)
-     VALUES (?, ?, ?, 'run', ?, 'n', 1, '{"name":"n"}', 'f.fit', 'h', ?)`,
-  ).bind(row.id, userId, row.id, row.createdAt, row.createdAt)
-}
-
-async function seed(h: Harness, userId: string, rows: Seed[]): Promise<void> {
-  for (let i = 0; i < rows.length; i += 50) {
-    await h.env.DB.batch(rows.slice(i, i + 50).map((row) => insertStatement(h, userId, row)))
-  }
-}
-
-async function remove(h: Harness, id: string): Promise<void> {
-  await h.env.DB.prepare('DELETE FROM activities WHERE id = ?').bind(id).run()
-}
-
-interface PageResult {
-  status: number
-  ids: string[]
-  next: string | null
-  body: Record<string, unknown>
-}
-
-async function page(h: Harness, token: string, query: string): Promise<PageResult> {
-  const res = await h.send({ path: `/api/activities${query}`, ...asUser(token) })
-  const body = (await res.json()) as Record<string, unknown>
-  const items = (body.items as { id: string }[] | undefined) ?? []
-  return {
-    status: res.status,
-    ids: items.map((item) => item.id),
-    next: (body.nextCursor as string | null | undefined) ?? null,
-    body,
-  }
-}
-
-/** Walks a listing page by page, calling `between` after each page with the page's index. */
-async function walk(
-  h: Harness,
-  token: string,
-  limit: number,
-  between: (pageIndex: number, got: string[]) => Promise<void> = async () => {},
-): Promise<string[]> {
-  const seen: string[] = []
-  let cursor: string | null = null
-  for (let index = 0; ; index += 1) {
-    const result: PageResult = await page(
-      h,
-      token,
-      `?limit=${limit}${cursor === null ? '' : `&cursor=${cursor}`}`,
-    )
-    expect(result.status).toBe(200)
-    seen.push(...result.ids)
-    cursor = result.next
-    if (cursor === null) return seen
-    await between(index, seen)
-  }
-}
-
-/** Newest first, ties by id descending: the order the API promises. */
-function inListOrder(rows: Seed[]): string[] {
-  return [...rows]
-    .sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0))
-    .map((row) => row.id)
-}
-
-const decodeCursorText = (cursor: string) => Buffer.from(cursor, 'base64url').toString('utf8')
-
-const label = (n: number) => `act-${String(n).padStart(4, '0')}`
-const T = START
-
-function library(count: number, tieEvery = 4): Seed[] {
-  // Every `tieEvery` rows share a created_at, so ties cross page boundaries.
-  return Array.from({ length: count }, (_, n) => ({
-    id: label(n),
-    createdAt: T + Math.floor(n / tieEvery) * 1000,
-  }))
-}
-
-async function setup(count = 40) {
-  const h = createHarness()
-  const token = await h.signIn('rider@example.test')
-  const uid = await userIdOf(h, 'rider@example.test')
-  const rows = library(count)
-  await seed(h, uid, rows)
-  return { h, token, uid, rows }
-}
-
 describe('the keyset cursor', () => {
-  it('walks the library newest first with ties by id, each row once, at several page sizes', async () => {
-    const { h, token, rows } = await setup(41)
-    for (const limit of [1, 3, 7, 41, 90]) {
-      expect(await walk(h, token, limit), `limit ${limit}`).toEqual(inListOrder(rows))
-    }
-  })
-
   it('does not move when rows newer than the cursor are inserted mid-walk', async () => {
     const { h, token, uid, rows } = await setup()
     const newer = Array.from({ length: 5 }, (_, n) => ({
@@ -193,47 +95,6 @@ describe('the keyset cursor', () => {
       if (index === 0) for (const id of doomed) await remove(h, id)
     })
     expect(seen).toEqual(ordered.filter((id) => !doomed.includes(id)))
-  })
-
-  it('shows every row present for the whole walk exactly once, in order, under random inserts and deletes', async () => {
-    for (const randomSeed of [1, 2, 3, 4, 5, 6]) {
-      await resetTestEnv()
-      const { h, token, uid, rows } = await setup(60)
-      let state = randomSeed * 7919
-      const random = (n: number) => {
-        state = (state * 1103515245 + 12345) & 0x7fffffff
-        return state % n
-      }
-      const alive = new Map(rows.map((row) => [row.id, row]))
-      const stable = new Set(rows.map((row) => row.id))
-      let counter = 0
-      const seen = await walk(h, token, 4 + (randomSeed % 5), async () => {
-        for (let step = 0; step < 3; step += 1) {
-          if (random(2) === 0) {
-            const row = {
-              id: `rnd-${randomSeed}-${counter}`,
-              createdAt: T - 2000 + random(18) * 1000,
-            }
-            counter += 1
-            await seed(h, uid, [row])
-            alive.set(row.id, row)
-          } else {
-            const victim = [...alive.keys()][random(alive.size)]
-            if (victim !== undefined) {
-              await remove(h, victim)
-              alive.delete(victim)
-              stable.delete(victim)
-            }
-          }
-        }
-      })
-      const position = new Map(seen.map((id, i) => [id, i]))
-      expect(new Set(seen).size, `seed ${randomSeed}: no repeats`).toBe(seen.length)
-      for (const id of stable) expect(position.has(id), `seed ${randomSeed}: ${id}`).toBe(true)
-      const byId = new Map<string, Seed>([...rows, ...alive.values()].map((row) => [row.id, row]))
-      const order = seen.map((id) => byId.get(id)).filter((row): row is Seed => row !== undefined)
-      expect(seen, `seed ${randomSeed}: order`).toEqual(inListOrder(order))
-    }
   })
 
   it('accepts a cursor written by the previous Worker, byte for byte', async () => {

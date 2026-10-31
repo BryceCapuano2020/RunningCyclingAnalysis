@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { DAILY_LIMITS, LIST_ROWS_PER_DAY, MAX_STORED_BYTES_PER_USER } from '@rca/contract'
 import { chargeDaily } from './budget.ts'
 import { createHarness, digestFixture, START, testEnv } from './test/harness.ts'
@@ -88,28 +88,31 @@ describe('daily budgets', () => {
     expect(res.headers.get('retry-after')).toBe('43200')
   })
 
-  it('admits exactly the 50th profile write and refuses the 51st', async () => {
+  it('admits the write that takes the last unit, counts it, and refuses the next', async () => {
+    // The whole sweep from an empty day runs in budget.sim.test.ts; this starts one unit short.
     const h = createHarness()
     const token = await h.signIn()
-    const statuses: number[] = []
-    for (let i = 0; i < DAILY_LIMITS.profileWrite + 1; i += 1) {
-      const res = await h.send({
+    const uid = await userId(h, token)
+    await setUsed(h, uid, 'profileWrite', DAILY_LIMITS.profileWrite - 1)
+    const write = () =>
+      h.send({
         method: 'PUT',
         path: '/api/profile',
-        json: { massKg: 75 + (i % 2), bikeMassKg: 9, units: 'imperial', keepFiles: false },
+        json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false },
         cookies: { rca_session: token },
       })
-      statuses.push(res.status)
-    }
-    expect(statuses.filter((s) => s === 200)).toHaveLength(50)
-    expect(statuses.at(-1)).toBe(429)
+    expect((await write()).status).toBe(200)
+    expect(await usedOf(h, uid, 'profileWrite')).toBe(DAILY_LIMITS.profileWrite)
+    expect((await write()).status).toBe(429)
   })
 
-  it('never admits more than the limit under concurrent writes', async () => {
+  it('admits only one of several concurrent writes when one unit is left', async () => {
     const h = createHarness()
     const token = await h.signIn()
+    const uid = await userId(h, token)
+    await setUsed(h, uid, 'profileWrite', DAILY_LIMITS.profileWrite - 1)
     const responses = await Promise.all(
-      Array.from({ length: DAILY_LIMITS.profileWrite + 10 }, (_, i) =>
+      Array.from({ length: 6 }, (_, i) =>
         h.send({
           method: 'PUT',
           path: '/api/profile',
@@ -118,8 +121,9 @@ describe('daily budgets', () => {
         }),
       ),
     )
-    expect(responses.filter((r) => r.status === 200)).toHaveLength(DAILY_LIMITS.profileWrite)
-    expect(responses.filter((r) => r.status === 429)).toHaveLength(10)
+    expect(responses.filter((r) => r.status === 200)).toHaveLength(1)
+    expect(responses.filter((r) => r.status === 429)).toHaveLength(5)
+    expect(await usedOf(h, uid, 'profileWrite')).toBe(DAILY_LIMITS.profileWrite)
   })
 
   it('starts a new budget at the next UTC midnight', async () => {
@@ -225,18 +229,27 @@ describe('daily budgets', () => {
 })
 
 describe('concurrent uploads', () => {
-  /** A bucket whose first `held` puts wait for the returned release function. */
+  /**
+   * A bucket whose first `held` puts wait for the returned release function. `reached` settles once
+   * all of them are waiting: awaiting it takes no polling interval or timeout, so a slow runner
+   * only makes the test slower, never wrong.
+   */
   function gatedBucket(held: number) {
     let started = 0
     let release!: () => void
+    let reach!: () => void
     const gate = new Promise<void>((resolve) => {
       release = resolve
+    })
+    const reached = new Promise<void>((resolve) => {
+      reach = resolve
     })
     const bucket = new Proxy(testEnv().FILES!, {
       get(target, property) {
         if (property === 'put') {
           return async (...args: Parameters<R2Bucket['put']>) => {
             started += 1
+            if (started === held) reach()
             if (started <= held) {
               await gate
             }
@@ -247,7 +260,7 @@ describe('concurrent uploads', () => {
         return typeof value === 'function' ? value.bind(target) : value
       },
     })
-    return { bucket, release: () => release(), started: () => started }
+    return { bucket, release: () => release(), reached }
   }
 
   async function uploadRequest(h: ReturnType<typeof createHarness>, token: string, id: string) {
@@ -273,7 +286,7 @@ describe('concurrent uploads', () => {
     }
     const first = uploadRequest(h, token, ids[0]!)
     const second = uploadRequest(h, token, ids[1]!)
-    await vi.waitFor(() => expect(gate.started()).toBe(2))
+    await gate.reached
 
     const third = await uploadRequest(h, token, ids[2]!)
     expect(third.status).toBe(429)
@@ -301,7 +314,7 @@ describe('concurrent uploads', () => {
     const bobId = ((await (await createActivity(h, bob)).json()) as { id: string }).id
     const [a0, a1] = await Promise.all(aliceIds)
     const pending = [uploadRequest(h, alice, a0!), uploadRequest(h, alice, a1!)]
-    await vi.waitFor(() => expect(gate.started()).toBe(2))
+    await gate.reached
 
     const bobUpload = await uploadRequest(h, bob, bobId!)
     expect(bobUpload.status).toBe(200)
@@ -321,14 +334,15 @@ describe('concurrent uploads', () => {
           .id,
       )
     }
-    void uploadRequest(h, token, ids[0]!)
-    void uploadRequest(h, token, ids[1]!)
-    await vi.waitFor(() => expect(gate.started()).toBe(2))
+    const stuck = [uploadRequest(h, token, ids[0]!), uploadRequest(h, token, ids[1]!)]
+    await gate.reached
     expect((await uploadRequest(h, token, ids[2]!)).status).toBe(429)
 
     h.clock.now += 10 * 60 * 1000
     expect((await uploadRequest(h, token, ids[2]!)).status).toBe(200)
+    // Let the held requests finish inside this test, so they cannot write into the next one's tables.
     gate.release()
+    await Promise.all(stuck)
   })
 
   it('does not hold a slot after a refused upload', async () => {
