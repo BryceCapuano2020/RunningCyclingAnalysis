@@ -11,6 +11,8 @@ export interface ChartAnnotationsProps {
   size: ChartSize
   /** The data's marks as boxes the text keeps off: see lineObstacles. */
   obstacles?: AnnotationSpace['obstacles']
+  /** The axis labels drawn inside the plot, which no annotation's text may meet. */
+  ticks?: AnnotationSpace['ticks']
 }
 
 /** The radius, px, of the hollow ring that ends an estimated line. */
@@ -98,7 +100,7 @@ function Mark({ placed, phone }: { placed: PlacedAnnotation; phone: boolean }) {
  * a chart builds the list of marks it wants labelled and renders this inside its drawing, above the data.
  * Every text carries a halo in the card colour, so it reads over gridlines and washes.
  */
-export function ChartAnnotations({ annotations, size, obstacles }: ChartAnnotationsProps) {
+export function ChartAnnotations({ annotations, size, obstacles, ticks }: ChartAnnotationsProps) {
   const phone = size.width < NARROW_WIDTH
   // The layout is kept while its inputs are: a chart's size object is stable between renders at one size.
   const placed = useMemo(
@@ -108,9 +110,10 @@ export function ChartAnnotations({ annotations, size, obstacles }: ChartAnnotati
         width: size.width,
         rootPx: rootFontPx(),
         obstacles,
+        ticks,
         phone,
       }),
-    [annotations, size.plot, size.width, obstacles, phone],
+    [annotations, size.plot, size.width, obstacles, ticks, phone],
   )
   return (
     <g className="annotations">

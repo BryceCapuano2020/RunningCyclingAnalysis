@@ -17,6 +17,8 @@ import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
 import { beginRequest, noteWork, stamped } from './workerWire'
+import { accountScope, clearCheckinScope } from './checkinStore'
+import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
 import { newWorkerView } from './workerView'
@@ -56,8 +58,12 @@ function reportLibrary() {
   })
 }
 
-const device = deviceActions(session, openDeviceLibrary(), post, async (activityId) =>
-  workbench.remove({ kind: 'device' }, activityId),
+const device = deviceActions(
+  session,
+  openDeviceLibrary(),
+  post,
+  async (activityId) => workbench.remove({ kind: 'device' }, activityId),
+  () => workbench.watchDevice(),
 )
 const libraryContext: LibraryContext = {
   session,
@@ -92,6 +98,14 @@ const reportDetail = detailReporter(workbench, post, () =>
   view.showingSample ? null : view.activeScope,
 )
 
+/** The kept library was emptied under an import: the page is told, and starts from what is kept now. */
+function stopEmptied(): SessionState {
+  post({ type: 'deviceIssue', issue: 'replaced' })
+  device.replaced()
+  workbench.clearMemory()
+  return session.clear()
+}
+
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
   switch (request.type) {
     case 'addFiles':
@@ -101,7 +115,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       const held = [...provisionalItems.values()]
       provisionalItems.clear()
       for (const item of held) await keeper.keep(item)
+      // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
+      const emptied = keeper.replaced || workbench.libraryReplaced || !(await device.current())
+      if (emptied) workbench.dropDeferred()
       await workbench.storeDeferred()
+      if (emptied || workbench.libraryReplaced) return stopEmptied()
       await device.report()
       keeper.report()
       return session.setSettings(request.settings)
@@ -135,6 +153,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'setRange':
       return session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':
+      // Results shown here that could not be kept are not given up for a reload: they stay as they are.
+      if (request.reload === true && !device.hasUnkept()) device.replaced()
       // A sample on screen, or a library already read, stays as it is: loading it again would
       // drop what was imported since.
       if (view.showingSample || device.inSession()) {
@@ -154,12 +174,15 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       if (request.forgetDevice) {
         // The page is told once: forget() has already told it when the library would not clear.
         const forgotten = await device.forget()
+        // The index of files read goes with the library it describes.
+        await clearCheckinScope('device')
         if (!(await workbench.clearScope({ kind: 'device' })) && forgotten)
           post({ type: 'deviceIssue', issue: 'notForgotten' })
       } else device.replaced()
       return session.clear()
     case 'deleteDeviceActivity':
       workbench.clearMemory()
+      await forgetHeldKeys('device', [request.id])
       return device.remove(request.id, request.settings)
     case 'exportData':
       // Answered by exportAccount with the export file, not with a session state.
@@ -184,6 +207,9 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       unmatchedOriginals.delete(record.id)
       routes.forget(record.id)
       missingOriginals.delete(activityKey(record.digest))
+      // The file this activity came from is read again if it is added again.
+      await forgetHeldKeys(accountScope(request.userId), [activityKey(record.digest)])
+      await forgetHeldKeys('device', [activityKey(record.digest)])
       const traceCleared = await workbench.remove(
         { kind: 'account', userId: request.userId },
         record.digest.id,

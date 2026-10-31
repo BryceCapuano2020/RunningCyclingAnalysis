@@ -7,6 +7,7 @@ import {
   THIN_LIBRARY_DAYS,
   newestHeartRateMs,
   referenceMaxOf,
+  typicalDayOf,
 } from './referenceMax'
 
 const START = Date.UTC(2023, 0, 2, 12)
@@ -169,5 +170,26 @@ describe('referenceMaxOf', () => {
     expect(referenceMaxOf(long, at)!.sinceMs).toBe(at - REFERENCE_WINDOW_DAYS * DAY_MS)
     const short = season(200, HARD)
     expect(referenceMaxOf(short, end(short))!.sinceMs).toBe(START)
+  })
+})
+
+describe('typicalDayOf', () => {
+  it('is the median day’s peak over the maximum, which a hard library keeps well under 1', () => {
+    const library = season(60, HARD)
+    const day = typicalDayOf(library, newestHeartRateMs(library))!
+    expect(day.days).toBeGreaterThanOrEqual(60)
+    expect(day.share).toBeGreaterThan(0.8)
+    expect(day.share).toBeLessThan(0.9)
+  })
+
+  it('is near 1 where every day peaks together, as an easy-only library does', () => {
+    const flat = Array.from({ length: 40 }, (_, d) => digest(d, 140 + (d % 4)))
+    const day = typicalDayOf(flat, newestHeartRateMs(flat))!
+    expect(day.share).toBeGreaterThan(0.95)
+  })
+
+  it('is null without a heart rate', () => {
+    const none = [digest(0, null)]
+    expect(typicalDayOf(none, newestHeartRateMs(none))).toBeNull()
   })
 })

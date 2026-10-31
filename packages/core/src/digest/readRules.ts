@@ -42,6 +42,12 @@ export interface DigestRules {
    * read it back. The device and the signed-in app read it.
    */
   readonly bestsNeedDistance: boolean
+  /**
+   * Whether a flag of the cadence-lock kind (revision 7) is taken. A create refuses it until the release
+   * that writes revision 7 and moves the rollback floor past the Worker that cannot list a row with one
+   * (PR F flips it); a stored row and the device library read it, so a library keeps its activities.
+   */
+  readonly acceptsCadenceLock: boolean
 }
 
 /** A digest being created (POST /api/activities): every rule, nothing unknown. */
@@ -50,6 +56,7 @@ export const CREATE_RULES: DigestRules = {
   tolerant: false,
   arrayFactor: 1,
   bestsNeedDistance: true,
+  acceptsCadenceLock: false,
 }
 
 /** A digest in a row the server stores, read by the server and by the signed-in app. */
@@ -58,6 +65,7 @@ export const STORED_RULES: DigestRules = {
   tolerant: true,
   arrayFactor: STORED_BOUND_FACTOR,
   bestsNeedDistance: false,
+  acceptsCadenceLock: true,
 }
 
 /** A digest in the device library: written by this browser, so every rule, but possibly by a newer build. */
@@ -66,6 +74,7 @@ export const DEVICE_RULES: DigestRules = {
   tolerant: true,
   arrayFactor: 1,
   bestsNeedDistance: false,
+  acceptsCadenceLock: true,
 }
 
 /** The reader that holds a digest to each set of rules. */

@@ -1,15 +1,25 @@
 import { DEFAULT_ATHLETE } from '../athlete'
 import type { PersonaSpec } from './library'
-import { INTERVAL_RUN, EASY_RUN, LONG_RUN, RIDE_PLAN, RUN_PLAN, TEMPO_RUN } from './personas'
+import {
+  EASY_RIDE,
+  EASY_RUN,
+  INTERVAL_RIDE,
+  INTERVAL_RUN,
+  LONG_RUN,
+  RIDE_PLAN,
+  RUN_PLAN,
+  TEMPO_RIDE,
+  TEMPO_RUN,
+} from './personas'
 import { NOISE_PRESETS } from './presets'
 import { noiseWith } from './variants'
 
 /**
- * Configurations A to C: the ones a tuning sweep may use (D1's model-error floor, D2's floor and
+ * Configurations A to C and S: the ones a tuning sweep may use (D1's model-error floor, D2's floor and
  * window, D5's null, detector constants). D to F are held out (heldOut.ts) and only a held-out test
  * may read them. Every value is synthetic.
  */
-export const TUNING_CONFIG_NAMES = ['A', 'B', 'C'] as const
+export const TUNING_CONFIG_NAMES = ['A', 'B', 'C', 'S'] as const
 export type TuningConfigName = (typeof TUNING_CONFIG_NAMES)[number]
 
 export const TUNING_CONFIGS: Record<TuningConfigName, PersonaSpec> = {
@@ -56,5 +66,14 @@ export const TUNING_CONFIGS: Record<TuningConfigName, PersonaSpec> = {
       },
     },
     gapsPerYear: 2,
+  },
+  /** A rider with a power meter and a marked season: a 2.5% seasonal swing on a 2.5% wander, three rides a week, no runs. */
+  S: {
+    athlete: { ...DEFAULT_ATHLETE, massKg: 74, cpRide: 15.2, grossEfficiency: 0.205 },
+    noise: noiseWith(NOISE_PRESETS.measured, { level: { wanderSd: 0.025, seasonAmp: 0.025 } }),
+    plans: {
+      ride: { ...RIDE_PLAN, perWeek: 3, sessions: [EASY_RIDE, TEMPO_RIDE, INTERVAL_RIDE] },
+    },
+    gapsPerYear: 3,
   },
 }

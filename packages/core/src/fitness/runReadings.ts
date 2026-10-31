@@ -61,7 +61,7 @@ function kilometres(km: readonly DigestSplit[]): Pick<RunReadings, 'loose' | 'st
 
 /**
  * The readings of a run digest, or null when it is not a candidate: not this sport, indoors, at walking
- * pace, without heart rate or kilometre splits, or flagged for a heart-rate spike or dropout. Whether its
+ * pace, without heart rate or kilometre splits, or flagged for a heart-rate spike, cadence lock or dropout. Whether its
  * heart rate is set aside is the caller's, since that is the library's judgement.
  */
 export function runReadings(
@@ -77,6 +77,7 @@ export function runReadings(
     !digest.indoor &&
     digest.walkingPace !== true &&
     !digest.flagCounts['hr-spike'] &&
+    !digest.flagCounts['hr-cadence-lock'] &&
     !digest.flagCounts['hr-dropout']
   const readings: RunReadings | null = eligible
     ? { id: digest.id, startMs: digest.startMs, steadyPace: steadyPace(km), ...kilometres(km) }

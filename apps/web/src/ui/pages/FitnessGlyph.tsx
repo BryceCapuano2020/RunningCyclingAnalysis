@@ -35,6 +35,14 @@ const SHAPES: Record<FitnessGlyphKey, ReactNode> = {
       <path d="M14.5 7.5h6v6" />
     </>
   ),
+  improved: (
+    <>
+      <path className="fitness-glyph__old" d="M3.5 18h8" />
+      <path d="M3.5 18l5-6 3.5-3.5" />
+      <path d="M12 8.5h8.5" />
+      <path d="M16.5 4.5l4 4-4 4" />
+    </>
+  ),
   back: (
     <>
       <circle cx="12" cy="12" r="9" />

@@ -4,9 +4,12 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fitnessLines } from '@rca/core/fitness'
 import { AnalysisSession } from '@rca/core/session'
+import { landingText } from '../../test/landingText'
+import { gapReading } from '../components/balanceScale'
+import { balanceTitle } from '../components/headlineText'
 import { gapOfHeadline } from '../balanceGap'
 import { headlineGrades } from '../grades'
-import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
+import { SAMPLE_DESCRIPTION, SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { LandingExample, LandingFitnessExample } from './LandingExample'
 import { LANDING_EXAMPLE } from '../landingExample'
 
@@ -58,10 +61,13 @@ describe('LandingExample', () => {
   })
 
   it('gives the finding as a second panel of its own: its state, one sentence and the change as a track', () => {
+    const { fitness } = LANDING_EXAMPLE
     const { container } = render(<LandingFitnessExample />)
     expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
     expect(
-      screen.getByText(/^At 130 bpm you now run 7\.1% \(3 to 11%\) slower than before\.$/),
+      screen.getByText(
+        `At ${fitness.referenceHr} bpm you now run ${fitness.shown.size} (${fitness.shown.range}) slower than before.`,
+      ),
     ).toBeInTheDocument()
     expect(container.querySelector('.fitness-track__band')).not.toBeNull()
     expect(screen.getByText('Fitness at the same heart rate')).toBeInTheDocument()
@@ -76,22 +82,21 @@ describe('LandingExample', () => {
   it('is labelled illustrative, names the sample, and gives the answer’s headline', () => {
     render(<LandingExample />)
     expect(
-      screen.getByText('Illustrative: the sample athlete, a 37-year-old man at 75 kg'),
+      screen.getByText(`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`),
     ).toBeInTheDocument()
-    expect(screen.getByText('Your balance leans toward running')).toBeInTheDocument()
+    expect(screen.getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap)))).toBeInTheDocument()
   })
 
   it('draws the real meter and levels from the sample’s figures: the gap with its range, and each sport’s grade and level', () => {
     const { container } = render(<LandingExample />)
+    const text = landingText(LANDING_EXAMPLE)
     expect(
-      screen.getByRole('img', {
-        name: /^Running grades 8 points higher than cycling \(range 2 to 13/,
-      }),
+      screen.getByRole('img', { name: new RegExp(`^${text.name} \\(range `) }),
     ).toBeInTheDocument()
-    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+8pts')
-    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('2 to 13')
+    expect(container.querySelector('.balance-meter__value')?.textContent).toBe(text.value)
+    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe(text.edges)
     const rows = [...container.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(['Running 67% Local', 'Cycling 59% Recreational to Local'])
+    expect(rows).toEqual(text.rows)
   })
 
   it('draws no level scale, ring or table: the meter, one line a sport and the fitness finding are all it shows', () => {

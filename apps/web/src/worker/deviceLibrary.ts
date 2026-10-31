@@ -1,11 +1,12 @@
-import { DIGEST_VERSION, parseDigest, serializeDigest } from '@rca/core/digest'
-import { parseRouteShape } from '@rca/core/route/routeShape'
+import { serializeDigest } from '@rca/core/digest'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest } from '@rca/core/types'
-import { deviceFileOf } from './deviceFile'
+import { LibraryReplaced } from './deviceFile'
 import type { DeviceFile } from './deviceFile'
+import { fromNewerVersion, readRow } from './deviceRows'
 
 export type { DeviceFile }
+export { LibraryReplaced }
 
 /**
  * Activity digests kept in this browser for a signed-out visitor, so a reload keeps their results.
@@ -44,13 +45,17 @@ export interface DeviceLibrary {
   /**
    * Keeps a digest with its route, which goes with it, and with the name and hash of the file it was made
    * from when they are given, so the workout can be added to an account later (the server needs the hash).
-   * A replacement without a route keeps none, and one without a file keeps none.
+   * A replacement without a route keeps none, and one without a file keeps none. With an `epoch` the
+   * write is refused (`LibraryReplaced`) unless the library is still in that epoch, checked in the same
+   * transaction that writes: a write begun before another tab emptied the library does not bring a row
+   * back into it.
    */
   put(
     workoutKey: string,
     digest: ActivityDigest,
     route?: RouteShape | null,
     file?: DeviceFile | null,
+    epoch?: number,
   ): Promise<void>
   /**
    * Gives a row that has no file hash the name and hash of the file its digest was made from, keeping its
@@ -60,7 +65,26 @@ export interface DeviceLibrary {
    */
   backfillFile(workoutKey: string, digestId: string, file: DeviceFile): Promise<void>
   remove(workoutKey: string): Promise<void>
+  /** Empties the library, and starts a new epoch in the same transaction. */
   clear(): Promise<void>
+  /**
+   * The library's epoch: a number that rises each time it is emptied, kept beside its rows. A session that
+   * loaded the library at one epoch writes to it only while it is still that one. Zero before any clear.
+   */
+  epoch(): Promise<number>
+}
+
+/**
+ * Where the epoch is kept: a reserved key in the same store, so one transaction covers it and the rows. It
+ * is not a workout key (those are a sport and a second), and no listing, lookup or count includes it.
+ */
+const SCOPE_KEY = '__scope__'
+
+function epochOf(stored: unknown): number {
+  if (typeof stored !== 'object' || stored === null || !('epoch' in stored)) return 0
+  return typeof stored.epoch === 'number' && Number.isInteger(stored.epoch) && stored.epoch > 0
+    ? stored.epoch
+    : 0
 }
 
 export interface DeviceEntry {
@@ -154,73 +178,6 @@ function committed(transaction: IDBTransaction): Promise<void> {
 }
 
 /**
- * Digests are kept in the same JSON form the server stores, so the numbers a digest leaves
- * undefined (NaN) survive and are checked the same way on the way back. Anything that no longer
- * reads as a digest is not used.
- */
-function readDigest(value: unknown): ActivityDigest | null {
-  if (typeof value !== 'string') return null
-  try {
-    return parseDigest(value)
-  } catch {
-    return null
-  }
-}
-
-/** Whether a stored row holds a digest in a format later than this version reads. */
-function fromNewerVersion(value: unknown): boolean {
-  const json =
-    typeof value === 'string'
-      ? value
-      : typeof value === 'object' && value !== null && 'digest' in value
-        ? value.digest
-        : null
-  if (typeof json !== 'string') return false
-  try {
-    const parsed: unknown = JSON.parse(json)
-    return (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      'version' in parsed &&
-      typeof parsed.version === 'number' &&
-      parsed.version > DIGEST_VERSION
-    )
-  } catch {
-    return false
-  }
-}
-
-/**
- * A stored row: the digest, the route kept with it, and the file it was made from. A row written before
- * routes were kept holds the digest alone, and one written before files were recorded has no file; both
- * still read.
- */
-interface Row {
-  digest: ActivityDigest
-  route: RouteShape | null
-  file: DeviceFile | null
-}
-
-function readFile(value: object): DeviceFile | null {
-  const name = 'fileName' in value ? value.fileName : undefined
-  const hash = 'fileHash' in value ? value.fileHash : undefined
-  return typeof name === 'string' && typeof hash === 'string'
-    ? deviceFileOf({ fileName: name, fileHash: hash })
-    : null
-}
-
-function readRow(value: unknown): Row | null {
-  if (typeof value === 'string') {
-    const digest = readDigest(value)
-    return digest === null ? null : { digest, route: null, file: null }
-  }
-  if (typeof value !== 'object' || value === null || !('digest' in value)) return null
-  const digest = readDigest(value.digest)
-  const route = 'route' in value ? parseRouteShape(value.route) : null
-  return digest === null ? null : { digest, route, file: readFile(value) }
-}
-
-/**
  * The library in IndexedDB. Storage can be missing, refused or closed by the browser (a private
  * window, a full disk, cleared site data); the next call opens the database again. Storage this
  * browser does not offer reads as empty and refuses writes. Storage that failed to open refuses both,
@@ -272,6 +229,8 @@ export function openDeviceLibrary(): DeviceLibrary {
       if (mode === 'readwrite') await committed(transaction)
       return result
     } catch (error) {
+      // A refused write is the library's news, not a fault in the connection.
+      if (error instanceof LibraryReplaced) throw error
       opened = null
       if (mode === 'readonly' && !strict) return empty
       throw error
@@ -295,7 +254,9 @@ export function openDeviceLibrary(): DeviceLibrary {
       'readonly',
       async (store) => {
         const [keys, values] = await Promise.all([done(store.getAllKeys()), done(store.getAll())])
-        return keys.map((key, index) => ({ key, row: readRow(values[index]) }))
+        return keys.flatMap((key, index) =>
+          key === SCOPE_KEY ? [] : [{ key, row: readRow(values[index]) }],
+        )
       },
       [],
       true,
@@ -333,9 +294,16 @@ export function openDeviceLibrary(): DeviceLibrary {
         true,
       ),
     route: async (workoutKey) => (await readOne(workoutKey))?.route ?? null,
-    put: (workoutKey, digest, route = null, file = null) =>
-      write((store) =>
-        store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey),
+    put: (workoutKey, digest, route = null, file = null, epoch) =>
+      withStore(
+        'readwrite',
+        async (store) => {
+          if (epoch !== undefined && epochOf(await done(store.get(SCOPE_KEY))) !== epoch) {
+            throw new LibraryReplaced()
+          }
+          store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey)
+        },
+        undefined,
       ),
     backfillFile: (workoutKey, digestId, file) =>
       withStore(
@@ -354,6 +322,17 @@ export function openDeviceLibrary(): DeviceLibrary {
         undefined,
       ),
     remove: (workoutKey) => write((store) => store.delete(workoutKey)),
-    clear: () => write((store) => store.clear()),
+    clear: () =>
+      withStore(
+        'readwrite',
+        async (store) => {
+          const next = epochOf(await done(store.get(SCOPE_KEY))) + 1
+          store.clear()
+          store.put({ epoch: next }, SCOPE_KEY)
+        },
+        undefined,
+      ),
+    epoch: () =>
+      withStore('readonly', async (store) => epochOf(await done(store.get(SCOPE_KEY))), 0, true),
   }
 }

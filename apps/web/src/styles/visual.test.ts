@@ -552,7 +552,7 @@ describe('balance hero, meter and evidence', () => {
 })
 
 describe('balance tiles', () => {
-  it('lays the tiles one across on a phone, two on a tablet, and all in a row from 64rem', () => {
+  it('lays the tiles one across on a phone, two on a tablet, and all three in a row from 64rem, never four', () => {
     expect(rulesWith(outsideMedia(balanceTiles), '.balance-tiles')).toMatch(
       /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
     )
@@ -560,8 +560,10 @@ describe('balance tiles', () => {
       /repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
     )
     expect(
-      rulesWith(mediaOf(balanceTiles, '(min-width: 64rem)'), ".balance-tiles[data-tiles='4']"),
-    ).toMatch(/repeat\(4,\s*minmax\(0,\s*1fr\)\)/)
+      rulesWith(mediaOf(balanceTiles, '(min-width: 64rem)'), ".balance-tiles[data-tiles='3']"),
+    ).toMatch(/repeat\(3,\s*minmax\(0,\s*1fr\)\)/)
+    // The lean has no tile, so three is the most: no rule sets four across.
+    expect(balanceTiles).not.toMatch(/data-tiles='4'|repeat\(4/)
   })
 
   it('stretches the tiles to one height in a row', () => {

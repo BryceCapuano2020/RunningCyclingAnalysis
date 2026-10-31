@@ -186,7 +186,7 @@ describe('BalanceHero answer on the energy ratio', () => {
         gap={null}
       />,
     )
-    expect(container.querySelector('.card')).toBeNull()
+    expect(container.querySelector('.panel, .band')).toBeNull()
   })
 
   it('never states a categorical superiority such as the best sport or all-out efforts', () => {
@@ -337,6 +337,19 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(ledeOf(container)).toBe(
       'Running’s age grade is 6 points higher than cycling’s at 20 min.',
     )
+  })
+
+  it('shows the level target under the lede when there is one, and no line when there is none', () => {
+    const target =
+      'To grade level with your running at 20 min, your best ride would need about 270 W.'
+    const props = { ...ALL_TIME, result: makeResult(), pick: pickFor(interval(1.05, 1.12, 1.2)) }
+    const { container, rerender } = render(<Hero {...props} gap={gradedGap()} target={target} />)
+    const line = screen.getByText(target)
+    expect(line).toHaveClass('secondary')
+    expect(line.previousElementSibling).toHaveClass('balance-hero__lede')
+    rerender(<Hero {...props} gap={gradedGap()} target={null} />)
+    expect(screen.queryByText(/^To grade level with your/)).toBeNull()
+    expect(container.querySelector('.balance-hero__lede')).not.toBeNull()
   })
 
   it('draws the gap as the meter, named by the gap and its range', () => {

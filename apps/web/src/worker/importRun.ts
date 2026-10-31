@@ -3,11 +3,16 @@ import type { AnalysisSession, SessionState, SyncIssueCode, SyncItem } from '@rc
 import { accountSaver } from './accountSave'
 import { workoutKeyOf as activityKey } from './device'
 import type { DeviceActions } from './device'
+import { accountScope } from './checkinStore'
+import type { CheckinScope } from './checkinStore'
 import { deviceKeeper } from './deviceKeeper'
+import { openHeldIndex } from './heldIndex'
+import type { HeldIndexHandle } from './heldIndex'
 import { ImportReporter } from './importReporter'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import type { RouteMemory } from './routes'
 import { summarizeAdded } from './importSummary'
+import { skipAllowance } from './skipAllowance'
 import type { Workbench } from './workbench'
 import type { TraceScope } from './workbenchStore'
 import type { WorkerView } from './workerView'
@@ -33,7 +38,7 @@ export interface ImportRunContext {
 export async function runImport(
   ctx: ImportRunContext,
   request: Extract<WorkerRequest, { type: 'addFiles' }>,
-): Promise<{ state: SessionState; outcome: ImportOutcome; saved?: number }> {
+): Promise<{ state: SessionState; outcome?: ImportOutcome; saved?: number }> {
   const { session, post, missingOriginals, savedRecords, workbench, provisionalItems } = ctx
   const { device, routes, view, reportLibrary } = ctx
   const { sync } = request
@@ -67,8 +72,30 @@ export async function runImport(
   }
   // Read from the zips' directories before any entry is, so every progress message can show a total.
   // An export's saved routes are not activities, so they are not in it.
-  const reporter = new ImportReporter(post, await session.countFiles(request.files), sync !== null)
+  const fileCount = await session.countFiles(request.files)
+  const reporter = new ImportReporter(post, fileCount, sync !== null)
   reporter.begin()
+  // Files already read here are not read again: the index belongs to the library an import adds to, and a session
+  // whose files are not kept anywhere (a provisional import, analysis alone) has none.
+  const heldScope: CheckinScope | null =
+    sync !== null
+      ? accountScope(sync.userId)
+      : request.saveToDevice === true && !request.provisional
+        ? 'device'
+        : null
+  const heldIndex: HeldIndexHandle | null =
+    heldScope === null
+      ? null
+      : await openHeldIndex({
+          scope: heldScope,
+          fileCount,
+          allows: await skipAllowance({
+            session,
+            workbench,
+            traceScope,
+            missingOriginals: sync?.keepFiles === true ? missingOriginals : null,
+          }),
+        })
   const save =
     sync === null
       ? undefined
@@ -101,6 +128,7 @@ export async function runImport(
     provisionalItems.set(activityKey(item.digest), { ...item, bytes: new Uint8Array() })
   }
   let state: SessionState
+  let emptied = false
   try {
     state = await session.addFiles(
       request.files,
@@ -112,9 +140,17 @@ export async function runImport(
       save ??
         (request.provisional ? holdForDevice : request.saveToDevice ? keeper.keep : undefined),
       sync?.keepFiles === true,
-      ({ added, ...completed }) => {
-        for (const digest of added) addedIds.add(digest.id)
-        outcome = { ...completed, ...summarizeAdded(added) }
+      ({ added, upgraded, ...completed }) => {
+        for (const digest of [...added, ...upgraded]) addedIds.add(digest.id)
+        // Counts only: the digests stay in the worker.
+        const updated = summarizeAdded(upgraded)
+        outcome = {
+          ...completed,
+          ...summarizeAdded(added),
+          ...(upgraded.length === 0
+            ? {}
+            : { updatedRuns: updated.runs ?? 0, updatedRides: updated.rides ?? 0 }),
+        }
       },
       async (activity, { held }) => {
         if (traceScope === null) {
@@ -135,16 +171,34 @@ export async function runImport(
         if (traceScope === null) workbench.dropMemory({ kind: 'device' }, replacedId)
         else await workbench.remove(traceScope, replacedId)
       },
+      heldIndex?.files,
     )
   } finally {
     // First, so a failure below cannot skip it: the page does not keep the count from before.
     if (sync !== null) post({ type: 'missingOriginals', count: missingOriginals.size })
     // On a failure too: what was read is stored, and the page learns how many were saved.
     // A provisional import's recordings wait for keepProvisional, or for the account.
+    // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
+    const intoDevice = sync === null && request.saveToDevice === true
+    emptied =
+      intoDevice && (keeper.replaced || workbench.libraryReplaced || !(await device.current()))
+    if (emptied) workbench.dropDeferred()
     const stored = traceScope === null ? new Set<string>() : await workbench.storeDeferred()
+    // Storage refuses a recording of a cleared scope in its own transaction: the clear can land after the check above.
+    if (intoDevice && workbench.libraryReplaced) emptied = true
     // Counted once it is in storage: a recording held in memory alone is gone after a reload.
     for (const id of restoreCandidates) if (stored.has(id)) restored.add(id)
     reporter.end()
+    // What was read is learned even when the import failed part way; a refused write only costs a parse next time.
+    await heldIndex?.flush()
+  }
+  if (emptied) {
+    // The results this import added are gone from the library kept in this browser, so they are not shown:
+    // the page is told, and starts from what is kept now.
+    post({ type: 'deviceIssue', issue: 'replaced' })
+    device.replaced()
+    workbench.clearMemory()
+    return { state: session.clear() }
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }

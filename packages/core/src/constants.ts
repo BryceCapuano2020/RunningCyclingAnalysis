@@ -109,6 +109,13 @@ export const CP_FIT_MAX_S = 1200
  */
 export const CP_FIT_REACH_TOLERANCE = 0.05
 /**
+ * How long, s, a critical-power fit's pace or power is said to be held: half an hour. The fit rests on efforts of 3 to 20
+ * minutes. Poole et al. 2016 (PMC5070974) report 24 minutes at critical power completed without difficulty and exercise just
+ * above it sustained for "perhaps 30 minutes"; in the audit's simulations the fit sat at 0.98 to 1.05 times a 40 minute
+ * effort. Half an hour is a stated convention, not a measurement; a published 20 to 40 minute range could not be verified.
+ */
+export const THRESHOLD_HOLD_S = 1800
+/**
  * The least work a critical-power fit may show. The floors sit well below published work capacities,
  * even for untrained athletes: the review brief quotes cycling W' of about 10 to 25 kJ and running D'
  * of about 100 to 300 m, from the model in Jones et al. (2010) and Skiba et al. (2012), cited in
@@ -272,8 +279,6 @@ export const RUN_RACE_DISTANCES_M = [5_000, 10_000, HALF_MARATHON_M, MARATHON_M]
  * 2,303 recreational runners, so it is used as is, not fitted to bests that may not have been all-out.
  */
 export const RIEGEL_EXPONENT = 1.07
-/** A best predicts a race at most this many times its own distance, since the error grows with the ratio. */
-export const RIEGEL_MAX_RATIO = 10
 
 /**
  * The heart-rate estimate of VO2max uses windows of at least this long, s, at or above this share of the

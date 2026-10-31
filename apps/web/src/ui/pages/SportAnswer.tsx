@@ -79,7 +79,7 @@ export function SportAnswer(props: SportAnswerProps) {
   if (held) return <WeightNote />
   const headline = profile === null ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
   return (
-    <div className="sport-hero" data-sport={sport}>
+    <div className="band sport-hero" data-sport={sport}>
       <ThresholdPanel
         sport={sport}
         result={result}

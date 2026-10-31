@@ -8,7 +8,7 @@ summarised here; the episode, season and ride work of Stage D (D2) is in "Stage 
 
 For each sport, one of: **slipping**, **holding** (level with the weeks before), **holding below** the
 old level, **recovering**, **back** (or **back and faster**, when the whole range is above the old level),
-**improving** (a clear rise with no slip before it; a status line only), or **not enough evidence yet** with
+**improving** (a clear rise, with no slip before it), **improved** (a rise that has settled at the new level; the one a finding is made of), or **not enough evidence yet** with
 the counts that are missing. Each carries the output at the library's reference heart rate now and before,
 the change with a 90% range, the day the change began, and the runs behind it (ids for the recent runs,
 spans and counts for the earlier ones). A run's change is said in pace terms, as the page shows paces: 5:00
@@ -54,12 +54,16 @@ it begins when the athlete was calm. All numbers are in one table, `fitness/para
 matched the research prototype on a one-off check of 25,200 simulated weeks (no differences) before the Stage D changes;
 that check is not kept as a test.
 
-Improving mirrors the slip test with no episode: at the same scales a contrast of z of 3.3 and a gain of 4%
-on two weeks running, with the range of the change clear of zero. It freezes no reference; once the earlier
-36 weeks catch up with the new level the status reads holding. It is withheld while the weeks 8 to 44 ago hold any
-of an episode that has closed (or one still open): an athlete back at their old level would otherwise read as
-faster than their own dip. A fuller state, with a reference and a
-holding at the new level, is not built.
+A rise is an episode of its own, the mirror of a slip, followed by the same machinery on the negated series (`fitness/rise.ts`).
+It is declared on the slip test's bar (z of 3.3, a gain of 4%, the same floor, the same confirming week, two weeks running; with
+no fitted season, the same check against the same weeks a year earlier), and the slip test keeps running while it is open: two
+weeks of the slip test firing end the rise. While it is rising the state is **improving**. When 12 weeks have passed, the trend
+over 24 weeks is flat and the gain clears 3% at its one-sided lower bound (`episode.improvedTol`, the mirror of the tolerance a
+return must clear to be back) the state is **improved**, shown for 12 weeks, after which the episode closes and the reference is
+read afresh. A rise whose level falls back toward the reference, or that is no longer clear, ends without being told. No rise is
+opened for 104 weeks from the onset of one that settled (the weeks before it are still in the baselines of the longer scales and
+would declare it again), nor while an episode that has closed lies in the weeks compared with: an athlete back at the old level
+is recovering, not improving. `risenAt` is gone; the monitor is the one source, so the card and the finding cannot disagree.
 
 ## Findings
 
@@ -113,9 +117,13 @@ status's own level, so the chart and the sentence give one figure. The line it i
 began is `onsetMs`. The runs behind the level now are `evidence.recent.ids`.
 
 The sample athlete carries one planted effect, a slip in easy running (`EASY_SLIP` in `synthetic/sampleSeason.ts`): the
-cost of easy running rises by 11% in a straight line over 4 weeks, starting 9 weeks before the season's end, with a seeded
-wobble of up to 1.2% from week to week on every easy run so the line is not noise-free. The detector finds it; nothing in
-the season says what the status is, and a test checks that the planted change lies within the reported range.
+cost of easy running rises by 14% in a straight line over 4 weeks, starting 9 weeks before the season's end. The sample is
+drawn from the generator's `measured` noise model, so each easy run also carries the model's weekly wander (AR(1), 2% a week) and
+its own Student t draw (3.8%). A deeper step than the 11% of the noise-free sample is what the detector needs to read the slip
+through that noise: on the first 40 seeds it fires on about seven in ten. The sample uses the first of `SAMPLE_SEEDS`, the seeds
+whose season also gives the ride's "not enough" state, passes the effort gate in both sports and fills every threshold and
+profile; `sampleSeason.sim.test.ts` replays them. The detector finds the slip; nothing in the season says what the status is,
+and a test checks that the planted change lies within the reported range.
 
 A step of the series is dated by the last day it includes (a Sunday) and says how many weeks it is read over (4 to 16), so the
 page can say "the 8 weeks to 25 Oct" and not "four weeks".
@@ -228,7 +236,7 @@ next real loss. An athlete with two real dips and returns (8% down for 20 and 30
 The ceiling of 2% costs 4 to 8 points more alarms on the wander and all-at-once libraries than 3% did (0.32 -> 0.38 and
 0.39 -> 0.47) and buys back detection; this is the "Balanced" setting of the owner's review.
 
-**Improving.** The mirror test (`risenAt`, two weeks running) reads the same floor and the same two-week rule. A planted rise at
+**Improving.** The rise test (`riseAt`, two weeks running) reads the same floor and the same two-week rule. A planted rise at
 week 170, 150 libraries, weeks to a "risen" reading (median / within 12 / never): +8% 4 / 99% / 0% before, 4 / 97% / 0% now; +5% 6 /
 67% / 5% before, 8 / 61% / 14% now; +5% with a 3% wander 5 / 65% / 9% before, 10 / 53% / 20% now. On a quiet library with a 1.5%
 season the weeks that read "risen" fall from 4.8% to 2.7%.
@@ -285,6 +293,53 @@ Home shows a card for each sport that has a status, run first; a ride that is st
 rate. A library with no outdoor ride with a power meter shows none. Findings already covered rides. The sample's rides read "not
 enough evidence" (33 steady rides known to within 7%, too loosely to call level).
 
+### Ride false alarms in the first two years (found at G5, not fixed)
+
+The held-out rider (configuration F, three years, 8 libraries) showed about 0.5 false slips an athlete-year in its first two
+years, twice the 0.25 of the quiet budget. Diagnosed on tuning configuration S (`tuningConfigs.ts`, a 2.5% season on a 2.5%
+wander, three rides a week; `rideSeason.sim.test.ts`), and on the run-level generator (`fitness/test/runSim.ts`, 120 libraries):
+
+- The ride is not the cause. The season term and the learned floor are the same code for rides and runs, and neither is live
+  before two whole years of history (the season needs two years, the floor 14 six-week blocks back to 108 weeks). The held-out
+  window is exactly those two years. Alarms an athlete-year by year of the library:
+
+  | athlete, nothing changes                      | year 1 | year 2 | year 3 |
+  | --------------------------------------------- | ------ | ------ | ------ |
+  | S through the unit and monitor (16 libraries) | 0.63   | 0.56   | 0.44   |
+  | run generator, same nuisance (season, wander) | 0.64   | 0.57   | 0.49   |
+  | run generator, quiet                          | 0.07   | 0.24   | 0.16   |
+  | run generator, season 2.5% alone              | 0.57   | 0.52   | 0.33   |
+  | run generator, wander 2.5% alone              | 0.17   | 0.45   | 0.31   |
+
+  The season does most of the harm in year 1; the wander, which the floor can only learn from the second year, in year 2.
+  Year 3 is better but not at the quiet budget: a fitted season is shrunk, and a 2.5% wander is a real change of level to the
+  slip test (the same finding as the 5-year table above, where the nuisance rows are 0.25 to 0.47).
+
+- The figure sits where D2 already recorded it for an athlete with this nuisance (0.44 to 0.47 over five years, and 0.26 to
+  0.59 for rides at a 3% wander and 1.5% season in `ride.sim.test.ts`). It is over the quiet budget because F is not a quiet
+  athlete, and it falls in the two years nobody has history for. Nothing in the ride unit makes it worse; a power-meter offset
+  step is a nuisance of the strap-step kind, which the learned floor reads from year 2 on and the sims do not generate for rides.
+- One lever moves it, and it is a trade, not a fix. A prior for the floor until the library's own can be learned (in place of the
+  plain 1%), tried at 1.5% and 2% on both sports:
+
+  | warm-up floor | alarms years 1 and 2, season+wander 2.5% | 8% loss seen within 12 / 26 weeks (loss at week 30) | 5% loss seen within 26 weeks (loss at week 60) |
+  | ------------- | ---------------------------------------- | --------------------------------------------------- | ---------------------------------------------- |
+  | 1% (today)    | 0.64, 0.57                               | 94%, 97%                                            | 86%                                            |
+  | 1.5%          | 0.32, 0.37                               | 89%, 94%                                            | 64%                                            |
+  | 2%            | 0.13, 0.24                               | 65%, 78%                                            | 33%                                            |
+
+  Every row buys silence with the early detection of a real loss, in runs as in rides. It is the owner's Balanced dial applied
+  to the one stretch where the library cannot yet vouch for itself, and it moves the first two years of every run library too,
+  so it is not made here. No ride-specific floor is justified: the sims show rides and runs behaving the same, and there is
+  no power-meter library to say rides wander more.
+
+Decision (owner, 30 Oct): option 1. No behaviour change; ride fitness stays on and the rate is stated on the evidence panel ("In your first two years, an athlete with a strong season can see about one false Slipping every two years, then about one every four").
+
+Options, as put to the owner: (1) keep ride fitness on and state the rate (about half an alarm an athlete-year for a rider with a
+marked season in their first two years, about a quarter after); (2) a warm-up floor of 1.5%, which halves it and costs a 5% loss
+about 20 points of early detection in those years, in runs too; (3) turn rides off until a ride library can say what the
+wander is. The sims call for (1) or (2); nothing here argues for (3).
+
 ### The owner's labels: the first real back-test
 
 The detector as shipped (before D2) declared four slips on the owner's library. The owner's verdicts, month and verdict only:
@@ -299,3 +354,24 @@ The detector as shipped (before D2) declared four slips on the owner's library. 
 3 real, 1 unknown, 0 false. A change of watch in Feb 2024 had no declared change lining up with it, and no slip was declared
 there. This is four labels from one athlete: it says the detector was not crying wolf on him, not what its false-alarm rate is.
 Whether the Stage D changes alter his declarations is for a replay on his own machine to say; its figures stay out of the repo.
+
+## Rises: improving and improved (D9b)
+
+Run-level harness, 3-year libraries, 40 libraries at each of 1.2, 2, 3 and 5 steady runs a week (`fitness/rise.sim.test.ts`).
+Shown states, first week each is shown, an athlete-year:
+
+| Library where nothing changes | improving | improved                                               |
+| ----------------------------- | --------- | ------------------------------------------------------ |
+| quiet                         | 0.09      | 0.010                                                  |
+| heat weeks of 3%              | 0.12      | 0.019                                                  |
+| wander 3%, correlation 0.95   | 0.17      | 0.058                                                  |
+| season 1.5%                   | 0.10      | 0.010                                                  |
+| 10% bad runs                  | 0.10      | 0.013                                                  |
+| hills                         | 0.10      | 0.019                                                  |
+| watch or strap step up of 3%  | 0.15      | 0.071 (documented: a device step reads as a real gain) |
+
+A planted gain of 8% at 3 runs a week: improving in a median of 4 weeks (82% within 12, 85% within 26; a slip of the same size
+97% within 12), improved in a median of 23 weeks (73% within 36, 80% within 52). At 1.2 runs a week: median 7 weeks, 90%
+within 26, improved 70% within 52. A dip that comes back is back, and rises at the first-sign rate afterwards, no more. The
+settled tolerance is the lever on the false rate of **improved** (without it: 0.065 on the quiet library, 0.09 with wander);
+`improving` stays a status line and is never a finding.

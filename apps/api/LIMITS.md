@@ -51,7 +51,7 @@ exported as `DAILY_LIMITS` from `@rca/contract`.
 | Action                                   | Limit per user per UTC day  | Notes                                                                                                                                                    |
 | ---------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | File downloads                           | **5,000**                   | Equals the library limit, so a revision rebuild finishes in one UTC day; see Original downloads below. Refunded if R2 refuses the read before it starts. |
-| Profile writes                           | 50                          | Includes keepFiles toggles.                                                                                                                              |
+| Profile writes                           | 50                          | Includes keepFiles toggles and each `PATCH /api/activities/labels` request, whatever it carries (at most 200 labels).                                    |
 | Dated-settings writes                    | 200                         | `PUT` and `DELETE /api/measurements`. Refunded when the write is refused (limit reached, entry missing).                                                 |
 | Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.                                                              |
 | Activity deletions                       | 50                          |                                                                                                                                                          |
@@ -210,7 +210,11 @@ approach the shared allowance; this is a bound on one account, not on the whole 
   it returns **403 `digest_quota`** and stores nothing. An upgrade to a newer model revision is refused the
   same way unless it shrinks the digest. A request for a revision the row already has is answered with the
   stored digest and never needs quota.
-- **Database guard.** `DATABASE_SOFT_LIMIT_BYTES` is 450 MiB, below D1 Free's 500 MB per database. While the
+- **Database guard.** `DATABASE_SOFT_LIMIT_BYTES` is 450 MiB, below D1 Free's 500 MB per database. It is
+  the default of the plain Worker variable `DATABASE_SOFT_LIMIT_MIB` (`src/databaseGuard.ts`): on Workers
+  Paid, where D1 holds 10 GB, set it to about 90 percent of the plan (for example `9000`). A value that is
+  not a whole number between 64 and 9216 is ignored and the 450 MiB default stays, so a typo cannot remove
+  the guard. While the
   last recorded size is above it, a new activity returns **503 `database_full`**, and so does an upgrade
   that would grow a stored digest. Upgrades that do not grow it still succeed, and each successful upgrade
   records the size it leaves behind.
@@ -295,7 +299,15 @@ all users. Rough per-request estimates from statement shape:
   free 100,000 a day. Each delete writes one row more for the same index.
 - An upload: about 6 rows, one of them the `users.file_bytes` row that the trigger moves.
 - Turning keep files off writes one `users` row per stored file, through the trigger, on top of the
-  activity rows it clears.
+  activity rows it clears. It clears only the rows that record a file, a size or a reservation (a test
+  counts them), so a 5,000-activity library with a few originals writes a few rows, not 15,000.
+- Planning the first imports. At the default (originals off) a first import writes about 9 rows an
+  activity, so five owner-sized friends the same day stay under the day's 100,000. With originals on it is
+  about 18 rows an activity, and the third owner-sized first import on one UTC day crosses the line. Until
+  the writes are batched, ask friends who turn originals on to start on different days. Originals are
+  uploaded as they are on disk after decompression, so one owner-sized library also uses about 7.5 percent
+  of the R2 lifetime ledger; uploading them compressed needs a server-side integrity check that costs
+  Worker CPU, and is left for an owner decision.
 
 On Free, 100,000 writes a day supports only a small number of heavy users. Fifty users each doing the 74 cold
 loads of a 2,700-activity library that the `listRows` cap allows would write about 237,000 rows a day (74 loads

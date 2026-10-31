@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import type { Sport } from '@rca/core/types'
 import { LATE_IN_EFFORT_NAME, lateFinding, lateInEffort } from '../lateInEffort'
-import { RACE_PREDICTIONS_NAME, RACE_PREDICTION_NEED, racePredictionsOf } from '../racePredictions'
+import { thresholdUncheckedLine } from '../thresholdWithheld'
+import { RACE_PREDICTIONS_NAME, racePredictionNeed, racePredictionsOf } from '../racePredictions'
 import { distanceRecords } from '../records'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { buildRows } from '../charts/sportCurveModel'
@@ -101,17 +102,22 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
   bestEfforts: (context) => ({ content: <BestEffortsSection {...context} />, lacks: [] }),
   racePredictions: ({ sport, result, units, rangeDays, openedAt }) => {
     const found = racePredictionsOf(sport, result)
-    const need = RACE_PREDICTION_NEED[sport]
+    const need = racePredictionNeed(sport, result)
+    const unchecked = thresholdUncheckedLine(result, sport)
     if (found !== null) {
       return {
         content: (
-          <RacePredictions
-            sport={sport}
-            found={found}
-            units={units}
-            allTime={rangeDays === null}
-            ran={ranBests(found, distanceRecords(result.activities, units).records, openedAt)}
-          />
+          <>
+            <RacePredictions
+              sport={sport}
+              found={found}
+              units={units}
+              allTime={rangeDays === null}
+              ran={ranBests(found, distanceRecords(result.activities, units).records, openedAt)}
+            />
+            {/* Every run's bests are carried where the gate could not judge; the section says so. */}
+            {unchecked === null ? null : <p className="muted">{unchecked}</p>}
+          </>
         ),
         lacks: [],
       }

@@ -1,11 +1,8 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import type { Me } from '@rca/contract'
-import { digestActivity } from '@rca/core/digest'
-import { parseFit } from '@rca/core/fit'
 import { lbToKg } from '@rca/core/units'
 import {
   CLIENT_HEADERS,
@@ -20,7 +17,7 @@ import {
   uniqueEmail,
   uploadFixtures,
 } from './helpers.js'
-import { setStoredRevision } from './storedRevision.js'
+import { LEGACY_REVISION, legacyEmail } from './legacySeed.js'
 
 const NAME = 'Ada Lovelace'
 const FIRST_NAME = 'Ada'
@@ -45,11 +42,6 @@ function accountButton(page: Page) {
 
 function headerSignIn(page: Page) {
   return page.getByRole('banner').getByRole('button', { name: 'Sign in with Google' })
-}
-
-/** The notice about saved activities that need an update, which is only on the page while there is one. */
-function savedActivityUpdates(page: Page) {
-  return page.getByRole('region', { name: 'Saved activity updates' })
 }
 
 /** The saved units and body mass, read together so a test can wait for both writes. */
@@ -303,45 +295,26 @@ test('new accounts save summaries without retaining original files by default', 
 })
 test('rebuilds a legacy saved activity from its original file without changing its library identity', async ({
   page,
-}) => {
-  const email = uniqueEmail()
-  await signInAs(page.request, email, NAME)
-  await enableFileRetention(page.request)
-
-  const bytes = await readFile(fixturePath('one-run.fit'))
-  const parsed = parseFit(new Uint8Array(bytes), 'one-run.fit')
-  if (!parsed.ok) throw new Error(`Could not parse rebuild fixture: ${parsed.reason}`)
-  const activity = parsed.activities[0]
-  if (!activity) throw new Error('Rebuild fixture contains no activities')
-  const digest = digestActivity(activity)
-  const fileHash = createHash('sha256').update(bytes).digest('hex')
-  const created = await page.request.post('/api/activities', {
-    headers: CLIENT_HEADERS,
-    data: { digest, fileName: 'one-run.fit', fileHash },
-  })
-  expect(created.status()).toBe(201)
-  const legacyRecord = await created.json()
-  const upload = await page.request.put(`/api/activities/${legacyRecord.id}/file`, {
-    headers: { ...CLIENT_HEADERS, 'Content-Type': 'application/octet-stream' },
-    data: bytes,
-  })
-  expect(upload.status()).toBe(200)
-  expect(await upload.json()).toMatchObject({ id: legacyRecord.id, hasFile: true })
-  // The server refuses a digest from an older model, so the row is set back to revision 1 in its database.
-  setStoredRevision(legacyRecord.id, 1)
+}, testInfo) => {
+  // The library was made before the tests started (legacySeed.ts), with its row set back to an older model.
+  await signInAs(page.request, legacyEmail(testInfo), NAME)
+  const [legacyRecord] = await apiActivities(page.request)
+  if (legacyRecord === undefined) throw new Error('The legacy library has no activity')
+  expect(legacyRecord).toMatchObject({ hasFile: true })
+  expect(legacyRecord.digest.modelRevision).toBe(LEGACY_REVISION)
 
   await page.goto('/')
-  await expect(savedActivityUpdates(page)).toContainText(
-    '1 saved activity needs a quick update before it counts',
-  )
+  // The library is there and every digest is held out, so the page says so: not the first-visit landing page.
+  await expect(page.getByRole('heading', { level: 1, name: 'Update your library' })).toBeVisible()
+  await expect(page.getByText('1 activity will be rebuilt from your saved files.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: LANDING_TITLE })).toHaveCount(0)
   await expect(
-    savedActivityUpdates(page).getByText('1 saved activity needs an update'),
+    page.getByRole('region', { name: 'Activities held out of the analysis' }),
   ).toBeVisible()
-  await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
   await page.getByRole('button', { name: 'Update now', exact: true }).click()
 
-  // The notice is added to the page's live region and removed from it once nothing needs an update.
-  await expect(savedActivityUpdates(page)).toHaveCount(0)
+  // The results come back in place of the page once the library is rebuilt.
+  await expect(page.getByRole('heading', { level: 1, name: 'Update your library' })).toHaveCount(0)
   await expect(await activitiesRows(page)).toHaveCount(1)
   const records = await apiActivities(page.request)
   expect(records).toHaveLength(1)

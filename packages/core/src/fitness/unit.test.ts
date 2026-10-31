@@ -58,7 +58,7 @@ describe('the kilometres a run offers', () => {
     ).toBe(false)
   })
 
-  it('refuses indoor runs, walking pace, no heart rate, spike and dropout flags, other sports', () => {
+  it('refuses indoor runs, walking pace, no heart rate, spike, cadence-lock and dropout flags, other sports', () => {
     const base = { id: 'a', startMs: START, km: eightKm() }
     expect(runReadings(runDigest({ ...base, over: { indoor: true } }), 'run')).toBeNull()
     expect(runReadings(runDigest({ ...base, over: { walkingPace: true } }), 'run')).toBeNull()
@@ -68,6 +68,9 @@ describe('the kilometres a run offers', () => {
     ).toBeNull()
     expect(
       runReadings(runDigest({ ...base, over: { flagCounts: { 'hr-dropout': 1 } } }), 'run'),
+    ).toBeNull()
+    expect(
+      runReadings(runDigest({ ...base, over: { flagCounts: { 'hr-cadence-lock': 1 } } }), 'run'),
     ).toBeNull()
     expect(runReadings(runDigest(base), 'ride')).toBeNull()
     expect(runReadings(runDigest(base), 'run')).not.toBeNull()
@@ -327,6 +330,7 @@ describe('rides', () => {
       ride('b', 2),
       ride('virtual', 3, { powerSource: 'virtual' }),
       ride('spiked', 4, { flagCounts: { 'hr-spike': 1 } }),
+      ride('locked', 8, { flagCounts: { 'hr-cadence-lock': 1 } }),
       ride('far', 5, {}, 200),
       ride('trainer', 7, { indoor: true }),
       ride('terms', 6, {

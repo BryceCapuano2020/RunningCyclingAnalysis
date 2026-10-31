@@ -11,6 +11,7 @@ import { splitPeriods } from './period'
 import type { PeriodCache, PeriodChoice } from './period'
 import type { EarnedRecord } from './records'
 import type { SyncIssue } from './saveFailure'
+import type { HeldOutActivity } from './sessionLibrary'
 import type { RejectedFile, SessionState } from './sessionState'
 import type { RecordsCache } from './sessionRecords'
 import type { ActivityDigest, AthleteSettings } from './types'
@@ -19,6 +20,7 @@ import type { HeartRateJudge, ZoneTimeCache } from './zones'
 
 /** What a session holds that its state is made from: the library, the choices, the caches and the counts. */
 export interface StateInputs {
+  /** The digests the analysis reads: current, then compatible. Each consumer takes the ones its rule allows (`orderedFor`). */
   digests: ActivityDigest[]
   choice: PeriodChoice
   isSample: boolean
@@ -30,6 +32,10 @@ export interface StateInputs {
   unsupportedFiles: number
   outdatedActivities: number
   incompatibleActivities: number
+  /** Every digest the library holds, whatever its status. */
+  libraryActivities: number
+  /** The held-out digests, listed by identity only. */
+  heldOut: HeldOutActivity[]
   syncIssues: SyncIssue[]
   /** The workout keys of the walking-pace runs the athlete counts, for the state to name. */
   countedWalkingRuns: string[]
@@ -56,7 +62,11 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : judge.of(analysed, athlete)
   const setAside = judgement.setAside
   // A period with no activities still has a result, so the page can say what is missing from it.
-  const references = { referenceHr: judgement.referenceHr, observedMaxHr: judgement.observedMaxHr }
+  const references = {
+    referenceHr: judgement.referenceHr,
+    observedMaxHr: judgement.observedMaxHr,
+    effortReference: judgement.effortReference,
+  }
   const analysis =
     athlete !== null && visible.length > 0
       ? periods.analysis(
@@ -71,7 +81,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
       : null
   // The references that zones are cut from are the library's, not the period's: one activity has the same zones
   // under every period, and Profile, the activity page and the time in zones all read them.
-  const zoneEstimates = athlete !== null && analysis !== null ? zoneEstimatesOf(judgement) : null
+  const zoneEstimates =
+    athlete !== null && analysis !== null
+      ? zoneEstimatesOf(judgement, Math.floor(inputs.nowMs / DAY_MS) * DAY_MS)
+      : null
   // The selected period's bike model prices the trend and the previous period alike.
   const bikeModel = analysis?.bikeModel
   // All time is not clipped at a start, so its trend begins at the first activity.
@@ -84,7 +97,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     analysis === null
       ? NO_SAME_HEART_RATE
       : periods.sameHeartRate(selected, analysed, fromMs, setAside)
-  const late = analysis === null ? NO_LATE_EVIDENCE : periods.late(selected, setAside)
+  const late =
+    analysis === null
+      ? NO_LATE_EVIDENCE
+      : periods.late(selected, setAside, { effortReference: judgement.effortReference })
   return {
     result: analysis,
     trend: efforts[HEADLINE_DURATION_S],
@@ -104,7 +120,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     previous:
       athlete !== null && bikeModel !== undefined && previous.length > 0
         ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate, {
-            referenceHr: judgement.referenceHr,
+            effortReference: judgement.effortReference,
             setAside,
           })
         : null,
@@ -118,6 +134,8 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     totalActivities: analysed.length,
     outdatedActivities: inputs.outdatedActivities,
     incompatibleActivities: inputs.incompatibleActivities,
+    libraryActivities: inputs.libraryActivities,
+    heldOut: inputs.heldOut,
     hiddenDuplicates: hidden.size,
     walkingPaceRuns: visible.length - analysed.length,
     countedWalkingRuns: inputs.countedWalkingRuns,

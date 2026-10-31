@@ -105,8 +105,8 @@ export function ZoneTables({
         <>
           <p className="secondary">
             Zones in effect today, from your entered settings or, without one, estimated from your
-            activities: heart rate from your maximum, pace and power from your best efforts of the
-            last half year. They follow published schemes, named under each table.
+            activities: heart rate from your maximum, pace and power from your best efforts, held
+            steady until a real change. They follow published schemes, named under each table.
           </p>
           <div className="zone-tables__grid">
             {sets.map((set) => {

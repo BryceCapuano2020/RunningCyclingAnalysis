@@ -3,6 +3,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { curveOf, refusalOf } from './records'
 import { thresholdNeedsText } from './sports'
+import { thresholdWithheldLine } from './thresholdWithheld'
 
 /**
  * The longest effort a sport holds inside the threshold fit's window, s; null when it holds none. It says what
@@ -25,5 +26,10 @@ export function longestFitEffortS(result: AnalysisResult, sport: Sport): number 
 
 /** The line in a missing threshold's place: what the sport's fit lacks, and the longest effort it has to go on. */
 export function thresholdNeedsLine(result: AnalysisResult, sport: Sport): string {
-  return thresholdNeedsText(refusalOf(result, sport), longestFitEffortS(result, sport))
+  const refusal = refusalOf(result, sport)
+  // A threshold withheld for its effort has its own line (thresholdWithheld): it says what the best 20 minutes reached.
+  return (
+    thresholdWithheldLine(result, sport) ??
+    thresholdNeedsText(refusal === 'effort' ? null : refusal, longestFitEffortS(result, sport))
+  )
 }

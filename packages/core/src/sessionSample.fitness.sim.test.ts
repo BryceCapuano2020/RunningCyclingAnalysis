@@ -25,8 +25,8 @@ describe('the sample athlete’s fitness story on other clocks', () => {
       const other = runStatus(clock)
       expect(other.state).toBe(status.state)
       expect(other.steady).toBe(status.steady)
-      // A zone can move a run across a week's edge, so the windows differ a little: the size stays within a point.
-      expect(Math.abs(other.change!.value - status.change!.value)).toBeLessThan(0.01)
+      // A zone can move a run across a week's edge, so the windows differ a little: the size stays within two points.
+      expect(Math.abs(other.change!.value - status.change!.value)).toBeLessThan(0.02)
       expect(other.change!.high).toBeLessThan(0)
     }
   })

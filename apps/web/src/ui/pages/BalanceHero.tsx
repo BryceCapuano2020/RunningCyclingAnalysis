@@ -6,11 +6,13 @@ import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BalanceMeter } from '../components/BalanceMeter'
+import { uncheckedNote, unconfirmedSports } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
 import { eyebrowText, titleParts } from './balanceCopy'
+import { useHoldInputs } from '../holdContext'
 import { fewEffortsText, missingText } from './balanceMissing'
 import { BalanceLede } from './BalanceLede'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -26,6 +28,8 @@ export interface BalanceHeroProps {
    * missing. The page works it out once, so the headline, the tiles and the changes cannot disagree.
    */
   reading: BalanceReading | null
+  /** What the lower sport would need to grade level with the higher, as a sentence, under the lede; null when nothing would. */
+  target?: string | null
   /** The period on screen, named in the eyebrow and when it holds nothing to compare. */
   period: Period
   /** Shows all time, for when the period on screen holds nothing to compare. */
@@ -55,6 +59,7 @@ export function BalanceHero({
   library,
   pick,
   reading,
+  target = null,
   period,
   onShowAll,
   weightKnown,
@@ -65,6 +70,7 @@ export function BalanceHero({
   controls = null,
   leftOut,
 }: BalanceHeroProps) {
+  const hold = useHoldInputs()
   const head = (title: ReactNode, className?: string) => (
     <div className="balance-hero__head">
       <h1 id={PAGE_HEADING_ID} tabIndex={-1} className={className}>
@@ -80,7 +86,10 @@ export function BalanceHero({
   ) {
     return (
       <section className="balance-hero">
-        {head(levelsTitle({ run: runLevel }) ?? 'Your balance waits for your weight')}
+        {head(
+          levelsTitle({ run: runLevel }, unconfirmedSports(result)) ??
+            'Your balance waits for your weight',
+        )}
         <p className="lede secondary">
           <WeightPrompt />
         </p>
@@ -96,6 +105,7 @@ export function BalanceHero({
       period,
       { run: runLevel, ride: rideLevel },
       leftOut?.count ?? 0,
+      hold,
     )
     return (
       <div className="balance-hero__pair">
@@ -122,6 +132,8 @@ export function BalanceHero({
   }
   const { lead, sport, noun } = titleParts(reading)
   const few = fewEffortsText(result)
+  // A comparison that rests on a best nothing could check (no heart rate on it) is shown, with that said beside it.
+  const unchecked = uncheckedNote(result)
   return (
     <div className="balance-hero__pair">
       <section className="balance-hero balance-hero--answer">
@@ -144,7 +156,9 @@ export function BalanceHero({
               durationS={pick?.point.durationS ?? HEADLINE_DURATION_S}
             />
           </p>
+          {target !== null && <p className="secondary">{target}</p>}
           {few !== null && <p className="secondary">{few}</p>}
+          {unchecked !== null && <p className="secondary">{unchecked}</p>}
         </div>
       </section>
       <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />

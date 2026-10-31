@@ -16,10 +16,12 @@ Rules:
   (`cat heldOut.ts heldOut.bands.ts | shasum -a 256`, first 12 characters). `heldOutLog.node.test.ts` fails
   when the last row does not name the current hash.
 
-Recorded now: the spread of the same-heart-rate unit. Bands for the false-alarm rate and for power on a planted
-truth are not recorded yet: they need a detector that runs on these configurations, and arrive when the D2 and D5
-sims adopt the presets (D10 G5). Each is added as a new row here.
+Recorded: the spread of the same-heart-rate unit (first row), and the fitness monitor's false alarms an athlete-year and
+its power on a planted 8% loss, run on eight libraries of 156 weeks of each configuration's own sport (second row; D and E
+run, F ride). E has too few steady runs for the monitor (11 to 28 in 130 weeks), so its bands record silence. Bands for the
+change test (D5) are not recorded yet. Each is added as a new row here.
 
-| Date       | Hash           | Reason                                                                                          |
-| ---------- | -------------- | ----------------------------------------------------------------------------------------------- |
-| 2026-10-30 | `ca768de472aa` | First recording (D10 G2): same-heart-rate unit spread for D, E and F, from 8 seeds of 78 weeks. |
+| Date       | Hash           | Reason                                                                                                                                        |
+| ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-30 | `ca768de472aa` | First recording (D10 G2): same-heart-rate unit spread for D, E and F, from 8 seeds of 78 weeks.                                               |
+| 2026-10-30 | `fa8d7d62dee0` | Fitness monitor on D to F (D10 G5): false alarms an athlete-year D 0.125, E 0, F 0.5; share seeing an 8% loss in 26 weeks D 0.5, E 0, F 0.75. |

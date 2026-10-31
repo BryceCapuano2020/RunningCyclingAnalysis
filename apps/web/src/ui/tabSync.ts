@@ -11,6 +11,8 @@ export type TabMessage =
   | { type: 'account'; change: 'signed-out' | 'expired' | 'deleted' }
   /** The account's dated settings were changed. */
   | { type: 'measurements' }
+  /** The library was changed: activities added or removed, or everything removed. */
+  | { type: 'library'; scope: 'device' | 'account' }
 
 const CHANNEL = 'rca-sync-v1'
 
@@ -20,6 +22,13 @@ const ACCOUNT_CHANGES: ReadonlySet<unknown> = new Set(['signed-out', 'expired', 
 function asTabMessage(data: unknown): TabMessage | null {
   if (typeof data !== 'object' || data === null || !('type' in data)) return null
   if (data.type === 'profile' || data.type === 'measurements') return { type: data.type }
+  if (
+    data.type === 'library' &&
+    'scope' in data &&
+    (data.scope === 'device' || data.scope === 'account')
+  ) {
+    return { type: 'library', scope: data.scope }
+  }
   if (data.type === 'account' && 'change' in data && ACCOUNT_CHANGES.has(data.change)) {
     return data as TabMessage
   }
