@@ -88,10 +88,11 @@ export function ThresholdTile({
   levelShown = false,
   defineTerm = true,
 }: ThresholdTileProps) {
-  const definition = defineTerm ? DEFINED[sport] : undefined
+  // A fitted threshold has its gloss under the name, which says what it is, so the word is defined only where it has none.
+  const defined = defineTerm ? DEFINED[sport] : undefined
   if (sport === 'ride' && !weighted) {
     return (
-      <StatTile sport={sport} heading={NAME[sport]} definition={definition}>
+      <StatTile sport={sport} heading={NAME[sport]} definition={defined}>
         {/* What needs no weight: how many rides, how long, when the latest was, and a best a meter measured. Then the one ask. */}
         <HeldSportFacts
           sport={sport}
@@ -104,6 +105,7 @@ export function ThresholdTile({
   }
   const fitted = threshold(result, sport, massKg, units)
   const hero = fitted ?? floorThreshold(result, sport, massKg, units)
+  const definition = fitted === null ? defined : undefined
   const records = sportRecords(result, sport, massKg, units).filter((record) =>
     CHIP_DURATIONS_S.includes(record.durationS),
   )

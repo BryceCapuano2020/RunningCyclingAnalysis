@@ -161,5 +161,5 @@
 
 .balance__source {
   max-width: 62ch;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
 }

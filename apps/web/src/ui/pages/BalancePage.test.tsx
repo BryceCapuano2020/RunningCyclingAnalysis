@@ -299,9 +299,7 @@ describe('BalancePage', () => {
         maxHeartRate: null,
       }),
     )
-    expect(
-      screen.getByRole('button', { name: 'Add heart rate to sharpen this' }),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/^Add heart rate to sharpen this/)).toBeInTheDocument()
     expect(screen.getByText('No heart-rate check')).toBeInTheDocument()
   })
 

@@ -96,9 +96,13 @@ describe('ThresholdTile', () => {
     expect(screen.queryByText('Estimated')).toBeNull()
   })
 
-  it('defines the threshold in place, with its meaning in plain words, for each sport', () => {
+  it('defines the threshold in place, with its meaning in plain words, for each sport, where there is no fit to gloss', () => {
+    const unfitted = {
+      run: makeResult({ runCp: null, runCpRefusal: 'missing' }),
+      ride: makeResult({ rideCp: null, rideCpRefusal: 'missing' }),
+    }
     for (const sport of ['run', 'ride'] as const) {
-      const { container, unmount } = renderTile(sport, makeResult())
+      const { container, unmount } = renderTile(sport, unfitted[sport])
       const button = screen.getByRole('button', { name: 'threshold' })
       fireEvent.click(button)
       expect(document.getElementById(button.getAttribute('aria-controls') ?? '')).toHaveTextContent(
@@ -110,6 +114,12 @@ describe('ThresholdTile', () => {
       )
       unmount()
     }
+  })
+
+  it('leaves the word undefined where a fit has its gloss under the name, so the screen defines it less', () => {
+    const { container } = renderTile('run', makeResult())
+    expect(container.querySelector('.stat-tile__gloss')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'threshold' })).toBeNull()
   })
 
   it('carries the effort chip of its own sport, beside the figure it qualifies', () => {
