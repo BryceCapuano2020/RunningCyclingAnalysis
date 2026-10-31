@@ -23,7 +23,8 @@ cannot read, changes what a stored digest holds, or makes a browser storage upgr
 
 The release that writes model revision 7 (R2) moves the floor to the Worker of the release before it (R1, which
 reads revision 7 and writes none), so R1 is a separate deploy that goes first and must be live and in use before R2.
-R2's row records that Worker's version id as its floor. See PRODUCTION.md, the digest paragraph, for why.
+R2's row records that Worker's version id as its floor. `RCA_SAFE_ROLLBACK_VERSION` is moved to that id between the two
+deploys (PRODUCTION.md, the digest paragraph, step 2), so an automatic rollback of R2 lands on R1 and not below it.
 `RCA_SAFE_ROLLBACK_VERSION` (see PRODUCTION.md) must never name a version older than the latest
 floor here. A rollback floor also does not protect the sign-up list: any Worker older than the release that
 carries `ALLOWED_EMAILS` ignores it, so rolling back to one reopens public sign-up (see PRODUCTION.md, Sign-up

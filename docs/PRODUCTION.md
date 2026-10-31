@@ -402,8 +402,12 @@ activities at a time with accessible paging.
   and, once all rows are upgraded, show the landing page, count a row with the new flag kind as unreadable and
   strip the new fields from any create or replace. So R2's floor is W1. W1 shows a revision-7 library as "need a
   newer app", never the landing page, and analyses the rows not yet upgraded. R1 is deployed on its own first, and
-  W1 must be live, smoke-tested and used for a normal day before R2 depends on it as a floor; the ledger row of R2
+  W1 must be live and smoke-tested before R2 depends on it as a floor; the ledger row of R2
   names W1's version id as the floor, and `RCA_SAFE_ROLLBACK_VERSION` must name W1 or newer after R2.
+- **Between R1 and R2:** smoke-test R1, then set `RCA_SAFE_ROLLBACK_VERSION` to R1's Worker version id (W1) before
+  deploying R2. Until it names W1 or newer, a failed R2 smoke test rolls back to an older Worker, which ignores
+  `ALLOWED_EMAILS` and cannot list a revision-7 row. Revision 7 is `exclusive`: after R2 a library holds its results until it
+  is rebuilt (Update now, or the export added again).
 - The digest's `race` field is additive and belongs to no revision. It is `true` only when the Strava
   export's Competition column tagged the activity at the moment it was imported, and the library list
   carries it too. The tag is in the export's list, not in the activity file, so it is read once, at
