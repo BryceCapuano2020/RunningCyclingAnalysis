@@ -22,6 +22,11 @@ import { WEIGHT_DIALOG_TEXT } from '../weightCopy'
 export interface SetupDialogProps {
   /** What the dialog starts from: the saved values, or the signed-in profile. */
   initial: AthleteValues
+  /**
+   * The weight, kg, the Strava export waiting to be imported gives in its own profile. It starts the weight field when no weight is
+   * saved, says where it came from, and is kept only by Analyse: Skip leaves the weight unanswered.
+   */
+  exportWeightKg?: number | null
   /** While the answers are being stored. The buttons and Escape wait for it. */
   saving?: boolean
   /** Why the answers could not be stored. The dialog stays open with what was typed. */
@@ -64,6 +69,7 @@ function readWeightEntry(text: string, validKg: number | null, units: UnitSystem
  */
 export function SetupDialog({
   initial,
+  exportWeightKg = null,
   saving = false,
   error = null,
   onConfirm,
@@ -77,10 +83,12 @@ export function SetupDialog({
   const weightRef = useRef<HTMLInputElement>(null)
   const yearRef = useRef<HTMLInputElement>(null)
   const savedKg = weightKg(initial.settings, 'body')
+  // With no weight saved, the export's own starts the field; a saved weight is never replaced by it.
+  const startKg = savedKg ?? exportWeightKg
   const [units, setUnits] = useState<UnitSystem>(initial.units)
   // The last weight that was valid, null when none has been entered.
-  const [validKg, setValidKg] = useState<number | null>(savedKg)
-  const [weightText, setWeightText] = useState(() => displayWeight(savedKg, initial.units))
+  const [validKg, setValidKg] = useState<number | null>(startKg)
+  const [weightText, setWeightText] = useState(() => displayWeight(startKg, initial.units))
   const [yearText, setYearText] = useState(() => displayBirthYear(initial.birthYear))
   const [sex, setSex] = useState(initial.sex)
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -96,12 +104,12 @@ export function SetupDialog({
     const shownUnits = unitsFollow ? initial.units : units
     if (unitsFollow) setUnits(initial.units)
     if (!touched.current.weight) {
-      setValidKg(savedKg)
-      setWeightText(displayWeight(savedKg, shownUnits))
+      setValidKg(startKg)
+      setWeightText(displayWeight(startKg, shownUnits))
     }
     if (!touched.current.year) setYearText(displayBirthYear(initial.birthYear))
     if (!touched.current.sex) setSex(initial.sex)
-  }, [units, initial.units, initial.birthYear, initial.sex, savedKg])
+  }, [units, initial.units, initial.birthYear, initial.sex, startKg])
 
   // Modal while mounted. Focus goes to the heading rather than a field, so a phone does not raise
   // the keyboard before the dialog has been read. It returns to whatever opened the dialog, or to
@@ -144,15 +152,17 @@ export function SetupDialog({
 
   /**
    * The answers as the fields hold them. `confirmed` is the unusual weight the athlete has already
-   * asked to keep, which only Analyse can pass: Skip and Escape never confirm a weight.
+   * asked to keep, which only Analyse can pass: Skip and Escape never confirm a weight, and they leave the export's weight, which the
+   * athlete did not type, unanswered.
    */
-  function readAnswers(confirmed: number | null): Reading {
+  function readAnswers(confirmed: number | null, skipping = false): Reading {
+    const offered = savedKg === null && exportWeightKg !== null && !touched.current.weight
     const patch: ProfilePatch = {}
     const found: FieldErrors = {}
     let questioned: Reading['questioned'] = null
     const entry = readWeightEntry(weightText, validKg, units)
     if ('error' in entry) found.weight = entry.error
-    else if (entry.kg !== null && entry.kg !== savedKg) {
+    else if (entry.kg !== null && entry.kg !== savedKg && !(skipping && offered)) {
       // A weight far from the saved one is questioned too: the range alone takes pounds typed as kilograms.
       const reference = savedKg === null ? null : { kg: savedKg, label: 'your saved weight' }
       const sentence =
@@ -197,7 +207,7 @@ export function SetupDialog({
    */
   function skip() {
     if (saving) return
-    const { patch, errors: found } = readAnswers(null)
+    const { patch, errors: found } = readAnswers(null, true)
     if (found.weight !== undefined) setWeightText(displayWeight(validKg, units))
     if (found.year !== undefined) setYearText(displayBirthYear(initial.birthYear))
     setErrors({})
@@ -205,6 +215,12 @@ export function SetupDialog({
   }
 
   const entry = readWeightEntry(weightText, validKg, units)
+  // The field still holds the export's weight, unchanged: the note says whose it is.
+  const fromExport =
+    savedKg === null &&
+    exportWeightKg !== null &&
+    !('error' in entry) &&
+    entry.kg === exportWeightKg
   const weightBlank = !('error' in entry) && entry.kg === null
   // Only a typical weight reads as stored: one outside the range is kept only once it is confirmed.
   const storedKg =
@@ -257,6 +273,11 @@ export function SetupDialog({
             setWeightText(event.target.value)
           }}
         />
+        {fromExport && (
+          <p className="setup-dialog__note muted">
+            From your export’s profile. Change it if it is not right.
+          </p>
+        )}
         {units === 'imperial' && storedKg !== null && (
           <p className="setup-dialog__note muted">
             Stored as {displayWeight(storedKg, 'metric')} kg

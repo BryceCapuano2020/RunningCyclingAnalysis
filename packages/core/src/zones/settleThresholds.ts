@@ -48,7 +48,8 @@ function stands(
  * One sport's steps as the zones read them. The threshold is a fit over the trailing 26 weeks, so a hard effort entering
  * or leaving that window moves the fit in one step, and a zone edge would follow the window and not the athlete. The zones
  * hold the fit they had until a window's fit differs from it by more than its own standard error and stands (see
- * `stands`, about two weeks). A step the window gave no fit for stays without one. Where the whole library's fit is
+ * `stands`, about two weeks). A step the window gave no fit for stays without one, and one whose efforts outgrew the older fit
+ * (its `lastFit` is -1) leaves no older fit to stand in for it. Where the whole library's fit is
  * refused (`library` null) no step has a fit: a window cannot be trusted where the library cannot.
  */
 function settledSteps(
@@ -61,7 +62,11 @@ function settledSteps(
   let lastFit = -1
   return steps.map((step, i) => {
     const raw = library === null ? null : step.fit
-    if (raw === null) return { ...step, fit: null, lastFit }
+    if (raw === null) {
+      // A step whose efforts outgrew the older fit has none to stand in for it (`lastFit` -1): the held fit does not either.
+      if (step.lastFit < 0) lastFit = -1
+      return { ...step, fit: null, lastFit }
+    }
     const moved = held !== null && beyondError(raw, held)
     const adopt = held === null || (moved && stands(steps, i, raw, held, nowMs))
     if (adopt) held = raw

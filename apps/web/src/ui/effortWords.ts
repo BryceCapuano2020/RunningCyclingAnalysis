@@ -90,14 +90,18 @@ const BORROWED_FROM: Record<Sport, (supplier: string) => string> = {
   ride: (supplier) => `your ${supplier} max less ${RIDE_MAX_OFFSET_BPM} bpm`,
 }
 
+/** Where a sport's reference comes from when the other sport set it: "your running max less 6 bpm". */
+export function borrowedText(sport: Sport, supplier: Sport): string {
+  return BORROWED_FROM[sport](SPORT_NOUN[supplier])
+}
+
 /** What a share is a share of: the sport's reference heart rate, and where it comes from when the other sport supplied it. */
 function referenceOfShare(sport: Sport, gate: EffortGate): string {
   const noun = SPORT_NOUN[sport]
   if (gate.referenceFrom === null || gate.referenceFrom === sport) {
     return `your ${noun} reference heart rate`
   }
-  const source = BORROWED_FROM[sport](SPORT_NOUN[gate.referenceFrom])
-  return `the heart rate your ${noun} reference expects (${source})`
+  return `the heart rate your ${noun} reference expects (${borrowedText(sport, gate.referenceFrom)})`
 }
 
 /**
