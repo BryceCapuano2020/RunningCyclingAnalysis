@@ -1,3 +1,6 @@
+import type { PowerHeartRate } from '@rca/core/digest'
+import { isHardShare } from '@rca/core/effort'
+
 /*
  * A ride whose power no rider holds at the athlete's weight (`ActivitySummary.powerCheck`). The core leaves it out
  * of every best until the athlete keeps it; this is what the pages say about it.
@@ -32,4 +35,17 @@ export const SET_POWER_ASIDE_LABEL = 'Set this power aside'
 export function powerCheckChip(check: 'set-aside' | 'kept' | undefined): string | null {
   if (check === undefined) return null
   return check === 'kept' ? POWER_KEPT_CHIP : POWER_SET_ASIDE_CHIP
+}
+
+/**
+ * What the heart rate over the questioned effort shows, as a fact beside the power: the share of the athlete's max it
+ * averaged, and whether that is as high as a hard effort reads. It does not say the power was right or wrong.
+ */
+export function powerHeartRateNote(evidence: PowerHeartRate): string {
+  const minutes = Math.round(evidence.durationS / 60)
+  const share = Math.round(evidence.heartRateShare * 100)
+  const seen = `Over its best ${minutes} min, at ${evidence.wkg.toFixed(1)} W/kg, your heart rate averaged ${share}% of your max.`
+  return isHardShare(evidence.heartRateShare)
+    ? `${seen} That is as high as a hard effort reads. Heart rate cannot say whether the power was right.`
+    : `${seen} That is lower than an effort at that power usually shows.`
 }

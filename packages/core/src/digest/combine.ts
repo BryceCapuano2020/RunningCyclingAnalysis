@@ -31,14 +31,15 @@ import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
 import { gatedThreshold } from './effortGating'
 import { effortGatesOf } from './twentyMinute'
-import { summaryOf, type ActivitySummary } from './summary'
+import { activitySummaries } from './activitySummaries'
+import type { ActivitySummary } from './summary'
 import type { BikeModelSource } from '../virtualPower'
 import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
 import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
-import { powerCheckOf, trustedPower } from './powerCheck'
-import { powerHeartRateOf, rideReferenceOf } from './powerEvidence'
+import { trustedPower } from './powerCheck'
+import { rideReferenceOf } from './powerEvidence'
 import { answers } from './judgedWork'
 import type { JudgedWork } from './judgedWork'
 import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
@@ -197,34 +198,6 @@ export {
   runCentralWkg,
   sportCurves,
 } from './rideCurves'
-
-/**
- * The activities of a library as summaries, newest first, as the analysis lists them. With dated body
- * masses each summary also carries the mass in effect on its date, which prices its W/kg.
- */
-export function activitySummaries(
-  digests: ActivityDigest[],
-  settings?: AthleteSettings,
-  rideReferenceHr: number | null = null,
-): ActivitySummary[] {
-  const masses = settings === undefined ? null : massesOf(settings)
-  const dated = masses !== null && masses.dated
-  return orderedFor('listing', digests)
-    .map((digest) => {
-      const summary = summaryOf(digest, dated ? masses.bodyKg(digest) : undefined)
-      const check = masses === null ? undefined : powerCheckOf(digest, masses)
-      // A flagged ride gets its own copy; the cached summary is shared and stays as it is.
-      if (check === undefined || masses === null) return summary
-      const heart = powerHeartRateOf(digest, masses.bodyKg(digest), rideReferenceHr)
-      return Object.assign(
-        {},
-        summary,
-        { powerCheck: check },
-        heart === undefined ? {} : { powerHeartRate: heart },
-      )
-    })
-    .sort((a, b) => b.startMs - a.startMs)
-}
 
 export interface CombineOptions {
   /**

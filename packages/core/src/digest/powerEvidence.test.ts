@@ -3,7 +3,7 @@ import { ridePowerCeilingWkg } from '../curves'
 import { NO_EFFORT_REFERENCE } from '../effort'
 import type { EffortReference } from '../effort'
 import type { ActivityDigest, DigestCurvePoint } from '../types'
-import { activitySummaries } from './combine'
+import { activitySummaries } from './activitySummaries'
 import { MODEL_REVISION } from './modelRevision'
 import { POWER_HEART_RATE_MIN_S, powerHeartRateOf, rideReferenceOf } from './powerEvidence'
 
