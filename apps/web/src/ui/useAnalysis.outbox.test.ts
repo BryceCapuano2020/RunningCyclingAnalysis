@@ -38,6 +38,8 @@ function stateWith(totalActivities: number): SessionState {
     totalActivities,
     period: EMPTY_PERIOD,
     library: [],
+    libraryActivities: 0,
+    heldOut: [],
     syncIssues: [],
     outdatedActivities: 0,
     incompatibleActivities: 0,

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { openManifestStore } from '../ui/importManifestStore'
 import { forgetAccountDetails } from './forgetAccountDetails'
 import { clearWorkbenchScope } from './workbenchStore'
 
@@ -12,6 +13,10 @@ vi.mock('./outbox', () => ({
     return outbox
   },
 }))
+vi.mock('../ui/importManifestStore', () => {
+  const forget = vi.fn(async () => undefined)
+  return { openManifestStore: () => ({ forget }) }
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -66,9 +71,21 @@ describe('the activities still waiting to be saved', () => {
   it('are kept when the server ended the session, for the account’s next sign-in', async () => {
     vi.stubGlobal('indexedDB', {})
     vi.mocked(clearWorkbenchScope).mockResolvedValue(true)
+    outboxes.clear()
 
     await forgetAccountDetails('alice', true)
 
     expect(outboxes.has('alice')).toBe(false)
+  })
+})
+
+describe('the record of the account’s imports', () => {
+  it('is forgotten with the recordings, for that account only', async () => {
+    vi.stubGlobal('indexedDB', {})
+    vi.mocked(clearWorkbenchScope).mockResolvedValue(true)
+
+    await forgetAccountDetails('alice')
+
+    expect(openManifestStore().forget).toHaveBeenCalledExactlyOnceWith('account:alice')
   })
 })

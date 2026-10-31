@@ -37,6 +37,8 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     deviceIssue: null,
     outbox: null,
     importOutcome: null,
+    incompleteImport: null,
+    acceptIncompleteImport: vi.fn(),
     importChange: null,
     dismissSummary: vi.fn(),
     savedActivities: [],

@@ -4,5 +4,13 @@
  */
 export { changeEvidence } from './evidence'
 export { CHANGE } from './constants'
-export { callAt, detectableAt, directionOf, verdictAt, verdictOfCall } from './types'
+export {
+  callAt,
+  detectableAt,
+  directionOf,
+  MAX_STATED_RESOLUTION,
+  statedResolutionAt,
+  verdictAt,
+  verdictOfCall,
+} from './types'
 export type { ChangeBasis, ChangeCall, ChangeEvidence, ChangeLevel, ChangeVerdict } from './types'

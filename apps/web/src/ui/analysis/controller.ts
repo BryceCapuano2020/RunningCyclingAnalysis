@@ -10,6 +10,7 @@ import type {
 import type { ImportChange } from './importState'
 import type { DetailCoverage, ImportProgress, LibraryStatus, OutboxStatus } from './model'
 import type { RouteReply } from '../routeReply'
+import type { ImportManifest } from '../importManifest'
 
 export interface AnalysisController {
   state: SessionState
@@ -49,6 +50,10 @@ export interface AnalysisController {
   /** How the saves an earlier visit left behind are going and ended; null when there were none. */
   outbox: OutboxStatus | null
   importOutcome: ImportOutcome | null
+  /** The latest import that left the library short of the whole history (cut off, or from a damaged zip), or null. */
+  incompleteImport: ImportManifest | null
+  /** Goes on with what the library holds: the notice about the incomplete import goes. */
+  acceptIncompleteImport: () => void
   /** What the last import moved from, while its summary is shown; null otherwise. */
   importChange: ImportChange | null
   /** The summary was dismissed, so what moved goes with it. */

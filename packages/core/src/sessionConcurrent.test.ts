@@ -134,7 +134,7 @@ describe('saves that run in the background', () => {
 
   it('ends the import even when reading it fails, once the saves it began have settled', async () => {
     const session = new AnalysisSession()
-    let finish: () => void = () => undefined
+    let finish: (() => void) | undefined
     const sink: SyncSink = async (item) => {
       if (item.queueable !== true) return
       return { done: new Promise<void>((resolve) => (finish = resolve)) }
@@ -142,7 +142,8 @@ describe('saves that run in the background', () => {
     const broken = new File([new Uint8Array([1, 2, 3])], 'broken.zip')
 
     const run = session.addFiles([zipOfRuns(1), broken], SETTINGS, undefined, sink)
-    setTimeout(() => finish(), 5)
+    await waitUntil(() => finish !== undefined)
+    finish!()
     const state = await run
 
     expect(state.totalActivities).toBe(1)
