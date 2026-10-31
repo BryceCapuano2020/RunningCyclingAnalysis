@@ -1,5 +1,6 @@
 import type { ActivityRecord } from '@rca/contract'
 import { missingFields, revisionStatus } from '@rca/core/digest/revisions'
+import { workoutKey } from '@rca/core/duplicates'
 import { haltsImport } from '@rca/core/session'
 import type { Activity, ActivityDigest } from '@rca/core/types'
 import { ApiRequestError } from '../api/client'
@@ -110,15 +111,20 @@ function withSavedLabel(digest: ActivityDigest, saved: ActivityDigest): Activity
     : digest
 }
 
-/** The rebuilt digest is the same activity, made by the current model, or it is not sent. */
+/**
+ * The rebuilt digest is the same workout, made by the current model, or it is not sent. The server keeps a
+ * workout by sport and start second, so that is what is matched. The saved id is longer (it carries the
+ * file name and the activity's place in the file) and is kept as it is.
+ */
 function isRebuildOf(digest: ActivityDigest, saved: ActivityDigest): boolean {
   return (
-    digest.id === saved.id &&
-    digest.sport === saved.sport &&
-    digest.startMs === saved.startMs &&
+    workoutKey(digest.sport, digest.startMs) === workoutKey(saved.sport, saved.startMs) &&
     revisionStatus(digest.modelRevision) === 'current'
   )
 }
+
+/** The words of the server's 400 for a digest from a newer model than it supports (ActivityCreateSchema). */
+const NEWER_MODEL_REFUSAL = /supports model revisions/
 
 const stop = (reason: UpdateStop): Outcome => ({ kind: 'stop', reason })
 
@@ -127,8 +133,9 @@ async function rebuildOne(record: ActivityRecord, steps: UpdateSteps): Promise<O
   const { fileHash, activity } = await attemptOnce(() => steps.original(record), steps)
   if (!steps.stampHolds()) return stop('discarded')
   if (activity === undefined) return { kind: 'unmatched' }
-  const digest = withSavedLabel(steps.digest(activity), record.digest)
-  if (!isRebuildOf(digest, record.digest)) return { kind: 'failed' }
+  const rebuilt = withSavedLabel(steps.digest(activity), record.digest)
+  if (!isRebuildOf(rebuilt, record.digest)) return { kind: 'failed' }
+  const digest = { ...rebuilt, id: record.digest.id }
   // An answer that still carries the old revision means another request changed the row between the
   // read and the write, and the server kept its own; the same digest is sent once more.
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -152,8 +159,9 @@ async function rebuildOne(record: ActivityRecord, steps: UpdateSteps): Promise<O
 function classify(error: unknown): Outcome {
   if (error instanceof ApiRequestError) {
     if (error.code === 'app_outdated') return stop('outdated')
-    // The server refuses a digest it cannot read, or one from a newer model than it knows, with 400.
-    if (error.status === 400) return stop('refused')
+    // Only the refusal of a model newer than the server knows ends the run. Any other 400 is one row the
+    // server would not take: it counts toward the breaker and the run goes on to the next.
+    if (error.status === 400 && NEWER_MODEL_REFUSAL.test(error.message)) return stop('refused')
   }
   const issue = syncIssueFor(error)
   if (haltsImport(issue)) return { kind: 'halt', error }

@@ -27,8 +27,8 @@ function record(n: number, digest: Partial<ActivityDigest> = {}, hasFile = true)
 }
 
 const records = (count: number) => Array.from({ length: count }, (_, i) => record(i))
-const apiError = (status: number, code: string, retryAfterMs?: number) =>
-  new ApiRequestError(status, code, code, retryAfterMs)
+const apiError = (status: number, code: string, retryAfterMs?: number, message = code) =>
+  new ApiRequestError(status, code, message, retryAfterMs)
 
 /** Steps over a fake server. `original` reads the record's own digest back as the activity in its file. */
 function fakeSteps(overrides: Partial<UpdateSteps> = {}) {
@@ -141,9 +141,8 @@ describe('runUpdate', () => {
       expect(result.rebuilt).toBe(0)
     })
 
-    it('counts a digest that is not the same activity as a failure, and sends nothing', async () => {
+    it('counts a digest that is not the same workout as a failure, and sends nothing', async () => {
       const wrong: Array<(digest: ActivityDigest) => ActivityDigest> = [
-        (digest) => ({ ...digest, id: 'someone-else' }),
         (digest) => ({ ...digest, startMs: digest.startMs + 1000 }),
         (digest) => ({ ...digest, sport: digest.sport === 'run' ? 'ride' : 'run' }),
         (digest) => ({ ...digest, modelRevision: MODEL_REVISION - 1 }),
@@ -158,12 +157,52 @@ describe('runUpdate', () => {
         expect(log.replaced).toEqual([])
       }
     })
+
+    it('sends the saved id when the file gives another, because the workout is the same', async () => {
+      const sent: ActivityDigest[] = []
+      const { steps } = fakeSteps({
+        digest: (activity) => ({
+          ...(activity as unknown as ActivityDigest),
+          id: '1745273200000-renamed.fit#1',
+          modelRevision: MODEL_REVISION,
+        }),
+        replace: async (digest, saved) => {
+          sent.push(digest)
+          return { ...saved, digest }
+        },
+      })
+      const saved = record(1)
+      expect(await runUpdate([saved], steps)).toMatchObject({ rebuilt: 1, failed: 0 })
+      expect(sent[0]?.id).toBe(saved.digest.id)
+    })
+
+    it('does not let one row the server will not take stop the rows after it', async () => {
+      const { steps, log } = fakeSteps({
+        replace: async (digest, saved) => {
+          if (saved.id === 'rec3')
+            throw apiError(400, 'invalid_request', undefined, 'digest.name: Too long')
+          return { ...saved, digest }
+        },
+      })
+      const result = await runUpdate(records(10), steps)
+      expect(result).toMatchObject({ rebuilt: 9, failed: 1, stopped: null })
+      expect(log.originals).toHaveLength(10)
+    })
   })
 
   describe('answers that end the run', () => {
     it.each([
       ['app_outdated', apiError(409, 'app_outdated'), 'outdated'],
-      ['a refused digest', apiError(400, 'invalid_request'), 'refused'],
+      [
+        'the refusal of a newer model',
+        apiError(
+          400,
+          'invalid_request',
+          undefined,
+          'digest.modelRevision: This server supports model revisions through 6',
+        ),
+        'refused',
+      ],
     ] as const)('stops at once on %s', async (_name, error, reason) => {
       const { steps, log } = fakeSteps({
         replace: async () => {
