@@ -9,7 +9,8 @@ import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
 import { deviceKeeper } from './deviceKeeper'
-import { openOutbox } from './outbox'
+import { clearOutbox, openOutbox } from './outbox'
+import { SendingKeys } from './sendingKeys'
 import { resumeOutbox } from './outboxResume'
 import type { Resume } from './outboxResume'
 import { exportAccount } from './exportAccount'
@@ -59,8 +60,12 @@ function reportLibrary() {
   })
 }
 
-const device = deviceActions(session, openDeviceLibrary(), post, async (activityId) =>
-  workbench.remove({ kind: 'device' }, activityId),
+const device = deviceActions(
+  session,
+  openDeviceLibrary(),
+  post,
+  async (activityId) => workbench.remove({ kind: 'device' }, activityId),
+  () => workbench.watchDevice(),
 )
 const libraryContext: LibraryContext = {
   session,
@@ -79,7 +84,9 @@ const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
 const view = newWorkerView()
+const sending = new SendingKeys()
 const importContext: ImportRunContext = {
+  sending,
   session,
   post,
   missingOriginals,
@@ -102,10 +109,19 @@ function finishLoad(state: SessionState, userId: string): SessionState {
     userId,
     outbox: openOutbox(userId),
     savedRecords,
+    sending,
     // Apart from any request: stamped with one, the page would drop it as late.
     post: (message) => self.postMessage(message),
   })
   return state
+}
+
+/** The kept library was emptied under an import: the page is told, and starts from what is kept now. */
+function stopEmptied(): SessionState {
+  post({ type: 'deviceIssue', issue: 'replaced' })
+  device.replaced()
+  workbench.clearMemory()
+  return session.clear()
 }
 
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
@@ -117,7 +133,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       const held = [...provisionalItems.values()]
       provisionalItems.clear()
       for (const item of held) await keeper.keep(item)
+      // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
+      const emptied = keeper.replaced || workbench.libraryReplaced || !(await device.current())
+      if (emptied) workbench.dropDeferred()
       await workbench.storeDeferred()
+      if (emptied || workbench.libraryReplaced) return stopEmptied()
       await device.report()
       keeper.report()
       return session.setSettings(request.settings)
@@ -157,6 +177,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'setRange':
       return session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':
+      // Results shown here that could not be kept are not given up for a reload: they stay as they are.
+      if (request.reload === true && !device.hasUnkept()) device.replaced()
       // A sample on screen, or a library already read, stays as it is: loading it again would
       // drop what was imported since.
       if (view.showingSample || device.inSession()) {
@@ -178,7 +200,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       if (request.forgetDevice) {
         // The page is told once: forget() has already told it when the library would not clear.
         const forgotten = await device.forget()
-        if (!(await workbench.clearScope({ kind: 'device' })) && forgotten)
+        const tracesCleared = await workbench.clearScope({ kind: 'device' })
+        // Every waiting save goes too, an expired session's included: nothing kept here stays, and a visitor who is
+        // signed out has no account on screen to ask about them.
+        const outboxCleared = await clearOutbox()
+        if ((!tracesCleared || !outboxCleared) && forgotten)
           post({ type: 'deviceIssue', issue: 'notForgotten' })
       } else device.replaced()
       return session.clear()

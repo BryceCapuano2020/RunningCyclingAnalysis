@@ -95,7 +95,12 @@ export function App() {
     void account.signOut().then(countedRuns.clear, () => undefined)
   })
   const signInProblem = useSignInProblem()
-  const analysisAthlete = useAnalysisSettings(settings, measurements.entries, countedRuns.keys)
+  const analysisAthlete = useAnalysisSettings(
+    settings,
+    measurements.entries,
+    athleteValues.birthYear,
+    countedRuns.keys,
+  )
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false

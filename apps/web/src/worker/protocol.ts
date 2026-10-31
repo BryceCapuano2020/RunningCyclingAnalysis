@@ -22,12 +22,14 @@ export interface SavedActivity {
  * activities of one import that show but were not kept, and `newer` those it left because a newer
  * version of the app keeps a copy that this one cannot read; `notForgotten` is a delete or removal that
  * left a copy behind; `notRead` is an import analysed without the library kept in this browser, because that
- * could not be read. The page sets `unread` on a `notSaved` that follows a `notRead`, so both are said.
+ * could not be read; `replaced` is an import that stopped because the library kept in this browser was emptied, in
+ * this tab or another, while it ran. The page sets `unread` on a `notSaved` that follows a `notRead`, so both are said.
  */
 export type WorkerDeviceIssue =
   | { issue: 'notSaved'; count: number; newer?: number; unread?: true }
   | { issue: 'notForgotten' }
   | { issue: 'notRead' }
+  | { issue: 'replaced' }
 
 /**
  * What the page says about the activities kept in this browser: the worker's findings, and two the page
@@ -100,7 +102,8 @@ export type WorkerRequest =
    * Loads the digests kept in this browser, unless the session already holds them or a sample is
    * showing.
    */
-  | ({ type: 'loadDevice'; settings: AthleteSettings } & LoadPeriod)
+  /** `reload` reads the library again even when this tab holds it, because another tab changed it. */
+  | ({ type: 'loadDevice'; settings: AthleteSettings; reload?: boolean } & LoadPeriod)
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
   | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }

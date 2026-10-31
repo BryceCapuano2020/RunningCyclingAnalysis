@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-    # ready_for_review runs CI when a draft is marked ready; a draft itself runs only the two cheap
-    # required-check jobs below, which fail on purpose so a draft can never look green.
+    # ready_for_review runs CI when a draft is marked ready. A draft runs only the changes job and the
+    # two cheap required-check jobs, which fail on purpose so a draft can never look green.
     types: [opened, synchronize, reopened, ready_for_review]
 
 # A newer push to a pull request cancels that pull request's older run. Each push to main gets its
@@ -22,19 +22,38 @@ env:
   npm_config_fetch_retries: '5'
 
 jobs:
-  # Classifies a pull request as documentation only when every changed file is Markdown, under docs/
-  # or LICENSE. Such a pull request skips the long jobs (typecheck, unit tests, build, simulations,
-  # budgets, end to end) and still runs the format check, lint, the ops tests and every unit test that
-  # reads a Markdown file. Pushes to main always run everything. The long jobs skip only on an
-  # explicit 'false', so if this job fails they run.
+  # Reads whether the pull request is a draft, and classifies it as documentation only when every
+  # changed file is Markdown, under docs/ or LICENSE. A documentation-only pull request skips the long
+  # jobs (typecheck, unit tests, build, simulations, budgets, end to end) and still runs the format
+  # check, lint, the ops tests and every unit test that reads a Markdown file. Pushes to main always
+  # run everything. The other jobs skip only on an explicit 'true' (draft) or 'false' (code), so if
+  # this job fails they run.
   changes:
     name: Changed files
-    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
+      draft: ${{ steps.draft.outputs.draft }}
       code: ${{ steps.classify.outputs.code }}
     steps:
+      # The event's draft flag is a snapshot from when the event fired. A push and `gh pr ready` a few
+      # seconds apart have produced a single run whose event still said draft, so the pull request's
+      # state when this job runs decides, and a re-run reads it again.
+      - id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "$PR" ]; then
+            echo "draft=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          draft=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .draft)
+          echo "Draft: $draft"
+          echo "draft=$draft" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -64,7 +83,7 @@ jobs:
   static:
     name: Lint, typecheck, build
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft }}
+    if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -107,7 +126,7 @@ jobs:
   unit:
     name: Unit tests (${{ matrix.shard }} of 2)
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -142,11 +161,21 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: A draft pull request runs no checks
-        if: github.event.pull_request.draft
+        if: needs.changes.outputs.draft == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          echo "::error::Draft pull request: CI runs when it is marked ready for review."
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .draft || true)" = false ]; then
+            echo "::error::Marked ready after this run checked. Re-run all jobs or push a commit to run CI."
+          else
+            echo "::error::Draft pull request: CI runs when it is marked ready for review."
+          fi
           exit 1
       - name: Require the static job and every unit shard
         env:
@@ -192,7 +221,7 @@ jobs:
   perf:
     name: Performance budgets
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -214,11 +243,13 @@ jobs:
   # The statistical simulations (*.sim.test.ts) replay many seeded libraries to measure a detector's
   # hit rate and its silence on nulls. They take minutes under coverage, so they are their own job,
   # run without coverage and in parallel with the unit tests. They are deterministic (seeded), so a
-  # failure is a real change in a rate and the job does not retry.
+  # failure is a real change in a rate and the job does not retry. It also runs the API's heavy sweeps
+  # (apps/api/*.sim.test.ts: a daily limit request by request, a worst-case maintenance backlog, long
+  # keyset walks), which the API unit tests decide from a few requests.
   sim:
     name: Statistical simulations
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -236,11 +267,11 @@ jobs:
   # seeds so a failure can be run again (npm run test:shuffle), so a test that leans on one a file earlier
   # shows up here and not in a later session that runs a filtered or reordered set. It is not one of the
   # sharded unit jobs and not part of the required check; like the budgets and simulations it runs
-  # whenever code changed.
+  # whenever code changed, and not on a draft.
   order:
     name: Unit tests in shuffled order
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -259,7 +290,7 @@ jobs:
   e2e:
     name: End-to-end (${{ matrix.shard }} of 3)
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -305,11 +336,21 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: A draft pull request runs no checks
-        if: github.event.pull_request.draft
+        if: needs.changes.outputs.draft == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          echo "::error::Draft pull request: CI runs when it is marked ready for review."
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .draft || true)" = false ]; then
+            echo "::error::Marked ready after this run checked. Re-run all jobs or push a commit to run CI."
+          else
+            echo "::error::Draft pull request: CI runs when it is marked ready for review."
+          fi
           exit 1
       - name: Require every end-to-end shard
         env:
@@ -322,7 +363,8 @@ jobs:
 
   audit:
     name: Dependency audit
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

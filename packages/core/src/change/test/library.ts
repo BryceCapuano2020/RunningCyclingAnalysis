@@ -1,8 +1,12 @@
 import { DAY_MS, DURATIONS_S } from '../../constants'
 import { digestActivity } from '../../digest/digestActivity'
 import { mulberry32, normal } from '../../math'
+import { NOISE_PRESETS } from '../../synthetic/noise/presets'
 import { sampleDataset } from '../../synthetic'
 import type { ActivityDigest, AthleteSettings, Sport } from '../../types'
+
+/** The wander's weekly correlation, the synthetic tier's measured one. */
+const WANDER_RHO = NOISE_PRESETS.measured.level.wanderRho
 
 export const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 
@@ -35,7 +39,7 @@ export interface Spec {
   hardShare?: number
   /** Meter error, a log sd on each point of a curve. Default 0.01. */
   meter?: number
-  /** A log wander of the capability from week to week (correlation 0.9), as a log sd. */
+  /** A log wander of the capability from week to week (the measured correlation, 0.9), as a log sd. */
   wander?: number
   /**
    * Real noise: when given, every effort lands exp(effortSd * N(0, 1)) round the capability, with no ceiling and no easy
@@ -44,6 +48,10 @@ export interface Spec {
    * draw: at `spread` the best of a period sits at the ceiling and the noise a best has is 6 to 17 times smaller than
    * a real library's. About 0.10 matches a run's 20 minutes (equal-capability pairs of periods differ by a median of
    * 3.5 to 6% there), and about 0.3 a ride's 5 minutes (a median of 10 to 15%).
+   *
+   * This is not `NOISE_PRESETS.measured.behaviour.effortSd` (0.0765 a run, 0.212 a ride): that is fitted to six efforts a
+   * half, this to the efforts of two 12-week periods. Swapping it in moves the recorded power (a +10% gain in a run, 4 a
+   * week, is found by 39% of seeds at 0.10 and 60% at 0.0765), so the two stay apart.
    */
   effortSd?: number
 }
@@ -75,7 +83,8 @@ export function effortLibrary(spec: Spec): ActivityDigest[] {
   const out: ActivityDigest[] = []
   let wander = 0
   for (let week = 0; week < spec.weeks; week++) {
-    wander = 0.9 * wander + Math.sqrt(1 - 0.81) * normal(random) * (spec.wander ?? 0)
+    wander =
+      WANDER_RHO * wander + Math.sqrt(1 - WANDER_RHO ** 2) * normal(random) * (spec.wander ?? 0)
     const count = Number.isInteger(spec.perWeek) ? spec.perWeek : poisson(random, spec.perWeek)
     for (let i = 0; i < count; i++) {
       const hard = random() < hardShare

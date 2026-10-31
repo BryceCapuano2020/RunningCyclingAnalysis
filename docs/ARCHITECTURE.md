@@ -131,14 +131,20 @@ repeated network failures one save is the probe and the others wait for its answ
 
 A signed-in import writes each activity's digest to the `rca-outbox` IndexedDB database (rows keyed
 `userId|workoutKey`) before it is sent, and removes the row once the server has the activity or
-refuses it for good (a conflict, or an account being deleted). The row holds the summary the server
-keeps, never a route, stream or original. When the library for an account loads, the worker resumes
-any rows an earlier visit left, through the same save gate and rate-limit pause as an import, and
-posts an unstamped `outbox` message with the counts so the page can say how many are left and read
-the library again once some were saved. A row is tried five times, then left for the next visit and
-counted as failed. Session expiry keeps the rows; explicit sign-out (after a warning when rows
-wait) and account deletion forget them. The outbox never rejects: if the browser refuses
-IndexedDB, saves go ahead without a backup and the import still reports its own failures.
+refuses it for good (a conflict, or an account being deleted). A row is removed only if it still
+holds the digest that was sent, checked in the removing transaction, so a file added again meanwhile
+keeps its own row. The row holds the summary the server keeps, never a route, stream or original.
+When the library for an account loads, the worker resumes any rows an earlier visit left, through the
+same gate, the same shared stop and the same one-wait rate-limit rule as an import, and posts an
+unstamped `outbox` message with the counts so the page can say how many are left and read the library
+again once some were saved. A workout an import is sending (`SendingKeys`, shared by both) is left to
+that import. Only a refusal counts against a row, and after five it is let go and counted as failed.
+A stop (a limit, a signed-out account), a lost connection or a row a newer version wrote leaves the
+row untouched; a row from an older analysis is let go unsent. A session that ends on its own (expiry,
+seen by a save or by a refresh) keeps the rows. An explicit sign-out (after a warning when rows wait)
+and account deletion forget the account's rows, and Remove all (signed out) forgets every account's.
+The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the
+import still reports its own failures.
 
 **Activity workbench**
 
@@ -188,6 +194,23 @@ stalled request again. A page that lost time itself (a suspended laptop, a froze
 again instead of reading the gap as silence. Single reads (a route, splits, a detail trace) are let go as
 unread after 30 s (150 s from a kept original), say nothing, and never restart the worker. A request the
 browser cannot copy to the worker fails at once with a message.
+
+**Several tabs**
+
+Tabs of one browser share its storage and the session cookie, and talk over one `BroadcastChannel`
+(`rca-sync-v1`) whose messages carry no data, only what changed: a profile was saved, the session ended,
+dated settings or a library changed. The tab that hears one reads the source again. Preferences and dated
+settings are written field by field over what is stored, and followed through the `storage` event.
+
+The library kept in this browser has an epoch: a number kept as the reserved row `__scope__` in the same
+IndexedDB store, raised in the transaction that empties the store. A session writes only in the epoch it
+loaded, checked in the transaction of each write, so an import running in one tab cannot put rows back into
+a library another tab just emptied. The recordings cache (`rca-workbench-evidence`) keeps its own epoch for the
+device scope, raised in the transaction that clears the scope, and checks it the same way in the transaction
+that writes a recording, so a recording cannot outlive its activity either. Such an import stops, drops its
+waiting recordings, and the page says why. `GET /api/me` also carries `libraryRevision`, the stored count and digest bytes, which a tab that comes
+back into view compares with the one it loaded as a hint that another device changed the library. It is a
+hint only: an equal tag proves nothing, and a different one just makes the tab read the library again.
 
 ## Data model
 

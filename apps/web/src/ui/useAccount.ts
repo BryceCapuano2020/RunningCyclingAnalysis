@@ -117,8 +117,11 @@ export function useAccount(): AccountController {
       const previous = meRef.current
       const wasSignedIn = previous !== null
       meRef.current = found
-      // The session ended, or another account signed in, without a sign-out here.
-      if (previous !== null && previous.user.id !== found?.user.id) forgetEnded(previous.user.id)
+      // The session ended, or another account signed in, without a sign-out here. The server ended it, not the
+      // athlete, so what was waiting to be saved waits for the next sign-in, as it does when a save finds the
+      // session expired. (A sign-out in another tab asked first and forgot them there.)
+      if (previous !== null && previous.user.id !== found?.user.id)
+        forgetEnded(previous.user.id, true)
       // A definite answer: any other account's recordings are not this browser's to keep, even one
       // that ended while no tab was open.
       void sweepAccountDetails(found?.user.id ?? null)

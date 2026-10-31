@@ -5,6 +5,7 @@ import { workoutKeyOf as activityKey } from './device'
 import type { DeviceActions } from './device'
 import { deviceKeeper } from './deviceKeeper'
 import { openOutbox } from './outbox'
+import type { SendingKeys } from './sendingKeys'
 import { ImportReporter } from './importReporter'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import type { RouteMemory } from './routes'
@@ -16,6 +17,8 @@ import { noteWork } from './workerWire'
 
 /** What an import reads and changes in the worker. */
 export interface ImportRunContext {
+  /** The workouts being sent to the account, shared with the outbox resume. */
+  sending: SendingKeys
   session: AnalysisSession
   post: (message: WorkerResponse) => void
   missingOriginals: Set<string>
@@ -34,7 +37,7 @@ export interface ImportRunContext {
 export async function runImport(
   ctx: ImportRunContext,
   request: Extract<WorkerRequest, { type: 'addFiles' }>,
-): Promise<{ state: SessionState; outcome: ImportOutcome; saved?: number }> {
+): Promise<{ state: SessionState; outcome?: ImportOutcome; saved?: number }> {
   const { session, post, missingOriginals, savedRecords, workbench, provisionalItems } = ctx
   const { device, routes, view, reportLibrary } = ctx
   const { sync } = request
@@ -84,6 +87,7 @@ export async function runImport(
           },
           onPaused: () => reporter.savesPaused(),
           outbox: openOutbox(sync.userId),
+          sending: ctx.sending,
           onStopped: (code) => {
             stoppedBy ??= code
           },
@@ -103,6 +107,7 @@ export async function runImport(
     provisionalItems.set(activityKey(item.digest), { ...item, bytes: new Uint8Array() })
   }
   let state: SessionState
+  let emptied = false
   try {
     state = await session.addFiles(
       request.files,
@@ -143,10 +148,25 @@ export async function runImport(
     if (sync !== null) post({ type: 'missingOriginals', count: missingOriginals.size })
     // On a failure too: what was read is stored, and the page learns how many were saved.
     // A provisional import's recordings wait for keepProvisional, or for the account.
+    // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
+    const intoDevice = sync === null && request.saveToDevice === true
+    emptied =
+      intoDevice && (keeper.replaced || workbench.libraryReplaced || !(await device.current()))
+    if (emptied) workbench.dropDeferred()
     const stored = traceScope === null ? new Set<string>() : await workbench.storeDeferred()
+    // Storage refuses a recording of a cleared scope in its own transaction: the clear can land after the check above.
+    if (intoDevice && workbench.libraryReplaced) emptied = true
     // Counted once it is in storage: a recording held in memory alone is gone after a reload.
     for (const id of restoreCandidates) if (stored.has(id)) restored.add(id)
     reporter.end()
+  }
+  if (emptied) {
+    // The results this import added are gone from the library kept in this browser, so they are not shown:
+    // the page is told, and starts from what is kept now.
+    post({ type: 'deviceIssue', issue: 'replaced' })
+    device.replaced()
+    workbench.clearMemory()
+    return { state: session.clear() }
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }

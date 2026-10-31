@@ -9,6 +9,7 @@ import { SAVE_CONCURRENCY } from './saveLimits'
 import type { AccountSaveContext } from './accountSave'
 import { workoutKeyOf } from './device'
 import type { Outbox } from './outbox'
+import { SendingKeys } from './sendingKeys'
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
@@ -284,7 +285,7 @@ describe('saving through the outbox', () => {
     const calls: string[] = []
     const outbox: Outbox = {
       add: async (added) => void calls.push(`add:${added.fileName}`),
-      done: async (key) => void calls.push(`done:${key}`),
+      done: async (key, digestId) => void calls.push(`done:${key}:${digestId}`),
       failed: async () => false,
       pending: async () => [],
       forget: async () => undefined,
@@ -305,7 +306,7 @@ describe('saving through the outbox', () => {
 
     await accountSaver(withOutbox(outbox))(item)
 
-    expect(calls).toEqual(['add:run.fit', 'create', `done:${workoutKeyOf(digest)}`])
+    expect(calls).toEqual(['add:run.fit', 'create', `done:${workoutKeyOf(digest)}:${digest.id}`])
   })
 
   it('removes the row when only the original file failed to upload: the digest is saved', async () => {
@@ -314,7 +315,7 @@ describe('saving through the outbox', () => {
 
     await accountSaver(withOutbox(outbox, true))(item).catch(() => undefined)
 
-    expect(calls).toContain(`done:${workoutKeyOf(digest)}`)
+    expect(calls).toContain(`done:${workoutKeyOf(digest)}:${digest.id}`)
   })
 
   it('keeps the row when the digest could not be saved, for a reload to finish', async () => {
@@ -334,7 +335,30 @@ describe('saving through the outbox', () => {
 
     await accountSaver(withOutbox(outbox))(item).catch(() => undefined)
 
-    expect(calls).toEqual(['add:run.fit', `done:${workoutKeyOf(digest)}`])
+    expect(calls).toEqual(['add:run.fit', `done:${workoutKeyOf(digest)}:${digest.id}`])
+  })
+
+  it('removes only the row of the digest it sent, so a file added again keeps its own', async () => {
+    const { outbox, calls } = recordingOutbox()
+    await accountSaver(withOutbox(outbox))(item)
+    expect(calls.at(-1)).toBe(`done:${workoutKeyOf(digest)}:${digest.id}`)
+  })
+
+  it('waits for a send of the same workout that is under way, such as the outbox resume’s', async () => {
+    const sending = new SendingKeys()
+    let release: () => void = () => undefined
+    const resuming = sending.run(
+      workoutKeyOf(digest),
+      () => new Promise<void>((r) => (release = r)),
+    )
+    const saved = accountSaver({ ...context(false), sending })(item)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(createActivity).not.toHaveBeenCalled()
+
+    release()
+    await resuming
+    await saved
+    expect(createActivity).toHaveBeenCalledOnce()
   })
 
   it('saves as before where there is no outbox', async () => {

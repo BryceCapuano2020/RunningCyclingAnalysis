@@ -30,6 +30,8 @@ export interface WorkerEventDeps {
   loadDeviceOnce: () => void
   /** Reads the signed-in account's library again, unless an import is running. */
   reloadLibrary: () => void
+  /** Tells the other tabs that this tab changed a library, and takes the account's revision after it as the baseline. */
+  libraryChanged: (scope: 'device' | 'account') => void
 }
 
 /**
@@ -61,6 +63,25 @@ function settleOvertaken(deps: WorkerEventDeps, pending: Pending, message: Reply
 }
 
 /** Shows what a reply reports, and settles the request it answers. */
+/** The library a request changes when it succeeds, for the tabs that must read it again. */
+function changedLibrary(pending: Pending): 'device' | 'account' | null {
+  if (pending.provisional === true) return null
+  switch (pending.kind) {
+    case 'deleteDeviceActivity':
+    case 'keepProvisional':
+      return 'device'
+    case 'clear':
+      return pending.forgetDevice === true ? 'device' : null
+    case 'deleteActivity':
+    case 'rebuildStale':
+      return 'account'
+    case 'addFiles':
+      return pending.saveToDevice === true ? 'device' : 'account'
+    default:
+      return null
+  }
+}
+
 export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pending: Pending): void {
   const { transport, imports, library, handleAccountIssue, refreshBusy } = deps
   // The reply names its request, so it settles that request whatever order replies arrive in.
@@ -105,6 +126,8 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   }
   // A rebuild replaces the session, and with it the files the last import skipped, so its summary goes.
   if (pending?.kind === 'rebuildStale') imports.setImportOutcome(null)
+  const changed = changedLibrary(pending)
+  if (changed !== null) deps.libraryChanged(changed)
   imports.setState(message.state)
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)

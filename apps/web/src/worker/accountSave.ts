@@ -18,6 +18,7 @@ import { retryAfterUploadSlot, SaveStop } from './rateLimitRetry'
 import type { RouteMemory } from './routes'
 import { syncFailureOf } from './syncIssue'
 import type { Outbox } from './outbox'
+import type { SendingKeys } from './sendingKeys'
 
 /** Failures after which a saved row would be tried again for nothing: the server holds another copy, or the account is going. */
 const NEVER_TAKEN: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
@@ -40,6 +41,8 @@ export interface AccountSaveContext {
   onStopped: (code: SyncIssueCode) => void
   /** Where a save is written before it begins, so a reload can finish it (see outbox.ts). Absent: not resumable. */
   outbox?: Outbox
+  /** The workouts being sent, shared with the outbox resume so a file added again is not sent by both at once. */
+  sending?: SendingKeys
 }
 
 /**
@@ -86,7 +89,8 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
 
   const saveOnce = async (item: SyncItem, leading: boolean): Promise<void> => {
     const key = workoutKeyOf(item.digest)
-    const send = () => createActivity(item.digest, item.fileName, item.fileHash, sync.userId)
+    const create = () => createActivity(item.digest, item.fileName, item.fileHash, sync.userId)
+    const send = () => (ctx.sending === undefined ? create() : ctx.sending.run(key, create))
     // The try that follows a rate limit goes round the gate, which the saves waiting out the same limit may hold
     // full; it is one request beyond the gate's limit.
     const { record } = await (leading

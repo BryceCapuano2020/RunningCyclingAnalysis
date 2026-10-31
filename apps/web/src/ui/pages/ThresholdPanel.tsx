@@ -9,6 +9,11 @@ import { THRESHOLD_HEADING, THRESHOLD_MEANING } from '../sports'
 import { floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { thresholdSpan } from '../thresholdRange'
+import {
+  heldBestHeading,
+  thresholdUncheckedLine,
+  thresholdWithheldLine,
+} from '../thresholdWithheld'
 import { unevenNote } from '../unevenNote'
 import { EffortChip } from './EffortChip'
 import { RangeTrack } from './RangeTrack'
@@ -41,10 +46,17 @@ export function ThresholdPanel({
   const hero = fitted ?? floorThreshold(result, sport, massKg, units)
   const span = thresholdSpan(result, sport, massKg, units)
   const floorNote = unevenNote(result, sport)
-  const effortChip = effortChipText(
-    sport,
-    result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
-  )
+  const withheld = thresholdWithheldLine(result, sport)
+  const heldHeading = heldBestHeading(result, sport)
+  const unchecked = fitted === null ? null : thresholdUncheckedLine(result, sport)
+  // The line under a withheld best says what the chip would, so the chip is left out beside it.
+  const effortChip =
+    withheld === null
+      ? effortChipText(
+          sport,
+          result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
+        )
+      : null
   // A held best is a floor, not an estimate, and is not called one.
   const floor = fitted === null && hero !== null
   const at =
@@ -62,15 +74,21 @@ export function ThresholdPanel({
         <h2
           id={`${sport}-threshold`}
           className="eyebrow sport-hero__eyebrow"
-          aria-label={`${THRESHOLD_HEADING[sport]}${floor ? ', at least' : ', estimated'}`}
+          aria-label={
+            heldHeading === null
+              ? `${THRESHOLD_HEADING[sport]}${floor ? ', at least' : ', estimated'}`
+              : `${heldHeading}, recorded`
+          }
         >
-          {THRESHOLD_HEADING[sport]}
+          {heldHeading ?? THRESHOLD_HEADING[sport]}
         </h2>
         {/* The threshold is the period's: Profile's is all time's, and the two should not look like one figure. */}
         <span className="sport-hero__period">{`· ${periodName(rangeDays)}`}</span>
         {hero && (
           <span aria-hidden="true">
-            <BasisChip basis={floor ? 'floor' : 'estimated'} />
+            <BasisChip
+              basis={heldHeading === null ? (floor ? 'floor' : 'estimated') : 'recorded'}
+            />
           </span>
         )}
         {effortChip && <EffortChip chip={effortChip} className="sport-hero__check" />}
@@ -95,6 +113,8 @@ export function ThresholdPanel({
         </div>
       )}
       {hero && floorNote && <p className="muted">{floorNote}</p>}
+      {hero && withheld && <p className="muted">{withheld}</p>}
+      {unchecked && <p className="muted">{unchecked}</p>}
       {fitted && <p className="sport-hero__meaning">{THRESHOLD_MEANING[sport]}</p>}
     </section>
   )

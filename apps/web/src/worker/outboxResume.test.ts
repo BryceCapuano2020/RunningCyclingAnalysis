@@ -1,4 +1,4 @@
-import { digestActivity } from '@rca/core/digest'
+import { digestActivity, serializeDigest } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { ActivityRecord } from '@rca/contract'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +7,7 @@ import { workoutKeyOf } from './device'
 import type { Outbox, OutboxRow } from './outbox'
 import { MAX_ATTEMPTS } from './outbox'
 import { resumeOutbox } from './outboxResume'
+import { SendingKeys } from './sendingKeys'
 import type { WorkerResponse } from './protocol'
 
 vi.mock('../api/client', async (importOriginal) => ({
@@ -22,6 +23,7 @@ function rowFor(digestIndex: number, over: Partial<OutboxRow> = {}): OutboxRow {
     id: `u1|${workoutKeyOf(digest)}`,
     userId: 'u1',
     key: workoutKeyOf(digest),
+    digestId: digest.id,
     seq: digestIndex,
     digestJson: JSON.stringify(digest),
     fileName: `run-${digestIndex}.fit`,
@@ -38,9 +40,17 @@ function memoryOutbox(start: OutboxRow[]) {
   const outbox: Outbox = {
     add: async () => undefined,
     pending: async () => [...rows.values()],
-    done: async (key) => void rows.delete(key),
-    failed: async (key) => {
-      attempts.set(key, (attempts.get(key) ?? 0) + 1)
+    done: async (key, digestId) => {
+      if (digestId === undefined || rows.get(key)?.digestId === digestId) rows.delete(key)
+    },
+    failed: async (key, digestId) => {
+      if (digestId !== undefined && rows.get(key)?.digestId !== digestId) return false
+      const tried = (attempts.get(key) ?? 0) + 1
+      attempts.set(key, tried)
+      if (tried >= MAX_ATTEMPTS) {
+        rows.delete(key)
+        return true
+      }
       return false
     },
     forget: async () => rows.clear(),
@@ -60,7 +70,11 @@ function recordOf(index: number): ActivityRecord {
   }
 }
 
-function setup(rows: OutboxRow[], saved: ActivityRecord[] = []) {
+function setup(
+  rows: OutboxRow[],
+  saved: ActivityRecord[] = [],
+  sending: SendingKeys = new SendingKeys(),
+) {
   const posted: WorkerResponse[] = []
   const { outbox, rows: left, attempts } = memoryOutbox(rows)
   const savedRecords = new Map(saved.map((record) => [record.id, record]))
@@ -68,6 +82,7 @@ function setup(rows: OutboxRow[], saved: ActivityRecord[] = []) {
     userId: 'u1',
     outbox,
     savedRecords,
+    sending,
     post: (message) => posted.push(message),
   })
   return { resume, posted, left, attempts, savedRecords }
@@ -123,14 +138,69 @@ describe('resuming the saves an earlier visit left', () => {
     expect(last(posted)).toMatchObject({ saved: 1, failed: 1, finished: true })
   })
 
-  it('counts a failed try against the row and keeps it for the next load', async () => {
-    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+  it('counts a refusal against the row and keeps it for the next load', async () => {
+    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
     const { resume, posted, left, attempts } = setup([rowFor(0)])
     await resume.finished
     expect(attempts.get(workoutKeyOf(digests[0]!))).toBe(1)
     expect(left.size).toBe(1)
-    expect(last(posted)).toMatchObject({ saved: 0, failed: 1, finished: true })
-    expect(MAX_ATTEMPTS).toBeGreaterThan(1)
+    // Still waiting, not let go: it has a few tries yet.
+    expect(last(posted)).toEqual({
+      type: 'outbox',
+      pending: 1,
+      saved: 0,
+      failed: 0,
+      finished: true,
+    })
+  })
+
+  it('lets a row go once the refusals reach the limit, and says it could not be saved', async () => {
+    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
+    const { resume, posted, left, attempts } = setup([rowFor(0, { attempts: 0 })])
+    attempts.set(workoutKeyOf(digests[0]!), MAX_ATTEMPTS - 1)
+    await resume.finished
+    expect(left.size).toBe(0)
+    expect(last(posted)).toMatchObject({ pending: 0, failed: 1, finished: true })
+  })
+
+  it('does not count a lost connection against the row, however many loads it spans', async () => {
+    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+    for (let load = 0; load < MAX_ATTEMPTS + 2; load++) {
+      const { resume, left, attempts } = setup([rowFor(0)])
+      await resume.finished
+      expect(attempts.size).toBe(0)
+      expect(left.size).toBe(1)
+    }
+  })
+
+  it('does not count a stop against the rows: a limit that holds keeps them as they are', async () => {
+    vi.mocked(createActivity).mockRejectedValue(
+      new ApiRequestError(429, 'rate_limited', 'Slow down', 1),
+    )
+    const { resume, posted, left, attempts } = setup(Array.from({ length: 4 }, (_, i) => rowFor(i)))
+    await resume.finished
+    expect(attempts.size).toBe(0)
+    expect(left.size).toBe(4)
+    expect(last(posted)).toEqual({
+      type: 'outbox',
+      pending: 4,
+      saved: 0,
+      failed: 0,
+      finished: true,
+    })
+  })
+
+  it('does not count a signed-out account or a full library against the rows', async () => {
+    for (const [status, code] of [
+      [401, 'unauthorized'],
+      [403, 'activity_quota'],
+    ] as const) {
+      vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(status, code, 'No'))
+      const { resume, left, attempts } = setup([rowFor(0), rowFor(1)])
+      await resume.finished
+      expect(attempts.size).toBe(0)
+      expect(left.size).toBe(2)
+    }
   })
 
   it('lets a row go that the server will never take', async () => {
@@ -171,5 +241,64 @@ describe('resuming the saves an earlier visit left', () => {
     await resume.finished
     expect(vi.mocked(createActivity).mock.calls.length).toBeLessThanOrEqual(3)
     expect(left.size).toBeGreaterThanOrEqual(3)
+  })
+
+  it('lets a row from an older analysis go without sending it, and counts it as one that could not be saved', async () => {
+    const old = serializeDigest({ ...digests[0]!, modelRevision: 1 })
+    const { resume, posted, left } = setup([rowFor(0, { digestJson: old }), rowFor(1)])
+    await resume.finished
+    expect(createActivity).toHaveBeenCalledTimes(1)
+    expect(left.size).toBe(0)
+    expect(last(posted)).toMatchObject({ saved: 1, failed: 1, finished: true })
+  })
+
+  it('leaves a row a newer version wrote exactly as it is', async () => {
+    const newer = serializeDigest({ ...digests[0]!, modelRevision: 9999 })
+    const { resume, left, attempts } = setup([rowFor(0, { digestJson: newer })])
+    await resume.finished
+    expect(createActivity).not.toHaveBeenCalled()
+    expect(left.size).toBe(1)
+    expect(attempts.size).toBe(0)
+  })
+
+  it('leaves a row to the import that is sending the same workout', async () => {
+    const sending = new SendingKeys()
+    let release: () => void = () => undefined
+    const importing = sending.run(
+      workoutKeyOf(digests[0]!),
+      () => new Promise<void>((resolve) => (release = resolve)),
+    )
+    const { resume, left } = setup([rowFor(0), rowFor(1)], [], sending)
+    await resume.finished
+
+    expect(createActivity).toHaveBeenCalledTimes(1)
+    expect(createActivity).toHaveBeenCalledWith(
+      digests[1],
+      expect.any(String),
+      expect.any(String),
+      'u1',
+    )
+    // Its row is the import's to settle.
+    expect([...left.keys()]).toEqual([workoutKeyOf(digests[0]!)])
+    release()
+    await importing
+  })
+
+  it('removes only the row it sent: a file added again meanwhile keeps its own', async () => {
+    const { outbox, rows } = memoryOutbox([rowFor(0)])
+    vi.mocked(createActivity).mockImplementation(async (digest) => {
+      // The workout's file is added again while the first save is on its way: its row replaces the first.
+      rows.set(workoutKeyOf(digest), rowFor(0, { digestId: 'a-better-copy' }))
+      return { record: recordOf(0), created: true }
+    })
+    const resume = resumeOutbox({
+      userId: 'u1',
+      outbox,
+      savedRecords: new Map(),
+      sending: new SendingKeys(),
+      post: () => undefined,
+    })
+    await resume.finished
+    expect(rows.get(workoutKeyOf(digests[0]!))?.digestId).toBe('a-better-copy')
   })
 })

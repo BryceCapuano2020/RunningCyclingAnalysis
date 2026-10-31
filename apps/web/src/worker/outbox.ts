@@ -12,6 +12,8 @@ export interface OutboxRow {
   id: string
   userId: string
   key: string
+  /** The id of the digest the row holds, so a save settles only the row it sent (a re-added file replaces the row). */
+  digestId: string
   /** The order rows were written in, so a resumed save goes the way the import did. */
   seq: number
   digestJson: string
@@ -33,10 +35,16 @@ export interface OutboxItem {
 export interface Outbox {
   /** Writes the row. Resolves either way: where storage refuses, the save simply is not resumable. */
   add(item: OutboxItem): Promise<void>
-  /** The server has the activity (or will never take it): the row goes. */
-  done(key: string): Promise<void>
-  /** A resumed save failed and may be tried again; the row goes after MAX_ATTEMPTS. Resolves whether it was let go. */
-  failed(key: string): Promise<boolean>
+  /**
+   * The server has the activity (or will never take it): the row goes. With `digestId`, only if the row still holds
+   * that digest, checked in the transaction that removes it, so a row written again meanwhile stays.
+   */
+  done(key: string, digestId?: string): Promise<void>
+  /**
+   * A save was refused and may be tried again; the row goes after MAX_ATTEMPTS. Resolves whether it was let go.
+   * With `digestId`, only the row that holds that digest is counted.
+   */
+  failed(key: string, digestId?: string): Promise<boolean>
   /** The rows waiting, in the order they were written. */
   pending(): Promise<OutboxRow[]>
   /** Every row of this account goes. */
@@ -60,25 +68,52 @@ export async function waitingCount(userId: string): Promise<number> {
   return (await openOutbox(userId).pending()).length
 }
 
+function openDatabase(): Promise<IDBDatabase | null> {
+  return new Promise<IDBDatabase | null>((resolve) => {
+    try {
+      const request = indexedDB.open(DB_NAME, 1)
+      request.onupgradeneeded = () => {
+        const store = request.result.createObjectStore(STORE, { keyPath: 'id' })
+        store.createIndex('userId', 'userId')
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => resolve(null)
+      request.onblocked = () => resolve(null)
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+/**
+ * Removes every waiting save of every account from this browser, for Remove all: it means nothing kept here stays,
+ * and a signed-out visitor has no account on screen to ask about the rows an expired session left. Resolves whether
+ * it did; storage that is missing holds nothing.
+ */
+export async function clearOutbox(): Promise<boolean> {
+  const db = await openDatabase()
+  if (db === null) return true
+  try {
+    return await new Promise<boolean>((resolve) => {
+      const transaction = db.transaction(STORE, 'readwrite')
+      transaction.objectStore(STORE).clear()
+      transaction.oncomplete = () => resolve(true)
+      transaction.onerror = () => resolve(false)
+      transaction.onabort = () => resolve(false)
+    })
+  } catch {
+    return false
+  } finally {
+    db.close()
+  }
+}
+
 /** The outbox of one account in IndexedDB. Never rejects: storage that is missing or refuses holds nothing. */
 export function openOutbox(userId: string): Outbox {
   let opened: Promise<IDBDatabase | null> | null = null
   let counter = Date.now()
   const database = (): Promise<IDBDatabase | null> => {
-    opened ??= new Promise<IDBDatabase | null>((resolve) => {
-      try {
-        const request = indexedDB.open(DB_NAME, 1)
-        request.onupgradeneeded = () => {
-          const store = request.result.createObjectStore(STORE, { keyPath: 'id' })
-          store.createIndex('userId', 'userId')
-        }
-        request.onsuccess = () => resolve(request.result)
-        request.onerror = () => resolve(null)
-        request.onblocked = () => resolve(null)
-      } catch {
-        resolve(null)
-      }
-    })
+    opened ??= openDatabase()
     return opened
   }
   const run = async <T, F>(
@@ -93,6 +128,35 @@ export function openOutbox(userId: string): Outbox {
         const request = work(db.transaction(STORE, mode).objectStore(STORE))
         request.onsuccess = () => resolve(request.result)
         request.onerror = () => resolve(fallback)
+      })
+    } catch {
+      opened = null
+      return fallback
+    }
+  }
+  /** Reads the row and changes it in one transaction, so what is changed is the row that was read. */
+  const update = async <R>(
+    key: string,
+    digestId: string | undefined,
+    change: (store: IDBObjectStore, row: OutboxRow) => R,
+    fallback: R,
+  ): Promise<R> => {
+    const db = await database()
+    if (db === null) return fallback
+    try {
+      return await new Promise<R>((resolve) => {
+        const transaction = db.transaction(STORE, 'readwrite')
+        const store = transaction.objectStore(STORE)
+        let result = fallback
+        const read = store.get(idOf(key)) as IDBRequest<OutboxRow | undefined>
+        read.onsuccess = () => {
+          const row = read.result
+          if (row !== undefined && (digestId === undefined || row.digestId === digestId))
+            result = change(store, row)
+        }
+        transaction.oncomplete = () => resolve(result)
+        transaction.onerror = () => resolve(fallback)
+        transaction.onabort = () => resolve(fallback)
       })
     } catch {
       opened = null
@@ -115,6 +179,7 @@ export function openOutbox(userId: string): Outbox {
         id: idOf(key),
         userId,
         key,
+        digestId: digest.id,
         seq: counter++,
         digestJson: serializeDigest(digest),
         fileName,
@@ -123,27 +188,23 @@ export function openOutbox(userId: string): Outbox {
       }
       await run('readwrite', (store) => store.put(row), undefined)
     },
-    done: async (key) => {
-      await run('readwrite', (store) => store.delete(idOf(key)), undefined)
+    done: async (key, digestId) => {
+      await update(key, digestId, (store, row) => void store.delete(row.id), undefined)
     },
-    failed: async (key) => {
-      const row = await run(
-        'readonly',
-        (store) => store.get(idOf(key)) as IDBRequest<OutboxRow | undefined>,
-        undefined,
-      )
-      if (row === undefined) return false
-      if (row.attempts + 1 >= MAX_ATTEMPTS) {
-        await run('readwrite', (store) => store.delete(row.id), undefined)
-        return true
-      }
-      await run(
-        'readwrite',
-        (store) => store.put({ ...row, attempts: row.attempts + 1 }),
-        undefined,
-      )
-      return false
-    },
+    failed: (key, digestId) =>
+      update(
+        key,
+        digestId,
+        (store, row) => {
+          if (row.attempts + 1 >= MAX_ATTEMPTS) {
+            store.delete(row.id)
+            return true
+          }
+          store.put({ ...row, attempts: row.attempts + 1 })
+          return false
+        },
+        false,
+      ),
     pending: mine,
     forget: async () => {
       for (const row of await mine())

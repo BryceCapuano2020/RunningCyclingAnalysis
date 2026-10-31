@@ -4,7 +4,7 @@ import { digestActivity } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { workoutKeyOf } from './device'
-import { digestOf, MAX_ATTEMPTS, openOutbox, waitingCount } from './outbox'
+import { clearOutbox, digestOf, MAX_ATTEMPTS, openOutbox, waitingCount } from './outbox'
 
 const [firstActivity, secondActivity] = sampleDataset().activities
 const FIRST = digestActivity(firstActivity!)
@@ -60,6 +60,48 @@ describe('the outbox', () => {
     }
     expect(await outbox.failed(workoutKeyOf(FIRST))).toBe(true)
     expect(await outbox.pending()).toEqual([])
+  })
+
+  it('removes only the row that holds the digest asked for', async () => {
+    const outbox = openOutbox('u1')
+    await outbox.add(item(FIRST))
+    const replacement = { ...FIRST, id: `${FIRST.id}-again` }
+    // The file is added again while the first save is on its way: the row now holds the new digest.
+    await outbox.add(item(replacement, 'b'.repeat(64)))
+
+    await outbox.done(workoutKeyOf(FIRST), FIRST.id)
+    expect((await outbox.pending()).map((row) => row.digestId)).toEqual([replacement.id])
+
+    await outbox.done(workoutKeyOf(FIRST), replacement.id)
+    expect(await outbox.pending()).toEqual([])
+  })
+
+  it('counts a failure only against the row that holds the digest asked for', async () => {
+    const outbox = openOutbox('u1')
+    await outbox.add(item(FIRST))
+
+    expect(await outbox.failed(workoutKeyOf(FIRST), 'someone-elses-digest')).toBe(false)
+    expect((await outbox.pending())[0]?.attempts).toBe(0)
+
+    await outbox.failed(workoutKeyOf(FIRST), FIRST.id)
+    expect((await outbox.pending())[0]?.attempts).toBe(1)
+  })
+
+  it('clears every account’s rows for Remove all', async () => {
+    const alice = openOutbox('alice')
+    const bob = openOutbox('bob')
+    await alice.add(item(FIRST))
+    await bob.add(item(SECOND))
+
+    expect(await clearOutbox()).toBe(true)
+
+    expect(await alice.pending()).toEqual([])
+    expect(await bob.pending()).toEqual([])
+  })
+
+  it('has nothing to clear where storage is not offered', async () => {
+    vi.stubGlobal('indexedDB', undefined)
+    await expect(clearOutbox()).resolves.toBe(true)
   })
 
   it('keeps each account’s rows apart, and forgets only the account’s own', async () => {

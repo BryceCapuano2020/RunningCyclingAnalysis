@@ -37,6 +37,14 @@ const backupWorkflow = await readStylesheet(
   import.meta.url,
   '../../../.github/workflows/backup.yml',
 )
+const importActionsSource = await readStylesheet(import.meta.url, './ui/analysis/importActions.ts')
+const deviceSetup = await readStylesheet(import.meta.url, './ui/useSetup.ts')
+const seenNotes = await readStylesheet(import.meta.url, './ui/aboutDataStore.ts')
+const workbenchStore = await readStylesheet(import.meta.url, './worker/workbenchStore.ts')
+const retentionComponent = await readStylesheet(
+  import.meta.url,
+  './ui/components/FileRetention.tsx',
+)
 const accountDeletion = await readStylesheet(import.meta.url, '../../api/src/accountDeletion.ts')
 const budget = await readStylesheet(import.meta.url, '../../api/src/budget.ts')
 const identityBudget = await readStylesheet(import.meta.url, '../../api/src/identityBudget.ts')
@@ -251,6 +259,9 @@ describe('privacy page describes what is stored as the app stores it', () => {
       'Signing out asks first when saves are still waiting, then removes the list',
     )
     expect(text).toContain('When a session ends on its own, the list stays')
+    expect(text).toContain(
+      'Remove all my activities removes every waiting save from this browser too.',
+    )
   })
 
   it('distinguishes compact summaries from local detailed recordings', () => {
@@ -402,8 +413,60 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('and, for a saved activity that cannot be read, its ID')
   })
 
-  it('says the sign-in cookie lasts until the session ends', () => {
-    expect(text).toContain('a sign-in cookie that lasts until your session ends')
+  it('says the sign-in cookie has an expiry date and outlives the browser', () => {
+    expect(sessionSource).toMatch(/expires: new Date\(expiresAt\)/)
+    expect(text).toContain('has an expiry date and stays after you close the browser')
+  })
+
+  it('says what stays on the device after sign-out, deletion and Remove all', () => {
+    expect(deviceSetup).toContain("DEVICE_SETUP_KEY = 'rca.setup.v1'")
+    expect(seenNotes).toContain("STORAGE_KEY = 'rca.aboutDataSeen'")
+    expect(text).toContain('rca.setup.v1')
+    expect(text).toContain(
+      'signing out, deleting your account and Remove all my activities leave it, and the next person using this browser can see it',
+    )
+    expect(text).toContain(
+      'Signing out and Remove all my activities remove it; deleting your account leaves it.',
+    )
+    expect(workbenchStore).toContain('owners.put({ scopeKey: key, deletedAt: Date.now() }')
+    expect(text).toContain('one small record for each account that signed out or was deleted')
+    expect(text).toContain(
+      'The record for a deleted account stays until you clear this site’s data.',
+    )
+    expect(text).toContain(
+      'The record for a sign-out ends the next time that account signs in here.',
+    )
+    expect(workbenchStore).toContain('row.deletedAt === undefined) owners.delete(scopeKey(scope))')
+  })
+
+  // Which of the settings-copy and seen-notes keys each action clears, read from the real code.
+  const clearsSeenNotes = (source: string, handler: string) =>
+    new RegExp(`${handler}[\\s\\S]{0,400}?forgetSeenNotes\\(\\)`).test(source)
+  it.each([
+    ['sign-out', app, 'useSignOutWarning\\(account\\.me\\?\\.user\\.id, \\(\\) => \\{', true],
+    [
+      'Remove all my activities',
+      importActionsSource,
+      'const clear = useCallback\\(\\(\\) => \\{',
+      true,
+    ],
+    ['account deletion', app, 'const deleteAccount = async \\(\\) => \\{', false],
+  ])(
+    '%s: rca.aboutDataSeen cleared is %s, and the settings copy is not',
+    (_a, source, handler, cleared) => {
+      expect(clearsSeenNotes(source, handler)).toBe(cleared)
+      // Nothing removes the settings copy or the setup answer from local storage, whichever the action.
+      expect(source).not.toMatch(/removeItem\(['"]rca\.(preferences|setup)/)
+    },
+  )
+
+  it('says an original holds the full GPS track and every second of heart rate, as the checkbox does', () => {
+    expect(text).toContain(
+      'An original holds your full GPS track, including where you start and finish',
+    )
+    expect(text).toContain('every recorded second of heart rate and power')
+    expect(retentionComponent).toContain('They hold your full GPS track, including')
+    expect(retentionComponent).toContain('every second of heart rate and power')
   })
 
   it('says a backup keeps account and activity IDs in its object keys', () => {
@@ -620,6 +683,9 @@ describe('privacy page says where activity names come from', () => {
     const sentence = sentenceWith('Activity summaries')
     expect(sentence).toContain('name (as in the summary kept in this browser)')
     expect(sentence).not.toMatch(/activity list in a Strava export/)
+    expect(text).toContain(
+      'A name can name a place, and in a Strava export the file name is the number of the activity on Strava.',
+    )
   })
 
   it('names the list and its column as the importer reads them', () => {

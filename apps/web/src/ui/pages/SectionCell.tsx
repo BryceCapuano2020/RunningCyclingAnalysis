@@ -22,7 +22,7 @@ export function SectionCell({
     )
   }
   return (
-    <div id={anchor} className="card sport-panel" data-section={id}>
+    <div id={anchor} className="band sport-panel" data-section={id}>
       {outcome.content}
     </div>
   )
