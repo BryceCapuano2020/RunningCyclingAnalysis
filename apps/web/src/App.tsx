@@ -80,6 +80,7 @@ export function App() {
     athleteValues.birthYear,
     countedRuns.keys,
     keptPower.ids,
+    athleteValues.sex,
   )
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)

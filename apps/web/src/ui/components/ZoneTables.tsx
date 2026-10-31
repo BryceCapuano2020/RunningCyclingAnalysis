@@ -126,7 +126,7 @@ export function ZoneTables({
                   >{`${table.detail}.`}</p>
                   {suspect(set) && (
                     <p className="zone-tables__suspect" role="note">
-                      {`Your ${SPORT_LABEL[set.sport].toLowerCase()} max heart rate of ${Math.round(set.reference)} bpm is well above what a maximum is at your age, so a strap or sensor may be reading too high. Is that right? `}
+                      {`Your ${SPORT_LABEL[set.sport].toLowerCase()} max heart rate of ${Math.round(set.reference)} bpm is well above what a maximum is at your age, so a strap or sensor may be reading too high. Is that right? If not, enter the right one above. `}
                       {onSetMaxHeartRate !== undefined && (
                         <button
                           type="button"

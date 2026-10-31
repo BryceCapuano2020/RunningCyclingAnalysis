@@ -216,7 +216,7 @@ export function timeInZonesLack(sport: Sport, rows: readonly MeasureTime[]): str
   if (withoutZones) {
     return lackLine(
       TIME_IN_ZONES_NAME,
-      'needs a max heart rate or a threshold, entered on Profile or found from your activities.',
+      'needs a max heart rate or a threshold, entered on Profile or, for a threshold, found from your activities.',
     )
   }
   const hours = MIN_ZONE_SECONDS / 3600

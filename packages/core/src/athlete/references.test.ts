@@ -26,6 +26,7 @@ describe('referenceSettingsOf', () => {
     }
     expect(referenceSettingsOf(settings, AT)).toEqual({
       birthYear: 1985,
+      sex: null,
       entered: { run: 182, ride: 176 },
     })
   })
@@ -33,6 +34,7 @@ describe('referenceSettingsOf', () => {
   it('has nothing where none is given, or the instant is not one', () => {
     expect(referenceSettingsOf(BASE, AT)).toEqual({
       birthYear: null,
+      sex: null,
       entered: { run: null, ride: null },
     })
     expect(
@@ -58,6 +60,11 @@ describe('sameAnalysisSettings', () => {
       sameAnalysisSettings(entered, { ...BASE, measurements: [max('run', 186, '2020-01-01')] }),
     ).toBe(false)
     expect(sameAnalysisSettings(BASE, { ...BASE, birthYear: 1985 })).toBe(false)
+    // The sex picks the age-predicted maximum, so giving it re-reads the reference; not giving it is not giving it.
+    expect(sameAnalysisSettings(BASE, { ...BASE, sex: 'female' })).toBe(false)
+    expect(sameAnalysisSettings({ ...BASE, sex: 'male' }, { ...BASE, sex: 'female' })).toBe(false)
+    expect(referenceSettingsOf({ ...BASE, sex: 'female' }, 0).sex).toBe('female')
+    expect(referenceSettingsOf(BASE, 0).sex).toBeNull()
   })
 
   it('does not differ for a threshold, which no analysis reads', () => {

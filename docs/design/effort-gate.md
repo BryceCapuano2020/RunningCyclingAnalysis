@@ -45,8 +45,8 @@ The reference is the athlete's own highest sustained heart rate, so on its own i
 
 The floor tests the sport that supplied the reference (cycling's may be running's), not the derived value. **Floor:** with the year of
 birth, max(130, 208 - 0.7 x age - 30) bpm, three of the roughly 10 bpm spread between people under the predicted maximum; without it, 150.
-**Bands:** predicted maximum 208 - 0.7 x age (Tanaka, Monahan and Seals 2001, J Am Coll Cardiol 37:153, a meta-analysis of 18,712 people);
-low is 30 bpm under it, high 25 over it. A ride is not held for `habitual` alone when the 20 minute effort that was judged is itself a power
+**Bands:** predicted maximum 208 - 0.7 x age (Tanaka, Monahan and Seals 2001, J Am Coll Cardiol 37:153, a meta-analysis of 18,712 people), or for a woman 206 - 0.88 x age (Gulati et al. 2010, Circulation 122:130, 5,437 asymptomatic women); with the sex not given, Tanaka's. At 60 that is 166 for Tanaka and 153 for Gulati, so the floor, the low and high bands, the age-predicted reference of a new library and the habitual slack all follow the sex when it is known.
+Low is 30 bpm under the predicted maximum, high 25 over it. A ride is not held for `habitual` alone when the 20 minute effort that was judged is itself a power
 meter's measurement (not an estimate from speed and grade): the typical-day check asks whether the athlete ever goes hard, and the fit's own
 refusals (a flat curve, a work capacity under the floor) answer that for a measured ride. It is no test of hardness, so `low` and `high` still hold. An entered
 maximum is used as it is for each sport (cycling's is running's less 6 bpm only where no cycling maximum was entered). The year of birth and the entered maxima are part of the cache key (`sameAnalysisSettings`), so entering one
