@@ -48,4 +48,6 @@ export interface SaveBatch {
   inflightByKey: Map<string, Promise<void>>
   /** The save sent to find out whether the network is back, while it is out. The other saves wait on it. */
   probe: { settled: Promise<void>; end: () => void } | null
+  /** The keys of `added` that replaced a digest held out of the analysis, which are upgraded and not new. */
+  upgraded: Set<string>
 }

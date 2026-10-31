@@ -176,6 +176,22 @@ again instead of reading the gap as silence. Single reads (a route, splits, a de
 unread after 30 s (150 s from a kept original), say nothing, and never restart the worker. A request the
 browser cannot copy to the worker fails at once with a message.
 
+**Import record**
+
+Each import is recorded in the page's own database (`rca-import-meta`, the last five per library): the names and
+sizes of the files it was given, how many activity files it read, which zips could not be read to their end,
+and whether it finished. While an import runs, its tab holds a Web Lock named for it, so a page that loads
+later can tell an import still going in another tab from one that was cut off (a browser without locks goes by
+when the record was last written). The record is the only thing that tells the truth after a tab closes or a
+phone discards it, which is why a `beforeunload` guard is only a courtesy on top. An import that was cut off,
+or that read a damaged zip, leaves a notice that the library is only part of what was added, with what to do;
+"Use what I have" takes it away for good, and a later import of the same files finishes it. It goes with
+Remove all, and an account's goes at sign-out and deletion. Storage that refuses it only loses the notice.
+Each event is found by the request it names, a record is rewritten only while the store still holds it (so
+another tab's Remove all is not undone), a running import is written every 10 s whatever it reads, and a
+worker that is replaced or dropped marks its import cut off at once. An earlier cut-off import keeps its notice
+until one that read the same files, or at least as many, finishes; those it made whole are deleted.
+
 **Several tabs**
 
 Tabs of one browser share its storage and the session cookie, and talk over one `BroadcastChannel`
