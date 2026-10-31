@@ -18,10 +18,17 @@ vi.mock('./ui/charts', async () => {
   return heavyChartStubs
 })
 
+// No preloading: a preload (App starts one when someone is signed in) would load a page the other test needs
+// to find unloaded, so the tests would depend on their order.
+vi.mock('./ui/lazyPages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./ui/lazyPages')>()),
+  preloadResultPages: () => undefined,
+}))
+
 /*
  * The one App test file that does not load the pages first (see lazyPages.tsx): the profile, result and
- * method pages load the first time they are shown. Each test reaches a page that has not loaded yet, so the
- * order matters: a page that has loaded renders at once for the rest of the file.
+ * method pages load the first time they are shown. Each test reaches a page that has not loaded yet, so each
+ * test uses a page of its own: a page that has loaded renders at once for the rest of the file.
  */
 
 // A page's first load can be slow on a loaded machine.
