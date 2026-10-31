@@ -25,6 +25,7 @@ describe('syncIssueFor', () => {
       'digest-quota',
     ],
     ['a full database', new ApiRequestError(503, 'database_full', 'Paused'), 'database-full'],
+    ['a read-only service', new ApiRequestError(503, 'read_only', 'Read-only'), 'read-only'],
     [
       'a saved copy from another file',
       new ApiRequestError(409, 'activity_conflict', 'Different file'),

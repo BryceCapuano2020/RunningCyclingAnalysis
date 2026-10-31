@@ -242,6 +242,21 @@ approach the shared allowance; this is a bound on one account, not on the whole 
   started with, so a concurrent upload that completed keeps the size it stored.
 - A repeat of a stored file with the same length returns 200 without reading the body or charging anything.
 
+## Free text in a digest
+
+The digest budget (256 KiB) bounds a digest as a whole, so one string could once take all of it: with 5,000 activities
+an account could spend its 64 MiB on names. The API now refuses a create or replace whose free text is over a byte cap, with
+**413 `text_too_long`**, before anything is stored. The caps count UTF-8 bytes, not characters, and are the contract's
+`MAX_DIGEST_NAME_BYTES` (1,024: a title is at most 255 characters), `MAX_DIGEST_ID_BYTES` and
+`MAX_DIGEST_SESSION_KEY_BYTES` (1,100 each: a start time and a file name of at most 255 characters) and
+`MAX_DIGEST_FLAG_MESSAGE_BYTES` (1,024). No activity the importer makes comes near them.
+
+## Read-only switch
+
+The plain variable `READ_ONLY` ("true", "1" or "on") makes the API answer every write and new sign-in with
+**503 `read_only`**. Reads, the health checks and ending a session still work. The scheduled job and the daily read
+charges keep running. How to use it, and the abuse runbook around it, are in docs/PRODUCTION.md.
+
 ## Other per-user limits
 
 | Limit                       | Value                       | Enforcement                                                                                                                                            |
@@ -444,6 +459,8 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 | 408    | `body_timeout`             | Request body stopped arriving (15-second idle limit, two-minute total limit).                                                      |
 | 409    | `account_conflict`         | Google sign-in: the email is already linked to a different Google account.                                                         |
 | 409    | `files_disabled`           | Original-file upload or download while 'Keep original files' is off.                                                               |
+| 413    | `text_too_long`            | A digest's name, id, session key or a flag message is over its byte cap (see "Free text in a digest").                             |
+| 503    | `read_only`                | The operator's read-only switch is on: writes and new sign-ins are refused (see docs/PRODUCTION.md).                               |
 | 413    | `digest_too_large`         | Activity digest over 256 KiB.                                                                                                      |
 | 429    | `health_probe_limit`       | Deep health probe budget spent. The deep-health route turns this into a 200 `skipped` response, so clients do not normally see it. |
 | 500    | `internal_error`           | Unexpected error. The response carries the request id; the log carries only the id and the exception class.                        |

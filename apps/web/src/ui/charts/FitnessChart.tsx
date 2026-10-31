@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { noonOnLabelDate } from '@rca/core/calendar'
 import type { FitnessPoint, FitnessStatus } from '@rca/core/fitness'
 import type { UnitSystem } from '@rca/core/units'
 import { FITNESS_WORDS } from '../fitnessWords'
@@ -60,10 +61,7 @@ function referenceLabel(status: FitnessStatus): string {
 }
 
 /** Local noon on the UTC date of a moment, so a month is named by the UTC calendar the weeks use. */
-const utcNoon = (ms: number) => {
-  const d = new Date(ms)
-  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12).getTime()
-}
+const utcNoon = noonOnLabelDate
 
 /**
  * What the empty chart says: which of its two needs failed. A line needs two steps four weeks apart, and the
