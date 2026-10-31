@@ -156,14 +156,35 @@ export async function completeSetup(
 }
 
 /**
- * Sends files to the hidden file input, then answers the setup dialog if the first import asks,
- * with the body weight given in pounds (185 lb by default).
+ * Waits for the app to finish what it starts with: the sign-in lookup, then the signed-in library. Until then
+ * files are not imported as they will be: a file chosen while the lookup runs is analysed for this session
+ * only (a duplicate restores nothing), and the page that held the file input while the library loaded is
+ * replaced, so a file sent to its input is lost. That showed as a flaky import that did nothing.
+ */
+export async function appSettled(page: Page): Promise<void> {
+  // The app has rendered, so the two waits below cannot pass before there is anything to wait for.
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(page.getByText('Checking sign-in…')).toBeHidden()
+  await expect(page.getByRole('heading', { name: 'Restoring your results' })).toBeHidden()
+}
+
+/** What `uploadFixtures` waits for before it sends the files. */
+export interface UploadOptions {
+  /** False sends the files without waiting for the app to settle, for a test of an import made meanwhile. */
+  settled?: boolean
+}
+
+/**
+ * Sends files to the hidden file input once the app has settled (see appSettled), then answers the setup
+ * dialog if the first import asks, with the body weight given in pounds (185 lb by default).
  */
 export async function uploadFixtures(
   page: Page,
   names: string[],
   pounds: string = DEFAULT_WEIGHT_TEXT,
+  { settled = true }: UploadOptions = {},
 ): Promise<void> {
+  if (settled) await appSettled(page)
   await page.locator('input[type="file"]').first().setInputFiles(names.map(fixturePath))
   await completeSetup(page, SETUP_DIALOG_WAIT_MS, pounds)
 }
