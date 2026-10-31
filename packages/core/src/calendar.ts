@@ -17,6 +17,9 @@ export const WEEK_MS = 7 * DAY_MS
 /** The day number of a Monday: 5 January 1970, from which weeks count, so they line up for every library. */
 const MONDAY_DAY_NUMBER = 4
 
+/** The same Monday as an instant: weeks count from it. */
+export const WEEK_ORIGIN_MS = MONDAY_DAY_NUMBER * DAY_MS
+
 /** Minutes east of UTC at an instant. */
 export type Zone = (ms: number) => number
 

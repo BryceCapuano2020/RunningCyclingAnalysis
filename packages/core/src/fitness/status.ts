@@ -1,6 +1,6 @@
-import { DAY_MS } from '../constants'
 import { FITNESS } from './params'
-import { dayOfWeekEnd, WEEK_MS, WEEK_ORIGIN_MS, weekEndOf, weekOfMs } from './machine'
+import { WEEK_MS, weekEndInstant } from '../calendar'
+import { dayOfWeekEnd, instantOfDay, localWeekOf, weekEndOf } from './machine'
 import type { MachineState, WeekRecord } from './machine'
 import type { UnitSeries } from './unit'
 import type {
@@ -12,7 +12,7 @@ import type {
   Shortfall,
 } from './types'
 import { levelSeries, pointOf } from './series'
-import { distinctWeeks, levelOf, referenceOf, sigmaAt, slice } from './windows'
+import { distinctWeeks, instantOf, levelOf, referenceOf, sigmaAt, slice } from './windows'
 import type { Dip, RunPoint } from './windows'
 import type { Sport } from '../types'
 
@@ -20,13 +20,12 @@ const D = FITNESS.display
 const M = FITNESS.monitor
 const E = FITNESS.episode
 
-const msOfDay = (day: number) => WEEK_ORIGIN_MS + day * DAY_MS
 const exp = Math.exp
 
 function spanOf(rs: readonly RunPoint[]): FitnessSpan {
   return {
-    fromMs: rs.length === 0 ? 0 : msOfDay(rs[0]!.t),
-    toMs: rs.length === 0 ? 0 : msOfDay(rs.at(-1)!.t),
+    fromMs: rs.length === 0 ? 0 : instantOf(rs[0]!),
+    toMs: rs.length === 0 ? 0 : instantOf(rs.at(-1)!),
     runs: rs.length,
     weeks: new Set(rs.map((r) => Math.floor(r.t / 7))).size,
     ids: rs.map((r) => r.id),
@@ -91,7 +90,7 @@ function shortLevel(
 }
 
 /** Where the level now is drawn: the end of the week it is read at, but never after the newest activity. */
-const nowMs = (base: FitnessStatus, day: number) => Math.min(msOfDay(day) - 1, base.asOfMs)
+const nowMs = (base: FitnessStatus, day: number) => Math.min(instantOfDay(day) - 1, base.asOfMs)
 
 /** The numbers of an episode state, from the latest week the monitor was in that state (or the latest with an episode). */
 function episodic(
@@ -130,9 +129,11 @@ function episodic(
     change: ranged(delta, half),
     gain,
     within: Math.abs(delta) + half,
-    onsetMs: onsetDay === null ? null : msOfDay(onsetDay),
+    onsetMs: onsetDay === null ? null : instantOfDay(onsetDay),
     lowMs:
-      gain === null || trough === null ? null : weekEndOf(trough.w) - (trough.weeks / 2) * WEEK_MS,
+      gain === null || trough === null
+        ? null
+        : weekEndInstant(weekEndOf(trough.w)) - (trough.weeks / 2) * WEEK_MS,
     evidence: {
       ...base.evidence!,
       recent: spanOf(recent),
@@ -230,7 +231,7 @@ export function describe(
 ): FitnessStatus {
   const last = records.at(-1)
   // The status is of the last completed week; the runs of the week still going join it at its end.
-  const day = dayOfWeekEnd(weekOfMs(asOfMs + 1) - 1)
+  const day = dayOfWeekEnd(localWeekOf(asOfMs + 1) - 1)
   const base: FitnessStatus = {
     sport,
     state: 'not-enough-evidence',
@@ -255,7 +256,7 @@ export function describe(
   }
   const newest = runs.at(-1)
   const weeksSince =
-    newest === undefined ? Infinity : Math.floor((asOfMs - msOfDay(newest.t)) / WEEK_MS)
+    newest === undefined ? Infinity : Math.floor((asOfMs - instantOf(newest)) / WEEK_MS)
   // Nothing recent beats every other reason: a runner who stopped is told so, whatever the older runs say.
   if (newest !== undefined && weeksSince >= D.breakWeeks) {
     return lacking(base, { kind: 'break', weeksSince })

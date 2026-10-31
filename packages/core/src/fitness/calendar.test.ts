@@ -1,9 +1,10 @@
 import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
-import { localDayNumber, setViewerZone, withLocalWeeks } from '../calendar'
+import { localDayNumber, setViewerZone, WEEK_MS, WEEK_ORIGIN_MS, withLocalWeeks } from '../calendar'
 import { plantedLibrary } from '../findings/test/plantedLibrary'
 import { AnalysisSession } from '../session'
-import { fitnessStatuses } from './compute'
+import { fitnessStatuses, runPointsOf } from './compute'
+import { localWeekOf, weekOfMs } from './machine'
 
 const NONE: ReadonlySet<string> = new Set()
 const library = plantedLibrary({
@@ -63,5 +64,49 @@ describe('AnalysisSession.setZone', () => {
     } finally {
       session.setZone(() => 0)
     }
+  })
+})
+
+describe('the runs on the clock of days', () => {
+  const at = (hours: number) => WEEK_ORIGIN_MS + 14 * 86_400_000 + hours * 3_600_000
+  // A is Sunday 23:30 UTC in a zone that has already reached Monday; B is Monday 00:30 UTC in one still on Sunday.
+  const a = { id: 'a', startMs: at(-0.5), x: 0, localDayShift: 1 as const }
+  const b = { id: 'b', startMs: at(0.5), x: 0, localDayShift: -1 as const }
+
+  it('are in order of their local day, whatever the order of start, and keep their own start', () => {
+    withLocalWeeks(true, () => {
+      const runs = runPointsOf([a, b])
+      expect(runs.map((r) => r.id)).toEqual(['b', 'a'])
+      expect(runs.map((r) => r.startMs)).toEqual([b.startMs, a.startMs])
+      expect(runs[0]!.t).toBeLessThan(runs[1]!.t)
+    })
+    expect(runPointsOf([a, b]).map((r) => r.id)).toEqual(['a', 'b'])
+  })
+
+  it('give the week an instant is in, in the viewer’s zone', () => {
+    const sundayEnd = WEEK_ORIGIN_MS + 14 * 86_400_000 - 1
+    const before = setViewerZone(() => -7 * 60)
+    try {
+      // With local weeks off the zone is not read: Monday 06:00 UTC is Monday.
+      expect(localWeekOf(sundayEnd + 6 * 3_600_000)).toBe(weekOfMs(sundayEnd) + 1)
+      withLocalWeeks(true, () => {
+        // Monday 06:59 UTC is still Sunday evening at UTC-7; 07:00 is Monday.
+        expect(localWeekOf(sundayEnd + 6 * 3_600_000 + 59 * 60_000)).toBe(weekOfMs(sundayEnd))
+        expect(localWeekOf(sundayEnd + 7 * 3_600_000 + 1)).toBe(weekOfMs(sundayEnd) + 1)
+      })
+    } finally {
+      setViewerZone(before)
+    }
+    expect(WEEK_MS).toBe(7 * 86_400_000)
+  })
+
+  it('are told by their own start, not the day they were put on', () => {
+    const starts = new Set(library.digests.map((d) => d.startMs))
+    withLocalWeeks(true, () => {
+      const status = fitnessStatuses(withShift(1), NONE).run
+      expect(status.evidence?.recent.runs).toBeGreaterThan(0)
+      expect(starts.has(status.evidence!.recent.toMs)).toBe(true)
+      expect(starts.has(status.evidence!.recent.fromMs)).toBe(true)
+    })
   })
 })
