@@ -1,10 +1,13 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CheckInText } from '@rca/core/lookback'
 import type { SeenEvent } from '../../worker/protocol'
 import './CheckInRow.css'
 
 /** A row counts as shown when it has been in view, on a visible page, this long. */
 export const IMPRESSION_MS = 3_000
+
+/** Whether a showing has been counted in this page load: a row that comes and goes with the page it is on counts once. */
+let counted = false
 
 export interface CheckInRowProps {
   words: CheckInText
@@ -20,7 +23,6 @@ export interface CheckInRowProps {
  * until it is hidden, so opening it does not take it away.
  */
 export function CheckInRow({ words, onSeen }: CheckInRowProps) {
-  const id = useId()
   const row = useRef<HTMLElement>(null)
   const [hidden, setHidden] = useState(false)
   const seen = useRef(onSeen)
@@ -31,13 +33,13 @@ export function CheckInRow({ words, onSeen }: CheckInRowProps) {
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
-    let counted = false
     let inView = typeof IntersectionObserver === 'undefined'
     const visible = () => document.visibilityState !== 'hidden'
     const arm = () => {
       if (counted || timer !== null || !inView || !visible()) return
       timer = setTimeout(() => {
         timer = null
+        if (counted) return
         counted = true
         seen.current('impression')
       }, IMPRESSION_MS)
@@ -69,7 +71,7 @@ export function CheckInRow({ words, onSeen }: CheckInRowProps) {
     <section
       ref={row}
       className="checkin-row"
-      aria-labelledby={`${id}-line`}
+      aria-label="Since your last import"
       data-testid="checkin-row"
     >
       <details
@@ -79,10 +81,9 @@ export function CheckInRow({ words, onSeen }: CheckInRowProps) {
         }}
       >
         <summary className="checkin-row__summary">
-          <span id={`${id}-line`} className="checkin-row__line">
-            {words.headline}
-          </span>
-          <span className="checkin-row__toggle">Show what changed</span>
+          <span className="checkin-row__line">{words.headline}</span>
+          {/* The disclosure's mark is drawn in the stylesheet; the summary is already a button with an open state. */}
+          <span className="checkin-row__toggle" aria-hidden="true" />
         </summary>
         <div className="checkin-row__panel">
           <p className="checkin-row__full">{words.headline}</p>

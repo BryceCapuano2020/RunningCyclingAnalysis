@@ -7,33 +7,47 @@
 }
 
 .checkin-row__summary {
+  list-style: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   min-height: 2.75rem;
-  max-height: 3rem;
-  padding: 0 var(--space-4);
+  padding: var(--space-1) var(--space-4);
   color: var(--text-primary);
   font-size: var(--text-sm);
-  line-height: 1.25;
+  line-height: 1.2;
   cursor: pointer;
 }
 
-/* The sentence is cut at the edge of one line; the panel gives it whole. */
+/* The sentence is cut after two lines; the panel gives it whole. */
+.checkin-row__summary::-webkit-details-marker {
+  display: none;
+}
+
 .checkin-row__line {
+  display: -webkit-box;
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
+/* A chevron, so the line keeps the width: the summary is the disclosure and says so to a screen reader. */
 .checkin-row__toggle {
   flex: none;
-  color: var(--text-secondary);
-  font-weight: 600;
-  white-space: nowrap;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: var(--space-1);
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.checkin-row__details[open] .checkin-row__toggle {
+  transform: translateY(2px) rotate(-135deg);
 }
 
 .checkin-row__panel {
