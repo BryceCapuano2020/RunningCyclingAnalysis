@@ -153,6 +153,18 @@ and account deletion forget the account's rows, and Remove all (signed out) forg
 The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the
 import still reports its own failures.
 
+**Adding the kept library to an account**
+
+Activities a signed-out visitor kept in this browser (`rca-device-library`) are offered to the account that
+signs in. The worker tells the page, apart from any request, how many rows can be added (they have the hash of
+their file and the current model revision or one the current model reads beside its own, and the account does not hold the workout), how many need their files
+added again, and how many the account holds. Add writes each adoptable digest to the outbox, newest first, and
+saves it through the same gate as an import, in the tab that holds the account's writer lock. The device epoch is asked again at the moment of each send, so another tab's Remove all during a rate limit's wait sends nothing. A kept row is removed only after the account has the activity, and
+only if it still holds the digest that was saved (`removeIfDigest`, checked in the removing transaction), so a row
+another tab replaced is not lost. A conflict (same second, another file), a failure and a stopped run leave the row
+and are counted. Routes are not copied. Remove from this browser empties the kept library without touching the
+account. Not now is remembered per account and count in local storage.
+
 **Activity workbench**
 
 The import callback extracts a versioned `ActivityTrace` before releasing the raw activity. The
@@ -306,8 +318,13 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    the longer duration. Whether a file is stored never depends on the copies already held (rule R): every
    distinct start second is stored, in any order, and the analysis alone hides all but the best copy of a
    group. What is listed, counted and exported is the shown copy; a full library says how many of its rows
-   are hidden copies. Deleting the shown activity deletes its whole group, or a hidden copy would take its
-   place. A saved activity is tied to the hash of its original file, so replacing it with a different file
+   are hidden copies. An original is kept for the shown copy only: it is held until every file of the import is
+   read, then uploaded if its digest is shown (the sink's `finish`, called with the ids the analysis hides), so a
+   copy that arrives first and is outranked later gets none. The bytes held are bounded (64 MiB); past that the
+   oldest are decided with the copies known so far. A better copy that a later import brings does not replace the
+   old shown copy's file: it stays in R2, orphaned, and counts against the original-file budget until a delete of the
+   group removes it. Deleting the shown activity deletes its whole group, or a
+   hidden copy would take its place. A saved activity is tied to the hash of its original file, so replacing it with a different file
    requires deleting that activity and importing the preferred file again.
 7. **Activity list** (`readActivityList` in `packages/core/src/import/activitiesCsv.ts`, and
    `packages/core/src/import/names.ts`). Before any file in a Strava export zip is parsed, the zip's
@@ -529,9 +546,30 @@ Analysis limits, meaning what the statistics can and cannot show, are in the
 
 ## Client bundle
 
-The app has three main build outputs: the app entry, the analysis Web Worker (which runs `@rca/core`), and the stylesheet. Their sizes change with each build, so read them from the output of `npm run build -w @rca/web` rather than from this page.
+The app has three kinds of build output: the initial load (the app entry, the chunks it preloads and
+the stylesheets), the analysis Web Worker (which runs `@rca/core`), and the page chunks. Their sizes
+change with each build, so read them from the output of `npm run build -w @rca/web` rather than from
+this page.
 
-The analysis runs in the Web Worker, so the worker bundle is the second download on a first visit.
+The landing and restoring pages are in the initial load. The Balance, Run, Ride, Activities, Activity
+and How sure is this? pages (one `ResultPage` chunk, with the method page shared with the empty case)
+and the Profile page load the first time they are shown, while a page that is not ready shows a plain
+loading line after a short wait (`ui/lazyPages.ts`). They start loading when files are being read, a
+kept library is restoring or someone is signed in, in parallel with the analysis, so the usual path
+shows no loading line. Focus and scroll move to a page's heading once the page is on screen.
+
+The analysis runs in the Web Worker. A browser that kept results starts it with the page, so the
+restoring page ends as soon as the library replies. Any other visit starts it when the browser is idle,
+or sooner when files, the sample or a sign-in need it, so the worker's 350 KB stays off the critical
+path and a library whose hint is missing still restores. A page that fails to load (offline, or a
+build that replaced its file) shows "Couldn’t load this page." with a Retry button, and the header and
+tabs stay. The worker is its own bundle, so the app entry and the worker each carry their own copy of zod; the entry
+holds it for the API client.
+
+`npm run check:bundle` (part of `npm run check` and CI) fails when the initial load, the worker or one
+page chunk or stylesheet is over the gzip budgets in `scripts/ops/check-bundle-size.mjs`, which sit about 15% above
+the build they were set from.
+
 The only third-party request the app makes is for a signed-in user's profile picture, from
 `lh3.googleusercontent.com`.
 

@@ -90,6 +90,11 @@ export interface Activity {
   /** True when the file's export tags the activity as a race, such as Strava's Competition column. Absent otherwise. */
   race?: true
   /**
+   * The athlete's own label when it says the activity is not what the file's sport says (Strava's Hike on a FIT
+   * run). Set at import from the export's list, or kept from the saved digest on a rebuild. Absent otherwise.
+   */
+  athleteType?: AthleteType
+  /**
    * The local calendar date at the start minus the UTC date, from the zone the file records. Absent when the
    * file gives none (a UTC time, no activity message). No offset is kept, only this.
    */

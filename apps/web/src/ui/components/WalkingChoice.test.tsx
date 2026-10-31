@@ -42,7 +42,7 @@ describe('WalkingPaceSection', () => {
     render(<Harness />)
     expect(screen.getByText(/left out of your run analysis/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Count this run' }))
-    expect(screen.getByText(/You count it as a run/)).toBeInTheDocument()
+    expect(screen.getByText(/You count it, so it is in your analysis/)).toBeInTheDocument()
   })
 
   it('offers no button where the choice is not given, and shows nothing for an ordinary run', () => {

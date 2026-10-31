@@ -23,6 +23,7 @@ const mainSource = await readStylesheet(import.meta.url, './main.tsx')
 const tokensCss = await readStylesheet(import.meta.url, './styles/tokens.css')
 const icons = await readStylesheet(import.meta.url, './ui/components/icons.tsx')
 const app = await readStylesheet(import.meta.url, './App.tsx')
+const appSignOut = await readStylesheet(import.meta.url, './ui/useAppSignOut.ts')
 const device = await readStylesheet(import.meta.url, './worker/device.ts')
 const deviceLibrary = await readStylesheet(import.meta.url, './worker/deviceLibrary.ts')
 const digestTypes = await readStylesheet(import.meta.url, '../../../packages/core/src/types.ts')
@@ -297,6 +298,9 @@ describe('privacy page describes what is stored as the app stores it', () => {
     )
     expect(text).toContain('When a session ends on its own, the list stays')
     expect(text).toContain('their sign-in removes the list of any other account.')
+    expect(text).toContain('are offered to the account you sign in to')
+    expect(text).toContain('but without its route')
+    expect(text).toContain('Remove from this browser deletes them without changing the account.')
     expect(text).toContain(
       'Remove all my activities removes every waiting save from this browser too.',
     )
@@ -486,7 +490,12 @@ describe('privacy page describes what is stored as the app stores it', () => {
   const clearsSeenNotes = (source: string, handler: string) =>
     new RegExp(`${handler}[\\s\\S]{0,400}?forgetSeenNotes\\(\\)`).test(source)
   it.each([
-    ['sign-out', app, 'useSignOutWarning\\(account\\.me\\?\\.user\\.id, \\(\\) => \\{', true],
+    [
+      'sign-out',
+      appSignOut,
+      'useSignOutWarning\\(account\\.me\\?\\.user\\.id, \\(\\) => \\{',
+      true,
+    ],
     [
       'Remove all my activities',
       importActionsSource,

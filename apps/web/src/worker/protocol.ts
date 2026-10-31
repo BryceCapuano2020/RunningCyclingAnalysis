@@ -86,6 +86,13 @@ export interface ImportOutcome {
    * their file was added again. Absent when none were. Never counts an activity the import added.
    */
   detailRestored?: number
+  /**
+   * Saved activities the import's list labelled (Hike, Walk, a ski or another type), now left out of the analysis. Absent
+   * when none were.
+   */
+  labelled?: number
+  /** Activities whose file says one sport and whose export's list names the other: the file wins. Absent when none. */
+  listedAsOtherSport?: number
 }
 
 /** Whether imported activities are saved to the signed-in account, and whether their files are kept. */
@@ -156,6 +163,13 @@ export type WorkerRequest =
   | { type: 'routeShape'; id: string; userId?: string; fromOriginal?: boolean }
   /** The session ended without a sign-out: the route shapes this tab holds for it are forgotten. */
   | { type: 'forgetRoutes' }
+  /**
+   * Adds the activities kept in this browser from before sign-in to the account, then reads the library again.
+   * Sends `adoption` before its state.
+   */
+  | { type: 'adoptDevice'; userId: string; settings: AthleteSettings }
+  /** Empties the library kept in this browser while the account is on screen, which stays as it is. */
+  | { type: 'forgetDeviceLibrary'; settings: AthleteSettings }
   /** A detail trace for an exact core activity id. Originals are read only on explicit request. */
   | { type: 'activityTrace'; id: string; userId?: string; fromOriginal?: boolean }
 
@@ -185,6 +199,20 @@ export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerRe
 ])
 
 export type WorkerResponse =
+  /**
+   * What a signed-in visit can do with the activities this browser kept before sign-in (see adoption.ts), sent apart
+   * from any request when the account's library has loaded and again when it changes.
+   */
+  | { type: 'deviceOffer'; adoptable: number; again: number; held: number }
+  /** How adding those activities to the account ended. Sent before the state that ends the request. */
+  | {
+      type: 'adoption'
+      saved: number
+      conflicts: number
+      failed: number
+      again: number
+      held: number
+    }
   /**
    * How the saves an earlier visit left in the outbox are going, sent apart from any request. `finished` ends
    * it: `saved` were saved, `failed` could not be and will not be tried again, `pending` were left for another load.
