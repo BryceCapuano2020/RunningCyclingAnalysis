@@ -10,17 +10,19 @@ import { fitnessStatuses } from './compute'
  * What the fitness replay costs on a library of 2,000 activities, about five years of eight a week with
  * about 6 steady runs a week: the first time for a set of digests (reading every run's kilometres once, then the
  * weekly monitor over all the weeks), and again for the same digests, which only compares the list. Locally the
- * first takes about 50 ms with the readings already made and about 85 ms without; the budgets are about
- * four times that, so a pass per week over every run, or a recomputed fit, fails them on a loaded runner.
+ * first takes about 30 ms with the readings already made and about 140 ms without (the season is refitted every 4
+ * weeks, the learned floor reads 18 blocks a week); the budgets are about three times the dearer figure, so a pass
+ * per week over every run, or a recomputed fit, fails them on a loaded runner.
  *
  * The findings engine replays the detector at every weekly mark, each a new set of digests, so the replay of four
  * years (210 marks) is 210 firsts. Each mark reads the kilometres once (kept per digest), fits and replays the monitor
- * with selection medians, about 9 ms; the replay of 210 marks takes about 2 s, and its budget is four times that.
+ * with selection medians, about 30 ms on a loaded machine; the replay of 210 marks takes about 6.5 s (5.8 s before the
+ * season, which a refit every 4 weeks keeps to about 15% more), and its budget is about twice that.
  */
 const ACTIVITIES = 2000
 const FIRST_BUDGET_MS = 400
 const REPEAT_BUDGET_MS = 5
-const REPLAY_BUDGET_MS = 8000
+const REPLAY_BUDGET_MS = 13_000
 const WEEK_MS = 7 * 86_400_000
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
 const NONE: ReadonlySet<string> = new Set()

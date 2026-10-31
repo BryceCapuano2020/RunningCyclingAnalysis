@@ -79,7 +79,7 @@ export function ActivityStats({
     <div className="activity-page__summary">
       <div className="activity-page__hero">
         <p className="eyebrow">{timeLabelOf(activity)}</p>
-        <p className="hero-number">{formatTotalTime(moving)}</p>
+        <p className="display hero-number">{formatTotalTime(moving)}</p>
         {elapsedDiffers && (
           <p className="secondary">{`Elapsed ${formatTotalTime(activity.durationS)}`}</p>
         )}

@@ -1,4 +1,5 @@
-import { MODEL_REVISION } from './digest/modelRevision'
+import { applyCountedRuns } from './countedRuns'
+import { revisionStatus } from './digest/revisions'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import type { ExtractLimits } from './fit'
@@ -10,7 +11,7 @@ import { seasonDigests } from './sessionSample'
 import type { SampleClock } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { dedupeKey, hiddenDigests } from './duplicates'
+import { workoutKey, hiddenDigests } from './duplicates'
 import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
 import { countIssues } from './saveFailure'
@@ -31,7 +32,7 @@ export type { RejectedFile, SessionState } from './sessionState'
 export type { Period, PeriodChoice } from './period'
 export type { RejectCode, Rejection } from './import/result'
 // The device library keeps one copy per workout by the same rule the analysis uses.
-export { copyOfDigest, dedupeKey, outranks } from './duplicates'
+export { copyOfDigest, workoutKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
 
 export type { SyncItem, SyncSink } from './sessionSync'
@@ -136,7 +137,7 @@ export class AnalysisSession {
 
   /** Removes one saved workout after its owner-scoped server deletion succeeds. */
   removeActivity(sport: Sport, startMs: number, settings: AthleteSettings): SessionState {
-    const key = dedupeKey(sport, startMs)
+    const key = workoutKey(sport, startMs)
     this.digests.delete(key)
     clearUnsynced(this.keeping, key)
     this.outdatedKeys.delete(key)
@@ -146,7 +147,7 @@ export class AnalysisSession {
 
   /** Whether a saved workout is held out of the analysis for being made by an older model. */
   hasOutdated(sport: Sport, startMs: number): boolean {
-    return this.outdatedKeys.has(dedupeKey(sport, startMs))
+    return this.outdatedKeys.has(workoutKey(sport, startMs))
   }
 
   /**
@@ -164,13 +165,12 @@ export class AnalysisSession {
     const outdatedKeys = new Set<string>()
     const incompatibleKeys = new Set<string>()
     for (const digest of digests) {
-      const key = dedupeKey(digest.sport, digest.startMs)
-      if (digest.modelRevision !== MODEL_REVISION) {
-        if (digest.modelRevision < MODEL_REVISION) outdatedKeys.add(key)
-        else incompatibleKeys.add(key)
-        continue
-      }
-      this.digests.set(key, digest)
+      const key = workoutKey(digest.sport, digest.startMs)
+      const status = revisionStatus(digest.modelRevision)
+      if (status === 'newer') incompatibleKeys.add(key)
+      // Nothing is compatible while every revision is exclusive; a compatible digest is read in a later change.
+      else if (status !== 'current') outdatedKeys.add(key)
+      else this.digests.set(key, digest)
     }
     for (const key of keepUnsaved ? this.unsynced.keys() : []) {
       const digest = before.get(key)
@@ -249,7 +249,7 @@ export class AnalysisSession {
     this.isSample = false
   }
 
-  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones included. */
+  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones and counted runs. */
   private athleteFor(settings: AthleteSettings): AthleteSettings {
     if (!this.isSample) return settings
     return { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
@@ -257,9 +257,12 @@ export class AnalysisSession {
 
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
+    const athlete = settings === null ? null : this.athleteFor(settings)
+    const { digests, keys } = applyCountedRuns([...this.digests], athlete?.countedRuns)
     return buildState(
       {
-        digests: [...this.digests.values()],
+        digests,
+        countedWalkingRuns: keys,
         choice: this.choice,
         isSample: this.isSample,
         periods: this.periods,
@@ -273,7 +276,7 @@ export class AnalysisSession {
         syncIssues: countIssues(this.unsynced, this.latestUnsynced),
         nowMs: this.isSample ? this.sampleNowMs : this.clock(),
       },
-      settings === null ? null : this.athleteFor(settings),
+      athlete,
     )
   }
 }

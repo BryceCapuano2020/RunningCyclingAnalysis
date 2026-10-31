@@ -12,8 +12,8 @@ import type {
   Shortfall,
 } from './types'
 import { levelSeries, pointOf } from './series'
-import { levelOf, referenceOf, risenAt, sigmaAt, slice } from './windows'
-import type { RunPoint } from './windows'
+import { distinctWeeks, levelOf, referenceOf, risenAt, sigmaAt, slice } from './windows'
+import type { Dip, RunPoint } from './windows'
 import type { Sport } from '../types'
 
 const D = FITNESS.display
@@ -144,6 +144,29 @@ function episodic(
 }
 
 /**
+ * The runs the last weeks are compared with: those 8 to 44 weeks ago, less the weeks of a real dip (an episode that
+ * reached "back"), which are not the level the athlete was at. After an episode that closed at a level of its own,
+ * the weeks since its onset are the earlier level (`settled`: the status is then said as it stands, however wide
+ * its range), unless they are too few to be one.
+ */
+function earlierRuns(
+  runs: readonly RunPoint[],
+  window: { from: number; to: number },
+  records: readonly WeekRecord[],
+  dips: readonly Dip[],
+): { before: RunPoint[]; settled: boolean } {
+  const all = slice(runs, window.from, window.to)
+  let before = all.filter((r) => !dips.some((d) => r.t >= d.fromDay && r.t < d.toDay))
+  const closed = records.findLast(
+    (r) => r.closes !== null && r.dip === null && dayOfWeekEnd(r.w) >= window.from,
+  )
+  if (closed === undefined) return { before, settled: false }
+  const since = before.filter((r) => r.t >= closed.closes! + E.riseOnsetSkipDays)
+  if (since.length >= M.minRefRuns && distinctWeeks(since) >= M.minRefWeeks) before = since
+  return { before, settled: true }
+}
+
+/**
  * No episode open: the last 8 weeks against the reference window. Holding when the level is known to within
  * 6%; improving when it is clearly up; otherwise too uncertain to say.
  */
@@ -154,7 +177,9 @@ function calm(
   records: readonly WeekRecord[],
 ): FitnessStatus {
   const recent = slice(runs, day - D.recentWeeks * 7, day)
-  const before = slice(runs, day - M.refStartWeeks * 7, day - M.refEndWeeks * 7)
+  const window = { from: day - M.refStartWeeks * 7, to: day - M.refEndWeeks * 7 }
+  const dips = records.flatMap((r) => (r.dip === null ? [] : [r.dip]))
+  const { before, settled } = earlierRuns(runs, window, records, dips)
   const sigma = sigmaAt(runs, day)
   const reference = referenceOf(runs, day)
   const a = levelOf(recent, reference?.mu ?? 0, sigma)
@@ -175,7 +200,6 @@ function calm(
   // running, with the range clear of zero. There is no episode and no finding.
   // The earlier level must be free of a dip: while the weeks 8 to 44 ago hold any of an episode that has since
   // closed (or one still open), an athlete back at their old level would read as faster than their dip.
-  const window = { from: day - M.refStartWeeks * 7, to: day - M.refEndWeeks * 7 }
   const dipBehind =
     records.at(-1)?.episode != null ||
     records.some(
@@ -184,9 +208,12 @@ function calm(
   const rising =
     !dipBehind &&
     change.low > 0 &&
-    risenAt(runs, day, sigma) &&
-    risenAt(runs, day - 7, sigmaAt(runs, day - 7))
-  if (!rising && within > D.maxWithin) return lacking(base, { kind: 'imprecise', within })
+    risenAt(runs, day, sigma, dips) &&
+    risenAt(runs, day - 7, sigmaAt(runs, day - 7), dips)
+  // A level an episode has just closed on is said as it stands, however wide its range: it cannot turn "holding below" into "not enough evidence".
+  if (!rising && !settled && within > D.maxWithin) {
+    return lacking(base, { kind: 'imprecise', within })
+  }
   return {
     ...base,
     state: rising ? 'improving' : 'holding',

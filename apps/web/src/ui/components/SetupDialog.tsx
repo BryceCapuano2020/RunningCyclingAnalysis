@@ -12,7 +12,7 @@ import {
 } from '../athlete'
 import { focusPageHeading } from '../pages/pageHeading'
 import type { AthleteValues, ProfilePatch } from '../profilePatch'
-import { isTypicalBodyKg, unusualWeightSentence } from '../typicalWeight'
+import { isTypicalBodyKg, weightQuestion } from '../typicalWeight'
 import { AthleteFields } from './AthleteFields'
 import { NumberField } from './NumberField'
 import { SegmentedControl } from './SegmentedControl'
@@ -44,8 +44,8 @@ interface Reading {
   /** The changed answers that are valid, so Skip can keep them. */
   patch: ProfilePatch
   errors: FieldErrors
-  /** A changed weight outside the typical range that has not been confirmed yet. */
-  unusualKg: number | null
+  /** A changed weight that has been questioned and not confirmed yet, with what to ask about it. */
+  questioned: { kg: number; sentence: string } | null
 }
 
 /**
@@ -90,9 +90,11 @@ export function SetupDialog({
   // can arrive while the questions are open, since the account may answer after they have opened.
   const touched = useRef({ units: false, weight: false, year: false, sex: false })
   useEffect(() => {
-    // The saved weight is shown in the units the visitor is looking at, which they may have changed.
-    const shownUnits = touched.current.units ? units : initial.units
-    if (!touched.current.units) setUnits(initial.units)
+    // The units follow the saved ones only until the visitor has typed a weight or chosen units: digits
+    // typed in one unit must never be read in another because the account answered late.
+    const unitsFollow = !touched.current.units && !touched.current.weight
+    const shownUnits = unitsFollow ? initial.units : units
+    if (unitsFollow) setUnits(initial.units)
     if (!touched.current.weight) {
       setValidKg(savedKg)
       setWeightText(displayWeight(savedKg, shownUnits))
@@ -147,12 +149,16 @@ export function SetupDialog({
   function readAnswers(confirmed: number | null): Reading {
     const patch: ProfilePatch = {}
     const found: FieldErrors = {}
-    let unusualKg: number | null = null
+    let questioned: Reading['questioned'] = null
     const entry = readWeightEntry(weightText, validKg, units)
     if ('error' in entry) found.weight = entry.error
     else if (entry.kg !== null && entry.kg !== savedKg) {
-      if (isTypicalBodyKg(entry.kg) || entry.kg === confirmed) patch.settings = { massKg: entry.kg }
-      else unusualKg = entry.kg
+      // A weight far from the saved one is questioned too: the range alone takes pounds typed as kilograms.
+      const reference = savedKg === null ? null : { kg: savedKg, label: 'your saved weight' }
+      const sentence =
+        entry.kg === confirmed ? null : weightQuestion(entry.kg, weightText, units, reference)
+      if (sentence === null) patch.settings = { massKg: entry.kg }
+      else questioned = { kg: entry.kg, sentence }
     }
     if (yearText !== displayBirthYear(initial.birthYear)) {
       const read = readBirthYear(yearText)
@@ -161,23 +167,23 @@ export function SetupDialog({
     }
     if (sex !== initial.sex) patch.sex = sex
     if (units !== initial.units) patch.units = units
-    return { patch, errors: found, unusualKg }
+    return { patch, errors: found, questioned }
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (saving) return
-    const { patch, errors: found, unusualKg } = readAnswers(confirmKg)
+    const { patch, errors: found, questioned } = readAnswers(confirmKg)
     if (found.weight !== undefined || found.year !== undefined) {
       setErrors(found)
       if (found.weight !== undefined) weightRef.current?.focus()
       else yearRef.current?.focus()
       return
     }
-    if (unusualKg !== null) {
-      setConfirmKg(unusualKg)
+    if (questioned !== null) {
+      setConfirmKg(questioned.kg)
       setErrors({
-        weight: `${unusualWeightSentence(unusualKg, weightText, units)} Check the units, or press Analyse my files again to keep it.`,
+        weight: `${questioned.sentence} Check the units, or press Analyse my files again to keep it.`,
       })
       weightRef.current?.focus()
       return

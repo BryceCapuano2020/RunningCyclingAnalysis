@@ -3,6 +3,7 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { SportIcon } from '../components/icons'
 import { SPORT_LABEL } from '../sports'
+import { seasonSwing } from '../fitnessModel'
 import type { FitnessProgress, FitnessView } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
 import { withDefinitions } from '../fitnessText'
@@ -51,6 +52,7 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
   const [mounted, setMounted] = useState(false)
   const { status } = view
   const waiting = view.state === 'not-enough-evidence'
+  const seasonal = waiting ? null : seasonSwing(status)
   const evidenceOf = view.status.evidence !== null && view.status.series.length > 1
   return (
     <article
@@ -80,13 +82,18 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
       <div className="fitness-card__body">
         <div className="fitness-card__text">
           {/* Not a heading: the page's own title comes first, and the card is named by its state. */}
-          <p id={`${id}-state`} className="fitness-card__state">
+          <p id={`${id}-state`} className="display fitness-card__state">
             <FitnessGlyph glyph={view.glyph} />
             <span>{view.label}</span>
           </p>
           <p className="fitness-card__headline">{withDefinitions(view.headline, status, units)}</p>
           {view.support === '' ? null : (
             <p className="fitness-card__support">{withDefinitions(view.support, status, units)}</p>
+          )}
+          {seasonal === null ? null : (
+            <p className="fitness-card__support" data-testid="fitness-season">
+              {`Allowing for your usual seasonal swing, ${seasonal}.`}
+            </p>
           )}
         </div>
         <div className="fitness-card__shape">

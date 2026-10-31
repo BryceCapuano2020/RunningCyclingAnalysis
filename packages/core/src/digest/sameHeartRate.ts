@@ -3,7 +3,7 @@ import { possibleRunWkg } from '../curves'
 import { mulberry32, quantile } from '../math'
 import { metabolicToFlatSpeed } from '../metabolic'
 import type { ActivityDigest, DigestHrBlock, Sport } from '../types'
-import { orderedCurrent } from './combine'
+import { orderedFor } from './consumers'
 import { outputAtHeartRate } from './theilSen'
 import type { FitBlocks } from './theilSen'
 import { NO_SAME_HEART_RATE } from './sameHeartRateTypes'
@@ -215,8 +215,8 @@ export function sameHeartRate(
   setAside: ReadonlySet<string>,
   opts: { fromMs?: number; library?: ActivityDigest[] },
 ): SameHeartRateBySport {
-  const ordered = orderedCurrent(digests)
-  const library = opts.library === undefined ? ordered : orderedCurrent(opts.library)
+  const ordered = orderedFor('sameHeartRate', digests)
+  const library = opts.library === undefined ? ordered : orderedFor('sameHeartRate', opts.library)
   return {
     run: forSport(ordered, library, 'run', setAside, opts.fromMs),
     ride: forSport(ordered, library, 'ride', setAside, opts.fromMs),

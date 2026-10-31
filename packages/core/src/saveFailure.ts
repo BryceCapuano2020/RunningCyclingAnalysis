@@ -13,6 +13,7 @@ export type SyncIssueCode =
   | 'digest-quota'
   | 'database-full'
   | 'activity-conflict'
+  | 'originals-off'
   | 'network'
   | 'server'
 

@@ -104,8 +104,8 @@ const ANALYSIS_FIGURES = [
 ]
 
 describe('privacy page date', () => {
-  it('is dated 28 October 2026', () => {
-    expect(page).toContain('<p class="updated">Last updated 28 October 2026</p>')
+  it('is dated 30 October 2026', () => {
+    expect(page).toContain('<p class="updated">Last updated 30 October 2026</p>')
   })
 })
 
@@ -194,6 +194,21 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('It holds no activity data.')
   })
 
+  it('names the flags and choices this browser keeps beyond the summaries, as the app stores them', async () => {
+    const keptLibrary = await readStylesheet(import.meta.url, './ui/analysis/keptLibrary.ts')
+    const countedRuns = await readStylesheet(import.meta.url, './ui/countedRunsStore.ts')
+    expect(text).toContain('rca.deviceKept.v1')
+    expect(keptLibrary).toContain("DEVICE_KEY = 'rca.deviceKept.v1'")
+    expect(text).toContain('rca.persistNote.v1')
+    expect(keptLibrary).toContain("PERSIST_NOTE_KEY = 'rca.persistNote.v1'")
+    expect(text).toContain('Signing out and deleting your account clear it')
+    expect(text).toContain('Remove all my activities, which is offered only when signed out')
+    expect(text).toContain('rca.countedRuns.v1')
+    expect(countedRuns).toContain("COUNTED_RUNS_KEY = 'rca.countedRuns.v1'")
+    expect(text).toContain('It is never uploaded, signed in or not')
+    expect(text).toContain("asks the browser to keep this site's storage")
+  })
+
   it('says signed-in visitors do not see the summaries kept in this browser', () => {
     expect(text).toMatch(/signed in[^.]*not shown|not shown[^.]*signed in/i)
   })
@@ -245,9 +260,12 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('reports a local cleanup failure separately')
   })
 
-  it('says a summary keeps a SHA-256 hash of its file only when the file yields several summaries', () => {
+  it('says a summary keeps a SHA-256 hash of its file when the file yields several summaries, and from now on for every summary kept here', () => {
     expect(text).toContain(
       'When one file yields several summaries, including a split activity, each keeps a SHA-256 hash of that file, so they are shown together.',
+    )
+    expect(text).toContain(
+      'Summaries kept from now on also keep the file name and a SHA-256 hash of the file, for adding them to an account later.',
     )
     expect(importPipeline).toContain('(multi || parts > 1) && context.sessionKey !== undefined')
   })
@@ -326,11 +344,29 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('The network address is used only as a rate-limit key.')
   })
 
-  it('names the pending-deletion row in the production notes until a deletion completes', () => {
+  it('names the pending-deletion row and the tombstone in the production notes', () => {
     const notes = productionNotes.replace(/\s+/g, ' ')
-    expect(notes).toContain(
-      'keeps no record of deleted accounts once a deletion completes. Until then, a pending_account_deletions row names the account.',
+    expect(notes).toContain('A complete deletion log.')
+    expect(notes).toContain('account_tombstones')
+    expect(notes).toContain('keeps it 100 days')
+  })
+
+  it('says a deleted account leaves only a random ID and a time for 100 days, as the code writes it', () => {
+    expect(apiSchema).toMatch(/sqliteTable\(\s*'account_tombstones'/)
+    expect(apiSchema).toMatch(
+      /userId: text\('user_id'\)\.primaryKey\(\)\.notNull\(\),\s*deletedAt: integer\('deleted_at'\)\.notNull\(\),\s*\},/,
     )
+    expect(accountDeletion).toContain('TOMBSTONE_RETENTION_DAYS = 100')
+    expect(accountDeletion).toContain(
+      'INSERT OR IGNORE INTO account_tombstones (user_id, deleted_at)',
+    )
+    expect(text).toContain('a random account ID and the time are kept for 100 days')
+    expect(text).toContain('It holds no name, email, Google ID or activity.')
+  })
+
+  it('discloses the Time Travel history: 7 days on Free, 30 on Paid', () => {
+    expect(text).toContain('point-in-time history of the database, between 7 and 30 days')
+    expect(text).toContain('Data you delete can stay in that history until it expires.')
   })
 
   it('says what is counted each day, and that the counts are kept seven days', () => {
@@ -426,10 +462,10 @@ describe('privacy page states the limits the code sets', () => {
 })
 
 describe('the code behind the page', () => {
-  it('stores the digest and its route outline on this device, with no file hash or coordinates', () => {
-    expect(device).toContain('async save({ digest, route })')
+  it('stores the digest, its route outline and its file’s name and hash on this device, with no coordinates', () => {
+    expect(device).toContain('async save({ digest, route, fileName, fileHash })')
     expect(deviceLibrary).toContain(
-      'store.put({ digest: serializeDigest(digest), route }, workoutKey)',
+      'store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey)',
     )
     expect(digestTypes).toContain('export interface ActivityDigest {')
     const digest = /export interface ActivityDigest \{[\s\S]*?\n\}/.exec(digestTypes)?.[0] ?? ''

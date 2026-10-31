@@ -4,7 +4,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { displayWeight, readWeight, weightKg, weightUnit } from '../athlete'
 import { ExplainedError } from '../profilePatch'
 import type { WeightField, WeightSettings } from '../athlete'
-import { isTypicalBodyKg, unusualKgText, unusualWeightSentence } from '../typicalWeight'
+import { questionedKgText, weightQuestion } from '../typicalWeight'
 import { NumberField } from './NumberField'
 import './SettingsBar.css'
 import { WEIGHT_PURPOSE } from '../weightCopy'
@@ -109,12 +109,20 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
       setError({ field, message: read.error })
       return
     }
-    // Leaving the field does not save a body weight outside the typical range: it asks first.
-    if (field === 'body' && !isTypicalBodyKg(read.kg)) {
-      setError({
-        field,
-        message: `${unusualWeightSentence(read.kg, text, units)} Check the units, or save it as typed.`,
-      })
+    // Leaving the field does not save a body weight that is questioned: outside the typical range, or far
+    // from the saved one. It asks first.
+    const saved = settings.massKg
+    const question =
+      field === 'body'
+        ? weightQuestion(
+            read.kg,
+            text,
+            units,
+            saved === null ? null : { kg: saved, label: 'your saved weight' },
+          )
+        : null
+    if (question !== null) {
+      setError({ field, message: `${question} Check the units, or save it as typed.` })
       setUnusual(read.kg)
       return
     }
@@ -174,7 +182,7 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
                   className="btn"
                   onClick={() => void saveChange('body', unusual, draft?.text)}
                 >
-                  Save {unusualKgText(unusual)} kg
+                  Save {questionedKgText(unusual)} kg
                 </button>
               )}
             </div>

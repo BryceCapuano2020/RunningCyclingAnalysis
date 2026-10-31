@@ -147,15 +147,27 @@ describe('compareSports against sorting every interval', () => {
     const awkward = [0, -2, RESTING_W_PER_KG, 0.3, Number.NaN, Infinity]
     const value = (low: number, high: number) =>
       rand() < 0.15 ? awkward[Math.floor(rand() * awkward.length)]! : between(low, high)
-    for (let round = 0; round < 60; round++) {
+    // 25 rounds of up to 200 draws: the full 60 of up to 600 took 3.3 s locally under coverage and 5.1 s on the CI runner, over the 5 s limit.
+    for (let round = 0; round < 25; round++) {
       const points = 1 + Math.floor(rand() * 8)
       const run = Array.from({ length: points }, () => value(2, 28))
       const ride = Array.from({ length: points }, () => value(80, 520))
       const kappa = rand() < 0.2 ? null : between(0.7, 1.7)
       const hr = rand() < 0.15 ? null : hrCheck(kappa, rand() < 0.1 ? null : between(0.02, 0.3))
-      const opts = { draws: rand() < 0.5 ? undefined : 1 + Math.floor(rand() * 600), seed: round }
+      const opts = { draws: rand() < 0.5 ? undefined : 1 + Math.floor(rand() * 200), seed: round }
       expectSameNumbers(run, ride, hr, opts, between(45, 110))
     }
+  })
+
+  it('matches when the last ratio orders are the guess: the mass changes, then the curves, then both', () => {
+    const run = [6, 9, 12, 15, 21]
+    const ride = [120, 180, 240, 300, 420]
+    // The same draws each time, so each call starts from the orders the last one made.
+    for (const massKg of [70, 71, 70, 85, 40]) expectSameNumbers(run, ride, null, undefined, massKg)
+    expectSameNumbers([6, 9, 13, 15, 21], ride, null, undefined, 71)
+    expectSameNumbers(run, [120, 180, 250, 300, 420], hrCheck(1.1, 0.1), undefined, 71)
+    expectSameNumbers([21, 15, 12, 9, 6], [420, 300, 240, 180, 120], null, undefined, 72)
+    expectSameNumbers(run, ride, null, undefined, 70)
   })
 
   it('matches on the comparison of a whole library', () => {

@@ -1,5 +1,5 @@
 import type { ActivityRecord } from '@rca/contract'
-import { MODEL_REVISION } from '@rca/core/digest'
+import { revisionStatus } from '@rca/core/digest/revisions'
 import type { AnalysisSession } from '@rca/core/session'
 
 /**
@@ -16,7 +16,7 @@ export function outdatedWithOriginal(
   for (const record of savedRecords.values()) {
     const { digest } = record
     if (
-      digest.modelRevision < MODEL_REVISION &&
+      revisionStatus(digest.modelRevision) === 'stale' &&
       record.hasFile &&
       !unmatchedOriginals.has(record.id) &&
       session.hasOutdated(digest.sport, digest.startMs)

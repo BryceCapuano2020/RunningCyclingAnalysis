@@ -38,6 +38,23 @@ describe('betweenClause', () => {
   })
 })
 
+describe('sportEmptyText for runs left out at walking pace', () => {
+  it('says how many are left out and that they can be counted, never that the files have none', () => {
+    expect(sportEmptyText('run', SIX_WEEKS, 0, undefined, 22)).toBe(
+      '22 runs are at walking pace, so they are left out. Count them as runs to include them.',
+    )
+    expect(sportEmptyText('run', SIX_WEEKS, 0, 'ride', 1)).toBe(
+      '1 run is at walking pace, so it is left out. Count it as a run to include it.',
+    )
+  })
+
+  it('keeps the count in All time when some runs are analysed outside the period', () => {
+    expect(sportEmptyText('run', SIX_WEEKS, 4, undefined, 22)).toBe(
+      'No runs between 12 May and 3 Aug 2025. You have 4 runs in All time.',
+    )
+  })
+})
+
 describe('sportEmptyText', () => {
   it('names the period and the count in All time, when the sport is in the library', () => {
     expect(sportEmptyText('ride', SIX_WEEKS, 14)).toBe(

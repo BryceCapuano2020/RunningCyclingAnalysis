@@ -29,9 +29,9 @@
   grid-template-areas: 'brand actions';
 }
 
-/* Keeps a control that the browser scrolls to clear of the header, and of the tab bar on a phone. */
+/* Keeps a control that the browser scrolls to clear of the header, of any bar stuck under it, and of the tab bar on a phone. */
 html {
-  scroll-padding-top: var(--header-height);
+  scroll-padding-top: calc(var(--header-height) + var(--sticky-extra));
 }
 
 .header__brand {

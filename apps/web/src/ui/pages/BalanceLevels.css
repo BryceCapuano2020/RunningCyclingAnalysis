@@ -57,7 +57,7 @@
   min-width: 3rem;
   font-family: var(--font-display);
   /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.5rem;
+  font-size: var(--title);
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   line-height: 1;
@@ -71,6 +71,8 @@
 
 .balance-levels__level .definition__term {
   text-align: start;
+  /* The level column is the row's squeezed track: at a large text size a long level word breaks rather than widen the page. */
+  overflow-wrap: anywhere;
 }
 
 .balance-levels__missing {

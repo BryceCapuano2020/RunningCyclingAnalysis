@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { workoutKey } from '@rca/core/duplicates'
 import {
   ActivityCreateSchema,
   DATABASE_SOFT_LIMIT_BYTES,
@@ -19,12 +20,12 @@ import { activities } from '../../db/schema.ts'
 import { must } from '../../util.ts'
 import {
   ACTIVITY_COLUMNS,
-  dedupeKeyFor,
   findOwnedActivity,
   toRecord,
   toRecordHolding,
   type ActivityRow,
 } from './shared.ts'
+import { requireCurrentRevision } from './revisionCheck.ts'
 import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
@@ -71,7 +72,7 @@ function createInput(data: z.infer<typeof ActivityCreateSchema>): CreateInput {
     ...data,
     digestJson,
     digestBytes,
-    dedupeKey: dedupeKeyFor(data.digest.sport, data.digest.startMs),
+    dedupeKey: workoutKey(data.digest.sport, data.digest.startMs),
   }
 }
 
@@ -321,7 +322,9 @@ createRoutes.post(
     const userId = currentUser(c).id
     const { replace } = c.req.valid('query')
 
-    const parsed = ActivityCreateSchema.safeParse(await readJsonBody(c.req.raw))
+    const body = await readJsonBody(c.req.raw)
+    requireCurrentRevision(body)
+    const parsed = ActivityCreateSchema.safeParse(body)
     if (!parsed.success) return c.json(invalidRequest(parsed.error), 400)
     const input = createInput(parsed.data)
 

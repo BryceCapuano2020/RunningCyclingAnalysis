@@ -19,6 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:shuffle": "vitest run --sequence.shuffle --sequence.seed=11 && vitest run --sequence.shuffle --sequence.seed=22",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:perf": "npm run test:perf -w @rca/core && npm run test:perf -w @rca/web",

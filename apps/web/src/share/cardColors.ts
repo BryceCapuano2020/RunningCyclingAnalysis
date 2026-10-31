@@ -12,7 +12,7 @@ export const CARD_COLORS = {
   secondary: '#b6bcc6',
   muted: '#8d95a2',
   brand: '#c8f03c',
-  run: '#f0435f',
+  run: '#f56333',
   ride: '#4d6ef5',
   neutralMark: '#b6bcc6',
 } as const

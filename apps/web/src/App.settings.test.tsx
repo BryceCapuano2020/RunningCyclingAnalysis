@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { localDateOf } from '@rca/core/athlete'
 import type { Measurement } from '@rca/core/athlete'
 import { App } from './App'
 import { preloadAllPages } from './ui/lazyPages'
+import { AUTO_RETRY_MS } from './ui/useMeasurements'
 import {
   app,
   measurementsApi,
@@ -228,13 +229,22 @@ describe('dated settings on Profile, signed in', () => {
   })
 
   describe('when the dated settings do not load', () => {
-    const LONG = { timeout: 5000 }
+    // The first failure waits AUTO_RETRY_MS before its one automatic retry. The clock keeps time on its own and is
+    // moved past that wait, so no test sits through it.
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+    const setup = () => userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) })
+    const waitOutRetry = () => act(() => vi.advanceTimersByTimeAsync(AUTO_RETRY_MS))
 
     async function renderFailed() {
       measurementsApi.listMeasurements.mockRejectedValue(new Error('offline'))
       render(<App />)
-      // One automatic try follows the first, after a short wait, before it is reported.
-      await screen.findByRole('button', { name: 'Try again' }, LONG)
+      await waitOutRetry()
+      await screen.findByRole('button', { name: 'Try again' })
     }
 
     it('tries once more by itself before it says so', async () => {
@@ -242,15 +252,16 @@ describe('dated settings on Profile, signed in', () => {
         .mockRejectedValueOnce(new Error('offline'))
         .mockResolvedValue([OLD_MASS])
       render(<App />)
-      expect(
-        await screen.findByRole('table', { name: 'Your dated settings' }, LONG),
-      ).toBeInTheDocument()
+      expect(screen.queryByRole('table', { name: 'Your dated settings' })).not.toBeInTheDocument()
+      expect(measurementsApi.listMeasurements).toHaveBeenCalledTimes(1)
+      await waitOutRetry()
+      expect(await screen.findByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
       expect(measurementsApi.listMeasurements).toHaveBeenCalledTimes(2)
       expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     })
 
     it('does not save a weight or let the data be downloaded, and says how to go on', async () => {
-      const user = userEvent.setup()
+      const user = setup()
       await renderFailed()
       const body = screen.getByLabelText('Body weight')
       await user.clear(body)
@@ -263,7 +274,7 @@ describe('dated settings on Profile, signed in', () => {
     })
 
     it('loads them again on Try again, and then a weight saves and the data downloads', async () => {
-      const user = userEvent.setup()
+      const user = setup()
       await renderFailed()
       measurementsApi.listMeasurements.mockResolvedValue([OLD_MASS])
       await user.click(screen.getByRole('button', { name: 'Try again' }))

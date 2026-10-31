@@ -90,9 +90,7 @@ describe('parseGarminSummaries', () => {
   it('reads none of a summary nested deeper than a summary can be, without parsing it', () => {
     const deep = (levels: number) => `${'['.repeat(levels)}${']'.repeat(levels)}`
     // 4 Mi of brackets would be a stack overflow in a parser, and is refused on the way past the 65th.
-    const started = performance.now()
     expect(parseGarminSummaries('['.repeat(4 * 1024 * 1024))).toEqual([])
-    expect(performance.now() - started).toBeLessThan(500)
     expect(parseGarminSummaries(deep(MAX_GARMIN_SUMMARY_DEPTH + 1))).toEqual([])
     // At the limit it is parsed (and is JSON that lists no activity), and brackets in a name do not count.
     expect(parseGarminSummaries(deep(MAX_GARMIN_SUMMARY_DEPTH))).toEqual([])

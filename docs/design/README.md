@@ -11,6 +11,8 @@ Decisions section. Status is one of designed, in progress or built.
   built (release 96043823); stage D adds episode closing, a seasonal term and ride fitness.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
+- [heldout-log.md](heldout-log.md): the synthetic generator's tuning and held-out configurations, and the log
+  that a held-out re-pin must add a row to. Status: built (stage D, D10).
 - [architecture-1.md](architecture-1.md): a local originals store, an analysis-module registry and a
   unified local storage layer. Status: designed, deferred until findings need it.
 

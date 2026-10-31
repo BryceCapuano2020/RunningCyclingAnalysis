@@ -89,6 +89,19 @@ test('a skipped deep health check warns and neither opens nor closes the outage 
   )
 })
 
+test('a skipped deep health check opens one monitoring-gap issue, and a deep check that runs closes it', async () => {
+  const uptime = await workflow('uptime')
+  assert.match(
+    uptime,
+    /name: Open a monitoring-gap issue while the deep check is skipped\n {8}if: steps\.probe\.outputs\.deep == 'skipped'/,
+  )
+  assert.match(
+    uptime,
+    /name: Close monitoring-gap issues once the deep check runs again\n {8}if: steps\.probe\.outputs\.deep == 'ok'/,
+  )
+  assert.match(uptime, /gh issue list --label monitoring-gap --state open/)
+})
+
 const jobBlocks = (source) => {
   const lines = source.split('\n')
   const blocks = new Map()
@@ -170,6 +183,28 @@ test('statistical simulations run in their own job, without coverage, and never 
     /npm run test:sim/,
     'check runs the simulations the unit run skips',
   )
+})
+
+test('the unit tests also run in a shuffled order with fixed seeds, in their own job beside the shards', async () => {
+  const blocks = jobBlocks(await workflow('ci'))
+  const order = blocks.get('order').join('\n')
+  assert.match(order, /^ {4}name: Unit tests in shuffled order$/m)
+  assert.match(order, /^ {4}needs: changes$/m, 'skipped on a documentation-only pull request')
+  assert.match(
+    order,
+    /^ {4}if: \$\{\{ !cancelled\(\) && needs\.changes\.outputs\.code != 'false' \}\}$/m,
+  )
+  assert.match(order, /^ {6}- run: npm run test:shuffle$/m)
+  for (const sharded of ['static', 'unit']) {
+    assert.doesNotMatch(blocks.get(sharded).join('\n'), /test:shuffle|sequence\.shuffle/, sharded)
+  }
+  const verify = blocks.get('verify').join('\n')
+  assert.doesNotMatch(verify, /\border\b/, 'the shuffled run does not gate the required check')
+  const pkg = JSON.parse(await readFile(new URL('package.json', root), 'utf8'))
+  const seeds = [
+    ...pkg.scripts['test:shuffle'].matchAll(/--sequence\.shuffle --sequence\.seed=(\d+)/g),
+  ]
+  assert.ok(seeds.length >= 2, 'at least two fixed seeds, each with shuffling on')
 })
 
 test('a deploy records the commit on the Worker version and the live /api/health must report it', async () => {

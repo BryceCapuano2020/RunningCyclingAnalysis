@@ -234,6 +234,21 @@ export const pendingAccountDeletions = sqliteTable('pending_account_deletions', 
   sweepPending: integer('sweep_pending').notNull().default(1),
 })
 
+/**
+ * One row per deleted account, kept for TOMBSTONE_RETENTION_DAYS. A restore from an older copy of
+ * the database (Time Travel or a backup) brings deleted accounts back; scripts/ops/reconcile-restore.mjs
+ * replays these rows to delete them again. Only a random account id and a time: no email, no
+ * identity code, no activity. The id was never shown to anyone but its owner.
+ */
+export const accountTombstones = sqliteTable(
+  'account_tombstones',
+  {
+    userId: text('user_id').primaryKey().notNull(),
+    deletedAt: integer('deleted_at').notNull(),
+  },
+  (t) => [index('account_tombstones_deleted_at_idx').on(t.deletedAt)],
+)
+
 export const schema = {
   users,
   oauthAccounts,
@@ -246,4 +261,5 @@ export const schema = {
   identityBudget,
   uploadSlots,
   pendingAccountDeletions,
+  accountTombstones,
 }

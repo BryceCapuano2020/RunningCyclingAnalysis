@@ -58,19 +58,25 @@ export function weightedQuantilesAlong(
   let total = 0
   for (const i of order) total += weights[i]!
   if (total === 0) return qs.map(() => Number.NaN)
-  return qs.map((q) => {
-    const target = q * total
-    let cumulative = 0
-    let value = values[order[n - 1]!]!
-    for (const i of order) {
-      cumulative += weights[i]!
-      if (cumulative >= target) {
-        value = values[i]!
-        break
+  // One pass along the order reads every q, adding the weights in the order one pass for each q would.
+  const targets = qs.map((q) => q * total)
+  const last = values[order[n - 1]!]!
+  const found = qs.map(() => last)
+  const reached = new Uint8Array(qs.length)
+  let open = qs.length
+  let cumulative = 0
+  for (const i of order) {
+    cumulative += weights[i]!
+    for (let k = 0; k < targets.length; k++) {
+      if (reached[k] === 0 && cumulative >= targets[k]!) {
+        found[k] = values[i]!
+        reached[k] = 1
+        open--
       }
     }
-    return value
-  })
+    if (open === 0) break
+  }
+  return found
 }
 
 /**

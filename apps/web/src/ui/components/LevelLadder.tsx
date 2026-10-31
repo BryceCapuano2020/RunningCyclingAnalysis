@@ -75,6 +75,15 @@ function tickAlignment(index: number): 'start' | 'middle' {
   return index === 0 ? 'start' : 'middle'
 }
 
+/**
+ * The lowest and the highest band's names sit centred on narrow bands near the ends of the figure, so at a large
+ * text size they would run past it: they are anchored to its edge instead.
+ */
+function nameEnd(index: number): string {
+  if (index === 0) return ' level-ladder__name--first'
+  return index === BANDS.length - 1 ? ' level-ladder__name--last' : ''
+}
+
 /** Where a grade sits against the scale: below it, above it, or within it (null). */
 function beyondScale(grade: SportGrade): 'below' | 'above' | null {
   const { centre, range } = grade
@@ -198,8 +207,12 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
         {BANDS.map((band, index) => (
           <span
             key={band.name}
-            className={`level-ladder__name level-ladder__name--${index % 2 === 0 ? 'top' : 'bottom'}${current.has(band.name) ? ' level-ladder__name--current' : ''}`}
-            style={{ left: `${(place(band.low) + place(band.high)) / 2}%` }}
+            className={`level-ladder__name level-ladder__name--${index % 2 === 0 ? 'top' : 'bottom'}${current.has(band.name) ? ' level-ladder__name--current' : ''}${nameEnd(index)}`}
+            style={
+              nameEnd(index) === ''
+                ? { left: `${(place(band.low) + place(band.high)) / 2}%` }
+                : undefined
+            }
           >
             {band.name}
           </span>

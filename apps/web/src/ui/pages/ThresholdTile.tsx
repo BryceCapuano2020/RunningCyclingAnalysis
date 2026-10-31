@@ -68,8 +68,12 @@ export function ThresholdTile({
   if (sport === 'ride' && !weighted) {
     return (
       <StatTile sport={sport} heading={NAME[sport]} definition={DEFINED[sport]}>
-        {/* What needs no weight: how many rides, how long, and when the latest was. Then the one ask. */}
-        <HeldSportFacts sport={sport} activities={result.activities} />
+        {/* What needs no weight: how many rides, how long, when the latest was, and a best a meter measured. Then the one ask. */}
+        <HeldSportFacts
+          sport={sport}
+          activities={result.activities}
+          measured={result.rideMeasuredCurve}
+        />
         <WeightNote />
       </StatTile>
     )

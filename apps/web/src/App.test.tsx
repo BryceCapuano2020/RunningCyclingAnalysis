@@ -385,6 +385,24 @@ describe('deleting the account', () => {
     expect(await screen.findByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
   })
 
+  it('forgets the runs counted at walking pace with the account, and not when the deletion fails', async () => {
+    window.localStorage.setItem('rca.countedRuns.v1', '["run-5"]')
+    window.location.hash = '#/profile'
+    app.account.deleteAccount = vi.fn(async () => {
+      throw new Error('Busy')
+    })
+    const view = render(<App />)
+    await confirmDeletion()
+    await screen.findByText('Your account could not be deleted. Try again.')
+    expect(window.localStorage.getItem('rca.countedRuns.v1')).not.toBeNull()
+    view.unmount()
+
+    app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))
+    render(<App />)
+    await confirmDeletion()
+    await waitFor(() => expect(window.localStorage.getItem('rca.countedRuns.v1')).toBeNull())
+  })
+
   it('says on the landing page that the account and its data were deleted', async () => {
     window.location.hash = '#/profile'
     app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))

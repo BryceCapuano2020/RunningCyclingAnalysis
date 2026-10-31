@@ -4,8 +4,9 @@ import type { ActivityDigest, AthleteSettings, CriticalPowerFit, Sport } from '.
 import { plainCurve } from './bestCurve'
 import type { HeartRateJudgement } from './setAsideTypes'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
+import { keepWork } from './judgedWork'
 import { bestCurves, fitBikeModelOver } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
@@ -33,7 +34,7 @@ export function libraryThresholds(
 ): Pick<HeartRateJudgement, 'fit' | 'thresholdTimeline'> {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('setAside', digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   return {
@@ -63,13 +64,15 @@ export function judgeHeartRate(
 ): HeartRateJudgement {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('setAside', digests)
   const masses = massesOf(settings)
-  const bikeModel = fitBikeModelOver(ordered, masses).model
+  const fitted = fitBikeModelOver(ordered, masses)
+  const bikeModel = fitted.model
   const { curves, fits, heart, gate } = judgedCurves(ordered, masses, bikeModel, settings.massKg)
   const { setAside, reference, observedMax, observedSource, trusted } = heart
-  const { kappa, lnKappaSe } = heartRateCrossCheck(trusted, masses, bikeModel, fits)
-  return {
+  const cross = heartRateCrossCheck(trusted, masses, bikeModel, fits)
+  const { kappa, lnKappaSe } = cross
+  const judgement: HeartRateJudgement = {
     setAside: [...setAside].sort(),
     referenceHr: { run: reference.run, ride: reference.ride },
     observedMaxHr: { run: observedMax.run, ride: observedMax.ride },
@@ -80,4 +83,16 @@ export function judgeHeartRate(
     calibration: kappa === null ? null : { kappa, lnKappaSe },
     rideGate: gate,
   }
+  keepWork(judgement, {
+    ordered,
+    settings,
+    bikeModel,
+    bikeModelSource: fitted.source,
+    curves,
+    fits,
+    heart,
+    gate,
+    cross,
+  })
+  return judgement
 }
