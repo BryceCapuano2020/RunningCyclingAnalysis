@@ -58,8 +58,12 @@ function reportLibrary() {
   })
 }
 
-const device = deviceActions(session, openDeviceLibrary(), post, async (activityId) =>
-  workbench.remove({ kind: 'device' }, activityId),
+const device = deviceActions(
+  session,
+  openDeviceLibrary(),
+  post,
+  async (activityId) => workbench.remove({ kind: 'device' }, activityId),
+  () => workbench.watchDevice(),
 )
 const libraryContext: LibraryContext = {
   session,
@@ -94,6 +98,14 @@ const reportDetail = detailReporter(workbench, post, () =>
   view.showingSample ? null : view.activeScope,
 )
 
+/** The kept library was emptied under an import: the page is told, and starts from what is kept now. */
+function stopEmptied(): SessionState {
+  post({ type: 'deviceIssue', issue: 'replaced' })
+  device.replaced()
+  workbench.clearMemory()
+  return session.clear()
+}
+
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
   switch (request.type) {
     case 'addFiles':
@@ -103,7 +115,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       const held = [...provisionalItems.values()]
       provisionalItems.clear()
       for (const item of held) await keeper.keep(item)
+      // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
+      const emptied = keeper.replaced || workbench.libraryReplaced || !(await device.current())
+      if (emptied) workbench.dropDeferred()
       await workbench.storeDeferred()
+      if (emptied || workbench.libraryReplaced) return stopEmptied()
       await device.report()
       keeper.report()
       return session.setSettings(request.settings)
@@ -137,6 +153,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'setRange':
       return session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':
+      // Results shown here that could not be kept are not given up for a reload: they stay as they are.
+      if (request.reload === true && !device.hasUnkept()) device.replaced()
       // A sample on screen, or a library already read, stays as it is: loading it again would
       // drop what was imported since.
       if (view.showingSample || device.inSession()) {

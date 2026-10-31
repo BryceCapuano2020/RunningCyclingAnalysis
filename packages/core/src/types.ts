@@ -9,6 +9,7 @@ import type {
   DigestDrift,
   DigestDurabilityPoint,
 } from './digest/evidenceTypes'
+import type { ReferenceReading, ReferenceSource } from './effort/reference'
 import type { RouteShape } from './route/routeShape'
 import type {
   DigestClimbSection,
@@ -109,6 +110,8 @@ export type QualityKind =
   | 'implausible-climb'
   | 'stream-disagreement'
   | 'missing-altitude'
+  /** Revision 7: the heart-rate strap repeated the cadence. Written by revision 7 only. */
+  | 'hr-cadence-lock'
 
 export interface QualityFlag {
   kind: QualityKind
@@ -162,9 +165,10 @@ export type Curve = CurvePoint[]
 /**
  * Why a critical-power fit is refused. 'missing': the efforts are not there, under four in the window
  * or none reaching 20 minutes. 'shape': the efforts are there but show no threshold, being flat, below
- * the least work capacity, or with an intercept above their lowest effort.
+ * the least work capacity, or with an intercept above their lowest effort. 'effort': a fit that passed
+ * both, withheld because the best 20 minutes was not a hard effort (the effort gate, set by the analysis).
  */
-export type CriticalPowerRefusal = 'missing' | 'shape'
+export type CriticalPowerRefusal = 'missing' | 'shape' | 'effort'
 
 export interface CriticalPowerFit {
   /** Asymptote, in the unit of the fitted curve. */
@@ -270,6 +274,16 @@ export interface EffortCheck {
   runHrFraction: number | null
   /** Same for the best cycling window, divided by rideMaxHeartRate. */
   rideHrFraction: number | null
+  /**
+   * What each sport's reference can certify (see ReferenceReading): a share of a reference that is `low` or
+   * `habitual` does not show an effort was hard. Null without a reference. The analysis always sets them; absent reads
+   * as `trusted`, for a check made without one.
+   */
+  runReference?: ReferenceReading | null
+  rideReference?: ReferenceReading | null
+  /** Where each reference came from (the activities, a maximum entered, or the age). Absent reads as the activities. */
+  runReferenceSource?: ReferenceSource | null
+  rideReferenceSource?: ReferenceSource | null
 }
 
 /**
@@ -363,6 +377,25 @@ export interface ActivityDigest {
   durability?: DigestDurabilityPoint[]
   /** Output per heart rate, first half against second, of a steady effort; null when it is not one. Absent on older digests. */
   drift?: DigestDrift | null
+  /** Revision 7: the day's warmth as the sensor read it. Absent before revision 7 and when the file has no usable reading. */
+  temperature?: DigestTemperature
+  /** Revision 7: the athlete's own label when it says the activity is not what the file's sport says. Absent otherwise and before revision 7. */
+  athleteType?: AthleteType
+  /** Revision 7: the local calendar date minus the UTC date at the start. Absent before revision 7 and for files with no local time. */
+  localDayShift?: LocalDayShift
+}
+
+/** The classes the athlete's own activity type maps to, when it is not a run or a ride. */
+export type AthleteType = 'walk' | 'hike' | 'ski' | 'other'
+
+/** The local calendar date minus the UTC date: any UTC offset from -12:00 to +14:00 gives one of these. */
+export type LocalDayShift = -1 | 0 | 1
+
+/** A temperature summary: the median of one-minute means, degrees Celsius, and how much of the activity had a reading. */
+export interface DigestTemperature {
+  c: number
+  /** Share of eligible seconds with a valid reading, 0.5 to 1. */
+  coverage: number
 }
 
 /** The best run and ride curves of one set of digests. See sportCurves. */

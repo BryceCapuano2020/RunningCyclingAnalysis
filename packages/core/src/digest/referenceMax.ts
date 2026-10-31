@@ -113,6 +113,16 @@ function corroborated(values: number[]): { bpm: number; days: number } {
   return { bpm: sorted[last]!, days: CORROBORATING_DAYS }
 }
 
+/** The days a maximum is taken over: the window's when it holds enough, else every day. */
+function daysFor(digests: readonly ActivityDigest[], endMs: number) {
+  const windowStart = endMs - REFERENCE_WINDOW_DAYS * DAY_MS
+  const everyDay = dayMaxima(digests, -Infinity, Infinity)
+  const windowed = withoutRepeatedCeilings(dayMaxima(digests, windowStart, endMs))
+  const useWindow = windowed.length >= MIN_WINDOW_DAYS
+  const days = useWindow ? windowed : withoutRepeatedCeilings(everyDay)
+  return { days, everyDay, useWindow, windowStart }
+}
+
 /**
  * The maximum heart rate the digests support: the highest value several separate days reached, within the trailing
  * window that ends at `endMs`, so one artefact, or two, sets nothing (see `corroborated`). With fewer than
@@ -126,16 +136,7 @@ export function referenceMaxOf(
   digests: readonly ActivityDigest[],
   endMs: number,
 ): ReferenceMax | null {
-  const windowStart = endMs - REFERENCE_WINDOW_DAYS * DAY_MS
-  const everyDay = dayMaxima(digests, -Infinity, Infinity)
-  const windowed = withoutRepeatedCeilings(dayMaxima(digests, windowStart, endMs))
-  const useWindow = windowed.length >= MIN_WINDOW_DAYS
-  const days = useWindow ? windowed : withoutRepeatedCeilings(everyDay)
-  if (days.length === 0) return null
-  const { bpm, days: corroborating } = corroborated(days.map((d) => d.bpm))
-  // A library that began inside the window was read from its first day, not from the window's start.
-  const first = Math.min(...everyDay.map((d) => d.startMs))
-  return { bpm, days: corroborating, sinceMs: useWindow ? Math.max(first, windowStart) : first }
+  return maximumAndTypicalDay(digests, endMs).max
 }
 
 /** The newest start among the digests that recorded a heart rate; -Infinity without one. */
@@ -145,4 +146,38 @@ export function newestHeartRateMs(digests: readonly ActivityDigest[]): number {
     if (maxHeartRate !== null && Number.isFinite(startMs) && startMs > newest) newest = startMs
   }
   return newest
+}
+
+/** How the days' peak heart rates sit under the maximum they gave: the median day's share of it, over this many days. */
+export interface TypicalDay {
+  /** The median day's peak over the maximum, 0 to 1. A true maximum is rare, so a typical day sits well under it. */
+  share: number
+  days: number
+}
+
+/**
+ * The typical day against the maximum, over the same days `referenceMaxOf` takes its maximum from. A library
+ * whose typical day is near its maximum has no day it could be told apart from: the maximum is where the athlete
+ * lives. Null without a heart rate.
+ */
+export function typicalDayOf(digests: readonly ActivityDigest[], endMs: number): TypicalDay | null {
+  return maximumAndTypicalDay(digests, endMs).typical
+}
+
+/** The maximum and the typical day together, from one pass over the days: what the references of a sport read. */
+export function maximumAndTypicalDay(
+  digests: readonly ActivityDigest[],
+  endMs: number,
+): { max: ReferenceMax | null; typical: TypicalDay | null } {
+  const { days, everyDay, useWindow, windowStart } = daysFor(digests, endMs)
+  if (days.length === 0) return { max: null, typical: null }
+  const peaks = days.map((d) => d.bpm)
+  const { bpm, days: corroborating } = corroborated(peaks)
+  // A library that began inside the window was read from its first day, not from the window's start.
+  const first = Math.min(...everyDay.map((d) => d.startMs))
+  const sorted = [...peaks].sort((a, b) => a - b)
+  return {
+    max: { bpm, days: corroborating, sinceMs: useWindow ? Math.max(first, windowStart) : first },
+    typical: { share: sorted[sorted.length >> 1]! / bpm, days: sorted.length },
+  }
 }
