@@ -16,10 +16,19 @@
   white-space: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
-  /* The button is at least 24 px tall (WCAG 2.5.8), though its text may be a line of 20 px. The room is added above the
-     text and handed back by the negative margin, so the underline and a sentence's lines stay where they were. */
+  /* Standing alone, the button is at least 24 px tall (WCAG 2.5.8), though its text may be a line of 20 px. The room is
+     added above the text and handed back by the negative margin, so the underline stays where it was. */
   padding: 4px 0 0;
   margin: -4px 0 0;
+}
+
+/*
+ * A term in a sentence is an inline target, which 2.5.8 exempts, and the lines of a sentence touch: room above the
+ * text would put each term's press area over the term on the line above it. In prose the term is as tall as its line.
+ */
+:is(p, li, dd, td) .definition__term {
+  padding: 0;
+  margin: 0;
 }
 
 /*
@@ -39,7 +48,7 @@
  * on it opens it and nothing else.
  */
 p .definition__term::after {
-  inset: 1px -6px;
+  inset: -1px -6px;
 }
 
 /* Shown while data-open: a press, which the keyboard makes with the button, or a pointer resting on the term or the note. */

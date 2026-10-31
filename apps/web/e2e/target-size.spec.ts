@@ -40,8 +40,10 @@ async function smallTargets(page: Page, standardPx: number): Promise<Small[]> {
         prose !== null &&
         (prose.textContent ?? '').trim().length > (el.textContent ?? '').trim().length + 12
       if (inSentence) continue
-      // A defined term in a sentence is a button the size of its words, at least the floor.
+      // A defined term in a sentence is inline too, as tall as its line: its lines touch, so room above would put a
+      // term's press area over the one on the line above. Standing alone it is at least the floor.
       const term = el.classList.contains('definition__term')
+      if (term && el.closest('p, li, dd, td') !== null) continue
       // A link on a line of text (the footer's, a record's, the landing's) is as high as its line on a mouse, which
       // is the floor; a finger gets the standard. A button or field is the standard for either.
       const fine = matchMedia('(pointer: fine)').matches
