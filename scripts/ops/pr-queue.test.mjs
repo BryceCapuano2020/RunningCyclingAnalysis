@@ -25,6 +25,8 @@ const CI = [
   'Unit tests (2 of 2)',
   'Lint, typecheck, unit tests, build',
   'Performance budgets',
+  'Simulations (1 of 2)',
+  'Simulations (2 of 2)',
   'Statistical simulations',
   'Unit tests in shuffled order',
   'End-to-end (1 of 3)',

@@ -10,7 +10,7 @@ import type { CriticalPowerFit } from '../types'
 /**
  * The share of the threshold the truth lies above the fit at a heart-rate share of 1 (an effort at the reference's own
  * level), and how much more it adds per unit the share falls short of 1. Fitted to the synthetic harness
- * (effort/gate.sim.test.ts): over the 1,085 fits of libraries the gate let through (hard, sparse and hard-heavy training,
+ * (effort/gate.passing.sim.test.ts): over the 1,085 fits of libraries the gate let through (hard, sparse and hard-heavy training,
  * test days, low-maximum and hot-day athletes, runs and rides), the distance of the truth above the fit regressed on
  * the share is 0.037 + 0.386 x (1 - share), and the 67th percentile of what is left is 0.0074 more. With both added the
  * band held the truth in 67% of those fits: in-sample, since the allowance was fitted to the same fits, so it is not a coverage claim

@@ -245,16 +245,22 @@ jobs:
 
   # The statistical simulations (*.sim.test.ts) replay many seeded libraries to measure a detector's
   # hit rate and its silence on nulls. They take minutes under coverage, so they are their own job,
-  # run without coverage and in parallel with the unit tests. They are deterministic (seeded), so a
-  # failure is a real change in a rate and the job does not retry. It also runs the API's heavy sweeps
-  # (apps/api/*.sim.test.ts: a daily limit request by request, a worst-case maintenance backlog, long
-  # keyset walks), which the API unit tests decide from a few requests.
+  # run without coverage and in parallel with the unit tests, split across two shards (SIM_SHARD: the core's files
+  # are balanced by how long each takes, see packages/core/vitest.sim.config.ts) so a loaded runner has room: unsharded they took 9 to 15 minutes
+  # and hit the limit once. They are deterministic (seeded), so a failure is a real change in a rate
+  # and the job does not retry. It also runs the API's heavy sweeps (apps/api/*.sim.test.ts: a daily
+  # limit request by request, a worst-case maintenance backlog, long keyset walks), which the API unit
+  # tests decide from a few requests.
   sim:
-    name: Statistical simulations
+    name: Simulations (${{ matrix.shard }} of 2)
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -265,6 +271,41 @@ jobs:
           cache: npm
       - run: npm ci --no-audit
       - run: npm run test:sim
+        env:
+          SIM_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+
+  # The required check for the simulations: passes only when every simulation shard passed (or, on a
+  # documentation-only pull request, was skipped).
+  sim-result:
+    name: Statistical simulations
+    needs: [changes, sim]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: A draft pull request runs no checks
+        if: needs.changes.outputs.draft == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .draft || true)" = false ]; then
+            echo "::error::Marked ready after this run checked. Re-run all jobs or push a commit to run CI."
+          else
+            echo "::error::Draft pull request: CI runs when it is marked ready for review."
+          fi
+          exit 1
+      - name: Require every simulation shard
+        env:
+          CODE: ${{ needs.changes.outputs.code }}
+          SIM: ${{ needs.sim.result }}
+        run: |
+          echo "sim=$SIM code=$CODE"
+          if [ "$SIM" = skipped ] && [ "$CODE" = false ]; then exit 0; fi
+          if [ "$SIM" != success ]; then echo "::error::Simulation shards: $SIM"; exit 1; fi
 
   # The unit tests run in declaration order above. This job runs them again in a shuffled order, with fixed
   # seeds so a failure can be run again (npm run test:shuffle), so a test that leans on one a file earlier
