@@ -166,8 +166,9 @@ describe('GradeProfileChart', () => {
     expect(container.querySelectorAll('[data-testid="profile-label"]')).toHaveLength(0)
     const run = container.querySelector('[data-annotation="end-run"]')
     const ride = container.querySelector('[data-annotation="end-ride"]')
-    expect(run?.textContent).toBe('Run 66%')
-    expect(ride?.textContent).toMatch(/^Ride 53%range \d+–\d+%$/)
+    // The line ends at a length other than 20 min, so each label says which.
+    expect(run?.textContent).toMatch(/^Run 66% at \d+ min$/)
+    expect(ride?.textContent).toMatch(/^Ride 53% at \d+ minrange \d+–\d+%$/)
     // The gutter is right of the plot: the label starts past the last mark.
     const last = Array.from(
       container.querySelectorAll('[data-testid="profile-ring"][data-sport="ride"]'),

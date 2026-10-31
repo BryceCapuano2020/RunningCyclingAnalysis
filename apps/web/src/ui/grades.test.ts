@@ -458,7 +458,7 @@ describe('heroGradeLine', () => {
     expect(heroGradeLine(grade('Local', 0.64))).toBe('Local · 64% on best 20 min')
   })
 
-  it('names a ride with its centre level only, since the card label already says it is estimated', () => {
+  it('names a ride whose range crosses a level with both ends, as the page does', () => {
     const ride: SportGrade = {
       centre: { grade: 0.61, level: 'Recreational' },
       range: {
@@ -466,6 +466,6 @@ describe('heroGradeLine', () => {
         high: { grade: 0.67, level: 'Local' },
       },
     }
-    expect(heroGradeLine(ride)).toBe('Recreational · 61% on best 20 min')
+    expect(heroGradeLine(ride)).toBe('Recreational to Local · 61% on best 20 min')
   })
 })

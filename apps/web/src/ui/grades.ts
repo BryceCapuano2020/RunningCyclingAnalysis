@@ -279,12 +279,12 @@ export function gradeRangeText(range: { low: Grade; high: Grade }): string {
 
 /**
  * A grade on the share card's hero: its centre level and whole percent, and the effort it grades,
- * such as "Local · 64% on best 20 min". A ride names its centre level only, so the line fits two lines
- * of the card; the page's grade line gives the range. The card's threshold label already says the
- * figure is estimated, so the line does not repeat it.
+ * such as "Local · 64% on best 20 min". A ride whose range crosses a level names both ends, as the page
+ * does ("Local to World"), so the card and the page never give two levels for one grade. The card's
+ * threshold label already says the figure is estimated, so the line does not repeat it.
  */
 export function heroGradeLine(grade: SportGrade): string {
-  return `${grade.centre.level} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
+  return `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
 }
 
 /**
