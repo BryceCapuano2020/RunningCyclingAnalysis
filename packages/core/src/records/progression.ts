@@ -138,6 +138,8 @@ export function effortProgression(
   only?: readonly number[],
   /** The sports to read; the other is left empty. A reader whose answer for one sport does not depend on the other's work (the mass) names it. */
   sports: readonly Sport[] = ['run', 'ride'],
+  /** The bike model fitted over these digests, for a reader that has it already. */
+  fitted?: BikeModel,
 ): Record<Sport, Progression> {
   const ordered = orderedFor('records', digests)
   const masses = massesOf(settings)
@@ -148,7 +150,7 @@ export function effortProgression(
     : none()
   let ride = none()
   if (sports.includes('ride')) {
-    const bikeModel = fitBikeModelOver(ordered, masses).model
+    const bikeModel = fitted ?? fitBikeModelOver(ordered, masses).model
     const standing = estimatedStanding(gate === undefined ? ownRideGate(ordered) : gate)
     const estimates = hasEstimatedRide(eligible)
     ride = withoutOverreach(

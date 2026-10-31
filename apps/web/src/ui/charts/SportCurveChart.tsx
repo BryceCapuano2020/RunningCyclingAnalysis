@@ -65,6 +65,8 @@ export interface SportCurveChartProps {
   bestLevel?: string
   /** The change test for the period before, which the finding reads; null where there is no period before. */
   change: ChangeEvidence | null
+  /** Why the effort gate holds the comparison, when it does (see notHardNote): the finding says that and not "no clear change". */
+  held?: string | null
 }
 
 /**
@@ -84,6 +86,7 @@ export function SportCurveChart({
   threshold = null,
   bestLevel,
   change,
+  held = null,
 }: SportCurveChartProps) {
   // Each is kept while its inputs are, so reading a point (which re-renders the chart) does not rebuild the layout.
   const rows = useMemo(
@@ -151,6 +154,7 @@ export function SportCurveChart({
               previousLabel: shown?.label ?? null,
               level: bestLevel,
               change,
+              held,
             }) ?? undefined)
           : undefined
       }

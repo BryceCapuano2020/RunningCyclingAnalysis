@@ -74,14 +74,20 @@ function settleOvertaken(deps: WorkerEventDeps, pending: Pending, message: Reply
   }
 }
 
-/** The zips among the refused files that could not be read to their end, with the files that cost, when known. */
+/**
+ * The zips among the refused files that could not be read to their end, with the files that cost, when known. A zip is
+ * damaged once: it can be refused more than once under its name (the archive, then each entry), and the notice names it
+ * a single time, with the count of files when any refusal gave one.
+ */
 export function damagedZips(rejected: readonly RejectedFile[]): DamagedSource[] {
-  return rejected
-    .filter(({ code, fileName }) => code === 'corrupt' && /\.zip$/i.test(fileName))
-    .map(({ fileName, detail }) => {
-      const lost = Number(detail)
-      return { name: fileName, lost: Number.isInteger(lost) && lost >= 1 ? lost : null }
-    })
+  const lostBy = new Map<string, number | null>()
+  for (const { code, fileName, detail } of rejected) {
+    if (code !== 'corrupt' || !/\.zip$/i.test(fileName)) continue
+    const lost = Number(detail)
+    const known = Number.isInteger(lost) && lost >= 1 ? lost : null
+    lostBy.set(fileName, Math.max(known ?? 0, lostBy.get(fileName) ?? 0) || null)
+  }
+  return [...lostBy].map(([name, lost]) => ({ name, lost }))
 }
 
 /** The library a request changes when it succeeds, for the tabs that must read it again. */

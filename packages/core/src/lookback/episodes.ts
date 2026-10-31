@@ -4,7 +4,7 @@ import { halfWidth, ranged } from '../fitness/status'
 import type { Ranged } from '../fitness/types'
 import type { LiveEpisode } from './live'
 import { LOOKBACK } from './params'
-import { stepZ } from './segments'
+import { coreOf, stepZ } from './segments'
 import type { Level } from './segments'
 import type { EpisodeKind } from './types'
 
@@ -39,7 +39,8 @@ const falling = (r: Ranged) => r.high < 0
  * reference's own error to the level's.
  */
 export function isBack(pre: Level, post: Level, floor: number): boolean {
-  return isBackLevel(post.m - pre.m, Math.sqrt(pre.se ** 2 + post.se ** 2 + floor ** 2))
+  const [a, b] = [coreOf(pre), coreOf(post)]
+  return isBackLevel(b.m - a.m, Math.sqrt(a.se ** 2 + b.se ** 2 + floor ** 2))
 }
 
 /**
@@ -58,8 +59,9 @@ function cardSaidBack(
   floor: number,
 ): boolean {
   const E = FITNESS.episode
-  const se = Math.sqrt(pre.se ** 2 + post.se ** 2 + floor ** 2)
-  if (post.m - pre.m + E.boundZ * se < -E.backTol) return false
+  const [a, b] = [coreOf(pre), coreOf(post)]
+  const se = Math.sqrt(a.se ** 2 + b.se ** 2 + floor ** 2)
+  if (b.m - a.m + E.boundZ * se < -E.backTol) return false
   return live.some(
     (l) =>
       l.backWeek !== null &&
@@ -83,6 +85,8 @@ interface Move {
   to: number
   steps: number
   afterBreak: boolean
+  /** The step is at a change the card declared. */
+  forced: boolean
 }
 
 /**
@@ -93,14 +97,19 @@ interface Move {
 function movesOf(levels: readonly Level[], breaks: readonly WeekSpan[], delta: number): Move[] {
   const moves: Move[] = []
   for (let i = 1; i < levels.length; i++) {
-    const d = levels[i]!.m - levels[i - 1]!.m
-    if (Math.abs(d) < delta) continue
+    // A step at a change the card declared is a move of its own, as small as the card's bar, and read without the weeks beside it.
+    const forced = levels[i]!.forced !== undefined
+    const d = forced
+      ? coreOf(levels[i]!).m - coreOf(levels[i - 1]!).m
+      : levels[i]!.m - levels[i - 1]!.m
+    if (Math.abs(d) < (forced ? LOOKBACK.card.delta : delta)) continue
     const afterBreak = besideBreak(levels[i]!.fromWeek, breaks)
     const last = moves.at(-1)
     const between = levels[i - 1]!.toWeek - levels[i - 1]!.fromWeek
     if (
       last !== undefined &&
       !afterBreak &&
+      !forced &&
       !last.afterBreak &&
       last.to === i - 1 &&
       Math.sign(levels[last.to]!.m - levels[last.from]!.m) === Math.sign(d) &&
@@ -108,7 +117,7 @@ function movesOf(levels: readonly Level[], breaks: readonly WeekSpan[], delta: n
     ) {
       last.to = i
       last.steps++
-    } else moves.push({ from: i - 1, to: i, steps: 1, afterBreak })
+    } else moves.push({ from: i - 1, to: i, steps: 1, afterBreak, forced })
   }
   return moves
 }
@@ -149,11 +158,16 @@ export function episodesOf(
     ...over,
   })
   const slip: { open: Move | null } = { open: null }
-  const closeOpen = () => {
+  // A step at a change the card declared stands on the card's bar: its direction is its sign, the floor already cleared.
+  const stepOf = (move: Move) => coreOf(levels[move.to]!).m - coreOf(levels[move.from]!).m
+  const fell = (move: Move, change: Ranged) => (move.forced ? stepOf(move) < 0 : falling(change))
+  const rose = (move: Move, change: Ranged) => (move.forced ? stepOf(move) > 0 : rising(change))
+  /** Closes the open slip as one the level never came back from, ended at `toWeek` (a further fall) or still open at the horizon. */
+  const closeOpen = (toWeek: number | null = null) => {
     const move = slip.open
     if (move === null) return
-    if (falling(changeBetween(levels[move.from]!, levels[move.to]!))) {
-      out.push(episode('slip-open', move.from, move.to, move.steps, { toWeek: null }))
+    if (fell(move, changeBetween(levels[move.from]!, levels[move.to]!))) {
+      out.push(episode('slip-open', move.from, move.to, move.steps, { toWeek }))
     }
     slip.open = null
   }
@@ -164,12 +178,18 @@ export function episodesOf(
       if (rising(change) || falling(change)) {
         out.push(episode('after-break', move.from, move.to, move.steps))
       }
-    } else if (falling(change)) {
-      // A second fall with no return between is the same slip going on.
+    } else if (fell(move, change)) {
       const current = slip.open
-      slip.open =
-        current === null ? move : { ...current, to: move.to, steps: current.steps + move.steps }
-    } else if (rising(change)) {
+      if (current !== null && move.forced) {
+        // A fall the card declared on its own, with no return since the last: the last slip ended where this one began.
+        closeOpen(levels[move.from + 1]!.fromWeek)
+        slip.open = move
+      } else {
+        // A second fall with no return between is the same slip going on.
+        slip.open =
+          current === null ? move : { ...current, to: move.to, steps: current.steps + move.steps }
+      }
+    } else if (rose(move, change)) {
       const fall = slip.open
       if (fall === null) {
         out.push(episode('improvement', move.from, move.to, move.steps))

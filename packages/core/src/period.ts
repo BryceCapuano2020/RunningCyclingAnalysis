@@ -1,6 +1,9 @@
-import { DAY_MS } from './constants'
+import { calendarDays, daysBefore, endOfLocalDay, startOfLocalDay } from './calendar'
 import type { ActivityDigest, Sport } from './types'
 import { dayOf, dayStartMs, isCustomChoice, orderedRange } from './customRange'
+
+// The days a period is cut in are the calendar's (calendar.ts); callers keep these names here.
+export { endOfLocalDay, startOfLocalDay }
 import type { CustomRange } from './customRange'
 
 /**
@@ -53,23 +56,6 @@ function holds(sorted: readonly number[], from: number, to: number): boolean {
   return low < sorted.length && sorted[low]! <= to
 }
 
-/**
- * The periods are counted in calendar days of the device's local zone: a day runs from its first
- * millisecond to its last, so the hour an activity starts does not move the window it falls in.
- */
-export function startOfLocalDay(ms: number): number {
-  const date = new Date(ms)
-  date.setHours(0, 0, 0, 0)
-  return date.getTime()
-}
-
-/** The last millisecond of the local day that holds ms, so a period ends with its last day. */
-export function endOfLocalDay(ms: number): number {
-  const date = new Date(ms)
-  date.setHours(23, 59, 59, 999)
-  return date.getTime()
-}
-
 /** The choice a value names: a period the control offers or a custom range, and undefined for anything else. */
 export function periodChoiceOf(value: unknown): PeriodChoice | undefined {
   if (value === 'default' || value === 'all') return value
@@ -109,18 +95,6 @@ export function sameRegime(a: Period, b: Period): boolean {
 export function periodDays(period: Period): CustomRange | null {
   if (period.startMs === null || period.endMs === null) return null
   return { from: dayOf(period.startMs), to: dayOf(period.endMs) }
-}
-
-/** The instant that falls the given number of local calendar days before ms, at the same time of day. */
-function daysBefore(ms: number, days: number): number {
-  const date = new Date(ms)
-  date.setDate(date.getDate() - days)
-  return date.getTime()
-}
-
-/** The local calendar days from the day of startMs to the day of endMs, both counted. */
-function calendarDays(startMs: number, endMs: number): number {
-  return Math.round((startOfLocalDay(endMs) - startOfLocalDay(startMs)) / DAY_MS) + 1
 }
 
 /**
