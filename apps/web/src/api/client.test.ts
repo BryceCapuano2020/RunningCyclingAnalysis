@@ -643,7 +643,13 @@ describe('createActivity', () => {
   it('posts the digest, name and hash as JSON and reports a new record as created', async () => {
     const fetchMock = stubFetch(respond(201, RECORD_WIRE))
     const hash = 'a'.repeat(64)
-    const { record, created } = await createActivity(DIGEST, 'run.fit', hash, 'u1')
+    // A digest of revision 6, so the test holds the same with the minimisation of new activities (revision 7) on or off.
+    const { record, created } = await createActivity(
+      { ...DIGEST, modelRevision: 6 },
+      'run.fit',
+      hash,
+      'u1',
+    )
 
     const { path, init, headers } = callOf(fetchMock)
     expect(path).toBe('/api/activities')
