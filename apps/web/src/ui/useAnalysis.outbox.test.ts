@@ -15,6 +15,11 @@ import { FakeWorker } from '../test/fakeWorker'
 import { EMPTY_PERIOD } from './analysis/model'
 import { useAnalysis } from './useAnalysis'
 
+vi.mock(
+  './analysis/workerStart',
+  async () => (await import('../test/workerStartsAtOnce')).workerStart,
+)
+
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const ME: Me = {
   user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },

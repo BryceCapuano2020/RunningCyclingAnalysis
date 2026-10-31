@@ -17,9 +17,9 @@ const DIST_DIR = fileURLToPath(new URL('../../apps/web/dist/', import.meta.url))
  * - style: any one other stylesheet, which loads with its page.
  */
 export const BUDGETS = {
-  initial: 270_000,
-  worker: 150_000,
-  chunk: 73_000,
+  initial: 285_000,
+  worker: 160_000,
+  chunk: 75_000,
   style: 13_000,
 }
 

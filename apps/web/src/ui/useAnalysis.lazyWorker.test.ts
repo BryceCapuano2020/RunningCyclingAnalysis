@@ -1,12 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
 import type { Me } from '@rca/contract'
-import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
-import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
-import { NO_TRENDS } from '@rca/core/digest/trendPoints'
-import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
-import { NO_FITNESS } from '@rca/core/fitness/types'
-import { NO_ZONE_TIMES } from '@rca/core/zones'
 import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,7 +8,7 @@ import { FakeWorker } from '../test/fakeWorker'
 import { setKeptLibraryHinted } from './analysis/keptLibrary'
 import type { AccountStatus } from './useAccount'
 import { IDLE_START_MS } from './analysis/workerStart'
-import { EMPTY_PERIOD } from './analysis/model'
+import { EMPTY_SESSION } from './analysis/model'
 import { DEVICE_GRACE_MS, useAnalysis } from './useAnalysis'
 
 /*
@@ -46,36 +40,10 @@ const SIGNED_OUT: Account = { status: 'signed-out', me: null }
 const SIGNED_IN: Account = { status: 'signed-in', me: ME }
 const FILE = new File(['x'], 'run.fit')
 
-function stateWith(totalActivities: number): SessionState {
-  return {
-    result: null,
-    rejected: [],
-    unsupportedFiles: 0,
-    isSample: false,
-    totalActivities,
-    period: EMPTY_PERIOD,
-    library: [],
-    syncIssues: [],
-    outdatedActivities: 0,
-    incompatibleActivities: 0,
-    hiddenDuplicates: 0,
-    walkingPaceRuns: 0,
-    countedWalkingRuns: [],
-    libraryActivities: 0,
-    heldOut: [],
-    trend: [],
-    previous: null,
-    change: null,
-    effortTrends: NO_TRENDS,
-    sameHeartRate: NO_SAME_HEART_RATE,
-    lateEvidence: NO_LATE_EVIDENCE,
-    heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
-    fitness: NO_FITNESS,
-    zoneEstimates: null,
-    timeInZones: NO_ZONE_TIMES,
-    records: new Map(),
-  }
-}
+const stateWith = (totalActivities: number): SessionState => ({
+  ...EMPTY_SESSION,
+  totalActivities,
+})
 
 const types = () => FakeWorker.instances.at(-1)?.posted.map((request) => request.type) ?? []
 
