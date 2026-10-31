@@ -14,6 +14,10 @@ export interface ImportCompletion {
   listedAsOtherSport?: number
   /** The files in a format the app does not read, by extension (such as pwx); absent when there were none. */
   skippedTypes?: Record<string, number>
+  /** When the sources included an activities.csv given loose: how many files it names and how many of them were given. */
+  listed?: { named: number; received: number }
+  /** A loose file was refused for want of a sport, and no activities.csv came with it to give one. */
+  needsList?: true
   duplicates: RejectedFile[]
   /** The digests of workouts the library gained. */
   added: ActivityDigest[]

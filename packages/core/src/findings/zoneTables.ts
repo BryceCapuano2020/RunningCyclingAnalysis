@@ -1,4 +1,4 @@
-import { weekEndMs } from '../digest/trendPoints'
+import { weekEndFor } from '../calendar'
 import type { Sport } from '../types'
 import { perSport } from './constants'
 import type { ZoneActivity, ZoneTables, ZoneWeek } from './types'
@@ -7,7 +7,7 @@ function weeksOf(activities: readonly ZoneActivity[], sport: Sport): ZoneWeek[] 
   const byWeek = new Map<number, ZoneWeek>()
   for (const a of activities) {
     if (a.sport !== sport) continue
-    const endMs = weekEndMs(a.startMs)
+    const endMs = weekEndFor(a)
     const week = byWeek.get(endMs) ?? { endMs, easyS: 0, middleS: 0, hardS: 0 }
     week.easyS += a.easyS
     week.middleS += a.middleS

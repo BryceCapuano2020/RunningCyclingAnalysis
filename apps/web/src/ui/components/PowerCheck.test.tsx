@@ -2,7 +2,12 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
-import { POWER_KEPT_NOTE, POWER_SET_ASIDE_NOTE, powerCheckChip } from '../analysis/powerCheckCopy'
+import {
+  POWER_KEPT_NOTE,
+  POWER_SET_ASIDE_NOTE,
+  powerCheckChip,
+  powerHeartRateNote,
+} from '../analysis/powerCheckCopy'
 import { makeActivity } from './fixtures'
 import { PowerCheck } from './PowerCheck'
 
@@ -30,6 +35,51 @@ describe('PowerCheck', () => {
     expect(screen.getByText(POWER_KEPT_NOTE)).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: 'Set this power aside' }))
     expect(localStorage.getItem('rca.keepPower.v1')).toBe('[]')
+  })
+})
+
+describe('the heart rate over the questioned power', () => {
+  const evidence = (heartRateShare: number) => ({ durationS: 1200, wkg: 8.04, heartRateShare })
+
+  it('says what the heart rate averaged, and that a hard one cannot settle the power', () => {
+    expect(powerHeartRateNote(evidence(0.93))).toBe(
+      'Over its best 20 min, at 8.0 W/kg, your heart rate averaged 93% of your reference heart rate. That is as high as a hard effort reads. Heart rate cannot say whether the power was right.',
+    )
+  })
+
+  it('says a lower one is lower than an effort at that power usually shows, without a verdict', () => {
+    const note = powerHeartRateNote(evidence(0.78))
+    expect(note).toContain('averaged 78% of your reference heart rate')
+    expect(note).toContain('Heart rate cannot say whether the power was right.')
+    expect(note).toContain('lower than an effort at that power usually shows')
+    expect(note).not.toMatch(/wrong|fault|broken|cheat/i)
+  })
+
+  it('sits under the set-aside note and under the kept one, and is absent without a reading', () => {
+    render(
+      <PowerCheck
+        activity={makeActivity({
+          sport: 'ride',
+          powerCheck: 'set-aside',
+          powerHeartRate: evidence(0.93),
+        })}
+      />,
+    )
+    expect(screen.getByText(/^Over its best 20 min/)).toBeTruthy()
+    cleanup()
+    render(
+      <PowerCheck
+        activity={makeActivity({
+          sport: 'ride',
+          powerCheck: 'kept',
+          powerHeartRate: evidence(0.7),
+        })}
+      />,
+    )
+    expect(screen.getByText(/averaged 70% of your reference heart rate/)).toBeTruthy()
+    cleanup()
+    render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
+    expect(screen.queryByText(/^Over its best/)).toBeNull()
   })
 })
 

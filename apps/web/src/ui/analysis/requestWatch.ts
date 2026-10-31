@@ -52,6 +52,8 @@ const RULES: Record<WorkerRequest['type'], StallRule> = {
   activitySplits: READ,
   activityTrace: READ,
   forgetRoutes: READ,
+  adoptDevice: LONG,
+  forgetDeviceLibrary: SHORT,
 }
 
 /**

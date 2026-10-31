@@ -18,6 +18,7 @@ export function isQuietRequest(kind: Pending['kind']): boolean {
     kind === 'keepProvisional' ||
     kind === 'routeShape' ||
     kind === 'forgetRoutes' ||
+    kind === 'forgetDeviceLibrary' ||
     kind === 'setRange'
   )
 }

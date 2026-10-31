@@ -22,6 +22,8 @@ export type ReplyResponse = Exclude<
       | 'heartbeat'
       | 'progress'
       | 'outbox'
+      | 'deviceOffer'
+      | 'adoption'
       | 'missingOriginals'
       | 'detailCoverage'
       | 'libraryActivities'

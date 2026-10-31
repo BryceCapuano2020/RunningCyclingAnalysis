@@ -151,6 +151,18 @@ and account deletion forget the account's rows, and Remove all (signed out) forg
 The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the
 import still reports its own failures.
 
+**Adding the kept library to an account**
+
+Activities a signed-out visitor kept in this browser (`rca-device-library`) are offered to the account that
+signs in. The worker tells the page, apart from any request, how many rows can be added (they have the hash of
+their file and the current model revision or one the current model reads beside its own, and the account does not hold the workout), how many need their files
+added again, and how many the account holds. Add writes each adoptable digest to the outbox, newest first, and
+saves it through the same gate as an import, in the tab that holds the account's writer lock. The device epoch is asked again at the moment of each send, so another tab's Remove all during a rate limit's wait sends nothing. A kept row is removed only after the account has the activity, and
+only if it still holds the digest that was saved (`removeIfDigest`, checked in the removing transaction), so a row
+another tab replaced is not lost. A conflict (same second, another file), a failure and a stopped run leave the row
+and are counted. Routes are not copied. Remove from this browser empties the kept library without touching the
+account. Not now is remembered per account and count in local storage.
+
 **Activity workbench**
 
 The import callback extracts a versioned `ActivityTrace` before releasing the raw activity. The
@@ -301,9 +313,12 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    or within 60 seconds of each other. Groups are transitive: if A matches B and B matches C, all
    three are one group. From a group, the copy from the richest format is kept: FIT, then TCX, then
    GPX. Within one format, the copy with a power meter is kept, then the copy with heart rate, then
-   the longer duration. This preference applies to files analyzed together. A saved activity is tied
-   to the hash of its original file, so replacing it with a different file requires deleting that
-   activity and importing the preferred file again.
+   the longer duration. Whether a file is stored never depends on the copies already held (rule R): every
+   distinct start second is stored, in any order, and the analysis alone hides all but the best copy of a
+   group. What is listed, counted and exported is the shown copy; a full library says how many of its rows
+   are hidden copies. Deleting the shown activity deletes its whole group, or a hidden copy would take its
+   place. A saved activity is tied to the hash of its original file, so replacing it with a different file
+   requires deleting that activity and importing the preferred file again.
 7. **Activity list** (`readActivityList` in `packages/core/src/import/activitiesCsv.ts`, and
    `packages/core/src/import/names.ts`). Before any file in a Strava export zip is parsed, the zip's
    `activities.csv` is read by range, from the top-level zip's central directory only, so it may sit
@@ -337,6 +352,14 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    `activities.csv`; or the list names none of the zip's activity files, as when they sit in a folder
    it does not expect or are spelled another way. Files inside a zip nested in the export, and single
    files, are never left out this way.
+   An `activities.csv` given loose beside the files it names (`looseList.ts`; the picker offers `.csv`, and a
+   drop is read only when a file is called exactly that, in any folder) is taken out of the import's sources:
+   it is neither an activity nor refused, and is not in the progress total. It is read before any activity
+   file, and its rows are matched to the loose files by file name alone, since the folder the export put
+   them in is gone. The files of a zip keep the zip's own list, though the ones the list names count as given. The
+   import reports how many files the list names and how many were given, and a loose file that names no sport
+   (and no list came with it) tells the athlete to add the list; a file that names a sport the app does not count
+   (a hike) is refused for it and says nothing of the list.
    A GPX track with no `<type>` or only a number the app does not know, and a TCX activity whose
    Sport is Other or missing, takes its sport from the `Activity Type` column: Run, Trail Run and
    Virtual Run are runs; Ride, Virtual Ride, Gravel Ride and Mountain Bike Ride are rides; Virtual Run

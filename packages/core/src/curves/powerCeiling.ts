@@ -45,6 +45,21 @@ export function ridePowerCeilingWkg(durationS: number): number {
   return interpolatedCeiling(CEILING_TABLE, durationS)
 }
 
+/**
+ * Whether one measured point is over the ceiling for its length at this body mass. A point priced from slope and speed
+ * (virtual power, `terms` set) is not a power-meter reading and is not judged here; neither is one with no value.
+ */
+export function pointOverCeiling(
+  point: Pick<DigestCurvePoint, 'durationS' | 'value' | 'terms'>,
+  bodyKg: number,
+): boolean {
+  return (
+    point.terms === null &&
+    Number.isFinite(point.value) &&
+    point.value / bodyKg > ridePowerCeilingWkg(point.durationS)
+  )
+}
+
 // A ride's flag depends on its curve and the body mass of its day; both are fixed for a digest, so
 // the answer is kept for the one mass it was last asked at.
 const flags = new WeakMap<object, { bodyKg: number; implausible: boolean }>()
@@ -62,12 +77,7 @@ export function implausiblePower(
 ): boolean {
   const held = flags.get(digest)
   if (held !== undefined && held.bodyKg === bodyKg) return held.implausible
-  const implausible = digest.curve.some(
-    (point) =>
-      point.terms === null &&
-      Number.isFinite(point.value) &&
-      point.value / bodyKg > ridePowerCeilingWkg(point.durationS),
-  )
+  const implausible = digest.curve.some((point) => pointOverCeiling(point, bodyKg))
   flags.set(digest, { bodyKg, implausible })
   return implausible
 }

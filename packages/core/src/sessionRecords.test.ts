@@ -73,6 +73,7 @@ describe('AnalysisSession records', () => {
         'countedWalkingRuns',
         'effortTrends',
         'fitness',
+        'lookBack',
         'heartRateJudgement',
         'zoneEstimates',
         'hiddenDuplicates',

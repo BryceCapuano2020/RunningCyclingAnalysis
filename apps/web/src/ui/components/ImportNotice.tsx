@@ -3,6 +3,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import type { RejectedFile } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
 import { addedSentence, importSentence } from '../analysis/copy'
+import { looseListLine } from '../analysis/looseListCopy'
 import type { MovedItem } from '../analysis/whatMoved'
 import { PAGE_HEADING_ID } from '../pages/pageHeading'
 import { hrefFor } from '../route'
@@ -63,6 +64,7 @@ export function ImportNotice({
   if (outcome === null || outcome === dismissed || busy) return null
   // What moved is listed only for an import that added a run or a ride, as the sentence says it did.
   const listMoved = moved.length > 0 && addedSentence(outcome) !== null
+  const listLine = looseListLine(outcome)
 
   function dismiss(event: MouseEvent<HTMLButtonElement>) {
     setDismissed(outcome)
@@ -86,6 +88,7 @@ export function ImportNotice({
       <div className="import-notice__body">
         <p>{importSentence(outcome)}</p>
         {leftOutLine !== null && <p className="secondary">{leftOutLine}</p>}
+        {listLine !== null && <p className="secondary">{listLine}</p>}
         {listMoved && (
           <ul className="import-notice__moved">
             {moved.map((item) => (
