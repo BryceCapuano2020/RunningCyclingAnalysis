@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { checkInBetween } from './checkIn'
 import type { CheckIn } from './checkIn'
 import { checkInText } from './checkInCopy'
@@ -26,6 +26,13 @@ const base = snap(
 function check(live: Parameters<typeof snap>[1], runs = [ago(60), ago(3), ago(2)]): CheckIn {
   return checkInBetween(base, snap({ run: runs }, live))!
 }
+
+beforeEach(() => {
+  vi.stubEnv('TZ', 'UTC')
+})
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
 
 describe('the words of the check-in', () => {
   it('says what was checked when nothing moved, in one line', () => {
@@ -105,16 +112,6 @@ describe('the words of the check-in', () => {
     )
   })
 
-  it('says the library was rebuilt, and counts only', () => {
-    const c = checkInBetween(
-      snap({ run: [ago(60)] }, { revision: 6 }),
-      snap({ run: [ago(60), ago(1)] }),
-    )!
-    expect(checkInText(c, 'metric').headline).toBe(
-      'Your library was rebuilt since 1 June 2026, so this import is compared by count only: 1 run added.',
-    )
-  })
-
   it('never uses a banned word, and every month has its year', () => {
     const win = runBest(4.2, ago(2))
     const live = snap(
@@ -128,11 +125,7 @@ describe('the words of the check-in', () => {
       },
     )
     const c = checkInBetween(base, live)!
-    const all = [
-      checkInText(c, 'metric'),
-      checkInText(c, 'imperial'),
-      checkInText({ ...c, modelChanged: true }, 'metric'),
-    ]
+    const all = [checkInText(c, 'metric'), checkInText(c, 'imperial')]
     for (const t of all)
       for (const sentence of [t.headline, ...t.lines]) {
         expect(sentence).not.toMatch(BANNED)
@@ -140,5 +133,53 @@ describe('the words of the check-in', () => {
         expect(sentence).not.toMatch(/—/)
       }
     expect(NOW).toBeGreaterThan(0)
+  })
+
+  it('dates the baseline in the readers own zone: an evening import is not tomorrow', () => {
+    // 3:30 on 2 June in UTC is 20:30 on 1 June in Los Angeles.
+    const evening = Date.UTC(2026, 5, 2, 3, 30)
+    const run = (zone: string) => {
+      vi.stubEnv('TZ', zone)
+      const was = snap({ run: [ago(60)] }, { atMs: evening })
+      return checkInText(checkInBetween(was, snap({ run: [ago(60), ago(1)] }))!, 'metric').headline
+    }
+    expect(run('America/Los_Angeles')).toMatch(/since 1 June 2026\./)
+    expect(run('UTC')).toMatch(/since 2 June 2026\./)
+  })
+
+  it('says a state that has not changed in words that fit it, and a sport that became readable', () => {
+    const staying = checkInBetween(
+      snap({ run: [ago(60)] }, { fitness: { run: holding({ state: 'back' }), ride: null } }),
+      snap(
+        { run: [ago(60), ago(1)] },
+        { fitness: { run: holding({ state: 'back' }), ride: null } },
+      ),
+    )!
+    expect(checkInText(staying, 'metric').headline).toContain(
+      'run fitness shows no clear change, within 2% of before',
+    )
+    const stayingNoRange = checkInBetween(
+      snap(
+        { run: [ago(60)] },
+        { fitness: { run: holding({ state: 'back', within: null }), ride: null } },
+      ),
+      snap(
+        { run: [ago(60), ago(1)] },
+        { fitness: { run: holding({ state: 'back', within: null }), ride: null } },
+      ),
+    )!
+    expect(checkInText(stayingNoRange, 'metric').headline).toContain(
+      'run fitness is staying at your old level',
+    )
+    const readable = checkInBetween(
+      snap(
+        { run: [ago(60)] },
+        { fitness: { run: holding({ state: 'not-enough-evidence' }), ride: null } },
+      ),
+      snap({ run: [ago(60), ago(1)] }, { fitness: { run: holding(), ride: null } }),
+    )!
+    expect(checkInText(readable, 'metric').lines).toEqual([
+      'Run fitness could not be read at your last import; it is holding now.',
+    ])
   })
 })

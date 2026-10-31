@@ -5,7 +5,14 @@ import type { Sport } from '../types'
 import { paceSeconds } from '../units'
 import type { UnitSystem } from '../units'
 import type { CheckIn, FitnessLine, NewBest, NewEpisode } from './checkIn'
-import { bestValue, dayMonthYear, effortName, monthYear, monthsBetween } from './copy'
+import {
+  bestValue,
+  dayMonthYear,
+  effortName,
+  localDayMonthYear,
+  monthYear,
+  monthsBetween,
+} from './copy'
 
 /**
  * The words of "since your last import". Plain, in the reader's voice, every date with its year; a line says what
@@ -27,6 +34,16 @@ const STATE: Record<FitnessState, string> = {
   back: 'back',
   improving: 'improving',
   'not-enough-evidence': 'not yet readable',
+}
+
+/** A state that has not changed, as it reads after "is" with "as at your last import". */
+const STILL: Record<FitnessState, string> = {
+  ...STATE,
+  slipping: 'still slipping',
+  'holding-below': 'still holding below your old level',
+  recovering: 'still recovering',
+  back: 'staying at your old level',
+  improving: 'still improving',
 }
 
 const lower = (text: string) => `${text[0]!.toLowerCase()}${text.slice(1)}`
@@ -73,13 +90,15 @@ function fitnessLine(line: FitnessLine): string {
   const name = FITNESS_NAME[line.sport]
   switch (line.kind) {
     case 'moved':
-      return `${name} was ${STATE[line.from]} at your last import; it is ${STATE[line.to]} now.`
+      return line.from === 'not-enough-evidence'
+        ? `${name} could not be read at your last import; it is ${STATE[line.to]} now.`
+        : `${name} was ${STATE[line.from]} at your last import; it is ${STATE[line.to]} now.`
     case 'began':
       return `${name} has been ${STATE[line.state]} since ${monthYear(line.sinceMs)}.`
     case 'same':
       return line.within === null
-        ? `${name} is ${STATE[line.state]}, as at your last import.`
-        : `${name} is ${STATE[line.state]}, as at your last import: no clear change, within ${withinText(line.sport, line.within)} of before.`
+        ? `${name} is ${STILL[line.state]}, as at your last import.`
+        : `${name} is ${STILL[line.state]}, as at your last import: no clear change, within ${withinText(line.sport, line.within)} of before.`
   }
 }
 
@@ -111,7 +130,7 @@ function quietClause(line: FitnessLine): string {
   const name = lower(FITNESS_NAME[line.sport])
   if (line.kind !== 'same') return ''
   return line.within === null
-    ? `${name} is still ${STATE[line.state]}`
+    ? `${name} is ${STILL[line.state]}`
     : `${name} shows no clear change, within ${withinText(line.sport, line.within)} of before`
 }
 
@@ -124,14 +143,8 @@ export interface CheckInText {
 
 /** The check-in as words, with paces in the reader's units. */
 export function checkInText(checkIn: CheckIn, system: UnitSystem): CheckInText {
-  const since = dayMonthYear(checkIn.sinceMs)
+  const since = localDayMonthYear(checkIn.sinceMs)
   const added = addedText(checkIn.added)
-  if (checkIn.modelChanged) {
-    return {
-      headline: `Your library was rebuilt since ${since}, so this import is compared by count only${added === '' ? '' : `: ${added} added`}.`,
-      lines: [],
-    }
-  }
   if (checkIn.quiet) {
     const clauses = checkIn.fitness.map(quietClause).filter((c) => c !== '')
     const checked = clauses.length === 0 ? '.' : `, and ${clauses.join(' and ')}.`

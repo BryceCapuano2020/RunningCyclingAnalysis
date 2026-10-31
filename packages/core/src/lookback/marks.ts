@@ -43,30 +43,46 @@ export function beginImport(marks: Marks | null, before: CheckInSnapshot | null)
 export const joins = (lastMs: number | null, nowMs: number): boolean =>
   lastMs !== null && nowMs - lastMs >= 0 && nowMs - lastMs < JOIN_WINDOW_MS
 
+/** What decides whether a baseline is still of the library's model. */
+export interface BaselineCheck {
+  /** The model revision the library is read at now. */
+  revision: number
+  /** When the library was last rebuilt (the updater's last completed run); null if never. */
+  rebuiltAtMs: number | null
+}
+
+/**
+ * The baseline to compare with, or null. A baseline taken at another model revision, or before the library was last
+ * rebuilt, is dropped: the next import writes a fresh one, so the check-in never sets one model beside another.
+ */
+export function usableBaseline(marks: Marks | null, check: BaselineCheck): CheckInSnapshot | null {
+  const baseline = marks?.baseline ?? null
+  if (baseline === null || baseline.revision !== check.revision) return null
+  return check.rebuiltAtMs !== null && check.rebuiltAtMs > baseline.atMs ? null : baseline
+}
+
 /**
  * An import ended. A complete import that added a workout commits, and so does a partial one the athlete accepted, at
  * that moment, from the snapshot taken when it began. One that stopped short and was not accepted moves nothing and
  * keeps its snapshot (a later complete import of the same files replaces it with its own). One that added nothing
- * moves nothing. A commit inside the join window leaves the baseline where it was.
+ * moves nothing. A commit inside the join window leaves the baseline where it was, unless that baseline can no longer
+ * be used (see `usableBaseline`): then the snapshot taken when the import began replaces it.
  */
-export function endImport(marks: Marks, end: ImportEnd, nowMs: number): Marks {
+export function endImport(
+  marks: Marks,
+  end: ImportEnd,
+  nowMs: number,
+  check: BaselineCheck,
+): Marks {
   const commits =
     end.added > 0 && (end.manifest === 'complete' || end.manifest === 'accepted-partial')
   if (!commits) return marks
-  const baseline = joins(marks.lastImportAtMs, nowMs) ? marks.baseline : marks.pending
-  return { v: 1, baseline, lastImportAtMs: nowMs, pending: null }
-}
-
-/**
- * The baseline to compare with, or null. A rebuild of the library (the updater's last completed run, `rebuiltAtMs`)
- * after the baseline was taken drops it: the next import writes a fresh one, so the check-in never sets one model
- * beside another.
- */
-export function usableBaseline(
-  marks: Marks | null,
-  rebuiltAtMs: number | null,
-): CheckInSnapshot | null {
-  const baseline = marks?.baseline ?? null
-  if (baseline === null) return null
-  return rebuiltAtMs !== null && rebuiltAtMs > baseline.atMs ? null : baseline
+  const dead = marks.baseline !== null && usableBaseline(marks, check) === null
+  const keeps = joins(marks.lastImportAtMs, nowMs) && !dead
+  return {
+    v: 1,
+    baseline: keeps ? marks.baseline : marks.pending,
+    lastImportAtMs: nowMs,
+    pending: null,
+  }
 }
