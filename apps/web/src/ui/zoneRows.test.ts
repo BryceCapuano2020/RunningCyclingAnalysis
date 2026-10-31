@@ -91,17 +91,19 @@ describe('zoneTable', () => {
   it('titles a table by sport and measure, with its source and reference', () => {
     const table = zoneTable(setOf({ measure: 'power', reference: 250 }), 'metric')
     expect(table.title).toBe('Ride power zones')
-    expect(table.detail).toBe('From your rides: threshold power 250 W, held until a real change')
+    expect(table.detail).toBe('From your rides: threshold power 250 W')
     expect(table.columns).toEqual(['Zone', 'Name', 'Range'])
     expect(table.rows).toHaveLength(7)
     expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 140 W'])
   })
 
-  it('says an estimated pace is the held threshold, so it is not read as the newest fit', () => {
+  it('says an estimated threshold is the held one, with the newest fit, only where the two read differently', () => {
     const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
-    expect(zoneTable(set, 'metric').detail).toBe(
-      'From your runs: threshold pace 4:46 /km, held until a real change',
+    expect(zoneTable(set, 'metric', 3.51).detail).toBe(
+      'From your runs: threshold pace 4:46 /km. Zones keep this threshold until the fit moves by more than its error; the Run page shows the newest fit, 4:45 /km',
     )
+    expect(zoneTable(set, 'metric', 3.5).detail).toBe('From your runs: threshold pace 4:46 /km')
+    expect(zoneTable(set, 'metric').detail).toBe('From your runs: threshold pace 4:46 /km')
   })
 
   it('says an entered reference was entered', () => {

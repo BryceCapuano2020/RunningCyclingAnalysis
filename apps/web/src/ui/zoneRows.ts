@@ -122,14 +122,18 @@ export interface ZoneTable {
 }
 
 /**
- * What an estimated threshold is said to be beside its figure. The zones hold the threshold they had until a window's
- * fit moves by more than its own error and stays there, so it can differ by a second or a watt from the newest fit
- * the sport pages give; the words say which one this is. A heart rate is a maximum, not a fitted threshold.
+ * What an estimated threshold says when it is not the newest fit. The zones keep the threshold they had until a window's
+ * fit moves by more than its own error and stays there, so the sport pages' newest fit can differ by a second or a watt.
+ * It is said only where the two read differently, with the newest figure. A heart rate is a maximum, not a fitted threshold.
  */
-const HELD_NOTE: Record<ZoneMeasure, string> = {
-  power: ', held until a real change',
-  pace: ', held until a real change',
-  heartRate: '',
+const HELD_NOTE: Record<ZoneMeasure, ((sport: string, newest: string) => string) | null> = {
+  power: (sport, newest) => HELD_WORDS(sport, newest),
+  pace: (sport, newest) => HELD_WORDS(sport, newest),
+  heartRate: null,
+}
+
+function HELD_WORDS(sport: string, newest: string): string {
+  return `. Zones keep this threshold until the fit moves by more than its error; the ${sport} page shows the newest fit, ${newest}`
 }
 
 const REFERENCE_NAME: Record<ZoneMeasure, string> = {
@@ -139,8 +143,14 @@ const REFERENCE_NAME: Record<ZoneMeasure, string> = {
 }
 
 /** A zone set as a table: one row a zone, with its number, name and range. */
-export function zoneTable(set: ZoneSet, units: UnitSystem): ZoneTable {
+export function zoneTable(set: ZoneSet, units: UnitSystem, newestFit?: number): ZoneTable {
   const basis = maxHeartRateBasis(set)
+  const reference = REFERENCE_TEXT[set.measure](set.reference, units)
+  const newest = newestFit === undefined ? null : REFERENCE_TEXT[set.measure](newestFit, units)
+  const held =
+    set.source === 'estimated' && newest !== null && newest !== reference
+      ? (HELD_NOTE[set.measure]?.(SPORT_LABEL[set.sport], newest) ?? '')
+      : ''
   return {
     title: `${SPORT_LABEL[set.sport]} ${MEASURE_TITLE[set.measure]} zones`,
     askable: basis !== null,
@@ -148,7 +158,7 @@ export function zoneTable(set: ZoneSet, units: UnitSystem): ZoneTable {
     detail:
       basis !== null
         ? `Max heart rate: ${basis}`
-        : `${sourceText(set)}: ${REFERENCE_NAME[set.measure]} ${REFERENCE_TEXT[set.measure](set.reference, units)}${set.source === 'estimated' ? HELD_NOTE[set.measure] : ''}`,
+        : `${sourceText(set)}: ${REFERENCE_NAME[set.measure]} ${reference}${held}`,
     citation: set.citation,
     columns: ['Zone', 'Name', 'Range'],
     rows: set.zones.map((zone) => [
