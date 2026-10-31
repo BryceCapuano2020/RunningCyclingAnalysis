@@ -50,16 +50,23 @@ describe('the revision table', () => {
     }
   })
 
-  it('declares revisions 1 to 6 exclusive, so nothing is compatible yet', () => {
-    expect(REVISIONS.filter((r) => r.revision <= 6).map((r) => r.kind)).toEqual(
-      Array<string>(6).fill('exclusive'),
-    )
+  it('declares revisions 1 to 7 exclusive, so nothing is compatible: a library holds one revision at a time', () => {
+    expect(REVISIONS.map((r) => r.kind)).toEqual(Array<string>(7).fill('exclusive'))
+  })
+
+  it('declares what revision 7 adds and changes, and the readers the mixing study found it moves', () => {
+    const seven = REVISIONS.at(-1)!
+    expect(seven.revision).toBe(7)
+    expect(seven.adds).toEqual(['temperature', 'athleteType', 'localDayShift'])
+    expect(seven.affects).toEqual(['combine', 'trend', 'change', 'records'])
+    expect(seven.holdsBack).toBeUndefined()
   })
 })
 
 describe('revisionStatus', () => {
   it('is stale below the current revision and newer above it, over the real table', () => {
     expect(statuses(REVISIONS)).toEqual([
+      'stale',
       'stale',
       'stale',
       'stale',

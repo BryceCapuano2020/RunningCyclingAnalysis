@@ -8,6 +8,7 @@ import { ActivityDigestSchema, StoredActivityDigestSchema } from './digest.ts'
 import { corpusWires, pick } from './test/corpus.ts'
 import type { DigestWire } from './test/corpus.ts'
 import { FloorCreateDigestSchema, FloorStoredDigestSchema } from './test/floorDigest.ts'
+import { R1StoredDigestSchema } from './test/frozen/r1/digest.ts'
 
 /** What a reader says of a value: the digest, or the first thing wrong. */
 type Verdict = { ok: true; digest: unknown } | { ok: false; path: string; problem: string }
@@ -63,8 +64,7 @@ function bases(): Array<[string, DigestWire]> {
 
 /**
  * The optional fields revision 7 first writes, to values that are valid for them. The quality kind it
- * adds is not here: the rollback floor refuses a flag of it, so a create refuses it too and the floor
- * test below carries it in its own cases.
+ * adds is not here: it is a flag, not a field, and the floor test below carries it in its own cases.
  */
 const REVISION_7_FIELDS = {
   temperature: { c: 14.5, coverage: 0.9 },
@@ -199,32 +199,39 @@ describe('every reader of a digest gives the same verdict', () => {
     expect(refused).toBeGreaterThan(0)
   })
 
-  it('has a create refuse what a rollback floor could not read back', () => {
+  it('has a create refuse what the rollback floor could not read back', () => {
+    // The floor is W1, the Worker of release R1 (test/frozen/r1): it reads every field and the lock flag revision 7
+    // writes, and takes revision 7 for a newer app's. What a create takes, W1 must read back from a stored row.
     const unsafe: string[] = []
     const wires = all.map(([label, mutant]): [string, unknown] => [
       `${label}: ${mutant.name}`,
       mutant.wire,
     ])
-    // The floor refuses a flag of the cadence-lock kind, in a stored row too. The mutants are made from
-    // digests without one, so these cases carry it, as a flag and as a count, on a run and on a ride.
+    // The mutants are made from digests without a lock flag, so these cases carry it, as a flag and as a
+    // count, on a run and on a ride, at revision 7 and at 6.
     for (const [label, base] of bases()) {
-      wires.push(
-        [`${label}: a cadence-lock flag`, { ...base, flags: [LOCK_FLAG], flagCounts: LOCK_COUNT }],
-        [`${label}: a cadence-lock count`, { ...base, flagCounts: LOCK_COUNT }],
-      )
+      for (const modelRevision of [6, 7]) {
+        const at = { ...base, modelRevision }
+        wires.push(
+          [
+            `${label}: a cadence-lock flag at ${modelRevision}`,
+            { ...at, flags: [LOCK_FLAG], flagCounts: LOCK_COUNT },
+          ],
+          [`${label}: a cadence-lock count at ${modelRevision}`, { ...at, flagCounts: LOCK_COUNT }],
+        )
+      }
     }
     for (const [where, wire] of wires) {
       if (!createOf(wire).ok) continue
-      const floor = [FloorCreateDigestSchema, FloorStoredDigestSchema].map((schema) =>
-        ofZod(schema, wire),
-      )
-      if (!floor.every((verdict) => verdict.ok)) unsafe.push(where)
+      if (!ofZod(R1StoredDigestSchema, wire).ok) unsafe.push(where)
     }
     expect(unsafe).toEqual([])
-    // The cases do hold what they are for: the floor refuses them and a stored row reads them.
+    // The cases do hold what they are for: a create takes the lock flag now, and W1 reads it back.
     const flagged = { ...bases()[0]![1], flags: [LOCK_FLAG], flagCounts: LOCK_COUNT }
+    expect(createOf(flagged).ok).toBe(true)
+    expect(ofZod(R1StoredDigestSchema, flagged).ok).toBe(true)
+    // The floor before W1 refused it, which is why the floor moved first.
     expect(ofZod(FloorStoredDigestSchema, flagged).ok).toBe(false)
-    expect(createOf(flagged).ok).toBe(false)
     expect(ofCore('stored', flagged).ok).toBe(true)
     expect(ofDevice(JSON.stringify(flagged)).ok).toBe(true)
   })

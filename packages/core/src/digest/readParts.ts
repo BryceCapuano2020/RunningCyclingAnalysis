@@ -56,8 +56,9 @@ const QUALITY_KIND_SET: Record<QualityKind, true> = {
 const QUALITY_KINDS = Object.keys(QUALITY_KIND_SET) as QualityKind[]
 
 /**
- * The kinds a reader takes. A create refuses the cadence-lock kind until revision 7 is written: the
- * rollback floor refuses a flag of it even in a stored row, so a row with one could not be listed there.
+ * The kinds a reader takes. Every view takes the cadence-lock kind since release R2 moved the rollback floor to
+ * W1, which lists a row with one; a reader of an earlier release (test/frozen) refuses it on create, and the
+ * Worker before W1 refused it even in a stored row.
  */
 function kindsOf(rules: DigestRules): QualityKind[] {
   return QUALITY_KINDS.filter((kind) => kind !== 'hr-cadence-lock' || rules.acceptsCadenceLock)

@@ -96,14 +96,14 @@ describe('what the kept library offers the account', () => {
   })
 
   it('adds what the current model reads beside its own, and asks for the file again only when it is stale', async () => {
-    const seven = { revision: 7, kind: 'additive', adds: [], changes: [], affects: [] } as const
+    const eight = { revision: 8, kind: 'additive', adds: [], changes: [], affects: [] } as const
     const library = memoryDeviceLibrary()
-    await library.put(keyOf(0), { ...digests[0]!, modelRevision: 7 }, null, {
+    await library.put(keyOf(0), { ...digests[0]!, modelRevision: 8 }, null, {
       fileName: 'a.fit',
       fileHash: HASH,
     })
-    // Revision 6 is compatible once 7 is additive; revision 1 never was.
-    await library.put(keyOf(1), { ...digests[1]!, modelRevision: 6 }, null, {
+    // Revision 7 is compatible once 8 is additive; revision 1 never was.
+    await library.put(keyOf(1), { ...digests[1]!, modelRevision: 7 }, null, {
       fileName: 'b.fit',
       fileHash: HASH,
     })
@@ -113,7 +113,7 @@ describe('what the kept library offers the account', () => {
     })
     const entries = await library.all()
 
-    const plan = withRevisionTable([...REVISIONS, seven], () => planAdoption(entries, new Set()))
+    const plan = withRevisionTable([...REVISIONS, eight], () => planAdoption(entries, new Set()))
 
     expect(plan.adoptable.map((entry) => entry.workoutKey).sort()).toEqual(
       [keyOf(0), keyOf(1)].sort(),

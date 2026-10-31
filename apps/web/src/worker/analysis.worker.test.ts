@@ -3807,7 +3807,7 @@ describe('an import of an export whose list labels activities the account holds'
     )
   }
 
-  it('sends no label while the labels are off, and reads the type of the file as it always did', async () => {
+  it('sends no label to a held workout while the labels are off; the digest of the new import carries its own', async () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
     await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
@@ -3821,7 +3821,7 @@ describe('an import of an export whose list labels activities the account holds'
     const reply = messages.at(-1)
     expect(reply).toMatchObject({ type: 'state', outcome: { activities: 1 } })
     expect(reply).not.toHaveProperty('outcome.labelled')
-    // The digest saved is the one main made: no label below revision 7.
-    expect(mocked.createActivity.mock.calls[0]?.[0]).not.toHaveProperty('athleteType')
+    // The digest saved is revision 7's: it carries the label the list gave its own file.
+    expect(mocked.createActivity.mock.calls[0]?.[0]).toMatchObject({ athleteType: 'hike' })
   })
 })

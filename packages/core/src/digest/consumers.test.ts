@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActivityDigest } from '../types'
 import { CONSUMERS, orderedFor, readsRevision } from './consumers'
 import type { Consumer } from './consumers'
+import { MODEL_REVISION } from './modelRevision'
 import { orderedCurrent } from './ordered'
 import { REVISIONS } from './revisions'
 import type { RevisionDeclaration } from './revisions'
@@ -41,25 +42,26 @@ describe('orderedFor', () => {
 
   it('reads current digests only while every revision is exclusive, as orderedCurrent does', () => {
     const mixed = [
-      digestOf(6, 'x', 2),
-      digestOf(5, 'y', 1),
-      digestOf(7, 'z', 3),
-      digestOf(6, 'w', 0),
+      digestOf(MODEL_REVISION, 'x', 2),
+      digestOf(MODEL_REVISION - 1, 'y', 1),
+      digestOf(MODEL_REVISION + 1, 'z', 3),
+      digestOf(MODEL_REVISION, 'w', 0),
     ]
-    // The rule before the table, written out: the digests of revision 6, by start time then id.
+    // The rule before the table, written out: the digests of the current revision, by start time then id.
     const before = mixed
-      .filter((d) => d.modelRevision === 6)
+      .filter((d) => d.modelRevision === MODEL_REVISION)
       .sort((a, b) => a.startMs - b.startMs || a.id.localeCompare(b.id))
     for (const name of Object.keys(CONSUMERS) as Consumer[]) {
       expect(orderedFor(name, mixed)).toEqual(before)
     }
     expect(orderedCurrent(mixed)).toEqual(before)
     expect(orderedFor('combine', mixed).map((d) => d.id)).toEqual(['w', 'x'])
-    expect(REVISIONS.at(-1)?.revision).toBe(6)
+    expect(REVISIONS.at(-1)?.revision).toBe(MODEL_REVISION)
+    expect(REVISIONS.at(-1)?.kind).toBe('exclusive')
   })
 
   it('remembers an answer for the same digests without sharing the array a caller may change', () => {
-    const digests = [digestOf(6, 'b', 2), digestOf(6, 'a', 1)]
+    const digests = [digestOf(MODEL_REVISION, 'b', 2), digestOf(MODEL_REVISION, 'a', 1)]
     const first = orderedFor('combine', digests)
     first.pop()
     const second = orderedFor('trend', digests)

@@ -115,15 +115,13 @@ describe('the heart-rate cadence-lock flag', () => {
     }
   })
 
-  it('is refused by a create, in a flag and in a count, until the release that writes revision 7', () => {
-    expect(() => readDigest(flagged, 'create')).toThrow(/flags\[0\]\.kind/)
-    expect(() => readDigest({ ...wire, flagCounts: { 'hr-cadence-lock': 1 } }, 'create')).toThrow(
-      /flagCounts\.hr-cadence-lock/,
-    )
-    // The refusal is of the kind alone: the same digest with another kind is a digest.
+  it('is taken by a create too, in a flag and in a count, now that the rollback floor reads it', () => {
+    const digest = readDigest(flagged, 'create')
+    expect(digest.flags).toEqual([flag])
+    expect(digest.flagCounts).toEqual({ 'hr-cadence-lock': 1 })
     expect(
-      readDigest({ ...flagged, flags: [{ ...flag, kind: 'hr-spike' }], flagCounts: {} }, 'create'),
-    ).toBeTruthy()
+      readDigest({ ...wire, flagCounts: { 'hr-cadence-lock': 1 } }, 'create').flagCounts,
+    ).toEqual({ 'hr-cadence-lock': 1 })
   })
 
   it('has its flag held to the same rules as any other', () => {

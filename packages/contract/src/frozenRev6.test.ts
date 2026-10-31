@@ -113,7 +113,7 @@ describe('the readers of this release', () => {
       const readers = {
         stored: StoredActivityDigestSchema.parse(w),
         device: parseDigest(JSON.stringify(w)),
-        ...(locked ? {} : { create: ActivityDigestSchema.parse(w) }),
+        create: ActivityDigestSchema.parse(w),
       }
       for (const [name, digest] of Object.entries(readers)) {
         expect(wireOf(digest), `${where}: ${name}`).toEqual(JSON.parse(JSON.stringify(w)))
@@ -121,11 +121,10 @@ describe('the readers of this release', () => {
     }
   })
 
-  it('refuse a create of a lock flag until the release that writes revision 7', () => {
+  it('take a create of a lock flag, as the floor W1 reads it back', () => {
     for (const w of WITH_LOCK) {
-      const read = tryReadDigest(w, 'create')
-      expect(!read.ok && read.path, String(w.sport)).toBe('flags[0].kind')
-      expect(ActivityDigestSchema.safeParse(w).success, String(w.sport)).toBe(false)
+      expect(tryReadDigest(w, 'create').ok, String(w.sport)).toBe(true)
+      expect(ActivityDigestSchema.safeParse(w).success, String(w.sport)).toBe(true)
     }
   })
 

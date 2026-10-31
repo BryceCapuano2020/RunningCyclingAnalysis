@@ -5,5 +5,5 @@
     "types": []
   },
   "include": ["src"],
-  "exclude": ["src/corpus", "src/**/*.node.test.ts"]
+  "exclude": ["src/corpus", "src/**/*.node.ts", "src/**/*.node.test.ts"]
 }

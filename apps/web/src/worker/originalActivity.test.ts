@@ -60,8 +60,8 @@ describe('a saved activity the athlete labelled', () => {
     const { activity } = await originalActivity(record, 'u1')
 
     expect(activity?.athleteType).toBe('hike')
-    // The label is written at revision 7 only; at the current revision the rebuilt digest is as it always was.
-    expect(digestActivity(activity!)).not.toHaveProperty('athleteType')
+    // And the rebuilt digest carries it.
+    expect(digestActivity(activity!).athleteType).toBe('hike')
   })
 })
 

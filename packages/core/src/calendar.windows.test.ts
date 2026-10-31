@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  localAxisMs,
-  setViewerZone,
-  weekEndFor,
-  weekEndInstant,
-  weekEndsSpan,
-  withLocalWeeks,
-} from './calendar'
+import { localAxisMs, setViewerZone, weekEndFor, weekEndInstant, weekEndsSpan } from './calendar'
 import type { Zone } from './calendar'
 import { DAY_MS } from './constants'
 import { fitnessTrend } from './digest/trend'
@@ -69,7 +62,7 @@ const SUNDAY_EVENING_LOCAL = at(2026, 3, 16, 1)
 
 describe('the week axis and the week end agree', () => {
   it('puts a start at or before a week end exactly when its week ends at or before it', () => {
-    withLocalWeeks(true, () => {
+    {
       for (let hours = -12; hours <= 14; hours += 1.25) {
         const zone = east(hours)
         for (let step = 0; step < 400; step++) {
@@ -84,18 +77,18 @@ describe('the week axis and the week end agree', () => {
           }
         }
       }
-    })
+    }
   })
 
-  it('is the start itself with local weeks off', () => {
+  it('puts a Sunday evening at UTC-7 on Sunday’s axis, though its UTC day is Monday', () => {
     expect(localAxisMs({ startMs: SUNDAY_EVENING_LOCAL, localDayShift: -1 })).toBe(
-      SUNDAY_EVENING_LOCAL,
+      SUNDAY_EVENING_LOCAL - DAY_MS,
     )
   })
 
   it('gives the instant a week ends at in a zone with a daylight saving change', () => {
     const zone = named('America/Los_Angeles')
-    withLocalWeeks(true, () => {
+    {
       // Sunday 8 March 2026, the spring-forward day: the week ends at 06:59:59.999 UTC on Monday 9 March.
       const label = at(2026, 3, 9) - 1
       expect(weekEndInstant(label, zone)).toBe(at(2026, 3, 9, 6, 59) + 59_999)
@@ -103,14 +96,13 @@ describe('the week axis and the week end agree', () => {
       expect(weekEndInstant(at(2026, 11, 2) - 1, zone)).toBe(at(2026, 11, 2, 7, 59) + 59_999)
       // And the end of that instant's local Sunday is the same week.
       expect(weekEndFor({ startMs: weekEndInstant(label, zone) }, zone)).toBe(label)
-    })
-    expect(weekEndInstant(at(2026, 3, 9) - 1, zone)).toBe(at(2026, 3, 9) - 1)
+    }
   })
 })
 
 describe('weekEndsSpan', () => {
   it('reads the first and last week from the weeks, not from the order of the starts', () => {
-    withLocalWeeks(true, () => {
+    {
       // Starts in order: b (Sunday 23:30 UTC, local Monday) then a (Monday 00:30 UTC, local Sunday).
       const b = { startMs: at(2026, 3, 15, 23, 30), localDayShift: 1 as const }
       const a = { startMs: at(2026, 3, 16, 0, 30), localDayShift: -1 as const }
@@ -118,7 +110,7 @@ describe('weekEndsSpan', () => {
         first: at(2026, 3, 16) - 1,
         last: at(2026, 3, 23) - 1,
       })
-    })
+    }
   })
 })
 
@@ -141,7 +133,7 @@ describe('a Sunday evening at UTC-7', () => {
 
   it('stays in its own week in the final trend point', () => {
     const evening = withSundayEvening()
-    withLocalWeeks(true, () => {
+    {
       const points = fitnessTrend(evening, SETTINGS)
       expect(points.at(-1)!.endMs).toBe(SUNDAY_END)
       // The same activity at midday UTC on that Sunday is in the same week and the same windows.
@@ -151,12 +143,12 @@ describe('a Sunday evening at UTC-7', () => {
           : d,
       )
       expect(count(fitnessTrend(midday, SETTINGS))).toEqual(count(points))
-    })
+    }
   })
 
   it('is cut into weeks by the weekly marks and tables with the same end', () => {
     const evening = withSundayEvening()
-    withLocalWeeks(true, () => {
+    {
       const restore = setViewerZone(east(-7))
       try {
         const marks = weeklyMarks(evening)
@@ -173,7 +165,7 @@ describe('a Sunday evening at UTC-7', () => {
       } finally {
         setViewerZone(restore)
       }
-    })
+    }
   })
 })
 
@@ -191,7 +183,7 @@ describe('answers remembered by digests', () => {
       changed(d, { startMs: SUNDAY_EVENING_LOCAL + i * 7 * DAY_MS + 3600_000 }),
     )
     const ends = () => fitnessTrend(runs, SETTINGS).map((p) => p.endMs)
-    withLocalWeeks(true, () => {
+    {
       const utc = ends()
       const restore = setViewerZone(east(-7))
       try {
@@ -202,6 +194,6 @@ describe('answers remembered by digests', () => {
         setViewerZone(restore)
       }
       expect(ends()).toEqual(utc)
-    })
+    }
   })
 })

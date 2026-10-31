@@ -1149,10 +1149,12 @@ describe('parseFit hardening', () => {
     if (!result.ok) throw new Error(result.reason)
     expect(result.activities.map((a) => a.n)).toEqual([3600, 3600])
     expect(result.activities.map((a) => a.startMs)).toEqual([START_MS, second])
-    expect(result.activities.map((a) => a.name)).toEqual([
-      generatedName(START_MS, 'run'),
-      generatedName(second, 'run'),
-    ])
+    // Two names alike (a zone where both start at the same part of the day) are told apart by the time, so only the
+    // start of each is the generated name.
+    const names = result.activities.map((a) => a.name)
+    expect(names[0]!.startsWith(generatedName(START_MS, 'run'))).toBe(true)
+    expect(names[1]!.startsWith(generatedName(second, 'run'))).toBe(true)
+    expect(names[0]).not.toBe(names[1])
     expect(result.activities[0]?.id).not.toBe(result.activities[1]?.id)
   })
 

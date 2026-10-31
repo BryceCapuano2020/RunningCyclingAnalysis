@@ -387,6 +387,27 @@ activities at a time with accessible paging.
   missing originals need re-importing. Newer revisions are excluded with a separate compatibility
   notice, so rolling the Worker back to a revision 5 build makes every library already upgraded to
   revision 6 show as incompatible until the revision 6 Worker is deployed again.
+- Revision 7 (release R2) changes what a digest holds, relative to revision 6: the temperature summary
+  (`temperature`), the athlete's own label from the export's list (`athleteType`), and the local calendar day
+  shift read from the file (`localDayShift`: -1, 0 or +1, no UTC offset) are new optional fields; a flag
+  `hr-cadence-lock` takes out heart rate that repeats the cadence, a GPX run's cadence unit is resolved before the
+  walking-pace rule reads it, a steep descent saves only half of Minetti's saving (`descentCost`) and a split ratio
+  is checked, a lone power spike and a dropped second no longer set or lose a best (a best window may have 1%
+  unusable seconds). Weeks are cut at local Mondays, from the shift. It is `exclusive`: a library holds its
+  results back and shows the update panel while any digest is revision 6 (`HOLD_ON_ANY_STALE`). New imports are
+  revision 7; "Update now" rebuilds from retained originals, and dropping the original export again rebuilds
+  without them. The automatic updater stays off (`AUTO_UPDATE_ENABLED`) until the owner's checklist is done.
+  **Rollback floor.** Revision 7 digests, the new fields and the new flag kind are read by the Worker of
+  release R1 (W1) and by nothing older: a Worker older than R1 would read every revision-7 row as incompatible
+  and, once all rows are upgraded, show the landing page, count a row with the new flag kind as unreadable and
+  strip the new fields from any create or replace. So R2's floor is W1. W1 shows a revision-7 library as "need a
+  newer app", never the landing page, and analyses the rows not yet upgraded. R1 is deployed on its own first, and
+  W1 must be live and smoke-tested before R2 depends on it as a floor; the ledger row of R2
+  names W1's version id as the floor, and `RCA_SAFE_ROLLBACK_VERSION` must name W1 or newer after R2.
+- **Between R1 and R2:** smoke-test R1, then set `RCA_SAFE_ROLLBACK_VERSION` to R1's Worker version id (W1) before
+  deploying R2. Until it names W1 or newer, a failed R2 smoke test rolls back to an older Worker, which ignores
+  `ALLOWED_EMAILS` and cannot list a revision-7 row. Revision 7 is `exclusive`: after R2 a library holds its results until it
+  is rebuilt (Update now, or the export added again).
 - The digest's `race` field is additive and belongs to no revision. It is `true` only when the Strava
   export's Competition column tagged the activity at the moment it was imported, and the library list
   carries it too. The tag is in the export's list, not in the activity file, so it is read once, at

@@ -12,36 +12,42 @@ import { sampleDigestHashes } from './test/digestHashes'
  * Its stretch read too low for the power is found by comparison with the ride's own heart rate at the same power
  * and runs 2265 to 2415 s, not 2261 to 2419 s, so the heart rate masked and the figures built on it move with it.
  * The other 13 activities, and every copy with gaps but sample-12's, are unchanged.
+ * Re-pinned for revision 7 (D12 F), which writes the changes that were gated behind it. Every digest moves by its model
+ * revision (6 to 7). Beyond that only `splits` moves, and only for the runs of the dataset that have splits and a steep
+ * enough descent or a distance stream that disagrees with its speed (the split ratio): sample-01, 03, 04, 06, 08 and
+ * 10, and their copies with gaps. No sample activity has a power spike, a cadence lock, a GPX cadence, a local time, a
+ * temperature or a label, so none of those fields appears. `identity.rev7.test.ts` pins the fixtures that reach each
+ * change, with the fields each moved, and holds each digest less those fields to the hash main made.
  */
 const PINNED: Record<string, string> = {
-  'sample-01': '908687d7d361c8e40dd4c1931404222c6159e03cb1959e303e1655a46cde5138',
-  'sample-01-gaps': 'a3f54cc6824c490e38539b28708c33e61a3e4f7484cc5e5c779d8a284bf6dbc8',
-  'sample-02': '445c71027efa1a68e4bcf98a7efd9af0d52621a14f5a8e5a306b620c427ecfa9',
-  'sample-02-gaps': 'af9e691ee60bd2eda2283511153ccb3103821502fdc1eb8c4e3093e874844b7a',
-  'sample-03': '5c62abe3e2f4f2d1e419562ab727ab72fa8ad53a4f68c04b0feaba82922508f8',
-  'sample-03-gaps': '56595b4428d45500764ff7e66b2744c1c5ffd25b5cdad18d8c89ecd3e59e824d',
-  'sample-04': 'b00043e3dbad0cb3e2719b07720c08b36df10a6c69455166b367ec999e13a75a',
-  'sample-04-gaps': 'a39416e4321d8e77df5aec40725d0e4f4a6bed4138ed1de9a8b1768cc6357f56',
-  'sample-05': '391b536c5161ba005333c13aa2f8670b12667b0c807a3a4dc0798f55febc449e',
-  'sample-05-gaps': 'cd921274ff01348df3f76ad6c637e518b2265e94442368ba5078da450688eebf',
-  'sample-06': 'c133dd569903de52efa3351fec7b698587e6cf2956b6666bef23eade51a42d03',
-  'sample-06-gaps': 'a971075ab2cf9f171491e7e1a73ef21a89fd006beafa7ef013da817383595bb3',
-  'sample-07': 'b74a966bf602c83120efb42bb529fadb66c328cbfaa11773205e4d26d5ef569d',
-  'sample-07-gaps': '09c8d1d10a55f1521f5e2c4fad20b21ee68b5f5850329e7ad826f8e1f5ba98a0',
-  'sample-08': 'e4a56bd3d96bdc4c815f9f2a30641d6cf43d8e46e637f983f47ec36a4fed60d6',
-  'sample-08-gaps': '82d9d1eea7a80d76fafc8542123f111674ae13bd564fcf3c19c922c036174742',
-  'sample-09': '28250e95296cb237ffa786ee09b858cfafdf4c9f8f74f2a305a22d217fbb6f55',
-  'sample-09-gaps': '005ed2ea3cca4d43023ad5ad92b3e8b1fdba09ca7582f12613ed1898c269a653',
-  'sample-10': '80e190e5ae70dae97247c180c5391acf5eb2c39571aa57d4be6c14e55754a6bb',
-  'sample-10-gaps': '4dbb7769ef7aa7a0313ae394e661abc314c2d1931f8e24dbe8e933c99b7b0276',
-  'sample-11': '5eed8d5dcd1bbe69ecd7dd79066dba66fbd0bea37129e80f58a60b671df4ac99',
-  'sample-11-gaps': '145387f3d0a1ae584d6dac1b40c0ace747b17cb88e7291bc461e542f08be85aa',
-  'sample-12': '53c11744f67d939807073f65b7673ae38e33a417faf9ac147823b3f2d975dbf7',
-  'sample-12-gaps': 'c905ab0c40e8dbdc9b0b72f7820123e53fc08073f8d095e18f0c5cbaed9190b1',
-  'sample-13': '7ef769871a3154a64e6935d1038a8af716d684e3bd759335c34f2e7d14e3e6cf',
-  'sample-13-gaps': 'e49f1150f085ea7f8f1fe892ae68b891354d5b60c7bf616a50d2075f8a621304',
-  'sample-14': '2f3679270fdb4e92dde124ad781675b8ca1730aebf4f68f7f29d8ca8e075354a',
-  'sample-14-gaps': '2aca8c9764433703bbbdf259fbc9aa1c53758abb441af6f8d453251450135d6d',
+  'sample-01': '032a95acbd5f4611a316be29867f19808934c0e1b06837046879921a4be3cf44',
+  'sample-01-gaps': 'b5eb4bde51f6423e094f54cb292328125f4da90c80d31996a38e7e5ac4fbcc66',
+  'sample-02': '09a8376192cf0a9fa9c4210e4971a012bcafe78eeb84c947606aa43296e680f5',
+  'sample-02-gaps': '382fb9536f2792c9b7984a225bdf7734823f5e8d94e8fa93399da8df39f4c836',
+  'sample-03': '6ec14113a2fc22826c685755a8d5b6a76f1a0cb8436f9948c7000f5437e6c7f5',
+  'sample-03-gaps': '6939f9dadfed6ac01aa6970f0fa16a2abf335401ca81f4c034da2b339b2daf09',
+  'sample-04': '2846eca635ddce82fedd9122ea86cd53e8e41b07015528ebd6443cbc6b38155e',
+  'sample-04-gaps': 'f2bb186ac3d1c6c2c4874f6bbf5357bfae06e2d6e4f8d59eb8029455d7457394',
+  'sample-05': 'a68c9b21bbfe435b8719abd39468d0c093f5e71b9c9268f7ee3810b3965920dc',
+  'sample-05-gaps': '4aeb32cbb687c37380bc0875f733ef9ce0a9424c0c762974d3d03148dddb46f3',
+  'sample-06': '5a685f532d391de0be05e3b9424337284ef5d850255bf3d0c056bc039b629864',
+  'sample-06-gaps': '167196d1b7cf4177f8816f9ddff523e32e138c21f7bcd111b57e1007ab20894b',
+  'sample-07': '4c25015b60b1c5fbb65e95db28909d3030171d26cb0b1628c27fc2dee9e7e5d1',
+  'sample-07-gaps': 'cee941ab18ed0e1210ace9e3638700301b4cab1bfb744e606befc7140b11a6c2',
+  'sample-08': '656e8dc244cac54781e6b08ce1785354e9027dcf8cee9a95f4ae022a34872616',
+  'sample-08-gaps': '064a939274a8302b8d8976edb57618bae6448961adb59721212eb9410a56283e',
+  'sample-09': 'affc0df2d01275523f1356e549da9342f1f661cfcf96e3d0dfb17b7135fd11c8',
+  'sample-09-gaps': 'c57810b791efd708b06fb8f05258f4160f81f3993eb7cfb8241faf30baffaad4',
+  'sample-10': 'dda95819eb34c10e647eaab7dbaeeee7fb55b462eff17c2728db2783e7013df8',
+  'sample-10-gaps': 'c76752b2f6a4a8d5d6f4f4e6a90253f1571fe0d674ecdc54448d7aec2b74ec9e',
+  'sample-11': '0cf4bd849cb47e936f0cfe96967c53df2860e6e77fd736f621cdd363d558011a',
+  'sample-11-gaps': 'ad5f9a187341863ade720e294202208a00778df4d2228a6283df3f91902bae6a',
+  'sample-12': 'cb49fff4a261b1254bd8f68c8f9194a12bda4e62cb8043d0ca450eb72425c925',
+  'sample-12-gaps': 'd426306f6114c36886e3bcabbfafed17583ec140bc6687a2b6a5e7abb86d8415',
+  'sample-13': 'bed79321d3202a0b8c67c53abf8bcc28cf4a8adda63e7e8f892e36c95d931787',
+  'sample-13-gaps': 'e2b336a2a16f4c3084545b9813d78bfbd1cc6826b3399876e18451d29e553ddf',
+  'sample-14': '89899dec5714d612caeb1da6eed6367cc5b47934c0f8fda18812e610925ce07c',
+  'sample-14-gaps': '229d376baaf64f311fc1b320810e699bcf5cd7499fca8aa836b53c38415536c1',
 }
 
 describe('digestActivity output', () => {

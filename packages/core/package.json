@@ -20,6 +20,7 @@
     "./digest/limits": "./src/digest/readLimits.ts",
     "./digest/test/mutants": "./src/digest/test/digestMutants.ts",
     "./digest/test/frozen/rev6": "./src/digest/test/frozen/rev6/index.ts",
+    "./digest/test/frozen/r1": "./src/digest/test/frozen/r1/index.ts",
     "./digest/lateEvidenceTypes": "./src/digest/lateEvidenceTypes.ts",
     "./digest/modelRevision": "./src/digest/modelRevision.ts",
     "./digest/revisions": "./src/digest/revisions.ts",

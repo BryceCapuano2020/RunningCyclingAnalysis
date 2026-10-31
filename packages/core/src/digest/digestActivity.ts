@@ -29,7 +29,6 @@ import { elevationGain } from './elevationGain'
 import { atWalkingPace } from './walkingPace'
 import {
   BEST_WINDOW_GAP_SHARE,
-  hasRevision7,
   walkingPaceView,
   withCadenceLock,
   withLonePowerSpikes,
@@ -233,16 +232,7 @@ function virtualParts(
  * itself, never on the athlete's settings, so it can be computed once at import and combined later.
  */
 export function digestActivity(activity: Activity): ActivityDigest {
-  return digestActivityAt(activity, MODEL_REVISION)
-}
-
-/**
- * The digest as revision `revision` makes it. Below 7 the revision-7 changes are off and the bytes are
- * those of `MODEL_REVISION` 6; tests pass 7 to cover the new behaviour (revision7Gate.ts).
- */
-export function digestActivityAt(activity: Activity, revision: number): ActivityDigest {
   const moving = movingMask(activity)
-  const seven = hasRevision7(revision)
   // Where the file's speed and distance disagree, efforts credit only what both support. The
   // summary and the splits keep the file's own distance. A power-meter ride keeps its own speed,
   // because its measured power does not follow the lowering: its calibration and climb sections
@@ -264,9 +254,7 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
     activity.paused,
     streams.speed,
   )
-  const quality = seven
-    ? withLonePowerSpikes(activity, withCadenceLock(activity, assessed, moving))
-    : assessed
+  const quality = withLonePowerSpikes(activity, withCadenceLock(activity, assessed, moving))
   rememberTraceQuality(activity, quality, streams.speed)
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.
@@ -277,14 +265,14 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
   const metabolic =
     activity.sport === 'run'
       ? runMetabolicPower(streams.speed, grade, PRIORS.runEconomyScale.mean, {
-          steepDescent: seven,
+          steepDescent: true,
         })
       : null
   const movingS = countKept(moving)
   const occupancy: Occupancy = {
     moving,
     minFraction: BEST_WINDOW_MIN_MOVING_FRACTION,
-    ...(seven ? { gapShare: BEST_WINDOW_GAP_SHARE } : {}),
+    gapShare: BEST_WINDOW_GAP_SHARE,
   }
   let parts: Parts
   if (metabolic !== null) {
@@ -297,7 +285,7 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
 
   return {
     version: DIGEST_VERSION,
-    modelRevision: revision,
+    modelRevision: MODEL_REVISION,
     id: activity.id,
     name: activity.name,
     sport: activity.sport,
@@ -334,15 +322,15 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
             PRIORS.runEconomyScale.mean,
             agreed.covered,
             moving,
-            seven ? streams.speed : undefined,
+            streams.speed,
           ),
         }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
     ...(activity.race === true ? { race: true as const } : {}),
-    ...(atWalkingPace(seven ? walkingPaceView(activity, moving) : activity, moving, movingS)
+    ...(atWalkingPace(walkingPaceView(activity, moving), moving, movingS)
       ? { walkingPace: true as const }
       : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
-    ...revision7Fields(activity, revision),
+    ...revision7Fields(activity),
   }
 }

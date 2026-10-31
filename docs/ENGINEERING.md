@@ -81,10 +81,24 @@ to the digest follows these rules, and each has a test that fails when it is bro
    its own), so a caller can list the activity and ask for a rebuild instead of counting it unreadable.
 6. **A create never takes what the rollback floor cannot read back.** `packages/contract/src/digestReaders.test.ts`
    feeds thousands of damaged copies of every kind of digest to the readers and to a frozen copy of the
-   floor's schemas (`packages/contract/src/test/floorDigest.ts`), and fails if a create takes one the
-   floor refuses, or if the readers differ where they should not. When the floor moves, replace the copy.
+   floor's schemas (`packages/contract/src/test/frozen/r1/digest.ts`, over the readers of release R1 in
+   `packages/core/src/digest/test/frozen/r1`), and fails if a create takes a digest the floor cannot read back from
+   a stored row, or if the readers differ where they should not. When the floor moves, replace the copy with the
+   readers of the new floor's release. `frozenR1.test.ts` holds that the floor lists every revision-7 digest with
+   every field.
 7. **A digest that exists in a library is still read.** The same test reads the sample and the
-   synthetic corpus at every revision and requires the floor's reading, unchanged.
+   synthetic corpus at every revision and requires the reading of the Worker `3e17b541`
+   (`test/floorDigest.ts`, kept for this), unchanged.
+8. **A change to what existing digests mean is a revision, and says what it does to the one before.** Add the
+   entry to `REVISIONS` (`packages/core/src/digest/revisions.ts`) with its kind, the fields it adds and
+   changes and the readers it moves. `mixable` needs a study that measures it (`mixingStudy.node.test.ts`
+   bounds each output at a third of the least change the app states, over contiguous mixtures of both
+   revisions, and the monitor sim for the fitness value); the study's result and the declared kind must agree.
+   Until the revision is written, put each change behind a gate on the revision a digest is made at, so a digest
+   made at the current revision keeps its bytes, which the `identity` tests prove with hashes taken from `main`; the
+   release that writes the revision removes the gates and moves the pins once.
+9. **Every digest field is named on the privacy page.** `apps/web/src/privacyDigestFields.test.ts` maps each
+   field of `ActivityDigest` to the sentence of `apps/web/privacy.html` that says it stores it.
 
 ## Current hotspots
 
