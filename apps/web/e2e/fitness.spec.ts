@@ -240,7 +240,7 @@ test('the landing page’s example shows the same finding as a second panel unde
   const example = page.locator('.landing-example')
   await expect(example.locator('.landing-example__state')).toHaveText('Slipping')
   await expect(example.locator('.landing-example__sentence')).toHaveText(
-    /^At 140 bpm you now run [\d.]+% \(\d+ to \d+%\) slower than before\.$/,
+    /^At 120 bpm you now run [\d.]+% \(\d+ to \d+%\) slower than before\.$/,
   )
   await expect(example.locator('.fitness-track__band')).toBeVisible()
   // The balance comes first; the fitness finding is the panel under it.
