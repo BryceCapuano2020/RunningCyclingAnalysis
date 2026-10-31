@@ -54,6 +54,11 @@ export interface Spec {
    * week, is found by 39% of seeds at 0.10 and 60% at 0.0765), so the two stay apart.
    */
   effortSd?: number
+  /**
+   * The peak heart rate (30 s) a hard and an easy effort carry, bpm, with no seconds-by-heart-rate distribution so the peak
+   * alone is judged, and an average of 85% of it. Absent, an activity has no heart rate (the template's is kept).
+   */
+  peakHeartRate?: { hard: number; easy: number }
 }
 
 function poisson(random: () => number, mean: number): number {
@@ -113,6 +118,13 @@ export function effortLibrary(spec: Spec): ActivityDigest[] {
         id: `${spec.sport}-${spec.seed}-${week}-${i}`,
         startMs: Math.round(startMs),
         indoor: false,
+        ...(spec.peakHeartRate === undefined
+          ? {}
+          : {
+              maxHeartRate: hard ? spec.peakHeartRate.hard : spec.peakHeartRate.easy,
+              avgHeartRate: (hard ? spec.peakHeartRate.hard : spec.peakHeartRate.easy) * 0.85,
+              distributions: undefined,
+            }),
         curve: template.curve.map((point, k) =>
           Object.assign({}, point, { value: values[k]!, terms: null }),
         ),
