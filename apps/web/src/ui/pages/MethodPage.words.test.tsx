@@ -20,7 +20,7 @@ describe('the Method page', () => {
         restoring={false}
       />,
     )
-    // Measured with every disclosure closed: 2,046 words before D4.10's trim, 2,010 after.
-    expect(wordsOf(container).length).toBeLessThanOrEqual(2010)
+    // Measured with every disclosure closed: 2,046 words before D4.10's trim, 2,010 after; the Your years topic (#311) has since added 15, so 2,025.
+    expect(wordsOf(container).length).toBeLessThanOrEqual(2025)
   })
 })
