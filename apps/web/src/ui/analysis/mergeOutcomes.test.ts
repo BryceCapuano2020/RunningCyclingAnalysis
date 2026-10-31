@@ -52,4 +52,18 @@ describe('mergeOutcomes', () => {
     ).toMatchObject({ updatedRuns: 3, updatedRides: 0 })
     expect(mergeOutcomes(base, base)).not.toHaveProperty('updatedRuns')
   })
+
+  it('adds the formats skipped by extension, and leaves them out when neither import skipped any', () => {
+    const base = { activities: 1, rejected: 0, duplicates: [] }
+    expect(
+      mergeOutcomes(
+        { ...base, skippedTypes: { pwx: 2, kml: 1 } },
+        { ...base, skippedTypes: { pwx: 1 } },
+      ),
+    ).toMatchObject({ skippedTypes: { pwx: 3, kml: 1 } })
+    expect(mergeOutcomes({ ...base, skippedTypes: { kml: 1 } }, base)).toMatchObject({
+      skippedTypes: { kml: 1 },
+    })
+    expect(mergeOutcomes(base, base)).not.toHaveProperty('skippedTypes')
+  })
 })

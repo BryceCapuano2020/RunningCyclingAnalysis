@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { Measurement } from '@rca/core/athlete'
+import type { Sex } from '@rca/core/grade'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisSettings, type WeightSettings } from './athlete'
 
@@ -19,10 +20,19 @@ export function useAnalysisSettings(
   birthYear: number | null,
   countedRuns: readonly string[],
   keepPower: readonly string[] = NO_KEPT,
+  sex: Sex | null = null,
 ): AthleteSettings {
   const { massKg, bikeMassKg } = settings
   return useMemo(
-    () => analysisSettings({ massKg, bikeMassKg }, measurements, birthYear, countedRuns, keepPower),
-    [massKg, bikeMassKg, measurements, birthYear, countedRuns, keepPower],
+    () =>
+      analysisSettings(
+        { massKg, bikeMassKg },
+        measurements,
+        birthYear,
+        countedRuns,
+        keepPower,
+        sex,
+      ),
+    [massKg, bikeMassKg, measurements, birthYear, countedRuns, keepPower, sex],
   )
 }

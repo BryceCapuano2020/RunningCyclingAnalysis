@@ -226,3 +226,23 @@ describe('ActivityZoneTime, a pace the date has no zones for', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('ActivityZoneTime, a heart rate the date has no zones for', () => {
+  it('says "heart rate", not the measure’s name, and what would give the zones', async () => {
+    const trace = twoPartRun()
+    render(
+      <ActivityWorkbench
+        activityId="run-4"
+        units="metric"
+        loadTrace={async () => ({ kind: 'trace', trace })}
+        zoneSets={[setOf('run', 'pace', 3.5)]}
+        missingZones={['heartRate']}
+      />,
+    )
+    await screen.findByRole('heading', { name: 'Time in zones' })
+    expect(
+      screen.getByText(/^No heart rate zones for this run\. None of your efforts reached/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/heartRate/)).toBeNull()
+  })
+})
