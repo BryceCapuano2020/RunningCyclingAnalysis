@@ -628,6 +628,9 @@ or R2 changes.
   The same goes for the Time Travel rewind in Part B of that runbook. Also test future
   schema/model rollback compatibility. The drills so far covered one synthetic activity, not
   maximum database size or disaster recovery of an active multi-user service.
+- Before any client calls `PATCH /api/activities/labels`, run its tests (`activities.labels.test.ts`) against
+  remote D1. The tests run on local D1 only, and the endpoint's batch relies on SQLite behaviour that
+  remote D1 must be shown to share.
 - Complete Google's public-brand requirements before representing the app as a verified public
   production brand. Continue checking Cloudflare usage/errors; code caps and alerts do not cap
   traffic from other bucket clients or account-level charges.

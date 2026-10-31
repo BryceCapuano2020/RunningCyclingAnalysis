@@ -8,7 +8,7 @@ import { digestActivity } from '../digestActivity'
  * as 0, and leaves out a key set to undefined. Every string is tagged too, so no string can pass
  * for one of those.
  */
-function exactJson(digest: ActivityDigest): string {
+export function exactJson(digest: ActivityDigest): string {
   return JSON.stringify(digest, (_key, value: unknown) => {
     if (value === undefined) return 'undefined'
     if (typeof value === 'string') return `string:${value}`
@@ -47,4 +47,9 @@ export async function sampleDigestHashes(): Promise<Record<string, string>> {
     hashes[activity.id] = await sha256Hex(encoder.encode(exactJson(digestActivity(activity))))
   }
   return hashes
+}
+
+/** SHA-256 of one digest's exact text. */
+export async function digestHash(digest: ActivityDigest): Promise<string> {
+  return sha256Hex(new TextEncoder().encode(exactJson(digest)))
 }
