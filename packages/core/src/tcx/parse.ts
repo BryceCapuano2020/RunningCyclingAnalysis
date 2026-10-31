@@ -4,7 +4,8 @@ import { activitiesFromUnits, MAX_SPEED_MPS } from '../import/pipeline'
 import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
-import { parseIsoTime, ZONELESS } from '../import/time'
+import { designatorOffsetS } from '../import/localDay'
+import { isoZoneOffsetS, parseIsoTime, ZONELESS } from '../import/time'
 import {
   appendField,
   fixesOf,
@@ -69,6 +70,8 @@ interface OpenActivity extends SportChoice {
   laps: NonNullable<PipelineUnit['laps']>
   openLap?: OpenLap
   lapCount: number
+  /** Seconds east of UTC given by the zone designator of the first trackpoint time. */
+  zoneOffsetS?: number
 }
 
 interface OpenLap {
@@ -225,7 +228,11 @@ class TcxScanner implements XmlHandler {
     const activity = this.activity
     if (raw === undefined || activity === undefined || activity.sport === null) return
     const point = pointOf(raw)
-    if (point !== undefined) activity.points.push(point)
+    if (point === undefined) return
+    if (activity.points.length === 0) {
+      activity.zoneOffsetS = designatorOffsetS(isoZoneOffsetS(raw.time ?? ''))
+    }
+    activity.points.push(point)
   }
 
   private closeActivity(): void {
@@ -337,6 +344,7 @@ function unitOf(activity: OpenActivity): PipelineUnit {
     indoor: activity.indoor || (sport === 'ride' && !hasPosition),
     hasPosition,
     fixes: fixesOf(points),
+    ...(activity.zoneOffsetS === undefined ? {} : { localOffsetS: activity.zoneOffsetS }),
   }
 }
 

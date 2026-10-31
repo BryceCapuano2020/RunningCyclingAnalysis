@@ -1,6 +1,6 @@
 import { DEFAULT_BIKE_MODEL } from '../constants'
 import { ridePowerCeilingWkg } from '../curves'
-import type { ActivityDigest } from '../types'
+import type { ActivityDigest, Sport } from '../types'
 import type { Masses } from './masses'
 import { powerAt } from './terms'
 
@@ -17,6 +17,9 @@ export interface EstimatedPower {
   wkg: number
 }
 
+/** Whether a sport's power can be an estimate from speed and climbs: a ride's can, a run has none. */
+const HAS_ESTIMATED_POWER: Record<Sport, boolean> = { run: false, ride: true }
+
 // A digest never changes and the masses are fixed for it; the answer is kept for the masses it was last asked at.
 const kept = new WeakMap<
   object,
@@ -31,7 +34,7 @@ export function estimatedPowerOver(
   digest: Pick<ActivityDigest, 'curve' | 'sport' | 'startMs'>,
   masses: Masses,
 ): EstimatedPower | undefined {
-  if (digest.sport !== 'ride') return undefined
+  if (!HAS_ESTIMATED_POWER[digest.sport]) return undefined
   const bodyKg = masses.bodyKg(digest)
   const totalKg = masses.totalKg(digest)
   const held = kept.get(digest)

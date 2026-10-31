@@ -46,15 +46,15 @@ export interface ActivitySummary {
    */
   powerCheck?: 'set-aside' | 'kept'
   /**
-   * For a ride with a `powerCheck` whose power is estimated from speed and climbs (no power meter): the effort that
-   * needs the most power over the ceiling, and what it needs. Absent for a measured ride and for every other activity.
-   */
-  estimatedPower?: EstimatedPower
-  /**
    * For a ride with a `powerCheck`: the heart rate over its longest effort above the ceiling, as a share of the athlete's
    * reference, when that can be read (see PowerHeartRate). Absent otherwise.
    */
   powerHeartRate?: PowerHeartRate
+  /**
+   * For a ride with a `powerCheck` whose power is estimated from speed and climbs (no power meter): the effort that
+   * needs the most power over the ceiling, and what it needs. Absent for a measured ride and for every other activity.
+   */
+  estimatedPower?: EstimatedPower
   /** Revision 7: the athlete's own label when it differs from the file's sport. See ActivityDigest.athleteType. */
   athleteType?: AthleteType
   /** Revision 7: the local calendar date minus the UTC date at the start. See ActivityDigest.localDayShift. */

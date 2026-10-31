@@ -51,8 +51,8 @@ export function estimatedPowerNote(estimate: EstimatedPower): string {
 }
 
 /**
- * What the heart rate over the questioned effort shows, as a fact beside the power: the share of the athlete's reference
- * heart rate it averaged, and whether that is as high as a hard effort reads. It does not say the power was right or wrong.
+ * What the heart rate over the questioned effort shows, as a fact beside the power: the share of the athlete's max it
+ * averaged, and whether that is as high as a hard effort reads. It does not say the power was right or wrong.
  */
 export function powerHeartRateNote(evidence: PowerHeartRate): string {
   const minutes = Math.round(evidence.durationS / 60)

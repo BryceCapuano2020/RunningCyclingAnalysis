@@ -1,4 +1,5 @@
 import { sameAnalysisSettings } from './athlete/references'
+import { calendarWatch } from './calendar'
 import { changeEvidence } from './change/evidence'
 import type { ChangeEvidence } from './change/types'
 import { EVERY_EFFORT_KEYED } from './digest/readingRule'
@@ -78,6 +79,7 @@ const ANALYSES_KEPT = 4
  * its own; whether the equivalents are wanted does, and it is in the key.
  */
 export class PeriodCache {
+  private moved = { trend: calendarWatch(), same: calendarWatch() }
   private trendEntries = new Map<
     EffortLengthS,
     Inputs & {
@@ -212,6 +214,7 @@ export class PeriodCache {
     bikeModel: BikeModel | undefined,
     rideGate?: EstimatedRideGate | null,
   ): Record<EffortLengthS, TrendPoint[]> {
+    if (this.moved.trend()) this.trendEntries.clear()
     return Object.fromEntries(
       EFFORT_LENGTHS_S.map((durationS) => [
         durationS,
@@ -269,6 +272,7 @@ export class PeriodCache {
     fromMs: number | null,
     setAside: readonly string[],
   ): SameHeartRateBySport {
+    if (this.moved.same()) this.sameEntries = []
     const key = setAside.join(',')
     const hit = this.sameEntries.findIndex(
       (entry) =>

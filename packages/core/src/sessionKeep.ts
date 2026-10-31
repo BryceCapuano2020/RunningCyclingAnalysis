@@ -1,5 +1,5 @@
 import { digestActivity } from './digest'
-import { workoutKey, fileNameOf, heldCopyOf, outranksHeld } from './duplicates'
+import { workoutKey, fileNameOf, outranksHeld } from './duplicates'
 import {
   NETWORK_FAILURES_BEFORE_PROBE,
   NETWORK_PROBE_DELAY_MS,
@@ -13,7 +13,7 @@ import type { ActivityListeners } from './sessionHooks'
 import type { SessionLibrary } from './sessionLibrary'
 import type { Considered } from './sessionSource'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
-import type { Activity, ActivityDigest } from './types'
+import type { Activity } from './types'
 
 /**
  * The session's library bookkeeping that keeping an activity reads and changes. The maps are the
@@ -28,41 +28,11 @@ export interface KeepState {
 }
 
 /**
- * The digests a new copy is compared with: the current ones, and the compatible ones of other workouts. A
- * compatible digest of this very workout is replaced by the new copy whatever its richness, so it is not one.
- */
-function* comparable(library: SessionLibrary, key: string): Iterable<ActivityDigest> {
-  yield* library.digests.values()
-  for (const [other, digest] of library.readable) if (other !== key) yield digest
-}
-
-/**
- * Keeps one activity of an import, unless a richer copy of the same workout is already held. That
- * copy is not synced. Equally rich copies are both saved, and the analysis hides one of them. A
- * poorer copy is saved but hidden from the analysis. Says what became of the activity: the digest
- * it added, or the name of the held file when its workout was already in the library, whether this
- * is a copy, the same file again or a richer copy that replaces the held one. The listeners hear of
- * the activity when it is kept, or when it is the held file again, never of another skipped copy.
- */
-export async function considerActivity(
-  state: KeepState,
-  activity: Activity,
-  file: ImportedFile,
-  sink: SyncSink | undefined,
-  syncExisting: boolean,
-  batch: SaveBatch,
-  listeners?: ActivityListeners,
-): Promise<Considered> {
-  const copyOf = heldCopyOf(
-    comparable(state.library, workoutKey(activity.sport, activity.startMs)),
-    activity,
-    file.fileName,
-  )
-  if (copyOf !== null) return { held: copyOf }
-  return keepActivity(state, activity, file, sink, syncExisting, batch, listeners)
-}
-
-/**
+ * Keeps one activity of an import and hands it to the sink. Every distinct start second is kept, whatever else is
+ * held for the same workout: a poorer or richer copy at another second is stored too, and the analysis hides all but
+ * the best of the copies (rule R), so the stored set does not depend on the order the files arrive in. Says what
+ * became of the activity: the digest it added, or the name of the held file when its workout was already in the library.
+ *
  * Digests one parsed activity and hands it to the sink. An activity already held and saved is left alone
  * unless syncExisting requests a sink call for it (for example, to retain an original after that preference
  * is enabled). A copy that outranks the held one for the same start second replaces it. A sink failure is
@@ -70,7 +40,7 @@ export async function considerActivity(
  * A held activity whose save failed is not yet in the library for good: it is added when this import saves
  * it, and is otherwise still the held workout, however it came to be left unsaved.
  */
-async function keepActivity(
+export async function considerActivity(
   state: KeepState,
   activity: Activity,
   file: ImportedFile,

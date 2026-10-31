@@ -39,46 +39,6 @@ describe('PowerCheck', () => {
   })
 })
 
-describe('a ride without a power meter whose estimate is over what riders hold', () => {
-  const estimatedPower = { durationS: 1200, wkg: 9.04 }
-
-  it('says what the estimate needs and what else would show it, and offers to keep the power', async () => {
-    render(
-      <PowerCheck
-        activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside', estimatedPower })}
-      />,
-    )
-    const note = estimatedPowerNote(estimatedPower)
-    expect(screen.getByText(note)).toBeTruthy()
-    expect(note).toContain('no power meter')
-    expect(note).toContain('needs 9.0 W/kg')
-    expect(note).toContain(
-      'An assisted bike, a tow or a wrong weight setting would read like this.',
-    )
-    expect(note).not.toMatch(/e-bike|motor|cheat|fraud|fake/i)
-    await userEvent.click(screen.getByRole('button', { name: 'Keep this power' }))
-    expect(localStorage.getItem('rca.keepPower.v1')).toBe('["activity-1"]')
-  })
-
-  it('names a short effort in seconds and a long one in minutes, never “0 min”', () => {
-    expect(estimatedPowerNote({ durationS: 15, wkg: 24 })).toContain('best 15 s the estimate')
-    expect(estimatedPowerNote({ durationS: 90, wkg: 12 })).toContain('best 90 s the estimate')
-    expect(estimatedPowerNote({ durationS: 120, wkg: 9 })).toContain('best 2 min the estimate')
-    expect(estimatedPowerNote({ durationS: 1200, wkg: 8 })).toContain('best 20 min the estimate')
-    expect(estimatedPowerNote({ durationS: 5, wkg: 30 })).not.toContain('0 min')
-  })
-
-  it('keeps the meter’s note for a ride with one, and the kept note once kept', () => {
-    render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
-    expect(screen.getByText(POWER_SET_ASIDE_NOTE)).toBeTruthy()
-    cleanup()
-    render(
-      <PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'kept', estimatedPower })} />,
-    )
-    expect(screen.getByText(POWER_KEPT_NOTE)).toBeTruthy()
-  })
-})
-
 describe('the heart rate over the questioned power', () => {
   const evidence = (heartRateShare: number) => ({ durationS: 1200, wkg: 8.04, heartRateShare })
 
@@ -121,6 +81,46 @@ describe('the heart rate over the questioned power', () => {
     cleanup()
     render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
     expect(screen.queryByText(/^Over its best/)).toBeNull()
+  })
+})
+
+describe('a ride without a power meter whose estimate is over what riders hold', () => {
+  const estimatedPower = { durationS: 1200, wkg: 9.04 }
+
+  it('says what the estimate needs and what else would show it, and offers to keep the power', async () => {
+    render(
+      <PowerCheck
+        activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside', estimatedPower })}
+      />,
+    )
+    const note = estimatedPowerNote(estimatedPower)
+    expect(screen.getByText(note)).toBeTruthy()
+    expect(note).toContain('no power meter')
+    expect(note).toContain('needs 9.0 W/kg')
+    expect(note).toContain(
+      'An assisted bike, a tow or a wrong weight setting would read like this.',
+    )
+    expect(note).not.toMatch(/e-bike|motor|cheat|fraud|fake/i)
+    await userEvent.click(screen.getByRole('button', { name: 'Keep this power' }))
+    expect(localStorage.getItem('rca.keepPower.v1')).toBe('["activity-1"]')
+  })
+
+  it('names a short effort in seconds and a long one in minutes, never “0 min”', () => {
+    expect(estimatedPowerNote({ durationS: 15, wkg: 24 })).toContain('best 15 s the estimate')
+    expect(estimatedPowerNote({ durationS: 90, wkg: 12 })).toContain('best 90 s the estimate')
+    expect(estimatedPowerNote({ durationS: 120, wkg: 9 })).toContain('best 2 min the estimate')
+    expect(estimatedPowerNote({ durationS: 1200, wkg: 8 })).toContain('best 20 min the estimate')
+    expect(estimatedPowerNote({ durationS: 5, wkg: 30 })).not.toContain('0 min')
+  })
+
+  it('keeps the meter’s note for a ride with one, and the kept note once kept', () => {
+    render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
+    expect(screen.getByText(POWER_SET_ASIDE_NOTE)).toBeTruthy()
+    cleanup()
+    render(
+      <PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'kept', estimatedPower })} />,
+    )
+    expect(screen.getByText(POWER_KEPT_NOTE)).toBeTruthy()
   })
 })
 
