@@ -9,7 +9,7 @@ import { massesOf } from '../digest/masses'
 import { fitBikeModelOver } from '../digest/rideCurves'
 import { EFFORT_LENGTHS_S } from '../digest/trendPoints'
 import { metabolicToFlatSpeed } from '../metabolic'
-import { effortProgression } from '../records/progression'
+import { effortProgression, hasEstimatedRide } from '../records/progression'
 import type { Reading } from '../records/progression'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { LOOKBACK } from './params'
@@ -127,8 +127,10 @@ export function milestonesOf(
   const out: Record<Sport, EffortMilestones[]> = { run: [], ride: [] }
   if (ordered.length === 0) return out
   const asOfMs = ordered.reduce((newest, d) => Math.max(newest, d.startMs), 0)
-  // The gate is read once: the progression takes it as it is, and a run is read at the lengths shown alone.
-  const rideGate = gate === undefined ? ownRideGate(ordered) : gate
+  // The gate is read once, and only for a library with estimated rides (a meter's points all hold, gate or none): the
+  // progression takes it as it is and reads the lengths shown alone.
+  const rideGate =
+    gate !== undefined ? gate : hasEstimatedRide(ordered) ? ownRideGate(ordered) : null
   const progression = effortProgression(
     digests,
     settings,
@@ -139,22 +141,25 @@ export function milestonesOf(
   const bikeModel = fitBikeModelOver(ordered, masses).model
   const eligible = ordered.filter(effortsCount)
   // The change test over two calendar years' efforts: each year's readings are made once, and a pair is judged as two periods are.
+  const inYear = new Map<number, ActivityDigest[]>()
+  const yearsOfSport: Record<Sport, Set<number>> = { run: new Set(), ride: new Set() }
+  for (const d of eligible) {
+    const year = yearOf(d.startMs)
+    const own = inYear.get(year)
+    if (own === undefined) inYear.set(year, [d])
+    else own.push(d)
+    yearsOfSport[d.sport].add(year)
+  }
   const yearReadings = new Map<number, Readings>()
   const readingsOfYear = (year: number): Readings => {
     let made = yearReadings.get(year)
     if (made === undefined) {
-      made = readingsOf(
-        eligible.filter((d) => yearOf(d.startMs) === year),
-        settings,
-        bikeModel,
-        rideGate,
-      )
+      made = readingsOf(inYear.get(year) ?? [], settings, bikeModel, rideGate)
       yearReadings.set(year, made)
     }
     return made
   }
-  const hasYear = (sport: Sport, year: number) =>
-    eligible.some((d) => d.sport === sport && yearOf(d.startMs) === year)
+  const hasYear = (sport: Sport, year: number) => yearsOfSport[sport].has(year)
   const sports: Sport[] = ['run', 'ride']
   for (const sport of sports) {
     for (const durationS of EFFORT_LENGTHS_S) {

@@ -118,34 +118,44 @@ export function eligibleDigests(digests: ActivityDigest[]): ActivityDigest[] {
   return orderedFor('records', digests).filter(effortsCount)
 }
 
+/** Whether any ride has a point read from a power model rather than a meter. */
+export const hasEstimatedRide = (digests: readonly ActivityDigest[]): boolean =>
+  digests.some((d) => d.sport === 'ride' && d.curve.some((point) => point.terms !== null))
+
 /**
  * Each sport's priced points at each duration across a set of digests, the records' own eligibility and pricing
  * (runs in W/kg at their pace, rides in watts priced with the bike model fitted to this set, or W/kg with dated masses;
  * `unit` says which), less the estimates the records would not award (see withoutOverreach). `gate` is as for
- * `recordHolders`. A reader that needs only some durations names their indexes in `runOnly`: a run's readings are read at
- * those alone (a run holds no estimate that stands alone, so no duration's readings depend on a shorter one's), and the
- * others are left empty. Rides are always read at every duration, since an estimate there is judged against the next shorter.
+ * `recordHolders`. A reader that needs only some durations names their indexes in `only`: a run is read at those alone
+ * (it holds no estimate that stands alone, so no duration's readings depend on a shorter one's), and so is a ride when
+ * the library has no estimated ride point; the other durations are left empty. With estimated rides every duration is
+ * read, since an estimate is judged against the record at the next shorter one.
  */
 export function effortProgression(
   digests: ActivityDigest[],
   settings: AthleteSettings,
   gate?: EstimatedRideGate | null,
-  runOnly?: readonly number[],
+  only?: readonly number[],
 ): Record<Sport, Progression> {
   const ordered = orderedFor('records', digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   const standing = estimatedStanding(gate === undefined ? ownRideGate(ordered) : gate)
   const eligible = ordered.filter(effortsCount)
+  const estimates = hasEstimatedRide(eligible)
   return {
     run: {
       unit: 'run W/kg',
-      readings: withoutOverreach(readingsByDuration(ofSport(eligible, 'run'), runPricer, runOnly)),
+      readings: withoutOverreach(readingsByDuration(ofSport(eligible, 'run'), runPricer, only)),
     },
     ride: {
       unit: masses.dated ? 'W/kg' : 'W',
       readings: withoutOverreach(
-        readingsByDuration(ofSport(eligible, 'ride'), ridePricer(masses, bikeModel, standing)),
+        readingsByDuration(
+          ofSport(eligible, 'ride'),
+          ridePricer(masses, bikeModel, standing),
+          estimates ? undefined : only,
+        ),
       ),
     },
   }
