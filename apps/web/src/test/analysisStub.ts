@@ -36,6 +36,8 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     libraryUnreadable: 0,
     deviceIssue: null,
     importOutcome: null,
+    incompleteImport: null,
+    acceptIncompleteImport: vi.fn(),
     importChange: null,
     dismissSummary: vi.fn(),
     savedActivities: [],

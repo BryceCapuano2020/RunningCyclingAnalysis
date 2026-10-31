@@ -14,6 +14,8 @@ export function mergeOutcomes(first: ImportOutcome, second: ImportOutcome): Impo
   const notActivities = sum(first.notActivities, second.notActivities)
   const runs = sum(first.runs, second.runs)
   const rides = sum(first.rides, second.rides)
+  const updatedRuns = sum(first.updatedRuns, second.updatedRuns)
+  const updatedRides = sum(first.updatedRides, second.updatedRides)
   const detailRestored = sum(first.detailRestored, second.detailRestored)
   return {
     activities: first.activities + second.activities,
@@ -23,6 +25,8 @@ export function mergeOutcomes(first: ImportOutcome, second: ImportOutcome): Impo
     ...(notActivities === undefined ? {} : { notActivities }),
     ...(runs === undefined ? {} : { runs }),
     ...(rides === undefined ? {} : { rides }),
+    ...(updatedRuns === undefined ? {} : { updatedRuns }),
+    ...(updatedRides === undefined ? {} : { updatedRides }),
     ...(starts.length === 0 ? {} : { firstStartMs: Math.min(...starts) }),
     ...(ends.length === 0 ? {} : { lastStartMs: Math.max(...ends) }),
     ...(detailRestored === undefined ? {} : { detailRestored }),

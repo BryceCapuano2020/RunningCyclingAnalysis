@@ -58,6 +58,7 @@ const SHORT = {
     if (issue.issue === 'notRead' || (issue.issue === 'notSaved' && issue.unread === true)) {
       return 'Kept results could not be read'
     }
+    if (issue.issue === 'replaced') return 'Import stopped'
     return issue.issue === 'notSaved'
       ? 'Not kept in this browser'
       : 'Could not remove from this browser'
@@ -76,6 +77,8 @@ export interface LibraryNoticesProps {
   signedIn: boolean
   keepFiles: boolean
   fileRetentionAvailable: boolean
+  /** The library page is on screen with the update and newer-app messages, so these notices leave them out. */
+  panelShown?: boolean
   onRetry: () => void
 }
 
@@ -89,6 +92,7 @@ export function LibraryNotices({
   signedIn,
   keepFiles,
   fileRetentionAvailable,
+  panelShown = false,
   onRetry,
 }: LibraryNoticesProps) {
   const originalsMissing = analysis.missingOriginals
@@ -99,11 +103,11 @@ export function LibraryNotices({
       : `${missingCount} are missing their original file. Add their files again to restore the originals.`
   const missingShown = signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0
   const outdatedCount = analysis.state.outdatedActivities
-  const outdatedShown = outdatedCount > 0
+  const outdatedShown = outdatedCount > 0 && !panelShown
   // Update now rebuilds from stored originals, so it covers only the outdated activities that have one.
   const rebuildable = signedIn ? Math.min(analysis.outdatedWithOriginal, outdatedCount) : 0
   const incompatibleCount = analysis.state.incompatibleActivities
-  const incompatibleShown = incompatibleCount > 0
+  const incompatibleShown = incompatibleCount > 0 && !panelShown
   const incompatibleText =
     `${plural(incompatibleCount, 'saved activity', 'saved activities')} ` +
     `${incompatibleCount === 1 ? 'was' : 'were'} made by a newer version of this app and ` +

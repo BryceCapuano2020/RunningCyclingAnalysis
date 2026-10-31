@@ -62,16 +62,17 @@ describe('ThresholdTile', () => {
     expect(container.textContent).not.toMatch(/90% range/)
   })
 
-  it('draws no track, and no NaN, when the fit has no spread: both ends are one number', () => {
-    const { container } = renderTile('run', makeResult({ runCp: { ...FIT, cpSe: 0 } }))
+  it('draws no track, and no NaN, when the range’s two ends print the same', () => {
+    // The fit spread always has a model error floor, so only a range between two fits can collapse to one number.
+    const same = {
+      fit: { ...FIT, cpSe: 0.05, cp: FIT.cp + 1e-9 },
+      leftOutS: [900],
+      floor: FIT.cp - 0.5,
+    }
+    const { container } = renderTile('run', makeResult({ runCpUneven: same }))
     expect(container.querySelector('.range-track')).toBeNull()
     expect(container.textContent).not.toMatch(/NaN/)
     expect(container.querySelector('.stat-tile__number')).not.toBeNull()
-  })
-
-  it('draws no track where the two ends print the same, even if the fit has a sliver of spread', () => {
-    const { container } = renderTile('run', makeResult({ runCp: { ...FIT, cpSe: 1e-9 } }))
-    expect(container.querySelector('.range-track')).toBeNull()
   })
 
   it('shows the floor of the efforts a refused fit left out, as At least, with no track', () => {
@@ -225,15 +226,15 @@ describe('ThresholdTile', () => {
       expect(renderTile('run', none, RUN_GRADED).container.textContent).not.toMatch(/was faster/)
     })
 
-    it('says what a threshold is under the tile’s name: the pace or power held for about an hour', () => {
+    it('says what a threshold is under the tile’s name: the pace or power held for about 30 min', () => {
       const run = renderTile('run', makeResult()).container
       expect(run.querySelector('.stat-tile__gloss')).toHaveTextContent(
-        'Pace you could hold for about an hour',
+        'Pace you could hold for about 30 min',
       )
       cleanup()
       const ride = renderTile('ride', makeResult()).container
       expect(ride.querySelector('.stat-tile__gloss')).toHaveTextContent(
-        'Power you could hold for about an hour',
+        'Power you could hold for about 30 min',
       )
     })
 

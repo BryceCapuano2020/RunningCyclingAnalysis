@@ -89,6 +89,7 @@ describe('GET /api/auth/google/callback', () => {
         updatedAt: h.clock.now,
       },
       fileRetentionAvailable: true,
+      libraryRevision: '0.0',
     })
     const cleared = res.headers.getSetCookie().filter((c) => c.startsWith('rca_oauth_'))
     expect(cleared).toHaveLength(2)

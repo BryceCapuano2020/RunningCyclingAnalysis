@@ -1,7 +1,8 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { BalanceGap } from '../ui/balanceGap'
 import { balanceOfPick } from '../ui/components/balanceScale'
-import { headlinePick } from '../ui/components/pickHeadline'
+import { heldPick } from '../ui/resultHold'
+import type { HoldInputs } from '../ui/resultHold'
 
 /**
  * Whether the balance on screen can be shared: a weight is entered, both sports have a threshold, and
@@ -14,11 +15,12 @@ export function hasShareableContent(
   result: AnalysisResult,
   gap: BalanceGap | null,
   weightKnown: boolean,
+  hold: HoldInputs = {},
 ): boolean {
   return (
     weightKnown &&
     result.runCp !== null &&
     result.rideCp !== null &&
-    balanceOfPick(gap, headlinePick(result)) !== null
+    balanceOfPick(gap, heldPick(result, hold).pick) !== null
   )
 }

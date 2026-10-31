@@ -28,7 +28,7 @@ the two periods were drawn from one pool?
    2.5th to 97.5th (the **headline** band: Balance's strip and a curve's title, which surface several claims at once). Above
    a band is `higher`, below `lower`, inside `none`. A call inside the record band only is no clear change at the headline.
 5. Each side needs 4 readings and the pool 12, else the length is `untested`. The smallest change that could have been
-   called (the wider side of the band) is stored, and a "none" says so: "changes under 7% can't be told apart here".
+   called (the wider side of the band) is stored, and a "none" says so: "changes under 7% can't be told apart here". Past 25% (`MAX_STATED_RESOLUTION`: efforts that vary by that much, as easy runs mixed with hard ones do before the hard-effort gate) no size is stated and the line says "the efforts vary too much to show a change".
 6. Power source (a ride): the power-meter readings alone when both periods have enough of them; failing that, all readings
    only when neither period has a power-meter reading at all (estimated against estimated). Any other mix, or a mix that
    differs between the periods, is `untested`: a change of source reads as a change of power. Virtual power is never

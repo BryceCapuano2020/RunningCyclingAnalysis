@@ -33,6 +33,8 @@ const STATE = {
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,
+  libraryActivities: 0,
+  heldOut: [],
   hiddenDuplicates: 0,
   walkingPaceRuns: 0,
   countedWalkingRuns: [],

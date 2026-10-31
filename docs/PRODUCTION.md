@@ -273,6 +273,11 @@ Service limits (per-account quotas, byte caps, edge rate limits and the applicat
 budgets) are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). This document describes how
 they behave in production; the limits page is the reference for values.
 
+**Moving to Workers Paid.** The database guard stays at the Free figure (450 MiB) until the owner sets
+the plain Worker variable `DATABASE_SOFT_LIMIT_MIB` in `apps/api/wrangler.toml` under `[vars]`, through a
+reviewed commit, for example `"9000"` for D1 Paid's 10 GB. The other capacity limits are separate and are
+listed in LIMITS.md. A value outside 64 to 9216 is ignored.
+
 ## Request isolation and limits
 
 Current browser requests carry `X-RCA-User` for the account that initiated the operation. The API
@@ -623,6 +628,9 @@ or R2 changes.
   The same goes for the Time Travel rewind in Part B of that runbook. Also test future
   schema/model rollback compatibility. The drills so far covered one synthetic activity, not
   maximum database size or disaster recovery of an active multi-user service.
+- Before any client calls `PATCH /api/activities/labels`, run its tests (`activities.labels.test.ts`) against
+  remote D1. The tests run on local D1 only, and the endpoint's batch relies on SQLite behaviour that
+  remote D1 must be shown to share.
 - Complete Google's public-brand requirements before representing the app as a verified public
   production brand. Continue checking Cloudflare usage/errors; code caps and alerts do not cap
   traffic from other bucket clients or account-level charges.

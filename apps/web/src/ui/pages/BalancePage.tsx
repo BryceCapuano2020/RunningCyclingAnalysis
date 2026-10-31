@@ -3,7 +3,10 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { WeeklyVolumeChart } from '../charts'
-import { ShareImageButton, headlinePick } from '../components'
+import { ShareImageButton } from '../components'
+import { levelBasis } from '../components/headlineNeed'
+import { useHoldInputs } from '../holdContext'
+import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
 import { gapOfHeadline } from '../balanceGap'
@@ -86,7 +89,9 @@ export function BalancePage({
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
   const { calibration } = heartRateJudgement
-  const pick = headlinePick(result)
+  const hold = useHoldInputs()
+  const { pick } = heldPick(result, hold)
+  const basis = useMemo(() => levelBasis(result), [result])
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
   // They are memoised on the analysis and the two profile values, not the profile object, which the
@@ -117,9 +122,7 @@ export function BalancePage({
     [weightKnown, gap, pick],
   )
   const heldGap = pick === null ? null : gap
-  // The lean tile and the target are in points, which only a grade gap gives; an energy balance has none.
-  const pointsReading = reading?.unit === 'points' ? reading : null
-  // The level target waits for the same things as the balance: both grades, and so the weight. Its ride
+  // The level target, a line of the hero, waits for the same things as the balance: both grades, and so the weight. Its ride
   // search runs on each change of these inputs, not on each render, so it is memoised on them.
   const target = useMemo(
     () =>
@@ -148,9 +151,9 @@ export function BalancePage({
   const levels = useMemo(() => {
     const sports = SPORT_ORDER.filter((sport) => hasReading || inPeriod[sport] > 0)
     if (!hasReading && sports.length !== 1) return null
-    const model = balanceLevels({ grades, sports, inPeriod, missingAge })
+    const model = balanceLevels({ grades, sports, inPeriod, missingAge, basis })
     return !hasReading && model.rows.every((row) => row.grade === null) ? null : model
-  }, [hasReading, grades, inPeriod, missingAge])
+  }, [hasReading, grades, inPeriod, missingAge, basis])
   // What moved since the previous period, graded as this period is; the previous gap is priced once here.
   const previousLabel = previousPeriodLabel(period.days)
   const changes = useMemo(
@@ -226,6 +229,7 @@ export function BalancePage({
         library={library}
         pick={pick}
         reading={reading}
+        target={target?.sentence ?? null}
         period={period}
         onShowAll={onShowAll}
         weightKnown={weightKnown}
@@ -260,8 +264,6 @@ export function BalancePage({
         grades={grades}
         weighted={weightKnown}
         period={period}
-        reading={pointsReading}
-        target={target?.sentence ?? null}
         onAddFiles={analysis.addFiles}
         leftOut={leftOut}
       />

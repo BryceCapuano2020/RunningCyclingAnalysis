@@ -1,16 +1,10 @@
-import {
-  BEST_WINDOW_MIN_MOVING_FRACTION,
-  DEFAULT_BIKE_MODEL,
-  DURATIONS_S,
-  PRIORS,
-} from '../constants'
+import { BEST_WINDOW_MIN_MOVING_FRACTION, DEFAULT_BIKE_MODEL, PRIORS } from '../constants'
 import type { Occupancy } from '../curves'
-import { meanMaximal, monotoneEnvelope } from '../curves'
 import type { HeartRateSource } from '../effort'
 import { maxHeartRate, windowHeartRate } from '../effort'
 import { averageBlocks } from '../hr'
 import { mean } from '../math'
-import { MIN_RUN_SPEED_MS, runMetabolicPower, smoothGrade, travelledDistance } from '../metabolic'
+import { runMetabolicPower, smoothGrade, travelledDistance } from '../metabolic'
 import { runSplits } from '../splits/splits'
 import { airDensityStream } from '../physics/air'
 import { assessQuality, rememberTraceQuality } from '../quality'
@@ -18,7 +12,6 @@ import { agreedStreams, keepsOwnSpeed } from '../quality/agreement'
 import type {
   Activity,
   ActivityDigest,
-  CurvePoint,
   DigestClimbSection,
   DigestCurvePoint,
   DigestDistanceBest,
@@ -30,9 +23,11 @@ import type {
 import { MODEL_REVISION } from './modelRevision'
 import { climbMask, estimatePower, findSegments, splitSegment } from '../virtualPower'
 import { calibrationSums } from './calibration'
+import { valueBlocks, valueCurve, windowedEnvelope, withKnownGrade } from './curveParts'
 import { distanceBests } from '../records/distanceBests'
 import { elevationGain } from './elevationGain'
 import { atWalkingPace } from './walkingPace'
+import { hasRevision7, walkingPaceView, withCadenceLock } from './revision7Gate'
 import { digestEvidence } from './evidence'
 import type { OutputStream } from './evidence'
 import { and, countKept, meanWhere, movingMask, not, recordedSeconds } from './masks'
@@ -60,76 +55,11 @@ interface Parts {
   output: OutputStream | null
 }
 
-/** A curve point together with the length of the window its value came from. */
-type WindowedPoint = CurvePoint & { windowS: number }
-
 /** How many flags of each kind an activity has: the true counts, not only the flags a digest keeps. */
 export function countFlags(flags: QualityFlag[]): Partial<Record<QualityKind, number>> {
   const counts: Partial<Record<QualityKind, number>> = {}
   for (const flag of flags) counts[flag.kind] = (counts[flag.kind] ?? 0) + 1
   return counts
-}
-
-/**
- * Masks grade-dependent samples whose grade is unknown (NaN). Paused and stationary samples are
- * exempt because runMetabolicPower assigns them resting cost, independent of grade.
- */
-function withKnownGrade(
-  quality: QualityReport,
-  rawGrade: Float64Array,
-  paused: Uint8Array,
-  speed: Float64Array,
-): QualityReport {
-  const validGrade = Uint8Array.from(quality.validGrade)
-  for (let i = 0; i < validGrade.length; i++) {
-    const stationary = Number.isFinite(speed[i]!) && speed[i]! < MIN_RUN_SPEED_MS
-    if (Number.isNaN(rawGrade[i]!) && paused[i] !== 1 && !stationary) validGrade[i] = 0
-  }
-  return { ...quality, validGrade }
-}
-
-/**
- * Best window at every duration, among windows that are mostly moving, then the monotone envelope.
- * A value copied from a longer window keeps that window's startIndex and windowS, so every field
- * describes the same window.
- */
-function windowedEnvelope(
-  values: Float64Array,
-  valid: Uint8Array,
-  activityId: string,
-  occupancy: Occupancy,
-): WindowedPoint[] {
-  // meanMaximal returns fresh points, so each one can take the window field in place.
-  const windows = meanMaximal(values, valid, DURATIONS_S, activityId, { occupancy }).map((p) =>
-    Object.assign(p, { windowS: p.durationS }),
-  )
-  return monotoneEnvelope(windows)
-}
-
-function valueCurve(
-  values: Float64Array,
-  valid: Uint8Array,
-  source: HeartRateSource,
-  occupancy: Occupancy,
-): DigestCurvePoint[] {
-  return windowedEnvelope(values, valid, source.activity.id, occupancy).map((w) => ({
-    durationS: w.durationS,
-    value: w.value,
-    startIndex: w.startIndex,
-    windowS: w.windowS,
-    heartRate: windowHeartRate(source, w.startIndex, w.windowS),
-    terms: null,
-  }))
-}
-
-function valueBlocks(
-  values: Float64Array,
-  valid: Uint8Array,
-  source: HeartRateSource,
-): DigestHrBlock[] {
-  if (!source.activity.hasHeartRate) return []
-  const blocks = averageBlocks([values], source.activity.heartRate, valid, source.validHeartRate)
-  return blocks.map((b) => ({ heartRate: b.heartRate, value: b.means[0]!, terms: null }))
 }
 
 /**
@@ -296,6 +226,15 @@ function virtualParts(
  * itself, never on the athlete's settings, so it can be computed once at import and combined later.
  */
 export function digestActivity(activity: Activity): ActivityDigest {
+  return digestActivityAt(activity, MODEL_REVISION)
+}
+
+/**
+ * The digest as revision `revision` makes it. Below 7 the revision-7 changes are off and the bytes are
+ * those of `MODEL_REVISION` 6; tests pass 7 to cover the new behaviour (revision7Gate.ts).
+ */
+export function digestActivityAt(activity: Activity, revision: number): ActivityDigest {
+  const moving = movingMask(activity)
   // Where the file's speed and distance disagree, efforts credit only what both support. The
   // summary and the splits keep the file's own distance. A power-meter ride keeps its own speed,
   // because its measured power does not follow the lowering: its calibration and climb sections
@@ -311,12 +250,13 @@ export function digestActivity(activity: Activity): ActivityDigest {
   const rawGrade = activity.indoor
     ? new Float64Array(activity.n)
     : smoothGrade(activity.altitude, travelledDistance(streams.speed, streams.distance))
-  const quality = withKnownGrade(
+  const assessed = withKnownGrade(
     assessQuality(activity, agreed.stretches),
     rawGrade,
     activity.paused,
     streams.speed,
   )
+  const quality = hasRevision7(revision) ? withCadenceLock(activity, assessed, moving) : assessed
   rememberTraceQuality(activity, quality, streams.speed)
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.
@@ -328,7 +268,6 @@ export function digestActivity(activity: Activity): ActivityDigest {
     activity.sport === 'run'
       ? runMetabolicPower(streams.speed, grade, PRIORS.runEconomyScale.mean)
       : null
-  const moving = movingMask(activity)
   const movingS = countKept(moving)
   const occupancy: Occupancy = { moving, minFraction: BEST_WINDOW_MIN_MOVING_FRACTION }
   let parts: Parts
@@ -342,7 +281,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
 
   return {
     version: DIGEST_VERSION,
-    modelRevision: MODEL_REVISION,
+    modelRevision: revision,
     id: activity.id,
     name: activity.name,
     sport: activity.sport,
@@ -383,7 +322,13 @@ export function digestActivity(activity: Activity): ActivityDigest {
         }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
     ...(activity.race === true ? { race: true as const } : {}),
-    ...(atWalkingPace(activity, moving, movingS) ? { walkingPace: true as const } : {}),
+    ...(atWalkingPace(
+      hasRevision7(revision) ? walkingPaceView(activity, moving) : activity,
+      moving,
+      movingS,
+    )
+      ? { walkingPace: true as const }
+      : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
   }
 }

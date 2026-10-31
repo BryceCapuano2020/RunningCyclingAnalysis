@@ -65,8 +65,8 @@ export interface WorkerTransport {
 interface TransportDeps {
   /** Owned by the page, which reads it to report what is busy. */
   pendingRepliesRef: Box<Pending[]>
-  /** Runs once a request is pending and before it is posted, so the page can clear what it replaces. */
-  onSend: (request: WorkerRequest) => void
+  /** Runs once a request is pending and before it is posted, so the page can clear what it replaces. `requestId` is the number its replies carry. */
+  onSend: (request: WorkerRequest, requestId: number) => void
   /** Runs when a request leaves the pending list without a reply, so the page can recount what is busy. */
   onDropped: () => void
   setError: SetError
@@ -199,7 +199,7 @@ export function useWorkerTransport({
         ...flags,
       }
       pendingRepliesRef.current.push(pending)
-      onSend(request)
+      onSend(request, pending.id)
       try {
         worker.postMessage({ ...request, requestId: pending.id })
       } catch {

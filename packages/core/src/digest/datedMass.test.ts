@@ -179,8 +179,22 @@ describe('the period cache with dated masses', () => {
     // A fresh but equal object, as each worker message brings, finds the same analysis.
     const equal = { ...dated, measurements: dated.measurements?.map((entry) => ({ ...entry })) }
     expect(cache.analysis(rides, equal, [])).toBe(first)
-    // Another kind of setting does not touch the masses.
-    const heartRate: Measurement = {
+    // A kind of setting that no analysis reads does not touch it.
+    const threshold: Measurement = {
+      kind: 'thresholdPower',
+      sport: 'ride',
+      value: 250,
+      from: '2024-01-01',
+    }
+    expect(
+      cache.analysis(
+        rides,
+        { ...dated, measurements: [...(dated.measurements ?? []), threshold] },
+        [],
+      ),
+    ).toBe(first)
+    // A maximum heart rate or a year of birth is read by the effort gate, which judges the reference by them.
+    const maximum: Measurement = {
       kind: 'maxHeartRate',
       sport: 'ride',
       value: 180,
@@ -189,10 +203,11 @@ describe('the period cache with dated masses', () => {
     expect(
       cache.analysis(
         rides,
-        { ...dated, measurements: [...(dated.measurements ?? []), heartRate] },
+        { ...dated, measurements: [...(dated.measurements ?? []), maximum] },
         [],
       ),
-    ).toBe(first)
+    ).not.toBe(first)
+    expect(cache.analysis(rides, { ...dated, birthYear: 1985 }, [])).not.toBe(first)
     const heavier = { ...dated, measurements: [mass(95, '2023-01-01'), mass(70, '2024-01-01')] }
     expect(cache.analysis(rides, heavier, [])).not.toBe(first)
   })

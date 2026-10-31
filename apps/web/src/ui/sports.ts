@@ -1,4 +1,9 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S, CP_FIT_REACH_TOLERANCE } from '@rca/core/constants'
+import {
+  CP_FIT_MAX_S,
+  CP_FIT_MIN_S,
+  CP_FIT_REACH_TOLERANCE,
+  THRESHOLD_HOLD_S,
+} from '@rca/core/constants'
 import type { CriticalPowerRefusal, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
@@ -70,8 +75,8 @@ export const SPORT_LABEL: Record<Sport, string> = { run: 'Run', ride: 'Ride' }
  */
 export const SPORT_TITLE: Record<Sport, string> = { run: 'Running', ride: 'Cycling' }
 
-/** The sport as the noun in a sentence, lower case, such as "running and cycling in balance". */
-export const SPORT_NOUN: Record<Sport, string> = { run: 'running', ride: 'cycling' }
+// In a module of its own so the build's config can read it without the analysis (scripts/landingFiguresPlugin.ts).
+export { SPORT_NOUN } from '../domain/sportNoun'
 
 export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' }
 
@@ -115,7 +120,7 @@ const EFFORT_BETWEEN = `between ${EFFORT_MIN_TEXT} and ${EFFORT_MAX_TEXT}`
  * What a threshold's place says when there is none: the efforts are missing, or they are there but
  * show no threshold, so a harder one is asked for.
  */
-export const THRESHOLD_NEEDS_TEXT: Record<CriticalPowerRefusal, string> = {
+export const THRESHOLD_NEEDS_TEXT: Record<Exclude<CriticalPowerRefusal, 'effort'>, string> = {
   missing: `Needs efforts ${EFFORT_BETWEEN}`,
   shape: `Needs a harder effort ${EFFORT_BETWEEN}`,
 }
@@ -126,7 +131,7 @@ export const THRESHOLD_NEEDS_TEXT: Record<CriticalPowerRefusal, string> = {
  * the long one and names the longest held, rather than asking for efforts the card lists.
  */
 export function thresholdNeedsText(
-  refusal: CriticalPowerRefusal | null,
+  refusal: Exclude<CriticalPowerRefusal, 'effort'> | null,
   longestHeldS: number | null = null,
 ): string {
   const reason = refusal ?? 'missing'
@@ -145,8 +150,11 @@ export const THRESHOLD_MEANING: Record<Sport, string> = {
   ride: `About the power you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
 }
 
-/** What a threshold is, in one line under its tile's name: the figure it gives, and for how long it can be held. */
+/**
+ * What a threshold is, in one line under its tile's name: the figure it gives, and for how long it can be held: the
+ * time the fit supports (`THRESHOLD_HOLD_S`), not an hour.
+ */
 export const THRESHOLD_GLOSS: Record<Sport, string> = {
-  run: 'Pace you could hold for about an hour',
-  ride: 'Power you could hold for about an hour',
+  run: `Pace you could hold for about ${formatDuration(THRESHOLD_HOLD_S)}`,
+  ride: `Power you could hold for about ${formatDuration(THRESHOLD_HOLD_S)}`,
 }

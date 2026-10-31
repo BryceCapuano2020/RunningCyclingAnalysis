@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { SAMPLE_TEXT, rowPattern } from './sampleText.js'
 import {
   BALANCE_TITLE,
   LANDING_TITLE,
@@ -28,6 +29,8 @@ const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
 /** The section that compares each best with the athlete's other bests. */
 const NOT_ENOUGH_YET = 'Not enough yet'
+const LATE_IN_LONG_SESSIONS =
+  /^Best efforts late in long sessions: add \d+ (runs?|rides?)\b.*, each longer than an hour/
 /** The sport page's section that is open and needs a season of activities; the others sit behind closed rows. */
 const OPEN_SEASON_SECTION = 'Best efforts over time'
 /** The closed sections that need a season: each row says its finding, and opens to a chart. */
@@ -58,8 +61,9 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.locator('figure').filter({ hasText: BALANCE_HOURS })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
-  // The sample's season is long and varied enough to fill every section of a sport page, so none of them
-  // is left to the "Not enough yet" list: stand-out, best efforts over time, same heart rate, late in long sessions.
+  // The sample's season is long and varied enough to fill every section of a sport page: stand-out, best efforts over
+  // time, same heart rate, late in long sessions. The one exception is the late bests: the sample's long sessions are
+  // easy ones, which the effort gate does not count as a test of lasting, so the list says what is missing.
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
     await expect(
@@ -82,7 +86,11 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
       await region.locator('summary').click()
       await expect(region.getByRole('figure').first()).toBeVisible()
     }
-    await expect(page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })).toHaveCount(0)
+    const missing = page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })
+    await expect(missing).toHaveCount(1)
+    await expect(page.getByRole('listitem').filter({ hasText: LATE_IN_LONG_SESSIONS })).toHaveCount(
+      1,
+    )
   }
 
   await goTo(page, 'Balance')
@@ -121,6 +129,31 @@ test('the ride on foot tile names the ride behind its effort and opens to every 
     ? details.getByRole('term').filter({ hasText: 'Ride effort' }).first()
     : details.getByRole('columnheader', { name: 'Ride effort' })
   await expect(rideEffort).toBeVisible()
+})
+
+test('Balance says the lean once: no lean tile, three tiles at most, and the level target under the lede', async ({
+  page,
+}) => {
+  await openSample(page)
+
+  await expect(page.getByRole('article', { name: 'Lean' })).toHaveCount(0)
+  const tiles = page.locator('.balance-tiles')
+  await expect(tiles.getByRole('article')).toHaveCount(3)
+  await expect(tiles).not.toContainText(/\bpts\b/)
+  // The gap in points is the meter's figure, once; the target is a line of the hero, not of a tile.
+  await expect(page.locator('.balance-meter__number')).toHaveCount(1)
+  const target = page.locator('.balance-hero').getByText(/^To grade level with your/)
+  await expect(target).toHaveCount(1)
+  await expect(tiles.getByText(/^To grade level with your/)).toHaveCount(0)
+  // No tile figure is as large as the headline.
+  const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
+    return parseFloat(getComputedStyle(el).fontSize)
+  })
+  for (const figure of await tiles.locator('.stat-tile__number').all()) {
+    const size = await figure.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+    expect(size).toBeLessThanOrEqual(48)
+    expect(size).toBeLessThanOrEqual(headline)
+  }
 })
 
 test('uploading the Strava export zip shows the results, including its GPX run', async ({
@@ -316,7 +349,7 @@ test('at 1440 by 900 the fitness card is on the first screen, whole, and the bal
   expect(order.trackFirst).toBe(true)
   expect(order.firstImage).toContain('balance-meter')
   // The answer is still a line: no scale drawing, no ladder, and the meter is in its place.
-  await expect(page.locator('.balance-meter__value')).toHaveText('+8pts')
+  await expect(page.locator('.balance-meter__value')).toHaveText(SAMPLE_TEXT.value)
   await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
   await expect(page.locator('.balance-hero__pair svg:not(.icon)')).toHaveCount(0)
 })
@@ -454,12 +487,10 @@ test('the meter is named in words and its value and levels are text, none under 
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
   await expect(page.locator(TRACK)).toHaveAccessibleName(
-    /^Running grades 8 points higher than cycling \(range 2 to 13/,
+    new RegExp(`^${SAMPLE_TEXT.name} \\(range `),
   )
-  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Running\s*67%\s*Local/)
-  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(
-    /Cycling\s*59%\s*Recreational to Local/,
-  )
+  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
+  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
   const sizes = await page
     .locator(
       '.balance-meter__value > *, .balance-meter__range, .balance-meter__ends, .balance-levels__row > *',

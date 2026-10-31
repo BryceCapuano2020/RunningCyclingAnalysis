@@ -22,12 +22,14 @@ export interface SavedActivity {
  * activities of one import that show but were not kept, and `newer` those it left because a newer
  * version of the app keeps a copy that this one cannot read; `notForgotten` is a delete or removal that
  * left a copy behind; `notRead` is an import analysed without the library kept in this browser, because that
- * could not be read. The page sets `unread` on a `notSaved` that follows a `notRead`, so both are said.
+ * could not be read; `replaced` is an import that stopped because the library kept in this browser was emptied, in
+ * this tab or another, while it ran. The page sets `unread` on a `notSaved` that follows a `notRead`, so both are said.
  */
 export type WorkerDeviceIssue =
   | { issue: 'notSaved'; count: number; newer?: number; unread?: true }
   | { issue: 'notForgotten' }
   | { issue: 'notRead' }
+  | { issue: 'replaced' }
 
 /**
  * What the page says about the activities kept in this browser: the worker's findings, and two the page
@@ -57,6 +59,12 @@ export interface ImportOutcome {
   /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */
   runs?: number
   rides?: number
+  /**
+   * Runs and rides the import brought up to date: workouts the library held from an older model, replaced by a
+   * fresh copy. They are not new, so they are never counted in `runs` and `rides`, and never move the numbers.
+   */
+  updatedRuns?: number
+  updatedRides?: number
   /** The earliest and latest start, in epoch ms, of the activities the import added. */
   firstStartMs?: number
   lastStartMs?: number
@@ -100,7 +108,8 @@ export type WorkerRequest =
    * Loads the digests kept in this browser, unless the session already holds them or a sample is
    * showing.
    */
-  | ({ type: 'loadDevice'; settings: AthleteSettings } & LoadPeriod)
+  /** `reload` reads the library again even when this tab holds it, because another tab changed it. */
+  | ({ type: 'loadDevice'; settings: AthleteSettings; reload?: boolean } & LoadPeriod)
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
   | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }

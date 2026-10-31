@@ -19,6 +19,8 @@ import { FakeWorker } from '../test/fakeWorker'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
+import { FakeBroadcastChannel } from '../test/fakeBroadcastChannel'
+import { resetTabSync } from './tabSync'
 import { useAnalysis } from './useAnalysis'
 import { SyncStatus } from './components/SyncStatus'
 import { formatDay } from './format/date'
@@ -144,6 +146,8 @@ const STATE = {
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,
+  libraryActivities: 0,
+  heldOut: [],
   hiddenDuplicates: 0,
   walkingPaceRuns: 0,
   countedWalkingRuns: [],
@@ -1661,6 +1665,22 @@ describe('useAnalysis requests', () => {
     const changed = { massKg: 80, bikeMassKg: 9 }
     rerender({ account: SIGNED_OUT, current: changed })
     expect(worker().posted).toEqual([DEVICE_LOAD, { type: 'setSettings', settings: changed }])
+  })
+
+  it('posts new settings when what the heart-rate reference reads changes, and not for a threshold', () => {
+    const { rerender } = setup(SIGNED_OUT, SETTINGS)
+    const dated = (kind: 'maxHeartRate' | 'thresholdPower', value: number) => ({
+      ...SETTINGS,
+      measurements: [{ kind, sport: 'run' as const, value, from: '2025-01-01' }],
+    })
+    rerender({ account: SIGNED_OUT, current: dated('thresholdPower', 250) })
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+    const maximum = dated('maxHeartRate', 188)
+    rerender({ account: SIGNED_OUT, current: maximum })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setSettings', settings: maximum })
+    const born = { ...maximum, birthYear: 1985 }
+    rerender({ account: SIGNED_OUT, current: born })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setSettings', settings: born })
   })
 
   it('posts new settings when the runs counted at walking pace change, in either direction', () => {
@@ -3624,5 +3644,51 @@ describe('round 7: the baseline when an import is sent, and a library read a Sta
     expect(result.current.error).toBe(
       'An import was cancelled because the account changed. Select the files again.',
     )
+  })
+})
+
+describe('telling the other tabs about a library change', () => {
+  let otherTab: FakeBroadcastChannel
+  let heard: unknown[]
+
+  beforeEach(() => {
+    FakeBroadcastChannel.reset()
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel)
+    resetTabSync()
+    otherTab = FakeBroadcastChannel.other('rca-sync-v1')
+    heard = []
+    otherTab.onmessage = (event) => heard.push(event.data)
+  })
+
+  afterEach(() => {
+    resetTabSync()
+  })
+
+  it('says the kept library changed after an import into it, and after Remove all', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toContainEqual({ type: 'library', scope: 'device' })
+
+    heard.length = 0
+    act(() => result.current.clear())
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toContainEqual({ type: 'library', scope: 'device' })
+  })
+
+  it('stays quiet about the analysis of files added while the account loads', () => {
+    const { result } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toEqual([])
+  })
+
+  it('stays quiet about a clear that leaves the kept library alone, as a signed-in one does', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.clear())
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toEqual([])
   })
 })

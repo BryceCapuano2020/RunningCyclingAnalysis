@@ -8,7 +8,7 @@ import { FITNESS } from './params'
 
 /**
  * What the athlete sees. `holding-below` is a plateau under the old level; `improving` is a clear rise
- * with no slip before it (a status line only, never a finding); `not-enough-evidence` has a `shortfall`.
+ * with no slip before it, and `improved` a rise that has settled at the new level (the one a finding is made of); `not-enough-evidence` has a `shortfall`.
  */
 export type FitnessState =
   | 'slipping'
@@ -17,6 +17,7 @@ export type FitnessState =
   | 'recovering'
   | 'back'
   | 'improving'
+  | 'improved'
   | 'not-enough-evidence'
 
 /** The states a library can be in once it has enough evidence. */

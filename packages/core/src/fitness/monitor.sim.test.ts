@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { NOISE_PRESETS } from '../synthetic/noise/presets'
 import { firstWeekOf, quantile, replaySim, simulate, slipWeeks } from './test/runSim'
 import type { SimSpec } from './test/runSim'
 
@@ -35,10 +36,14 @@ describe('false alarms an athlete-year when nothing changes', () => {
   // Observed, over the four rates and three years (before -> now): wander 0.45 -> 0.31, season 1.5% 0.39 -> 0.25,
   // strap 0.31 -> 0.22, heat 0.26 -> 0.18, bad runs 0.21 -> 0.14, hilly 0.23 -> 0.16.
   it.each([
-    ['a faster, slower wander (3%, correlation 0.95)', { wanderSd: 0.03, wanderRho: 0.95 }, 0.4],
-    ['a season of 1.5% swing', { seasonal: 0.015 }, 0.32],
-    ['a watch or strap change of 3%', { strap: 0.03 }, 0.3],
-    ['heat weeks of 3%', { heat: 0.03 }, 0.25],
+    [
+      'a faster, slower wander (3%, correlation 0.95)',
+      { level: { wanderSd: 0.03, wanderRho: 0.95 } },
+      0.4,
+    ],
+    ['a season of 1.5% swing', { level: { seasonAmp: 0.015 } }, 0.32],
+    ['a watch or strap change of 3%', { level: NOISE_PRESETS.strapStep.level }, 0.3],
+    ['heat weeks of 3%', { level: { heatDrop: 0.03 } }, 0.25],
     ['10% of runs read wrong by the sensor', { bad: 0.1 }, 0.2],
     ['hilly runs, 30% of them 2% slow with wide spread', { hilly: 0.3 }, 0.22],
   ] as const)('stays under budget through %s', (_name, spec, budget) => {
@@ -48,20 +53,9 @@ describe('false alarms an athlete-year when nothing changes', () => {
   it('is near the budget with a 3% seasonal swing and with every nuisance at once, even in the first three years', () => {
     // Observed 0.40 for the season (0.66 before) and 0.34 for everything together (0.52). A season is only taken out
     // from the third year, so these three-year libraries are the hard case; episode.sim.test.ts runs five.
-    expect(falseAlarms({ seasonal: 0.03 }, 20)).toBeLessThan(0.5)
+    expect(falseAlarms({ level: { seasonAmp: 0.03 } }, 20)).toBeLessThan(0.5)
     expect(
-      falseAlarms(
-        {
-          wanderSd: 0.03,
-          wanderRho: 0.95,
-          seasonal: 0.02,
-          strap: 0.03,
-          heat: 0.03,
-          hilly: 0.3,
-          bad: 0.1,
-        },
-        20,
-      ),
+      falseAlarms({ level: NOISE_PRESETS.nuisanceAll.level, hilly: 0.3, bad: 0.1 }, 20),
     ).toBeLessThan(0.45)
   })
 })

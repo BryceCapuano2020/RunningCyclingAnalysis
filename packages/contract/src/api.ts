@@ -52,6 +52,11 @@ export const MeSchema = z.object({
   profile: ProfileSchema,
   /** False when this deployment has no original-file storage binding; absent means legacy available. */
   fileRetentionAvailable: z.boolean().optional(),
+  /**
+   * Changes whenever the library does. Compared for inequality only, as a hint that another tab or device
+   * changed it; absent from responses that do not read the library.
+   */
+  libraryRevision: z.string().max(64).optional(),
 })
 export type Me = z.infer<typeof MeSchema>
 /** GET /api/me answers a signed-out visitor with a null body, rather than an error. */

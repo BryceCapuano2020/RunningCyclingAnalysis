@@ -1,4 +1,4 @@
-import { sameMasses } from '../athlete/mass'
+import { sameAnalysisSettings } from '../athlete/references'
 import { judgeHeartRate, libraryThresholds } from '../digest/setAside'
 import { NO_HEART_RATE_JUDGEMENT } from '../digest/setAsideTypes'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
@@ -23,7 +23,11 @@ export class HeartRateJudge {
 
   of(visible: ActivityDigest[], settings: AthleteSettings): HeartRateJudgement {
     const hit = this.entry
-    if (hit !== null && sameMasses(hit.settings, settings) && sameDigests(hit.digests, visible)) {
+    if (
+      hit !== null &&
+      sameAnalysisSettings(hit.settings, settings) &&
+      sameDigests(hit.digests, visible)
+    ) {
       return hit.judgement
     }
     // Without heart rate nothing is set aside, but the library's thresholds are still the zones' references.

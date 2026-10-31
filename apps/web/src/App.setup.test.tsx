@@ -237,6 +237,44 @@ describe('setup before the first import, signed in', () => {
     expect(within(dialog() as HTMLElement).getByLabelText('Body weight')).toHaveValue('82')
   })
 
+  it.each([
+    ['before', true],
+    ['after', false],
+  ])(
+    'keeps a weight typed in two steps when the account answers %s the first step',
+    async (_when, answersFirst) => {
+      const user = userEvent.setup()
+      setAccount('loading')
+      const view = render(<App />)
+      chooseFiles(['run.fit'])
+      const weight = () => within(dialog() as HTMLElement).getByLabelText('Body weight')
+      const answer = () => {
+        setAccount('signed-in')
+        view.rerender(<App />)
+      }
+
+      if (answersFirst) answer()
+      await user.clear(weight())
+      await user.type(weight(), '1')
+      expect(weight()).toHaveValue('1')
+      if (!answersFirst) answer()
+      expect(weight()).toHaveValue('1')
+
+      // The units the field shows now are the ones the next entry is read in.
+      const metric = within(dialog() as HTMLElement).getByRole('radio', { name: 'Metric' })
+      const text = (metric as HTMLInputElement).checked ? '83.9' : '185'
+      await user.clear(weight())
+      await user.type(weight(), text)
+      expect(weight()).toHaveValue(text)
+      await user.click(
+        within(dialog() as HTMLElement).getByRole('button', { name: 'Analyse my files' }),
+      )
+
+      await waitFor(() => expect(dialog()).not.toBeInTheDocument())
+      expect(app.analysis.addFiles).toHaveBeenCalledTimes(1)
+    },
+  )
+
   it('starts the questions over with the new profile when the account answers while they are open', () => {
     app.preferences = {
       ...app.preferences,

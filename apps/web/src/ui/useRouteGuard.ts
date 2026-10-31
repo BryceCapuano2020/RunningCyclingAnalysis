@@ -13,6 +13,8 @@ export function needsResult(route: Route): boolean {
 export interface RouteGuardInput {
   route: Route
   hasResult: boolean
+  /** A library is there (held digests, saved activities) though no result is, so the page is not cold. */
+  libraryPresent?: boolean
   /** Work is running or waiting, which includes a library load. */
   busy: boolean
   /** An import is queued behind a library load. */
@@ -29,11 +31,17 @@ export interface RouteGuardInput {
 export function coldNoticeFor({
   route,
   hasResult,
+  libraryPresent = false,
   busy,
   restoring,
   settled,
-}: Pick<RouteGuardInput, 'route' | 'hasResult' | 'busy' | 'restoring' | 'settled'>): string | null {
-  return !hasResult && !busy && !restoring && settled && needsResult(route) ? COLD_NOTICE : null
+}: Pick<
+  RouteGuardInput,
+  'route' | 'hasResult' | 'libraryPresent' | 'busy' | 'restoring' | 'settled'
+>): string | null {
+  return !hasResult && !libraryPresent && !busy && !restoring && settled && needsResult(route)
+    ? COLD_NOTICE
+    : null
 }
 
 /**
@@ -67,6 +75,7 @@ export function useRouteGuard(input: RouteGuardInput): string | null {
   return coldNoticeFor({
     route,
     hasResult,
+    libraryPresent: input.libraryPresent,
     busy,
     restoring: input.restoring,
     settled: input.settled,

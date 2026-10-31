@@ -1,3 +1,5 @@
 export { distanceBests } from './distanceBests'
 export { recordHolders } from './holders'
 export type { EarnedRecord } from './holders'
+export { effortProgression } from './progression'
+export type { Reading } from './progression'

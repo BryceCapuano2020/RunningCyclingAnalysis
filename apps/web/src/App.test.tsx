@@ -351,6 +351,10 @@ describe('removing kept activities with no result on screen', () => {
         copy: { id: 'run-1', rank: 3, hasPower: false, hasHeartRate: true, durationS: 3600 },
       },
     ]
+    // The worker reports the library gone, as it does after a real clear.
+    app.analysis.clear = vi.fn(() => {
+      app.analysis.savedActivities = []
+    })
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))

@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   override render(): ReactNode {
     if (this.state.error === null) return this.props.children
     return (
-      <section className="error-boundary card" role="alert">
+      <section className="error-boundary panel" role="alert">
         <h2>Something went wrong</h2>
         <p className="muted">
           The page stopped working. Reload to try again; your saved activities are untouched.

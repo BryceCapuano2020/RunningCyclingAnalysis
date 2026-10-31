@@ -2,9 +2,14 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { analysisStub } from '../../test/analysisStub'
+import { landingText } from '../../test/landingText'
 import { noMatchMedia } from '../../test/viewport'
 import { TOUCH_QUERY } from '../useMediaQuery'
 import { HISTORY_ADVICE } from '../exportGuides'
+import { balanceTitle } from '../components/headlineText'
+import { gapReading } from '../components/balanceScale'
+import { LANDING_EXAMPLE } from '../landingExample'
+import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
 import { LandingPage } from './LandingPage'
 
 /** A row's words as read, without the notes its defined terms keep in the markup. */
@@ -22,7 +27,7 @@ afterEach(() => {
 /** The example result's figure, found by its caption. */
 function exampleFigure(): HTMLElement {
   const figure = screen
-    .getByText('Illustrative: the sample athlete, a 37-year-old man at 75 kg')
+    .getByText(`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`)
     .closest('figure')
   if (!figure) throw new Error('No example figure')
   return figure
@@ -237,15 +242,18 @@ describe('LandingPage', () => {
     render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
 
     const example = exampleFigure()
-    expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
-    expect(example.querySelector('.balance-meter__value')?.textContent).toBe('+8pts')
-    expect(example.querySelector('.balance-meter__edges')?.textContent).toBe('2 to 13')
+    const text = landingText(LANDING_EXAMPLE)
+    expect(
+      within(example).getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap))),
+    ).toBeInTheDocument()
+    expect(example.querySelector('.balance-meter__value')?.textContent).toBe(text.value)
+    expect(example.querySelector('.balance-meter__edges')?.textContent).toBe(text.edges)
     const rows = [...example.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(['Running 67% Local', 'Cycling 59% Recreational to Local'])
+    expect(rows).toEqual(text.rows)
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()
     // The line is named for a screen reader.
     expect(
-      within(example).getByRole('img', { name: /^Running grades 8 points higher than cycling/ }),
+      within(example).getByRole('img', { name: new RegExp(`^${text.name}`) }),
     ).toBeInTheDocument()
   })
 

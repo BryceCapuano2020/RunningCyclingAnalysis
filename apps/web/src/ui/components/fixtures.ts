@@ -2,6 +2,7 @@ import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { RejectedFile } from '@rca/core/session'
 import { countFlags } from '@rca/core/digest'
+import { NO_EFFORT_GATE } from '@rca/core/effort'
 import type { ZoneEstimates } from '@rca/core/zones'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import type { AgeProfile } from '../grades'
@@ -103,6 +104,7 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     heartRateSetAside: [],
     runVo2max: null,
     effort: [],
+    effortGate: { run: NO_EFFORT_GATE, ride: NO_EFFORT_GATE },
     bikeModel: { cda: 0.32, crr: 0.005 },
     bikeModelSource: 'default',
     virtualAccuracy: { nSegments: 3, mape: 0.06, bias: 0.01, segments: [] },

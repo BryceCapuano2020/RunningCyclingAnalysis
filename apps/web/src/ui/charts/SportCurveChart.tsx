@@ -242,6 +242,7 @@ export function SportCurveChart({
               annotations={marks.annotations}
               size={size}
               obstacles={marks.obstacles}
+              ticks={marks.ticks}
             />
             {/* A measured point is a solid dot; a carried one is a hollow ring, since it is not this length's own best. */}
             {emphasised ? (

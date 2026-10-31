@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { ActivityDigest, DigestDrift, Sport } from '../types'
 import { digestActivity } from './digestActivity'
 import { lateEvidence } from './lateEvidence'
+import type { LateReference } from './lateEvidence'
+import type { EffortReference } from '../effort'
 import { NO_LATE_EVIDENCE } from './lateEvidenceTypes'
 import { syntheticActivity } from './test/syntheticActivity'
 
@@ -42,5 +44,69 @@ describe('lateEvidence', () => {
     expect(evidence.run.durability.map((row) => row.durationS)).toEqual([300, 1200])
     expect(evidence.run.drift).toEqual([])
     expect(NO_LATE_EVIDENCE.ride.durability).toEqual([])
+  })
+})
+
+describe('lateEvidence and the effort gate', () => {
+  const effortReference = (reading: 'trusted' | 'habitual'): EffortReference => ({
+    referenceHr: { run: 190, ride: 184 },
+    reading: { run: reading, ride: 'trusted' },
+    source: { run: 'data', ride: 'data' },
+    from: { run: 'run', ride: 'ride' },
+  })
+  const REFERENCE: LateReference = { effortReference: effortReference('trusted') }
+
+  /** A long run with a late 20 minute best, whose peak heart rate was `peak`, and whose average was `average`. */
+  function longRun(id: string, peak: number | null, average: number | null = null): ActivityDigest {
+    return {
+      ...digestOf(id, 'run', DRIFT),
+      maxHeartRate: peak,
+      avgHeartRate: average,
+      durability: [{ afterS: 3600, durationS: 1200, value: 12 }],
+      // The synthetic stream's seconds by heart rate are not the peak this fixture sets.
+      distributions: undefined,
+    }
+  }
+  const supporters = (digests: ActivityDigest[], judged = REFERENCE) =>
+    lateEvidence(digests, new Set(), judged).run.durability.find((row) => row.durationS === 1200)!
+      .after[0]!.best?.supporters ?? 0
+
+  it('counts the sessions that reached a hard heart rate toward a late best, and not an easy long run', () => {
+    const library = [
+      longRun('hard1', 180),
+      longRun('hard2', 175),
+      longRun('easy1', 140),
+      longRun('easy2', 120),
+    ]
+    expect(supporters(library)).toBe(2)
+    // Without a reference to judge by, every session counts, as before.
+    expect(lateEvidence(library, new Set()).run.durability[1]!.after[0]!.best?.supporters).toBe(4)
+  })
+
+  it('counts a session with no heart rate, or with it set aside: nothing says it was easy', () => {
+    const library = [longRun('none', null), longRun('aside', 120), longRun('easy', 120)]
+    const evidence = lateEvidence(library, new Set(['aside']), REFERENCE)
+    expect(evidence.run.durability[1]!.after[0]!.best?.supporters).toBe(2)
+  })
+
+  it('counts none where the reference cannot be trusted', () => {
+    const library = [longRun('a', 188), longRun('b', 186)]
+    expect(supporters(library, { effortReference: effortReference('habitual') })).toBe(0)
+  })
+
+  it('says how hard the sessions behind the late bests were, as their peak over the reference', () => {
+    const evidence = lateEvidence(
+      [longRun('a', 171), longRun('b', 190), longRun('c', 120)],
+      new Set(),
+      REFERENCE,
+    )
+    expect(evidence.run.ruler).toEqual({ sessions: 2, lowShare: 171 / 190, highShare: 1 })
+    expect(lateEvidence([], new Set(), REFERENCE).run.ruler).toBeNull()
+  })
+
+  it('gives each steady effort its average heart rate over the reference', () => {
+    const evidence = lateEvidence([longRun('a', 180, 133)], new Set(), REFERENCE)
+    expect(evidence.run.drift[0]!.share).toBeCloseTo(133 / 190)
+    expect(lateEvidence([longRun('a', 180, 133)], new Set()).run.drift[0]!.share).toBeNull()
   })
 })

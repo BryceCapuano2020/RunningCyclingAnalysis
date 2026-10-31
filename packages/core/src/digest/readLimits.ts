@@ -67,3 +67,10 @@ export const MAX_SPLIT_DISTANCE_M = 100_000
  * keeps (the number of record distances) is applied after.
  */
 export const MAX_DISTANCE_BESTS_READ = 32
+
+/** The coldest and warmest a temperature summary may read, degrees Celsius. */
+export const MIN_DIGEST_TEMPERATURE_C = -30
+export const MAX_DIGEST_TEMPERATURE_C = 55
+
+/** The least share of an activity's seconds a temperature summary may rest on. Below it the digest has none. */
+export const MIN_TEMPERATURE_COVERAGE = 0.5

@@ -19,7 +19,7 @@ const record = (distanceM: number, seconds: number, startMs: number) => ({
 })
 
 describe('ranBests', () => {
-  it('keeps only the recorded bests that beat their prediction, dated by their day', () => {
+  it('keeps the recorded bests that beat their prediction, dated by their day, and not one within the spread', () => {
     const ran = ranBests(
       found,
       [
@@ -28,7 +28,7 @@ describe('ranBests', () => {
       ],
       OPENED,
     )
-    expect(ran).toEqual([{ distanceM: 10000, seconds: 2407, when: '27 Nov' }])
+    expect(ran).toEqual([{ distanceM: 10000, seconds: 2407, side: 'faster', when: '27 Nov' }])
     expect(ranText(ran[0]!)).toBe('You ran 40:07 on 27 Nov')
   })
 
@@ -40,6 +40,13 @@ describe('ranBests', () => {
     )
     expect(earlier[0]!.when).toBe('28 Dec 2025')
     expect(ranBests(found, [record(10000, 2443, OPENED)], OPENED)).toEqual([])
+    expect(ranBests(found, [record(10000, 2560, OPENED)], OPENED)).toEqual([])
     expect(ranBests(found, [], OPENED)).toEqual([])
+  })
+
+  it('marks a best slower than the top of the spread, in words that say it is slower', () => {
+    const slower = ranBests(found, [record(5000, 1291, new Date(2026, 10, 2, 8).getTime())], OPENED)
+    expect(slower).toEqual([{ distanceM: 5000, seconds: 1291, side: 'slower', when: '2 Nov' }])
+    expect(ranText(slower[0]!)).toBe('Your best is 21:31, from 2 Nov, slower than this spread')
   })
 })

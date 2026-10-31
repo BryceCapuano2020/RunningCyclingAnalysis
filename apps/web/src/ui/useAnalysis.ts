@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { sameCountedRuns, sameMasses } from '@rca/core/athlete'
+import { sameAnalysisSettings, sameCountedRuns } from '@rca/core/athlete'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import type { WorkerRequest } from '../worker/protocol'
@@ -7,13 +7,16 @@ import type { AnalysisController } from './analysis/controller'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { SAVES_PAUSED, STILL_WORKING, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
+import { useImportManifest } from './analysis/importManifestHook'
+import type { ManifestScope } from './importManifest'
 import { useKeptLibraryLoad } from './analysis/keptLibraryLoad'
 import { isQuietRequest, keepsError } from './analysis/quietRequests'
 import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
+import { useLibraryTabs } from './analysis/libraryTabs'
 import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/model'
-import { drainBatches, isDeletion } from './analysis/model'
+import { accountPending, drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerWatchdog } from './analysis/workerWatchdog'
 import { workerStartsWithPage } from './analysis/workerStart'
@@ -80,6 +83,16 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     reportedRef,
   } = imports
 
+  // What the page is showing decides which library the record of imports is about.
+  const manifestScope: ManifestScope | null =
+    account.status === 'signed-in' && account.me !== null
+      ? `account:${account.me.user.id}`
+      : accountPending(account)
+        ? null
+        : 'device'
+  const manifest = useImportManifest(manifestScope)
+  const { begin: beginManifest, fail: failManifest, forget: forgetManifest } = manifest
+
   /** Recomputes what the page shows as busy, waiting, and in a library change. */
   const refreshBusy = useCallback(() => {
     const replies = pendingRepliesRef.current
@@ -94,8 +107,17 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
 
   /** The notices a request replaces are cleared as it is sent. */
   const onSend = useCallback(
-    (request: WorkerRequest) => {
+    (request: WorkerRequest, requestId: number) => {
       refreshBusy()
+      // An import into a library is recorded from the moment it is sent. The analysis made while the account
+      // loads is not: it is sent again once the account is known.
+      if (request.type === 'addFiles' && request.provisional !== true) {
+        beginManifest(
+          requestId,
+          request.files,
+          request.sync === null ? 'device' : `account:${request.sync.userId}`,
+        )
+      }
       if (!keepsError(request)) setError(null)
       // A new import or rebuild replaces the outcome of the last library change, and so does the sample or a
       // clear, which leave nothing for that outcome to be about: the landing page would say it unprompted.
@@ -121,7 +143,15 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         setImportOutcome(null)
       }
     },
-    [refreshBusy, resetNoticesFor, setError, setImportOutcome, setLibraryError, setLibraryNotice],
+    [
+      beginManifest,
+      refreshBusy,
+      resetNoticesFor,
+      setError,
+      setImportOutcome,
+      setLibraryError,
+      setLibraryNotice,
+    ],
   )
 
   const transport = useWorkerTransport({
@@ -191,12 +221,21 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
    * and an account change use it.
    */
   const clearQueues = useCallback(() => {
+    // Whatever import was running is cut off: the library holds only part of it.
+    failManifest()
     dropPendingReplies()
     dropUnsent()
     drainBatches(provisionalImportsRef)
     drainBatches(libraryWaitRef)
     refreshBusy()
-  }, [dropPendingReplies, dropUnsent, libraryWaitRef, provisionalImportsRef, refreshBusy])
+  }, [
+    dropPendingReplies,
+    dropUnsent,
+    failManifest,
+    libraryWaitRef,
+    provisionalImportsRef,
+    refreshBusy,
+  ])
 
   /**
    * The summary was dismissed, so what moved goes with it. The baseline stays: an import still
@@ -234,6 +273,22 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setWorkerStopped,
   ])
 
+  // Removing everything also forgets what was recorded about the library: nothing of it is left to be short of.
+  const { clear: clearAll } = importActions
+  const clear = useCallback(() => {
+    failManifest()
+    clearAll()
+    if (accountRef.current.status !== 'signed-in') forgetManifest('device')
+  }, [clearAll, failManifest, forgetManifest])
+
+  const { libraryChanged } = useLibraryTabs({
+    accountRef,
+    settingsRef,
+    send: sendToWorker,
+    libraryStatus: library.libraryStatus,
+    loadLibrary: libraryActions.loadLibrary,
+    busy: imports.busy,
+  })
   const eventDeps = {
     transport,
     imports,
@@ -248,6 +303,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     previousUserIdRef,
     deviceLoadedRef,
     loadDeviceOnce,
+    manifest,
+    libraryChanged,
   }
   useWorkerEvents(eventDeps)
   useWorkerWatchdog({
@@ -259,11 +316,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   })
 
   const { send } = transport
-  // The analysis is redone when a mass changes, dated ones included, or when the runs counted at walking pace
-  // change. Other dated settings only ride along on later requests, since no analysis depends on them.
+  // The analysis is redone when a mass changes, dated ones included, when what the heart-rate reference reads changes
+  // (the year of birth and an entered maximum heart rate), or when the runs counted at walking pace change. Other dated
+  // settings only ride along on later requests, since no analysis depends on them.
   useEffect(() => {
     const changed =
-      !sameMasses(settingsRef.current, settings) || !sameCountedRuns(settingsRef.current, settings)
+      !sameAnalysisSettings(settingsRef.current, settings) ||
+      !sameCountedRuns(settingsRef.current, settings)
     settingsRef.current = settings
     if (changed) send({ type: 'setSettings', settings })
   }, [settings, send])
@@ -308,6 +367,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
     importOutcome: imports.importOutcome,
+    incompleteImport: manifest.incomplete,
+    acceptIncompleteImport: manifest.accept,
     // The change belongs to the outcome on screen; a cleared or replaced summary drops it.
     importChange:
       imports.importChange?.outcome === imports.importOutcome ? imports.importChange : null,
@@ -324,7 +385,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     addFiles: importActions.addFiles,
     loadSample: importActions.loadSample,
     setRange: importActions.setRange,
-    clear: importActions.clear,
+    clear,
     loadRoute,
     loadTrace,
   }

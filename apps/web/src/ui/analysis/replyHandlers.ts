@@ -10,8 +10,12 @@ import { isOvertaken } from './staleReplies'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
+import type { ImportOutcome } from '../../worker/protocol'
 import type { Account, Baseline, Box, Pending, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
+import type { ImportManifestController } from './importManifestHook'
+import type { RejectedFile } from '@rca/core/session'
+import type { DamagedSource } from '../importManifest'
 
 export interface WorkerEventDeps {
   transport: WorkerTransport
@@ -28,6 +32,15 @@ export interface WorkerEventDeps {
   /** Whether the current worker has been asked for the library kept in this browser. */
   deviceLoadedRef: Box<boolean>
   loadDeviceOnce: () => void
+  /** The record of imports (see importManifest.ts): how far the running one got, and how it ended. */
+  manifest: Pick<ImportManifestController, 'progress' | 'finish' | 'fail'>
+  /** Tells the other tabs that this tab changed a library, and takes the account's revision after it as the baseline. */
+  libraryChanged: (scope: 'device' | 'account') => void
+}
+
+/** Whether the import brought any workout up to date from an older model. */
+function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean {
+  return updatedRuns + updatedRides > 0
 }
 
 /**
@@ -58,12 +71,46 @@ function settleOvertaken(deps: WorkerEventDeps, pending: Pending, message: Reply
   }
 }
 
+/** The zips among the refused files that could not be read to their end, with the files that cost, when known. */
+export function damagedZips(rejected: readonly RejectedFile[]): DamagedSource[] {
+  return rejected
+    .filter(({ code, fileName }) => code === 'corrupt' && /\.zip$/i.test(fileName))
+    .map(({ fileName, detail }) => {
+      const lost = Number(detail)
+      return { name: fileName, lost: Number.isInteger(lost) && lost >= 1 ? lost : null }
+    })
+}
+
+/** The library a request changes when it succeeds, for the tabs that must read it again. */
+function changedLibrary(pending: Pending): 'device' | 'account' | null {
+  if (pending.provisional === true) return null
+  switch (pending.kind) {
+    case 'deleteDeviceActivity':
+    case 'keepProvisional':
+      return 'device'
+    case 'clear':
+      return pending.forgetDevice === true ? 'device' : null
+    case 'deleteActivity':
+    case 'rebuildStale':
+      return 'account'
+    case 'addFiles':
+      return pending.saveToDevice === true ? 'device' : 'account'
+    default:
+      return null
+  }
+}
+
 /** Shows what a reply reports, and settles the request it answers. */
 export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pending: Pending): void {
   const { transport, imports, library, handleAccountIssue, refreshBusy } = deps
   // The reply names its request, so it settles that request whatever order replies arrive in.
   const waiting = transport.pendingRepliesRef.current
   waiting.splice(waiting.indexOf(pending), 1)
+  if (pending.kind === 'addFiles' && pending.provisional !== true) {
+    if (message.type === 'state')
+      deps.manifest.finish(pending.id, damagedZips(message.state.rejected))
+    else if (message.type === 'error') deps.manifest.fail(pending.id)
+  }
   // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
   if (pending?.kind === 'setRange') pending.settle?.(message)
   refreshBusy()
@@ -103,6 +150,8 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   }
   // A rebuild replaces the session, and with it the files the last import skipped, so its summary goes.
   if (pending?.kind === 'rebuildStale') imports.setImportOutcome(null)
+  const changed = changedLibrary(pending)
+  if (changed !== null) deps.libraryChanged(changed)
   imports.setState(message.state)
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)
@@ -114,7 +163,10 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
       imports.setImportOutcome(message.outcome)
       imports.setImportChange({
         outcome: message.outcome,
-        before: comparableBefore(pending?.baseline, message.state),
+        // Workouts brought up to date are not new, so an import that updated any moves nothing.
+        before: isUpdate(message.outcome)
+          ? null
+          : comparableBefore(pending?.baseline, message.state),
         after: message.state.result,
       })
     }

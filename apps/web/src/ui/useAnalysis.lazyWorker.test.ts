@@ -61,6 +61,8 @@ function stateWith(totalActivities: number): SessionState {
     hiddenDuplicates: 0,
     walkingPaceRuns: 0,
     countedWalkingRuns: [],
+    libraryActivities: 0,
+    heldOut: [],
     trend: [],
     previous: null,
     change: null,

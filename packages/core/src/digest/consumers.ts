@@ -1,7 +1,7 @@
 import type { ActivityDigest } from '../types'
 import { memoByDigests } from '../digestMemo'
 import { canonicalOrder } from './ordered'
-import { REVISIONS, revisionStatus, stepsFrom } from './revisions'
+import { activeRevisionTable, revisionStatus, stepsFrom } from './revisions'
 import type { RevisionDeclaration } from './revisions'
 
 /**
@@ -60,7 +60,7 @@ export type DirectConsumer = Exclude<Consumer, keyof typeof INDIRECT>
 export function readsRevision(
   consumer: Consumer,
   revision: number,
-  table: readonly RevisionDeclaration[] = REVISIONS,
+  table: readonly RevisionDeclaration[] = activeRevisionTable(),
 ): boolean {
   const status = revisionStatus(revision, table)
   if (status === 'current') return true
@@ -106,7 +106,7 @@ const ordering = memoByDigests(
 export function orderedFor(
   consumer: Consumer,
   digests: ActivityDigest[],
-  table: readonly RevisionDeclaration[] = REVISIONS,
+  table: readonly RevisionDeclaration[] = activeRevisionTable(),
 ): ActivityDigest[] {
   return ordering(digests, readsOf(consumer, table))
 }
