@@ -14,6 +14,14 @@ export type Phase = 'slipping' | 'low' | 'recovering' | 'back'
  * frozen at declaration, so a level that settles lower is still measured against the old one.
  */
 export interface Episode {
+  /**
+   * A rise, not a slip. A rise is followed as a slip of the negated series, so its `reference`, levels and
+   * statistics are all in negated units until the monitor turns them back for the page: "slipping" is rising,
+   * a plateau under the reference is a plateau above it.
+   */
+  up: boolean
+  /** The statistic that declared a rise, positive; NaN for a slip. */
+  riseZ: number
   reference: number
   referenceRuns: number
   sigma: number
@@ -44,8 +52,11 @@ export function openEpisode(
   referenceRuns: number,
   onsetDay: number | null,
   season: Season | null,
+  rise: { z: number } | null = null,
 ): Episode {
   return {
+    up: rise !== null,
+    riseZ: rise?.z ?? Number.NaN,
     reference,
     referenceRuns,
     sigma,

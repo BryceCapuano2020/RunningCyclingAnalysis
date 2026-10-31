@@ -63,7 +63,7 @@ describe('share metadata in index.html', () => {
 
   it('describes the image with the figures it shows, which are the landing example’s', () => {
     const { grades, gap } = LANDING_EXAMPLE
-    const alt = `A sample athlete's result: running at ${grades.run.centre.level} level, cycling at ${grades.ride.centre.level}, balance leaning ${gap.centre} points toward ${SPORT_NOUN[gap.lean]}.`
+    const alt = `A sample athlete's result: running at ${grades.run.centre.level} level, cycling at ${grades.ride.centre.level}, balance leaning ${Math.abs(gap.centre)} points toward ${SPORT_NOUN[gap.lean]}.`
     expect(metaContent('property', 'og:image:alt')).toBe(alt)
     expect(metaContent('name', 'twitter:image:alt')).toBe(alt)
   })

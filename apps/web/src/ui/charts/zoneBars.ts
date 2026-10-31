@@ -4,6 +4,8 @@ import { percentText } from '../zoneTimeCopy'
 /** The least room, px, a share's text needs besides its characters. */
 const PERCENT_PAD = 12
 const PERCENT_EM = 0.55
+/** The letter spacing a reader may set (WCAG 1.4.12: 0.12 of the font size), which widens every character. */
+const SPACING_EM = 0.12
 
 /** A segment of a bar: its zone (1 is the lowest effort), where it starts and how wide it is. */
 export interface Segment {
@@ -36,7 +38,7 @@ export function segmentsOf(seconds: readonly number[], width: number): Segment[]
  * rather than overflow it. The numbers under the bar and the table say every zone's share.
  */
 export function percentFits(text: string, segmentWidth: number, rootPx: number): boolean {
-  const widthPx = text.length * 20 * PERCENT_EM * (rootPx / 16)
+  const widthPx = text.length * 20 * (PERCENT_EM + SPACING_EM) * (rootPx / 16)
   return segmentWidth >= widthPx + PERCENT_PAD
 }
 

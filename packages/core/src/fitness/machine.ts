@@ -1,10 +1,19 @@
 import { DAY_MS } from '../constants'
 import { episodeStep, openEpisode, troughOf } from './episode'
+import { riseStep } from './rise'
 import type { Episode, EpisodeLevel, Trough } from './episode'
-import { fitSeason, withoutSeason } from './season'
+import { fitSeason, negatedSeason, withoutSeason } from './season'
 import type { Season } from './season'
 import { FITNESS } from './params'
-import { levelOf, locateOnset, lowLastYear, referenceOf, sigmaAt, slice, slipAt } from './windows'
+import {
+  levelOf,
+  locateOnset,
+  lowLastYear,
+  referenceOf,
+  sigmaAt,
+  slice,
+  slipAndRiseAt,
+} from './windows'
 import type { Dip, RunPoint, Slip } from './windows'
 
 const M = FITNESS.monitor
@@ -21,7 +30,15 @@ export const dayOfWeekEnd = (week: number): number => (week + 1) * 7
 export const dayOfMs = (ms: number): number => (ms - WEEK_ORIGIN_MS) / DAY_MS
 
 export type MachineState =
-  'nodata' | 'thin' | 'holding' | 'holding-below' | 'slipping' | 'recovering' | 'back'
+  | 'nodata'
+  | 'thin'
+  | 'holding'
+  | 'holding-below'
+  | 'slipping'
+  | 'recovering'
+  | 'back'
+  | 'improving'
+  | 'improved'
 
 /** The numbers an open episode's state is told with. */
 export interface EpisodeView {
@@ -113,13 +130,22 @@ function nextStreak(
   day: number,
   sigma: number,
   checkYear: boolean,
+  up = false,
 ): number {
   if (slip === null || !slip.fire) return 0
-  if (checkYear && lowLastYear(runs, day, slip, sigma)) return 0
+  if (checkYear && lowLastYear(runs, day, slip, sigma, up)) return 0
   const week = slice(runs, day - 7, day)
   if (week.length === 0) return streak
-  const low = levelOf(week, slip.reference, sigma)!.m - slip.reference
-  return low <= -M.confirmShare * M.delta ? streak + 1 : 0
+  const moved = levelOf(week, slip.reference, sigma)!.m - slip.reference
+  return (up ? moved : -moved) >= M.confirmShare * M.delta ? streak + 1 : 0
+}
+
+/** Whether a rise may be opened this week: no episode closed within the weeks it is compared with, and none declared lately. */
+function riseBlocked(records: readonly WeekRecord[], day: number, guardUntil: number): boolean {
+  if (day < guardUntil) return true
+  const from = day - FITNESS.monitor.refStartWeeks * 7
+  const to = day - FITNESS.monitor.refEndWeeks * 7
+  return records.some((r) => r.closes !== null && r.closes < to && dayOfWeekEnd(r.w) >= from)
 }
 
 /** The monitor's weeks, and the seasonal swing the last of them was read with (null when none has been found). */
@@ -143,8 +169,13 @@ export function replay(runs: readonly RunPoint[], from: number, to: number): Rep
   const records: WeekRecord[] = []
   let ep: Episode | null = null
   let streak = 0
+  let riseStreak = 0
+  /** No new rise is opened before this day (see `FITNESS.monitor.riseGuardWeeks`). */
+  let riseGuard = Number.NEGATIVE_INFINITY
   let season: Season | null = null
   const dips: Dip[] = []
+  /** The runs with their sign turned, which a rise is followed in; made when the first rise needs them. */
+  let negated: RunPoint[] | null = null
   /** The week the swing was last fitted: it is refitted every few weeks, so a card's level can step by a fraction of a per cent when it is. */
   let fitted: number | null = null
   for (let w = from; w <= to; w++) {
@@ -155,16 +186,47 @@ export function replay(runs: readonly RunPoint[], from: number, to: number): Rep
       season = fitSeason(runs, day)
       fitted = w
     }
-    const seen = withoutSeason(runs, season, day - FITNESS.season.lookbackWeeks * 7, day)
+    const lookback = day - FITNESS.season.lookbackWeeks * 7
+    const seen = withoutSeason(runs, season, lookback, day)
     const sigma = sigmaAt(seen, day)
+    /** The tests of this week when a rise has just given way to a slip, so they are not run twice. */
+    let given: ReturnType<typeof slipAndRiseAt> | null = null
+    if (ep?.up) {
+      // A rise gives way to a slip: the slip test firing two weeks running ends it, so a rise that was never real
+      // cannot hold the monitor from a loss that is.
+      const tests = slipAndRiseAt(seen, day, sigma, dips)
+      streak = nextStreak(streak, tests.slip, seen, day, sigma, season === null)
+      if (tests.slip !== null && streak >= M.consecutive) {
+        ep = null
+        given = tests
+      } else {
+        negated ??= runs.map((r) => ({ ...r, x: -r.x }))
+        const seenDown = withoutSeason(negated, negatedSeason(season), lookback, day)
+        const { record: step, ended } = riseStep(seenDown, day, w, ep, records.at(-1))
+        records.push(record(w, step.state, step))
+        // A rise that settled leaves its earlier weeks in the baselines of the longer scales; one that faded leaves nothing.
+        if (step.state === 'improved' && step.fresh) {
+          riseGuard = (ep.onsetDay ?? day) + M.riseGuardWeeks * 7
+        }
+        if (ended) {
+          ep = null
+          streak = 0
+          riseStreak = 0
+        }
+        continue
+      }
+    }
     if (ep === null) {
       const earlier = referenceOf(seen, day)
       if (earlier === null) {
         records.push(record(w, 'nodata'))
         continue
       }
-      const slip = slipAt(seen, day, sigma, dips)
-      streak = nextStreak(streak, slip, seen, day, sigma, season === null)
+      const { slip, rise } = given ?? slipAndRiseAt(seen, day, sigma, dips)
+      if (given === null) {
+        streak = nextStreak(streak, slip, seen, day, sigma, season === null)
+      }
+      riseStreak = nextStreak(riseStreak, rise, seen, day, sigma, season === null, true)
       if (slip !== null && streak >= M.consecutive) {
         const onset = locateOnset(seen, day, sigma)
         ep = openEpisode(
@@ -177,6 +239,24 @@ export function replay(runs: readonly RunPoint[], from: number, to: number): Rep
         )
         streak = 0
         records.push(record(w, 'slipping', { fresh: true, z: slip.z, delta: slip.delta }))
+      } else if (
+        rise !== null &&
+        riseStreak >= M.consecutive &&
+        !riseBlocked(records, day, riseGuard)
+      ) {
+        const onset = locateOnset(seen, day, sigma, true)
+        // The rise is followed in negated units: its reference is the negative of the level before it.
+        ep = openEpisode(
+          w,
+          sigma,
+          -(onset?.reference ?? rise.reference),
+          onset?.referenceRuns ?? earlier.n,
+          onset?.day ?? null,
+          season,
+          { z: rise.z },
+        )
+        riseStreak = 0
+        records.push(record(w, 'improving', { fresh: true, z: rise.z, delta: rise.delta }))
       } else {
         records.push(record(w, 'holding', { delta: slip?.delta ?? 0 }))
       }

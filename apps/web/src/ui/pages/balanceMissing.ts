@@ -2,6 +2,7 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import { countedPhrase, needLine, unconfirmedSports } from '../components/headlineNeed'
 import { heldTexts } from '../resultHold'
+import type { HoldInputs } from '../resultHold'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
@@ -70,6 +71,7 @@ export function missingText(
   period: Period,
   levels: { run: string | null; ride: string | null },
   leftOut = 0,
+  holdInputs: HoldInputs = {},
 ): Missing {
   const runs = countSport(result.activities, 'run')
   const rides = countSport(result.activities, 'ride')
@@ -116,7 +118,7 @@ export function missingText(
     }
   }
   if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when, leftOut)
-  return heldMissing(result, library, period, levels)
+  return heldMissing(result, library, period, levels, holdInputs)
 }
 
 /**
@@ -128,9 +130,10 @@ function heldMissing(
   library: ActivitySummary[],
   period: Period,
   levels: { run: string | null; ride: string | null },
+  holdInputs: HoldInputs,
 ): Missing {
   // The hold says why and what lifts it; without one the action alone says which activities or which 20 minute effort a sport lacks.
-  const { reason, action, hold } = heldTexts(result, period)
+  const { reason, action, hold } = heldTexts(result, period, holdInputs)
   const why = hold === null ? '' : `${reason} `
   const allTimeEnough =
     needLine(headlineShortfall(result.activities), period, result.activities) !== null &&

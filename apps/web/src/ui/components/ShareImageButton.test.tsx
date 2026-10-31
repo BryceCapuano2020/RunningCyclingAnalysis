@@ -7,6 +7,7 @@ import { canShareImage, canvasFile, saveFile, shareFile } from '../../share/down
 import { loadCardFonts, renderShareCard } from '../../share/renderCard'
 import type { BalanceGap } from '../balanceGap'
 import type { GradeOutcome } from '../grades'
+import { HoldInputsContext } from '../holdContext'
 import { makeActivity, makeResult } from './fixtures'
 import { ShareImageButton, type ShareImageButtonProps } from './ShareImageButton'
 
@@ -492,6 +493,19 @@ describe('ShareImageButton', () => {
   it('renders nothing while the ride has no threshold, even with a comparison, so no image asks for more', () => {
     const { container } = renderButton({ result: makeResult({ rideCp: null }) })
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders nothing under any hold on the comparison, since the card would state what the page holds back', () => {
+    const held = { implausibleRide: { text: 'A ride looks too fast.', action: 'Check the ride.' } }
+    const { container } = render(
+      <HoldInputsContext.Provider value={held}>
+        <ShareImageButton {...buttonProps()} />
+      </HoldInputsContext.Provider>,
+    )
+    expect(container).toBeEmptyDOMElement()
+    cleanup()
+    renderButton()
+    expect(screen.getByRole('button', { name: TRIGGER })).toBeInTheDocument()
   })
 
   it('renders nothing while no weight is entered, since the balance waits for it', () => {
