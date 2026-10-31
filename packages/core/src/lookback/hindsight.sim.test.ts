@@ -47,13 +47,13 @@ function falseRates(spec: Partial<SimSpec>, years: number, libraries = LIBRARIES
 }
 
 describe('libraries where nothing changes: the share that are told an episode, and a lead', () => {
-  // Observed (listed / lead): quiet 5y 0.03 / 0.003, 10y 0.05 / 0.002; season 1.5% 0.04 / 0.003; season 3% 0.03 / 0.005;
-  // strap 3% 0.08 / 0.01; wander 3% (stress) 5y 0.25 / 0.03, 10y 0.36 / 0.04.
+  // Observed (listed / lead), 400 libraries a cell: quiet 5y 0.020 / 0, 10y 0.033 / 0; season 1.5% 0.037 / 0; season 3% 0.030 / 0;
+  // strap 3% 0.110 / 0; heat 0.035 / 0; bad runs 0.010 / 0; wander 3% (stress) 5y 0.278 / 0.005, 10y 0.345 / 0.037.
   it.each([
-    ['quiet', {}, 5, 0.08, 0.01],
-    ['quiet', {}, 10, 0.1, 0.01],
-    ['a season of 1.5%', { level: { seasonAmp: 0.015 } }, 5, 0.12, 0.015],
-    ['a season of 3%', { level: { seasonAmp: 0.03 } }, 5, 0.12, 0.015],
+    ['quiet', {}, 5, 0.06, 0.01],
+    ['quiet', {}, 10, 0.08, 0.01],
+    ['a season of 1.5%', { level: { seasonAmp: 0.015 } }, 5, 0.08, 0.01],
+    ['a season of 3%', { level: { seasonAmp: 0.03 } }, 5, 0.08, 0.01],
     [
       'a watch or strap step of 3% (a device step reads as a change)',
       { level: { strapStep: 0.03 } },
@@ -61,8 +61,8 @@ describe('libraries where nothing changes: the share that are told an episode, a
       0.12,
       0.03,
     ],
-    ['heat weeks of 3%', { level: { heatDrop: 0.03 } }, 5, 0.08, 0.01],
-    ['10% of runs read wrong', { bad: 0.1 }, 5, 0.08, 0.01],
+    ['heat weeks of 3%', { level: { heatDrop: 0.03 } }, 5, 0.07, 0.01],
+    ['10% of runs read wrong', { bad: 0.1 }, 5, 0.05, 0.01],
     [
       'a slow wander of 3% (the stress case)',
       { level: { wanderSd: 0.03, wanderRho: 0.95 } },
