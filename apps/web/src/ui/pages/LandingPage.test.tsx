@@ -194,12 +194,12 @@ describe('LandingPage', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Download your account export from Strava or Garmin and drop the zip as it is, or export from Wahoo, COROS or Zwift.',
+        'Drop the zip from Strava or Garmin as it is, or export from Wahoo, COROS or Zwift.',
       ),
     ).toBeInTheDocument()
   })
 
-  it('says in step 2 what the app asks for, and why each answer is needed', () => {
+  it('says in step 2 what sets the standard, and why a ride needs the weight', () => {
     const { container } = render(
       <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
@@ -208,7 +208,7 @@ describe('LandingPage', () => {
     const [, second] = within(list as HTMLElement).getAllByRole('listitem')
     expect(
       within(second!).getByText(
-        'The app asks for your age, sex and weight. Your age and sex set the standard for each sport, and a ride needs your weight to show its level.',
+        'Your age and sex set each sport’s standard. A ride also needs your weight.',
       ),
     ).toBeInTheDocument()
   })

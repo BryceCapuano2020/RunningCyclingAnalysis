@@ -142,9 +142,9 @@ test('Balance says the lean once: no lean tile, three tiles at most, and the lev
   await expect(tiles).not.toContainText(/\bpts\b/)
   // The gap in points is the meter's figure, once; the target is a line of the hero, not of a tile.
   await expect(page.locator('.balance-meter__number')).toHaveCount(1)
-  const target = page.locator('.balance-hero').getByText(/^To grade level with your/)
+  const target = page.locator('.balance-hero').getByText(/^To match your/)
   await expect(target).toHaveCount(1)
-  await expect(tiles.getByText(/^To grade level with your/)).toHaveCount(0)
+  await expect(tiles.getByText(/^To match your/)).toHaveCount(0)
   // No tile figure is as large as the headline.
   const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
     return parseFloat(getComputedStyle(el).fontSize)

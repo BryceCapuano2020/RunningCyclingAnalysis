@@ -211,8 +211,6 @@ export function BalancePage({
   const soleSport = only !== null && inPeriod[only] > 0 ? only : null
   // With one sport in the period, the comparison slots say nothing, so they are left out.
   const bothInPeriod = runCount > 0 && rideCount > 0
-  // A ride is named as graded only when its grade is on screen, which waits for the weight.
-  const rideGraded = grades.ride?.kind === 'graded'
   // Each grade is at the age on its own effort's day, so the footer names both ages when they differ.
   const runAge = grades.run?.kind === 'graded' ? grades.run.age : null
   const rideAge = grades.ride?.kind === 'graded' ? grades.ride.age : null
@@ -224,7 +222,6 @@ export function BalancePage({
         {runAge !== null && rideAge !== null && runAge !== rideAge
           ? `Graded for a ${SEX_NOUN[sourceSex]} aged ${runAge} on runs and ${rideAge} on rides, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
           : `Graded for a ${age}-year-old ${SEX_NOUN[sourceSex]} on the ${ROAD_STANDARDS_SOURCE.shortName}.`}
-        {rideGraded && ' Rides are graded through their running equivalent.'}
         {` ${LEVEL_NOT_RANKING}`}
       </p>
     ) : null
@@ -286,6 +283,7 @@ export function BalancePage({
         onAddFiles={analysis.addFiles}
         soleSport={soleSport}
         leftOut={leftOut}
+        levelShown={levels !== null}
       />
 
       {sourceLine}
