@@ -13,7 +13,7 @@ export interface FitnessAndCheckInProps {
   units: UnitSystem
   library: readonly ActivitySummary[]
   /** The one sport the library holds, which the cards then name once instead of on each. */
-  soleSport?: Sport | undefined
+  soleSport?: Sport | null
 }
 
 /**
@@ -21,9 +21,18 @@ export interface FitnessAndCheckInProps {
  * lead (a library with no steady run). It takes the place while the check-in has not been seen; a row that has
  * appeared in this visit stays until it is hidden, so opening it does not take it away.
  */
-export function FitnessAndCheckIn({ analysis, units, library, soleSport }: FitnessAndCheckInProps) {
+export function FitnessAndCheckIn({
+  analysis,
+  units,
+  library,
+  soleSport = null,
+}: FitnessAndCheckInProps) {
   const { fitness, isSample } = analysis.state
-  const hasCard = useMemo(() => fitnessViews(fitness, units).length > 0, [fitness, units])
+  // What the section draws: a card, or for a library of one sport the quiet line that says what would give one.
+  const hasCard = useMemo(
+    () => fitnessViews(fitness, units).length > 0 || soleSport !== null,
+    [fitness, units, soleSport],
+  )
   const eligible =
     firstRowOf({
       checkIn: analysis.checkIn,
