@@ -8,7 +8,7 @@ summarised here; the episode, season and ride work of Stage D (D2) is in "Stage 
 
 For each sport, one of: **slipping**, **holding** (level with the weeks before), **holding below** the
 old level, **recovering**, **back** (or **back and faster**, when the whole range is above the old level),
-**improving** (a clear rise with no slip before it; a status line only), or **not enough evidence yet** with
+**improving** (a clear rise, with no slip before it), **improved** (a rise that has settled at the new level; the one a finding is made of), or **not enough evidence yet** with
 the counts that are missing. Each carries the output at the library's reference heart rate now and before,
 the change with a 90% range, the day the change began, and the runs behind it (ids for the recent runs,
 spans and counts for the earlier ones). A run's change is said in pace terms, as the page shows paces: 5:00
@@ -54,12 +54,16 @@ it begins when the athlete was calm. All numbers are in one table, `fitness/para
 matched the research prototype on a one-off check of 25,200 simulated weeks (no differences) before the Stage D changes;
 that check is not kept as a test.
 
-Improving mirrors the slip test with no episode: at the same scales a contrast of z of 3.3 and a gain of 4%
-on two weeks running, with the range of the change clear of zero. It freezes no reference; once the earlier
-36 weeks catch up with the new level the status reads holding. It is withheld while the weeks 8 to 44 ago hold any
-of an episode that has closed (or one still open): an athlete back at their old level would otherwise read as
-faster than their own dip. A fuller state, with a reference and a
-holding at the new level, is not built.
+A rise is an episode of its own, the mirror of a slip, followed by the same machinery on the negated series (`fitness/rise.ts`).
+It is declared on the slip test's bar (z of 3.3, a gain of 4%, the same floor, the same confirming week, two weeks running; with
+no fitted season, the same check against the same weeks a year earlier), and the slip test keeps running while it is open: two
+weeks of the slip test firing end the rise. While it is rising the state is **improving**. When 12 weeks have passed, the trend
+over 24 weeks is flat and the gain clears 3% at its one-sided lower bound (`episode.improvedTol`, the mirror of the tolerance a
+return must clear to be back) the state is **improved**, shown for 12 weeks, after which the episode closes and the reference is
+read afresh. A rise whose level falls back toward the reference, or that is no longer clear, ends without being told. No rise is
+opened for 104 weeks from the onset of one that settled (the weeks before it are still in the baselines of the longer scales and
+would declare it again), nor while an episode that has closed lies in the weeks compared with: an athlete back at the old level
+is recovering, not improving. `risenAt` is gone; the monitor is the one source, so the card and the finding cannot disagree.
 
 ## Findings
 
@@ -228,7 +232,7 @@ next real loss. An athlete with two real dips and returns (8% down for 20 and 30
 The ceiling of 2% costs 4 to 8 points more alarms on the wander and all-at-once libraries than 3% did (0.32 -> 0.38 and
 0.39 -> 0.47) and buys back detection; this is the "Balanced" setting of the owner's review.
 
-**Improving.** The mirror test (`risenAt`, two weeks running) reads the same floor and the same two-week rule. A planted rise at
+**Improving.** The rise test (`riseAt`, two weeks running) reads the same floor and the same two-week rule. A planted rise at
 week 170, 150 libraries, weeks to a "risen" reading (median / within 12 / never): +8% 4 / 99% / 0% before, 4 / 97% / 0% now; +5% 6 /
 67% / 5% before, 8 / 61% / 14% now; +5% with a 3% wander 5 / 65% / 9% before, 10 / 53% / 20% now. On a quiet library with a 1.5%
 season the weeks that read "risen" fall from 4.8% to 2.7%.
@@ -299,3 +303,24 @@ The detector as shipped (before D2) declared four slips on the owner's library. 
 3 real, 1 unknown, 0 false. A change of watch in Feb 2024 had no declared change lining up with it, and no slip was declared
 there. This is four labels from one athlete: it says the detector was not crying wolf on him, not what its false-alarm rate is.
 Whether the Stage D changes alter his declarations is for a replay on his own machine to say; its figures stay out of the repo.
+
+## Rises: improving and improved (D9b)
+
+Run-level harness, 3-year libraries, 40 libraries at each of 1.2, 2, 3 and 5 steady runs a week (`fitness/rise.sim.test.ts`).
+Shown states, first week each is shown, an athlete-year:
+
+| Library where nothing changes | improving | improved                                               |
+| ----------------------------- | --------- | ------------------------------------------------------ |
+| quiet                         | 0.09      | 0.010                                                  |
+| heat weeks of 3%              | 0.12      | 0.019                                                  |
+| wander 3%, correlation 0.95   | 0.17      | 0.058                                                  |
+| season 1.5%                   | 0.10      | 0.010                                                  |
+| 10% bad runs                  | 0.10      | 0.013                                                  |
+| hills                         | 0.10      | 0.019                                                  |
+| watch or strap step up of 3%  | 0.15      | 0.071 (documented: a device step reads as a real gain) |
+
+A planted gain of 8% at 3 runs a week: improving in a median of 4 weeks (82% within 12, 85% within 26; a slip of the same size
+97% within 12), improved in a median of 23 weeks (73% within 36, 80% within 52). At 1.2 runs a week: median 7 weeks, 90%
+within 26, improved 70% within 52. A dip that comes back is back, and rises at the first-sign rate afterwards, no more. The
+settled tolerance is the lever on the false rate of **improved** (without it: 0.065 on the quiet library, 0.09 with wander);
+`improving` stays a status line and is never a finding.

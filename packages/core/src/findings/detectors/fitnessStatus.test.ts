@@ -52,6 +52,38 @@ describe('the fitness-status detector', () => {
     expect(change.value).toBeLessThan(finding.effect * 100)
   })
 
+  it('speaks a rise once it has settled, as better, and not when it first shows', () => {
+    const rise = plantedLibrary({
+      seed: 5,
+      weeks: 120,
+      perWeek: 3,
+      ...NOISE,
+      effects: [{ type: 'efficiency-shift', atWeek: 60, size: 0.25 }],
+    })
+    const start = rise.truths[0]!.onsetMs
+    const result = replayDetector(fitnessStatusDetector, rise, {
+      fromMs: start - 6 * WEEK,
+      toMs: start + 50 * WEEK,
+    })
+    const ids = episodesOf(result.marks).map((e) => e.finding.id)
+    expect(ids).toEqual(['fitness-status:run:improved'])
+    const finding = episodesOf(result.marks)[0]!.finding
+    expect(finding.direction).toBe('better')
+    expect(finding.effect).toBeGreaterThan(0.04)
+    expect(finding.headline).toMatch(
+      /^At \d+ bpm you now run \d+(\.\d)?% \(\d+( to \d+)?%\) faster than before /,
+    )
+    expect(finding.headline).not.toMatch(/\/km|\/mi/)
+    // Not at the first sign: the first mark that speaks is weeks after the rise is first shown as improving.
+    const first = result.marks.find((m) => m.spoken.length > 0)!
+    const shown = fitnessStatuses(
+      rise.digests.filter((d) => d.startMs <= first.asOfMs),
+      new Set(),
+      { asOfMs: first.asOfMs },
+    ).run
+    expect(shown.state).toBe('improved')
+  })
+
   it('points at the runs it rests on', () => {
     const finding = episodesOf(replay.marks)[0]!.finding
     const ids = new Set(library.digests.map((d) => d.id))

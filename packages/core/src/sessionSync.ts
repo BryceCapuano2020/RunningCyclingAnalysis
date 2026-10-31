@@ -27,4 +27,6 @@ export interface SaveBatch {
   networkStreak: number
   /** The digests this import added to the library, by key. A replacement updates its entry. */
   added: Map<string, ActivityDigest>
+  /** The keys of `added` that replaced a digest held out of the analysis, which are upgraded and not new. */
+  upgraded: Set<string>
 }
