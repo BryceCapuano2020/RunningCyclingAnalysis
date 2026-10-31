@@ -8,7 +8,7 @@ export async function deleteAccountDetails(userId: string | undefined): Promise<
   // An environment without IndexedDB could never have kept these recordings.
   if (userId === undefined || typeof indexedDB === 'undefined') return null
   await openOutbox(userId).forget()
-  await clearCheckinScope(accountScope(userId)).catch(() => false)
+  await clearCheckinScope(accountScope(userId), { dropEpoch: true }).catch(() => false)
   await openManifestStore().forget(`account:${userId}`)
   const removed = await deleteWorkbenchScope({ kind: 'account', userId }).catch(() => false)
   return removed

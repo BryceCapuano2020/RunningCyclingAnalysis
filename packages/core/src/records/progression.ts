@@ -136,27 +136,31 @@ export function effortProgression(
   settings: AthleteSettings,
   gate?: EstimatedRideGate | null,
   only?: readonly number[],
+  /** The sports to read; the other is left empty. A reader whose answer for one sport does not depend on the other's work (the mass) names it. */
+  sports: readonly Sport[] = ['run', 'ride'],
 ): Record<Sport, Progression> {
   const ordered = orderedFor('records', digests)
   const masses = massesOf(settings)
-  const bikeModel = fitBikeModelOver(ordered, masses).model
-  const standing = estimatedStanding(gate === undefined ? ownRideGate(ordered) : gate)
   const eligible = ordered.filter(effortsCount)
-  const estimates = hasEstimatedRide(eligible)
-  return {
-    run: {
-      unit: 'run W/kg',
-      readings: withoutOverreach(readingsByDuration(ofSport(eligible, 'run'), runPricer, only)),
-    },
-    ride: {
-      unit: masses.dated ? 'W/kg' : 'W',
-      readings: withoutOverreach(
-        readingsByDuration(
-          ofSport(eligible, 'ride'),
-          ridePricer(masses, bikeModel, standing),
-          estimates ? undefined : only,
-        ),
+  const none = (): Reading[][] => DURATIONS_S.map(() => [])
+  const run = sports.includes('run')
+    ? withoutOverreach(readingsByDuration(ofSport(eligible, 'run'), runPricer, only))
+    : none()
+  let ride = none()
+  if (sports.includes('ride')) {
+    const bikeModel = fitBikeModelOver(ordered, masses).model
+    const standing = estimatedStanding(gate === undefined ? ownRideGate(ordered) : gate)
+    const estimates = hasEstimatedRide(eligible)
+    ride = withoutOverreach(
+      readingsByDuration(
+        ofSport(eligible, 'ride'),
+        ridePricer(masses, bikeModel, standing),
+        estimates ? undefined : only,
       ),
-    },
+    )
+  }
+  return {
+    run: { unit: 'run W/kg', readings: run },
+    ride: { unit: masses.dated ? 'W/kg' : 'W', readings: ride },
   }
 }

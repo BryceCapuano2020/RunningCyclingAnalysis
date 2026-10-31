@@ -8,6 +8,9 @@ import '@fontsource/barlow-condensed/latin-800.css'
 import { App } from './App'
 import './index.css'
 import { ErrorBoundary } from './ui/components'
+import { installDeviceZone } from './worker/viewerZone'
+
+installDeviceZone()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

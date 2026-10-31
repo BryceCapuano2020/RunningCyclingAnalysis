@@ -11,6 +11,7 @@ import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
 import type { ImportOutcome } from '../../worker/protocol'
+import { NO_CHECKIN } from '../../worker/checkinKeeper'
 import type { Account, Baseline, Box, Pending, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 import type { ImportManifestController } from './importManifestHook'
@@ -160,6 +161,11 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     if (message.type === 'error' && message.issue !== undefined) handleAccountIssue(message.issue)
     return
   }
+  // What a row of "since your last import" now says of being seen settles its request alone.
+  if (message.type === 'checkInSaved') {
+    pending?.settle?.(message)
+    return
+  }
   // A splits reply, or the error that answers a splits request, settles that request alone.
   if (message.type === 'splits' || pending?.kind === 'activitySplits') {
     pending?.settle?.(message)
@@ -183,6 +189,8 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   imports.setState(message.state)
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)
+  // "Since your last import", with the state it was made against (none when it says nothing).
+  library.setCheckIn(message.checkIn ?? NO_CHECKIN)
   if (message.type === 'state') {
     imports.setSavedCount(message.saved ?? null)
     noteProvisionalOutcome(imports, pending, message)

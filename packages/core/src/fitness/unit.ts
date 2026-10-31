@@ -1,6 +1,6 @@
 import { DAY_MS } from '../constants'
 import { median } from '../findings/stats'
-import type { ActivityDigest, Sport } from '../types'
+import type { ActivityDigest, LocalDayShift, Sport } from '../types'
 import { fitGrade, fitHeartRateSlope, RUN_SLOPE } from './fit'
 import type { DatedKm, KmReading } from './fit'
 import { FITNESS } from './params'
@@ -15,6 +15,20 @@ export interface UnitPoint {
   id: string
   startMs: number
   x: number
+  /** The local day shift the activity's file recorded (revision 7), when it has one. */
+  localDayShift?: LocalDayShift
+}
+
+/** A point, with the day shift of its digest only when it has one. */
+export function unitPoint(
+  id: string,
+  startMs: number,
+  x: number,
+  localDayShift: LocalDayShift | undefined,
+): UnitPoint {
+  const point: UnitPoint = { id, startMs, x }
+  if (localDayShift !== undefined) point.localDayShift = localDayShift
+  return point
 }
 
 export interface UnitSeries {
@@ -85,11 +99,9 @@ export function runSeries(
   const dated: DatedKm[] = steady.map((z) => ({ startMs: z.r.startMs, kms: z.kms }))
   const fit = fitGrade(dated)
   if (fit.stable) {
-    const points = steady.map((z) => ({
-      id: z.r.id,
-      startMs: z.r.startMs,
-      x: valueOf(z.kms, ref, fit.kappa, fit.beta),
-    }))
+    const points = steady.map((z) =>
+      unitPoint(z.r.id, z.r.startMs, valueOf(z.kms, ref, fit.kappa, fit.beta), z.r.localDayShift),
+    )
     return {
       points: points.sort(byTime),
       referenceHr: ref,
@@ -109,11 +121,9 @@ export function runSeries(
     z.kms.map((k) => ({ startMs: z.r.startMs, hr: k.hr, value: k.lnClock + k.credit })),
   )
   const beta = fitHeartRateSlope(rows, RUN_SLOPE)
-  const points = strict.map((z) => ({
-    id: z.r.id,
-    startMs: z.r.startMs,
-    x: valueOf(z.kms, ref, -1, beta),
-  }))
+  const points = strict.map((z) =>
+    unitPoint(z.r.id, z.r.startMs, valueOf(z.kms, ref, -1, beta), z.r.localDayShift),
+  )
   return {
     points: points.sort(byTime),
     referenceHr: ref,

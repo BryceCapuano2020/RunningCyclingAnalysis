@@ -1,7 +1,6 @@
 /// <reference lib="webworker" />
 import type { ActivityRecord } from '@rca/contract'
 import { periodChoiceOf } from '@rca/core/period'
-import { AnalysisSession } from '@rca/core/session'
 import type { SyncItem } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import type { Activity } from '@rca/core/types'
@@ -16,6 +15,7 @@ import {
   offerDevice,
 } from './adoptionRequests'
 import type { AdoptionRequestContext } from './adoptionRequests'
+import { newSession } from './newSession'
 import { deviceKeeper } from './deviceKeeper'
 import { clearOutbox, openOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
@@ -27,7 +27,6 @@ import { deleteSavedGroup } from './deleteGroup'
 import type { DeleteGroupContext } from './deleteGroup'
 import { hiddenRecordIds, visibleRecords } from './hiddenCopies'
 import { openDeviceLibrary } from './deviceLibrary'
-import { originalActivity } from './originalActivity'
 import { outdatedWithOriginal } from './outdatedOriginals'
 import { undoLabelsRequest } from './undoLabelsRequest'
 import type { UndoLabelsContext } from './undoLabelsRequest'
@@ -50,13 +49,14 @@ import type { ImportRunContext } from './importRun'
 import { newWorkerView } from './workerView'
 import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCoverage'
-import { deviceClock, sampleActivityById } from './sampleClock'
+import { deviceClock } from './sampleClock'
+import { activityTraceReply } from './traceReply'
+import { checkInWorker } from './checkinWorker'
 import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
-import type { ActivityTraceReply } from './workbench'
 
-const session = new AnalysisSession()
+const session = newSession()
 const post = (message: WorkerResponse) => self.postMessage(stamped(message))
 /** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
 const missingOriginals = new Set<string>()
@@ -93,6 +93,7 @@ const device = deviceActions(
   () => workbench.watchDevice(),
 )
 const view = newWorkerView()
+const checkIns = checkInWorker(session, view)
 const libraryContext: LibraryContext = {
   session,
   device,
@@ -125,6 +126,8 @@ const undoContext: UndoLabelsContext = {
   reportLibrary,
 }
 const importContext: ImportRunContext = {
+  checkIns: checkIns.keeper,
+  lastImport: null,
   sending,
   labelUndo,
   session,
@@ -202,6 +205,7 @@ const deleteContext: DeleteGroupContext = {
 }
 
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
+  checkIns.onRequest(request)
   switch (request.type) {
     case 'addFiles':
       return (await runImport(importContext, request)).state
@@ -210,6 +214,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       const held = [...provisionalItems.values()]
       provisionalItems.clear()
       for (const item of held) await keeper.keep(item)
+      await checkIns.keepProvisional('device')
       // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
       const emptied = keeper.replaced || workbench.libraryReplaced || !(await device.current())
       if (emptied) workbench.dropDeferred()
@@ -312,6 +317,10 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       throw new Error('A splits request is not a session request')
     case 'activityTrace':
       throw new Error('An activity trace is not a session request')
+    case 'markSeen':
+    case 'acceptPartialImport':
+      // Answered with checkInSaved, not with a session state.
+      throw new Error('A check-in request is not a session request')
     case 'deleteActivity': {
       if (view.activeScope?.kind !== 'account' || view.activeScope.userId !== request.userId)
         throw new Error('Reload your library before deleting this activity.')
@@ -319,40 +328,6 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       if (!record) throw new Error('Reload your library before deleting this activity.')
       return deleteSavedGroup(deleteContext, record, request.userId, request.settings)
     }
-  }
-}
-
-async function activityTraceReply(
-  request: Extract<WorkerRequest, { type: 'activityTrace' }>,
-): Promise<ActivityTraceReply> {
-  const scope =
-    view.activeScope !== null &&
-    (request.userId === undefined
-      ? view.activeScope.kind === 'device'
-      : view.activeScope.kind === 'account' && view.activeScope.userId === request.userId)
-      ? view.activeScope
-      : null
-  if (scope === null) return { kind: 'failed' }
-  const cached = await workbench.get(scope, request.id)
-  if (cached !== null) return { kind: 'trace', trace: cached }
-  if (request.userId === undefined) {
-    if (!view.showingSample) return { kind: 'missing' }
-    const activity = sampleActivityById(view.sampleClock, request.id)
-    if (activity === undefined) return { kind: 'missing' }
-    workbench.captureMemory(activity, scope)
-    const trace = await workbench.get(scope, request.id)
-    return trace === null ? { kind: 'missing' } : { kind: 'trace', trace }
-  }
-  const record = [...savedRecords.values()].find((candidate) => candidate.digest.id === request.id)
-  if (record === undefined || !record.hasFile) return { kind: 'missing' }
-  if (request.fromOriginal !== true) return { kind: 'original' }
-  try {
-    const { activity } = await originalActivity(record, request.userId, request.id)
-    if (activity === undefined) return { kind: 'missing' }
-    const trace = await workbench.capture(activity, scope)
-    return trace === null ? { kind: 'missing' } : { kind: 'trace', trace }
-  } catch {
-    return { kind: 'failed' }
   }
 }
 
@@ -373,14 +348,22 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       if (event.data.type === 'addFiles') {
         const imported = await runImport(importContext, event.data)
         await reportDetail()
-        post({ type: 'state', ...imported, ...rebuildable() })
+        post(await checkIns.attach({ type: 'state', ...imported, ...rebuildable() }, 'addFiles'))
       } else if (event.data.type === 'rebuildStale') {
         const rebuilt = await rebuildStale(libraryContext, event.data.settings, event.data.userId)
+        await checkIns.afterRebuild(rebuilt.rebuilt)
         await reportDetail()
-        post({ type: 'rebuildComplete', ...rebuilt, ...rebuildable() })
+        post(
+          await checkIns.attach(
+            { type: 'rebuildComplete', ...rebuilt, ...rebuildable() },
+            'rebuildStale',
+          ),
+        )
       } else if (event.data.type === 'undoLabels') {
         const { state, left } = await undoLabelsRequest(undoContext, event.data)
         post({ type: 'state', state, ...(left > 0 ? { labelsLeft: left } : {}), ...rebuildable() })
+      } else if (checkIns.answers(event.data)) {
+        post(await checkIns.answer(event.data, importContext.lastImport))
       } else if (event.data.type === 'exportData') {
         post({
           type: 'exportReady',
@@ -395,7 +378,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         }
         post(await routes.reply(event.data))
       } else if (event.data.type === 'activityTrace') {
-        const reply = await activityTraceReply(event.data)
+        const reply = await activityTraceReply(importContext, event.data)
         // Reading a trace back from an original stores it, which may push an older one out. The page
         // hears of that before the reply: nothing the worker says after its reply is attributed.
         if (event.data.fromOriginal === true) await reportDetail()
@@ -404,7 +387,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const state = await handle(event.data)
         const { type } = event.data
         if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
-        post({ type: 'state', state, ...rebuildable() })
+        post(await checkIns.attach({ type: 'state', state, ...rebuildable() }, type))
       }
     } catch (error) {
       post({

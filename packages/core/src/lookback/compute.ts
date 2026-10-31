@@ -1,9 +1,9 @@
-import { DAY_MS } from '../constants'
+import { dayShiftFor } from '../calendar'
 import { orderedFor } from '../digest/consumers'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import { memoByDigests } from '../digestMemo'
 import { fitnessHistories, fitnessStatuses } from '../fitness/compute'
-import { dayOfMs, WEEK_ORIGIN_MS } from '../fitness/machine'
+import { dayOfMs, instantOfDay } from '../fitness/machine'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { hindsightOf, horizonDay } from './hindsight'
 import { milestonesOf } from './milestones'
@@ -61,38 +61,100 @@ export interface LookBackInput {
   zone: string
 }
 
-function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
+/** What the years say that the athlete's mass and bike mass do not touch: the fitness told in hindsight, per sport. */
+interface Years {
+  asOfMs: number
+  horizonMs: number
+  sports: Record<Sport, Pick<SportLookBack, 'referenceHr' | 'fitness'>>
+}
+
+type YearsInput = Pick<LookBackInput, 'setAside' | 'nowMs' | 'zone'>
+
+/**
+ * The fitness in hindsight of each sport. It reads the digests, the set-aside list and the date alone, never the
+ * body mass, so a change of mass leaves it as it was (and costs none of it), where the milestones are priced by mass.
+ */
+function yearsOf(digests: ActivityDigest[], input: YearsInput): Years | null {
   const current = orderedFor('fitness', digests)
-  if (current.length === 0) return NO_LOOKBACK
+  if (current.length === 0) return null
   const options = { nowMs: input.nowMs }
   const asOfMs = Math.max(current.at(-1)!.startMs, input.nowMs)
-  const asOfDay = dayOfMs(asOfMs)
+  // Days are on the fitness clock: a day is the local one, as the runs' are.
+  const asOfDay = dayOfMs(asOfMs) + dayShiftFor({ startMs: asOfMs })
   const statuses = fitnessStatuses(digests, input.setAside, options)
   const histories = fitnessHistories(digests, input.setAside, options)
-  const milestones = milestonesOf(digests, input.settings, input.gate)
-  const sport = (s: Sport): SportLookBack => ({
-    sport: s,
+  const sport = (s: Sport): Years['sports'][Sport] => ({
     referenceHr: histories[s].referenceHr,
     fitness:
       statuses[s].shortfall?.kind === 'unavailable'
         ? { kind: 'unavailable' }
         : hindsightOf({
             runs: histories[s].runs,
-            activeDays: current.filter((d) => d.sport === s).map((d) => dayOfMs(d.startMs)),
+            activeDays: current
+              .filter((d) => d.sport === s)
+              .map((d) => dayOfMs(d.startMs) + dayShiftFor(d)),
             asOfDay,
             records: histories[s].records,
           }),
-    milestones: milestones[s],
   })
   return {
     asOfMs,
-    horizonMs: WEEK_ORIGIN_MS + horizonDay(asOfDay) * DAY_MS,
+    horizonMs: instantOfDay(horizonDay(asOfDay)),
     sports: { run: sport('run'), ride: sport('ride') },
   }
 }
 
 const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
   a === b || (a.size === b.size && [...a].every((id) => b.has(id)))
+
+const rememberedYears = memoByDigests<YearsInput, Years | null>(
+  yearsOf,
+  (a, b) => sameSet(a.setAside, b.setAside) && a.nowMs === b.nowMs && a.zone === b.zone,
+)
+
+type MilestonesInput = Pick<LookBackInput, 'settings' | 'gate' | 'zone'>
+
+/** The settings a read of runs alone is given: a run's efforts never read the mass, so any would do. */
+const SETTINGS_OF_RUNS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
+
+/**
+ * A run's best efforts over the years. They are priced by the run's pace alone, so they do not read the body mass or
+ * the bike's, and a change of either leaves them as they were.
+ */
+const rememberedRunMilestones = memoByDigests<Pick<LookBackInput, 'zone'>, EffortMilestones[]>(
+  (digests) => milestonesOf(digests, SETTINGS_OF_RUNS, undefined, ['run']).run,
+  (a, b) => a.zone === b.zone,
+)
+
+/** A ride's best efforts over the years, priced by the athlete's mass, so remembered by the settings too. */
+const rememberedRideMilestones = memoByDigests<MilestonesInput, EffortMilestones[]>(
+  (digests, { settings, gate }) => milestonesOf(digests, settings, gate, ['ride']).ride,
+  (a, b) =>
+    a.gate === b.gate &&
+    a.zone === b.zone &&
+    a.settings.massKg === b.settings.massKg &&
+    a.settings.bikeMassKg === b.settings.bikeMassKg &&
+    a.settings.measurements === b.settings.measurements,
+)
+
+function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
+  const years = rememberedYears(digests, input)
+  if (years === null) return NO_LOOKBACK
+  const milestones: Record<Sport, EffortMilestones[]> = {
+    run: rememberedRunMilestones(digests, input),
+    ride: rememberedRideMilestones(digests, input),
+  }
+  const sport = (s: Sport): SportLookBack => ({
+    sport: s,
+    ...years.sports[s],
+    milestones: milestones[s],
+  })
+  return {
+    asOfMs: years.asOfMs,
+    horizonMs: years.horizonMs,
+    sports: { run: sport('run'), ride: sport('ride') },
+  }
+}
 
 const remembered = memoByDigests<LookBackInput, LookBack>(
   compute,
