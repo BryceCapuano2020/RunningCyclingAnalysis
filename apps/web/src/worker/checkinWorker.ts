@@ -85,7 +85,9 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
       const shown = await keeper.view(view.checkinScope, () =>
         session.checkInSnapshot(message.state, Date.now()),
       )
-      return shown.checkIn === null && !shown.seen ? message : { ...message, checkIn: shown }
+      return shown.checkIn === null && !shown.seen && shown.lookBackSeen !== true
+        ? message
+        : { ...message, checkIn: shown }
     },
     /** Whether the request is about a row of the check-in, which has its own reply. */
     answers: (request: WorkerRequest): request is CheckInRequest =>
