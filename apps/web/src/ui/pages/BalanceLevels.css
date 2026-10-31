@@ -69,6 +69,11 @@
   overflow-wrap: anywhere;
 }
 
+/* The level sits at the row's right edge, where the usual reach of 6 px past the term would widen the page. */
+.balance-levels__level .definition__term::after {
+  inset-inline: 0;
+}
+
 .balance-levels__missing {
   margin: 0;
   color: var(--text-muted);
