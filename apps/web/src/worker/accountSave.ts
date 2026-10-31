@@ -13,6 +13,7 @@ import {
   SAVE_CONCURRENCY,
   UPLOAD_CONCURRENCY,
 } from './saveLimits'
+import { DeferredOriginals } from './deferredOriginals'
 import type { SyncOptions } from './protocol'
 import { retryAfterUploadSlot, SaveStop } from './rateLimitRetry'
 import type { RouteMemory } from './routes'
@@ -43,6 +44,8 @@ export interface AccountSaveContext {
   outbox?: Outbox
   /** The workouts being sent, shared with the outbox resume so a file added again is not sent by both at once. */
   sending?: SendingKeys
+  /** The ids of the digests the analysis hides as the library stands: an original held back for one is decided early only if it is not among them. */
+  hiddenIds?: () => ReadonlySet<string>
 }
 
 /**
@@ -67,25 +70,38 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
         'Original exceeds the upload limit; digest saved without its file',
       )
     }
-    if (storageBudgetExhausted) {
-      throw new SyncFailure('storage-budget', 'Original-file storage allowance is exhausted')
-    }
-    try {
-      const saved = await retryAfterUploadSlot(() =>
-        uploads.run(() => {
-          // Saves stopped while this one waited for an upload slot send nothing more.
-          stop.check()
-          return uploadFile(record.id, item.bytes, sync.userId)
-        }),
-      )
-      savedRecords.set(record.id, saved)
-    } catch (error) {
-      if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
-        storageBudgetExhausted = true
-      }
-      throw error
-    }
+    const spent = () =>
+      new SyncFailure('storage-budget', 'Original-file storage allowance is exhausted')
+    if (storageBudgetExhausted) throw spent()
+    const saved = await retryAfterUploadSlot(() =>
+      uploads.run(() => {
+        // Saves stopped while this one waited for an upload slot send nothing more, nor does an allowance spent.
+        stop.check()
+        if (storageBudgetExhausted) throw spent()
+        // Noted before the slot is given up, so the upload waiting for it finds the allowance spent.
+        return uploadFile(record.id, item.bytes, sync.userId).catch((error: unknown) => {
+          if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
+            storageBudgetExhausted = true
+          }
+          throw error
+        })
+      }),
+    )
+    savedRecords.set(record.id, saved)
   }
+
+  const originals = new DeferredOriginals({
+    upload: async (record, item) => {
+      await upload(record, item)
+      missingOriginals.delete(workoutKeyOf(item.digest))
+    },
+    hiddenNow: () => ctx.hiddenIds?.() ?? new Set(),
+    codeOf: (error) => {
+      const { code } = syncFailureOf(error)
+      stop.noteFailure(code)
+      return code
+    },
+  })
 
   const saveOnce = async (item: SyncItem, leading: boolean): Promise<void> => {
     const key = workoutKeyOf(item.digest)
@@ -106,16 +122,8 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     ctx.routes.remember(record.id, item.route ?? null)
     if (record.hasFile) missingOriginals.delete(key)
     else missingOriginals.add(key)
-    if (sync.keepFiles && !record.hasFile) {
-      try {
-        await upload(record, item)
-      } catch (error) {
-        // The digest is saved. Only the original is missing, which says nothing about the network.
-        const failure = syncFailureOf(error)
-        throw new SyncFailure(failure.code, failure.message, true)
-      }
-      missingOriginals.delete(key)
-    }
+    // The original is held until the import is read, then kept for the shown copy of the workout only (rule R).
+    if (sync.keepFiles && !record.hasFile) await originals.add(record, item)
     ctx.onSaved()
   }
 
@@ -133,7 +141,7 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     }
   }
 
-  return async (item) => {
+  const sink: SyncSink = async (item) => {
     // A replacement or a retry is saved before the next file is looked at, as it always was.
     if (item.queueable !== true) return await save(item)
     // A new activity is saved beside the others, up to what the server and the browser can hold at once. The
@@ -144,4 +152,5 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     done.catch(() => undefined)
     return { done }
   }
+  return Object.assign(sink, { finish: (hidden: ReadonlySet<string>) => originals.finish(hidden) })
 }
