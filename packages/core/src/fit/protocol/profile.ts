@@ -15,6 +15,8 @@ export const MESG = {
 
 export const FIELD = {
   timestamp: 253,
+  /** Activity message: the device's local time, seconds on the FIT epoch (local_date_time). */
+  localTimestamp: 5,
   // record
   positionLat: 0,
   positionLong: 1,

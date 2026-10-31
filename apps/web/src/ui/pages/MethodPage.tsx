@@ -10,6 +10,7 @@ import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
 import { useHoldInputs } from '../holdContext'
 import { heldPick, heldTexts } from '../resultHold'
+import { rideHoldInputs } from '../rideLeftOut'
 import { balanceOfPick } from '../components/balanceScale'
 import {
   headlineBasis,
@@ -145,8 +146,14 @@ export function MethodPage({
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
   const holdInputs = useHoldInputs()
-  const pick = result ? heldPick(result, holdInputs).pick : null
-  const held = result ? heldTexts(result, period, holdInputs) : null
+  const headline = profile === null || result === null ? null : headlineGrades(result, profile)
+  // A ride at the top of the age tables, or one with no usable power, is out of the comparison as Balance leaves it out.
+  const rideHold =
+    result === null || headline === null || !weightKnown
+      ? holdInputs
+      : rideHoldInputs(headline.ride, result, holdInputs)
+  const pick = result ? heldPick(result, rideHold).pick : null
+  const held = result ? heldTexts(result, period, rideHold) : null
   // Under a hold the reason and what lifts it are the hold's; else the activities or the 20 minute effort a sport lacks.
   const reason =
     held === null ? '' : held.hold === null ? held.reason : `${held.reason} ${held.action}`
@@ -156,7 +163,6 @@ export function MethodPage({
   const accuracy = result ? result.virtualAccuracy : null
   // The accuracy section shows with no result too, where it says what its check needs.
   const showAccuracy = accuracy !== null || !hasResult
-  const headline = profile === null || result === null ? null : headlineGrades(result, profile)
   // Without a weight a ride's grade is worked out on the placeholder body mass, so only a run's grade
   // may say whose grades these are.
   const gradedSex = gradedSexOf(weightKnown ? headline : runOnly(headline), profile)

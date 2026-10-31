@@ -5,6 +5,12 @@ import { deleteWorkbenchScope } from './workbenchStore'
 
 vi.mock('./workbenchStore', () => ({ deleteWorkbenchScope: vi.fn() }))
 
+const forgotten = vi.hoisted(() => [] as string[])
+vi.mock('./outbox', () => ({
+  openOutbox: (userId: string) => ({
+    forget: async () => void forgotten.push(userId),
+  }),
+}))
 vi.mock('../ui/importManifestStore', () => {
   const forget = vi.fn(async () => undefined)
   return { openManifestStore: () => ({ forget }) }
@@ -46,6 +52,18 @@ describe('account recording cleanup after server deletion', () => {
       )
     },
   )
+})
+
+describe('the activities still waiting to be saved', () => {
+  it('go with a deleted account', async () => {
+    vi.stubGlobal('indexedDB', {})
+    vi.mocked(deleteWorkbenchScope).mockResolvedValue(true)
+    forgotten.length = 0
+
+    await deleteAccountDetails('alice')
+
+    expect(forgotten).toEqual(['alice'])
+  })
 })
 
 describe('the record of the account’s imports', () => {

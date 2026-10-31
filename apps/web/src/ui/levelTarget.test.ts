@@ -9,7 +9,13 @@ import { AnalysisSession } from '@rca/core/session'
 import { gapOfHeadline } from './balanceGap'
 import { curvePoint } from './charts/fixtures'
 import { flatWkg, makeActivity, makeEquivalence, makeResult } from './components/fixtures'
-import { headlineGrades, sportGrade, type AgeProfile, type GradeOutcome } from './grades'
+import {
+  headlineGrades,
+  notGradedText,
+  sportGrade,
+  type AgeProfile,
+  type GradeOutcome,
+} from './grades'
 import {
   levelTarget,
   levelTargetText,
@@ -64,7 +70,7 @@ function pageRideGrade(
     equivalents: [equivalent],
   }
   const outcome = sportGrade(page, 'ride', HEADLINE_DURATION_S, profile)
-  if (outcome.kind !== 'graded') throw new Error(`Expected a grade, got: ${outcome.reason}`)
+  if (outcome.kind !== 'graded') throw new Error(`Expected a grade, got: ${notGradedText(outcome)}`)
   return outcome.grade.centre.grade
 }
 

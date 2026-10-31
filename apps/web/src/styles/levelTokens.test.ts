@@ -4,6 +4,7 @@ import { contrast, over } from './contrastMath'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
 const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
+const systemMd = await readStylesheet(import.meta.url, '../../../../docs/design/system.md')
 
 /** The level tokens in the block after `marker`, as name to value, in the order written. */
 function levels(marker: string): Map<string, string> {
@@ -43,7 +44,7 @@ describe('level band tokens', () => {
     const rows = table()
     expect([...rows.keys()]).toEqual(NAMES)
     for (const name of NAMES) expect(rows.get(name)).toEqual([light.get(name), dark.get(name)])
-    const colour = designMd.slice(designMd.indexOf('## Colour'), designMd.indexOf('## Type'))
+    const colour = systemMd.slice(systemMd.indexOf('## Colour'), systemMd.indexOf('## Type'))
     expect(colour).not.toContain('--level-')
   })
 

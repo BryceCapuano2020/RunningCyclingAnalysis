@@ -203,3 +203,32 @@ describe('ImportNotice: runs that were added but left out', () => {
     expect(container.querySelectorAll('.import-notice__body > p')).toHaveLength(1)
   })
 })
+
+describe('ImportNotice: the export’s list given loose', () => {
+  it('says how many of the files it names were in the import, when some were not', () => {
+    render(
+      <ImportNotice
+        {...noticeProps({ outcome: { ...ADDED, listed: { named: 120, received: 3 } } })}
+      />,
+    )
+    expect(
+      screen.getByText('Your activities.csv lists 120 files; 3 were in this import.'),
+    ).toBeInTheDocument()
+  })
+
+  it('says nothing of the list when every file it names was given', () => {
+    render(
+      <ImportNotice
+        {...noticeProps({ outcome: { ...ADDED, listed: { named: 3, received: 3 } } })}
+      />,
+    )
+    expect(screen.queryByText(/activities\.csv/)).toBeNull()
+  })
+
+  it('advises adding the list when files were refused for want of a sport', () => {
+    render(<ImportNotice {...noticeProps({ outcome: { ...ADDED, needsList: true } })} />)
+    expect(
+      screen.getByText('Add activities.csv from the same export to give these their sport.'),
+    ).toBeInTheDocument()
+  })
+})

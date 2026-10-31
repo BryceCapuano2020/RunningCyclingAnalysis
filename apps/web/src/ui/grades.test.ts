@@ -24,6 +24,7 @@ import {
   gradedSexOf,
   headlineGrades,
   listedGradeNotes,
+  notGradedText,
   sportGrade,
 } from './grades'
 import type { AgeProfile, GradeOutcome, SportGrade } from './grades'
@@ -39,7 +40,7 @@ const FIVE_K_SPEED = 5000 / HEADLINE_DURATION_S
 
 /** The grade of a graded outcome; a test that expects a gap fails here instead. */
 function gradeOf(outcome: GradeOutcome): SportGrade {
-  if (outcome.kind !== 'graded') throw new Error(`Expected a grade, got: ${outcome.reason}`)
+  if (outcome.kind !== 'graded') throw new Error(`Expected a grade, got: ${notGradedText(outcome)}`)
   return outcome.grade
 }
 

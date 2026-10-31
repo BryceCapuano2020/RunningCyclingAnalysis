@@ -10,6 +10,7 @@ import { effortCaveat } from '../ui/effortCaveat'
 import { balanceTitle, leadSentence } from '../ui/components/headlineText'
 import { heldPick } from '../ui/resultHold'
 import type { HoldInputs } from '../ui/resultHold'
+import { rideHoldInputs } from '../ui/rideLeftOut'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
 import { heroGradeLine, LEVEL_NOT_RANKING, type GradeOutcome } from '../ui/grades'
@@ -193,8 +194,10 @@ export function buildShareCard(
   name: string | null = null,
   hold: HoldInputs = {},
 ): ShareCardModel | null {
-  if (!hasShareableContent(result, gap, weightKnown, hold)) return null
-  const { pick } = heldPick(result, hold)
+  // The ride's own reason to be out of the comparison joins what the app holds, as it does on screen.
+  const held = rideHoldInputs(grades.ride, result, hold)
+  if (!hasShareableContent(result, gap, weightKnown, held)) return null
+  const { pick } = heldPick(result, held)
   const reading = balanceOfPick(gap, pick)
   const heroes = heroesFor(result, settings, units, grades)
   if (reading === null || heroes === null) return null

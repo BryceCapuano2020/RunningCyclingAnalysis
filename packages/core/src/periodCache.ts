@@ -1,4 +1,5 @@
 import { sameAnalysisSettings } from './athlete/references'
+import { calendarWatch } from './calendar'
 import { changeEvidence } from './change/evidence'
 import type { ChangeEvidence } from './change/types'
 import { EVERY_EFFORT_KEYED } from './digest/readingRule'
@@ -78,6 +79,7 @@ const ANALYSES_KEPT = 4
  * its own; whether the equivalents are wanted does, and it is in the key.
  */
 export class PeriodCache {
+  private moved = { trend: calendarWatch(), same: calendarWatch() }
   private trendEntries = new Map<
     EffortLengthS,
     Inputs & {
@@ -212,6 +214,7 @@ export class PeriodCache {
     bikeModel: BikeModel | undefined,
     rideGate?: EstimatedRideGate | null,
   ): Record<EffortLengthS, TrendPoint[]> {
+    if (this.moved.trend()) this.trendEntries.clear()
     return Object.fromEntries(
       EFFORT_LENGTHS_S.map((durationS) => [
         durationS,
@@ -269,6 +272,7 @@ export class PeriodCache {
     fromMs: number | null,
     setAside: readonly string[],
   ): SameHeartRateBySport {
+    if (this.moved.same()) this.sameEntries = []
     const key = setAside.join(',')
     const hit = this.sameEntries.findIndex(
       (entry) =>
@@ -356,8 +360,8 @@ export class PeriodCache {
   /**
    * Whether the selected period's bests differ from the previous period's by more than chance. Priced with the
    * selected period's bike model, so its key is the same as the previous curves': the two period lists, the masses
-   * and the library's ride gate; and the reading rule the curves' bests are made through (`reading`, with the key that
-   * says what it was made from), so a hard-effort gate moves both together. The last few are kept, so going back to a
+   * and the library's ride gate; and the reading rule the readings are taken through (`reading`, with the key that
+   * says what it was made from), so a change of the effort gate's references or set-aside list re-reads. The last few are kept, so going back to a
    * period just shown costs nothing.
    */
   change(

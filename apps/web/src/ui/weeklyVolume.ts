@@ -1,4 +1,4 @@
-import { weekEndMs } from '@rca/core/digest/trendPoints'
+import { weekEndFor } from '@rca/core/calendar'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { movingTimeOf } from './activityFigures'
@@ -38,7 +38,7 @@ export function trained(week: VolumeWeek): boolean {
 /**
  * Moving time in each sport, week by week, over the weeks the trend draws (`weekEnds`, each the end of
  * a trend point), so the strip and the trend share one time axis. An activity is counted in the week it
- * started in, cut at the same UTC Sunday the trend is cut at; one outside those weeks is not counted.
+ * started in, cut at the same Sunday the trend is cut at (the week of its local day once local weeks are on); one outside those weeks is not counted.
  * Null when fewer than MIN_TRAINING_WEEKS of them hold any training, since three bars show no pattern.
  */
 export function weeklyVolume(
@@ -48,7 +48,7 @@ export function weeklyVolume(
   const weeks = weekEnds.map((endMs) => ({ endMs, seconds: noSeconds() }))
   const byEnd = new Map(weeks.map((week) => [week.endMs, week]))
   for (const activity of activities) {
-    const week = byEnd.get(weekEndMs(activity.startMs))
+    const week = byEnd.get(weekEndFor(activity))
     if (week !== undefined) week.seconds[activity.sport] += movingTimeOf(activity)
   }
   return weeks.filter(trained).length >= MIN_TRAINING_WEEKS ? weeks : null

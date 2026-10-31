@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { SportIcon } from '../components/icons'
+import { useHoldInputs } from '../holdContext'
 import { SPORT_LABEL } from '../sports'
 import { seasonSwing } from '../fitnessModel'
 import type { FitnessProgress, FitnessView } from '../fitnessModel'
@@ -50,10 +51,37 @@ export interface FitnessCardProps {
 export function FitnessCard({ view, units, library, showSport = true }: FitnessCardProps) {
   const id = useId()
   const [mounted, setMounted] = useState(false)
+  const partial = useHoldInputs().partialImport
   const { status } = view
   const waiting = view.state === 'not-enough-evidence'
   const seasonal = waiting ? null : seasonSwing(status)
   const evidenceOf = view.status.evidence !== null && view.status.series.length > 1
+  // Held with the headline: a library known to be only part of what was added gives no state to show.
+  if (partial !== undefined && partial !== null) {
+    return (
+      <article
+        className="fitness-card"
+        data-sport={view.sport}
+        data-state="held"
+        aria-labelledby={`${id}-state`}
+      >
+        {showSport ? (
+          <header className="fitness-card__top">
+            <p className="fitness-card__sport">
+              <SportIcon sport={view.sport} />
+              <span>{SPORT_LABEL[view.sport]}</span>
+            </p>
+          </header>
+        ) : null}
+        <p id={`${id}-state`} className="display fitness-card__state">
+          <span>Held</span>
+        </p>
+        <p className="fitness-card__headline" data-testid="fitness-held">
+          {`${partial.text} ${partial.action}`}
+        </p>
+      </article>
+    )
+  }
   return (
     <article
       className="fitness-card"
@@ -64,7 +92,7 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
       {showSport || view.fresh !== null ? (
         <header className="fitness-card__top">
           {showSport ? (
-            <p className="fitness-card__sport">
+            <p className="tag tag--ink fitness-card__sport">
               <SportIcon sport={view.sport} />
               <span>{SPORT_LABEL[view.sport]}</span>
             </p>
