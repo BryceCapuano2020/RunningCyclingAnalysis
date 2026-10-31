@@ -8,6 +8,8 @@ export interface RunPoint {
   id: string
   t: number
   x: number
+  /** The day's warmth as the file's sensor read it (the digest's temperature index), when it had one. */
+  c?: number
 }
 
 /** The runs of a stretch, summarised the way every test reads them. */

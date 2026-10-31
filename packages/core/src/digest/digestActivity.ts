@@ -28,6 +28,7 @@ import { distanceBests } from '../records/distanceBests'
 import { elevationGain } from './elevationGain'
 import { atWalkingPace } from './walkingPace'
 import { hasRevision7, walkingPaceView, withCadenceLock } from './revision7Gate'
+import { temperatureSummary } from './temperature'
 import { digestEvidence } from './evidence'
 import type { OutputStream } from './evidence'
 import { and, countKept, meanWhere, movingMask, not, recordedSeconds } from './masks'
@@ -279,6 +280,8 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
     parts = virtualParts(streams, quality, grade, source, occupancy)
   }
 
+  const temperature = hasRevision7(revision) ? temperatureSummary(activity, moving) : undefined
+
   return {
     version: DIGEST_VERSION,
     modelRevision: revision,
@@ -330,5 +333,6 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
       ? { walkingPace: true as const }
       : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
+    ...(temperature === undefined ? {} : { temperature }),
   }
 }

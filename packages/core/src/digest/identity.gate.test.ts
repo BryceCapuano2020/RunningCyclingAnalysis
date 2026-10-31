@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Activity } from '../types'
 import { digestActivity, digestActivityAt } from './digestActivity'
 import { digestHash } from './test/digestHashes'
-import { gpxRun, lockedRun } from './test/gateFixtures'
+import { gpxRun, lockedRun, warmRide, warmRun } from './test/gateFixtures'
 
 /**
  * The revision-7 gate is closed in production: a digest made at `MODEL_REVISION` 6 is byte for byte what it
@@ -31,6 +31,14 @@ const MAIN: Record<string, { make: () => Activity; hash: string }> = {
     make: () => lockedRun(0),
     hash: '5689f424d2fb92fd539e2cf4ccb9ca35c852c8f30a813a5beee66978ff2bb697',
   },
+  'run with a recorded temperature': {
+    make: () => warmRun(),
+    hash: '639376b74ea7a25fc90c075837a7cf744ec93a16c7319fa7557de14361370cdf',
+  },
+  'ride with a temperature on half the seconds': {
+    make: () => warmRide(),
+    hash: '245a6a3cb151410e6ecde3fb71f760b5e1a4a4d58e2d5c2b5a1ef75e766227c1',
+  },
 }
 
 describe('the digest below revision 7', () => {
@@ -48,6 +56,8 @@ describe('the digest below revision 7', () => {
       'GPX run, steps near 160': true,
       'FIT run with a 60 s cadence lock': true,
       'FIT run without a lock': false,
+      'run with a recorded temperature': true,
+      'ride with a temperature on half the seconds': true,
     }
     expect(Object.keys(moves).sort()).toEqual(Object.keys(MAIN).sort())
     for (const [name, moved] of Object.entries(moves)) {

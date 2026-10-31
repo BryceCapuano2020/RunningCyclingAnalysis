@@ -164,7 +164,7 @@ through "back", a false slip stayed on screen for a year or more. Six changes, a
    (`FitnessMethod.seasonal`). Plain and wander libraries get no term about 70% of the time (90% under 1.2%); a planted 3%
    season comes back at 2.6 to 2.9%; a step part-way through leaks at most `2 * size / (pi * years)` into it, and a clean step is
    gated out altogether (what it leaves in the residuals swamps the swing); with a wander on top, a third of libraries find a term,
-   2% at the 90th percentile. No temperature (D12).
+   2% at the 90th percentile. It reads no temperature; the warm-day term below (D12, revision 7) does, and the season is then fitted on what is left.
 5. **A floor that learns the wander** (`windows.ts`, `floorAt`; not in the plan, added for the nuisances no season explains):
    the 1% model-error floor grows with the library's own wander, read from 6-week block levels over 108 weeks (robust
    spread less sampling noise, past the reference athlete's 2%), to at most 2%. It needs two years of history. The weeks of
@@ -375,3 +375,24 @@ A planted gain of 8% at 3 runs a week: improving in a median of 4 weeks (82% wit
 within 26, improved 70% within 52. A dip that comes back is back, and rises at the first-sign rate afterwards, no more. The
 settled tolerance is the lever on the false rate of **improved** (without it: 0.065 on the quiet library, 0.09 with wander);
 `improving` stays a status line and is never a finding.
+
+## Warm days (D12 E2, revision 7)
+
+A run's file may carry the day's warmth: the digest's `temperature` (a median of one-minute means of the wrist
+sensor, an index of the day and not the air). `fitness/heat.ts` learns what a warm day costs this athlete and
+adds it back before anything else reads the series, so the season of D2 is fitted on what the heat leaves.
+
+- A run's heat is `max(0, c - cRef) / 10`, `cRef` the 25th percentile of `c` over the steady runs of the last two years.
+  The run's value is `x + b * heat`, `b` the log speed lost per 10 index degrees, fitted within 28-day blocks (so the slow level and the
+  season cancel and only the weather is read), clipped, shrunk by `n / (n + 60)`, never negative (a library whose warm runs are faster
+  gets no term) and at most 0.08. It is not used under 0.002.
+- It is on when 60% of the steady runs in the last two years carry a temperature, there are 40 of them and their heat spans 1.0
+  (10 index degrees); it goes off only under 50%. Digests from before revision 7 carry none and count as missing, so a library
+  that has not been rebuilt reads exactly as before (`heat.test.ts`). When on, the card says "Adjusted for warm days." once.
+- The ride unit reads the same field.
+- `heat.sim.test.ts` holds the rates (three-year libraries, four run rates, alarms an athlete-year, term off -> fitted): a
+  heat response of 3% per 10 degrees 0.26 -> 0.17; the same with a season of 1.5% the heat adds to 0.37 -> 0.27, and with a
+  season it hides 0.16 -> 0.24 (under the 0.25 of a season of 1.5% with no heat); a 3% slow wander with heat 0.37 -> 0.35; an
+  athlete the heat does not touch 0.17 -> 0.16, the term on in a third of such libraries with a small `b`; a device that reads the
+  index 3 degrees high from week 80 0.26 -> 0.15, 3 low 0.26 -> 0.20; the sign flipped 0.17 -> 0.38. A 5% loss is seen within 26
+  weeks by 68% -> 80% with the heat and 88% -> 87% without it.

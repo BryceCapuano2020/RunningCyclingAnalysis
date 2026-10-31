@@ -1,6 +1,7 @@
 import { orderedFor } from '../digest/consumers'
 import { memoByDigests } from '../digestMemo'
 import type { ActivityDigest, Sport } from '../types'
+import { fitHeat, withoutHeat } from './heat'
 import { dayOfMs, replay, weekOfMs } from './machine'
 import { RIDE_FITNESS_ENABLED } from './params'
 import { rideSeries } from './rideUnit'
@@ -44,7 +45,16 @@ export function fitnessOfSport(
   asOfMs: number,
 ): FitnessStatus {
   const series = SERIES[sport](digests, sport, setAside)
-  const runs: RunPoint[] = series.points.map((p) => ({ id: p.id, t: dayOfMs(p.startMs), x: p.x }))
+  const dated: RunPoint[] = series.points.map((p) => ({
+    id: p.id,
+    t: dayOfMs(p.startMs),
+    x: p.x,
+    ...(p.c === undefined ? {} : { c: p.c }),
+  }))
+  // The athlete's warm days are added back first, so the season (below) is fitted on what is left. With no
+  // temperature on the runs, or the term off, `runs` is `dated` itself and nothing downstream sees a difference.
+  const heat = fitHeat(dated, dayOfMs(asOfMs))
+  const runs = withoutHeat(dated, heat)
   const first = series.points[0]
   // The monitor is evaluated at completed week ends only: a week still going has not finished its runs, and
   // evaluating it would count a part of a week as a whole one in the streak and the display hold.
@@ -54,7 +64,11 @@ export function fitnessOfSport(
       : replay(runs, weekOfMs(first.startMs), weekOfMs(asOfMs + 1) - 1)
   // The status reads the runs as the last week did: with the athlete's own season taken out, when one was found.
   const seen = withoutSeason(runs, season, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
-  const method = { ...series.method, seasonal: season?.amplitude ?? null }
+  const method = {
+    ...series.method,
+    seasonal: season?.amplitude ?? null,
+    ...(heat === null ? {} : { heat: heat.b }),
+  }
   return describe(sport, { ...series, method }, seen, records, asOfMs)
 }
 

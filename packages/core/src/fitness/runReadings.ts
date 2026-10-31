@@ -15,6 +15,8 @@ export interface RunReadings {
   id: string
   startMs: number
   steadyPace: boolean
+  /** The day's warmth as the file's sensor read it (revision 7), when it had a usable reading. */
+  c?: number
   loose: KmReading[]
   strict: KmReading[]
 }
@@ -80,7 +82,13 @@ export function runReadings(
     !digest.flagCounts['hr-cadence-lock'] &&
     !digest.flagCounts['hr-dropout']
   const readings: RunReadings | null = eligible
-    ? { id: digest.id, startMs: digest.startMs, steadyPace: steadyPace(km), ...kilometres(km) }
+    ? {
+        id: digest.id,
+        startMs: digest.startMs,
+        steadyPace: steadyPace(km),
+        ...(digest.temperature === undefined ? {} : { c: digest.temperature.c }),
+        ...kilometres(km),
+      }
     : null
   cache.set(digest, readings)
   return readings

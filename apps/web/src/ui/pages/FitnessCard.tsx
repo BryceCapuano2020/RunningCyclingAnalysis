@@ -3,7 +3,7 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { SportIcon } from '../components/icons'
 import { SPORT_LABEL } from '../sports'
-import { seasonSwing } from '../fitnessModel'
+import { adjustedForWarmDays, seasonSwing } from '../fitnessModel'
 import type { FitnessProgress, FitnessView } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
 import { withDefinitions } from '../fitnessText'
@@ -53,6 +53,7 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
   const { status } = view
   const waiting = view.state === 'not-enough-evidence'
   const seasonal = waiting ? null : seasonSwing(status)
+  const warm = !waiting && adjustedForWarmDays(status)
   const evidenceOf = view.status.evidence !== null && view.status.series.length > 1
   return (
     <article
@@ -90,6 +91,11 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
           {view.support === '' ? null : (
             <p className="fitness-card__support">{withDefinitions(view.support, status, units)}</p>
           )}
+          {warm ? (
+            <p className="fitness-card__support" data-testid="fitness-heat">
+              Adjusted for warm days.
+            </p>
+          ) : null}
           {seasonal === null ? null : (
             <p className="fitness-card__support" data-testid="fitness-season">
               {`Allowing for your usual seasonal swing, ${seasonal}.`}

@@ -15,6 +15,8 @@ export interface UnitPoint {
   id: string
   startMs: number
   x: number
+  /** The day's warmth as the file's sensor read it, when the digest carries one. */
+  c?: number
 }
 
 export interface UnitSeries {
@@ -42,6 +44,15 @@ export function referenceOf(heartRates: readonly number[]): number | null {
   if (heartRates.length === 0) return null
   return Math.round(median(heartRates) / U.referenceStepBpm) * U.referenceStepBpm
 }
+
+/** A run's point: its value, and the day's temperature index when its digest carried one (absent otherwise, so the point is as it was). */
+export const pointOf = (
+  r: { id: string; startMs: number; c?: number | undefined },
+  x: number,
+): UnitPoint =>
+  r.c === undefined
+    ? { id: r.id, startMs: r.startMs, x }
+    : { id: r.id, startMs: r.startMs, x, c: r.c }
 
 const valueOf = (kms: readonly KmReading[], ref: number, kappa: number, beta: number) =>
   median(kms.map((k) => k.lnClock - kappa * k.credit - beta * (k.hr - ref)))
@@ -85,11 +96,7 @@ export function runSeries(
   const dated: DatedKm[] = steady.map((z) => ({ startMs: z.r.startMs, kms: z.kms }))
   const fit = fitGrade(dated)
   if (fit.stable) {
-    const points = steady.map((z) => ({
-      id: z.r.id,
-      startMs: z.r.startMs,
-      x: valueOf(z.kms, ref, fit.kappa, fit.beta),
-    }))
+    const points = steady.map((z) => pointOf(z.r, valueOf(z.kms, ref, fit.kappa, fit.beta)))
     return {
       points: points.sort(byTime),
       referenceHr: ref,
@@ -109,11 +116,7 @@ export function runSeries(
     z.kms.map((k) => ({ startMs: z.r.startMs, hr: k.hr, value: k.lnClock + k.credit })),
   )
   const beta = fitHeartRateSlope(rows, RUN_SLOPE)
-  const points = strict.map((z) => ({
-    id: z.r.id,
-    startMs: z.r.startMs,
-    x: valueOf(z.kms, ref, -1, beta),
-  }))
+  const points = strict.map((z) => pointOf(z.r, valueOf(z.kms, ref, -1, beta)))
   return {
     points: points.sort(byTime),
     referenceHr: ref,

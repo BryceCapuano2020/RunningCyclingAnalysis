@@ -141,6 +141,31 @@ export const FITNESS = {
     /** The swing is refitted every this many weeks (not every week: it moves slowly, and a fit is the dearest step of a replay); between fits the last one is used. */
     refitWeeks: 4,
   },
+  /**
+   * The warm-day term (revision 7): the athlete's own response to the day's warmth, read from the temperature the file
+   * carries (an index, not degrees: see digest/temperature.ts). A run's heat is `max(0, c - cRef) / 10`, `cRef` the 25th
+   * percentile of `c` over the steady runs of the last `windowDays`; the term adds back `b * heat` to its value.
+   */
+  heat: {
+    windowDays: 730,
+    /** On when this share of the window's steady runs carry a temperature (and there are `minRuns` of them, with heat spanning `minSpan`); off again only below `offShare`, so it does not flap. */
+    onShare: 0.6,
+    offShare: 0.5,
+    minRuns: 40,
+    minSpan: 1,
+    /** `b`, the log speed lost per 10 index degrees, is fitted within blocks of `blockDays` days of at least `minBlock` runs, so the slow level cancels. */
+    blockDays: 28,
+    minBlock: 4,
+    /** Values are clipped this far from their block's mean (log units) so a bad run does not tilt the slope. */
+    clip: 0.12,
+    /** Shrunk toward zero by n / (n + shrinkRuns), clamped to [0, maxB], and not used under `minB`. */
+    shrinkRuns: 60,
+    maxB: 0.08,
+    minB: 0.002,
+    /** Heat spread below this (sd of heat in blocks) gives the slope nothing to stand on. */
+    minHeatSd: 0.05,
+    referenceQuantile: 0.25,
+  },
   /** After a slip is declared the reference is frozen and the episode is followed until it closes. */
   episode: {
     /** The level now is the runs of the last 8 weeks, widened to 12 then 16 until it holds `minRuns`. */

@@ -300,6 +300,19 @@ describe('the evidence panel', () => {
     expect(spoken(ridePanel)).not.toMatch(/seasonal/)
   })
 
+  it('says once that warm days were adjusted for, when they were, and not otherwise', () => {
+    const warmed = {
+      ...SLIPPING,
+      evidence: { ...SLIPPING.evidence!, method: { ...SLIPPING.evidence!.method, heat: 0.03 } },
+    }
+    renderSection({ run: warmed })
+    expect(screen.getAllByTestId('fitness-heat')).toHaveLength(1)
+    expect(screen.getByTestId('fitness-heat')).toHaveTextContent('Adjusted for warm days.')
+    cleanup()
+    renderSection({ run: SLIPPING })
+    expect(screen.queryByTestId('fitness-heat')).toBeNull()
+  })
+
   it('counts in the athlete’s unit: miles beside the kilometres it reads, none for a metric athlete', () => {
     renderSection({ units: 'imperial' })
     fireEvent.click(screen.getByText('See the evidence'))
