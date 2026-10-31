@@ -1458,8 +1458,8 @@ finding for the sample athlete as its second panel, below the drop zone so Add f
 
 **The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness" and the card by its state). A sport edge on the left, the sport's name, and a **New** marker, "since the week of 12 Oct", when the state began to be
 shown in the last six weeks. The state is a word at display size (Slipping, Holding, Holding below, Recovering, Back,
-Improving) beside its own shape on a soft sport tile: a descending line, a level arrow, a level arrow under a bar, a
-rise from a dip, a ring with a tick, a rising line. A state is never colour alone. Under it the analysis's own sentence, with
+Improving, Improved) beside its own shape on a soft sport tile: a descending line, a level arrow, a level arrow under a bar, a
+rise from a dip, a ring with a tick, a rising line, a rising line that ends in a level run. A state is never colour alone. Under it the analysis's own sentence, with
 the heart rate, the range and "steady run" defined in place (Definition), the support line, and, when the athlete's own
 seasonal swing was taken out of every run, a line saying so ("Allowing for your usual seasonal swing, up to 2.1% either side."). Right of it, the change as a
 **track**: "before" at the middle, "slower" and "faster" at the ends, the 90% range as a band and a hollow ring for the

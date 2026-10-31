@@ -31,6 +31,10 @@ export interface Silence {
   closeReopen: number
 }
 
+/** The states that are not a slip's: holding, no read, and a rise (counted by its own sim). */
+const RISING = new Set(['improving', 'improved'])
+const QUIET = new Set(['holding', 'nodata', 'thin', ...RISING])
+
 /** Libraries where nothing changes, `years` long, three steady runs a week by default. */
 export function silence(
   spec: Partial<SimSpec>,
@@ -50,16 +54,17 @@ export function silence(
     const records = replaySim(simulate({ ...spec, weeks, perWeek }, seed), weeks)
     alarms += slipWeeks(records).length
     const last = records.at(-1)!.shown
-    if (last !== 'holding' && last !== 'nodata' && last !== 'thin') ending++
+    if (!QUIET.has(last)) ending++
     const fresh = slipWeeks(records)
-    for (const r of records) {
-      if (r.closes !== null && r.dip === null) {
+    for (const [i, r] of records.entries()) {
+      // A rise that ends is not a slip that closed.
+      if (r.closes !== null && r.dip === null && !RISING.has(records[i - 1]?.state ?? '')) {
         closes++
         if (fresh.some((w) => w > r.w && w <= r.w + 26)) reopened++
       }
       if (r.shown === 'nodata') continue
       evaluated++
-      if (r.shown !== 'holding' && r.shown !== 'thin') notHolding++
+      if (!QUIET.has(r.shown)) notHolding++
     }
   }
   return {

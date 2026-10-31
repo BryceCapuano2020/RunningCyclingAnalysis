@@ -121,6 +121,15 @@ export const IMPROVING = fitnessStatus('improving', (i) => 0.012 * i - 0.04, {
   entered: null,
 })
 
+/** A rise that has settled at the new level: up 6% and holding. */
+export const IMPROVED = fitnessStatus(
+  'improved',
+  (i) => (i < 5 ? 0.004 * Math.sin(i) : 0.06 + 0.004 * Math.sin(i)),
+  {
+    entered: { atMs: Date.UTC(2026, 9, 4, 23, 59, 59, 999), z: 5 },
+  },
+)
+
 /** The rides a ride status rests on, newest last. */
 export const FITNESS_RIDE_IDS = Array.from({ length: 12 }, (_, i) => `ride-${i + 1}`)
 
