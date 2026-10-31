@@ -69,14 +69,56 @@ export function floorOver(runs: readonly RunPoint[], endDay: number, sigma: numb
   return Math.max(S.tau, medianInPlace(Float64Array.from(floors)))
 }
 
-/** The median of the runs within `clipWeeks` weeks of each week, kept so a run is clipped against the weeks round it. */
-function localMedians(runs: readonly RunPoint[]): (week: number) => number {
+/**
+ * The median of the runs within `clipWeeks` weeks of each week, kept so a run is clipped against the weeks round it. The
+ * weeks are asked for in order, so the runs in reach are kept sorted as the window moves along, a run entering at one end and
+ * leaving at the other, not collected and selected again for every week; a week asked for out of order is worked out from
+ * its own runs. Either way it is the median `medianInPlace` gives.
+ */
+export function localMedians(runs: readonly RunPoint[]): (week: number) => number {
   const cache = new Map<number, number>()
+  const window: number[] = []
+  let from = 0
+  let to = 0
+  let latest = Number.NEGATIVE_INFINITY
+  /** The index at which `x` is, or would go, among the sorted values. */
+  const place = (x: number): number => {
+    let lo = 0
+    let hi = window.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (window[mid]! < x) lo = mid + 1
+      else hi = mid
+    }
+    return lo
+  }
+  const medianOfWindow = (): number => {
+    const n = window.length
+    if (n === 0) return 0
+    const low = (n - 1) >> 1
+    if (n % 2 === 1) return window[low]!
+    return window[low]! + (window[low + 1]! - window[low]!) * 0.5
+  }
   return (week) => {
     let median = cache.get(week)
     if (median === undefined) {
-      const near = slice(runs, (week - S.clipWeeks) * 7, (week + S.clipWeeks + 1) * 7)
-      median = near.length === 0 ? 0 : medianInPlace(Float64Array.from(near, (r) => r.x))
+      const [lo, hi] = [(week - S.clipWeeks) * 7, (week + S.clipWeeks + 1) * 7]
+      if (week < latest) {
+        const near = slice(runs, lo, hi)
+        median = near.length === 0 ? 0 : medianInPlace(Float64Array.from(near, (r) => r.x))
+      } else {
+        latest = week
+        while (to < runs.length && runs[to]!.t < hi) {
+          const x = runs[to]!.x
+          window.splice(place(x), 0, x)
+          to++
+        }
+        while (from < to && runs[from]!.t < lo) {
+          window.splice(place(runs[from]!.x), 1)
+          from++
+        }
+        median = medianOfWindow()
+      }
       cache.set(week, median)
     }
     return median
@@ -219,6 +261,107 @@ function cutAt(
 }
 
 /**
+ * The cheapest cut of the weeks into plateaus: `best[b]` is the least total cost of cutting the first `b` weeks (each
+ * plateau its `cost` plus `beta`), `from[b]` where the last plateau begins. A plateau spans `minWeeks` and holds `minRuns`
+ * runs over `minDistinctWeeks` weeks.
+ *
+ * Every start is a candidate for every end, but most are left unpriced, by two bounds that rest on one fact, that a
+ * plateau's cost never falls when it is made longer or is split (the sum of squares about the mean is least about the
+ * mean of each part). A start priced at one end costs at least that at every later end, so while that is more than the
+ * best cut found for this end, it is left alone (`last`). And a start that, ending at `t`, already costs more than the best
+ * cut of the first `t` weeks is beaten by starting at `t` for every end where a plateau from `t` is allowed, so it is
+ * dropped for good (`beaten`, as PELT does). A start is left out only when it is worse by more than rounding could
+ * make it, and the rest are priced in the same order with the same sums, so the cut is the one the full search makes.
+ */
+export function partition(
+  weeks: number,
+  count: Float64Array,
+  present: Float64Array,
+  cost: (a: number, b: number) => number,
+  /** The size of the sums the costs are made of (the squares over the weeks, in squared run spreads), which bounds their rounding. */
+  scale: number,
+): { best: Float64Array; from: Int32Array } {
+  const best = new Float64Array(weeks + 1).fill(Number.POSITIVE_INFINITY)
+  const from = new Int32Array(weeks + 1).fill(-1)
+  const { minWeeks, minRuns, minDistinctWeeks, beta } = S
+  best[0] = -beta
+  // The starts still in play, in order; the first end each was found beaten at; the value each last cost.
+  const live = new Int32Array(weeks + 1)
+  const beaten = new Int32Array(weeks + 1).fill(-1)
+  const last = new Float64Array(weeks + 1).fill(Number.NEGATIVE_INFINITY)
+  const tried = new Int32Array(weeks + 1)
+  const costs = new Float64Array(weeks + 1)
+  let liveCount = 0
+  live[liveCount++] = 0
+  for (let b = minWeeks; b <= weeks; b++) {
+    const countB = count[b]!
+    const presentB = present[b]!
+    // The start that won the end before is the likeliest to win this one: its value bounds the best from above.
+    const guess = from[b - 1]!
+    let bound = Number.POSITIVE_INFINITY
+    if (
+      guess >= 0 &&
+      b - guess >= minWeeks &&
+      countB - count[guess]! >= minRuns &&
+      presentB - present[guess]! >= minDistinctWeeks
+    ) {
+      const c = cost(guess, b)
+      bound = best[guess]! + c + beta
+      costs[guess] = c
+      last[guess] = bound
+    }
+    const slack = 1e-10 * (1 + Math.abs(bound) + scale)
+    let kept = 0
+    let triedCount = 0
+    let bestB = Number.POSITIVE_INFINITY
+    let fromB = -1
+    for (let i = 0; i < liveCount; i++) {
+      const a = live[i]!
+      if (a + minWeeks > b) {
+        live[kept++] = a
+        continue
+      }
+      // Beaten by a start that is allowed for this end and every later one: out for good.
+      const over = beaten[a]!
+      if (
+        over >= 0 &&
+        b - over >= minWeeks &&
+        countB - count[over]! >= minRuns &&
+        presentB - present[over]! >= minDistinctWeeks
+      ) {
+        continue
+      }
+      live[kept++] = a
+      if (countB - count[a]! < minRuns || presentB - present[a]! < minDistinctWeeks) continue
+      // It cost more than the best cut when last priced, and a plateau only costs more as it grows.
+      if (last[a]! > bound + slack) continue
+      const c = guess === a ? costs[a]! : cost(a, b)
+      costs[a] = c
+      tried[triedCount++] = a
+      const value = best[a]! + c + beta
+      last[a] = value
+      if (value < bound) bound = value
+      if (value < bestB) {
+        bestB = value
+        fromB = a
+      }
+    }
+    liveCount = kept
+    if (fromB < 0) continue
+    best[b] = bestB
+    from[b] = fromB
+    // What beginning at each priced start cost to end here, against the best cut of these weeks.
+    const margin = 1e-10 * (1 + Math.abs(bestB) + scale)
+    for (let i = 0; i < triedCount; i++) {
+      const a = tried[i]!
+      if (beaten[a]! < 0 && best[a]! + costs[a]! > bestB + margin) beaten[a] = b
+    }
+    live[liveCount++] = b
+  }
+  return { best, from }
+}
+
+/**
  * The steady-run series (sorted by t, up to `endDay`) cut into plateaus by optimal partitioning over weekly buckets: the
  * cost of a plateau is the squared deviation of its runs from their mean in squared run spreads, each further plateau
  * costs `beta`, and a plateau spans at least 8 weeks and holds at least 12 runs over 8 distinct weeks. Neighbours whose
@@ -245,7 +388,7 @@ export function segmentLevels(
   const sum = new Float64Array(weeks + 1)
   const squares = new Float64Array(weeks + 1)
   const present = new Float64Array(weeks + 1)
-  const seen = new Set<number>()
+  let lastWeek = -1
   for (const r of own) {
     const w = Math.floor(r.t / 7) - first
     if (w < 0 || w >= weeks) continue
@@ -254,8 +397,9 @@ export function segmentLevels(
     count[w + 1]! += 1
     sum[w + 1]! += x
     squares[w + 1]! += x * x
-    if (!seen.has(w)) {
-      seen.add(w)
+    // The runs are in time order, so a week's runs come together.
+    if (w !== lastWeek) {
+      lastWeek = w
       present[w + 1]! += 1
     }
   }
@@ -271,21 +415,7 @@ export function segmentLevels(
     const total = sum[b]! - sum[a]!
     return (squares[b]! - squares[a]! - (total * total) / k) / (sigma * sigma)
   }
-  const best = new Float64Array(weeks + 1).fill(Number.POSITIVE_INFINITY)
-  const from = new Int32Array(weeks + 1).fill(-1)
-  best[0] = -S.beta
-  for (let b = S.minWeeks; b <= weeks; b++) {
-    for (let a = 0; a + S.minWeeks <= b; a++) {
-      if (best[a] === Number.POSITIVE_INFINITY) continue
-      if (count[b]! - count[a]! < S.minRuns || present[b]! - present[a]! < S.minDistinctWeeks)
-        continue
-      const value = best[a]! + cost(a, b) + S.beta
-      if (value < best[b]!) {
-        best[b] = value
-        from[b] = a
-      }
-    }
-  }
+  const { best, from } = partition(weeks, count, present, cost, squares[weeks]! / (sigma * sigma))
   if (best[weeks] === Number.POSITIVE_INFINITY) return null
   const edges = [weeks]
   for (let b = weeks; from[b]! > 0; b = from[b]!) edges.unshift(from[b]!)

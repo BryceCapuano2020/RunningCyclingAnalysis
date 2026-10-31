@@ -198,8 +198,9 @@ export function milestonesOf(
   // The change test over two calendar years' efforts: each year's readings are made once, and a pair is judged as two periods are.
   const inYear = new Map<number, ActivityDigest[]>()
   const yearsOfSport: Record<Sport, Set<number>> = { run: new Set(), ride: new Set() }
+  const yearOfStart = yearReader()
   for (const d of eligible) {
-    const year = yearOf(d.startMs)
+    const year = yearOfStart(d.startMs)
     const own = inYear.get(year)
     if (own === undefined) inYear.set(year, [d])
     else own.push(d)
