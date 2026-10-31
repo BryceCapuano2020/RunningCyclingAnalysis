@@ -1,33 +1,30 @@
 import type { SameHeartRate } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
-import type { UnitSystem } from '@rca/core/units'
 import { FITNESS_WORDS } from '../fitnessWords'
-import { sameHeartRateCopy } from '../sameHeartRateCopy'
+import { sameHeartRateLackText } from '../sameHeartRateCopy'
 import { lackLine } from './lackLine'
 
 /** The section's name, in its heading and in the page's "Not enough yet" list. */
-export const SAME_HEART_RATE_NAME = 'At the same heart rate'
+export const SAME_HEART_RATE_NAME = 'Same heart rate, week by week'
 
-/**
- * Why there is no reading to draw, as a "Not enough yet" line, or null when there is a chart. Too few weeks
- * to name a change still has a chart, so it is not a lack.
- */
-export function sameHeartRateLack(
-  sport: Sport,
-  data: SameHeartRate,
-  units: UnitSystem,
-): string | null {
-  const copy = sameHeartRateCopy(sport, data, units)
-  return copy.kind === 'missing' && data.change === null
-    ? lackLine(SAME_HEART_RATE_NAME, copy.text)
-    : null
+/** Why there is no reading to draw, as a "Not enough yet" line, or null when there is a chart. */
+export function sameHeartRateLack(sport: Sport, data: SameHeartRate): string | null {
+  const text = sameHeartRateLackText(sport, data)
+  return text === null ? null : lackLine(SAME_HEART_RATE_NAME, text)
 }
 
-/** The section's name once the fitness status above it speaks: it is the weekly view, not the verdict. */
-export const SAME_HEART_RATE_WEEKLY_NAME = 'Same heart rate, week by week'
-
-/** What the closed row says then: what is drawn, and where the verdict is. It names no change, so the two never disagree. */
-export function weeklyFinding(sport: Sport, referenceHr: number | null): string {
+/**
+ * What the closed row says: what is drawn. It names no change. A sport with a fitness status says where that is,
+ * so the weekly view never speaks for the same runs in another voice.
+ */
+export function weeklyFinding(
+  sport: Sport,
+  referenceHr: number | null,
+  statusSpeaks: boolean,
+): string {
   const words = FITNESS_WORDS[sport]
-  return `Your ${words.output.toLowerCase()} each week${referenceHr === null ? '' : ` at ${referenceHr} bpm`}. Your fitness status above is read from ${words.steadyPlural} over longer stretches.`
+  const drawn = `Your ${words.output.toLowerCase()} each week${referenceHr === null ? '' : ` at ${referenceHr} bpm`}.`
+  return statusSpeaks
+    ? `${drawn} Your fitness status above is read from ${words.steadyPlural} over longer stretches.`
+    : drawn
 }

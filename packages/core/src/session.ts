@@ -1,33 +1,27 @@
-import { digestActivity } from './digest'
-import { MODEL_REVISION } from './digest/modelRevision'
+import { applyCountedRuns } from './countedRuns'
+import { revisionStatus } from './digest/revisions'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import type { ExtractLimits } from './fit'
 import { countImportFiles } from './import/activitiesCsv'
-import type { Considered, ImportProgress, ReadFile, Refused } from './sessionSource'
+import type { ImportProgress, ReadFile, Refused } from './sessionSource'
 import { importSource, sortRead } from './sessionSource'
 import { DEFAULT_ATHLETE, SAMPLE_CLOCK } from './synthetic'
 import { seasonDigests } from './sessionSample'
 import type { SampleClock } from './synthetic'
 import { requirePositiveFinite } from './math'
-import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
+import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
+import { workoutKey, hiddenDigests } from './duplicates'
 import { PeriodCache } from './period'
 import type { PeriodChoice } from './period'
-import {
-  countIssues,
-  NETWORK_FAILURES_BEFORE_PROBE,
-  NETWORK_PROBE_DELAY_MS,
-  networkStreakAfter,
-  stopsSaving,
-  SyncFailure,
-} from './saveFailure'
+import { countIssues } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
-import { noteKept } from './sessionHooks'
+import { beginImportUnsynced, clearUnsynced, considerActivity, resetUnsynced } from './sessionKeep'
+import type { KeepState } from './sessionKeep'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
-import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
+import type { SaveBatch, SyncSink } from './sessionSync'
 import { RecordsCache } from './sessionRecords'
 import { zonesAt, HeartRateJudge, ZoneTimeCache } from './zones'
 import type { ZoneSet } from './zones'
@@ -38,7 +32,7 @@ export type { RejectedFile, SessionState } from './sessionState'
 export type { Period, PeriodChoice } from './period'
 export type { RejectCode, Rejection } from './import/result'
 // The device library keeps one copy per workout by the same rule the analysis uses.
-export { copyOfDigest, dedupeKey, outranks } from './duplicates'
+export { copyOfDigest, workoutKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
 
 export type { SyncItem, SyncSink } from './sessionSync'
@@ -49,13 +43,22 @@ export type { SyncItem, SyncSink } from './sessionSync'
  * Lives inside the Web Worker.
  */
 export class AnalysisSession {
-  private digests = new Map<string, ActivityDigest>()
+  // Never replaced, only emptied: sessionKeep.ts holds the same collections (see `keeping`).
+  private readonly digests = new Map<string, ActivityDigest>()
   // Activities whose last sink call failed, and why. Re-importing the file tries them again.
-  private unsynced = new Map<string, SyncIssueCode>()
+  private readonly unsynced = new Map<string, SyncIssueCode>()
   // The keys the latest import left in `unsynced`, so its own failures can be told from earlier ones.
-  private latestUnsynced = new Set<string>()
-  private outdatedKeys = new Set<string>()
-  private incompatibleKeys = new Set<string>()
+  private readonly latestUnsynced = new Set<string>()
+  private readonly outdatedKeys = new Set<string>()
+  private readonly incompatibleKeys = new Set<string>()
+  // The same collections, as sessionKeep.ts reads and changes them. Only its helpers change the two unsaved ones.
+  private readonly keeping: KeepState = {
+    digests: this.digests,
+    unsynced: this.unsynced,
+    latestUnsynced: this.latestUnsynced,
+    outdatedKeys: this.outdatedKeys,
+    incompatibleKeys: this.incompatibleKeys,
+  }
   // The files the last import refused, each listed as it was refused, and how many it left unread
   // for being in a format the app does not read. Both are replaced by the next import.
   private rejected: Refused[] = []
@@ -63,9 +66,6 @@ export class AnalysisSession {
   private isSample = false
   // The period the athlete picked. The default is the most recent window that holds both sports.
   private choice: PeriodChoice = 'default'
-  // Whether the headline trend carries each week's running equivalent, which only an age-graded
-  // Balance trend uses. Off until the page asks for it.
-  private gradeTrend = false
   private periods = new PeriodCache()
   private zoneTimes = new ZoneTimeCache()
   private judge = new HeartRateJudge()
@@ -106,7 +106,7 @@ export class AnalysisSession {
     // The rejected files are those of this import, so an earlier import's are not listed again.
     this.rejected.length = 0
     this.unsupported.files = 0
-    this.latestUnsynced.clear()
+    beginImportUnsynced(this.keeping)
     const batch: SaveBatch = { halt: null, networkStreak: 0, added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
@@ -123,7 +123,7 @@ export class AnalysisSession {
         unsupported: this.unsupported,
         hashFiles: sink !== undefined,
         consider: (activity, file) =>
-          this.consider(activity, file, sink, syncExisting, batch, listeners),
+          considerActivity(this.keeping, activity, file, sink, syncExisting, batch, listeners),
       })
     }
     // Only digests still visible count as added, so the order the files arrive in does not matter.
@@ -137,9 +137,9 @@ export class AnalysisSession {
 
   /** Removes one saved workout after its owner-scoped server deletion succeeds. */
   removeActivity(sport: Sport, startMs: number, settings: AthleteSettings): SessionState {
-    const key = dedupeKey(sport, startMs)
+    const key = workoutKey(sport, startMs)
     this.digests.delete(key)
-    this.unsynced.delete(key)
+    clearUnsynced(this.keeping, key)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
     return this.state(settings)
@@ -147,7 +147,7 @@ export class AnalysisSession {
 
   /** Whether a saved workout is held out of the analysis for being made by an older model. */
   hasOutdated(sport: Sport, startMs: number): boolean {
-    return this.outdatedKeys.has(dedupeKey(sport, startMs))
+    return this.outdatedKeys.has(workoutKey(sport, startMs))
   }
 
   /**
@@ -165,21 +165,19 @@ export class AnalysisSession {
     const outdatedKeys = new Set<string>()
     const incompatibleKeys = new Set<string>()
     for (const digest of digests) {
-      const key = dedupeKey(digest.sport, digest.startMs)
-      if (digest.modelRevision !== MODEL_REVISION) {
-        if (digest.modelRevision < MODEL_REVISION) outdatedKeys.add(key)
-        else incompatibleKeys.add(key)
-        continue
-      }
-      this.digests.set(key, digest)
+      const key = workoutKey(digest.sport, digest.startMs)
+      const status = revisionStatus(digest.modelRevision)
+      if (status === 'newer') incompatibleKeys.add(key)
+      // Nothing is compatible while every revision is exclusive; a compatible digest is read in a later change.
+      else if (status !== 'current') outdatedKeys.add(key)
+      else this.digests.set(key, digest)
     }
     for (const key of keepUnsaved ? this.unsynced.keys() : []) {
       const digest = before.get(key)
       if (digest === undefined) continue
       if (!this.digests.has(key)) this.digests.set(key, digest)
       else {
-        this.unsynced.delete(key)
-        this.latestUnsynced.delete(key)
+        clearUnsynced(this.keeping, key)
       }
     }
     for (const key of outdatedKeys) {
@@ -212,12 +210,6 @@ export class AnalysisSession {
     return zonesAt(at, this.athleteFor(settings), this.state(settings).zoneEstimates)
   }
 
-  /** Asks for the headline trend's running equivalents, which an age-graded Balance trend needs. */
-  setGradeTrend(on: boolean, settings: AthleteSettings): SessionState {
-    this.gradeTrend = on
-    return this.state(settings)
-  }
-
   setRange(choice: PeriodChoice, settings: AthleteSettings): SessionState {
     this.choice = choice
     return this.state(settings)
@@ -236,113 +228,6 @@ export class AnalysisSession {
     return this.state(null)
   }
 
-  /**
-   * Keeps one activity of an import, unless a richer copy of the same workout is already held. That
-   * copy is not synced. Equally rich copies are both saved, and the analysis hides one of them. A
-   * poorer copy is saved but hidden from the analysis. Says what became of the activity: the digest
-   * it added, or the name of the held file when its workout was already in the library, whether this
-   * is a copy, the same file again or a richer copy that replaces the held one. The listeners hear of
-   * the activity when it is kept, or when it is the held file again, never of another skipped copy.
-   */
-  private async consider(
-    activity: Activity,
-    file: ImportedFile,
-    sink: SyncSink | undefined,
-    syncExisting: boolean,
-    batch: SaveBatch,
-    listeners?: ActivityListeners,
-  ): Promise<Considered> {
-    const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
-    if (copyOf !== null) return { held: copyOf }
-    return this.keep(activity, file, sink, syncExisting, batch, listeners)
-  }
-
-  /**
-   * Digests one parsed activity and hands it to the sink. An activity already held and saved is left alone
-   * unless syncExisting requests a sink call for it (for example, to retain an original after that preference
-   * is enabled). A copy that outranks the held one for the same start second replaces it. A sink failure is
-   * counted, not thrown. After a failure that stops saving, the rest of the batch is digested but not sent.
-   * A held activity whose save failed is not yet in the library for good: it is added when this import saves
-   * it, and is otherwise still the held workout, however it came to be left unsaved.
-   */
-  private async keep(
-    activity: Activity,
-    file: ImportedFile,
-    sink: SyncSink | undefined,
-    syncExisting: boolean,
-    batch: SaveBatch,
-    listeners?: ActivityListeners,
-  ): Promise<Considered> {
-    const key = dedupeKey(activity.sport, activity.startMs)
-    const held = this.digests.get(key)
-    const replaces = held !== undefined && outranksHeld(activity, file.fileName, held)
-    if (
-      held !== undefined &&
-      !replaces &&
-      (sink === undefined || (!this.unsynced.has(key) && !syncExisting))
-    ) {
-      // The same file again restores a recording that went missing; any other copy is only skipped.
-      await noteKept(activity, held, held, listeners)
-      return { held: fileNameOf(held.id) }
-    }
-    // A workout this import is adding, or has added: new to the library, or a later copy of one.
-    const adding = held === undefined || batch.added.has(key)
-    const retry = !adding && this.unsynced.has(key)
-    const digest = held !== undefined && !replaces ? held : digestActivity(activity)
-    this.digests.set(key, digest)
-    if (adding) batch.added.set(key, digest)
-    this.outdatedKeys.delete(key)
-    this.incompatibleKeys.delete(key)
-    // A replacing copy is swapped in only once the sink answers: the server may refuse it (409) and keep its own.
-    const swapAfterSink = replaces && sink !== undefined && batch.halt === null
-    if (!swapAfterSink) await noteKept(activity, digest, held, listeners)
-    const considered = (saved: boolean): Considered => {
-      if (retry && saved) batch.added.set(key, digest)
-      return adding || (retry && saved) || held === undefined
-        ? { added: digest }
-        : { held: fileNameOf(held.id) }
-    }
-    if (sink === undefined) return considered(false)
-    if (batch.halt !== null) {
-      // An activity already saved, offered again to keep its file, is not waiting for a save.
-      if (held === undefined || replaces || this.unsynced.has(key)) {
-        this.leaveUnsynced(key, batch.halt)
-      }
-      return considered(false)
-    }
-    // After a run of network failures the next save is a probe, sent once the outage has had a moment
-    // to pass. If it fails too the network is down and the saves stop; if not, the import carries on.
-    const probing = batch.networkStreak >= NETWORK_FAILURES_BEFORE_PROBE
-    if (probing) await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
-    try {
-      await sink({ digest, route: activity.route, ...file })
-      this.unsynced.delete(key)
-      batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
-    } catch (error) {
-      const code = error instanceof SyncFailure ? error.code : 'server'
-      this.leaveUnsynced(key, code)
-      // The server answered when only the original file failed to upload, so the network is up.
-      const answered = error instanceof SyncFailure && error.digestSaved
-      batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
-      if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
-      if (swapAfterSink && code === 'activity-conflict') {
-        // The server keeps the copy it holds, so the screen keeps it too, as a reload would show it.
-        this.digests.set(key, held)
-        if (adding) batch.added.set(key, held)
-        return adding ? { added: held } : { held: fileNameOf(held.id) }
-      }
-      if (swapAfterSink) await noteKept(activity, digest, held, listeners)
-      return considered(false)
-    }
-    if (swapAfterSink) await noteKept(activity, digest, held, listeners)
-    return considered(true)
-  }
-
-  private leaveUnsynced(key: string, code: SyncIssueCode): void {
-    this.unsynced.set(key, code)
-    this.latestUnsynced.add(key)
-  }
-
   /** The run splits of a held activity, for its activity page. Null when it has none or is not held. */
   splitsOf(id: string): DigestSplits | null {
     for (const digest of this.digests.values()) if (digest.id === id) return digest.splits ?? null
@@ -350,8 +235,7 @@ export class AnalysisSession {
   }
 
   private reset(): void {
-    this.unsynced.clear()
-    this.latestUnsynced.clear()
+    resetUnsynced(this.keeping)
     this.resetLibrary()
   }
 
@@ -365,7 +249,7 @@ export class AnalysisSession {
     this.isSample = false
   }
 
-  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones included. */
+  /** The settings the analysis uses: the sample athlete ignores the visitor's masses, dated ones and counted runs. */
   private athleteFor(settings: AthleteSettings): AthleteSettings {
     if (!this.isSample) return settings
     return { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
@@ -373,11 +257,13 @@ export class AnalysisSession {
 
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
+    const athlete = settings === null ? null : this.athleteFor(settings)
+    const { digests, keys } = applyCountedRuns([...this.digests], athlete?.countedRuns)
     return buildState(
       {
-        digests: [...this.digests.values()],
+        digests,
+        countedWalkingRuns: keys,
         choice: this.choice,
-        gradeTrend: this.gradeTrend,
         isSample: this.isSample,
         periods: this.periods,
         zoneTimes: this.zoneTimes,
@@ -390,7 +276,7 @@ export class AnalysisSession {
         syncIssues: countIssues(this.unsynced, this.latestUnsynced),
         nowMs: this.isSample ? this.sampleNowMs : this.clock(),
       },
-      settings === null ? null : this.athleteFor(settings),
+      athlete,
     )
   }
 }

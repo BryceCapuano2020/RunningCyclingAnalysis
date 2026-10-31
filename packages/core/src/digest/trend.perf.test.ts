@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { HEADLINE_DURATION_S } from '../constants'
 import { DEFAULT_ATHLETE, generateActivity } from '../synthetic'
 import type { AthleteSettings } from '../types'
 import { fastestMs } from '../test/timing'
@@ -49,9 +48,7 @@ describe('fitnessTrend performance', () => {
     let weeks = 0
     const ms = fastestMs(() => {
       for (const durationS of EFFORT_LENGTHS_S) {
-        // Only the headline length is converted to running equivalents, as the page asks for it.
-        const equivalence = durationS === HEADLINE_DURATION_S ? { hr: null } : undefined
-        weeks = fitnessTrend(digests, SETTINGS, { durationS, equivalence }).length
+        weeks = fitnessTrend(digests, SETTINGS, { durationS }).length
       }
     })
     // The span is the library's: no 260-week cap cuts the first years off.

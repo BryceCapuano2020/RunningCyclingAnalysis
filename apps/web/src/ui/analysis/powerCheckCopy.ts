@@ -20,8 +20,10 @@ export const POWER_KEPT_NOTE =
 
 /** The title and line when the period’s rides were set aside and left no ride to compare. */
 export const POWER_IMPLAUSIBLE_TITLE = 'Your ride power looks implausible'
-export const POWER_IMPLAUSIBLE_TEXT =
-  'Power on your rides is above what riders hold at your weight, so they are set aside and left out of your bests, grades and the balance. Worth checking: power meter calibration, your weight setting, or an e-bike ride logged as a ride. Each ride’s page lets you keep its power.'
+export const POWER_IMPLAUSIBLE_REASON =
+  'Power on your rides is above what riders hold at your weight, so they are set aside and left out of your bests, grades and the balance. Worth checking: power meter calibration, your weight setting, or an e-bike ride logged as a ride.'
+export const POWER_IMPLAUSIBLE_ACTION = 'Each ride’s page lets you keep its power.'
+export const POWER_IMPLAUSIBLE_TEXT = `${POWER_IMPLAUSIBLE_REASON} ${POWER_IMPLAUSIBLE_ACTION}`
 
 export const KEEP_POWER_LABEL = 'Keep this power'
 export const SET_POWER_ASIDE_LABEL = 'Set this power aside'

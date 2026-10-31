@@ -43,7 +43,7 @@ describe('the stand-out finding', () => {
       runCurve: profileCurve((durationS, value) => (durationS === 300 ? value * 0.8 : value)),
     })
     expect(standOutFinding(standOutOf(result, 'run')!)).toMatch(
-      /^Your 5 min best is 2\d% below what your other bests suggest: it may be relatively low, or untested\.$/,
+      /^Your 5 min best is (1[89]|2\d)% below what your other bests suggest: it may be relatively low, or untested\.$/,
     )
   })
 

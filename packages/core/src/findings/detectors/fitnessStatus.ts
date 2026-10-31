@@ -105,6 +105,8 @@ export const fitnessStatusDetector: Detector = {
   kind: 'efficiency',
   sports: FINDING_SPORTS,
   minHistoryWeeks: F.minHistoryWeeks,
+  // Its simulation holds it under 0.2 an athlete-year (fitnessStatus.sim.test.ts), the monitor's own tuning being a quarter.
+  alarmBudget: 0.2,
   run(input: FindingInput, sport: Sport): Candidate[] {
     const status = fitnessStatuses(input.digests, input.setAside, { asOfMs: input.asOfMs })[sport]
     const candidate = candidateOf(status, sport, input.asOfMs)

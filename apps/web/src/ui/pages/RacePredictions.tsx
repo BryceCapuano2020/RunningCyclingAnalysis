@@ -8,7 +8,8 @@ import { DEFINITIONS } from './balanceDefinitions'
 import { useScrollRegion } from '../useScrollRegion'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
 import { methodNote, originText, predictionsLede, spreadText } from './racePredictionCopy'
-import { raceBar } from './raceBars'
+import { raceBar, raceScale } from './raceBars'
+import type { RaceScale } from './raceBars'
 import { ranText } from './raceRan'
 import type { RanBest } from './raceRan'
 import './RacePredictions.css'
@@ -45,8 +46,16 @@ function barLabel(prediction: RacePrediction, ran: RanBest | undefined): string 
  * what a column of digits would, at a glance, so the time at the right is the answer and the bar is its
  * evidence. A recorded best that beat the prediction is a solid dot labelled "Run", since a run is a fact. The drawing is one image with the words above as its name; the table in the disclosure repeats it.
  */
-function RaceBar({ prediction, ran }: { prediction: RacePrediction; ran: RanBest | undefined }) {
-  const bar = raceBar(prediction, ran?.seconds ?? null)
+function RaceBar({
+  prediction,
+  ran,
+  scale,
+}: {
+  prediction: RacePrediction
+  ran: RanBest | undefined
+  scale: RaceScale
+}) {
+  const bar = raceBar(prediction, scale, ran?.seconds ?? null)
   return (
     <div className="race-bar" role="img" aria-label={barLabel(prediction, ran)}>
       <span className="race-bar__end race-bar__end--low" style={{ left: `${bar.low * 100}%` }}>
@@ -83,10 +92,12 @@ function RaceRow({
   prediction,
   units,
   ran,
+  scale,
 }: {
   prediction: RacePrediction
   units: UnitSystem
   ran: RanBest | undefined
+  scale: RaceScale
 }) {
   return (
     <li className="race-row">
@@ -97,7 +108,7 @@ function RaceRow({
         </span>
         {ran && <span className="race-row__ran">{ranText(ran)}</span>}
       </p>
-      <RaceBar prediction={prediction} ran={ran} />
+      <RaceBar prediction={prediction} ran={ran} scale={scale} />
       <p className="race-row__time">{formatRecordTime(prediction.seconds)}</p>
     </li>
   )
@@ -142,7 +153,7 @@ function RaceTable({
 }) {
   const ranAt = (distanceM: number) => ran.find((r) => r.distanceM === distanceM)
   // At 320 px the table is wider than its box and scrolls there, so a keyboard reader can reach it.
-  const region = useScrollRegion('Race predictions')
+  const region = useScrollRegion('Race predictions table')
   return (
     <div className="table-scroll" {...region}>
       <table className="race-table">
@@ -228,6 +239,8 @@ export function RacePredictions({
   ran?: readonly RanBest[]
 }) {
   const headingId = `${sport}-races`
+  // One scale for every bar: a bar's width is its race's own uncertainty, as a share of its time.
+  const scale = raceScale(found.races, new Map(ran.map((best) => [best.distanceM, best.seconds])))
   return (
     <section className="section race-predictions" aria-labelledby={headingId}>
       <div className="section-head">
@@ -242,6 +255,7 @@ export function RacePredictions({
             prediction={prediction}
             units={units}
             ran={ran.find((r) => r.distanceM === prediction.distanceM)}
+            scale={scale}
           />
         ))}
       </ul>

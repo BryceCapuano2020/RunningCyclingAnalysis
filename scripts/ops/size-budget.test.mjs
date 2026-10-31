@@ -3,20 +3,9 @@ import assert from 'node:assert/strict'
 import { readdir, readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { LINE_BUDGET, OVER_BUDGET } from './size-budget.ratchet.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
-
-/** Source and stylesheet files above this many lines are refactor candidates (docs/ENGINEERING.md). */
-const LINE_BUDGET = 400
-
-/**
- * Files already over the budget, with the most lines each may have. A ratchet: lower an entry
- * whenever a change shrinks its file, and remove it once the file is within budget. Never raise
- * one; split the file instead.
- */
-const OVER_BUDGET = {
-  'packages/core/src/xml/parse.ts': 438,
-}
 
 const SOURCE = /\.(ts|tsx|mjs|css)$/
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'test-results', 'test-corpus'])

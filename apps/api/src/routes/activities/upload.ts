@@ -14,7 +14,7 @@ import { declaredLength, readExactBody } from '../../http.ts'
 import {
   chargeDaily,
   acquireUploadSlot,
-  nextUtcMidnight,
+  secondsToNextUtcMidnight,
   releaseUploadSlot,
   utcDay,
   type DailyCharge,
@@ -60,12 +60,11 @@ async function chargeUploadBytes(
     .bind(userId, day, bytes, DAILY_UPLOAD_BYTES)
     .first<{ used: number }>()
   if (!admitted) {
-    const seconds = Math.max(1, Math.ceil((nextUtcMidnight(now) - now) / 1000))
     throw new HttpError(
       429,
       'daily_limit',
       'You have reached your daily upload limit. Try again after midnight UTC',
-      { retryAfter: seconds },
+      { retryAfter: secondsToNextUtcMidnight(now) },
     )
   }
   return {

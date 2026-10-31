@@ -2,7 +2,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { TrendPoint } from '@rca/core/digest'
 import { App } from './App'
 import { canvasFile } from './share/download'
 import {
@@ -42,23 +41,11 @@ vi.mock('./share/renderCard', () => ({
   renderShareCard: vi.fn(() => true),
 }))
 vi.mock('./ui/charts', async () => {
-  const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
-  return { ...heavyChartStubs, ...(await trendCharts()) }
+  const { heavyChartStubs } = await import('./test/appMocks')
+  return heavyChartStubs
 })
 
 const LANDING_HEADING = 'Are you a better runner or a better cyclist?'
-
-/** A weekly trend point ending at week (0 = the first week) with the given run and ride values. */
-const week = (index: number, runWkg: number | null, rideWkg: number | null): TrendPoint => ({
-  endMs: Date.UTC(2025, 0, 12 + index * 7, 23, 59, 59, 999),
-  runWkg,
-  rideWkg,
-  runCount: runWkg === null ? 0 : 1,
-  rideCount: rideWkg === null ? 0 : 1,
-  runAtMs: runWkg === null ? null : Date.UTC(2025, 0, 12 + index * 7 - 3),
-  rideAtMs: rideWkg === null ? null : Date.UTC(2025, 0, 12 + index * 7 - 3),
-  rideRunSpeed: null,
-})
 
 beforeEach(() => {
   resetAppMocks()
@@ -325,33 +312,6 @@ describe('signed-in and unavailable library', () => {
   })
 })
 
-describe('fitness over time', () => {
-  it('is on the Balance page, and shown once a run or ride has a value, in a line while only one week has one', () => {
-    showResult()
-    setSession({ trend: [week(0, null, null)] })
-    const { unmount: unmountEmpty } = render(<App />)
-    expect(
-      screen.queryByRole('heading', { level: 2, name: /of your best 20 min, trailing/ }),
-    ).toBeNull()
-    unmountEmpty()
-
-    // The Balance trend is an age grade, so with no year of birth or sex it says what it waits for, as the cards do,
-    // and never falls back to an energy rate.
-    setSession({ trend: [week(0, null, null), week(1, 15, null), week(2, 15.2, 14)] })
-    render(<App />)
-    expect(
-      screen.getByRole('heading', {
-        level: 2,
-        name: /^Age grade of your best 20 min, trailing/,
-      }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('Add your year of birth and sex to see how your grade has moved.'),
-    ).toBeInTheDocument()
-    expect(document.body.textContent).not.toMatch(/metabolic/)
-  })
-})
-
 describe('removing all activities', () => {
   it('keeps the profile until the analysis has cleared, then returns to the landing page', async () => {
     window.location.hash = '#/profile'
@@ -444,6 +404,24 @@ describe('deleting the account', () => {
 
     await screen.findByText('Your account could not be deleted. Try again.')
     expect(window.localStorage.getItem('rca.keepPower.v1')).toBe('["ride-1"]')
+  })
+
+  it('forgets the runs counted at walking pace with the account, and not when the deletion fails', async () => {
+    window.localStorage.setItem('rca.countedRuns.v1', '["run-5"]')
+    window.location.hash = '#/profile'
+    app.account.deleteAccount = vi.fn(async () => {
+      throw new Error('Busy')
+    })
+    const view = render(<App />)
+    await confirmDeletion()
+    await screen.findByText('Your account could not be deleted. Try again.')
+    expect(window.localStorage.getItem('rca.countedRuns.v1')).not.toBeNull()
+    view.unmount()
+
+    app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))
+    render(<App />)
+    await confirmDeletion()
+    await waitFor(() => expect(window.localStorage.getItem('rca.countedRuns.v1')).toBeNull())
   })
 
   it('says on the landing page that the account and its data were deleted', async () => {

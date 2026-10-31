@@ -1,59 +1,123 @@
 # Roadmap
 
-Planned work, grouped by the phases in [VISION.md](VISION.md), then by model accuracy, input
-formats, operations and engineering. Shipped behaviour is in the [README](../README.md), and the
+Planned work, grouped by the phases and the coaching loop in [VISION.md](VISION.md), then by model
+accuracy, input formats, operations and engineering. Shipped behaviour is in the [README](../README.md), and the
 design is in [ARCHITECTURE.md](ARCHITECTURE.md). Open review findings are in [REVIEWS.md](REVIEWS.md).
 
-The order of work is the stage plan in [design/README.md](design/README.md): stage B is the visual
-system, the home screen, the first impression and operations quick wins (in progress); C is findings
-and a "what changed" ledger; D is a read-only MCP server per account; E is a discipline registry,
-lifting through Hevy CSV import and an interference analysis. Same-route, a watch folder and swimming
-come later, Strava sync waits for a written answer on API policy section 6.2 (the seven-day cache
-rule), and the local originals store and module registry wait until findings need them.
+The order of work is the stage plan in [design/README.md](design/README.md). Stage C shipped the
+fitness status at the same heart rate. Stage D (in progress) fixes the claims the 29 Oct audit found
+over-stated (effort evidence before a best counts as capability, one calibrated change test, capped
+ride levels, a screened max heart rate), turns on ride fitness, makes model revisions safe for saved
+libraries (then revision 7: temperature for the seasonal fitness term, the local day, a cadence-lock
+flag), and moves the front door to two jobs the data path can serve: a "your years" look-back at
+first import and a "since your last import" check-in, with incremental re-import. After stage D the order follows the coaching loop: stages E and F run in parallel, then
+G and H.
+
+Decided on 30 Oct 2026:
+
+- **Strava API sync is off the plan.** The Strava API Policy in force from 1 June 2026 bars storing
+  derived data, AI use and third-party MCP servers over Strava API data, and caps caching at seven
+  days. An athlete's own file export is not covered by it and stays the main input.
+- **The coaching loop orders the work after stage D** ([VISION.md](VISION.md#the-coaching-loop)).
+  The athlete's own assistant reads checked evidence and saves weekly plans (stage E), lifting joins
+  (stage F), saved plans are checked against the athlete's history (stage G), and experiments test
+  what works (stage H). The product still runs no language model.
+- **A fresh-data path is part of stage E:** a watched folder of new watch files with incremental
+  import, because weekly planning needs last week's data. Weekly early warning follows from it;
+  until then the fitness status is read at each import. Browsers keep folder access only on
+  Chromium desktop today, and many watches sync to a phone without leaving a file on the computer,
+  so stage E starts by checking where testers' files actually land; where there is no local file,
+  the loop falls back to a periodic re-import.
+- **The MCP connector is built on the evidence ledger in stage E.** It runs on the Worker so it
+  works from an assistant's phone, desktop and web apps: Google sign-in, allowlisted accounts, read
+  tools plus saving a weekly plan, its own consent line, and off until the athlete connects it. The
+  ledger syncs with the library, because analysis runs in the browser and the connector serves
+  those results rather than recomputing them.
+- **Lifting is the third dimension, after running and cycling** (stage F, in parallel with E, ahead
+  of swimming). The in-app logger comes first, then a one-time import of earlier history.
+- Same-route, race ranges, swimming, the local originals store and the module registry come later.
 
 ## Phase 1: Foundations
 
-- **Dated body measurements.** Shipped in #133: dated weight, max heart rate and threshold, so each
+- **Done: dated body measurements** (#133): dated weight, max heart rate and threshold, so each
   activity uses the setting in effect on its day. Relative strength waits for lifting.
-- **Evidence and Estimate types.** One shared shape that every importer and discipline model uses.
-- **Demonstrated versus estimated.** Running and cycling report recorded best efforts separately
-  from capability, and the UI never blurs the two.
-- **Lower-bound treatment.** An ordinary effort is a lower bound on capability, not a measurement
-  of it.
+- **Done: demonstrated versus estimated.** Running and cycling report recorded best efforts
+  separately from capability.
+- **Lower-bound treatment (stage D).** A best counts as capability only with evidence of a hard
+  effort; otherwise it is shown as a floor ("at least") with the effort that would complete it.
+- **Evidence and Estimate types.** Superseded by the evidence ledger (stage E), which every claim
+  passes through.
 
 ## Phase 2: Evolving capability
 
-Today the fitness trend is a rolling best over a window of a third of the selected period, between
-one week and 42 days; all time uses 42 days (PR #17).
-
-- **Timeline engine.** One engine turns dated Estimates into a trajectory with intervals that widen
-  between observations. It replaces the rolling best.
+- **Done: fitness at the same heart rate** (stage C): slipping, holding, recovering and back per
+  sport, with its evidence ([fitness.md](design/fitness.md)).
+- **One calibrated change test (stage D).** Every "this changed" sentence uses one test calibrated
+  on the athlete's own library, and the best-of-window weekly trend is retired.
+- **Timeline engine.** A capability trajectory whose interval widens between observations.
 - **Evidence gaps on every card**, in plain language, such as "no ride over 20 minutes in the last
   8 weeks". Research: [evolving-capability.md](research/evolving-capability.md) and
   [capability-from-field-data.md](research/capability-from-field-data.md).
 
-## Phase 3: Swimming
+## Phase 3: Strength, the third dimension
+
+- **Sport as data (stage F, first).** A capability record per sport replaces the run and ride
+  literals in shared code, so lifting adds a module rather than edits across the codebase.
+- **Lifting logs (stage F).** The in-app logger comes first, with optional session effort (RPE).
+  Earlier history follows through a plain lifting CSV, which an athlete's assistant can fill from
+  their notes and RCA validates on import, then common app CSV exports (Hevy first) and FIT
+  strength sets. Open: whether the assistant may also save lift logs through the connector.
+- **Estimated one-rep max per lift**, with an interval, relative to body mass on the lift's date.
+  It keeps its own units and is not placed on a shared axis with energy rate. Research:
+  [strength.md](research/strength.md).
+- **Weekly load by system** (aerobic, legs, upper body), each shown per sport side by side and never
+  summed into one number ([training-load.md](design/training-load.md) section 6 still holds).
+- **Interference analysis** against runs and rides, for example long runs grouped by hours since
+  the last lower-body lift.
+- **Lifting in the connector.** The assistant reads lifts and estimated maxima with the same kind of
+  tools as runs and rides.
+
+## Phase 4: Swimming
 
 - **Pool swims from FIT.** Lengths, laps and pool size.
 - **Critical swim speed** from ordinary swims, freestyle first. Research:
   [swimming.md](research/swimming.md).
 
-## Phase 4: Strength
-
-- **Lifting logs** from manual entry, common app CSV exports and FIT strength sets. Hevy CSV import
-  comes first (stage E), with an interference analysis against runs and rides.
-- **Estimated one-rep max per lift**, with an interval, relative to body mass on the lift's date.
-  It keeps its own units and is not placed on a shared axis with energy rate. Research:
-  [strength.md](research/strength.md).
-
 ## Phase 5: Profile
 
 - **One page, a card per discipline**, each with its own trend, evidence and gaps. No composite
   score.
-- **Age-graded levels** (coming to the Run and Ride cards). Each run is graded against the USATF
+- **Done: age-graded levels** on the Run and Ride cards. Each run is graded against the USATF
   2025 road standards, and each ride through its equal-energy running equivalent. The ride level is
-  model-derived. Research: [age-grading.md](research/age-grading.md).
+  model-derived; in stage D a ride at the top of the age tables reads as the top of the scale.
+  Research: [age-grading.md](research/age-grading.md).
 - **Public links** (future, opt-in only). Today sharing is the downloaded image (PR #15).
+
+## Coaching loop
+
+The order is stages E, G and H in [design/README.md](design/README.md). Lifting (stage F) is Phase 3.
+
+- **Evidence ledger (stage E).** Each checked claim with its interval, the activities behind it and
+  the model revision. It syncs with the library.
+- **MCP connector (stage E).** Tools for status per sport, recent weeks by sport, findings with
+  their evidence, evidence gaps and a planning-context bundle, plus saving a weekly plan. Saved
+  plans build history from the first week, before stage G checks them.
+- **Watched folder (stage E).** New watch files are imported incrementally, in browsers that can
+  keep folder access.
+- **Eval (stage E, extended in G).** Synthetic athletes with planted changes. Version 0 scores
+  whether every number the assistant states matches a tool result, and whether it declines when
+  the evidence is missing. Version 1 scores how often assistant-written plans contradict the
+  athlete's own evidence, with and without the connector. The generator and the scores are
+  published after stage G.
+- **Plan checks and weekly review (stage G).** Each check compares the saved plan with the athlete's
+  history and links the activities it used, for example "3 hard days; the most in any week this
+  year was 2". No rest advice, readiness score or injury risk
+  ([training-load.md](design/training-load.md) section 6).
+- **Experiments (stage H).** Each experiment states the smallest effect it can detect from the
+  athlete's own noise before it starts. Templates (lower-body lift timing before long runs, an easy-volume
+  block, easy-day discipline), the weeks needed from the athlete's own noise, A and B weeks
+  scheduled through saved plans, adherence, and a result with an interval or "not detectable at
+  this size". Friends can run the same protocol and pool summaries only.
 
 ## Model accuracy
 
@@ -82,8 +146,8 @@ one week and 42 days; all time uses 42 days (PR #17).
 
 ## Input formats
 
-1. **CSV.** Strava CSV summaries, and the lifting CSV exports used in Phase 4 (Hevy first).
-   Strava sync through its API is deferred pending a written answer on API policy section 6.2.
+1. **CSV.** Strava CSV summaries, the plain lifting CSV and the app exports used in Phase 3 (Hevy
+   first). Strava sync through its API is off the plan (see above).
 2. **Apple Health export.** Workouts and dated body mass, parsed with the streaming XML scanner in
    `packages/core/src/xml`.
 3. **FIT memory.** Real device fixtures are now in `packages/core/test-corpus`. Remaining: stream
@@ -118,10 +182,9 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
 7. **Google public brand.** Complete Google's verification requirements. Sign-in is still External and
    Testing.
 8. **Done: release gate, pinned actions, atomic quotas, R2 budgets and rate limits.**
-9. **Merged, not yet deployed: release ledger ([RELEASES.md](RELEASES.md)), tagged releases, the
-   build id in `/api/health`, a post-deploy smoke test that sends no mutating requests, a sampled
-   structured access log and a separate CI job for timing budgets.** The Worker items take effect at
-   the next release; this entry becomes Done then.
+9. **Done: release ledger ([RELEASES.md](RELEASES.md)), tagged releases, the build id in
+   `/api/health`, a post-deploy smoke test that sends no mutating requests, a sampled structured
+   access log and a separate CI job for timing budgets.**
 10. **Done: browser-side rebuild of saved libraries from retained originals.**
 
 ## Engineering

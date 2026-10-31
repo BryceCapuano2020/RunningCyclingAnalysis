@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DAY_MS, HEADLINE_DURATION_S } from '../constants'
 import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
-import { centralWkgFromWatts, combine, equivalentRunSpeed } from './combine'
+import { centralWkgFromWatts, combine } from './combine'
 import { digestActivity } from './digestActivity'
 import { MODEL_REVISION } from './modelRevision'
 import { fitnessTrend } from './trend'
@@ -75,7 +75,6 @@ describe('fitnessTrend', () => {
       rideCount: 0,
       runAtMs: null,
       rideAtMs: null,
-      rideRunSpeed: null,
     })
     expect(weeksWithValue([week(null, null), week(15, null), week(null, 14)])).toBe(2)
     expect(weeksWithValue([week(null, null)])).toBe(0)
@@ -96,7 +95,6 @@ describe('fitnessTrend', () => {
         rideCount: 0,
         runAtMs: MONDAY,
         rideAtMs: null,
-        rideRunSpeed: null,
       },
     ])
   })
@@ -105,43 +103,6 @@ describe('fitnessTrend', () => {
     const [point] = fitnessTrend([run(MONDAY, 17), ride(MONDAY + DAY_MS, 250)], settings)
     expect(point?.runAtMs).toBe(MONDAY)
     expect(point?.rideAtMs).toBe(MONDAY + DAY_MS)
-  })
-
-  it('gives the equivalent running speed of the best ride only when asked, from the same model', () => {
-    const digests = [ride(MONDAY, 250)]
-    expect(fitnessTrend(digests, settings)[0]?.rideRunSpeed).toBeNull()
-    const [point] = fitnessTrend(digests, settings, { equivalence: { hr: null } })
-    expect(point?.rideRunSpeed).toEqual(equivalentRunSpeed(250, settings.massKg, null))
-  })
-
-  it('gives the sample’s best ride the running equivalent that the analysis gives, to the bit', () => {
-    const analysis = combine(samples, settings)
-    const headline = analysis.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
-    const watts = analysis.rideCurve.find((p) => p.durationS === HEADLINE_DURATION_S)?.value
-    expect(headline).toBeDefined()
-    expect(watts).toBeDefined()
-    // A window longer than the sample holds every activity, so the last point is the period's best.
-    const last = fitnessTrend(samples, settings, {
-      windowDays: 400,
-      bikeModel: analysis.bikeModel,
-      equivalence: { hr: analysis.hr },
-    }).at(-1)
-    expect(last?.rideRunSpeed).toEqual(headline?.runSpeed)
-    expect(last?.rideRunSpeed).toEqual(
-      equivalentRunSpeed(watts ?? NaN, settings.massKg, analysis.hr),
-    )
-  })
-
-  it('gives a one-activity period the equivalence the analysis gives at the headline duration', () => {
-    const digest = ride(MONDAY, 250)
-    const analysis = combine([digest], settings)
-    const [point] = fitnessTrend([digest], settings, {
-      bikeModel: analysis.bikeModel,
-      equivalence: { hr: analysis.hr },
-    })
-    const headline = analysis.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
-    expect(headline).toBeDefined()
-    expect(point?.rideRunSpeed).toEqual(headline?.runSpeed)
   })
 
   it('gives a monotone run value for a run that improves week by week', () => {
@@ -314,5 +275,23 @@ describe('trendWindowDays', () => {
     expect(trendWindowDays(1)).toBe(7)
     expect(trendWindowDays(10)).toBe(7)
     expect(trendWindowDays(21)).toBe(7)
+  })
+})
+
+describe('fitnessTrend after a change of body mass', () => {
+  const library = samples
+  const at = (massKg: number) =>
+    fitnessTrend(library, { ...settings, massKg }, { durationS: HEADLINE_DURATION_S })
+
+  it('keeps the run figures and prices the rides again, as a trend made from nothing does', () => {
+    const light = at(60)
+    at(95)
+    // The same masses again, once other masses were asked for: the runs' readings are the ones kept.
+    const again = at(60)
+    expect(again).toEqual(light)
+    const heavy = at(95)
+    expect(heavy.map((point) => point.runWkg)).toEqual(light.map((point) => point.runWkg))
+    expect(heavy.map((point) => point.runAtMs)).toEqual(light.map((point) => point.runAtMs))
+    expect(heavy.some((point, i) => point.rideWkg !== light[i]!.rideWkg)).toBe(true)
   })
 })

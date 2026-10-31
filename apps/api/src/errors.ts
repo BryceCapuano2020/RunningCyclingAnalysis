@@ -35,3 +35,22 @@ export function apiError(code: string, message: string): ApiError {
 export function accountDeleting(): HttpError {
   return new HttpError(409, 'account_deleting', 'This account is being deleted. Try again later.')
 }
+
+/** A verified Google account that may not create an account here: it is not on the sign-up list. */
+export function notOnList(): HttpError {
+  return new HttpError(
+    403,
+    'not_on_list',
+    'This Google account is not on the list of people who can create an account yet.',
+  )
+}
+
+/** One Google identity has created as many accounts today as the cap allows. */
+export function signupLimit(retryAfter: number): HttpError {
+  return new HttpError(
+    429,
+    'signup_limit',
+    'This Google account has created several accounts today. Try again after midnight UTC.',
+    { retryAfter },
+  )
+}

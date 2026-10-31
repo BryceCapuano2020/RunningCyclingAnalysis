@@ -36,6 +36,8 @@ import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
 import { clearKeptPower, useKeptPower } from './ui/keptPowerStore'
+import { useCountedRuns } from './ui/useCountedRuns'
+import { useSignInProblem } from './ui/signInProblem'
 
 /** A string that changes whenever a different page is on screen. */
 function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
@@ -86,7 +88,15 @@ export function App() {
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const keptPower = useKeptPower()
-  const analysisAthlete = useAnalysisSettings(settings, measurements.entries, keptPower.ids)
+  const countedRuns = useCountedRuns()
+  const signInProblem = useSignInProblem()
+  const analysisAthlete = useAnalysisSettings(
+    settings,
+    measurements.entries,
+    athleteValues.birthYear,
+    countedRuns.keys,
+    keptPower.ids,
+  )
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false
@@ -114,9 +124,7 @@ export function App() {
     saveAnswers,
   })
 
-  // The trend's age grades need a year of birth and a sex; without them it shows energy alone.
-  const gradeTrend = ageProfile !== null
-  const analysis = useAnalysis(analysisAthlete, account, gradeTrend)
+  const analysis = useAnalysis(analysisAthlete, account)
 
   // The download holds the dated settings, so it waits for them rather than leave them out.
   const downloadData = async () => {
@@ -185,6 +193,7 @@ export function App() {
   // replaces the Profile history entry rather than adding one.
   const removingAll = useRef(false)
   const removeAll = () => {
+    // The runs counted at walking pace are forgotten when the worker reports the library forgotten (rememberKept).
     analysis.clear()
     // With no result on screen the effect below never runs, so the landing page is shown now.
     if (!hasResult) {
@@ -214,6 +223,7 @@ export function App() {
   const deleteAccount = async () => {
     await account.deleteAccount()
     clearKeptPower()
+    countedRuns.clear()
     setAccountDeleted(true)
     window.location.replace(hrefFor({ page: 'balance' }))
   }
@@ -265,8 +275,15 @@ export function App() {
             onSignOut={() => {
               // What this browser noted about the visitor's data goes with their session.
               forgetSeenNotes()
-              // The kept rides go once the session has really ended; a failed sign-out leaves the visitor signed in.
-              void account.signOut().then(clearKeptPower, () => undefined)
+              // The runs counted here and the rides kept go once the session has really ended; a failed sign-out leaves
+              // the visitor signed in.
+              void account.signOut().then(
+                () => {
+                  countedRuns.clear()
+                  clearKeptPower()
+                },
+                () => undefined,
+              )
             }}
           />
         }
@@ -299,9 +316,10 @@ export function App() {
           pageNotice={
             accountDeleted && route.page === 'balance'
               ? 'Your account and data were deleted.'
-              : (coldNotice ?? '')
+              : (signInProblem ?? coldNotice ?? '')
           }
           walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
+          countedRuns={countedRuns}
         />
         {route.page === 'profile' ? (
           <ProfilePage
@@ -337,6 +355,7 @@ export function App() {
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}
             signedIn={signedIn}
+            countedRuns={countedRuns}
           />
         ) : restoringPage ? (
           <RestoringPage onFiles={setup.requestImport} />

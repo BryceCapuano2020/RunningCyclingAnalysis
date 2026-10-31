@@ -1,25 +1,18 @@
 import { DAY_MS, HEADLINE_DURATION_S } from '../constants'
+import { memoByDigests } from '../digestMemo'
 import { requirePositiveFinite } from '../math'
-import type {
-  ActivityDigest,
-  AthleteSettings,
-  BikeModel,
-  DigestCurvePoint,
-  HrCalibration,
-  Interval,
-  Sport,
-} from '../types'
-import { equivalenceFor } from './combine'
+import type { ActivityDigest, AthleteSettings, BikeModel, Sport } from '../types'
 import { effortsCount } from './effortTrust'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
+import { ofSport } from './ordered'
 import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import { trustedPower } from './powerCheck'
-import { fitBikeModelOver, pointWkg } from './rideCurves'
+import { fitBikeModelOver, pointWkg, runCentralWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
-import { DEFAULT_WINDOW_DAYS, weekEndMs } from './trendPoints'
+import { DEFAULT_WINDOW_DAYS, EFFORT_LENGTHS_S, weekEndMs } from './trendPoints'
 
 const WEEK_MS = 7 * DAY_MS
 
@@ -38,13 +31,6 @@ export interface TrendPoint {
   runAtMs: number | null
   /** Start of the ride that set rideWkg; null without a ride. */
   rideAtMs: number | null
-  /**
-   * The running equivalent of the best ride in the window: the flat running speed, in m/s, that
-   * costs the same metabolic power, with the range of the heart-rate model. At the headline duration
-   * it is the speed combine gives the same ride. Null without a ride, or unless the trend was asked
-   * for it through `equivalence`.
-   */
-  rideRunSpeed: Interval | null
   /**
    * The body mass, kg, of the ride that set rideWkg. Present only when the athlete has dated body
    * masses, since otherwise it is the one mass every ride is priced at.
@@ -67,11 +53,6 @@ export interface TrendOptions {
    * it does in the analysis. Built from the digests when absent; null counts every estimated point.
    */
   rideGate?: EstimatedRideGate | null
-  /**
-   * When given, each point's best ride is also converted to its running equivalent, with the
-   * heart-rate model of the analysis of the same digests, as the cards convert it.
-   */
-  equivalence?: { hr: HrCalibration | null }
 }
 
 export { weekEndMs }
@@ -81,34 +62,22 @@ interface Best {
   wkg: number
   /** Mechanical watts for a ride; NaN for a run. */
   watts: number
-  /** The body mass the activity was priced at, kg. */
+  /** The body mass the activity was priced at, kg. NaN for a run, whose price reads none. */
   massKg: number
 }
 
 /** One activity's best effort at or above the trend duration, with its sport and start. */
 interface Reading {
+  id: string
   startMs: number
   sport: Sport
   best: Best
 }
 
-function measureOf(
-  digest: ActivityDigest,
-  point: DigestCurvePoint,
-  masses: Masses,
-  bikeModel: BikeModel,
-  standing: EstimatedStanding,
-): Best & { alone: boolean } {
-  return {
-    ...pointWkg(point, digest, masses, bikeModel, standing),
-    massKg: masses.bodyKg(digest),
-  }
-}
-
 /**
- * The best effort of one activity at durationS or longer. Like combine's envelope, a shorter
+ * The best effort of one ride at durationS or longer. Like combine's envelope, a shorter
  * duration takes the best of the longer ones, so a 30-minute value above the 20-minute one counts.
- * Null when the activity has no value there. Within one activity the mass is one number, and central
+ * Null when the ride has no value there. Within one activity the mass is one number, and central
  * W/kg rises with watts, so the best by W/kg is the best by watts.
  */
 function bestAtOrAbove(
@@ -121,14 +90,61 @@ function bestAtOrAbove(
   let best: Best | null = null
   for (const point of digest.curve) {
     if (point.durationS < durationS) continue
-    const candidate = measureOf(digest, point, masses, bikeModel, standing)
+    const priced = pointWkg(point, digest, masses, bikeModel, standing)
     // An unbacked estimate counts at its own duration only: the envelope does not take it to a shorter one.
-    if (candidate.alone && point.durationS !== durationS) continue
-    if (Number.isFinite(candidate.wkg) && (best === null || candidate.wkg > best.wkg)) {
-      best = candidate
+    if (priced.alone && point.durationS !== durationS) continue
+    if (Number.isFinite(priced.wkg) && (best === null || priced.wkg > best.wkg)) {
+      best = { wkg: priced.wkg, watts: priced.watts, massKg: masses.bodyKg(digest) }
     }
   }
   return best
+}
+
+/** The same for a run, whose pace is priced without mass, a model or a gate; its `massKg` is NaN, as it is not read. */
+function bestRunAtOrAbove(digest: ActivityDigest, durationS: number): Best | null {
+  let best: Best | null = null
+  for (const point of digest.curve) {
+    if (point.durationS < durationS) continue
+    const wkg = runCentralWkg(point)
+    if (Number.isFinite(wkg) && (best === null || wkg > best.wkg)) {
+      best = { wkg, watts: Number.NaN, massKg: Number.NaN }
+    }
+  }
+  return best
+}
+
+/** The readings of these digests at durationS, in the order given; a treadmill run's pace is not an effort (see effortsCount). */
+function readingsOf(digests: ActivityDigest[], best: (digest: ActivityDigest) => Best | null) {
+  const readings: Reading[] = []
+  for (const digest of digests) {
+    if (!effortsCount(digest)) continue
+    const found = best(digest)
+    if (found !== null)
+      readings.push({ id: digest.id, startMs: digest.startMs, sport: digest.sport, best: found })
+  }
+  return readings
+}
+
+/** The runs' readings at a trend duration: they read nothing but the runs, so a change of body mass takes the ones kept. */
+const runReadings = memoByDigests(
+  (runs: ActivityDigest[], durationS: number) =>
+    readingsOf(runs, (run) => bestRunAtOrAbove(run, durationS)),
+  (a, b) => a === b,
+  undefined,
+  EFFORT_LENGTHS_S.length,
+)
+
+/** Two lists of readings, each in order of start and then id, as one. */
+function mergedByStart(a: Reading[], b: Reading[]): Reading[] {
+  const merged: Reading[] = []
+  let i = 0
+  let j = 0
+  const before = (x: Reading, y: Reading) =>
+    x.startMs < y.startMs || (x.startMs === y.startMs && x.id < y.id)
+  while (i < a.length && j < b.length) merged.push(before(a[i]!, b[j]!) ? a[i++]! : b[j++]!)
+  while (i < a.length) merged.push(a[i++]!)
+  while (j < b.length) merged.push(b[j++]!)
+  return merged
 }
 
 /**
@@ -138,8 +154,7 @@ function bestAtOrAbove(
  * caller passes the set the analysis sees, after near-duplicates are hidden. Every week from the
  * first activity (or the period's start) to the last is returned, however long the library: a week costs
  * a binary search and the readings in its window, so a decade is a few hundred points. Each point also
- * names the start of the activity that set each value,
- * and, when asked, converts the best ride to its running equivalent once per distinct power.
+ * names the start of the activity that set each value.
  */
 export function fitnessTrend(
   digests: ActivityDigest[],
@@ -150,7 +165,7 @@ export function fitnessTrend(
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const durationS = opts.durationS ?? HEADLINE_DURATION_S
   const windowMs = (opts.windowDays ?? DEFAULT_WINDOW_DAYS) * DAY_MS
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('trend', digests)
   const first = ordered[0]
   const last = ordered.at(-1)
   if (first === undefined || last === undefined) return []
@@ -160,27 +175,12 @@ export function fitnessTrend(
   const standing = estimatedStanding(
     opts.rideGate === undefined ? ownRideGate(trustedPower(ordered, masses)) : opts.rideGate,
   )
-  const readings: Reading[] = []
-  for (const digest of ordered) {
-    // A treadmill run's pace is not an effort the trend can show (see effortsCount).
-    if (!effortsCount(digest)) continue
-    const best = bestAtOrAbove(digest, durationS, masses, bikeModel, standing)
-    if (best !== null) readings.push({ startMs: digest.startMs, sport: digest.sport, best })
-  }
-
-  const equivalenceAt = opts.equivalence ? equivalenceFor(opts.equivalence.hr) : null
-  // The speed depends on the power and the body mass it was ridden at, so both key the cache.
-  const speedByRide = new Map<string, Interval>()
-  const speedOf = ({ watts, massKg }: Best): Interval | null => {
-    if (equivalenceAt === null) return null
-    const key = `${watts}|${massKg}`
-    let speed = speedByRide.get(key)
-    if (speed === undefined) {
-      speed = equivalenceAt(watts, massKg)
-      speedByRide.set(key, speed)
-    }
-    return speed
-  }
+  const readings = mergedByStart(
+    runReadings(ofSport(ordered, 'run'), durationS),
+    readingsOf(ofSport(ordered, 'ride'), (ride) =>
+      bestAtOrAbove(ride, durationS, masses, bikeModel, standing),
+    ),
+  )
 
   const lastEnd = weekEndMs(last.startMs)
   const earliest =
@@ -208,7 +208,6 @@ export function fitnessTrend(
       rideCount: count.ride,
       runAtMs: top.run?.startMs ?? null,
       rideAtMs: ride?.startMs ?? null,
-      rideRunSpeed: ride ? speedOf(ride.best) : null,
       ...(masses.dated && ride ? { rideMassKg: ride.best.massKg } : {}),
     })
   }

@@ -393,8 +393,13 @@ describe('MethodPage energy view', () => {
 
   it('holds the comparison when a sport has no 20 min effort or threshold, with no ratio chart or fallback copy', () => {
     const short = [curvePoint(300, 4, 'run-1')]
+    // Rides a meter measured: what they lack is length, so the general line stands.
+    const metered = makeResult().activities.map((a) =>
+      Object.assign({}, a, a.sport === 'ride' ? { powerSource: 'measured' as const } : {}),
+    )
     const { container } = renderPage(
       makeResult({
+        activities: metered,
         runCp: null,
         rideCp: null,
         runCurve: short,
@@ -407,13 +412,33 @@ describe('MethodPage energy view', () => {
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
       within(section).getByText(
-        'The comparison is held. A hard 20 min run or ride would let them be compared.',
+        'The comparison is held. Your running and cycling have no 20 min effort yet.',
       ),
     ).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/this view is that ratio|cross-check|90% model range/)
     expect(screen.queryByText(/^Run against Ride, 90% range/)).not.toBeInTheDocument()
     expect(section.querySelector('details.method__evidence')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
+  })
+
+  it('names the climb a ride needs when its rides have no power meter, not another ride', () => {
+    renderPage(
+      makeResult({
+        runCp: null,
+        rideCp: null,
+        runCurve: [curvePoint(1200, 4, 'run-1')],
+        rideCurve: [curvePoint(300, 250, 'ride-1')],
+      }),
+      null,
+      DATED_SIX_WEEKS,
+    )
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(
+      within(section).getByText(
+        'The comparison is held. Your rides have no power meter, so a ride compares only on a climb of 3% or steeper that holds for 20 min without a break.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('names the activities a sport lacks in the period when that is why the comparison is held', () => {
@@ -538,12 +563,12 @@ describe('MethodPage energy view', () => {
     ).toBeInTheDocument()
   })
 
-  it('says both best efforts were hard efforts, with no hedge after it', () => {
+  it('says both best efforts reached the hard line, and what heart rate cannot tell', () => {
     renderPage(withEffort({ durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 }))
 
     expect(
       screen.getByText(
-        'Both best efforts reached at least 90% of each sport’s reference heart rate, so both were hard efforts.',
+        'Both best efforts reached at least 90% of each sport’s reference heart rate. Heart rate cannot tell a hard 20 min from an all-out one.',
       ),
     ).toBeInTheDocument()
   })
@@ -551,7 +576,7 @@ describe('MethodPage energy view', () => {
   it('leaves out the hard-efforts fact when either best effort was below 90%', () => {
     renderPage(withEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 }))
 
-    expect(screen.queryByText(/so both were hard efforts/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Both best efforts reached at least 90%/)).not.toBeInTheDocument()
   })
 
   it('shows no facts when there is no comparison to check', () => {
@@ -779,7 +804,7 @@ describe('MethodPage how this works', () => {
     expect(section.querySelector('details.methodology__disclosure')).toBeNull()
     expect(within(section).queryByText('Show the assumptions')).toBeNull()
     expect(
-      within(section).getByRole('heading', { level: 3, name: 'Best 20 min, week by week' }),
+      within(section).getByRole('heading', { level: 3, name: 'Best efforts over time' }),
     ).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { name: 'Heart-rate check' })).toHaveLength(1)
     expect(screen.getAllByRole('heading', { name: 'Virtual power meter accuracy' })).toHaveLength(1)
@@ -788,7 +813,8 @@ describe('MethodPage how this works', () => {
         .getAllByRole('heading', { level: 3 })
         .map((heading) => heading.textContent),
     ).toEqual([
-      'Best 20 min, week by week',
+      'Best efforts over time',
+      'How a change is called',
       'Dated settings and zones',
       'Data checks',
       'Where speed comes from',
@@ -934,7 +960,7 @@ describe('MethodPage without a weight', () => {
     expect(
       within(section).getByText(/Best efforts are judged against running 188 bpm/),
     ).toBeInTheDocument()
-    expect(within(section).getByText(/so both were hard efforts/)).toBeInTheDocument()
+    expect(within(section).getByText(/Both best efforts reached at least 90%/)).toBeInTheDocument()
     // The reference heart rate is defined in one sentence, where the heart-rate check is explained.
     expect(
       within(section).getByText(

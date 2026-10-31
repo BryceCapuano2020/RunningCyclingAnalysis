@@ -1,6 +1,7 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { AddSportFiles } from '../components/AddSportFiles'
 import { HowToGetFilesButton } from '../components/HowToGetFiles'
+import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightNote } from '../components/WeightNote'
 import { sportGrade } from '../grades'
 import { headlineEffort, sportRecords } from '../records'
@@ -19,6 +20,7 @@ export interface SportAnswerProps extends Pick<
   | 'missingAge'
   | 'rangeDays'
   | 'emptyText'
+  | 'leftOut'
   | 'inLibrary'
   | 'onShowAll'
   | 'onAddFiles'
@@ -33,17 +35,21 @@ export interface SportAnswerProps extends Pick<
 function EmptySport({
   sport,
   emptyText,
+  leftOut,
   inLibrary,
   rangeDays,
   onShowAll,
   onAddFiles,
 }: Pick<
   SportAnswerProps,
-  'sport' | 'emptyText' | 'inLibrary' | 'rangeDays' | 'onShowAll' | 'onAddFiles'
+  'sport' | 'emptyText' | 'leftOut' | 'inLibrary' | 'rangeDays' | 'onShowAll' | 'onAddFiles'
 >) {
   return (
     <section className="section">
       <p className="secondary">{emptyText}</p>
+      {leftOut !== undefined && (
+        <CountWalkingRuns count={leftOut.count} onCount={leftOut.onCount} />
+      )}
       {inLibrary === 0 ? (
         <div className="sport-page__actions">
           <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
@@ -73,7 +79,7 @@ export function SportAnswer(props: SportAnswerProps) {
   if (held) return <WeightNote />
   const headline = profile === null ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
   return (
-    <div className="sport-hero" data-sport={sport}>
+    <div className="band sport-hero" data-sport={sport}>
       <ThresholdPanel
         sport={sport}
         result={result}

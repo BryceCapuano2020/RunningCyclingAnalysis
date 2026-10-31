@@ -416,6 +416,7 @@ describe('AnalysisSession', () => {
       incompatibleActivities: 0,
       hiddenDuplicates: 0,
       walkingPaceRuns: 0,
+      countedWalkingRuns: [],
       period: { choice: 'default', startMs: null, endMs: null, days: null, fellBack: false },
       library: [],
       syncIssues: [],
@@ -428,6 +429,7 @@ describe('AnalysisSession', () => {
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
+      change: null,
       records: new Map(),
     })
   })
@@ -511,6 +513,7 @@ describe('AnalysisSession', () => {
       incompatibleActivities: 0,
       hiddenDuplicates: 0,
       walkingPaceRuns: 0,
+      countedWalkingRuns: [],
       period: { choice: 42, startMs: null, endMs: null, days: null, fellBack: false },
       library: [],
       syncIssues: [],
@@ -523,6 +526,7 @@ describe('AnalysisSession', () => {
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
+      change: null,
       records: new Map(),
     })
   })

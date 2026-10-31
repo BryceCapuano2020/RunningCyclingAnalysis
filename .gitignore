@@ -49,3 +49,7 @@ __pycache__/
 
 # TypeScript incremental build state
 *.tsbuildinfo
+
+# Local audit notes and evidence (they can quote real-data aggregates).
+docs/audits/
+.vitest/

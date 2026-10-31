@@ -9,12 +9,15 @@
   --surface-pressed: #dde2ea;
   --border: #e1e4ea;
   --control-border: #7f8694;
+  --divider: #7f8694;
   --text-primary: #0e1116;
   --text-secondary: #474f5c;
   --text-muted: #5f6774;
   --brand: #c8f03c;
   --accent: #0e1116;
   --accent-contrast: var(--brand);
+  --highlight: var(--brand);
+  --highlight-ink: #0e1116;
   --accent-hover: #474f5c;
   --accent-pressed: #000000;
   /* The brand mark's tile is ink; its ring is ink too in light, where the tile needs none. */
@@ -26,13 +29,16 @@
   --focus: #0e1116;
 
   /* Sport identity: fixed everywhere in the app */
-  --series-run: #e5304f;
+  --series-run: #e44f27;
   --series-ride: #2f56e8;
   --series-swim: #0f9fb0;
-  --series-run-soft: #e5304f26;
+  /* Staged for sport-coloured text, which a later D10 PR brings; nothing reads the two inks yet. */
+  --run-ink: #b83a12;
+  --ride-ink: #2f56e8;
+  --series-run-soft: #e44f2726;
   --series-ride-soft: #2f56e826;
   --series-swim-soft: #0f9fb026;
-  --ladder-run-band: #e5304f26;
+  --ladder-run-band: #e44f2714;
   --ladder-ride-band: #2f56e826;
   --neutral-mark: #474f5c;
   --neutral-band: #474f5c24;
@@ -40,16 +46,17 @@
   --grid: #d0d5de;
   /*
    * The zone ramp: five steps for each sport, lowest effort first. In light the steps darken with effort; in
-   * dark they get more luminous at full saturation, never paler. Each step keeps 3:1 against the card, its ink
-   * (--zone-ink-n, one per step for both sports) keeps 4.5:1, and a neighbour is at least 7 apart in CIEDE2000
-   * under every colour vision in light and 5 in dark, where the steps stay saturated.
+   * dark they get more luminous. Each step keeps 3:1 against the card, its ink (--zone-ink-n, one per step for
+   * both sports) keeps 4.5:1, and a neighbour is at least 7 apart in CIEDE2000 under every colour vision in
+   * light and 5 in dark. The run ramp runs from orange into umber, and its chroma falls toward the strong end,
+   * so effort deepens into earth and never into the status red; ride is blue throughout.
    * styles/zoneRamp.test.ts checks all of it from these values.
    */
-  --zone-run-1: #e16265;
-  --zone-run-2: #d0293d;
-  --zone-run-3: #a90227;
-  --zone-run-4: #750017;
-  --zone-run-5: #410008;
+  --zone-run-1: #d57029;
+  --zone-run-2: #c94e0c;
+  --zone-run-3: #a63d02;
+  --zone-run-4: #7d2d05;
+  --zone-run-5: #552b14;
   --zone-ride-1: #6589d3;
   --zone-ride-2: #3c67c9;
   --zone-ride-3: #1844b9;
@@ -70,6 +77,7 @@
 
   --radius: 12px;
   --radius-sm: 6px;
+  --radius-pill: 999px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -77,11 +85,20 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-7: 48px;
+  /* Layout: one shell for the header, the tabs and every page, so nothing jumps between pages, and the
+     reading width for prose (about 66 characters in Barlow; charts and answer panels use the shell). */
+  --page-width: 75rem;
+  --measure: 28.5rem;
+  /* The only two gaps between a page's parts: between sections, and between the items of a stack. */
+  --section-gap: var(--space-7);
+  --stack-gap: var(--space-5);
   /* A control is 40 px; a phone or a finger gets the 44 px touch target, set below. */
   --control-height: 40px;
   /* The header is two rows on a wide screen and one row on a phone; the phone tab bar is 48 px. */
   --header-height: calc(var(--space-5) + var(--control-height) * 2 + var(--space-2) + 1px);
   --tab-bar-height: 48px;
+  /* The bars that stick under the header (section row, chart readout) add their height here while stuck; see useStickyExtra.ts. */
+  --sticky-extra: 0px;
   /* The type scale: the small sizes the app uses, each one value. */
   --text-sm: 0.875rem;
   --text-md: 1rem;
@@ -91,6 +108,19 @@
   --text-xs: 0.75rem;
   /* The 18 px lead size, the one display size a step above the body: lead paragraphs, small headings, tabs. */
   --text-lead: 1.125rem;
+  /*
+   * The display scale (D10): Barlow Condensed for figures and titles, three fluid sizes and two fixed.
+   * One hero figure a view takes display-1; tile and secondary figures take display-2 and never
+   * equal the page's hero; page titles and finding titles take display-3. A heading is never smaller
+   * than the body. Each size reaches its top at a window about 1070, 800 and 900 px wide.
+   */
+  --display-1: clamp(3.5rem, 2rem + 6vw, 6rem);
+  --display-2: clamp(2.25rem, 1.5rem + 3vw, 3rem);
+  --display-3: clamp(1.75rem, 1.4rem + 1.5vw, 2.25rem);
+  --title: 1.5rem;
+  --heading: 1.25rem;
+  /* The display line height, set once in .display; forced colours takes 1 so a chip beside it is clear. */
+  --lh-display: 0.95;
   /* The phone's tab labels are set a touch loose, so four of them fit a 360 px bar. */
   --tracking-tab: 0.02em;
   /* Eyebrows, chips and the capitals of the tabs share one tracking. */
@@ -105,7 +135,10 @@
   --column-zones: 22rem;
   --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
-  --shadow: 0 1px 2px #0000000d, 0 4px 16px #0000000a;
+  /* Popovers, menus, dialogs and tooltips only. --shadow is the same value for the cards that still
+     lift (P6 turns them into bands) and the files that wait on other work; it is not for new rules. */
+  --shadow-pop: 0 1px 2px #0000000d, 0 4px 16px #0000000a;
+  --shadow: var(--shadow-pop);
 
   /*
    * Activity channels: one colour for each signal on the activity page's stack, so heart rate, power
@@ -155,6 +188,7 @@
     --surface-pressed: #101318;
     --border: #2a2f38;
     --control-border: #6b7380;
+    --divider: #6b7380;
     --text-primary: #eef0f3;
     --text-secondary: #b6bcc6;
     --text-muted: #8d95a2;
@@ -167,23 +201,25 @@
     --selected-contrast: #0e1116;
     --link: #eef0f3;
     --focus: #c8f03c;
-    --series-run: #f0435f;
+    --series-run: #f56333;
     --series-ride: #4d6ef5;
     --series-swim: #14a0b0;
-    --series-run-soft: #f0435f33;
+    --run-ink: #f56333;
+    --ride-ink: #5c7bf7;
+    --series-run-soft: #f5633333;
     --series-ride-soft: #4d6ef533;
     --series-swim-soft: #14a0b033;
-    --ladder-run-band: #f0435f26;
+    --ladder-run-band: #f5633326;
     --ladder-ride-band: #4d6ef526;
     --neutral-mark: #b6bcc6;
     --neutral-band: #b6bcc629;
     --previous-mark: #737b89;
     --grid: #343b47;
-    --zone-run-1: #b43d52;
-    --zone-run-2: #ca4556;
-    --zone-run-3: #de555d;
-    --zone-run-4: #ee716e;
-    --zone-run-5: #ff897f;
+    --zone-run-1: #b34f2c;
+    --zone-run-2: #ce470d;
+    --zone-run-3: #f57e4d;
+    --zone-run-4: #fba774;
+    --zone-run-5: #fdc8a1;
     --zone-ride-1: #5061b3;
     --zone-ride-2: #4f70d6;
     --zone-ride-3: #4a81f4;
@@ -200,7 +236,7 @@
     --status-warning-bg: #33290c;
     --status-critical: #ff8a80;
     --status-critical-bg: #3a1714;
-    --shadow: 0 1px 2px #00000040;
+    --shadow-pop: 0 1px 2px #00000040;
 
     --ch-pace: #3fc27a;
     --ch-power: #f0a030;

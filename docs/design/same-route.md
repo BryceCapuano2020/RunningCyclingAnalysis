@@ -14,7 +14,7 @@ terrain that is held fixed. Grade adjustment only models terrain; a repeated cou
 | `Activity.route` (`RouteShape`)                   | No         | Unit-box outline, north-up, no place, no scale. Signed-out: IndexedDB `rca-device-library`. Signed-in: worker memory only (`RouteMemory`), re-read from the original on request. |
 | `ActivityDigest` (synced to D1)                   | No         | Has distance, duration, movingS, avgHeartRate, avgPowerW, elevationGainM, km/mile splits, flags. No route, no streams.                                                           |
 | Workbench traces (`rca-workbench-evidence`)       | No         | Distance, altitude, speed, HR, power, cadence, laps. Bounded cache (64 MiB, LRU), so it holds a few hundred activities, not a multi-year library. Unusable as an index source.   |
-| R2 originals                                      | Yes        | Only with keepFiles. Downloads are capped at 50 a day (`apps/api/LIMITS.md`), so a backfill of a 2,000-activity library would take 40 days.                                      |
+| R2 originals                                      | Yes        | Only with keepFiles. Downloads were capped at 50 a day, which made a backfill of a 2,000-activity library take 40 days; the cap is now 5,000 a day (`apps/api/LIMITS.md`).       |
 
 Consequence: a located fingerprint can only be made at import (or re-import). The outline alone
 cannot identify a route: two out-and-back lines of equal length in different cities look identical,
@@ -43,7 +43,7 @@ visits, so nothing new goes in it. No contract, D1 or `MODEL_REVISION` change.
   Decisions).
 - Multi-device: the index exists only on the device that imported. Other devices rebuild it by
   re-importing the export (the existing "reimport rebuilds the trace" hook is extended to the
-  fingerprint). Bulk rebuild from originals is not offered (50 downloads a day). Every lede states
+  fingerprint). Bulk rebuild from originals is not offered (it was written when downloads were capped at 50 a day; the cap is now 5,000). Every lede states
   its coverage ("found in 12 of your 30 outdoor runs on this device") because an undercount would
   make "fastest of 14" false.
 

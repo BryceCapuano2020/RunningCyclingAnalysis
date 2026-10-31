@@ -1,5 +1,6 @@
+import { LIST_ROWS_LIMIT_MESSAGE } from '@rca/contract'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { limitReached, resetSentence } from './limitCopy'
+import { limitReached, listingLimitReached, resetSentence } from './limitCopy'
 
 /** The local time the viewer sees for an instant, formatted the way the copy formats it. */
 function localTime(ms: number): string {
@@ -29,7 +30,7 @@ describe('limitReached', () => {
   it.each([
     ['activityCreate', 'saves', '5,000'],
     ['fileUpload', 'uploads', '2,000'],
-    ['fileDownload', 'downloads', '50'],
+    ['fileDownload', 'downloads', '5,000'],
     ['read', 'library loads', '100'],
     ['activityDelete', 'deletions', '50'],
     ['profileWrite', 'profile changes', '50'],
@@ -39,6 +40,22 @@ describe('limitReached', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitReached(action, resetsAt)).toBe(
       `You have reached today's limit on ${noun} (${allowance} per day). ${resetSentence(resetsAt)}`,
+    )
+  })
+})
+
+describe('listingLimitReached', () => {
+  const resetsAt = Date.UTC(2026, 9, 24)
+
+  it('names the rows allowance when the server refused a page of rows', () => {
+    expect(listingLimitReached(LIST_ROWS_LIMIT_MESSAGE, resetsAt)).toBe(
+      `You have reached today's limit on rows read from your library (200,000 per day). It resets at ${localTime(resetsAt)}, your time.`,
+    )
+  })
+
+  it('names the library loads for any other daily refusal of a listing', () => {
+    expect(listingLimitReached('You have reached your daily limit.', resetsAt)).toBe(
+      limitReached('read', resetsAt),
     )
   })
 })

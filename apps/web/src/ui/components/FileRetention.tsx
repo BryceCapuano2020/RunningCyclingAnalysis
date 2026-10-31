@@ -95,8 +95,9 @@ export function FileRetention({
         Keep original files in my library
       </label>
       <p id="file-retention-help" className="file-retention__help muted">
-        Originals let you rebuild saved analyses later. Turning this off deletes saved originals;
-        activity summaries remain.
+        Originals let you rebuild saved analyses later. They hold your full GPS track, including
+        where you start and finish, and every second of heart rate and power, and are stored on our
+        server. Turning this off deletes saved originals; activity summaries remain.
       </p>
       <p role="status" className="file-retention__status secondary">
         {statusText}

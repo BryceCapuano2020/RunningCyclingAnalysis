@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_DIGEST_TEXT_CHARS } from '@rca/core/digest/limits'
 import * as limits from './limits.ts'
 
 /** Bound parameters one D1 statement may carry (Cloudflare's limit for Workers). */
@@ -17,6 +18,8 @@ describe('contract limits', () => {
 
   it('pins the upload and digest sizes', () => {
     expect(limits.MAX_DIGEST_BYTES).toBe(256 * 1024)
+    // The digest reader bounds a text in characters by the same number the API bounds a body in bytes.
+    expect(MAX_DIGEST_TEXT_CHARS).toBe(limits.MAX_DIGEST_BYTES)
     expect(limits.MAX_FILE_BYTES).toBe(50 * 1024 * 1024)
     expect(limits.MAX_ACTIVITIES_PER_USER).toBe(5000)
     expect(limits.MAX_STORED_BYTES_PER_USER).toBe(1024 * 1024 * 1024)
@@ -25,7 +28,7 @@ describe('contract limits', () => {
 
   it('pins the per-user daily budgets', () => {
     expect(limits.DAILY_LIMITS).toEqual({
-      fileDownload: 50,
+      fileDownload: 5000,
       profileWrite: 50,
       activityDelete: 50,
       activityCreate: 5000,
@@ -38,6 +41,20 @@ describe('contract limits', () => {
 
   it('lets one day create as many activities as a library may hold', () => {
     expect(limits.DAILY_LIMITS.activityCreate).toBe(limits.MAX_ACTIVITIES_PER_USER)
+  })
+
+  it('lets one day rebuild the largest library from its originals', () => {
+    expect(limits.DAILY_LIMITS.fileDownload).toBe(limits.MAX_ACTIVITIES_PER_USER)
+  })
+
+  it('pins the list meter, the session cap and the account-create cap', () => {
+    expect(limits.LIST_ROWS_PER_DAY).toBe(200_000)
+    expect(limits.MAX_SESSIONS_PER_USER).toBe(10)
+    expect(limits.MAX_ACCOUNT_CREATES_PER_DAY).toBe(5)
+  })
+
+  it('lets a day of listing cover dozens of cold loads of the largest library', () => {
+    expect(limits.LIST_ROWS_PER_DAY / limits.MAX_ACTIVITIES_PER_USER).toBeGreaterThanOrEqual(40)
   })
 
   it('pins the most dated settings a user may keep', () => {

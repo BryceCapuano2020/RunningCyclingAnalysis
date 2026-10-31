@@ -43,7 +43,7 @@ function LevelFigure({
   const { lead, level, value, range } = gradeParts(sport, outcome.grade)
   return (
     <>
-      <p className="sport-hero__level">
+      <p className="display sport-hero__level">
         <span
           className={
             level.length > LONG_LEVEL

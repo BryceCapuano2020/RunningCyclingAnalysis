@@ -60,7 +60,7 @@ function renderPage(
       sameHeartRate={options.sameHeartRate ?? NO_SAME_HEART_RATE[sport]}
       lateEvidence={options.lateEvidence ?? NO_LATE_EVIDENCE[sport]}
       zoneTimes={options.zoneTimes}
-      windowDays={28}
+      change={null}
       units="metric"
       massKg={75}
       weighted
@@ -131,7 +131,7 @@ describe('the answer: threshold and level in one card', () => {
     })
     expect(chip.closest('.chip')).toHaveClass('chip--good')
     expect(chip.closest('.chip')?.querySelector('svg')).not.toBeNull()
-    expect(screen.getByRole('note')).toHaveTextContent('so it was hard.')
+    expect(screen.getByRole('note')).toHaveTextContent(': close to your highest heart rate.')
   })
 
   it('names the period the threshold is for beside its name, so it is not read against another period’s', () => {
@@ -339,15 +339,7 @@ describe('"On this page" and the layout', () => {
       blocks: 14,
       activities: 5,
     })),
-    change: {
-      fromEndMs: Date.UTC(2025, 0, 12),
-      toEndMs: Date.UTC(2025, 0, 12) + 3 * 7 * 86_400_000,
-      from: 3.2,
-      to: 3.35,
-      weeksApart: 3,
-      relative: 0.05,
-      real: true,
-    },
+    reportedWeeks: 4,
     lacks: null,
     latestWeekEndMs: Date.UTC(2025, 0, 12) + 3 * 7 * 86_400_000,
   }
@@ -363,8 +355,8 @@ describe('"On this page" and the layout', () => {
       'Best efforts',
       'Race predictions',
       'Time in zones',
-      'Week by week',
-      'Same heart rate',
+      'Best efforts over time',
+      'Same heart rate, week by week',
       'All best efforts',
     ])
   })
@@ -376,14 +368,14 @@ describe('"On this page" and the layout', () => {
       within(nav)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual(['Best efforts', 'Week by week', 'All best efforts'])
+    ).toEqual(['Best efforts', 'Best efforts over time', 'All best efforts'])
   })
 
   it('opens a closed section when its button is pressed, and scrolls to it', () => {
     renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
-    const region = screen.getByRole('region', { name: 'At the same heart rate' })
+    const region = screen.getByRole('region', { name: 'Same heart rate, week by week' })
     expect(within(region).queryByRole('figure')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Same heart rate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Same heart rate, week by week' }))
     const details = region.querySelector('details')!
     expect(details.open).toBe(true)
     fireEvent(details, new Event('toggle'))

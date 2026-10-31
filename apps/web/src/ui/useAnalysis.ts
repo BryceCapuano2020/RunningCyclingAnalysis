@@ -1,105 +1,31 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { sameMasses } from '@rca/core/athlete'
-import type { PeriodChoice, SessionState, SyncIssueCode } from '@rca/core/session'
-import type { AthleteSettings, DigestSplits } from '@rca/core/types'
-import type {
-  DeviceIssue,
-  ImportOutcome,
-  SavedActivity,
-  WorkerRequest,
-  WorkerResponse,
-  ActivityTraceReply,
-} from '../worker/protocol'
+import { sameAnalysisSettings, sameCountedRuns } from '@rca/core/athlete'
+import type { SyncIssueCode } from '@rca/core/session'
+import type { AthleteSettings } from '@rca/core/types'
+import type { WorkerRequest } from '../worker/protocol'
+import type { AnalysisController } from './analysis/controller'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
-import { SAVES_PAUSED, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
+import { SAVES_PAUSED, STILL_WORKING, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
+import { useKeptLibraryLoad } from './analysis/keptLibraryLoad'
 import { isQuietRequest, keepsError } from './analysis/quietRequests'
-import type { ImportChange } from './analysis/importState'
 import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
-import type { Account, ErrorNotice, ImportProgress, LibraryStatus, Pending } from './analysis/model'
-import type { DetailCoverage } from './analysis/model'
+import { useLibraryTabs } from './analysis/libraryTabs'
+import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/model'
 import { drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
+import { useWorkerWatchdog } from './analysis/workerWatchdog'
 import { useWorkerTransport } from './analysis/workerTransport'
-import { storedPeriodRequest } from './periodPreference'
 import { replyOf } from './routeReply'
 import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
-import { useGradeTrendRequest } from './analysis/useGradeTrendRequest'
 import { useActivityTraceRequest } from './analysis/useActivityTraceRequest'
 
 export type { LibraryStatus }
-
-export interface AnalysisController {
-  state: SessionState
-  /** Import work is in progress or waiting. A library change such as a delete is not counted. */
-  busy: boolean
-  /** Why an import is held or paused, or null when nothing is waiting. */
-  waitingReason: string | null
-  /** Activity files read so far during an import, with the total when it is known. */
-  progress: ImportProgress | null
-  /** Number of files uploaded so far during an import that keeps files, otherwise null. */
-  uploading: number | null
-  /** The activities the last signed-in import saved, as its reply counted them. Null until one ends. */
-  savedCount: number | null
-  error: string | null
-  /** The worker's reason for `error`, when the page words that error specially. */
-  errorIssue: SyncIssueCode | null
-  /** `error` is news the visitor asked for, such as a stop, rather than a fault. */
-  errorNeutral: boolean
-  workerStopped: boolean
-  stop: () => void
-  retryWorker: () => void
-  libraryStatus: LibraryStatus
-  /** A reload of a visit that kept results, before the library they kept has been read. */
-  restoring: boolean
-  /** Reads the signed-in library again. Imports are not held for a failed load; they must be added again. */
-  retryLibrary: () => void
-  /** Which activities this browser holds detailed readings for; null until storage has said, and for a sample. */
-  detail: DetailCoverage | null
-  /** Saved activities whose original file is not in the library. */
-  missingOriginals: number
-  /** Outdated saved activities whose original file is held, which Update now can rebuild. */
-  outdatedWithOriginal: number
-  /** Stored activities that could not be read in the last library load, and so are hidden. */
-  libraryUnreadable: number
-  /** What this browser failed to keep or delete, until the next try; null when nothing failed. */
-  deviceIssue: DeviceIssue | null
-  importOutcome: ImportOutcome | null
-  /** What the last import moved from, while its summary is shown; null otherwise. */
-  importChange: ImportChange | null
-  /** The summary was dismissed, so what moved goes with it. */
-  dismissSummary: () => void
-  savedActivities: SavedActivity[]
-  /** A library change in progress. It does not make the import dropzone busy. */
-  libraryAction: 'deleting' | null
-  /** Confirms the last library change. */
-  libraryNotice: string | null
-  /** Says why the last library change failed. */
-  libraryError: string | null
-  deleteActivity: (id: string) => void
-  /**
-   * The signed-in account's data as a JSON file, built from the server by the worker. Rejects with
-   * the reason when it cannot be made. An export does not make the page busy.
-   */
-  exportData: () => Promise<Blob>
-  /** The run splits of one held activity; null when it has none. Does not make the page busy. */
-  activitySplits: (id: string) => Promise<DigestSplits | null>
-  loadTrace: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
-  rebuildNotice: string | null
-  rebuildSavedActivities: () => void
-  addFiles: (files: File[]) => void
-  loadSample: () => void
-  setRange: (choice: PeriodChoice, answered?: (reply: WorkerResponse | null) => void) => void
-  clear: () => void
-  /**
-   * The route of a saved activity, by its library id. `fromOriginal` reads the kept original file,
-   * which is done only when the visitor asks. A read never shows an error or makes the page busy.
-   */
-  loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>
-}
+export { DEVICE_GRACE_MS } from './analysis/keptLibraryLoad'
+export type { AnalysisController }
 
 /**
  * Runs the analysis in a worker. While signed in, the account's stored activities are loaded when
@@ -111,11 +37,7 @@ export interface AnalysisController {
  * Hook order is the effect order: the worker effect runs before the settings effect, and both run
  * before the account effect, so a new worker exists before the account pass sends its first request.
  */
-export function useAnalysis(
-  settings: AthleteSettings,
-  account: Account,
-  gradeTrend: boolean,
-): AnalysisController {
+export function useAnalysis(settings: AthleteSettings, account: Account): AnalysisController {
   const settingsRef = useRef(settings)
   const accountRef = useRef<Account>(account)
   const accountEpochRef = useRef(0)
@@ -202,20 +124,23 @@ export function useAnalysis(
     [refreshBusy, resetNoticesFor, setError, setImportOutcome, setLibraryError, setLibraryNotice],
   )
 
-  const transport = useWorkerTransport({ pendingRepliesRef, onSend, setError })
+  const transport = useWorkerTransport({
+    pendingRepliesRef,
+    onSend,
+    onDropped: refreshBusy,
+    setError,
+  })
   const { dropPendingReplies, dropUnsent, restartWorker, setWorkerStopped } = transport
   const { automaticRestartCountRef, send: sendToWorker } = transport
   const loadTrace = useActivityTraceRequest(sendToWorker, accountRef)
 
-  // Signed out, each worker starts from the library kept in this browser, once. While the account
-  // is still loading it waits, so a signed-in account's page never shows the device library.
-  const deviceLoadedRef = useRef(false)
-  const loadDeviceOnce = useCallback(() => {
-    const { status } = accountRef.current
-    if (deviceLoadedRef.current || (status !== 'signed-out' && status !== 'unavailable')) return
-    deviceLoadedRef.current = true
-    sendToWorker({ type: 'loadDevice', settings: settingsRef.current, ...storedPeriodRequest() })
-  }, [sendToWorker])
+  const { deviceLoadedRef, loadDeviceOnce } = useKeptLibraryLoad({
+    accountRef,
+    settingsRef,
+    send: sendToWorker,
+    provisionalImportsRef,
+    libraryWaitRef,
+  })
 
   /** Asks the worker for a saved activity's route, under the signed-in account when there is one. */
   const loadRoute = useCallback(
@@ -307,7 +232,15 @@ export function useAnalysis(
     setWorkerStopped,
   ])
 
-  useWorkerEvents({
+  const { libraryChanged } = useLibraryTabs({
+    accountRef,
+    settingsRef,
+    send: sendToWorker,
+    libraryStatus: library.libraryStatus,
+    loadLibrary: libraryActions.loadLibrary,
+    busy: imports.busy,
+  })
+  const eventDeps = {
     transport,
     imports,
     library,
@@ -321,18 +254,29 @@ export function useAnalysis(
     previousUserIdRef,
     deviceLoadedRef,
     loadDeviceOnce,
+    libraryChanged,
+  }
+  useWorkerEvents(eventDeps)
+  useWorkerWatchdog({
+    events: eventDeps,
+    showStillWorking: () =>
+      setErrorNotice((notice) => notice ?? { message: STILL_WORKING, issue: null, neutral: true }),
+    clearStillWorking: () =>
+      setErrorNotice((notice) => (notice?.message === STILL_WORKING ? null : notice)),
   })
 
   const { send } = transport
-  // The analysis is redone when a mass changes, dated ones included. Other dated settings only ride
-  // along on later requests, since no analysis depends on them.
+  // The analysis is redone when a mass changes, dated ones included, when what the heart-rate reference reads changes
+  // (the year of birth and an entered maximum heart rate), or when the runs counted at walking pace change. Other dated
+  // settings only ride along on later requests, since no analysis depends on them.
   useEffect(() => {
-    const changed = !sameMasses(settingsRef.current, settings)
+    const changed =
+      !sameAnalysisSettings(settingsRef.current, settings) ||
+      !sameCountedRuns(settingsRef.current, settings)
     settingsRef.current = settings
     if (changed) send({ type: 'setSettings', settings })
   }, [settings, send])
 
-  useGradeTrendRequest(gradeTrend, settingsRef, send, transport.workerGeneration)
   useAccountTransitions({
     account,
     accountEpochRef,

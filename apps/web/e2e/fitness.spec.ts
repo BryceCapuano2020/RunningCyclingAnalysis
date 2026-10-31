@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import { edgesOf, goTo, openSample, trackErrors } from './helpers.js'
 
-const CARD = '.fitness-card'
+const CARD = '.fitness-card[data-sport="run"]'
 const CHART = /^Pace at \d+ bpm over time$/
 
 /** A line's words as read, without the notes its defined terms keep in the markup. */
@@ -61,8 +61,11 @@ test('See the evidence opens a chart with its table twin, the method, the limit 
   // The method and the honest limit, said once; and why some runs do not count.
   const panel = page.locator('.fitness-evidence')
   await expect(panel.getByRole('heading', { name: 'How it is measured' })).toBeVisible()
-  await expect(panel).toContainText('a change of about 5% or more, within weeks to a few months')
-  expect(await panel.getByText(/about 5% or more/).count()).toBe(1)
+  await expect(panel).toContainText('A change of 8% it sees within weeks, reliably.')
+  await expect(panel).toContainText(
+    'A change of 5% it usually sees within a few months, and not always.',
+  )
+  expect(await panel.getByText(/it usually sees within a few months/).count()).toBe(1)
   await expect(panel.getByRole('heading', { name: /^Why some runs do not count$/ })).toBeVisible()
   // The runs it rests on are links to their activities, newest first.
   const links = panel.locator('.fitness-runs a')
@@ -196,9 +199,7 @@ test('a tap on the lower third of a term opens it and not the term on the line b
   expect(pairs).toBeGreaterThan(0)
 })
 
-test('the Run page leads with the same status above the threshold, and the Ride page says nothing about it', async ({
-  page,
-}) => {
+test('the Run page leads with the same status above the threshold', async ({ page }) => {
   await openSample(page)
   await goTo(page, 'Run')
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
@@ -210,11 +211,28 @@ test('the Run page leads with the same status above the threshold, and the Ride 
   await expect(card(page).locator('.fitness-card__sport')).toHaveCount(0)
   // The heading's own page title comes first.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
-  await goTo(page, 'Ride')
-  await expect(page.getByRole('region', { name: 'Your fitness' })).toHaveCount(0)
 })
 
-test('the landing page’s example leads with the same finding for the sample athlete', async ({
+// The sample's rides are enough in number but too varied to call level (a count shortfall reads "not enough steady rides yet, N of M"; see FitnessCard.test.tsx): home says so in one line and does not draw a waiting card,
+// and the Ride page holds the ride's own card, with the count it is waiting on and no run on it.
+test('Balance shows a ride that is still waiting as one line, and the Ride page holds its card', async ({
+  page,
+}) => {
+  await openSample(page)
+  await expect(page.locator('.fitness-card')).toHaveCount(1)
+  const line = page.getByTestId('ride-fitness-line')
+  await expect(line).toContainText('Ride fitness: too uncertain to call yet')
+  await line.getByRole('link').click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ride')
+  const ride = page.locator('.fitness-card[data-sport="ride"]')
+  await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
+  await expect(ride).toHaveCount(1)
+  await expect(ride.locator('.fitness-card__state')).toHaveText('Not enough evidence yet')
+  expect(await spoken(ride.locator('.fitness-card__headline'))).toMatch(/\bpower\b/i)
+  await expect(page.locator('.fitness-card[data-sport="run"]')).toHaveCount(0)
+})
+
+test('the landing page’s example shows the same finding as a second panel under the balance headline', async ({
   page,
 }) => {
   await page.goto('/')
@@ -224,6 +242,10 @@ test('the landing page’s example leads with the same finding for the sample at
     /^At 130 bpm you now run [\d.]+% \(\d+ to \d+%\) slower than before\.$/,
   )
   await expect(example.locator('.fitness-track__band')).toBeVisible()
+  // The balance comes first; the fitness finding is the panel under it.
+  const headline = await edgesOf(example.locator('.landing-example__title'))
+  const panel = await edgesOf(example.locator('.landing-example__fitness'))
+  expect(headline.bottom).toBeLessThanOrEqual(panel.top)
 })
 
 test('a forced-colours reader still sees the card’s edge and the track’s outline', async ({
@@ -314,3 +336,30 @@ test('no label of the evidence chart is written over another', async ({ page }) 
     }
   }
 })
+
+// The state word is display type, which grows with the text size. At 200% text on a phone every state, not only the
+// sample's, must stay inside the card's content box (Slipping overflowed by 36 px at 390 once).
+for (const width of [320, 390]) {
+  test(`every fitness state word fits the card at 200% text and ${width} px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await openSample(page)
+    await page.addStyleTag({ content: ':root { font-size: 200%; }' })
+    const labels = ['Slipping', 'Holding', 'Holding below', 'Recovering', 'Back']
+    const over = await card(page).evaluate((el, words) => {
+      const state = el.querySelector('.fitness-card__state')!
+      const text = state.querySelector('span')!
+      const style = getComputedStyle(el)
+      const inner =
+        el.getBoundingClientRect().right -
+        parseFloat(style.paddingRight) -
+        parseFloat(style.borderRightWidth)
+      return words.map((word) => {
+        text.textContent = word
+        const range = document.createRange()
+        range.selectNodeContents(text)
+        return { word, over: Math.round(range.getBoundingClientRect().right - inner) }
+      })
+    }, labels)
+    expect(over.filter(({ over: past }) => past > 0)).toEqual([])
+  })
+}

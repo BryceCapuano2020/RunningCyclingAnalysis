@@ -1,3 +1,4 @@
+import type { ChangeEvidence } from '@rca/core/change/types'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
@@ -37,6 +38,8 @@ export interface View {
   /** The body mass on each activity's date, by id, when masses are dated; otherwise massKg stands. */
   masses: Record<string, number> | undefined
   previous: { label: string } | null
+  /** The change test for that period, which the finding and its marked effort read. */
+  change: ChangeEvidence | null
   names: Record<string, string> | undefined
   /** The activity every value is from, which the caption names instead of a column, or null. */
   shared: string | null

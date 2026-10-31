@@ -28,7 +28,7 @@ export function emptySeries(tier: FitnessMethod['tier']): UnitSeries {
   return {
     points: [],
     referenceHr: null,
-    method: { tier, gradePassThrough: null, speedPerBpm: 0, fitted: 0 },
+    method: { tier, gradePassThrough: null, speedPerBpm: 0, fitted: 0, seasonal: null },
   }
 }
 
@@ -48,8 +48,8 @@ const valueOf = (kms: readonly KmReading[], ref: number, kappa: number, beta: nu
 
 /**
  * One value per steady run, from the run digests as of one date. The unit is the steady-pace one:
- * kilometres 2 to 10 within 20 bpm of the reference heart rate, with the grade credit it earns passed
- * through by the share this library's own runs show (kappa), and a heart-rate slope (beta) fitted the
+ * kilometres 2 to 10 within 20 bpm of the reference heart rate, with the grade credit it earns taken out
+ * by the nuisance coefficient this library's own runs show (kappa, see `fitGrade`), and a heart-rate slope (beta) fitted the
  * same way; runs whose pace wanders from kilometre to kilometre are left out. When that fit is unstable
  * the strict unit is read instead: flat kilometres with a steady heart rate and pace, at the model's whole credit.
  * Heart rate that is set aside is left out. Pure: any order of `digests` gives the same series.
@@ -98,6 +98,7 @@ export function runSeries(
         gradePassThrough: -fit.kappa,
         speedPerBpm: fit.beta,
         fitted: fit.n,
+        seasonal: null,
       },
     }
   }
@@ -116,6 +117,12 @@ export function runSeries(
   return {
     points: points.sort(byTime),
     referenceHr: ref,
-    method: { tier: 'strict', gradePassThrough: 1, speedPerBpm: beta, fitted: rows.length },
+    method: {
+      tier: 'strict',
+      gradePassThrough: 1,
+      speedPerBpm: beta,
+      fitted: rows.length,
+      seasonal: null,
+    },
   }
 }

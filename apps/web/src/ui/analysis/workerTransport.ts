@@ -1,11 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
-import type { AnalysisResult } from '@rca/core/pipeline'
 import type { WorkerRequest } from '../../worker/protocol'
-import { STOPPED } from './copy'
-import type { Box, Pending, SetError, Setter } from './model'
+import { NOT_SENT, STOPPED } from './copy'
+import type { Baseline, Box, Pending, SetError, Setter } from './model'
 
 /** What a reply needs besides its request: its settle, its baseline and the session it was made in. */
-type PendingEntry = Omit<Pending, 'kind'>
+type PendingEntry = Omit<Pending, 'kind' | 'id' | 'sentAt'>
 
 /** A request made while there is no worker, with what its reply needs. */
 interface UnsentRequest {
@@ -15,8 +14,9 @@ interface UnsentRequest {
 
 /**
  * The worker, the requests sent to it, and which reply answers which request. A request made while
- * there is no worker waits in `unsentRef` for the next one. Replies arrive in request order, so the
- * front of `pendingRepliesRef` is the request the next reply answers.
+ * there is no worker waits in `unsentRef` for the next one. Each request sent to a worker is numbered
+ * (`Pending.id`) and the worker echoes the number on its reply, so a reply is matched by number and a
+ * reply that matches nothing is stray. `pendingRepliesRef` keeps the requests in the order they were sent.
  */
 export interface WorkerTransport {
   workerRef: Box<Worker | null>
@@ -25,6 +25,12 @@ export interface WorkerTransport {
   stoppedRef: Box<boolean>
   unsentRef: Box<UnsentRequest[]>
   pendingRepliesRef: Box<Pending[]>
+  /** Messages from the worker that answered no request still waiting (late, repeated or unknown). */
+  strayRepliesRef: Box<number>
+  /** When the worker last said anything at all, in epoch ms: any message of the current generation. */
+  lastHeardAtRef: Box<number>
+  /** Reads the watchdog let go that the worker may still be running, with the last work count it reported. */
+  releasedRef: Box<Map<number, { progress: number | undefined }>>
   automaticRestartCountRef: Box<number>
   /**
    * Counts each Start over. A library read made in an earlier session is overtaken: its answer is
@@ -38,7 +44,7 @@ export interface WorkerTransport {
     request: WorkerRequest,
     notice?: string,
     settle?: Pending['settle'],
-    baseline?: AnalysisResult | null,
+    baseline?: Baseline | null,
   ) => boolean
   flushUnsent: () => void
   /**
@@ -58,12 +64,24 @@ interface TransportDeps {
   pendingRepliesRef: Box<Pending[]>
   /** Runs once a request is pending and before it is posted, so the page can clear what it replaces. */
   onSend: (request: WorkerRequest) => void
+  /** Runs when a request leaves the pending list without a reply, so the page can recount what is busy. */
+  onDropped: () => void
   setError: SetError
+}
+
+/**
+ * Marks the analyses of files added while the account loads as ignored, in place: other code holds
+ * these entries (a settle closure, the watchdog), and a copy would leave them looking at a request
+ * that is no longer the one in the list.
+ */
+function ignoreProvisional(waiting: readonly Pending[]): void {
+  for (const pending of waiting) if (pending.provisional) pending.ignored = true
 }
 
 export function useWorkerTransport({
   pendingRepliesRef,
   onSend,
+  onDropped,
   setError,
 }: TransportDeps): WorkerTransport {
   const workerRef = useRef<Worker | null>(null)
@@ -76,6 +94,10 @@ export function useWorkerTransport({
   const unsentRef = useRef<UnsentRequest[]>([])
   const automaticRestartCountRef = useRef(0)
   const sessionEpochRef = useRef(0)
+  const nextRequestIdRef = useRef(0)
+  const strayRepliesRef = useRef(0)
+  const lastHeardAtRef = useRef(0)
+  const releasedRef = useRef(new Map<number, { progress: number | undefined }>())
 
   const restartWorker = useCallback(() => {
     const next = workerGenerationRef.current + 1
@@ -135,13 +157,34 @@ export function useWorkerTransport({
             }
           : request.type === 'clear'
             ? { forgetDevice: request.forgetDevice === true }
-            : {}
-      pendingRepliesRef.current.push({ kind: request.type, ...entry, ...flags })
+            : request.type === 'routeShape' || request.type === 'activityTrace'
+              ? { fromOriginal: request.fromOriginal === true }
+              : {}
+      // The number is taken here, when the request goes to a worker, so one that waited for a restart
+      // is numbered for the worker that runs it.
+      const pending: Pending = {
+        id: ++nextRequestIdRef.current,
+        kind: request.type,
+        sentAt: Date.now(),
+        ...entry,
+        ...flags,
+      }
+      pendingRepliesRef.current.push(pending)
       onSend(request)
-      worker.postMessage(request)
+      try {
+        worker.postMessage({ ...request, requestId: pending.id })
+      } catch {
+        // The browser could not copy the request to the worker (a file that cannot be cloned). The
+        // worker never saw it, so nothing will answer: settle it here and say so.
+        pendingRepliesRef.current = pendingRepliesRef.current.filter((other) => other !== pending)
+        pending.settle?.(null)
+        onDropped()
+        setError(NOT_SENT)
+        return false
+      }
       return true
     },
-    [onSend, pendingRepliesRef, setError],
+    [onDropped, onSend, pendingRepliesRef, setError],
   )
 
   // A request is stamped with the session it is made in, when it is made, even if it waits for a worker.
@@ -150,7 +193,7 @@ export function useWorkerTransport({
       request: WorkerRequest,
       notice?: string,
       settle?: Pending['settle'],
-      baseline?: AnalysisResult | null,
+      baseline?: Baseline | null,
     ): boolean => dispatch(request, { notice, settle, baseline, session: sessionEpochRef.current }),
     [dispatch],
   )
@@ -163,9 +206,7 @@ export function useWorkerTransport({
     unsentRef.current = unsentRef.current.filter(
       ({ request }) => !(request.type === 'addFiles' && request.provisional === true),
     )
-    pendingRepliesRef.current = pendingRepliesRef.current.map((pending) =>
-      pending.provisional ? { ...pending, ignored: true } : pending,
-    )
+    ignoreProvisional(pendingRepliesRef.current)
   }, [pendingRepliesRef, unsentRef])
 
   const retryWorker = useCallback(() => {
@@ -182,6 +223,9 @@ export function useWorkerTransport({
     stoppedRef,
     unsentRef,
     pendingRepliesRef,
+    strayRepliesRef,
+    lastHeardAtRef,
+    releasedRef,
     automaticRestartCountRef,
     sessionEpochRef,
     workerStopped,

@@ -11,26 +11,19 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* The card carries its sport on its left edge, as the records' cards do; the figures stay in ink. */
+/* The section is the band (its rule leads the "Your fitness" line); a card has no box. It carries its sport as a 4 px rule beside the state; the figures stay in ink. */
 .fitness-card {
   position: relative;
   display: grid;
   gap: var(--space-4);
   min-width: 0;
-  padding: var(--space-5) var(--space-5) var(--space-4) calc(var(--space-5) + 4px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
-  box-shadow: var(--shadow);
+  padding-bottom: var(--space-2);
 }
 
-.fitness-card::before {
-  content: '';
-  position: absolute;
-  inset: -1px auto -1px -1px;
-  width: 6px;
-  border-radius: var(--radius) 0 0 var(--radius);
-  background: var(--sport-colour);
+/* Two cards (Balance) are told apart by the same rule the band opens with. */
+.fitness-card + .fitness-card {
+  padding-top: var(--space-4);
+  border-top: 2px solid var(--divider);
 }
 
 .fitness-card__top {
@@ -70,9 +63,9 @@
 
 .fitness-card__new strong {
   padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--selected);
-  color: var(--selected-contrast);
+  border-radius: var(--radius-sm);
+  background: var(--highlight);
+  color: var(--highlight-ink);
   font-family: var(--font-display);
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-caps);
@@ -104,9 +97,15 @@
     margin-bottom: calc(var(--space-3) - var(--space-7));
   }
 
+  /* The band's room above its rule goes too: the state and its sentence stay above the tabs. */
+  .band.fitness-section {
+    margin-top: 0;
+    padding-top: var(--space-3);
+  }
+
   .fitness-card {
     gap: var(--space-3);
-    padding-block: var(--space-4) var(--space-2);
+    padding-bottom: var(--space-2);
   }
 
   .fitness-card__sport,
@@ -116,8 +115,8 @@
 
   .fitness-card__top {
     position: absolute;
-    top: var(--space-3);
-    right: var(--space-4);
+    top: var(--space-1);
+    right: 0;
   }
 
   .fitness-card__new-week {
@@ -140,9 +139,14 @@
 
 /* A landscape phone has little height: the track sits beside the words, as on a wide screen, and the card is tighter. */
 @media (max-height: 520px) and (min-width: 560px) {
+  .band.fitness-section {
+    margin-top: 0;
+    padding-top: var(--space-2);
+  }
+
   .fitness-card {
     gap: var(--space-2);
-    padding-block: var(--space-3);
+    padding-bottom: var(--space-3);
   }
 
   .fitness-card__body {
@@ -152,8 +156,8 @@
   /* The sport's tag goes and the marker rides the card's corner, so the state is its first line. */
   .fitness-card__top {
     position: absolute;
-    top: var(--space-3);
-    right: var(--space-4);
+    top: var(--space-1);
+    right: 0;
   }
 
   .fitness-card__sport {
@@ -167,28 +171,32 @@
   min-width: 0;
 }
 
-/* The state, as a word at display size and the shape that says it without colour. */
+/* The state word and its shape (no colour needed); a phone, or a waiting status, sets it a step smaller. */
 .fitness-card__state {
   display: flex;
+  /* At a large text size the word and its shape stack, not widen the page. */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin: 0;
-  font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: clamp(2rem, 6.4vw, 2.75rem);
-  font-weight: 800;
-  line-height: 1;
+  padding-left: var(--space-3);
+  border-left: 4px solid var(--sport-colour);
+  /* A long word hyphenates, then breaks, rather than spill at 200% text. */
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  font-size: var(--display-3);
   text-transform: uppercase;
 }
 
-/* A status that waits says so in a smaller word: it has no change to lead with. */
-.fitness-card[data-state='not-enough-evidence'] .fitness-card__state {
-  font-size: clamp(1.5rem, 4.8vw, 2rem);
+@media (min-width: 761px) {
+  .fitness-card:not([data-state='not-enough-evidence']) .fitness-card__state {
+    font-size: var(--display-2);
+  }
 }
 
 .fitness-card__headline {
   margin: 0;
-  max-width: 56ch;
+  max-width: var(--measure);
   color: var(--text-primary);
   font-size: var(--text-lead);
   line-height: 1.35;
@@ -197,7 +205,7 @@
 
 .fitness-card__support {
   margin: 0;
-  max-width: 62ch;
+  max-width: var(--measure);
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
@@ -221,7 +229,7 @@
   flex: 1 1 0;
   max-width: 28px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--level-4);
 }
 
@@ -255,8 +263,8 @@
 }
 
 @media (forced-colors: active) {
-  .fitness-card::before {
-    background: CanvasText;
+  .fitness-card__state {
+    border-left-color: CanvasText;
   }
 
   .fitness-progress__cell {
@@ -271,124 +279,4 @@
   .fitness-card__new strong {
     border: 1px solid CanvasText;
   }
-}
-
-/* The panel behind the disclosure: the chart across the card, then how it is measured and the runs it rests on side by side. */
-.fitness-evidence {
-  display: grid;
-  gap: var(--space-5);
-  grid-template-columns: minmax(0, 1fr);
-  padding: var(--space-3) 0 var(--space-2);
-}
-
-.fitness-evidence__text {
-  display: grid;
-  gap: var(--space-5);
-  grid-template-columns: minmax(0, 1fr);
-  min-width: 0;
-}
-
-@media (min-width: 901px) {
-  .fitness-evidence__text {
-    gap: var(--space-5) var(--space-6);
-    grid-template:
-      'method runs' auto
-      'why runs' 1fr / minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .fitness-evidence__block[data-area='method'] {
-    grid-area: method;
-  }
-
-  .fitness-evidence__block[data-area='runs'] {
-    grid-area: runs;
-  }
-
-  .fitness-evidence__block[data-area='why'] {
-    grid-area: why;
-  }
-}
-
-.fitness-evidence__block {
-  display: grid;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.fitness-evidence__block h4 {
-  margin: 0;
-}
-
-.fitness-evidence__block p {
-  margin: 0;
-  max-width: 62ch;
-  font-size: var(--text-md);
-}
-
-.fitness-evidence__earlier > summary {
-  min-height: var(--control-height);
-  display: flex;
-  align-items: center;
-}
-
-.fitness-runs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.fitness-runs__row {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: 6px 0;
-  border-top: 1px solid var(--border);
-  font-size: var(--text-sm);
-}
-
-.fitness-runs__row a {
-  /* One underline for a row, under the name: a flex link's two cells would each carry the line. */
-  text-decoration: none;
-  display: flex;
-  flex: 1;
-  gap: var(--space-3);
-  min-width: 0;
-  padding-block: 2px;
-}
-
-.fitness-runs__date {
-  flex: none;
-  min-width: 4.5rem;
-  color: var(--text-secondary);
-}
-
-.fitness-runs__name {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.fitness-runs__figure {
-  flex: none;
-}
-
-@media (pointer: coarse) {
-  .fitness-runs__row a {
-    min-height: 44px;
-    align-items: center;
-  }
-}
-
-.fitness-runs__row a:hover .fitness-runs__name {
-  text-decoration-thickness: 2px;
 }

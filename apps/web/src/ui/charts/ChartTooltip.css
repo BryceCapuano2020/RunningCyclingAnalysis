@@ -9,7 +9,7 @@
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-pop);
   color: var(--text-primary);
   font-size: var(--text-sm);
   line-height: 1.4;

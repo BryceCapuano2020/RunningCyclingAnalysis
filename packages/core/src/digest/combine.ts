@@ -1,9 +1,16 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
-import { EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../constants'
+import {
+  DURATIONS_S,
+  EQUIVALENCE_DURATIONS_S,
+  FLAT_RUN_COST,
+  HEADLINE_DURATION_S,
+  RESTING_W_PER_KG,
+} from '../constants'
 import { criticalPowerOutcome, unevenFit, wPrimeFloor } from '../cp'
 import type { UnevenFit } from '../cp'
 import { checkEfforts } from '../effort'
+import type { EffortGate } from '../effort'
 import { requirePositiveFinite } from '../math'
 import type {
   ActivityDigest,
@@ -17,23 +24,45 @@ import type {
   HrCalibration,
   HrCrossCheck,
   Interval,
+  Sport,
   VirtualPowerAccuracy,
 } from '../types'
 import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
+import { gatedThreshold } from './effortGating'
+import { effortGatesOf } from './twentyMinute'
 import { summaryOf, type ActivitySummary } from './summary'
 import type { BikeModelSource } from '../virtualPower'
 import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
 import { powerCheckOf, trustedPower } from './powerCheck'
+import { answers } from './judgedWork'
+import type { JudgedWork } from './judgedWork'
 import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
 import type { EstimatedRideGate } from './estimatedRide'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
 import type { HeartRateJudgement } from './setAsideTypes'
+
+/** A heart-rate check with points and fits of its own, for a result that must not share them with the judgement. */
+function copyOfCheck(check: HrCrossCheck): HrCrossCheck {
+  const copyOf = (sport: HrCrossCheck['run']) =>
+    sport === null
+      ? null
+      : {
+          points: sport.points.map((point) => Object.assign({}, point)),
+          fit: Object.assign({}, sport.fit),
+        }
+  return {
+    run: copyOf(check.run),
+    ride: copyOf(check.ride),
+    kappa: check.kappa,
+    lnKappaSe: check.lnKappaSe,
+  }
+}
 
 export interface Equivalence {
   durationS: number
@@ -77,6 +106,12 @@ export interface AnalysisResult {
   /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
   runCpRefusal: CriticalPowerRefusal | null
   rideCpRefusal: CriticalPowerRefusal | null
+  /**
+   * Whether each sport's best 20 minutes was a hard effort, which every threshold, zone, prediction and level
+   * built on its bests waits for (the effort gate). A failed gate withholds the fit (`runCpRefusal` is 'effort') and
+   * carries the demonstrated best as its floor.
+   */
+  effortGate: Record<Sport, EffortGate>
   /** The threshold without the uneven bests, which set only a floor on it; null without one. See cp/uneven. */
   runCpUneven: UnevenFit | null
   rideCpUneven: UnevenFit | null
@@ -172,7 +207,7 @@ export function activitySummaries(
 ): ActivitySummary[] {
   const masses = settings === undefined ? null : massesOf(settings)
   const dated = masses !== null && masses.dated
-  return orderedCurrent(digests)
+  return orderedFor('listing', digests)
     .map((digest) => {
       const summary = summaryOf(digest, dated ? masses.bodyKg(digest) : undefined)
       const check = masses === null ? undefined : powerCheckOf(digest, masses)
@@ -201,13 +236,18 @@ export interface CombineOptions {
    * against them and the result reports them, so the athlete's reference heart rate is one number whichever
    * period is on screen. Absent, they are taken from these digests alone.
    */
-  references?: Pick<HeartRateJudgement, 'referenceHr' | 'observedMaxHr'>
+  references?: Pick<HeartRateJudgement, 'referenceHr' | 'observedMaxHr' | 'effortReference'>
   /**
    * The library's estimated-ride gate (`HeartRateJudgement.rideGate`): which rides without a power meter count
    * toward the bests, as the athlete's measured rides' heart rate says. Given, every period reads rides by the
    * same rule. Absent, it is built from these digests; null counts every estimated point.
    */
   rideGate?: EstimatedRideGate | null
+  /**
+   * What judging the library worked out (`judgedWorkOf`). Used only when these digests are the judged ones under the
+   * same masses, gate and set-aside, when the analysis is the same figures without working them out again.
+   */
+  judged?: JudgedWork
 }
 
 /**
@@ -221,29 +261,43 @@ export function combine(
 ): AnalysisResult {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
-  const ordered = orderedCurrent(digests)
+  const ordered = orderedFor('combine', digests)
   // The mass of today, which the threshold floors and the comparison are expressed at. Each activity
   // is priced at the body and bike mass in effect on its own date.
   const massKg = settings.massKg
   const masses = massesOf(settings)
 
+  // The library's judgement already did the work of an analysis of the whole library under the same masses.
+  const reused =
+    opts.judged !== undefined && answers(opts.judged, ordered, settings, opts) ? opts.judged : null
   const calibrated = calibratedOf(trustedPower(ordered, masses))
-  const fittedBike = fitBikeModelOver(ordered, masses)
+  const fittedBike =
+    reused === null
+      ? fitBikeModelOver(ordered, masses)
+      : { model: { ...reused.bikeModel }, source: reused.bikeModelSource }
   const bikeModel = fittedBike.model
   const virtualAccuracy =
     calibrated.length > 0
       ? leaveOneOutAccuracy(calibrated, (digest) => masses.totalKg(digest))
       : null
 
-  const { curves, fits, heart } = judgedCurves(ordered, masses, bikeModel, massKg, {
-    heartRateSetAside: opts.heartRateSetAside,
-    rideGate: opts.rideGate,
-  })
+  const { curves, fits, heart, gate } =
+    reused ??
+    judgedCurves(
+      ordered,
+      masses,
+      bikeModel,
+      massKg,
+      { heartRateSetAside: opts.heartRateSetAside, rideGate: opts.rideGate },
+      settings,
+    )
   const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = curves
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
   const rideMeasuredCurve = plainCurve(measuredRideBest(trustedPower(ordered, masses)))
-  const rideMetabolicCurve = rideMetabolic
+  // What the judgement worked out is shared, so what the result hands out is a copy.
+  const rideMetabolicCurve =
+    reused === null ? rideMetabolic : rideMetabolic.map((point) => Object.assign({}, point))
 
   const runFit = fits.run
   const rideFit = fits.ride
@@ -260,7 +314,9 @@ export function combine(
   const rideCp = rideOutcome.fit
   const runCpUneven = unevenFit(runCurve, wPrimeFloor('run', massKg), runCp)
   const rideCpUneven = unevenFit(rideMetabolicCurve, wPrimeFloor('ride', massKg), rideCp)
-  const hr = heartRateCrossCheck(heart.trusted, masses, bikeModel, { run: runFit, ride: rideFit })
+  const hr =
+    (reused === null ? null : copyOfCheck(reused.cross)) ??
+    heartRateCrossCheck(heart.trusted, masses, bikeModel, { run: runFit, ride: rideFit })
   // The calibration is the athlete's, not the period's: given, it replaces this period's own check below.
   const calibration = opts.calibration === undefined ? hr : opts.calibration
   const comparison = compareSports(runCurve, rideComparable, massKg, calibration, {
@@ -286,12 +342,28 @@ export function combine(
 
   const reference = opts.references?.referenceHr ?? heart.reference
   const observedMax = opts.references?.observedMaxHr ?? heart.observedMax
-  const effort = checkEfforts(
-    withoutSetAside(runBest, heart.setAside),
-    withoutSetAside(rideBest, heart.setAside),
-    reference,
-    comparison.prior.map((p) => p.durationS),
+  const judged = opts.references?.effortReference ?? heart.effort
+  const heartRuns = withoutSetAside(runBest, heart.setAside)
+  const heartRides = withoutSetAside(rideBest, heart.setAside)
+  // Every duration, not the comparison's: a library of one sport has no comparison, and still has efforts to judge.
+  const effort = checkEfforts(heartRuns, heartRides, judged.referenceHr, DURATIONS_S, judged)
+  const effortGate = effortGatesOf(
+    ordered,
+    masses,
+    bikeModel,
+    gate,
+    { run: runCurve, ride: rideMetabolicCurve },
+    judged,
+    heart.setAside,
   )
+  // The chip and the gate judge the same effort: the one with the highest heart rate among the 20 minute bests.
+  const headline = effort.find((e) => e.durationS === HEADLINE_DURATION_S)
+  if (headline !== undefined) {
+    if (effortGate.run.share !== null) headline.runHrFraction = effortGate.run.share
+    if (effortGate.ride.share !== null) headline.rideHrFraction = effortGate.ride.share
+  }
+  const run = gatedThreshold(effortGate.run, runOutcome, runCpUneven)
+  const ride = gatedThreshold(effortGate.ride, rideOutcome, rideCpUneven)
 
   return {
     activities: activitySummaries(digests, settings),
@@ -299,12 +371,13 @@ export function combine(
     rideCurve,
     rideMetabolicCurve,
     rideMeasuredCurve,
-    runCp,
-    rideCp,
-    runCpRefusal: runOutcome.refusal,
-    rideCpRefusal: rideOutcome.refusal,
-    runCpUneven,
-    rideCpUneven,
+    runCp: run.fit,
+    rideCp: ride.fit,
+    runCpRefusal: run.refusal,
+    rideCpRefusal: ride.refusal,
+    effortGate,
+    runCpUneven: run.uneven,
+    rideCpUneven: ride.uneven,
     hr,
     comparison,
     equivalents,
@@ -314,7 +387,11 @@ export function combine(
     runObservedMaxHeartRate: observedMax.run,
     rideObservedMaxHeartRate: observedMax.ride,
     heartRateSetAside: [...heart.setAside].sort(),
-    runVo2max: vo2maxFromHeartRate(heart.trusted, reference.run, runCentralWkg),
+    // A share of a reference that is not a maximum would price VO2max as if it were one.
+    runVo2max:
+      judged.reading.run === 'trusted'
+        ? vo2maxFromHeartRate(heart.trusted, judged.referenceHr.run, runCentralWkg)
+        : null,
     effort,
     bikeModel,
     bikeModelSource: fittedBike.source,

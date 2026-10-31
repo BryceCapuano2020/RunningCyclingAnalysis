@@ -145,8 +145,9 @@ test('reads APP_URL from the Wrangler configuration', () => {
 
 test('lists one check per production route that must stay reachable', () => {
   const names = smokeChecks(ORIGIN, ORIGIN).map((check) => check.name)
-  assert.equal(names.length, 9)
+  assert.equal(names.length, 10)
   assert.ok(names.some((name) => name.includes('/api/auth/google')))
+  assert.ok(names.some((name) => name.includes('/api/auth/dev-login')))
   assert.ok(names.some((name) => name.includes('/.well-known/security.txt')))
   assert.ok(names.some((name) => name.includes('/robots.txt')))
   assert.ok(names.some((name) => name.includes('/privacy')))
@@ -279,7 +280,7 @@ test('an unknown path must answer 404 with the Worker security headers', async (
   )
 })
 
-test('every smoke request is a bodyless GET, so a run sends no mutating request', async () => {
+test('every smoke request is a bodyless GET, except the one empty-object POST to dev-login', async () => {
   const seen = []
   const fetchImpl = healthyFetch()
   await runSmoke({
@@ -293,10 +294,39 @@ test('every smoke request is a bodyless GET, so a run sends no mutating request'
     sleep: noSleep,
   })
   assert.ok(seen.length >= 9)
-  for (const init of seen) {
+  const posts = seen.filter((init) => init.method === 'POST')
+  assert.equal(posts.length, 1)
+  assert.equal(posts[0].body, '{}')
+  for (const init of seen.filter((init) => init.method !== 'POST')) {
     assert.ok(init.method === undefined || init.method === 'GET')
     assert.equal(init.body, undefined)
   }
+})
+
+test('dev-login must answer 404; any other answer means the development gate is open', async () => {
+  for (const status of [200, 400, 403, 500]) {
+    const failures = await runSmoke({
+      origin: ORIGIN,
+      appUrl: ORIGIN,
+      attempts: 1,
+      fetchImpl: healthyFetch({
+        '/api/auth/dev-login': () => new Response('{}', { status }),
+      }),
+      sleep: noSleep,
+    })
+    assert.match(
+      failures.join('\n'),
+      new RegExp(`dev-login is not served.*dev-login answered ${status}, expected 404`),
+    )
+  }
+  const closed = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    attempts: 1,
+    fetchImpl: healthyFetch(),
+    sleep: noSleep,
+  })
+  assert.deepEqual(closed, [])
 })
 
 test('a Worker with no build id still passes without --expect-sha, and fails with it', async () => {

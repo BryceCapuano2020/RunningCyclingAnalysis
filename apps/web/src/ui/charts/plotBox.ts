@@ -1,4 +1,5 @@
 import type { PlotBox } from './chartTypes'
+import { DEFAULT_ROOT_PX, rootFontPx } from './rootFont'
 
 /** The plot's margins inside a chart's SVG, in px: room for the y axis on the left and the x axis below. */
 export const PLOT_MARGIN = { top: 28, right: 16, bottom: 52, left: 56 }
@@ -24,6 +25,15 @@ export const X_TICK_BASELINE_PX = 18
  */
 export const PLOT_BOTTOM_WITHOUT_X_TITLE = 30
 
+/**
+ * How much the chart's fixed geometry grows with the reader's text size: the px margins, the x axis's offsets
+ * and the chart's height are laid out for a 16 px root, and the labels they hold are in rem. Never below 1, so
+ * a reader who shrinks text keeps the geometry the layouts were drawn for.
+ */
+export function geometryScale(): number {
+  return Math.max(1, rootFontPx() / DEFAULT_ROOT_PX)
+}
+
 /** Whether a chart of this width takes phone geometry. */
 export function isPhoneWidth(width: number): boolean {
   return width < PHONE_CHART_WIDTH
@@ -31,7 +41,8 @@ export function isPhoneWidth(width: number): boolean {
 
 /**
  * The plot's box in a chart of this size, with its right and bottom margins as given. A phone takes the
- * smaller margins where the chart does not set its own; a margin a chart gives is kept at every width.
+ * smaller margins where the chart does not set its own; a margin a chart gives is kept at every width. The
+ * left, top and bottom margins grow with the reader's text size (geometryScale), and the height with them.
  */
 export function plotBoxOf(
   width: number,
@@ -41,10 +52,13 @@ export function plotBoxOf(
   phone = false,
 ): PlotBox {
   const margin = phone ? PLOT_MARGIN_PHONE : PLOT_MARGIN
+  const scale = geometryScale()
+  const left = margin.left * scale
   return {
-    left: margin.left,
-    right: Math.max(margin.left + 1, width - (rightMargin ?? margin.right)),
-    top: margin.top,
-    bottom: height - (bottomMargin ?? margin.bottom),
+    left,
+    // A right margin a chart gives is already measured at the reader's text size, as its end labels are.
+    right: Math.max(left + 1, width - (rightMargin ?? margin.right)),
+    top: margin.top * scale,
+    bottom: height - (bottomMargin ?? margin.bottom) * scale,
   }
 }

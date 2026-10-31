@@ -243,14 +243,6 @@ export function headlineGrades(result: AnalysisResult, profile: AgeProfile): Hea
 }
 
 /**
- * The headline's comparison, left out when the ride is at the top of the scale. The energy comparison is taken
- * from the same ride, so it would carry into the balance a ride that the grades leave out.
- */
-export function unlessRideAtTop<T>(pick: T | null, ride: GradeOutcome | null): T | null {
-  return isTopOfScale(ride) ? null : pick
-}
-
-/**
  * The sex the grades are for, when either sport shows a grade at the headline duration; null when
  * neither does, or the profile is missing. A page cites its standard only with this sex in hand.
  * A ride counts only when rideShown: a ride's grade waits for the weight, so a page without one

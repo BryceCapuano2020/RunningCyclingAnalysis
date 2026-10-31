@@ -23,14 +23,18 @@ afterAll(() => {
   vi.unstubAllEnvs()
 })
 
+// jsdom has no layout, so it has no scrollIntoView; a page turn scrolls the list to its top. It is put in place
+// for each test and taken away after it, so a test that assigns its own leaves nothing for the next.
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(NOW)
+  Element.prototype.scrollIntoView = vi.fn()
 })
 
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
 })
 
 function renderList(
@@ -348,11 +352,6 @@ describe('ActivityList months', () => {
 })
 
 describe('ActivityList paging', () => {
-  // jsdom has no layout, so it has no scrollIntoView; a page turn scrolls the list to its top.
-  beforeEach(() => {
-    Element.prototype.scrollIntoView = vi.fn()
-  })
-
   it('mounts the page status before a second page exists, so its first message is announced', () => {
     const activity = (i: number) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })
     const { rerender } = renderList(Array.from({ length: 20 }, (_, i) => activity(i)))

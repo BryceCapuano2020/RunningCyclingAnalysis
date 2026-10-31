@@ -14,6 +14,8 @@
   color: inherit;
   cursor: help;
   font: inherit;
+  /* A button's text does not wrap by default; a term in a sentence wraps with it (WCAG 1.4.10). */
+  white-space: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
 }
@@ -52,7 +54,7 @@ p .definition__term::after {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-pop);
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: var(--text-sm);

@@ -26,7 +26,7 @@ function renderPage(sport: Sport, lateEvidence: LateEvidence) {
       trends={NO_TRENDS}
       sameHeartRate={NO_SAME_HEART_RATE[sport]}
       lateEvidence={lateEvidence}
-      windowDays={28}
+      change={null}
       units="metric"
       massKg={75}
       weighted
@@ -121,7 +121,7 @@ describe('late in long sessions on a sport page', () => {
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(within(section).queryByText(/overall/)).toBeNull()
     expect(notEnough()).toContain(
-      'Best efforts late in long sessions: add 3 rides longer than an hour with a power meter.',
+      'Best efforts late in long sessions: add 3 rides with a power meter, each longer than an hour and reaching a hard heart rate.',
     )
   })
 
@@ -132,7 +132,7 @@ describe('late in long sessions on a sport page', () => {
     expect(
       notEnough().filter((line) => /^(Best efforts late|Output per heartbeat)/.test(line)),
     ).toEqual([
-      'Best efforts late in long sessions: add 3 rides longer than an hour with a power meter.',
+      'Best efforts late in long sessions: add 3 rides with a power meter, each longer than an hour and reaching a hard heart rate.',
       'Output per heartbeat over an hour: needs 3 steady rides with a power meter and heart rate.',
     ])
   })

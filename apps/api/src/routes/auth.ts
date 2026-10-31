@@ -6,7 +6,10 @@ import { ACCOUNT_SCOPE_HEADER, DevLoginSchema, unitsForAcceptLanguage } from '@r
 import type { AppEnv } from '../env.ts'
 import { HttpError } from '../errors.ts'
 import { parseGoogleIdToken } from '../auth/google.ts'
-import { buildMe, ensureProfile, signInDev, signInWithGoogle } from '../auth/accounts.ts'
+import { buildMe, ensureProfile, signInDev } from '../auth/accounts.ts'
+import { signInWithGoogle } from '../auth/signIn.ts'
+import { signupGate } from '../auth/signupGate.ts'
+import { isLocalRequest } from '../localDev.ts'
 import { createSession, endSession, isSecure, loadSession } from '../auth/session.ts'
 import { invalidRequest, limitBody } from '../http.ts'
 import { toBase64Url, toHex } from '../util.ts'
@@ -29,8 +32,9 @@ function oauthCookieAttributes(c: Parameters<typeof isSecure>[0]) {
   }
 }
 
+/** Dev-login exists only on the developer's own machine (see isLocalDevelopment). */
 const devOnly = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.env.ENVIRONMENT !== 'development') throw new HttpError(404, 'not_found', 'Not found')
+  if (!isLocalRequest(c)) throw new HttpError(404, 'not_found', 'Not found')
   await next()
 })
 
@@ -70,7 +74,10 @@ authRoutes.get('/google/callback', async (c) => {
   }
 
   const profile = parseGoogleIdToken(idToken, c.env.GOOGLE_CLIENT_ID, deps.now())
-  const user = await signInWithGoogle(db, deps, profile)
+  // A refusal the person can act on (not on the list, too many accounts today, being deleted, an email that
+  // belongs to another Google account) is a coded error. The browser is mid-navigation, so the app's error
+  // handler sends it back to the app with the code, which the app words (see signInProblem).
+  const user = await signInWithGoogle(db, deps, profile, signupGate(c.env, c.req.url))
   // A new account's profile starts in the units of this sign-in's language; an existing one keeps its own.
   const units = unitsForAcceptLanguage(c.req.header('accept-language'))
   await ensureProfile(db, user.id, deps.now(), units)

@@ -8,10 +8,11 @@ import type { BalanceGap } from '../ui/balanceGap'
 import { balanceOfPick, type BalanceReading } from '../ui/components/balanceScale'
 import { effortCaveat } from '../ui/effortCaveat'
 import { balanceTitle, leadSentence } from '../ui/components/headlineText'
-import { headlinePick } from '../ui/components/pickHeadline'
+import { heldPick } from '../ui/resultHold'
+import { rideHoldInputs } from '../ui/rideLeftOut'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
-import { heroGradeLine, LEVEL_NOT_RANKING, unlessRideAtTop, type GradeOutcome } from '../ui/grades'
+import { heroGradeLine, LEVEL_NOT_RANKING, type GradeOutcome } from '../ui/grades'
 import { countSport, threshold } from '../ui/records'
 import { SPORT_ORDER, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
 import { cardNameShown } from './cardName'
@@ -192,7 +193,7 @@ export function buildShareCard(
   name: string | null = null,
 ): ShareCardModel | null {
   if (!hasShareableContent(result, gap, weightKnown, grades.ride)) return null
-  const pick = unlessRideAtTop(headlinePick(result), grades.ride)
+  const { pick } = heldPick(result, rideHoldInputs(grades.ride, result))
   const reading = balanceOfPick(gap, pick)
   const heroes = heroesFor(result, settings, units, grades)
   if (reading === null || heroes === null) return null

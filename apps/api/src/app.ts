@@ -8,12 +8,15 @@ import type { AppEnv } from './env.ts'
 import { csrfGuard } from './middleware.ts'
 import { authRoutes } from './routes/auth.ts'
 import { meRoutes } from './routes/me.ts'
+import { sessionRoutes } from './routes/sessions.ts'
 import { measurementRoutes } from './routes/measurements.ts'
 import { activityRoutes } from './routes/activities/index.ts'
 import { publicRateLimit } from './rateLimit.ts'
+import { isSignInNavigation, signInProblemUrl } from './signInProblem.ts'
 import { healthRoutes } from './routes/health.ts'
 import { BUILD_SHA } from './buildInfo.ts'
 import { accessLog } from './accessLog.ts'
+import { isLocalRequest } from './localDev.ts'
 
 /** Builds the API. Overrides replace the clock, randomness and OAuth client (tests). */
 export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
@@ -38,7 +41,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
     }
     c.res.headers.set('X-Frame-Options', 'DENY')
     c.res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
-    if (c.env.ENVIRONMENT !== 'development') {
+    if (!isLocalRequest(c)) {
       c.res.headers.set('Strict-Transport-Security', 'max-age=31536000')
     }
   })
@@ -48,6 +51,8 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
 
   app.onError((err, c) => {
     if (err instanceof HttpError) {
+      // A person whose sign-in is refused is sent back to the app with the reason, not left on raw JSON.
+      if (isSignInNavigation(c)) return c.redirect(signInProblemUrl(c.env.APP_URL, err), 302)
       if (err.retryAfter !== undefined) c.header('Retry-After', String(err.retryAfter))
       return c.json(apiError(err.code, err.message), err.status)
     }
@@ -80,6 +85,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
   app.route('/api/health', healthRoutes)
   app.route('/api/auth', authRoutes)
   app.route('/api', meRoutes)
+  app.route('/api/sessions', sessionRoutes)
   app.route('/api/measurements', measurementRoutes)
   app.route('/api/activities', activityRoutes)
 

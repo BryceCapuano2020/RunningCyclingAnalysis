@@ -11,6 +11,11 @@ import { floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { bestBeyondThresholdLine } from '../thresholdBest'
 import { thresholdSpan } from '../thresholdRange'
+import {
+  heldBestHeading,
+  thresholdUncheckedLine,
+  thresholdWithheldLine,
+} from '../thresholdWithheld'
 import { EffortChip } from './EffortChip'
 import { effortChipText } from '../effortCaveat'
 import { RangeTrack } from './RangeTrack'
@@ -68,8 +73,12 @@ export function ThresholdTile({
   if (sport === 'ride' && !weighted) {
     return (
       <StatTile sport={sport} heading={NAME[sport]} definition={DEFINED[sport]}>
-        {/* What needs no weight: how many rides, how long, and when the latest was. Then the one ask. */}
-        <HeldSportFacts sport={sport} activities={result.activities} />
+        {/* What needs no weight: how many rides, how long, when the latest was, and a best a meter measured. Then the one ask. */}
+        <HeldSportFacts
+          sport={sport}
+          activities={result.activities}
+          measured={result.rideMeasuredCurve}
+        />
         <WeightNote />
       </StatTile>
     )
@@ -80,7 +89,11 @@ export function ThresholdTile({
     CHIP_DURATIONS_S.includes(record.durationS),
   )
   const effort = headlineEffort(sport, records)
-  const chip = effortChipText(sport, effortCheck)
+  const withheld = thresholdWithheldLine(result, sport)
+  const heldHeading = heldBestHeading(result, sport)
+  const unchecked = fitted === null ? null : thresholdUncheckedLine(result, sport)
+  // The line under a withheld best says what the chip would, so the chip is left out beside it.
+  const chip = withheld === null ? effortChipText(sport, effortCheck) : null
   // Where the best 20 minutes has its own line, the grade line leaves its figure out rather than say it twice.
   const bestLine = fitted === null ? null : bestBeyondThresholdLine(result, sport, effort)
   const line = gradeLine(sport, grade, bestLine === null ? effort : null)
@@ -106,10 +119,10 @@ export function ThresholdTile({
   return (
     <StatTile
       sport={sport}
-      heading={NAME[sport]}
+      heading={heldHeading ?? NAME[sport]}
       definition={DEFINED[sport]}
       gloss={fitted === null ? undefined : THRESHOLD_GLOSS[sport]}
-      basis={fitted === null ? 'floor' : 'estimated'}
+      basis={fitted === null ? (heldHeading === null ? 'floor' : 'recorded') : 'estimated'}
       figure={{
         number: hero.number,
         unit: hero.unit,
@@ -127,6 +140,8 @@ export function ThresholdTile({
       }
     >
       {bestLine === null ? null : <p className="stat-tile__line">{bestLine}</p>}
+      {withheld === null ? null : <p className="stat-tile__line">{withheld}</p>}
+      {unchecked === null ? null : <p className="stat-tile__line">{unchecked}</p>}
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
       {chip === null ? null : (
         <p className="stat-tile__effort">

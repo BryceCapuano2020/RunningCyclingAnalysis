@@ -1,6 +1,6 @@
 export type { MeanMaximalOptions, Occupancy } from './meanMaximal'
 export { meanMaximal } from './meanMaximal'
-export { mergeCurves } from './mergeCurves'
+export { displaces, mergeCurves } from './mergeCurves'
 export { monotoneEnvelope } from './monotoneEnvelope'
 export { possibleRunWkg, runCeilingSpeed } from './runCeiling'
 export { implausiblePower, ridePowerCeilingWkg } from './powerCeiling'

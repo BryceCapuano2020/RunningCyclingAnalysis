@@ -69,10 +69,21 @@ export function isDeletion(kind: WorkerRequest['type']): boolean {
 
 /** A request the worker has not answered yet. `notice` is the confirmation shown on success. */
 export interface Pending {
+  /** The request's number, which its reply carries back as `replyTo`. Unique for the page's life. */
+  id: number
   kind: WorkerRequest['type']
+  /** When the request was sent, in epoch ms. */
+  sentAt: number
+  /** When the worker began it, in epoch ms; absent while it waits its turn behind another request. */
+  startedAt?: number
+  /** A read of a route or recording from the kept original file, which can take a download's time. */
+  fromOriginal?: boolean
+  /** The worker's last work count for this request, and when it last moved (or the request last spoke). */
+  progress?: number
+  activeAt?: number
   notice?: string
   /** The analysis an import is compared with, taken when the import was sent. */
-  baseline?: AnalysisResult | null
+  baseline?: Baseline | null
   /** Receives the worker's answer, or null when the worker is dropped before answering. */
   settle?: (message: WorkerResponse | null) => void
   /** An analysis made while the account loads: its answer is not an import result, so it is not summarised. */
@@ -92,6 +103,16 @@ export function drainBatches(queue: Box<File[][]>): File[][] {
   const batches = queue.current
   queue.current = []
   return batches
+}
+
+/**
+ * The analysis an import is compared with, and the period it was made under. A period is a regime: the default period
+ * is 12 weeks, or all time where the last 12 weeks lack a sport the library has, so one added activity can switch it, and figures from
+ * two regimes are not figures of one athlete changing.
+ */
+export interface Baseline {
+  result: AnalysisResult
+  period: Period
 }
 
 /** The period before any activities are loaded: the default, with no dates yet. */
@@ -116,8 +137,10 @@ export const EMPTY_SESSION: SessionState = {
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
   walkingPaceRuns: 0,
+  countedWalkingRuns: [],
   trend: [],
   previous: null,
+  change: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,

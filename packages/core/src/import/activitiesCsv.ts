@@ -12,21 +12,9 @@ import {
   ZIP,
 } from '../fit/zipDirectory'
 import { readCsvRows } from './csv'
+import { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from './limits'
 
-/**
- * The most a Strava activity list may hold once inflated. A list of tens of thousands of activities
- * is a few megabytes, so this is generous. It bounds the text a list inflates to, but not the cells
- * a parser builds from that text: a row of commas is a cell per byte, and MAX_CSV_CELLS_PER_ROW
- * bounds those.
- */
-export const MAX_ACTIVITY_LIST_BYTES = 32 * 1024 * 1024
-
-/**
- * The most cells one row of a Strava activity list may hold. A Strava export has about 80 to 90
- * columns, so 64 would refuse real exports; this leaves room for more. A row past the cap makes the
- * list malformed, so every file is read.
- */
-export const MAX_CSV_CELLS_PER_ROW = 256
+export { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from './limits'
 
 const LIST_NAME = 'activities.csv'
 /**

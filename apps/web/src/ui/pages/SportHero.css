@@ -1,32 +1,27 @@
 /*
  * The sport page's answer: the threshold at display size on the left, the level of the best 20 minutes on
- * the right, in one card. Below 1080 px the two stack, the threshold first, so it keeps the first screen.
+ * the right, in one .band (a rule across the top, no box). Below 1080 px the two stack, the threshold first,
+ * so it keeps the first screen.
  */
 .sport-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
-  overflow: hidden;
-  background: var(--surface-1);
-  background-image: radial-gradient(
-    56rem 20rem at 0% 0%,
-    var(--sport-colour-soft),
-    transparent 70%
-  );
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
 }
 
 .sport-hero__panel {
   display: grid;
+  /* One track the panel's width: an auto track grows to its widest line, which a large text size sends past the card. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-5) var(--space-4);
+  /* The band's own top padding opens the panel. */
+  padding: 0 0 var(--space-5);
 }
 
 .sport-hero__levelpanel {
+  padding-top: var(--space-5);
   border-top: 1px solid var(--border);
 }
 
@@ -58,25 +53,20 @@
 
 .sport-hero__number {
   color: var(--text-primary);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-family: var(--font-display);
-  font-size: clamp(5.5rem, 26vw, 7rem);
-  font-weight: 800;
-  line-height: 0.8;
-  font-variant-numeric: tabular-nums;
+  font-size: var(--display-1);
 }
 
 .sport-hero__unit,
 .sport-hero__side {
   color: var(--text-secondary);
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 8vw, 2.75rem);
+  font-size: var(--display-3);
   font-weight: 800;
   line-height: 1;
 }
 
 .sport-hero__side {
-  font-size: 1.5rem;
+  font-size: var(--title);
   font-weight: 700;
 }
 
@@ -118,24 +108,24 @@
   align-items: baseline;
   gap: 0 var(--space-3);
   margin: 0;
-  font-family: var(--font-display);
-  font-weight: 800;
-  line-height: 0.95;
   text-transform: uppercase;
 }
 
 .sport-hero__level-name {
+  min-width: 0;
+  /* A level word wider than the panel (a large text size, a reader's letter spacing) breaks rather than leave the card. */
+  overflow-wrap: anywhere;
   color: var(--text-primary);
-  font-size: clamp(2.75rem, 14vw, 4rem);
+  font-size: var(--display-2);
 }
 
 .sport-hero__level-name--long {
-  font-size: clamp(2rem, 10vw, 2.75rem);
+  font-size: var(--display-3);
 }
 
 .sport-hero__level-value {
   color: var(--text-secondary);
-  font-size: clamp(1.75rem, 9vw, 2.5rem);
+  font-size: var(--display-3);
 }
 
 .sport-hero__level-basis {
@@ -159,16 +149,6 @@
   }
 }
 
-@media (min-width: 761px) {
-  .sport-hero__panel {
-    padding: var(--space-6) var(--space-6) var(--space-5);
-  }
-
-  .sport-hero__number {
-    font-size: clamp(6.5rem, 13vw, 8.5rem);
-  }
-}
-
 @media (min-width: 1081px) {
   .sport-hero {
     /* 60/40: the threshold figure leads. */
@@ -178,6 +158,24 @@
   .sport-hero__levelpanel {
     border-top: 0;
     border-left: 1px solid var(--border);
+    padding-top: 0;
+    padding-left: var(--space-6);
     align-content: center;
+  }
+}
+
+/*
+ * Forced colours paint a backplate behind each run of text, as tall as the font and not the line. At 0.8 the
+ * figure's backplate covered the eyebrow and the chip above it; at 1 it sits on its own line.
+ */
+@media (forced-colors: active) {
+  .sport-hero__number {
+    line-height: 1;
+  }
+
+  /* A level name that wraps puts its percent on a second line, which the backplate of the first would cover. */
+  .sport-hero__level {
+    row-gap: var(--space-3);
+    line-height: 1;
   }
 }

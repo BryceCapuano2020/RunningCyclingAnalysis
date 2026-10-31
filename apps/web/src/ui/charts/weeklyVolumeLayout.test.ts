@@ -2,10 +2,7 @@ import { DAY_MS } from '@rca/core/constants'
 import { describe, expect, it } from 'vitest'
 import type { VolumeWeek } from '../weeklyVolume'
 import type { ChartSize } from './chartTypes'
-import type { SharedWeek } from './gradeTrend'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, plotBoxOf } from './plotBox'
-import { sharedTrendLayout } from './sharedTrendLayout'
-import { trendRowsOf } from './sharedTrendRows'
 import { MAX_BAR_PX, STACK_GAP_PX, weeklyVolumeLayout } from './weeklyVolumeLayout'
 
 const FIRST_END = Date.UTC(2025, 0, 12, 23, 59, 59, 999)
@@ -64,26 +61,6 @@ describe('weeklyVolumeLayout over months with a partial final month', () => {
 })
 
 describe('weeklyVolumeLayout', () => {
-  it('stands each bar at the x the trend gives the same week, at any width', () => {
-    const volume = weeksOf([3, 0], [0, 0], [2, 4], [5, 1], [0, 6])
-    const trend: SharedWeek[] = volume.map((week) => ({
-      endMs: week.endMs,
-      run: 0.6,
-      ride: null,
-      rideLow: null,
-      rideHigh: null,
-      runCount: 1,
-      rideCount: 0,
-    }))
-    for (const width of [320, 640, 1000]) {
-      // The strip is shorter than the trend; only the plot's left and right edges must agree.
-      const bars = weeklyVolumeLayout(volume, sizeOf(width, 200))
-      const line = sharedTrendLayout(trendRowsOf(trend), sizeOf(width, 320))
-      expect(bars?.xs).toEqual(line?.xs)
-      expect(bars?.xTicks).toEqual(line?.xTicks)
-    }
-  })
-
   it('stacks the sports from the bottom in their order, each as tall as its hours', () => {
     const size = sizeOf(640)
     const layout = weeklyVolumeLayout(weeksOf([2, 4], [1, 0]), size)

@@ -9,13 +9,10 @@ import type { Copy } from '@rca/core/session'
 import type { Route } from '../route'
 import type { SavedActivity } from '../../worker/protocol'
 import type { RouteReply } from '../routeReply'
-import { analysisStub } from '../../test/analysisStub'
+import { analysisStub, countedRunsStub } from '../../test/analysisStub'
 import { curvePoint } from '../charts/fixtures'
 import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
 import { ResultPage } from './ResultPage'
-import { AnalysisSession } from '@rca/core/session'
-import { gradeWeeks } from '../charts/gradeTrend'
-import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { PERIOD_KEY } from '../periodPreference'
 
 afterEach(() => {
@@ -45,6 +42,7 @@ function renderPage(
   })
   return render(
     <ResultPage
+      countedRuns={countedRunsStub()}
       signedIn={false}
       route={route}
       analysis={analysisStub()}
@@ -110,6 +108,7 @@ describe('ResultPage sport trend', () => {
     })
     const page = (route: Route) => (
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={route}
         analysis={analysisStub()}
@@ -174,6 +173,7 @@ describe('ResultPage footnote', () => {
   function renderHeldRide(ride: ReturnType<typeof makeActivity> | null) {
     return render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'ride' }}
         analysis={analysisStub()}
@@ -190,6 +190,7 @@ describe('ResultPage footnote', () => {
   function renderFooter(route: Route, isSample: boolean) {
     return render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={route}
         analysis={analysisStub({ state: { isSample } })}
@@ -230,6 +231,7 @@ describe('ResultPage footnote', () => {
   it('drops the unset line from a run page while its age note asks for the year of birth and sex', () => {
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'run' }}
         analysis={analysisStub()}
@@ -258,6 +260,7 @@ describe('ResultPage footnote', () => {
   it('drops the unset line from Balance while its one prompt for the year of birth and sex is on the page', () => {
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub()}
@@ -317,6 +320,7 @@ function renderActivity(
   })
   return render(
     <ResultPage
+      countedRuns={countedRunsStub()}
       signedIn={false}
       route={{ page: 'activity', id: ACTIVITY.id }}
       analysis={analysis}
@@ -395,6 +399,7 @@ describe('ResultPage activity route, outside the period', () => {
     })
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'activity', id: ACTIVITY.id }}
         analysis={analysis}
@@ -426,6 +431,7 @@ describe('ResultPage period', () => {
     })
     return render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysis}
@@ -473,6 +479,7 @@ describe('ResultPage period', () => {
     })
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysis}
@@ -507,6 +514,7 @@ describe('ResultPage period', () => {
     // The analysis still shows the old period: rendering again must not send the pick a second time.
     rerender(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub({
@@ -532,6 +540,7 @@ describe('ResultPage period', () => {
     const setRange = vi.fn()
     const page = (choice: PeriodChoice) => (
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub({
@@ -569,7 +578,7 @@ describe('ResultPage period', () => {
     const ride = makeActivity({
       id: 'old-ride',
       sport: 'ride',
-      startMs: new Date(2025, 5, 2, 7).getTime(),
+      startMs: new Date(2025, 0, 2, 7).getTime(),
     })
     const activities = withRide ? [old, ride] : [old]
     const period = {
@@ -581,6 +590,7 @@ describe('ResultPage period', () => {
     }
     return render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub({
@@ -611,20 +621,23 @@ describe('ResultPage period', () => {
     }
   })
 
-  it('says why the default is all time, and the latest activity, in the same note, when both sports are held', () => {
+  it('says why the default is all time, naming the missing sport, and the latest activity, in the same note', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(true, true)
       expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-        "Your last 12 weeks don't hold both sports, so this shows all time · Same 2 activities as 6 weeks · Latest activity 17 months ago",
+        'Your last 12 weeks hold no rides, so this shows all time · Same 2 activities as 12 months · Latest activity 17 months ago',
       )
+      // The segment in force is All time, not the 12 weeks the stored choice names.
+      expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
+      expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('leaves out the fallback note when the library holds one sport, and keeps the latest activity', () => {
+  it('has no fallback note for a library shorter than 12 weeks, and keeps the latest activity', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
@@ -651,6 +664,7 @@ describe('ResultPage sample athlete', () => {
     })
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysis}
@@ -685,6 +699,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     const result = makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'method' }}
         analysis={analysisStub({ state: { result, library: [ride], period: DATED } })}
@@ -706,6 +721,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     })
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'activity', id: ACTIVITY.id }}
         analysis={analysis}
@@ -725,6 +741,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     const result = makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub({ state: { result, library: [ride], period: DATED }, busy: true })}
@@ -738,32 +755,6 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     )
     fireEvent.click(screen.getByRole('radio', { name: 'All time' }))
     expect(screen.getByText('Applies when the current import finishes')).toBeInTheDocument()
-  })
-
-  it('shows rides on the age-grade trend for a sample opened by a visitor with no age or sex', () => {
-    const sample = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
-    const result = sample.result
-    if (result === null) throw new Error('The sample has no result')
-    const weeks = gradeWeeks(sample.trend, SAMPLE_PROFILE)
-    expect(weeks.some((week) => week.ride !== null)).toBe(true)
-    render(
-      <ResultPage
-        signedIn={false}
-        route={{ page: 'balance' }}
-        analysis={analysisStub({
-          state: { ...sample, library: sample.library, period: sample.period },
-        })}
-        result={result}
-        settings={SAMPLE_SETTINGS}
-        weightKnown
-        units="metric"
-        birthYear={null}
-        sex={null}
-      />,
-    )
-    expect(
-      screen.getByRole('heading', { name: /of your best 20 min, trailing/ }),
-    ).toBeInTheDocument()
   })
 })
 
@@ -786,6 +777,7 @@ describe('ResultPage activities route, by sign-in state', () => {
     })
     render(
       <ResultPage
+        countedRuns={countedRunsStub()}
         signedIn={signedIn}
         route={{ page: 'activities' }}
         analysis={analysis}

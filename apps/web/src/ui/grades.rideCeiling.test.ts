@@ -15,11 +15,11 @@ import {
   notGradedText,
   rideGradeFromSpeeds,
   sportGrade,
-  unlessRideAtTop,
 } from './grades'
 import type { AgeProfile, GradeOutcome } from './grades'
 import { missingText } from './pages/balanceMissing'
-import { rideLeftOut } from './rideLeftOut'
+import { rideHoldInputs, rideLeftOut } from './rideLeftOut'
+import { heldPick } from './resultHold'
 import { POWER_IMPLAUSIBLE_TEXT } from './analysis/powerCheckCopy'
 import { gradeCeiling } from '@rca/core/grade'
 
@@ -148,12 +148,18 @@ describe('the balance leaves a ride at the top of the scale out', () => {
   })
 
   it('leaves the headline comparison out too, so the energy view cannot carry the ride in', () => {
-    const grades = headlineGrades(pageResult(7, 75), profile)
-    const pick = { point: makeResult().comparison.prior[0]!, calibrated: false }
-    expect(unlessRideAtTop(pick, grades.ride)).toBeNull()
-    const ordinary = headlineGrades(pageResult(3.5, 75), athlete(35, 'male'))
-    expect(unlessRideAtTop(pick, ordinary.ride)).toBe(pick)
-    expect(unlessRideAtTop(pick, null)).toBe(pick)
+    const top = pageResult(7, 75)
+    const grades = headlineGrades(top, profile)
+    const held = heldPick(top, rideHoldInputs(grades.ride, top))
+    expect(held.pick).toBeNull()
+    // No fault to name: the ride is out of the comparison, not held for a reason about the evidence.
+    expect(held.hold).toBeNull()
+    const typical = pageResult(3.5, 75)
+    const ordinary = headlineGrades(typical, athlete(35, 'male'))
+    expect(heldPick(typical, rideHoldInputs(ordinary.ride, typical)).pick).toEqual(
+      heldPick(typical).pick,
+    )
+    expect(heldPick(typical, rideHoldInputs(null, typical)).pick).toEqual(heldPick(typical).pick)
   })
 
   it('says the ride is at the top of the scale, not that it lacks hard efforts', () => {
@@ -161,7 +167,7 @@ describe('the balance leaves a ride at the top of the scale out', () => {
     const levels = { run: null, ride: null }
     const left = rideLeftOut(headlineGrades(result, profile).ride, result)
     expect(left).toBe('top-of-scale')
-    const held = missingText(result, result.activities, BALANCE_PERIOD, levels, {
+    const held = missingText(result, result.activities, BALANCE_PERIOD, levels, 0, {
       rideLeftOut: left,
     })
     expect(held.detail).toBe(TOP_OF_SCALE_TEXT)
@@ -204,6 +210,7 @@ describe('the balance leaves a ride at the top of the scale out', () => {
       setAside.activities,
       BALANCE_PERIOD,
       { run: null, ride: null },
+      0,
       { rideLeftOut: 'implausible-power' },
     )
     expect(held.detail).toBe(POWER_IMPLAUSIBLE_TEXT)

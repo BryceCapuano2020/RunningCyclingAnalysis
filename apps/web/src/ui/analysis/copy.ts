@@ -1,7 +1,7 @@
 import { formatCount } from '../format/count'
 import { DAILY_LIMITS } from '@rca/contract'
 import type { DeviceIssue, SavedActivity, WorkerResponse } from '../../worker/protocol'
-import { limitReached, resetSentence } from '../limitCopy'
+import { limitReached, listingLimitReached, resetSentence } from '../limitCopy'
 import type { AccountStatus } from '../useAccount'
 import { formatDay, formatDayMonth, formatMonth } from '../format/date'
 import type { ImportSummary } from '../../worker/importSummary'
@@ -21,6 +21,12 @@ export const DEVICE_NOT_LOADED =
 export const LIBRARY_NOT_LOADED =
   'Your library is not loaded, so these files were not imported. Retry loading your library, then add them again.'
 export const STOPPED = 'Analysis is stopped, so this did not run. Restart analysis, then try again.'
+/** Said when the browser could not hand a request to the analysis, and nothing was started. */
+export const NOT_SENT = 'These files could not be sent to the analysis. Add them again.'
+/** Shown while a request has made no headway for a while, before anything is done about it. */
+export const STALLED_LEAD = 'Analysis stopped responding.'
+export const UNREADABLE_LEAD = 'Analysis sent something this browser could not read.'
+export const STILL_WORKING = 'Still working. This is taking longer than usual.'
 export const INTERRUPTED = 'Your import was interrupted. Add the files again.'
 export const EXPORT_INTERRUPTED = 'The download was interrupted. Download your data again.'
 export const ACCOUNT_CHANGED_BEFORE_IMPORT =
@@ -159,7 +165,7 @@ export function deleteNoticeText(activity: SavedActivity | undefined): string {
 
 export function exportFailureText(message: ErrorReply): string {
   return message.issue === 'daily-limit'
-    ? limitReached('read')
+    ? listingLimitReached(message.message)
     : `Could not download your data. ${message.message}`
 }
 
@@ -172,16 +178,17 @@ export function workerFailureText(
   status: AccountStatus,
   willRestart: boolean,
   eventMessage: string,
+  lead = 'Analysis stopped unexpectedly.',
 ): string {
   if (status === 'signed-in') {
     return willRestart
-      ? 'Analysis stopped unexpectedly. Your saved library is reloading; add again any files that were not saved.'
-      : 'Analysis stopped unexpectedly. Restart analysis to reload your saved library; add again any files that were not saved.'
+      ? `${lead} Your saved library is reloading; add again any files that were not saved.`
+      : `${lead} Restart analysis to reload your saved library; add again any files that were not saved.`
   }
   if (status === 'signed-out') {
     return willRestart
-      ? 'Analysis stopped unexpectedly. Your results kept in this browser are reloading; add again any files that were being added.'
-      : 'Analysis stopped unexpectedly. Restart analysis to reload your results kept in this browser; add again any files that were being added.'
+      ? `${lead} Your results kept in this browser are reloading; add again any files that were being added.`
+      : `${lead} Restart analysis to reload your results kept in this browser; add again any files that were being added.`
   }
   return eventMessage || 'Analysis failed. Add again any files that were being added.'
 }
@@ -191,7 +198,21 @@ export function workerFailureText(
  * activity is gone from the account, but its copy here could come back once they sign out; a
  * signed-out visitor can remove everything from Profile and try again.
  */
+const NOT_READ_TEXT =
+  'Your kept results could not be read from this browser just now, so these files are shown on their own and are not added to them. Reload the page to try again.'
+
 export function deviceIssueText(notice: DeviceIssue, signedIn: boolean): string {
+  const signIn = signedIn ? '' : ' Sign in to keep your results on your account.'
+  if (notice.issue === 'evicted') {
+    return `The results you kept in this browser are no longer in it. Clearing site data, low storage or, in Safari, a week away can remove them. Add your files again.${signIn}`
+  }
+  if (notice.issue === 'mayBeCleared') {
+    return `Your results are kept in this browser only, and it has not agreed to hold them. Clearing site data, low storage or, in Safari, a week away can remove them.${signIn}`
+  }
+  if (notice.issue === 'notRead') return NOT_READ_TEXT
+  if (notice.issue === 'replaced') {
+    return 'The results kept in this browser were removed while this import ran, or this browser could not check them, so the import stopped and was not kept. Add the files again to start over.'
+  }
   if (notice.issue === 'notSaved') {
     const one = notice.count === 1
     const refused =
@@ -199,10 +220,11 @@ export function deviceIssueText(notice: DeviceIssue, signedIn: boolean): string 
         ? ''
         : `${plural(notice.count, 'activity', 'activities')} ${one ? 'shows' : 'show'} here but could not be kept in this browser. ${one ? 'It' : 'They'} will not be here after a reload.`
     const newer = notice.newer ?? 0
-    if (newer === 0) return refused
+    const unread = notice.unread === true ? `${NOT_READ_TEXT} ` : ''
+    if (newer === 0) return `${unread}${refused}`
     const oneNewer = newer === 1
     const left = `${plural(newer, 'activity', 'activities')} ${oneNewer ? 'shows' : 'show'} here. This browser keeps ${oneNewer ? 'a copy of it' : 'copies of them'} saved by a newer version of this app, and ${oneNewer ? 'that copy was' : 'those copies were'} left as ${oneNewer ? 'it is' : 'they are'}. Reload the page to update the app.`
-    return refused === '' ? left : `${refused} ${left}`
+    return `${unread}${refused === '' ? left : `${refused} ${left}`}`
   }
   return signedIn
     ? 'This browser could not delete its copy of the activity or its recording. It may come back when you sign out.'

@@ -2,7 +2,6 @@ import {
   ActivityPageWireSchema,
   ActivityRecordSchema,
   ACCOUNT_SCOPE_HEADER,
-  ApiErrorSchema,
   CLIENT_HEADER,
   CLIENT_HEADER_VALUE,
   MAX_ACTIVITIES_PER_USER,
@@ -15,25 +14,22 @@ import {
 import type { ActivityRecord, Me, Profile, ProfileInput } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
 import { readableRecords } from './pageRecords'
+import { ApiRequestError } from './apiError'
+import { noteRequestActivity } from './requestActivity'
+import type { RequestOptions } from './requestOptions'
+import {
+  clearResponseTimeout,
+  errorFrom,
+  INVALID_RESPONSE_MESSAGE,
+  noteResponseTimeout,
+  readJson,
+} from './responseBody'
+
+export { ApiRequestError, readJson }
+export type { RequestOptions }
 
 /** Where the browser starts Google sign-in. The API redirects back to the app when done. */
 export const signInUrl = '/api/auth/google'
-
-/** A failed request. Status 0 means the server could not be reached at all. */
-export class ApiRequestError extends Error {
-  readonly status: number
-  readonly code: string
-  /** How long the server asked to wait before trying again (its Retry-After), in milliseconds. */
-  readonly retryAfterMs: number | undefined
-
-  constructor(status: number, code: string, message: string, retryAfterMs?: number) {
-    super(message)
-    this.name = 'ApiRequestError'
-    this.status = status
-    this.code = code
-    this.retryAfterMs = retryAfterMs
-  }
-}
 
 export interface CreatedActivity {
   record: ActivityRecord
@@ -59,25 +55,13 @@ const CREATE_RETRY_BACKOFF_MS = 1_000
 const NOT_TRANSIENT = new Set(['database_full'])
 const CLIENT_PAGE_SIZE = MAX_PAGE_SIZE
 const PAGE_BODY_LIMIT = MAX_PAGE_BODY_BYTES
-const ERROR_BODY_LIMIT = 64 * 1024
-const INVALID_RESPONSE_MESSAGE = 'Unexpected response from the server'
-const responseTimeouts = new WeakMap<Response, ReturnType<typeof setTimeout>>()
-
-function clearResponseTimeout(response: Response): void {
-  const timeout = responseTimeouts.get(response)
-  if (timeout !== undefined) {
-    clearTimeout(timeout)
-    responseTimeouts.delete(response)
-  }
-}
-
 /** One fetch with its deadline. Resolves to null when the server could not be reached. */
 async function fetchOnce(path: string, init: RequestInit, timeoutMs: number) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await fetch(path, { ...init, signal: controller.signal })
-    responseTimeouts.set(response, timeout)
+    noteResponseTimeout(response, timeout)
     return response
   } catch {
     clearTimeout(timeout)
@@ -95,6 +79,7 @@ export async function request(
   body?: Body,
   userId?: string,
   retryBackoffMs?: number,
+  options: RequestOptions = {},
 ): Promise<Response> {
   const headers = new Headers()
   if (method !== 'GET') headers.set(CLIENT_HEADER, CLIENT_HEADER_VALUE)
@@ -109,11 +94,16 @@ export async function request(
     payload = body.bytes as Uint8Array<ArrayBuffer>
   }
   const init: RequestInit = { method, credentials: 'same-origin', headers, body: payload }
-  const timeoutMs = path.endsWith('/file') ? TRANSFER_TIMEOUT_MS : REQUEST_TIMEOUT_MS
-  const backoffMs = method === 'GET' ? 0 : retryBackoffMs
+  const timeoutMs =
+    options.timeoutMs ?? (path.endsWith('/file') ? TRANSFER_TIMEOUT_MS : REQUEST_TIMEOUT_MS)
+  const backoffMs = options.retry === false ? undefined : method === 'GET' ? 0 : retryBackoffMs
   for (let attempt = 0; ; attempt++) {
+    const startedAt = Date.now()
     const response = await fetchOnce(path, init, timeoutMs)
-    const canRetry = backoffMs !== undefined && attempt === 0
+    noteRequestActivity()
+    const failedFast =
+      options.retryWithinMs === undefined || Date.now() - startedAt < options.retryWithinMs
+    const canRetry = backoffMs !== undefined && attempt === 0 && failedFast
     if (response === null) {
       if (!canRetry) throw new ApiRequestError(0, 'network_error', 'Could not reach the server')
     } else if (response.ok) {
@@ -129,99 +119,15 @@ export async function request(
   }
 }
 
-async function errorFrom(response: Response): Promise<ApiRequestError> {
-  const body = await readResponseJson(response, ERROR_BODY_LIMIT).catch(() => undefined)
-  const retryAfterMs = retryAfterOf(response)
-  const parsed = ApiErrorSchema.safeParse(body)
-  if (parsed.success) {
-    return new ApiRequestError(
-      response.status,
-      parsed.data.error.code,
-      parsed.data.error.message,
-      retryAfterMs,
-    )
-  }
-  const fallback = response.statusText || `Request failed with status ${response.status}`
-  return new ApiRequestError(response.status, 'http_error', fallback, retryAfterMs)
-}
-
-/** The response's Retry-After in milliseconds, when it is a whole number of seconds. */
-function retryAfterOf(response: Response): number | undefined {
-  const seconds = response.headers.get('retry-after')
-  return seconds !== null && /^\d+$/.test(seconds) ? Number(seconds) * 1000 : undefined
-}
-
-/** Parses a response body with a contract schema. JSON has no NaN, so the schemas restore it. */
-async function readResponseBytes(response: Response, maxBytes: number): Promise<Uint8Array> {
-  const declaredLength = Number(response.headers.get('content-length'))
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    await response.body?.cancel().catch(() => undefined)
-    clearResponseTimeout(response)
-    throw new ApiRequestError(502, 'invalid_response', INVALID_RESPONSE_MESSAGE)
-  }
-  if (!response.body) {
-    try {
-      const bytes = new Uint8Array(await response.arrayBuffer())
-      if (bytes.byteLength > maxBytes) {
-        throw new ApiRequestError(502, 'invalid_response', INVALID_RESPONSE_MESSAGE)
-      }
-      return bytes
-    } finally {
-      clearResponseTimeout(response)
-    }
-  }
-  const reader = response.body.getReader()
-  const chunks: Uint8Array[] = []
-  let size = 0
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      size += value.byteLength
-      if (size > maxBytes) {
-        await reader.cancel()
-        throw new ApiRequestError(502, 'invalid_response', INVALID_RESPONSE_MESSAGE)
-      }
-      chunks.push(value)
-    }
-    const bytes = new Uint8Array(size)
-    let offset = 0
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset)
-      offset += chunk.byteLength
-    }
-    return bytes
-  } finally {
-    reader.releaseLock()
-    clearResponseTimeout(response)
-  }
-}
-
-async function readResponseJson(response: Response, maxBytes: number): Promise<unknown> {
-  const bytes = await readResponseBytes(response, maxBytes)
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes)) as unknown
-  } catch {
-    return undefined
-  }
-}
-
-export async function readJson<T>(
-  response: Response,
-  schema: { parse(value: unknown): T },
-  maxBytes = PAGE_BODY_LIMIT,
-): Promise<T> {
-  const body = await readResponseJson(response, maxBytes)
-  try {
-    return schema.parse(body)
-  } catch {
-    throw new ApiRequestError(response.status, 'invalid_response', INVALID_RESPONSE_MESSAGE)
-  }
-}
-
-/** The signed-in user and profile, or null when nobody is signed in. */
-export async function getMe(): Promise<Me | null> {
-  return readJson(await request('GET', '/api/me'), MeResponseSchema)
+/**
+ * The signed-in user and profile, or null when nobody is signed in. The account lookup passes a short
+ * deadline and no immediate retry, since it retries on its own schedule and nothing waits on it.
+ */
+export async function getMe(options?: RequestOptions): Promise<Me | null> {
+  return readJson(
+    await request('GET', '/api/me', undefined, undefined, undefined, options),
+    MeResponseSchema,
+  )
 }
 
 export async function updateProfile(input: ProfileInput, userId?: string): Promise<Profile> {
@@ -246,13 +152,15 @@ export async function deleteAccount(userId?: string): Promise<void> {
  *
  * With `onPage`, each page's records are handed over as they arrive and are not kept, so a large
  * library never sits in memory whole; the promise then resolves to an empty array. Without it the
- * promise resolves to every record.
+ * promise resolves to every record. `onFetched` hears of each page as it arrives, which tells a watchdog
+ * that a long listing is getting somewhere.
  */
 export async function listActivities(
   since?: number,
   userId?: string,
   onUnreadable?: (count: number) => void,
   onPage?: (items: ActivityRecord[]) => void,
+  onFetched?: () => void,
 ): Promise<ActivityRecord[]> {
   const records: ActivityRecord[] = []
   const seenCursors = new Set<string>()
@@ -278,6 +186,7 @@ export async function listActivities(
     }
     total += page.items.length
     const readable = readableRecords(page.items)
+    onFetched?.()
     if (onPage) onPage(readable.records)
     else records.push(...readable.records)
     unreadable += (page.unreadable ?? 0) + readable.unreadable

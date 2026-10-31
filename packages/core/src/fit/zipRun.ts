@@ -1,13 +1,13 @@
 import type { UnzipFile } from 'fflate'
 import type { Rejection } from '../import/result'
+import { skippedTooCompressed, skippedTooLarge } from './archiveReasons'
 import type { ExtractLimits } from './extractLimits'
+import { StoppableInflate } from './stoppableInflate'
+import type { StreamTail } from './streamTail'
 import type { ZipReader } from './zipReader'
 import type { EntryFilter } from './zipDirectory'
 
-/** Compressed input is fed to the decompressors this many bytes at a time, so their output stays bounded. */
-export const DECOMPRESS_INPUT_CHUNK_BYTES = 16 * 1024
-/** A zip may hold zips this many levels down. A zip inside the deepest level is rejected. */
-export const MAX_NESTED_ARCHIVE_DEPTH = 2
+export { DECOMPRESS_INPUT_CHUNK_BYTES, MAX_NESTED_ARCHIVE_DEPTH } from '../import/limits'
 
 /** What a read of a source delivers and counts. See extractFitFiles. */
 export interface Sink {
@@ -25,12 +25,27 @@ export interface ZipBudget {
   bufferedBytes: number
   fitEntries: number
   archiveEntries: number
+  /** Bytes the deflated entries the import skips have inflated to, over the whole archive. */
+  skippedBytes: number
+  /** Compressed bytes read for those entries, as far as they can be told apart from the rest. */
+  skippedRead: number
+  /** Why skipped entries are no longer inflated, once one budget of theirs has run out. */
+  skipStopped: Rejection | null
   /** Why the whole archive stopped at a shared limit. The entry that hit it reports the reason. */
   abort: Rejection | null
 }
 
 export function newBudget(): ZipBudget {
-  return { decompressedBytes: 0, bufferedBytes: 0, fitEntries: 0, archiveEntries: 0, abort: null }
+  return {
+    decompressedBytes: 0,
+    bufferedBytes: 0,
+    fitEntries: 0,
+    archiveEntries: 0,
+    skippedBytes: 0,
+    skippedRead: 0,
+    skipStopped: null,
+    abort: null,
+  }
 }
 
 /** Hands one activity file to the sink, gunzipped and named without its .gz. */
@@ -75,14 +90,78 @@ export class ZipRun {
   }
 }
 
-// fflate keeps the compressed input of an entry that is never started, so a skipped entry is
-// started with its output discarded. Otherwise a large skipped file (a photo, say) stays in memory.
-export function discard(file: UnzipFile): void {
-  file.ondata = () => undefined
+/**
+ * Skips an entry. fflate keeps the compressed input of an entry that is never started, so a skipped
+ * entry is started with its output discarded; otherwise a large skipped file (a photo, say) stays in
+ * memory. The output of a deflated entry is counted, and the entry is stopped, with nothing more
+ * inflated, when
+ * - it has inflated past limits.maxSkippedEntryFreeBytes and to more than limits.maxSkippedInflateRatio
+ *   times the compressed bytes `source` has streamed since it began, which a real file never does; or
+ * - all the skipped entries of the archive have inflated past limits.maxSkippedGlobalFreeBytes and to
+ *   more than limits.maxSkippedGlobalRatio times the compressed bytes read for them, which is how many
+ *   small bombs add up; or
+ * - they have inflated past limits.maxSkippedInflateBytes, whatever the ratio; or
+ * - its decoder fails.
+ * When the archive's budget runs out, the entry that ran it out is reported once and every skipped
+ * entry after it is started and stopped at once, so nothing more is inflated. The entries the import
+ * wants are read all the same: skipping costs nothing, and nothing a skipped entry holds is wanted. A
+ * stopped entry is not an error of its own: the import never wanted it. A stored entry, and an entry
+ * in a method this build cannot read, inflate nothing and are not counted.
+ */
+export function skipEntry(
+  file: UnzipFile,
+  run: ZipRun,
+  source: StreamTail,
+  stop: (rejection: Rejection) => void,
+): void {
+  const from = source.streamed
+  const { limits } = run.sink
+  const { budget } = run
+  const inflating = file.compression === 8
+  let inflated = 0
+  let seen = from
+  let stopped = false
+  const exhaust = (rejection: Rejection): void => {
+    budget.skipStopped = rejection
+    stop(rejection)
+  }
+  file.ondata = (error, data) => {
+    if (stopped) return
+    if (error) {
+      stopped = true
+    } else if (inflating) {
+      inflated += data.length
+      budget.skippedBytes += data.length
+      budget.skippedRead += source.streamed - seen
+      seen = source.streamed
+      if (budget.skipStopped !== null || budget.abort !== null) {
+        stopped = true
+      } else if (budget.skippedBytes > limits.maxSkippedInflateBytes) {
+        stopped = true
+        exhaust(skippedTooLarge(limits.maxSkippedInflateBytes))
+      } else if (
+        budget.skippedBytes > limits.maxSkippedGlobalFreeBytes &&
+        budget.skippedBytes > limits.maxSkippedGlobalRatio * Math.max(budget.skippedRead, 1)
+      ) {
+        stopped = true
+        exhaust(skippedTooCompressed())
+      } else if (
+        inflated > limits.maxSkippedEntryFreeBytes &&
+        inflated > limits.maxSkippedInflateRatio * Math.max(source.streamed - from, 1)
+      ) {
+        stopped = true
+      }
+    }
+    if (stopped) file.terminate()
+  }
+  // Once the budget has run out, a deflated entry is started stopped, so not even its first piece is inflated.
+  StoppableInflate.startStopped = inflating && budget.skipStopped !== null
   try {
     file.start()
   } catch {
     // Nothing is retained for an entry that cannot start.
+  } finally {
+    StoppableInflate.startStopped = false
   }
 }
 

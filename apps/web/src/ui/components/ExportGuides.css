@@ -34,8 +34,8 @@
 
 .export-guides__tile[aria-expanded='true'] {
   border-color: var(--selected);
-  background: var(--selected);
-  color: var(--selected-contrast);
+  background: var(--highlight);
+  color: var(--highlight-ink);
 }
 
 .export-guide {
@@ -84,7 +84,7 @@
   display: grid;
   justify-items: start;
   gap: var(--space-2);
-  max-width: 62ch;
+  max-width: var(--measure);
 }
 
 .export-guides__none h3,

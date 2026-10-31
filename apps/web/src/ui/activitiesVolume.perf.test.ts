@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { makeActivity } from './components/fixtures'
-import { inBucket, monthTotals, volumeBuckets } from './activitiesVolume'
+import { inBucket, monthTotals, volumeBuckets, volumeColumns } from './activitiesVolume'
 import { sortActivities } from './activitySort'
 
 /**
@@ -54,5 +54,23 @@ describe('the Activities list sums for 2,000 activities', () => {
       sortActivities(inBucket(activities, 'm:2024-5'), 'distance')
     })
     expect(ms).toBeLessThan(BUDGET_MS)
+  })
+})
+
+describe('folding a stray 1970 date into the strip', () => {
+  it('folds the stretch between it and a real library in under 50 ms', () => {
+    const activities = [
+      makeActivity({ id: 'stray', sport: 'run', startMs: 0 }),
+      ...Array.from({ length: 300 }, (_, i) =>
+        makeActivity({
+          id: `a-${i}`,
+          sport: 'run',
+          startMs: new Date(2024, 0, 1).getTime() + i * DAY_MS,
+        }),
+      ),
+    ]
+    const start = performance.now()
+    volumeColumns(volumeBuckets(activities))
+    expect(performance.now() - start).toBeLessThan(50)
   })
 })

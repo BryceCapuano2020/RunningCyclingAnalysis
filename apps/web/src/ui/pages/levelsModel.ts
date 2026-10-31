@@ -21,6 +21,8 @@ export interface LevelRow {
   level: string | null
   /** What is missing, in a few words; null when the sport is graded. */
   missing: string | null
+  /** What the grade rests on when it is not a hard effort: "best 20 min, not a hard effort"; null when it is, or unknown. */
+  basis?: string | null
 }
 
 /** The levels under the meter: a line for each sport, or one line when both wait for the same thing. */
@@ -67,8 +69,10 @@ export function balanceLevels(input: {
   sports?: readonly Sport[]
   inPeriod: Record<Sport, number>
   missingAge: AgeGap | null
+  /** What a sport's grade rests on where its best 20 minutes was not shown to be a hard effort (see `basisOf`). */
+  basis?: Partial<Record<Sport, string>>
 }): BalanceLevelsModel {
-  const { grades, sports = SPORT_ORDER, inPeriod, missingAge } = input
+  const { grades, sports = SPORT_ORDER, inPeriod, missingAge, basis = {} } = input
   const rows = sports.map((sport): LevelRow => {
     const outcome = grades[sport]
     if (outcome?.kind === 'graded') {
@@ -77,6 +81,7 @@ export function balanceLevels(input: {
         grade: `${wholeGrade(outcome.grade.centre.grade)}%`,
         level: gradeLevelText(outcome.grade),
         missing: null,
+        basis: basis[sport] ?? null,
       }
     }
     return {

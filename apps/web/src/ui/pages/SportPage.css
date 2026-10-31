@@ -13,9 +13,9 @@
   color: var(--sport-colour);
 }
 
-/* The page is a column of cards and disclosures with room between, closer than the other pages' sections. */
+/* The page is a column of bands and disclosures with room between, closer than the other pages' sections. */
 .sport-page {
-  gap: var(--space-5);
+  gap: var(--stack-gap);
 }
 
 /* Where the figures come from: the last activity, the count and the distance, on the title's line. */
@@ -28,7 +28,7 @@
 .sport-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-5);
+  gap: var(--stack-gap);
   min-width: 0;
 }
 
@@ -37,7 +37,7 @@
   min-width: 0;
 }
 
-/* A section's card: its content in one column that may shrink to the page. */
+/* A section's band: its content in one column that may shrink to the page. */
 .sport-panel {
   display: grid;
   align-content: start;
@@ -50,32 +50,16 @@
   gap: var(--space-1);
 }
 
-@media (min-width: 761px) {
-  .sport-panel {
-    padding: var(--space-5) var(--space-6);
-  }
-}
-
-/* A jump from "On this page" lands the section clear of the header, and of the row held under it on a desktop. */
+/* A jump from "On this page" lands the section clear of the header and of the row held under it on a desktop: scroll-padding (--sticky-extra) holds both, so the margin is a gap only. */
 .sport-panel,
 .sport-disclosure {
   scroll-margin-top: var(--space-3);
 }
 
 @media (min-width: 1081px) {
-  .sport-panel,
-  .sport-disclosure {
-    scroll-margin-top: calc(var(--control-height) + var(--space-5));
-  }
-
   .sport-row--pair {
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   }
-}
-
-/* The sport pages use the width a desktop gives them: charts and cards at about 1,200 px. */
-.page:has(.sport-page) {
-  max-width: 1200px;
 }
 
 /* The add action and the guides sit side by side on an empty sport page, and wrap on a narrow phone. */

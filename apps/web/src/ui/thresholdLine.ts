@@ -1,10 +1,11 @@
 import { PRIORS } from '@rca/core/constants'
+import { cpBand } from '@rca/core/cp'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { ThresholdLine } from './charts/sportCurveModel'
-import { fitRestsOnEstimate, thresholdRange } from './thresholdRange'
+import { bandShareOf, fitRestsOnEstimate, thresholdRange } from './thresholdRange'
 
 /** A fit's metabolic W/kg as the sport's own number: flat speed in m/s for running, watts for cycling. */
 type Native = (metabolicWkg: number, massKg: number) => number
@@ -21,9 +22,9 @@ const RESTS_ON_ESTIMATE: Record<Sport, (result: AnalysisResult) => boolean> = {
 
 /**
  * The sport's threshold as the curve chart draws it: the fit's critical power in the curve's own number, the
- * standard-error range as a band, and the range as the page words it. The same fit the answer's figure reads,
- * so the line and the figure agree. Null without a fit. With an uneven fit the range runs to the uneven one,
- * which is not a band round the line, so only its words are given.
+ * fit spread (down by the regression error, up by an allowance for the effort's hardness) as a band, and the range as the page words it. The
+ * same fit the answer's figure reads, so the line and the figure agree. Null without a fit. With an uneven fit the
+ * range runs to the uneven one, which is not a band round the line, so only its words are given.
  */
 export function thresholdLine(
   result: AnalysisResult,
@@ -37,10 +38,11 @@ export function thresholdLine(
   const detail = thresholdRange(result, sport, massKg, units) ?? undefined
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   const banded = detail !== undefined && !uneven
+  const band = cpBand(fit, bandShareOf(result, sport))
   return {
     value: native(fit.cp, massKg),
-    low: banded ? native(fit.cp - fit.cpSe, massKg) : undefined,
-    high: banded ? native(fit.cp + fit.cpSe, massKg) : undefined,
+    low: banded ? native(band.low, massKg) : undefined,
+    high: banded ? native(band.high, massKg) : undefined,
     detail,
     estimated: RESTS_ON_ESTIMATE[sport](result),
   }

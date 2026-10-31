@@ -18,12 +18,25 @@ export interface SavedActivity {
 }
 
 /**
- * What this browser failed to do with the activities it keeps. `notSaved` counts activities of one
- * import that show but were not kept, and `newer` those it left because a newer version of the app
- * keeps a copy that this one cannot read; `notForgotten` is a delete or removal that left a copy behind.
+ * What the worker found this browser failed to do with the activities it keeps. `notSaved` counts
+ * activities of one import that show but were not kept, and `newer` those it left because a newer
+ * version of the app keeps a copy that this one cannot read; `notForgotten` is a delete or removal that
+ * left a copy behind; `notRead` is an import analysed without the library kept in this browser, because that
+ * could not be read; `replaced` is an import that stopped because the library kept in this browser was emptied, in
+ * this tab or another, while it ran. The page sets `unread` on a `notSaved` that follows a `notRead`, so both are said.
  */
-export type DeviceIssue =
-  { issue: 'notSaved'; count: number; newer?: number } | { issue: 'notForgotten' }
+export type WorkerDeviceIssue =
+  | { issue: 'notSaved'; count: number; newer?: number; unread?: true }
+  | { issue: 'notForgotten' }
+  | { issue: 'notRead' }
+  | { issue: 'replaced' }
+
+/**
+ * What the page says about the activities kept in this browser: the worker's findings, and two the page
+ * finds itself. `evicted`: results were kept on an earlier visit and the browser no longer holds them.
+ * `mayBeCleared`: the browser would not promise to keep them (see storagePersistence).
+ */
+export type DeviceIssue = WorkerDeviceIssue | { issue: 'evicted' } | { issue: 'mayBeCleared' }
 
 export interface ImportOutcome {
   /** The activities the import read, which a file may hold several of. */
@@ -89,13 +102,12 @@ export type WorkerRequest =
    * Loads the digests kept in this browser, unless the session already holds them or a sample is
    * showing.
    */
-  | ({ type: 'loadDevice'; settings: AthleteSettings } & LoadPeriod)
+  /** `reload` reads the library again even when this tab holds it, because another tab changed it. */
+  | ({ type: 'loadDevice'; settings: AthleteSettings; reload?: boolean } & LoadPeriod)
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
   | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
-  /** Whether the headline trend carries running equivalents: only an age-graded Balance trend uses them. */
-  | { type: 'setGradeTrend'; on: boolean; settings: AthleteSettings }
   | { type: 'setRange'; choice: PeriodChoice; settings: AthleteSettings }
   /** `forgetDevice` also empties the library kept in this browser. */
   | { type: 'clear'; forgetDevice?: boolean }
@@ -128,7 +140,39 @@ export type WorkerRequest =
   /** A detail trace for an exact core activity id. Originals are read only on explicit request. */
   | { type: 'activityTrace'; id: string; userId?: string; fromOriginal?: boolean }
 
+/**
+ * A request as it travels to the worker: the request and the page's number for it. The worker stamps
+ * the number on its reply (`replyTo`) and on every other message it sends while it runs the request
+ * (`during`), so the page matches a reply to its request by number, never by arrival order. The number
+ * is `requestId` because several requests already have an `id` of their own (an activity's).
+ */
+export type WireRequest = WorkerRequest & { requestId: number }
+
+/** What the worker adds to a message: `replyTo` on a reply, `during` on an event. Both are absent when the request had no number. */
+export interface WireStamp {
+  replyTo?: number
+  during?: number
+}
+
+/** The messages that answer a request, one per request. Every other message is an event. */
+export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerResponse['type']>([
+  'state',
+  'error',
+  'exportReady',
+  'splits',
+  'routeShape',
+  'activityTrace',
+  'rebuildComplete',
+])
+
 export type WorkerResponse =
+  /** Sent when the worker begins a request, so a request waiting its turn is not timed as if it ran. */
+  | { type: 'started' }
+  /**
+   * Sent every couple of seconds while a request runs. `progress` counts units of real work (files read,
+   * activities saved), so a count that does not move is a worker that is not getting anywhere.
+   */
+  | { type: 'heartbeat'; progress: number }
   /**
    * `filesTotal` is the activity files the request holds, when that is known before they are read.
    * `paused` is set while a rate limit holds the saves back; the next progress message ends it.
@@ -148,8 +192,14 @@ export type WorkerResponse =
   | { type: 'detailCoverage'; ids: string[] | null; oldestStartMs: number | null }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
-  /** The account's saved activities when signed in, or the ones kept in this browser when not. */
-  | { type: 'libraryActivities'; activities: SavedActivity[] }
+  /**
+   * The account's saved activities when signed in, or the ones kept in this browser when not. For this browser's
+   * library `skipped` counts the rows it keeps but could not read (a newer version's), so a list of none with
+   * some skipped is not an empty library.
+   */
+  | { type: 'libraryActivities'; activities: SavedActivity[]; skipped?: number }
+  /** Whether the library kept in this browser holds anything, after a removal that is not shown as a list. */
+  | { type: 'deviceHolds'; holds: boolean }
   /** The account's export, as the JSON file to save. */
   | { type: 'exportReady'; file: Blob }
   /** The splits of the activity asked for, or null when it is not held or its digest has none. */
@@ -163,7 +213,7 @@ export type WorkerResponse =
   /** Stored activities that could not be read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
   /** The library kept in this browser did not take a save or a removal. Sent before the state that ends the request. */
-  | ({ type: 'deviceIssue' } & DeviceIssue)
+  | ({ type: 'deviceIssue' } & WorkerDeviceIssue)
   /**
    * The import stopped saving: the account ended or changed, storage is full, or a limit was
    * reached. Sent before its state.

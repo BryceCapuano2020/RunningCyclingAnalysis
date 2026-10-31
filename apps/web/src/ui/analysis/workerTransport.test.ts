@@ -11,9 +11,12 @@ const SETTINGS = { massKg: 75, bikeMassKg: 9 }
 function setup() {
   const pendingRepliesRef = { current: [] as Pending[] }
   const onSend = vi.fn()
+  const onDropped = vi.fn()
   const setError = vi.fn()
-  const hook = renderHook(() => useWorkerTransport({ pendingRepliesRef, onSend, setError }))
-  return { ...hook, pendingRepliesRef, setError }
+  const hook = renderHook(() =>
+    useWorkerTransport({ pendingRepliesRef, onSend, onDropped, setError }),
+  )
+  return { ...hook, pendingRepliesRef, setError, onDropped }
 }
 
 /** A worker that only records what it is sent. */
@@ -43,7 +46,11 @@ describe('worker transport', () => {
       result.current.flushUnsent()
     })
 
-    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'routeShape', id: 'run-1' })
+    expect(worker.postMessage).toHaveBeenCalledWith({
+      type: 'routeShape',
+      id: 'run-1',
+      requestId: 1,
+    })
     expect(pendingRepliesRef.current[0]?.settle).toBe(settle)
   })
 
@@ -111,7 +118,12 @@ const FILE = new File(['x'], 'run.fit')
 function renderTransport() {
   const pendingRepliesRef = { current: [] as Pending[] }
   return renderHook(() =>
-    useWorkerTransport({ pendingRepliesRef, onSend: vi.fn(), setError: vi.fn() }),
+    useWorkerTransport({
+      pendingRepliesRef,
+      onSend: vi.fn(),
+      onDropped: vi.fn(),
+      setError: vi.fn(),
+    }),
   )
 }
 
@@ -150,7 +162,12 @@ describe('useWorkerTransport: an import already sent when the analysis is droppe
   it('is marked ignored, so its answer is not shown', () => {
     const pendingRepliesRef = { current: [] as Pending[] }
     const { result } = renderHook(() =>
-      useWorkerTransport({ pendingRepliesRef, onSend: vi.fn(), setError: vi.fn() }),
+      useWorkerTransport({
+        pendingRepliesRef,
+        onSend: vi.fn(),
+        onDropped: vi.fn(),
+        setError: vi.fn(),
+      }),
     )
     const posted: unknown[] = []
     act(() => {

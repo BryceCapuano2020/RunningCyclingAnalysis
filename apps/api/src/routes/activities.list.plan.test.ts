@@ -1,0 +1,103 @@
+import { describe, expect, it } from 'vitest'
+import { countingDb, createHarness, resetTestEnv, START, type Harness } from '../test/harness.ts'
+
+/**
+ * The listing's queries must keep their plan with and without table statistics. This runs the real
+ * route, takes the SQL it prepared, and asks SQLite for the plan before and after ANALYZE
+ * (D1 has no statistics until someone runs it, and nobody has checked production).
+ */
+
+const PER_USER = 400
+
+async function seedTwoUsers(h: Harness): Promise<{ token: string }> {
+  const token = await h.signIn('rider@example.test')
+  await h.signIn('bystander@example.test')
+  const users = (
+    await h.env.DB.prepare('SELECT id, email FROM users').all<{ id: string; email: string }>()
+  ).results
+  // One statement per user: a recursive CTE writes the rows inside SQLite, where hundreds of
+  // inserts sent one by one through Miniflare took most of this test's time.
+  await h.env.DB.batch(
+    users.map((user) =>
+      h.env.DB.prepare(
+        `WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i + 1 < ?)
+         INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+           digest_json, file_name, file_hash, created_at)
+         SELECT substr(?, 1, 3) || '-' || printf('%04d', i), ?, substr(?, 1, 3) || '-' || printf('%04d', i),
+           'run', ? + i, 'n', 1, '{"name":"n"}', 'f.fit', 'h', ? + (i / 3) * 1000
+         FROM n`,
+      ).bind(PER_USER, user.email, user.id, user.email, START, START),
+    ),
+  )
+  return { token }
+}
+
+/** The SQL the listing prepared for its three kinds of read, from a first page, a next page and a since page. */
+async function listingSql(h: Harness, db: ReturnType<typeof countingDb>, token: string) {
+  const cookies = { rca_session: token }
+  db.reset()
+  const first = await h.send({ path: '/api/activities?limit=20', cookies })
+  const cursor = ((await first.json()) as { nextCursor: string }).nextCursor
+  await h.send({ path: `/api/activities?limit=20&cursor=${cursor}`, cookies })
+  await h.send({ path: `/api/activities?limit=20&since=${START + 5000}`, cookies })
+  const activities = db.statements().filter((sql) => /from "activities"/i.test(sql))
+  const pick = (test: (sql: string) => boolean) => {
+    const found = activities.filter(test)
+    expect(found.length).toBeGreaterThan(0)
+    return found
+  }
+  return {
+    metadata: pick((sql) => /order by/i.test(sql)),
+    pageRead: pick((sql) => / in \(/i.test(sql)),
+  }
+}
+
+async function planOf(h: Harness, sql: string): Promise<string> {
+  const placeholders = sql.match(/\?/g)?.length ?? 0
+  const { results } = await h.env.DB.prepare(`EXPLAIN QUERY PLAN ${sql}`)
+    .bind(...Array.from({ length: placeholders }, () => null))
+    .all<{ detail: string }>()
+  return results.map((row) => row.detail).join(' | ')
+}
+
+const IDS = Array.from({ length: 90 }, () => '?').join(', ')
+const UNPINNED = `SELECT * FROM activities WHERE user_id = ? AND id IN (${IDS})`
+
+async function expectPinnedPlans(analyze: boolean): Promise<Harness> {
+  const db = countingDb(createHarness().env.DB)
+  const h = createHarness({}, { DB: db.db })
+  const { token } = await seedTwoUsers(h)
+  if (analyze) await h.env.DB.prepare('ANALYZE').run()
+  const sql = await listingSql(h, db, token)
+
+  for (const metadata of sql.metadata) {
+    const plan = await planOf(h, metadata)
+    expect(plan).toContain('USING INDEX activities_user_created_id_idx (user_id=?')
+    expect(plan).not.toContain('TEMP B-TREE')
+    expect(plan).not.toContain('activities_user_created_idx ')
+  }
+  for (const pageRead of sql.pageRead) {
+    const plan = await planOf(h, pageRead)
+    expect(plan).toContain('USING INDEX sqlite_autoindex_activities_1 (id=?)')
+    expect(plan).not.toContain('activities_user_created')
+  }
+  return h
+}
+
+// ANALYZE writes sqlite_stat1, which stays in this file's database for the rest of the file, and SQLite keeps
+// the statistics it has loaded. The statistics-free plans have to be checked before the ANALYZE ones, so both are
+// one test, in that order: two tests would fail whenever the order of the tests changes.
+describe('activity listing query plans', () => {
+  it('keep one index range and the primary key without statistics, and after ANALYZE', async () => {
+    const h = await expectPinnedPlans(false)
+    // A control for the pin. The unpinned page read must reproduce the audit's plan on this SQLite,
+    // or "the plan is fine" would hold for any query and the pin would prove nothing.
+    expect(await planOf(h, UNPINNED)).toContain(
+      'USING INDEX activities_user_created_idx (user_id=?)',
+    )
+
+    await resetTestEnv()
+    const analysed = await expectPinnedPlans(true)
+    expect(await planOf(analysed, UNPINNED)).toContain('sqlite_autoindex_activities_1 (id=?)')
+  })
+})

@@ -40,7 +40,7 @@
     </header>
 
     <main class="wrap policy">
-      <p class="updated">Last updated 28 October 2026</p>
+      <p class="updated">Last updated 30 October 2026</p>
       <h1>Privacy policy</h1>
 
       <p class="lede">
@@ -73,12 +73,17 @@
           of the route with no coordinates or scale. The outline is kept only in this browser and is
           never uploaded. The summary has no per-second data or original file, and it does not
           expire. When one file yields several summaries, including a split activity, each keeps a
-          SHA-256 hash of that file, so they are shown together.
+          SHA-256 hash of that file, so they are shown together. Summaries kept from now on also
+          keep the file name and a SHA-256 hash of the file, for adding them to an account later.
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,
-          year and sex if given, whether setup is answered, and the view period you pick, under
-          rca.period.v1. This copy is kept whether or not you have an account.
+          year and sex if given, whether setup is answered (rca.setup.v1, one answer for the whole
+          browser), and the view period you pick, under rca.period.v1. This copy is kept whether or
+          not you have an account: signing out, deleting your account and Remove all my activities
+          leave it, and the next person using this browser can see it. Clearing this site's data
+          removes it. A flag named rca.aboutDataSeen records which data notes you have read. Signing
+          out and Remove all my activities remove it; deleting your account leaves it.
         </li>
         <li>
           Dated settings you add on Profile when signed out, a weight, max heart rate or threshold
@@ -95,6 +100,19 @@
           A flag in this browser's local storage, named rca.kept.v1, says whether this browser had
           results to show at its last visit, signed in or not, so a reload can show them at once. It
           holds no activity data.
+        </li>
+        <li>
+          A second flag, named rca.deviceKept.v1, says whether the summaries kept in this browser
+          were there at the last visit, so the app can tell you when the browser has cleared them.
+          It holds no activity data. After your first import is kept, the app also asks the browser
+          to keep this site's storage, which sends nothing anywhere. If the browser will not, the
+          app says so once and notes that in a third flag, rca.persistNote.v1.
+        </li>
+        <li>
+          If you choose to count a run that is at walking pace, the choice is kept in this browser's
+          local storage under rca.countedRuns.v1 as the run's sport and start time in seconds. It is
+          never uploaded, signed in or not. Signing out and deleting your account clear it, and so
+          does Remove all my activities, which is offered only when signed out.
         </li>
         <li>
           The name printed on a shared card stays in this browser: it is kept in local storage under
@@ -124,7 +142,11 @@
         stay, and the app reads them only for their account. Deleting an activity removes its cached
         recording, and Remove all my activities removes signed-out recordings. Account deletion also
         attempts to remove that account’s recordings and reports a local cleanup failure separately.
-        Clearing this site’s browser data removes all recording caches.
+        Clearing this site’s browser data removes all recording caches. The cache also keeps one
+        small record for each account that signed out or was deleted in this browser, holding an
+        account identifier and a time, so that a late write for that account is refused. The record
+        for a deleted account stays until you clear this site’s data. The record for a sign-out ends
+        the next time that account signs in here.
       </p>
 
       <h2>With an account</h2>
@@ -142,8 +164,9 @@
         <li>
           <strong>Sign-in sessions:</strong> a one-way hash of your session token, your account, and
           its creation and expiry times. The token stays in your browser, in a sign-in cookie that
-          lasts until your session ends. Sessions end up to 30 days after last use, and at most 90
-          days after they were created. Expired sessions are removed in daily cleanup.
+          has an expiry date and stays after you close the browser. Sessions end up to 30 days after
+          last use, and at most 90 days after they were created. At most ten are kept; signing in
+          again ends the oldest. Expired sessions are removed in daily cleanup.
         </li>
         <li>
           <strong>Profile settings:</strong> weight, bike and gear weight, units, whether you keep
@@ -152,29 +175,41 @@
         <li>
           <strong>Dated settings:</strong> each weight, max heart rate, threshold power or threshold
           pace you add on Profile, with the date it takes effect, and for the heart rate and
-          thresholds the sport. At most 200.
+          thresholds the sport. Each also records when you last changed it. At most 200.
         </li>
         <li>
           <strong>Activity summaries:</strong> name (as in the summary kept in this browser), sport,
           start and save times; file name and SHA-256 hash; distance, duration and elevation gain;
           and the analysis summary, the same figures as the summary kept in this browser. No
-          per-second recording or route data.
+          per-second recording or route data. A name can name a place, and in a Strava export the
+          file name is the number of the activity on Strava.
         </li>
         <li>
           <strong>Original files:</strong> only while
-          <strong>Keep original files in my library</strong> is on, and uploaded only then. Turning
-          it off deletes them and keeps the summaries. A route outline is drawn from your original
-          only when you ask for it, with Show route.
+          <strong>Keep original files in my library</strong> is on, and uploaded only then. An
+          original holds your full GPS track, including where you start and finish, and every
+          recorded second of heart rate and power. It is stored in Cloudflare R2, and whoever runs
+          this service can read it. Turning it off deletes them and keeps the summaries. A route
+          outline is drawn from your original only when you ask for it, with Show route.
         </li>
         <li>
           <strong>Daily counts:</strong> per account, downloads, saves, deletions, uploads, profile
           changes, dated-setting changes and library reads, kept about a week, up to eight UTC days.
+          When you create or delete an account, a one-way code made from your Google ID with a
+          server key is written beside the number of accounts that ID has created today and, on
+          deletion, that day's counts. These are kept about two days. They hold no name, email or
+          activity, and stop deleting an account and signing up again the same day from resetting
+          the counts.
+        </li>
+        <li>
+          <strong>Deletion record:</strong> when you delete your account, a random account ID and
+          the time are kept for 100 days, so that restoring the database from an older copy does not
+          bring your account back. It holds no name, email, Google ID or activity.
         </li>
         <li>
           <strong>Bookkeeping:</strong> activity IDs, a key from each activity's sport and start,
-          digest versions, your activity count and digest bytes, the library page cursor, whether
-          and when deletion started, when your profile last changed, and an upload reservation token
-          while a file uploads.
+          digest versions, your activity count and digest bytes, whether and when deletion started,
+          when your profile last changed, and an upload reservation token while a file uploads.
         </li>
       </ul>
       <p>
@@ -189,6 +224,11 @@
         deletions not yet finished. Original files are in a private Cloudflare R2 bucket, under keys
         that include your account and activity IDs. Cloudflare hosts and processes this data as our
         provider, and Google processes sign-in.
+      </p>
+      <p>
+        Cloudflare also keeps a point-in-time history of the database, between 7 and 30 days
+        depending on the plan, which lets us undo a bad deploy. Data you delete can stay in that
+        history until it expires. Deleted accounts are removed again if we ever rewind the database.
       </p>
       <p>
         Error logs hold a request ID, the error type and, for a saved activity that cannot be read,

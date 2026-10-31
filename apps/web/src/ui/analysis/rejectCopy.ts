@@ -114,7 +114,7 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: Rejecte
     'too-short': () => 'Too short: it records less than a minute.',
     'too-sparse': () => 'Recorded too sparsely: its points are more than 10 seconds apart.',
     'too-long': () => 'Longer than 48 hours, so it is left out.',
-    'too-much-data': () => 'Too much data for one file.',
+    'too-much-data': (detail) => tooMuchCopy(detail),
     'no-date': () => 'Its times are device time only, so it cannot be placed in your history.',
     'implausible-date': () => 'Its date is not plausible, so it is left out.',
     // The group says these were left out on purpose, so a line says only what the file is.
@@ -128,6 +128,16 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: Rejecte
     unreadable: () => 'This file could not be read.',
     'too-large': (detail) => tooLargeCopy(detail),
   }
+
+/**
+ * A file with more tracks, activities or laps than one file holds carries the detail `split`, which the
+ * core sets: the copy then says what to do. Any other file with too much data has no more to say.
+ */
+function tooMuchCopy(detail: string | undefined): string {
+  return detail === 'split'
+    ? 'Too many tracks, activities or laps for one file: split it into one file for each activity.'
+    : 'Too much data for one file.'
+}
 
 /** A damaged file, or an archive that lost entries: the count the core gives is the detail. */
 function corruptCopy(detail: string | undefined): string {

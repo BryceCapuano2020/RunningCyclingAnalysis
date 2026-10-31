@@ -1,6 +1,5 @@
 import { useCallback } from 'react'
 import { bodyMassOn } from '@rca/core/athlete'
-import type { AnalysisResult } from '@rca/core/pipeline'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings } from '@rca/core/types'
 import { forgetSeenNotes } from '../aboutDataStore'
@@ -18,7 +17,7 @@ import type { ImportState } from './importState'
 import type { LibraryActions } from './libraryActions'
 import type { LibraryState } from './libraryState'
 import { accountPending, drainBatches, EMPTY_SESSION } from './model'
-import type { Account, Box, ErrorNotice, SetError, Setter } from './model'
+import type { Account, Baseline, Box, ErrorNotice, SetError, Setter } from './model'
 import type { WorkerTransport } from './workerTransport'
 import type { WorkerResponse } from '../../worker/protocol'
 
@@ -34,7 +33,7 @@ interface ImportActionDeps {
   setError: SetError
   setErrorNotice: Setter<ErrorNotice | null>
   /** The result the worker last reported, for an import that does not say which one it is compared with. */
-  latestBaseline: () => AnalysisResult | null
+  latestBaseline: () => Baseline | null
 }
 
 /** Adds files, loads the sample, sets the range, rebuilds saved activities, and clears the session. */
@@ -63,7 +62,7 @@ export function useImportActions({
    * stopped worker is dropped.
    */
   const queueSignedInImport = useCallback(
-    (files: File[], submittedUserId: string, baseline?: AnalysisResult | null) => {
+    (files: File[], submittedUserId: string, baseline?: Baseline | null) => {
       const generation = workerGenerationRef.current
       const accountEpoch = accountEpochRef.current
       const submittedAccount = accountRef.current
@@ -160,7 +159,7 @@ export function useImportActions({
   // page shows that result once it renders. Files released from a library wait are given the baseline
   // that wait gave them, and keep it; every other import reads the baseline when it is sent.
   const addFiles = useCallback(
-    (files: File[], baseline?: AnalysisResult | null) => {
+    (files: File[], baseline?: Baseline | null) => {
       // File objects are cloned by reference, so the worker streams them without a copy here.
       if (files.length === 0) return
       const current = accountRef.current

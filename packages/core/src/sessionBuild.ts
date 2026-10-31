@@ -5,6 +5,7 @@ import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import { powerSetAsideIds } from './digest/powerCheck'
+import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
 import { splitPeriods } from './period'
@@ -21,7 +22,6 @@ import type { HeartRateJudge, ZoneTimeCache } from './zones'
 export interface StateInputs {
   digests: ActivityDigest[]
   choice: PeriodChoice
-  gradeTrend: boolean
   isSample: boolean
   periods: PeriodCache
   zoneTimes: ZoneTimeCache
@@ -32,6 +32,8 @@ export interface StateInputs {
   outdatedActivities: number
   incompatibleActivities: number
   syncIssues: SyncIssue[]
+  /** The workout keys of the walking-pace runs the athlete counts, for the state to name. */
+  countedWalkingRuns: string[]
   /** The wall clock (or the sample season's day), which the fitness status reads for how long ago the last run was. */
   nowMs: number
 }
@@ -59,7 +61,11 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const powerAside = athlete === null ? new Set<string>() : powerSetAsideIds(analysed, athlete)
   const held = powerAside.size === 0 ? setAside : [...setAside, ...powerAside]
   // A period with no activities still has a result, so the page can say what is missing from it.
-  const references = { referenceHr: judgement.referenceHr, observedMaxHr: judgement.observedMaxHr }
+  const references = {
+    referenceHr: judgement.referenceHr,
+    observedMaxHr: judgement.observedMaxHr,
+    effortReference: judgement.effortReference,
+  }
   const analysis =
     athlete !== null && visible.length > 0
       ? periods.analysis(
@@ -69,6 +75,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
           judgement.calibration,
           references,
           judgement.rideGate,
+          judgedWorkOf(judgement),
         )
       : null
   // The references that zones are cut from are the library's, not the period's: one activity has the same zones
@@ -78,12 +85,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const bikeModel = analysis?.bikeModel
   // All time is not clipped at a start, so its trend begins at the first activity.
   const fromMs = period.days === null ? null : period.startMs
-  // The sample is graded as its own athlete, so its rides carry their equivalents too.
-  const hr = inputs.gradeTrend || inputs.isSample ? judgement.calibration : undefined
   const efforts =
     athlete === null
       ? NO_TRENDS
-      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, hr, judgement.rideGate)
+      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate)
   const sameHeartRate =
     analysis === null ? NO_SAME_HEART_RATE : periods.sameHeartRate(selected, analysed, fromMs, held)
   const late =
@@ -92,6 +97,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
       : periods.late(
           selected.filter((digest) => !powerAside.has(digest.id)),
           held,
+          { effortReference: judgement.effortReference },
         )
   return {
     result: analysis,
@@ -112,9 +118,13 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     previous:
       athlete !== null && bikeModel !== undefined && previous.length > 0
         ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate, {
-            referenceHr: judgement.referenceHr,
+            effortReference: judgement.effortReference,
             setAside,
           })
+        : null,
+    change:
+      athlete !== null && bikeModel !== undefined && previous.length > 0
+        ? periods.change(selected, previous, athlete, bikeModel, judgement.rideGate)
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,
@@ -124,6 +134,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     incompatibleActivities: inputs.incompatibleActivities,
     hiddenDuplicates: hidden.size,
     walkingPaceRuns: visible.length - analysed.length,
+    countedWalkingRuns: inputs.countedWalkingRuns,
     period,
     library: athlete === null ? [] : activitySummaries(visible, athlete),
     syncIssues: inputs.syncIssues,

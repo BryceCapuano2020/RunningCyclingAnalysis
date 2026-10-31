@@ -1,8 +1,10 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import { POWER_IMPLAUSIBLE_ACTION, POWER_IMPLAUSIBLE_REASON } from './analysis/powerCheckCopy'
 import { isTopOfScale } from './grades'
 import type { GradeOutcome } from './grades'
 import { countEfforts } from './records'
+import type { HoldInputs } from './resultHold'
 
 /**
  * Why the ride is not in the comparison with the run. At the top of the scale its grade is capped at 100% and
@@ -22,4 +24,14 @@ export function rideLeftOut(ride: GradeOutcome | null, result: AnalysisResult): 
   return setAside > 0 && setAside >= countEfforts(result.activities, 'ride')
     ? 'implausible-power'
     : null
+}
+
+/** What the ride's grade adds to the hold on a result's comparison (see HoldInputs): read through `heldPick`. */
+export function rideHoldInputs(ride: GradeOutcome | null, result: AnalysisResult): HoldInputs {
+  const left = rideLeftOut(ride, result)
+  if (left === 'top-of-scale') return { rideAtTop: true }
+  if (left === 'implausible-power') {
+    return { implausibleRide: { text: POWER_IMPLAUSIBLE_REASON, action: POWER_IMPLAUSIBLE_ACTION } }
+  }
+  return {}
 }

@@ -1,72 +1,13 @@
 import { DATABASE_SOFT_LIMIT_BYTES } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
-import { systemDeps } from './deps.ts'
-import {
-  MAX_MAINTENANCE_OPERATIONS,
-  ORPHAN_GRACE_MS,
-  runMaintenance,
-  type MaintenanceReport,
-} from './maintenance.ts'
+import { runMaintenance } from './maintenance.ts'
 import { activityFileKey, userFilePrefix } from './storage.ts'
-import {
-  countingDb,
-  createHarness,
-  digestFixture,
-  START,
-  testEnv,
-  type Harness,
-} from './test/harness.ts'
+import { createHarness, digestFixture, START } from './test/harness.ts'
+import { addActivity, AFTER_GRACE, at, countOf, signedInUser } from './test/maintenance.ts'
 import { sha256Hex } from './util.ts'
 
 const DAY = 24 * 60 * 60 * 1000
 const HOUR = 60 * 60 * 1000
-/** An hour past the orphan grace period for an object put at START. */
-const AFTER_GRACE = START + ORPHAN_GRACE_MS + HOUR
-const R2_CALLS = new Set(['list', 'delete', 'head', 'get', 'put'])
-
-function at(now: number) {
-  return { ...systemDeps, now: () => now }
-}
-
-async function signedInUser(h: Harness, email: string): Promise<{ token: string; uid: string }> {
-  const token = await h.signIn(email)
-  const me = (await (
-    await h.send({ path: '/api/me', cookies: { rca_session: token } })
-  ).json()) as {
-    user: { id: string }
-  }
-  await h.send({
-    method: 'PUT',
-    path: '/api/profile',
-    json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
-    cookies: { rca_session: token },
-  })
-  return { token, uid: me.user.id }
-}
-
-async function addActivity(h: Harness, token: string, startMs: number): Promise<string> {
-  const created = (await (
-    await h.send({
-      method: 'POST',
-      path: '/api/activities',
-      json: {
-        digest: digestFixture({ startMs }),
-        fileName: `ride-${startMs}.fit`,
-        fileHash: await sha256Hex(new TextEncoder().encode(String(startMs))),
-      },
-      cookies: { rca_session: token },
-    })
-  ).json()) as { id: string }
-  return created.id
-}
-
-async function countOf(sql: string, ...values: unknown[]): Promise<number> {
-  const row = await testEnv()
-    .DB.prepare(sql)
-    .bind(...values)
-    .first<{ n: number }>()
-  return row?.n ?? 0
-}
 
 describe('scheduled maintenance', () => {
   it('deletes sessions that have expired or reached their 90-day end, and keeps live ones', async () => {
@@ -121,6 +62,23 @@ describe('scheduled maintenance', () => {
       day: string
     }>()
     expect(days.results.map((r) => r.day)).toEqual(['2026-01-08', '2026-01-15'])
+  })
+
+  it('also prunes the counts a deleted account left under its identity code, from before yesterday', async () => {
+    const h = createHarness()
+    await h.env.DB.batch(
+      ['2026-01-13', '2026-01-14', '2026-01-15'].map((day) =>
+        h.env.DB.prepare(
+          "INSERT INTO identity_budget (identity_key, day, action, used) VALUES ('k', ?, 'fileUpload', 1)",
+        ).bind(day),
+      ),
+    )
+    const report = await runMaintenance(h.env, at(START))
+    expect(report.budgetRows).toBe(1)
+    const days = await h.env.DB.prepare('SELECT day FROM identity_budget ORDER BY day').all<{
+      day: string
+    }>()
+    expect(days.results.map((r) => r.day)).toEqual(['2026-01-14', '2026-01-15'])
   })
 
   it('sweeps R2 objects that have no matching row once they are older than the grace period', async () => {
@@ -255,76 +213,6 @@ describe('scheduled maintenance', () => {
     expect((await runMaintenance(h.env, at(AFTER_GRACE + 2))).orphansDeleted).toBe(1)
     expect(await files.get(key)).toBeNull()
   })
-
-  // Seeding 2,202 objects through Miniflare takes over half of this test, and on a loaded machine
-  // the whole test can pass the 30 s default.
-  it('never issues more than MAX_MAINTENANCE_OPERATIONS D1 statements and R2 calls in a run, and finishes a worst-case backlog over later runs', async ({
-    signal,
-  }) => {
-    const setup = createHarness()
-    const files = setup.env.FILES!
-    const uids: string[] = []
-    for (const email of ['first@example.com', 'second@example.com']) {
-      const { token, uid } = await signedInUser(setup, email)
-      const activity = await addActivity(setup, token, START)
-      await setup.env.DB.prepare('UPDATE activities SET file_key = ?, file_size = 1 WHERE id = ?')
-        .bind(activityFileKey(uid, activity), activity)
-        .run()
-      await files.put(activityFileKey(uid, activity), 'original')
-      uids.push(uid)
-    }
-    // Over one R2 list page per account, so each deletion's sweep needs two list calls.
-    for (const uid of uids) {
-      await Promise.all(
-        Array.from({ length: 1001 }, (_, i) => files.put(`${userFilePrefix(uid)}x${i}`, 'x')),
-      )
-    }
-    for (const uid of uids) {
-      await setup.env.DB.batch([
-        setup.env.DB.prepare('UPDATE users SET deleting_at = ? WHERE id = ?').bind(START, uid),
-        setup.env.DB.prepare(
-          'INSERT INTO pending_account_deletions (user_id, requested_at, sweep_pending) VALUES (?, ?, 1)',
-        ).bind(uid, START),
-      ])
-    }
-    await Promise.all(
-      Array.from({ length: 200 }, (_, i) =>
-        files.put(`users/gone/${String(i).padStart(3, '0')}`, 'x'),
-      ),
-    )
-
-    const counted = countingDb(testEnv().DB)
-    let r2Calls = 0
-    const countedFiles = new Proxy(files, {
-      get(target, property) {
-        const value: unknown = Reflect.get(target, property, target)
-        if (typeof value !== 'function') return value
-        return (...args: unknown[]) => {
-          if (typeof property === 'string' && R2_CALLS.has(property)) r2Calls += 1
-          return Reflect.apply(value, target, args)
-        }
-      },
-    })
-    const env = testEnv({ DB: counted.db, FILES: countedFiles })
-
-    const reports: MaintenanceReport[] = []
-    for (let run = 0; run < 10; run += 1) {
-      // Vitest moves on from a timed-out test without stopping it. This stops the runs after the
-      // one in flight from writing into the bindings the next test has just reset.
-      signal.throwIfAborted()
-      counted.reset()
-      r2Calls = 0
-      const report = await runMaintenance(env, at(AFTER_GRACE))
-      reports.push(report)
-      expect(report.operations).toBeLessThanOrEqual(MAX_MAINTENANCE_OPERATIONS)
-      expect(counted.count() + r2Calls).toBeLessThanOrEqual(MAX_MAINTENANCE_OPERATIONS)
-    }
-
-    expect(reports[0]?.budgetReached).toBe(true)
-    expect(reports.reduce((sum, r) => sum + r.finishedDeletions, 0)).toBe(2)
-    expect(await countOf('SELECT COUNT(*) AS n FROM pending_account_deletions')).toBe(0)
-    expect((await files.list({ prefix: 'users/gone/' })).objects).toHaveLength(0)
-  }, 120_000)
 
   it('finishes interrupted account deletions that were recorded before the process stopped', async () => {
     const h = createHarness()

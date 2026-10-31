@@ -9,7 +9,8 @@
 
 .records__row {
   display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr);
+  /* A quarter of the row at most: at a large text size the figure keeps most of a phone's width, and a long label wraps. */
+  grid-template-columns: min(6rem, 25%) minmax(0, 1fr);
   align-items: baseline;
   gap: var(--space-1) var(--space-3);
   min-width: 0;
@@ -18,6 +19,7 @@
 }
 
 .records__label {
+  overflow-wrap: anywhere;
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -43,7 +45,7 @@
   color: var(--text-secondary);
   font-family: var(--font-display);
   /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.25rem;
+  font-size: var(--heading);
   font-weight: 700;
 }
 
@@ -66,11 +68,13 @@
 }
 
 /*
- * A long activity name is cut short with an ellipsis; its full name is the link's title and label. Only
- * the name gives way: the date after it stays whole, since two records are told apart by it.
+ * A long activity name wraps, never cut: at a large text size or with a long name the whole of it stays
+ * readable (WCAG 1.4.4). The date after it stays whole, since two records are told apart by it, and drops to
+ * its own line when the name leaves it no room.
  */
 .records__link {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   max-width: 100%;
   min-height: 24px;
@@ -79,9 +83,7 @@
 
 .records__name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .records__date {
@@ -133,7 +135,7 @@
   flex: 0 1 auto;
 }
 
-/* The link gives way to the width, with its ellipsis; the count keeps its whole text. */
+/* The link gives way to the width, its name wrapping; the count keeps its whole text. */
 .records__source > .records__set {
   flex: none;
   white-space: nowrap;

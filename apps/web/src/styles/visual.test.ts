@@ -38,6 +38,7 @@ const sportRecords = await read('../ui/components/SportRecords.css')
 const googleSignIn = await read('../ui/components/GoogleSignInButton.css')
 const emptySportCard = await read('../ui/pages/EmptySportCard.css')
 const statTile = await read('../ui/pages/StatTile.css')
+const statTileTsx = await read('../ui/pages/StatTile.tsx')
 const balanceTiles = await read('../ui/pages/BalanceTiles.css')
 const equivalenceCss = await read('../ui/components/EquivalenceTable.css')
 const weightNote = await read('../ui/components/WeightNote.css')
@@ -310,7 +311,7 @@ describe('pressed states', () => {
     expect(unselected).toMatch(/background:\s*var\(--surface-pressed\)/)
     expect(unselected).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--control-border\)/)
     expect(rulesWith(segmented, '.segmented-control__option--selected:active')).toMatch(
-      /box-shadow:\s*inset 0 0 0 2px var\(--selected-contrast\)/,
+      /box-shadow:\s*inset 0 0 0 2px var\(--highlight-ink\)/,
     )
   })
 
@@ -568,9 +569,8 @@ describe('balance tiles', () => {
   })
 
   it('sets a tile’s figure at display size in the display face, and its name as an eyebrow', () => {
-    expect(rulesWith(statTile, '.stat-tile__number')).toMatch(
-      /font-family:\s*var\(--font-display\)/,
-    )
+    expect(statTileTsx).toContain('className="display stat-tile__number"')
+    expect(rulesWith(statTile, '.stat-tile__number')).toMatch(/font-size:\s*var\(--display-2\)/)
     expect(rulesWith(statTile, '.stat-tile__name')).toMatch(/text-transform:\s*uppercase/)
   })
 })
@@ -723,7 +723,7 @@ describe('global controls', () => {
 
   it('keeps the current Pager page filled on hover and press, as its rule outranks the generic button rules', () => {
     expect(rulesWith(pagerCss, ".pager .pager__page[aria-current='page']")).toMatch(
-      /background:\s*var\(--selected\)/,
+      /background:\s*var\(--highlight\)/,
     )
   })
 
@@ -777,10 +777,11 @@ describe('sport records, on the card and the page', () => {
     expect(rulesWith(sportRecords, '.records__source')).toMatch(/column-gap:\s*var\(--space-1\)/)
   })
 
-  it('gives the label column 6rem, so "Half marathon" fits beside its figure', () => {
+  it('gives the label column 6rem, but never more than a quarter of the row, so a large text size leaves the figure its room', () => {
     expect(rulesWith(sportRecords, '.records__row')).toMatch(
-      /grid-template-columns:\s*6rem minmax\(0, 1fr\)/,
+      /grid-template-columns:\s*min\(6rem, 25%\) minmax\(0, 1fr\)/,
     )
+    expect(rulesWith(sportRecords, '.records__label')).toMatch(/overflow-wrap:\s*anywhere/)
   })
 
   it('keeps every record link at least 24 px tall, for a pointer as for a finger', () => {
@@ -819,7 +820,9 @@ describe('sport records, on the card and the page', () => {
     expect(rulesWith(mediaOf(sportPage, '(min-width: 1081px)'), '.sport-row--pair')).toMatch(
       /minmax\(0, 3fr\) minmax\(0, 2fr\)/,
     )
-    expect(rulesWith(sportPage, '.page:has(.sport-page)')).toMatch(/max-width:\s*1200px/)
+    // The width is the shell's, 75rem (1,200 px) on every page, so the sport pages set none of their own.
+    expect(rulesWith(components, '.page')).toMatch(/max-width:\s*var\(--page-width\)/)
+    expect(sportPage).not.toMatch(/max-width:\s*(1080|1200)px/)
   })
 
   it('holds the “On this page” row under the header on a desktop, and lets it scroll sideways on a phone', () => {
@@ -838,11 +841,14 @@ describe('sport records, on the card and the page', () => {
     ).toMatch(/grid-column:\s*3/)
   })
 
-  it('lets a record tile’s link shrink to its tile, so a long activity name is cut short and never widens a phone', () => {
+  it('lets a record tile’s link shrink to its tile, so a long activity name wraps whole and never widens a phone', () => {
     const link = rulesWith(recordTiles, '.record-tiles__link')
     expect(link).toMatch(/min-width:\s*0/)
     expect(link).toMatch(/justify-self:\s*stretch/)
-    expect(rulesWith(recordTiles, '.record-tiles__name')).toMatch(/text-overflow:\s*ellipsis/)
+    expect(link).toMatch(/flex-wrap:\s*wrap/)
+    const name = rulesWith(recordTiles, '.record-tiles__name')
+    expect(name).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(name).not.toMatch(/text-overflow|white-space:\s*nowrap/)
   })
 
   it('draws a race bar in the sport’s colour, with its two estimates as triangles above and below', () => {

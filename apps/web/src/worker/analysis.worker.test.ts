@@ -17,6 +17,7 @@ import { deviceClock, sampleActivityById } from './sampleClock'
 import type { DeviceLibrary } from './deviceLibrary'
 import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
 import * as importSummary from './importSummary'
+import { REPLY_TYPES } from './protocol'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 /** A reply waits on a full analysis, which takes most of a second on its own; vi.waitFor's 1 s is too short under load. */
@@ -128,6 +129,7 @@ async function startWorker() {
           last?.type !== 'rebuildComplete' &&
           last?.type !== 'exportReady' &&
           last?.type !== 'splits' &&
+          last?.type !== 'activityTrace' &&
           last?.type !== 'routeShape')
       ) {
         throw new Error('still working')
@@ -551,7 +553,13 @@ describe('analysis worker', () => {
     const { send } = await startWorker()
     const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
 
-    expect(mocked.listActivities).toHaveBeenCalledWith(undefined, USER_ID, expect.any(Function))
+    expect(mocked.listActivities).toHaveBeenCalledWith(
+      undefined,
+      USER_ID,
+      expect.any(Function),
+      undefined,
+      expect.any(Function),
+    )
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
@@ -656,10 +664,12 @@ describe('analysis worker', () => {
     ])
   })
 
-  it('tells a signed-out import to add its files again when the kept library cannot be read', async () => {
+  it('analyses a signed-out import on its own, and says so, when the kept library cannot be read', async () => {
     kept.library = {
       ...memoryDeviceLibrary(),
       all: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+      // Each save first reads what is kept under its workout, so nothing kept can be written over.
+      lookup: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
     }
     const { send } = await startWorker()
     const messages = await send({
@@ -670,10 +680,10 @@ describe('analysis worker', () => {
       saveToDevice: true,
     })
 
-    expect(messages.at(-1)).toEqual({
-      type: 'error',
-      message: expect.stringMatching(/these files were not added\. Add them again\./),
-    })
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notRead' })
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notSaved', count: 1 })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+    expect(messages.some((message) => message.type === 'error')).toBe(false)
   })
 
   it('leaves the sample on its period when the kept library loads after it', async () => {
@@ -1537,10 +1547,14 @@ function refusingLibrary(): DeviceLibrary {
   const refused = () => Promise.reject(new Error('Device storage is unavailable'))
   return {
     all: async () => [],
+    skipped: () => 0,
     get: async () => null,
     lookup: async () => null,
     route: async () => null,
     put: refused,
+    backfillFile: refused,
+    // Storage the browser does not offer holds nothing, and so has no epoch to move.
+    epoch: async () => 0,
     remove: refused,
     clear: refused,
   }
@@ -2142,7 +2156,12 @@ describe('keeping what was analysed while the account was unknown', () => {
     const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
 
     expect(await keptDevice().all()).toEqual([
-      { workoutKey: workoutKeyOf(digest), digest: expect.objectContaining({ id: digest.id }) },
+      {
+        workoutKey: workoutKeyOf(digest),
+        digest: expect.objectContaining({ id: digest.id }),
+        // Kept with the file it came from, so the workout can be added to an account later.
+        file: { fileName: expect.any(String), fileHash: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      },
     ])
     expect(messages).toContainEqual({
       type: 'libraryActivities',
@@ -2219,6 +2238,7 @@ describe('account export', () => {
     expect(mocked.listActivities).toHaveBeenCalledWith(
       undefined,
       USER_ID,
+      expect.any(Function),
       expect.any(Function),
       expect.any(Function),
     )
@@ -2633,5 +2653,166 @@ describe('rebuilding a multisport leg keeps its session key', () => {
       USER_ID,
       `rec-${stale.id}`,
     )
+  })
+})
+
+describe('request numbers', () => {
+  it('announces a numbered request and stamps its reply and the events it posts', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send } = await startWorker()
+    const request = { type: 'loadServer', settings: SETTINGS, userId: USER_ID, requestId: 41 }
+    const messages = await send(request as WorkerRequest)
+
+    expect(messages[0]).toEqual({ type: 'started', during: 41 })
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'state', replyTo: 41 })
+    // Everything else it said while it ran names the same request, and none of it claims to be a reply.
+    for (const event of messages.slice(1, -1)) {
+      expect(event).toMatchObject({ during: 41 })
+      expect(event).not.toHaveProperty('replyTo')
+    }
+  })
+
+  it('carries the number on a request that fails', async () => {
+    const { send } = await startWorker()
+    const request = {
+      type: 'deleteActivity',
+      id: 'nope',
+      userId: USER_ID,
+      settings: SETTINGS,
+      requestId: 8,
+    }
+    const messages = await send(request as WorkerRequest)
+    expect(messages.at(-1)).toMatchObject({ type: 'error', replyTo: 8 })
+  })
+
+  it('sends an unnumbered request nothing extra', async () => {
+    const { send } = await startWorker()
+    const messages = await send({ type: 'setSettings', settings: SETTINGS })
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).not.toHaveProperty('replyTo')
+  })
+})
+
+describe('a reply carries its request number, and nothing follows it', () => {
+  /** The reply is the one message of its kind, comes last, and names the request; the rest ran under it. */
+  function expectOneReply(messages: WorkerResponse[], type: WorkerResponse['type'], id: number) {
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type, replyTo: id })
+    for (const event of messages.slice(0, -1)) {
+      expect(event).toMatchObject({ during: id })
+      expect(event).not.toHaveProperty('replyTo')
+      expect(REPLY_TYPES.has(event.type)).toBe(false)
+    }
+  }
+
+  async function sendNumbered(
+    send: (request: WorkerRequest) => Promise<WorkerResponse[]>,
+    request: WorkerRequest,
+    id: number,
+  ) {
+    return send({ ...request, requestId: id } as unknown as WorkerRequest)
+  }
+
+  it('numbers an export', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    const messages = await sendNumbered(
+      send,
+      {
+        type: 'exportData',
+        userId: USER_ID,
+        account: { name: 'A', email: 'a@example.com' },
+        profile: {
+          massKg: 75,
+          bikeMassKg: 9,
+          units: 'metric',
+          keepFiles: true,
+          birthYear: null,
+          sex: null,
+          updatedAt: 1,
+        },
+      },
+      11,
+    )
+    expectOneReply(messages, 'exportReady', 11)
+  })
+
+  it('numbers the splits of an activity', async () => {
+    const { send } = await startWorker()
+    expectOneReply(
+      await sendNumbered(send, { type: 'activitySplits', id: 'nope' }, 12),
+      'splits',
+      12,
+    )
+  })
+
+  it('numbers a route', async () => {
+    const { send } = await startWorker()
+    expectOneReply(
+      await sendNumbered(send, { type: 'routeShape', id: 'nope', userId: USER_ID }, 13),
+      'routeShape',
+      13,
+    )
+  })
+
+  it('numbers a rebuild', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    expectOneReply(
+      await sendNumbered(send, { type: 'rebuildStale', settings: SETTINGS, userId: USER_ID }, 14),
+      'rebuildComplete',
+      14,
+    )
+  })
+})
+
+describe('a kept library changed by another tab', () => {
+  it('stops an import into a library that was emptied, writes nothing, and says so', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    // Another tab chooses Remove all.
+    await kept.library!.clear()
+
+    const messages = await send(signedOutImport(fitFile()))
+
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'replaced' })
+    const reply = messages.at(-1)
+    expect(reply).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+    expect(reply).not.toHaveProperty('outcome')
+    expect(await kept.library!.all()).toEqual([])
+  })
+
+  it('keeps an import that nothing interrupted', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const messages = await send(signedOutImport(fitFile()))
+
+    expect(messages.some((message) => message.type === 'deviceIssue')).toBe(false)
+    expect((await kept.library!.all()).length).toBe(1)
+  })
+
+  it('reads the library again when asked to, though this tab holds it', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    // Another tab keeps an activity.
+    await kept.library!.put(workoutKeyOf(SAMPLE_DIGEST), SAMPLE_DIGEST)
+
+    const unchanged = await send({ type: 'loadDevice', settings: SETTINGS })
+    expect(unchanged.at(-1)).toMatchObject({ state: { totalActivities: 0 } })
+    const reloaded = await send({ type: 'loadDevice', settings: SETTINGS, reload: true })
+    expect(reloaded.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
+  })
+
+  it('does not drop results that show here but could not be kept, when asked to read the library again', async () => {
+    kept.library = refusingLibrary()
+    const { send } = await startWorker()
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    await send(signedOutImport(fitFile()))
+
+    const reloaded = await send({ type: 'loadDevice', settings: SETTINGS, reload: true })
+
+    expect(reloaded.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
   })
 })

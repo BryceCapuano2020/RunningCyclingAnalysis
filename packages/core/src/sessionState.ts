@@ -12,6 +12,7 @@ import type { HeartRateJudgement } from './digest/setAsideTypes'
 import type { PeriodZoneTimes } from './zones/timeCache'
 import type { ZoneEstimates } from './zones'
 import type { FitnessBySport } from './fitness/types'
+import type { ChangeEvidence } from './change/types'
 
 /** An activity file this import could not use, with why. */
 export interface RejectedFile extends Rejection {
@@ -42,6 +43,11 @@ export interface SessionState {
    * in the library, marked.
    */
   walkingPaceRuns: number
+  /**
+   * The workout keys (see `workoutKey`) of the runs at walking pace that the athlete counts as runs
+   * (`AthleteSettings.countedRuns`). They are in the analysis and carry no mark in the library.
+   */
+  countedWalkingRuns: string[]
   /** The period analysed: its choice and its dates. The library lists every activity regardless. */
   period: Period
   /** Every visible activity, newest first, whatever the period: the activity list and its pages. */
@@ -81,6 +87,11 @@ export interface SessionState {
    * all time, or when that period has no activities.
    */
   previous: SportCurves | null
+  /**
+   * Whether each best effort of the selected period differs from the previous period's by more than chance, for
+   * both sports at every curve duration (see changeEvidence). Null where `previous` is.
+   */
+  change: ChangeEvidence | null
   /** The best efforts each activity holds across the whole library, not the period. */
   records: Map<string, EarnedRecord[]>
 }

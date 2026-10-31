@@ -6,6 +6,8 @@ import { messageOf } from '../api/messageOf'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
 import { forgetAccountDetails } from '../worker/forgetAccountDetails'
 import { sweepAccountDetails } from '../worker/sweepAccountDetails'
+import { tellOtherTabs } from './tabSync'
+import { SESSION_ENDED, useAccountTabs } from './useAccountTabs'
 
 export type AccountStatus = 'loading' | 'signed-out' | 'signed-in' | 'unavailable'
 
@@ -42,6 +44,16 @@ export interface AccountController {
 
 /** Waits before each retry of a failed account lookup: 1 s, 3 s, then 10 s. */
 const LOOKUP_RETRY_DELAYS_MS = [1_000, 3_000, 10_000]
+
+/**
+ * How one lookup attempt is made while later attempts remain: a short deadline, and an immediate
+ * second try only for a failure that came at once (a refused connection), never for a timeout, so a
+ * hung API costs one short wait and not two. A returning visitor's results do not wait on the lookup
+ * (the kept library loads after a short grace), so a slow API costs nothing but the account features.
+ * The last attempt uses the normal deadline, so a slow link that needs longer is not signed out for
+ * good.
+ */
+const LOOKUP_ATTEMPT = { timeoutMs: 5_000, retryWithinMs: 1_000 } as const
 
 function isUnauthenticated(failure: unknown): boolean {
   return failure instanceof ApiRequestError && failure.status === 401
@@ -82,6 +94,12 @@ export function useAccount(): AccountController {
   // Profile writes replace the whole profile on the server, so keep them in call order.
   const profileWritesRef = useRef<Promise<unknown>>(Promise.resolve())
   const endingSessionRef = useRef(false)
+  // The error the account lookup itself left, so only it is taken back when a later ask gets through.
+  const lookupErrorRef = useRef<string | null>(null)
+  const clearLookupError = useCallback(
+    () => setError((shown) => (shown !== null && shown === lookupErrorRef.current ? null : shown)),
+    [],
+  )
 
   /**
    * Clears an account's detail recordings from this browser once the account is no longer this
@@ -125,9 +143,10 @@ export function useAccount(): AccountController {
     setMe(null)
     setStatus('signed-out')
     setSessionExpired(true)
-    setError('Your session ended. Sign in to keep saving your activities.')
+    setError(SESSION_ENDED)
     forgetEnded(ended.user.id)
     void sweepAccountDetails(null)
+    tellOtherTabs({ type: 'account', change: 'expired' })
   }, [forgetEnded])
 
   useEffect(() => {
@@ -136,25 +155,31 @@ export function useAccount(): AccountController {
     let retries = 0
     let failed = false
     const lookup = () => {
-      api.getMe().then(
+      const lastAttempt = retries >= LOOKUP_RETRY_DELAYS_MS.length
+      api.getMe(lastAttempt ? undefined : LOOKUP_ATTEMPT).then(
         (found) => {
           if (!current) return
           adopt(found)
           setLookupPending(false)
           // A retry that got through takes back the account's earlier "unavailable".
-          if (failed) setError(null)
+          if (failed) clearLookupError()
         },
         (failure: unknown) => {
           if (!current) return
           // Nobody is known to be signed in, so the visitor works as a signed-out one at once: the
           // browser's own library and files do not wait on the API. The lookup goes on in the
           // background, and a retry that finds an account signs it in as any later sign-in.
-          failed = true
+          const delay = LOOKUP_RETRY_DELAYS_MS[retries]
           meRef.current = null
           setMe(null)
           setStatus('unavailable')
-          setError(messageOf(failure))
-          const delay = LOOKUP_RETRY_DELAYS_MS[retries]
+          // The first miss is usually a slow moment the retry clears, so it says nothing; a second
+          // miss, or the last one, does.
+          if (failed || delay === undefined) {
+            lookupErrorRef.current = messageOf(failure)
+            setError(lookupErrorRef.current)
+          }
+          failed = true
           setLookupPending(delay !== undefined)
           if (delay !== undefined) {
             retries++
@@ -168,7 +193,9 @@ export function useAccount(): AccountController {
       current = false
       clearTimeout(retryTimer)
     }
-  }, [adopt])
+  }, [adopt, clearLookupError])
+
+  useAccountTabs({ status, lookupPending, refresh, meRef, setError, clearLookupError })
 
   const signIn = useCallback(() => {
     location.assign(signInUrl)
@@ -188,6 +215,7 @@ export function useAccount(): AccountController {
     try {
       await profileWritesRef.current
       await api.logout(userId)
+      tellOtherTabs({ type: 'account', change: 'signed-out' })
       meRef.current = null
       profileWriteFailureRef.current = null
       setMe(null)
@@ -210,6 +238,7 @@ export function useAccount(): AccountController {
     try {
       await profileWritesRef.current
       await api.deleteAccount(userId)
+      tellOtherTabs({ type: 'account', change: 'deleted' })
       const cleanupNotice = await deleteAccountDetails(userId)
       meRef.current = null
       profileWriteFailureRef.current = null
@@ -243,6 +272,7 @@ export function useAccount(): AccountController {
             throw new ApiRequestError(409, 'account_changed', 'The signed-in account changed')
           }
           const profile = await api.updateProfile(mergeProfile(latest.profile, patch), userId)
+          tellOtherTabs({ type: 'profile' })
           profileWriteFailureRef.current = null
           const current = meRef.current
           if (current !== null) {

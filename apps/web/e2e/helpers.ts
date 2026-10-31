@@ -21,7 +21,8 @@ export const SAMPLE_BANNER =
 export const BALANCE_TITLE =
   /leans toward|in balance|see your balance|Not enough to compare yet|waits for your weight/
 
-export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag22aa']
+/** The axe tags checked: WCAG 2.0, 2.1 and 2.2 A and AA, and axe's best practices. */
+export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
 
 export type Destination = 'Balance' | 'Run' | 'Ride' | 'Activities' | 'Profile'
 
@@ -144,8 +145,12 @@ export async function completeSetup(
   } catch {
     return
   }
+  // Typing freezes the units the dialog shows: until then an account that answers late can switch them, and
+  // the digits would be read in the other unit. So type something first, then read the units, then type the weight.
+  const field = dialog.getByLabel('Body weight')
+  await field.fill('1')
   const metric = await dialog.getByRole('radio', { name: 'Metric' }).isChecked()
-  await dialog.getByLabel('Body weight').fill(weightInShownUnits(pounds, metric))
+  await field.fill(weightInShownUnits(pounds, metric))
   await dialog.getByRole('button', { name: 'Analyse my files' }).click()
   await expect(dialog).toBeHidden()
 }

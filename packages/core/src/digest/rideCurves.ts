@@ -1,7 +1,13 @@
-import { HEADLINE_DURATION_S, HR_BLOCK_S, PRIORS, RESTING_W_PER_KG } from '../constants'
+import {
+  DURATIONS_S,
+  HEADLINE_DURATION_S,
+  HR_BLOCK_S,
+  PRIORS,
+  RESTING_W_PER_KG,
+} from '../constants'
 import { possibleRunWkg } from '../curves'
-import { checkEfforts } from '../effort'
-import type { EffortPoint, MaxHeartRates } from '../effort'
+import { checkEfforts, judgedTwentyMinutes } from '../effort'
+import type { EffortPoint, EffortReference, TwentyMinutePoint } from '../effort'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -11,16 +17,21 @@ import type {
   DigestHrBlock,
   HrPoint,
   SportCurves,
+  Sport,
 } from '../types'
 import { fitBikeModel } from '../virtualPower'
 import { bestOf, bestOfEach, isMeasured, plainCurve } from './bestCurve'
 import { CalibrationPool, calibratedOf } from './calibration'
+import { memoByDigests } from '../digestMemo'
 import { effortsCount } from './effortTrust'
+import { EVERY_EFFORT } from './readingRule'
+import type { ReadingRule } from './readingRule'
 import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
-import { orderedCurrent } from './ordered'
+import { orderedFor } from './consumers'
+import { ofSport } from './ordered'
 import { powerCheckOf, trustedPower } from './powerCheck'
 import { powerAt } from './terms'
 import { withoutSetAside } from './trustedHeartRate'
@@ -118,9 +129,21 @@ export interface BestCurves {
 }
 
 /**
+ * The best run values of runs read by every effort that counts. A run is priced from its pace alone, so a change of body
+ * mass, bike model or estimated-ride gate takes the curve already worked out for the same runs. A copy, for a caller that
+ * changes it.
+ */
+const everyRunBest = memoByDigests(
+  (runs: ActivityDigest[], _input: null) => bestOfEach(runs, 'run', () => runCentralWkg),
+  () => true,
+  (curve) => curve.map((point) => ({ ...point })),
+)
+
+/**
  * The best run and ride values at each duration. Rides are priced with bikeModel, and an estimated ride point
- * counts only if `gate` lets it (see ESTIMATED_RIDE); null leaves every point, as with too few measured rides. A treadmill run holds
- * no best (see effortsCount), so it is left out of both curves.
+ * counts only if `gate` lets it (see ESTIMATED_RIDE); null leaves every point, as with too few measured rides. What counts
+ * as a reading at all is `rule`'s (a treadmill run holds no best, see effortsCount): the change test reads efforts through
+ * the same rule.
  */
 export function bestCurves(
   all: ActivityDigest[],
@@ -128,9 +151,19 @@ export function bestCurves(
   bikeModel: BikeModel,
   todayKg: number,
   gate: EstimatedRideGate | null,
+  rule: ReadingRule = EVERY_EFFORT,
 ): BestCurves {
-  const ordered = all.filter(effortsCount)
-  const runBest = bestOf(ordered, 'run', runCentralWkg)
+  const ordered = all.filter(rule.activity)
+  // A point the rule leaves out is not found, as one the ceiling drops is not.
+  const counted =
+    (digest: ActivityDigest, value: (point: DigestCurvePoint) => number) =>
+    (point: DigestCurvePoint): number =>
+      rule.point(digest, point) ? value(point) : Number.NaN
+  const runs = ofSport(ordered, 'run')
+  const runBest =
+    rule === EVERY_EFFORT
+      ? everyRunBest(runs, null)
+      : bestOfEach(runs, 'run', (digest) => counted(digest, runCentralWkg))
   const standing = estimatedStanding(gate)
   // Without a gate every point holds, so none stands alone.
   const aloneFor =
@@ -142,7 +175,8 @@ export function bestCurves(
     const rideBest = bestOfEach(
       ordered,
       'ride',
-      (digest) => (point) => ridePriced(point, digest, masses, bikeModel, standing).watts,
+      (digest) =>
+        counted(digest, (point) => ridePriced(point, digest, masses, bikeModel, standing).watts),
       undefined,
       aloneFor,
     )
@@ -157,7 +191,8 @@ export function bestCurves(
   const wkgBest = bestOfEach(
     ordered,
     'ride',
-    (digest) => (point) => pointWkg(point, digest, masses, bikeModel, standing).wkg,
+    (digest) =>
+      counted(digest, (point) => pointWkg(point, digest, masses, bikeModel, standing).wkg),
     undefined,
     aloneFor,
   )
@@ -175,7 +210,57 @@ export function bestCurves(
 
 /** The best watts at each duration among the rides with a power meter, which need no bike model. */
 export function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
-  return bestOf(ordered, 'ride', (point) => point.value, isMeasured)
+  return measuredBest(ofSport(ordered, 'ride').filter(isMeasured), null)
+}
+
+/** The measured rides read no mass or model, so the same rides give the curve already worked out. */
+const measuredBest = memoByDigests(
+  (measured: ActivityDigest[], _input: null) => bestOf(measured, 'ride', (point) => point.value),
+  () => true,
+  (curve) => curve.map((point) => ({ ...point })),
+)
+
+/** Whether a sport's 20 minute value is a measurement: a run's pace is, a ride's watts only from a power meter. */
+const MEASURED: Record<Sport, (digest: ActivityDigest) => boolean> = {
+  run: () => true,
+  ride: (digest) => digest.powerSource === 'measured',
+}
+
+/** The index of the 20 minute best among a digest's durations. */
+const HEADLINE_INDEX = DURATIONS_S.indexOf(HEADLINE_DURATION_S)
+
+/**
+ * Each sport's activities' 20 minute bests in the fit's unit (gross metabolic W/kg) with the heart rate over each window,
+ * for the activities whose efforts count. A heart rate that is set aside is none. These are what the effort gate chooses
+ * the effort to judge from: the best, and any within the fit's reach tolerance of it.
+ */
+export function twentyMinutePoints(
+  ordered: readonly ActivityDigest[],
+  masses: Masses,
+  bikeModel: BikeModel,
+  gate: EstimatedRideGate | null,
+  setAside: ReadonlySet<string>,
+): Record<Sport, TwentyMinutePoint[]> {
+  const standing = estimatedStanding(gate)
+  const out: Record<Sport, TwentyMinutePoint[]> = { run: [], ride: [] }
+  for (const digest of ordered) {
+    const point = digest.curve[HEADLINE_INDEX]
+    if (point === undefined || !effortsCount(digest)) continue
+    const value =
+      digest.sport === 'ride'
+        ? centralWkgFromWatts(
+            ridePriced(point, digest, masses, bikeModel, standing).watts,
+            masses.bodyKg(digest),
+          )
+        : runCentralWkg(point)
+    if (!Number.isFinite(value)) continue
+    out[digest.sport].push({
+      value,
+      heartRate: setAside.has(digest.id) ? null : point.heartRate,
+      measured: MEASURED[digest.sport](digest),
+    })
+  }
+  return out
 }
 
 /**
@@ -190,26 +275,39 @@ export function sportCurves(
   settings: AthleteSettings,
   bikeModel: BikeModel,
   gate?: EstimatedRideGate | null,
-  hardness?: { reference: MaxHeartRates; setAside: ReadonlySet<string> },
+  hardness?: { effort: EffortReference; setAside: ReadonlySet<string> },
 ): SportCurves {
   const masses = massesOf(settings)
-  const ordered = orderedCurrent(digests)
-  const { runBest, rideBest } = bestCurves(
-    ordered,
-    masses,
-    bikeModel,
-    settings.massKg,
-    gate === undefined ? ownRideGate(trustedPower(ordered, masses)) : gate,
-  )
+  const ordered = orderedFor('rideCurves', digests)
+  const rideGate = gate === undefined ? ownRideGate(trustedPower(ordered, masses)) : gate
+  const { runBest, rideBest } = bestCurves(ordered, masses, bikeModel, settings.massKg, rideGate)
   const curves = { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
   if (hardness === undefined) return curves
+  const setAside = new Set(hardness.setAside)
   const [effort] = checkEfforts(
-    withoutSetAside(runBest, new Set(hardness.setAside)),
-    withoutSetAside(rideBest, new Set(hardness.setAside)),
-    hardness.reference,
+    withoutSetAside(runBest, setAside),
+    withoutSetAside(rideBest, setAside),
+    hardness.effort.referenceHr,
     [HEADLINE_DURATION_S],
+    hardness.effort,
   )
-  return { ...curves, headlineEffort: effort! }
+  // The check judges the effort the gate does: the one with the highest heart rate among the 20 minute bests.
+  const points = twentyMinutePoints(ordered, masses, bikeModel, rideGate, setAside)
+  const share = (sport: Sport) => {
+    const { heartRate } = judgedTwentyMinutes(points[sport])
+    const reference = hardness.effort.referenceHr[sport]
+    return heartRate !== null && reference !== null && reference > 0 ? heartRate / reference : null
+  }
+  const runShare = share('run')
+  const rideShare = share('ride')
+  return {
+    ...curves,
+    headlineEffort: {
+      ...effort!,
+      runHrFraction: runShare ?? effort!.runHrFraction,
+      rideHrFraction: rideShare ?? effort!.rideHrFraction,
+    },
+  }
 }
 
 /**

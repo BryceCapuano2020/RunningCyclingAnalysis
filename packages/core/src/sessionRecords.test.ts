@@ -70,6 +70,7 @@ describe('AnalysisSession records', () => {
     const cached = session.setRange('all', SETTINGS)
     expect(Object.keys(cached).sort()).toEqual(
       [
+        'countedWalkingRuns',
         'effortTrends',
         'fitness',
         'heartRateJudgement',
@@ -81,6 +82,7 @@ describe('AnalysisSession records', () => {
         'period',
         'outdatedActivities',
         'previous',
+        'change',
         'rejected',
         'records',
         'result',

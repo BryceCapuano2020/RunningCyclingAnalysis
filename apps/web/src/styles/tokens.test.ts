@@ -35,7 +35,7 @@ function colourTable(section: string): Map<string, { light: string; dark: string
 
 /** Spacing, radius, type and shadow tokens are not colours, so they need no table row. */
 const NOT_COLOUR =
-  /^(space-\d|radius(-sm)?$|control-height$|header-height$|tab-bar-height$|font-|shadow$|text-(xs|sm|md|label|lead)$|tracking-(caps|tab)$|column-[a-z-]+$)/
+  /^(space-\d|radius(-sm|-pill)?$|control-height$|header-height$|tab-bar-height$|sticky-extra$|font-|shadow(-pop)?$|text-(xs|sm|md|label|lead)$|tracking-(caps|tab)$|column-[a-z-]+$|page-width$|measure$|(section|stack)-gap$|display-\d$|title$|heading$|lh-display$)/
 
 const lightRaw = declared(tokensCss, ':root')
 const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
@@ -62,11 +62,19 @@ const PAIRS: [string, string, number][] = [
   ['control-border', 'surface-0', GRAPHIC],
   ['control-border', 'surface-1', GRAPHIC],
   ['control-border', 'surface-2', GRAPHIC],
+  ['divider', 'surface-0', GRAPHIC],
+  ['divider', 'surface-1', GRAPHIC],
+  ['divider', 'surface-2', GRAPHIC],
   ['accent-contrast', 'accent', TEXT],
   ['selected-contrast', 'selected', TEXT],
+  ['highlight-ink', 'highlight', TEXT],
   ['focus', 'surface-0', GRAPHIC],
   ['focus', 'surface-1', GRAPHIC],
   ['series-run', 'surface-1', GRAPHIC],
+  ['run-ink', 'surface-0', TEXT],
+  ['run-ink', 'surface-1', TEXT],
+  ['ride-ink', 'surface-0', TEXT],
+  ['ride-ink', 'surface-1', TEXT],
   ['series-ride', 'surface-1', GRAPHIC],
   ['series-swim', 'surface-1', GRAPHIC],
   ['status-warning', 'surface-1', TEXT],
@@ -119,6 +127,8 @@ const PRIVACY_SIZES: Record<string, string> = {
   'text-sm': 'text-sm',
   'text-md': 'text-md',
   'text-lead': 'text-lead',
+  'radius-sm': 'radius-sm',
+  measure: 'measure',
 }
 
 describe('privacy page', () => {

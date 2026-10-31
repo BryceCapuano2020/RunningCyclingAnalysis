@@ -1,6 +1,7 @@
 import './zodConfig.ts'
 import { z } from 'zod'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
+import { revisionStatus } from '@rca/core/digest/revisions'
 import { ActivityDigestSchema, StoredActivityDigestSchema } from './digest.ts'
 import { WEIGHT_LIMITS_KG } from './athlete.ts'
 import { MAX_CURSOR_CHARS, MAX_FILE_NAME_CHARS, MAX_RECORD_ID_CHARS } from './limits.ts'
@@ -51,6 +52,11 @@ export const MeSchema = z.object({
   profile: ProfileSchema,
   /** False when this deployment has no original-file storage binding; absent means legacy available. */
   fileRetentionAvailable: z.boolean().optional(),
+  /**
+   * Changes whenever the library does. Compared for inequality only, as a hint that another tab or device
+   * changed it; absent from responses that do not read the library.
+   */
+  libraryRevision: z.string().max(64).optional(),
 })
 export type Me = z.infer<typeof MeSchema>
 /** GET /api/me answers a signed-out visitor with a null body, rather than an error. */
@@ -64,7 +70,7 @@ export const ActivityCreateSchema = z
     fileHash: z.string().regex(/^[0-9a-f]{64}$/),
   })
   .superRefine(({ digest }, ctx) => {
-    if (digest.modelRevision > MODEL_REVISION) {
+    if (revisionStatus(digest.modelRevision) === 'newer') {
       ctx.addIssue({
         code: 'custom',
         path: ['digest', 'modelRevision'],

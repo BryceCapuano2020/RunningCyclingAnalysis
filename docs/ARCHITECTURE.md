@@ -4,7 +4,8 @@ RunningCyclingAnalysis is browser-first with an optional account. The browser pa
 and runs the analysis. When a user signs in, the API stores per-activity digests in D1 and optional
 original activity files (FIT, GPX or TCX) in R2. Without an account, the browser keeps the same
 per-activity digests in its own IndexedDB storage (database `rca-device-library`), so a reload keeps
-the results; nothing from them reaches the server. One Cloudflare Worker serves both the built web app
+the results, each with the name and SHA-256 of the file it came from (so a later sign-in can add it to
+the account; rows kept before this have none); nothing from them reaches the server. One Cloudflare Worker serves both the built web app
 and the API.
 
 This page describes the source on `main`. For what is deployed and when it was released, see the
@@ -68,8 +69,16 @@ the build output.
    `email_verified`. It uses the stable `sub` claim as the identity.
 3. The API finds the user by that Google identity. If there is none, it links an existing account
    with the same verified email when that account has no Google identity yet, and otherwise creates
-   the user. It issues a 256-bit session token, stores only its SHA-256 hash with an expiry, sets
-   the token as a cookie, and redirects to `APP_URL`.
+   the user, but only if the email is in the Worker secret `ALLOWED_EMAILS` (closed when it is unset,
+   open only in local development). The user, its Google link and the day's counts a deleted account of
+   the same identity left behind are written in one batch. A refusal to a browser is a redirect to the app with its code (below), not JSON.
+   The API issues a 256-bit session token, stores only its SHA-256 hash with an expiry (a user keeps at
+   most ten sessions), sets the token as a cookie, and redirects to `APP_URL`.
+
+When a browser navigation to either sign-in route is refused (a rate limit, a cancelled or expired sign-in, an address not on the sign-up list, too many accounts today, an account being deleted, an email that belongs to another Google account), the
+API redirects to the app's home with the error's code in the hash (`#/?signin=rate_limited`) instead of answering
+with JSON. The app words the codes it knows itself and takes the code out of the address (`signInProblem.ts`). A
+script that asks for the same routes still gets the JSON error.
 
 **Import** (parse, digest, upload)
 
@@ -85,7 +94,8 @@ the build output.
 **View** (combine in the browser)
 
 1. The web app calls `GET /api/activities` with optional `since`, `limit` and `cursor` query
-   parameters. The page size is at most 90.
+   parameters. The page size is at most 90. The cursor is a stateless keyset position
+   (`created_at`, `id`); each page is charged against the user's daily row allowance.
 2. The API returns that user's digests only. The user id comes from the session, never from the
    request.
 3. A browser Web Worker combines the digests with the profile settings (mass, priors) and runs the
@@ -97,6 +107,8 @@ the build output.
 **Other account routes**
 
 - `POST /api/auth/logout` ends the current session.
+- `GET /api/sessions` lists the account's sessions (dates and which one is current). `DELETE /api/sessions`
+  ends all of them, or with `?keep=current` all but the one asking.
 - `GET /api/me` returns the signed-in user and profile. `PUT /api/profile` saves the profile.
   `GET /api/measurements` lists the account's dated settings, `PUT /api/measurements` sets the value in
   effect from a date, and `DELETE /api/measurements/:key` removes one (`maxHeartRate.run.2026-03-01`).
@@ -136,23 +148,59 @@ account original is fetched and reparsed only after an explicit request. Reimpor
 activity rebuilds its trace even when digest deduplication skips it. Cache failures never prevent
 digest analysis or saving. No server schema or model revision changes are required.
 
+**Worker messages**
+
+The page numbers every request it posts to the Web Worker (`requestId`). The worker stamps the number on
+its one reply (`replyTo`) and on every other message it sends while it runs the request (`during`), so
+a reply is matched to its request by number and never by arrival order. A message that names no request
+the page still waits for (late, repeated, or from before a clear) is counted and dropped. The worker
+announces each request when it begins it (`started`) and, every two seconds while it runs, reports a
+count of units of real work (`heartbeat`). The page's watchdog times the request being run from its
+`started`, and counts only headway: a reply, a progress message, or a heartbeat whose count moved (files
+read, activities saved, pages fetched, a chunk of a download, a rate-limit wait). After 90 s (30 s for
+short analysis) without headway it shows a neutral "still working" notice; after 180 s (60 s) it replaces
+the worker as it does for a script error (one automatic restart, then stopped) and does not send the
+stalled request again. A page that lost time itself (a suspended laptop, a frozen tab) starts every wait
+again instead of reading the gap as silence. Single reads (a route, splits, a detail trace) are let go as
+unread after 30 s (150 s from a kept original), say nothing, and never restart the worker. A request the
+browser cannot copy to the worker fails at once with a message.
+
+**Several tabs**
+
+Tabs of one browser share its storage and the session cookie, and talk over one `BroadcastChannel`
+(`rca-sync-v1`) whose messages carry no data, only what changed: a profile was saved, the session ended,
+dated settings or a library changed. The tab that hears one reads the source again. Preferences and dated
+settings are written field by field over what is stored, and followed through the `storage` event.
+
+The library kept in this browser has an epoch: a number kept as the reserved row `__scope__` in the same
+IndexedDB store, raised in the transaction that empties the store. A session writes only in the epoch it
+loaded, checked in the transaction of each write, so an import running in one tab cannot put rows back into
+a library another tab just emptied. The recordings cache (`rca-workbench-evidence`) keeps its own epoch for the
+device scope, raised in the transaction that clears the scope, and checks it the same way in the transaction
+that writes a recording, so a recording cannot outlive its activity either. Such an import stops, drops its
+waiting recordings, and the page says why. `GET /api/me` also carries `libraryRevision`, the stored count and digest bytes, which a tab that comes
+back into view compares with the one it loaded as a hint that another device changed the library. It is a
+hint only: an equal tag proves nothing, and a different one just makes the tab read the library again.
+
 ## Data model
 
 The tables below mirror `apps/api/src/db/schema.ts`. Wrangler also keeps a `d1_migrations` table
 of applied migrations, and the migrations live in `apps/api/migrations`.
 
-| Table                       | Columns                                                                                                                                                                        | Keys, constraints and notes                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`                     | `id`, `email`, `name`, `picture_url` (nullable), `created_at`, `activity_count`, `deleting_at`, `digest_bytes`, `file_bytes`, `list_cursor`                                    | Primary key `id`. `email` is unique. `activity_count` enforces the stored-activity limit; `digest_bytes` is the stored digest JSON total, capped per user; `file_bytes` is the sum of the user's `activities.file_size`, kept by triggers on `activities`, and the original-file quota reads it; `list_cursor` is the last library continuation cursor issued, spent once; `deleting_at` prevents new sign-ins or writes while account deletion is pending. |
-| `oauth_accounts`            | `provider`, `provider_user_id`, `user_id`                                                                                                                                      | Primary key `(provider, provider_user_id)`. `user_id` references `users` with cascade delete. One Google identity per row.                                                                                                                                                                                                                                                                                                                                  |
-| `sessions`                  | `id`, `user_id`, `expires_at`, `created_at`                                                                                                                                    | `id` is the SHA-256 hex of the session token; the token is never stored. `user_id` references `users` with cascade delete. `created_at` starts the absolute 90-day lifetime.                                                                                                                                                                                                                                                                                |
-| `profiles`                  | `user_id`, `mass_kg`, `bike_mass_kg`, `units` (`imperial` or `metric`), `keep_files`, `birth_year` (nullable), `sex` (`female`, `male` or null), `updated_at`                  | Primary key `user_id`, which references `users` with cascade delete. `keep_files` says whether originals are retained. `birth_year` and `sex` are null until a rider sets them, and are used only for age grading; a `CHECK` limits `sex`.                                                                                                                                                                                                                  |
-| `athlete_measurements`      | `user_id`, `kind`, `sport` (`''`, `run` or `ride`), `from_date`, `value`, `updated_at`                                                                                         | Primary key `(user_id, kind, sport, from_date)`; `user_id` references `users` with cascade delete. The athlete's dated body mass, maximum heart rate and thresholds (migration 0009): the value in effect from a local date, with `sport` `''` for the body mass. `CHECK`s limit `kind` and `sport`. Capped at 200 per user.                                                                                                                                |
-| `activities`                | `id`, `user_id`, `dedupe_key`, `sport` (`run` or `ride`), `start_ms`, `name`, `digest_version`, `digest_json`, `file_name`, `file_hash`, `file_key`, `file_size`, `created_at` | Primary key `id`. `user_id` references `users` with cascade delete. Unique `(user_id, dedupe_key)`. Indexes on `(user_id, start_ms)` and `(user_id, created_at)`. `file_key` and `file_size` are null when no original is stored.                                                                                                                                                                                                                           |
-| `daily_budget`              | `user_id`, `day`, `action`, `used`                                                                                                                                             | Per-user, per-action UTC daily request counters; rows older than seven days are pruned.                                                                                                                                                                                                                                                                                                                                                                     |
-| `upload_slots`              | `user_id`, `slot_id`, `expires_at`                                                                                                                                             | Leases that cap concurrent original-file uploads; expired slots are pruned by maintenance.                                                                                                                                                                                                                                                                                                                                                                  |
-| `pending_account_deletions` | `user_id`, `requested_at`, `sweep_pending`                                                                                                                                     | Tombstones that block access and let interrupted file cleanup be retried. The row is removed after cleanup finishes.                                                                                                                                                                                                                                                                                                                                        |
-| `r2_storage_budget`         | `id`, `lifetime_put_bytes`, `monthly_period`, `monthly_operations`, `monthly_put_bytes`, `orphan_sweep_cursor`, health-probe counters, `d1_size_bytes`                         | Single deployment-wide row for monthly R2 budgets, bounded deep-health probes and the orphan-sweep cursor. `d1_size_bytes` is the last-seen database size, which the database guard reads. The lifetime PUT field also enforces a nonrefundable 4 GiB write cap. See [PRODUCTION.md](PRODUCTION.md#request-isolation-and-limits).                                                                                                                           |
+| Table                       | Columns                                                                                                                                                                                                  | Keys, constraints and notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `users`                     | `id`, `email`, `name`, `picture_url` (nullable), `created_at`, `activity_count`, `deleting_at`, `digest_bytes`, `file_bytes`, `list_cursor` (legacy, unused)                                             | Primary key `id`. `email` is unique. `activity_count` enforces the stored-activity limit; `digest_bytes` is the stored digest JSON total, capped per user; `file_bytes` is the sum of the user's `activities.file_size`, kept by triggers on `activities`, and the original-file quota reads it; `list_cursor` is no longer read or written (the library cursor is stateless) and stays only for the previous Worker; `deleting_at` prevents new sign-ins or writes while account deletion is pending. |
+| `oauth_accounts`            | `provider`, `provider_user_id`, `user_id`                                                                                                                                                                | Primary key `(provider, provider_user_id)`. `user_id` references `users` with cascade delete. One Google identity per row, and a unique index on `(user_id, provider)` allows one per user.                                                                                                                                                                                                                                                                                                            |
+| `sessions`                  | `id`, `user_id`, `expires_at`, `created_at`                                                                                                                                                              | `id` is the SHA-256 hex of the session token; the token is never stored. `user_id` references `users` with cascade delete. `created_at` starts the absolute 90-day lifetime.                                                                                                                                                                                                                                                                                                                           |
+| `profiles`                  | `user_id`, `mass_kg`, `bike_mass_kg`, `units` (`imperial` or `metric`), `keep_files`, `birth_year` (nullable), `sex` (`female`, `male` or null), `updated_at`                                            | Primary key `user_id`, which references `users` with cascade delete. `keep_files` says whether originals are retained. `birth_year` and `sex` are null until a rider sets them, and are used only for age grading; a `CHECK` limits `sex`.                                                                                                                                                                                                                                                             |
+| `athlete_measurements`      | `user_id`, `kind`, `sport` (`''`, `run` or `ride`), `from_date`, `value`, `updated_at`                                                                                                                   | Primary key `(user_id, kind, sport, from_date)`; `user_id` references `users` with cascade delete. The athlete's dated body mass, maximum heart rate and thresholds (migration 0009): the value in effect from a local date, with `sport` `''` for the body mass. `CHECK`s limit `kind` and `sport`. Capped at 200 per user.                                                                                                                                                                           |
+| `activities`                | `id`, `user_id`, `dedupe_key`, `sport` (`run` or `ride`), `start_ms`, `name`, `digest_version`, `digest_json`, `file_name`, `file_hash`, `file_key`, `file_size`, `file_reservation_token`, `created_at` | Primary key `id`. `user_id` references `users` with cascade delete. Unique `(user_id, dedupe_key)`. Indexes on `(user_id, start_ms)` and `(user_id, created_at)`. `file_key` and `file_size` are null when no original is stored. `file_reservation_token` names the upload slot that holds the `file_size` reservation, and only that request releases it.                                                                                                                                            |
+| `daily_budget`              | `user_id`, `day`, `action`, `used`                                                                                                                                                                       | Per-user, per-action UTC daily request counters; rows older than seven days are pruned.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `upload_slots`              | `user_id`, `slot_id`, `expires_at`                                                                                                                                                                       | Leases that cap concurrent original-file uploads; expired slots are pruned by maintenance.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `pending_account_deletions` | `user_id`, `requested_at`, `sweep_pending`                                                                                                                                                               | Tombstones that block access and let interrupted file cleanup be retried. The row is removed after cleanup finishes.                                                                                                                                                                                                                                                                                                                                                                                   |
+| `identity_budget`           | `identity_key`, `day`, `action`, `used`                                                                                                                                                                  | Primary key `(identity_key, day, action)`, no foreign key. A deleted account's daily counts, saved in the batch that deletes it under an HMAC of its Google subject (never the subject), restored if the identity signs up again the same UTC day, and the identity's account-creation count (`accountCreate`, five a day). Rows older than yesterday are pruned by the scheduled job.                                                                                                                 |
+| `account_tombstones`        | `user_id`, `deleted_at` (kept 100 days; a restore replays them)                                                                                                                                          |
+| `r2_storage_budget`         | `id`, `lifetime_put_bytes`, `monthly_period`, `monthly_operations`, `monthly_put_bytes`, `orphan_sweep_cursor`, health-probe counters, `d1_size_bytes`                                                   | Single deployment-wide row for monthly R2 budgets, bounded deep-health probes and the orphan-sweep cursor. `d1_size_bytes` is the last-seen database size, which the database guard reads. The lifetime PUT field also enforces a nonrefundable 4 GiB write cap. See [PRODUCTION.md](PRODUCTION.md#request-isolation-and-limits).                                                                                                                                                                      |
 
 Every query on a user's data filters on `user_id`, which comes from the session. Deleting a user
 cascades to `oauth_accounts`, `sessions`, `profiles`, `athlete_measurements` and `activities`.
@@ -218,7 +266,8 @@ Strava or Garmin export zip. The stages are in the browser Web Worker, and none 
    compressed bytes, its inflated bytes and their decoded text. Its inflated bytes count against the
    zip's decompressed-bytes budget, even when the list is malformed. No row may hold more than 256
    cells: a row of commas is a cell per byte, so the byte cap alone does not bound the cells a parse
-   builds.
+   builds. No field may hold more than 64 KiB (65,536 characters); a list with a longer field is
+   malformed, like one with a wider row.
    The first row wins for a file that appears twice. A row with a file and no name is kept, since its
    type still says what the file is. A list that ends inside a quoted field, or has a row of more than
    256 cells, is malformed and is ignored, so it names no files.
@@ -378,14 +427,18 @@ R2 files can be downloaded by the browser to drive that recovery; no database mi
   `SESSION_SIGNING_KEY`. A database leak does not expose live sessions, because only the token's
   SHA-256 hash is stored. Cookies are `HttpOnly`, `Secure` and `SameSite=Lax`. A session lasts
   30 days and is extended when it is used with less than 15 days left, but never beyond 90 days
-  after it was created. Sign-out deletes the session row.
+  after it was created. A user keeps at most ten sessions. Sign-out deletes the session row, and
+  `DELETE /api/sessions` ends them as a set.
 - **CSRF**: `SameSite=Lax` stops cross-site requests from carrying the cookie on unsafe methods.
   As a second layer, every non-GET `/api` request must send `X-RCA-Client: web`. A cross-site form
   cannot set that header, and a cross-origin fetch needs a CORS preflight that the API does not
   allow.
 - **Sign-in**: the OAuth `state` and PKCE verifier protect against login CSRF and code injection.
   The redirect URI is fixed to `APP_URL` plus `/api/auth/google/callback`. Unverified Google emails
-  are refused.
+  are refused. A new account needs the email in the `ALLOWED_EMAILS` Worker secret; an existing one
+  signs in whatever the secret holds. Dev-login and the other development-only relaxations require
+  `isLocalDevelopment`: `ENVIRONMENT` is `development` and both `APP_URL` and the request host are
+  loopback.
 - **Per-user isolation**: the user id comes only from the session. Every query and R2 key is derived
   from it, and another user's record returns 404, so ids do not reveal what exists.
 - **Input limits**: contract schemas validate every body and cap digest and upload sizes. Service
@@ -403,8 +456,10 @@ R2 files can be downloaded by the browser to drive that recovery; no database mi
 ## Limits
 
 Service limits (per-account quotas, byte caps, edge rate limits and the deployment-wide R2 budget)
-are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). Analysis limits, meaning what the
-statistics can and cannot show, are in the [README](../README.md#limits).
+are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). What a file, an archive or a digest may
+ask of the importer, and the bounds the one digest reader holds, are in [LIMITS.md](LIMITS.md).
+Analysis limits, meaning what the statistics can and cannot show, are in the
+[README](../README.md#limits).
 
 ## Client bundle
 

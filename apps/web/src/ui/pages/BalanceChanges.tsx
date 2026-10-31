@@ -33,7 +33,7 @@ function Arrow({ direction }: { direction: ChangeItem['direction'] }) {
   )
 }
 
-/** The evidence tag: a recorded best is checked, an estimate is hollow, and a change beyond its range is solid. */
+/** The evidence tag: a recorded best is checked, and an estimate is hollow. */
 function Tag({ tag }: { tag: ChangeTag }) {
   return (
     <span className={`balance-changes__tag balance-changes__tag--${tag}`}>
@@ -45,9 +45,9 @@ function Tag({ tag }: { tag: ChangeTag }) {
 
 /**
  * What changed against the previous period: at most four items, each with an arrow, a title, a line and a tag
- * that says how far to trust it. A change is called beyond its range or within it only against the ranges both
- * periods state. With nothing moved, the strip says so in one line; where the previous period lacks the efforts
- * to compare, it says that instead; with no previous period it is left out.
+ * that says whether it is a recording or an estimate. An item is listed only where the change test calls it. With
+ * nothing called, the strip says so in one line; where the previous period lacks the efforts to compare, it says
+ * that instead; with no previous period it is left out.
  */
 export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) {
   if (changes === null || previousLabel === null) return null

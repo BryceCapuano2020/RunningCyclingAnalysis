@@ -3,15 +3,14 @@ import { possibleRunWkg } from '../curves'
 import { mulberry32, quantile } from '../math'
 import { metabolicToFlatSpeed } from '../metabolic'
 import type { ActivityDigest, DigestHrBlock, Sport } from '../types'
-import { orderedCurrent } from './combine'
+import { orderedFor } from './consumers'
 import { outputAtHeartRate } from './theilSen'
-import type { FitBlocks, OutputAtHeartRate } from './theilSen'
+import type { FitBlocks } from './theilSen'
 import { NO_SAME_HEART_RATE } from './sameHeartRateTypes'
 import type {
   Lack,
   SameHeartRate,
   SameHeartRateBySport,
-  SameHeartRateChange,
   SameHeartRateWeek,
 } from './sameHeartRateTypes'
 import { effortsCount } from './effortTrust'
@@ -170,31 +169,6 @@ function referenceOf(library: readonly Block[]): number | null {
   return Math.round(quantile(rates, 0.5) / step) * step
 }
 
-/** An interval narrower than this share of its output is float noise, not a measured range. */
-const MIN_INTERVAL_SHARE = 1e-6
-
-function measured(fit: OutputAtHeartRate): boolean {
-  return fit.high - fit.low >= MIN_INTERVAL_SHARE * Math.abs(fit.output)
-}
-
-export function changeOf(reported: readonly SameHeartRateWeek[]): SameHeartRateChange | null {
-  const first = reported[0]
-  const last = reported.at(-1)
-  if (first?.fit == null || last?.fit == null || first === last) return null
-  return {
-    fromEndMs: first.endMs,
-    toEndMs: last.endMs,
-    from: first.fit.output,
-    to: last.fit.output,
-    weeksApart: Math.round((last.endMs - first.endMs) / WEEK_MS),
-    relative: last.fit.output / first.fit.output - 1,
-    real:
-      measured(first.fit) &&
-      measured(last.fit) &&
-      (last.fit.low > first.fit.high || last.fit.high < first.fit.low),
-  }
-}
-
 /** The lack of the week that came closest to reporting: the one with most blocks, the latest of equals. */
 function nearestLack(weeks: readonly SameHeartRateWeek[]): Lack {
   let best: SameHeartRateWeek | null = null
@@ -219,12 +193,12 @@ function forSport(
   const ends = weekEnds(all, fromMs)
   // Stretches that do not reach a window's length into the period leave no week whose window lies in it.
   if (ends.length === 0) {
-    return { referenceHeartRate, weeks: [], change: null, lacks: 'period', latestWeekEndMs }
+    return { referenceHeartRate, weeks: [], reportedWeeks: 0, lacks: 'period', latestWeekEndMs }
   }
   const weeks = ends.map((end) => weekOf(end, all, referenceHeartRate))
-  const change = changeOf(weeks.filter((week) => week.fit !== null))
-  const lacks = change === null ? nearestLack(weeks) : null
-  return { referenceHeartRate, weeks, change, lacks, latestWeekEndMs }
+  const reportedWeeks = weeks.filter((week) => week.fit !== null).length
+  const lacks = reportedWeeks < 2 ? nearestLack(weeks) : null
+  return { referenceHeartRate, weeks, reportedWeeks, lacks, latestWeekEndMs }
 }
 
 /**
@@ -241,8 +215,8 @@ export function sameHeartRate(
   setAside: ReadonlySet<string>,
   opts: { fromMs?: number; library?: ActivityDigest[] },
 ): SameHeartRateBySport {
-  const ordered = orderedCurrent(digests)
-  const library = opts.library === undefined ? ordered : orderedCurrent(opts.library)
+  const ordered = orderedFor('sameHeartRate', digests)
+  const library = opts.library === undefined ? ordered : orderedFor('sameHeartRate', opts.library)
   return {
     run: forSport(ordered, library, 'run', setAside, opts.fromMs),
     ride: forSport(ordered, library, 'ride', setAside, opts.fromMs),

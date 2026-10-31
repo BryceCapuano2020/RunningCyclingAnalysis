@@ -1,4 +1,4 @@
-import { GLYPH_EM } from './rootFont'
+import { textEm } from './rootFont'
 import { percentText } from '../zoneTimeCopy'
 
 /** The least room, px, a share's text needs besides its characters. */
@@ -73,7 +73,7 @@ export function underLabels(
 ): UnderLabel[] {
   const size = 0.75 * rootPx
   // The same glyph estimate as every other chart label, so a name is given the room the axes would give it.
-  const widthOf = (text: string) => text.length * size * GLYPH_EM
+  const widthOf = (text: string) => textEm(text) * size
   const taken: { left: number; right: number }[] = []
   const placed: UnderLabel[] = []
   const free = (left: number, right: number) =>

@@ -89,6 +89,7 @@ describe('GET /api/auth/google/callback', () => {
         updatedAt: h.clock.now,
       },
       fileRetentionAvailable: true,
+      libraryRevision: '0.0',
     })
     const cleared = res.headers.getSetCookie().filter((c) => c.startsWith('rca_oauth_'))
     expect(cleared).toHaveLength(2)
@@ -252,14 +253,11 @@ describe('GET /api/auth/google/callback', () => {
     const res = await h.send({
       path: callbackParams(second.state),
       cookies: { rca_oauth_state: second.state, rca_oauth_verifier: second.verifier },
+      headers: { 'Sec-Fetch-Mode': 'navigate' },
     })
-    expect(res.status).toBe(409)
-    expect(await res.json()).toMatchObject({
-      error: {
-        code: 'account_conflict',
-        message: expect.stringContaining('different Google account'),
-      },
-    })
+    // Google sends the browser to the callback, so the refusal sends it back to the app with its code, not JSON.
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('http://localhost:5183/#/?signin=account_conflict')
     expect(sessionCookie(res)).toBeUndefined()
     expect(
       await h.env.DB.prepare('SELECT COUNT(*) AS n FROM oauth_accounts').first<{ n: number }>(),
@@ -517,5 +515,46 @@ describe('POST /api/auth/dev-login', () => {
     expect(
       await h.env.DB.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>(),
     ).toEqual({ n: 0 })
+  })
+
+  it.each([
+    ['the request host is public', 'https://rca.example.test', undefined],
+    ['APP_URL is a public origin', undefined, 'https://rca.example.test'],
+    ['the request host is a LAN address', 'http://192.168.1.20:8787', undefined],
+  ])('does not exist when ENVIRONMENT is development but %s', async (_, host, appUrl) => {
+    const h = createHarness({}, appUrl ? { APP_URL: appUrl } : {})
+    const res = await h.send({
+      method: 'POST',
+      path: `${host ?? 'http://localhost'}/api/auth/dev-login`,
+      json: { email: 'a@b.co', name: 'A' },
+    })
+    expect(res.status).toBe(404)
+    expect(
+      await h.env.DB.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>(),
+    ).toEqual({ n: 0 })
+  })
+
+  it.each(['http://localhost', 'http://127.0.0.1:8787', 'http://[::1]:8787'])(
+    'works on the loopback host %s',
+    async (host) => {
+      const h = createHarness()
+      const res = await h.send({
+        method: 'POST',
+        path: `${host}/api/auth/dev-login`,
+        json: { email: 'a@b.co', name: 'A' },
+      })
+      expect(res.status).toBe(200)
+    },
+  )
+
+  it('keeps the production safeguards when ENVIRONMENT is development on a public host', async () => {
+    const h = createHarness({}, { APP_URL: 'https://rca.example.test' })
+    const publicUrl = 'https://rca.example.test/api/auth/google'
+    const start = await h.send({ path: publicUrl })
+    expect(start.headers.getSetCookie().every((c) => c.includes('Secure'))).toBe(true)
+    expect(start.headers.get('strict-transport-security')).toBe('max-age=31536000')
+    // The rate limiter is enforced too: a denying binding answers 429 instead of being skipped.
+    h.env.API_RATE_LIMITER = { limit: async () => ({ success: false }) }
+    expect((await h.send({ path: publicUrl })).status).toBe(429)
   })
 })

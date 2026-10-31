@@ -7,10 +7,9 @@ const scatterCss = await readStylesheet(import.meta.url, './HrScatter.css')
 const legendCss = await readStylesheet(import.meta.url, './ChartLegend.css')
 const tooltipCss = await readStylesheet(import.meta.url, './ChartTooltip.css')
 const volumeCss = await readStylesheet(import.meta.url, './WeeklyVolumeChart.css')
-const sharedTrendCss = await readStylesheet(import.meta.url, './SharedTrendChart.css')
-const sportTrendCss = await readStylesheet(import.meta.url, './TrendChart.css')
 const breakCss = await readStylesheet(import.meta.url, './AxisBreaks.css')
 const splitsCss = await readStylesheet(import.meta.url, '../components/SplitsTable.css')
+const bestsCss = await readStylesheet(import.meta.url, './BestsOverTimeChart.css')
 
 /** The rules inside a stylesheet's forced-colours block, which the browser applies in place of the tints. */
 function forcedBody(css: string): string {
@@ -71,11 +70,6 @@ describe('forced colours keep the chart marks visible', () => {
     expect(bars).toMatch(/\.volume-bar\[data-sport='run'\] \{[^}]*fill: CanvasText/)
   })
 
-  it('outlines the ride’s range band, and draws the sport trend’s wash as nothing, in forced colours', () => {
-    expect(forcedBody(sharedTrendCss)).toMatch(/\.trend-band \{[^}]*stroke: Highlight/)
-    expect(forcedBody(sportTrendCss)).toMatch(/\.trend-wash \{[^}]*fill: none/)
-  })
-
   it('keeps the break mark of a skipped stretch of the axis visible, in a system colour', () => {
     expect(forcedBody(breakCss)).toMatch(
       /\.axis-break__line,\s*\.axis-break__slash \{[^}]*stroke: GrayText/,
@@ -108,5 +102,12 @@ describe('forced colours keep the chart marks visible', () => {
       expect(forced).toMatch(/\.hr-scatter__dot--ride \{[^}]*fill: Canvas/)
       expect(forced).toMatch(/\.hr-scatter__dot--ride \{[^}]*stroke: CanvasText/)
     })
+  })
+
+  it('draws an older dated best hollow, since forced colours ignore the opacity that shows its age, and an older ride’s ring dashed', () => {
+    const forced = forcedBody(bestsCss)
+    expect(forced).toMatch(/\.chart-series__marker\.bests-dot--old \{[^}]*fill: Canvas/)
+    expect(forced).toMatch(/\.chart-series__marker\.bests-dot--old \{[^}]*stroke: CanvasText/)
+    expect(forced).toMatch(/\.chart-series__marker--ride\.bests-dot--old \{[^}]*stroke-dasharray/)
   })
 })

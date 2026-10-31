@@ -31,6 +31,18 @@ export interface PredictionSd {
   at: (durationS: number) => number
   /** Degrees of freedom of the fit's residual: its points less its parameters. */
   df: number
+  /** The fit's own residual spread, on the log scale, which `at` scales by the duration's leverage. */
+  spread: number
+}
+
+/**
+ * The same prediction spread with the fit's own residual spread no lower than `spread`: the prediction error of a
+ * duration keeps its leverage, and only the part that came from the fit's scatter is lifted.
+ */
+export function withSpreadAtLeast(sd: PredictionSd, spread: number): PredictionSd {
+  if (!(spread > sd.spread)) return sd
+  const scale = spread / sd.spread
+  return { at: (durationS) => sd.at(durationS) * scale, df: sd.df, spread }
 }
 
 /**
@@ -60,7 +72,7 @@ export function predictionSd(
     ),
   )
   const inverse = invert(normal)
-  if (inverse === null) return { at: () => Infinity, df }
+  if (inverse === null) return { at: () => Infinity, df, spread: s }
   return {
     at: (durationS) => {
       const g = gradient(durationS)
@@ -71,5 +83,6 @@ export function predictionSd(
       return s * Math.sqrt(1 + Math.max(0, leverage))
     },
     df,
+    spread: s,
   }
 }

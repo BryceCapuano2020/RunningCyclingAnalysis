@@ -20,25 +20,24 @@ import {
 const BALANCE_METER =
   /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
 /**
- * The Balance trend: one chart for both sports, as age grades when the age and sex are known. Its title says
- * what it found, so it is found by the line under it that names the measure.
+ * The Balance page's last chart: the hours trained each week. Its title says what it found, so it is found by the
+ * name under it.
  */
-const BALANCE_TREND = /(Age grade|Energy rate) of your best 20 min, trailing/
+const BALANCE_HOURS = /Training hours per week/
 const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
 /** The section that compares each best with the athlete's other bests. */
 const NOT_ENOUGH_YET = 'Not enough yet'
+const LATE_IN_LONG_SESSIONS =
+  /^Best efforts late in long sessions: add \d+ (runs?|rides?)\b.*, each longer than an hour/
 /** The sport page's section that is open and needs a season of activities; the others sit behind closed rows. */
-const OPEN_SEASON_SECTION = 'Week by week'
+const OPEN_SEASON_SECTION = 'Best efforts over time'
 /** The closed sections that need a season: each row says its finding, and opens to a chart. */
-/** The same-heart-rate row is the weekly view where a fitness status speaks for the sport (the run), and has its own finding where none does. */
-const CLOSED_SEASON_SECTIONS = [
-  /^(At the same heart rate|Same heart rate, week by week)$/,
-  'Late in long sessions',
-]
+/** The same-heart-rate row is the weekly view: it says what is drawn and claims no change. */
+const CLOSED_SEASON_SECTIONS = ['Same heart rate, week by week', 'Late in long sessions']
 /** The closed row of the finding that compares each best with the athlete's other bests. */
 const STAND_OUT_SECTION = 'Where your bests stand out'
-const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|.*stand out)/
+const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|Nothing stands out|.*stand out)/
 const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
@@ -58,17 +57,24 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toBeVisible()
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
-  await expect(page.locator('figure').filter({ hasText: BALANCE_TREND })).toBeVisible()
+  await expect(page.locator('figure').filter({ hasText: BALANCE_HOURS })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
-  // The sample's season is long and varied enough to fill every section of a sport page, so none of them
-  // is left to the "Not enough yet" list: stand-out, week by week, same heart rate, late in long sessions.
+  // The sample's season is long and varied enough to fill every section of a sport page: stand-out, best efforts over
+  // time, same heart rate, late in long sessions. The one exception is the late bests: the sample's long sessions are
+  // easy ones, which the effort gate does not count as a test of lasting, so the list says what is missing.
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
     await expect(
       page.getByRole('figure', { name: sport === 'Run' ? RUN_CURVE : RIDE_CURVE }),
     ).toBeVisible()
     await expect(page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION })).toBeVisible()
+    // The dated bests are drawn: a figure named for the effort, with at least two dots in its plot.
+    const dated = page.locator('section').filter({
+      has: page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION }),
+    })
+    await expect(dated.getByRole('figure', { name: /20 min/ })).toBeVisible()
+    expect(await dated.locator('[data-testid^="bests-"]').count()).toBeGreaterThanOrEqual(2)
     // A closed row says what it found, so closed still tells the athlete something; it opens to its chart.
     const standOut = page.getByRole('region', { name: STAND_OUT_SECTION })
     await expect(standOut.locator('.sport-disclosure__finding')).toHaveText(STANDS_OUT_LINE)
@@ -79,7 +85,11 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
       await region.locator('summary').click()
       await expect(region.getByRole('figure').first()).toBeVisible()
     }
-    await expect(page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })).toHaveCount(0)
+    const missing = page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })
+    await expect(missing).toHaveCount(1)
+    await expect(page.getByRole('listitem').filter({ hasText: LATE_IN_LONG_SESSIONS })).toHaveCount(
+      1,
+    )
   }
 
   await goTo(page, 'Balance')
@@ -271,8 +281,8 @@ const VALUE = '.balance-meter__value'
 const LEVEL_ROWS = '.balance-levels__row'
 
 /** The fitness card's state, as the card names it, its sentence, and the change drawn as a track. */
-const FITNESS_CARD = '.fitness-card'
-const FITNESS_STATE = '.fitness-card__state'
+const FITNESS_CARD = '.fitness-card[data-sport="run"]'
+const FITNESS_STATE = `${FITNESS_CARD} .fitness-card__state`
 
 // The home page leads with the fitness finding: at 1440 by 900 the whole card, with its state, its sentence, its track
 // and "See the evidence", is on the first screen, and the balance begins right under it as a calm single line.
@@ -286,9 +296,9 @@ test('at 1440 by 900 the fitness card is on the first screen, whole, and the bal
   await expect(page.locator(FITNESS_STATE)).toHaveText('Slipping')
   await expect(page.getByTestId('fitness-new')).toContainText('since the week of')
   // The change's track sits beside the words on a wide screen, inside the card, and not under them.
-  const track = await edgesOf(page.locator('.fitness-track'))
-  const trackBox = (await page.locator('.fitness-track').boundingBox())!
-  const sentenceBox = (await page.locator('.fitness-card__headline').boundingBox())!
+  const track = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
+  const trackBox = (await page.locator(`${FITNESS_CARD} .fitness-track`).boundingBox())!
+  const sentenceBox = (await page.locator(`${FITNESS_CARD} .fitness-card__headline`).boundingBox())!
   const cardBox = (await page.locator(FITNESS_CARD).boundingBox())!
   expect(trackBox.x).toBeGreaterThanOrEqual(sentenceBox.x + sentenceBox.width)
   expect(trackBox.x + trackBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width)
@@ -300,7 +310,7 @@ test('at 1440 by 900 the fitness card is on the first screen, whole, and the bal
   expect(headline.top).toBeLessThan(900)
   // The finding is the first drawing on the page, and the balance's meter the next: the track comes before every image.
   const order = await page.evaluate(() => {
-    const track = document.querySelector('.fitness-track__bar')
+    const track = document.querySelector('.fitness-card[data-sport="run"] .fitness-track__bar')
     const firstImage = document.querySelector('main [role="img"]')
     return {
       trackFirst:
@@ -333,8 +343,8 @@ for (const [width, height] of [
     await expect(page.getByText('Sample athlete', { exact: false }).first()).toBeVisible()
     const tabs = await tabBarTop(page)
     const state = await edgesOf(page.locator(FITNESS_STATE))
-    const sentence = await edgesOf(page.locator('.fitness-card__headline'))
-    const track = await edgesOf(page.locator('.fitness-track'))
+    const sentence = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-card__headline`))
+    const track = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
     expect(sentence.top).toBeGreaterThanOrEqual(state.bottom)
     expect(track.top).toBeGreaterThanOrEqual(sentence.bottom)
     expect(track.bottom).toBeLessThanOrEqual(tabs)
@@ -344,7 +354,11 @@ for (const [width, height] of [
     expect(headline.top).toBeGreaterThanOrEqual((await edgesOf(page.locator(FITNESS_CARD))).bottom)
     expect(headline.top).toBeLessThan(tabs)
     // Nothing collides, and the page does not scroll sideways.
-    for (const selector of [FITNESS_CARD, '.fitness-track__ends', '.fitness-card__headline']) {
+    for (const selector of [
+      FITNESS_CARD,
+      `${FITNESS_CARD} .fitness-track__ends`,
+      `${FITNESS_CARD} .fitness-card__headline`,
+    ]) {
       const box = await page.locator(selector).first().boundingBox()
       expect(box === null ? -1 : box.x).toBeGreaterThanOrEqual(0)
       expect(box === null ? width + 1 : box.x + box.width).toBeLessThanOrEqual(width)
@@ -416,7 +430,9 @@ test('at 667 by 375 the fitness state and its sentence are above the section tab
   const tabs = await tabBarTop(page)
   await expect(page.locator(FITNESS_STATE)).toHaveText('Slipping')
   expect((await edgesOf(page.locator(FITNESS_STATE))).bottom).toBeLessThanOrEqual(tabs)
-  expect((await edgesOf(page.locator('.fitness-card__headline'))).bottom).toBeLessThanOrEqual(tabs)
+  expect(
+    (await edgesOf(page.locator(`${FITNESS_CARD} .fitness-card__headline`))).bottom,
+  ).toBeLessThanOrEqual(tabs)
 })
 
 test('the meter defines its terms in place, by press and by Enter', async ({ page }) => {

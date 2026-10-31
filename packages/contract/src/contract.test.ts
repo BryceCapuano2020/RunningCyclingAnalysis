@@ -239,13 +239,14 @@ describe('stored digests', () => {
     expect(stored.data?.durationS).toBeNaN()
   })
 
-  it('still bounds the array lengths of stored digests', () => {
+  it('still bounds the array lengths of stored digests, by cutting the list', () => {
     const oversized = {
       ...digestWire,
       modelRevision: 1,
       curve: Array.from({ length: DURATIONS_S.length * 4 + 1 }, () => curve[0]),
     }
-    expect(StoredActivityDigestSchema.safeParse(oversized).success).toBe(false)
+    expect(ActivityDigestSchema.safeParse(oversized).success).toBe(false)
+    expect(StoredActivityDigestSchema.parse(oversized).curve).toHaveLength(DURATIONS_S.length * 4)
   })
 })
 
@@ -480,8 +481,13 @@ describe('digest splits', () => {
     expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(2000, 1280))).success).toBe(
       true,
     )
-    expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(2001, 0))).success).toBe(false)
-    expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(0, 1281))).success).toBe(false)
+    // Past that a unit has no splits, as a digest makes it for a run over the limit.
+    const past = StoredActivityDigestSchema.parse(withSplits(splitsOf(2001, 1)))
+    expect(past.splits?.km).toEqual([])
+    expect(past.splits?.mile).toHaveLength(1)
+    const pastMiles = StoredActivityDigestSchema.parse(withSplits(splitsOf(1, 1281)))
+    expect(pastMiles.splits?.km).toHaveLength(1)
+    expect(pastMiles.splits?.mile).toEqual([])
   })
 
   it('rejects a split value that is missing, negative, infinite or NaN', () => {
@@ -494,8 +500,18 @@ describe('digest splits', () => {
       { avgHeartRate: -5 },
     ]) {
       expect(ActivityDigestSchema.safeParse(withKm(override)).success).toBe(false)
-      expect(StoredActivityDigestSchema.safeParse(withKm(override)).success).toBe(false)
     }
+    // A stored row refuses what is damaged, and reads a value out of bounds as unknown.
+    for (const damage of [
+      { seconds: undefined },
+      { distanceM: Number.POSITIVE_INFINITY },
+      { elevationGainM: Number.NaN },
+      { gradeAdjustedSeconds: Number.NaN },
+    ]) {
+      expect(StoredActivityDigestSchema.safeParse(withKm(damage)).success).toBe(false)
+    }
+    const read = StoredActivityDigestSchema.parse(withKm({ seconds: -1, avgHeartRate: -5 }))
+    expect(read.splits?.km[0]).toMatchObject({ seconds: null, avgHeartRate: null })
   })
 
   it('rejects splits with the wrong shape', () => {
@@ -513,7 +529,7 @@ describe('shared limits', () => {
       MAX_MONTHLY_R2_PUT_BYTES,
     } = await import('./index.ts')
     expect(DAILY_LIMITS).toEqual({
-      fileDownload: 50,
+      fileDownload: 5000,
       profileWrite: 50,
       activityDelete: 50,
       activityCreate: 5000,
@@ -611,15 +627,16 @@ describe('distance bests', () => {
     expect(StoredActivityDigestSchema.parse(run()).distanceBests).toEqual(bests)
   })
 
-  it.each(SCHEMAS)('%s schema rejects distance bests on a ride', (_l, schema) => {
-    expect(schema.safeParse(run({ sport: 'ride' })).success).toBe(false)
+  it('refuses distance bests on a ride on a create, and reads a stored row without them', () => {
+    expect(ActivityDigestSchema.safeParse(run({ sport: 'ride' })).success).toBe(false)
+    const stored = StoredActivityDigestSchema.parse(run({ sport: 'ride' }))
+    expect(stored).not.toHaveProperty('distanceBests')
+    expect(stored.sport).toBe('ride')
   })
 
-  // Each case breaks one rule: a distance that is not a record distance, a zero time, a time past
-  // the duration, a run that does not cover the distance, a repeated distance, descending order,
-  // and more entries than record distances.
+  // Each case breaks one rule: a zero time, a time past the duration, a run that does not cover the
+  // distance, a repeated distance and descending order.
   const rejected: [string, Record<string, unknown>][] = [
-    ['not a record distance', { distanceBests: [{ distanceM: 2000, seconds: 500 }] }],
     ['a zero time', { distanceBests: [{ distanceM: 1000, seconds: 0 }] }],
     ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2526 }] }],
     [
@@ -636,22 +653,29 @@ describe('distance bests', () => {
     ],
     ['a repeated distance', { distanceBests: [bests[0], bests[0]] }],
     ['descending order', { distanceBests: [...bests].reverse() }],
-    [
-      'more entries than record distances',
-      {
-        distanceBests: [
-          ...Array.from({ length: 4 }, (_, i) => ({ distanceM: 1000 * (i + 1), seconds: 1 })),
-          { distanceM: 20000, seconds: 1 },
-        ],
-      },
-    ],
   ]
-  it.each(
-    SCHEMAS.flatMap(([label, schema]) =>
-      rejected.map(([name, overrides]) => [`${label}: ${name}`, schema, overrides] as const),
-    ),
-  )('%s', (_label, schema, overrides) => {
-    expect(schema.safeParse(run(overrides)).success).toBe(false)
+  it.each(rejected)(
+    'create refuses %s; a stored row is read without that best',
+    (_n, overrides) => {
+      expect(ActivityDigestSchema.safeParse(run(overrides)).success).toBe(false)
+      const stored = StoredActivityDigestSchema.parse(run(overrides))
+      const given = overrides.distanceBests as unknown[]
+      expect(stored.distanceBests?.length ?? 0).toBeLessThan(given.length)
+    },
+  )
+
+  // A build that adds a record distance writes bests this one does not know. A create refuses them;
+  // a stored row is read without them, so a rollback does not hide the run.
+  const unknownDistance = {
+    distanceBests: [bests[0], { distanceM: 2000, seconds: 500 }],
+  }
+
+  it('refuses a distance that is not a record distance on a create', () => {
+    expect(ActivityDigestSchema.safeParse(run(unknownDistance)).success).toBe(false)
+  })
+
+  it('reads a stored run without the record distance it does not know', () => {
+    expect(StoredActivityDigestSchema.parse(run(unknownDistance)).distanceBests).toEqual([bests[0]])
   })
 })
 
@@ -673,22 +697,23 @@ describe('moving time and averages', () => {
     ).toThrow()
   })
 
-  it('keeps a race tag, of either sport, on a create and on a stored row, and rejects anything but true', () => {
+  it('keeps a race tag, of either sport, on a create and on a stored row, and a create rejects anything but true', () => {
     for (const sport of ['run', 'ride'] as const) {
       const wire = atRevision(MODEL_REVISION, { sport, race: true })
       expect(ActivityDigestSchema.parse(wire).race).toBe(true)
       expect(StoredActivityDigestSchema.parse(wire).race).toBe(true)
     }
     expect(StoredActivityDigestSchema.parse(digestWire)).not.toHaveProperty('race')
-    expect(() =>
-      ActivityDigestSchema.parse(atRevision(MODEL_REVISION, { sport: 'run', race: false })),
-    ).toThrow()
+    const unmarked = atRevision(MODEL_REVISION, { sport: 'run', race: false })
+    expect(() => ActivityDigestSchema.parse(unmarked)).toThrow()
+    // A stored row may come from a build that writes it another way, and is listed without the mark.
+    expect(StoredActivityDigestSchema.parse(unmarked)).not.toHaveProperty('race')
   })
 
   it('allows walking pace on a run only', () => {
     const ride = atRevision(MODEL_REVISION, { sport: 'ride', walkingPace: true })
-    expect(() => ActivityDigestSchema.parse(ride)).toThrow(/Only runs have a walking pace/)
-    expect(() => StoredActivityDigestSchema.parse(ride)).toThrow(/Only runs have a walking pace/)
+    expect(() => ActivityDigestSchema.parse(ride)).toThrow(/is only kept for runs/)
+    expect(StoredActivityDigestSchema.parse(ride)).not.toHaveProperty('walkingPace')
     const run = atRevision(MODEL_REVISION, { sport: 'run', walkingPace: true })
     expect(ActivityDigestSchema.parse(run).walkingPace).toBe(true)
     expect(StoredActivityDigestSchema.parse(run).walkingPace).toBe(true)
@@ -707,10 +732,10 @@ describe('moving time and averages', () => {
 })
 
 describe('moving time against duration, and the session key', () => {
-  it('rejects a moving time longer than the duration, on a create and on a stored row', () => {
+  it('rejects a moving time longer than the duration on a create, and clamps it on a stored row', () => {
     const wire = atRevision(MODEL_REVISION, { durationS: 3600, movingS: 3601 })
     expect(() => ActivityDigestSchema.parse(wire)).toThrow()
-    expect(() => StoredActivityDigestSchema.parse(wire)).toThrow()
+    expect(StoredActivityDigestSchema.parse(wire).movingS).toBe(3600)
   })
 
   it('accepts a session key on a create and on a stored row, and reads a digest without one', () => {

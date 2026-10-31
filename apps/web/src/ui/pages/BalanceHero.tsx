@@ -4,8 +4,11 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
+import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BalanceMeter } from '../components/BalanceMeter'
+import { uncheckedNote, unconfirmedSports } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
+import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
 import type { RideLeftOut } from '../rideLeftOut'
@@ -42,6 +45,8 @@ export interface BalanceHeroProps {
   levels?: ReactNode
   /** The period control, under the levels it changes. */
   controls?: ReactNode
+  /** Runs that are all at walking pace and left out: the headline says so and offers to count them. */
+  leftOut?: LeftOutRuns
 }
 
 /**
@@ -63,6 +68,7 @@ export function BalanceHero({
   rideLeftOut = null,
   levels = null,
   controls = null,
+  leftOut,
 }: BalanceHeroProps) {
   const head = (title: ReactNode, className?: string) => (
     <div className="balance-hero__head">
@@ -79,7 +85,10 @@ export function BalanceHero({
   ) {
     return (
       <section className="balance-hero">
-        {head(levelsTitle({ run: runLevel }) ?? 'Your balance waits for your weight')}
+        {head(
+          levelsTitle({ run: runLevel }, unconfirmedSports(result)) ??
+            'Your balance waits for your weight',
+        )}
         <p className="lede secondary">
           <WeightPrompt />
         </p>
@@ -94,6 +103,7 @@ export function BalanceHero({
       library,
       period,
       { run: runLevel, ride: rideLevel },
+      leftOut?.count ?? 0,
       { rideLeftOut },
     )
     return (
@@ -108,6 +118,9 @@ export function BalanceHero({
               </button>
             </p>
           )}
+          {leftOut !== undefined && (
+            <CountWalkingRuns count={leftOut.count} onCount={leftOut.onCount} />
+          )}
           {levels === null ? action : null}
         </section>
         {levels}
@@ -118,6 +131,8 @@ export function BalanceHero({
   }
   const { lead, sport, noun } = titleParts(reading)
   const few = fewEffortsText(result)
+  // A comparison that rests on a best nothing could check (no heart rate on it) is shown, with that said beside it.
+  const unchecked = uncheckedNote(result)
   return (
     <div className="balance-hero__pair">
       <section className="balance-hero balance-hero--answer">
@@ -141,6 +156,7 @@ export function BalanceHero({
             />
           </p>
           {few !== null && <p className="secondary">{few}</p>}
+          {unchecked !== null && <p className="secondary">{unchecked}</p>}
         </div>
       </section>
       <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />

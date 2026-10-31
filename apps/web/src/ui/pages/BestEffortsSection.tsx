@@ -44,6 +44,7 @@ export function BestEffortsSection(context: SectionContext & { list: BestEffortR
         activityMasses={activityMasses(result.activities)}
         threshold={thresholdLine(result, sport, massKg, units)}
         bestLevel={headline?.kind === 'graded' ? gradeLevelText(headline.grade) : undefined}
+        change={context.change}
       />
       <RecordTiles tiles={tileRows(sport, list.rows)} />
       {SPORT_NOTE[sport] && <p className="muted">{SPORT_NOTE[sport]}</p>}

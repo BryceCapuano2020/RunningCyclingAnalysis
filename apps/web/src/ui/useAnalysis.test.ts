@@ -1,23 +1,26 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
-import { act, render, renderHook, waitFor } from '@testing-library/react'
+import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
-import { createElement, StrictMode } from 'react'
+import { createElement, StrictMode, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { DAILY_LIMITS } from '@rca/contract'
+import { DAILY_LIMITS, LIST_ROWS_LIMIT_MESSAGE } from '@rca/contract'
 import type { Me } from '@rca/contract'
 import type { SessionState } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { RouteReply } from './routeReply'
 import type { AthleteSettings } from '@rca/core/types'
+import { FakeWorker } from '../test/fakeWorker'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
+import type { WorkerRequest } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
+import { FakeBroadcastChannel } from '../test/fakeBroadcastChannel'
+import { resetTabSync } from './tabSync'
 import { useAnalysis } from './useAnalysis'
 import { SyncStatus } from './components/SyncStatus'
 import { formatDay } from './format/date'
@@ -40,31 +43,6 @@ function localTime(ms: number): string {
 
 /** The reset sentence, with the local time left to the viewer's zone. */
 const RESET_AT_UTC_MIDNIGHT = /It resets at .+, your time\.$/
-
-/** A Worker that records what the hook posts and lets the test send replies. */
-class FakeWorker {
-  static instances: FakeWorker[] = []
-  onmessage: ((event: MessageEvent<WorkerResponse>) => void) | null = null
-  onerror: ((event: ErrorEvent) => void) | null = null
-  posted: WorkerRequest[] = []
-  terminated = false
-
-  constructor() {
-    FakeWorker.instances.push(this)
-  }
-
-  postMessage(request: WorkerRequest) {
-    this.posted.push(request)
-  }
-
-  terminate() {
-    this.terminated = true
-  }
-
-  reply(data: WorkerResponse) {
-    this.onmessage?.({ data } as MessageEvent<WorkerResponse>)
-  }
-}
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const USER_ID = 'u1'
@@ -113,7 +91,7 @@ const UNREACHABLE: Account = { status: 'unavailable', me: null, lookupPending: t
 function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS) {
   return renderHook(
     ({ account, current }: { account: Account; current: AthleteSettings }) =>
-      useAnalysis(current, account, false),
+      useAnalysis(current, account),
     { initialProps: { account: initial, current: settings } },
   )
 }
@@ -165,8 +143,10 @@ const STATE = {
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
   walkingPaceRuns: 0,
+  countedWalkingRuns: [],
   trend: [],
   previous: null,
+  change: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
@@ -234,7 +214,7 @@ describe('useAnalysis account handling', () => {
   it('loads the stored activities into the active worker under StrictMode', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account, false),
+        useAnalysis(current, account),
       {
         initialProps: { account: SIGNED_IN_KEEP, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -1155,6 +1135,221 @@ describe('useAnalysis account handling', () => {
       expect(localStorage.getItem(KEPT_KEY)).toBeNull()
     })
 
+    describe('when the browser cleared results it kept', () => {
+      const MARK_KEY = 'rca.deviceKept.v1'
+
+      it('says the results are gone when a library marked as kept loads empty, once', () => {
+        localStorage.setItem(KEPT_KEY, '1')
+        localStorage.setItem(MARK_KEY, '1')
+        const { result } = setup(SIGNED_OUT)
+        reportKept(0)
+
+        finishDeviceLoad(STATE)
+
+        expect(result.current.deviceIssue).toEqual({ issue: 'evicted' })
+        expect(localStorage.getItem(MARK_KEY)).toBeNull()
+      })
+
+      it('does not call a library lost when rows it keeps could not be read, as with a newer version’s', () => {
+        localStorage.setItem(MARK_KEY, '1')
+        const { result } = setup(SIGNED_OUT)
+        act(() => worker().reply({ type: 'libraryActivities', activities: [], skipped: 3 }))
+        finishDeviceLoad(STATE)
+
+        expect(result.current.deviceIssue).toBeNull()
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+      })
+
+      it('follows every list of the library kept here, so Remove all is not a loss on the next visit', () => {
+        const { result } = setup(SIGNED_OUT)
+        // A list names the request it ran under, so it is sent while the load runs, as the worker does.
+        reportKept(2)
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+        finishDeviceLoad(STATE)
+
+        act(() => result.current.clear())
+        reportKept(0)
+        expect(localStorage.getItem(MARK_KEY)).toBeNull()
+      })
+
+      it('forgets the runs counted at walking pace when Remove all emptied the library, and only then', () => {
+        const COUNTED_KEY = 'rca.countedRuns.v1'
+        localStorage.setItem(COUNTED_KEY, JSON.stringify(['run-5']))
+        const { result } = setup(SIGNED_OUT)
+        reportKept(2)
+        finishDeviceLoad(WITH_RESULTS)
+
+        // The library refused to clear: what remains is listed, and the choices stay with it.
+        act(() => result.current.clear())
+        reportKept(2)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+        expect(localStorage.getItem(COUNTED_KEY)).not.toBeNull()
+
+        act(() => result.current.clear())
+        reportKept(0)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+        expect(localStorage.getItem(COUNTED_KEY)).toBeNull()
+      })
+
+      it('takes the mark off when a signed-in delete left nothing kept here, so the next sign-out is not a loss', () => {
+        localStorage.setItem(MARK_KEY, '1')
+        setup(SIGNED_IN_KEEP)
+        act(() => worker().reply({ type: 'deviceHolds', holds: true }))
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+        act(() => worker().reply({ type: 'deviceHolds', holds: false }))
+        expect(localStorage.getItem(MARK_KEY)).toBeNull()
+      })
+
+      it('does not take a signed-in visitor’s account list for the library kept here', () => {
+        localStorage.setItem(MARK_KEY, '1')
+        setup(SIGNED_IN_KEEP)
+        reportKept(0)
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+      })
+
+      it('says nothing on a first visit, where an empty library is simply new', () => {
+        const { result } = setup(SIGNED_OUT)
+        reportKept(0)
+
+        finishDeviceLoad(STATE)
+
+        expect(result.current.deviceIssue).toBeNull()
+      })
+
+      it('says nothing for a hint left by a signed-in library, which the device never held', () => {
+        localStorage.setItem(KEPT_KEY, '1')
+        const { result } = setup(SIGNED_OUT)
+        reportKept(0)
+
+        finishDeviceLoad(STATE)
+
+        expect(result.current.deviceIssue).toBeNull()
+      })
+
+      it('marks the device library once an import is kept in it, and keeps the mark while it loads full', () => {
+        const { result } = setup(SIGNED_OUT)
+        finishDeviceLoad(STATE)
+        act(() => result.current.addFiles([FILE]))
+        reportKept(2)
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+
+        expect(localStorage.getItem(MARK_KEY)).toBe('1')
+      })
+
+      it('does not call a library that Remove all emptied lost', () => {
+        localStorage.setItem(MARK_KEY, '1')
+        const { result } = setup(SIGNED_OUT)
+        reportKept(1)
+        finishDeviceLoad(WITH_RESULTS)
+        act(() => result.current.clear())
+        reportKept(0)
+        act(() => worker().reply({ type: 'state', state: STATE }))
+
+        expect(localStorage.getItem(MARK_KEY)).toBeNull()
+        expect(result.current.deviceIssue).toBeNull()
+      })
+    })
+
+    describe('asking the browser to keep the results', () => {
+      afterEach(() => {
+        Reflect.deleteProperty(navigator, 'storage')
+      })
+
+      function stubStorage(persisted: boolean, persist: boolean) {
+        const storage = {
+          persisted: vi.fn(async () => persisted),
+          persist: vi.fn(async () => persist),
+        }
+        Object.defineProperty(navigator, 'storage', { configurable: true, value: storage })
+        return storage
+      }
+
+      async function importSavedToDevice() {
+        const hook = setup(SIGNED_OUT)
+        finishDeviceLoad(STATE)
+        act(() => hook.result.current.addFiles([FILE]))
+        reportKept(2)
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+        return hook.result
+      }
+
+      it('asks after the first import is kept, and says when the browser will not promise', async () => {
+        const storage = stubStorage(false, false)
+        const result = await importSavedToDevice()
+
+        await waitFor(() => expect(result.current.deviceIssue).toEqual({ issue: 'mayBeCleared' }))
+        expect(storage.persist).toHaveBeenCalledTimes(1)
+      })
+
+      it('says it once on a device, and still asks the browser on every import', async () => {
+        const storage = stubStorage(false, false)
+        const first = await importSavedToDevice()
+        await waitFor(() => expect(first.current.deviceIssue).toEqual({ issue: 'mayBeCleared' }))
+        expect(localStorage.getItem('rca.persistNote.v1')).toBe('1')
+        cleanup()
+
+        const second = await importSavedToDevice()
+        await Promise.resolve()
+        expect(second.current.deviceIssue).toBeNull()
+        // A browser that agreed later is found out; only the notice is gated by the flag.
+        await waitFor(() => expect(storage.persist).toHaveBeenCalledTimes(2))
+      })
+
+      it('says both when an import could not read what was kept and could not keep the new files', () => {
+        const { result } = setup(SIGNED_OUT)
+        finishDeviceLoad(STATE)
+        act(() => result.current.addFiles([FILE]))
+        act(() => worker().reply({ type: 'deviceIssue', issue: 'notRead' }))
+        act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }))
+
+        expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 2, unread: true })
+      })
+
+      it('says nothing when the browser agrees', async () => {
+        const storage = stubStorage(false, true)
+        const result = await importSavedToDevice()
+
+        await waitFor(() => expect(storage.persist).toHaveBeenCalled())
+        expect(result.current.deviceIssue).toBeNull()
+      })
+
+      it('does not ask again, or say anything, when the browser already keeps the storage', async () => {
+        const storage = stubStorage(true, false)
+        const result = await importSavedToDevice()
+
+        await waitFor(() => expect(storage.persisted).toHaveBeenCalled())
+        expect(storage.persist).not.toHaveBeenCalled()
+        expect(result.current.deviceIssue).toBeNull()
+      })
+
+      it('does not ask when every save was refused', async () => {
+        const storage = stubStorage(false, false)
+        const hook = setup(SIGNED_OUT)
+        reportKept(0)
+        finishDeviceLoad(STATE)
+        act(() => hook.result.current.addFiles([FILE]))
+        reportKept(0)
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+
+        expect(storage.persist).not.toHaveBeenCalled()
+      })
+
+      it('does not replace the news of an import that was not kept', async () => {
+        stubStorage(false, false)
+        const hook = setup(SIGNED_OUT)
+        finishDeviceLoad(STATE)
+        act(() => hook.result.current.addFiles([FILE]))
+        reportKept(1)
+        act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
+        act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+        await Promise.resolve()
+
+        expect(hook.result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 1 })
+        // The notice was not placed, so the device has not been told: it is said at the next import.
+        expect(localStorage.getItem('rca.persistNote.v1')).toBeNull()
+      })
+    })
+
     it('ends the restoring state when the signed-in library loads', () => {
       localStorage.setItem(KEPT_KEY, '1')
       const { result } = setup(SIGNED_IN_KEEP)
@@ -1192,7 +1387,7 @@ describe('useAnalysis account handling', () => {
 
       act(() => result.current.addFiles([FILE]))
       reportKept(0)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }, {}))
       act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
 
       expect(localStorage.getItem(KEPT_KEY)).toBeNull()
@@ -1202,7 +1397,7 @@ describe('useAnalysis account handling', () => {
     it('keeps how many were left to a newer version of the app', () => {
       const { result } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 0, newer: 2 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 0, newer: 2 }, {}))
       expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 0, newer: 2 })
     })
 
@@ -1210,7 +1405,7 @@ describe('useAnalysis account handling', () => {
       const { result } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
       act(() => result.current.addFiles([FILE]))
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }, {}))
       act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 1 } }))
       expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 1 })
 
@@ -1223,13 +1418,13 @@ describe('useAnalysis account handling', () => {
     it('drops the news of unsaved imports when the sample is loaded, and when the visitor signs in', () => {
       const { result, rerender } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }, {}))
       expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 1 })
 
       act(() => result.current.loadSample())
       expect(result.current.deviceIssue).toBeNull()
 
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }, {}))
       rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
       expect(result.current.deviceIssue).toBeNull()
     })
@@ -1237,7 +1432,7 @@ describe('useAnalysis account handling', () => {
     it('keeps a refused delete through the sample and an account change, since the copy stays in this browser', () => {
       const { result, rerender } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }, {}))
 
       act(() => result.current.loadSample())
       expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
@@ -1249,7 +1444,7 @@ describe('useAnalysis account handling', () => {
     it('keeps a refused signed-in delete through sign-out, until this browser is asked again', () => {
       const { result, rerender } = setup(SIGNED_IN_KEEP)
       finishLibraryLoad(STATE)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }, {}))
       expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
 
       rerender({ account: SIGNED_OUT, current: SETTINGS })
@@ -1268,7 +1463,7 @@ describe('useAnalysis account handling', () => {
 
       act(() => result.current.clear())
       reportKept(2)
-      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }, {}))
       act(() => worker().reply({ type: 'state', state: STATE }))
 
       expect(localStorage.getItem(KEPT_KEY)).toBe('1')
@@ -1354,7 +1549,7 @@ describe('useAnalysis device library', () => {
   it('sends one device load to the surviving worker under StrictMode when signed out', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account, false),
+        useAnalysis(current, account),
       {
         initialProps: { account: SIGNED_OUT, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -1425,10 +1620,15 @@ describe('useAnalysis device library', () => {
     const startMs = Date.UTC(2026, 9, 20, 12)
     const { result } = setup(SIGNED_OUT)
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'run-1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [
+            { id: 'run-1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY },
+          ],
+        },
+        {},
+      ),
     )
     finishDeviceLoad()
 
@@ -1483,33 +1683,6 @@ describe('useAnalysis requests', () => {
     }
   })
 
-  it('asks the worker to grade the trend once the athlete has an age and sex, and only then', () => {
-    const { rerender } = renderHook(
-      ({ grade }: { grade: boolean }) => useAnalysis(SETTINGS, SIGNED_OUT, grade),
-      { initialProps: { grade: false } },
-    )
-    expect(worker().posted).toEqual([DEVICE_LOAD])
-    rerender({ grade: true })
-    expect(worker().posted).toEqual([
-      DEVICE_LOAD,
-      { type: 'setGradeTrend', on: true, settings: SETTINGS },
-    ])
-    rerender({ grade: true })
-    expect(worker().posted).toHaveLength(2)
-    rerender({ grade: false })
-    expect(worker().posted.at(-1)).toEqual({ type: 'setGradeTrend', on: false, settings: SETTINGS })
-  })
-
-  it('asks the worker that replaces a stopped one to grade the trend too', () => {
-    const { result } = renderHook(() => useAnalysis(SETTINGS, SIGNED_OUT, true))
-    const first = worker()
-    expect(first.posted).toContainEqual({ type: 'setGradeTrend', on: true, settings: SETTINGS })
-    act(() => result.current.stop())
-
-    expect(worker()).not.toBe(first)
-    expect(worker().posted).toContainEqual({ type: 'setGradeTrend', on: true, settings: SETTINGS })
-  })
-
   it('posts new settings only when the body or bike mass changes', () => {
     const { rerender } = setup(SIGNED_OUT, SETTINGS)
     rerender({ account: SIGNED_OUT, current: SETTINGS })
@@ -1518,6 +1691,39 @@ describe('useAnalysis requests', () => {
     const changed = { massKg: 80, bikeMassKg: 9 }
     rerender({ account: SIGNED_OUT, current: changed })
     expect(worker().posted).toEqual([DEVICE_LOAD, { type: 'setSettings', settings: changed }])
+  })
+
+  it('posts new settings when what the heart-rate reference reads changes, and not for a threshold', () => {
+    const { rerender } = setup(SIGNED_OUT, SETTINGS)
+    const dated = (kind: 'maxHeartRate' | 'thresholdPower', value: number) => ({
+      ...SETTINGS,
+      measurements: [{ kind, sport: 'run' as const, value, from: '2025-01-01' }],
+    })
+    rerender({ account: SIGNED_OUT, current: dated('thresholdPower', 250) })
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+    const maximum = dated('maxHeartRate', 188)
+    rerender({ account: SIGNED_OUT, current: maximum })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setSettings', settings: maximum })
+    const born = { ...maximum, birthYear: 1985 }
+    rerender({ account: SIGNED_OUT, current: born })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setSettings', settings: born })
+  })
+
+  it('posts new settings when the runs counted at walking pace change, in either direction', () => {
+    const { rerender } = setup(SIGNED_OUT, SETTINGS)
+    const counted = { ...SETTINGS, countedRuns: ['run-100'] }
+    rerender({ account: SIGNED_OUT, current: counted })
+    expect(worker().posted).toEqual([DEVICE_LOAD, { type: 'setSettings', settings: counted }])
+
+    // The same two runs in another order are the same choice, so nothing is posted.
+    const two = { ...SETTINGS, countedRuns: ['run-100', 'run-200'] }
+    rerender({ account: SIGNED_OUT, current: two })
+    expect(worker().posted).toHaveLength(3)
+    rerender({ account: SIGNED_OUT, current: { ...SETTINGS, countedRuns: ['run-200', 'run-100'] } })
+    expect(worker().posted).toHaveLength(3)
+
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setSettings', settings: SETTINGS })
   })
 
   it('stops the worker on unmount', () => {
@@ -1814,10 +2020,14 @@ describe('useAnalysis state', () => {
     expect(result.current.uploading).toBeNull()
   })
 
-  it('says how many a signed-in import saved when its last progress and its reply arrive together', () => {
+  it('says how many a signed-in import saved when its last progress and its reply arrive together', async () => {
     // The sync status as the app renders it, fed by the hook.
+    let analysisOf: ReturnType<typeof useAnalysis> | undefined
     function Status() {
-      const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP, false)
+      const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP)
+      useEffect(() => {
+        analysisOf = analysis
+      })
       return createElement(SyncStatus, {
         uploading: analysis.uploading,
         savedCount: analysis.savedCount,
@@ -1827,6 +2037,7 @@ describe('useAnalysis state', () => {
     }
     render(createElement(Status))
     finishLibraryLoad()
+    await act(async () => analysisOf?.addFiles([FILE]))
     act(() => worker().reply({ type: 'progress', filesRead: 0, filesTotal: 3, uploaded: 0 }))
     act(() => worker().reply({ type: 'progress', filesRead: 1, filesTotal: 3, uploaded: 1 }))
 
@@ -1993,6 +2204,41 @@ describe('useAnalysis state', () => {
     act(() => result.current.addFiles([FILE]))
     act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
     expect(result.current.importChange?.before).toBeNull()
+  })
+
+  it('compares the import with nothing when it switched the period from 12 weeks to all time', () => {
+    const outcome = { activities: 1, rejected: 0, duplicates: [], runs: 0, rides: 1 }
+    const window12 = { ...STATE.period, days: 84, fellBack: false }
+    const allTime = { ...STATE.period, days: null, fellBack: true }
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: makeResult({ runCp: null }), period: window12 })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, result: makeResult(), period: allTime },
+        outcome,
+      }),
+    )
+    expect(result.current.importChange?.before).toBeNull()
+    expect(result.current.importChange?.after).not.toBeNull()
+  })
+
+  it('compares the import with the result on screen when the period stayed in its regime', () => {
+    const outcome = { activities: 1, rejected: 0, duplicates: [], runs: 0, rides: 1 }
+    const before = makeResult({ runCp: null })
+    const window12 = { ...STATE.period, days: 84, fellBack: false }
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: before, period: window12 })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, result: makeResult(), period: { ...window12, endMs: 5 } },
+        outcome,
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(before)
   })
 
   it('forgets what moved when the summary is cleared', () => {
@@ -2189,7 +2435,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (50 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (5,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -2229,7 +2475,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toMatch(
-      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(50 per day\) was reached\. It resets at .+, your time\.$/,
+      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(5,000 per day\) was reached\. It resets at .+, your time\.$/,
     )
     expect(result.current.rebuildNotice).not.toMatch(/server is available/)
   })
@@ -2282,10 +2528,13 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'state', state: STATE }))
@@ -2360,10 +2609,13 @@ describe('useAnalysis state', () => {
     const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'state', state: STATE }))
@@ -2383,12 +2635,15 @@ describe('useAnalysis state', () => {
     const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
-    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }))
+    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }, {}))
     expect(result.current.savedActivities).toHaveLength(1)
     expect(result.current.libraryUnreadable).toBe(2)
 
@@ -2417,10 +2672,13 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
 
     act(() => result.current.deleteActivity('a1'))
@@ -2439,10 +2697,13 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
@@ -2462,10 +2723,13 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() =>
-      worker().reply({
-        type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
-      }),
+      worker().reply(
+        {
+          type: 'libraryActivities',
+          activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
+        },
+        {},
+      ),
     )
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'error', message: 'Network down' }))
@@ -2562,7 +2826,7 @@ describe('useAnalysis library messages', () => {
   it('shows how many stored activities could not be read, and clears the count when the library reloads', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
-    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }))
+    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }, {}))
     expect(result.current.libraryUnreadable).toBe(2)
 
     act(() => result.current.retryLibrary())
@@ -2579,6 +2843,35 @@ describe('useAnalysis library messages', () => {
       new RegExp(
         `^You have reached today's limit on library loads \\(${DAILY_LIMITS.read} per day\\)\\. `,
       ),
+    )
+    expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
+  })
+
+  it('names the rows allowance, not the library loads, when it ends a library load part way', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() =>
+      worker().reply({ type: 'error', message: LIST_ROWS_LIMIT_MESSAGE, issue: 'daily-limit' }),
+    )
+
+    expect(result.current.libraryStatus).toBe('failed')
+    expect(result.current.errorIssue).toBe('daily-limit')
+    expect(result.current.error).toMatch(
+      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
+    )
+    expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
+  })
+
+  it('names the rows allowance when it refuses the listing a rebuild starts with', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.rebuildSavedActivities())
+    act(() =>
+      worker().reply({ type: 'error', message: LIST_ROWS_LIMIT_MESSAGE, issue: 'daily-limit' }),
+    )
+
+    expect(result.current.errorIssue).toBe('daily-limit')
+    expect(result.current.error).toMatch(
+      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
     )
     expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
@@ -2653,6 +2946,28 @@ describe('useAnalysis account export', () => {
       new RegExp(
         `^You have reached today's limit on library loads \\(${DAILY_LIMITS.read} per day\\)\\. `,
       ),
+    )
+    expect((failure as Error).message).toMatch(RESET_AT_UTC_MIDNIGHT)
+  })
+
+  it('rejects naming the rows allowance when it refuses the listing part way through', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    let failure: unknown = null
+    let exported: Promise<Blob> = Promise.resolve(new Blob())
+    act(() => {
+      exported = result.current.exportData()
+    })
+    exported.catch((error: unknown) => {
+      failure = error
+    })
+    act(() =>
+      worker().reply({ type: 'error', message: LIST_ROWS_LIMIT_MESSAGE, issue: 'daily-limit' }),
+    )
+
+    await waitFor(() => expect(failure).toBeInstanceOf(Error))
+    expect((failure as Error).message).toMatch(
+      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
     )
     expect((failure as Error).message).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
@@ -2821,6 +3136,7 @@ describe('useAnalysis route shapes', () => {
   it('keeps an error already on screen, and is not busy while a route loads', () => {
     const { result } = setup(SIGNED_OUT)
     finishDeviceLoad()
+    act(() => result.current.addFiles([FILE]))
     act(() => worker().reply({ type: 'error', message: 'The import failed' }))
 
     act(() => {
@@ -3354,5 +3670,51 @@ describe('round 7: the baseline when an import is sent, and a library read a Sta
     expect(result.current.error).toBe(
       'An import was cancelled because the account changed. Select the files again.',
     )
+  })
+})
+
+describe('telling the other tabs about a library change', () => {
+  let otherTab: FakeBroadcastChannel
+  let heard: unknown[]
+
+  beforeEach(() => {
+    FakeBroadcastChannel.reset()
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel)
+    resetTabSync()
+    otherTab = FakeBroadcastChannel.other('rca-sync-v1')
+    heard = []
+    otherTab.onmessage = (event) => heard.push(event.data)
+  })
+
+  afterEach(() => {
+    resetTabSync()
+  })
+
+  it('says the kept library changed after an import into it, and after Remove all', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toContainEqual({ type: 'library', scope: 'device' })
+
+    heard.length = 0
+    act(() => result.current.clear())
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toContainEqual({ type: 'library', scope: 'device' })
+  })
+
+  it('stays quiet about the analysis of files added while the account loads', () => {
+    const { result } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toEqual([])
+  })
+
+  it('stays quiet about a clear that leaves the kept library alone, as a signed-in one does', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.clear())
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(heard).toEqual([])
   })
 })

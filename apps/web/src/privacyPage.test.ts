@@ -1,4 +1,7 @@
+import { StoredActivityDigestSchema } from '@rca/contract'
 import type { ActivityRecord, Profile } from '@rca/contract'
+import { digestActivity, serializeDigest } from '@rca/core/digest'
+import type { ActivityDigest } from '@rca/core/types'
 import { encodeFit } from '@rca/core/fit'
 import { AnalysisSession } from '@rca/core/session'
 import { sampleDataset } from '@rca/core/synthetic'
@@ -34,8 +37,23 @@ const backupWorkflow = await readStylesheet(
   import.meta.url,
   '../../../.github/workflows/backup.yml',
 )
+const importActionsSource = await readStylesheet(import.meta.url, './ui/analysis/importActions.ts')
+const deviceSetup = await readStylesheet(import.meta.url, './ui/useSetup.ts')
+const seenNotes = await readStylesheet(import.meta.url, './ui/aboutDataStore.ts')
+const workbenchStore = await readStylesheet(import.meta.url, './worker/workbenchStore.ts')
+const retentionComponent = await readStylesheet(
+  import.meta.url,
+  './ui/components/FileRetention.tsx',
+)
 const accountDeletion = await readStylesheet(import.meta.url, '../../api/src/accountDeletion.ts')
 const budget = await readStylesheet(import.meta.url, '../../api/src/budget.ts')
+const identityBudget = await readStylesheet(import.meta.url, '../../api/src/identityBudget.ts')
+const identitySignIn = await readStylesheet(import.meta.url, '../../api/src/auth/signIn.ts')
+const signupGate = await readStylesheet(import.meta.url, '../../api/src/auth/signupGate.ts')
+const contractLimits = await readStylesheet(
+  import.meta.url,
+  '../../../packages/contract/src/limits.ts',
+)
 const storage = await readStylesheet(import.meta.url, '../../api/src/storage.ts')
 const activitiesCsvSource = await readStylesheet(
   import.meta.url,
@@ -43,12 +61,9 @@ const activitiesCsvSource = await readStylesheet(
 )
 const periodPreference = await readStylesheet(import.meta.url, './ui/periodPreference.ts')
 const cardName = await readStylesheet(import.meta.url, './share/cardName.ts')
-const contractDigest = await readStylesheet(
-  import.meta.url,
-  '../../../packages/contract/src/digest.ts',
-)
 const apiSchema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
 const rateLimit = await readStylesheet(import.meta.url, '../../api/src/rateLimit.ts')
+const apiList = await readStylesheet(import.meta.url, '../../api/src/routes/activities/list.ts')
 const productionNotes = await readStylesheet(import.meta.url, '../../../docs/PRODUCTION.md')
 const wrangler = await readStylesheet(import.meta.url, '../../api/wrangler.toml')
 const importPipeline = await readStylesheet(
@@ -98,8 +113,8 @@ const ANALYSIS_FIGURES = [
 ]
 
 describe('privacy page date', () => {
-  it('is dated 28 October 2026', () => {
-    expect(page).toContain('<p class="updated">Last updated 28 October 2026</p>')
+  it('is dated 30 October 2026', () => {
+    expect(page).toContain('<p class="updated">Last updated 30 October 2026</p>')
   })
 })
 
@@ -188,6 +203,21 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('It holds no activity data.')
   })
 
+  it('names the flags and choices this browser keeps beyond the summaries, as the app stores them', async () => {
+    const keptLibrary = await readStylesheet(import.meta.url, './ui/analysis/keptLibrary.ts')
+    const countedRuns = await readStylesheet(import.meta.url, './ui/countedRunsStore.ts')
+    expect(text).toContain('rca.deviceKept.v1')
+    expect(keptLibrary).toContain("DEVICE_KEY = 'rca.deviceKept.v1'")
+    expect(text).toContain('rca.persistNote.v1')
+    expect(keptLibrary).toContain("PERSIST_NOTE_KEY = 'rca.persistNote.v1'")
+    expect(text).toContain('Signing out and deleting your account clear it')
+    expect(text).toContain('Remove all my activities, which is offered only when signed out')
+    expect(text).toContain('rca.countedRuns.v1')
+    expect(countedRuns).toContain("COUNTED_RUNS_KEY = 'rca.countedRuns.v1'")
+    expect(text).toContain('It is never uploaded, signed in or not')
+    expect(text).toContain("asks the browser to keep this site's storage")
+  })
+
   it('says signed-in visitors do not see the summaries kept in this browser', () => {
     expect(text).toMatch(/signed in[^.]*not shown|not shown[^.]*signed in/i)
   })
@@ -239,9 +269,12 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('reports a local cleanup failure separately')
   })
 
-  it('says a summary keeps a SHA-256 hash of its file only when the file yields several summaries', () => {
+  it('says a summary keeps a SHA-256 hash of its file when the file yields several summaries, and from now on for every summary kept here', () => {
     expect(text).toContain(
       'When one file yields several summaries, including a split activity, each keeps a SHA-256 hash of that file, so they are shown together.',
+    )
+    expect(text).toContain(
+      'Summaries kept from now on also keep the file name and a SHA-256 hash of the file, for adding them to an account later.',
     )
     expect(importPipeline).toContain('(multi || parts > 1) && context.sessionKey !== undefined')
   })
@@ -256,7 +289,6 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('an upload reservation token while a file uploads')
     expect(apiSchema).toMatch(/activityCount: integer\('activity_count'\)/)
     expect(apiSchema).toMatch(/digestBytes: integer\('digest_bytes'\)/)
-    expect(apiSchema).toMatch(/listCursor: text\('list_cursor'\)/)
     expect(apiSchema).toMatch(/deletingAt: integer\('deleting_at'\)/)
     expect(apiSchema).toMatch(/fileReservationToken: text\('file_reservation_token'\)/)
     expect(apiSchema).toMatch(/dedupeKey: text\('dedupe_key'\)/)
@@ -273,16 +305,21 @@ describe('privacy page describes what is stored as the app stores it', () => {
   })
 
   it('keeps each figure it lists in the digest the server stores', () => {
-    expect(contractDigest).toMatch(/splits: digestSplits\(1\)\.optional\(\)/)
-    expect(contractDigest).toMatch(
-      /gradeAdjustedSeconds: z\.number\(\)\.nonnegative\(\)\.nullable\(\)/,
-    )
-    expect(contractDigest).toMatch(/indoor: z\.boolean\(\)/)
-    expect(contractDigest).toMatch(/calibration: calibrationSums\.nullable\(\)/)
-    expect(contractDigest).toMatch(/movingS: z\.number\(\)\.int\(\)\.nonnegative\(\)\.optional\(\)/)
-    expect(contractDigest).toMatch(/avgPowerW: nullableNumber\.optional\(\)/)
-    expect(contractDigest).toMatch(/walkingPace: z\.literal\(true\)\.optional\(\)/)
-    expect(contractDigest).toMatch(/race: z\.literal\(true\)\.optional\(\)/)
+    const digests = sampleDataset().activities.map((activity) => digestActivity(activity))
+    const run = digests.find((digest) => digest.splits !== undefined)
+    const ride = digests.find((digest) => digest.calibration !== null)
+    if (run === undefined || ride === undefined) throw new Error('The sample has no such digest')
+    const stored = (digest: ActivityDigest, extra: object = {}) =>
+      StoredActivityDigestSchema.parse({ ...JSON.parse(serializeDigest(digest)), ...extra })
+    const marked = stored(run, { movingS: 600, avgPowerW: 210, walkingPace: true, race: true })
+    expect(marked.splits?.km.length).toBeGreaterThan(0)
+    expect(marked.splits?.km[0]?.gradeAdjustedSeconds).toBeTypeOf('number')
+    expect(marked.indoor).toBe(run.indoor)
+    expect(marked.movingS).toBe(600)
+    expect(marked.avgPowerW).toBe(210)
+    expect(marked.walkingPace).toBe(true)
+    expect(marked.race).toBe(true)
+    expect(stored(ride).calibration).toEqual(ride.calibration)
     expect(sentenceWith('It holds the figures shown')).toMatch(/walking pace.*race mark/s)
   })
 
@@ -316,11 +353,29 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('The network address is used only as a rate-limit key.')
   })
 
-  it('names the pending-deletion row in the production notes until a deletion completes', () => {
+  it('names the pending-deletion row and the tombstone in the production notes', () => {
     const notes = productionNotes.replace(/\s+/g, ' ')
-    expect(notes).toContain(
-      'keeps no record of deleted accounts once a deletion completes. Until then, a pending_account_deletions row names the account.',
+    expect(notes).toContain('A complete deletion log.')
+    expect(notes).toContain('account_tombstones')
+    expect(notes).toContain('keeps it 100 days')
+  })
+
+  it('says a deleted account leaves only a random ID and a time for 100 days, as the code writes it', () => {
+    expect(apiSchema).toMatch(/sqliteTable\(\s*'account_tombstones'/)
+    expect(apiSchema).toMatch(
+      /userId: text\('user_id'\)\.primaryKey\(\)\.notNull\(\),\s*deletedAt: integer\('deleted_at'\)\.notNull\(\),\s*\},/,
     )
+    expect(accountDeletion).toContain('TOMBSTONE_RETENTION_DAYS = 100')
+    expect(accountDeletion).toContain(
+      'INSERT OR IGNORE INTO account_tombstones (user_id, deleted_at)',
+    )
+    expect(text).toContain('a random account ID and the time are kept for 100 days')
+    expect(text).toContain('It holds no name, email, Google ID or activity.')
+  })
+
+  it('discloses the Time Travel history: 7 days on Free, 30 on Paid', () => {
+    expect(text).toContain('point-in-time history of the database, between 7 and 30 days')
+    expect(text).toContain('Data you delete can stay in that history until it expires.')
   })
 
   it('says what is counted each day, and that the counts are kept seven days', () => {
@@ -352,8 +407,60 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('and, for a saved activity that cannot be read, its ID')
   })
 
-  it('says the sign-in cookie lasts until the session ends', () => {
-    expect(text).toContain('a sign-in cookie that lasts until your session ends')
+  it('says the sign-in cookie has an expiry date and outlives the browser', () => {
+    expect(sessionSource).toMatch(/expires: new Date\(expiresAt\)/)
+    expect(text).toContain('has an expiry date and stays after you close the browser')
+  })
+
+  it('says what stays on the device after sign-out, deletion and Remove all', () => {
+    expect(deviceSetup).toContain("DEVICE_SETUP_KEY = 'rca.setup.v1'")
+    expect(seenNotes).toContain("STORAGE_KEY = 'rca.aboutDataSeen'")
+    expect(text).toContain('rca.setup.v1')
+    expect(text).toContain(
+      'signing out, deleting your account and Remove all my activities leave it, and the next person using this browser can see it',
+    )
+    expect(text).toContain(
+      'Signing out and Remove all my activities remove it; deleting your account leaves it.',
+    )
+    expect(workbenchStore).toContain('owners.put({ scopeKey: key, deletedAt: Date.now() }')
+    expect(text).toContain('one small record for each account that signed out or was deleted')
+    expect(text).toContain(
+      'The record for a deleted account stays until you clear this site’s data.',
+    )
+    expect(text).toContain(
+      'The record for a sign-out ends the next time that account signs in here.',
+    )
+    expect(workbenchStore).toContain('row.deletedAt === undefined) owners.delete(scopeKey(scope))')
+  })
+
+  // Which of the settings-copy and seen-notes keys each action clears, read from the real code.
+  const clearsSeenNotes = (source: string, handler: string) =>
+    new RegExp(`${handler}[\\s\\S]{0,400}?forgetSeenNotes\\(\\)`).test(source)
+  it.each([
+    ['sign-out', app, 'onSignOut=\\{\\(\\) => \\{', true],
+    [
+      'Remove all my activities',
+      importActionsSource,
+      'const clear = useCallback\\(\\(\\) => \\{',
+      true,
+    ],
+    ['account deletion', app, 'const deleteAccount = async \\(\\) => \\{', false],
+  ])(
+    '%s: rca.aboutDataSeen cleared is %s, and the settings copy is not',
+    (_a, source, handler, cleared) => {
+      expect(clearsSeenNotes(source, handler)).toBe(cleared)
+      // Nothing removes the settings copy or the setup answer from local storage, whichever the action.
+      expect(source).not.toMatch(/removeItem\(['"]rca\.(preferences|setup)/)
+    },
+  )
+
+  it('says an original holds the full GPS track and every second of heart rate, as the checkbox does', () => {
+    expect(text).toContain(
+      'An original holds your full GPS track, including where you start and finish',
+    )
+    expect(text).toContain('every recorded second of heart rate and power')
+    expect(retentionComponent).toContain('They hold your full GPS track, including')
+    expect(retentionComponent).toContain('every second of heart rate and power')
   })
 
   it('says a backup keeps account and activity IDs in its object keys', () => {
@@ -421,10 +528,10 @@ describe('privacy page states the limits the code sets', () => {
 })
 
 describe('the code behind the page', () => {
-  it('stores the digest and its route outline on this device, with no file hash or coordinates', () => {
-    expect(device).toContain('async save({ digest, route })')
+  it('stores the digest, its route outline and its file’s name and hash on this device, with no coordinates', () => {
+    expect(device).toContain('async save({ digest, route, fileName, fileHash })')
     expect(deviceLibrary).toContain(
-      'store.put({ digest: serializeDigest(digest), route }, workoutKey)',
+      'store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey)',
     )
     expect(digestTypes).toContain('export interface ActivityDigest {')
     const digest = /export interface ActivityDigest \{[\s\S]*?\n\}/.exec(digestTypes)?.[0] ?? ''
@@ -464,6 +571,32 @@ describe('the code behind the page', () => {
 
   it('keeps daily counts for seven days', () => {
     expect(budget).toMatch(/DAILY_ROW_RETENTION_DAYS = 7/)
+  })
+
+  it('keeps no library page cursor: the cursor is a position, nothing is stored', () => {
+    expect(text).not.toContain('library page cursor')
+    expect(apiList).not.toContain('list_cursor')
+  })
+
+  it('keeps at most ten sessions per account', () => {
+    expect(contractLimits).toMatch(/MAX_SESSIONS_PER_USER = 10/)
+    expect(text).toContain('At most ten are kept')
+  })
+
+  it("keeps a deleted account's day counts under a keyed one-way code for two UTC days", () => {
+    expect(accountDeletion).toContain('saveCountsStatement')
+    expect(signupGate).toContain("name: 'HMAC'")
+    expect(signupGate).toContain('identity:google:${sub}')
+    // Rows from before yesterday are pruned, so a code lives at most two UTC days.
+    expect(identityBudget).toMatch(/utcDay\(now - DAY_MS\)/)
+    expect(contractLimits).toMatch(/MAX_ACCOUNT_CREATES_PER_DAY = 5/)
+    expect(text).toContain(
+      'When you create or delete an account, a one-way code made from your Google ID',
+    )
+    expect(text).toContain('These are kept about two days.')
+    // Written at creation (the account-create count) as well as at deletion (the saved counts).
+    expect(identitySignIn).toContain('takeAccountCreate')
+    expect(accountDeletion).toContain('saveCountsStatement')
   })
 
   it('keys original files by account and activity', () => {
@@ -544,6 +677,9 @@ describe('privacy page says where activity names come from', () => {
     const sentence = sentenceWith('Activity summaries')
     expect(sentence).toContain('name (as in the summary kept in this browser)')
     expect(sentence).not.toMatch(/activity list in a Strava export/)
+    expect(text).toContain(
+      'A name can name a place, and in a Strava export the file name is the number of the activity on Strava.',
+    )
   })
 
   it('names the list and its column as the importer reads them', () => {
@@ -637,8 +773,8 @@ describe('privacy page layout and copy', () => {
     )
   })
 
-  it('measures prose at 68 characters', () => {
-    expect(ruleBody(privacyCss, 'p,\nli')).toMatch(/max-width:\s*68ch;/)
+  it('measures prose at the app’s reading measure', () => {
+    expect(ruleBody(privacyCss, 'p,\nli')).toMatch(/max-width:\s*var\(--measure\);/)
   })
 
   it('thickens the underline of a link on hover, as the app does', () => {

@@ -49,9 +49,14 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'The best pace or power you held for each length of time, taken from every activity in the period.',
   },
   {
-    name: 'Best effort week by week',
+    name: 'Best efforts over time',
     state: 'calculated',
-    line: 'Your best effort of one length in each week, taken over a trailing window, so you see how it moved.',
+    line: 'The efforts that were the best of their stretch, each on the day it was done, so you see when your bests were set.',
+  },
+  {
+    name: 'Whether a change is a change',
+    state: 'calculated',
+    line: 'A move between two periods is called a change only when it is bigger than your own efforts would put between them by chance.',
   },
   {
     name: 'Race predictions',
@@ -61,7 +66,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Output at the same heart rate',
     state: 'calculated',
-    line: 'Your pace or power at one heart rate, week by week, from blocks of steady effort.',
+    line: 'Your pace or power at one heart rate, week by week, from blocks of steady effort. The weekly dots claim no change.',
   },
   {
     name: 'Level target',
@@ -81,7 +86,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Virtual power',
     state: 'calculated',
-    line: 'Estimated watts on climbs for rides with no power meter, from speed, gradient and your weight, checked against your rides that have one.',
+    line: 'Estimated watts on steady climbs for rides with no power meter, from speed, gradient and your weight, checked against your rides that have one.',
   },
   {
     name: 'Splits',

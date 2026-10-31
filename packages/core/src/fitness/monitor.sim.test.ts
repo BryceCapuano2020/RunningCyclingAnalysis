@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { NOISE_PRESETS } from '../synthetic/noise/presets'
 import { firstWeekOf, quantile, replaySim, simulate, slipWeeks } from './test/runSim'
 import type { SimSpec } from './test/runSim'
 
@@ -27,42 +28,35 @@ function falseAlarms(spec: Partial<SimSpec>, libraries = 40): number {
 }
 
 describe('false alarms an athlete-year when nothing changes', () => {
-  it('stays under 0.35 for an athlete with a slow wander and the odd bad run', () => {
-    // Observed 0.25 (0.23 to 0.28 across the four rates).
-    expect(falseAlarms({})).toBeLessThan(0.3)
+  it('stays under 0.2 for an athlete with a slow wander and the odd bad run', () => {
+    // Observed 0.16 over three years (0.24 before the episode work); the budget is a quarter of an alarm.
+    expect(falseAlarms({})).toBeLessThan(0.2)
   })
 
-  // Observed, over the four rates: wander 0.45, season 0.40, strap 0.31, heat 0.28, bad runs 0.21, hilly 0.25.
+  // Observed, over the four rates and three years (before -> now): wander 0.45 -> 0.31, season 1.5% 0.39 -> 0.25,
+  // strap 0.31 -> 0.22, heat 0.26 -> 0.18, bad runs 0.21 -> 0.14, hilly 0.23 -> 0.16.
   it.each([
-    ['a faster, slower wander (3%, correlation 0.95)', { wanderSd: 0.03, wanderRho: 0.95 }, 0.55],
-    ['a season of 1.5% swing', { seasonal: 0.015 }, 0.5],
-    ['a watch or strap change of 3%', { strap: 0.03 }, 0.4],
-    ['heat weeks of 3%', { heat: 0.03 }, 0.4],
-    ['10% of runs read wrong by the sensor', { bad: 0.1 }, 0.3],
-    ['hilly runs, 30% of them 2% slow with wide spread', { hilly: 0.3 }, 0.35],
+    [
+      'a faster, slower wander (3%, correlation 0.95)',
+      { level: { wanderSd: 0.03, wanderRho: 0.95 } },
+      0.4,
+    ],
+    ['a season of 1.5% swing', { level: { seasonAmp: 0.015 } }, 0.32],
+    ['a watch or strap change of 3%', { level: NOISE_PRESETS.strapStep.level }, 0.3],
+    ['heat weeks of 3%', { level: { heatDrop: 0.03 } }, 0.25],
+    ['10% of runs read wrong by the sensor', { bad: 0.1 }, 0.2],
+    ['hilly runs, 30% of them 2% slow with wide spread', { hilly: 0.3 }, 0.22],
   ] as const)('stays under budget through %s', (_name, spec, budget) => {
     expect(falseAlarms(spec)).toBeLessThan(budget)
   })
 
-  it('misses the budget, as documented, with a 3% seasonal swing and with every nuisance at once', () => {
-    // Observed 0.73 for the season and 0.57 for everything together.
-    const season = falseAlarms({ seasonal: 0.03 }, 20)
-    expect(season).toBeGreaterThan(0.4)
-    expect(season).toBeLessThan(1)
+  it('is near the budget with a 3% seasonal swing and with every nuisance at once, even in the first three years', () => {
+    // Observed 0.40 for the season (0.66 before) and 0.34 for everything together (0.52). A season is only taken out
+    // from the third year, so these three-year libraries are the hard case; episode.sim.test.ts runs five.
+    expect(falseAlarms({ level: { seasonAmp: 0.03 } }, 20)).toBeLessThan(0.5)
     expect(
-      falseAlarms(
-        {
-          wanderSd: 0.03,
-          wanderRho: 0.95,
-          seasonal: 0.02,
-          strap: 0.03,
-          heat: 0.03,
-          hilly: 0.3,
-          bad: 0.1,
-        },
-        20,
-      ),
-    ).toBeLessThan(0.7)
+      falseAlarms({ level: NOISE_PRESETS.nuisanceAll.level, hilly: 0.3, bad: 0.1 }, 20),
+    ).toBeLessThan(0.45)
   })
 })
 
@@ -86,9 +80,9 @@ describe('weeks to see a planted loss', () => {
 
   it('sees a drop of 8% in about 4 weeks at 3 runs a week and 5 at 1.2', () => {
     const fast = lags(step(-0.08, 3), 40)
-    // Observed: median 4, 97% within 12 weeks; at 1.2 runs a week median 5, 88%.
+    // Observed: median 4, 90% within 12 weeks (95% before the episode work); at 1.2 runs a week median 5, 85%.
     expect(quantile(fast, 0.5)).toBeLessThanOrEqual(5)
-    expect(within(fast, 12)).toBeGreaterThanOrEqual(0.93)
+    expect(within(fast, 12)).toBeGreaterThanOrEqual(0.88)
     const thin = lags(step(-0.08, 1.2), 40)
     expect(quantile(thin, 0.5)).toBeLessThanOrEqual(6)
     expect(within(thin, 12)).toBeGreaterThanOrEqual(0.8)
@@ -96,14 +90,14 @@ describe('weeks to see a planted loss', () => {
 
   it('sees a drop of 5% in 6 weeks at 3 runs a week, 80% of the time within 26', () => {
     const five = lags(step(-0.05, 3), 40)
-    // Observed: median 6, 93% within 26 weeks.
+    // Observed: median 7, 87% within 26 weeks (median 7, 95% before: the second qualifying week and the check against the year before cost a few detections).
     expect(quantile(five, 0.5)).toBeLessThanOrEqual(7)
-    expect(within(five, 26)).toBeGreaterThanOrEqual(0.88)
+    expect(within(five, 26)).toBeGreaterThanOrEqual(0.83)
   })
 
   it('does not claim to see 3%: about half are seen within half a year', () => {
     const three = lags(step(-0.03, 3), 40)
-    // Observed 60% within 26 weeks: below the athlete's own spread, so no claim.
+    // Observed 55% within 26 weeks: below the athlete's own spread, so no claim.
     expect(within(three, 26)).toBeLessThan(0.7)
   })
 
@@ -113,7 +107,7 @@ describe('weeks to see a planted loss', () => {
       40,
     )
     expect(quantile(quick, 0.5)).toBeGreaterThanOrEqual(9)
-    // Observed: median 11, 98% within 26 weeks; a slide over 26 weeks 82% within 30.
+    // Observed: median 12, 98% within 26 weeks; a slide over 26 weeks 88% within 30.
     expect(within(quick, 26)).toBeGreaterThanOrEqual(0.95)
     const slow = lags(
       { weeks: 130, perWeek: 3, planted: [{ type: 'ramp', week: 60, size: -0.08, weeks: 26 }] },
@@ -155,7 +149,7 @@ describe('recovery', () => {
 
   it('confirms an abrupt return as recovering within weeks and back within a year', () => {
     const result = after(dip(0.08), 40)
-    // Observed: median 7 weeks, 89% within 20 and 95% within 52; back 72% within 52 and 92% within 100; 1 in 40 early.
+    // Observed: median 7 weeks, 89% within 20 and 95% within 52; back 72% within 52 and 87% within 100 (92% before: the rest close as holding, level with the old range); 1 in 40 early.
     expect(quantile(result.recovering, 0.5)).toBeLessThanOrEqual(9)
     expect(within(result.recovering, 52)).toBeGreaterThanOrEqual(0.9)
     expect(within(result.back, 52)).toBeGreaterThanOrEqual(0.65)
@@ -166,13 +160,13 @@ describe('recovery', () => {
     const result = after(dip(0.08, 26), 40)
     const abrupt = after(dip(0.08), 40)
     expect(quantile(result.recovering, 0.5)).toBeGreaterThan(quantile(abrupt.recovering, 0.5))
-    // Observed: median 23 weeks, 92% within 52.
+    // Observed: median 22 weeks, 92% within 52.
     expect(within(result.recovering, 52)).toBeGreaterThanOrEqual(0.85)
   })
 
   it('does not call a return back that stays short of the old level by more than the tolerance', () => {
     const result = after({ ...dip(0.03) }, 40)
-    // Observed 8% (a return of 3% against a loss of 8% stays 5% short).
+    // Observed 8%: a return of 3% against a loss of 8% stays 5% short.
     expect(within(result.back, 100)).toBeLessThanOrEqual(0.15)
   })
 

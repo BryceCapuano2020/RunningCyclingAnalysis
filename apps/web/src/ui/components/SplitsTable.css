@@ -20,7 +20,7 @@
 }
 
 .splits-table__fastest {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* The Fastest chip sits in its row without making the row taller. */
@@ -115,13 +115,13 @@
 /* The chosen view takes the selected colours and a tick, so it is not told apart by colour alone. */
 .btn.splits-view__choice--active {
   border-color: var(--selected);
-  background: var(--selected);
-  color: var(--selected-contrast);
-  font-weight: 700;
+  background: var(--highlight);
+  color: var(--highlight-ink);
+  font-weight: 600;
 }
 
 .btn.splits-view__choice--active:hover {
-  background: var(--selected);
+  background: var(--highlight);
   border-color: var(--selected);
 }
 

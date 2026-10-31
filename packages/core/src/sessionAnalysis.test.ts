@@ -39,8 +39,6 @@ describe('AnalysisSession analysis cache', () => {
     const first = session.loadDigests([...SAMPLE_DIGESTS], SETTINGS)
     expect(combine).toHaveBeenCalledTimes(1)
     expect(session.setSettings(SETTINGS).result).toBe(first.result)
-    expect(session.setGradeTrend(true, SETTINGS).result).toBe(first.result)
-    expect(session.setGradeTrend(false, SETTINGS).result).toBe(first.result)
     expect(combine).toHaveBeenCalledTimes(1)
   })
 
@@ -212,11 +210,11 @@ describe('AnalysisSession analysis cache', () => {
     const state = session.setRange(21, SETTINGS)
     const { selected } = splitPeriods(SAMPLE_DIGESTS, 21)
     // The period is read with the library's calibration and reference heart rates, which it has no say in.
-    const { calibration, referenceHr, observedMaxHr } = state.heartRateJudgement
+    const { calibration, referenceHr, observedMaxHr, effortReference } = state.heartRateJudgement
     expect(state.result).toEqual(
       combineDigests(selected, SETTINGS, {
         calibration,
-        references: { referenceHr, observedMaxHr },
+        references: { referenceHr, observedMaxHr, effortReference },
       }),
     )
   })
