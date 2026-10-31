@@ -35,11 +35,11 @@ function spanOf(rs: readonly RunPoint[]): FitnessSpan {
 const withoutIds = ({ ids: _ids, ...span }: FitnessSpan): Omit<FitnessSpan, 'ids'> => span
 
 /** A change in log units with its half-width as a fractional change with its 90% range. */
-function ranged(delta: number, half: number): Ranged {
+export function ranged(delta: number, half: number): Ranged {
   return { value: exp(delta) - 1, low: exp(delta - half) - 1, high: exp(delta + half) - 1 }
 }
 
-const halfWidth = (...ses: number[]) =>
+export const halfWidth = (...ses: number[]) =>
   D.rangeZ * Math.sqrt(ses.reduce((a, s) => a + s * s, 0) + M.rangeTau ** 2)
 
 /** What the status says when it cannot say more. */
