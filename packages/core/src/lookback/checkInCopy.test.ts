@@ -182,4 +182,28 @@ describe('the words of the check-in', () => {
       'Run fitness could not be read at your last import; it is holding now.',
     ])
   })
+
+  it('has words for every state, including a rise that has settled', () => {
+    const moved = checkInBetween(
+      snap({ run: [ago(60)] }, { fitness: { run: holding(), ride: null } }),
+      snap(
+        { run: [ago(60), ago(1)] },
+        { fitness: { run: holding({ state: 'improved' }), ride: null } },
+      ),
+    )!
+    expect(checkInText(moved, 'metric').lines).toEqual([
+      'Run fitness was holding at your last import; it is improved now.',
+    ])
+    const same = checkInBetween(
+      snap(
+        { run: [ago(60)] },
+        { fitness: { run: holding({ state: 'improved', within: null }), ride: null } },
+      ),
+      snap(
+        { run: [ago(60), ago(1)] },
+        { fitness: { run: holding({ state: 'improved', within: null }), ride: null } },
+      ),
+    )!
+    expect(checkInText(same, 'metric').headline).toContain('run fitness is still improved')
+  })
 })

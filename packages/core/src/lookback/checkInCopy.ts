@@ -33,6 +33,7 @@ const STATE: Record<FitnessState, string> = {
   recovering: 'recovering',
   back: 'back',
   improving: 'improving',
+  improved: 'improved',
   'not-enough-evidence': 'not yet readable',
 }
 
@@ -44,6 +45,7 @@ const STILL: Record<FitnessState, string> = {
   recovering: 'still recovering',
   back: 'staying at your old level',
   improving: 'still improving',
+  improved: 'still improved',
 }
 
 const lower = (text: string) => `${text[0]!.toLowerCase()}${text.slice(1)}`
