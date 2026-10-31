@@ -54,6 +54,7 @@ describe('What is calculated', () => {
   it('has an entry for every section a sport page can show', () => {
     // Typed by SectionId, so a new section fails to compile here until it is listed.
     const entryFor: Record<SectionId, RegExp> = {
+      years: /Your years/,
       bestEfforts: /Best efforts and curves/,
       racePredictions: /Race predictions/,
       bestsOverTime: /Best efforts over time/,

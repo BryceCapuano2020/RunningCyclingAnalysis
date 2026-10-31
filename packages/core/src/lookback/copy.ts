@@ -65,12 +65,29 @@ export function monthsBetween(fromMs: number, toMs: number): string {
 }
 
 /** What each sport's level is called, and how a change in it is worded. */
-const SAY: Record<Sport, { subject: string; down: string; up: string }> = {
-  run: { subject: 'pace', down: 'slower', up: 'faster' },
-  ride: { subject: 'power', down: 'lower', up: 'higher' },
+export const SAY: Record<
+  Sport,
+  { subject: string; down: string; up: string; steady: string; doing: string; all: string }
+> = {
+  run: {
+    subject: 'pace',
+    down: 'slower',
+    up: 'faster',
+    steady: 'steady runs',
+    doing: 'steady running',
+    all: 'runs',
+  },
+  ride: {
+    subject: 'power',
+    down: 'lower',
+    up: 'higher',
+    steady: 'steady rides',
+    doing: 'steady riding',
+    all: 'rides',
+  },
 }
 
-const level = (sport: SportLookBack): string =>
+export const level = (sport: SportLookBack): string =>
   `your ${SAY[sport.sport].subject} at ${sport.referenceHr === null ? 'the same heart rate' : `${sport.referenceHr} bpm`}`
 
 /** The size of a change and its range, as the page writes it, and which way it went. */
@@ -126,7 +143,7 @@ export function episodeSentence(
       const lead =
         gap === undefined
           ? `After a break from running,`
-          : `No steady runs from ${monthsBetween(gap.fromMs, gap.toMs)}. When they resumed,`
+          : `No ${SAY[s].steady} from ${monthsBetween(gap.fromMs, gap.toMs)}. When they resumed,`
       return `${lead} ${you} was about ${amount(s, episode.change)}.`
     }
   }
@@ -141,7 +158,7 @@ export function episodeRow(
   const s = sport.sport
   const span =
     episode.toMs === null ? monthYear(episode.fromMs) : monthsBetween(episode.fromMs, episode.toMs)
-  const runs = `${episode.runs} steady runs.`
+  const runs = `${episode.runs} ${SAY[s].steady}.`
   switch (episode.kind) {
     case 'slip-back':
       return `${span}. Slipped about ${sized(s, episode.change)}, then back. ${runs}`
@@ -159,12 +176,13 @@ export function episodeRow(
 }
 
 export function quietRow(q: QuietStretch, sport: Sport): string {
-  return `${monthsBetween(q.fromMs, q.toMs)}. Stayed within ${withinText(sport, q.within)}. ${q.runs} steady runs.`
+  return `${monthsBetween(q.fromMs, q.toMs)}. Stayed within ${withinText(sport, q.within)}. ${q.runs} ${SAY[sport].steady}.`
 }
 
-export const thinRow = (s: Span): string =>
-  `No steady runs from ${monthsBetween(s.fromMs, s.toMs)}.`
-export const breakRow = (s: Span): string => `No runs from ${monthsBetween(s.fromMs, s.toMs)}.`
+export const thinRow = (s: Span, sport: Sport = 'run'): string =>
+  `No ${SAY[sport].steady} from ${monthsBetween(s.fromMs, s.toMs)}.`
+export const breakRow = (s: Span, sport: Sport = 'run'): string =>
+  `No ${SAY[sport].all} from ${monthsBetween(s.fromMs, s.toMs)}.`
 
 /** What an effort is called: "5 min", "20 min", "60 min", "5 km", "10 km", "half marathon". */
 export function effortName(effort: EffortMilestones['effort']): string {
@@ -207,8 +225,9 @@ export function bestRows(m: EffortMilestones, asOfMs: number, system: UnitSystem
 }
 
 /** What a sport needs before its years can be told, and how far it is. */
-export function tooShortText(t: TooShort): string {
-  return `Your years start to read once you have a year of steady running behind the latest 12 weeks: ${t.needSteady} steady runs over ${t.needWeeks} weeks. So far there are ${t.steady} steady runs over ${t.weeks} weeks.`
+export function tooShortText(t: TooShort, sport: Sport = 'run'): string {
+  const say = SAY[sport]
+  return `Your years start to read once you have a year of ${say.doing} behind the latest 12 weeks: ${t.needSteady} ${say.steady} over ${t.needWeeks} weeks. So far there are ${t.steady} ${say.steady} over ${t.weeks} weeks.`
 }
 
 /** The lead of the look-back as one sentence, in the reader's units. */
@@ -219,7 +238,7 @@ export function leadSentence(lead: Lead, lookBack: LookBack, system: UnitSystem)
   }
   if (lead.kind === 'quiet') {
     const q = lead.stretch
-    return `From ${monthYear(q.fromMs)} to ${monthYear(q.toMs)} ${level(sport)} stayed within ${withinText(lead.sport, q.within)}: ${q.runs} steady runs.`
+    return `From ${monthYear(q.fromMs)} to ${monthYear(q.toMs)} ${level(sport)} stayed within ${withinText(lead.sport, q.within)}: ${q.runs} ${SAY[lead.sport].steady}.`
   }
   const m = lead.best
   return `Your best ${effortName(m.effort)} is ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}. As of ${dayMonthYear(lookBack.asOfMs)} it has stood for ${standing(m.best.atMs, lookBack.asOfMs)}.`
