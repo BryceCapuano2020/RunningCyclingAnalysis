@@ -6,6 +6,7 @@ import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import { powerSetAsideIds } from './digest/powerCheck'
+import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
@@ -156,7 +157,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     walkingPaceRuns: visible.length - analysed.length,
     countedWalkingRuns: inputs.countedWalkingRuns,
     period,
-    library: athlete === null ? [] : activitySummaries(visible, athlete),
+    library:
+      athlete === null
+        ? []
+        : activitySummaries(visible, athlete, rideReferenceOf(judgement.effortReference)),
     syncIssues: inputs.syncIssues,
     records:
       athlete === null
