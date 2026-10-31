@@ -29,6 +29,7 @@ function noticesProps(
     moved: [],
     atBalance: false,
     page: 'balance',
+    units: 'metric',
     ...overrides,
   }
 }
@@ -308,6 +309,14 @@ describe('AppNotices live regions', () => {
     expect(banner).toBeVisible()
     expect(banner.className).toBe('sample-banner')
     expect(screen.getAllByText(/Not kept: add files to replace it/)).toHaveLength(1)
+  })
+
+  it('names the sample athlete’s weight in the visitor’s units', () => {
+    const props = noticesProps({}, { units: 'imperial' })
+    props.analysis.state = { ...props.analysis.state, result: makeResult(), isSample: true }
+    render(<AppNotices {...props} />)
+    expect(screen.getByText(/^Sample athlete, a 37-year-old man at 165\.3 lb\./)).toBeVisible()
+    expect(screen.queryByText(/75 kg/)).not.toBeInTheDocument()
   })
 
   it('announces a neutral stop in the region that was already on the page, not as a fault', () => {

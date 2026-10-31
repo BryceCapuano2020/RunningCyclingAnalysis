@@ -1183,6 +1183,7 @@ describe('analysis worker', () => {
   it.each([
     ['a full saved-analysis quota', 403, 'digest_quota', 'digest-quota'],
     ['a full database', 503, 'database_full', 'database-full'],
+    ['a read-only service', 503, 'read_only', 'read-only'],
     ['a full library', 403, 'activity_quota', 'activity-quota'],
     ['the daily limit on saves', 429, 'daily_limit', 'daily-limit'],
   ])('stops saving at %s and names it as the cause', async (_label, status, code, cause) => {
