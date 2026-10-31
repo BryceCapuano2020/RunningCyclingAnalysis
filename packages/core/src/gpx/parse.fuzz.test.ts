@@ -10,7 +10,9 @@ const START_MS = Date.UTC(2025, 4, 1, 7, 30, 0)
 const HOUR = 3_600_000
 // The unit run keeps a small seeded sample. The heavy fuzz (20 times as many files) runs in the simulation job
 // (test:sim, through parse.fuzz.sim.test.ts), so a mutation only it finds fails there, not here.
-const FILES = 150 * Number(process.env.FUZZ_SCALE ?? 1)
+const FUZZ_SCALE = (globalThis as { process?: { env: Record<string, string | undefined> } }).process
+  ?.env.FUZZ_SCALE
+const FILES = 150 * Number(FUZZ_SCALE ?? 1)
 const MAX_SAMPLES = 172_800
 const SPEED_LIMIT = { ride: 30, run: 12.5 } as const
 const SPLICES = ['<', '>', '&', '"', "'", '/', '![CDATA[', ']]>', '<!--', '-->', '<?', '?>', '\0']
