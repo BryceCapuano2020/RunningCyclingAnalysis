@@ -96,7 +96,7 @@ and an Apply button on a row of its own. The fields are a control tall (`--contr
 finger) with 16 px text, side by side when two fit and stacked below that. The range applies on Apply,
 not on each change. A reversed range is swapped, and the caption then says "Swapped so From comes
 first." The control's dates sit beneath it, with the count of activities in the period when some are
-left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for
+left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. When Balance and the sport pages are on a shorter period, a line under its control says so ("Balance, Run and Ride show the last 12 weeks. This list has its own period.") and goes once the list is set to the same length. Its view is kept in the address (for
 example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A
 period only narrows what is analysed: an activity outside it still opens from the list or a link.
 The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and

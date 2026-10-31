@@ -1,3 +1,5 @@
+import { HALF_MARATHON_M, MARATHON_M } from '../constants'
+import { civilOfDay, localDayOfInstant } from '../calendar'
 import { formatDuration } from '../units/format'
 import { formatPace, formatPower } from '../units'
 import type { UnitSystem } from '../units'
@@ -51,8 +53,8 @@ export const dayMonthYear = (ms: number): string => {
 
 /** "14 May 2021" in the viewer's own zone, for a moment of the wall clock (an import) rather than of a workout. */
 export const localDayMonthYear = (ms: number): string => {
-  const date = new Date(ms)
-  return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`
+  const { year, month, date } = civilOfDay(localDayOfInstant(ms))
+  return `${date} ${MONTHS[month]} ${year}`
 }
 
 /** A stretch of months: "January to April 2020", "November 2019 to February 2020". */
@@ -112,7 +114,10 @@ export function episodeSentence(
     case 'slip-partly-back':
       return `From ${from} ${you} was about ${amount(s, episode.change)}. By ${to} it had come back about ${sized(s, episode.regained!)} and was still about ${amount(s, episode.remaining!)} than before.`
     case 'slip-open':
-      return `From ${from} ${you} was about ${amount(s, episode.change)}, and in ${monthYear(years.toMs)} it was still lower. The last 12 weeks are on your fitness card.`
+      // One that ended before the horizon was followed by a further fall, and the level had not come back when it began.
+      return to === null
+        ? `From ${from} ${you} was about ${amount(s, episode.change)}, and in ${monthYear(years.toMs)} it was still lower. The last 12 weeks are on your fitness card.`
+        : `From ${from} ${you} was about ${amount(s, episode.change)}, and stayed lower until it fell again in ${to}.`
     case 'improvement': {
       const span = monthsBetween(episode.fromMs, episode.toMs ?? years.toMs)
       return `${you[0]!.toUpperCase()}${you.slice(1)} got about ${amount(s, episode.change)} between ${span.replace(' to ', ' and ')}${held ? `, and held there through ${monthYear(years.toMs)}` : ''}.`
@@ -144,7 +149,9 @@ export function episodeRow(
     case 'slip-partly-back':
       return `${span}. Slipped about ${sized(s, episode.change)}, then came back about ${sized(s, episode.regained!)}. ${runs}`
     case 'slip-open':
-      return `From ${span}. Slipped about ${sized(s, episode.change)}, and was still lower in ${monthYear(years.toMs)}. ${runs}`
+      return episode.toMs === null
+        ? `From ${span}. Slipped about ${sized(s, episode.change)}, and was still lower in ${monthYear(years.toMs)}. ${runs}`
+        : `${span}. Slipped about ${sized(s, episode.change)}, and stayed lower until it fell again. ${runs}`
     case 'improvement':
       return `${span}. Got about ${amount(s, episode.change)}. ${runs}`
     case 'after-break':
@@ -163,7 +170,8 @@ export const breakRow = (s: Span): string => `No runs from ${monthsBetween(s.fro
 /** What an effort is called: "5 min", "20 min", "60 min", "5 km", "10 km", "half marathon". */
 export function effortName(effort: EffortMilestones['effort']): string {
   if (effort.kind === 'duration') return `${effort.durationS / 60} min`
-  if (effort.distanceM === 21097.5) return 'half marathon'
+  if (effort.distanceM === MARATHON_M) return 'marathon'
+  if (effort.distanceM === HALF_MARATHON_M) return 'half marathon'
   return `${effort.distanceM / 1000} km`
 }
 

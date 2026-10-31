@@ -156,7 +156,7 @@ export function ActivityBests({
     outcome:
       profile === null || !counts
         ? null
-        : distanceGrade(record.distanceM, record.seconds, activity.startMs, profile),
+        : distanceGrade(record.distanceM, record.seconds, activity, profile),
   }))
   const outcomes = [...durationItems, ...distanceItems].map((item) => item.outcome)
   const anyGraded = outcomes.some((outcome) => outcome?.kind === 'graded')
