@@ -95,7 +95,7 @@ describe('a library through lookBackOf', () => {
     const told = lookBackOf(dip.digests, SETTINGS, NONE, asOfMs).sports.run.fitness
     const direct = hindsightOf({
       runs: history.runs,
-      activeDays: dip.digests.filter((d) => d.sport === 'run').map((d) => dayOfMs(d.startMs)),
+      activeDays: dip.digests.map((d) => dayOfMs(d.startMs)),
       asOfDay: dayOfMs(asOfMs),
       records: history.records,
     })

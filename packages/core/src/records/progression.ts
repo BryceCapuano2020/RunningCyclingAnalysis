@@ -119,8 +119,8 @@ export function eligibleDigests(digests: ActivityDigest[]): ActivityDigest[] {
 }
 
 /** Whether any ride has a point read from a power model rather than a meter. */
-export const hasEstimatedRide = (digests: readonly ActivityDigest[]): boolean =>
-  digests.some((d) => d.sport === 'ride' && d.curve.some((point) => point.terms !== null))
+export const hasEstimatedRide = (digests: ActivityDigest[]): boolean =>
+  ofSport(digests, 'ride').some((d) => d.curve.some((point) => point.terms !== null))
 
 /**
  * Each sport's priced points at each duration across a set of digests, the records' own eligibility and pricing
