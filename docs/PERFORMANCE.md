@@ -147,6 +147,17 @@ reference used by differential tests and is not part of the production bundle. T
 implementation limits; streaming decoded records directly into per-activity processing would
 further reduce retained intermediate data.
 
+## Memory of a large import in a phone-sized browser
+
+`apps/web/e2e/phone-memory.spec.ts` (RCA-054) imports 560 synthetic runs and rides in the Pixel 7 Chromium project and
+holds the peak resident set of the renderer, which the page and its worker share, read with `ps`: at most 320 MiB above
+the idle page and 0.55 MiB an activity. Measured three times: 198 to 225 MiB, 0.35 to 0.40 MiB an activity, which puts
+the audit's 2,000 activities near 0.9 GiB (the audit measured about 1 GiB on a real export). The renderer runs with a
+768 MiB V8 old-space cap, which makes it collect as a small device does; without it the same import reads 2.5 MiB an
+activity, which is the collector being lazy. WebKit has no memory API and `measureUserAgentSpecificMemory` needs a
+cross-origin isolated page, so neither is used. The structural caps and the streaming of the CSV fields and skipped zip
+entries that the finding also asks for are not in this test.
+
 This benchmark covers local digest construction and combination, not Cloudflare D1 or R2 request
 costs, latency, or quota behavior. Production per-user retention limits and app-wide R2 byte and
 operation budgets are documented in [PRODUCTION.md](PRODUCTION.md); they do not constrain direct
