@@ -11,6 +11,8 @@ import { levelsTitle } from '../components/headlineText'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
+import { holdWithRideOut } from '../rideLeftOut'
+import type { RideLeftOut } from '../rideLeftOut'
 import { eyebrowText, titleParts } from './balanceCopy'
 import { useHoldInputs } from '../holdContext'
 import { fewEffortsText, missingText } from './balanceMissing'
@@ -41,12 +43,16 @@ export interface BalanceHeroProps {
   /** Each sport's level as the tiles show it, when it is graded. A missing sport's title can name the other's. */
   runLevel?: string | null
   rideLevel?: string | null
+  /** Why the ride is out of the comparison when it is not for want of efforts, so the held balance says so. */
+  rideLeftOut?: RideLeftOut | null
   /** Each sport's level, as one line under the meter; with the meter's grades missing, the one sport on file's. */
   levels?: ReactNode
   /** The period control, under the levels it changes. */
   controls?: ReactNode
   /** Runs that are all at walking pace and left out: the headline says so and offers to count them. */
   leftOut?: LeftOutRuns
+  /** A library of one sport whose threshold was withheld: what its best 20 minutes still shows, ahead of what is needed. */
+  soleFloor?: string | null
 }
 
 /**
@@ -66,9 +72,11 @@ export function BalanceHero({
   action = null,
   runLevel = null,
   rideLevel = null,
+  rideLeftOut = null,
   levels = null,
   controls = null,
   leftOut,
+  soleFloor = null,
 }: BalanceHeroProps) {
   const hold = useHoldInputs()
   const head = (title: ReactNode, className?: string) => (
@@ -105,13 +113,15 @@ export function BalanceHero({
       period,
       { run: runLevel, ride: rideLevel },
       leftOut?.count ?? 0,
-      hold,
+      holdWithRideOut(rideLeftOut, hold),
     )
+    // What a one-sport page's best 20 minutes still shows leads what the threshold needs.
+    const body = [soleFloor, detail].filter((part) => part !== null && part !== '').join(' ')
     return (
       <div className="balance-hero__pair">
         <section className="balance-hero">
           {head(title)}
-          <p className="lede secondary">{detail}</p>
+          {body === '' ? null : <p className="lede secondary">{body}</p>}
           {canShowAll && (
             <p>
               <button type="button" className="btn" onClick={onShowAll}>

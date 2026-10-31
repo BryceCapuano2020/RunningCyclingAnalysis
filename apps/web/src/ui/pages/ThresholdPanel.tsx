@@ -83,7 +83,7 @@ export function ThresholdPanel({
           {heldHeading ?? THRESHOLD_HEADING[sport]}
         </h2>
         {/* The threshold is the period's: Profile's is all time's, and the two should not look like one figure. */}
-        <span className="sport-hero__period">{`· ${periodName(rangeDays)}`}</span>
+        <span className="tag sport-hero__period">{`· ${periodName(rangeDays)}`}</span>
         {hero && (
           <span aria-hidden="true">
             <BasisChip

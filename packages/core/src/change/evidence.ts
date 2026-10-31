@@ -6,7 +6,7 @@ import type { ActivityDigest, AthleteSettings, BikeModel, Sport } from '../types
 import { CHANGE } from './constants'
 import { nullBand } from './null'
 import { readingsOf } from './readings'
-import type { DurationReadings } from './readings'
+import type { DurationReadings, Readings } from './readings'
 import type { ChangeBasis, ChangeCall, ChangeEvidence } from './types'
 
 const SPORTS: readonly Sport[] = ['run', 'ride']
@@ -64,6 +64,7 @@ function callFor(
     strongLow: null,
     strongHigh: null,
     verdict: 'untested',
+    gated: false,
   }
   const from = chosen(sport, now, before)
   if (from === null || from.now.length === 0 || from.before.length === 0) return call
@@ -93,8 +94,10 @@ function callFor(
  * are few or scattered. Calibrated on the athlete's own efforts: nothing in it is a fixed percentage. See
  * docs/design/change-test.md.
  *
- * The periods are priced alike (the selected period's bike model, the library's ride gate) and read through the one
- * rule the curves' bests are made through, so an effort the curves leave out is not a reading here.
+ * The periods are priced alike (the selected period's bike model, the library's ride gate). With a reading rule (the
+ * session builds it from the effort gate, `hardEffortRule`) the call is made from the efforts heart rate shows hard in
+ * both periods when both hold enough of them (`gated`), else from every effort in both: the two periods are always read
+ * alike. A treadmill run is no reading either way.
  */
 export function changeEvidence(
   selected: ActivityDigest[],
@@ -104,17 +107,48 @@ export function changeEvidence(
   gate: EstimatedRideGate | null | undefined,
   rule: ReadingRule = EVERY_EFFORT,
 ): ChangeEvidence {
-  const now = readingsOf(selected, settings, bikeModel, gate, rule)
-  const before = readingsOf(previous, settings, bikeModel, gate, rule)
+  const every = [
+    readingsOf(selected, settings, bikeModel, gate, EVERY_EFFORT),
+    readingsOf(previous, settings, bikeModel, gate, EVERY_EFFORT),
+  ] as const
+  // The gated reading is read only when there is a rule to gate by.
+  const gated =
+    rule === EVERY_EFFORT
+      ? null
+      : ([
+          readingsOf(selected, settings, bikeModel, gate, rule),
+          readingsOf(previous, settings, bikeModel, gate, rule),
+        ] as const)
   const calls = (sport: Sport, sportIndex: number): ChangeCall[] =>
-    DURATIONS_S.map((durationS, i) =>
-      callFor(
-        sport,
-        durationS,
-        now[sport][i]!,
-        before[sport][i]!,
-        CHANGE.seed + sportIndex * 64 + i,
-      ),
-    )
+    DURATIONS_S.map((durationS, i) => {
+      const seed = CHANGE.seed + sportIndex * 64 + i
+      // Like for like: the call is made from the efforts heart rate shows hard in both periods when both hold enough of them,
+      // else from every effort in both. Never the hard ones of one period against every effort of the other.
+      if (gated !== null) {
+        const hard = callFor(sport, durationS, gated[0][sport][i]!, gated[1][sport][i]!, seed)
+        if (hard.verdict !== 'untested') return Object.assign({}, hard, { gated: true })
+      }
+      return callFor(sport, durationS, every[0][sport][i]!, every[1][sport][i]!, seed)
+    })
   return { run: calls(SPORTS[0]!, 0), ride: calls(SPORTS[1]!, 1) }
+}
+
+/**
+ * The call for one length, for a reader that sets two stretches of the history against each other (two calendar years),
+ * made exactly as `changeEvidence` makes it for that length, so a pair of periods and a pair of years are judged alike.
+ */
+export function changeCallBetween(
+  sport: Sport,
+  durationS: number,
+  now: Readings,
+  before: Readings,
+): ChangeCall {
+  const index = (DURATIONS_S as readonly number[]).indexOf(durationS)
+  return callFor(
+    sport,
+    durationS,
+    now[sport][index]!,
+    before[sport][index]!,
+    CHANGE.seed + SPORTS.indexOf(sport) * 64 + index,
+  )
 }

@@ -112,24 +112,7 @@ export function isSameWorkout(a: Workout, b: Workout): boolean {
  * sorted by start, so each one is compared only with those that start within NEAR_START_MS of it.
  */
 export function hiddenDigests(digests: ActivityDigest[]): Set<ActivityDigest> {
-  const sorted = [...digests].sort((a, b) => a.startMs - b.startMs)
-  const parent = sorted.map((_, i) => i)
-  const root = (i: number): number => {
-    let x = i
-    while (parent[x] !== x) {
-      parent[x] = parent[parent[x]!]!
-      x = parent[x]!
-    }
-    return x
-  }
-  let first = 0
-  for (let j = 0; j < sorted.length; j++) {
-    const later = sorted[j]!
-    while (later.startMs - sorted[first]!.startMs > NEAR_START_MS) first++
-    for (let i = first; i < j; i++) {
-      if (isSameWorkout(sorted[i]!, later)) parent[root(i)] = root(j)
-    }
-  }
+  const { sorted, root } = linkedCopies(digests)
   const best = new Map<number, number>()
   for (let i = 0; i < sorted.length; i++) {
     const group = root(i)
@@ -149,26 +132,40 @@ export function hiddenDigests(digests: ActivityDigest[]): Set<ActivityDigest> {
 }
 
 /**
- * Why a copy read from a file is not kept: a richer copy of the same workout is already held.
- * Null when no held copy outranks it.
+ * Every digest of the same workout as `target`, `target` included: its near-copies, linked transitively as
+ * hiddenDigests links them. Deleting an activity removes the whole group, or a hidden copy would resurface in its place.
  */
-export function heldCopyOf(
-  held: Iterable<ActivityDigest>,
-  activity: Activity,
-  fileName: string,
-): string | null {
-  const workout: Workout = {
-    sport: activity.sport,
-    startMs: activity.startMs,
-    durationS: activity.n,
+export function copyGroupOf(digests: ActivityDigest[], target: ActivityDigest): ActivityDigest[] {
+  const { sorted, root } = linkedCopies(digests)
+  const at = sorted.indexOf(target)
+  if (at === -1) return [target]
+  return sorted.filter((_, i) => root(i) === root(at))
+}
+
+/** The digests sorted by start, and the group each one belongs to (union-find over near-duplicates). */
+function linkedCopies(digests: ActivityDigest[]): {
+  sorted: ActivityDigest[]
+  root: (i: number) => number
+} {
+  const sorted = [...digests].sort((a, b) => a.startMs - b.startMs)
+  const parent = sorted.map((_, i) => i)
+  const root = (i: number): number => {
+    let x = i
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]!]!
+      x = parent[x]!
+    }
+    return x
   }
-  const candidate = copyOfActivity(activity, fileName)
-  for (const digest of held) {
-    if (isSameWorkout(digest, workout) && richer(copyOfDigest(digest), candidate)) {
-      return fileNameOf(digest.id)
+  let first = 0
+  for (let j = 0; j < sorted.length; j++) {
+    const later = sorted[j]!
+    while (later.startMs - sorted[first]!.startMs > NEAR_START_MS) first++
+    for (let i = first; i < j; i++) {
+      if (isSameWorkout(sorted[i]!, later)) parent[root(i)] = root(j)
     }
   }
-  return null
+  return { sorted, root }
 }
 
 /** Whether a copy read from a file outranks the digest held for the same start second. */

@@ -303,6 +303,12 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     previousUserIdRef,
     deviceLoadedRef,
     loadDeviceOnce,
+    reloadLibrary: () => {
+      const { status, me } = accountRef.current
+      // Not while an import is running: it is reading the library it will end in.
+      if (status === 'signed-in' && me !== null && !imports.busy)
+        libraryActions.loadLibrary(me.user.id)
+    },
     manifest,
     libraryChanged,
   }
@@ -366,6 +372,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     outdatedWithOriginal: library.outdatedWithOriginal,
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
+    outbox: library.outbox,
     importOutcome: imports.importOutcome,
     incompleteImport: manifest.incomplete,
     acceptIncompleteImport: manifest.accept,

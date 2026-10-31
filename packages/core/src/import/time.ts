@@ -44,6 +44,17 @@ export function parseIsoTime(
   return wall - offset * 60_000
 }
 
+/**
+ * Seconds east of UTC for the zone designator of an XML Schema dateTime, or undefined when the text has
+ * none, says `Z`, or is not a dateTime. `Z` says only that the time is UTC, not where the device was.
+ */
+export function isoZoneOffsetS(text: string): number | undefined {
+  const zone = ISO_TIME.exec(text.trim())?.[8]
+  if (zone === undefined || zone.toUpperCase() === 'Z') return undefined
+  const minutes = zoneOffsetMinutes(zone)
+  return minutes === undefined ? undefined : minutes * 60
+}
+
 /** Minutes east of UTC for a zone designator, 0 when there is none, undefined when malformed. */
 function zoneOffsetMinutes(zone: string | undefined): number | undefined {
   if (zone === undefined || zone.toUpperCase() === 'Z') return 0

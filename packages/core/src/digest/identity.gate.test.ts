@@ -3,10 +3,12 @@ import type { Activity } from '../types'
 import { digestActivity, digestActivityAt } from './digestActivity'
 import { digestHash } from './test/digestHashes'
 import { gpxRun, lockedRun } from './test/gateFixtures'
+import { droppedSecondRide, loneSpikeRide } from './test/gateFixturesPower'
+import { hillRun, ratioRun } from './test/gateFixturesE5'
 
 /**
  * The revision-7 gate is closed in production: a digest made at `MODEL_REVISION` 6 is byte for byte what it
- * was before the gated changes existed. The hashes below were taken from main (e13c94cb) before the gate was
+ * was before the gated changes existed. The hashes below were taken from main (e13c94cb; the two power rides from a0eaa437) before the gate was
  * written, on fixtures that each reach one gated change. `identity.test.ts` and `sessionIdentity.test.ts`
  * are the same proof on the sample dataset and are unchanged by the gate.
  */
@@ -31,6 +33,26 @@ const MAIN: Record<string, { make: () => Activity; hash: string }> = {
     make: () => lockedRun(0),
     hash: '5689f424d2fb92fd539e2cf4ccb9ca35c852c8f30a813a5beee66978ff2bb697',
   },
+  'run with a 10% descent': {
+    make: () => hillRun(-0.1),
+    hash: '4c84ada26ce0a7427acdfe0556ec43975d22105871bd2f3df2d01cc5cbc614fd',
+  },
+  'run with a 3% descent': {
+    make: () => hillRun(-0.03),
+    hash: '664ba3782bb6d5c98574295edbc3e755b55f57c29ef0a1610d130a2366817bda',
+  },
+  'flat run with distance 1.1% over its speed': {
+    make: () => ratioRun(1.011),
+    hash: '8065399cf7be614dcce987c2d83ded168bdd5f061d51ded8f3883aefd2ab1050',
+  },
+  'power ride with one lone 1,500 W second': {
+    make: loneSpikeRide,
+    hash: 'ac39e0caca92ad066b6bd053cbd98ef78d5b59c4d65f2f8a85599c93d09031da',
+  },
+  'power ride with one dropped second': {
+    make: droppedSecondRide,
+    hash: 'a0bf264f0121e2e58e894d956d12da81a822ae0111f10096ac1253941fb48b6c',
+  },
 }
 
 describe('the digest below revision 7', () => {
@@ -48,6 +70,11 @@ describe('the digest below revision 7', () => {
       'GPX run, steps near 160': true,
       'FIT run with a 60 s cadence lock': true,
       'FIT run without a lock': false,
+      'run with a 10% descent': true,
+      'run with a 3% descent': false,
+      'flat run with distance 1.1% over its speed': true,
+      'power ride with one lone 1,500 W second': true,
+      'power ride with one dropped second': true,
     }
     expect(Object.keys(moves).sort()).toEqual(Object.keys(MAIN).sort())
     for (const [name, moved] of Object.entries(moves)) {

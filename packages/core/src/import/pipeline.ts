@@ -13,6 +13,7 @@ import { isIndoorWithoutPositions } from './indoor'
 import { cleanRecord } from './cleanRecord'
 import { lapsForSegment } from './laps'
 import { subtractDistance, unexplainedStart } from './distanceStart'
+import { localDayFields } from './localDay'
 
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
@@ -68,6 +69,8 @@ export interface PipelineUnit {
   fixes?: GpsFix[]
   /** The activity's own title in its file, such as a GPX track name. Device defaults are dropped. */
   title?: string
+  /** Seconds east of UTC that the file gives for the device's local time. Absent when it gives none. */
+  localOffsetS?: number
 }
 
 /** A pipeline input for one file that holds a single unit. */
@@ -338,6 +341,7 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     ...(route ? { route } : {}),
     ...(sessioned ? { sessionKey: context.sessionKey } : {}),
     ...(context.race ? { race: true as const } : {}),
+    ...localDayFields(unit.localOffsetS, resampled.startMs),
   }
   return { ok: true, activity, dropped }
 }

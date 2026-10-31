@@ -7,6 +7,7 @@ import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
+import { NO_LOOKBACK } from '@rca/core/lookback'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
 import type { AccountController } from '../useAccount'
@@ -148,9 +149,20 @@ export const EMPTY_SESSION: SessionState = {
   lateEvidence: NO_LATE_EVIDENCE,
   heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
   fitness: NO_FITNESS,
+  lookBack: NO_LOOKBACK,
   zoneEstimates: null,
   timeInZones: NO_ZONE_TIMES,
   records: new Map(),
+}
+
+/** How the saves an earlier visit left behind are going, and how they ended. */
+export interface OutboxStatus {
+  /** Still waiting to be saved. */
+  pending: number
+  saved: number
+  /** Could not be saved and will not be tried again. */
+  failed: number
+  finished: boolean
 }
 
 /** Which activities this browser holds detailed readings for, and when the oldest of them started. */
