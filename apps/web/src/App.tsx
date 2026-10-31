@@ -33,6 +33,7 @@ import { datedWeightActions } from './ui/datedWeight'
 import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
 import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
+import { forgetPreferences } from './ui/preferencesStorage'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
@@ -86,7 +87,7 @@ export function App() {
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false
 
-  // Keeps the saved preferences showing the athlete's values, so a later sign-out shows them.
+  // Keeps the saved preferences showing the athlete's values while signed in; a sign-out or a deleted account clears them.
   const keepInPreferences = (values: AthleteValues, setupDone?: boolean) =>
     setPreferences({ ...values, setupDone: setupDone ?? preferences.setupDone })
 
@@ -204,6 +205,7 @@ export function App() {
   const deleteAccount = async () => {
     await account.deleteAccount()
     clearKeptPower()
+    forgetPreferences() // the profile values mirrored here (see keepInPreferences) go with the account
     countedRuns.clear()
     setAccountDeleted(true)
     window.location.replace(hrefFor({ page: 'balance' }))

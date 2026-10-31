@@ -338,6 +338,35 @@ describe('what the app noted about the data', () => {
   })
 })
 
+describe('the profile values mirrored into this browser', () => {
+  const PREFS_KEY = 'rca.preferences.v1'
+  const signOut = () => {
+    fireEvent.click(document.querySelector('.account-menu__trigger')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+  }
+
+  it('are forgotten once the sign-out has gone through', async () => {
+    window.localStorage.setItem(PREFS_KEY, '{"units":"metric","birthYear":1990}')
+    render(<App />)
+    signOut()
+    await waitFor(() => expect(window.localStorage.getItem(PREFS_KEY)).toBeNull())
+  })
+
+  it('stay when the sign-out fails, since the visitor is still signed in', async () => {
+    window.localStorage.setItem(PREFS_KEY, '{"units":"metric","birthYear":1990}')
+    app.account.signOut = vi.fn(async () => {
+      throw new Error('offline')
+    })
+    render(<App />)
+    signOut()
+    await waitFor(() => expect(app.account.signOut).toHaveBeenCalledOnce())
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(window.localStorage.getItem(PREFS_KEY)).not.toBeNull()
+  })
+})
+
 describe('a sign-in the API refused', () => {
   it('says why on arrival in the notice region, and takes the reason out of the address', () => {
     window.history.replaceState(null, '', '#/?signin=rate_limited')

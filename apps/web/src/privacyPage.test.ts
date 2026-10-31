@@ -40,6 +40,7 @@ const backupWorkflow = await readStylesheet(
 )
 const importActionsSource = await readStylesheet(import.meta.url, './ui/analysis/importActions.ts')
 const deviceSetup = await readStylesheet(import.meta.url, './ui/useSetup.ts')
+const preferencesStorage = await readStylesheet(import.meta.url, './ui/preferencesStorage.ts')
 const seenNotes = await readStylesheet(import.meta.url, './ui/aboutDataStore.ts')
 const workbenchStore = await readStylesheet(import.meta.url, './worker/workbenchStore.ts')
 const retentionComponent = await readStylesheet(
@@ -496,8 +497,10 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(seenNotes).toContain("STORAGE_KEY = 'rca.aboutDataSeen'")
     expect(text).toContain('rca.setup.v1')
     expect(text).toContain(
-      'signing out, deleting your account and Remove all my activities leave it, and the next person using this browser can see it',
+      'Signing out and deleting your account clear the settings in rca.preferences.v1, so the next person using this browser starts from the defaults',
     )
+    expect(text).toContain('Remove all my activities leaves them')
+    expect(preferencesStorage).toContain("PREFERENCES_KEY = 'rca.preferences.v1'")
     expect(text).toContain(
       'Signing out and Remove all my activities remove it; deleting your account leaves it.',
     )
