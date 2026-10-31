@@ -1,4 +1,4 @@
-import { DAY_MS } from '../constants'
+import { dayZoneKey, localDayOfInstant } from '../calendar'
 
 /**
  * The local calendar day of an instant, as a number that is the same for every instant of one local day: the day count of
@@ -7,7 +7,7 @@ import { DAY_MS } from '../constants'
  * the library or its settings.
  */
 export function localDayNumber(ms: number): number {
-  return Math.floor((ms - new Date(ms).getTimezoneOffset() * 60_000) / DAY_MS)
+  return localDayOfInstant(ms)
 }
 
 /**
@@ -15,5 +15,5 @@ export function localDayNumber(ms: number): number {
  * a process whose zone changes (a test that sets TZ) must not take an answer made for another one.
  */
 export function localZoneKey(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone
+  return dayZoneKey()
 }
