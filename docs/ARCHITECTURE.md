@@ -130,6 +130,27 @@ repeated network failures one save is the probe and the others wait for its answ
   Each change names the revision and label the client read and applies only to a row that still holds
   both; the digest counter moves in the same batch, and no digest travels up. No client calls it yet.
 
+**Outbox for account saves**
+
+A signed-in import writes each activity's digest to the `rca-outbox` IndexedDB database (rows keyed
+`userId|workoutKey`) before it is sent, and removes the row once the server has the activity or
+refuses it for good (a conflict, or an account being deleted). A row is removed only if it still
+holds the digest that was sent, checked in the removing transaction, so a file added again meanwhile
+keeps its own row. The row holds the summary the server keeps, never a route, stream or original.
+When the library for an account loads, the worker resumes any rows an earlier visit left, through the
+same gate, the same shared stop and the same one-wait rate-limit rule as an import, and posts an
+unstamped `outbox` message with the counts so the page can say how many are left and read the library
+again once some were saved. A workout an import is sending (`SendingKeys`, shared by both) is left to
+that import. The resume runs only in the tab that holds the account's writer lock
+(`rca-flush-<userId>`, `asWriter`), so two tabs open on the account never send the same rows. Only a refusal counts against a row, and after five it is let go and counted as failed.
+A stop (a limit, a signed-out account), a lost connection or a row a newer version wrote leaves the
+row untouched; a row from a stale analysis is let go unsent, while one the current model reads beside its own
+(compatible) is sent. A session that ends on its own (expiry,
+seen by a save or by a refresh) keeps the rows. An explicit sign-out (after a warning when rows wait)
+and account deletion forget the account's rows, and Remove all (signed out) forgets every account's.
+The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the
+import still reports its own failures.
+
 **Activity workbench**
 
 The import callback extracts a versioned `ActivityTrace` before releasing the raw activity. The

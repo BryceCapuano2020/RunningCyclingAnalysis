@@ -8,7 +8,7 @@ import type {
   ActivityTraceReply,
 } from '../../worker/protocol'
 import type { ImportChange } from './importState'
-import type { DetailCoverage, ImportProgress, LibraryStatus } from './model'
+import type { DetailCoverage, ImportProgress, LibraryStatus, OutboxStatus } from './model'
 import type { RouteReply } from '../routeReply'
 import type { ImportManifest } from '../importManifest'
 
@@ -47,6 +47,8 @@ export interface AnalysisController {
   libraryUnreadable: number
   /** What this browser failed to keep or delete, until the next try; null when nothing failed. */
   deviceIssue: DeviceIssue | null
+  /** How the saves an earlier visit left behind are going and ended; null when there were none. */
+  outbox: OutboxStatus | null
   importOutcome: ImportOutcome | null
   /** The latest import that left the library short of the whole history (cut off, or from a damaged zip), or null. */
   incompleteImport: ImportManifest | null

@@ -1,4 +1,5 @@
 import { FIRST_GRADED_AGE } from '@rca/core/grade'
+import type { Sex } from '@rca/core/grade'
 import type { Measurement } from '@rca/core/athlete'
 import type { AthleteSettings } from '@rca/core/types'
 import { kgToLb, lbToKg } from '@rca/core/units'
@@ -52,6 +53,7 @@ export function analysisSettings(
   birthYear: number | null = null,
   countedRuns: readonly string[] = [],
   keepPower: readonly string[] = [],
+  sex: Sex | null = null,
 ): AthleteSettings {
   return {
     massKg: settings.massKg ?? PLACEHOLDER_BODY_KG,
@@ -60,6 +62,7 @@ export function analysisSettings(
     ...(settings.massKg === null ? { massAssumed: true as const } : {}),
     ...(measurements.length > 0 ? { measurements } : {}),
     ...(birthYear === null ? {} : { birthYear }),
+    ...(sex === null ? {} : { sex }),
     ...(countedRuns.length > 0 ? { countedRuns } : {}),
     ...(keepPower.length > 0 ? { keepPower } : {}),
   }

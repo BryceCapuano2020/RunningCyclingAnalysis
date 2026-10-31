@@ -6,6 +6,7 @@ import type { RouteShape } from '@rca/core/route/routeShape'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ExportAccount } from '../export/accountExport'
 import type { ActivityTraceReply } from './workbench'
+import type { UpdateStop } from './updaterConfig'
 export type { ActivityTraceReply } from './workbench'
 
 export interface SavedActivity {
@@ -177,6 +178,11 @@ export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerRe
 ])
 
 export type WorkerResponse =
+  /**
+   * How the saves an earlier visit left in the outbox are going, sent apart from any request. `finished` ends
+   * it: `saved` were saved, `failed` could not be and will not be tried again, `pending` were left for another load.
+   */
+  | { type: 'outbox'; pending: number; saved: number; failed: number; finished: boolean }
   /** Sent when the worker begins a request, so a request waiting its turn is not timed as if it ran. */
   | { type: 'started' }
   /**
@@ -257,6 +263,8 @@ export type WorkerResponse =
       limitKind: 'daily' | 'rate' | null
       /** When the limit resets, in epoch ms; null when no limit was reached. */
       limitResetsAtMs: number | null
+      /** Why the update ended before it had tried every activity, besides a limit. Absent when it did not. */
+      stopped?: UpdateStop
     }
   /** `issue` is set when the failure means the account ended or changed, so the app can act on it. */
   | { type: 'error'; message: string; issue?: SyncIssueCode }

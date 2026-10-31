@@ -74,7 +74,7 @@ function ageAt(endMs: number, birthYear: number | null): number | null {
 /** What efforts are judged against and what it can certify: the references of the digests, read with the settings. */
 function effortReferenceOf(
   found: References,
-  athlete: Pick<AthleteSettings, 'measurements' | 'birthYear'>,
+  athlete: Pick<AthleteSettings, 'measurements' | 'birthYear' | 'sex'>,
 ): EffortReference {
   const settings = referenceSettingsOf(athlete, found.endMs)
   return readReferences({

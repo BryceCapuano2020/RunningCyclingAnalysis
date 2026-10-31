@@ -21,29 +21,23 @@ describe('missingText for a library of one sport', () => {
     const ride = makeActivity({ sport: 'ride' })
     return { result: makeResult({ activities: [ride] }), library: [ride] }
   }
-  const levels = { run: 'Local', ride: 'Local' }
+  const HELD = `${PARTIAL.partialImport.text} ${PARTIAL.partialImport.action}`
 
-  it('asks for a ride when only runs are on file', () => {
-    const { result, library } = runOnly()
-    expect(missingText(result, library, ALL_TIME, { run: 'Local', ride: null }).detail).toBe(
-      'Add a ride to compare it with your running.',
-    )
-  })
+  it.each([
+    ['run', runOnly, { run: 'Local', ride: null }],
+    ['ride', rideOnly, { run: null, ride: 'Local' }],
+  ] as const)(
+    'says to finish the import, not what the %s lacks, while the import is known partial',
+    (_sport, build, levels) => {
+      const { result, library } = build()
+      expect(missingText(result, library, ALL_TIME, levels, 0, PARTIAL).detail).toBe(HELD)
+    },
+  )
 
-  it('does not ask for a ride while the import is known partial: the ride may be in the files not read', () => {
+  it('does not say it once the import is whole', () => {
     const { result, library } = runOnly()
     expect(
-      missingText(result, library, ALL_TIME, { run: 'Local', ride: null }, 0, PARTIAL).detail,
-    ).toBe(`${PARTIAL.partialImport.text} ${PARTIAL.partialImport.action}`)
-  })
-
-  it('says the same for a library of rides, and asks for a run when the import is whole', () => {
-    const { result, library } = rideOnly()
-    expect(missingText(result, library, ALL_TIME, { run: null, ride: levels.ride }).detail).toBe(
-      'Add a run to compare it with your cycling.',
-    )
-    expect(
-      missingText(result, library, ALL_TIME, { run: null, ride: levels.ride }, 0, PARTIAL).detail,
-    ).toBe(`${PARTIAL.partialImport.text} ${PARTIAL.partialImport.action}`)
+      missingText(result, library, ALL_TIME, { run: 'Local', ride: null }).detail,
+    ).not.toContain('Use what I have')
   })
 })

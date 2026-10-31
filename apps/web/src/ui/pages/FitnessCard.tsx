@@ -92,7 +92,7 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
       {showSport || view.fresh !== null ? (
         <header className="fitness-card__top">
           {showSport ? (
-            <p className="fitness-card__sport">
+            <p className="tag tag--ink fitness-card__sport">
               <SportIcon sport={view.sport} />
               <span>{SPORT_LABEL[view.sport]}</span>
             </p>

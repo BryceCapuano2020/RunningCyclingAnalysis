@@ -4,8 +4,8 @@
  */
 export { fitnessFindingHeadline, fitnessLines } from './copy'
 export type { FitnessLines } from './copy'
-export { fitnessOfSport, fitnessStatuses } from './compute'
-export type { FitnessOptions } from './compute'
+export { fitnessHistories, fitnessOfSport, fitnessStatuses } from './compute'
+export type { FitnessHistory, FitnessOptions } from './compute'
 export { FITNESS, RIDE_FITNESS_ENABLED } from './params'
 export { NO_FITNESS, noFitness } from './types'
 export type {
