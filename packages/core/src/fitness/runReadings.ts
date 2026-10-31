@@ -1,5 +1,6 @@
+import { isAnalysed } from '../digest/analysed'
 import { median } from '../findings/stats'
-import type { ActivityDigest, DigestSplit } from '../types'
+import type { ActivityDigest, DigestSplit, LocalDayShift } from '../types'
 import type { KmReading } from './fit'
 import { FITNESS } from './params'
 
@@ -15,6 +16,7 @@ export interface RunReadings {
   id: string
   startMs: number
   steadyPace: boolean
+  localDayShift: LocalDayShift | undefined
   loose: KmReading[]
   strict: KmReading[]
 }
@@ -75,12 +77,18 @@ export function runReadings(
     km !== undefined &&
     digest.hasHeartRate &&
     !digest.indoor &&
-    digest.walkingPace !== true &&
+    isAnalysed(digest) &&
     !digest.flagCounts['hr-spike'] &&
     !digest.flagCounts['hr-cadence-lock'] &&
     !digest.flagCounts['hr-dropout']
   const readings: RunReadings | null = eligible
-    ? { id: digest.id, startMs: digest.startMs, steadyPace: steadyPace(km), ...kilometres(km) }
+    ? {
+        id: digest.id,
+        startMs: digest.startMs,
+        steadyPace: steadyPace(km),
+        localDayShift: digest.localDayShift,
+        ...kilometres(km),
+      }
     : null
   cache.set(digest, readings)
   return readings

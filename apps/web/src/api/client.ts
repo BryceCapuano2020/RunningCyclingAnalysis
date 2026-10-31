@@ -11,7 +11,15 @@ import {
   MeResponseSchema,
   ProfileSchema,
 } from '@rca/contract'
-import type { ActivityRecord, Me, Profile, ProfileInput } from '@rca/contract'
+import { ActivityLabelsResultSchema } from '@rca/contract'
+import type {
+  ActivityLabelsResult,
+  ActivityRecord,
+  LabelChange,
+  Me,
+  Profile,
+  ProfileInput,
+} from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
 import { readableRecords } from './pageRecords'
 import { ApiRequestError } from './apiError'
@@ -37,7 +45,7 @@ export interface CreatedActivity {
   created: boolean
 }
 
-type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 type Body = { json: unknown } | { bytes: Uint8Array }
 
 /** Keep a stalled connection from pinning the worker queue indefinitely. */
@@ -294,4 +302,16 @@ export async function downloadActivityFile(id: string, userId?: string): Promise
 
 export async function deleteActivity(id: string, userId?: string): Promise<void> {
   await request('DELETE', `/api/activities/${encodeURIComponent(id)}`, undefined, userId)
+}
+
+/**
+ * Sets or clears the athlete's label on saved activities, in place (at most MAX_LABELS_PER_REQUEST at a time). A change
+ * applies only to a row that still holds the revision and label it names; the answer lists the rows that no longer do.
+ */
+export async function patchLabels(
+  labels: LabelChange[],
+  userId?: string,
+): Promise<ActivityLabelsResult> {
+  const response = await request('PATCH', '/api/activities/labels', { json: { labels } }, userId)
+  return readJson(response, ActivityLabelsResultSchema)
 }

@@ -1,6 +1,5 @@
-import { DAY_MS } from '../constants'
 import { FITNESS } from './params'
-import { WEEK_ORIGIN_MS } from './machine'
+import { instantOfDay } from './machine'
 import { levelOf, sigmaAt, slice } from './windows'
 import type { Level, RunPoint } from './windows'
 import type { FitnessPoint } from './types'
@@ -8,8 +7,6 @@ import type { FitnessPoint } from './types'
 const D = FITNESS.display
 const E = FITNESS.episode
 const M = FITNESS.monitor
-
-const msOfDay = (day: number) => WEEK_ORIGIN_MS + day * DAY_MS
 
 /**
  * A level as a point: its output and the ends of its 90% range, the half-width as the printed ranges have it, and
@@ -49,7 +46,7 @@ export function levelSeries(
       const rs = slice(runs, end - weeks * 7, end)
       if (rs.length < E.minRuns) continue
       // A step is dated by the last day it includes, a Sunday: `end` is the Monday that follows it and is not in it.
-      points.push(pointOf(levelOf(rs, reference, sigma)!, msOfDay(end) - 1, weeks))
+      points.push(pointOf(levelOf(rs, reference, sigma)!, instantOfDay(end) - 1, weeks))
       break
     }
   }

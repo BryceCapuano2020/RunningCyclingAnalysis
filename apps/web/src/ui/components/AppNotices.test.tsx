@@ -96,7 +96,7 @@ describe('the import notice when every run it added is left out at walking pace'
   })
 })
 
-describe('the runs counted despite walking pace', () => {
+describe('the left-out runs the athlete counts', () => {
   function controller(overrides: Partial<CountedRunsController> = {}): CountedRunsController {
     return { ...countedRunsStub(), ...overrides }
   }
@@ -136,7 +136,7 @@ describe('the runs counted despite walking pace', () => {
         )}
       />,
     )
-    expect(screen.getByText(/2 runs are counted despite walking pace\./)).toBeInTheDocument()
+    expect(screen.getByText(/2 left-out runs are counted\./)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Leave them out' }))
     expect(stop).toHaveBeenCalledWith(keys)
   })
@@ -169,7 +169,7 @@ describe('the runs counted despite walking pace', () => {
         )}
       />,
     )
-    const line = screen.getByText(/1 run is counted despite walking pace\./)
+    const line = screen.getByText(/1 left-out run is counted\./)
     expect(line.closest('.app__live')).toBeNull()
     expect(container.querySelector('.app__live')).toHaveTextContent('Counting 1 run.')
   })
@@ -180,11 +180,11 @@ describe('the runs counted despite walking pace', () => {
     const run = render(
       <AppNotices {...noticesProps({ state }, { page: 'run', walkingNote: true, countedRuns })} />,
     )
-    expect(screen.getByText(/1 run is counted despite walking pace\./)).toBeInTheDocument()
+    expect(screen.getByText(/1 left-out run is counted\./)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Leave it out' })).toBeInTheDocument()
     run.unmount()
     render(<AppNotices {...noticesProps({ state }, { page: 'ride', countedRuns })} />)
-    expect(screen.queryByText(/counted despite walking pace/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/left-out runs? (is|are) counted/)).not.toBeInTheDocument()
   })
 })
 
