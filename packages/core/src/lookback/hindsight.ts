@@ -1,12 +1,13 @@
+import { WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
-import { WEEK_ORIGIN_MS } from '../fitness/machine'
 import type { WeekRecord } from '../fitness/machine'
 import { fitSeason, withoutSeason } from '../fitness/season'
 import { pointOf } from '../fitness/series'
 import { slice } from '../fitness/windows'
 import type { RunPoint } from '../fitness/windows'
 import { episodesOf } from './episodes'
-import { liveEpisodes } from './live'
+import { anchorsOf, liveEpisodes } from './live'
+import type { Anchor } from './anchors'
 import type { WeekEpisode, WeekSpan } from './episodes'
 import { LOOKBACK } from './params'
 import { quietLevels } from './quiet'
@@ -16,6 +17,7 @@ import type { Level, Segmented } from './segments'
 import type { HindsightEpisode, HindsightFitness, Plateau, Span, TooShort } from './types'
 
 const L = LOOKBACK
+// A week boundary on the day clock, a label read in UTC (monthYear): the local week's own date, in any zone.
 const msOfWeek = (week: number) => WEEK_ORIGIN_MS + week * 7 * DAY_MS
 const spanOf = (s: WeekSpan): Span => ({ fromMs: msOfWeek(s.fromWeek), toMs: msOfWeek(s.toWeek) })
 
@@ -89,13 +91,16 @@ function plateausOf(
   runs: readonly RunPoint[],
   endDay: number,
   bar: { delta: number; z: number },
+  anchors: readonly Anchor[],
 ): Segmented | null {
   const season = fitSeason(runs, endDay)
-  if (season === null) return segmentLevels(runs, endDay, bar)
+  if (season === null) return segmentLevels(runs, endDay, bar, undefined, anchors)
   const first = segmentLevels(
     withoutSeason(runs, season, Number.NEGATIVE_INFINITY, Infinity),
     endDay,
     bar,
+    undefined,
+    anchors,
   )
   if (first === null || first.levels.length < 2) return first
   const centre =
@@ -110,8 +115,13 @@ function plateausOf(
   const again = fitSeason(flat, endDay)
   if (again === null) return first
   return (
-    segmentLevels(withoutSeason(runs, again, Number.NEGATIVE_INFINITY, Infinity), endDay, bar) ??
-    first
+    segmentLevels(
+      withoutSeason(runs, again, Number.NEGATIVE_INFINITY, Infinity),
+      endDay,
+      bar,
+      undefined,
+      anchors,
+    ) ?? first
   )
 }
 
@@ -152,7 +162,8 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
     delta: weeks < L.list.shortWeeks ? L.list.shortDelta : L.list.delta,
     z: L.list.z,
   }
-  const plateaus = plateausOf(runs, endDay, bar)
+  const live = liveEpisodes(input.records ?? [], Math.floor(endDay / 7) - 1)
+  const plateaus = plateausOf(runs, endDay, bar, anchorsOf(live))
   if (plateaus === null) return counts
   const { levels, sigma, floor } = plateaus
   const active = input.activeDays.filter((d) => d < endDay)
@@ -161,7 +172,6 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
     runs.map((r) => r.t),
     L.gapWeeks,
   ).filter((g) => holdsActivity(g, active))
-  const live = liveEpisodes(input.records ?? [], Math.floor(endDay / 7) - 1)
   const episodes = episodesOf(levels, breaks, floor, bar.delta, live).map(dated)
   const keepEpisodes = [...episodes]
     .sort((a, b) => Math.abs(b.change.value) - Math.abs(a.change.value) || b.fromMs - a.fromMs)

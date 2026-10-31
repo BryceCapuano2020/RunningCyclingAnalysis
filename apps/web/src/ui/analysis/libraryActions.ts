@@ -14,6 +14,7 @@ import type { LibraryState } from './libraryState'
 import { storedPeriodRequest } from '../periodPreference'
 import { accountPending, drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
+import type { SeenEvent } from '../../worker/protocol'
 import type { WorkerTransport } from './workerTransport'
 
 interface LibraryActionDeps {
@@ -184,7 +185,41 @@ export function useLibraryActions({
     [send, workerRef],
   )
 
+  /** The athlete opened, hid or was shown the check-in row; the worker keeps it and says whether it is now seen. */
+  const markCheckInSeen = useCallback(
+    (event: SeenEvent) => {
+      if (workerRef.current === null) return
+      send({ type: 'markSeen', row: 'checkIn', event }, undefined, (message) => {
+        if (message?.type === 'checkInSaved') {
+          library.setCheckIn((previous) => ({ ...previous, seen: message.seen }))
+        }
+      })
+    },
+    [library, send, workerRef],
+  )
+
+  /** The same for "Your years": the worker keeps it and says whether the row is now seen. */
+  const markLookBackSeen = useCallback(
+    (event: SeenEvent) => {
+      if (workerRef.current === null) return
+      send({ type: 'markSeen', row: 'lookBack', event }, undefined, (message) => {
+        if (message?.type === 'checkInSaved') {
+          library.setCheckIn((previous) => ({ ...previous, lookBackSeen: message.seen }))
+        }
+      })
+    },
+    [library, send, workerRef],
+  )
+
+  /** The athlete goes on with an import that stopped short: the worker moves the baseline now. */
+  const acceptPartialImport = useCallback(() => {
+    if (workerRef.current !== null) send({ type: 'acceptPartialImport' })
+  }, [send, workerRef])
+
   return {
+    markCheckInSeen,
+    markLookBackSeen,
+    acceptPartialImport,
     loadLibrary,
     holdForLibrary,
     failLibrary,

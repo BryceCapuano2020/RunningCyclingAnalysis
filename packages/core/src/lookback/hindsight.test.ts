@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { replaySim, simulate } from '../fitness/test/runSim'
 import type { SimSpec } from '../fitness/test/runSim'
-import { WEEK_ORIGIN_MS } from '../fitness/machine'
+import { WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
 import type { RunPoint } from '../fitness/windows'
 import { isBackLevel } from '../fitness/episode'

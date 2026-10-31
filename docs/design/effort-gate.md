@@ -85,6 +85,11 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   holds is not read as a change. Both periods are read alike: the call is made from the hard readings when both hold enough, else from every
   effort in both, and the strip then says the effort was not checked. The curves' bests are not filtered. The strip withholds a comparison
   whose shown best was not hard, and compares one that was only not checked (no heart rate, too few days).
+- **Bests-over-time dots** (`dotsRule`, D5.5): the same gate, built by the same function as the change test's rule (`gatedRule`) in the other
+  mode. The change test needs evidence of a hard effort, so it leaves out a point heart rate cannot judge (no heart rate, set aside, a thin
+  library, a reference that cannot certify a maximum). The dots withhold only what heart rate shows was not hard (`shownNotHard`), so those points
+  stay; a sprint stays in both. They differ in nothing else. The set-aside list is the heart-rate one, as the change test takes it. A length the
+  gate leaves with fewer than two dots while the period has two without it is flagged (`dotsWithheld` in the state), and the empty state names the gate.
 - **Late in long sessions** (RCA-043): a late best counts only sessions that reached a hard heart rate (a session with no heart rate counts); under
   3 such sessions the headline is hidden, and with a reference that cannot be trusted the need is the reference. The note gives the ruler.
   Each steady effort of the drift carries its average share of the reference, and the note gives its range. Drift is not filtered: it

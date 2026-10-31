@@ -28,16 +28,66 @@ beforeEach(() => {
 })
 
 describe('the outbox', () => {
-  it('keeps what a save began with, in the order it was written', async () => {
+  it('keeps what a save began with, the most recent activity first', async () => {
+    const [older, newer] = FIRST.startMs <= SECOND.startMs ? [FIRST, SECOND] : [SECOND, FIRST]
     const outbox = openOutbox('u1')
-    await outbox.add(item(SECOND))
-    await outbox.add(item(FIRST))
+    await outbox.add(item(older))
+    await outbox.add(item(newer))
 
     const rows = await outbox.pending()
 
-    expect(rows.map((row) => row.key)).toEqual([workoutKeyOf(SECOND), workoutKeyOf(FIRST)])
+    expect(rows.map((row) => row.key)).toEqual([workoutKeyOf(newer), workoutKeyOf(older)])
     expect(rows[0]).toMatchObject({ userId: 'u1', fileHash: 'a'.repeat(64), attempts: 0 })
-    expect(digestOf(rows[1]!)).toEqual(FIRST)
+    expect(digestOf(rows[1]!)).toEqual(older)
+  })
+
+  it('lists rows of one start time as they were written, after any more recent', async () => {
+    const outbox = openOutbox('u1')
+    const base = { ...FIRST, startMs: 2_000_000_000_000 }
+    const a = { ...base, id: 'tie-a', sport: 'run' as const }
+    const b = { ...base, id: 'tie-b', sport: 'ride' as const }
+    await outbox.add(item(SECOND))
+    await outbox.add(item(a))
+    await outbox.add(item(b))
+
+    const ids = (await outbox.pending()).map((row) => row.digestId)
+
+    expect(ids).toEqual(['tie-a', 'tie-b', SECOND.id])
+  })
+
+  it('lists a row an earlier version wrote, with no start time, after the dated ones and in write order', async () => {
+    const outbox = openOutbox('u1')
+    await outbox.add(item(SECOND))
+    // A row as the version before start times were kept wrote it: no startMs.
+    const legacy = (seq: number, digestId: string) => ({
+      id: `u1|legacy-${seq}`,
+      userId: 'u1',
+      key: `legacy-${seq}`,
+      digestId,
+      seq,
+      digestJson: '{}',
+      fileName: 'old.fit',
+      fileHash: 'c'.repeat(64),
+      attempts: 0,
+    })
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const opening = indexedDB.open('rca-outbox', 1)
+      opening.onsuccess = () => resolve(opening.result)
+      opening.onerror = () => reject(opening.error)
+    })
+    await new Promise<void>((resolve, reject) => {
+      const write = database.transaction('rows', 'readwrite')
+      write.objectStore('rows').put(legacy(1_000_001, 'old-b'))
+      write.objectStore('rows').put(legacy(1_000_000, 'old-a'))
+      write.oncomplete = () => resolve()
+      write.onerror = () => reject(write.error)
+    })
+    database.close()
+    await outbox.add(item({ ...FIRST, startMs: 2_000_000_000_000 }))
+
+    const ids = (await outbox.pending()).map((row) => row.digestId)
+
+    expect(ids).toEqual([FIRST.id, SECOND.id, 'old-a', 'old-b'])
   })
 
   it('writes a workout once: a second write replaces the first', async () => {

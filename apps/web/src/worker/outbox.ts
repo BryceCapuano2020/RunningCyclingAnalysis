@@ -14,8 +14,10 @@ export interface OutboxRow {
   key: string
   /** The id of the digest the row holds, so a save settles only the row it sent (a re-added file replaces the row). */
   digestId: string
-  /** The order rows were written in, so a resumed save goes the way the import did. */
+  /** The order rows were written in; it breaks a tie between rows of one start time and orders rows written before `startMs` was kept. */
   seq: number
+  /** When the activity started, so a resumed save goes the newest first: where the account's activity cap bites, the recent ones are in. Absent on a row written by an earlier version. */
+  startMs?: number
   digestJson: string
   fileName: string
   fileHash: string
@@ -49,10 +51,16 @@ export interface Outbox {
    * With `digestId`, only the row that holds that digest is counted.
    */
   failed(key: string, digestId?: string): Promise<boolean>
-  /** The rows waiting, in the order they were written. */
+  /** The rows waiting, the most recent activity first (rows without a start time after them, in the order they were written). */
   pending(): Promise<OutboxRow[]>
   /** Every row of this account goes. */
   forget(): Promise<void>
+}
+
+/** The most recent activity first; rows with no start time follow, as they were written. */
+function newestFirst(a: OutboxRow, b: OutboxRow): number {
+  const [x, y] = [a.startMs ?? Number.NEGATIVE_INFINITY, b.startMs ?? Number.NEGATIVE_INFINITY]
+  return x === y ? a.seq - b.seq : x > y ? -1 : 1
 }
 
 /** A row's digest, or null when it no longer reads (an older format): such a row cannot be resumed. */
@@ -208,7 +216,7 @@ export function openOutbox(userId: string): Outbox {
         (store) => store.index('userId').getAll(userId) as IDBRequest<OutboxRow[]>,
         [] as OutboxRow[],
       )
-    ).sort((a, b) => a.seq - b.seq)
+    ).sort(newestFirst)
   return {
     add: async ({ digest, fileName, fileHash, fromDevice }) => {
       const key = workoutKeyOf(digest)
@@ -218,6 +226,7 @@ export function openOutbox(userId: string): Outbox {
         key,
         digestId: digest.id,
         seq: counter++,
+        startMs: digest.startMs,
         digestJson: serializeDigest(digest),
         fileName,
         fileHash,

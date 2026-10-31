@@ -16,6 +16,10 @@ describe('signInProblemText', () => {
     )
   })
 
+  it('words a sign-in refused while the service is read-only', () => {
+    expect(signInProblemText('#/?signin=read_only')).toMatch(/^Signing in is paused/)
+  })
+
   it('words the refusals of the sign-up list and of account states, which the API sends as codes', () => {
     expect(signInProblemText('#/?signin=not_on_list')).toMatch(
       /is not on the list, so nothing was created/,

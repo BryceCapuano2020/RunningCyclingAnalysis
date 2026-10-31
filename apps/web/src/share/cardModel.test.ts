@@ -194,7 +194,7 @@ describe('buildShareCard', () => {
     })
     expect(card?.heroes.map((hero) => hero.grade)).toEqual([
       'Local · 64% on best 20 min',
-      'Recreational · 61% on best 20 min',
+      'Recreational to Local · 61% on best 20 min',
     ])
   })
 
@@ -247,7 +247,7 @@ describe('buildShareCard', () => {
       const card = graded()
       expect(card?.heroes.map((hero) => hero.grade)).toEqual([
         'Local · 64% on best 20 min',
-        'Recreational · 61% on best 20 min',
+        'Recreational to Local · 61% on best 20 min',
       ])
       expect(card?.meter).toEqual(gapReading(gap))
       expect(card?.footnote).toBe(GRADED_FOOTNOTE)

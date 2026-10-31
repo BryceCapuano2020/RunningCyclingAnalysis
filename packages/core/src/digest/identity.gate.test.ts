@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { Activity } from '../types'
 import { digestActivity, digestActivityAt } from './digestActivity'
 import { digestHash } from './test/digestHashes'
-import { gpxRun, lockedRun } from './test/gateFixtures'
+import { gpxRun, lockedRun, warmRide, warmRun } from './test/gateFixtures'
 import { droppedSecondRide, loneSpikeRide } from './test/gateFixturesPower'
-import { hillRun, ratioRun } from './test/gateFixturesE5'
+import { hillRun, longRun, ratioRun } from './test/gateFixturesE5'
 
 /**
  * The revision-7 gate is closed in production: a digest made at `MODEL_REVISION` 6 is byte for byte what it
@@ -33,6 +33,14 @@ const MAIN: Record<string, { make: () => Activity; hash: string }> = {
     make: () => lockedRun(0),
     hash: '5689f424d2fb92fd539e2cf4ccb9ca35c852c8f30a813a5beee66978ff2bb697',
   },
+  'run with a recorded temperature': {
+    make: () => warmRun(),
+    hash: '639376b74ea7a25fc90c075837a7cf744ec93a16c7319fa7557de14361370cdf',
+  },
+  'ride with a temperature on half the seconds': {
+    make: () => warmRide(),
+    hash: '245a6a3cb151410e6ecde3fb71f760b5e1a4a4d58e2d5c2b5a1ef75e766227c1',
+  },
   'run with a 10% descent': {
     make: () => hillRun(-0.1),
     hash: '4c84ada26ce0a7427acdfe0556ec43975d22105871bd2f3df2d01cc5cbc614fd',
@@ -53,6 +61,19 @@ const MAIN: Record<string, { make: () => Activity; hash: string }> = {
     make: droppedSecondRide,
     hash: 'a0bf264f0121e2e58e894d956d12da81a822ae0111f10096ac1253941fb48b6c',
   },
+  // The three below were taken from main 9758c736, before the marathon was a record distance.
+  'run of 43 km': {
+    make: () => longRun(43),
+    hash: '61bc45cf01e64511e696589844857057757324d6701b8bb25dce77a739f80cb5',
+  },
+  'run of 41.9 km, within 1% of the marathon': {
+    make: () => longRun(41.9),
+    hash: 'ebb8d316bb4f164f3efe247898730ae25d3d1f2339d054203426d41fa0cba86d',
+  },
+  'run of 40 km': {
+    make: () => longRun(40),
+    hash: '7ceda5adbb6c38eece737208b7c7bafa7200242366826e5dd35306cd9f43471a',
+  },
 }
 
 describe('the digest below revision 7', () => {
@@ -70,11 +91,16 @@ describe('the digest below revision 7', () => {
       'GPX run, steps near 160': true,
       'FIT run with a 60 s cadence lock': true,
       'FIT run without a lock': false,
+      'run with a recorded temperature': true,
+      'ride with a temperature on half the seconds': true,
       'run with a 10% descent': true,
       'run with a 3% descent': false,
       'flat run with distance 1.1% over its speed': true,
       'power ride with one lone 1,500 W second': true,
       'power ride with one dropped second': true,
+      'run of 43 km': true,
+      'run of 41.9 km, within 1% of the marathon': true,
+      'run of 40 km': false,
     }
     expect(Object.keys(moves).sort()).toEqual(Object.keys(MAIN).sort())
     for (const [name, moved] of Object.entries(moves)) {

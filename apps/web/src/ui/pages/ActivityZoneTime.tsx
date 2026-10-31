@@ -44,8 +44,14 @@ function rowsOf(
   })
 }
 
+/** A pace or power with no zones on the activity's date, and whether that is because its efforts are above the threshold on file. */
+export interface MissingMeasure {
+  measure: ZoneMeasure
+  outgrown: boolean
+}
+
 /** No pace or power is missing: one array, so the default does not change between renders. */
-const NO_MISSING: readonly ZoneMeasure[] = []
+const NO_MISSING: readonly MissingMeasure[] = []
 
 const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
 
@@ -66,12 +72,14 @@ const OTHER_ZONES: Record<Sport, { zones: string; threshold: string }> = {
 }
 
 /** Why a pace or power has no zones on the activity's date, and what would give them. */
-function MissingNote({ sport, measures }: { sport: Sport; measures: readonly ZoneMeasure[] }) {
+function MissingNote({ sport, measures }: { sport: Sport; measures: readonly MissingMeasure[] }) {
   return (
     <>
-      {measures.map((measure) => (
+      {measures.map(({ measure, outgrown }) => (
         <p key={measure} className="muted">
-          {`No ${measure === 'heartRate' ? 'heart rate' : measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
+          {outgrown
+            ? `No ${measure} zones: this ${sport} is harder than the threshold on file.`
+            : `No ${measure === 'heartRate' ? 'heart rate' : measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
         </p>
       ))}
     </>
@@ -119,7 +127,7 @@ export function ActivityZoneTime({
   trace: ActivityTrace
   sets: readonly ZoneSet[]
   /** The pace or power with efforts to fit but no zones on the activity's date. */
-  missing?: readonly ZoneMeasure[]
+  missing?: readonly MissingMeasure[]
   /** Whether the analysis set this activity's heart rate aside, so `sets` leaves heart rate out. */
   heartRateSetAside?: boolean
   startS: number

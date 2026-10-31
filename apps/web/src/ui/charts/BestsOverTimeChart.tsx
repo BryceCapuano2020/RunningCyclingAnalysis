@@ -19,7 +19,7 @@ import { idleFrom } from './idleReadout'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { axisTitle, formatNative, nativeLabel } from './sportAxis'
 import { axisFontSize } from './ticks'
-import { shortDateWithYear } from './trendTicks'
+import { activityDate } from './trendTicks'
 import './ChartHeadings.css'
 import './ChartSeries.css'
 import './BestsOverTimeChart.css'
@@ -28,6 +28,8 @@ export interface BestsOverTimeChartProps {
   sport: Sport
   /** The weekly points of the period: the efforts that led their windows are the dots. */
   points: readonly TrendPoint[]
+  /** True where the effort gate left the dots too few to draw while the period has enough without it: the empty state says so. */
+  gateWithheld?: boolean
   /** Body mass in kg, for the W/kg of a cycling value. */
   massKg: number
   units: UnitSystem
@@ -60,7 +62,7 @@ function tooltipFor(
   return {
     x,
     y,
-    title: shortDateWithYear(dot.atMs),
+    title: activityDate(dot.atMs),
     rows: [
       {
         kind: sport,
@@ -81,6 +83,7 @@ function tooltipFor(
 export function BestsOverTimeChart({
   sport,
   points,
+  gateWithheld = false,
   massKg,
   units,
   effortS,
@@ -106,19 +109,20 @@ export function BestsOverTimeChart({
       }
       note={
         hasData
-          ? 'Each dot is a best, not a typical effort: a day with no dot has no best, not a poor one.'
+          ? 'Each dot is a best, not a typical effort: a day with no dot has no best, not a poor one. Efforts your heart rate shows were not hard are left out.'
           : undefined
       }
       table={{
         columns: ['Day', nativeLabel(sport)],
-        rows: dots.map((dot) => [
-          shortDateWithYear(dot.atMs),
-          formatNative(sport, dot.value, units),
-        ]),
+        rows: dots.map((dot) => [activityDate(dot.atMs), formatNative(sport, dot.value, units)]),
         caption: `The efforts of ${effort} or longer that were the best of their stretch, oldest first.`,
       }}
       empty={
-        hasData ? undefined : `Add ${SPORT_PLURAL[sport]} on more than one day to see them here`
+        hasData
+          ? undefined
+          : gateWithheld
+            ? `No dots to show: efforts your heart rate shows were not hard are left out`
+            : `Add ${SPORT_PLURAL[sport]} on more than one day to see them here`
       }
       surface={(size) =>
         plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive, nearestByX)

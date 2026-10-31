@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DeviceIssue, SavedActivity, WorkerRequest } from '../../worker/protocol'
+import { NO_CHECKIN } from '../../worker/checkinKeeper'
+import type { CheckInView } from '../../worker/checkinKeeper'
 import { hasRemovedMark } from '../activitiesView'
 import { keptLibraryHinted } from './keptLibrary'
 import type {
@@ -42,6 +44,8 @@ export function useLibraryState() {
   const [missingOriginals, setMissingOriginals] = useState(0)
   const [detail, setDetail] = useState<DetailCoverage | null>(null)
   const [outdatedWithOriginal, setOutdatedWithOriginal] = useState(0)
+  // "Since your last import" for the library on screen, and whether it has been seen (see worker/checkinKeeper.ts).
+  const [checkIn, setCheckIn] = useState<CheckInView>(NO_CHECKIN)
   const [libraryUnreadable, setLibraryUnreadable] = useState(0)
   const [outbox, setOutbox] = useState<OutboxStatus | null>(null)
   const [deviceOffer, setDeviceOffer] = useState<DeviceOfferStatus | null>(null)
@@ -141,6 +145,8 @@ export function useLibraryState() {
     setDetail,
     outdatedWithOriginal,
     setOutdatedWithOriginal,
+    checkIn,
+    setCheckIn,
     libraryUnreadable,
     setLibraryUnreadable,
     deviceIssue,

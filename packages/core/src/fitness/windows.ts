@@ -1,3 +1,5 @@
+import { WEEK_ORIGIN_MS } from '../calendar'
+import { DAY_MS } from '../constants'
 import { medianInPlace } from '../math'
 import { FITNESS } from './params'
 
@@ -8,7 +10,17 @@ export interface RunPoint {
   id: string
   t: number
   x: number
+  /** The day's warmth as the file's sensor read it (the digest's temperature index), when it had one. */
+  c?: number
+  /**
+   * The run's own start. `t` puts it on its local day, so it is not the instant; where this is absent (tests, sims)
+   * the instant is read from `t`.
+   */
+  startMs?: number
 }
+
+/** The instant of a run: its own start, else the one its day reads as. */
+export const instantOf = (run: RunPoint): number => run.startMs ?? WEEK_ORIGIN_MS + run.t * DAY_MS
 
 /** The runs of a stretch, summarised the way every test reads them. */
 export interface Level {

@@ -391,3 +391,18 @@ describe('RETENTION_UNAVAILABLE', () => {
     expect(RETENTION_UNAVAILABLE).not.toContain('stay on this device')
   })
 })
+
+describe('importSentence: labelled workouts', () => {
+  it('adds how many the list labelled, in the singular and the plural, after what the import did', () => {
+    expect(importSentence({ activities: 1, rejected: 0, labelled: 1 }, NOW)).toBe(
+      'Nothing new: 1 activity already in your library. 1 activity you labelled Hike, Walk or another type in your export is now left out of your runs and rides.',
+    )
+    expect(importSentence({ activities: 5, rejected: 0, labelled: 4 }, NOW)).toMatch(
+      /4 activities you labelled .* in your export are now left out of your runs and rides\.$/,
+    )
+  })
+
+  it('says nothing of labels when there are none', () => {
+    expect(importSentence({ activities: 1, rejected: 0 }, NOW)).not.toMatch(/labelled/)
+  })
+})

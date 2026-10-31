@@ -1,4 +1,11 @@
-import { BEST_WINDOW_MIN_MOVING_FRACTION, DEFAULT_BIKE_MODEL, PRIORS } from '../constants'
+import {
+  BEST_WINDOW_MIN_MOVING_FRACTION,
+  DEFAULT_BIKE_MODEL,
+  PRIORS,
+  RUN_RECORD_DISTANCES_BEFORE_7,
+  RUN_RECORD_DISTANCES_M,
+} from '../constants'
+import type { RunRecordDistanceM } from '../constants'
 import type { Occupancy } from '../curves'
 import type { HeartRateSource } from '../effort'
 import { maxHeartRate, windowHeartRate } from '../effort'
@@ -34,6 +41,7 @@ import {
   withCadenceLock,
   withLonePowerSpikes,
 } from './revision7Gate'
+import { temperatureSummary } from './temperature'
 import { digestEvidence } from './evidence'
 import { revision7Fields } from './revision7Fields'
 import type { OutputStream } from './evidence'
@@ -80,6 +88,7 @@ function runParts(
   metabolic: Float64Array,
   source: HeartRateSource,
   occupancy: Occupancy,
+  distances: readonly RunRecordDistanceM[],
 ): Parts {
   const valid = and(quality.validMotion, quality.validGrade)
   return {
@@ -94,6 +103,7 @@ function runParts(
       activity.distance,
       and(quality.validMotion, recordedSeconds(activity)),
       recorded,
+      distances,
     ),
   }
 }
@@ -288,12 +298,23 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
   }
   let parts: Parts
   if (metabolic !== null) {
-    parts = runParts(streams, activity.distance, quality, metabolic, source, occupancy)
+    parts = runParts(
+      streams,
+      activity.distance,
+      quality,
+      metabolic,
+      source,
+      occupancy,
+      // Revision 7 records the marathon too.
+      seven ? RUN_RECORD_DISTANCES_M : RUN_RECORD_DISTANCES_BEFORE_7,
+    )
   } else if (measured) {
     parts = measuredParts(streams, quality, grade, source, not(agreed.covered), occupancy)
   } else {
     parts = virtualParts(streams, quality, grade, source, occupancy)
   }
+
+  const temperature = hasRevision7(revision) ? temperatureSummary(activity, moving) : undefined
 
   return {
     version: DIGEST_VERSION,
@@ -343,6 +364,7 @@ export function digestActivityAt(activity: Activity, revision: number): Activity
       ? { walkingPace: true as const }
       : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
+    ...(temperature === undefined ? {} : { temperature }),
     ...revision7Fields(activity, revision),
   }
 }

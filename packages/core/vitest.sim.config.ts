@@ -9,5 +9,7 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.sim.test.ts'],
     testTimeout: 180_000,
+    // Scales the mutation fuzz tests (src/*/parse.fuzz.test.ts), which keep a small sample in the unit run.
+    env: { FUZZ_SCALE: '20' },
   },
 })

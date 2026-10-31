@@ -11,6 +11,7 @@ import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
 import type { ImportOutcome } from '../../worker/protocol'
+import { NO_CHECKIN } from '../../worker/checkinKeeper'
 import type { Account, Baseline, Box, Pending, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 import type { ImportManifestController } from './importManifestHook'
@@ -73,14 +74,38 @@ function settleOvertaken(deps: WorkerEventDeps, pending: Pending, message: Reply
   }
 }
 
-/** The zips among the refused files that could not be read to their end, with the files that cost, when known. */
+/**
+ * The zips among the refused files that could not be read to their end, with the files that cost, when known. A zip is
+ * damaged once: it can be refused more than once under its name (the archive, then each entry), and the notice names it
+ * a single time, with the count of files when any refusal gave one.
+ */
 export function damagedZips(rejected: readonly RejectedFile[]): DamagedSource[] {
-  return rejected
-    .filter(({ code, fileName }) => code === 'corrupt' && /\.zip$/i.test(fileName))
-    .map(({ fileName, detail }) => {
-      const lost = Number(detail)
-      return { name: fileName, lost: Number.isInteger(lost) && lost >= 1 ? lost : null }
-    })
+  const lostBy = new Map<string, number | null>()
+  for (const { code, fileName, detail } of rejected) {
+    if (code !== 'corrupt' || !/\.zip$/i.test(fileName)) continue
+    const lost = Number(detail)
+    const known = Number.isInteger(lost) && lost >= 1 ? lost : null
+    lostBy.set(fileName, Math.max(known ?? 0, lostBy.get(fileName) ?? 0) || null)
+  }
+  return [...lostBy].map(([name, lost]) => ({ name, lost }))
+}
+
+/** The import's outcome without the labels it applied. */
+function withoutLabelled(outcome: ImportOutcome | null): ImportOutcome | null {
+  if (outcome === null) return null
+  const { labelled: _labelled, ...rest } = outcome
+  return rest
+}
+
+/** The import's outcome with the labels still applied after an Undo that could not take every one off. */
+function withLabelsLeft(left: number): (outcome: ImportOutcome | null) => ImportOutcome | null {
+  return (outcome) => (outcome === null ? null : { ...outcome, labelled: left })
+}
+
+/** Said when an Undo left some labels on. */
+function labelsLeftNotice(left: number): string {
+  const these = left === 1 ? '1 label' : `${left} labels`
+  return `${these} could not be taken off, as they could not be saved. Press Undo the labels to try again.`
 }
 
 /** The library a request changes when it succeeds, for the tabs that must read it again. */
@@ -94,6 +119,7 @@ function changedLibrary(pending: Pending): 'device' | 'account' | null {
       return pending.forgetDevice === true ? 'device' : null
     case 'deleteActivity':
     case 'rebuildStale':
+    case 'undoLabels':
       return 'account'
     case 'addFiles':
       return pending.saveToDevice === true ? 'device' : 'account'
@@ -141,6 +167,11 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     if (message.type === 'error' && message.issue !== undefined) handleAccountIssue(message.issue)
     return
   }
+  // What a row of "since your last import" now says of being seen settles its request alone.
+  if (message.type === 'checkInSaved') {
+    pending?.settle?.(message)
+    return
+  }
   // A splits reply, or the error that answers a splits request, settles that request alone.
   if (message.type === 'splits' || pending?.kind === 'activitySplits') {
     pending?.settle?.(message)
@@ -152,11 +183,20 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   }
   // A rebuild replaces the session, and with it the files the last import skipped, so its summary goes.
   if (pending?.kind === 'rebuildStale') imports.setImportOutcome(null)
+  // The labels are off, so the summary no longer says they were applied or offers to take them off.
+  // Some stay on when a write failed (offline, say): the count is kept and Undo stays, until every one is off.
+  const labelsLeft = message.type === 'state' ? (message.labelsLeft ?? 0) : 0
+  if (pending?.kind === 'undoLabels') {
+    imports.setImportOutcome(labelsLeft > 0 ? withLabelsLeft(labelsLeft) : withoutLabelled)
+    library.setLibraryNotice(labelsLeft > 0 ? labelsLeftNotice(labelsLeft) : null)
+  }
   const changed = changedLibrary(pending)
   if (changed !== null) deps.libraryChanged(changed)
   imports.setState(message.state)
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)
+  // "Since your last import", with the state it was made against (none when it says nothing).
+  library.setCheckIn(message.checkIn ?? NO_CHECKIN)
   if (message.type === 'state') {
     imports.setSavedCount(message.saved ?? null)
     noteProvisionalOutcome(imports, pending, message)

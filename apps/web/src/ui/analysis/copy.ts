@@ -1,3 +1,4 @@
+import { localYearOf } from '@rca/core/calendar'
 import { formatCount } from '../format/count'
 import { DAILY_LIMITS } from '@rca/contract'
 import type { DeviceIssue, SavedActivity, WorkerResponse } from '../../worker/protocol'
@@ -51,7 +52,7 @@ export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
 /** What an import reports for its summary: the files it read and could not use, and what it added. */
 export type ImportCounts = Pick<
   ImportOutcome,
-  'activities' | 'rejected' | 'detailRestored' | 'updatedRuns' | 'updatedRides'
+  'activities' | 'rejected' | 'detailRestored' | 'updatedRuns' | 'updatedRides' | 'labelled'
 > &
   ImportSummary & { duplicates?: readonly unknown[] }
 
@@ -146,9 +147,8 @@ export function addedSentence(summary: ImportSummary, nowMs = Date.now()): strin
     return `Added ${counts.join(' and ')}, on ${formatDayMonth(firstStartMs, nowMs)}.`
   }
   // The year is shown on both ends when they fall in different years, or when either is not this year.
-  const firstYear = new Date(firstStartMs).getFullYear()
-  const withYear =
-    firstYear !== new Date(lastStartMs).getFullYear() || firstYear !== new Date(nowMs).getFullYear()
+  const firstYear = localYearOf(firstStartMs)
+  const withYear = firstYear !== localYearOf(lastStartMs) || firstYear !== localYearOf(nowMs)
   const first = formatMonth(firstStartMs, withYear)
   const last = formatMonth(lastStartMs, withYear)
   const span = first === last ? `in ${first}` : `from ${first} to ${last}`
@@ -177,10 +177,21 @@ export function importSentence(summary: ImportCounts, nowMs = Date.now()): strin
     (text) => text !== null,
   )
   const sentence = said.length > 0 ? said.join(' ') : notAddedSentence(summary.activities)
-  const { detailRestored = 0 } = summary
-  return detailRestored > 0
-    ? `${sentence} Detail restored for ${plural(detailRestored, 'activity', 'activities')}.`
-    : sentence
+  const { detailRestored = 0, labelled = 0 } = summary
+  const restored =
+    detailRestored > 0
+      ? `${sentence} Detail restored for ${plural(detailRestored, 'activity', 'activities')}.`
+      : sentence
+  return labelled > 0 ? `${restored} ${labelledSummary(labelled)}` : restored
+}
+
+/**
+ * The sentence for saved activities the import's list labelled, which the import's summary can take back. They stay in
+ * the library; the label is the athlete's own word in the export.
+ */
+export function labelledSummary(count: number): string {
+  const one = count === 1
+  return `${plural(count, 'activity', 'activities')} you labelled Hike, Walk or another type in your export ${one ? 'is' : 'are'} now left out of your runs and rides.`
 }
 
 /**

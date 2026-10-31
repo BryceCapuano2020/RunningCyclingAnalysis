@@ -1,11 +1,11 @@
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { isAnalysed, leftOutCounts } from './digest/analysed'
 import { activitySummaries } from './digest'
-import { hardEffortRule } from './digest/hardEffortRule'
+import { dotsRule, hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
-import { NO_TRENDS } from './digest/trendPoints'
+import { NONE_WITHHELD, NO_TRENDS } from './digest/trendPoints'
 import { powerSetAsideIds } from './digest/powerCheck'
 import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
@@ -49,6 +49,20 @@ export interface StateInputs {
 }
 
 /**
+ * What the analysis reads of a library: the digests that are not hidden copies of another, and of those the ones that
+ * are not left out (a run at walking pace, or one the athlete labelled Hike or Walk, which stays in the library).
+ */
+export function analysedOf(all: ActivityDigest[]): {
+  hidden: ReadonlySet<ActivityDigest>
+  visible: ActivityDigest[]
+  analysed: ActivityDigest[]
+} {
+  const hidden = hiddenDigests(all)
+  const visible = all.filter((d) => !hidden.has(d))
+  return { hidden, visible, analysed: visible.filter(isAnalysed) }
+}
+
+/**
  * The session's state: the analysis of the chosen period, the trends and evidence over it, and the library
  * listing. `athlete` is the settings the analysis runs on (the sample's own for the sample), null only after
  * a clear, when the library is empty and nothing needs analysing.
@@ -58,10 +72,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   // Every change to the library is followed by a state, so the analyses it made stale go here.
   periods.releaseAbsent(all)
   judge.release(all)
-  const hidden = hiddenDigests(all)
-  const visible = all.filter((d) => !hidden.has(d))
-  // A run at walking pace, or one the athlete labelled Hike or Walk, stays in the library and is left out of every analysis.
-  const analysed = visible.filter(isAnalysed)
+  const { hidden, visible, analysed } = analysedOf(all)
   const leftOut = leftOutCounts(visible)
   const { period, selected, previous } = splitPeriods(analysed, inputs.choice)
   // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
@@ -99,10 +110,25 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const bikeModel = analysis?.bikeModel
   // All time is not clipped at a start, so its trend begins at the first activity.
   const fromMs = period.days === null ? null : period.startMs
+  // The dots leave out an effort heart rate shows was not hard: the library's set-aside list is the heart-rate one, as the change test takes it.
+  const dots = dotsRule(judgement.effortReference, setAside)
   const efforts =
     athlete === null
       ? NO_TRENDS
-      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate)
+      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate, dots)
+  const dotsWithheld =
+    athlete === null
+      ? NONE_WITHHELD
+      : periods.dotsWithheld(
+          selected,
+          athlete,
+          period.days,
+          fromMs,
+          bikeModel,
+          efforts,
+          judgement.rideGate,
+          dots,
+        )
   const sameHeartRate =
     analysis === null ? NO_SAME_HEART_RATE : periods.sameHeartRate(selected, analysed, fromMs, held)
   const late =
@@ -117,6 +143,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     result: analysis,
     trend: efforts[HEADLINE_DURATION_S],
     effortTrends: efforts,
+    dotsWithheld,
     sameHeartRate,
     lateEvidence: late,
     heartRateJudgement: judgement,
