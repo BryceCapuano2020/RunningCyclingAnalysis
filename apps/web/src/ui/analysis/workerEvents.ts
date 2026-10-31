@@ -77,7 +77,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         })
         current.imports.setUploading(message.uploaded ?? null)
         if (pending?.kind === 'addFiles' && pending.provisional !== true) {
-          current.manifest.progress(message.filesRead, message.filesTotal ?? null)
+          current.manifest.progress(pending.id, message.filesRead, message.filesTotal ?? null)
         }
         // A new import has begun, so the last one's count no longer stands.
         current.imports.setSavedCount(null)
@@ -163,6 +163,8 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
     return () => {
       worker.terminate()
       workerRef.current = null
+      // Whatever import this worker was running is gone with it, whatever replaced the worker.
+      latest().manifest.fail()
       transport.dropPendingReplies()
       // In React StrictMode, effects are cleaned up and set up again on mount. The first
       // worker is terminated, so its initial account-load request must be sent to the new one.

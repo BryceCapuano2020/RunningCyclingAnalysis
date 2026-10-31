@@ -13,12 +13,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeWorker } from '../test/fakeWorker'
 import { EMPTY_PERIOD } from './analysis/model'
 import { useAnalysis } from './useAnalysis'
+import { openManifestStore } from './importManifestStore'
+import type { Me } from '@rca/contract'
 
 import type { RejectedFile } from '@rca/core/session'
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const SIGNED_OUT = { status: 'signed-out' as const, me: null }
 const ZIP = new File(['x'], 'export.zip')
+const ME: Me = {
+  user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
+  profile: {
+    massKg: 75,
+    bikeMassKg: 9,
+    units: 'metric',
+    keepFiles: false,
+    birthYear: null,
+    sex: null,
+    updatedAt: 1000,
+  },
+}
+
+const recordedStates = async () => (await openManifestStore().all()).map(({ state }) => state)
 
 function stateWith(totalActivities: number): SessionState {
   return {
@@ -200,5 +216,36 @@ describe('the record of an import', () => {
     await act(async () => undefined)
 
     expect(result.current.incompleteImport).toBeNull()
+  })
+
+  it('says it stopped when a sign-in replaces the worker that was running it', async () => {
+    const { result, rerender } = renderHook(({ account }) => useAnalysis(SETTINGS, account), {
+      initialProps: {
+        account: SIGNED_OUT as { status: 'signed-out' | 'signed-in'; me: Me | null },
+      },
+    })
+    act(() => worker().reply({ type: 'state', state: stateWith(0) }))
+    importZip(result)
+    act(() => worker().reply({ type: 'progress', filesRead: 4, filesTotal: 30 }))
+
+    rerender({ account: { status: 'signed-in', me: ME } })
+    await act(async () => undefined)
+
+    // The record is not left running: its lock would be held and the tab would nag for good.
+    expect(await recordedStates()).toEqual(['interrupted'])
+  })
+
+  it('does not end the wrong import when the next finishes after one was cut off', async () => {
+    const { result } = ready()
+    importZip(result)
+    act(() => worker().fail())
+    await act(async () => undefined)
+
+    act(() => worker().reply({ type: 'state', state: stateWith(0) }))
+    importZip(result)
+    act(() => worker().reply({ type: 'state', state: stateWith(5) }))
+    await act(async () => undefined)
+
+    expect(await recordedStates()).toEqual(['complete'])
   })
 })

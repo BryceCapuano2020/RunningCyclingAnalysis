@@ -63,7 +63,6 @@ function settleOvertaken(deps: WorkerEventDeps, pending: Pending, message: Reply
   }
 }
 
-/** Shows what a reply reports, and settles the request it answers. */
 /** The zips among the refused files that could not be read to their end, with the files that cost, when known. */
 export function damagedZips(rejected: readonly RejectedFile[]): DamagedSource[] {
   return rejected
@@ -74,14 +73,16 @@ export function damagedZips(rejected: readonly RejectedFile[]): DamagedSource[] 
     })
 }
 
+/** Shows what a reply reports, and settles the request it answers. */
 export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pending: Pending): void {
   const { transport, imports, library, handleAccountIssue, refreshBusy } = deps
   // The reply names its request, so it settles that request whatever order replies arrive in.
   const waiting = transport.pendingRepliesRef.current
   waiting.splice(waiting.indexOf(pending), 1)
   if (pending.kind === 'addFiles' && pending.provisional !== true) {
-    if (message.type === 'state') deps.manifest.finish(damagedZips(message.state.rejected))
-    else if (message.type === 'error') deps.manifest.fail()
+    if (message.type === 'state')
+      deps.manifest.finish(pending.id, damagedZips(message.state.rejected))
+    else if (message.type === 'error') deps.manifest.fail(pending.id)
   }
   // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
   if (pending?.kind === 'setRange') pending.settle?.(message)

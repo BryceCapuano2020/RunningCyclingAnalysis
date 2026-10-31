@@ -31,6 +31,15 @@ describe('incompleteText', () => {
     expect(incompleteText(manifest({ read: 100, expected: 100 }))).toBe(plain)
   })
 
+  it('does not say it added anything when it had read nothing', () => {
+    expect(incompleteText(manifest({ read: 0, expected: 3_639 }))).toBe(
+      'The last import stopped before it read any of its 3,639 files. Add the same files again to finish.',
+    )
+    expect(incompleteText(manifest({ read: 0, expected: null }))).toBe(
+      'The last import stopped before it read any files. Add the same files again to finish.',
+    )
+  })
+
   it('names a damaged zip and what it cost, and says to download it again', () => {
     expect(
       incompleteText(

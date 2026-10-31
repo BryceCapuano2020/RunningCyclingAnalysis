@@ -27,7 +27,15 @@ function damagedText(manifest: ImportManifest): string {
 export function incompleteText(manifest: ImportManifest): string {
   if (manifest.state === 'partial-source') return damagedText(manifest)
   const { read, expected } = manifest
-  return expected === null || read >= expected
-    ? 'The last import stopped before it finished. What it added is here. Add the same files again to finish: files already added are skipped.'
-    : `The last import stopped after ${groupThousands(String(read))} of ${groupThousands(String(expected))} files. What it added is here. Add the same files again to finish: files already added are skipped.`
+  const again = 'Add the same files again to finish'
+  if (read === 0) {
+    return expected === null
+      ? `The last import stopped before it read any files. ${again}.`
+      : `The last import stopped before it read any of its ${groupThousands(String(expected))} files. ${again}.`
+  }
+  const reached =
+    expected === null || read >= expected
+      ? 'The last import stopped before it finished.'
+      : `The last import stopped after ${groupThousands(String(read))} of ${groupThousands(String(expected))} files.`
+  return `${reached} What it added is here. ${again}: files already added are skipped.`
 }

@@ -176,6 +176,10 @@ phone discards it, which is why a `beforeunload` guard is only a courtesy on top
 or that read a damaged zip, leaves a notice that the library is only part of what was added, with what to do;
 "Use what I have" takes it away for good, and a later import of the same files finishes it. It goes with
 Remove all, and an account's goes at sign-out and deletion. Storage that refuses it only loses the notice.
+Each event is found by the request it names, a record is rewritten only while the store still holds it (so
+another tab's Remove all is not undone), a running import is written every 10 s whatever it reads, and a
+worker that is replaced or dropped marks its import cut off at once. An earlier cut-off import keeps its notice
+until one that read the same files, or at least as many, finishes; those it made whole are deleted.
 
 ## Data model
 

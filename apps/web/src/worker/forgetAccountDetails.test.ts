@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { openManifestStore } from '../ui/importManifest'
+import { openManifestStore } from '../ui/importManifestStore'
 import { forgetAccountDetails } from './forgetAccountDetails'
 import { clearWorkbenchScope } from './workbenchStore'
 
 vi.mock('./workbenchStore', () => ({ clearWorkbenchScope: vi.fn() }))
 
-vi.mock('../ui/importManifest', () => {
+vi.mock('../ui/importManifestStore', () => {
   const forget = vi.fn(async () => undefined)
   return { openManifestStore: () => ({ forget }) }
 })

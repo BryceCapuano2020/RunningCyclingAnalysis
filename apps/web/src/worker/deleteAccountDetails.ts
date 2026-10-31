@@ -1,4 +1,4 @@
-import { openManifestStore } from '../ui/importManifest'
+import { openManifestStore } from '../ui/importManifestStore'
 import { deleteWorkbenchScope } from './workbenchStore'
 
 /** Server deletion has succeeded; a refused local cleanup must be reported separately. */

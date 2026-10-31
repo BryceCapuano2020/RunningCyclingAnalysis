@@ -105,12 +105,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
 
   /** The notices a request replaces are cleared as it is sent. */
   const onSend = useCallback(
-    (request: WorkerRequest) => {
+    (request: WorkerRequest, requestId: number) => {
       refreshBusy()
       // An import into a library is recorded from the moment it is sent. The analysis made while the account
       // loads is not: it is sent again once the account is known.
       if (request.type === 'addFiles' && request.provisional !== true) {
         beginManifest(
+          requestId,
           request.files,
           request.sync === null ? 'device' : `account:${request.sync.userId}`,
         )

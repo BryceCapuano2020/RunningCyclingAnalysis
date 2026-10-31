@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   heldLockNames,
+  HEARTBEAT_MS,
   holdLock,
+  incompleteIn,
   incompleteOf,
-  openManifestStore,
   reconciled,
+  summariseSources,
+  tabId,
   withSuperseded,
 } from '../importManifest'
-import type { DamagedSource, ImportManifest, ManifestScope, ManifestStore } from '../importManifest'
+import type { DamagedSource, ImportManifest, ManifestScope } from '../importManifest'
+import { openManifestStore } from '../importManifestStore'
+import type { ManifestStore } from '../importManifestStore'
 
 /** The least time between two writes of an import's progress. */
 const WRITE_EVERY_MS = 2_000
@@ -15,14 +20,14 @@ const WRITE_EVERY_MS = 2_000
 export interface ImportManifestController {
   /** The latest import that left the library short of the whole history, or null. */
   incomplete: ImportManifest | null
-  /** A signed-in or signed-out import is sent: it is recorded, and its lock is taken. */
-  begin: (files: readonly File[], scope: ManifestScope) => void
-  /** The running import has read `read` of `total` activity files (total is null while unknown). */
-  progress: (read: number, total: number | null) => void
-  /** The running import ended; the zips it found damaged are listed. */
-  finish: (damaged: DamagedSource[]) => void
-  /** Every running import was cut off: the worker failed, the athlete stopped it, or the account changed. */
-  fail: () => void
+  /** An import (the worker request `requestId`) is sent: it is recorded, and its lock is taken. */
+  begin: (requestId: number, files: readonly File[], scope: ManifestScope) => void
+  /** The import `requestId` has read `read` of `total` activity files (total is null while unknown). */
+  progress: (requestId: number, read: number, total: number | null) => void
+  /** The import `requestId` ended; the zips it found damaged are listed. */
+  finish: (requestId: number, damaged: DamagedSource[]) => void
+  /** The import `requestId` failed, or with no number every running import was cut off (the worker is gone). */
+  fail: (requestId?: number) => void
   /** The athlete goes on with what the library holds. */
   accept: () => void
   /** The scope's library was removed, so what was recorded about it goes too. */
@@ -30,6 +35,7 @@ export interface ImportManifestController {
 }
 
 interface Running {
+  requestId: number
   manifest: ImportManifest
   release: () => void
 }
@@ -40,8 +46,8 @@ function newId(): string {
 
 /**
  * Records each import (see importManifest.ts) and finds, on load, the ones that were cut off. `scope` is the
- * library the page is showing, or null while that is not known. Imports run one after another in the worker, so
- * the oldest running one is the one its events are about.
+ * library the page is showing, or null while that is not known. The worker's events name the request they are
+ * about, which is how they find their import.
  */
 export function useImportManifest(
   scope: ManifestScope | null,
@@ -61,109 +67,183 @@ export function useImportManifest(
     setManifests(next)
   }, [])
 
-  const keep = useCallback(
+  /** Writes a record that was just begun. */
+  const keepNew = useCallback(
     (manifest: ImportManifest) => {
       setList([...listRef.current.filter(({ id }) => id !== manifest.id), manifest])
-      void storeRef.current.put(manifest)
+      return storeRef.current.put(manifest)
     },
     [setList],
   )
 
-  // On load: what earlier visits left, for every library, with the imports that died marked.
+  /** Rewrites a record the store still holds, and shows it. */
+  const keep = useCallback(
+    (manifest: ImportManifest) => {
+      setList([...listRef.current.filter(({ id }) => id !== manifest.id), manifest])
+      return storeRef.current.update(manifest)
+    },
+    [setList],
+  )
+
+  // On load, and when the library on screen changes: what earlier visits left, with the imports that died marked.
+  // An account's records leave memory when it is no longer the library shown (sign-out), and come back from
+  // storage at the next sign-in.
   useEffect(() => {
     let current = true
+    const going = new Set(running.current.map(({ manifest }) => manifest.id))
+    const shown = listRef.current.filter(
+      (manifest) =>
+        manifest.scope === 'device' || manifest.scope === scope || going.has(manifest.id),
+    )
+    if (shown.length !== listRef.current.length) setList(shown)
     void (async () => {
       const stored = await storeRef.current.all()
-      const settled = reconciled(stored, await heldLockNames(), Date.now())
+      const held = await heldLockNames()
       if (!current) return
-      for (const [index, manifest] of settled.entries()) {
-        if (manifest.state !== stored[index]?.state) void storeRef.current.put(manifest)
-      }
-      // Imports begun in this visit are ahead of what storage knew when the read started.
+      // Imports begun in this visit are ahead of what storage knew when the read started, and are not for this to judge.
       const here = listRef.current
-      setList([...settled.filter(({ id }) => !here.some((other) => other.id === id)), ...here])
+      const others = stored.filter(({ id }) => !here.some((manifest) => manifest.id === id))
+      const settled = reconciled(others, held, Date.now(), tabId())
+      for (const [index, manifest] of settled.entries()) {
+        if (manifest.state !== others[index]?.state) void storeRef.current.update(manifest)
+      }
+      setList([...settled, ...here])
     })()
     return () => {
       current = false
     }
-  }, [setList])
+  }, [scope, setList])
 
   const arm = useCallback(
     () => setGuarded(running.current.some(({ manifest }) => manifest.read > 0)),
     [],
   )
 
+  // While any import runs, its record is written now and then even when no file is read (a long last phase, or
+  // an import queued behind another), so a browser without locks does not take it for one that is gone.
+  const beat = useRef<ReturnType<typeof setInterval> | null>(null)
+  const stopBeat = useCallback(() => {
+    if (beat.current === null) return
+    clearInterval(beat.current)
+    beat.current = null
+  }, [])
+  const startBeat = useCallback(() => {
+    beat.current ??= setInterval(() => {
+      for (const entry of running.current) {
+        entry.manifest = { ...entry.manifest, updatedAt: Date.now() }
+        void storeRef.current.update(entry.manifest)
+      }
+    }, HEARTBEAT_MS)
+  }, [])
+  useEffect(() => stopBeat, [stopBeat])
+
   const begin = useCallback(
-    (files: readonly File[], importScope: ManifestScope) => {
+    (requestId: number, files: readonly File[], importScope: ManifestScope) => {
       const now = Date.now()
       const manifest: ImportManifest = {
         id: newId(),
         scope: importScope,
         startedAt: now,
         updatedAt: now,
-        sources: files.map(({ name, size }) => ({ name, size })),
+        tabId: tabId(),
+        ...summariseSources(files),
         expected: null,
         read: 0,
         damaged: [],
         state: 'running',
       }
-      running.current.push({ manifest, release: holdLock(manifest.id) })
-      keep(manifest)
+      running.current.push({ requestId, manifest, release: holdLock(manifest.id) })
+      void keepNew(manifest)
+      startBeat()
     },
-    [keep],
+    [keepNew, startBeat],
   )
 
   const progress = useCallback(
-    (read: number, total: number | null) => {
-      const first = running.current[0]
-      if (first === undefined) return
+    (requestId: number, read: number, total: number | null) => {
+      const entry = running.current.find((other) => other.requestId === requestId)
+      if (entry === undefined) return
       const now = Date.now()
-      first.manifest = {
-        ...first.manifest,
+      entry.manifest = {
+        ...entry.manifest,
         read,
-        expected: total ?? first.manifest.expected,
+        expected: total ?? entry.manifest.expected,
         updatedAt: now,
       }
       if (now - wroteAt.current >= WRITE_EVERY_MS || read === total) {
         wroteAt.current = now
-        keep(first.manifest)
+        void keep(entry.manifest)
       }
       arm()
     },
     [arm, keep],
   )
 
-  /** Ends the oldest running import, or every one when they were all cut off. */
+  /** Ends the imports given, with the state and the damaged zips found. */
   const end = useCallback(
-    (state: 'complete' | 'partial-source' | 'interrupted', damaged: DamagedSource[]) => {
-      const ended =
-        state === 'interrupted' ? running.current.splice(0) : running.current.splice(0, 1)
+    (
+      ended: Running[],
+      state: 'complete' | 'partial-source' | 'interrupted',
+      damaged: DamagedSource[],
+    ) => {
       for (const { manifest, release } of ended) {
-        release()
         const finished: ImportManifest = { ...manifest, state, damaged, updatedAt: Date.now() }
-        keep(finished)
+        // The lock goes only once the record says how the import ended: a page loading in between would
+        // otherwise find it running with no lock held, and call it cut off.
+        void keep(finished).then(release)
         if (state === 'complete') {
-          const next = withSuperseded(listRef.current, finished)
-          for (const [index, other] of next.entries()) {
-            if (other !== listRef.current[index]) void storeRef.current.put(other)
+          // What a finished import makes whole is no longer short of anything, so its file names are not kept.
+          const made = withSuperseded(listRef.current, finished).filter(
+            (other, index) => other.state === 'superseded' && listRef.current[index] !== other,
+          )
+          if (made.length > 0) {
+            const gone = new Set(made.map(({ id }) => id))
+            setList(listRef.current.filter(({ id }) => !gone.has(id)))
+            void storeRef.current.remove([...gone])
           }
-          setList(next)
         }
       }
+      if (running.current.length === 0) stopBeat()
       arm()
     },
-    [arm, keep, setList],
+    [arm, keep, setList, stopBeat],
   )
 
   const finish = useCallback(
-    (damaged: DamagedSource[]) => end(damaged.length > 0 ? 'partial-source' : 'complete', damaged),
+    (requestId: number, damaged: DamagedSource[]) => {
+      const at = running.current.findIndex((entry) => entry.requestId === requestId)
+      if (at === -1) return
+      end(
+        running.current.splice(at, 1),
+        damaged.length > 0 ? 'partial-source' : 'complete',
+        damaged,
+      )
+    },
     [end],
   )
-  const fail = useCallback(() => end('interrupted', []), [end])
+  const fail = useCallback(
+    (requestId?: number) => {
+      const at =
+        requestId === undefined ? -1 : running.current.findIndex((e) => e.requestId === requestId)
+      end(
+        requestId === undefined
+          ? running.current.splice(0)
+          : at === -1
+            ? []
+            : running.current.splice(at, 1),
+        'interrupted',
+        [],
+      )
+    },
+    [end],
+  )
 
   const accept = useCallback(() => {
-    const target = scope === null ? null : incompleteOf(listRef.current, scope)
-    if (target !== null) keep({ ...target, state: 'accepted-partial', updatedAt: Date.now() })
+    if (scope === null) return
+    const now = Date.now()
+    for (const target of incompleteIn(listRef.current, scope)) {
+      void keep({ ...target, state: 'accepted-partial', updatedAt: now })
+    }
   }, [keep, scope])
 
   const forget = useCallback(

@@ -1,4 +1,4 @@
-import { openManifestStore } from '../ui/importManifest'
+import { openManifestStore } from '../ui/importManifestStore'
 import { clearWorkbenchScope } from './workbenchStore'
 
 /**

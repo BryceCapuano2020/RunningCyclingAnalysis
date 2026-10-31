@@ -37,7 +37,12 @@ export interface ImportManifest {
   scope: ManifestScope
   startedAt: number
   updatedAt: number
+  /** The tab that ran the import (see tabId), so a reload of that tab knows what it left behind. */
+  tabId?: string
+  /** At most MAX_SOURCES; see summariseSources. */
   sources: ManifestSource[]
+  /** How many more files the import was given than `sources` lists, for a drop of thousands of loose files. */
+  moreSources?: number
   /** Activity files the sources hold, when the import has counted them. */
   expected: number | null
   /** Activity files read so far. */
@@ -46,8 +51,11 @@ export interface ImportManifest {
   state: ManifestState
 }
 
-/** How many manifests a scope keeps. Older ones are forgotten. */
-const KEPT_PER_SCOPE = 5
+/** The most files whose names and sizes one manifest keeps, so a drop of thousands of loose files stays small. */
+export const MAX_SOURCES = 50
+
+/** How often a running import's record is written even when no file was read, so a long phase is not read as dead. */
+export const HEARTBEAT_MS = 10_000
 
 /** Without Web Locks, a running manifest not written for this long belongs to an import that is gone. */
 export const STALE_MS = 30_000
@@ -57,6 +65,41 @@ export function isIncomplete(manifest: ImportManifest): boolean {
   return manifest.state === 'interrupted' || manifest.state === 'partial-source'
 }
 
+/**
+ * What a manifest keeps of the files an import was given: the zips first (the sources that matter when a
+ * download is cut short), then the rest, up to MAX_SOURCES.
+ */
+export function summariseSources(files: readonly { name: string; size: number }[]): {
+  sources: ManifestSource[]
+  moreSources?: number
+} {
+  const isZip = ({ name }: { name: string }) => /\.zip$/i.test(name)
+  const ordered = [...files.filter(isZip), ...files.filter((file) => !isZip(file))]
+  const sources = ordered.slice(0, MAX_SOURCES).map(({ name, size }) => ({ name, size }))
+  return ordered.length > MAX_SOURCES
+    ? { sources, moreSources: ordered.length - MAX_SOURCES }
+    : { sources }
+}
+
+const TAB_KEY = 'rca.importTab.v1'
+let memoryTabId: string | null = null
+
+/**
+ * An id for this browser tab that survives a reload of it (session storage lives as long as the tab), so a
+ * page can recognise the imports its own earlier page began. Where session storage is refused it is the page's.
+ */
+export function tabId(): string {
+  try {
+    const kept = sessionStorage.getItem(TAB_KEY)
+    if (kept !== null && kept !== '') return kept
+    memoryTabId ??= `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+    sessionStorage.setItem(TAB_KEY, memoryTabId)
+  } catch {
+    memoryTabId ??= `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  }
+  return memoryTabId
+}
+
 export function lockName(id: string): string {
   return `rca-import-${id}`
 }
@@ -64,44 +107,63 @@ export function lockName(id: string): string {
 /**
  * Which running manifests belong to an import that is no longer going on, as `interrupted`. With the
  * names of the locks held (`held`), a running import is alive while its lock is held, by any tab. Where
- * the browser has no locks (`held` is null), one that has not been written for STALE_MS is not.
+ * the browser has no locks (`held` is null), one that has not been written for STALE_MS is not, and neither is
+ * one this tab (`ownTab`) began in an earlier page: a page that has just loaded cannot be running it.
  */
 export function reconciled(
   manifests: readonly ImportManifest[],
   held: ReadonlySet<string> | null,
   now: number,
+  ownTab: string | null = null,
 ): ImportManifest[] {
   return manifests.map((manifest) => {
     if (manifest.state !== 'running') return manifest
     const alive =
-      held === null ? now - manifest.updatedAt <= STALE_MS : held.has(lockName(manifest.id))
+      held === null
+        ? now - manifest.updatedAt <= STALE_MS && (ownTab === null || manifest.tabId !== ownTab)
+        : held.has(lockName(manifest.id))
     return alive ? manifest : { ...manifest, state: 'interrupted' }
   })
 }
 
 /**
- * The manifest to tell the athlete about: the latest of the scope that is incomplete and has not been
- * accepted or replaced. Null when the library is as complete as the record knows.
+ * The imports of the scope that left its library short and have not been accepted or replaced, the latest first.
+ * A later import that finished does not hide an earlier one that was cut off, unless it made it whole (withSuperseded).
  */
+export function incompleteIn(
+  manifests: readonly ImportManifest[],
+  scope: ManifestScope,
+): ImportManifest[] {
+  return manifests
+    .filter((manifest) => manifest.scope === scope && isIncomplete(manifest))
+    .sort((a, b) => b.startedAt - a.startedAt)
+}
+
+/** The manifest to tell the athlete about: the latest of the scope that is incomplete. Null when none is. */
 export function incompleteOf(
   manifests: readonly ImportManifest[],
   scope: ManifestScope,
 ): ImportManifest | null {
-  const mine = manifests
-    .filter((manifest) => manifest.scope === scope)
-    .sort((a, b) => b.startedAt - a.startedAt)
-  const latest = mine.find((manifest) => manifest.state !== 'running')
-  return latest !== undefined && isIncomplete(latest) ? latest : null
+  return incompleteIn(manifests, scope)[0] ?? null
 }
 
-/** Whether `later` read every source `earlier` did, by name and size, so finishing it makes `earlier` whole. */
+/**
+ * Whether `later` read every source `earlier` did, by name and size, so finishing it makes `earlier` whole.
+ * An earlier import given more files than its record lists cannot be matched by name.
+ */
 export function covers(later: ImportManifest, earlier: ImportManifest): boolean {
-  return earlier.sources.every((source) =>
-    later.sources.some(({ name, size }) => name === source.name && size === source.size),
+  return (
+    (earlier.moreSources ?? 0) === 0 &&
+    earlier.sources.every((source) =>
+      later.sources.some(({ name, size }) => name === source.name && size === source.size),
+    )
   )
 }
 
-/** The manifests with those a finished import covers marked superseded. */
+/**
+ * The manifests with those a finished import makes whole marked superseded: it read the same sources, or it
+ * read at least as many files as the earlier one was meant to (a zip downloaded again, of another size).
+ */
 export function withSuperseded(
   manifests: readonly ImportManifest[],
   finished: ImportManifest,
@@ -110,78 +172,11 @@ export function withSuperseded(
     manifest.id !== finished.id &&
     manifest.scope === finished.scope &&
     isIncomplete(manifest) &&
-    covers(finished, manifest)
+    (covers(finished, manifest) ||
+      (manifest.expected !== null && finished.read >= manifest.expected))
       ? { ...manifest, state: 'superseded' }
       : manifest,
   )
-}
-
-export interface ManifestStore {
-  all(): Promise<ImportManifest[]>
-  put(manifest: ImportManifest): Promise<void>
-  /** Forgets every manifest of the scope: its library was removed. */
-  forget(scope: ManifestScope): Promise<void>
-}
-
-const DB_NAME = 'rca-import-meta'
-const STORE = 'manifests'
-
-/** The store in IndexedDB. Never rejects: an unavailable or refusing store lists nothing and keeps nothing. */
-export function openManifestStore(): ManifestStore {
-  let opened: Promise<IDBDatabase | null> | null = null
-  const database = (): Promise<IDBDatabase | null> => {
-    opened ??= new Promise<IDBDatabase | null>((resolve) => {
-      try {
-        const request = indexedDB.open(DB_NAME, 1)
-        request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: 'id' })
-        request.onsuccess = () => resolve(request.result)
-        request.onerror = () => resolve(null)
-        request.onblocked = () => resolve(null)
-      } catch {
-        resolve(null)
-      }
-    })
-    return opened
-  }
-  const run = async <T, F>(
-    mode: IDBTransactionMode,
-    work: (store: IDBObjectStore) => IDBRequest<T>,
-    fallback: F,
-  ): Promise<T | F> => {
-    const db = await database()
-    if (db === null) return fallback
-    try {
-      return await new Promise<T | F>((resolve) => {
-        const request = work(db.transaction(STORE, mode).objectStore(STORE))
-        request.onsuccess = () => resolve(request.result)
-        request.onerror = () => resolve(fallback)
-      })
-    } catch {
-      opened = null
-      return fallback
-    }
-  }
-  return {
-    all: () => run('readonly', (store) => store.getAll() as IDBRequest<ImportManifest[]>, []),
-    put: async (manifest) => {
-      await run('readwrite', (store) => store.put(manifest), undefined)
-      const mine = (
-        await run('readonly', (store) => store.getAll() as IDBRequest<ImportManifest[]>, [])
-      )
-        .filter(({ scope }) => scope === manifest.scope)
-        .sort((a, b) => b.startedAt - a.startedAt)
-      for (const old of mine.slice(KEPT_PER_SCOPE)) {
-        await run('readwrite', (store) => store.delete(old.id), undefined)
-      }
-    },
-    forget: async (scope) => {
-      const mine = (
-        await run('readonly', (store) => store.getAll() as IDBRequest<ImportManifest[]>, [])
-      ).filter((manifest) => manifest.scope === scope)
-      for (const manifest of mine)
-        await run('readwrite', (store) => store.delete(manifest.id), undefined)
-    },
-  }
 }
 
 /** The names of the locks held by any tab, or null where the browser has no locks to ask. */
