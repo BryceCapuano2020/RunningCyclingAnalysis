@@ -50,6 +50,9 @@ afterEach(() => {
   signalOf.current = undefined
 })
 
+/** The timer as it was before a test fakes it: the file's gzip is real stream work that a faked clock would not let run. */
+const realSetTimeout = globalThis.setTimeout
+
 describe('request timeouts', () => {
   it('aborts a metadata request exactly at the 15 second deadline', async () => {
     vi.useFakeTimers()
@@ -70,7 +73,7 @@ describe('request timeouts', () => {
     stalledFetch()
     const outcome = uploadFile('a1', new Uint8Array([1, 2, 3])).catch((error: unknown) => error)
     for (let tick = 0; tick < 200 && signalOf.current === undefined; tick++) {
-      await new Promise((resolve) => setImmediate(resolve))
+      await new Promise((resolve) => realSetTimeout(resolve, 0))
     }
     expect(signalOf.current).toBeDefined()
 
