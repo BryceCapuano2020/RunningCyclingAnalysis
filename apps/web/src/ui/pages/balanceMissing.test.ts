@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
+import { NO_EFFORT_GATE } from '@rca/core/effort'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { missingText } from './balanceMissing'
 
@@ -55,6 +56,28 @@ describe('missingText for a library of one sport', () => {
       const missing = missingText(result, library, ALL_TIME, { run: null, ride: 'Recreational' })
       expect(missing.title).toContain('Recreational')
       expect(missing.detail).toBe('')
+    })
+
+    it('asks only for what the effort gate asks when the level rests on a best that was not shown hard', () => {
+      const { result, library } = withRefusedFit()
+      const gated = {
+        ...result,
+        effortGate: {
+          ...result.effortGate,
+          ride: {
+            ...NO_EFFORT_GATE,
+            verdict: 'notHard' as const,
+            unchecked: null,
+            share: 0.8,
+            reference: 'trusted' as const,
+          },
+        },
+      }
+      const missing = missingText(gated, library, ALL_TIME, { run: null, ride: 'Recreational' })
+      expect(missing.detail).toMatch(
+        /^A 20 min effort at 90% or more of it would confirm the level\.$/,
+      )
+      expect(missing.detail).not.toContain('Needs a harder effort')
     })
 
     it('asks for what the threshold needs while the sport has no level to show', () => {

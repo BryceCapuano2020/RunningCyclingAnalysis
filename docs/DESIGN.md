@@ -1195,7 +1195,7 @@ ticks are evenly spaced (4:30, 5:00, 5:30), which an axis even in speed would no
 pace, so the fast end clears the line as the slow end does (`timeSeriesModel.ts`, `AxisScale`). A raw reading past the axis (a power spike, a standing start) clips at the row's edge. It is marked only where it is more than
 15% of the axis's span past it (measured as the axis is drawn), with one small tick, in the row's colour at reduced opacity, to each 8 px, and keyed "Reading beyond
 the chart edge" under the plot while any is drawn. The band is a spread, not the extremes: the table twin keeps
-the true lowest and highest of every reading, spikes included, while the interval summary gives each measure's average and its typical range (5th to 95th percentile), as
+the true lowest and highest of every reading, spikes included, while the interval summary gives each measure's average and its typical range (10th to 90th percentile, the same spread as the band), as
 a lowest and highest are set by one stray second. Its
 ticks fall on round paces (4:30, not 4:32). There is no histogram: the time in zones says how
 time was spread, with its own table.
