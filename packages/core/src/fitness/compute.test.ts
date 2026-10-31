@@ -5,7 +5,7 @@ import { plantedLibrary } from '../findings/test/plantedLibrary'
 import type { PlantedSpec } from '../findings/test/plantedLibrary'
 import { AnalysisSession } from '../session'
 import type { ActivityDigest } from '../types'
-import { fitnessStatuses } from './compute'
+import { fitnessHistories, fitnessStatuses } from './compute'
 import { NO_FITNESS } from './types'
 
 const NONE: ReadonlySet<string> = new Set()
@@ -16,6 +16,19 @@ const library = (over: Partial<PlantedSpec> = {}) =>
   plantedLibrary({ seed: 3, weeks: 100, perWeek: 3, ...NOISE, effects: [], ...over })
 
 describe('fitnessStatuses', () => {
+  it('gives the steady runs a status rests on, from the same computation, in time order', () => {
+    const digests = library({ weeks: 40 }).digests
+    const status = fitnessStatuses(digests, NONE).run
+    const history = fitnessHistories(digests, NONE).run
+    expect(history.runs).toHaveLength(status.steady)
+    expect(history.runs.map((r) => r.t)).toEqual(
+      [...history.runs.map((r) => r.t)].sort((a, b) => a - b),
+    )
+    expect(history.referenceHr).toBe(status.referenceHr)
+    expect(fitnessHistories(digests, NONE).run).toBe(history)
+    expect(fitnessHistories([], NONE).run.runs).toEqual([])
+  })
+
   it('has nothing to say without a library', () => {
     expect(fitnessStatuses([], NONE)).toEqual(NO_FITNESS)
   })
