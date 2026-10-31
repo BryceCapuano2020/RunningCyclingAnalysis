@@ -11,6 +11,7 @@ import { accountDeleting, apiError, HttpError } from '../../errors.ts'
 import { ensureProfile } from '../../auth/accounts.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
 import { declaredLength, readExactBody } from '../../http.ts'
+import { encodingOf, gunzipCapped, type BodyEncoding } from '../../gunzip.ts'
 import {
   chargeDaily,
   acquireUploadSlot,
@@ -28,7 +29,10 @@ import { fileStorageUnavailable, findOwnedActivity, toRecord, type ActivityRow }
 interface Upload {
   row: ActivityRow
   userId: string
+  /** The bytes stored: the body's length, which is the file's gzipped size when the body is gzipped. */
   declared: number
+  /** How the body is encoded. A gzipped body is stored as it came, with its encoding named. */
+  encoding: BodyEncoding
   /**
    * This request's upload slot. It is the reservation token, so only this request gives the
    * reservation back.
@@ -186,7 +190,17 @@ async function readAndHash(c: Context<AppEnv>, upload: Upload): Promise<Uint8Arr
     await releaseReservation(db, upload)
     throw error
   }
-  if ((await sha256Hex(body)) !== upload.row.fileHash) {
+  let file = body
+  if (upload.encoding === 'gzip') {
+    try {
+      file = await gunzipCapped(body, MAX_FILE_BYTES)
+    } catch (error) {
+      await releaseReservation(db, upload)
+      throw error
+    }
+  }
+  // The hash is of the file itself, so a gzipped body is checked as it unzips.
+  if ((await sha256Hex(file)) !== upload.row.fileHash) {
     await releaseReservation(db, upload)
     throw new HttpError(422, 'hash_mismatch', 'File does not match the digest it was uploaded for')
   }
@@ -214,7 +228,10 @@ async function putOriginal(
   // Deleting the activity, disabling file retention or deleting the account releases a reservation
   // that a failed write left behind.
   await bucket.put(upload.key, body, {
-    httpMetadata: { contentType: 'application/octet-stream' },
+    httpMetadata: {
+      contentType: 'application/octet-stream',
+      ...(upload.encoding === 'gzip' ? { contentEncoding: 'gzip' } : {}),
+    },
     storageClass: 'Standard',
   })
 }
@@ -266,11 +283,19 @@ async function storeOriginalFile(
   row: ActivityRow,
   userId: string,
   declared: number,
+  encoding: BodyEncoding,
   slot: string,
 ): Promise<Response> {
   const bucket = c.env.FILES
   if (!bucket) throw fileStorageUnavailable()
-  const upload: Upload = { row, userId, declared, slot, key: activityFileKey(userId, row.id) }
+  const upload: Upload = {
+    row,
+    userId,
+    declared,
+    encoding,
+    slot,
+    key: activityFileKey(userId, row.id),
+  }
 
   const charges = await chargeUpload(c, userId, declared)
   await reserveStorage(c, upload, charges)
@@ -289,6 +314,7 @@ uploadRoutes.put('/:id/file', requireUser, async (c) => {
   // Do not reserve quota or create a default profile in deployments without file storage.
   if (!c.env.FILES) throw fileStorageUnavailable()
 
+  const encoding = encodingOf(c.req.raw)
   const declared = validateLength(c.req.raw)
   if (declared === undefined) {
     return c.json(apiError('length_required', 'Send the file with a Content-Length header'), 411)
@@ -316,7 +342,7 @@ uploadRoutes.put('/:id/file', requireUser, async (c) => {
   const slot = deps.randomUUID()
   await acquireUploadSlot(c.env.DB, userId, slot, deps.now())
   try {
-    return await storeOriginalFile(c, row, userId, declared, slot)
+    return await storeOriginalFile(c, row, userId, declared, encoding, slot)
   } finally {
     await releaseUploadSlot(c.env.DB, userId, slot)
   }

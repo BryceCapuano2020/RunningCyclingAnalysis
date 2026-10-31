@@ -29,6 +29,8 @@ fileRoutes.get('/:id/file', sameOriginReadGuard, requireUser, async (c) => {
   return new Response(object.body, {
     headers: {
       'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+      // A gzipped original is sent as it is stored: the browser unzips it, and the length is what was stored.
+      ...(object.httpMetadata?.contentEncoding === 'gzip' ? { 'content-encoding': 'gzip' } : {}),
       'content-length': String(object.size),
       'content-disposition': contentDisposition(row.fileName),
       'cache-control': 'private, no-store',

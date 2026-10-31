@@ -734,6 +734,30 @@ describe('uploadFile', () => {
     expect(record.fileSize).toBe(3)
   })
 
+  it('sends a file that gzips smaller gzipped, and says so', async () => {
+    const fetchMock = stubFetch(respond(200, { ...RECORD_WIRE, hasFile: true, fileSize: 10 }))
+    const bytes = new Uint8Array(4000).map((_, i) => i % 7)
+    await uploadFile('rec-1', bytes)
+
+    const { headers, init } = callOf(fetchMock)
+    expect(headers.get('Content-Encoding')).toBe('gzip')
+    const sent = init.body as Uint8Array
+    expect(sent.byteLength).toBeLessThan(bytes.byteLength)
+    const back = await new Response(
+      new Blob([sent as Uint8Array<ArrayBuffer>])
+        .stream()
+        .pipeThrough(new DecompressionStream('gzip')),
+    ).arrayBuffer()
+    expect(new Uint8Array(back)).toEqual(bytes)
+  })
+
+  it('sends a file that gzip does not shrink as it is', async () => {
+    const fetchMock = stubFetch(respond(200, { ...RECORD_WIRE, hasFile: true, fileSize: 1 }))
+    await uploadFile('rec-1', new Uint8Array([9]))
+
+    expect(callOf(fetchMock).headers.get('Content-Encoding')).toBeNull()
+  })
+
   it('throws the hash mismatch from the server', async () => {
     stubFetch(respond(422, { error: { code: 'hash_mismatch', message: 'Does not match' } }))
     await expect(uploadFile('rec-1', new Uint8Array([1]))).rejects.toMatchObject({
