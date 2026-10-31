@@ -741,6 +741,15 @@ describe('BalancePage with one sport', () => {
     expect(container.querySelector('.balance-meter')).toBeNull()
   })
 
+  it('asks for the year of birth and sex as the level’s need, not the balance’s', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    renderPage(makeResult({ activities: [run], comparison: { prior: [], calibrated: null } }), {
+      state: { library: [run] },
+    })
+    expect(screen.getByText('Your level needs your year of birth and sex.')).toBeInTheDocument()
+    expect(screen.queryByText(/The balance in points and levels needs/)).toBeNull()
+  })
+
   it('writes no level line for the one sport while its grade is missing', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const { container } = renderPage(

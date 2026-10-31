@@ -82,4 +82,22 @@ describe('the home page’s fitness', () => {
     renderHome(NO_FITNESS)
     expect(screen.queryByTestId('fitness-lack-line')).not.toBeInTheDocument()
   })
+
+  it('asks a treadmill-only runner for outdoor runs, as fitness leaves treadmill runs out and heart rate is not what is missing', () => {
+    renderHome(NO_FITNESS, [
+      makeActivity({ id: 'run-1', sport: 'run', indoor: true }),
+      makeActivity({ id: 'run-2', sport: 'run', indoor: true }),
+    ])
+    const line = screen.getByTestId('fitness-lack-line')
+    expect(line).toHaveTextContent(/needs outdoor runs/)
+    expect(line).not.toHaveTextContent(/needs heart rate/)
+  })
+
+  it('still asks for heart rate when some runs were outdoors', () => {
+    renderHome(NO_FITNESS, [
+      makeActivity({ id: 'run-1', sport: 'run', indoor: true }),
+      makeActivity({ id: 'run-2', sport: 'run' }),
+    ])
+    expect(screen.getByTestId('fitness-lack-line')).toHaveTextContent(/needs heart rate/)
+  })
 })

@@ -62,6 +62,7 @@ export function BalanceTiles({
           grade={grades[sport]}
           weighted={weighted}
           effort={effortCheck}
+          needInHeadline={soleSport !== null}
         />
       ) : soleSport !== null ? null : (
         <EmptySportCard

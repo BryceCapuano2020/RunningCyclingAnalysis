@@ -4,7 +4,8 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { fitnessViews } from '../fitnessModel'
-import { FITNESS_LACK_LINE } from '../fitnessWords'
+import { FITNESS_LACK_INDOOR_LINE, FITNESS_LACK_LINE } from '../fitnessWords'
+import { indoorCount } from '../indoorCopy'
 import type { FitnessView } from '../fitnessModel'
 import { FitnessCard } from './FitnessCard'
 import './FitnessCard.css'
@@ -63,9 +64,15 @@ export function FitnessSection({
   const cards = views.filter((view) => view !== waitingRide)
   if (cards.length === 0 && waitingRide === undefined) {
     // A line, not a card: it says what would produce a status, and is gone once there is one.
-    return soleSport === null ? null : (
+    if (soleSport === null) return null
+    // Every activity of the sport indoors: heart rate is not what is missing.
+    const { indoor, total } = indoorCount(library, soleSport)
+    const line =
+      (indoor === total ? FITNESS_LACK_INDOOR_LINE[soleSport] : undefined) ??
+      FITNESS_LACK_LINE[soleSport]
+    return (
       <p className="fitness-section__line" data-testid="fitness-lack-line">
-        {FITNESS_LACK_LINE[soleSport]}
+        {line}
       </p>
     )
   }

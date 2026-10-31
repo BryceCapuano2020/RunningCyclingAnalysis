@@ -496,6 +496,28 @@ describe('BalanceHero without a comparison yet', () => {
     expect(screen.queryByText(/Add a ride/)).toBeNull()
   })
 
+  it('puts what a withheld threshold still shows ahead of what it needs, for a library of one sport', () => {
+    const run = makeActivity({ sport: 'run' })
+    render(
+      <Hero
+        {...ALL_TIME}
+        library={[run]}
+        soleFloor="At least 4:52 /km, from one effort."
+        result={makeResult({
+          activities: [run],
+          runCp: null,
+          runCpRefusal: 'shape',
+          comparison: { prior: [], calibrated: null },
+        })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(
+      screen.getByText(/^At least 4:52 \/km, from one effort\. Needs a harder effort between/),
+    ).toBeInTheDocument()
+  })
+
   it('leaves the file chooser to the empty sport card, so the answer offers none', () => {
     const run = makeActivity({ sport: 'run' })
     render(
