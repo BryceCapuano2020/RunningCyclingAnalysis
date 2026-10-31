@@ -27,9 +27,13 @@ export function atOrBelowCriticalPower(points: HrPoint[], cp: CriticalPowerFit |
  */
 export const MATCH_SLACK_DAYS = 56
 
+/** Activities of each sport the shared stretch has to hold before a ratio is read from it: fewer is one day's weather. */
+export const MIN_MATCHED_ACTIVITIES = 3
+
 /**
- * The days both sports were done in: each sport's first to last day (by the activity each point is from), widened by
- * MATCH_SLACK_DAYS each side, and the stretch the two share. Null when the sports were done too far apart to share one.
+ * The days both sports were done in: each sport's first to last day (by the activity each point is from, and only the
+ * points the caller passes, which are those at or below the sport's critical power), widened by MATCH_SLACK_DAYS each
+ * side, and the stretch the two share. Null when the sports were done too far apart to share one.
  */
 export function matchedSpan(
   run: readonly HrPoint[],
@@ -65,7 +69,7 @@ export function matchedSpan(
  * The slopes and their points are every block, but the ratio of the two (`kappa`) and its error are read from the
  * blocks of the days both sports were done in (`matchedSpan`): a sport trained for years before the other
  * began would otherwise be compared with its own different state, not with the other sport. With no day in
- * common there is no ratio.
+ * common, or fewer than MIN_MATCHED_ACTIVITIES activities of either sport in it, there is no ratio.
  */
 export function heartRateCrossCheck(
   trusted: ActivityDigest[],
@@ -87,6 +91,13 @@ export function heartRateCrossCheck(
   }
   const runMatched = run.filter(inSpan)
   const rideMatched = ride.filter(inSpan)
+  const activities = (points: HrPoint[]) => new Set(points.map((point) => point.activityId)).size
+  if (
+    activities(runMatched) < MIN_MATCHED_ACTIVITIES ||
+    activities(rideMatched) < MIN_MATCHED_ACTIVITIES
+  ) {
+    return { ...whole, kappa: null, lnKappaSe: null }
+  }
   if (runMatched.length === run.length && rideMatched.length === ride.length) return whole
   const matched = crossCheck(runMatched, rideMatched)
   return { ...whole, kappa: matched.kappa, lnKappaSe: matched.lnKappaSe }

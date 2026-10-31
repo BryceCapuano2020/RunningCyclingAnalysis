@@ -1356,7 +1356,7 @@ option), so one ride is worth the same run pace whichever period is shown; a per
 The ratio (`kappa`) and its error are read from the blocks of the days both sports were done in, widened by eight weeks
 each side (`matchedSpan`, `MATCH_SLACK_DAYS`): a sport trained for months before the other began would otherwise be set
 against its own earlier state, not against the other sport. The slopes and their points stay every block. Sports done more than
-sixteen weeks apart have no ratio. `balanceSensitivity.test.ts` pins how far the Balance verdict moves with the period chip and
+sixteen weeks apart, or with fewer than three activities of either sport in the shared stretch, have no ratio. `balanceSensitivity.test.ts` pins how far the Balance verdict moves with the period chip and
 five kilograms of typed body mass, so a flip of the lean is a deliberate change.
 The grade chart's extra durations and the level target use it too, so the ride's grade and the "Ride X W" target
 share one conversion. Because it is the library's, adding files can shift older equivalents (the calibration

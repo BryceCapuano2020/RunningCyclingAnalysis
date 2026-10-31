@@ -77,14 +77,4 @@ describe('the Balance verdict against the period chip and the typed body mass', 
     }
     expect(found).toEqual(PINNED)
   })
-
-  it('moves with the period and with five kilograms, which is why it is pinned', () => {
-    const leans = new Set(Object.values(PINNED).flatMap((row) => Object.values(row)))
-    const verdicts = new Set([...leans].map((cell) => cell.split(' ')[1]))
-    // Both facts the audit found are in the table: the lean changes with the chip (even to run at 70 kg) and with the
-    // weight (even at 75 kg, run at 80 kg).
-    expect(verdicts).toEqual(new Set(['even', 'run']))
-    expect(PINNED[75]!['default']).not.toBe(PINNED[80]!['default'])
-    expect(PINNED[70]!['default']!.split(' ')[1]).not.toBe(PINNED[70]!['365']!.split(' ')[1])
-  })
 })

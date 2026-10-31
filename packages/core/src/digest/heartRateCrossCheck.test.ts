@@ -89,6 +89,19 @@ describe('heartRateCrossCheck over a matched window', () => {
     expect(found.kappa).toBeNull()
     expect(found.lnKappaSe).toBeNull()
   })
+
+  it('gives no ratio from fewer than three activities of a sport in the shared stretch', () => {
+    const runs = [0, 10, 20, 30, 40].map((at) => run(`r-${at}`, at, 4))
+    // One ride thirty days after five runs: a ratio from one ride is that day's weather.
+    expect(kappaOf([...runs, ride('one', 70, 0.3)]).kappa).toBeNull()
+    expect(kappaOf([...runs, ride('one', 70, 0.3), ride('two', 72, 0.3)]).kappa).toBeNull()
+    // Exactly three of each is enough, and the same with the runs thinned to three.
+    const nearRuns = [50, 52, 54].map((at) => run(`n-${at}`, at, 4))
+    const three = [...nearRuns, ...[60, 62, 64].map((at) => ride(`ride-${at}`, at, 0.3))]
+    expect(kappaOf(three).kappa).not.toBeNull()
+    expect(kappaOf(three).lnKappaSe).not.toBeNull()
+    expect(kappaOf(three.slice(1)).kappa).toBeNull()
+  })
 })
 
 describe('matchedSpan', () => {
