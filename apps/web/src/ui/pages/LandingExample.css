@@ -5,7 +5,7 @@
 .landing-example__title {
   margin: 0;
   font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
+  /* A display size with no type token; see docs/design/system.md, Type. */
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1.05;
@@ -38,7 +38,7 @@
   gap: var(--space-3);
   margin: 0;
   font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
+  /* A display size with no type token; see docs/design/system.md, Type. */
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1.05;

@@ -274,7 +274,7 @@ describe('a sport page with sections that have nothing to show', () => {
       .getAllByRole('listitem')
       .map((item) => item.textContent)
     expect(items).toEqual([
-      'Race predictions: needs a best of a mile or more, or runs with heart rate.',
+      'Race predictions: needs a best of a mile or more, or 2 outdoor runs with a heart rate that can be trusted.',
       'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
       expect.stringMatching(
         /^Same heart rate, week by week: needs at least \d+ steady 5-minute stretches/,

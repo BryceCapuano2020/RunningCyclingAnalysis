@@ -24,6 +24,8 @@ export interface BalanceTilesProps {
   weighted: boolean
   period: Period
   onAddFiles: (files: File[]) => void
+  /** The one sport the library holds: the sport it lacks is invited at the page's foot, not given a card here. */
+  soleSport?: Sport | null
   /** A sport whose runs are all at walking pace and left out: its prompt says so and offers to count them. */
   leftOut?: LeftOutRuns
 }
@@ -42,6 +44,7 @@ export function BalanceTiles({
   weighted,
   period,
   onAddFiles,
+  soleSport = null,
   leftOut,
 }: BalanceTilesProps) {
   const both = SPORT_ORDER.every((sport) => countSport(result.activities, sport) > 0)
@@ -59,8 +62,9 @@ export function BalanceTiles({
           grade={grades[sport]}
           weighted={weighted}
           effort={effortCheck}
+          needInHeadline={soleSport !== null}
         />
-      ) : (
+      ) : soleSport !== null ? null : (
         <EmptySportCard
           key={sport}
           sport={sport}
@@ -82,7 +86,7 @@ export function BalanceTiles({
           />,
         ]
       : []),
-  ]
+  ].filter((tile) => tile !== null)
   return (
     <section
       className="balance-tiles"
