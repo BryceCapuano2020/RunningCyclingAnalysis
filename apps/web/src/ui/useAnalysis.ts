@@ -6,6 +6,7 @@ import type { WorkerRequest } from '../worker/protocol'
 import type { AnalysisController } from './analysis/controller'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { SAVES_PAUSED, STILL_WORKING, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
+import { useAdoptionActions } from './analysis/adoptionActions'
 import { useImportActions } from './analysis/importActions'
 import { useImportManifest } from './analysis/importManifestHook'
 import type { ManifestScope } from './importManifest'
@@ -207,6 +208,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setErrorNotice,
     latestBaseline: () => baselineOf(reportedRef.current),
   })
+  const adoptionActions = useAdoptionActions({ transport, accountRef, settingsRef })
   const handleAccountIssue = useAccountIssue({
     accountRef,
     loadLibrary: libraryActions.loadLibrary,
@@ -239,6 +241,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
    * waiting for its reply compares with it, and the next import replaces it.
    */
   const dismissSummary = useCallback(() => setImportChange(null), [setImportChange])
+  const { setAdoption } = library
+  const dismissAdoption = useCallback(() => setAdoption(null), [setAdoption])
 
   // A clear keeps the chosen period: the session holds it, so nothing else is sent.
   const clearSession = useCallback(
@@ -370,6 +374,11 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
     outbox: library.outbox,
+    deviceOffer: library.deviceOffer,
+    adoption: library.adoption,
+    adoptDevice: adoptionActions.adoptDevice,
+    forgetDeviceLibrary: adoptionActions.forgetDeviceLibrary,
+    dismissAdoption,
     importOutcome: imports.importOutcome,
     incompleteImport: manifest.incomplete,
     acceptIncompleteImport: manifest.accept,

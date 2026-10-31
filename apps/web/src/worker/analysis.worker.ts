@@ -8,12 +8,14 @@ import type { Activity } from '@rca/core/types'
 import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
+import { adoptDevice, followUpAdopted, standingOf } from './adoption'
 import { deviceKeeper } from './deviceKeeper'
 import { clearOutbox, openOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
 import { resumeOutbox } from './outboxResume'
+import { asWriter } from './updaterLock'
 import { resumeAsWriter } from './writerResume'
-import type { Resume } from './outboxResume'
+import type { Writing } from './writerResume'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
@@ -63,9 +65,10 @@ function reportLibrary() {
   })
 }
 
+const deviceLibrary = openDeviceLibrary()
 const device = deviceActions(
   session,
-  openDeviceLibrary(),
+  deviceLibrary,
   post,
   async (activityId) => workbench.remove({ kind: 'device' }, activityId),
   () => workbench.watchDevice(),
@@ -106,7 +109,11 @@ const reportDetail = detailReporter(workbench, post, () =>
 )
 
 /** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
-let resume: Resume | null = null
+let resume: Writing | null = null
+/** The recordings kept in this browser for an activity that the account has now. */
+const dropKeptTraces = async (digestId: string): Promise<void> => {
+  await workbench.remove({ kind: 'device' }, digestId)
+}
 function finishLoad(state: SessionState, userId: string): SessionState {
   // In the tab that holds the account's writer lock only: with two tabs open, one sends.
   resume = resumeAsWriter(userId, () =>
@@ -117,9 +124,37 @@ function finishLoad(state: SessionState, userId: string): SessionState {
       sending,
       // Apart from any request: stamped with one, the page would drop it as late.
       post: (message) => self.postMessage(message),
+      // Saves of kept activities that an Add began and a stop or a reload cut short finish here: the kept copy goes too.
+      settled: (row, outcome) =>
+        followUpAdopted(
+          { library: deviceLibrary, savedRecords, adopted: dropKeptTraces },
+          row,
+          outcome,
+        ),
     }),
   )
+  void offerDevice(userId)
   return state
+}
+
+/** Tells the page what the library kept in this browser holds for the account, when it holds something. */
+async function offerDevice(userId: string): Promise<void> {
+  const standing = await standingOf(deviceLibrary, savedRecords)
+  if (standing === null) return
+  const { adoptable, again, held } = standing.offer
+  const current = view.activeScope
+  // The account may have changed while the kept library was read.
+  if (current?.kind !== 'account' || current.userId !== userId) return
+  if (adoptable + again + held > 0)
+    self.postMessage({ type: 'deviceOffer', adoptable, again, held } satisfies WorkerResponse)
+}
+
+/** After the kept library changed under a signed-in page: what it holds now, and what is still offered. */
+async function reportDeviceLeft(): Promise<void> {
+  const standing = await standingOf(deviceLibrary, savedRecords)
+  if (standing === null) return
+  post({ type: 'deviceHolds', holds: standing.holds })
+  post({ type: 'deviceOffer', ...standing.offer })
 }
 
 /** The kept library was emptied under an import: the page is told, and starts from what is kept now. */
@@ -175,6 +210,42 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         ),
         request.userId,
       )
+    case 'adoptDevice': {
+      if (view.activeScope?.kind !== 'account' || view.activeScope.userId !== request.userId)
+        throw new Error('Reload your library before adding what this browser kept.')
+      // Saves left from an earlier visit finish through the same outbox, so they go first.
+      resume?.cancel()
+      await resume?.finished
+      resume = null
+      // In the tab that holds the account's writer lock only, as the resume is: two tabs never send the same rows.
+      const added = await asWriter(request.userId, () =>
+        adoptDevice({
+          userId: request.userId,
+          library: deviceLibrary,
+          outbox: openOutbox(request.userId),
+          savedRecords,
+          sending,
+          // The page is busy while it runs; the outbox's own progress line is about an import, not this.
+          post: () => undefined,
+          adopted: dropKeptTraces,
+        }),
+      )
+      if (!added.writer)
+        throw new Error('Another tab is saving to this account. Add these when it has finished.')
+      const result = added.value
+      const { saved, conflicts, failed, again, held } = result
+      post({ type: 'adoption', saved, conflicts, failed, again, held })
+      if (result.stopped !== null) post({ type: 'accountIssue', issue: result.stopped })
+      await reportDeviceLeft()
+      // What was added is in the account, not yet in the session: read the library again.
+      return loadServer(libraryContext, request.settings, request.userId, undefined)
+    }
+    case 'forgetDeviceLibrary':
+      await deviceLibrary.clear()
+      await workbench.clearScope({ kind: 'device' })
+      post({ type: 'deviceHolds', holds: false })
+      post({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
+      return session.setSettings(request.settings)
     case 'rebuildStale':
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')

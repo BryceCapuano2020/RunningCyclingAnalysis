@@ -93,10 +93,12 @@ vi.mock('./outbox', async (importOriginal) => {
           digest,
           fileName,
           fileHash,
+          fromDevice,
         }: {
           digest: Parameters<typeof serializeDigest>[0]
           fileName: string
           fileHash: string
+          fromDevice?: boolean
         }) => {
           const key = `${digest.sport}-${Math.round(digest.startMs / 1000)}`
           mine.set(key, {
@@ -109,6 +111,7 @@ vi.mock('./outbox', async (importOriginal) => {
             fileName,
             fileHash,
             attempts: 0,
+            ...(fromDevice === true ? { fromDevice } : {}),
           })
         },
         done: async (key: string, digestId?: string) => {
@@ -1630,6 +1633,7 @@ function refusingLibrary(): DeviceLibrary {
     route: async () => null,
     put: refused,
     backfillFile: refused,
+    removeIfDigest: refused,
     // Storage the browser does not offer holds nothing, and so has no epoch to move.
     epoch: async () => 0,
     remove: refused,
@@ -3082,6 +3086,174 @@ describe('the saves an earlier visit left in the outbox', () => {
     })
 
     expect(outboxRows.get(USER_ID)?.size).toBe(1)
+  })
+})
+
+describe('what the browser kept before sign-in, offered to the account', () => {
+  const FILE = { fileName: 'run.fit', fileHash: 'a'.repeat(64) }
+  const SECOND_DIGEST = digestActivity(secondSampleActivity)
+
+  async function keptOne(digest: ActivityDigest, file: typeof FILE | null = FILE) {
+    if (kept.library === null) throw new Error('the worker did not open the device library')
+    await kept.library.put(workoutKeyOf(digest), digest, null, file)
+  }
+
+  it('tells the page what the kept library holds, apart from the request, once the account loads', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await keptOne(SECOND_DIGEST, null)
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual({ type: 'deviceOffer', adoptable: 1, again: 1, held: 0 }),
+    )
+    expect(posted.filter((m) => m.type === 'deviceOffer').every((m) => !('during' in m))).toBe(true)
+  })
+
+  it('says nothing when the kept library is empty', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(posted.some((m) => m.type === 'deviceOffer')).toBe(false)
+  })
+
+  it('adds the kept activities to the account, removes them from the kept library and reads the library again', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await keptOne(SECOND_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    // The account lists what was added once it is read again.
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST), recordFor(SECOND_DIGEST)])
+
+    const messages = await send({ type: 'adoptDevice', userId: USER_ID, settings: SETTINGS })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(mocked.createActivity).toHaveBeenCalledWith(
+      SAMPLE_DIGEST,
+      'run.fit',
+      'a'.repeat(64),
+      USER_ID,
+    )
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'adoption',
+        saved: 2,
+        conflicts: 0,
+        failed: 0,
+        again: 0,
+        held: 0,
+      }),
+    )
+    expect(await kept.library?.all()).toEqual([])
+    expect(messages).toContainEqual({ type: 'deviceHolds', holds: false })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 2 } })
+    expect(posted.filter((m) => m.type === 'outbox')).toEqual([])
+    expect(outboxRows.get(USER_ID)?.size).toBe(0)
+  })
+
+  it('finishes an Add that a reload cut short: the saved activity leaves the kept library too', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await keptOne(SECOND_DIGEST)
+    // An Add queued both and stopped before sending: the rows wait in the outbox, marked as kept activities.
+    const mine = new Map<string, unknown>()
+    outboxRows.set(USER_ID, mine)
+    for (const digest of [SAMPLE_DIGEST, SECOND_DIGEST]) {
+      const key = workoutKeyOf(digest)
+      mine.set(key, {
+        id: `${USER_ID}|${key}`,
+        userId: USER_ID,
+        key,
+        digestId: digest.id,
+        seq: mine.size,
+        digestJson: serializeDigest(digest),
+        fileName: 'run.fit',
+        fileHash: 'a'.repeat(64),
+        attempts: 0,
+        fromDevice: true,
+      })
+    }
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
+    )
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(await kept.library?.all()).toEqual([])
+  })
+
+  it('leaves the kept copy of an activity an ordinary import saved alone', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect((await kept.library?.all())?.length).toBe(1)
+  })
+
+  it('adds nothing from a tab whose account another tab is already writing for', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (_name: string, _options: object, callback: (lock: null) => unknown) =>
+          callback(null),
+      },
+    })
+
+    const messages = await send({ type: 'adoptDevice', userId: USER_ID, settings: SETTINGS })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'error',
+      message: expect.stringMatching(/Another tab/),
+    })
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect((await kept.library?.all())?.length).toBe(1)
+  })
+
+  it('refuses when the account on screen is not the one asked for', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({ type: 'adoptDevice', userId: 'someone-else', settings: SETTINGS })
+
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect((await kept.library?.all())?.length).toBe(1)
+  })
+
+  it('removes the kept library from this browser and leaves the account on screen', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SECOND_DIGEST)])
+    const { send } = await startWorker()
+    await keptOne(SAMPLE_DIGEST)
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({ type: 'forgetDeviceLibrary', settings: SETTINGS })
+
+    expect(await kept.library?.all()).toEqual([])
+    expect(messages).toContainEqual({ type: 'deviceHolds', holds: false })
+    expect(messages).toContainEqual({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+    expect(mocked.deleteActivity).not.toHaveBeenCalled()
   })
 })
 

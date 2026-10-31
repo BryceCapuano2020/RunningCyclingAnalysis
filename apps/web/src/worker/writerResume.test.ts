@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Resume } from './outboxResume'
+import type { Writing } from './writerResume'
 import type { WriterLocks } from './updaterLock'
 import { resumeAsWriter } from './writerResume'
 
@@ -22,7 +22,7 @@ function fakeLocks(held = false): WriterLocks & { held: Set<string> } {
 
 function resumeOf(finish: Promise<void> = Promise.resolve()) {
   const cancel = vi.fn<() => void>()
-  const resume: Resume = { cancel, finished: finish as Resume['finished'] }
+  const resume: Writing = { cancel, finished: finish }
   return Object.assign(resume, { cancel })
 }
 

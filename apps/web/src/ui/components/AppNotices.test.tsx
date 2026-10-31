@@ -592,6 +592,39 @@ describe('AppNotices alerts and actions', () => {
   })
 })
 
+describe('what the browser kept before sign-in', () => {
+  const ACCOUNT = { userId: 'u1', email: 'ada@example.com' }
+  const OFFER = { adoptable: 2, again: 0, held: 0 }
+
+  beforeEach(() => localStorage.clear())
+
+  it('is offered to the signed-in account, which it names', () => {
+    render(
+      <AppNotices
+        {...noticesProps({ deviceOffer: OFFER }, { signedIn: true, accountUser: ACCOUNT })}
+      />,
+    )
+    expect(
+      screen.getByRole('region', { name: 'Activities kept in this browser' }),
+    ).toHaveTextContent('Add them to ada@example.com?')
+  })
+
+  it('is not offered signed out', () => {
+    render(<AppNotices {...noticesProps({ deviceOffer: OFFER })} />)
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
+  it('says how adding them ended in the live region, once, and the visible line has the button', () => {
+    const adoption = { saved: 2, conflicts: 0, failed: 0, again: 0, held: 0 }
+    render(<AppNotices {...noticesProps({ adoption }, { signedIn: true, accountUser: ACCOUNT })} />)
+    const [live] = statusRegions()
+    expect(
+      within(live as HTMLElement).getByText('Added 2 activities to your account.'),
+    ).toHaveClass('sr-only')
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument()
+  })
+})
+
 /** A saved activity, for the library count. */
 function makeSaved() {
   return {

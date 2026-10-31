@@ -293,6 +293,11 @@ export function App() {
             moved={moved}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
+            accountUser={
+              account.me === null
+                ? undefined
+                : { userId: account.me.user.id, email: account.me.user.email }
+            }
             accountsUnavailable={!accountsAvailable}
             accountError={account.error}
             runThenFocus={runThenFocus}

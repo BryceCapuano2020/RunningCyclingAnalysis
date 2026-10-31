@@ -153,6 +153,26 @@ export const EMPTY_SESSION: SessionState = {
   records: new Map(),
 }
 
+/** What this browser kept from before sign-in that the account could take, as the worker counted it. */
+export interface DeviceOfferStatus {
+  /** Can be added: the file's hash is kept and the analysis is current. */
+  adoptable: number
+  /** Need their files added again (no hash kept, or an older analysis). */
+  again: number
+  /** The account holds these workouts already. */
+  held: number
+}
+
+/** How adding those activities to the account ended. `failed` and `conflicts` stay kept in this browser. */
+export interface AdoptionOutcome {
+  saved: number
+  /** The account holds another file for the same workout. */
+  conflicts: number
+  failed: number
+  again: number
+  held: number
+}
+
 /** How the saves an earlier visit left behind are going, and how they ended. */
 export interface OutboxStatus {
   /** Still waiting to be saved. */
