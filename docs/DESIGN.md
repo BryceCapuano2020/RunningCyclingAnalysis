@@ -340,7 +340,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
     has no row and both lines are in the list. The copy never says limiter, weak, strength, "holding you back" or "ahead of".
   - **A section with nothing to show has no heading.** Its reason is one line of a muted list at the end of the
     page, headed "Not enough yet", before the footnote: "Race predictions: needs a best of a mile or more, or
-    runs with heart rate." Each section names its need in the plain words it would have used under its own
+    2 outdoor runs with a heart rate that can be trusted." Each section names its need in the plain words it would have used under its own
     heading, lower-cased after the section's name, so a new athlete sees no dead headings and no jargon.
     The list is left out when every section has content, and on a page with no activities.
   - **A threshold the fit refused, shown as its floor, is "Threshold pace" with the chip At least** (or "power"),
@@ -945,9 +945,21 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - **A period's dates always carry the year**, as in "12 May – 3 Aug 2025" or "3 Aug 2024 – 2 Nov
   2025", so a span reads without the current date. A single day is written once, as "14 Jun 2025".
   The period control, the Balance caption and the card's period line show the same dates.
-- **Empty states name the period.** When a sport has nothing in the period on screen, the page says which dates it is missing it between and how many the library holds in All time, with one tap to show All time: "No rides between 12 May and 3 Aug 2025. You have 14 rides in All time." The same sentence heads the empty sport on Balance and the sport page, so the wording is one. A sport the files do not have says so, shows no period control, and offers the file chooser as a secondary button. A sport the files have, with none in the period, offers **Show all time** as its one button. The empty sport is a short prompt rather than a card, so it takes little room beside the sport that has activities. An activity list with nothing to show says the same way, with its dates. Empty sections and links to empty pages are left out, so a one-sport file shows no comparison slots. The one-sport answer says "Your run results are below."
-  (or "Your ride results are below."), and the empty sport card beside it offers **Add rides** (or **Add runs**)
-  as the secondary file chooser. The answer itself offers none, so there is one.
+- **Empty states name the period.** When a sport has nothing in the period on screen, the page says which dates it is missing it between and how many the library holds in All time, with one tap to show All time: "No rides between 12 May and 3 Aug 2025. You have 14 rides in All time." The same sentence heads the empty sport on Balance and the sport page, so the wording is one. A sport the files do not have says so, shows no period control, and offers the file chooser as a secondary button. A sport the files have, with none in the period, offers **Show all time** as its one button. The empty sport is a short prompt rather than a card, so it takes little room beside the sport that has activities. An activity list with nothing to show says the same way, with its dates. Empty sections and links to empty pages are left out, so a one-sport file shows no comparison slots.
+  **A library of one sport is that sport's home, never a request.** The headline is the sport's level when it is graded, else "Your running
+  so far" (or "Your cycling so far"); under it only what the threshold still needs, named (and nothing when it has one). No meter,
+  no cross-sport tiles and no empty card are drawn. One row at the foot, "Add rides to compare them with your running.", holds
+  **Add rides** (or **Add runs**) as the secondary file chooser and the guides. With no fitness status, one quiet line above the
+  headline says what would give one ("Fitness at the same effort needs heart rate: add runs recorded with a strap or watch.",
+  or "needs power" for rides), and is gone once there is a card.
+- **Indoor activities are counted, not hidden.** A treadmill run keeps its time, distance and heart rate but its pace holds no best
+  (`effortsCount`, one rule in core). A runner whose only runs are on a treadmill reads "All 33 of your runs were on a treadmill. Their
+  time, distance and heart rate count; their pace is not used for bests or thresholds, because a belt’s speed is not a distance
+  covered. Add outdoor runs of 3 minutes or more to see them." in the threshold's place, not "Needs efforts". A mixed library says the
+  split once, under the sport page's answer: "20 of your 33 runs were on a treadmill; their pace is not used for bests or thresholds."
+  A trainer ride's power comes from its meter, so it counts like an outdoor ride's and is only disclosed: "6 of your 40 rides were
+  indoors; their power counts like any other." Race predictions name the heart-rate route as it is: 2 outdoor runs with a heart
+  rate that can be trusted (indoor pace is left out of the VO2max estimate).
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
   ride would let them be compared." beneath it. When a sport has fewer than three analysed activities in the

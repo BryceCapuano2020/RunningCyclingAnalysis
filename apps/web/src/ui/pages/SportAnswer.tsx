@@ -4,6 +4,7 @@ import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightNote } from '../components/WeightNote'
 import { sportGrade } from '../grades'
+import { indoorSplitLine } from '../indoorCopy'
 import { headlineEffort, sportRecords } from '../records'
 import { LevelPanel } from './LevelPanel'
 import type { SportPageProps } from './sportPageProps'
@@ -78,21 +79,30 @@ export function SportAnswer(props: SportAnswerProps) {
   if (count === 0) return <EmptySport {...props} />
   if (held) return <WeightNote />
   const headline = profile === null ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
+  // The split between indoor and outdoor, said once, under the answer it qualifies.
+  const split = indoorSplitLine(result.activities, sport)
   return (
-    <div className="band sport-hero" data-sport={sport}>
-      <ThresholdPanel
-        sport={sport}
-        result={result}
-        massKg={massKg}
-        units={units}
-        rangeDays={rangeDays}
-      />
-      <LevelPanel
-        sport={sport}
-        outcome={headline}
-        effort={headlineEffort(sport, sportRecords(result, sport, massKg, units))}
-        missingAge={missingAge}
-      />
-    </div>
+    <>
+      <div className="band sport-hero" data-sport={sport}>
+        <ThresholdPanel
+          sport={sport}
+          result={result}
+          massKg={massKg}
+          units={units}
+          rangeDays={rangeDays}
+        />
+        <LevelPanel
+          sport={sport}
+          outcome={headline}
+          effort={headlineEffort(sport, sportRecords(result, sport, massKg, units))}
+          missingAge={missingAge}
+        />
+      </div>
+      {split === null ? null : (
+        <p className="muted sport-hero__source" data-testid="indoor-split">
+          {split}
+        </p>
+      )}
+    </>
   )
 }
