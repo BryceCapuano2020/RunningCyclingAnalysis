@@ -21,6 +21,17 @@ test('dependabot checks npm workspaces and actions weekly, grouped, with a small
   assert.match(blocks[0], /directories:\s*\n\s+- \/\n\s+- \/apps\/\*\n\s+- \/packages\/\*/)
 })
 
+test('the Node types stay on the Node major the project runs, and dependabot never bumps them past it', async () => {
+  const nvmrc = (await read('.nvmrc')).trim()
+  const pkg = JSON.parse(await read('package.json'))
+  assert.equal(/^\^?(\d+)\./.exec(pkg.devDependencies['@types/node'])?.[1], nvmrc.split('.')[0])
+  const npm = (await read('.github/dependabot.yml')).split(/^ {2}- package-ecosystem: /m)[1]
+  assert.match(
+    npm,
+    /ignore:\n(?:\s+#[^\n]*\n)*\s+- dependency-name: '@types\/node'\n\s+update-types:\n\s+- version-update:semver-major/,
+  )
+})
+
 test('local audit evidence is git-ignored, so one git add -A cannot publish it', async () => {
   assert.match(await read('.gitignore'), /^docs\/audits\/$/m)
 })

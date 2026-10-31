@@ -36,15 +36,8 @@ const PENDING_CH_CAPS = [
   'ChartHeadings.css',
 ]
 
-/** Sheets that still read --shadow: cards until the de-box PR, and Balance and chart sheets waiting on other work. */
-const SHADOW_HOLDERS = [
-  'BalanceChanges.css',
-  'BalancePage.css',
-  'ChartFrame.css',
-  'FitnessCard.css',
-  'SportHero.css',
-  'StatTile.css',
-]
+/** Sheets that still read --shadow: the Balance sheets and the tile, which wait on the Balance de-duplication. */
+const SHADOW_HOLDERS = ['BalanceChanges.css', 'BalancePage.css', 'StatTile.css']
 
 describe('the layout tokens', () => {
   it('give one shell width, one reading measure, two gaps and the radius and shadow names', () => {
@@ -91,8 +84,23 @@ describe('the layout tokens', () => {
     const holders = sheets
       .filter(({ css }) => css.includes('var(--shadow)'))
       .map(({ path }) => path.split('/').pop())
-    // Cards still lift until the de-box PR, and the Balance and chart sheets wait on other work.
+    // Sport pages and the fitness card are bands; only the Balance sheets still lift.
     expect(holders.sort()).toEqual([...SHADOW_HOLDERS].sort())
+  })
+
+  it('draw a band as a 3:1 rule across the top, with no box, and let each section reuse it', () => {
+    const band = ruleBody(sheet('components.css'), '.band')
+    expect(band).toMatch(/border-top:\s*2px solid var\(--divider\)/)
+    expect(band).not.toMatch(/box-shadow|border-radius|background/)
+    // The hero and the fitness card carry the band's class, so their own rules add no edge.
+    for (const [name, selector] of [
+      ['SportHero.css', '.sport-hero'],
+      ['FitnessCard.css', '.fitness-card'],
+    ] as const) {
+      expect(ruleBody(sheet(name), selector), name).not.toMatch(
+        /box-shadow|border-radius|background|border-top/,
+      )
+    }
   })
 
   it('send the raw corner radii through the tokens, and let the count only fall', () => {

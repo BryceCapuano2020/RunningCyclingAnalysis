@@ -42,6 +42,9 @@ const KEYS: Record<keyof ActivityDigest, true> = {
   distributions: true,
   durability: true,
   drift: true,
+  temperature: true,
+  athleteType: true,
+  localDayShift: true,
 }
 
 /** A run with every optional field set, to a value that is valid for it. */
@@ -63,6 +66,9 @@ function maximal(): Record<string, unknown> {
     walkingPace: true,
     durability: [{ afterS: 3600, durationS: 300, value: 3.2 }],
     drift: { firstRatio: 0.021, secondRatio: 0.02, durationS: 1800 },
+    temperature: { c: 14.5, coverage: 0.9 },
+    athleteType: 'hike',
+    localDayShift: 1,
   }
 }
 

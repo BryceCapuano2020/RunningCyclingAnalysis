@@ -76,7 +76,10 @@ const TOPIC_LIST = [
       `Efficiency varies between people by about ${spreadPercent(PRIORS.grossEfficiency)}%, and ` +
       `running economy by about ${spreadPercent(PRIORS.runEconomyScale)}%. Those spreads are the ` +
       'model’s assumptions behind the range. Two other spreads are not that range. A threshold’s ' +
-      '“fit spread” is one standard error of the fit either side of the threshold; it shows how ' +
+      '“fit spread” runs down by one standard error of the fit and up by an allowance for how hard the ' +
+      'effort behind it was: a best that was not quite all-out puts the fit under the truth, so the spread ' +
+      'reaches further above the threshold than below it, and further the less clearly hard the effort was. ' +
+      'The allowance is calibrated on simulated athletes, not measured on people. The spread shows how ' +
       'loosely the fit was pinned down, not where your capability lies. A race prediction’s ' +
       '“assumed spread” is a typical prediction error for that distance: the marathon’s comes from ' +
       'a published validation, and the shorter races’ are a judgement, scaled down with distance.',
@@ -113,7 +116,11 @@ const TOPIC_LIST = [
       'independent measure of efficiency. Each sport’s best efforts are judged against a ' +
       'reference maximum, in beats per minute (bpm), set from the highest sustained heart rate that several separate days ' +
       'reached in the last three years, so one stray reading sets nothing. A cycling maximum usually runs 5 to 7 bpm lower than a running one, so the cycling ' +
-      'reference allows for that.',
+      'reference allows for that. A reference counts as a maximum only if it could be one: under about 150 bpm ' +
+      '(lower where your age gives a lower maximum) it is too low, and a heart rate far above the usual maximum for ' +
+      'your age is not trusted until you confirm it. If your typical day already reaches nearly the same heart rate ' +
+      'as your highest, the reference is where you live, not what you can reach. In those cases a share of it does not ' +
+      'show an effort was hard, and the max heart rate you enter on Profile replaces it.',
   },
   {
     id: 'virtual',

@@ -12,6 +12,11 @@ export interface AthleteSettings {
   /** The athlete's dated settings. Absent or empty: every activity uses massKg, and references are estimated. */
   measurements?: readonly Measurement[]
   /**
+   * The year of birth, when the athlete has given it. The effort gate reads it to judge a heart-rate reference against the
+   * age band; absent, the reference is judged on the data alone.
+   */
+  birthYear?: number
+  /**
    * The workouts (by `workoutKey`) the athlete counts as runs although they are at walking pace. Absent or
    * empty: every run at walking pace is left out of the analysis.
    */

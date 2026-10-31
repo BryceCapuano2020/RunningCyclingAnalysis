@@ -56,6 +56,9 @@ describe('flagKindSentence: one line for each kind of reading', () => {
       'The power meter reported a sudden spike 2 times.',
     )
     expect(flagKindSentence('hr-spike', 2)).toContain('Heart rate jumped suddenly 2 times.')
+    expect(flagKindSentence('hr-cadence-lock', 2)).toBe(
+      'Heart rate matched cadence 2 times. We left those out of your figures.',
+    )
   })
 
   it('says an altitude jump leaves the climb and the slope-based figures near it out of the figures', () => {
@@ -107,6 +110,7 @@ describe('flagKindSentence: one line for each kind of reading', () => {
       'implausible-climb',
       'stream-disagreement',
       'missing-altitude',
+      'hr-cadence-lock',
     ] as const
     const all = kinds.map((kind) => flagKindSentence(kind, 2)).join(' ')
     for (const word of [
