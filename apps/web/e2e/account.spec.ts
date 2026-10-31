@@ -20,6 +20,7 @@ import {
   uniqueEmail,
   uploadFixtures,
 } from './helpers.js'
+import { setStoredRevision } from './storedRevision.js'
 
 const NAME = 'Ada Lovelace'
 const FIRST_NAME = 'Ada'
@@ -312,7 +313,7 @@ test('rebuilds a legacy saved activity from its original file without changing i
   if (!parsed.ok) throw new Error(`Could not parse rebuild fixture: ${parsed.reason}`)
   const activity = parsed.activities[0]
   if (!activity) throw new Error('Rebuild fixture contains no activities')
-  const digest = { ...digestActivity(activity), modelRevision: 1 }
+  const digest = digestActivity(activity)
   const fileHash = createHash('sha256').update(bytes).digest('hex')
   const created = await page.request.post('/api/activities', {
     headers: CLIENT_HEADERS,
@@ -326,6 +327,8 @@ test('rebuilds a legacy saved activity from its original file without changing i
   })
   expect(upload.status()).toBe(200)
   expect(await upload.json()).toMatchObject({ id: legacyRecord.id, hasFile: true })
+  // The server refuses a digest from an older model, so the row is set back to revision 1 in its database.
+  setStoredRevision(legacyRecord.id, 1)
 
   await page.goto('/')
   await expect(savedActivityUpdates(page)).toContainText(

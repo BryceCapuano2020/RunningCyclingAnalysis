@@ -20,13 +20,15 @@ describe('fitnessStatuses', () => {
     expect(fitnessStatuses([], NONE)).toEqual(NO_FITNESS)
   })
 
-  it('does not compare rides until they are calibrated, and does when told to', () => {
+  it('compares rides by default, as measured power at the reference heart rate, and leaves them out when told to', () => {
     const rides = library({ sports: ['ride'], weeks: 70 })
-    expect(fitnessStatuses(rides.digests, NONE).ride.shortfall).toEqual({ kind: 'unavailable' })
-    const enabled = fitnessStatuses(rides.digests, NONE, { enabled: { ride: true } })
-    expect(enabled.ride.steady).toBeGreaterThan(50)
-    expect(enabled.ride.referenceHr).not.toBeNull()
-    expect(enabled.ride.evidence!.method.tier).toBe('power')
+    const on = fitnessStatuses(rides.digests, NONE)
+    expect(on.ride.steady).toBeGreaterThan(50)
+    expect(on.ride.referenceHr).not.toBeNull()
+    expect(on.ride.evidence!.method.tier).toBe('power')
+    const off = fitnessStatuses(rides.digests, NONE, { enabled: { ride: false } })
+    expect(off.ride.shortfall).toEqual({ kind: 'unavailable' })
+    expect(off.run.steady).toBe(0)
   })
 
   it('counts what is missing when there is too little history', () => {
@@ -301,7 +303,6 @@ describe('the session', () => {
     expect(session.setRange('all', settings).fitness).not.toBe(first)
   })
 
-  // The sample season is drawn once for the file, as the import of warmSample above does.
   it("gives the sample athlete the sample season's own day, whatever the clock says", () => {
     const session = sessionOn(Date.UTC(2040, 0, 1))
     const sample = session.loadSample(settings)

@@ -109,8 +109,8 @@ export function deltaELab(first: readonly number[], second: readonly number[]): 
   return Math.sqrt((dL / sl) ** 2 + (dC / sc) ** 2 + (dH / sh) ** 2 + rt * (dC / sc) * (dH / sh))
 }
 
-/** The colour in OKLCH: its lightness, 0 to 1, and its chroma, about 0 for a grey and 0.3 for the most vivid. */
-export function oklch(hex: string): { lightness: number; chroma: number } {
+/** The colour in OKLCH: its lightness, 0 to 1, its chroma, about 0 for a grey and 0.3 for the most vivid, and its hue in degrees. */
+export function oklch(hex: string): { lightness: number; chroma: number; hue: number } {
   const [r, g, b] = linear(hex)
   const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
   const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
@@ -120,5 +120,6 @@ export function oklch(hex: string): { lightness: number; chroma: number } {
   return {
     lightness: 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
     chroma: Math.hypot(a, bb),
+    hue: ((Math.atan2(bb, a) * 180) / Math.PI + 360) % 360,
   }
 }

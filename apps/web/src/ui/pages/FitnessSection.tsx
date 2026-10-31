@@ -4,8 +4,29 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { fitnessViews } from '../fitnessModel'
+import type { FitnessView } from '../fitnessModel'
 import { FitnessCard } from './FitnessCard'
 import './FitnessCard.css'
+import './FitnessSection.css'
+
+const isWaitingRide = (view: FitnessView) =>
+  view.sport === 'ride' && view.state === 'not-enough-evidence'
+
+/**
+ * What a waiting ride says on the home page, by what it waits for: a count it is short of ("not enough steady rides yet,
+ * 7 of 12"), or, with enough rides, a level too uncertain to call ("too uncertain to call yet").
+ */
+function waitingLine({ progress, status }: FitnessView): string {
+  const shortfall = status.shortfall
+  const kind = shortfall?.kind
+  if (kind === 'imprecise') return 'Ride fitness: too uncertain to call yet'
+  if (shortfall?.kind === 'break') {
+    return `Ride fitness: no steady ride for ${shortfall.weeksSince} weeks`
+  }
+  const recent = kind === 'recent' ? 'recent ' : ''
+  const count = progress === null ? '' : `, ${progress.have} of ${progress.need}`
+  return `Ride fitness: not enough ${recent}steady rides yet${count}`
+}
 
 export interface FitnessSectionProps {
   fitness: FitnessBySport
@@ -16,9 +37,9 @@ export interface FitnessSectionProps {
 }
 
 /**
- * "Your fitness": each sport's status at the same heart rate, as cards. Rides are not compared yet, so on a
- * library with runs this is the run's card alone; a sport with nothing to say has none, and with no card the
- * section is not drawn.
+ * "Your fitness": each sport's status at the same heart rate, as cards, run first. A sport with nothing to say
+ * has none (a library with no steady run, or no ride with a power meter), and with no card the section is not
+ * drawn.
  */
 export function FitnessSection({ fitness, units, library, sport }: FitnessSectionProps) {
   const id = useId()
@@ -28,24 +49,34 @@ export function FitnessSection({ fitness, units, library, sport }: FitnessSectio
       fitnessViews(fitness, units).filter((view) => sport === undefined || view.sport === sport),
     [fitness, units, sport],
   )
-  if (views.length === 0) return null
+  // On the home page a ride that is still waiting on its count is one line, not a card of its own: the full card is on the Ride page.
+  const waitingRide = sport === undefined ? views.find(isWaitingRide) : undefined
+  const cards = views.filter((view) => view !== waitingRide)
+  if (cards.length === 0 && waitingRide === undefined) return null
   return (
     <section className="fitness-section" aria-labelledby={id} data-testid="fitness-section">
       {/* Not a heading either: on Balance the page's h1 follows, and the region is named by this line. */}
       <p id={id} className="eyebrow">
         Your fitness
       </p>
-      <div className="fitness-section__cards">
-        {views.map((view) => (
-          <FitnessCard
-            key={view.sport}
-            view={view}
-            units={units}
-            library={library}
-            showSport={sport === undefined}
-          />
-        ))}
-      </div>
+      {cards.length === 0 ? null : (
+        <div className="fitness-section__cards">
+          {cards.map((view) => (
+            <FitnessCard
+              key={view.sport}
+              view={view}
+              units={units}
+              library={library}
+              showSport={sport === undefined}
+            />
+          ))}
+        </div>
+      )}
+      {waitingRide === undefined ? null : (
+        <p className="fitness-section__line" data-testid="ride-fitness-line">
+          <a href="#/ride">{waitingLine(waitingRide)}</a>
+        </p>
+      )}
     </section>
   )
 }

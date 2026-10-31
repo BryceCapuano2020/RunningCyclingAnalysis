@@ -40,7 +40,7 @@
     </header>
 
     <main class="wrap policy">
-      <p class="updated">Last updated 28 October 2026</p>
+      <p class="updated">Last updated 30 October 2026</p>
       <h1>Privacy policy</h1>
 
       <p class="lede">
@@ -73,7 +73,8 @@
           of the route with no coordinates or scale. The outline is kept only in this browser and is
           never uploaded. The summary has no per-second data or original file, and it does not
           expire. When one file yields several summaries, including a split activity, each keeps a
-          SHA-256 hash of that file, so they are shown together.
+          SHA-256 hash of that file, so they are shown together. Summaries kept from now on also
+          keep the file name and a SHA-256 hash of the file, for adding them to an account later.
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,
@@ -89,6 +90,19 @@
           A flag in this browser's local storage, named rca.kept.v1, says whether this browser had
           results to show at its last visit, signed in or not, so a reload can show them at once. It
           holds no activity data.
+        </li>
+        <li>
+          A second flag, named rca.deviceKept.v1, says whether the summaries kept in this browser
+          were there at the last visit, so the app can tell you when the browser has cleared them.
+          It holds no activity data. After your first import is kept, the app also asks the browser
+          to keep this site's storage, which sends nothing anywhere. If the browser will not, the
+          app says so once and notes that in a third flag, rca.persistNote.v1.
+        </li>
+        <li>
+          If you choose to count a run that is at walking pace, the choice is kept in this browser's
+          local storage under rca.countedRuns.v1 as the run's sport and start time in seconds. It is
+          never uploaded, signed in or not. Signing out and deleting your account clear it, and so
+          does Remove all my activities, which is offered only when signed out.
         </li>
         <li>
           The name printed on a shared card stays in this browser: it is kept in local storage under
@@ -147,7 +161,7 @@
         <li>
           <strong>Dated settings:</strong> each weight, max heart rate, threshold power or threshold
           pace you add on Profile, with the date it takes effect, and for the heart rate and
-          thresholds the sport. At most 200.
+          thresholds the sport. Each also records when you last changed it. At most 200.
         </li>
         <li>
           <strong>Activity summaries:</strong> name (as in the summary kept in this browser), sport,
@@ -171,6 +185,11 @@
           the counts.
         </li>
         <li>
+          <strong>Deletion record:</strong> when you delete your account, a random account ID and
+          the time are kept for 100 days, so that restoring the database from an older copy does not
+          bring your account back. It holds no name, email, Google ID or activity.
+        </li>
+        <li>
           <strong>Bookkeeping:</strong> activity IDs, a key from each activity's sport and start,
           digest versions, your activity count and digest bytes, whether and when deletion started,
           when your profile last changed, and an upload reservation token while a file uploads.
@@ -188,6 +207,11 @@
         deletions not yet finished. Original files are in a private Cloudflare R2 bucket, under keys
         that include your account and activity IDs. Cloudflare hosts and processes this data as our
         provider, and Google processes sign-in.
+      </p>
+      <p>
+        Cloudflare also keeps a point-in-time history of the database, between 7 and 30 days
+        depending on the plan, which lets us undo a bad deploy. Data you delete can stay in that
+        history until it expires. Deleted accounts are removed again if we ever rewind the database.
       </p>
       <p>
         Error logs hold a request ID, the error type and, for a saved activity that cannot be read,

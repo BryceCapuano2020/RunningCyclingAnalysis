@@ -71,3 +71,17 @@ describe('calibration sampling', () => {
     for (const draws of [0, -1, 1.5, NaN]) expect(() => drawPriors(draws, 1)).toThrow(/draws/)
   })
 })
+
+describe('the prior draws', () => {
+  it('are the same draws for the same count and seed, shared and not drawn again', () => {
+    expect(drawPriors(4000, 1)).toBe(drawPriors(4000, 1))
+    expect(drawPriors(4000, 2)).not.toBe(drawPriors(4000, 1))
+    expect(drawPriors(100, 1).ge).toHaveLength(100)
+  })
+
+  it('stay what the seed gives however many others are asked for between', () => {
+    const first = Float64Array.from(drawPriors(300, 9).ge)
+    for (let seed = 20; seed < 30; seed++) drawPriors(300, seed)
+    expect(Float64Array.from(drawPriors(300, 9).ge)).toEqual(first)
+  })
+})

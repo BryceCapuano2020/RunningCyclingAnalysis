@@ -126,7 +126,6 @@ describe('when the half year cannot support a threshold', () => {
 })
 
 describe('the session', () => {
-  // The sample season is drawn once for the file, as the import of warmSample above does.
   it('keeps heart-rate zones where the pace and power zones lapse', () => {
     const session = new AnalysisSession()
     const state = session.loadSample(SETTINGS)

@@ -1,51 +1,32 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { Sex } from '@rca/core/grade'
-import { outranks } from '@rca/core/session'
-import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
-import { periodDays, sameChoice } from '@rca/core/period'
+import type { AnalysisResult } from '@rca/core/pipeline'
+import { periodDays, sameChoice, sportsMissingFromDefault } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
-import { FALLBACK_NOTE, periodDates, previousPeriodLabel } from '../components/rangeOptions'
-import { withoutWalking } from '../analysis/walkingPaceCopy'
+import { fallbackNote, periodDates, previousPeriodLabel } from '../components/rangeOptions'
+import { leftOutRuns, withoutWalking, workoutKeyOf } from '../analysis/walkingPaceCopy'
 import { plural } from '../components/plural'
 import { usePeriodChoice } from '../periodPreference'
 import { sameAsShorterText } from '../periodSame'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
 import { latestActivityText, sportEmptyText } from '../periodCopy'
-import type { SavedActivity } from '../../worker/protocol'
 import { hrefFor } from '../route'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
+import type { CountedRunsController } from '../useCountedRuns'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthlete'
 import { ActivitiesPage } from './ActivitiesPage'
 import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
 import { ProfileFootnote } from '../components/ProfileFootnote'
 import { MethodPage } from './MethodPage'
+import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
 import { SportPage } from './SportPage'
-
-/**
- * The library id of the saved copy the analysis keeps for each activity, by activity id. Among the saved
- * copies that start with an activity, the one that outranks the others by the analysis's own rule. An
- * activity with no saved copy, as with the sample, is absent.
- */
-function keptIdsOf(library: ActivitySummary[], saved: SavedActivity[]): Map<string, string> {
-  const kept = new Map<string, SavedActivity>()
-  for (const s of saved) {
-    const key = `${s.sport}|${s.startMs}`
-    const current = kept.get(key)
-    if (current === undefined || outranks(s.copy, current.copy)) kept.set(key, s)
-  }
-  const ids = new Map<string, string>()
-  for (const activity of library) {
-    const copy = kept.get(`${activity.sport}|${activity.startMs}`)
-    if (copy !== undefined) ids.set(activity.id, copy.id)
-  }
-  return ids
-}
+import { keptIdsOf } from './keptIds'
 
 export interface ResultPageProps {
   route: Route
@@ -59,6 +40,8 @@ export interface ResultPageProps {
   sex: Sex | null
   /** Whether the visitor is signed in, which says where a removal takes an activity from. */
   signedIn: boolean
+  /** The runs at walking pace the athlete counts as runs, and how to change that. */
+  countedRuns: CountedRunsController
 }
 
 /**
@@ -81,10 +64,26 @@ export function ResultPage({
   birthYear,
   sex,
   signedIn,
+  countedRuns,
 }: ResultPageProps) {
   const { period, library, totalActivities, isSample } = analysis.state
   // What the analysis rests on: the library less the runs at walking pace, which only the lists and pages show.
   const analysed = useMemo(() => withoutWalking(library), [library])
+  const missingFromDefault = useMemo(() => sportsMissingFromDefault(analysed), [analysed])
+  // The runs at walking pace are left out; when they are all a sport has, its pages say so and offer to count them.
+  const left = useMemo(() => leftOutRuns(library), [library])
+  const leftOut = left.allLeftOut
+    ? {
+        sport: left.runs[0]!.sport,
+        count: left.runs.length,
+        onCount: () => {
+          askHeadingFocus()
+          countedRuns.count(left.runs.map(workoutKeyOf))
+        },
+      }
+    : null
+  // Counting them flips this page to the answer; once it has, focus goes to the heading, which names the new state.
+  useHeadingFocusWhen(leftOut === null)
   const setRange = analysis.setRange
   // Each effort is graded at its own date, so the profile carries the year of birth, not an age.
   // The sample athlete has its own age, sex and masses, whatever the visitor has entered.
@@ -147,8 +146,8 @@ export function ResultPage({
     null,
   )
   const latest = latestActivityText(newestMs)
-  // The fallback names both sports, so with one sport in the library there is nothing for it to say.
-  const bothSports = countSport(analysed, 'run') > 0 && countSport(analysed, 'ride') > 0
+  // The default shows all time only when its 12 weeks lack a sport the library has; the note names that sport.
+  const fallback = period.fellBack ? fallbackNote(missingFromDefault) : null
   // The note under the dates says why the default is all time, then how old the newest activity is.
   // Balance sets its period control compact under the levels: it says when a longer period repeats a shorter one,
   // links its count to the activities, and says how many runs at walking pace the count leaves out.
@@ -162,15 +161,12 @@ export function ResultPage({
   ): ReactNode => (
     <RangePicker
       choice={period.choice}
+      fellBack={period.fellBack}
       custom
       range={periodDays(period)}
       dates={periodDates(period)}
       note={noteOf(
-        [
-          period.fellBack && bothSports ? FALLBACK_NOTE : null,
-          balance ? sameAsShorterText(analysed, period) : null,
-          dated,
-        ],
+        [fallback, balance ? sameAsShorterText(analysed, period) : null, dated],
         balance,
       )}
       shown={shown}
@@ -213,7 +209,14 @@ export function ResultPage({
             countSport(analysed, route.page),
             route.page,
           )}
-          emptyText={sportEmptyText(route.page, period, countSport(analysed, route.page))}
+          emptyText={sportEmptyText(
+            route.page,
+            period,
+            countSport(analysed, route.page),
+            undefined,
+            leftOut?.sport === route.page ? leftOut.count : 0,
+          )}
+          leftOut={leftOut?.sport === route.page ? leftOut : undefined}
           inLibrary={countSport(analysed, route.page)}
           library={analysed}
           onShowAll={() => pickPeriod('all')}
@@ -258,6 +261,15 @@ export function ResultPage({
           heartRateJudgement={analysis.state.heartRateJudgement}
           weightKnown={weightKnown}
           profile={profile}
+          walkingChoice={
+            activity === null
+              ? undefined
+              : {
+                  counted: analysis.state.countedWalkingRuns.includes(workoutKeyOf(activity)),
+                  onCount: () => countedRuns.count([workoutKeyOf(activity)]),
+                  onStop: () => countedRuns.stop([workoutKeyOf(activity)]),
+                }
+          }
           records={analysis.state.records}
           loadSplits={analysis.activitySplits}
           loadTrace={analysis.loadTrace}
@@ -295,6 +307,7 @@ export function ResultPage({
           profile={profile}
           missingAge={missingAge}
           controls={control(result.activities.length, totalActivities, undefined, latest, true)}
+          leftOut={leftOut ?? undefined}
           onShowAll={() => pickPeriod('all')}
           footnote={balanceFootnote}
         />

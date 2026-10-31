@@ -42,7 +42,13 @@ function status(
     evidence: {
       recent: NOW,
       baseline: { fromMs: 0, toMs: 0, runs: 22, weeks: 20 },
-      method: { tier: 'steady-pace', gradePassThrough: 0.3, speedPerBpm: 0.004, fitted: 900 },
+      method: {
+        tier: 'steady-pace',
+        gradePassThrough: 0.3,
+        speedPerBpm: 0.004,
+        fitted: 900,
+        seasonal: null,
+      },
     },
     shortfall: null,
     steady: 100,

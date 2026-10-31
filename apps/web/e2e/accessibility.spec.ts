@@ -96,7 +96,9 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
         .getByRole('button', { name: /^At \d+ bpm$/ })
         .focus()
       await page.keyboard.press('Enter')
-      await expect(page.locator('.fitness-card .definition__note').first()).toBeVisible()
+      await expect(
+        page.locator('.fitness-card[data-sport="run"] .definition__note').first(),
+      ).toBeVisible()
     },
   },
   {
@@ -198,7 +200,9 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
 
 for (const scheme of ['light', 'dark'] as const) {
   for (const { name, open } of PAGES) {
-    test(`${name} page has no WCAG 2 A/AA violations in ${scheme} mode`, async ({ page }) => {
+    test(`${name} page has no WCAG 2 A/AA or best-practice violations in ${scheme} mode`, async ({
+      page,
+    }) => {
       await page.emulateMedia({ colorScheme: scheme })
       await open(page)
       expect(await violationsOf(page)).toEqual([])
@@ -291,10 +295,15 @@ test('Profile with dated settings fits 320 px, and its table is a keyboard scrol
   const dates = ['2026-08-15', '2025-08-15', '2026-05-01']
   for (const [index, date] of dates.entries()) {
     await page.getByLabel('Setting', { exact: true }).selectOption({ index: index === 2 ? 1 : 0 })
-    await page.getByLabel(/^Value/).fill(index === 2 ? '184' : `${70 + index}`)
+    await page.getByLabel(/^Value/).fill(index === 2 ? '184' : `${150 + index}`)
     await page.locator('.settings-over-time input[type="date"]').fill(date)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
-    await expect(page.getByRole('status').filter({ hasText: /^(Added|Updated)/ })).toBeVisible()
+    await expect(
+      page
+        .locator('.settings-over-time')
+        .getByRole('status')
+        .filter({ hasText: /^(Added|Updated)/ }),
+    ).toBeVisible()
   }
   await expect(page.locator('.settings-over-time tbody tr')).toHaveCount(3)
   const overflow = await page.evaluate(
@@ -412,8 +421,8 @@ test('the fitness card and its evidence fit a 320 px screen, in both schemes', a
     await page.emulateMedia({ colorScheme: scheme })
     await openSample(page)
     await openFitnessEvidence(page)
-    await page.locator('.fitness-card').getByText('View as table').click()
-    await expect(page.locator('.fitness-card table').first()).toBeVisible()
+    await page.locator('.fitness-card[data-sport="run"]').getByText('View as table').click()
+    await expect(page.locator('.fitness-card[data-sport="run"] table').first()).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
     ).toBeLessThanOrEqual(0)

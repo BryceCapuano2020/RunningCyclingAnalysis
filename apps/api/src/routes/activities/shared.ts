@@ -1,6 +1,5 @@
 import { and, eq, getTableColumns } from 'drizzle-orm'
 import { StoredActivityDigestSchema, type ActivityRecord } from '@rca/contract'
-import type { Sport } from '@rca/core/types'
 import type { Db } from '../../env.ts'
 import { HttpError } from '../../errors.ts'
 import { activities } from '../../db/schema.ts'
@@ -11,11 +10,6 @@ export type ActivityRow = typeof activities.$inferSelect
 export const ACTIVITY_COLUMNS = Object.entries(getTableColumns(activities))
   .map(([key, column]) => `${column.name} AS ${key}`)
   .join(', ')
-
-/** Activities created from the same sport in the same second are the same activity. */
-export function dedupeKeyFor(sport: Sport, startMs: number): string {
-  return `${sport}-${Math.round(startMs / 1000)}`
-}
 
 /** Every field of a record except its digest. */
 export type ActivityEnvelope = Omit<ActivityRecord, 'digest'>

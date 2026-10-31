@@ -2,15 +2,22 @@ import { DIGEST_VERSION, digestActivity, serializeDigest } from '@rca/core/diges
 import type { RouteShape } from '@rca/core/route/routeShape'
 import { sampleDataset } from '@rca/core/synthetic'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { openDeviceLibrary } from './deviceLibrary'
+import { AnalysisSession } from '@rca/core/session'
+import { deviceActions, KEPT_NOT_READ } from './device'
+import { deviceFileOf } from './deviceFile'
+import { OPEN_TIMEOUT_MS, openDeviceLibrary } from './deviceLibrary'
+import type { WorkerResponse } from './protocol'
 
 const [activity] = sampleDataset().activities
 if (activity === undefined) throw new Error('The sample has no activities')
 const MEASURED = digestActivity(activity)
 
 interface FakeOptions {
-  /** `throw`: opening throws. `error`: the open request fails. */
-  open?: 'throw' | 'error'
+  /**
+   * `throw`: opening throws. `error`: the open request fails. `no-storage`: it fails as a private window
+   * does. `hang`: it never answers. `blocked`: another tab blocks it, then it answers late.
+   */
+  open?: 'throw' | 'error' | 'no-storage' | 'hang' | 'blocked'
   /** Starting a transaction throws. */
   transaction?: boolean
   /** Clearing the store throws. */
@@ -18,8 +25,9 @@ interface FakeOptions {
 }
 
 /** A request that settles on a later turn, as IndexedDB requests do. */
-function settleLater<T>(work: () => T) {
+function settleLater<T>(work: () => T, hooks: RequestHooks = NO_HOOKS) {
   const pending: { result?: T; error?: Error; onsuccess?: () => void; onerror?: () => void } = {}
+  hooks.started()
   setTimeout(() => {
     try {
       pending.result = work()
@@ -28,33 +36,42 @@ function settleLater<T>(work: () => T) {
       pending.error = error instanceof Error ? error : new Error(String(error))
       pending.onerror?.()
     }
+    hooks.settled()
   }, 0)
   return pending
 }
 
-function storeIn(rows: Map<string, unknown>, options: FakeOptions) {
+/** What a transaction hears of its requests, so it completes only once they have all settled. */
+interface RequestHooks {
+  started: () => void
+  settled: () => void
+}
+const NO_HOOKS: RequestHooks = { started: () => undefined, settled: () => undefined }
+
+function storeIn(rows: Map<string, unknown>, options: FakeOptions, hooks: RequestHooks) {
   const sortedKeys = () => [...rows.keys()].sort()
   return {
-    getAllKeys: () => settleLater(sortedKeys),
-    getAll: () => settleLater(() => sortedKeys().map((key) => rows.get(key))),
-    get: (key: string) => settleLater(() => rows.get(key)),
+    getAllKeys: () => settleLater(sortedKeys, hooks),
+    getAll: () => settleLater(() => sortedKeys().map((key) => rows.get(key)), hooks),
+    get: (key: string) => settleLater(() => rows.get(key), hooks),
     put: (value: unknown, key: string) => {
       rows.set(key, value)
-      return settleLater(() => key)
+      return settleLater(() => key, hooks)
     },
     delete: (key: string) => {
       rows.delete(key)
-      return settleLater(() => undefined)
+      return settleLater(() => undefined, hooks)
     },
     clear: () => {
       if (options.clear) throw new Error('Clearing is refused')
       rows.clear()
-      return settleLater(() => undefined)
+      return settleLater(() => undefined, hooks)
     },
   }
 }
 
 interface FakeConnection {
+  closeCalls: number
   onclose: (() => void) | null
   onversionchange: (() => void) | null
   close: () => void
@@ -78,15 +95,27 @@ function fakeIndexedDb(options: FakeOptions = {}) {
 
   function connect(): FakeConnection {
     const connection: FakeConnection = {
+      closeCalls: 0,
       onclose: null,
       onversionchange: null,
-      close: () => undefined,
+      close: () => {
+        connection.closeCalls += 1
+      },
       createObjectStore: () => undefined,
       transaction: () => {
         if (options.transaction) throw new Error('Transactions are refused')
-        const store = storeIn(rows, options)
+        // Like IndexedDB, a transaction completes once its requests have settled and no new one follows.
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const finish = () => {
+          clearTimeout(timer)
+          timer = setTimeout(() => transaction.oncomplete?.(), 0)
+        }
+        const store = storeIn(rows, options, {
+          started: () => clearTimeout(timer),
+          settled: finish,
+        })
         const transaction: FakeTransaction = { oncomplete: null, objectStore: () => store }
-        setTimeout(() => transaction.oncomplete?.(), 0)
+        finish()
         return transaction
       },
     }
@@ -102,14 +131,18 @@ function fakeIndexedDb(options: FakeOptions = {}) {
         error?: Error
         onsuccess?: () => void
         onerror?: () => void
+        onblocked?: () => void
         onupgradeneeded?: () => void
       } = {}
+      if (options.open === 'hang') return pending
       setTimeout(() => {
-        if (options.open === 'error') {
+        if (options.open === 'error' || options.open === 'no-storage') {
           pending.error = new Error('Storage is full')
+          if (options.open === 'no-storage') pending.error.name = 'InvalidStateError'
           pending.onerror?.()
           return
         }
+        if (options.open === 'blocked') pending.onblocked?.()
         pending.result = connect()
         if (!storeCreated) {
           storeCreated = true
@@ -125,6 +158,7 @@ function fakeIndexedDb(options: FakeOptions = {}) {
     indexedDB,
     rows,
     openCount: () => connections.length,
+    closed: () => connections.filter((connection) => connection.closeCalls > 0).length,
     endConnection(event: 'close' | 'versionchange') {
       const connection = connections.at(-1)
       if (connection === undefined) throw new Error('Nothing is open')
@@ -141,8 +175,15 @@ const REFUSED: [string, FakeOptions][] = [
   ['refuses transactions', { transaction: true }],
 ]
 
+/** Storage this browser does not offer: nothing could have been kept there, so it lists as empty. */
+const NOT_OFFERED: [string, FakeOptions][] = [
+  ['throws when opened', { open: 'throw' }],
+  ['refuses as a private window does', { open: 'no-storage' }],
+]
+
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 describe('device library without IndexedDB', () => {
@@ -174,6 +215,100 @@ describe('device library in IndexedDB', () => {
     await library.remove('run-1')
     expect(await library.get('run-1')).toBeNull()
     expect(await library.all()).toEqual([])
+  })
+
+  describe('the file a row was made from', () => {
+    const HASH = 'a'.repeat(64)
+    const OTHER_HASH = 'b'.repeat(64)
+    const FILE = { fileName: 'run.fit', fileHash: HASH }
+
+    it('keeps the file name and hash beside the digest, and lists them', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+
+      await library.put('run-1', MEASURED, null, FILE)
+
+      expect(await library.all()).toEqual([{ workoutKey: 'run-1', digest: MEASURED, file: FILE }])
+    })
+
+    it('keeps no file for a row put without one, or with something that is not a hash', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+
+      await library.put('run-1', MEASURED)
+      expect(await library.all()).toEqual([{ workoutKey: 'run-1', digest: MEASURED }])
+      expect(deviceFileOf({ fileName: 'run.fit', fileHash: '' })).toBeNull()
+      expect(deviceFileOf({ fileName: 'run.fit', fileHash: 'ABC' })).toBeNull()
+      expect(deviceFileOf({ fileName: '', fileHash: HASH })).toBeNull()
+      expect(deviceFileOf(FILE)).toEqual(FILE)
+    })
+
+    it('reads a row written before files were recorded, as a digest and no file', async () => {
+      const fake = fakeIndexedDb()
+      vi.stubGlobal('indexedDB', fake.indexedDB)
+      fake.rows.set('run-1', { digest: serializeDigest(MEASURED), route: null })
+      fake.rows.set('run-2', serializeDigest(MEASURED))
+
+      const entries = await openDeviceLibrary().all()
+
+      expect(entries.map((entry) => [entry.workoutKey, entry.file])).toEqual([
+        ['run-1', undefined],
+        ['run-2', undefined],
+      ])
+    })
+
+    it('gives a row with no hash the file, and keeps its digest and route', async () => {
+      const fake = fakeIndexedDb()
+      vi.stubGlobal('indexedDB', fake.indexedDB)
+      const library = openDeviceLibrary()
+      const route: RouteShape = {
+        points: [
+          [0, 0],
+          [1, 0.5],
+        ],
+        aspect: 2,
+      }
+      await library.put('run-1', MEASURED, route)
+      fake.rows.set('run-2', serializeDigest(MEASURED))
+
+      await library.backfillFile('run-1', MEASURED.id, FILE)
+      await library.backfillFile('run-2', MEASURED.id, FILE)
+
+      expect(await library.route('run-1')).toEqual(route)
+      const entries = await library.all()
+      expect(entries.map((entry) => entry.file)).toEqual([FILE, FILE])
+      expect(entries[0]?.digest).toEqual(MEASURED)
+      expect(fake.rows.get('run-1')).toMatchObject({ route })
+    })
+
+    it('does not give the hash to a digest that replaced the one the file was made from', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      const replacement = { ...MEASURED, id: `${MEASURED.id}-other` }
+      await library.put('run-1', MEASURED)
+      // A second save of the workout writes its digest, with no file, before the first save's backfill.
+      await library.put('run-1', replacement)
+
+      await library.backfillFile('run-1', MEASURED.id, FILE)
+
+      const [entry] = await library.all()
+      expect(entry?.digest.id).toBe(replacement.id)
+      expect(entry?.file).toBeUndefined()
+    })
+
+    it('leaves a row that has a hash alone, and does nothing for a workout kept nowhere', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      await library.put('run-1', MEASURED, null, FILE)
+
+      await library.backfillFile('run-1', MEASURED.id, {
+        fileName: 'other.fit',
+        fileHash: OTHER_HASH,
+      })
+      await library.backfillFile('run-9', MEASURED.id, FILE)
+
+      expect((await library.all()).map((entry) => entry.file)).toEqual([FILE])
+    })
   })
 
   it('keeps a digest with NaN best efforts, as the analysis writes it', async () => {
@@ -260,26 +395,95 @@ describe('device library in IndexedDB', () => {
     expect(fake.openCount()).toBe(2)
   })
 
-  it.each(REFUSED)('reads as empty and refuses writes when storage %s', async (_, options) => {
+  it.each(REFUSED)('refuses writes when storage %s', async (_, options) => {
     vi.stubGlobal('indexedDB', fakeIndexedDb(options).indexedDB)
     const library = openDeviceLibrary()
 
-    await expect(library.get('run-1')).resolves.toBeNull()
     await expect(library.put('run-1', MEASURED)).rejects.toThrow()
     await expect(library.remove('run-1')).rejects.toThrow()
     await expect(library.clear()).rejects.toThrow()
   })
 
-  it('lists what is kept, and nothing for storage that cannot be opened', async () => {
+  it('reads a single workout as none when a transaction is refused, but not when the database failed to open', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb({ transaction: true }).indexedDB)
+    await expect(openDeviceLibrary().get('run-1')).resolves.toBeNull()
+
+    vi.stubGlobal('indexedDB', fakeIndexedDb({ open: 'error' }).indexedDB)
+    await expect(openDeviceLibrary().get('run-1')).rejects.toThrow('Device storage did not open')
+    // A route is read the same way, so it is not taken for none either; the caller treats it as best effort.
+    await expect(openDeviceLibrary().route('run-1')).rejects.toThrow('Device storage did not open')
+  })
+
+  it('reads a workout as none when the browser offers no storage, since nothing could be kept', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb({ open: 'no-storage' }).indexedDB)
+    await expect(openDeviceLibrary().get('run-1')).resolves.toBeNull()
+  })
+
+  it('counts the rows it keeps but cannot read, so a listing of none is not always an empty library', async () => {
+    const fake = fakeIndexedDb()
+    vi.stubGlobal('indexedDB', fake.indexedDB)
+    const library = openDeviceLibrary()
+    await library.put('run-1', MEASURED)
+    fake.rows.set('run-2', JSON.stringify({ version: DIGEST_VERSION + 1 }))
+    fake.rows.set('run-3', 'not json')
+
+    expect(await library.all()).toHaveLength(1)
+    expect(library.skipped()).toBe(2)
+    fake.rows.clear()
+    expect(await library.all()).toEqual([])
+    expect(library.skipped()).toBe(0)
+  })
+
+  it('lists what is kept', async () => {
     vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
     const library = openDeviceLibrary()
     await library.put('run-1', MEASURED)
     await expect(library.all()).resolves.toHaveLength(1)
+  })
 
-    for (const open of ['throw', 'error'] as const) {
-      vi.stubGlobal('indexedDB', fakeIndexedDb({ open }).indexedDB)
-      await expect(openDeviceLibrary().all()).resolves.toEqual([])
-    }
+  it.each(NOT_OFFERED)('lists nothing when storage is not offered: it %s', async (_, options) => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb(options).indexedDB)
+    await expect(openDeviceLibrary().all()).resolves.toEqual([])
+  })
+
+  it('rejects a listing and a lookup when the database failed to open, so rows that may be there are not read as none', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb({ open: 'error' }).indexedDB)
+    const library = openDeviceLibrary()
+
+    await expect(library.all()).rejects.toThrow('Device storage did not open')
+    await expect(library.lookup('run-1')).rejects.toThrow('Device storage did not open')
+    await expect(library.get('run-1')).rejects.toThrow('Device storage did not open')
+  })
+
+  it('gives up on an open that never answers, and opens again on the next call', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('indexedDB', fakeIndexedDb({ open: 'hang' }).indexedDB)
+    const library = openDeviceLibrary()
+    const settled = expect(library.all()).rejects.toThrow('did not open in time')
+    await vi.advanceTimersByTimeAsync(OPEN_TIMEOUT_MS)
+    await settled
+    vi.useRealTimers()
+
+    // Not remembered as failed for good: the next call tries the open once more.
+    vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+    await expect(library.all()).resolves.toEqual([])
+  })
+
+  it('treats a database blocked by another tab as failed, and closes it if it opens late', async () => {
+    const fake = fakeIndexedDb({ open: 'blocked' })
+    vi.stubGlobal('indexedDB', fake.indexedDB)
+
+    await expect(openDeviceLibrary().all()).rejects.toThrow('blocked by another tab')
+    // The open still answers after the block clears; nobody will use that connection.
+    await vi.waitFor(() => expect(fake.closed()).toBe(1))
+  })
+
+  it('refuses a clear and a removal on a database that failed to open', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb({ open: 'error' }).indexedDB)
+    const library = openDeviceLibrary()
+
+    await expect(library.clear()).rejects.toThrow('Device storage did not open')
+    await expect(library.remove('run-1')).rejects.toThrow('Device storage did not open')
   })
 
   it('rejects a listing that fails on a database that opened, while a single read gives nothing', async () => {
@@ -305,6 +509,34 @@ describe('device library in IndexedDB', () => {
 
     await expect(library.clear()).rejects.toThrow('Clearing is refused')
     expect(await library.get('run-1')).toEqual(MEASURED)
+  })
+})
+
+describe('a database that will not open, seen by the page', () => {
+  function actionsOn(options: FakeOptions) {
+    vi.stubGlobal('indexedDB', fakeIndexedDb(options).indexedDB)
+    const posted: WorkerResponse[] = []
+    const actions = deviceActions(new AnalysisSession(), openDeviceLibrary(), (m) => posted.push(m))
+    return { actions, posted }
+  }
+
+  it('fails the load with the unreadable message instead of showing an empty library', async () => {
+    const { actions } = actionsOn({ open: 'error' })
+    await expect(actions.load({ massKg: 70, bikeMassKg: 9 })).rejects.toThrow(KEPT_NOT_READ)
+  })
+
+  it('does not confirm Remove all, and says the results were not removed', async () => {
+    const { actions, posted } = actionsOn({ open: 'error' })
+
+    await expect(actions.forget()).resolves.toBe(false)
+    expect(posted).toEqual([{ type: 'deviceIssue', issue: 'notForgotten' }])
+  })
+
+  it('confirms Remove all when the browser offers no storage, since nothing was kept', async () => {
+    const { actions, posted } = actionsOn({ open: 'no-storage' })
+
+    await expect(actions.forget()).resolves.toBe(true)
+    expect(posted).toEqual([{ type: 'libraryActivities', activities: [] }])
   })
 })
 

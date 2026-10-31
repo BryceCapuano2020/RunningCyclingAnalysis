@@ -1,18 +1,19 @@
-import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import { copyOfDigest, dedupeKey, outranks } from '@rca/core/duplicates'
+import { revisionStatus } from '@rca/core/digest/revisions'
+import { copyOfDigest, outranks, workoutKey as storedKey } from '@rca/core/duplicates'
 import type { AnalysisSession, SessionState, SyncItem } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
+import { deviceFileOf } from './deviceFile'
 import type { DeviceEntry, DeviceLibrary } from './deviceLibrary'
-import type { WorkerResponse } from './protocol'
+import type { SavedActivity, WorkerResponse } from './protocol'
 import { savedActivityOf } from './savedActivity'
 
 /** Said when the page's own load of the kept results fails: nothing else will load them again. */
 export const KEPT_NOT_READ =
   'Your kept results could not be read from this browser just now. Reload the page to try again.'
-/** Said when an import needs them: adding the files again reads them again. */
-export const KEPT_NOT_READ_FOR_IMPORT =
-  'Your kept results could not be read from this browser just now, so these files were not added. Add them again.'
+/** Said when a removal cannot first read what is kept: the removal did not happen. */
+export const KEPT_NOT_READ_FOR_REMOVE =
+  'Your kept results could not be read from this browser just now, so this activity was not removed. Reload the page to try again.'
 
 /** How long the second try at reading the kept results waits: a lost connection reopens by then. */
 const READ_RETRY_MS = 250
@@ -41,8 +42,10 @@ export interface DeviceActions {
   report(): Promise<void>
   remove(id: string, settings: AthleteSettings): Promise<SessionState>
   /**
-   * Drops the copy kept in this browser of a workout, if there is one, without touching the session.
-   * A signed-in delete uses it, so the copy cannot come back when the visitor signs out.
+   * Drops the copy kept in this browser of a workout, if there is one, without touching the session or
+   * posting the list, which a signed-in visitor does not see; it posts only whether the library still holds
+   * anything (`deviceHolds`). A signed-in delete uses it, so the copy cannot come back when the visitor signs
+   * out. It rejects when the library cannot be read, never claiming a copy gone that may be there.
    */
   dropKept(workoutKey: string): Promise<void>
   /**
@@ -58,7 +61,7 @@ export interface DeviceActions {
 export type DeviceSave = 'kept' | 'refused' | 'newer'
 
 export function workoutKeyOf(digest: Pick<ActivityDigest, 'sport' | 'startMs'>): string {
-  return dedupeKey(digest.sport, digest.startMs)
+  return storedKey(digest.sport, digest.startMs)
 }
 
 /**
@@ -67,8 +70,10 @@ export function workoutKeyOf(digest: Pick<ActivityDigest, 'sport' | 'startMs'>):
  * session would prefer the new copy too.
  */
 function replaces(next: ActivityDigest, kept: ActivityDigest | null): boolean {
-  if (kept === null || kept.modelRevision < MODEL_REVISION) return true
-  if (kept.modelRevision > MODEL_REVISION) return false
+  if (kept === null) return true
+  const status = revisionStatus(kept.modelRevision)
+  if (status === 'newer') return false
+  if (status !== 'current') return true
   return outranks(copyOfDigest(next), copyOfDigest(kept))
 }
 
@@ -76,6 +81,11 @@ function newestFirst(entries: DeviceEntry[]) {
   return entries
     .map(({ workoutKey, digest }) => savedActivityOf(workoutKey, digest))
     .sort((a, b) => b.startMs - a.startMs || a.id.localeCompare(b.id))
+}
+
+/** The list posted to the page: the activities, and how many rows were kept but not read when there were some. */
+function listed(activities: SavedActivity[], skipped: number): WorkerResponse {
+  return { type: 'libraryActivities', activities, ...(skipped > 0 ? { skipped } : {}) }
 }
 
 /** The device library's requests, run on the worker's session. */
@@ -89,7 +99,8 @@ export function deviceActions(
   const report = async () => {
     try {
       // A failed read rejects, which leaves the list on screen as it is instead of replacing it with none.
-      post({ type: 'libraryActivities', activities: newestFirst(await device.all()) })
+      const entries = await device.all()
+      post(listed(newestFirst(entries), device.skipped()))
     } catch {
       // The list is shown again after the next change.
     }
@@ -103,7 +114,7 @@ export function deviceActions(
           throw new Error(unreadable)
         })
       })
-      post({ type: 'libraryActivities', activities: newestFirst(entries) })
+      post(listed(newestFirst(entries), device.skipped()))
       const state = session.loadDigests(
         entries.map((entry) => entry.digest),
         settings,
@@ -117,15 +128,25 @@ export function deviceActions(
     replaced() {
       held = false
     },
-    async save({ digest, route }) {
+    async save({ digest, route, fileName, fileHash }) {
       try {
         const key = workoutKeyOf(digest)
+        const file = deviceFileOf({ fileName, fileHash })
         const kept = await device.lookup(key)
         // A row a newer version wrote is left as it is: writing over it would destroy what that
         // version made. One that is damaged or from an older format is written over, so it heals.
         if (kept === 'newer') return 'newer'
-        if (replaces(digest, kept === 'unreadable' ? null : kept))
-          await device.put(key, digest, route)
+        if (replaces(digest, kept === 'unreadable' ? null : kept)) {
+          await device.put(key, digest, route, file)
+        } else if (
+          file !== null &&
+          kept !== null &&
+          kept !== 'unreadable' &&
+          kept.id === digest.id
+        ) {
+          // The same file again: a row kept before files were recorded gets its hash now.
+          await device.backfillFile(key, digest.id, file)
+        }
         return 'kept'
       } catch {
         // Storage can be refused (a private window, a full disk); the results still show.
@@ -141,8 +162,14 @@ export function deviceActions(
     },
     report,
     async remove(id, settings) {
-      const kept = await device.get(id)
-      if (!kept) throw new Error('This activity is no longer kept in this browser.')
+      // A strict read: a copy that could not be read is not a copy that is gone, so a failed read says so rather
+      // than "no longer kept". A row this version cannot read is not removed from here, since it has no digest to drop.
+      const found = await device.lookup(id).catch(() => {
+        throw new Error(KEPT_NOT_READ_FOR_REMOVE)
+      })
+      if (found === null) throw new Error('This activity is no longer kept in this browser.')
+      if (typeof found === 'string') throw new Error(KEPT_NOT_READ_FOR_REMOVE)
+      const kept = found
       await device.remove(id)
       if (!(await onRemoved(kept.id).catch(() => false)))
         post({ type: 'deviceIssue', issue: 'notForgotten' })
@@ -150,8 +177,16 @@ export function deviceActions(
       return session.removeActivity(kept.sport, kept.startMs, settings)
     },
     async dropKept(workoutKey) {
-      if ((await device.get(workoutKey)) === null) return
+      // A strict read, then a removal of whatever is there, so a copy is never claimed gone that may not be.
+      if ((await device.lookup(workoutKey)) === null) return
       await device.remove(workoutKey)
+      // The page keeps a mark of whether this browser's library holds anything; a signed-in delete may have emptied it.
+      try {
+        const left = await device.all()
+        post({ type: 'deviceHolds', holds: left.length > 0 || device.skipped() > 0 })
+      } catch {
+        // Unknown what is left, so the mark is left as it is.
+      }
     },
     async forget() {
       try {
@@ -164,13 +199,12 @@ export function deviceActions(
         const remaining = await device.all().catch(() => null)
         if (remaining === null || remaining.length > 0) {
           held = false
-          if (remaining !== null)
-            post({ type: 'libraryActivities', activities: newestFirst(remaining) })
+          if (remaining !== null) post(listed(newestFirst(remaining), device.skipped()))
           post({ type: 'deviceIssue', issue: 'notForgotten' })
           return false
         }
       }
-      post({ type: 'libraryActivities', activities: [] })
+      post(listed([], 0))
       // Nothing to merge once empty.
       held = true
       return true

@@ -189,7 +189,7 @@ approach the shared allowance; this is a bound on one account, not on the whole 
   null duration or a curve off the grid, which older revisions may carry), and it bounds array lengths at four
   times the create limits. It drops a quality kind or a record distance it does not know, so a rollback does
   not hide the activity. Creates use the strict view. The reader and its bounds are described in
-  [docs/LIMITS.md](../docs/LIMITS.md#digests).
+  [docs/LIMITS.md](../../docs/LIMITS.md#digests).
 
 ## Creates, replace and the database guard
 
@@ -355,8 +355,9 @@ Creating a new account needs the verified Google email to be in the Worker secre
 separated, case-insensitive, exact addresses (no wildcards). Unset or blank, sign-up is closed everywhere but
 local development, where it is open. The list is read only when no account exists for the Google identity or
 the email, so an existing account signs in whatever the secret holds, and removing an address from the list
-does not sign that user out. A refusal at the OAuth callback is an HTML page (403 `not_on_list`, 429
-`signup_limit`, 409 `account_deleting` or `account_conflict`), not JSON.
+does not sign that user out. A refusal at the OAuth callback (403 `not_on_list`, 429
+`signup_limit`, 409 `account_deleting` or `account_conflict`) answers a script with the JSON error, and a browser
+navigation with a redirect to the app carrying only the code (`#/?signin=not_on_list`), which the app words.
 
 "Local development" means `ENVIRONMENT` is exactly `development`, `APP_URL` is a loopback origin and the
 request arrived on a loopback host (`isLocalDevelopment`). The same test decides dev-login, the rate-limit
@@ -368,8 +369,8 @@ of them.
 `[triggers] crons = ["17 3 * * *"]` runs `runMaintenance` (`src/maintenance.ts`), and each step is bounded:
 
 - Deletes sessions that have expired or passed their 90-day end, up to 500 per run. Its statement also records the database size (see the database guard).
-- Prunes expired upload slots, daily rows older than seven days and saved identity counts older than yesterday.
-- Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts.
+- Prunes expired upload slots, daily rows older than seven days, saved identity counts older than yesterday and account tombstones older than 100 days.
+- Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts, and writes an `account_tombstones` row (account id and time) in the batch that deletes the user.
 - Sweeps two pages of 90 keys per run for R2 objects with no activity row, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
 

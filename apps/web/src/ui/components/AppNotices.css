@@ -20,8 +20,9 @@
 }
 
 /* The notices are the top of the main area. With none showing the block takes no room, and with any it
-   sits a section's gap above the page. The block's own grid is in App.css. */
-.app__notices:has(> .app__live > *),
+   sits a section's gap above the page. The block's own grid is in App.css. The screen-reader line that stays
+   mounted for the live region takes no room, so it does not count as a notice. */
+.app__notices:has(> .app__live > :not(.sr-only)),
 .app__notices:has(> :not(.app__live)) {
   margin-bottom: var(--space-5);
 }

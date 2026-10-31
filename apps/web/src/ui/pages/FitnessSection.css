@@ -1,0 +1,6 @@
+/* A ride that is still waiting on its count, said as one line on the home page. */
+.fitness-section__line {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

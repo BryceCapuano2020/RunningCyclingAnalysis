@@ -1,9 +1,10 @@
-import { orderedCurrent } from '../digest/ordered'
+import { orderedFor } from '../digest/consumers'
 import { memoByDigests } from '../digestMemo'
 import type { ActivityDigest, Sport } from '../types'
-import { dayOfMs, monitor, weekOfMs } from './machine'
+import { dayOfMs, replay, weekOfMs } from './machine'
 import { RIDE_FITNESS_ENABLED } from './params'
 import { rideSeries } from './rideUnit'
+import { withoutSeason } from './season'
 import { describe } from './status'
 import { noFitness } from './types'
 import type { FitnessBySport, FitnessStatus } from './types'
@@ -22,7 +23,7 @@ export interface FitnessOptions {
    * activity is not "now": a runner who stopped is told so after four weeks.
    */
   nowMs?: number
-  /** Which sports are compared, over the default (RIDE_FITNESS_ENABLED for rides): for tests and for the day rides are calibrated. */
+  /** Which sports are compared, over the default (RIDE_FITNESS_ENABLED for rides): for tests. */
   enabled?: Partial<Record<Sport, boolean>>
 }
 
@@ -32,7 +33,7 @@ const SERIES: Record<
   (digests: readonly ActivityDigest[], sport: Sport, setAside: ReadonlySet<string>) => UnitSeries
 > = { run: runSeries, ride: rideSeries }
 
-/** Whether a sport is compared unless the caller says otherwise: the run is, the ride waits for its noise to be measured. */
+/** Whether a sport is compared unless the caller says otherwise. */
 const ENABLED: Record<Sport, boolean> = { run: true, ride: RIDE_FITNESS_ENABLED }
 
 /** One sport's replay, from its first steady run to the date, and what it says at the end. */
@@ -47,9 +48,14 @@ export function fitnessOfSport(
   const first = series.points[0]
   // The monitor is evaluated at completed week ends only: a week still going has not finished its runs, and
   // evaluating it would count a part of a week as a whole one in the streak and the display hold.
-  const records =
-    first === undefined ? [] : monitor(runs, weekOfMs(first.startMs), weekOfMs(asOfMs + 1) - 1)
-  return describe(sport, series, runs, records, asOfMs)
+  const { records, season } =
+    first === undefined
+      ? { records: [], season: null }
+      : replay(runs, weekOfMs(first.startMs), weekOfMs(asOfMs + 1) - 1)
+  // The status reads the runs as the last week did: with the athlete's own season taken out, when one was found.
+  const seen = withoutSeason(runs, season, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
+  const method = { ...series.method, seasonal: season?.amplitude ?? null }
+  return describe(sport, { ...series, method }, seen, records, asOfMs)
 }
 
 interface Input {
@@ -58,7 +64,7 @@ interface Input {
 }
 
 function compute(digests: ActivityDigest[], input: Input): FitnessBySport {
-  const current = orderedCurrent(digests)
+  const current = orderedFor('fitness', digests)
   const newest = current.at(-1)?.startMs ?? 0
   const asOfMs = input.options.asOfMs ?? Math.max(newest, input.options.nowMs ?? 0)
   const upTo = current.filter((d) => d.startMs <= asOfMs)

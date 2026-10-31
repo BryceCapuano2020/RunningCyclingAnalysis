@@ -34,8 +34,8 @@
 
 .export-guides__tile[aria-expanded='true'] {
   border-color: var(--selected);
-  background: var(--selected);
-  color: var(--selected-contrast);
+  background: var(--highlight);
+  color: var(--highlight-ink);
 }
 
 .export-guide {

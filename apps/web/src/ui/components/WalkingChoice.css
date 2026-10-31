@@ -1,0 +1,12 @@
+.walking-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-width: 100%;
+}
+
+/* The live region stays mounted so a refusal is announced; it takes no room while empty. */
+.walking-choice p {
+  margin: 0;
+}

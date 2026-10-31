@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
-import { STACK_MARGIN, areaPath, axisShare, linePath } from './timeSeriesModel'
+import { geometryScale } from './plotBox'
+import { areaPath, axisShare, linePath, stackMargin } from './timeSeriesModel'
 import type { AxisScale, SeriesColumns } from './timeSeriesModel'
 import type { ChannelColour } from './timeSeriesTypes'
 import { HANDLE_HIT_PX, draggedRange, handleBoxes } from './timeBrushModel'
@@ -100,13 +101,11 @@ export function TimeBrush({ max, selection, onChange, overview, spokenTime }: Ti
     onChange(draggedRange(part, selection, edge, next, max))
   }
 
+  const margin = stackMargin(geometryScale())
   const boxes = handleBoxes(x(startS), x(endS), width, LANE_INSET_PX)
   const path = overview === null || width === 0 ? null : overviewPaths(overview, width, max)
   return (
-    <div
-      className="ts-brush"
-      style={{ paddingInline: `${STACK_MARGIN.left}px ${STACK_MARGIN.right}px` }}
-    >
+    <div className="ts-brush" style={{ paddingInline: `${margin.left}px ${margin.right}px` }}>
       <div
         className="ts-brush__track"
         style={{ height: HEIGHT }}

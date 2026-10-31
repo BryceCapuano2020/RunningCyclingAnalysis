@@ -69,7 +69,7 @@ export function outranks(a: Copy, b: Copy): boolean {
 }
 
 /** The same workout exported twice has the same sport and start second. */
-export function dedupeKey(sport: Sport, startMs: number): string {
+export function workoutKey(sport: Sport, startMs: number): string {
   return `${sport}-${Math.round(startMs / 1000)}`
 }
 
