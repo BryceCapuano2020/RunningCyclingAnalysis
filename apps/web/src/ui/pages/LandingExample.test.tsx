@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { fitnessLines } from '@rca/core/fitness'
 import { AnalysisSession } from '@rca/core/session'
 import { gapOfHeadline } from '../balanceGap'
+import { wholeGrade } from '../gradeFormat'
 import { headlineGrades } from '../grades'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { LandingExample, LandingFitnessExample } from './LandingExample'
@@ -58,10 +59,13 @@ describe('LandingExample', () => {
   })
 
   it('gives the finding as a second panel of its own: its state, one sentence and the change as a track', () => {
+    const { fitness } = LANDING_EXAMPLE
     const { container } = render(<LandingFitnessExample />)
     expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
     expect(
-      screen.getByText(/^At 120 bpm you now run 12% \(7 to 16%\) slower than before\.$/),
+      screen.getByText(
+        `At ${fitness.referenceHr} bpm you now run ${fitness.shown.size} (${fitness.shown.range}) slower than before.`,
+      ),
     ).toBeInTheDocument()
     expect(container.querySelector('.fitness-track__band')).not.toBeNull()
     expect(screen.getByText('Fitness at the same heart rate')).toBeInTheDocument()
@@ -83,15 +87,26 @@ describe('LandingExample', () => {
 
   it('draws the real meter and levels from the sample’s figures: the gap with its range, and each sport’s grade and level', () => {
     const { container } = render(<LandingExample />)
+    const { gap, grades } = LANDING_EXAMPLE
+    const lead = Math.abs(gap.centre)
+    // The lean is to cycling, so the range is stated from that side (the gap is signed toward running).
+    expect(gap.lean).toBe('ride')
     expect(
       screen.getByRole('img', {
-        name: /^Cycling grades 15 points higher than running \(range /,
+        name: new RegExp(`^Cycling grades ${lead} points higher than running \\(range `),
       }),
     ).toBeInTheDocument()
-    expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+15pts')
-    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('4 to 27')
+    expect(container.querySelector('.balance-meter__value')?.textContent).toBe(`+${lead}pts`)
+    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe(
+      `${-gap.high} to ${-gap.low}`,
+    )
+    const percent = (grade: number) => `${wholeGrade(grade)}%`
+    const ride = grades.ride
     const rows = [...container.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(['Running 65% Local', 'Cycling 80% Local to World'])
+    expect(rows).toEqual([
+      `Running ${percent(grades.run.centre.grade)} ${grades.run.centre.level}`,
+      `Cycling ${percent(ride.centre.grade)} ${ride.range!.low.level} to ${ride.range!.high.level}`,
+    ])
   })
 
   it('draws no level scale, ring or table: the meter, one line a sport and the fitness finding are all it shows', () => {
