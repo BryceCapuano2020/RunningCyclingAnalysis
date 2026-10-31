@@ -217,6 +217,7 @@ describe('checkEfforts', () => {
   const trusted = {
     reading: { run: 'trusted', ride: 'trusted' },
     source: { run: 'data', ride: 'data' },
+    from: { run: 'run', ride: 'ride' },
   } as const
   /** An entry with no heart-rate share, for a duration the curves do not give. */
   const none = (durationS: number) => ({
@@ -227,6 +228,24 @@ describe('checkEfforts', () => {
     rideReference: 'trusted',
     runReferenceSource: 'data',
     rideReferenceSource: 'data',
+  })
+
+  it('names the other sport that set a reference, and only then', () => {
+    const own = checkEfforts(runCurve, rideCurve, maxHr, [1200], trusted)[0]!
+    expect(own).not.toHaveProperty('runReferenceFrom')
+    expect(own).not.toHaveProperty('rideReferenceFrom')
+    const borrowed = checkEfforts(runCurve, rideCurve, maxHr, [1200], {
+      ...trusted,
+      from: { run: null, ride: 'run' },
+    })[0]!
+    expect(borrowed.rideReferenceFrom).toBe('run')
+    expect(borrowed).not.toHaveProperty('runReferenceFrom')
+    const lent = checkEfforts(runCurve, rideCurve, maxHr, [1200], {
+      ...trusted,
+      from: { run: 'ride', ride: 'ride' },
+    })[0]!
+    expect(lent.runReferenceFrom).toBe('ride')
+    expect(lent).not.toHaveProperty('rideReferenceFrom')
   })
 
   it('computes exact fractions of max heart rate with null where data is missing', () => {
