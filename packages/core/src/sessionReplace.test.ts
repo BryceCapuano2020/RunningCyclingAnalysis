@@ -76,6 +76,17 @@ describe('AnalysisSession.replaceDigest', () => {
       expect(session.setSettings(SETTINGS).outdatedActivities).toBe(0)
     }))
 
+  it('leaves a current digest of equal rank on another copy as it is', () =>
+    withRevisionTable(TABLE, () => {
+      const session = new AnalysisSession()
+      const held = { ...at(first, 6), name: 'The copy already held' }
+      session.loadDigests([held], SETTINGS)
+      expect(session.replaceDigest(keyOf(first), { ...at(first, 6), name: 'Another copy' })).toBe(
+        false,
+      )
+      expect(session.setSettings(SETTINGS).totalActivities).toBe(1)
+    }))
+
   it('adds a workout the library does not hold yet, under its own status', () =>
     withRevisionTable(TABLE, () => {
       const session = new AnalysisSession()

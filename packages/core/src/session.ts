@@ -181,13 +181,13 @@ export class AnalysisSession {
 
   /**
    * Moves one saved workout to a digest rebuilt from its original file, without building state: the digest
-   * leaves `readable` or `heldOut` for the map its revision calls for. A workout the library holds at a
-   * higher rank than the new digest (another copy already current) is left as it is. Says whether it moved.
+   * leaves `readable` or `heldOut` for the map its revision calls for. A workout the library holds at the
+   * same or a higher rank than the new digest (another copy already current) is left as it is. Says whether it moved.
    * The page hears of it with the next state, so a rebuild of thousands does not analyse thousands of times.
    */
   replaceDigest(key: string, digest: ActivityDigest): boolean {
     const held = this.library.digests.get(key) ?? this.library.notCurrent(key)
-    if (held !== undefined && readRank(held) > readRank(digest)) return false
+    if (held !== undefined && readRank(held) >= readRank(digest)) return false
     this.library.put(key, digest)
     return true
   }
