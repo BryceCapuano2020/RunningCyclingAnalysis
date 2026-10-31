@@ -1,8 +1,4 @@
-import {
-  DATABASE_SOFT_LIMIT_BYTES,
-  MAX_ACTIVITIES_PER_USER,
-  MAX_DIGEST_BYTES_PER_USER,
-} from '@rca/contract'
+import { MAX_ACTIVITIES_PER_USER, MAX_DIGEST_BYTES_PER_USER } from '@rca/contract'
 import { accountDeleting, HttpError } from '../../errors.ts'
 
 export const databaseFull = () =>
@@ -49,9 +45,13 @@ export async function accountState(db: D1Database, userId: string): Promise<Acco
  * does. The conditions are the ones the insert itself holds, in the order the answer reports them.
  * An account being deleted is reported first: no create is admitted to one.
  */
-export function createRefusal(state: AccountState, digestBytes: number): HttpError | undefined {
+export function createRefusal(
+  state: AccountState,
+  digestBytes: number,
+  databaseLimit: number,
+): HttpError | undefined {
   if (state.deletingAt !== null) return accountDeleting()
-  if (state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) return databaseFull()
+  if (state.databaseBytes > databaseLimit) return databaseFull()
   if (state.digestBytes + digestBytes > MAX_DIGEST_BYTES_PER_USER) return digestQuota()
   if (state.activityCount >= MAX_ACTIVITIES_PER_USER) return activityQuota()
   return undefined
