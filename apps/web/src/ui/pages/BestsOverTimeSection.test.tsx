@@ -71,13 +71,10 @@ describe('BestsOverTimeSection', () => {
     ).toBeInTheDocument()
   })
 
-  it('says no clear change when the test does not call the move, however far the figures are apart', () => {
-    renderSection(finding('none'))
-    expect(
-      screen.getByRole('figure', {
-        name: "No clear change in 20 min from the previous 12 weeks; changes under 7% can't be told apart here",
-      }),
-    ).toBeInTheDocument()
+  it('leaves "no clear change" to the curve above, which says it once, and only names what is drawn', () => {
+    const { container } = renderSection(finding('none'))
+    expect(screen.getByRole('figure', { name: 'Best 20 min runs by day' })).toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/No clear change/)
   })
 
   it('names what is drawn, and compares nothing, where the test could not judge the length or there is no period before', () => {

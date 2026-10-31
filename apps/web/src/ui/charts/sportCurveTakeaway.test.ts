@@ -3,7 +3,7 @@ import type { CurveRow } from './curveTable'
 import { changeOf } from './changeFixtures'
 import { DURATIONS_S } from '@rca/core/constants'
 import type { ChangeEvidence } from '@rca/core/change/types'
-import { citedDurationS, curveTakeaway, takeawayAt } from './sportCurveTakeaway'
+import { citedDurationS, curveTakeaway, namedChangeAt, takeawayAt } from './sportCurveTakeaway'
 
 const row = (
   durationS: number,
@@ -295,5 +295,21 @@ describe('a no-clear-change title whose band is too wide to name a size', () => 
     expect(title(0.2)).toContain("changes under 23% can't be told apart here")
     expect(title(0.25)).toContain('vary too much')
     expect(title(0.22)).not.toContain('vary too much')
+  })
+})
+
+describe('a best held for its effort', () => {
+  const HELD = 'No comparable hard 20 min of running in the previous 12 weeks.'
+  const input = { ...unchanged, sport: 'run', rows: [row(1200, 4.0, 3.9)] } as const
+
+  it('gives the gate’s reason, the one the Balance strip gives, and not that the efforts vary', () => {
+    expect(curveTakeaway({ ...input, held: HELD })).toBe(HELD)
+    expect(curveTakeaway(input)).toContain('No clear change')
+  })
+
+  it('leaves a second chart of the finding to cite only a change, so the page says no change once', () => {
+    expect(takeawayAt(input, 1200)).toContain('No clear change')
+    expect(namedChangeAt(input, 1200)).toBeNull()
+    expect(namedChangeAt({ ...input, change: changeOf('higher') }, 1200)).toContain('is')
   })
 })

@@ -50,6 +50,11 @@ export interface TakeawayInput {
   level?: string
   /** The change test for the two periods (see changeEvidence); null where there is no period before. */
   change: ChangeEvidence | null
+  /**
+   * Why the best 20 minutes is not compared, when the effort gate holds it (see notHardNote): the one reason a page gives,
+   * in place of "no clear change" for that length. Null or absent when nothing holds it.
+   */
+  held?: string | null
 }
 
 const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
@@ -99,7 +104,7 @@ interface Comparison {
  */
 function comparisonOf(
   row: CurveRow,
-  { sport, units, previousLabel, change }: TakeawayInput & { previousLabel: string },
+  { sport, units, previousLabel, change, held }: TakeawayInput & { previousLabel: string },
 ): Comparison | { text: string; durationS: null } {
   const wording = WORDING[sport]
   const call = callAt(change, sport, row.durationS)
@@ -109,6 +114,9 @@ function comparisonOf(
   const against = `the ${lowerFirst(previousLabel)}`
   const length = effortLabel(row.durationS)
   if (verdict !== 'higher' && verdict !== 'lower') {
+    // A best held for its effort is not "no change": the reason is the gate's, said once as every page says it.
+    if (held != null && row.durationS === HEADLINE_DURATION_S)
+      return { text: held, durationS: null }
     const clause = resolutionClause(call, 'headline')
     const tail = clause === '' ? '' : `; ${clause}`
     return { text: `${NO_CLEAR_CHANGE} in ${length} from ${against}${tail}`, durationS: null }
@@ -148,6 +156,23 @@ function comparison(input: TakeawayInput): Comparison | { text: string; duration
  * period has no measured effort of that length, or when the test could not judge it.
  */
 export function takeawayAt(input: TakeawayInput, durationS: number): string | null {
+  return changeAt(input, durationS)?.text ?? null
+}
+
+/**
+ * The sentence for one effort length when it names a change, null when it is the finding of no change (or held, or
+ * not judged). A second chart of the same finding cites it only when it adds a change, so the page does not say
+ * "no clear change" twice.
+ */
+export function namedChangeAt(input: TakeawayInput, durationS: number): string | null {
+  const found = changeAt(input, durationS)
+  return found !== null && found.durationS !== null ? found.text : null
+}
+
+function changeAt(
+  input: TakeawayInput,
+  durationS: number,
+): Comparison | { text: string; durationS: null } | null {
   const { sport, rows, previousLabel, change } = input
   const row = rows.find((candidate) => candidate.durationS === durationS)
   if (
@@ -159,7 +184,7 @@ export function takeawayAt(input: TakeawayInput, durationS: number): string | nu
   ) {
     return null
   }
-  return comparisonOf(row, { ...input, previousLabel }).text
+  return comparisonOf(row, { ...input, previousLabel })
 }
 
 /**
