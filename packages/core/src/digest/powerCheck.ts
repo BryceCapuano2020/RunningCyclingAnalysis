@@ -1,4 +1,5 @@
 import { implausiblePower } from '../curves'
+import { estimatedPowerOver } from './estimatedPower'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import type { Masses } from './masses'
 import { massesOf } from './masses'
@@ -7,7 +8,7 @@ import { massesOf } from './masses'
 const POWER_JUDGED: Record<Sport, boolean> = { run: false, ride: true }
 
 /**
- * Whether a ride's power is in question (see implausiblePower): 'set-aside' while it is left out of every best,
+ * Whether a ride's power is in question (see implausiblePower, and estimatedPowerOver for a ride without a meter): 'set-aside' while it is left out of every best,
  * 'kept' once the athlete chose to keep it. Undefined for a run, for a ride whose power is plausible, and while
  * no body weight is known: power per kilo cannot be judged at a placeholder mass.
  */
@@ -16,7 +17,12 @@ export function powerCheckOf(
   masses: Masses,
 ): 'set-aside' | 'kept' | undefined {
   if (!POWER_JUDGED[digest.sport] || !masses.massKnown) return undefined
-  if (!implausiblePower(digest, masses.bodyKg(digest))) return undefined
+  if (
+    !implausiblePower(digest, masses.bodyKg(digest)) &&
+    estimatedPowerOver(digest, masses) === undefined
+  ) {
+    return undefined
+  }
   return masses.powerKept(digest) ? 'kept' : 'set-aside'
 }
 

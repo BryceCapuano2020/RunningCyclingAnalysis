@@ -8,6 +8,7 @@ import type {
   QualityKind,
   Sport,
 } from '../types'
+import type { EstimatedPower } from './estimatedPower'
 
 /** One activity as the library lists it: its identity, its headline numbers and its data issues. */
 export interface ActivitySummary {
@@ -43,6 +44,11 @@ export interface ActivitySummary {
    * once the athlete chose to keep it. Absent for every other activity. Set by activitySummaries, which knows the masses.
    */
   powerCheck?: 'set-aside' | 'kept'
+  /**
+   * For a ride with a `powerCheck` whose power is estimated from speed and climbs (no power meter): the effort that
+   * needs the most power over the ceiling, and what it needs. Absent for a measured ride and for every other activity.
+   */
+  estimatedPower?: EstimatedPower
   /** Revision 7: the athlete's own label when it differs from the file's sport. See ActivityDigest.athleteType. */
   athleteType?: AthleteType
   /** Revision 7: the local calendar date minus the UTC date at the start. See ActivityDigest.localDayShift. */

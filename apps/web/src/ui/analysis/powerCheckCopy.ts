@@ -1,3 +1,5 @@
+import type { EstimatedPower } from '@rca/core/digest'
+
 /*
  * A ride whose power no rider holds at the athlete's weight (`ActivitySummary.powerCheck`). The core leaves it out
  * of every best until the athlete keeps it; this is what the pages say about it.
@@ -32,4 +34,13 @@ export const SET_POWER_ASIDE_LABEL = 'Set this power aside'
 export function powerCheckChip(check: 'set-aside' | 'kept' | undefined): string | null {
   if (check === undefined) return null
   return check === 'kept' ? POWER_KEPT_CHIP : POWER_SET_ASIDE_CHIP
+}
+
+/**
+ * The line on an activity page while the power of a ride without a meter is set aside: what was seen (the estimate from
+ * speed and climbs needs more than riders hold), what else would show it, and the action. It does not say the ride was assisted.
+ */
+export function estimatedPowerNote(estimate: EstimatedPower): string {
+  const minutes = Math.round(estimate.durationS / 60)
+  return `This ride has no power meter, so its power is estimated from your speed and the climbs. Over its best ${minutes} min the estimate needs ${estimate.wkg.toFixed(1)} W/kg, more than riders hold at your weight, so it is left out of your bests, grades and the balance. An assisted bike, a tow or a wrong weight setting would read like this. If you rode it unassisted, keep its power.`
 }

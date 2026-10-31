@@ -3,6 +3,7 @@ import {
   KEEP_POWER_LABEL,
   POWER_KEPT_NOTE,
   POWER_SET_ASIDE_NOTE,
+  estimatedPowerNote,
   SET_POWER_ASIDE_LABEL,
 } from '../analysis/powerCheckCopy'
 import { useKeptPower } from '../keptPowerStore'
@@ -17,7 +18,13 @@ export function PowerCheck({ activity }: { activity: ActivitySummary }) {
   const kept = activity.powerCheck === 'kept'
   return (
     <div className="activity-page__power">
-      <p className="secondary">{kept ? POWER_KEPT_NOTE : POWER_SET_ASIDE_NOTE}</p>
+      <p className="secondary">
+        {kept
+          ? POWER_KEPT_NOTE
+          : activity.estimatedPower === undefined
+            ? POWER_SET_ASIDE_NOTE
+            : estimatedPowerNote(activity.estimatedPower)}
+      </p>
       <button
         type="button"
         className="btn"

@@ -37,7 +37,8 @@ import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
 import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
-import { powerCheckOf, trustedPower } from './powerCheck'
+import { flagged } from './flaggedSummary'
+import { trustedPower } from './powerCheck'
 import { answers } from './judgedWork'
 import type { JudgedWork } from './judgedWork'
 import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
@@ -210,9 +211,7 @@ export function activitySummaries(
   return orderedFor('listing', digests)
     .map((digest) => {
       const summary = summaryOf(digest, dated ? masses.bodyKg(digest) : undefined)
-      const check = masses === null ? undefined : powerCheckOf(digest, masses)
-      // A flagged ride gets its own copy; the cached summary is shared and stays as it is.
-      return check === undefined ? summary : Object.assign({}, summary, { powerCheck: check })
+      return flagged(summary, digest, masses)
     })
     .sort((a, b) => b.startMs - a.startMs)
 }
