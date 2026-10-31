@@ -12,6 +12,7 @@
     "e2e": "playwright test",
     "screenshots": "npm run build && tsx scripts/screenshots.ts",
     "fixtures": "tsx scripts/make-fixtures.ts",
+    "card": "tsx scripts/make-social-card.ts",
     "e2e:worker": "playwright test --config playwright.worker.config.ts"
   },
   "dependencies": {

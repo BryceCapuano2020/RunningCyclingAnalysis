@@ -7,6 +7,7 @@ import { configDefaults } from 'vitest/config'
 import type { Connect, Plugin } from 'vite'
 import { RULES_MARKER, immutableAssetRules } from './scripts/assetHeaders.ts'
 import { e2eApiPort } from './e2e/ports.ts'
+import { landingFigures } from './scripts/landingFiguresPlugin.ts'
 
 /** Workers Assets serves /privacy.html at /privacy; the Vite servers do the same for parity. */
 function cleanUrls(): Plugin {
@@ -57,7 +58,7 @@ function immutableAssets(): Plugin {
 
 export default defineConfig({
   base: './',
-  plugins: [react(), cleanUrls(), immutableAssets()],
+  plugins: [react(), cleanUrls(), immutableAssets(), landingFigures()],
   worker: { format: 'es' },
   build: {
     rollupOptions: {

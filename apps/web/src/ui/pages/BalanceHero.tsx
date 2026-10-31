@@ -28,6 +28,8 @@ export interface BalanceHeroProps {
    * missing. The page works it out once, so the headline, the tiles and the changes cannot disagree.
    */
   reading: BalanceReading | null
+  /** What the lower sport would need to grade level with the higher, as a sentence, under the lede; null when nothing would. */
+  target?: string | null
   /** The period on screen, named in the eyebrow and when it holds nothing to compare. */
   period: Period
   /** Shows all time, for when the period on screen holds nothing to compare. */
@@ -57,6 +59,7 @@ export function BalanceHero({
   library,
   pick,
   reading,
+  target = null,
   period,
   onShowAll,
   weightKnown,
@@ -153,6 +156,7 @@ export function BalanceHero({
               durationS={pick?.point.durationS ?? HEADLINE_DURATION_S}
             />
           </p>
+          {target !== null && <p className="secondary">{target}</p>}
           {few !== null && <p className="secondary">{few}</p>}
           {unchecked !== null && <p className="secondary">{unchecked}</p>}
         </div>

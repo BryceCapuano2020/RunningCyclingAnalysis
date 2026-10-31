@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { SAMPLE_TEXT, rowPattern } from './sampleText.js'
 import {
   BALANCE_TITLE,
   LANDING_TITLE,
@@ -128,6 +129,31 @@ test('the ride on foot tile names the ride behind its effort and opens to every 
     ? details.getByRole('term').filter({ hasText: 'Ride effort' }).first()
     : details.getByRole('columnheader', { name: 'Ride effort' })
   await expect(rideEffort).toBeVisible()
+})
+
+test('Balance says the lean once: no lean tile, three tiles at most, and the level target under the lede', async ({
+  page,
+}) => {
+  await openSample(page)
+
+  await expect(page.getByRole('article', { name: 'Lean' })).toHaveCount(0)
+  const tiles = page.locator('.balance-tiles')
+  await expect(tiles.getByRole('article')).toHaveCount(3)
+  await expect(tiles).not.toContainText(/\bpts\b/)
+  // The gap in points is the meter's figure, once; the target is a line of the hero, not of a tile.
+  await expect(page.locator('.balance-meter__number')).toHaveCount(1)
+  const target = page.locator('.balance-hero').getByText(/^To grade level with your/)
+  await expect(target).toHaveCount(1)
+  await expect(tiles.getByText(/^To grade level with your/)).toHaveCount(0)
+  // No tile figure is as large as the headline.
+  const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
+    return parseFloat(getComputedStyle(el).fontSize)
+  })
+  for (const figure of await tiles.locator('.stat-tile__number').all()) {
+    const size = await figure.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+    expect(size).toBeLessThanOrEqual(48)
+    expect(size).toBeLessThanOrEqual(headline)
+  }
 })
 
 test('uploading the Strava export zip shows the results, including its GPX run', async ({
@@ -323,7 +349,7 @@ test('at 1440 by 900 the fitness card is on the first screen, whole, and the bal
   expect(order.trackFirst).toBe(true)
   expect(order.firstImage).toContain('balance-meter')
   // The answer is still a line: no scale drawing, no ladder, and the meter is in its place.
-  await expect(page.locator('.balance-meter__value')).toHaveText('+15pts')
+  await expect(page.locator('.balance-meter__value')).toHaveText(SAMPLE_TEXT.value)
   await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
   await expect(page.locator('.balance-hero__pair svg:not(.icon)')).toHaveCount(0)
 })
@@ -461,10 +487,10 @@ test('the meter is named in words and its value and levels are text, none under 
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
   await expect(page.locator(TRACK)).toHaveAccessibleName(
-    /^Cycling grades 15 points higher than running \(range /,
+    new RegExp(`^${SAMPLE_TEXT.name} \\(range `),
   )
-  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(/Running\s*65%\s*Local/)
-  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(/Cycling\s*80%\s*Local to World/)
+  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
+  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
   const sizes = await page
     .locator(
       '.balance-meter__value > *, .balance-meter__range, .balance-meter__ends, .balance-levels__row > *',

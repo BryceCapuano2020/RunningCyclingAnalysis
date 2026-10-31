@@ -1,30 +1,24 @@
-// Writes the share-preview image and the app icons in public/. Output is drawn from the landing
-// example's numbers, which are the sample athlete's own, so it moves only when they do.
-// Usage: npx tsx scripts/make-social-card.ts   (needs the Playwright browser: npx playwright install chromium)
+// Writes the share-preview image and the app icons in public/, and social-card.stamp, the hash of the figures and
+// colours the image was drawn from. The figures are the sample athlete's own (scripts/landingFigures.ts) and the
+// colours are tokens.css's, so the image moves only when they do; shareMetadata.test.ts fails on a stale stamp.
+// Usage: npm run card   (needs the Playwright browser: npx playwright install chromium)
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 import { formatGrade } from '../src/ui/gradeFormat.ts'
-import { LANDING_EXAMPLE } from '../src/ui/landingExample.ts'
+import type { SportGrade } from '../src/ui/grades.ts'
+import { cardInk, cardStamp } from '../src/ui/landingFigures.ts'
 import { SPORT_NOUN } from '../src/ui/sports.ts'
+import { computeLandingFigures } from './landingFigures.ts'
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url))
 const FONTS = fileURLToPath(new URL('../../../node_modules/@fontsource/', import.meta.url))
 const WIDTH = 1200
 const HEIGHT = 630
 
-/** The dark theme's own colours (src/styles/tokens.css), so the card reads as the app does. */
-const INK = {
-  surface0: '#0f1115',
-  surface1: '#171a20',
-  border: '#2a2f38',
-  text: '#eef0f3',
-  secondary: '#b6bcc6',
-  muted: '#8d95a2',
-  run: '#f56333',
-  ride: '#4d6ef5',
-  brand: '#c8f03c',
-}
+/** The dark theme's own colours, read from src/styles/tokens.css so the card reads as the app does. */
+const INK = cardInk(readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8'))
+const FIGURES = computeLandingFigures()
 
 /** The level ladder's scale: age grade from 30% to 100%, with the band edges the app draws. */
 const SCALE = { from: 0.3, to: 1 }
@@ -64,17 +58,27 @@ function ladder(top: number, label: string, colour: string, draw: string): strin
   return `<text x="${LADDER.x}" y="${top + 16}" fill="${colour}" font-size="25" font-weight="600">${label}</text>${bands}${edges}${draw}`
 }
 
+/**
+ * A sport's mark on its ladder: a solid dot when the grade is recorded (no range), and a ring on a band of its
+ * 90% range when it is estimated.
+ */
+function mark(top: number, colour: string, { centre, range }: SportGrade): string {
+  const cy = top + 56
+  if (range === null) {
+    return `<circle cx="${at(centre.grade)}" cy="${cy}" r="14" fill="${colour}" stroke="${INK.surface1}" stroke-width="4"/>`
+  }
+  const band = `<rect x="${at(range.low.grade)}" y="${top + 44}" width="${at(range.high.grade) - at(range.low.grade)}" height="24" rx="12" fill="${colour}" fill-opacity="0.35" stroke="${colour}" stroke-width="2"/>`
+  const ring = `<circle cx="${at(centre.grade)}" cy="${cy}" r="14" fill="${INK.surface1}" stroke="${colour}" stroke-width="5"/>`
+  return band + ring
+}
+
 function card(): string {
-  const run = LANDING_EXAMPLE.grades.run
-  const ride = LANDING_EXAMPLE.grades.ride
-  const lead = LANDING_EXAMPLE.gap
-  const rideRange = ride.range!
+  const run = FIGURES.grades.run
+  const ride = FIGURES.grades.ride
+  const lead = FIGURES.gap
   // The range is signed toward running; the card states it from the side the balance leans to.
   const leanRange =
     lead.lean === 'ride' ? { from: -lead.high, to: -lead.low } : { from: lead.low, to: lead.high }
-  const runDot = `<circle cx="${at(run.centre.grade)}" cy="${RUN_TOP + 56}" r="14" fill="${INK.run}" stroke="${INK.surface1}" stroke-width="4"/>`
-  const rideBand = `<rect x="${at(rideRange.low.grade)}" y="${RIDE_TOP + 44}" width="${at(rideRange.high.grade) - at(rideRange.low.grade)}" height="24" rx="12" fill="${INK.ride}" fill-opacity="0.35" stroke="${INK.ride}" stroke-width="2"/>`
-  const rideRing = `<circle cx="${at(ride.centre.grade)}" cy="${RIDE_TOP + 56}" r="14" fill="${INK.surface1}" stroke="${INK.ride}" stroke-width="5"/>`
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${font('barlow-condensed', 'barlow-condensed-latin-800-normal.woff2', 800)}
 ${font('barlow', 'barlow-latin-500-normal.woff2', 500)}
@@ -103,8 +107,8 @@ svg{display:block}
   <text class="display" x="${LADDER.x}" y="${PANEL.y + 168}" fill="${INK.text}" font-size="132">+${Math.abs(Math.round(lead.centre))}</text>
   <text class="display" x="${LADDER.x + 150}" y="${PANEL.y + 128}" fill="${INK.secondary}" font-size="24" letter-spacing="1.9">PTS TOWARD ${SPORT_NOUN[lead.lean].toUpperCase()}</text>
   <text x="${LADDER.x + 150}" y="${PANEL.y + 160}" fill="${INK.muted}" font-size="23" font-weight="500">range ${leanRange.from} to ${leanRange.to} points</text>
-  ${ladder(RUN_TOP, `Run · ${run.centre.level} · ${formatGrade(run.centre.grade)}`, INK.run, runDot)}
-  ${ladder(RIDE_TOP, `Ride · ${ride.centre.level} · ${formatGrade(ride.centre.grade)}`, INK.ride, rideBand + rideRing)}
+  ${ladder(RUN_TOP, `Run · ${run.centre.level} · ${formatGrade(run.centre.grade)}`, INK.run, mark(RUN_TOP, INK.run, run))}
+  ${ladder(RIDE_TOP, `Ride · ${ride.centre.level} · ${formatGrade(ride.centre.grade)}`, INK.ride, mark(RIDE_TOP, INK.ride, ride))}
   <g fill="${INK.muted}" font-size="17" font-weight="500">
     <text x="${LADDER.x}" y="${PANEL.y + 462}">Solid dot: recorded.</text>
     <text x="${LADDER.x}" y="${PANEL.y + 486}">Ring and band: estimated, with its 90% range.</text>
@@ -127,6 +131,7 @@ try {
     `${PUBLIC}social-card.png`,
     await page.screenshot({ clip: { x: 0, y: 0, width: WIDTH, height: HEIGHT } }),
   )
+  writeFileSync(`${PUBLIC}social-card.stamp`, `${cardStamp(FIGURES, INK)}\n`)
   for (const [file, size] of [
     ['icon-192.png', 192],
     ['icon-512.png', 512],
