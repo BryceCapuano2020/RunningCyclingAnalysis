@@ -1,4 +1,5 @@
-import { instantOfDay } from '../fitness/machine'
+import { WEEK_ORIGIN_MS } from '../calendar'
+import { DAY_MS } from '../constants'
 import type { WeekRecord } from '../fitness/machine'
 import { fitSeason, withoutSeason } from '../fitness/season'
 import { pointOf } from '../fitness/series'
@@ -16,7 +17,8 @@ import type { Level, Segmented } from './segments'
 import type { HindsightEpisode, HindsightFitness, Plateau, Span, TooShort } from './types'
 
 const L = LOOKBACK
-const msOfWeek = (week: number) => instantOfDay(week * 7)
+// A week boundary on the day clock, a label read in UTC (monthYear): the local week's own date, in any zone.
+const msOfWeek = (week: number) => WEEK_ORIGIN_MS + week * 7 * DAY_MS
 const spanOf = (s: WeekSpan): Span => ({ fromMs: msOfWeek(s.fromWeek), toMs: msOfWeek(s.toWeek) })
 
 /** What a sport's years are read from. */

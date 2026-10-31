@@ -118,7 +118,7 @@ function distanceRowsOf(input: BestEffortInput): {
   const outcomes = records.map((record) =>
     profile === null
       ? null
-      : distanceGrade(record.distanceM, record.seconds, record.activity.startMs, profile),
+      : distanceGrade(record.distanceM, record.seconds, record.activity, profile),
   )
   const rows = records.map((record, index) => ({
     key: `distance-${record.distanceM}`,
