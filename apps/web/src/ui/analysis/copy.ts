@@ -98,7 +98,8 @@ const UPDATE_STOPPED: Record<NonNullable<RebuildOutcome['stopped']>, string> = {
     'The update stopped. This version of the app is out of date; reload the page to update it.',
   newer:
     'The update stopped. Some activities were saved by a newer version of the app; reload the page to get it.',
-  refused: 'The update stopped. The server did not accept an updated activity. Try again later.',
+  refused:
+    'The update stopped. The server does not support the analysis this version of the app makes. If it keeps happening, tell us at github.com/BryceCapuano2020/RunningCyclingAnalysis/issues.',
   paused: 'The update paused so your other change could finish. Press Update now to continue.',
   elsewhere: 'Another tab is updating your activities. Wait for it to finish.',
   discarded:

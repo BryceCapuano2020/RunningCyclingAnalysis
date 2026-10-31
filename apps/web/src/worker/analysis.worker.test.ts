@@ -1522,15 +1522,33 @@ describe('analysis worker', () => {
       expect(messages.at(-1)).toMatchObject({ rebuilt: 0, failed: 0, stopped: 'elsewhere' })
     })
 
-    it('sends nothing for a rebuilt digest that is not the saved activity', async () => {
+    it('sends nothing for an activity that starts at another time than the saved one', async () => {
       mocked.listActivities
-        .mockResolvedValueOnce([recordFor({ ...stale, id: 'not-what-the-file-gives' }, true)])
+        .mockResolvedValueOnce([recordFor({ ...stale, startMs: stale.startMs + 60_000 }, true)])
         .mockResolvedValueOnce([recordFor(stale, true)])
       const { send } = await startWorker()
       const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
 
       expect(mocked.createActivity).not.toHaveBeenCalled()
-      expect(messages.at(-1)).toMatchObject({ rebuilt: 0, failed: 1 })
+      // The file holds no activity at that time, so it is unmatched, not rebuilt.
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 0, missing: 1, failed: 0 })
+    })
+
+    it('keeps the saved id when the file gives another for the same workout', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor({ ...stale, id: 'the-id-it-was-saved-with' }, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(mocked.createActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'the-id-it-was-saved-with' }),
+        'run.fit',
+        expect.any(String),
+        USER_ID,
+        'rec-the-id-it-was-saved-with',
+      )
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 1, failed: 0 })
     })
 
     it('stops at once when the server says the app is out of date', async () => {

@@ -157,6 +157,13 @@ describe('rebuildNoticeText', () => {
     )
   })
 
+  it('says in plain words why a refused update stopped, and where to report it', () => {
+    const text = rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 2, stopped: 'refused' })
+    expect(text).toContain('does not support the analysis this version of the app makes')
+    expect(text).toContain('github.com/BryceCapuano2020/RunningCyclingAnalysis/issues')
+    expect(text).not.toContain('Try again later')
+  })
+
   it('gives no count when another tab holds the update', () => {
     expect(rebuildNoticeText({ ...NOTHING_LIMITED, stopped: 'elsewhere' })).toBe(
       'Another tab is updating your activities. Wait for it to finish.',
