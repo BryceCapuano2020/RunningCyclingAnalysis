@@ -2821,11 +2821,16 @@ describe('a signed-in import saves its activities side by side', () => {
   it('keeps no more than three creates open at once, saves every activity, and ends with the count', async () => {
     let live = 0
     let most = 0
+    let filled: () => void = () => undefined
+    const threeOpen = new Promise<void>((resolve) => (filled = resolve))
     mocked.createActivity.mockImplementation(async (digest) => {
       live++
       most = Math.max(most, live)
-      // Longer than reading and digesting the next file, so the saves overlap.
-      await new Promise((resolve) => setTimeout(resolve, 60))
+      if (live >= 3) filled()
+      // A save stays open until three are, however slowly the files are read, so the limit is what is measured;
+      // the ceiling keeps a worker that never opens a third from hanging the test.
+      await Promise.race([threeOpen, new Promise((resolve) => setTimeout(resolve, 10_000))])
+      await new Promise((resolve) => setTimeout(resolve, 5))
       live--
       return { record: recordFor(digest), created: true }
     })
