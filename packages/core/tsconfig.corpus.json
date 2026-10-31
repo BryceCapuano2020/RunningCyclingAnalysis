@@ -3,6 +3,6 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src/corpus", "src/**/*.node.test.ts"],
+  "include": ["src/corpus", "src/**/*.node.ts", "src/**/*.node.test.ts"],
   "exclude": []
 }

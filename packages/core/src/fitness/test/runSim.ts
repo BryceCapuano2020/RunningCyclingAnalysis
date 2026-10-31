@@ -25,6 +25,11 @@ export interface SimSpec {
   bad?: number
   /** Share of runs 2% slow with 5% more spread (hills). */
   hilly?: number
+  /**
+   * A contiguous step in what a run reads, between two revisions of the digest: the oldest or the newest `share` of
+   * the runs read `size` (a log-change) higher than the rest, as a library part-way through a rebuild does.
+   */
+  revisionStep?: { share: number; size: number; side: 'oldest' | 'newest' }
 }
 
 function student5(random: () => number): number {
@@ -73,7 +78,14 @@ export function simulate(spec: SimSpec, seed: number): RunPoint[] {
       points.push({ id: `s${seed}-${w}-${i}`, t: (w + random()) * 7, x })
     }
   }
-  return points.sort((p, q) => p.t - q.t)
+  points.sort((p, q) => p.t - q.t)
+  const step = spec.revisionStep
+  if (step !== undefined) {
+    const count = Math.round(step.share * points.length)
+    const from = step.side === 'oldest' ? 0 : points.length - count
+    for (let i = from; i < from + count; i++) points[i]!.x += step.size
+  }
+  return points
 }
 
 /** The monitor over a whole simulated library. */
@@ -95,3 +107,9 @@ export function quantile(xs: number[], q: number): number {
   const s = [...xs].sort((x, y) => x - y)
   return s.length === 0 ? Number.NaN : s[Math.min(s.length - 1, Math.floor(q * s.length))]!
 }
+
+/**
+ * The size of the contiguous step between two revisions of the digest that the monitor is shown to tolerate (a
+ * log-change, monitor.mixing.sim.test.ts), which the mixing study holds the measured change of the fitness value under.
+ */
+export const MIXING_STEP = 0.005
