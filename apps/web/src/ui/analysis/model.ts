@@ -153,6 +153,16 @@ export const EMPTY_SESSION: SessionState = {
   records: new Map(),
 }
 
+/** How the saves an earlier visit left behind are going, and how they ended. */
+export interface OutboxStatus {
+  /** Still waiting to be saved. */
+  pending: number
+  saved: number
+  /** Could not be saved and will not be tried again. */
+  failed: number
+  finished: boolean
+}
+
 /** Which activities this browser holds detailed readings for, and when the oldest of them started. */
 export interface DetailCoverage {
   ids: ReadonlySet<string>
