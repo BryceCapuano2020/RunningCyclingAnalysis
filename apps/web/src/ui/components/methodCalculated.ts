@@ -69,6 +69,11 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'Your pace or power at one heart rate, week by week, from blocks of steady effort. The weekly dots claim no change.',
   },
   {
+    name: 'Your years',
+    state: 'calculated',
+    line: 'Your pace or power at one heart rate across the years, cut into plateaus, with each slip, return and rise listed when the runs show it.',
+  },
+  {
     name: 'Level target',
     state: 'calculated',
     line: 'What the lower sport’s best effort would need to be to match the other, in that sport’s own unit.',

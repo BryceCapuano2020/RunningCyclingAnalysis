@@ -106,7 +106,7 @@ describe('when the half year cannot support a threshold', () => {
   it('has no estimated pace zones after a year, and says which are missing', () => {
     expect(pace(zonesAt(at(19 + 56), SETTINGS, estimates))).toBeUndefined()
     expect(missingThresholdZones(at(19 + 56), SETTINGS, estimates)).toEqual([
-      { sport: 'run', measure: 'pace' },
+      { sport: 'run', measure: 'pace', outgrown: false },
     ])
   })
 
@@ -136,8 +136,8 @@ describe('the session', () => {
     const later = session.zonesAt(newest + 400 * DAY_MS, SETTINGS)
     expect(later.map((set) => set.measure).sort()).toEqual(['heartRate', 'heartRate'])
     expect(missingThresholdZones(newest + 400 * DAY_MS, SETTINGS, state.zoneEstimates)).toEqual([
-      { sport: 'run', measure: 'pace' },
-      { sport: 'ride', measure: 'power' },
+      { sport: 'run', measure: 'pace', outgrown: false },
+      { sport: 'ride', measure: 'power', outgrown: false },
     ])
   })
 })

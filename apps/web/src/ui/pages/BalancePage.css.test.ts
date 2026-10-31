@@ -43,6 +43,10 @@ describe('Balance page stylesheet', () => {
     )
   })
 
+  it('sets what a grade rests on on its own line across the grade and level columns, not in the level column', () => {
+    expect(ruleBody(levels, '.balance-levels__basis')).toMatch(/grid-column:\s*2 \/ -1/)
+  })
+
   it('draws no underline under a keyboard-focused headline, since the sport it names carries the only one', () => {
     expect(page).toMatch(
       /\.balance-hero__title\[tabindex='-1'\]:focus-visible \{[^}]*text-decoration:\s*none/,

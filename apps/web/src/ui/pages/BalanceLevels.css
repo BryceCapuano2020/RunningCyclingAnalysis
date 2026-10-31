@@ -26,6 +26,14 @@
   min-width: 0;
 }
 
+/* What the grade rests on gets its own line under the level, across the grade and level columns: beside the level it
+   was a sliver that wrapped over four lines in a narrow column. */
+.balance-levels__basis {
+  grid-column: 2 / -1;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 .balance-levels__row > .balance-levels__missing {
   grid-column: 2 / -1;
 }

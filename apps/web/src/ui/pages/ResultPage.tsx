@@ -194,8 +194,10 @@ export function ResultPage({
           previousLabel={previousPeriodLabel(period.days)}
           change={analysis.state.change}
           trends={analysis.state.effortTrends}
+          dotsWithheld={analysis.state.dotsWithheld}
           sameHeartRate={analysis.state.sameHeartRate[route.page]}
           fitness={analysis.state.fitness}
+          lookBack={analysis.state.lookBack}
           lateEvidence={analysis.state.lateEvidence[route.page]}
           zoneTimes={analysis.state.timeInZones.current[route.page]}
           previousZoneTimes={analysis.state.timeInZones.previous?.[route.page] ?? null}

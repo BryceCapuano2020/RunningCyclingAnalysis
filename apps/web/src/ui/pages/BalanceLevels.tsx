@@ -35,9 +35,7 @@ export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
                       row.level
                     )}
                   </span>
-                  {row.basis ? (
-                    <span className="balance-levels__basis">{` · ${row.basis}`}</span>
-                  ) : null}
+                  {row.basis ? <span className="balance-levels__basis">{row.basis}</span> : null}
                 </>
               )}
             </li>

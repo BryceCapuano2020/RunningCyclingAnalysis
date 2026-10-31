@@ -255,6 +255,12 @@ export interface EffortCheck {
   /** Where each reference came from (the activities, a maximum entered, or the age). Absent reads as the activities. */
   runReferenceSource?: ReferenceSource | null
   rideReferenceSource?: ReferenceSource | null
+  /**
+   * The other sport whose days set a reference the activities gave, when it is not the sport's own (cycling's is running's less 6
+   * bpm; running's is cycling's when that is higher). Present only then; absent reads as the sport's own.
+   */
+  runReferenceFrom?: Sport
+  rideReferenceFrom?: Sport
 }
 
 /**
