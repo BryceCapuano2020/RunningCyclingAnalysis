@@ -56,7 +56,7 @@
   /* The grade column is at least this wide, and grows for a grade of 100% or more, so it never meets the level. */
   min-width: 3rem;
   font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
+  /* A display size with no type token; see docs/design/system.md, Type. */
   font-size: var(--title);
   font-variant-numeric: tabular-nums;
   font-weight: 800;

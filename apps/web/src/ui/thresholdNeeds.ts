@@ -2,6 +2,7 @@ import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { curveOf, refusalOf } from './records'
+import { indoorNeedLine } from './indoorCopy'
 import { thresholdNeedsText } from './sports'
 import { thresholdWithheldLine } from './thresholdWithheld'
 
@@ -24,12 +25,18 @@ export function longestFitEffortS(result: AnalysisResult, sport: Sport): number 
   return longest
 }
 
-/** The line in a missing threshold's place: what the sport's fit lacks, and the longest effort it has to go on. */
+/**
+ * The line in a missing threshold's place: what the sport's fit lacks, and the longest effort it has to go on. A sport whose
+ * only activities were indoors, where an indoor effort holds no best, says so with the count instead of asking for efforts.
+ */
 export function thresholdNeedsLine(result: AnalysisResult, sport: Sport): string {
+  const longest = longestFitEffortS(result, sport)
+  const indoor = indoorNeedLine(result.activities, sport, longest !== null)
+  if (indoor !== null) return indoor
   const refusal = refusalOf(result, sport)
   // A threshold withheld for its effort has its own line (thresholdWithheld): it says what the best 20 minutes reached.
   return (
     thresholdWithheldLine(result, sport) ??
-    thresholdNeedsText(refusal === 'effort' ? null : refusal, longestFitEffortS(result, sport))
+    thresholdNeedsText(refusal === 'effort' ? null : refusal, longest)
   )
 }
