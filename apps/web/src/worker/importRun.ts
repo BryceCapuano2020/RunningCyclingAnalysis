@@ -6,6 +6,7 @@ import type { DeviceActions } from './device'
 import { accountScope } from './checkinStore'
 import type { CheckinScope } from './checkinStore'
 import { deviceKeeper } from './deviceKeeper'
+import { shownCount } from './hiddenCopies'
 import { openOutbox } from './outbox'
 import type { SendingKeys } from './sendingKeys'
 import { openHeldIndex } from './heldIndex'
@@ -181,7 +182,8 @@ export async function runImport(
     )
   } finally {
     // First, so a failure below cannot skip it: the page does not keep the count from before.
-    if (sync !== null) post({ type: 'missingOriginals', count: missingOriginals.size })
+    if (sync !== null)
+      post({ type: 'missingOriginals', count: shownCount(missingOriginals, savedRecords.values()) })
     // On a failure too: what was read is stored, and the page learns how many were saved.
     // A provisional import's recordings wait for keepProvisional, or for the account.
     // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.

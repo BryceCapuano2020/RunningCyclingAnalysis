@@ -5,18 +5,27 @@ import { AnalysisSession } from '@rca/core/session'
 import type { SyncItem } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import type { Activity } from '@rca/core/types'
-import { ApiRequestError, deleteActivity } from '../api/client'
+import { ApiRequestError } from '../api/client'
 import { messageOf } from '../api/messageOf'
-import { deviceActions, workoutKeyOf as activityKey } from './device'
-import { adoptDevice, followUpAdopted, standingOf } from './adoption'
+import { deviceActions } from './device'
+import { followUpAdopted } from './adoption'
+import {
+  adoptDeviceRequest,
+  forgetDeviceLibraryRequest,
+  keptTraceDropper,
+  offerDevice,
+} from './adoptionRequests'
+import type { AdoptionRequestContext } from './adoptionRequests'
 import { deviceKeeper } from './deviceKeeper'
 import { clearOutbox, openOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
 import { resumeOutbox } from './outboxResume'
-import { asWriter } from './updaterLock'
 import { resumeAsWriter } from './writerResume'
 import type { Writing } from './writerResume'
 import { exportAccount } from './exportAccount'
+import { deleteSavedGroup } from './deleteGroup'
+import type { DeleteGroupContext } from './deleteGroup'
+import { hiddenRecordIds, visibleRecords } from './hiddenCopies'
 import { openDeviceLibrary } from './deviceLibrary'
 import { originalActivity } from './originalActivity'
 import { outdatedWithOriginal } from './outdatedOriginals'
@@ -31,7 +40,7 @@ import {
   stamped,
   waitingToChangeLibrary,
 } from './workerWire'
-import { accountScope, clearCheckinScope } from './checkinStore'
+import { clearCheckinScope } from './checkinStore'
 import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
@@ -63,7 +72,7 @@ const rebuildable = (): { outdatedWithOriginal?: number } => {
 
 /** Newest first; records that start together are ordered by id so the list is stable. */
 function reportLibrary() {
-  const records = [...savedRecords.values()].sort(
+  const records = visibleRecords(savedRecords.values()).sort(
     (a, b) => b.digest.startMs - a.digest.startMs || a.id.localeCompare(b.id),
   )
   post({
@@ -123,9 +132,19 @@ const reportDetail = detailReporter(workbench, post, () =>
 
 /** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
 let resume: Writing | null = null
-/** The recordings kept in this browser for an activity that the account has now. */
-const dropKeptTraces = async (digestId: string): Promise<void> => {
-  await workbench.remove({ kind: 'device' }, digestId)
+const adoptionContext: AdoptionRequestContext = {
+  session,
+  deviceLibrary,
+  savedRecords,
+  sending,
+  workbench,
+  view,
+  libraryContext,
+  post,
+  resume: () => resume,
+  resumeEnded: () => {
+    resume = null
+  },
 }
 function finishLoad(state: SessionState, userId: string): SessionState {
   // In the tab that holds the account's writer lock only: with two tabs open, one sends.
@@ -140,34 +159,14 @@ function finishLoad(state: SessionState, userId: string): SessionState {
       // Saves of kept activities that an Add began and a stop or a reload cut short finish here: the kept copy goes too.
       settled: (row, outcome) =>
         followUpAdopted(
-          { library: deviceLibrary, savedRecords, adopted: dropKeptTraces },
+          { library: deviceLibrary, savedRecords, adopted: keptTraceDropper(workbench) },
           row,
           outcome,
         ),
     }),
   )
-  void offerDevice(userId)
+  void offerDevice(adoptionContext, userId)
   return state
-}
-
-/** Tells the page what the library kept in this browser holds for the account, when it holds something. */
-async function offerDevice(userId: string): Promise<void> {
-  const standing = await standingOf(deviceLibrary, savedRecords)
-  if (standing === null) return
-  const { adoptable, again, held } = standing.offer
-  const current = view.activeScope
-  // The account may have changed while the kept library was read.
-  if (current?.kind !== 'account' || current.userId !== userId) return
-  if (adoptable + again + held > 0)
-    self.postMessage({ type: 'deviceOffer', adoptable, again, held } satisfies WorkerResponse)
-}
-
-/** After the kept library changed under a signed-in page: what it holds now, and what is still offered. */
-async function reportDeviceLeft(): Promise<void> {
-  const standing = await standingOf(deviceLibrary, savedRecords)
-  if (standing === null) return
-  post({ type: 'deviceHolds', holds: standing.holds })
-  post({ type: 'deviceOffer', ...standing.offer })
 }
 
 /** The kept library was emptied under an import: the page is told, and starts from what is kept now. */
@@ -176,6 +175,18 @@ function stopEmptied(): SessionState {
   device.replaced()
   workbench.clearMemory()
   return session.clear()
+}
+
+const deleteContext: DeleteGroupContext = {
+  session,
+  savedRecords,
+  unmatchedOriginals,
+  missingOriginals,
+  routes,
+  workbench,
+  device,
+  post,
+  reportLibrary,
 }
 
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
@@ -225,42 +236,10 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         ),
         request.userId,
       )
-    case 'adoptDevice': {
-      if (view.activeScope?.kind !== 'account' || view.activeScope.userId !== request.userId)
-        throw new Error('Reload your library before adding what this browser kept.')
-      // Saves left from an earlier visit finish through the same outbox, so they go first.
-      resume?.cancel()
-      await resume?.finished
-      resume = null
-      // In the tab that holds the account's writer lock only, as the resume is: two tabs never send the same rows.
-      const added = await asWriter(request.userId, () =>
-        adoptDevice({
-          userId: request.userId,
-          library: deviceLibrary,
-          outbox: openOutbox(request.userId),
-          savedRecords,
-          sending,
-          // The page is busy while it runs; the outbox's own progress line is about an import, not this.
-          post: () => undefined,
-          adopted: dropKeptTraces,
-        }),
-      )
-      if (!added.writer)
-        throw new Error('Another tab is saving to this account. Add these when it has finished.')
-      const result = added.value
-      const { saved, conflicts, failed, again, held } = result
-      post({ type: 'adoption', saved, conflicts, failed, again, held })
-      if (result.stopped !== null) post({ type: 'accountIssue', issue: result.stopped })
-      await reportDeviceLeft()
-      // What was added is in the account, not yet in the session: read the library again.
-      return loadServer(libraryContext, request.settings, request.userId, undefined)
-    }
+    case 'adoptDevice':
+      return adoptDeviceRequest(adoptionContext, request)
     case 'forgetDeviceLibrary':
-      await deviceLibrary.clear()
-      await workbench.clearScope({ kind: 'device' })
-      post({ type: 'deviceHolds', holds: false })
-      post({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
-      return session.setSettings(request.settings)
+      return forgetDeviceLibraryRequest(adoptionContext, request)
     case 'rebuildStale':
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')
@@ -321,36 +300,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         throw new Error('Reload your library before deleting this activity.')
       const record = savedRecords.get(request.id)
       if (!record) throw new Error('Reload your library before deleting this activity.')
-      try {
-        await deleteActivity(request.id, request.userId)
-      } catch (error) {
-        // Another tab may already have deleted this exact record.
-        if (!(error instanceof ApiRequestError && error.status === 404)) throw error
-      }
-      savedRecords.delete(record.id)
-      unmatchedOriginals.delete(record.id)
-      routes.forget(record.id)
-      missingOriginals.delete(activityKey(record.digest))
-      // The file this activity came from is read again if it is added again.
-      await forgetHeldKeys(accountScope(request.userId), [activityKey(record.digest)])
-      await forgetHeldKeys('device', [activityKey(record.digest)])
-      const traceCleared = await workbench.remove(
-        { kind: 'account', userId: request.userId },
-        record.digest.id,
-      )
-      const deviceTraceCleared = await workbench.remove({ kind: 'device' }, record.digest.id)
-      // The copy kept in this browser goes too, so the activity cannot return after a sign-out. The
-      // account copy is already gone, so a copy that cannot be removed here does not fail the delete;
-      // the page is told, once, since it could return after a sign-out.
-      const keptDropped = await device.dropKept(activityKey(record.digest)).then(
-        () => true,
-        () => false,
-      )
-      if (!traceCleared || !deviceTraceCleared || !keptDropped)
-        post({ type: 'deviceIssue', issue: 'notForgotten' })
-      reportLibrary()
-      post({ type: 'missingOriginals', count: missingOriginals.size })
-      return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)
+      return deleteSavedGroup(deleteContext, record, request.userId, request.settings)
     }
   }
 }
@@ -412,7 +362,10 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         await reportDetail()
         post({ type: 'rebuildComplete', ...rebuilt, ...rebuildable() })
       } else if (event.data.type === 'exportData') {
-        post({ type: 'exportReady', file: await exportAccount(event.data) })
+        post({
+          type: 'exportReady',
+          file: await exportAccount(event.data, hiddenRecordIds(savedRecords.values())),
+        })
       } else if (event.data.type === 'activitySplits') {
         post({ type: 'splits', id: event.data.id, splits: session.splitsOf(event.data.id) })
       } else if (event.data.type === 'routeShape' || event.data.type === 'forgetRoutes') {

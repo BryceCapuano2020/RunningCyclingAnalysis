@@ -143,6 +143,7 @@ export function AppNotices({
           issues={analysis.state.syncIssues}
           signedIn={signedIn}
           moved={movedAnything(moved)}
+          hiddenCopies={analysis.state.hiddenDuplicates}
         />
         <LibraryNotices
           analysis={analysis}
