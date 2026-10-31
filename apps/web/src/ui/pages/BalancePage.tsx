@@ -122,9 +122,7 @@ export function BalancePage({
     [weightKnown, gap, pick],
   )
   const heldGap = pick === null ? null : gap
-  // The lean tile and the target are in points, which only a grade gap gives; an energy balance has none.
-  const pointsReading = reading?.unit === 'points' ? reading : null
-  // The level target waits for the same things as the balance: both grades, and so the weight. Its ride
+  // The level target, a line of the hero, waits for the same things as the balance: both grades, and so the weight. Its ride
   // search runs on each change of these inputs, not on each render, so it is memoised on them.
   const target = useMemo(
     () =>
@@ -231,6 +229,7 @@ export function BalancePage({
         library={library}
         pick={pick}
         reading={reading}
+        target={target?.sentence ?? null}
         period={period}
         onShowAll={onShowAll}
         weightKnown={weightKnown}
@@ -265,8 +264,6 @@ export function BalancePage({
         grades={grades}
         weighted={weightKnown}
         period={period}
-        reading={pointsReading}
-        target={target?.sentence ?? null}
         onAddFiles={analysis.addFiles}
         leftOut={leftOut}
       />
