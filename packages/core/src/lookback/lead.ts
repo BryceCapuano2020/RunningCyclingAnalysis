@@ -105,9 +105,18 @@ export function leadOf(lookBack: LookBack, live: Record<Sport, LiveState>): Lead
     .flatMap(({ s, years }) =>
       years.episodes
         .filter((e) => e.toMs !== null)
-        .map((episode) => ({ sport: s.sport, episode, runs: years.runs })),
+        .map((episode) => ({
+          sport: s.sport,
+          episode,
+          runs: years.runs,
+          strong: meetsLeadBar(episode, years),
+        })),
     )
-    .sort((a, b) => b.episode.toMs! - a.episode.toMs! || b.runs - a.runs)
+    // The ones that meet the lead bar first, the rest only when none does; then the most recent.
+    .sort(
+      (a, b) =>
+        Number(b.strong) - Number(a.strong) || b.episode.toMs! - a.episode.toMs! || b.runs - a.runs,
+    )
   if (ended[0] !== undefined) {
     return { kind: 'episode', sport: ended[0].sport, episode: ended[0].episode, held: false }
   }

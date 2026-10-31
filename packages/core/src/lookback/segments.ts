@@ -114,7 +114,7 @@ export function mergeLevels(
   bar: { delta: number; z: number },
   maxLevels = Number.POSITIVE_INFINITY,
 ): Level[] {
-  const out = [...levels]
+  let out = [...levels]
   for (;;) {
     let weakest = -1
     let weakness = Number.POSITIVE_INFINITY
@@ -146,6 +146,12 @@ export function mergeLevels(
     const merged = levelBetween(runs, a.fromWeek, b.toWeek, sigma)
     if (merged === null) return out
     out.splice(weakest, 2, a.forced === undefined ? merged : { ...merged, forced: a.forced })
+    // The merge moved the cuts the later steps are judged beside: read the cores again from the levels as they stand.
+    out = withCores(
+      runs,
+      sigma,
+      out.map((level) => (level.core === undefined ? level : { ...level, core: undefined })),
+    )
   }
 }
 
