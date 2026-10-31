@@ -135,6 +135,11 @@ export type WorkerRequest =
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
   | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
+  /**
+   * Sends the saves the outbox holds now, in the tab that holds the account's writer lock, without reading the library
+   * again. Answered with the state, once they have ended, so the saves that went are off its list of unsaved ones.
+   */
+  | { type: 'resumeSaves'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
   | { type: 'setRange'; choice: PeriodChoice; settings: AthleteSettings }
   /** `forgetDevice` also empties the library kept in this browser. */

@@ -90,6 +90,13 @@ export function useLibraryActions({
     else loadLibrary(current.me.user.id)
   }, [accountRef, loadLibrary, restartWorker, workerRef])
 
+  /** Sends what the outbox holds now, without reading the library again; answered once those saves have ended. */
+  const resumeSaves = useCallback(() => {
+    const current = accountRef.current
+    if (current.status !== 'signed-in' || current.me === null || workerRef.current === null) return
+    send({ type: 'resumeSaves', settings: settingsRef.current, userId: current.me.user.id })
+  }, [accountRef, send, settingsRef, workerRef])
+
   const deleteActivity = useCallback(
     (id: string) => {
       const current = accountRef.current
@@ -210,6 +217,7 @@ export function useLibraryActions({
     holdForLibrary,
     failLibrary,
     retryLibrary,
+    resumeSaves,
     deleteActivity,
     exportData,
     activitySplits,

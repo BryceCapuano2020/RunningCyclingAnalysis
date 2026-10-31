@@ -7,20 +7,14 @@ import type { Activity } from '@rca/core/types'
 import { ApiRequestError } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deviceActions } from './device'
-import { followUpAdopted } from './adoption'
-import {
-  adoptDeviceRequest,
-  forgetDeviceLibraryRequest,
-  keptTraceDropper,
-  offerDevice,
-} from './adoptionRequests'
+import { adoptDeviceRequest, forgetDeviceLibraryRequest, offerDevice } from './adoptionRequests'
 import type { AdoptionRequestContext } from './adoptionRequests'
 import { newSession } from './newSession'
 import { deviceKeeper } from './deviceKeeper'
-import { clearOutbox, openOutbox } from './outbox'
+import { clearOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
-import { resumeOutbox } from './outboxResume'
-import { resumeAsWriter } from './writerResume'
+import { startResume } from './startResume'
+import type { ResumeParts } from './startResume'
 import type { Writing } from './writerResume'
 import { exportAccount } from './exportAccount'
 import { deleteSavedGroup } from './deleteGroup'
@@ -135,6 +129,7 @@ const reportDetail = detailReporter(workbench, post, () =>
 
 /** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
 let resume: Writing | null = null
+const resumeParts: ResumeParts = { session, deviceLibrary, savedRecords, sending, workbench }
 const adoptionContext: AdoptionRequestContext = {
   session,
   deviceLibrary,
@@ -150,24 +145,7 @@ const adoptionContext: AdoptionRequestContext = {
   },
 }
 function finishLoad(state: SessionState, userId: string): SessionState {
-  // In the tab that holds the account's writer lock only: with two tabs open, one sends.
-  resume = resumeAsWriter(userId, () =>
-    resumeOutbox({
-      userId,
-      outbox: openOutbox(userId),
-      savedRecords,
-      sending,
-      // Apart from any request: stamped with one, the page would drop it as late.
-      post: (message) => self.postMessage(message),
-      // Saves of kept activities that an Add began and a stop or a reload cut short finish here: the kept copy goes too.
-      settled: (row, outcome) =>
-        followUpAdopted(
-          { library: deviceLibrary, savedRecords, adopted: keptTraceDropper(workbench) },
-          row,
-          outcome,
-        ),
-    }),
-  )
+  resume = startResume(resumeParts, userId)
   void offerDevice(adoptionContext, userId)
   return state
 }
@@ -241,6 +219,15 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         ),
         request.userId,
       )
+    case 'resumeSaves':
+      // The connection is back, or the athlete asked: what the outbox holds goes now, without reading the library again.
+      if (view.activeScope?.kind === 'account' && view.activeScope.userId === request.userId) {
+        resume?.cancel()
+        await resume?.finished
+        resume = startResume(resumeParts, request.userId)
+        await resume.finished
+      }
+      return session.setSettings(request.settings)
     case 'adoptDevice':
       return adoptDeviceRequest(adoptionContext, request)
     case 'forgetDeviceLibrary':

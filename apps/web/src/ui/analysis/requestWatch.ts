@@ -37,6 +37,7 @@ const READ_ORIGINAL: StallRule = { noticeMs: Infinity, stallMs: 150_000, action:
 const RULES: Record<WorkerRequest['type'], StallRule> = {
   addFiles: LONG,
   rebuildStale: LONG,
+  resumeSaves: LONG,
   loadServer: LONG,
   loadDevice: LONG,
   exportData: LONG,

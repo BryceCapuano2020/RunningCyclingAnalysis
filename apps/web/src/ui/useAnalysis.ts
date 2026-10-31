@@ -357,6 +357,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryStatus: library.libraryStatus,
     restoring: library.restoring,
     retryLibrary: libraryActions.retryLibrary,
+    resumeSaves: libraryActions.resumeSaves,
     detail: library.detail,
     missingOriginals: library.missingOriginals,
     outdatedWithOriginal: library.outdatedWithOriginal,

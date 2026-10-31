@@ -142,3 +142,20 @@
   font-size: var(--text-sm);
   white-space: nowrap;
 }
+
+/* Try again, beside the status that says sign-in is unavailable. A control tall, as the sign-in button it stands in for. */
+.account-menu__retry {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.account-menu__retry:hover {
+  background: var(--surface-2);
+}

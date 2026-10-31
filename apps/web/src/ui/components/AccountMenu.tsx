@@ -11,6 +11,8 @@ export interface AccountMenuProps {
   me: Me | null
   onSignIn: () => void
   onSignOut: () => void
+  /** Looks the account up again. With it, an unavailable account offers Try again beside its status. */
+  onRetry?: () => void
 }
 
 /** The first word of the name, or the part of the email before the @ when there is no name. */
@@ -38,7 +40,7 @@ function initialsOf(me: Me): string {
  * including the data download and account deletion. While the session loads, or when accounts
  * cannot be reached, a status takes the sign-in button's place, so the header does not move.
  */
-export function AccountMenu({ status, me, onSignIn, onSignOut }: AccountMenuProps) {
+export function AccountMenu({ status, me, onSignIn, onSignOut, onRetry }: AccountMenuProps) {
   const panelId = `${useId()}-panel`
   const wrapperRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -103,11 +105,26 @@ export function AccountMenu({ status, me, onSignIn, onSignOut }: AccountMenuProp
       : status === 'unavailable'
         ? 'Sign-in is unavailable right now'
         : ''
+  const retryOffered = status === 'unavailable' && onRetry !== undefined
+  const pendingClass = retryOffered
+    ? 'account-menu__pending account-menu__pending--with-retry'
+    : 'account-menu__pending'
   const region = (
-    <span role="status" className={pendingText === '' ? 'sr-only' : 'account-menu__pending'}>
+    <span role="status" className={pendingText === '' ? 'sr-only' : pendingClass}>
       {pendingText}
     </span>
   )
+  if (retryOffered) {
+    // On a phone the status is read and not shown, and the button takes its width (Header.css).
+    return (
+      <>
+        {region}
+        <button type="button" className="account-menu__retry" onClick={onRetry}>
+          Try again
+        </button>
+      </>
+    )
+  }
   if (status === 'loading' || status === 'unavailable') return region
   if (status === 'signed-out' || me === null) {
     return (
