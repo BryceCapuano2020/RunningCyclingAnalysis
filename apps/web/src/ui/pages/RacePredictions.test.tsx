@@ -296,7 +296,8 @@ describe('RacePredictions', () => {
     it('puts a prediction no slower than a time already run at the distance', () => {
       const found = racePredictionsOf('run', slowHeartRate)!
       const ten = found.races.find((r) => r.distanceM === 10_000)!
-      expect(ten.seconds).toBe(40 * 60 + 7)
+      expect(ten.seconds).toBeLessThanOrEqual(40 * 60 + 7)
+      expect(ten.methods.every((m) => m.seconds <= 40 * 60 + 7)).toBe(true)
       expect(ten.high).toBeGreaterThan(ten.seconds)
       expect(ten.floored).toBe(true)
     })

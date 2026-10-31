@@ -281,7 +281,10 @@ describe('CrossSportCard', () => {
     )
     const pair = container.querySelector('.cross-sport__pair')
     expect(pair).toHaveAttribute('aria-hidden', 'true')
-    expect(pair).toHaveTextContent('250 Won foot')
+    // Each chip names its sport, so the watts are the ride's wherever the text is read from.
+    expect(
+      Array.from(pair!.querySelectorAll('.cross-sport__chip'), (chip) => chip.textContent),
+    ).toEqual(['Ride 250 W', 'Run on the flat'])
   })
 
   it('gives the pace per mile for imperial', () => {
