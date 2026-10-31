@@ -16,16 +16,20 @@ from published errors, not from the two estimates' spread alone.
     marathon), as run, not adjusted for hills.
 - **From heart rate:**
   - **One estimate per run:** each outdoor run with trusted heart rate gives one, from its longest best
-    window of 10 min or more held at 85% or more of the running reference heart rate.
+    window of 10 min or more, the one held at the highest share of the running reference heart rate.
   - **Oxygen cost:** the window's flat-equivalent pace gives Daniels' oxygen cost, VO2 = −4.60 +
     0.182258 v + 0.000104 v², with v in m/min.
   - **Share of VO2max:** its heart rate gives the share of VO2max by Swain et al. (1994, Med Sci Sports
     Exerc 26:112): %HRmax = 0.64 × %VO2max + 37.
-  - **VO2max:** cost over share, with the median over runs (at least two).
+  - **VO2max:** cost over share, with the median over runs weighted by how hard each window was (at least two
+    runs, and a run's worth of weight).
   - **Anchors:** the 5 km and 10 km this VO2max would run, by Daniels & Gilbert's formula (Oxygen Power,
     1979), which reproduces the VDOT table to 0.5% (`daniels.test.ts`).
-  - **Why 85%:** below 85%, the intercept of Swain's relation is a larger part of the estimate and its
-    error grows; near the maximum, heart rate plateaus.
+  - **Why a ramp:** a window held under 80% of the reference counts for nothing and one at 90% or more counts in
+    full, with a straight line between (`vo2maxShare.ts`). Below the ramp the intercept of Swain's relation is a
+    larger part of the estimate and its error grows; near the maximum heart rate plateaus. A hard cut at one share
+    (it was 85%) moved the estimate, and every race time carried from it, in one step when a run drifted across the
+    line or the reference moved a beat; the ramp moves it with them.
 
 **The hill cap.** A window of 10 min or more cannot be faster on the flat than the runner's fastest mile
 as run. When a window's flat-equivalent pace is, the grade model has inflated it on hills, so that run is left
