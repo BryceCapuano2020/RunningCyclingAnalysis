@@ -9,12 +9,13 @@ import type { ActivityDigest, AthleteSettings, Sport } from '../../types'
 const WANDER_RHO = NOISE_PRESETS.measured.level.wanderRho
 
 /**
- * The athlete of the harness. Its weight is marked a placeholder (`massAssumed`), so the implausible-power screen does not
- * run: the harness draws noise with no ceiling (`effortSd`) and is calibrated to the spread a real library's bests have, and the
- * screen would set aside the rides drawn above 2.4 sd (a ride's 5 minutes at 1.8 times its capability), thinning the noise
- * the calibration says. The screen has its own tests (digest/powerSetAside.test.ts); this harness measures the change test alone.
+ * The athlete of the harness: 100 kg, so its 330 W at 5 minutes is 3.3 W/kg, a recreational rider. The implausible-power
+ * screen stays on here. The harness draws unbounded log-normal noise (`effortSd`), and at 70 kg a 5 minute draw at 2.4 sd
+ * (1.8 times the rider's own capability, 8.5 W/kg) is above what any rider holds and is set aside, thinning the noise
+ * the calibration says. At 100 kg that draw is 3.7 sd, so the screen leaves the harness alone, as it leaves an honest
+ * library alone.
  */
-export const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9, massAssumed: true }
+export const SETTINGS: AthleteSettings = { massKg: 100, bikeMassKg: 9 }
 
 const TEMPLATES = sampleDataset().activities.map((activity) => digestActivity(activity))
 const TEMPLATE: Record<Sport, ActivityDigest> = {
