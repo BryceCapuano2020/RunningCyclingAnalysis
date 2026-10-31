@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import '../test/deviceZone'
 import { localDateOf } from '@rca/core/athlete'
 import { useNow } from './useNow'
 

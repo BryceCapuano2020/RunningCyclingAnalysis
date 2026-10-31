@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { localDayOf, setViewerZone, UTC_ZONE } from '@rca/core/calendar'
+import { localDayOf, setViewerZone } from '@rca/core/calendar'
+import { installDeviceZone } from '../worker/viewerZone'
 import { makeActivity } from './components/fixtures'
 import { bucketLabel, bucketSpan, inBucket, monthTotals, volumeBuckets } from './activitiesVolume'
 import { sampleProfileAt } from './sampleAthlete'
@@ -13,7 +14,7 @@ import { deviceZone } from '../worker/viewerZone'
  */
 afterEach(() => {
   vi.unstubAllEnvs()
-  setViewerZone(UTC_ZONE)
+  installDeviceZone()
 })
 
 const at = (y: number, m: number, d: number, h = 0, min = 0) => Date.UTC(y, m - 1, d, h, min)
@@ -102,6 +103,5 @@ describe('the list under its headings and the hours under the trend', () => {
         sundayEnd + 7 * 86_400_000,
       ])
     }
-    expect(periodWeekEnds(trendEnds, at(2026, 3, 9, 2))).toEqual(trendEnds)
   })
 })

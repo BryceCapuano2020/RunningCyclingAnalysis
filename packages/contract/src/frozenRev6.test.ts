@@ -44,6 +44,16 @@ function revision7(sport: 'run' | 'ride', withLock: boolean): DigestWire {
 const WITHOUT_LOCK = (['run', 'ride'] as const).map((sport) => revision7(sport, false))
 const WITH_LOCK = (['run', 'ride'] as const).map((sport) => revision7(sport, true))
 
+/** The wire without the best over the marathon, the one record distance revision 6 does not know. */
+function withoutMarathon(wire: DigestWire): DigestWire {
+  const bests = wire.distanceBests
+  if (!Array.isArray(bests)) return wire
+  return {
+    ...wire,
+    distanceBests: bests.filter((best) => (best as { distanceM: number }).distanceM !== 42_195),
+  }
+}
+
 function withoutNewKeys(wire: DigestWire): DigestWire {
   const rest = { ...wire }
   for (const key of NEW_KEYS) delete rest[key]
@@ -106,6 +116,22 @@ describe('a reader from before revision 7', () => {
 })
 
 describe('the readers of this release', () => {
+  it('keep the best over the marathon that a stored row and the device library hold, which the reader of revision 6 drops', () => {
+    const wire = CORPUS.find((w) => Array.isArray(w.distanceBests) && w.id === 'ultra-run')
+    expect(wire, 'the corpus holds a run that covers the marathon').toBeDefined()
+    for (const view of ['stored', 'device'] as const) {
+      const now = tryReadDigest(wire!, view)
+      const then = rev6.tryReadDigest(wire!, view)
+      expect(now.ok && then.ok).toBe(true)
+      if (now.ok && then.ok) {
+        const distances = (d: { distanceBests?: { distanceM: number }[] }) =>
+          d.distanceBests?.map((best) => best.distanceM) ?? []
+        expect(distances(now.digest)).toContain(42_195)
+        expect(distances(then.digest)).not.toContain(42_195)
+      }
+    }
+  })
+
   it('read every revision-7 digest with every field kept, by every reader that takes it', () => {
     for (const w of [...WITHOUT_LOCK, ...WITH_LOCK]) {
       const locked = 'hr-cadence-lock' in (w.flagCounts as object)
@@ -136,7 +162,9 @@ describe('the readers of this release', () => {
   it.each(['create', 'stored', 'device'] as const)(
     'read a revision-6 digest as the reader of revision 6 did, in the %s view',
     (view) => {
-      for (const w of CORPUS) {
+      for (const wire of CORPUS) {
+        // A revision-6 digest has no marathon: the corpus is digested now, so a run that covers it is read as it was.
+        const w = withoutMarathon(wire)
         const now = tryReadDigest(w, view)
         const then = rev6.tryReadDigest(w, view)
         expect(now.ok, String(w.id)).toBe(then.ok)

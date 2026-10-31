@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setViewerZone } from '../calendar'
 import { checkInBetween } from './checkIn'
 import type { CheckIn } from './checkIn'
 import { checkInText } from './checkInCopy'
@@ -140,6 +141,8 @@ describe('the words of the check-in', () => {
     const evening = Date.UTC(2026, 5, 2, 3, 30)
     const run = (zone: string) => {
       vi.stubEnv('TZ', zone)
+      // The app gives the calendar the device's zone (the process's here).
+      setViewerZone((ms) => -new Date(ms).getTimezoneOffset())
       const was = snap({ run: [ago(60)] }, { atMs: evening })
       return checkInText(checkInBetween(was, snap({ run: [ago(60), ago(1)] }))!, 'metric').headline
     }

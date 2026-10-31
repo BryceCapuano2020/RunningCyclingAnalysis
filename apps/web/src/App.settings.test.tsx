@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import './test/deviceZone'
 import { localDateOf } from '@rca/core/athlete'
 import type { Measurement } from '@rca/core/athlete'
 import { App } from './App'

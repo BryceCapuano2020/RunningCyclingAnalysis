@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import '../test/deviceZone'
 import type { CheckIn } from '@rca/core/lookback'
 import { BUSY_CHECK_IN, QUIET_CHECK_IN } from './checkInFixtures'
 import { checkInWords, firstRowOf } from './checkInRow'
