@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { bodyMassOn } from '@rca/core/athlete'
 import './App.css'
 import { forgetSeenNotes } from './ui/aboutDataStore'
@@ -19,13 +19,12 @@ import { libraryPageTitle, pageKeyOf } from './ui/libraryPage'
 import { heldViewFor } from './ui/pages/heldLibraryView'
 import { useLibraryPage } from './ui/useLibraryPage'
 import { HoldInputsContext } from './ui/holdContext'
-import { MethodPage, preloadResultPages, ProfilePage, ResultPage } from './ui/lazyPages'
-import { PageLoadBoundary } from './ui/components/PageLoadBoundary'
-import { PageLoading, PageShown } from './ui/components/PageLoading'
+import { MethodPage, ProfilePage, ResultPage } from './ui/lazyPages'
+import { PageFrame } from './ui/components/PageLoading'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { hrefFor, useRoute } from './ui/route'
 import { useRouteHistory } from './ui/routeHistory'
-import { usePageFocus } from './ui/usePageFocus'
+import { useLoadedPages } from './ui/useLoadedPages'
 import { focusPageHeading } from './ui/pages/pageHeading'
 import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
@@ -141,12 +140,6 @@ export function App() {
     save: saveProfile,
   })
   const hasResult = analysis.state.result !== null
-  // Results are on their way when files are being read, a kept library is restoring or an account is
-  // signed in, so the pages that show them load in parallel with the analysis.
-  const resultsComing = analysis.busy || analysis.restoring || signedIn
-  useEffect(() => {
-    if (resultsComing) preloadResultPages()
-  }, [resultsComing])
   // A library is more than a result: one whose digests are all held out has none, and is still a library.
   const { knowledge, holdInputs, page } = useLibraryPage(analysis, route, signedIn)
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
@@ -185,11 +178,9 @@ export function App() {
     settled,
   })
 
-  // The profile, result and method pages load on first use, so a page's heading may not exist when its key
-  // changes. Focus and scroll move once that page reports it is on screen.
-  const [shownKey, setShownKey] = useState(key)
-  const onShown = useCallback((shown: string) => setShownKey(shown), [])
-  usePageFocus(key, shownKey)
+  // Pages that load on first use: they preload while results are on their way, and focus and scroll wait
+  // for the new page to report it is on screen.
+  const onShown = useLoadedPages(key, analysis.busy || analysis.restoring || signedIn)
 
   // Removing all activities clears the analysis in the worker. The landing page shows once the old
   // result is gone, so it never flashes on the way. Leaving Profile first cancels the move; it
@@ -318,74 +309,67 @@ export function App() {
             countedRuns={countedRuns}
             libraryPanel={page === 'held'}
           />
-          <PageLoadBoundary pageKey={key}>
-            <Suspense fallback={<PageLoading />}>
-              {route.page === 'profile' ? (
-                <ProfilePage
-                  analysis={analysis}
-                  settings={settings}
-                  athlete={analysisAthlete}
-                  units={units}
-                  birthYear={athleteValues.birthYear}
-                  sex={athleteValues.sex}
-                  signedIn={signedIn}
-                  accountsAvailable={accountsAvailable}
-                  accountLoading={account.status === 'loading'}
-                  email={account.me?.user.email ?? null}
-                  keepFiles={keepFiles}
-                  fileRetentionAvailable={fileRetentionAvailable}
-                  onSaveProfile={saveProfile}
-                  dated={measurements}
-                  onAddSetting={addSetting}
-                  onRemoveSetting={removeSetting}
-                  onSignIn={account.signIn}
-                  onDownloadData={downloadData}
-                  onDeleteAccount={deleteAccount}
-                  onRemoveAll={removeAll}
-                />
-              ) : page === 'result' && analysis.state.result ? (
-                <ResultPage
-                  route={route}
-                  analysis={analysis}
-                  result={analysis.state.result}
-                  settings={analysisAthlete}
-                  weightKnown={weighted}
-                  units={units}
-                  birthYear={athleteValues.birthYear}
-                  sex={athleteValues.sex}
-                  signedIn={signedIn}
-                  countedRuns={countedRuns}
-                />
-              ) : restoringPage ? (
-                <RestoringPage onFiles={setup.requestImport} />
-              ) : page === 'unavailable' ? (
-                <UnavailableLibraryPage canRetry={signedIn} />
-              ) : page === 'held' ? (
-                <HeldLibraryPage
-                  analysis={analysis}
-                  signedIn={signedIn}
-                  fileRetentionAvailable={fileRetentionAvailable}
-                  onFiles={setup.requestImport}
-                />
-              ) : route.page === 'method' ? (
-                <MethodPage
-                  result={null}
-                  heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
-                  units={units}
-                  profile={null}
-                  weightKnown={weighted}
-                  restoring={analysis.restoring}
-                />
-              ) : (
-                <LandingPage
-                  analysis={analysis}
-                  signedIn={signedIn}
-                  onFiles={setup.requestImport}
-                />
-              )}
-              <PageShown pageKey={key} onShown={onShown} />
-            </Suspense>
-          </PageLoadBoundary>
+          <PageFrame pageKey={key} onShown={onShown}>
+            {route.page === 'profile' ? (
+              <ProfilePage
+                analysis={analysis}
+                settings={settings}
+                athlete={analysisAthlete}
+                units={units}
+                birthYear={athleteValues.birthYear}
+                sex={athleteValues.sex}
+                signedIn={signedIn}
+                accountsAvailable={accountsAvailable}
+                accountLoading={account.status === 'loading'}
+                email={account.me?.user.email ?? null}
+                keepFiles={keepFiles}
+                fileRetentionAvailable={fileRetentionAvailable}
+                onSaveProfile={saveProfile}
+                dated={measurements}
+                onAddSetting={addSetting}
+                onRemoveSetting={removeSetting}
+                onSignIn={account.signIn}
+                onDownloadData={downloadData}
+                onDeleteAccount={deleteAccount}
+                onRemoveAll={removeAll}
+              />
+            ) : page === 'result' && analysis.state.result ? (
+              <ResultPage
+                route={route}
+                analysis={analysis}
+                result={analysis.state.result}
+                settings={analysisAthlete}
+                weightKnown={weighted}
+                units={units}
+                birthYear={athleteValues.birthYear}
+                sex={athleteValues.sex}
+                signedIn={signedIn}
+                countedRuns={countedRuns}
+              />
+            ) : restoringPage ? (
+              <RestoringPage onFiles={setup.requestImport} />
+            ) : page === 'unavailable' ? (
+              <UnavailableLibraryPage canRetry={signedIn} />
+            ) : page === 'held' ? (
+              <HeldLibraryPage
+                analysis={analysis}
+                signedIn={signedIn}
+                fileRetentionAvailable={fileRetentionAvailable}
+                onFiles={setup.requestImport}
+              />
+            ) : route.page === 'method' ? (
+              <MethodPage
+                result={null}
+                heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
+                units={units}
+                profile={null}
+                weightKnown={weighted}
+                restoring={analysis.restoring}
+              />
+            ) : (
+              <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
+            )}
+          </PageFrame>
         </main>
 
         <footer className="app__footer muted">

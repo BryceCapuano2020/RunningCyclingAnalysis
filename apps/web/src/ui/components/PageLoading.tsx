@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
+import { PageLoadBoundary } from './PageLoadBoundary'
 import './PageLoading.css'
 
 /**
@@ -28,4 +30,27 @@ export function PageShown({
 }) {
   useEffect(() => onShown(pageKey), [pageKey, onShown])
   return null
+}
+
+/**
+ * The place a page that loads on first use appears: a failed load shows a retry card, a slow one a loading
+ * status, and a page that has appeared reports its key to `onShown`.
+ */
+export function PageFrame({
+  pageKey,
+  onShown,
+  children,
+}: {
+  pageKey: string
+  onShown: (key: string) => void
+  children: ReactNode
+}) {
+  return (
+    <PageLoadBoundary pageKey={pageKey}>
+      <Suspense fallback={<PageLoading />}>
+        {children}
+        <PageShown pageKey={pageKey} onShown={onShown} />
+      </Suspense>
+    </PageLoadBoundary>
+  )
 }
