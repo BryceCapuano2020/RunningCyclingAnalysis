@@ -6,6 +6,7 @@ import type { WorkerRequest } from '../worker/protocol'
 import type { AnalysisController } from './analysis/controller'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { SAVES_PAUSED, STILL_WORKING, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
+import { useAdoptionActions } from './analysis/adoptionActions'
 import { useImportActions } from './analysis/importActions'
 import { useImportManifest } from './analysis/importManifestHook'
 import type { ManifestScope } from './importManifest'
@@ -19,11 +20,11 @@ import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/mo
 import { accountPending, drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerWatchdog } from './analysis/workerWatchdog'
+import { workerStartsWithPage } from './analysis/workerStart'
 import { useWorkerTransport } from './analysis/workerTransport'
-import { replyOf } from './routeReply'
-import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
 import { useActivityTraceRequest } from './analysis/useActivityTraceRequest'
+import { useRouteRequest } from './analysis/useRouteRequest'
 
 export type { LibraryStatus }
 export { DEVICE_GRACE_MS } from './analysis/keptLibraryLoad'
@@ -158,6 +159,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     onSend,
     onDropped: refreshBusy,
     setError,
+    startWorker: workerStartsWithPage,
   })
   const { dropPendingReplies, dropUnsent, restartWorker, setWorkerStopped } = transport
   const { automaticRestartCountRef, send: sendToWorker } = transport
@@ -167,24 +169,12 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     accountRef,
     settingsRef,
     send: sendToWorker,
+    workerRunning: () => transport.workerRef.current !== null,
     provisionalImportsRef,
     libraryWaitRef,
   })
 
-  /** Asks the worker for a saved activity's route, under the signed-in account when there is one. */
-  const loadRoute = useCallback(
-    (id: string, fromOriginal: boolean) =>
-      new Promise<RouteReply>((resolve) => {
-        const { status, me } = accountRef.current
-        const userId = status === 'signed-in' ? me?.user.id : undefined
-        sendToWorker(
-          { type: 'routeShape', id, fromOriginal, ...(userId === undefined ? {} : { userId }) },
-          undefined,
-          (message) => resolve(replyOf(message)),
-        )
-      }),
-    [sendToWorker],
-  )
+  const loadRoute = useRouteRequest(sendToWorker, accountRef)
 
   const libraryActions = useLibraryActions({
     library,
@@ -207,6 +197,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setErrorNotice,
     latestBaseline: () => baselineOf(reportedRef.current),
   })
+  const adoptionActions = useAdoptionActions({ transport, accountRef, settingsRef })
   const handleAccountIssue = useAccountIssue({
     accountRef,
     loadLibrary: libraryActions.loadLibrary,
@@ -239,6 +230,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
    * waiting for its reply compares with it, and the next import replaces it.
    */
   const dismissSummary = useCallback(() => setImportChange(null), [setImportChange])
+  const { setAdoption } = library
+  const dismissAdoption = useCallback(() => setAdoption(null), [setAdoption])
 
   // A clear keeps the chosen period: the session holds it, so nothing else is sent.
   const clearSession = useCallback(
@@ -367,12 +360,22 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     detail: library.detail,
     missingOriginals: library.missingOriginals,
     outdatedWithOriginal: library.outdatedWithOriginal,
+    checkIn: library.checkIn,
+    markCheckInSeen: libraryActions.markCheckInSeen,
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
     outbox: library.outbox,
+    deviceOffer: library.deviceOffer,
+    adoption: library.adoption,
+    adoptDevice: adoptionActions.adoptDevice,
+    forgetDeviceLibrary: adoptionActions.forgetDeviceLibrary,
+    dismissAdoption,
     importOutcome: imports.importOutcome,
     incompleteImport: manifest.incomplete,
-    acceptIncompleteImport: manifest.accept,
+    acceptIncompleteImport: () => {
+      manifest.accept()
+      libraryActions.acceptPartialImport()
+    },
     // The change belongs to the outcome on screen; a cleared or replaced summary drops it.
     importChange:
       imports.importChange?.outcome === imports.importOutcome ? imports.importChange : null,

@@ -1,7 +1,7 @@
 import { DAY_MS } from '../constants'
-import type { Activity, Sport } from '../types'
+import type { Activity, AthleteType, Sport } from '../types'
 import { routeFromFixes } from '../route/routeShape'
-import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
+import { resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
 import type { GpsFix } from './gps'
 import type { ParseLimits, ParseOptions, ParseResult, RejectCode, Rejection } from './result'
@@ -12,7 +12,9 @@ import { fileTitle, nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
 import { cleanRecord } from './cleanRecord'
 import { lapsForSegment } from './laps'
+import { athleteTypeFields } from './athleteType'
 import { subtractDistance, unexplainedStart } from './distanceStart'
+import { activeSeconds, mostlySparse, vouchedSeconds } from './segmentTime'
 import { localDayFields } from './localDay'
 
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
@@ -112,6 +114,7 @@ export function activitiesFromUnits(
     nameAt: opts.nameAt,
     sessionKey: opts.sessionKey,
     race: opts.race === true,
+    athleteType: athleteTypeFields(opts),
   }
 
   const outcomes: Outcome[] = []
@@ -160,6 +163,8 @@ interface Context {
   sessionKey?: string
   /** The export tags the file's activities as races. */
   race: boolean
+  /** The athlete's label for the file's activities, when the options or the list type give one. */
+  athleteType: { athleteType?: AthleteType }
 }
 
 /**
@@ -341,39 +346,10 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     ...(route ? { route } : {}),
     ...(sessioned ? { sessionKey: context.sessionKey } : {}),
     ...(context.race ? { race: true as const } : {}),
+    ...context.athleteType,
     ...localDayFields(unit.localOffsetS, resampled.startMs),
   }
   return { ok: true, activity, dropped }
-}
-
-/**
- * The seconds a segment's records vouch for: one for its first sample, then each gap the resampler
- * bridges, and one second for each longer gap, which it treats as a pause. Two records hours apart
- * vouch for two seconds, while sparse records every few seconds vouch for their whole span.
- */
-function vouchedSeconds(segment: RawRecord[]): number {
-  let total = 1
-  for (let i = 1; i < segment.length; i++) {
-    const gapS = (segment[i]!.tMs - segment[i - 1]!.tMs) / 1000
-    total += gapS <= MAX_INTERPOLATED_GAP_S ? gapS : 1
-  }
-  return total
-}
-
-/** The seconds of the grid the device was recording: every second that is not paused. */
-function activeSeconds(s: Resampled): number {
-  let count = 0
-  for (let i = 0; i < s.n; i++) if (s.paused[i] !== 1) count++
-  return count
-}
-
-/** Whether at least half of a segment's gaps are longer than the resampler bridges. */
-function mostlySparse(segment: RawRecord[]): boolean {
-  let long = 0
-  for (let i = 1; i < segment.length; i++) {
-    if ((segment[i]!.tMs - segment[i - 1]!.tMs) / 1000 > MAX_INTERPOLATED_GAP_S) long++
-  }
-  return segment.length > 1 && long * 2 >= segment.length - 1
 }
 
 /** Marks speeds above the limit as missing. Returns how many were marked. */

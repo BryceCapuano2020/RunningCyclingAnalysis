@@ -4,7 +4,13 @@ import { flatSpeedToMetabolic } from '../metabolic/converters'
 import type { ActivityDigest, DigestCurvePoint } from '../types'
 import { oxygenCost } from './daniels'
 import { fastestMileSpeed, vo2maxFromHeartRate } from './vo2max'
-import { VO2MAX_SHARE_FULL, VO2MAX_SHARE_ZERO, shareWeight, weightedMedian } from './vo2maxShare'
+import {
+  MIN_SHARE_WEIGHT,
+  VO2MAX_SHARE_FULL,
+  VO2MAX_SHARE_ZERO,
+  shareWeight,
+  weightedMedian,
+} from './vo2maxShare'
 
 const REFERENCE = 200
 
@@ -102,13 +108,17 @@ describe('vo2maxFromHeartRate', () => {
 })
 
 describe('the share ramp', () => {
-  it('counts nothing under the old line, everything from the full share, and a straight line between', () => {
+  it('counts nothing under the old line, half on it, everything from the full share, and a straight line between', () => {
     expect(VO2MAX_SHARE_ZERO).toBe(0.85)
-    expect(shareWeight(VO2MAX_SHARE_ZERO)).toBe(0)
+    expect(shareWeight(VO2MAX_SHARE_ZERO)).toBe(MIN_SHARE_WEIGHT)
+    expect(shareWeight(VO2MAX_SHARE_ZERO - 1e-9)).toBe(0)
     expect(shareWeight(0.5)).toBe(0)
     expect(shareWeight(VO2MAX_SHARE_FULL)).toBe(1)
     expect(shareWeight(1.02)).toBe(1)
-    expect(shareWeight((VO2MAX_SHARE_ZERO + VO2MAX_SHARE_FULL) / 2)).toBeCloseTo(0.5, 12)
+    expect(shareWeight((VO2MAX_SHARE_ZERO + VO2MAX_SHARE_FULL) / 2)).toBeCloseTo(
+      (MIN_SHARE_WEIGHT + 1) / 2,
+      12,
+    )
     let last = 0
     for (let share = 0.7; share <= 1; share += 0.005) {
       const weight = shareWeight(share)
@@ -148,7 +158,8 @@ describe('the share ramp', () => {
     const at = (bpm: number) =>
       vo2maxFromHeartRate([...full, run('d', { 1200: bpm })], REFERENCE, (p) => p.value)!
     expect(Math.abs(at(171).vo2max / at(169).vo2max - 1)).toBeLessThan(0.03)
-    expect(at(171).runs).toBe(at(169).runs)
+    // The count is the old one: the run is one of them from the line.
+    expect([at(169).runs, at(171).runs]).toEqual([3, 4])
     // From the old line up to a full 90%, the estimate walks and never jumps.
     let last = at(170).vo2max
     for (let bpm = 171; bpm <= 180; bpm++) {
@@ -158,22 +169,28 @@ describe('the share ramp', () => {
     }
   })
 
-  it('needs two runs’ worth of weight, so faint runs alone do not make an estimate', () => {
-    const faint = (count: number) =>
-      Array.from({ length: count }, (_, i) => run(`f${i}`, { 1200: 176 })) // 88%: 0.6 each
-    expect(vo2maxFromHeartRate(faint(3), REFERENCE, (p) => p.value)).toBeNull() // 1.8
-    expect(vo2maxFromHeartRate(faint(4), REFERENCE, (p) => p.value)).not.toBeNull() // 2.4
-    // Two runs at the line count for nothing, whatever their number.
-    const under = Array.from({ length: 6 }, (_, i) => run(`u${i}`, { 1200: 169 }))
-    expect(vo2maxFromHeartRate(under, REFERENCE, (p) => p.value)).toBeNull()
+  it('is available as the old gate was: two runs at or over 85% of the reference, however lightly the ramp weighs them', () => {
+    const light = (count: number, bpm = 171) =>
+      Array.from({ length: count }, (_, i) => run(`f${i}`, { 1200: bpm })) // 85.5%: a light weight each
+    expect(vo2maxFromHeartRate(light(1), REFERENCE, (p) => p.value)).toBeNull()
+    expect(vo2maxFromHeartRate(light(2), REFERENCE, (p) => p.value)).not.toBeNull()
+    // On the line itself (170 of 200) counts, as it always did.
+    expect(vo2maxFromHeartRate(light(2, 170), REFERENCE, (p) => p.value)).not.toBeNull()
+    // Under the line counts for nothing, whatever their number.
+    expect(vo2maxFromHeartRate(light(6, 169), REFERENCE, (p) => p.value)).toBeNull()
+    // Two runs of the same pace and heart rate share give one estimate, whatever they weigh: equal weights, one value.
+    const same = (bpm: number) => vo2maxFromHeartRate(light(2, bpm), REFERENCE, (p) => p.value)
+    expect(same(171)?.runs).toBe(2)
+    expect(same(171)?.vo2max).toBeCloseTo(oxygenCost(240) / (((171 / 200) * 100 - 37) / 64), 6)
+    expect(same(180)?.vo2max).toBeCloseTo(AT_90, 6)
   })
 
-  it('counts as its runs those that count for at least half, so “on N hard runs” stays true', () => {
+  it('counts as its runs every one at or over the line, so “on N hard runs” is the old count', () => {
     const full = [run('a', { 1200: 184 }), run('b', { 1200: 184 })]
-    const light = [171, 172, 173].map((bpm, i) => run(`l${i}`, { 1200: bpm })) // 85.5% to 86.5%: 0.1 to 0.3
-    const found = vo2maxFromHeartRate([...full, ...light], REFERENCE, (p) => p.value)
-    expect(found?.runs).toBe(2)
-    const half = [run('h', { 1200: 175 })] // 87.5%: exactly half
-    expect(vo2maxFromHeartRate([...full, ...half], REFERENCE, (p) => p.value)?.runs).toBe(3)
+    const light = [171, 172, 173].map((bpm, i) => run(`l${i}`, { 1200: bpm })) // 85.5% to 86.5%
+    const under = [run('u', { 1200: 169 })]
+    expect(
+      vo2maxFromHeartRate([...full, ...light, ...under], REFERENCE, (p) => p.value)?.runs,
+    ).toBe(5)
   })
 })

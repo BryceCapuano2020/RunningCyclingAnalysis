@@ -421,3 +421,18 @@ sum; the term shows the season, and the rate lands at the same athlete's with no
 
 The "wrong sign" row is not a world: it applies the fitted term with the wrong sign, as a guard on the code. An athlete who is faster on
 warm days gets no term (null, never negative) and reads exactly as the monitor alone. Everywhere else the fitted rate is no higher than the monitor's.
+
+## Since your last import (D9e)
+
+One line under the fitness cards on Balance (above them only when no card shows): what the last import added, and what
+else it told. It compares the library as it was before that import (the baseline, kept in `rca-checkin`, device-local
+per scope) with the library now, and makes no contrast of its own: new bests, the card's own state changes, and older
+files are facts, and a state that did not move is quoted from the card ("no clear change, within 2% of before").
+
+- The baseline moves when an import ends complete and added a workout, or when the athlete accepts a partial one, from
+  the snapshot taken before that import began. Imports within 6 hours of the last are one import, so a first import made
+  in several drops is a first import. A baseline of another model revision, or from before a rebuild, is not used.
+- A row is seen when opened, hidden, or shown 3 seconds on two page loads, for its own baseline; a row that has appeared
+  stays until hidden. It is one line closed at every width; the sentence is cut at the line's edge and the panel gives it
+  whole. The sample, an import known to be partial, and a check-in already seen show no row.
+- The worker keeps the baseline; the page receives the check-in with the state and sends `markSeen`.

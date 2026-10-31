@@ -6,8 +6,10 @@ import type { RouteShape } from '@rca/core/route/routeShape'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ExportAccount } from '../export/accountExport'
 import type { ActivityTraceReply } from './workbench'
+import type { CheckInView, SeenEvent, SeenRow } from './checkinKeeper'
 import type { UpdateStop } from './updaterConfig'
 export type { ActivityTraceReply } from './workbench'
+export type { CheckInView, SeenEvent, SeenRow } from './checkinKeeper'
 
 export interface SavedActivity {
   id: string
@@ -86,6 +88,13 @@ export interface ImportOutcome {
    * their file was added again. Absent when none were. Never counts an activity the import added.
    */
   detailRestored?: number
+  /**
+   * Saved activities the import's list labelled (Hike, Walk, a ski or another type), now left out of the analysis. Absent
+   * when none were.
+   */
+  labelled?: number
+  /** Activities whose file says one sport and whose export's list names the other: the file wins. Absent when none. */
+  listedAsOtherSport?: number
 }
 
 /** Whether imported activities are saved to the signed-in account, and whether their files are kept. */
@@ -156,8 +165,19 @@ export type WorkerRequest =
   | { type: 'routeShape'; id: string; userId?: string; fromOriginal?: boolean }
   /** The session ended without a sign-out: the route shapes this tab holds for it are forgotten. */
   | { type: 'forgetRoutes' }
+  /**
+   * Adds the activities kept in this browser from before sign-in to the account, then reads the library again.
+   * Sends `adoption` before its state.
+   */
+  | { type: 'adoptDevice'; userId: string; settings: AthleteSettings }
+  /** Empties the library kept in this browser while the account is on screen, which stays as it is. */
+  | { type: 'forgetDeviceLibrary'; settings: AthleteSettings }
   /** A detail trace for an exact core activity id. Originals are read only on explicit request. */
   | { type: 'activityTrace'; id: string; userId?: string; fromOriginal?: boolean }
+  /** A row of "your years" or "since your last import" was opened, hidden or shown. Answered with `checkInSaved`. */
+  | { type: 'markSeen'; row: SeenRow; event: SeenEvent }
+  /** The athlete chose to go on with an import that stopped short: its snapshot becomes the baseline now. */
+  | { type: 'acceptPartialImport' }
 
 /**
  * A request as it travels to the worker: the request and the page's number for it. The worker stamps
@@ -182,9 +202,24 @@ export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerRe
   'routeShape',
   'activityTrace',
   'rebuildComplete',
+  'checkInSaved',
 ])
 
 export type WorkerResponse =
+  /**
+   * What a signed-in visit can do with the activities this browser kept before sign-in (see adoption.ts), sent apart
+   * from any request when the account's library has loaded and again when it changes.
+   */
+  | { type: 'deviceOffer'; adoptable: number; again: number; held: number }
+  /** How adding those activities to the account ended. Sent before the state that ends the request. */
+  | {
+      type: 'adoption'
+      saved: number
+      conflicts: number
+      failed: number
+      again: number
+      held: number
+    }
   /**
    * How the saves an earlier visit left in the outbox are going, sent apart from any request. `finished` ends
    * it: `saved` were saved, `failed` could not be and will not be tried again, `pending` were left for another load.
@@ -214,6 +249,8 @@ export type WorkerResponse =
    * same. Null ids say storage could not answer. Absent while a sample shows.
    */
   | { type: 'detailCoverage'; ids: string[] | null; oldestStartMs: number | null }
+  /** Answers `markSeen` and `acceptPartialImport`: whether the check-in row is seen for its baseline. */
+  | { type: 'checkInSaved'; seen: boolean }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
   /**
@@ -247,7 +284,9 @@ export type WorkerResponse =
    * `saved` is the activities an import saved to the account, counted by the worker, so the page
    * ends on the right number however its progress messages were drawn. Absent when nothing is saved.
    * `outdatedWithOriginal`, absent when zero, is how many of the outdated saved activities in `state` still have an
-   * original file to rebuild from, sent with the state so the two counts always agree.
+   * original file to rebuild from, sent with the state so the two counts always agree. `checkIn` is "since your last
+   * import" for the library on screen and whether it has been seen, sent with the state it was made against; absent
+   * when there is none (no baseline, the sample, files kept nowhere).
    */
   | {
       type: 'state'
@@ -255,10 +294,12 @@ export type WorkerResponse =
       outcome?: ImportOutcome
       saved?: number
       outdatedWithOriginal?: number
+      checkIn?: CheckInView
     }
   | {
       type: 'rebuildComplete'
       state: SessionState
+      checkIn?: CheckInView
       /** Absent when zero. As on `state`: the outdated activities in `state` that a rebuild can update. */
       outdatedWithOriginal?: number
       rebuilt: number

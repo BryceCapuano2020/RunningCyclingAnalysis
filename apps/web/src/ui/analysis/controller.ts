@@ -1,14 +1,23 @@
 import type { PeriodChoice, SessionState, SyncIssueCode } from '@rca/core/session'
 import type { DigestSplits } from '@rca/core/types'
 import type {
+  CheckInView,
   DeviceIssue,
   ImportOutcome,
   SavedActivity,
+  SeenEvent,
   WorkerResponse,
   ActivityTraceReply,
 } from '../../worker/protocol'
 import type { ImportChange } from './importState'
-import type { DetailCoverage, ImportProgress, LibraryStatus, OutboxStatus } from './model'
+import type {
+  AdoptionOutcome,
+  DetailCoverage,
+  DeviceOfferStatus,
+  ImportProgress,
+  LibraryStatus,
+  OutboxStatus,
+} from './model'
 import type { RouteReply } from '../routeReply'
 import type { ImportManifest } from '../importManifest'
 
@@ -43,12 +52,26 @@ export interface AnalysisController {
   missingOriginals: number
   /** Outdated saved activities whose original file is held, which Update now can rebuild. */
   outdatedWithOriginal: number
+  /** "Since your last import" for the library on screen, and whether the athlete has seen it. */
+  checkIn: CheckInView
+  /** The athlete opened, hid or was shown the check-in row. */
+  markCheckInSeen: (event: SeenEvent) => void
   /** Stored activities that could not be read in the last library load, and so are hidden. */
   libraryUnreadable: number
   /** What this browser failed to keep or delete, until the next try; null when nothing failed. */
   deviceIssue: DeviceIssue | null
   /** How the saves an earlier visit left behind are going and ended; null when there were none. */
   outbox: OutboxStatus | null
+  /** What this browser kept from before sign-in that the signed-in account could take; null when nothing is offered. */
+  deviceOffer: DeviceOfferStatus | null
+  /** How the last adding of those activities to the account ended; null before one has. */
+  adoption: AdoptionOutcome | null
+  /** Adds the activities kept in this browser to the signed-in account. */
+  adoptDevice: () => void
+  /** Removes the library kept in this browser, leaving the account as it is. */
+  forgetDeviceLibrary: () => void
+  /** Puts the result of adding them away. */
+  dismissAdoption: () => void
   importOutcome: ImportOutcome | null
   /** The latest import that left the library short of the whole history (cut off, or from a damaged zip), or null. */
   incompleteImport: ImportManifest | null

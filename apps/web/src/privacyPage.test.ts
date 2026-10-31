@@ -23,6 +23,7 @@ const mainSource = await readStylesheet(import.meta.url, './main.tsx')
 const tokensCss = await readStylesheet(import.meta.url, './styles/tokens.css')
 const icons = await readStylesheet(import.meta.url, './ui/components/icons.tsx')
 const app = await readStylesheet(import.meta.url, './App.tsx')
+const appSignOut = await readStylesheet(import.meta.url, './ui/useAppSignOut.ts')
 const device = await readStylesheet(import.meta.url, './worker/device.ts')
 const deviceLibrary = await readStylesheet(import.meta.url, './worker/deviceLibrary.ts')
 const digestTypes = await readStylesheet(import.meta.url, '../../../packages/core/src/types.ts')
@@ -254,6 +255,33 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toMatch(/Nothing is written for a session that keeps nothing/)
   })
 
+  it('says what the summary taken before an import holds, and that it holds no names, routes or heart rates', async () => {
+    const snapshot = await readStylesheet(
+      import.meta.url,
+      '../../../packages/core/src/lookback/snapshot.ts',
+    )
+    // The summary is the fields of CheckInSnapshot, none of which can carry a name, a route or a heart rate.
+    expect(
+      /interface CheckInSnapshot \{([\s\S]*?)\n\}/
+        .exec(snapshot)?.[1]
+        ?.match(/^\s{2}(\w+):/gm)
+        ?.map((f) => f.trim()),
+    ).toEqual([
+      'v:',
+      'revision:',
+      'atMs:',
+      'asOfMs:',
+      'keys:',
+      'counts:',
+      'bests:',
+      'fitness:',
+      'episodes:',
+    ])
+    expect(text).toMatch(/summary of the library as it stood\s+before your last import/)
+    expect(text).toMatch(/values and dates of your best efforts/)
+    expect(text).toMatch(/whether you have seen what was said/)
+  })
+
   it('says signed-in visitors do not see the summaries kept in this browser', () => {
     expect(text).toMatch(/signed in[^.]*not shown|not shown[^.]*signed in/i)
   })
@@ -296,6 +324,9 @@ describe('privacy page describes what is stored as the app stores it', () => {
       'Signing out asks first when saves are still waiting, then removes the list',
     )
     expect(text).toContain('When a session ends on its own, the list stays')
+    expect(text).toContain('are offered to the account you sign in to')
+    expect(text).toContain('but without its route')
+    expect(text).toContain('Remove from this browser deletes them without changing the account.')
     expect(text).toContain(
       'Remove all my activities removes every waiting save from this browser too.',
     )
@@ -485,7 +516,12 @@ describe('privacy page describes what is stored as the app stores it', () => {
   const clearsSeenNotes = (source: string, handler: string) =>
     new RegExp(`${handler}[\\s\\S]{0,400}?forgetSeenNotes\\(\\)`).test(source)
   it.each([
-    ['sign-out', app, 'useSignOutWarning\\(account\\.me\\?\\.user\\.id, \\(\\) => \\{', true],
+    [
+      'sign-out',
+      appSignOut,
+      'useSignOutWarning\\(account\\.me\\?\\.user\\.id, \\(\\) => \\{',
+      true,
+    ],
     [
       'Remove all my activities',
       importActionsSource,

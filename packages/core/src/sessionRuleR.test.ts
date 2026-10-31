@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'
 import { encodeGpx } from './gpx/encode'
-import { AnalysisSession } from './session'
+import { AnalysisSession, SyncFailure } from './session'
 import { sampleDataset } from './synthetic'
 import { encodeTcx } from './tcx/encode'
 import type { Activity, AthleteSettings } from './types'
@@ -87,5 +87,46 @@ describe('the same copies on the device, with nowhere to save them', () => {
       expect(state.hiddenDuplicates).toBe(2)
       expect(state.result?.activities[0]?.id).toContain('one.fit')
     }
+  })
+})
+
+describe('a sink that holds work back until the copies are known', () => {
+  it('is told which digests the analysis hides once every file is read, and its failures are issues', async () => {
+    const session = new AnalysisSession()
+    const seen: string[] = []
+    const sink = Object.assign(async () => undefined, {
+      finish: async (hidden: ReadonlySet<string>) => {
+        seen.push(...[...hidden].map((id) => id.replace(/^\d+-/, '')))
+        return [{ key: 'run-1', code: 'storage-quota' as const }]
+      },
+    })
+
+    const state = await session.addFiles(
+      ['gpx', 'fit', 'tcx'].map((format) => COPIES[format as Format]()),
+      SETTINGS,
+      undefined,
+      sink,
+    )
+
+    expect(seen.sort()).toEqual(['one.gpx', 'one.tcx'])
+    expect(state.syncIssues).toEqual([{ code: 'storage-quota', count: 1 }])
+  })
+
+  it('is not called when the saves were stopped, since nothing more is sent', async () => {
+    const session = new AnalysisSession()
+    let finished = false
+    const sink = Object.assign(
+      async () => {
+        throw new SyncFailure('signed-out', 'Signed out')
+      },
+      {
+        finish: async () => {
+          finished = true
+          return []
+        },
+      },
+    )
+    await session.addFiles([COPIES.fit()], SETTINGS, undefined, sink)
+    expect(finished).toBe(false)
   })
 })

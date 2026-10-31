@@ -1,3 +1,4 @@
+import { isAnalysed } from './digest/analysed'
 import type { ActivityDigest } from './types'
 
 /*
@@ -10,12 +11,13 @@ import type { ActivityDigest } from './types'
 // A counted run is the same object each time, so the caches keyed by digest object still hit.
 const counted = new WeakMap<ActivityDigest, ActivityDigest>()
 
-/** The digest without its walking-pace mark. */
+/** The digest without its walking-pace mark and its label. */
 function unmarked(digest: ActivityDigest): ActivityDigest {
   let copy = counted.get(digest)
   if (copy === undefined) {
     copy = { ...digest }
     Reflect.deleteProperty(copy, 'walkingPace')
+    Reflect.deleteProperty(copy, 'athleteType')
     counted.set(digest, copy)
   }
   return copy
@@ -24,7 +26,7 @@ function unmarked(digest: ActivityDigest): ActivityDigest {
 export interface CountedRuns {
   /** The library, with each counted run unmarked. The same array when nothing is counted. */
   digests: ActivityDigest[]
-  /** The workout keys of the walking-pace runs that were counted, sorted. A key naming anything else is ignored. */
+  /** The workout keys of the left-out runs (at walking pace, or labelled) that were counted, sorted. A key naming anything else is ignored. */
   keys: string[]
 }
 
@@ -41,7 +43,7 @@ export function applyCountedRuns(
   const wanted = new Set(chosen)
   const keys: string[] = []
   const applied = entries.map(([key, digest]) => {
-    if (digest.walkingPace !== true || !wanted.has(key)) return digest
+    if (isAnalysed(digest) || !wanted.has(key)) return digest
     keys.push(key)
     return unmarked(digest)
   })

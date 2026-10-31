@@ -1,6 +1,7 @@
+import { isAnalysed } from '../digest/analysed'
 import { median } from '../findings/stats'
 import { revisionStatus } from '../digest/revisions'
-import type { ActivityDigest, DigestSplit } from '../types'
+import type { ActivityDigest, DigestSplit, LocalDayShift } from '../types'
 import type { KmReading } from './fit'
 import { FITNESS } from './params'
 
@@ -18,6 +19,7 @@ export interface RunReadings {
   steadyPace: boolean
   /** The day's warmth as the file's sensor read it (revision 7), when it had a usable reading. */
   c?: number
+  localDayShift: LocalDayShift | undefined
   loose: KmReading[]
   strict: KmReading[]
 }
@@ -78,7 +80,7 @@ export function runReadings(
     km !== undefined &&
     digest.hasHeartRate &&
     !digest.indoor &&
-    digest.walkingPace !== true &&
+    isAnalysed(digest) &&
     !digest.flagCounts['hr-spike'] &&
     !digest.flagCounts['hr-cadence-lock'] &&
     !digest.flagCounts['hr-dropout']
@@ -90,6 +92,7 @@ export function runReadings(
         ...(digest.temperature === undefined || revisionStatus(digest.modelRevision) !== 'current'
           ? {}
           : { c: digest.temperature.c }),
+        localDayShift: digest.localDayShift,
         ...kilometres(km),
       }
     : null

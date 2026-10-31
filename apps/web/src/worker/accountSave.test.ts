@@ -51,13 +51,32 @@ describe('saving an activity to the account', () => {
     vi.mocked(uploadFile).mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
     const save = accountSaver(context(true))
 
-    const failure = await save(item).then(
-      () => null,
-      (error: unknown) => error,
-    )
+    // The save itself succeeds: the original is held until the import is read, and fails then, saying why.
+    await save(item)
+    const failures = await save.finish?.(new Set())
 
-    expect(failure).toBeInstanceOf(SyncFailure)
-    expect(failure).toMatchObject({ code: 'network', digestSaved: true })
+    expect(failures).toEqual([{ key: workoutKeyOf(digest), code: 'network' }])
+  })
+
+  it('keeps the original of the shown copy, and none for a copy the analysis hides', async () => {
+    const save = accountSaver(context(true))
+    await save(item)
+
+    const failures = await save.finish?.(new Set([digest.id]))
+
+    expect(failures).toEqual([])
+    expect(uploadFile).not.toHaveBeenCalled()
+  })
+
+  it('uploads the shown copy once the import is read, not as it is saved', async () => {
+    const ctx = context(true)
+    const save = accountSaver(ctx)
+    await save(item)
+    expect(uploadFile).not.toHaveBeenCalled()
+
+    await save.finish?.(new Set())
+
+    expect(uploadFile).toHaveBeenCalledOnce()
   })
 
   it('does not mark a failed digest save, which is what says the network is down', async () => {
@@ -158,6 +177,13 @@ describe('saving several activities at once', () => {
     }
     const saves = await Promise.all(sends)
     await Promise.all(saves.map((sent) => sent?.done))
+    // The originals are uploaded once the import is read, two at a time.
+    const finished = save.finish?.(new Set())
+    for (let i = 0; i < 5; i++) {
+      await tick()
+      uploads.open[i]?.()
+    }
+    await finished
     expect(uploads.most()).toBe(2)
   })
 
@@ -274,6 +300,7 @@ describe('saving several activities at once', () => {
     const save = accountSaver(ctx)
 
     await save(item)
+    await save.finish?.(new Set())
 
     expect(uploadFile).toHaveBeenCalledTimes(2)
     expect(ctx.onSaved).toHaveBeenCalledOnce()

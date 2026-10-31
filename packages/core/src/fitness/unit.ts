@@ -1,6 +1,6 @@
 import { DAY_MS } from '../constants'
 import { median } from '../findings/stats'
-import type { ActivityDigest, Sport } from '../types'
+import type { ActivityDigest, LocalDayShift, Sport } from '../types'
 import { fitGrade, fitHeartRateSlope, RUN_SLOPE } from './fit'
 import type { DatedKm, KmReading } from './fit'
 import { FITNESS } from './params'
@@ -15,8 +15,24 @@ export interface UnitPoint {
   id: string
   startMs: number
   x: number
+  /** The local day shift the activity's file recorded (revision 7), when it has one. */
+  localDayShift?: LocalDayShift
   /** The day's warmth as the file's sensor read it, when the digest carries one. */
   c?: number
+}
+
+/** A point, with the day shift and the warmth of its digest only when it has them. */
+export function unitPoint(
+  id: string,
+  startMs: number,
+  x: number,
+  localDayShift: LocalDayShift | undefined,
+  c?: number,
+): UnitPoint {
+  const point: UnitPoint = { id, startMs, x }
+  if (localDayShift !== undefined) point.localDayShift = localDayShift
+  if (c !== undefined) point.c = c
+  return point
 }
 
 export interface UnitSeries {
@@ -96,7 +112,15 @@ export function runSeries(
   const dated: DatedKm[] = steady.map((z) => ({ startMs: z.r.startMs, kms: z.kms }))
   const fit = fitGrade(dated)
   if (fit.stable) {
-    const points = steady.map((z) => pointOf(z.r, valueOf(z.kms, ref, fit.kappa, fit.beta)))
+    const points = steady.map((z) =>
+      unitPoint(
+        z.r.id,
+        z.r.startMs,
+        valueOf(z.kms, ref, fit.kappa, fit.beta),
+        z.r.localDayShift,
+        z.r.c,
+      ),
+    )
     return {
       points: points.sort(byTime),
       referenceHr: ref,
@@ -116,7 +140,9 @@ export function runSeries(
     z.kms.map((k) => ({ startMs: z.r.startMs, hr: k.hr, value: k.lnClock + k.credit })),
   )
   const beta = fitHeartRateSlope(rows, RUN_SLOPE)
-  const points = strict.map((z) => pointOf(z.r, valueOf(z.kms, ref, -1, beta)))
+  const points = strict.map((z) =>
+    unitPoint(z.r.id, z.r.startMs, valueOf(z.kms, ref, -1, beta), z.r.localDayShift, z.r.c),
+  )
   return {
     points: points.sort(byTime),
     referenceHr: ref,

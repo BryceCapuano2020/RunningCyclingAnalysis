@@ -10,6 +10,8 @@ import { importSource, sortRead } from './sessionSource'
 import { DEFAULT_ATHLETE, SAMPLE_CLOCK } from './synthetic'
 import { seasonDigests } from './sessionSample'
 import type { SampleClock } from './synthetic'
+import { setViewerZone } from './calendar'
+import type { Zone } from './calendar'
 import { requirePositiveFinite } from './math'
 import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { revisionStatus } from './digest/revisions'
@@ -22,7 +24,15 @@ import { countIssues } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
-import { beginImportUnsynced, clearUnsynced, considerActivity, resetUnsynced } from './sessionKeep'
+import { checkInSnapshotOf } from './sessionCheckIn'
+import type { CheckInSnapshot } from './lookback/snapshot'
+import {
+  beginImportUnsynced,
+  clearUnsynced,
+  considerActivity,
+  markUnsynced,
+  resetUnsynced,
+} from './sessionKeep'
 import type { KeepState } from './sessionKeep'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import type { SaveBatch, SyncSink } from './sessionSync'
@@ -40,7 +50,7 @@ export type { RejectCode, Rejection } from './import/result'
 export { copyOfDigest, workoutKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
 
-export type { SyncItem, SyncSink } from './sessionSync'
+export type { DeferredFailure, SyncItem, SyncSink } from './sessionSync'
 export type { FileId, HeldFiles } from './importHeld'
 
 /**
@@ -129,6 +139,7 @@ export class AnalysisSession {
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
+    const listedTypes = new Map<string, string>()
     const skippedTypes: Record<string, number> = {}
     const listeners: ActivityListeners = { kept: onActivity, replaced: onReplaced }
     try {
@@ -146,6 +157,7 @@ export class AnalysisSession {
           hints,
           loose: !ZIP.test(source.name),
           hashFiles: sink !== undefined,
+          listedTypes,
           held,
           heldNameOf: (keys) => this.heldNameOf(keys, sink !== undefined),
           consider: (activity, file) =>
@@ -160,6 +172,12 @@ export class AnalysisSession {
     // replaced one held out of the analysis is upgraded, not added: it is a workout the library already had.
     const analysable = this.library.analysable().map(([, digest]) => digest)
     const hidden = hiddenDigests(analysable)
+    // Work a sink held back until the copies of each workout were known (an original is kept for the shown copy only).
+    if (sink?.finish !== undefined && batch.halt === null) {
+      const hiddenIds = new Set([...hidden].map((digest) => digest.id))
+      for (const { key, code } of await sink.finish(hiddenIds))
+        markUnsynced(this.keeping, key, code)
+    }
     const visibleNew = [...batch.added].filter(([, digest]) => !hidden.has(digest))
     const added = visibleNew.filter(([key]) => !batch.upgraded.has(key)).map(([, digest]) => digest)
     const upgraded = visibleNew
@@ -172,6 +190,7 @@ export class AnalysisSession {
       ...files,
       added,
       upgraded,
+      ...(listedTypes.size === 0 ? {} : { listedTypes }),
       ...(Object.keys(skippedTypes).length === 0 ? {} : { skippedTypes }),
       ...(companion === null || companion.named === 0
         ? {}
@@ -198,6 +217,12 @@ export class AnalysisSession {
     return fileNameOf(first.id)
   }
 
+  /** The ids of the digests the analysis hides as copies of a better one, as the library stands now. */
+  hiddenIds(): Set<string> {
+    const analysable = this.library.analysable().map(([, digest]) => digest)
+    return new Set([...hiddenDigests(analysable)].map((digest) => digest.id))
+  }
+
   /** The id of the digest held under each workout key, in the order given; undefined for a key that is not held. */
   heldIds(keys: readonly string[]): (string | undefined)[] {
     return keys.map((key) => this.library.digests.get(key)?.id)
@@ -214,6 +239,14 @@ export class AnalysisSession {
     if (held !== undefined && readRank(held) >= readRank(digest)) return false
     this.library.put(key, digest)
     return true
+  }
+
+  /**
+   * Gives the viewer's zone, once, at the edge that knows it: where a file recorded no local day, the days and
+   * weeks are cut in this zone (calendar.ts). It is the one zone for the whole worker, not for this session.
+   */
+  setZone(zone: Zone): void {
+    setViewerZone(zone)
   }
 
   /** Removes one saved workout after its owner-scoped server deletion succeeds. */
@@ -303,6 +336,20 @@ export class AnalysisSession {
     for (const digest of [...this.library.digests.values(), ...this.library.readable.values()])
       if (digest.id === id) return digest.splits ?? null
     return null
+  }
+
+  /**
+   * The library as the analysis reads it, summarised for "since your last import" (see lookback/snapshot.ts), with the
+   * fitness and look-back of `state`. Null when the session holds nothing to compare or shows the sample, which
+   * keeps no baseline.
+   */
+  checkInSnapshot(state: SessionState, nowMs: number): CheckInSnapshot | null {
+    if (this.isSample || this.library.size === 0) return null
+    return checkInSnapshotOf(
+      this.library.analysable().map(([, digest]) => digest),
+      state,
+      nowMs,
+    )
   }
 
   private reset(): void {
