@@ -1,5 +1,6 @@
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
+import { hashedFileName } from '@rca/core/import/minimise'
 import { sampleDataset } from '@rca/core/synthetic'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as client from '../api/client'
@@ -67,6 +68,23 @@ describe('applyListLabels', () => {
     expect(mocked.patchLabels.mock.calls[0]?.[1]).toBe('u1')
     expect(applied).toHaveLength(250)
     expect(reloaded).toEqual([after])
+  })
+
+  it('labels a workout saved with a hashed file name from the list’s plain name, and one saved before with its own', async () => {
+    mocked.patchLabels.mockResolvedValue(taken)
+    mocked.listActivities.mockResolvedValue([])
+    const hashed = hashedFileName('activities/1.fit')
+    const saved = record(1)
+    const records = new Map([
+      ['rec0', record(0)],
+      ['rec1', { ...saved, digest: { ...saved.digest, id: `${saved.digest.startMs}-${hashed}` } }],
+    ])
+    const applied = await applyListLabels(records, hikes(2), 'u1', () => undefined)
+    expect(mocked.patchLabels.mock.calls[0]?.[0].map((change) => change.id)).toEqual([
+      'rec0',
+      'rec1',
+    ])
+    expect(applied).toEqual([])
   })
 
   it('counts as applied only the labels the account now holds, whatever the answers said', async () => {

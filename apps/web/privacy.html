@@ -254,6 +254,19 @@
           local midnight. It is read from the file, never from your device.
         </li>
         <li>
+          <strong>Titles and file names of new activities:</strong> an activity saved from now on
+          keeps its title in your library only if you choose
+          <strong>Send my activity titles to my library</strong> on Profile. Otherwise the library
+          keeps a generated name such as Morning Run, and your title stays in the file you imported.
+          The name of the file is saved as a hash of the name, <code>rca-</code> and sixteen
+          characters, with the file's extension, so the number of an activity on Strava is not
+          stored as it is. A number has few values, so this keeps it out of plain sight; it is not
+          secrecy. The choice is kept in this browser's local storage under
+          <code>rca.uploadTitles.v1</code> and your account id, and is never uploaded. Activities
+          saved before keep the title and file name they were saved with, also when they are
+          rebuilt.
+        </li>
+        <li>
           <strong>Original files:</strong> only while
           <strong>Keep original files in my library</strong> is on, and uploaded only then. An
           original holds your full GPS track, including where you start and finish, and every
