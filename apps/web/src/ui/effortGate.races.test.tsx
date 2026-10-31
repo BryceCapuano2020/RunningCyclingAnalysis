@@ -94,7 +94,7 @@ describe('race predictions and the effort gate', () => {
 
   it('keeps the usual need where no run holds a best', () => {
     expect(racePredictionNeed('run', result([]))).toBe(
-      'Needs a best of a mile or more, or runs with heart rate',
+      'Needs a best of a mile or more, or 2 outdoor runs with a heart rate that can be trusted',
     )
   })
 })
