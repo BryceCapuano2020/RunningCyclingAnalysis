@@ -3,6 +3,7 @@
  * rolling mean for the line and the lowest and highest reading for the band, the paths drawn from those
  * columns, and the cursor's steps. It knows nothing of activities, so it is tested on plain arrays.
  */
+import { usualSpread } from './usualSpread'
 
 /** The plot's left and right margins in px. The lap strip and the brush take the same, so they line up. */
 export const STACK_MARGIN = { left: 44, right: 12 }
@@ -119,9 +120,6 @@ export function windowText(seconds: number): string {
   return seconds >= 60 ? `${Math.round(seconds / 60)} min` : `${seconds} s`
 }
 
-/** The share of a column's readings cut from each end of its band. */
-const BAND_CUT = 0.1
-
 /**
  * The stream over [startS, endS) as at most `columns` columns. With `ignoreZero` the band leaves out zero
  * readings (a power meter's coasting seconds), unless the column holds nothing else; the line's mean keeps them.
@@ -162,9 +160,9 @@ export function reduceSeries(
     const gap = seen === 0 && !bridged(stream, first, last, BRIDGED_GAP_S)
     out.x.push(centre)
     out.mean.push(gap ? Number.NaN : windowMean(stream, centre, windowS, from, to))
-    const n = readings.length
-    out.lo.push(n === 0 ? Number.NaN : readings[Math.floor(n * BAND_CUT)]!)
-    out.hi.push(n === 0 ? Number.NaN : readings[Math.max(0, Math.ceil(n * (1 - BAND_CUT)) - 1)]!)
+    const spread = usualSpread(readings)
+    out.lo.push(spread?.low ?? Number.NaN)
+    out.hi.push(spread?.high ?? Number.NaN)
   }
   return out
 }
