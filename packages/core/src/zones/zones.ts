@@ -5,7 +5,7 @@ import { DISTRIBUTION_BINS, PRIORS } from '../constants'
 import { EDGE_EPSILON } from '../math'
 import type { ReferenceMax } from '../digest/referenceMax'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
-import { thresholdAt } from '../digest/thresholdTimelineTypes'
+import { outgrownAt, thresholdAt } from '../digest/thresholdTimelineTypes'
 import type { ThresholdTimeline } from '../digest/thresholdTimelineTypes'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
 import type { Sport } from '../types'
@@ -296,6 +296,8 @@ export function zonesAt(
 export interface MissingZones {
   sport: Sport
   measure: ZoneMeasure
+  /** A pace or power whose efforts on the date are above the threshold on file: the older fit is left out as too low. */
+  outgrown: boolean
 }
 
 /**
@@ -320,6 +322,11 @@ export function missingThresholdZones(
           ? estimates.thresholds[sport].length > 0
           : measure === 'heartRate' && noNearMaximalEffort(estimates, sport),
       )
-      .map((measure) => ({ sport, measure })),
+      .map((measure) => ({
+        sport,
+        measure,
+        outgrown:
+          THRESHOLD_MEASURES.includes(measure) && outgrownAt(estimates.thresholds[sport], at),
+      })),
   )
 }

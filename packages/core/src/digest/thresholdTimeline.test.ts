@@ -11,7 +11,12 @@ import { bestCurves } from './rideCurves'
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { sampleDataset } from '../synthetic'
 import { thresholdTimeline } from './thresholdTimeline'
-import { STALE_THRESHOLD_DAYS, THRESHOLD_WINDOW_WEEKS, thresholdAt } from './thresholdTimelineTypes'
+import {
+  STALE_THRESHOLD_DAYS,
+  THRESHOLD_WINDOW_WEEKS,
+  outgrownAt,
+  thresholdAt,
+} from './thresholdTimelineTypes'
 import { weekEndMs } from './trendPoints'
 import { FIRST_MONDAY_MS, levelRun, shortRun, weeklyRuns } from './test/runLibrary'
 import type { ActivityDigest, AthleteSettings } from '../types'
@@ -85,6 +90,10 @@ describe('thresholdTimeline', () => {
     expect(thresholdAt(run, weekMs(19) + 2 * DAY_MS)).not.toBeNull()
     expect(thresholdAt(run, steady.startMs)).toBeNull()
     expect(thresholdAt(run, steady.startMs + 3 * WEEK_MS)).toBeNull()
+    // It says why there is none: before any fit, and where a fit holds, it is not an outgrown window.
+    expect(outgrownAt(run, steady.startMs)).toBe(true)
+    expect(outgrownAt(run, weekMs(19) + 2 * DAY_MS)).toBe(false)
+    expect(outgrownAt(run, FIRST_MONDAY_MS - 30 * DAY_MS)).toBe(false)
   })
 
   it('keeps an older fit for a window whose best 20 minutes is within reach of it', () => {
@@ -93,6 +102,7 @@ describe('thresholdTimeline', () => {
     near.curve = near.curve.map((point) => ({ ...point, value: (14 + 900 / 1200) * 1.05 }))
     const { run } = timelineOf([...weeklyRuns(0, 20, () => 1), near])
     expect(thresholdAt(run, near.startMs)).not.toBeNull()
+    expect(outgrownAt(run, near.startMs)).toBe(false)
   })
 
   it('has nothing for a sport with no efforts, and none from an indoor run', () => {
