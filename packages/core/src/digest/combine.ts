@@ -38,6 +38,7 @@ import { massesOf } from './masses'
 import { orderedFor } from './consumers'
 import { judgedCurves } from './judgedCurves'
 import { powerCheckOf, trustedPower } from './powerCheck'
+import { powerHeartRateOf, rideReferenceOf } from './powerEvidence'
 import { answers } from './judgedWork'
 import type { JudgedWork } from './judgedWork'
 import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
@@ -204,6 +205,7 @@ export {
 export function activitySummaries(
   digests: ActivityDigest[],
   settings?: AthleteSettings,
+  rideReferenceHr: number | null = null,
 ): ActivitySummary[] {
   const masses = settings === undefined ? null : massesOf(settings)
   const dated = masses !== null && masses.dated
@@ -212,7 +214,14 @@ export function activitySummaries(
       const summary = summaryOf(digest, dated ? masses.bodyKg(digest) : undefined)
       const check = masses === null ? undefined : powerCheckOf(digest, masses)
       // A flagged ride gets its own copy; the cached summary is shared and stays as it is.
-      return check === undefined ? summary : Object.assign({}, summary, { powerCheck: check })
+      if (check === undefined || masses === null) return summary
+      const heart = powerHeartRateOf(digest, masses.bodyKg(digest), rideReferenceHr)
+      return Object.assign(
+        {},
+        summary,
+        { powerCheck: check },
+        heart === undefined ? {} : { powerHeartRate: heart },
+      )
     })
     .sort((a, b) => b.startMs - a.startMs)
 }
@@ -366,7 +375,7 @@ export function combine(
   const ride = gatedThreshold(effortGate.ride, rideOutcome, rideCpUneven)
 
   return {
-    activities: activitySummaries(digests, settings),
+    activities: activitySummaries(digests, settings, rideReferenceOf(judged)),
     runCurve,
     rideCurve,
     rideMetabolicCurve,
