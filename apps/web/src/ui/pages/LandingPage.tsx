@@ -1,3 +1,4 @@
+import type { UnitSystem } from '@rca/core/units'
 import { useRef } from 'react'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
@@ -20,12 +21,14 @@ function privacyLine(signedIn: boolean): string {
 export interface LandingPageProps {
   analysis: AnalysisController
   signedIn: boolean
+  /** The units the example's weight is told in. Metric without one. */
+  units?: UnitSystem
   /** Receives dropped or chosen files. The app asks the setup questions first, when they are due. */
   onFiles: (files: File[]) => void
 }
 
 /** Shown while there is no result: the promise, the drop target, an example and how it works. */
-export function LandingPage({ analysis, signedIn, onFiles }: LandingPageProps) {
+export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageProps) {
   const guidesHeading = useRef<HTMLHeadingElement>(null)
   // On a touch screen the actions come straight after the pitch, ahead of the example, so they are on the first screen.
   const touch = useTouchFirst()
@@ -57,7 +60,7 @@ export function LandingPage({ analysis, signedIn, onFiles }: LandingPageProps) {
         {/* A pointer sees the example first, with the drop zone beside it; a touch screen sees the actions first. */}
         <div className={touch ? 'landing__start landing__start--touch' : 'landing__start'}>
           {touch && dropzone}
-          <LandingExample />
+          <LandingExample units={units} />
           {!touch && dropzone}
         </div>
         {/* The second panel follows the actions, so Add files stays on the first screen. */}

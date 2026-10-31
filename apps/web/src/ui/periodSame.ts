@@ -24,7 +24,8 @@ function startedWithinDays(
 
 /**
  * Where a longer period holds nothing a shorter one does not, which it says rather than repeat in silence:
- * "Same 14 activities as 6 weeks", naming the shortest period with the same activities. Null for a custom range,
+ * "Same 14 activities as the 6 weeks to your latest activity", naming the shortest period with the same activities. A period counts
+ * back from the latest activity, not from today, which the words say so a library that has been idle for a year does not read as stale. Null for a custom range,
  * for the shortest period, and where a shorter period holds fewer.
  */
 export function sameAsShorterText(
@@ -38,7 +39,7 @@ export function sameAsShorterText(
   if (count === 0) return null
   for (const days of FIXED_DAYS.slice(0, here)) {
     if (days !== null && startedWithinDays(activities, days) === count) {
-      return `Same ${formatCount(count)} ${count === 1 ? 'activity' : 'activities'} as ${lengthOf(days)}`
+      return `Same ${formatCount(count)} ${count === 1 ? 'activity' : 'activities'} as the ${lengthOf(days)} to your latest activity`
     }
   }
   return null

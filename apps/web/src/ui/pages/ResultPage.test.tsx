@@ -630,7 +630,7 @@ describe('ResultPage period', () => {
     try {
       const { container } = renderOldLibrary(true, true)
       expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-        'Your last 12 weeks hold no rides, so this shows all time · Same 2 activities as 12 months · Latest activity 17 months ago',
+        'Your last 12 weeks hold no rides, so this shows all time · Same 2 activities as the 12 months to your latest activity · Latest activity 17 months ago',
       )
       // The segment in force is All time, not the 12 weeks the stored choice names.
       expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
@@ -647,7 +647,7 @@ describe('ResultPage period', () => {
       const { container } = renderOldLibrary(true)
       // A longer period that holds nothing a shorter one does not says so, in place of repeating itself.
       expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-        /^Same 1 activity as 6 weeks · Latest activity 17 months ago$/,
+        /^Same 1 activity as the 6 weeks to your latest activity · Latest activity 17 months ago$/,
       )
     } finally {
       vi.useRealTimers()
