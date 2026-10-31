@@ -341,7 +341,7 @@ describe('SyncStatus', () => {
       />,
     )
     expect(message()).toHaveTextContent(
-      'Your library is full (5,000 activities, 120 of them copies of other workouts that the analysis hides). 10 waiting.',
+      'Your library is full (5,000 activities, 120 of them copies of the same workout from another file). 10 waiting.',
     )
     rerender(
       <SyncStatus
@@ -352,9 +352,7 @@ describe('SyncStatus', () => {
         })}
       />,
     )
-    expect(message()).toHaveTextContent(
-      '1 of them a copy of another workout that the analysis hides',
-    )
+    expect(message()).toHaveTextContent('1 of them a copy of the same workout from another file')
   })
 
   it('says none were saved when the limit came before the first save', () => {

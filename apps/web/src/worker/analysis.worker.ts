@@ -277,22 +277,38 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       // The activity the athlete sees stands for its whole group of near-copies (rule R): deleting only it would let a
       // hidden copy take its place. The one asked for goes first, so a failure leaves the others as they were.
       const group = copiesOf(savedRecords.values(), record)
+      const removed: ActivityRecord[] = []
       let cleared = true
-      for (const member of group) {
-        try {
-          await deleteActivity(member.id, request.userId)
-        } catch (error) {
-          // Another tab may already have deleted this exact record.
-          if (!(error instanceof ApiRequestError && error.status === 404)) throw error
-        }
-        cleared = (await forgetRecord(member, request.userId)) && cleared
-      }
-      if (!cleared) post({ type: 'deviceIssue', issue: 'notForgotten' })
-      reportLibrary()
-      post({ type: 'missingOriginals', count: shownCount(missingOriginals, savedRecords.values()) })
       let state: SessionState | null = null
-      for (const member of group)
-        state = session.removeActivity(member.digest.sport, member.digest.startMs, request.settings)
+      try {
+        for (const member of group) {
+          try {
+            await deleteActivity(member.id, request.userId)
+          } catch (error) {
+            // Another tab may already have deleted this exact record.
+            if (!(error instanceof ApiRequestError && error.status === 404)) throw error
+          }
+          removed.push(member)
+          cleared = (await forgetRecord(member, request.userId)) && cleared
+        }
+      } finally {
+        // Those the server has already deleted are gone from the list and the session whether or not a later one failed.
+        if (removed.length > 0) {
+          if (!cleared) post({ type: 'deviceIssue', issue: 'notForgotten' })
+          reportLibrary()
+          post({
+            type: 'missingOriginals',
+            count: shownCount(missingOriginals, savedRecords.values()),
+          })
+        }
+        for (const member of removed) {
+          state = session.removeActivity(
+            member.digest.sport,
+            member.digest.startMs,
+            request.settings,
+          )
+        }
+      }
       return state!
     }
   }

@@ -3072,6 +3072,120 @@ describe('rule R: near-copies of one workout in the worker', () => {
     expect(text).not.toContain(records[1]!.id)
   })
 
+  it('counts a copy only among the digests the analysis reads: a stale FIT hides nothing', async () => {
+    const stale = digestActivity({ ...sampleActivity, id: 'old.fit' })
+    const staleRecord = recordFor({ ...stale, modelRevision: 1 })
+    const current = recordFor(GPX_DIGEST)
+    mocked.listActivities.mockResolvedValue([staleRecord, current])
+    const { send } = await startWorker()
+    const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const list = loaded.find((message) => message.type === 'libraryActivities')
+    // The stale one is held out of the analysis, so the current GPX is not a copy of it: both are listed.
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    expect(list.activities.map((activity) => activity.id).sort()).toEqual(
+      [current.id, staleRecord.id].sort(),
+    )
+    mocked.listActivities.mockImplementation(async (_since, _userId, _onUnreadable, onPage) => {
+      onPage?.([staleRecord, current])
+      return []
+    })
+    const exported = await send({
+      type: 'exportData',
+      userId: USER_ID,
+      account: { name: 'Ada', email: 'ada@example.com' },
+      profile: {
+        massKg: 75,
+        bikeMassKg: 9,
+        units: 'metric',
+        keepFiles: false,
+        birthYear: null,
+        sex: null,
+        updatedAt: 1,
+      },
+    })
+    const reply = exported.at(-1)
+    if (reply?.type !== 'exportReady') throw new Error('expected an export')
+    const text = await reply.file.text()
+    expect(text).toContain(staleRecord.id)
+    expect(text).toContain(current.id)
+  })
+
+  it('takes the members already deleted out of the list and the session when a later delete fails', async () => {
+    const third = recordFor(
+      digestActivity({ ...sampleActivity, id: 'c.tcx', startMs: sampleActivity.startMs + 8_000 }),
+    )
+    mocked.listActivities.mockResolvedValue([...records, third])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    mocked.deleteActivity
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new ApiRequestError(503, 'unavailable', 'Try later'))
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: records[0]!.id,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+    // The first was deleted at the server, so it is gone from what the page lists; the others are still there.
+    const list = messages.findLast((message) => message.type === 'libraryActivities')
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    const listed = list.activities.map((activity) => activity.id)
+    expect(listed).not.toContain(records[0]!.id)
+    expect(mocked.deleteActivity).toHaveBeenCalledTimes(2)
+    // And the session no longer holds it: the two left are copies of each other, one shown.
+    const next = await send({ type: 'setSettings', settings: SETTINGS })
+    expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
+  })
+
+  it('lists a stale FIT kept in this browser beside a current GPX: neither is a copy of the other', async () => {
+    const { send } = await startWorker()
+    const stale = { ...digestActivity({ ...sampleActivity, id: 'old.fit' }), modelRevision: 1 }
+    await kept.library!.put(workoutKeyOf(stale), stale)
+    await kept.library!.put(workoutKeyOf(GPX_DIGEST), GPX_DIGEST)
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const list = messages.find((message) => message.type === 'libraryActivities')
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    expect(list.activities).toHaveLength(2)
+  })
+
+  it('takes the copies already removed from this browser out of the session when a later removal fails', async () => {
+    const { send } = await startWorker()
+    const added = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+    const listed = added.filter((message) => message.type === 'libraryActivities').at(-1)
+    if (listed?.type !== 'libraryActivities') throw new Error('no list')
+    const library = kept.library!
+    const removing = library.remove.bind(library)
+    let removals = 0
+    library.remove = async (key) => {
+      if (++removals === 2) throw new Error('storage refused')
+      return removing(key)
+    }
+
+    const messages = await send({
+      type: 'deleteDeviceActivity',
+      id: listed.activities[0]!.id,
+      settings: SETTINGS,
+    })
+
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+    expect((await library.all()).length).toBe(1)
+    const next = await send({ type: 'setSettings', settings: SETTINGS })
+    // The one removed is out of the session; the one left is the only one it holds, shown.
+    expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 0 } })
+  })
+
   it('lists one copy kept in this browser, and deletes the whole group with it', async () => {
     const { send } = await startWorker()
 

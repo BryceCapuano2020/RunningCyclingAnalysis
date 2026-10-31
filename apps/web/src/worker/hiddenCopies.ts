@@ -1,5 +1,6 @@
 import type { ActivityRecord } from '@rca/contract'
 import { copyGroupOf, hiddenDigests } from '@rca/core/duplicates'
+import { isAnalysable } from './analysable'
 import { workoutKeyOf } from './device'
 
 /**
@@ -8,9 +9,9 @@ import { workoutKeyOf } from './device'
  * ones from here.
  */
 
-/** The ids of the saved records that are copies the analysis hides. */
+/** The ids of the saved records that are copies the analysis hides: among the digests it reads, as it reads them. */
 export function hiddenRecordIds(records: Iterable<ActivityRecord>): Set<string> {
-  const list = [...records]
+  const list = [...records].filter(({ digest }) => isAnalysable(digest))
   const hidden = hiddenDigests(list.map(({ digest }) => digest))
   return new Set(list.filter(({ digest }) => hidden.has(digest)).map(({ id }) => id))
 }

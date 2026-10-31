@@ -42,10 +42,10 @@ function stoppedCounts({ count, latest }: SyncIssue, saved: number | null): stri
   return saved === null ? waiting : `${formatCount(saved)} saved, ${waiting}`
 }
 
-/** The rows of a full library that are copies of workouts held in another file, which the analysis hides. */
+/** The rows of a full library that are copies of a workout held in another file (the wording of hiddenCopiesText). */
 function copiesNote(hiddenCopies: number): string {
   return hiddenCopies > 0
-    ? `, ${formatCount(hiddenCopies)} of them ${hiddenCopies === 1 ? 'a copy of another workout' : 'copies of other workouts'} that the analysis hides`
+    ? `, ${formatCount(hiddenCopies)} of them ${hiddenCopies === 1 ? 'a copy' : 'copies'} of the same workout from another file`
     : ''
 }
 
