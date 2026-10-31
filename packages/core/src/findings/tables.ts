@@ -2,7 +2,7 @@ import { DAY_MS } from '../constants'
 import { driftTrend } from '../digest/driftTrend'
 import { periodDurability } from '../digest/durabilityPeriod'
 import { sameHeartRate } from '../digest/sameHeartRate'
-import { weekEndMs } from '../digest/trendPoints'
+import { weekEndFor, weekEndMs, weekEndsSpan } from '../calendar'
 import type { ActivityDigest, Sport } from '../types'
 import { changepoint } from './changepoint'
 import { FINDINGS, perSport } from './constants'
@@ -62,14 +62,15 @@ function weekly<W extends { endMs: number }>(
   empty: (endMs: number, complete: boolean) => W,
 ): { week: W; digests: ActivityDigest[] }[] {
   if (mine.length === 0) return []
-  const first = weekEndMs(mine[0]!.startMs)
-  const last = Math.max(weekEndMs(mine.at(-1)!.startMs), weekEndMs(asOfMs))
+  const span = weekEndsSpan(mine)!
+  const first = span.first
+  const last = Math.max(span.last, weekEndMs(asOfMs))
   const weeks: { week: W; digests: ActivityDigest[] }[] = []
   for (let endMs = first; endMs <= last; endMs += WEEK_MS) {
     weeks.push({ week: empty(endMs, endMs <= asOfMs), digests: [] })
   }
   for (const digest of mine) {
-    weeks[Math.round((weekEndMs(digest.startMs) - first) / WEEK_MS)]!.digests.push(digest)
+    weeks[Math.round((weekEndFor(digest) - first) / WEEK_MS)]!.digests.push(digest)
   }
   return weeks
 }

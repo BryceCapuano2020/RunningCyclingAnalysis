@@ -1,7 +1,7 @@
 import { DAY_MS } from '../constants'
 import { localDayNumber } from '../digest/localDay'
 import { STALE_THRESHOLD_DAYS } from '../digest/thresholdTimelineTypes'
-import { weekEndMs } from '../digest/trendPoints'
+import { weekEndFor } from '../calendar'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { ZONE_MEASURES, ZONE_SCHEMES } from './schemes'
 import type { ZoneMeasure } from './schemes'
@@ -109,7 +109,7 @@ function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) 
   const dated = (settings.measurements ?? []).length > 0
   const stale = staleInstants(estimates)
   return (digest: ActivityDigest): ZoneSet[] => {
-    const week = weekEndMs(digest.startMs)
+    const week = weekEndFor(digest)
     const day = dated
       ? `${localDayNumber(digest.startMs)}|${week}`
       : anyIn(stale, week - WEEK_MS + 1, week)

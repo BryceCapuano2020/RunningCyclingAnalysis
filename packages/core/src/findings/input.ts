@@ -1,6 +1,6 @@
 import { DAY_MS } from '../constants'
 import { orderedFor } from '../digest/consumers'
-import { weekEndMs } from '../digest/trendPoints'
+import { weekEndsSpan } from '../calendar'
 import type { ActivityDigest } from '../types'
 import { buildTables } from './tables'
 import { zoneTablesOf } from './zoneTables'
@@ -58,8 +58,8 @@ export function weeklyMarks(
   const ordered = orderedFor('findings', digests)
   if (ordered.length === 0) return []
   const marks: number[] = []
-  const last = weekEndMs(ordered.at(-1)!.startMs)
-  for (let end = weekEndMs(ordered[0]!.startMs); end <= last; end += WEEK_MS) {
+  const span = weekEndsSpan(ordered)!
+  for (let end = span.first; end <= span.last; end += WEEK_MS) {
     if (end >= (range.fromMs ?? -Infinity) && end <= (range.toMs ?? Infinity)) marks.push(end)
   }
   return marks

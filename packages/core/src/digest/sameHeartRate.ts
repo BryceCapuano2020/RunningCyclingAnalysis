@@ -15,7 +15,7 @@ import type {
 } from './sameHeartRateTypes'
 import { effortsCount } from './effortTrust'
 import { firstStartingAfter } from './startOrder'
-import { weekEndMs } from './trend'
+import { weekEndFor, weekEndMs } from '../calendar'
 
 const WEEK_MS = 7 * DAY_MS
 const WINDOW_MS = SAME_HEART_RATE.windowDays * DAY_MS
@@ -47,6 +47,8 @@ const READING: Record<Sport, Reading> = {
 /** One steady block, in order of the time of its activity; `activity` counts the activities that give blocks. */
 interface Block {
   startMs: number
+  /** The end of the week of the activity's local day (calendar.ts). */
+  weekEnd: number
   activity: number
   heartRate: number
   output: number
@@ -64,7 +66,13 @@ function blocksOf(ordered: ActivityDigest[], sport: Sport, setAside: ReadonlySet
       if (!(value > 0 && block.heartRate > 0)) continue
       if (!counted) activity++
       counted = true
-      blocks.push({ startMs: digest.startMs, activity, heartRate: block.heartRate, output: value })
+      blocks.push({
+        startMs: digest.startMs,
+        weekEnd: weekEndFor(digest),
+        activity,
+        heartRate: block.heartRate,
+        output: value,
+      })
     }
   }
   return blocks
@@ -75,7 +83,7 @@ function lackOf(window: readonly Block[], referenceHr: number): Lack | null {
   const { minBlocks, minActivities, minWeeks, minSpreadBpm } = SAME_HEART_RATE
   if (window.length < minBlocks) return 'blocks'
   if (new Set(window.map((b) => b.activity)).size < minActivities) return 'activities'
-  if (new Set(window.map((b) => weekEndMs(b.startMs))).size < minWeeks) return 'weeks'
+  if (new Set(window.map((b) => b.weekEnd)).size < minWeeks) return 'weeks'
   const rates = window.map((b) => b.heartRate)
   const mean = rates.reduce((sum, r) => sum + r, 0) / rates.length
   const variance = rates.reduce((sum, r) => sum + (r - mean) ** 2, 0) / rates.length
@@ -146,10 +154,10 @@ function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): S
  */
 function weekEnds(blocks: readonly Block[], fromMs: number | undefined): number[] {
   const first = blocks[0]!.startMs
-  const last = blocks.at(-1)!.startMs
-  const lastEnd = weekEndMs(last)
+  const lastEnd = blocks.at(-1)!.weekEnd
   const earliest = Math.max(first, (fromMs ?? first) + WINDOW_MS)
-  const firstEnd = Math.max(weekEndMs(earliest), lastEnd - (SAME_HEART_RATE.maxWeeks - 1) * WEEK_MS)
+  const earliestEnd = earliest === first ? blocks[0]!.weekEnd : weekEndMs(earliest)
+  const firstEnd = Math.max(earliestEnd, lastEnd - (SAME_HEART_RATE.maxWeeks - 1) * WEEK_MS)
   const ends: number[] = []
   for (let end = firstEnd; end <= lastEnd; end += WEEK_MS) ends.push(end)
   return ends
@@ -163,7 +171,7 @@ function weekEnds(blocks: readonly Block[], fromMs: number | undefined): number[
 function referenceOf(library: readonly Block[]): number | null {
   const last = library.at(-1)
   if (last === undefined) return null
-  const from = weekEndMs(last.startMs) - SAME_HEART_RATE.referenceWeeks * WEEK_MS
+  const from = last.weekEnd - SAME_HEART_RATE.referenceWeeks * WEEK_MS
   const rates = library.filter((b) => b.startMs > from).map((b) => b.heartRate)
   const step = SAME_HEART_RATE.referenceStepBpm
   return Math.round(quantile(rates, 0.5) / step) * step
@@ -189,7 +197,7 @@ function forSport(
   const referenceHeartRate = referenceOf(blocksOf(library, sport, setAside))
   if (all.length === 0 || referenceHeartRate === null) return NO_SAME_HEART_RATE[sport]
   // The period's last week is that of its newest activity, of either sport.
-  const latestWeekEndMs = weekEndMs(ordered.at(-1)!.startMs)
+  const latestWeekEndMs = weekEndFor(ordered.at(-1)!)
   const ends = weekEnds(all, fromMs)
   // Stretches that do not reach a window's length into the period leave no week whose window lies in it.
   if (ends.length === 0) {

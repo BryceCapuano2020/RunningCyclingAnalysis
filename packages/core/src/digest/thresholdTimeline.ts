@@ -19,7 +19,7 @@ import type { Masses } from './masses'
 import { centralWkgFromWatts, ridePriced, runCentralWkg } from './rideCurves'
 import { THRESHOLD_WINDOW_WEEKS } from './thresholdTimelineTypes'
 import type { ThresholdStep, ThresholdTimeline } from './thresholdTimelineTypes'
-import { weekEndMs } from './trendPoints'
+import { weekEndFor } from '../calendar'
 
 const WEEK_MS = 7 * DAY_MS
 const DURATIONS = DURATIONS_S.length
@@ -75,7 +75,7 @@ function entryOf(
       ? heartRate / referenceBpm
       : null
   return {
-    weekEnd: weekEndMs(digest.startMs),
+    weekEnd: weekEndFor(digest),
     startMs: digest.startMs,
     backed,
     standing,

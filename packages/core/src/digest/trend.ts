@@ -11,6 +11,7 @@ import { estimatedStanding, ownRideGate } from './estimatedRide'
 import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import { fitBikeModelOver, pointWkg, runCentralWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
+import { weekEndFor } from '../calendar'
 import { DEFAULT_WINDOW_DAYS, EFFORT_LENGTHS_S, weekEndMs } from './trendPoints'
 
 const WEEK_MS = 7 * DAY_MS
@@ -181,10 +182,11 @@ export function fitnessTrend(
     ),
   )
 
-  const lastEnd = weekEndMs(last.startMs)
+  // The weeks run from the week of the first activity (or of the period's first window) to the last's.
+  const lastEnd = weekEndFor(last)
   const earliest =
     opts.fromMs === undefined ? first.startMs : Math.max(first.startMs, opts.fromMs + windowMs)
-  const firstEnd = weekEndMs(earliest)
+  const firstEnd = earliest === first.startMs ? weekEndFor(first) : weekEndMs(earliest)
   const points: TrendPoint[] = []
   for (let endMs = firstEnd; endMs <= lastEnd; endMs += WEEK_MS) {
     const windowStart = endMs - windowMs
