@@ -140,9 +140,17 @@ export async function runImport(
       save ??
         (request.provisional ? holdForDevice : request.saveToDevice ? keeper.keep : undefined),
       sync?.keepFiles === true,
-      ({ added, ...completed }) => {
-        for (const digest of added) addedIds.add(digest.id)
-        outcome = { ...completed, ...summarizeAdded(added) }
+      ({ added, upgraded, ...completed }) => {
+        for (const digest of [...added, ...upgraded]) addedIds.add(digest.id)
+        // Counts only: the digests stay in the worker.
+        const updated = summarizeAdded(upgraded)
+        outcome = {
+          ...completed,
+          ...summarizeAdded(added),
+          ...(upgraded.length === 0
+            ? {}
+            : { updatedRuns: updated.runs ?? 0, updatedRides: updated.rides ?? 0 }),
+        }
       },
       async (activity, { held }) => {
         if (traceScope === null) {

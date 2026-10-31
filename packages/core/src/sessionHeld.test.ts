@@ -5,7 +5,8 @@ import type { FileId, HeldEntry, HeldFiles } from './importHeld'
 import { AnalysisSession } from './session'
 import type { SyncSink } from './session'
 import { MODEL_REVISION } from './digest/modelRevision'
-import type { ActivityDigest, AthleteSettings } from './types'
+import type { SessionLibrary } from './sessionLibrary'
+import type { AthleteSettings } from './types'
 
 /** Skipping a file the index knows: nothing is parsed, the library and the report are what a parsed re-import gives. */
 
@@ -170,10 +171,12 @@ describe('an import that skips the files its index knows', () => {
     const { held, calls } = index()
     const session = new AnalysisSession()
     await importWith(session, [fit('a.fit', MORNING_MS)], held)
-    // A digest of an older model held beside current ones (a revision that can be mixed): the index does not vouch for it.
-    const digests = (session as unknown as { digests: Map<string, ActivityDigest> }).digests
-    for (const [key, digest] of digests)
-      digests.set(key, { ...digest, modelRevision: MODEL_REVISION - 1 })
+    // Only a digest whose status is current stands for the file (D12 section 3): one made by an older model is held
+    // out of the library's current digests, and the index does not vouch for it.
+    const library = (session as unknown as { library: SessionLibrary }).library
+    for (const [key, digest] of [...library.digests])
+      library.put(key, { ...digest, modelRevision: MODEL_REVISION - 1 })
+    expect(library.heldOut.size).toBe(1)
     await importWith(session, [fit('a.fit', MORNING_MS)], held)
     expect(calls).toMatchObject({ parsed: 2, skipped: 0 })
   })
