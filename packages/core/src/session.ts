@@ -10,6 +10,8 @@ import { importSource, sortRead } from './sessionSource'
 import { DEFAULT_ATHLETE, SAMPLE_CLOCK } from './synthetic'
 import { seasonDigests } from './sessionSample'
 import type { SampleClock } from './synthetic'
+import { setViewerZone } from './calendar'
+import type { Zone } from './calendar'
 import { requirePositiveFinite } from './math'
 import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { revisionStatus } from './digest/revisions'
@@ -235,6 +237,14 @@ export class AnalysisSession {
     if (held !== undefined && readRank(held) >= readRank(digest)) return false
     this.library.put(key, digest)
     return true
+  }
+
+  /**
+   * Gives the viewer's zone, once, at the edge that knows it: where a file recorded no local day, the days and
+   * weeks are cut in this zone (calendar.ts). It is the one zone for the whole worker, not for this session.
+   */
+  setZone(zone: Zone): void {
+    setViewerZone(zone)
   }
 
   /** Removes one saved workout after its owner-scoped server deletion succeeds. */
