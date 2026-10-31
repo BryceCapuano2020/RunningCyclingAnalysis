@@ -1,3 +1,4 @@
+import type { Sex } from '../grade/ageGrade'
 import type { Measurement } from './measurements'
 
 export interface AthleteSettings {
@@ -26,6 +27,11 @@ export interface AthleteSettings {
    * age band; absent, the reference is judged on the data alone.
    */
   birthYear?: number
+  /**
+   * The athlete's sex, when given. The effort gate reads it with the year of birth to pick the age-predicted maximum
+   * heart rate (Gulati for women, Tanaka otherwise); absent, Tanaka.
+   */
+  sex?: Sex
   /**
    * The workouts (by `workoutKey`) the athlete counts as runs although they are at walking pace. Absent or
    * empty: every run at walking pace is left out of the analysis.
