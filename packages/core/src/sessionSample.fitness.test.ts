@@ -89,28 +89,19 @@ describe('the sample athlete’s fitness story', () => {
     expect(lintCopy(`${headline} ${support}`)).toEqual([])
   })
 
-  // Each clock draws a season of its own, so each is its own test: a slow draw shows which clock it was.
-  it.each([
-    ['three days later', { nowMs: SAMPLE_REFERENCE_NOW_MS + 3 * DAY_MS }],
-    [
-      'nine weeks later, eight hours west',
-      { nowMs: SAMPLE_REFERENCE_NOW_MS + 9 * WEEK_MS, utcOffsetMinutes: () => -480 },
-    ],
-    [
-      'thirty weeks later, thirteen hours east',
-      { nowMs: SAMPLE_REFERENCE_NOW_MS + 30 * WEEK_MS, utcOffsetMinutes: () => 780 },
-    ],
-  ])(
-    'tells the same story whatever day of the week, week or time zone it is loaded in: %s',
-    (_name, clock) => {
-      const other = runStatus(clock)
-      expect(other.state).toBe(status.state)
-      expect(other.steady).toBe(status.steady)
-      // A zone can move a run across a week's edge, so the windows differ a little: the size stays within two points.
-      expect(Math.abs(other.change!.value - status.change!.value)).toBeLessThan(0.02)
-      expect(other.change!.high).toBeLessThan(0)
-    },
-  )
+  // One other week and zone, since each clock draws a whole season of its own. The other days of the week and
+  // zones are in sessionSample.fitness.sim.test.ts.
+  it('tells the same story in another week and time zone', () => {
+    const other = runStatus({
+      nowMs: SAMPLE_REFERENCE_NOW_MS + 9 * WEEK_MS,
+      utcOffsetMinutes: () => -480,
+    })
+    expect(other.state).toBe(status.state)
+    expect(other.steady).toBe(status.steady)
+    // A zone can move a run across a week's edge, so the windows differ a little: the size stays within two points.
+    expect(Math.abs(other.change!.value - status.change!.value)).toBeLessThan(0.02)
+    expect(other.change!.high).toBeLessThan(0)
+  })
 
   it('compares the rides as well, and says it has too few from before the last 8 weeks: the sample’s one not-enough state', () => {
     const rides = new AnalysisSession().loadSample(SETTINGS, SAMPLE_CLOCK).fitness.ride
