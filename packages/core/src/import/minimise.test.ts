@@ -1,84 +1,85 @@
 import { describe, expect, it } from 'vitest'
 import { digestActivity } from '../digest/digestActivity'
-import { fileNameOf, workoutKey } from '../duplicates'
 import { syntheticActivity } from '../digest/test/syntheticActivity'
+import { fileNameOf, workoutKey } from '../duplicates'
 import type { ActivityDigest } from '../types'
-import { hashedFileName, minimisedForUpload } from './minimise'
+import { hashedDigestId, hashedFileName, isHashedFileName, minimisedForUpload } from './minimise'
 
-const POLICY = { titles: false, account: 'user-1' }
+const POLICY = { titles: false }
+const START = Date.UTC(2026, 2, 14, 7, 30, 41)
 
 function digestOf(id: string, name: string, modelRevision = 7): ActivityDigest {
-  const base = digestActivity(
-    syntheticActivity({ id, n: 600, startMs: Date.UTC(2026, 2, 14, 7, 30, 41) }),
-  )
+  const base = digestActivity(syntheticActivity({ id, n: 600, startMs: START }))
   return { ...base, id, name, modelRevision }
 }
 
-const ID = `${Date.UTC(2026, 2, 14, 7, 30, 41)}-activities/12345678.fit`
+const ID = `${START}-activities/12345678.fit`
 
-describe('what is sent of a digest from revision 7', () => {
-  it('replaces the title by a generated name unless the athlete chose to send titles', async () => {
+describe('the hashed file name', () => {
+  it('keeps the format’s extension, drops the rest, and is the same every time', () => {
+    const name = hashedFileName('activities/12345678.fit')
+    expect(name).toMatch(/^rca-[0-9a-f]{16}\.fit$/)
+    expect(name).not.toContain('12345678')
+    expect(hashedFileName('activities/12345678.fit')).toBe(name)
+    expect(hashedFileName('activities/12345679.fit')).not.toBe(name)
+    expect(hashedFileName('a/ride.TCX')).toMatch(/^rca-[0-9a-f]{16}\.tcx$/)
+    expect(hashedFileName('track')).toMatch(/^rca-[0-9a-f]{16}$/)
+  })
+
+  it('is not hashed again', () => {
+    const once = hashedFileName('activities/1.fit')
+    expect(isHashedFileName(once)).toBe(true)
+    expect(isHashedFileName('activities/1.fit')).toBe(false)
+    expect(hashedFileName(once)).toBe(once)
+  })
+
+  it('makes a digest id the same file name, keeping the part and index', () => {
+    const id = hashedDigestId(`${START}-export/987.tcx#2.1`)
+    expect(id).toMatch(new RegExp(`^${START}-rca-[0-9a-f]{16}\\.tcx#2\\.1$`))
+    expect(fileNameOf(id)).toBe(hashedFileName('export/987.tcx'))
+    expect(hashedDigestId(id)).toBe(id)
+  })
+})
+
+describe('what is sent of a new activity from revision 7', () => {
+  it('replaces the title by a generated name unless the athlete chose to send titles', () => {
     const digest = digestOf(ID, 'Run along the Embarcadero to home')
-    const hidden = await minimisedForUpload(digest, 'activities/12345678.fit', POLICY)
+    const hidden = minimisedForUpload(digest, 'activities/12345678.fit', POLICY)
     expect(hidden.digest.name).toMatch(
       /^(Early Morning|Morning|Afternoon|Evening|Night|Lunch).* Run$/,
     )
     expect(hidden.digest.name).not.toContain('Embarcadero')
-    const shown = await minimisedForUpload(digest, 'activities/12345678.fit', {
-      ...POLICY,
-      titles: true,
-    })
+    const shown = minimisedForUpload(digest, 'activities/12345678.fit', { titles: true })
     expect(shown.digest.name).toBe('Run along the Embarcadero to home')
   })
 
-  it('hashes the file name and the digest id with it, keeping the extension and the id’s shape', async () => {
-    const sent = await minimisedForUpload(digestOf(ID, 'x'), 'activities/12345678.fit', POLICY)
-    expect(sent.fileName).toMatch(/^rca-[0-9a-f]{16}\.fit$/)
-    expect(sent.fileName).not.toContain('12345678')
-    expect(sent.digest.id).toBe(`${Date.UTC(2026, 2, 14, 7, 30, 41)}-${sent.fileName}`)
+  it('hashes the file name and the digest id with it', () => {
+    const sent = minimisedForUpload(digestOf(ID, 'x'), 'activities/12345678.fit', POLICY)
+    expect(sent.fileName).toBe(hashedFileName('activities/12345678.fit'))
+    expect(sent.digest.id).toBe(`${START}-${sent.fileName}`)
     expect(fileNameOf(sent.digest.id)).toBe(sent.fileName)
   })
 
-  it('keeps the part and index a digest id carries, and the format it ranks by', async () => {
-    const start = Date.UTC(2026, 2, 14, 7, 30, 41)
-    const sent = await minimisedForUpload(
-      digestOf(`${start}-export/987.tcx#2.1`, 'x'),
-      'export/987.tcx',
-      POLICY,
-    )
-    expect(sent.digest.id).toMatch(new RegExp(`^${start}-rca-[0-9a-f]{16}\\.tcx#2\\.1$`))
-    expect(fileNameOf(sent.digest.id)).toBe(sent.fileName)
+  it('sends an id and a name that are already hashed as they are, so an activity made at import is not changed', () => {
+    const name = hashedFileName('activities/1.fit')
+    const digest = digestOf(`${START}-${name}`, 'x')
+    const sent = minimisedForUpload(digest, name, POLICY)
+    expect(sent.digest.id).toBe(digest.id)
+    expect(sent.fileName).toBe(name)
   })
 
-  it('is the same every time for one account and file, and differs between accounts and files', async () => {
-    const a = await hashedFileName('activities/1.fit', 'user-1')
-    expect(await hashedFileName('activities/1.fit', 'user-1')).toBe(a)
-    expect(await hashedFileName('activities/1.fit', 'user-2')).not.toBe(a)
-    expect(await hashedFileName('activities/2.fit', 'user-1')).not.toBe(a)
-  })
-
-  it('does not hash a name again, so a rebuild of a stored activity finds it', async () => {
-    const once = await hashedFileName('activities/1.fit', 'user-1')
-    expect(await hashedFileName(once, 'user-1')).toBe(once)
-    expect(await hashedFileName(once, 'user-2')).toBe(once)
-    const digest = digestOf(`${Date.UTC(2026, 2, 14, 7, 30, 41)}-${once}`, 'x')
-    const again = await minimisedForUpload(digest, once, POLICY)
-    expect(again.digest.id).toBe(digest.id)
-    expect(again.fileName).toBe(once)
-  })
-
-  it('changes nothing else of the digest, and nothing of the workout’s key', async () => {
+  it('changes nothing else of the digest, and nothing of the workout’s key', () => {
     const digest = digestOf(ID, 'Title')
-    const sent = (await minimisedForUpload(digest, 'activities/12345678.fit', POLICY)).digest
+    const sent = minimisedForUpload(digest, 'activities/12345678.fit', POLICY).digest
     const { id: _a, name: _b, ...rest } = sent
     const { id: _c, name: _d, ...before } = digest
     expect(rest).toEqual(before)
     expect(workoutKey(sent.sport, sent.startMs)).toBe(workoutKey(digest.sport, digest.startMs))
   })
 
-  it('sends a digest of an earlier revision as it is', async () => {
+  it('sends a digest of an earlier revision as it is', () => {
     const digest = digestOf(ID, 'Title', 6)
-    const sent = await minimisedForUpload(digest, 'activities/12345678.fit', POLICY)
+    const sent = minimisedForUpload(digest, 'activities/12345678.fit', POLICY)
     expect(sent.digest).toBe(digest)
     expect(sent.fileName).toBe('activities/12345678.fit')
   })

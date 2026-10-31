@@ -73,7 +73,7 @@ describe('applyListLabels', () => {
   it('labels a workout saved with a hashed file name from the list’s plain name, and one saved before with its own', async () => {
     mocked.patchLabels.mockResolvedValue(taken)
     mocked.listActivities.mockResolvedValue([])
-    const hashed = await hashedFileName('activities/1.fit', 'u1')
+    const hashed = hashedFileName('activities/1.fit')
     const saved = record(1)
     const records = new Map([
       ['rec0', record(0)],

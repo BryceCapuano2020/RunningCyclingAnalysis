@@ -692,6 +692,19 @@ describe('createActivity', () => {
     noteUploadTitles({ uploadTitles: false })
   })
 
+  it('sends a replace as it is: an activity already saved keeps its id, file name and title', async () => {
+    const digest = { ...DIGEST, modelRevision: 7, name: 'My own title', id: '1000-run/9988.fit' }
+    const fetchMock = stubFetch(respond(200, RECORD_WIRE))
+    noteUploadTitles({ uploadTitles: false })
+    await createActivity(digest, 'run/9988.fit', 'c'.repeat(64), 'u1', 'rec-1')
+    const { path, init } = callOf(fetchMock)
+    expect(path).toBe('/api/activities?replace=rec-1')
+    const body = JSON.parse(init.body as string) as { digest: ActivityDigest; fileName: string }
+    expect(body.fileName).toBe('run/9988.fit')
+    expect(body.digest.id).toBe('1000-run/9988.fit')
+    expect(body.digest.name).toBe('My own title')
+  })
+
   it('reports an activity that already existed as not created', async () => {
     stubFetch(respond(200, RECORD_WIRE))
     const { created, record } = await createActivity(DIGEST, 'run.fit', 'b'.repeat(64))

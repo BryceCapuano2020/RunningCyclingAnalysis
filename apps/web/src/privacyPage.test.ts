@@ -417,11 +417,15 @@ describe('privacy page describes what is stored as the app stores it', () => {
 
   it('says titles are saved only by choice, file names are hashed, and the choice stays in this browser under its key', () => {
     expect(uploadTitlesPreference).toContain("UPLOAD_TITLES_KEY = 'rca.uploadTitles.v1'")
-    expect(minimiseSource).toMatch(/`rca-\$\{hash\.slice\(0, 16\)\}/)
-    expect(sentenceWith('the title of an activity is saved only if you choose')).toContain(
+    expect(minimiseSource).toContain('`rca-${sha256TextHex(fileName).slice(0, 16)}${extension}`')
+    expect(sentenceWith('an activity saved from now on keeps its title')).toContain(
       'Send my activity titles to my library',
     )
     expect(text).toContain('rca- and sixteen characters')
+    expect(text).toContain(
+      'Activities saved before keep the title and file name they were saved with',
+    )
+    expect(text).not.toContain('model revision 7')
     expect(text).toContain('it is not secrecy')
     expect(text).toContain('rca.uploadTitles.v1')
   })

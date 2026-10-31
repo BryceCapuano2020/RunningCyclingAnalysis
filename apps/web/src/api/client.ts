@@ -226,11 +226,12 @@ export async function createActivity(
   replaceId?: string,
 ): Promise<CreatedActivity> {
   const query = replaceId === undefined ? '' : `?${new URLSearchParams({ replace: replaceId })}`
-  // From revision 7 the account gets a generated title unless the athlete chose to send titles, and a hash of the file name.
-  const sent = await minimisedForUpload(digest, fileName, {
-    titles: uploadTitles(),
-    account: userId ?? '',
-  })
+  // A new activity goes with a generated title unless the athlete chose to send titles, and a hashed file name (from
+  // revision 7). A replace is of an activity already saved: it keeps the id, file name and title it has.
+  const sent =
+    replaceId === undefined
+      ? minimisedForUpload(digest, fileName, { titles: uploadTitles() })
+      : { digest, fileName }
   const response = await request(
     'POST',
     `/api/activities${query}`,
