@@ -13,7 +13,7 @@ import type { HeadlinePick } from './components/pickHeadline'
  * another holds back. Reasons are tried in one order, most important first; the first that applies is the hold.
  * - `updating` (scope `results`): the library is there and its digests are held out for another model. It needs no
  *   result, and while it is on the results are replaced by the library page.
- * - `partial-import` (scope `headline`): an import is known partial (D7 feeds it).
+ * - `partial-import` (scope `headline`): an import is known partial (`useLibraryPage` feeds it from the import record).
  * - `implausible-ride` and `effort` (scope `headline`): the evidence behind the headline comparison.
  */
 
@@ -45,7 +45,7 @@ export interface UpdatingInputs {
 
 /**
  * What else can hold results, from outside the result. D6a feeds `implausibleRide` (a ride that works out to more
- * than a runner can do) and D7 feeds `partialImport`; until they do, nothing is passed and they hold nothing.
+ * than a runner can do); until it does, nothing is passed and it holds nothing. `partialImport` is fed by `useLibraryPage`.
  */
 export interface HoldInputs {
   updating?: UpdatingInputs | null

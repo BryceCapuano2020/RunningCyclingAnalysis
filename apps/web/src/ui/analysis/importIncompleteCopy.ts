@@ -39,3 +39,21 @@ export function incompleteText(manifest: ImportManifest): string {
       : `The last import stopped after ${groupThousands(String(read))} of ${groupThousands(String(expected))} files.`
   return `${reached} What it added is here. ${again}: files already added are skipped.`
 }
+
+/**
+ * What the headline says while the library is only part of what was added, and what lifts it. The comparison of the
+ * two sports is a verdict from the whole history, so it waits for the rest (or for "Use what I have"); the results
+ * themselves stand, as the notice says.
+ */
+export function partialHold(manifest: ImportManifest): { text: string; action: string } {
+  if (manifest.state === 'partial-source') {
+    return {
+      text: 'A zip you added is damaged, so the comparison of your running and cycling waits.',
+      action: 'Download the export again and add it, or choose Use what I have.',
+    }
+  }
+  return {
+    text: 'The last import stopped before it finished, so the comparison of your running and cycling waits.',
+    action: 'Add the same files again to finish, or choose Use what I have.',
+  }
+}
