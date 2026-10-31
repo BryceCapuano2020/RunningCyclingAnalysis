@@ -159,12 +159,9 @@ describe('a ride whose range crosses a level', () => {
   const CROSSING = 'Recreational to Regional · 61% on best 20 min'
   const crossing = (): ShareCardModel => {
     const base = cardModel()
-    return {
-      ...base,
-      heroes: base.heroes.map((hero) =>
-        hero.sport === 'ride' ? { ...hero, grade: CROSSING } : hero,
-      ),
-    }
+    const [run, ride] = base.heroes
+    if (run === undefined || ride === undefined) throw new Error('The card has no heroes')
+    return { ...base, heroes: [run, { ...ride, grade: CROSSING }] }
   }
 
   it.each(FORMATS)('keeps both levels whole and inside the margins on the %s card', (format) => {
