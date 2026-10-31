@@ -110,27 +110,30 @@ export interface ZoneEstimates {
   thresholds: ThresholdTimeline
 }
 
-const estimatesOfJudgement = new WeakMap<HeartRateJudgement, ZoneEstimates>()
+const estimatesOfJudgement = new WeakMap<
+  HeartRateJudgement,
+  { nowMs: number; found: ZoneEstimates }
+>()
 
 /**
  * The references of a whole library's judgement as zone estimates: its maxima, as an analysis of it reports
  * them, and its thresholds over time, settled so a hard effort passing through a window does not move the zones, and
- * off in a sport whose whole-library threshold is refused (`settledThresholds`). The same judgement gives the same object, so what is cached by the
- * estimates is found again.
+ * off in a sport whose whole-library threshold is refused (`settledThresholds`), as of `nowMs`: a threshold that began
+ * to hold this week is not yet followed. The same judgement on the same `nowMs` gives the same object, so what is cached
+ * by the estimates is found again.
  */
-export function zoneEstimatesOf(judgement: HeartRateJudgement): ZoneEstimates {
-  let found = estimatesOfJudgement.get(judgement)
-  if (found === undefined) {
-    found = {
-      runMaxHeartRate: judgement.referenceHr.run,
-      rideMaxHeartRate: judgement.referenceHr.ride,
-      runObservedMaxHeartRate: judgement.observedMaxHr.run,
-      rideObservedMaxHeartRate: judgement.observedMaxHr.ride,
-      observedMaxSource: judgement.observedMaxSource,
-      thresholds: settledThresholds(judgement.thresholdTimeline, judgement.fit),
-    }
-    estimatesOfJudgement.set(judgement, found)
+export function zoneEstimatesOf(judgement: HeartRateJudgement, nowMs: number): ZoneEstimates {
+  const kept = estimatesOfJudgement.get(judgement)
+  if (kept !== undefined && kept.nowMs === nowMs) return kept.found
+  const found: ZoneEstimates = {
+    runMaxHeartRate: judgement.referenceHr.run,
+    rideMaxHeartRate: judgement.referenceHr.ride,
+    runObservedMaxHeartRate: judgement.observedMaxHr.run,
+    rideObservedMaxHeartRate: judgement.observedMaxHr.ride,
+    observedMaxSource: judgement.observedMaxSource,
+    thresholds: settledThresholds(judgement.thresholdTimeline, judgement.fit, nowMs),
   }
+  estimatesOfJudgement.set(judgement, { nowMs, found })
   return found
 }
 

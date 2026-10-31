@@ -31,8 +31,10 @@ function stepsOf(points: [number, number | null][]): ThresholdStep[] {
 }
 
 const BOTH = { run: fitOf(15), ride: fitOf(15) }
-const settledRun = (points: [number, number | null][]) =>
-  settledThresholds({ run: stepsOf(points), ride: [] }, BOTH).run
+/** Long after the last step, so every step has had its time unless a test says otherwise. */
+const LATER = START + 1000 * WEEK_MS
+const settledRun = (points: [number, number | null][], nowMs = LATER) =>
+  settledThresholds({ run: stepsOf(points), ride: [] }, BOTH, nowMs).run
 const cps = (steps: ThresholdStep[]) => steps.map((step) => step.fit?.cp ?? null)
 
 describe('settledThresholds', () => {
@@ -73,16 +75,44 @@ describe('settledThresholds', () => {
       [6, 18],
       [12, 18.01],
     ])
-    expect(cps(climb)).toEqual([15, 16, 17, 18, 18.01])
+    expect(cps(climb)).toEqual([15, 16, 17, 18, 18])
   })
 
-  it('takes the newest fit as it is, the library own figure', () => {
-    const run = settledRun([
+  it('holds the newest step until it has lasted about two weeks, so a hard effort this week does not move today', () => {
+    const steps: [number, number | null][] = [
       [0, 15],
-      [4, 15.05],
-      [5, 15.04],
+      [40, 17],
+    ]
+    // The step began with the week that ends at week 40, which started at week 39.
+    const began = START + 39 * WEEK_MS
+    expect(cps(settledRun(steps, began + 3 * DAY_MS))).toEqual([15, 15])
+    expect(cps(settledRun(steps, began + 13 * DAY_MS))).toEqual([15, 15])
+    expect(cps(settledRun(steps, began + 14 * DAY_MS))).toEqual([15, 17])
+  })
+
+  it("does not count a step after today as a fact: a future leaving step cannot make today's step stand", () => {
+    const steps: [number, number | null][] = [
+      [0, 15],
+      [40, 17],
+      [66, 15],
+    ]
+    expect(cps(settledRun(steps, START + 39 * WEEK_MS + 3 * DAY_MS))[1]).toBe(15)
+  })
+
+  it('never lets a fit with no standard error move a held threshold', () => {
+    const two = (cp: number): CriticalPowerFit => ({ ...fitOf(cp), cpSe: Number.NaN })
+    const steps = stepsOf([
+      [0, 15],
+      [10, 20],
+      [30, 15],
     ])
-    expect(cps(run)).toEqual([15, 15, 15.04])
+    steps[1] = { ...steps[1]!, fit: two(20) }
+    const run = settledThresholds({ run: steps, ride: [] }, BOTH, LATER).run
+    expect(cps(run)).toEqual([15, 15, 15])
+    // As the first fit it is taken: there is nothing held to keep.
+    const first = stepsOf([[0, 20]])
+    first[0] = { ...first[0]!, fit: two(20) }
+    expect(settledThresholds({ run: first, ride: [] }, BOTH, LATER).run[0]!.fit!.cp).toBe(20)
   })
 
   it('leaves a window without a fit without one, and keeps where the last fit stood', () => {
@@ -92,7 +122,7 @@ describe('settledThresholds', () => {
       [30, 15.04],
       [40, 15.05],
     ])
-    expect(cps(run)).toEqual([15, null, 15, 15.05])
+    expect(cps(run)).toEqual([15, null, 15, 15])
     expect(run.map((step) => step.lastFit)).toEqual([0, 0, 2, 3])
     expect(thresholdAt(run, START + 12 * WEEK_MS)).toMatchObject({ asOfMs: START + -1 * WEEK_MS })
   })
@@ -121,7 +151,7 @@ describe('settledThresholds', () => {
         [4, 3.2],
       ]),
     }
-    const settled = settledThresholds(timeline, { run: fitOf(15), ride: null })
+    const settled = settledThresholds(timeline, { run: fitOf(15), ride: null }, LATER)
     expect(settled.run.map((step) => step.fit?.cp)).toEqual([15, 16])
     expect(settled.ride).toHaveLength(2)
     expect(settled.ride.every((step) => step.fit === null && step.lastFit === -1)).toBe(true)
@@ -134,6 +164,6 @@ describe('settledThresholds', () => {
       [4, 15],
       [8, 15],
     ])
-    expect(settledThresholds({ run: flat, ride: [] }, BOTH).run).toEqual(flat)
+    expect(settledThresholds({ run: flat, ride: [] }, BOTH, LATER).run).toEqual(flat)
   })
 })

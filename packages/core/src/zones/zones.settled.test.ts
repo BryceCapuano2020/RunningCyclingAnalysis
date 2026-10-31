@@ -7,6 +7,7 @@ import { missingThresholdZones, zoneEstimatesOf, zonesAt } from './zones'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 const AT = FIRST_MONDAY_MS + 25 * 7 * DAY_MS
+const NOW = AT + 400 * DAY_MS
 
 describe('the zones of a library whose own threshold is refused', () => {
   const judged = judgeHeartRate(
@@ -14,7 +15,7 @@ describe('the zones of a library whose own threshold is refused', () => {
     SETTINGS,
   )
   const paceSets = (judgement: typeof judged) =>
-    zonesAt(AT, SETTINGS, zoneEstimatesOf(judgement)).filter(
+    zonesAt(AT, SETTINGS, zoneEstimatesOf(judgement, NOW)).filter(
       (set) => set.sport === 'run' && set.measure === 'pace',
     )
 
@@ -27,7 +28,7 @@ describe('the zones of a library whose own threshold is refused', () => {
     const refused = { ...judged, fit: { run: null, ride: null } }
     expect(refused.thresholdTimeline.run.some((step) => step.fit !== null)).toBe(true)
     expect(paceSets(refused)).toHaveLength(0)
-    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(refused))).toEqual([
+    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(refused, NOW))).toEqual([
       { sport: 'run', measure: 'pace' },
     ])
   })
