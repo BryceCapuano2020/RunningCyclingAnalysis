@@ -1,3 +1,4 @@
+import type { HeldOutActivity } from './sessionLibrary'
 import type { ActivitySummary, AnalysisResult } from './digest'
 import type { Period } from './period'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
@@ -34,6 +35,10 @@ export interface SessionState {
   outdatedActivities: number
   /** Stored activities excluded because their digest model is from a newer app version. */
   incompatibleActivities: number
+  /** Every activity the library holds, whatever the model that made its digest: the read, the held out and the newer. */
+  libraryActivities: number
+  /** The activities held out of the analysis (stale or newer), by identity, newest first. The library lists them. */
+  heldOut: HeldOutActivity[]
   /**
    * Saved activities left out of the analysis because a copy of the same workout in a higher format
    * (FIT over TCX over GPX) is saved too. They stay in the library.

@@ -1,4 +1,4 @@
-export { countFlags, digestActivity, DIGEST_VERSION } from './digestActivity'
+export { countFlags, digestActivity, digestActivityAt, DIGEST_VERSION } from './digestActivity'
 export { MODEL_REVISION } from './modelRevision'
 export {
   activitySummaries,

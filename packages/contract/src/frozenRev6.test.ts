@@ -22,6 +22,9 @@ const FIELDS = {
   localDayShift: 1,
 }
 const NEW_KEYS = Object.keys(FIELDS)
+
+/** The revision-6 corpus, digested once when the file loads, so no case pays for making it. */
+const CORPUS = corpusWires()
 const LOCK = {
   kind: 'hr-cadence-lock',
   start: 100,
@@ -126,19 +129,23 @@ describe('the readers of this release', () => {
     }
   })
 
-  it('read a revision-6 digest as the reader of revision 6 did, in every view', () => {
-    const wires = corpusWires()
-    expect(wires.length).toBeGreaterThan(60)
-    for (const w of wires) {
-      for (const view of ['create', 'stored', 'device'] as const) {
+  it('has a corpus of runs and rides to read', () => {
+    expect(CORPUS.length).toBeGreaterThan(60)
+  })
+
+  // One case a view, so each stays far under the time a case may take on a slow runner.
+  it.each(['create', 'stored', 'device'] as const)(
+    'read a revision-6 digest as the reader of revision 6 did, in the %s view',
+    (view) => {
+      for (const w of CORPUS) {
         const now = tryReadDigest(w, view)
         const then = rev6.tryReadDigest(w, view)
-        expect(now.ok, `${String(w.id)}: ${view}`).toBe(then.ok)
+        expect(now.ok, String(w.id)).toBe(then.ok)
         if (now.ok && then.ok) {
-          expect(wireOf(now.digest), `${String(w.id)}: ${view}`).toEqual(wireOf(then.digest))
+          expect(wireOf(now.digest), String(w.id)).toEqual(wireOf(then.digest))
           for (const key of NEW_KEYS) expect(now.digest).not.toHaveProperty(key)
         }
       }
-    }
-  })
+    },
+  )
 })

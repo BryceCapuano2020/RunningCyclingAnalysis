@@ -1,3 +1,5 @@
+import type { HeldOutActivity } from '@rca/core/session'
+import { HeldBackList } from '../components/HeldBackList'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
@@ -41,7 +43,11 @@ export interface ActivitiesPageProps {
   /** The library's notice and error, which say how a removal from this page ended. */
   libraryNotice?: string | null
   libraryError?: string | null
+  /** Saved activities held out of the analysis, listed after the others with why. */
+  heldOut?: readonly HeldOutActivity[]
 }
+
+const NONE_HELD: readonly HeldOutActivity[] = []
 
 const SPORT_OPTIONS: SegmentedControlOption<SportFilter>[] = [
   { value: 'all', label: 'All' },
@@ -71,6 +77,7 @@ export function ActivitiesPage({
   onDelete,
   libraryNotice = null,
   libraryError = null,
+  heldOut = NONE_HELD,
 }: ActivitiesPageProps) {
   // A page that removed an activity sends the list here marked, so the list announces the outcome.
   const [arrivedAfterRemoval] = useState(() => hasRemovedMark(window.location.hash))
@@ -262,6 +269,7 @@ export function ActivitiesPage({
           </div>
         )
       )}
+      <HeldBackList activities={heldOut} />
     </div>
   )
 }

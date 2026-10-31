@@ -6,7 +6,9 @@ import { listedFor, listedOnly, readActivityList } from './import/activitiesCsv'
 import type { ListedActivity } from './import/activitiesCsv'
 import { readGarminList } from './import/garminList'
 import type { GarminList } from './import/garminList'
-import { fileNameOf, isSameWorkout } from './duplicates'
+import { fileNameOf, isSameWorkout, workoutKey } from './duplicates'
+import { metaOf } from './importHeld'
+import type { FileId, HeldFiles } from './importHeld'
 import { sha256Hex } from './sha256'
 import type { Activity, ActivityDigest } from './types'
 import type { Rejection } from './import/result'
@@ -58,6 +60,15 @@ export interface SourceImport {
   unsupported: { files: number }
   /** Whether each file's bytes are hashed, which the sink needs. */
   hashFiles: boolean
+  /**
+   * The index of files already read, when the caller keeps one. A file it knows is not parsed: see `heldNameOf`.
+   */
+  held?: HeldFiles
+  /**
+   * The name of the file that holds these workouts now, when every one is still held and none is waiting to be saved
+   * (so skipping their file loses nothing); null when any is not, and the file is parsed.
+   */
+  heldNameOf?: (keys: readonly string[]) => string | null
   /** Considers one parsed activity of an imported file. */
   consider: (
     activity: Activity,
@@ -114,6 +125,23 @@ async function importFile(
   ctx: SourceImport,
 ): Promise<void> {
   const sessionKey = await sessionHashOf(file.bytes)
+  const id: FileId | null =
+    sessionKey === undefined || ctx.held === undefined
+      ? null
+      : { hash: sessionKey, size: file.bytes.length }
+  // A file the index knows, whose list metadata is the same and whose workouts the library still holds, is not parsed:
+  // the report is the one a parsed re-import gives ("already in your library"), and the library is what it was.
+  const known = id === null ? null : await ctx.held!.skip(id)
+  const knownName =
+    known === null || known.meta !== metaOf(listed, garmin, known.keys)
+      ? null
+      : (ctx.heldNameOf?.(known.keys) ?? null)
+  if (known !== null && knownName !== null) {
+    ctx.outcome.activities += known.keys.length
+    ctx.read.push({ fileName: file.fileName, added: [], held: [knownName] })
+    countRead(ctx.progress)
+    return
+  }
   const parsed = parseActivityFile(file.bytes, file.fileName, undefined, {
     activityName: listed?.name,
     nameAt: garmin?.nameAt,
@@ -133,6 +161,10 @@ async function importFile(
       else result.held.push(considered.held)
     }
     ctx.read.push(result)
+    if (id !== null) {
+      const keys = parsed.activities.map((a) => workoutKey(a.sport, a.startMs))
+      ctx.held!.note(id, keys, metaOf(listed, garmin, keys))
+    }
   } else {
     reject(ctx, parsed.fileName, parsed)
   }

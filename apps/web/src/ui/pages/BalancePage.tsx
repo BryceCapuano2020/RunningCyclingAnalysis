@@ -5,6 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { WeeklyVolumeChart } from '../charts'
 import { ShareImageButton } from '../components'
 import { levelBasis } from '../components/headlineNeed'
+import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
@@ -88,7 +89,8 @@ export function BalancePage({
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
   const { calibration } = heartRateJudgement
-  const { pick } = heldPick(result)
+  const hold = useHoldInputs()
+  const { pick } = heldPick(result, hold)
   const basis = useMemo(() => levelBasis(result), [result])
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
@@ -120,9 +122,7 @@ export function BalancePage({
     [weightKnown, gap, pick],
   )
   const heldGap = pick === null ? null : gap
-  // The lean tile and the target are in points, which only a grade gap gives; an energy balance has none.
-  const pointsReading = reading?.unit === 'points' ? reading : null
-  // The level target waits for the same things as the balance: both grades, and so the weight. Its ride
+  // The level target, a line of the hero, waits for the same things as the balance: both grades, and so the weight. Its ride
   // search runs on each change of these inputs, not on each render, so it is memoised on them.
   const target = useMemo(
     () =>
@@ -229,6 +229,7 @@ export function BalancePage({
         library={library}
         pick={pick}
         reading={reading}
+        target={target?.sentence ?? null}
         period={period}
         onShowAll={onShowAll}
         weightKnown={weightKnown}
@@ -263,8 +264,6 @@ export function BalancePage({
         grades={grades}
         weighted={weightKnown}
         period={period}
-        reading={pointsReading}
-        target={target?.sentence ?? null}
         onAddFiles={analysis.addFiles}
         leftOut={leftOut}
       />

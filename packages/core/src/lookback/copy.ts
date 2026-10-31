@@ -180,9 +180,11 @@ export function bestRows(m: EffortMilestones, asOfMs: number, system: UnitSystem
       `By year: ${m.years.map((y) => `${y.year}${y.partial ? ' (so far)' : ''} ${bestValue(m, y.value, system)}`).join(', ')}.`,
     )
   }
+  // A pace is faster or slower; a power, in watts or watts per kilogram, is higher or lower.
+  const [up, down] = m.unit === 'm/s' ? ['Faster', 'Slower'] : ['Higher', 'Lower']
   for (const v of m.verdicts) {
-    if (v.verdict === 'higher') rows.push(`Faster in ${v.year} than in ${v.year - 1}.`)
-    if (v.verdict === 'lower') rows.push(`Slower in ${v.year} than in ${v.year - 1}.`)
+    if (v.verdict === 'higher') rows.push(`${up} in ${v.year} than in ${v.year - 1}.`)
+    if (v.verdict === 'lower') rows.push(`${down} in ${v.year} than in ${v.year - 1}.`)
     if (v.verdict === 'none') rows.push(`No clear change from ${v.year - 1} to ${v.year}.`)
   }
   return rows

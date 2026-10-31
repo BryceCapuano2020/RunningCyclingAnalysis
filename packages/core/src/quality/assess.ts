@@ -233,7 +233,7 @@ function climbRule(
   }
 }
 
-function compareKinds(a: QualityKind, b: QualityKind): number {
+export function compareKinds(a: QualityKind, b: QualityKind): number {
   return a === b ? 0 : a < b ? -1 : 1
 }
 
@@ -255,7 +255,7 @@ function mergeFlags(raw: RawFlag[]): RawFlag[] {
   return merged
 }
 
-function messageFor(kind: QualityKind, durationS: number): string {
+export function messageFor(kind: QualityKind, durationS: number): string {
   const seconds = `${durationS} second${durationS === 1 ? '' : 's'}`
   const t = QUALITY_THRESHOLDS
   switch (kind) {

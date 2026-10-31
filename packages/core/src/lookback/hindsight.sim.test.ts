@@ -179,8 +179,10 @@ describe('planted changes', () => {
       [60],
       'slip-back',
     )
-    // Observed about 0.7 (a return called partly back as often as 1 in 5 by the strict test).
-    expect(out.hit).toBeGreaterThanOrEqual(0.55)
+    // Observed 0.42 (the rest are found at both edges and called partly back). The test is the live monitor's `isBackLevel` with the
+    // model-error floor in the standard error, so a return has to reach the old level within about 0.1% to pass; it was 0.7
+    // before the floor was added, at the cost of calling back a return the card would not.
+    expect(out.hit).toBeGreaterThanOrEqual(0.3)
   })
 
   it('does not claim a step of 3%, and lists one of 5% about two times in five', () => {

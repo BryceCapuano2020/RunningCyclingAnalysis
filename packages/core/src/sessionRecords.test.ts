@@ -78,6 +78,8 @@ describe('AnalysisSession records', () => {
         'zoneEstimates',
         'hiddenDuplicates',
         'incompatibleActivities',
+        'libraryActivities',
+        'heldOut',
         'isSample',
         'library',
         'period',

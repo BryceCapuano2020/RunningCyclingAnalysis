@@ -7,10 +7,13 @@ import { DB_NAME } from './workbenchSchema'
  * would create it (an upgrade from version 0), the upgrade is aborted and what was made is deleted.
  * False when storage cannot say, since the sweep is best effort.
  */
-export async function workbenchExists(): Promise<boolean> {
+export const workbenchExists = (): Promise<boolean> => databaseExists(DB_NAME)
+
+/** As `workbenchExists`, for any database by name. */
+export async function databaseExists(name: string): Promise<boolean> {
   if (typeof indexedDB.databases === 'function') {
     try {
-      return (await indexedDB.databases()).some((database) => database.name === DB_NAME)
+      return (await indexedDB.databases()).some((database) => database.name === name)
     } catch {
       // Fall through to opening it.
     }
@@ -19,7 +22,7 @@ export async function workbenchExists(): Promise<boolean> {
     let creating = false
     let request: IDBOpenDBRequest
     try {
-      request = indexedDB.open(DB_NAME)
+      request = indexedDB.open(name)
     } catch {
       resolve(false)
       return
@@ -31,11 +34,11 @@ export async function workbenchExists(): Promise<boolean> {
     }
     request.onsuccess = () => {
       request.result.close()
-      if (creating) indexedDB.deleteDatabase(DB_NAME)
+      if (creating) indexedDB.deleteDatabase(name)
       resolve(!creating)
     }
     request.onerror = () => {
-      if (creating) indexedDB.deleteDatabase(DB_NAME)
+      if (creating) indexedDB.deleteDatabase(name)
       resolve(false)
     }
     request.onblocked = () => resolve(false)

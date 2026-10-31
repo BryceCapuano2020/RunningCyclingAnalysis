@@ -72,6 +72,8 @@ export const FITNESS = {
     confirmShare: 0.5,
     /** The non-seasonal check while no season is fitted: a slip is set aside when the same scale read at least this share of `delta` low a year earlier (it came at this time last year too), when that year holds the runs to say. */
     yoyShare: 0.5,
+    /** After a rise is declared no new one is opened for this many weeks from its onset: the weeks before it are still in the baselines of the longer scales, and would declare it again. */
+    riseGuardWeeks: 104,
     /** Window contrasts: recent weeks against the weeks before them. A slip is a contrast of at least `delta` at `zSlip` standard errors. */
     scales: [
       [4, 32],
@@ -183,6 +185,10 @@ export const FITNESS = {
     backMinWeeks: 4,
     /** After this many weeks in back the episode closes and the reference is read afresh. Below -(backTol + backRelapse) it reopens as slipping. */
     backHoldWeeks: 12,
+    /** A rise that has settled is shown as improved for this many weeks, then the episode closes and the reference is read afresh. */
+    improvedHoldWeeks: 12,
+    /** And it is told as improved only when the gain's lower bound (one-sided, `boundZ`) is at least this much above the reference: the mirror of the tolerance a return must clear to be back. */
+    improvedTol: 0.03,
     backRelapse: 0.01,
     /**
      * A drop that is no longer clear closes the episode as holding. The level is the runs since the onset (at most

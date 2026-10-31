@@ -8,6 +8,7 @@ const FIVE_K: RacePrediction = {
   seconds: 1200,
   low: 1140,
   high: 1290,
+  floored: false,
   methods: [
     { method: 'performances', seconds: 1170, fromM: 10_000 },
     { method: 'heartRate', seconds: 1230, fromM: 5000 },
@@ -65,7 +66,14 @@ describe('raceBar', () => {
   })
 
   it('does not divide by zero for a spread of no width', () => {
-    const bar = alone({ distanceM: 5000, seconds: 1200, low: 1200, high: 1200, methods: [] })
+    const bar = alone({
+      distanceM: 5000,
+      seconds: 1200,
+      low: 1200,
+      high: 1200,
+      floored: false,
+      methods: [],
+    })
     expect([bar.low, bar.high, bar.prediction].every(Number.isFinite)).toBe(true)
   })
 
@@ -87,6 +95,7 @@ describe('raceBar on a scale shared by several races', () => {
     seconds: 12_600,
     low: 11_520,
     high: 13_920,
+    floored: false,
     methods: [{ method: 'performances', seconds: 12_300, fromM: 21_097 }],
   }
   const scale = raceScale([FIVE_K, MARATHON])
@@ -126,6 +135,7 @@ describe('a recorded best far under its prediction', () => {
     seconds: 12_600,
     low: 11_520,
     high: 13_920,
+    floored: false,
     methods: [{ method: 'performances', seconds: 12_300, fromM: 21_097 }],
   }
 

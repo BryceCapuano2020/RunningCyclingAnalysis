@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
-import { DEFAULT_ATHLETE } from './athlete'
 import {
+  SAMPLE_ATHLETE,
   SAMPLE_CLOCK,
   SAMPLE_REFERENCE_NOW_MS,
+  SAMPLE_SEED,
+  SAMPLE_SEEDS,
   generateSampleActivity,
   samplePlan,
 } from './sampleSeason'
@@ -19,9 +21,9 @@ const daysBefore = (clock: SampleClock, startMs: number) => (clock.nowMs - start
 
 describe('samplePlan', () => {
   it('is the same plan for the same clock and seed, and a different one for another seed', () => {
-    expect(samplePlan(SAMPLE_CLOCK, 1)).toEqual(plan)
-    expect(samplePlan({ nowMs: SAMPLE_REFERENCE_NOW_MS }, 1)).toEqual(plan)
-    const other = samplePlan(SAMPLE_CLOCK, 2)
+    expect(samplePlan(SAMPLE_CLOCK, SAMPLE_SEED)).toEqual(plan)
+    expect(samplePlan({ nowMs: SAMPLE_REFERENCE_NOW_MS }, SAMPLE_SEED)).toEqual(plan)
+    const other = samplePlan(SAMPLE_CLOCK, SAMPLE_SEED + 1)
     expect(other.map((entry) => entry.seed)).not.toEqual(plan.map((entry) => entry.seed))
   })
 
@@ -89,14 +91,22 @@ describe('samplePlan', () => {
   })
 
   it('never skips a featured session at random, whatever the seed', () => {
-    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, SAMPLE_SEED]) {
       const seeded = samplePlan(SAMPLE_CLOCK, seed)
       expect(
         seeded.filter((entry) => /^Threshold test|^Power Test/.test(entry.spec.name)),
       ).toHaveLength(8)
       expect(seeded.filter((entry) => entry.spec.hrGlitch === true)).toHaveLength(1)
       expect(seeded.filter((entry) => entry.spec.withPower === false)).toHaveLength(3)
+      expect(seeded.filter((entry) => entry.noise.behaviour.treadmillShare === 1)).toHaveLength(2)
+      expect(seeded.filter((entry) => entry.spec.withHeartRate === false)).toHaveLength(1)
+      expect(seeded.filter((entry) => entry.gap !== undefined)).toHaveLength(1)
     }
+  })
+
+  it('lists the seeds of the whole story with the sample’s own first, none twice', () => {
+    expect(SAMPLE_SEEDS[0]).toBe(SAMPLE_SEED)
+    expect(new Set(SAMPLE_SEEDS).size).toBe(SAMPLE_SEEDS.length)
   })
 
   it('reaches past a year back, so 12 months and all time differ, with the last 12 weeks fullest', () => {
@@ -114,6 +124,21 @@ describe('samplePlan', () => {
     for (const sport of ['run', 'ride']) {
       expect(recent.filter((entry) => entry.spec.sport === sport).length).toBeGreaterThanOrEqual(15)
     }
+  })
+
+  it('holds 40 rides in the last 12 weeks, so the ride page has enough to say, and a second session on Tuesdays', () => {
+    const recent = plan.filter(
+      (entry) => entry.spec.sport === 'ride' && daysBefore(SAMPLE_CLOCK, entry.spec.startMs) <= 84,
+    )
+    expect(recent.length).toBeGreaterThanOrEqual(40)
+    // A rider's Tuesday: the morning or lunch run, then an evening commute.
+    const tuesday = plan.filter((entry) => weekdayOf(entry.spec.startMs) === 2)
+    const days = new Map<number, number>()
+    for (const entry of tuesday) {
+      const day = Math.floor(entry.spec.startMs / DAY_MS)
+      days.set(day, (days.get(day) ?? 0) + 1)
+    }
+    expect([...days.values()].some((count) => count === 2)).toBe(true)
   })
 
   it('numbers ids in time order, each once', () => {
@@ -140,10 +165,14 @@ describe('samplePlan', () => {
   })
 
   it('puts the long sessions at the weekend', () => {
-    const long = plan.filter((entry) => /Long/.test(entry.spec.name))
+    // A long session is a run of 75 minutes or a ride of 100: the weekday rides are shorter than that.
+    const longMinutes = { run: 75, ride: 100 }
+    const long = plan.filter(
+      (entry) =>
+        entry.spec.effort === 'easy' && entry.spec.durationS >= longMinutes[entry.spec.sport] * 60,
+    )
     expect(long.length).toBeGreaterThan(20)
     for (const entry of long) expect([0, 6]).toContain(weekdayOf(entry.spec.startMs))
-    expect(Math.min(...long.map((entry) => entry.spec.durationS))).toBeGreaterThanOrEqual(75 * 60)
   })
 
   it('starts at the same local hours in any time zone, and keeps the day through daylight saving', () => {
@@ -169,7 +198,7 @@ describe('samplePlan', () => {
     expect(mean(last) / mean(first)).toBeGreaterThan(1.15)
     const runs = plan.filter((entry) => entry.spec.sport === 'run')
     expect(runs.at(-1)!.athlete.cpRun).toBeGreaterThan(runs[0]!.athlete.cpRun)
-    expect(Math.abs(rides.at(-1)!.athlete.cpRide / DEFAULT_ATHLETE.cpRide - 1)).toBeLessThan(0.05)
+    expect(Math.abs(rides.at(-1)!.athlete.cpRide / SAMPLE_ATHLETE.cpRide - 1)).toBeLessThan(0.05)
   })
 
   it('keeps the sample’s features: threshold tests, a ride without power, a heart-rate glitch', () => {
@@ -186,7 +215,9 @@ describe('samplePlan', () => {
 
 describe('generateSampleActivity', () => {
   it('gives the planned length and the same recording each time', () => {
-    const entry = plan.find((candidate) => candidate.spec.name === 'Sunday Long Run')!
+    const entry = plan.find(
+      (candidate) => candidate.spec.effort === 'easy' && candidate.spec.sport === 'run',
+    )!
     const first = generateSampleActivity(entry)
     expect(first.n).toBe(entry.spec.durationS)
     expect(first.id).toBe(entry.spec.id)
@@ -197,9 +228,20 @@ describe('generateSampleActivity', () => {
   it('draws a rise in power: a ride from the end of the season out-produces one from the start', () => {
     const mean = (activity: ReturnType<typeof generateSampleActivity>) =>
       activity.power.reduce((total, w) => total + w, 0) / activity.n
-    const rides = plan.filter((entry) => entry.spec.name === 'Saturday Long Ride')
-    const early = mean(generateSampleActivity(rides[0]!))
-    const late = mean(generateSampleActivity(rides.at(-1)!))
-    expect(late / early).toBeGreaterThan(1.1)
+    // An easy ride's power is a drawn share of the athlete's threshold, so the earlier half of them is compared with the later.
+    const rides = plan.filter(
+      (entry) =>
+        entry.spec.sport === 'ride' &&
+        entry.spec.effort === 'easy' &&
+        entry.spec.withPower !== false,
+    )
+    const early = rides
+      .slice(0, Math.floor(rides.length / 2))
+      .map((entry) => mean(generateSampleActivity(entry)))
+    const late = rides
+      .slice(-Math.floor(rides.length / 2))
+      .map((entry) => mean(generateSampleActivity(entry)))
+    const average = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length
+    expect(average(late) / average(early)).toBeGreaterThan(1.02)
   })
 })
