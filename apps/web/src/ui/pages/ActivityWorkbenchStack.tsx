@@ -7,7 +7,7 @@ import { ChannelTable } from './ActivityWorkbenchPlotTable'
 import {
   channelsFor,
   headAt,
-  lapChoicesOf,
+  lapGroupsOf,
   stackDescription,
   timelineMarks,
 } from './workbenchChannels'
@@ -62,7 +62,8 @@ export const ActivityWorkbenchStack = memo(function ActivityWorkbenchStack({
   )
   const head = useCallback((second: number) => headAt(trace, units, second), [trace, units])
   const marks = useMemo(() => timelineMarks(trace), [trace])
-  const { laps } = useMemo(() => lapChoicesOf(trace), [trace])
+  // The lap lines are the device's own laps, as the strips beside the stack list them; a suggestion has its own strip.
+  const laps = useMemo(() => lapGroupsOf(trace).recorded, [trace])
   return (
     <>
       {present.length > 0 && (

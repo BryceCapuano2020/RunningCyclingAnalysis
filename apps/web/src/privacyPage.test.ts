@@ -332,6 +332,7 @@ describe('privacy page describes what is stored as the app stores it', () => {
       'Signing out asks first when saves are still waiting, then removes the list',
     )
     expect(text).toContain('When a session ends on its own, the list stays')
+    expect(text).toContain('their sign-in removes the list of any other account.')
     expect(text).toContain('are offered to the account you sign in to')
     expect(text).toContain('but without its route')
     expect(text).toContain('Remove from this browser deletes them without changing the account.')

@@ -147,6 +147,11 @@ html {
   display: contents;
 }
 
+/* In the header the sign-in label is one line at any size: a wrapped label would make the bar taller. */
+.header__account .google-sign-in {
+  white-space: nowrap;
+}
+
 /* Phones (ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX): the brand and the actions share the top
    row, and the tabs become a bar fixed to the foot of the screen. */
 @media (max-width: 760px) {
@@ -171,10 +176,11 @@ html {
     background: var(--surface-0);
   }
 
-  /* Four equal tabs share the bar, and their labels may shrink to fit it. */
+  /* Four equal tabs share the bar. A tab is never narrower than its label, so at 200% text the labels do not run
+     together: the bar scrolls instead, which its overflow rules below handle. */
   .header__tab {
     flex: 1 1 0;
-    min-width: 0;
+    min-width: min-content;
     justify-content: center;
     min-height: var(--tab-bar-height);
     padding: 0 var(--space-1);

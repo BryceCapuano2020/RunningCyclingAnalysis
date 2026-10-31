@@ -1,6 +1,8 @@
 /* A headline number tile: dot, name and chip over a display figure, a range shape and one line. */
 .stat-tile {
   display: grid;
+  /* One column that may be narrower than its widest line, so a tile never pushes the page sideways. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-3);
   min-width: 0;
@@ -13,6 +15,8 @@
 
 .stat-tile__head {
   display: flex;
+  /* At 200% text the name and the basis chip do not fit one line: the chip drops under the name. */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }

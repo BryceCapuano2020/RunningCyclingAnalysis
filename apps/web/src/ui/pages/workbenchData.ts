@@ -158,7 +158,9 @@ export function seriesFor(
   return remembered(trace, `series:${metric}:${startS}:${endS}:${columns}`, () => {
     const stream = plottedStream(trace, metric)
     // Power's band leaves out the coasting zeros, which would otherwise pull it to the floor of the row.
-    return stream === null ? null : reduceSeries(stream, startS, endS, columns, metric === 'power')
+    return stream === null
+      ? null
+      : reduceSeries(stream, startS, endS, columns, metric === 'power', metric === 'speed')
   })
 }
 

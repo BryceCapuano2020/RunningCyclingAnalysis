@@ -58,6 +58,9 @@ intended order:
    If no version is configured, no rollback is attempted and the run still fails. Database
    migrations are not reversed by a rollback. A rollback to a Worker from before the sign-up list
    makes sign-up public again; see [Sign-up list](#sign-up-list-worker-secret-allowed_emails).
+   A rollback to a Worker from before gzipped originals (the floor `3e17b541` is one) hashes a gzipped upload as it
+   comes and answers **422 `hash_mismatch`** to it, so while it serves, originals are not kept (the digests are
+   saved). Roll forward to restore them.
 
 `npm run deploy` runs locally and must start from a clean checkout of `main` identical to
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is

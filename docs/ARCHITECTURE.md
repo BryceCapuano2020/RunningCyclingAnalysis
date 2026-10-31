@@ -146,7 +146,9 @@ that import. The resume runs only in the tab that holds the account's writer loc
 A stop (a limit, a signed-out account), a lost connection or a row a newer version wrote leaves the
 row untouched; a row from a stale analysis is let go unsent, while one the current model reads beside its own
 (compatible) is sent. A session that ends on its own (expiry,
-seen by a save or by a refresh) keeps the rows. An explicit sign-out (after a warning when rows wait)
+seen by a save or by a refresh) keeps the rows, until another account signs in: that sweep (`sweepOutbox`,
+with the recordings' and the file index's) removes every other account's rows, so a shared browser never hands one
+person's summaries and file names to the next. An explicit sign-out (after a warning when rows wait)
 and account deletion forget the account's rows, and Remove all (signed out) forgets every account's.
 The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the
 import still reports its own failures.
