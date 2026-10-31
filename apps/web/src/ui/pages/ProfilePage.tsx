@@ -16,6 +16,8 @@ import { SavedLibraryCard } from '../components/SavedLibraryCard'
 import { SettingsOverTime } from '../components/SettingsOverTime'
 import type { SettingPrefill } from '../components/SettingsOverTime'
 import { ZoneTables } from '../components/ZoneTables'
+import { SPORT_ORDER } from '../sports'
+import { thresholdLine } from '../thresholdLine'
 import { UNIT_OPTIONS, displayBirthYear, readBirthYear, weightKnown } from '../athlete'
 import type { WeightSettings } from '../athlete'
 import { WAITING_FOR_ACCOUNT } from '../analysis/copy'
@@ -132,6 +134,18 @@ export function ProfilePage({
       : null
   const shownSex = sexDraft ? sexDraft.value : sex
   const shownUnits = unitsDraft ? unitsDraft.value : units
+  // The sport pages' newest threshold fits, which an estimated threshold in the zones says when it reads differently.
+  const zoneAthlete = sample ? SAMPLE_ZONE_ATHLETE : athlete
+  const result = analysis.state.result
+  const newestFits =
+    result === null
+      ? undefined
+      : Object.fromEntries(
+          SPORT_ORDER.flatMap((sport) => {
+            const line = thresholdLine(result, sport, zoneAthlete.massKg, shownUnits)
+            return line === null ? [] : [[sport, line.value]]
+          }),
+        )
 
   async function changeSex(next: Sex | null) {
     setSexDraft({ value: next })
@@ -271,6 +285,7 @@ export function ProfilePage({
         estimates={analysis.state.zoneEstimates}
         weightKnown={sample || weightKnown(settings)}
         units={shownUnits}
+        newestFits={newestFits}
         onSetMaxHeartRate={
           sample
             ? undefined

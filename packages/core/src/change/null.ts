@@ -20,21 +20,30 @@ export interface NullBand {
  * ranks instead (Floyd's sample of distinct ranks), takes the best of the small side as the lowest rank chosen and the
  * large side's best as the first rank not chosen: exact too, and O(s), so 400 efforts against 4 costs 4 draws, not a walk.
  */
-function dealOnce(pooled: Float64Array, now: number, random: () => number, share: number): number {
+function dealOnce(
+  pooled: Float64Array,
+  now: number,
+  random: () => number,
+  share: number,
+  marks: Uint8Array,
+  picked: Int32Array,
+): number {
   const n = pooled.length
   const before = n - now
   const small = Math.min(now, before)
   if (small < n * share) {
-    const chosen = new Set<number>()
+    // The ranks chosen are marked in `marks` (all clear on entry, cleared again before returning) and listed in `picked`.
     let lowest = n
-    for (let j = n - small; j < n; j++) {
+    for (let j = n - small, k = 0; j < n; j++, k++) {
       const t = Math.floor(random() * (j + 1))
-      const rank = chosen.has(t) ? j : t
-      chosen.add(rank)
+      const rank = marks[t] === 1 ? j : t
+      marks[rank] = 1
+      picked[k] = rank
       if (rank < lowest) lowest = rank
     }
     let free = 0
-    while (chosen.has(free)) free++
+    while (marks[free] === 1) free++
+    for (let k = 0; k < small; k++) marks[picked[k]!] = 0
     const [bestSmall, bestLarge] = [pooled[lowest]!, pooled[free]!]
     return now <= before ? Math.log(bestSmall / bestLarge) : Math.log(bestLarge / bestSmall)
   }
@@ -65,7 +74,10 @@ export function dealRatios(
 ): Float64Array {
   const random = mulberry32(seed)
   const ratios = new Float64Array(draws)
-  for (let draw = 0; draw < draws; draw++) ratios[draw] = dealOnce(pooled, now, random, share)
+  const marks = new Uint8Array(pooled.length)
+  const picked = new Int32Array(pooled.length)
+  for (let draw = 0; draw < draws; draw++)
+    ratios[draw] = dealOnce(pooled, now, random, share, marks, picked)
   return ratios
 }
 

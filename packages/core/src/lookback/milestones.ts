@@ -17,6 +17,8 @@ import { sig } from './round'
 import type { EffortMilestones, MilestoneEffort, MilestoneUnit } from './types'
 
 const M = LOOKBACK.milestones
+/** The change test reads the efforts' lengths only, so the year readings skip the shorter curve points. */
+const SHORTEST_S = Math.min(...EFFORT_LENGTHS_S)
 const yearOf = (ms: number) => new Date(ms).getUTCFullYear()
 
 /** A run's reading is gross metabolic W/kg at its pace, which the page writes as a pace: the flat speed it stands for. */
@@ -181,22 +183,24 @@ export function milestonesOf(
       : hasEstimatedRide(ordered)
         ? ownRideGate(ordered)
         : null
+  const masses = massesOf(settings)
+  // Only the rides are priced by the bike model, so a read of runs alone does not fit it. It is fitted once for the progression and the year readings.
+  const bikeModel = fitBikeModelOver(wantsRide ? ordered : [], masses).model
   const progression = effortProgression(
     digests,
     settings,
     rideGate,
     EFFORT_LENGTHS_S.map((durationS) => DURATIONS_S.indexOf(durationS)),
     only,
+    bikeModel,
   )
-  const masses = massesOf(settings)
-  // Only the rides are priced by the bike model, so a read of runs alone does not fit it.
-  const bikeModel = fitBikeModelOver(wantsRide ? ordered : [], masses).model
   const eligible = ordered.filter((d) => effortsCount(d) && only.includes(d.sport))
   // The change test over two calendar years' efforts: each year's readings are made once, and a pair is judged as two periods are.
   const inYear = new Map<number, ActivityDigest[]>()
   const yearsOfSport: Record<Sport, Set<number>> = { run: new Set(), ride: new Set() }
+  const yearOfStart = yearReader()
   for (const d of eligible) {
-    const year = yearOf(d.startMs)
+    const year = yearOfStart(d.startMs)
     const own = inYear.get(year)
     if (own === undefined) inYear.set(year, [d])
     else own.push(d)
@@ -206,7 +210,14 @@ export function milestonesOf(
   const readingsOfYear = (year: number): Readings => {
     let made = yearReadings.get(year)
     if (made === undefined) {
-      made = readingsOf(inYear.get(year) ?? [], settings, bikeModel, rideGate)
+      made = readingsOf(
+        inYear.get(year) ?? [],
+        settings,
+        bikeModel,
+        rideGate,
+        undefined,
+        SHORTEST_S,
+      )
       yearReadings.set(year, made)
     }
     return made

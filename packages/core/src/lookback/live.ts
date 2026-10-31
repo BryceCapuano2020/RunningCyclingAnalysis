@@ -1,4 +1,6 @@
 import type { WeekRecord } from '../fitness/machine'
+import type { Anchor } from './anchors'
+import { LOOKBACK } from './params'
 
 /** One slip as the fitness card followed it: when it was declared, whether it reached "back", and whether it came apart again. */
 export interface LiveEpisode {
@@ -6,6 +8,8 @@ export interface LiveEpisode {
   declaredWeek: number
   /** The week the monitor first said "back" for it; null if it never did. */
   backWeek: number | null
+  /** The week the monitor first said it was recovering (a clear rise from the low); null if it never did. */
+  recoveringWeek: number | null
   /** After "back" the monitor reopened it as a slip (the level fell away again). */
   relapsed: boolean
 }
@@ -23,11 +27,33 @@ export function liveEpisodes(records: readonly WeekRecord[], horizonWeek: number
     if (r.state === 'slipping' && r.fresh) {
       // A slip declared straight out of "back" is the same episode reopening; any other is a new one.
       if (previous?.state === 'back' && current !== undefined) current.relapsed = true
-      else out.push({ declaredWeek: r.w, backWeek: null, relapsed: false })
+      else out.push({ declaredWeek: r.w, backWeek: null, recoveringWeek: null, relapsed: false })
     } else if (r.state === 'back' && r.fresh && current !== undefined) {
       current.backWeek ??= r.w
+    } else if (r.state === 'recovering' && r.fresh && current !== undefined) {
+      current.recoveringWeek ??= r.w
     }
     previous = r
   }
   return out
+}
+
+/** The changes the card declared, as the weeks they can have begun in: each slip, and the return of one it said back for. */
+export function anchorsOf(live: readonly LiveEpisode[]): Anchor[] {
+  const { fallLeadWeeks, riseLeadWeeks } = LOOKBACK.card
+  return live.flatMap((l) => [
+    { dir: 'fall' as const, from: l.declaredWeek - fallLeadWeeks, to: l.declaredWeek },
+    // The return: where the card said back, else where it said recovering.
+    ...(l.backWeek !== null && !l.relapsed
+      ? [{ dir: 'rise' as const, from: l.backWeek - riseLeadWeeks, to: l.backWeek - 2 }]
+      : l.recoveringWeek !== null
+        ? [
+            {
+              dir: 'rise' as const,
+              from: l.recoveringWeek - riseLeadWeeks,
+              to: l.recoveringWeek - 2,
+            },
+          ]
+        : []),
+  ])
 }
