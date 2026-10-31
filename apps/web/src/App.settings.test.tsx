@@ -225,14 +225,18 @@ describe('dated settings on Profile, signed in', () => {
   })
 
   describe('when the dated settings do not load', () => {
-    // The automatic retry waits AUTO_RETRY_MS. Only that wait is shortened, so the tests do not sit through it.
+    // The automatic retry waits AUTO_RETRY_MS. Only the timer set by useMeasurements is shortened, so the
+    // tests do not sit through it and no other timer changes.
     beforeEach(() => {
       const realSetTimeout = globalThis.setTimeout
       vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
         handler: TimerHandler,
         ms?: number,
         ...args: unknown[]
-      ) => realSetTimeout(handler, ms === AUTO_RETRY_MS ? 0 : ms, ...args)) as typeof setTimeout)
+      ) => {
+        const retry = ms === AUTO_RETRY_MS && new Error().stack?.includes('useMeasurements')
+        return realSetTimeout(handler, retry ? 0 : ms, ...args)
+      }) as typeof setTimeout)
     })
     afterEach(() => {
       vi.mocked(globalThis.setTimeout).mockRestore()

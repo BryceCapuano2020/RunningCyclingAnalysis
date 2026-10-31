@@ -80,7 +80,8 @@ describe('fitnessStatuses', () => {
   it('says a clear rise plainly, as improving, and never for an athlete whose level does not move', () => {
     const states = (effects: PlantedSpec['effects']) => {
       const planted = library({ weeks: 100, noise: 0.01, effects })
-      // From a few weeks before the rise to 30 weeks after it: the dip-and-return sweep below covers the rest.
+      // Weeks 64 to 99: from a few weeks before the rise to 30 after it, for the rise and for the null alike.
+      // The dip-and-return sweep below covers the weeks before.
       return Array.from({ length: 36 }, (_, i) => {
         const asOfMs = planted.firstMs + (64 + i) * WEEK
         return fitnessStatuses(
