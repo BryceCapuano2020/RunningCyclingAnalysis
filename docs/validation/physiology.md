@@ -303,17 +303,20 @@ polynomial (-0.1814); past it the polynomial turns up and would give the saving 
 Against level, the measured saving is 19% at -5%, 28% at -10% and 34% at -20%. The polynomial's saving
 (Minetti's own level cost of 3.6, no correction) is 24%, 40% and 50%, so the measured saving is 0.68 to 0.79 of
 it, and the model's cost at -5% is already a little too low. Solving the formula above for k so that the cost at
--10% matches the measured saving gives 0.40; at -20% (held at -18%) it gives 0.45. The reading is a net
-oxygen cost pooled over speeds, in a lab, in a group that included trained runners, and the model's own cost
-basis is not settled (section 2), so it fixes a size, not a value.
+-10% matches the measured saving gives 0.40; at -20% (held at -18%) it gives 0.45. That is on Minetti's own
+level cost of 3.6. The model's level cost is 3.9 (the +0.30 correction, which cancels in the saving but not in
+the measured fraction of the level cost); on that basis the same fractions give 0.51 at -10% and 0.54 at
+-20%. So 0.5 is what the oxygen reading gives on the model's own basis, and 0.40 to 0.45 is the same reading on
+the polynomial's. The reading is a net oxygen cost pooled over speeds, in a lab, in a group that included
+trained runners, and the model's own cost basis is not settled (section 2), so it fixes a size, not a value.
 
 ### 11.3 The value chosen
 
 The heart-rate windows in the audit (pass-through 0.47 of the modelled saving below -8%) are a lower bound on
 the credit, not a fit target: recovery lag after the climb, eccentric load and cardiac drift raise heart rate
-on a descent and so understate the saving. L21 reads 0.40 to 0.45, below the 0.5 to 0.7 range the design
-allowed. k = 0.5 is the value that is not under the heart-rate bound (0.47) and is nearest the oxygen
-reading. It is one constant. A value in the design's range up to 0.7 would give runs back more credit on
+on a descent and so understate the saving. L21 reads 0.40 to 0.45 on the polynomial's level cost and 0.51 to
+0.54 on the model's, against the 0.5 to 0.7 range the design allowed. k = 0.5 is the value that is not under the
+heart-rate bound (0.47) and is the oxygen reading on the model's basis. It is one constant. A value in the design's range up to 0.7 would give runs back more credit on
 steep descents; nothing here supports more than 0.5.
 
 ### 11.4 What moves

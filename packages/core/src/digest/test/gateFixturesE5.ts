@@ -18,3 +18,14 @@ export function ratioRun(ratio: number, n = 2400): Activity {
   for (let i = 0; i < n; i++) run.distance[i] = i * 3 * ratio
   return run
 }
+
+/** A flat run at 3 m/s with a recording gap of `gapS` seconds from second 1100: the distance is held, then steps. */
+export function gapRun(gapS: number, n = 2400): Activity {
+  const run = syntheticActivity({ id: 'gap-run', n, speed: new Float64Array(n).fill(3) })
+  const unrecorded = new Uint8Array(n)
+  unrecorded.fill(1, 1100, 1100 + gapS)
+  for (let i = 1100; i < 1100 + gapS; i++) run.distance[i] = run.distance[1099]!
+  run.speed.fill(NaN, 1100, 1100 + gapS)
+  run.unrecorded = unrecorded
+  return { ...run }
+}

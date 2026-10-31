@@ -4,7 +4,7 @@ import { runReadings } from '../fitness/runReadings'
 import { descentCost, runCost } from '../metabolic'
 import type { Activity, ActivityDigest, DigestSplit } from '../types'
 import { digestActivityAt } from './digestActivity'
-import { hillRun, ratioRun } from './test/gateFixturesE5'
+import { gapRun, hillRun, ratioRun } from './test/gateFixturesE5'
 import { syntheticActivity } from './test/syntheticActivity'
 
 const at = (a: Activity, revision: number) => digestActivityAt(a, revision)
@@ -97,6 +97,15 @@ describe('the distance against the speed stream at revision 7', () => {
   it('D4: it corrects the whole range from 0.97 to 1.07', () => {
     for (const ratio of [0.97, 1.0, 1.03, 1.07]) {
       expect(worst(at(ratioRun(ratio), 7)), `${ratio}`).toBeLessThan(0.001)
+    }
+  })
+
+  it('D4: a recording gap of 6, 10 or 20 s does not push the ratio above 1', () => {
+    for (const gapS of [6, 10, 20]) {
+      const run = gapRun(gapS)
+      // Without the gap's seconds out of the ratio a 20 s gap reads 6% over.
+      expect(worst(at(run, 7)), `${gapS}`).toBeLessThan(0.001)
+      expect(worst(at(run, 7)), `${gapS}`).toBeLessThanOrEqual(worst(at(run, 6)) + 1e-9)
     }
   })
 

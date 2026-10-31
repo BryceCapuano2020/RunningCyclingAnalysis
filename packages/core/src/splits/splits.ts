@@ -189,7 +189,8 @@ function flatSeconds(
     if (s.quality.validGrade[i] !== 1) return null
     weight += w
     cost += w * s.metabolic[i]!
-    if (i > 0) {
+    // Across a recording gap the distance is held and then steps, so the step is not a second's run.
+    if (i > 0 && s.activity.unrecorded?.[i - 1] !== 1 && s.activity.unrecorded?.[i] !== 1) {
       fileM += w * (distance[i]! - distance[i - 1]!)
       speedM += w * (s.speed?.[i] ?? 0)
     }
