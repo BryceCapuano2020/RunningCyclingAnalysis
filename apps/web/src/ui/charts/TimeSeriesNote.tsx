@@ -1,3 +1,4 @@
+import { SPREAD_WORDS } from './usualSpread'
 import { edgeReadings, hasClips } from './timeSeriesEdge'
 import { windowText } from './timeSeriesModel'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
@@ -30,7 +31,7 @@ export function TimeSeriesNote({
       {windowS !== undefined && (
         <>
           Lines show {windowText(windowS)} averages
-          {bands ? '; bands show the usual spread (10th to 90th percentile).' : '.'}
+          {bands ? `; bands show the usual spread (${SPREAD_WORDS}).` : '.'}
         </>
       )}
       {clipped && (

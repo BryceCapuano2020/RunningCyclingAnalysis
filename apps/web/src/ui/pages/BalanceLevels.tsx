@@ -29,9 +29,7 @@ export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
                   <span className="balance-levels__level">
                     <Definition meaning={DEFINITIONS.level}>{row.level}</Definition>
                   </span>
-                  {row.basis ? (
-                    <span className="balance-levels__basis">{` · ${row.basis}`}</span>
-                  ) : null}
+                  {row.basis ? <span className="balance-levels__basis">{row.basis}</span> : null}
                 </>
               )}
             </li>

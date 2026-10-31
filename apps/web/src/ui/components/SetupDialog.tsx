@@ -191,6 +191,19 @@ export function SetupDialog({
     onConfirm(patch)
   }
 
+  /**
+   * Skip and Escape: the answers that read are kept, and text that does not is dropped with the error it raised,
+   * so a field left half typed never holds the visitor in a dialog that says everything in it is optional.
+   */
+  function skip() {
+    if (saving) return
+    const { patch, errors: found } = readAnswers(null)
+    if (found.weight !== undefined) setWeightText(displayWeight(validKg, units))
+    if (found.year !== undefined) setYearText(displayBirthYear(initial.birthYear))
+    setErrors({})
+    onSkip(patch)
+  }
+
   const entry = readWeightEntry(weightText, validKg, units)
   const weightBlank = !('error' in entry) && entry.kg === null
   // Only a typical weight reads as stored: one outside the range is kept only once it is confirmed.
@@ -206,7 +219,7 @@ export function SetupDialog({
       onCancel={(event) => {
         // Escape goes through onSkip so the parent owns the open state.
         event.preventDefault()
-        if (!saving) onSkip(readAnswers(null).patch)
+        skip()
       }}
     >
       <form className="setup-dialog__form" onSubmit={handleSubmit} noValidate>
@@ -282,9 +295,10 @@ export function SetupDialog({
               type="button"
               className="btn"
               aria-disabled={saving}
-              onClick={() => {
-                if (!saving) onSkip(readAnswers(null).patch)
-              }}
+              // A press must not take focus off a field first: its error would open under it and move this
+              // button before the press ends, so the click would be lost.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={skip}
             >
               Skip for now
             </button>

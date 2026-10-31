@@ -138,6 +138,7 @@ export function AppNotices({
         detailLine={detailLine}
         leftOutLine={leftOutLine}
         onDismiss={analysis.dismissSummary}
+        onUndoLabels={analysis.undoLabels}
       />
       {sample.pill}
       {/* Shown while an import runs too: the hold it explains stays on, and so must its way out. */}
