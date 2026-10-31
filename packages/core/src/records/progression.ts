@@ -91,9 +91,14 @@ export interface Progression {
  * Every activity's finite priced point at each curve duration (`result[i]` is for DURATIONS_S[i]), in the order the
  * activities are given. The holders of the records and the history of a best are both read from this.
  */
-export function readingsByDuration(own: ActivityDigest[], price: Pricer): Reading[][] {
+export function readingsByDuration(
+  own: ActivityDigest[],
+  price: Pricer,
+  only?: readonly number[],
+): Reading[][] {
   return DURATIONS_S.map((_, index) => {
     const readings: Reading[] = []
+    if (only !== undefined && !only.includes(index)) return readings
     for (const digest of own) {
       const point = pointAt(digest, index)
       if (!point) continue
@@ -117,12 +122,15 @@ export function eligibleDigests(digests: ActivityDigest[]): ActivityDigest[] {
  * Each sport's priced points at each duration across a set of digests, the records' own eligibility and pricing
  * (runs in W/kg at their pace, rides in watts priced with the bike model fitted to this set, or W/kg with dated masses;
  * `unit` says which), less the estimates the records would not award (see withoutOverreach). `gate` is as for
- * `recordHolders`.
+ * `recordHolders`. A reader that needs only some durations names their indexes in `runOnly`: a run's readings are read at
+ * those alone (a run holds no estimate that stands alone, so no duration's readings depend on a shorter one's), and the
+ * others are left empty. Rides are always read at every duration, since an estimate there is judged against the next shorter.
  */
 export function effortProgression(
   digests: ActivityDigest[],
   settings: AthleteSettings,
   gate?: EstimatedRideGate | null,
+  runOnly?: readonly number[],
 ): Record<Sport, Progression> {
   const ordered = orderedFor('records', digests)
   const masses = massesOf(settings)
@@ -132,7 +140,7 @@ export function effortProgression(
   return {
     run: {
       unit: 'run W/kg',
-      readings: withoutOverreach(readingsByDuration(ofSport(eligible, 'run'), runPricer)),
+      readings: withoutOverreach(readingsByDuration(ofSport(eligible, 'run'), runPricer, runOnly)),
     },
     ride: {
       unit: masses.dated ? 'W/kg' : 'W',

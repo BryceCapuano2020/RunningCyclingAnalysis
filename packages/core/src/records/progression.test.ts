@@ -68,6 +68,18 @@ describe('effortProgression', () => {
     expect(progression.ride.readings[at]!.map((r) => r.id)).toEqual(['b1', 'b2'])
   })
 
+  it('reads a run at the durations asked for alone, the same readings there and none elsewhere; rides are read at every one', () => {
+    const wanted = [DURATIONS_S.indexOf(300), DURATIONS_S.indexOf(1200)]
+    const all = effortProgression(digests, settings)
+    const some = effortProgression(digests, settings, undefined, wanted)
+    for (const [index] of DURATIONS_S.entries()) {
+      expect(some.run.readings[index]).toEqual(
+        wanted.includes(index) ? all.run.readings[index] : [],
+      )
+    }
+    expect(some.ride).toEqual(all.ride)
+  })
+
   it('has the record holder as the highest reading at every duration, for runs and rides', () => {
     const progression = effortProgression(digests, settings)
     const held = recordHolders(digests, settings)

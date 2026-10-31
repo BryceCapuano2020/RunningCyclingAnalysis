@@ -127,8 +127,14 @@ export function milestonesOf(
   const out: Record<Sport, EffortMilestones[]> = { run: [], ride: [] }
   if (ordered.length === 0) return out
   const asOfMs = ordered.reduce((newest, d) => Math.max(newest, d.startMs), 0)
-  const progression = effortProgression(digests, settings, gate)
+  // The gate is read once: the progression takes it as it is, and a run is read at the lengths shown alone.
   const rideGate = gate === undefined ? ownRideGate(ordered) : gate
+  const progression = effortProgression(
+    digests,
+    settings,
+    rideGate,
+    EFFORT_LENGTHS_S.map((durationS) => DURATIONS_S.indexOf(durationS)),
+  )
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
   const eligible = ordered.filter(effortsCount)
