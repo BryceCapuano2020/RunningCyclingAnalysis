@@ -148,6 +148,12 @@ export const FITNESS = {
    */
   heat: {
     windowDays: 730,
+    /** The loss is read over this many days of runs (the longer, the more weather to read it from), the reference index over the last `windowDays`. */
+    fitDays: 1461,
+    /** Not before the library has this many days of runs with a temperature (two years: the season of D2 is learned over the same span, and a year of weather has no second to be told from the athlete's own change). */
+    minHistoryDays: 730.5,
+    /** The loss must stand this many standard errors above zero, or the term is not used: an athlete the heat does not touch is not told they were adjusted. */
+    minZ: 2,
     /** On when this share of the window's steady runs carry a temperature (and there are `minRuns` of them, with heat spanning `minSpan`); off again only below `offShare`, so it does not flap. */
     onShare: 0.6,
     offShare: 0.5,

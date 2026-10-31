@@ -384,15 +384,36 @@ adds it back before anything else reads the series, so the season of D2 is fitte
 
 - A run's heat is `max(0, c - cRef) / 10`, `cRef` the 25th percentile of `c` over the steady runs of the last two years.
   The run's value is `x + b * heat`, `b` the log speed lost per 10 index degrees, fitted within 28-day blocks (so the slow level and the
-  season cancel and only the weather is read), clipped, shrunk by `n / (n + 60)`, never negative (a library whose warm runs are faster
-  gets no term) and at most 0.08. It is not used under 0.002.
-- It is on when 60% of the steady runs in the last two years carry a temperature, there are 40 of them and their heat spans 1.0
-  (10 index degrees); it goes off only under 50%. Digests from before revision 7 carry none and count as missing, so a library
-  that has not been rebuilt reads exactly as before (`heat.test.ts`). When on, the card says "Adjusted for warm days." once.
+  season cancel and only the weather is read) over up to four years of runs, clipped, shrunk by `n / (n + 60)`, never negative (a
+  library whose warm runs are faster gets no term) and at most 0.08. It is used only when the loss stands 2 standard errors above
+  zero, so an athlete the heat does not touch is not told they were adjusted (the term was on for a third of them without this; it is
+  on for 1% now).
+- It is on only with two years of runs that carry a temperature (counted from the first of them), when 60% of the steady runs in the
+  last two years carry one, there are 40 of them and their heat spans 1.0 (10 index degrees); it goes off only under 50%. A library
+  under two years reads exactly as D2's monitor. Digests from before revision 7 carry none and count as missing (a temperature on a
+  digest of an earlier revision is not read), so a library that has not been rebuilt reads as before (`heat.test.ts`). When on, the
+  card says "Adjusted for warm days." once.
 - The ride unit reads the same field.
-- `heat.sim.test.ts` holds the rates (three-year libraries, four run rates, alarms an athlete-year, term off -> fitted): a
-  heat response of 3% per 10 degrees 0.26 -> 0.17; the same with a season of 1.5% the heat adds to 0.37 -> 0.27, and with a
-  season it hides 0.16 -> 0.24 (under the 0.25 of a season of 1.5% with no heat); a 3% slow wander with heat 0.37 -> 0.35; an
-  athlete the heat does not touch 0.17 -> 0.16, the term on in a third of such libraries with a small `b`; a device that reads the
-  index 3 degrees high from week 80 0.26 -> 0.15, 3 low 0.26 -> 0.20; the sign flipped 0.17 -> 0.38. A 5% loss is seen within 26
-  weeks by 68% -> 80% with the heat and 88% -> 87% without it.
+- `heat.sim.test.ts` holds the rates (three-year libraries, four run rates, 25 libraries each, alarms an athlete-year, term off ->
+  fitted, with the share of libraries the term is used in):
+
+| nothing changes in the athlete, except                  | term off -> fitted  | used    |
+| ------------------------------------------------------- | ------------------- | ------- |
+| heat 3% per 10 degrees                                  | 0.26 -> 0.18        | 94%     |
+| the same adding to a season of 1.5%                     | 0.37 -> 0.24        | 94%     |
+| the same hiding a season of 1.5%                        | 0.16 -> 0.24        | 94%     |
+| the same hiding a season of 1.5%, with a 3% slow wander | 0.32 -> 0.38        | 93%     |
+| heat with a 3% slow wander                              | 0.37 -> 0.34        | 93%     |
+| no heat effect                                          | 0.17 -> 0.17        | 1%      |
+| no heat effect, a season of 1.5%                        | 0.24 -> 0.24        | 1%      |
+| device 3 index degrees high from week 80, heat          | 0.26 -> 0.16        | 94%     |
+| device 3 degrees low from week 80, heat                 | 0.26 -> 0.20        | 92%     |
+| device 3 degrees high / low, no heat effect             | 0.17 -> 0.16 / 0.17 | 2% / 1% |
+| the sign flipped (heat 3%)                              | 0.26 -> 0.37        | 94%     |
+| a library of 1.5 years, heat                            | 0.24 -> 0.24        | 0%      |
+| a library of 1 year, heat                               | 0.07 -> 0.07        | 0%      |
+
+A 5% loss is seen within 26 weeks by 62% -> 80% with the heat, and 84% -> 84% without it. Where the heat hides a season the
+athlete's heat loss and fitness swing are in opposite phase, so the monitor alone reads a small sum; taking the heat out leaves the
+season, and the rate rises to that of a season of 1.5% with no heat at all (0.24 here, 0.25 in `episode.sim.test.ts`). Everywhere
+else the fitted rate is no higher than the monitor's.
