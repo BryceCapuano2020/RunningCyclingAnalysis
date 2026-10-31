@@ -230,6 +230,10 @@ describe('privacy page describes what is stored as the app stores it', () => {
         ?.match(/^\s+(\w+):/gm)
         ?.map((f) => f.trim()),
     ).toEqual(['size:', 'keys:', 'revision:', 'meta:'])
+    // What the export's list said is kept as a signature, never as the words (the worker test reads the stored rows).
+    const held2 = await readStylesheet(import.meta.url, '../../../packages/core/src/importHeld.ts')
+    expect(held2).toMatch(/return signatureOf\(\s*`csv:/)
+    expect(held2).toMatch(/return signatureOf\(\s*`garmin:/)
     expect(text).toMatch(/SHA-256 hash of the file, its size, the sport and start second/)
     expect(text).toMatch(/no names, routes or heart rates/)
     expect(text).toMatch(/never uploaded/)

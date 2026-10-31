@@ -12,7 +12,8 @@ async function fresh() {
   return { ...store, ...index }
 }
 
-const FILE = { hash: 'a'.repeat(64), size: 1000, meta: 'csv:Run|0|Morning' }
+const FILE = { hash: 'a'.repeat(64), size: 1000 }
+const META = 'c0ffee00c0ffee00'
 const KEYS = ['run-1714548600']
 const allow = () => Promise.resolve(true)
 
@@ -25,13 +26,13 @@ describe('the index of files already read', () => {
     const m = await fresh()
     const first = await m.openHeldIndex({ scope: 'device', fileCount: 5, allows: allow })
     expect(await first.files.skip(FILE)).toBeNull()
-    first.files.note(FILE, KEYS)
+    first.files.note(FILE, KEYS, META)
     // Within the import it is known at once, from memory; nothing is stored until the flush.
-    expect(await first.files.skip(FILE)).toEqual(KEYS)
+    expect(await first.files.skip(FILE)).toEqual({ keys: KEYS, meta: META })
     expect(await first.flush()).toBe(true)
 
     const later = await m.openHeldIndex({ scope: 'device', fileCount: 5, allows: allow })
-    expect(await later.files.skip(FILE)).toEqual(KEYS)
+    expect(await later.files.skip(FILE)).toEqual({ keys: KEYS, meta: META })
     const other = await m.openHeldIndex({ scope: 'account:u1', fileCount: 5, allows: allow })
     expect(await other.files.skip(FILE)).toBeNull()
   })
@@ -39,7 +40,7 @@ describe('the index of files already read', () => {
   it('asks for each hash below the bulk threshold and reads the scope once above it', async () => {
     const m = await fresh()
     const writer = await m.openHeldIndex({ scope: 'device', fileCount: 5, allows: allow })
-    writer.files.note(FILE, KEYS)
+    writer.files.note(FILE, KEYS, META)
     await writer.flush()
     const gets = vi.spyOn(IDBObjectStore.prototype, 'get')
     const cursors = vi.spyOn(IDBObjectStore.prototype, 'openCursor')
@@ -48,7 +49,7 @@ describe('the index of files already read', () => {
       fileCount: m.HELD_BULK_FILES - 1,
       allows: allow,
     })
-    expect(await short.files.skip(FILE)).toEqual(KEYS)
+    expect(await short.files.skip(FILE)).toEqual({ keys: KEYS, meta: META })
     expect(gets).toHaveBeenCalledTimes(1)
     expect(cursors).not.toHaveBeenCalled()
     gets.mockClear()
@@ -57,29 +58,28 @@ describe('the index of files already read', () => {
       fileCount: m.HELD_BULK_FILES,
       allows: allow,
     })
-    expect(await long.files.skip(FILE)).toEqual(KEYS)
+    expect(await long.files.skip(FILE)).toEqual({ keys: KEYS, meta: META })
     expect(cursors).toHaveBeenCalledTimes(1)
     expect(gets).not.toHaveBeenCalled()
     // An unknown count is read in bulk too.
     const unknown = await m.openHeldIndex({ scope: 'device', fileCount: null, allows: allow })
-    expect(await unknown.files.skip(FILE)).toEqual(KEYS)
+    expect(await unknown.files.skip(FILE)).toEqual({ keys: KEYS, meta: META })
   })
 
-  it('does not know a file whose bytes, size, list metadata or model revision differ', async () => {
+  it('does not know a file whose bytes, size or model revision differ', async () => {
     const m = await fresh()
     const index = await m.openHeldIndex({ scope: 'device', fileCount: 5, allows: allow })
-    index.files.note(FILE, KEYS)
+    index.files.note(FILE, KEYS, META)
     await index.flush()
     const later = await m.openHeldIndex({ scope: 'device', fileCount: 5, allows: allow })
     expect(await later.files.skip({ ...FILE, hash: 'b'.repeat(64) })).toBeNull()
     expect(await later.files.skip({ ...FILE, size: 1001 })).toBeNull()
-    expect(await later.files.skip({ ...FILE, meta: 'csv:Run|0|Evening' })).toBeNull()
-    expect(await later.files.skip(FILE)).toEqual(KEYS)
+    expect(await later.files.skip(FILE)).toEqual({ keys: KEYS, meta: META })
     // An entry written under another model revision is not trusted.
     const db = (await m.openCheckinDb())!
     const tx = db.transaction('held', 'readwrite')
     tx.objectStore('held').put(
-      { size: FILE.size, keys: KEYS, revision: MODEL_REVISION - 1, meta: FILE.meta },
+      { size: FILE.size, keys: KEYS, revision: MODEL_REVISION - 1, meta: META },
       `device|${FILE.hash}`,
     )
     await new Promise((resolve) => (tx.oncomplete = resolve))
@@ -90,7 +90,7 @@ describe('the index of files already read', () => {
   it('leaves a file to be read when the worker owes its workouts something', async () => {
     const m = await fresh()
     const writer = await m.openHeldIndex({ scope: 'device', fileCount: 5, allows: allow })
-    writer.files.note(FILE, KEYS)
+    writer.files.note(FILE, KEYS, META)
     await writer.flush()
     const owed = await m.openHeldIndex({
       scope: 'device',
@@ -104,16 +104,19 @@ describe('the index of files already read', () => {
     const m = await fresh()
     for (const scope of ['device', 'account:u1'] as const) {
       const index = await m.openHeldIndex({ scope, fileCount: 5, allows: allow })
-      index.files.note(FILE, KEYS)
-      index.files.note({ ...FILE, hash: 'c'.repeat(64) }, ['run-1714600000'])
+      index.files.note(FILE, KEYS, META)
+      index.files.note({ ...FILE, hash: 'c'.repeat(64) }, ['run-1714600000'], META)
       await index.flush()
     }
     await m.forgetHeldKeys('device', KEYS)
     const device = await m.openHeldIndex({ scope: 'device', fileCount: 5, allows: allow })
     expect(await device.files.skip(FILE)).toBeNull()
-    expect(await device.files.skip({ ...FILE, hash: 'c'.repeat(64) })).toEqual(['run-1714600000'])
+    expect(await device.files.skip({ ...FILE, hash: 'c'.repeat(64) })).toEqual({
+      keys: ['run-1714600000'],
+      meta: META,
+    })
     const account = await m.openHeldIndex({ scope: 'account:u1', fileCount: 5, allows: allow })
-    expect(await account.files.skip(FILE)).toEqual(KEYS)
+    expect(await account.files.skip(FILE)).toEqual({ keys: KEYS, meta: META })
   })
 
   it('is inert where storage cannot be opened, and learns nothing', async () => {
@@ -121,7 +124,7 @@ describe('the index of files already read', () => {
     vi.resetModules()
     const m = await import('./heldIndex')
     const index = await m.openHeldIndex({ scope: 'device', fileCount: 5, allows: allow })
-    index.files.note(FILE, KEYS)
+    index.files.note(FILE, KEYS, META)
     expect(await index.files.skip(FILE)).toBeNull()
     expect(await index.flush()).toBe(true)
   })

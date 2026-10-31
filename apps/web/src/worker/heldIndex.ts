@@ -10,7 +10,7 @@ export interface HeldEntry {
   keys: string[]
   /** The model revision of the digests made from it. */
   revision: number
-  /** What the export's list said of it (see fileMeta). */
+  /** A signature of what the export's list said of its workouts (see metaOf): never the names themselves. */
   meta: string
 }
 
@@ -107,19 +107,18 @@ export async function openHeldIndex(options: {
           entry === undefined ||
           entry.revision !== MODEL_REVISION ||
           entry.size !== file.size ||
-          entry.meta !== file.meta ||
           entry.keys.length === 0
         ) {
           return null
         }
-        return (await allows(entry.keys)) ? entry.keys : null
+        return (await allows(entry.keys)) ? { keys: entry.keys, meta: entry.meta } : null
       },
-      note(file: FileId, keys: readonly string[]) {
+      note(file: FileId, keys: readonly string[], meta: string) {
         const entry: HeldEntry = {
           size: file.size,
           keys: [...keys],
           revision: MODEL_REVISION,
-          meta: file.meta,
+          meta,
         }
         memory.set(file.hash, entry)
         pending.set(file.hash, entry)

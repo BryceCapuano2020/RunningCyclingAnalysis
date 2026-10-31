@@ -7,7 +7,7 @@ import type { ListedActivity } from './import/activitiesCsv'
 import { readGarminList } from './import/garminList'
 import type { GarminList } from './import/garminList'
 import { fileNameOf, isSameWorkout, workoutKey } from './duplicates'
-import { fileMeta } from './importHeld'
+import { metaOf } from './importHeld'
 import type { FileId, HeldFiles } from './importHeld'
 import { sha256Hex } from './sha256'
 import type { Activity, ActivityDigest } from './types'
@@ -128,13 +128,16 @@ async function importFile(
   const id: FileId | null =
     sessionKey === undefined || ctx.held === undefined
       ? null
-      : { hash: sessionKey, size: file.bytes.length, meta: fileMeta(listed, garmin) }
-  // A file the index knows, whose workouts the library still holds, is not parsed: the report is the one a parsed
-  // re-import gives ("already in your library"), and the library is what it was.
+      : { hash: sessionKey, size: file.bytes.length }
+  // A file the index knows, whose list metadata is the same and whose workouts the library still holds, is not parsed:
+  // the report is the one a parsed re-import gives ("already in your library"), and the library is what it was.
   const known = id === null ? null : await ctx.held!.skip(id)
-  const knownName = known === null ? null : (ctx.heldNameOf?.(known) ?? null)
+  const knownName =
+    known === null || known.meta !== metaOf(listed, garmin, known.keys)
+      ? null
+      : (ctx.heldNameOf?.(known.keys) ?? null)
   if (known !== null && knownName !== null) {
-    ctx.outcome.activities += known.length
+    ctx.outcome.activities += known.keys.length
     ctx.read.push({ fileName: file.fileName, added: [], held: [knownName] })
     countRead(ctx.progress)
     return
@@ -159,10 +162,8 @@ async function importFile(
     }
     ctx.read.push(result)
     if (id !== null) {
-      ctx.held!.note(
-        id,
-        parsed.activities.map((a) => workoutKey(a.sport, a.startMs)),
-      )
+      const keys = parsed.activities.map((a) => workoutKey(a.sport, a.startMs))
+      ctx.held!.note(id, keys, metaOf(listed, garmin, keys))
     }
   } else {
     reject(ctx, parsed.fileName, parsed)

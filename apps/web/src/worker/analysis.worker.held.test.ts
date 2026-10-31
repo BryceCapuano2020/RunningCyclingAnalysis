@@ -3,6 +3,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
+import { strToU8, zipSync } from 'fflate'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { ActivityDigest } from '@rca/core/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -182,5 +183,29 @@ describe('re-importing files the worker already read', () => {
       sync: { keepFiles: false, userId: 'u2' },
     } as WorkerRequest)
     expect(parsed.calls).toBe(2)
+  })
+
+  it('keeps no activity name in the index: what an export said of a file is kept as a signature', async () => {
+    const zip = zipSync({
+      'activities/1.fit': new Uint8Array(encodeFit(one, { gps: true })),
+      'activities.csv': strToU8(
+        'Activity Name,Activity Type,Filename\nSecretly Named Morning Run,Run,activities/1.fit\n',
+      ),
+    })
+    const { send } = await startWorker()
+    await send(device([new File([new Uint8Array(zip)], 'export.zip')]))
+    const rows = await new Promise<unknown[]>((resolve) => {
+      const open = indexedDB.open('rca-checkin')
+      open.onsuccess = () => {
+        const all = open.result.transaction('held', 'readonly').objectStore('held').getAll()
+        all.onsuccess = () => resolve(all.result)
+      }
+    })
+    expect(rows).toHaveLength(1)
+    expect(JSON.stringify(rows)).not.toMatch(/secretly|named|morning|1\.fit|export\.zip/i)
+    // The same export again is skipped, so the signature still stands for the name.
+    parsed.calls = 0
+    await send(device([new File([new Uint8Array(zip)], 'export.zip')]))
+    expect(parsed.calls).toBe(0)
   })
 })

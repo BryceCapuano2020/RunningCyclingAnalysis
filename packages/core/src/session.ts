@@ -148,7 +148,10 @@ export class AnalysisSession {
     const first = keys.length === 0 ? undefined : this.digests.get(keys[0]!)
     if (first === undefined) return null
     for (const key of keys) {
-      if (!this.digests.has(key) || (saving && this.unsynced.has(key))) return null
+      const digest = this.digests.get(key)
+      // A digest of another model revision is read from the file again, whatever the index says.
+      if (digest === undefined || revisionStatus(digest.modelRevision) !== 'current') return null
+      if (saving && this.unsynced.has(key)) return null
     }
     return fileNameOf(first.id)
   }

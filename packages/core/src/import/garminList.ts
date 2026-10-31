@@ -4,7 +4,6 @@ import { visitZipEntries } from '../fit/zipEntry'
 import type { RangedSource } from '../fit/zipDirectory'
 import { ZIP } from '../fit/zipDirectory'
 import type { Sport } from '../types'
-import { signatureOf } from '../importHeld'
 import { cleanTitle } from './names'
 
 /**
@@ -64,8 +63,6 @@ export interface GarminList {
   nameAt(startMs: number, sport: Sport): string | undefined
   /** The bytes the summaries inflated to. They count against the export's decompressed-bytes budget. */
   decompressedBytes: number
-  /** Tells one list from another: a file read under a different list may take a different name. */
-  signature: string
 }
 
 /**
@@ -176,9 +173,6 @@ export function garminList(activities: GarminActivity[], decompressedBytes = 0):
   return {
     activities: sorted,
     decompressedBytes,
-    signature: signatureOf(
-      sorted.map((a) => `${a.startMs}|${a.sport ?? ''}|${a.name ?? ''}`).join('\n'),
-    ),
     nameAt(startMs, sport) {
       const near = nearTo(sorted, startMs)
       const best = near[0]

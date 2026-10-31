@@ -2,7 +2,7 @@ import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { buildFit, secondly } from './fit/fitTestFiles'
 import { sha256Hex } from './sha256'
-import type { FileId, HeldFiles } from './importHeld'
+import type { FileId, HeldEntry, HeldFiles } from './importHeld'
 import { AnalysisSession } from './session'
 import type { AthleteSettings } from './types'
 
@@ -43,11 +43,11 @@ describe('re-importing an export the index knows', () => {
     const bytes = zipSync(entries, { level: 6 })
     const file = () => new File([new Uint8Array(bytes)], 'export.zip')
 
-    const index = new Map<string, readonly string[]>()
-    const id = (f: FileId) => `${f.hash}|${f.size}|${f.meta}`
+    const index = new Map<string, HeldEntry>()
+    const id = (f: FileId) => `${f.hash}|${f.size}`
     const held: HeldFiles = {
       skip: async (f) => index.get(id(f)) ?? null,
-      note: (f, keys) => void index.set(id(f), keys),
+      note: (f, keys, meta) => void index.set(id(f), { keys, meta }),
     }
     const session = new AnalysisSession()
     const t0 = performance.now()
