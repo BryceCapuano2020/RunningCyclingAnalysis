@@ -54,8 +54,8 @@ export type Lead =
 const YEARS_MS = 365.25 * 86_400_000
 
 /**
- * What the look-back opens on, or null when nothing earns it: (1) the most recent episode that meets the lead bar (the
- * sport with more steady runs on a tie), (2) a quiet stretch of a year or more that reaches the horizon, only when the
+ * What the look-back opens on, or null when nothing earns it: (1) the most recent episode that meets the lead bar and
+ * has ended (an open one is on the fitness card; the sport with more steady runs on a tie), (2) a quiet stretch of a year or more that reaches the horizon, only when the
  * sport's live status allows it, (3) the best that has stood longest. A sport that is too short leads with nothing,
  * and a library under two years has no episode or quiet lead.
  */
@@ -64,7 +64,8 @@ export function leadOf(lookBack: LookBack, live: Record<Sport, LiveState>): Lead
   const told = sports.flatMap((s) => (s.fitness.kind === 'ok' ? [{ s, years: s.fitness }] : []))
   const episodes = told.flatMap(({ s, years }) =>
     years.episodes
-      .filter((e) => meetsLeadBar(e, years))
+      // An episode still open at the horizon is the slip the fitness card shows: the card tells it, so it does not lead.
+      .filter((e) => e.toMs !== null && meetsLeadBar(e, years))
       .map((episode) => ({ sport: s.sport, episode, runs: years.runs })),
   )
   episodes.sort(

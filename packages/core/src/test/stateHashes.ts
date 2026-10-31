@@ -39,6 +39,7 @@ const FIELDS = [
   'lateEvidence',
   'heartRateJudgement',
   'fitness',
+  'lookBack',
   'zoneEstimates',
   'timeInZones',
   'previous',
