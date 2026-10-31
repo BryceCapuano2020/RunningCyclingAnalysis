@@ -141,6 +141,17 @@ if (secondSampleActivity === undefined) throw new Error('The sample has fewer th
 if (thirdSampleActivity === undefined) throw new Error('The sample has fewer than three activities')
 const RUN_FILE_BYTES = new Uint8Array(encodeFit(sampleActivity, { gps: true }))
 const SAMPLE_DIGEST = digestActivity(sampleActivity)
+/**
+ * The sample as a saved copy of a file: a rebuild reads the file back under the record's name, so the
+ * digest it makes carries the id that name gives, and an update checks it does before it sends.
+ */
+function savedAs(bytes: Uint8Array, fileName: string): ActivityDigest {
+  const parsed = parseActivityFile(bytes, fileName, undefined, { activityType: 'Run', race: false })
+  const read = parsed.ok ? parsed.activities[0] : undefined
+  if (read === undefined) throw new Error('The sample file did not read')
+  return { ...SAMPLE_DIGEST, id: digestActivity(read).id }
+}
+const SAVED_DIGEST = savedAs(RUN_FILE_BYTES, 'run.fit')
 
 function recordFor(digest: ActivityDigest, hasFile = false): ActivityRecord {
   return {
@@ -739,7 +750,7 @@ describe('analysis worker', () => {
   })
 
   it('rebuilds stale digests from their stored originals and refreshes the active analysis', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(stale, true)])
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
@@ -774,7 +785,13 @@ describe('analysis worker', () => {
     mocked.downloadActivityFile.mockResolvedValue(
       new TextEncoder().encode(gpx.replace(/<type>[^<]*<\/type>/, '')),
     )
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = {
+      ...savedAs(
+        new TextEncoder().encode(gpx.replace(/<type>[^<]*<\/type>/, '')),
+        'activities/1.gpx',
+      ),
+      modelRevision: 1,
+    }
     mocked.listActivities
       .mockResolvedValueOnce([{ ...recordFor(stale, true), fileName: 'activities/1.gpx' }])
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
@@ -791,7 +808,7 @@ describe('analysis worker', () => {
 
   it('keeps the saved name when it rebuilds from a file that carries no title', async () => {
     // A Strava export names the activity in activities.csv, so the FIT file alone would give a generated name.
-    const named = { ...SAMPLE_DIGEST, name: 'Lunch with Sam', modelRevision: 1 }
+    const named = { ...SAVED_DIGEST, name: 'Lunch with Sam', modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(named, true)])
       .mockResolvedValueOnce([recordFor({ ...SAMPLE_DIGEST, name: 'Lunch with Sam' }, true)])
@@ -808,7 +825,7 @@ describe('analysis worker', () => {
   })
 
   it('counts a rebuild whose activity was deleted in another tab as missing, and does not re-create it', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities.mockResolvedValueOnce([recordFor(stale, true)]).mockResolvedValueOnce([])
     mocked.createActivity.mockRejectedValueOnce(
       new ApiRequestError(404, 'not_found', 'Activity not found'),
@@ -833,7 +850,7 @@ describe('analysis worker', () => {
   })
 
   it('keeps stale activities excluded and reports originals that must be re-imported', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(stale, false)])
       .mockResolvedValueOnce([recordFor(stale, false)])
@@ -858,7 +875,7 @@ describe('analysis worker', () => {
   })
 
   it('reports a re-added stale file as updated, with counts only and nothing new', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(stale, false)])
       .mockResolvedValueOnce([recordFor(stale, false)])
@@ -889,7 +906,7 @@ describe('analysis worker', () => {
   it('stops downloading after a daily limit and counts the remaining stored originals as limited', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-10-22T15:30:00Z'))
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([
         recordFor(stale, true),
@@ -898,13 +915,14 @@ describe('analysis worker', () => {
         recordFor({ ...stale, id: 'third' }, true),
       ])
       .mockResolvedValueOnce([recordFor(stale, true)])
-    mocked.downloadActivityFile.mockRejectedValueOnce(
+    mocked.downloadActivityFile.mockRejectedValue(
       new ApiRequestError(429, 'daily_limit', 'Daily download limit reached'),
     )
     const { send } = await startWorker()
     const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
 
-    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    // Two activities are rebuilt at a time, so two downloads met the limit; the third is never asked for.
+    expect(mocked.downloadActivityFile).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'rebuildComplete',
       rebuilt: 0,
@@ -916,8 +934,8 @@ describe('analysis worker', () => {
     })
   })
 
-  it('stops downloading at a rate limit, retries after a minute, and counts the rest as limited', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+  it('waits out a rate limit once, then stops downloading and counts the rest as limited', async () => {
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([
         recordFor(stale, true),
@@ -925,15 +943,17 @@ describe('analysis worker', () => {
         recordFor({ ...stale, id: 'other' }, true),
       ])
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
-    mocked.downloadActivityFile.mockRejectedValueOnce(
-      new ApiRequestError(429, 'rate_limited', 'Slow down'),
+    // The wait the server asked for is a few milliseconds here; the page is told a minute either way.
+    mocked.downloadActivityFile.mockRejectedValue(
+      new ApiRequestError(429, 'rate_limited', 'Slow down', 5),
     )
     const { send } = await startWorker()
     const before = Date.now()
     const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
     const after = Date.now()
 
-    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    // Each of the two activities tried at once is tried again after the wait, and no more.
+    expect(mocked.downloadActivityFile).toHaveBeenCalledTimes(4)
     const done = messages.at(-1)
     if (done?.type !== 'rebuildComplete') throw new Error('The rebuild did not complete')
     expect(done).toMatchObject({ rebuilt: 0, missing: 1, failed: 0, limited: 2, limitKind: 'rate' })
@@ -953,7 +973,7 @@ describe('analysis worker', () => {
   })
 
   it('reports the unreadable count of the library a rebuild leaves, and clears it when none remain', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockImplementationOnce(async (_since, _userId, onUnreadable) => {
         onUnreadable?.(2)
@@ -968,7 +988,7 @@ describe('analysis worker', () => {
   })
 
   it('counts a rebuild that conflicts with another saved activity as missing, not failed', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(stale, true)])
       .mockResolvedValueOnce([recordFor(stale, true)])
@@ -1320,7 +1340,7 @@ describe('analysis worker', () => {
   })
 
   describe('outdated saved activities that still have their original file', () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     const DAY_MS = 86_400_000
     const other = (id: string, days: number, modelRevision = 1) => ({
       ...stale,
@@ -1506,10 +1526,11 @@ describe('analysis worker', () => {
   })
 
   it('stops a rebuild at the first sign-out instead of failing every activity', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities.mockResolvedValueOnce([
       recordFor(stale, true),
       recordFor({ ...stale, id: 'other' }, true),
+      recordFor({ ...stale, id: 'third' }, true),
     ])
     mocked.downloadActivityFile.mockRejectedValue(
       new ApiRequestError(401, 'unauthenticated', 'Sign in required'),
@@ -1518,7 +1539,103 @@ describe('analysis worker', () => {
     expect(await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })).toEqual([
       { type: 'error', message: 'Sign in required', issue: 'signed-out' },
     ])
-    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    // Two are in flight at once; the third is never asked for.
+    expect(mocked.downloadActivityFile).toHaveBeenCalledTimes(2)
+  })
+
+  describe('the update behind Update now', () => {
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
+
+    it('does nothing in a tab when another tab of the account holds the writer lock', async () => {
+      vi.stubGlobal('navigator', {
+        locks: {
+          request: async (_name: string, _options: object, run: (lock: null) => unknown) =>
+            run(null),
+        },
+      })
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor(stale, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+      expect(mocked.createActivity).not.toHaveBeenCalled()
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 0, failed: 0, stopped: 'elsewhere' })
+    })
+
+    it('sends nothing for an activity that starts at another time than the saved one', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor({ ...stale, startMs: stale.startMs + 60_000 }, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(mocked.createActivity).not.toHaveBeenCalled()
+      // The file holds no activity at that time, so it is unmatched, not rebuilt.
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 0, missing: 1, failed: 0 })
+    })
+
+    it('keeps the saved id when the file gives another for the same workout', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor({ ...stale, id: 'the-id-it-was-saved-with' }, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(mocked.createActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'the-id-it-was-saved-with' }),
+        'run.fit',
+        expect.any(String),
+        USER_ID,
+        'rec-the-id-it-was-saved-with',
+      )
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 1, failed: 0 })
+    })
+
+    it('stops at once when the server says the app is out of date', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor(stale, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      mocked.createActivity.mockRejectedValue(new ApiRequestError(409, 'app_outdated', 'Reload'))
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 0, failed: 0, stopped: 'outdated' })
+      expect(mocked.createActivity).toHaveBeenCalledOnce()
+    })
+
+    it('stops after five failures in a row and leaves the rest as they are', async () => {
+      const library = Array.from({ length: 12 }, (_, i) =>
+        recordFor({ ...stale, id: `a${i}`, startMs: stale.startMs + i * 1000 }, true),
+      )
+      mocked.listActivities.mockResolvedValueOnce(library).mockResolvedValueOnce(library)
+      mocked.downloadActivityFile.mockRejectedValue(
+        new ApiRequestError(500, 'server_error', 'down'),
+      )
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      const done = messages.at(-1)
+      expect(done).toMatchObject({ rebuilt: 0, stopped: 'breaker' })
+      expect(mocked.downloadActivityFile.mock.calls.length).toBeLessThanOrEqual(6)
+    })
+
+    it('stands aside for an import that arrives while it runs, and says so', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor(stale, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send, posted } = await startWorker()
+      const update = send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const change = send({ type: 'clear' })
+      await Promise.all([update, change])
+
+      expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+      expect(posted.find((message) => message.type === 'rebuildComplete')).toMatchObject({
+        rebuilt: 0,
+        stopped: 'paused',
+      })
+    })
   })
 
   it('handles requests strictly in order, even when they arrive together', async () => {
@@ -2719,14 +2836,14 @@ describe('rebuilding a multisport leg keeps its session key', () => {
 
     mocked.downloadActivityFile.mockResolvedValueOnce(MULTISPORT)
     mocked.listActivities
-      .mockResolvedValueOnce([recordFor(stale, true)])
+      .mockResolvedValueOnce([{ ...recordFor(stale, true), fileName: 'ACTIVITY.FIT' }])
       .mockResolvedValueOnce([recordFor({ ...stale, modelRevision: MODEL_REVISION }, true)])
     const { send } = await startWorker()
     await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
 
     expect(mocked.createActivity).toHaveBeenCalledWith(
       expect.objectContaining({ sessionKey: leg.sessionKey }),
-      'run.fit',
+      'ACTIVITY.FIT',
       expect.stringMatching(/^[0-9a-f]{64}$/),
       USER_ID,
       `rec-${stale.id}`,

@@ -36,7 +36,7 @@ function Arrow({ direction }: { direction: ChangeItem['direction'] }) {
 /** The evidence tag: a recorded best is checked, and an estimate is hollow. */
 function Tag({ tag }: { tag: ChangeTag }) {
   return (
-    <span className={`balance-changes__tag balance-changes__tag--${tag}`}>
+    <span className={`tag tag--ink balance-changes__tag balance-changes__tag--${tag}`}>
       {tag === 'recorded' ? <CheckIcon /> : null}
       {TAG_TEXT[tag]}
     </span>

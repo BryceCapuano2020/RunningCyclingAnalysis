@@ -573,7 +573,8 @@ describe('balance tiles', () => {
   it('sets a tile’s figure at display size in the display face, and its name as an eyebrow', () => {
     expect(statTileTsx).toContain('className="display stat-tile__number"')
     expect(rulesWith(statTile, '.stat-tile__number')).toMatch(/font-size:\s*var\(--display-2\)/)
-    expect(rulesWith(statTile, '.stat-tile__name')).toMatch(/text-transform:\s*uppercase/)
+    // The eyebrow's capitals are the tag's (styles/tag.test.ts): the name takes the class.
+    expect(statTileTsx).toContain('className="tag stat-tile__name"')
   })
 })
 

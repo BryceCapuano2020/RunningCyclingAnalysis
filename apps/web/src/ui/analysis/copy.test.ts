@@ -145,6 +145,31 @@ describe('rebuildNoticeText', () => {
     )
   })
 
+  it('says why an update ended early, after what it did', () => {
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 12, stopped: 'breaker' })).toBe(
+      'Updated 12 saved activities. The update stopped after several activities in a row could not be updated. Try again later.',
+    )
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 1, stopped: 'outdated' })).toContain(
+      'reload the page to update it',
+    )
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 1, stopped: 'paused' })).toContain(
+      'Press Update now to continue',
+    )
+  })
+
+  it('says in plain words why a refused update stopped, and where to report it', () => {
+    const text = rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 2, stopped: 'refused' })
+    expect(text).toContain('does not support the analysis this version of the app makes')
+    expect(text).toContain('github.com/BryceCapuano2020/RunningCyclingAnalysis/issues')
+    expect(text).not.toContain('Try again later')
+  })
+
+  it('gives no count when another tab holds the update', () => {
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, stopped: 'elsewhere' })).toBe(
+      'Another tab is updating your activities. Wait for it to finish.',
+    )
+  })
+
   it('adds the limited sentence last', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(

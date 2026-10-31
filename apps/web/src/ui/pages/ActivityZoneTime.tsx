@@ -71,7 +71,7 @@ function MissingNote({ sport, measures }: { sport: Sport; measures: readonly Zon
     <>
       {measures.map((measure) => (
         <p key={measure} className="muted">
-          {`No ${measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
+          {`No ${measure === 'heartRate' ? 'heart rate' : measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
         </p>
       ))}
     </>

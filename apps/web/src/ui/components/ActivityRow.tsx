@@ -19,7 +19,7 @@ import { WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
 import { formatDay, formatRowDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, isEstimatedRecord } from '../records'
 import { hrefFor } from '../route'
-import { SPORT_LABEL } from '../sports'
+import { SPORT_LABEL, SPORT_NEEDS_WEIGHT } from '../sports'
 import { ActivityDelete } from './ActivityDelete'
 import { StatFigure } from './StatFigure'
 import { ArrowRightIcon, SportIcon, WarningIcon } from './icons'
@@ -72,9 +72,6 @@ const DISTANCE_FIGURE: Record<Sport, DistanceFigure> = {
   ride: { label: 'Speed', format: formatSpeed, indoor: false },
 }
 
-/** A ride's record chips are the library's bests, which use the body mass, so they wait for the weight. */
-const NEEDS_WEIGHT: Record<Sport, boolean> = { run: false, ride: true }
-
 /**
  * The row's headline figure, at the right: a run's pace, a ride's speed, or the average power of an
  * indoor ride with a power meter. A figure with no distance or power has none.
@@ -117,7 +114,7 @@ export function ActivityRow({
 }: ActivityRowProps) {
   const skipped = materialSkippedCountOf(activity)
   const day = dateOrder ? formatRowDay(activity.startMs) : formatDay(activity.startMs)
-  const chips = NEEDS_WEIGHT[activity.sport] && !weightKnown ? [] : chipLabels(records)
+  const chips = SPORT_NEEDS_WEIGHT[activity.sport] && !weightKnown ? [] : chipLabels(records)
   const power = powerCheckChip(activity.powerCheck)
   const hero = heroOf(activity, units)
   return (
