@@ -6,6 +6,7 @@ import { systemDeps, type Deps } from './deps.ts'
 import { schema } from './db/schema.ts'
 import type { AppEnv } from './env.ts'
 import { csrfGuard } from './middleware.ts'
+import { readOnlyGuard } from './readOnly.ts'
 import { authRoutes } from './routes/auth.ts'
 import { meRoutes } from './routes/me.ts'
 import { sessionRoutes } from './routes/sessions.ts'
@@ -48,6 +49,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
   app.use('*', accessLog)
   app.use('/api/*', publicRateLimit)
   app.use('/api/*', csrfGuard)
+  app.use('/api/*', readOnlyGuard)
 
   app.onError((err, c) => {
     if (err instanceof HttpError) {

@@ -29,6 +29,8 @@ export interface ImportNoticeProps {
   detailLine?: { short: string; full: string } | null
   /** Called when the summary is dismissed, so the page can drop what moved with it. */
   onDismiss: () => void
+  /** Takes off the labels the import applied, for an import that applied some. */
+  onUndoLabels?: () => void
 }
 
 /** A change as text, with the arrow hidden from screen readers in favour of the spoken form. */
@@ -56,6 +58,7 @@ export function ImportNotice({
   detailLine = null,
   leftOutLine = null,
   onDismiss,
+  onUndoLabels,
 }: ImportNoticeProps) {
   const [dismissed, setDismissed] = useState<ImportOutcome | null>(null)
   if (outcome === null || outcome === dismissed || busy) return null
@@ -67,6 +70,14 @@ export function ImportNotice({
     setDismissed(outcome)
     onDismiss()
     // The button leaves with the notice, so focus that was on it moves to the page heading.
+    if (document.activeElement === event.currentTarget) {
+      document.getElementById(PAGE_HEADING_ID)?.focus({ preventScroll: true })
+    }
+  }
+
+  function undo(event: MouseEvent<HTMLButtonElement>) {
+    onUndoLabels?.()
+    // The button leaves with the labels it undoes, so focus that was on it moves to the page heading.
     if (document.activeElement === event.currentTarget) {
       document.getElementById(PAGE_HEADING_ID)?.focus({ preventScroll: true })
     }
@@ -92,6 +103,11 @@ export function ImportNotice({
         )}
         <RejectedFiles outcome={outcome} rejected={rejected} unsupportedFiles={unsupportedFiles} />
       </div>
+      {onUndoLabels !== undefined && (outcome.labelled ?? 0) > 0 && (
+        <button type="button" className="btn" onClick={undo}>
+          Undo the labels
+        </button>
+      )}
       {atBalance ? null : <a href={hrefFor({ page: 'balance' })}>See your balance</a>}
       <button type="button" className="btn" onClick={dismiss}>
         Dismiss summary
