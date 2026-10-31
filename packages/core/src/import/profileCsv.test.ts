@@ -30,6 +30,13 @@ describe('parseProfileWeightKg', () => {
     expect(parseProfileWeightKg(`${HEADER}\n${row('200')}\n`)).toBe(200)
   })
 
+  it('takes the figure as kilograms, as Strava writes it, with no conversion', () => {
+    // Strava's profile.csv holds the weight in kg whatever units the account shows. A figure is never read as pounds: the app
+    // has no way to tell, so 154 is 154 kg (and the athlete changes it in setup if it is not right).
+    expect(parseProfileWeightKg(`${HEADER}\n${row('154')}\n`)).toBe(154)
+    expect(parseProfileWeightKg(`${HEADER}\n${row('68.04')}\n`)).toBe(68.04)
+  })
+
   it('offers nothing without a Weight column, a row, or well-formed text', () => {
     expect(parseProfileWeightKg('Sex,City\nF,Town\n')).toBeNull()
     expect(parseProfileWeightKg(`${HEADER}\n`)).toBeNull()

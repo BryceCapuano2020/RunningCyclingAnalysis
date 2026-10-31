@@ -806,6 +806,50 @@ describe('SetupDialog, the weight the export’s own profile gives', () => {
     expect(onSkip).toHaveBeenCalledWith({})
   })
 
+  it('leaves the weight unanswered on Escape too, and while saving ignores it', () => {
+    const onSkip = vi.fn()
+    render(
+      <SetupDialog initial={UNSET} exportWeightKg={FROM} onConfirm={vi.fn()} onSkip={onSkip} />,
+    )
+    const cancel = new Event('cancel', { cancelable: true })
+    screen.getByRole('dialog', { name: TITLE }).dispatchEvent(cancel)
+    expect(cancel.defaultPrevented).toBe(true)
+    expect(onSkip).toHaveBeenCalledWith({})
+    cleanup()
+    const held = vi.fn()
+    render(
+      <SetupDialog
+        initial={UNSET}
+        exportWeightKg={FROM}
+        saving
+        onConfirm={vi.fn()}
+        onSkip={held}
+      />,
+    )
+    screen
+      .getByRole('dialog', { name: TITLE })
+      .dispatchEvent(new Event('cancel', { cancelable: true }))
+    expect(held).not.toHaveBeenCalled()
+  })
+
+  it('shows the export’s kilograms in pounds when the units are imperial, and still keeps kilograms', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+    render(
+      <SetupDialog
+        initial={{ ...UNSET, units: 'imperial' }}
+        exportWeightKg={FROM}
+        onConfirm={onConfirm}
+        onSkip={vi.fn()}
+      />,
+    )
+    expect(weight()).toHaveValue('150.8')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenCalledWith({
+      settings: { massKg: expect.closeTo(FROM, 1) },
+    })
+  })
+
   it('keeps a weight the athlete typed over it, and a saved weight over both', async () => {
     const user = userEvent.setup()
     const onSkip = vi.fn()
