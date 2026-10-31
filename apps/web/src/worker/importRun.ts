@@ -1,5 +1,6 @@
 import type { ActivityRecord } from '@rca/contract'
 import type { AnalysisSession, SessionState, SyncIssueCode, SyncItem } from '@rca/core/session'
+import type { AthleteSettings } from '@rca/core/types'
 import { accountSaver } from './accountSave'
 import { workoutKeyOf as activityKey } from './device'
 import type { DeviceActions } from './device'
@@ -22,7 +23,9 @@ import type { TraceScope } from './workbenchStore'
 import type { WorkerView } from './workerView'
 import { applyListLabels, reloadSession } from './applyListLabels'
 import { ATHLETE_LABELS_ENABLED } from './labelsConfig'
+import { DEVICE_LABELS } from './labelUndo'
 import type { LabelUndo } from './labelUndo'
+import type { DeviceLabelling } from './deviceLabels'
 import { noteWork } from './workerWire'
 
 /** What an import reads and changes in the worker. */
@@ -31,6 +34,13 @@ export interface ImportRunContext {
   sending: SendingKeys
   /** The labels this import applied, which its summary can take off. */
   labelUndo: LabelUndo
+  /** Labels the library kept in this browser from an export's list. */
+  deviceLabels: {
+    apply(
+      listedTypes: ReadonlyMap<string, string>,
+      settings: AthleteSettings,
+    ): Promise<DeviceLabelling>
+  }
   session: AnalysisSession
   post: (message: WorkerResponse) => void
   missingOriginals: Set<string>
@@ -240,6 +250,20 @@ export async function runImport(
     if (labelled.length > 0) {
       state = reloadSession(session, request.settings, [...savedRecords.values()])
       outcome = { ...outcome, labelled: labelled.length }
+    }
+  } else if (
+    sync === null &&
+    request.saveToDevice === true &&
+    request.provisional !== true &&
+    ATHLETE_LABELS_ENABLED &&
+    listedTypes !== undefined
+  ) {
+    // The same, for a signed-out visitor's library: written through the device library, with the same Undo.
+    const done = await ctx.deviceLabels.apply(listedTypes, request.settings)
+    ctx.labelUndo.remember(DEVICE_LABELS, view.libraryEpoch, done.labelled)
+    if (done.labelled.length > 0) {
+      if (done.state !== null) state = done.state
+      outcome = { ...outcome, labelled: done.labelled.length }
     }
   }
   // A zip that could not be read to its end leaves the library short: that import moves the baseline only if accepted.

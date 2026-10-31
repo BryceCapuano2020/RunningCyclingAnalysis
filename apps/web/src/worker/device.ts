@@ -37,6 +37,8 @@ export interface DeviceActions {
   inSession(): boolean
   /** The session's library was replaced or emptied, so the kept one must be loaded again. */
   replaced(): void
+  /** The epoch this session writes under (see DeviceLibrary.epoch), or null while it is not known. */
+  epochNow(): number | null
   /** Whether the kept library is still the one this session loaded (false once it was emptied since, or when storage will not say). */
   current(): Promise<boolean>
   /** Whether activities show here that could not be kept in this browser, which loading the library again would lose. */
@@ -163,6 +165,7 @@ export function deviceActions(
       epochSeen = null
       unkept = 0
     },
+    epochNow: () => epochSeen,
     async current() {
       if (epochSeen === null) return true
       // Storage that will not say is not taken for unchanged: the import is stopped, not trusted.

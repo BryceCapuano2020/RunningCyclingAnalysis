@@ -2,9 +2,12 @@ import type { LabelProposal } from '@rca/core/import/applyLabels'
 
 /**
  * The labels the last import applied, kept so the import's summary can take them off again. They belong to
- * one account and one library as it stood: any load, clear or sign-in after them (the library epoch moving)
+ * one account (or this browser's library, `DEVICE_LABELS`) and one library as it stood: any load, clear or sign-in after them (the library epoch moving)
  * makes them stale, and a stale set is not undone.
  */
+/** The key the labels of the library kept in this browser are held under: no account owns them. */
+export const DEVICE_LABELS = 'device'
+
 export class LabelUndo {
   private held: { userId: string; epoch: number; applied: readonly LabelProposal[] } | null = null
 

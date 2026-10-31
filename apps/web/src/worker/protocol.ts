@@ -135,8 +135,8 @@ export type WorkerRequest =
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
   | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
-  /** Takes off the labels the last import applied from its export's list (its summary's Undo). */
-  | { type: 'undoLabels'; settings: AthleteSettings; userId: string }
+  /** Takes off the labels the last import applied from its export's list (its summary's Undo); a null `userId` is the library kept in this browser. */
+  | { type: 'undoLabels'; settings: AthleteSettings; userId: string | null }
   | { type: 'setSettings'; settings: AthleteSettings }
   | { type: 'setRange'; choice: PeriodChoice; settings: AthleteSettings }
   /** `forgetDevice` also empties the library kept in this browser. */
