@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Lack, SameHeartRate, SameHeartRateWeek } from '@rca/core/digest'
+import { SAME_HEART_RATE } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { plural } from '../components/plural'
@@ -74,6 +75,12 @@ function tooltipFor(
 }
 
 /**
+ * What the empty chart says when no week has a reading: the gate that failed, with its numbers. A week reads from
+ * steady 5-minute stretches in enough activities over enough of its weeks, and the chart wants several such weeks.
+ */
+const NO_WEEKS_TEXT = `No week has a reading yet: a week needs ${SAME_HEART_RATE.minBlocks} steady 5-minute stretches from ${SAME_HEART_RATE.minActivities} activities in ${SAME_HEART_RATE.minWeeks} different weeks, and the chart needs ${SAME_HEART_RATE.minReportedWeeks} weeks with a reading`
+
+/**
  * One sport's output at one heart rate: a light dot for each week that reports, with its 90% interval in the tooltip
  * and table, and a mark on the date axis for a week with too little data. There is no fitted line and no finding:
  * the weekly windows overlap and the level wanders, so a line through them would claim a trend the data cannot
@@ -104,7 +111,7 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
         caption: `Output at ${reference} bpm, fitted to the steady 5-minute stretches of the 4 weeks to each Sunday. A week with too little data has no value.`,
         phoneHidden: [3],
       }}
-      empty={hasData ? undefined : 'Not enough weeks with a reading to draw'}
+      empty={hasData ? undefined : NO_WEEKS_TEXT}
       surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
       overlay={(size) =>
         tooltipOverlay(

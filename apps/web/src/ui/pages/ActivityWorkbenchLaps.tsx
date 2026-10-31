@@ -4,7 +4,7 @@ import type { ActivityLap, ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { formatRecordTime, formatTotalTime } from '@rca/core/units'
 import { useSize } from '../charts/useSize'
-import { lapChoicesOf } from './workbenchChannels'
+import { lapGroupsOf } from './workbenchChannels'
 import { selectionOf } from './workbenchData'
 import { SPORT_READING, displayValue } from './workbenchFormat'
 import type { Selection } from './workbenchTime'
@@ -38,32 +38,54 @@ function lapLine(
   return parts.join(' · ')
 }
 
-/**
- * The laps the device recorded, or the intervals found in the readings when it recorded none, as one strip.
- * A few are numbered buttons, as wide as the lap was long and at least a finger wide. Many are a proportional
- * bar, with the chosen lap named and measured in a line under it, so the strip is never a wall of buttons.
- * Choosing one zooms the stack to it; the arrow keys step from lap to lap.
- */
-export function LapChoices({
-  trace,
-  max,
-  selection,
-  units,
-  onSelect,
-}: {
+/** What one strip is called: the device's laps, or the intervals the readings suggest. */
+const STRIPS = {
+  recorded: { name: 'Lap', title: 'Laps', plural: 'laps' },
+  suggested: { name: 'Interval', title: 'Suggested intervals', plural: 'intervals' },
+} as const
+
+type StripProps = {
   trace: ActivityTrace
   max: number
   selection: Selection
   units: UnitSystem
   onSelect: (selection: Selection) => void
-}) {
+}
+
+/**
+ * The laps the device recorded and the intervals found in the readings, each as a strip, the device's first. Choosing a
+ * lap or an interval zooms the stack to it. Nothing when the activity has neither.
+ */
+export function LapChoices(props: StripProps) {
+  const { recorded, suggested } = lapGroupsOf(props.trace)
+  if (recorded.length === 0 && suggested.length === 0) return null
+  return (
+    <>
+      {recorded.length > 0 && <LapStrip {...props} laps={recorded} kind="recorded" />}
+      {suggested.length > 0 && <LapStrip {...props} laps={suggested} kind="suggested" />}
+    </>
+  )
+}
+
+/**
+ * One group of laps as a strip. A few are numbered buttons, as wide as the lap was long and at least a finger wide. Many are a
+ * proportional bar, with the chosen lap named and measured in a line under it, so the strip is never a wall of buttons.
+ * The arrow keys step from lap to lap.
+ */
+function LapStrip({
+  trace,
+  max,
+  selection,
+  units,
+  onSelect,
+  laps,
+  kind,
+}: StripProps & { laps: ActivityLap[]; kind: keyof typeof STRIPS }) {
   const [barRef, barWidth] = useSize()
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
   const titleId = useId()
   const lineId = useId()
-  const { recorded, laps } = lapChoicesOf(trace)
-  if (laps.length === 0) return null
-  const name = recorded ? 'Lap' : 'Interval'
+  const { name, title, plural } = STRIPS[kind]
   const bar = laps.length > MAX_NUMBERED
   const boundsOf = (lap: ActivityLap) => ({ startS: lap.startS, endS: Math.min(lap.endS, max) })
   const isActive = (lap: ActivityLap) => {
@@ -100,7 +122,7 @@ export function LapChoices({
 
   return (
     <div className="activity-workbench__laps">
-      <h3 id={titleId}>{recorded ? 'Laps' : 'Suggested intervals'}</h3>
+      <h3 id={titleId}>{title}</h3>
       <div className="lap-strip-wrap">
         <div
           ref={barRef}
@@ -147,7 +169,7 @@ export function LapChoices({
           <div className="lap-strip__choose">
             <p id={lineId} className="lap-strip__line secondary">
               {chosen < 0
-                ? `${laps.length} ${recorded ? 'laps' : 'intervals'}. Choose one to zoom to it.`
+                ? `${laps.length} ${plural}. Choose one to zoom to it.`
                 : lapLine(trace, laps[chosen]!, `${name} ${chosen + 1}`, units, max)}
             </p>
             {/* The bar's segments can be a few px wide, so every lap is also a plain list, which a finger and a keyboard can use. */}
