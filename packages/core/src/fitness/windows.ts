@@ -99,22 +99,69 @@ export function levelOf(rs: readonly RunPoint[], fallback: number, sigma: number
   return { m: sum / rs.length, se: sigma / Math.sqrt(rs.length), n: rs.length }
 }
 
+/** A stretch of days that was a real dip (an episode that reached "back" and closed): left out of what the floor reads as wander. */
+export interface Dip {
+  fromDay: number
+  toDay: number
+}
+
 export interface Slip {
   delta: number
   z: number
   fire: boolean
   /** The median of the baseline of the scale judged. */
   reference: number
-  /** Weeks of the recent window of the scale judged. */
+  /** Weeks of the recent window of the scale judged, and of the baseline before it. */
   weeks: number
+  baseWeeks: number
+}
+
+/**
+ * The model-error floor of a week's tests: `tau`, plus the library's own wander where it shows more than the
+ * reference athlete's. The levels of the blocks of weeks from 108 to 8 weeks back are compared with their median;
+ * their spread (robust, so a step does not set it) less the sampling noise of a block is the wander. Blocks that
+ * overlap a real dip (`dips`: an episode that reached "back") are left out, so a dip the athlete really had is not
+ * counted as wander that makes the next real loss harder to see. Too few blocks (a library under two years old): `tau`.
+ */
+export function floorAt(
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  dips: readonly Dip[] = [],
+): number {
+  // TODO: cache the block levels per library (they change only when a run is added) before the findings engine is wired to replay
+  // this at every weekly mark. Switching the floor off does not change the replay's time today, so it is not dear yet.
+  const means: number[] = []
+  const noise: number[] = []
+  const end = day - M.refEndWeeks * 7
+  for (
+    let lo = day - M.floorWeeks * 7;
+    lo + M.floorBlockWeeks * 7 <= end;
+    lo += M.floorBlockWeeks * 7
+  ) {
+    const hi = lo + M.floorBlockWeeks * 7
+    if (M.floorSkipDips === 1 && dips.some((d) => lo < d.toDay && hi > d.fromDay)) continue
+    const rs = slice(runs, lo, hi)
+    if (rs.length < M.floorBlockRuns) continue
+    means.push(levelOf(rs, medianOf(rs), sigma)!.m)
+    noise.push((sigma * sigma) / rs.length)
+  }
+  if (means.length < M.floorMinBlocks) return M.tau
+  const centre = medianInPlace(Float64Array.from(means))
+  const spread = 1.4826 * medianInPlace(Float64Array.from(means, (m) => Math.abs(m - centre)))
+  const wander = Math.sqrt(Math.max(0, spread * spread - medianInPlace(Float64Array.from(noise))))
+  const extra = Math.sqrt(Math.max(0, wander * wander - M.floorRef * M.floorRef))
+  return Math.min(M.floorMax, Math.sqrt(M.tau * M.tau + (M.floorGain * extra) ** 2))
 }
 
 /** The contrast of each scale (recent weeks against the weeks before them) in standard errors, for the scales that have the runs. */
-function contrasts(runs: readonly RunPoint[], day: number, sigma: number) {
-  const out: { delta: number; z: number; weeks: number; reference: number }[] = []
+function contrasts(runs: readonly RunPoint[], day: number, sigma: number, dips: readonly Dip[]) {
+  const out: { delta: number; z: number; weeks: number; baseWeeks: number; reference: number }[] =
+    []
+  const tau = floorAt(runs, day, sigma, dips)
   for (const [recentWeeks, baseWeeks] of M.scales) {
     const recent = slice(runs, day - recentWeeks * 7, day)
-    if (recent.length < M.minRecentRuns) continue
+    if (recent.length < M.minRecentRuns || distinctWeeks(recent) < M.minRecentWeeks) continue
     const base = slice(runs, day - (recentWeeks + baseWeeks) * 7, day - recentWeeks * 7)
     if (base.length < M.minRefRuns || distinctWeeks(base) < M.minRefWeeks) continue
     const mu = medianOf(base)
@@ -123,8 +170,9 @@ function contrasts(runs: readonly RunPoint[], day: number, sigma: number) {
     const delta = a.m - b.m
     out.push({
       delta,
-      z: delta / Math.sqrt(a.se ** 2 + b.se ** 2 + M.tau ** 2),
+      z: delta / Math.sqrt(a.se ** 2 + b.se ** 2 + tau ** 2),
       weeks: recentWeeks,
+      baseWeeks,
       reference: mu,
     })
   }
@@ -135,9 +183,14 @@ function contrasts(runs: readonly RunPoint[], day: number, sigma: number) {
  * The slip test of one week. The scale with the lowest z is the one judged, and it fires when z is at
  * most -3.3 and the loss at least 4%.
  */
-export function slipAt(runs: readonly RunPoint[], day: number, sigma: number): Slip | null {
+export function slipAt(
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  dips: readonly Dip[] = [],
+): Slip | null {
   let best: Slip | null = null
-  for (const c of contrasts(runs, day, sigma)) {
+  for (const c of contrasts(runs, day, sigma, dips)) {
     if (best === null || c.z < best.z) {
       best = { ...c, fire: c.z <= -M.zSlip && c.delta <= -M.delta }
     }
@@ -146,13 +199,39 @@ export function slipAt(runs: readonly RunPoint[], day: number, sigma: number): S
 }
 
 /**
+ * The non-seasonal check for a library with no fitted season: whether the scale that fired read as low a year earlier
+ * (the same recent and baseline weeks, 52 weeks back, by at least `yoyShare` of `delta`). A drop that came at this
+ * time last year is the season's. False when that year holds too few runs to say, and for a drop that is new: its
+ * year-ago contrast is level but for the usual wander.
+ */
+export function lowLastYear(
+  runs: readonly RunPoint[],
+  day: number,
+  slip: Slip,
+  sigma: number,
+): boolean {
+  const last = day - 52 * 7
+  const recent = slice(runs, last - slip.weeks * 7, last)
+  const base = slice(runs, last - (slip.weeks + slip.baseWeeks) * 7, last - slip.weeks * 7)
+  if (recent.length < M.minRecentRuns || distinctWeeks(recent) < M.minRecentWeeks) return false
+  if (base.length < M.minRefRuns || distinctWeeks(base) < M.minRefWeeks) return false
+  const mu = medianOf(base)
+  return levelOf(recent, mu, sigma)!.m - levelOf(base, mu, sigma)!.m <= -M.yoyShare * M.delta
+}
+
+/**
  * Whether the level is clearly up on a week: the mirror of the slip test, at the same scales, z of at
  * least 3.3 and a gain of at least 4%. The status line asks it on two weeks running before it says
  * "improving"; there is no episode and no finding.
  */
-export function risenAt(runs: readonly RunPoint[], day: number, sigma: number): boolean {
+export function risenAt(
+  runs: readonly RunPoint[],
+  day: number,
+  sigma: number,
+  dips: readonly Dip[] = [],
+): boolean {
   let best: { delta: number; z: number } | null = null
-  for (const c of contrasts(runs, day, sigma)) if (best === null || c.z > best.z) best = c
+  for (const c of contrasts(runs, day, sigma, dips)) if (best === null || c.z > best.z) best = c
   return best !== null && best.z >= M.zSlip && best.delta >= M.delta
 }
 

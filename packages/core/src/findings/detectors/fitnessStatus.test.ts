@@ -73,7 +73,7 @@ describe('the fitness-status detector', () => {
     expect(result.marks.every((m) => m.spoken.length === 0)).toBe(true)
   })
 
-  it('has nothing to say for rides while they are off, even through a collapse in power', () => {
+  it('speaks for rides too, once through a collapse in power, and not when they are switched off', () => {
     const rides = plantedLibrary({
       seed: 4,
       weeks: 80,
@@ -82,14 +82,16 @@ describe('the fitness-status detector', () => {
       noise: 0.01,
       effects: [{ type: 'efficiency-shift', atWeek: 50, size: -0.3 }],
     })
-    // With rides on, the same library is a loss (slipping, then holding below): the silence below is the flag, not an absence of signal.
-    const on = fitnessStatuses(rides.digests, new Set(), { enabled: { ride: true } }).ride
+    const on = fitnessStatuses(rides.digests, new Set()).ride
     expect(['slipping', 'holding-below']).toContain(on.state)
     const result = replayDetector(fitnessStatusDetector, rides, {
       fromMs: rides.firstMs + 15 * WEEK,
     })
-    expect(result.marks.length).toBeGreaterThan(50)
-    expect(result.marks.every((m) => m.spoken.length === 0)).toBe(true)
+    const ids = episodesOf(result.marks).map((e) => e.finding.id)
+    expect(ids).toContain('fitness-status:ride:slipping')
+    // A run library has no ride finding, and nothing speaks for a library of rides while the ride is switched off.
+    const off = fitnessStatuses(rides.digests, new Set(), { enabled: { ride: false } }).ride
+    expect(off.shortfall).toEqual({ kind: 'unavailable' })
   })
 
   it("speaks a back once, from the back test's own statistic, and a recovering before it", () => {

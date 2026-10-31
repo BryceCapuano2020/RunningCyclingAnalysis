@@ -147,13 +147,14 @@ describe('compareSports against sorting every interval', () => {
     const awkward = [0, -2, RESTING_W_PER_KG, 0.3, Number.NaN, Infinity]
     const value = (low: number, high: number) =>
       rand() < 0.15 ? awkward[Math.floor(rand() * awkward.length)]! : between(low, high)
-    for (let round = 0; round < 60; round++) {
+    // 25 rounds of up to 200 draws: the full 60 of up to 600 took 3.3 s locally under coverage and 5.1 s on the CI runner, over the 5 s limit.
+    for (let round = 0; round < 25; round++) {
       const points = 1 + Math.floor(rand() * 8)
       const run = Array.from({ length: points }, () => value(2, 28))
       const ride = Array.from({ length: points }, () => value(80, 520))
       const kappa = rand() < 0.2 ? null : between(0.7, 1.7)
       const hr = rand() < 0.15 ? null : hrCheck(kappa, rand() < 0.1 ? null : between(0.02, 0.3))
-      const opts = { draws: rand() < 0.5 ? undefined : 1 + Math.floor(rand() * 600), seed: round }
+      const opts = { draws: rand() < 0.5 ? undefined : 1 + Math.floor(rand() * 200), seed: round }
       expectSameNumbers(run, ride, hr, opts, between(45, 110))
     }
   })

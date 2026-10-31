@@ -1,5 +1,6 @@
 import { FITNESS } from './params'
 import { distinctWeeks, levelOf, medianOf, slice, trendOver } from './windows'
+import type { Season } from './season'
 import type { Level, RunPoint } from './windows'
 
 const M = FITNESS.monitor
@@ -18,6 +19,8 @@ export interface Episode {
   sigma: number
   /** The day the change is dated to, or null when no split could be found. */
   onsetDay: number | null
+  /** The seasonal swing the episode is read with, fixed at declaration: the reference and every level in it are on the same footing. */
+  season: Season | null
   /** The week it was first declared in. */
   startedWeek: number
   /** The week it was declared in (reset each time it falls again). */
@@ -27,6 +30,8 @@ export interface Episode {
   backAt: number
   backRun: number
   riseRun: number
+  /** Weekly evaluations running in which the drop was no longer clear (`quietNow`). */
+  quietRun: number
   /** The 20-week levels so far and the adaptive levels so far, for the trough. */
   troughs: { w: number; m: number; se: number; weeks: number }[]
   levels: { w: number; m: number; se: number; weeks: number }[]
@@ -38,12 +43,14 @@ export function openEpisode(
   reference: number,
   referenceRuns: number,
   onsetDay: number | null,
+  season: Season | null,
 ): Episode {
   return {
     reference,
     referenceRuns,
     sigma,
     onsetDay,
+    season,
     startedWeek: week,
     declared: week,
     phase: 'slipping',
@@ -51,6 +58,7 @@ export function openEpisode(
     backAt: 0,
     backRun: 0,
     riseRun: 0,
+    quietRun: 0,
     troughs: [],
     levels: [],
   }
@@ -103,6 +111,8 @@ export interface Step {
   fresh: boolean
   /** The episode is over: the reference is read afresh from the next week. */
   close: boolean
+  /** The episode closed after reaching "back": a dip that was real, whose weeks say nothing of the athlete's usual wander. */
+  confirmed: boolean
   /** The test statistic behind a fresh state, signed like the change; NaN otherwise. */
   z: number
   /** The level now against the reference. */
@@ -115,6 +125,7 @@ const THIN: Step = {
   low: false,
   fresh: false,
   close: false,
+  confirmed: false,
   z: Number.NaN,
   delta: Number.NaN,
   level: null,
@@ -125,7 +136,16 @@ function step(
   base: Pick<Step, 'delta' | 'level'>,
   more: Partial<Step> = {},
 ): Step {
-  return { state, low: false, fresh: false, close: false, z: Number.NaN, ...base, ...more }
+  return {
+    state,
+    low: false,
+    fresh: false,
+    close: false,
+    confirmed: false,
+    z: Number.NaN,
+    ...base,
+    ...more,
+  }
 }
 
 /**
@@ -185,9 +205,26 @@ function riseOf(
 }
 
 /**
+ * Whether the drop is no longer clear this week: the level of the runs since the onset (at most 26 weeks) reaches the
+ * reference within its range, the printed one (one-sided 5% tails) with the model-error floor of the closing rule.
+ * Only runs after the onset count, so the weeks before a fresh drop cannot make it look small; too few of them, and
+ * the week is not quiet.
+ */
+export function quietNow(runs: readonly RunPoint[], day: number, ep: Episode): boolean {
+  const from = (ep.onsetDay ?? (ep.startedWeek + 1) * 7) + E.riseOnsetSkipDays
+  const settled = slice(runs, Math.max(from, day - E.closeLevelWeeks * 7), day)
+  if (settled.length < E.closeMinRuns || distinctWeeks(settled) < E.closeMinWeeks) return false
+  const level = levelOf(settled, ep.reference, ep.sigma)!
+  const refSe = (E.medianFactor * ep.sigma) / Math.sqrt(ep.referenceRuns)
+  const half = E.closeZ * Math.sqrt(level.se ** 2 + refSe ** 2 + E.closeTau ** 2)
+  return level.m - ep.reference + half >= 0
+}
+
+/**
  * One weekly step of an open episode (week `w`, evaluated at the end of day `day`): back when a 12-week
  * level has been within tolerance of the reference three weeks running; recovering when the level is rising
  * two weeks running; a plateau under the old level (holding) when 24 weeks show no trend; otherwise slipping.
+ * Outside back (which closes itself), the episode closes as holding once the drop has not been clear for `closeWeeks` weeks.
  */
 export function episodeStep(runs: readonly RunPoint[], day: number, w: number, ep: Episode): Step {
   const level = adaptiveLevel(runs, day, ep, E.minRuns, E.levelWeeks)
@@ -208,17 +245,21 @@ export function episodeStep(runs: readonly RunPoint[], day: number, w: number, e
       d >= -E.backPoint && d - E.boundZ * backSe >= -E.backTol && w - ep.declared >= E.backMinWeeks
   }
   ep.backRun = backNow ? ep.backRun + 1 : 0
+  ep.quietRun = quietNow(runs, day, ep) ? ep.quietRun + 1 : 0
   const reslip = (z: number) => {
     ep.phase = 'slipping'
     ep.phaseAt = w
     ep.declared = w
+    ep.quietRun = 0
     return step('slipping', base, { fresh: true, z })
   }
   if (ep.phase === 'back') {
     if (!backNow && longer !== null && longer.m - ep.reference < -E.backTol - E.backRelapse) {
       return reslip((longer.m - ep.reference) / backSe)
     }
-    if (w - ep.backAt >= E.backHoldWeeks) return step('holding', base, { close: true })
+    if (w - ep.backAt >= E.backHoldWeeks) {
+      return step('holding', base, { close: true, confirmed: true })
+    }
     return step('back', base)
   }
   if (ep.backRun >= E.backConsecutive) {
@@ -228,6 +269,9 @@ export function episodeStep(runs: readonly RunPoint[], day: number, w: number, e
     const z = longer === null ? Number.NaN : (longer.m - ep.reference + E.backTol) / backSe
     return step('back', base, { fresh: true, z })
   }
+  // The drop has not been clear for a quarter of a year: holding, at whatever level the weeks since show.
+  if (ep.quietRun >= (ep.phase === 'recovering' ? E.closeRecoveringWeeks : E.closeWeeks))
+    return step('holding', base, { close: true })
   // Rising: against the runs since the onset, which carry the episode's low.
   const since = (ep.onsetDay ?? 0) + E.riseOnsetSkipDays
   const trend = trendOver(runs, day, 26, ep.sigma, since, E.trendMinRuns, E.trendMinWeeks)

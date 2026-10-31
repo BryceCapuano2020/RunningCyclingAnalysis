@@ -4,6 +4,7 @@ import { sampleDataset } from '@rca/core/synthetic'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import { deviceActions, KEPT_NOT_READ } from './device'
+import { deviceFileOf } from './deviceFile'
 import { OPEN_TIMEOUT_MS, openDeviceLibrary } from './deviceLibrary'
 import type { WorkerResponse } from './protocol'
 
@@ -24,8 +25,9 @@ interface FakeOptions {
 }
 
 /** A request that settles on a later turn, as IndexedDB requests do. */
-function settleLater<T>(work: () => T) {
+function settleLater<T>(work: () => T, hooks: RequestHooks = NO_HOOKS) {
   const pending: { result?: T; error?: Error; onsuccess?: () => void; onerror?: () => void } = {}
+  hooks.started()
   setTimeout(() => {
     try {
       pending.result = work()
@@ -34,28 +36,36 @@ function settleLater<T>(work: () => T) {
       pending.error = error instanceof Error ? error : new Error(String(error))
       pending.onerror?.()
     }
+    hooks.settled()
   }, 0)
   return pending
 }
 
-function storeIn(rows: Map<string, unknown>, options: FakeOptions) {
+/** What a transaction hears of its requests, so it completes only once they have all settled. */
+interface RequestHooks {
+  started: () => void
+  settled: () => void
+}
+const NO_HOOKS: RequestHooks = { started: () => undefined, settled: () => undefined }
+
+function storeIn(rows: Map<string, unknown>, options: FakeOptions, hooks: RequestHooks) {
   const sortedKeys = () => [...rows.keys()].sort()
   return {
-    getAllKeys: () => settleLater(sortedKeys),
-    getAll: () => settleLater(() => sortedKeys().map((key) => rows.get(key))),
-    get: (key: string) => settleLater(() => rows.get(key)),
+    getAllKeys: () => settleLater(sortedKeys, hooks),
+    getAll: () => settleLater(() => sortedKeys().map((key) => rows.get(key)), hooks),
+    get: (key: string) => settleLater(() => rows.get(key), hooks),
     put: (value: unknown, key: string) => {
       rows.set(key, value)
-      return settleLater(() => key)
+      return settleLater(() => key, hooks)
     },
     delete: (key: string) => {
       rows.delete(key)
-      return settleLater(() => undefined)
+      return settleLater(() => undefined, hooks)
     },
     clear: () => {
       if (options.clear) throw new Error('Clearing is refused')
       rows.clear()
-      return settleLater(() => undefined)
+      return settleLater(() => undefined, hooks)
     },
   }
 }
@@ -94,9 +104,18 @@ function fakeIndexedDb(options: FakeOptions = {}) {
       createObjectStore: () => undefined,
       transaction: () => {
         if (options.transaction) throw new Error('Transactions are refused')
-        const store = storeIn(rows, options)
+        // Like IndexedDB, a transaction completes once its requests have settled and no new one follows.
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const finish = () => {
+          clearTimeout(timer)
+          timer = setTimeout(() => transaction.oncomplete?.(), 0)
+        }
+        const store = storeIn(rows, options, {
+          started: () => clearTimeout(timer),
+          settled: finish,
+        })
         const transaction: FakeTransaction = { oncomplete: null, objectStore: () => store }
-        setTimeout(() => transaction.oncomplete?.(), 0)
+        finish()
         return transaction
       },
     }
@@ -196,6 +215,100 @@ describe('device library in IndexedDB', () => {
     await library.remove('run-1')
     expect(await library.get('run-1')).toBeNull()
     expect(await library.all()).toEqual([])
+  })
+
+  describe('the file a row was made from', () => {
+    const HASH = 'a'.repeat(64)
+    const OTHER_HASH = 'b'.repeat(64)
+    const FILE = { fileName: 'run.fit', fileHash: HASH }
+
+    it('keeps the file name and hash beside the digest, and lists them', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+
+      await library.put('run-1', MEASURED, null, FILE)
+
+      expect(await library.all()).toEqual([{ workoutKey: 'run-1', digest: MEASURED, file: FILE }])
+    })
+
+    it('keeps no file for a row put without one, or with something that is not a hash', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+
+      await library.put('run-1', MEASURED)
+      expect(await library.all()).toEqual([{ workoutKey: 'run-1', digest: MEASURED }])
+      expect(deviceFileOf({ fileName: 'run.fit', fileHash: '' })).toBeNull()
+      expect(deviceFileOf({ fileName: 'run.fit', fileHash: 'ABC' })).toBeNull()
+      expect(deviceFileOf({ fileName: '', fileHash: HASH })).toBeNull()
+      expect(deviceFileOf(FILE)).toEqual(FILE)
+    })
+
+    it('reads a row written before files were recorded, as a digest and no file', async () => {
+      const fake = fakeIndexedDb()
+      vi.stubGlobal('indexedDB', fake.indexedDB)
+      fake.rows.set('run-1', { digest: serializeDigest(MEASURED), route: null })
+      fake.rows.set('run-2', serializeDigest(MEASURED))
+
+      const entries = await openDeviceLibrary().all()
+
+      expect(entries.map((entry) => [entry.workoutKey, entry.file])).toEqual([
+        ['run-1', undefined],
+        ['run-2', undefined],
+      ])
+    })
+
+    it('gives a row with no hash the file, and keeps its digest and route', async () => {
+      const fake = fakeIndexedDb()
+      vi.stubGlobal('indexedDB', fake.indexedDB)
+      const library = openDeviceLibrary()
+      const route: RouteShape = {
+        points: [
+          [0, 0],
+          [1, 0.5],
+        ],
+        aspect: 2,
+      }
+      await library.put('run-1', MEASURED, route)
+      fake.rows.set('run-2', serializeDigest(MEASURED))
+
+      await library.backfillFile('run-1', MEASURED.id, FILE)
+      await library.backfillFile('run-2', MEASURED.id, FILE)
+
+      expect(await library.route('run-1')).toEqual(route)
+      const entries = await library.all()
+      expect(entries.map((entry) => entry.file)).toEqual([FILE, FILE])
+      expect(entries[0]?.digest).toEqual(MEASURED)
+      expect(fake.rows.get('run-1')).toMatchObject({ route })
+    })
+
+    it('does not give the hash to a digest that replaced the one the file was made from', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      const replacement = { ...MEASURED, id: `${MEASURED.id}-other` }
+      await library.put('run-1', MEASURED)
+      // A second save of the workout writes its digest, with no file, before the first save's backfill.
+      await library.put('run-1', replacement)
+
+      await library.backfillFile('run-1', MEASURED.id, FILE)
+
+      const [entry] = await library.all()
+      expect(entry?.digest.id).toBe(replacement.id)
+      expect(entry?.file).toBeUndefined()
+    })
+
+    it('leaves a row that has a hash alone, and does nothing for a workout kept nowhere', async () => {
+      vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+      const library = openDeviceLibrary()
+      await library.put('run-1', MEASURED, null, FILE)
+
+      await library.backfillFile('run-1', MEASURED.id, {
+        fileName: 'other.fit',
+        fileHash: OTHER_HASH,
+      })
+      await library.backfillFile('run-9', MEASURED.id, FILE)
+
+      expect((await library.all()).map((entry) => entry.file)).toEqual([FILE])
+    })
   })
 
   it('keeps a digest with NaN best efforts, as the analysis writes it', async () => {

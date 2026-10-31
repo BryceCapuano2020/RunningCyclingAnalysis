@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { dedupeKey } from '@rca/core/session'
+import { workoutKey } from '@rca/core/session'
 import {
   COUNTED_RUNS_KEY,
   isCountableKey,
@@ -39,9 +39,9 @@ describe('the counted runs kept in this browser', () => {
     expect(parseCountedRuns(JSON.stringify(many))).toHaveLength(MAX_COUNTED_RUNS + 5)
   })
 
-  it('accepts exactly the keys dedupeKey writes for a run, and no other sport’s or shape', () => {
-    expect(isCountableKey(dedupeKey('run', 1_700_000_123_456))).toBe(true)
-    expect(isCountableKey(dedupeKey('ride', 1_700_000_123_456))).toBe(false)
+  it('accepts exactly the keys workoutKey writes for a run, and no other sport’s or shape', () => {
+    expect(isCountableKey(workoutKey('run', 1_700_000_123_456))).toBe(true)
+    expect(isCountableKey(workoutKey('ride', 1_700_000_123_456))).toBe(false)
     expect(isCountableKey('run-')).toBe(false)
     expect(isCountableKey('run-12x')).toBe(false)
     expect(isCountableKey('xrun-12')).toBe(false)

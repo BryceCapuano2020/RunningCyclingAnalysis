@@ -56,11 +56,13 @@ export interface FitnessSpan {
 export interface FitnessMethod {
   /** `steady-pace` admits runs whose pace holds from kilometre to kilometre; `strict` also needs a steady heart rate. */
   tier: 'steady-pace' | 'strict' | 'power'
-  /** Share of the grade credit that shows at the same heart rate (0 to 1 reads as the model's credit kept), and bpm slope per cent. */
+  /** The fitted nuisance coefficient on the grade credit (minus kappa; 1 for the strict unit, which takes the whole credit), not a physiological pass-through: see `fitGrade`. And the speed gained per bpm. */
   gradePassThrough: number | null
   speedPerBpm: number
   /** Kilometres (or blocks) the fit stood on. */
   fitted: number
+  /** The size of the athlete's own seasonal swing that was taken out of every run (a fraction), or null when none was found. */
+  seasonal: number | null
 }
 
 export interface FitnessEvidence {
