@@ -42,7 +42,9 @@ describe('an import that skips activity files in a format the app does not read'
   })
 
   it('leaves the field out when nothing was skipped, so an import’s outcome is as it was', async () => {
-    const completion = await completionOf([new File([encodeFit(run, { gps: true })], 'a.fit')])
+    const completion = await completionOf([
+      new File([new Uint8Array(encodeFit(run, { gps: true }))], 'a.fit'),
+    ])
     expect('skippedTypes' in completion).toBe(false)
   })
 })
