@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { isSameWorkout, workoutKey } from './duplicates'
+import { digestActivity } from './digest'
+import { copyGroupOf, hiddenDigests, isSameWorkout, workoutKey } from './duplicates'
+import { sampleDataset } from './synthetic'
 
 describe('isSameWorkout', () => {
   const run = { sport: 'run', startMs: 0, durationS: 3600 } as const
@@ -36,5 +38,45 @@ describe('workoutKey', () => {
     expect(workoutKey('run', 10_100)).toBe(workoutKey('run', 10_400))
     expect(workoutKey('run', 10_400)).not.toBe(workoutKey('run', 11_400))
     expect(workoutKey('run', 10_000)).not.toBe(workoutKey('ride', 10_000))
+  })
+})
+
+describe('copyGroupOf', () => {
+  const [first, second] = sampleDataset().activities.filter((activity) => activity.sport === 'run')
+  const base = digestActivity(first!)
+  const other = digestActivity(second!)
+  const copy = (digest: typeof base, ms: number, id: string) => ({
+    ...digest,
+    id,
+    startMs: digest.startMs + ms,
+  })
+
+  it('is the digest and every near-copy of it, however they are linked', () => {
+    const a = base
+    const b = copy(base, 50_000, 'b')
+    // Linked to `a` only through `b`: 100 s from `a`, 50 s from `b`.
+    const c = copy(base, 100_000, 'c')
+    const group = copyGroupOf([c, other, a, b], a)
+
+    expect(group.map((digest) => digest.id).sort()).toEqual([a.id, 'b', 'c'].sort())
+  })
+
+  it('is the same group from any member, and leaves other workouts out', () => {
+    const b = copy(base, 4_000, 'b')
+    const digests = [base, b, other]
+    expect(copyGroupOf(digests, b)).toEqual(copyGroupOf(digests, base))
+    expect(copyGroupOf(digests, other)).toEqual([other])
+  })
+
+  it('has exactly one member the analysis shows, and the rest are the hidden ones', () => {
+    const digests = [base, copy(base, 4_000, 'b'), copy(base, 8_000, 'c')]
+    const hidden = hiddenDigests(digests)
+    const group = copyGroupOf(digests, digests[1]!)
+    expect(group).toHaveLength(3)
+    expect(group.filter((digest) => !hidden.has(digest))).toHaveLength(1)
+  })
+
+  it('is the digest alone when it is not among those given', () => {
+    expect(copyGroupOf([other], base)).toEqual([base])
   })
 })

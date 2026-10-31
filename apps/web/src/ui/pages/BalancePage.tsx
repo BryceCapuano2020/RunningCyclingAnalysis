@@ -18,6 +18,9 @@ import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { LEVEL_NOT_RANKING, gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
+import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
+import { soleSportOf } from '../soleSport'
+import { withheldFloorLine } from '../thresholdFloor'
 import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
@@ -31,6 +34,8 @@ import { EvidenceLine } from './EvidenceLine'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
 import { useBalanceVolume } from './useBalanceVolume'
 import { GradeProfileSection } from './GradeProfileSection'
+import { SoleSportRecords } from './SoleSportRecords'
+import { SportInvitation } from './SportInvitation'
 import './BalancePage.css'
 
 export interface BalancePageProps {
@@ -90,9 +95,6 @@ export function BalancePage({
   // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
   const { calibration } = heartRateJudgement
   const hold = useHoldInputs()
-  const { pick } = heldPick(result, hold)
-  const basis = useMemo(() => levelBasis(result), [result])
-  const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
   // They are memoised on the analysis and the two profile values, not the profile object, which the
   // caller builds afresh on each render. The share preview is drawn from them, so a new object each
@@ -115,6 +117,11 @@ export function BalancePage({
     }),
     [headline, weightKnown],
   )
+  // A ride at the top of the age tables is left out of the comparison, so the energy view cannot carry it in.
+  const rideOut = rideLeftOut(grades.ride, result)
+  const { pick } = heldPick(result, holdWithRideOut(rideOut, hold))
+  const basis = useMemo(() => levelBasis(result), [result])
+  const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // The balance is stated once the headline can compare the sports; without a pick it is held, and the gap is
   // held with it. This is the one gate: the headline, the tiles, the level target and the changes all read it.
   const reading = useMemo(
@@ -199,6 +206,9 @@ export function BalancePage({
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
+  // A library of one sport is that sport's home: no comparison slots, an invitation to add the other at the foot.
+  const only = soleSportOf(library)
+  const soleSport = only !== null && inPeriod[only] > 0 ? only : null
   // With one sport in the period, the comparison slots say nothing, so they are left out.
   const bothInPeriod = runCount > 0 && rideCount > 0
   // A ride is named as graded only when its grade is on screen, which waits for the weight.
@@ -222,7 +232,12 @@ export function BalancePage({
   return (
     <div className="page-stack">
       {/* Fitness leads the home page: the finding that moves comes before the balance it sits beside. */}
-      <FitnessAndCheckIn analysis={analysis} units={units} library={library} />
+      <FitnessAndCheckIn
+        analysis={analysis}
+        units={units}
+        library={library}
+        soleSport={soleSport}
+      />
 
       <BalanceHero
         result={result}
@@ -235,9 +250,13 @@ export function BalancePage({
         weightKnown={weightKnown}
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
+        rideLeftOut={rideOut}
         levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
         leftOut={leftOut}
+        soleFloor={
+          soleSport === null ? null : withheldFloorLine(result, soleSport, settings.massKg, units)
+        }
         action={
           <ShareImageButton
             result={result}
@@ -265,14 +284,31 @@ export function BalancePage({
         weighted={weightKnown}
         period={period}
         onAddFiles={analysis.addFiles}
+        soleSport={soleSport}
         leftOut={leftOut}
       />
 
       {sourceLine}
 
+      {soleSport === null ? null : (
+        <SoleSportRecords
+          sport={soleSport}
+          result={result}
+          massKg={settings.massKg}
+          units={units}
+          profile={profile}
+          library={library}
+          weightKnown={weightKnown}
+        />
+      )}
+
       {missingAge !== null && (
         <div className="balance__profile">
-          <p className="muted">{`The balance in points and levels needs your ${missingAge}.`}</p>
+          <p className="muted">
+            {soleSport === null
+              ? `The balance in points and levels needs your ${missingAge}.`
+              : `Your level needs your ${missingAge}.`}
+          </p>
           <a className="btn" href={hrefFor({ page: 'profile' })}>
             {`Add your ${missingAge}`}
           </a>
@@ -297,6 +333,10 @@ export function BalancePage({
           {/* Hours are counted, not estimated, so this strip states what the weeks held and no change test is needed. */}
           <WeeklyVolumeChart weeks={volume} lede={volumeCaption(volume)} axis={axis} />
         </section>
+      )}
+
+      {soleSport === null ? null : (
+        <SportInvitation sport={soleSport} onAddFiles={analysis.addFiles} />
       )}
 
       {footnote}

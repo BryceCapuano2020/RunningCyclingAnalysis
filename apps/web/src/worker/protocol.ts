@@ -7,6 +7,7 @@ import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ExportAccount } from '../export/accountExport'
 import type { ActivityTraceReply } from './workbench'
 import type { CheckInView, SeenEvent, SeenRow } from './checkinKeeper'
+import type { UpdateStop } from './updaterConfig'
 export type { ActivityTraceReply } from './workbench'
 export type { CheckInView, SeenEvent, SeenRow } from './checkinKeeper'
 
@@ -56,6 +57,18 @@ export interface ImportOutcome {
    * unread, and are not in `rejected`. Absent from outcomes that do not count them.
    */
   notActivities?: number
+  /**
+   * The activity files in a format the app does not read, by extension (such as pwx), which are counted in
+   * `rejected` and named here. Absent when there were none.
+   */
+  skippedTypes?: Record<string, number>
+  /**
+   * When an activities.csv came with the files: how many files the list names and how many of them were given.
+   * Absent when there was none, or it named nothing.
+   */
+  listed?: { named: number; received: number }
+  /** A loose file was refused for want of a sport, and no list came with it to give one. Absent otherwise. */
+  needsList?: true
   /** Files whose every activity is a workout the library already holds or shows as a copy: a copy, or the file added again. */
   duplicates: RejectedFile[]
   /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */
@@ -145,6 +158,13 @@ export type WorkerRequest =
   | { type: 'routeShape'; id: string; userId?: string; fromOriginal?: boolean }
   /** The session ended without a sign-out: the route shapes this tab holds for it are forgotten. */
   | { type: 'forgetRoutes' }
+  /**
+   * Adds the activities kept in this browser from before sign-in to the account, then reads the library again.
+   * Sends `adoption` before its state.
+   */
+  | { type: 'adoptDevice'; userId: string; settings: AthleteSettings }
+  /** Empties the library kept in this browser while the account is on screen, which stays as it is. */
+  | { type: 'forgetDeviceLibrary'; settings: AthleteSettings }
   /** A detail trace for an exact core activity id. Originals are read only on explicit request. */
   | { type: 'activityTrace'; id: string; userId?: string; fromOriginal?: boolean }
   /** A row of "your years" or "since your last import" was opened, hidden or shown. Answered with `checkInSaved`. */
@@ -179,6 +199,25 @@ export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerRe
 ])
 
 export type WorkerResponse =
+  /**
+   * What a signed-in visit can do with the activities this browser kept before sign-in (see adoption.ts), sent apart
+   * from any request when the account's library has loaded and again when it changes.
+   */
+  | { type: 'deviceOffer'; adoptable: number; again: number; held: number }
+  /** How adding those activities to the account ended. Sent before the state that ends the request. */
+  | {
+      type: 'adoption'
+      saved: number
+      conflicts: number
+      failed: number
+      again: number
+      held: number
+    }
+  /**
+   * How the saves an earlier visit left in the outbox are going, sent apart from any request. `finished` ends
+   * it: `saved` were saved, `failed` could not be and will not be tried again, `pending` were left for another load.
+   */
+  | { type: 'outbox'; pending: number; saved: number; failed: number; finished: boolean }
   /** Sent when the worker begins a request, so a request waiting its turn is not timed as if it ran. */
   | { type: 'started' }
   /**
@@ -265,6 +304,8 @@ export type WorkerResponse =
       limitKind: 'daily' | 'rate' | null
       /** When the limit resets, in epoch ms; null when no limit was reached. */
       limitResetsAtMs: number | null
+      /** Why the update ended before it had tried every activity, besides a limit. Absent when it did not. */
+      stopped?: UpdateStop
     }
   /** `issue` is set when the failure means the account ended or changed, so the app can act on it. */
   | { type: 'error'; message: string; issue?: SyncIssueCode }

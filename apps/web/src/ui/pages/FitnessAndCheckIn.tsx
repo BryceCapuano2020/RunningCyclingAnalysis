@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { AnalysisController } from '../analysis/controller'
 import { checkInWords, firstRowOf } from '../checkInRow'
@@ -11,6 +12,8 @@ export interface FitnessAndCheckInProps {
   analysis: Pick<AnalysisController, 'state' | 'checkIn' | 'markCheckInSeen' | 'incompleteImport'>
   units: UnitSystem
   library: readonly ActivitySummary[]
+  /** The one sport the library holds, which the cards then name once instead of on each. */
+  soleSport?: Sport | undefined
 }
 
 /**
@@ -18,7 +21,7 @@ export interface FitnessAndCheckInProps {
  * lead (a library with no steady run). It takes the place while the check-in has not been seen; a row that has
  * appeared in this visit stays until it is hidden, so opening it does not take it away.
  */
-export function FitnessAndCheckIn({ analysis, units, library }: FitnessAndCheckInProps) {
+export function FitnessAndCheckIn({ analysis, units, library, soleSport }: FitnessAndCheckInProps) {
   const { fitness, isSample } = analysis.state
   const hasCard = useMemo(() => fitnessViews(fitness, units).length > 0, [fitness, units])
   const eligible =
@@ -36,7 +39,9 @@ export function FitnessAndCheckIn({ analysis, units, library }: FitnessAndCheckI
     appeared && words !== null && analysis.incompleteImport === null && !isSample ? (
       <CheckInRow words={words} onSeen={analysis.markCheckInSeen} />
     ) : null
-  const section = <FitnessSection fitness={fitness} units={units} library={library} />
+  const section = (
+    <FitnessSection fitness={fitness} units={units} library={library} soleSport={soleSport} />
+  )
   return hasCard ? (
     <>
       {section}

@@ -20,6 +20,7 @@ export function isQuietRequest(kind: Pending['kind']): boolean {
     kind === 'forgetRoutes' ||
     kind === 'markSeen' ||
     kind === 'acceptPartialImport' ||
+    kind === 'forgetDeviceLibrary' ||
     kind === 'setRange'
   )
 }

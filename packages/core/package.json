@@ -10,6 +10,7 @@
     "./change": "./src/change/index.ts",
     "./change/types": "./src/change/types.ts",
     "./types": "./src/types.ts",
+    "./calendar": "./src/calendar.ts",
     "./constants": "./src/constants.ts",
     "./customRange": "./src/customRange.ts",
     "./digest": "./src/digest/index.ts",

@@ -131,8 +131,14 @@ describe('analysis settings', () => {
   })
 
   it('gives the analysis the 75 kg the app used before weights were optional, while none is entered', () => {
+    // The placeholder says it is one, so ride power is not judged against it.
     expect(analysisSettings({ massKg: null, bikeMassKg: 11 })).toEqual({
       massKg: 75,
+      bikeMassKg: 11,
+      massAssumed: true,
+    })
+    expect(analysisSettings({ massKg: 80, bikeMassKg: 11 })).toEqual({
+      massKg: 80,
       bikeMassKg: 11,
     })
   })

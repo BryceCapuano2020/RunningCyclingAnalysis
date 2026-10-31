@@ -1,10 +1,16 @@
 import { EDGE_EPSILON } from '../math'
 import type { Curve, CurvePoint } from '../types'
 
-/** A window counts only when at least minFraction of its samples are 1 in `moving`. */
+/**
+ * The rules a window must meet. It counts only when at least minFraction of its samples are 1 in `moving`. With
+ * `gapShare`, a window may also hold unusable samples (flagged, or not finite) up to that share of its length,
+ * rounded down, and its value is the mean of the usable ones: one bad second no longer removes every best longer
+ * than half the activity, since every such window holds the middle second. Absent, no unusable sample is allowed.
+ */
 export interface Occupancy {
   moving: Uint8Array
   minFraction: number
+  gapShare?: number
 }
 
 export interface MeanMaximalOptions {
@@ -16,7 +22,7 @@ export interface MeanMaximalOptions {
 
 /**
  * Best mean of `values` over any window of exactly d consecutive samples in which every sample
- * is valid (valid = 1) and finite, for each duration d in whole seconds. Runs in O(n) per
+ * is valid (valid = 1) and finite (but see `Occupancy.gapShare`), for each duration d in whole seconds. Runs in O(n) per
  * duration using prefix sums and a prefix count of unusable samples. With `firstStart`, only windows
  * that start at that sample or later are considered. With `occupancy`, a window must also be mostly
  * moving: a stretch that is mostly stopped is not an effort of its length, whatever its mean.
@@ -44,7 +50,13 @@ export function meanMaximal(
     bestWindow(
       d,
       n,
-      { sum, bad, moving, minMoving: Math.ceil(minFraction * d - EDGE_EPSILON) },
+      {
+        sum,
+        bad,
+        moving,
+        minMoving: Math.ceil(minFraction * d - EDGE_EPSILON),
+        maxBad: Math.floor((occupancy?.gapShare ?? 0) * d + EDGE_EPSILON),
+      },
       activityId,
       firstStart,
     ),
@@ -58,12 +70,14 @@ interface Prefix {
   moving: Int32Array
   /** The fewest moving samples a window of this duration may hold. */
   minMoving: number
+  /** The most unusable samples a window of this duration may hold. */
+  maxBad: number
 }
 
 function bestWindow(
   d: number,
   n: number,
-  { sum, bad, moving, minMoving }: Prefix,
+  { sum, bad, moving, minMoving, maxBad }: Prefix,
   activityId: string,
   firstStart: number,
 ): CurvePoint {
@@ -72,8 +86,9 @@ function bestWindow(
   let best = NaN
   let bestStart = -1
   for (let i = firstStart; i + d <= n; i++) {
-    if (bad[i + d]! - bad[i]! > 0 || moving[i + d]! - moving[i]! < minMoving) continue
-    const mean = (sum[i + d]! - sum[i]!) / d
+    const unusable = bad[i + d]! - bad[i]!
+    if (unusable > maxBad || unusable >= d || moving[i + d]! - moving[i]! < minMoving) continue
+    const mean = (sum[i + d]! - sum[i]!) / (d - unusable)
     if (bestStart === -1 || mean > best) {
       best = mean
       bestStart = i

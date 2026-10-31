@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { bodyMassOn } from '@rca/core/athlete'
 import './App.css'
-import { forgetSeenNotes } from './ui/aboutDataStore'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
 import { AppNotices } from './ui/components/AppNotices'
@@ -40,7 +39,9 @@ import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
+import { clearKeptPower, useKeptPower } from './ui/keptPowerStore'
 import { useCountedRuns } from './ui/useCountedRuns'
+import { useAppSignOut } from './ui/useAppSignOut'
 import { useSignInProblem } from './ui/signInProblem'
 
 export function App() {
@@ -70,13 +71,17 @@ export function App() {
   }
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
+  const keptPower = useKeptPower()
   const countedRuns = useCountedRuns()
+  const signOutWarning = useAppSignOut(account, countedRuns)
   const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(
     settings,
     measurements.entries,
     athleteValues.birthYear,
     countedRuns.keys,
+    keptPower.ids,
+    athleteValues.sex,
   )
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
@@ -197,6 +202,7 @@ export function App() {
   }
   const deleteAccount = async () => {
     await account.deleteAccount()
+    clearKeptPower()
     countedRuns.clear()
     setAccountDeleted(true)
     window.location.replace(hrefFor({ page: 'balance' }))
@@ -250,16 +256,12 @@ export function App() {
               status={account.status}
               me={account.me}
               onSignIn={account.signIn}
-              onSignOut={() => {
-                // What this browser noted about the visitor's data goes with their session.
-                forgetSeenNotes()
-                // The runs counted here go once the session has ended, not if signing out failed.
-                void account.signOut().then(countedRuns.clear, () => undefined)
-              }}
+              onSignOut={signOutWarning.requestSignOut}
             />
           }
         />
         {/* Always mounted: file drops anywhere, the busy strip and announcements. */}
+        {signOutWarning.dialog}
         <ImportStatus
           onFiles={setup.requestImport}
           busy={analysis.busy}
@@ -279,6 +281,11 @@ export function App() {
             moved={moved}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
+            accountUser={
+              account.me === null
+                ? undefined
+                : { userId: account.me.user.id, email: account.me.user.email }
+            }
             accountsUnavailable={!accountsAvailable}
             accountError={account.error}
             runThenFocus={runThenFocus}

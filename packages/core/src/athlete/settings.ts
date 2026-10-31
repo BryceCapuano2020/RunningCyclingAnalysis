@@ -1,3 +1,4 @@
+import type { Sex } from '../grade/ageGrade'
 import type { Measurement } from './measurements'
 
 export interface AthleteSettings {
@@ -12,10 +13,25 @@ export interface AthleteSettings {
   /** The athlete's dated settings. Absent or empty: every activity uses massKg, and references are estimated. */
   measurements?: readonly Measurement[]
   /**
+   * True while massKg is a placeholder because the athlete has entered no weight: ride power is not judged
+   * against it (see implausiblePower). Dated body masses make the weight known whatever this says.
+   */
+  massAssumed?: true
+  /**
+   * Ids of the rides whose implausible power the athlete chose to keep (see implausiblePower). Absent or
+   * empty: such a ride's power is set aside.
+   */
+  keepPower?: readonly string[]
+  /**
    * The year of birth, when the athlete has given it. The effort gate reads it to judge a heart-rate reference against the
    * age band; absent, the reference is judged on the data alone.
    */
   birthYear?: number
+  /**
+   * The athlete's sex, when given. The effort gate reads it with the year of birth to pick the age-predicted maximum
+   * heart rate (Gulati for women, Tanaka otherwise); absent, Tanaka.
+   */
+  sex?: Sex
   /**
    * The workouts (by `workoutKey`) the athlete counts as runs although they are at walking pace. Absent or
    * empty: every run at walking pace is left out of the analysis.

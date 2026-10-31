@@ -1,6 +1,8 @@
 import { isBackLevel } from '../fitness/episode'
+import { FITNESS } from '../fitness/params'
 import { halfWidth, ranged } from '../fitness/status'
 import type { Ranged } from '../fitness/types'
+import type { LiveEpisode } from './live'
 import { LOOKBACK } from './params'
 import { stepZ } from './segments'
 import type { Level } from './segments'
@@ -38,6 +40,34 @@ const falling = (r: Ranged) => r.high < 0
  */
 export function isBack(pre: Level, post: Level, floor: number): boolean {
   return isBackLevel(post.m - pre.m, Math.sqrt(pre.se ** 2 + post.se ** 2 + floor ** 2))
+}
+
+/**
+ * Whether the fitness card reached "back" for this slip and nothing after contradicts it. The card's slip is the one
+ * declared within a few weeks of the fall (it trails the fall by 3 to 9 weeks); the "back" is its own, before the
+ * horizon, with no reopening; and the plateau after the return is not clearly more than `backTol` under the plateau
+ * before the fall (the same one-sided bound the back test uses, pointed the other way). A residual that is really there
+ * keeps the slip partly back.
+ */
+function cardSaidBack(
+  live: readonly LiveEpisode[],
+  fallWeek: number,
+  returnWeek: number,
+  pre: Level,
+  post: Level,
+  floor: number,
+): boolean {
+  const E = FITNESS.episode
+  const se = Math.sqrt(pre.se ** 2 + post.se ** 2 + floor ** 2)
+  if (post.m - pre.m + E.boundZ * se < -E.backTol) return false
+  return live.some(
+    (l) =>
+      l.backWeek !== null &&
+      !l.relapsed &&
+      l.declaredWeek >= fallWeek - LOOKBACK.liveMatchWeeks &&
+      l.declaredWeek <= fallWeek + 2 * LOOKBACK.liveMatchWeeks &&
+      l.backWeek >= returnWeek - LOOKBACK.liveMatchWeeks,
+  )
 }
 
 /** A step beside a break: the boundary is within `afterBreakWeeks` of either end of a span with no run at all. */
@@ -85,7 +115,7 @@ function movesOf(levels: readonly Level[], breaks: readonly WeekSpan[], delta: n
 
 /**
  * The episodes the levels hold. A fall of `delta` or more with a range below zero opens a slip; the next rise closes it
- * as `slip-back` when the level is back (isBack), as `slip-partly-back` when it came part of the way, and a fall with
+ * as `slip-back` when the level is back (isBack, or the fitness card said back for this slip and nothing contradicts it), as `slip-partly-back` when it came part of the way, and a fall with
  * no rise is `slip-open`. A rise with no slip open is an `improvement`; a rise that carries the level clear above where
  * it was before the fall is a return and an improvement of the excess. A step beside a break is `after-break` and
  * ends no slip. Ranges are the printed ones; a change whose range reaches zero is not listed.
@@ -95,6 +125,7 @@ export function episodesOf(
   breaks: readonly WeekSpan[],
   floor: number,
   delta: number,
+  live: readonly LiveEpisode[] = [],
 ): WeekEpisode[] {
   const out: WeekEpisode[] = []
   const runsIn = (a: number, b: number) =>
@@ -153,7 +184,11 @@ export function episodesOf(
         regained,
         runs: runsIn(fall.from, move.to),
       }
-      if (isBack(pre, post, floor)) {
+      const fallWeek = levels[fall.from + 1]!.fromWeek
+      if (
+        isBack(pre, post, floor) ||
+        cardSaidBack(live, fallWeek, levels[move.to]!.fromWeek, pre, post, floor)
+      ) {
         out.push(episode('slip-back', fall.from, fall.to, fall.steps, returned))
         // Back, and clear above where it was: the return, then the excess as a rise of its own.
         const excess = changeBetween(pre, post)

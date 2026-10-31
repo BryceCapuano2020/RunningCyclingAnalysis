@@ -136,7 +136,7 @@ describe('fitnessTrend', () => {
   })
 
   it('gives null for a sport with no activity in the window, leaving a gap', () => {
-    const digests = [run(MONDAY, 16), ride(MONDAY + 8 * WEEK, 1050)]
+    const digests = [run(MONDAY, 16), ride(MONDAY + 8 * WEEK, 300)]
     const points = fitnessTrend(digests, settings)
     expect(points.find((point) => point.endMs === FIRST_SUNDAY_END)?.rideWkg).toBeNull()
     expect(points.at(-1)?.rideWkg).not.toBeNull()
@@ -144,7 +144,7 @@ describe('fitnessTrend', () => {
   })
 
   it('converts a ride the way combine does, at the prior-mean efficiency', () => {
-    const digests = [ride(MONDAY, 1050)]
+    const digests = [ride(MONDAY, 300)]
     const [point] = fitnessTrend(digests, settings)
     const combined = combine(digests, settings)
     expect(point?.rideWkg).toBe(
@@ -170,13 +170,13 @@ describe('fitnessTrend', () => {
 
   it('takes the best converted value at the headline duration or longer, as the envelope does', () => {
     // A 30-minute value above the 20-minute one: combine's envelope lifts the 20-minute value.
-    const ride = atDurations(sampleOf('ride'), MONDAY, { 1200: 1000, 1800: 1100 })
+    const ride = atDurations(sampleOf('ride'), MONDAY, { 1200: 270, 1800: 300 })
     const runDigest = atDurations(sampleOf('run'), MONDAY, { 1200: 15, 1800: 16 })
     const [point] = fitnessTrend([ride, runDigest], settings)
     const combined = combine([ride, runDigest], settings)
     const at = (points: { durationS: number; value: number }[]) =>
       points.find((p) => p.durationS === HEADLINE_DURATION_S)?.value
-    expect(point?.rideWkg).toBe(centralWkgFromWatts(1100, settings.massKg))
+    expect(point?.rideWkg).toBe(centralWkgFromWatts(300, settings.massKg))
     expect(point?.rideWkg).toBe(at(combined.rideMetabolicCurve))
     expect(point?.runWkg).toBe(16)
     expect(point?.runWkg).toBe(at(combined.runCurve))

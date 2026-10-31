@@ -28,13 +28,37 @@ export function floorThreshold(
   units: UnitSystem,
 ): SportNumber | null {
   if (threshold(result, sport, massKg, units) !== null) return null
-  const held = result.effortGate[sport].floor
-  if (refusalOf(result, sport) === 'effort' && held !== null) {
-    return FIGURE_AT[sport](held.value, massKg, units)
-  }
+  const withheld = withheldFloor(result, sport, massKg, units)
+  if (withheld !== null) return withheld
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   if (!uneven) return null
   // A floor at or above the fit would leave no range above it, so it is not shown as the threshold.
   if (!(uneven.fit.cp > uneven.floor)) return null
   return FIGURE_AT[sport](uneven.floor, massKg, units)
+}
+
+/** The best 20 minutes as a figure, when the effort gate withheld the threshold for it; null otherwise. */
+function withheldFloor(
+  result: AnalysisResult,
+  sport: Sport,
+  massKg: number,
+  units: UnitSystem,
+): SportNumber | null {
+  const held = result.effortGate[sport].floor
+  if (refusalOf(result, sport) !== 'effort' || held === null) return null
+  return FIGURE_AT[sport](held.value, massKg, units)
+}
+
+/**
+ * "At least 4:52 /km, from one effort.": what a threshold withheld for its effort still demonstrates, in the headline of a
+ * one-sport page. It is the one best 20 minutes, not an estimate. Null when the threshold was not withheld for its effort.
+ */
+export function withheldFloorLine(
+  result: AnalysisResult,
+  sport: Sport,
+  massKg: number,
+  units: UnitSystem,
+): string | null {
+  const figure = withheldFloor(result, sport, massKg, units)
+  return figure === null ? null : `At least ${figure.number} ${figure.unit}, from one effort.`
 }
