@@ -11,6 +11,7 @@ import { hrefFor } from '../route'
 import type { CountedRunsController } from '../useCountedRuns'
 import { movedAnything, type MovedItem } from '../analysis/whatMoved'
 import type { Route } from '../route'
+import { outboxText } from '../analysis/outboxCopy'
 import { ImportNotice } from './ImportNotice'
 import { IncompleteImportNotice } from './IncompleteImportNotice'
 import { AboutData } from './AboutData'
@@ -106,6 +107,7 @@ export function AppNotices({
     ) : null
   // The runs counted despite walking pace: the way back, where runs are listed or analysed.
   const countedHere = analysis.state.countedWalkingRuns
+  const outboxLine = analysis.outbox === null ? null : outboxText(analysis.outbox)
   const sample = useSampleNotice({ page, shown: result !== null && isSample })
   return (
     <div className="app__notices">
@@ -121,7 +123,8 @@ export function AppNotices({
         onDismiss={analysis.dismissSummary}
       />
       {sample.pill}
-      {analysis.incompleteImport !== null && !analysis.busy && (
+      {/* Shown while an import runs too: the hold it explains stays on, and so must its way out. */}
+      {analysis.incompleteImport !== null && (
         <IncompleteImportNotice
           manifest={analysis.incompleteImport}
           onAccept={analysis.acceptIncompleteImport}
@@ -135,6 +138,7 @@ export function AppNotices({
           issues={analysis.state.syncIssues}
           signedIn={signedIn}
           moved={movedAnything(moved)}
+          hiddenCopies={analysis.state.hiddenDuplicates}
         />
         <LibraryNotices
           analysis={analysis}
@@ -144,6 +148,7 @@ export function AppNotices({
           panelShown={libraryPanel}
           onRetry={() => runThenFocus(analysis.retryLibrary)}
         />
+        {outboxLine !== null && <p className="notice">{outboxLine}</p>}
         {bareLibraryNotice !== null && <p className="notice">{bareLibraryNotice}</p>}
         {sample.banner}
         {/* A stop the visitor asked for is news, not a fault, so it is never an alert. */}

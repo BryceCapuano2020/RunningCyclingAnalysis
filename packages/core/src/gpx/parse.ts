@@ -4,7 +4,8 @@ import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { MAX_GPX_TRACKS } from '../import/limits'
-import { parseIsoTime } from '../import/time'
+import { designatorOffsetS } from '../import/localDay'
+import { isoZoneOffsetS, parseIsoTime } from '../import/time'
 import { fileTitle } from '../import/names'
 import { sportOfType } from '../import/sportType'
 import {
@@ -17,11 +18,11 @@ import {
   Refusal,
   SPLIT_THE_FILE,
 } from '../import/trackpoints'
-import type { LatLon } from '../import/trackpoints'
 import { scanXmlBytes, XmlError } from '../xml/parse'
 import type { XmlHandler } from '../xml/parse'
+import { newTrack } from './open'
+import type { OpenPoint, OpenTrack, Point } from './open'
 import { recordsOf } from './records'
-import type { GpxPoint } from './records'
 
 const NOT_GPX = 'Not a GPX file'
 const DECODE_FAILED = 'Could not decode GPX file'
@@ -39,34 +40,6 @@ const TEXT_ROLES = new Set([
   'cadence',
   'temperature',
 ])
-
-/** One trkpt with a valid time. Position, altitude and extensions are optional. */
-type Point = GpxPoint
-
-/** The trkpt being read. Each value is taken from the first child or extension that gives one. */
-interface OpenPoint {
-  position: LatLon | undefined
-  tMs: number | undefined
-  altitude: number | undefined
-  heartRate: number | undefined
-  power: number | undefined
-  cadence: number | undefined
-  temperature: number | undefined
-  eleSeen: boolean
-  timeSeen: boolean
-}
-
-/** The trk being read. */
-interface OpenTrack {
-  type: string | undefined
-  typeSeen: boolean
-  name: string | undefined
-  nameSeen: boolean
-  anyPosition: boolean
-  points: Point[]
-  /** Trackpoints without a valid time. */
-  untimed: number
-}
 
 /** What an open element is, decided when it opens. */
 type Role =
@@ -199,6 +172,10 @@ class GpxReader implements XmlHandler {
         break
       case 'time':
         if (point !== undefined) point.tMs = parseIsoTime(frame.text, 'utc')
+        // The first trackpoint's zone designator is the file's local time; a `Z` says there is none.
+        if (point !== undefined && this.track?.points.length === 0) {
+          this.track.zoneOffsetS = designatorOffsetS(isoZoneOffsetS(frame.text))
+        }
         break
       case 'heartRate':
         if (point !== undefined && point.heartRate === undefined) {
@@ -333,18 +310,6 @@ class GpxReader implements XmlHandler {
   }
 }
 
-function newTrack(): OpenTrack {
-  return {
-    type: undefined,
-    typeSeen: false,
-    name: undefined,
-    nameSeen: false,
-    anyPosition: false,
-    points: [],
-    untimed: 0,
-  }
-}
-
 /**
  * Whether a unit holds nothing to read and nothing that is refused for its sport, so that the file is
  * empty. A refused sport is reported as the sport, even when the track has no points.
@@ -388,6 +353,7 @@ function buildUnit(
     refusal: choice.refusal,
     fixes: fixesOf(ordered),
     title: fileTitle(track.name),
+    ...(track.zoneOffsetS === undefined ? {} : { localOffsetS: track.zoneOffsetS }),
   }
   return { unit, dropped }
 }

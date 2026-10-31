@@ -91,6 +91,12 @@
           in, they are kept in your account instead.
         </li>
         <li>
+          If you choose to keep the power of a ride that the analysis set aside as implausible, the
+          ride's id is kept in this browser's local storage under rca.keepPower.v1. It is never
+          uploaded, signed in or not, and it holds no activity data. Signing out, deleting your
+          account and Remove all my activities clear it; a session that expires does not.
+        </li>
+        <li>
           A flag in this browser's local storage, named rca.kept.v1, says whether this browser had
           results to show at its last visit, signed in or not, so a reload can show them at once. It
           holds no activity data.
@@ -161,6 +167,19 @@
         account identifier and a time, so that a late write for that account is refused. The record
         for a deleted account stays until you clear this site’s data. The record for a sign-out ends
         the next time that account signs in here.
+      </p>
+
+      <h2>Saves waiting on this device</h2>
+      <p>
+        Signed in, each activity is first written to a waiting list in this browser’s IndexedDB and
+        saved to your library from there. The list holds the same activity summary the account keeps
+        (name, sport, start, file name and hash, distance, duration, elevation gain and the figures
+        from the analysis). It holds no route, per-second recording or original file. An entry is
+        removed once your library has the activity. If you close the page or lose your connection
+        first, the saves resume the next time you sign in on this device. Signing out asks first
+        when saves are still waiting, then removes the list, and so does deleting your account.
+        Remove all my activities removes every waiting save from this browser too. When a session
+        ends on its own, the list stays so those saves can finish when you sign in again.
       </p>
 
       <h2>With an account</h2>

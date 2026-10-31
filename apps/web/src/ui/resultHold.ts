@@ -13,7 +13,7 @@ import type { HeadlinePick } from './components/pickHeadline'
  * another holds back. Reasons are tried in one order, most important first; the first that applies is the hold.
  * - `updating` (scope `results`): the library is there and its digests are held out for another model. It needs no
  *   result, and while it is on the results are replaced by the library page.
- * - `partial-import` (scope `headline`): an import is known partial (D7 feeds it).
+ * - `partial-import` (scope `headline`): an import is known partial (`useLibraryPage` feeds it from the import record).
  * - `implausible-ride` and `effort` (scope `headline`): the evidence behind the headline comparison.
  */
 
@@ -44,13 +44,16 @@ export interface UpdatingInputs {
 }
 
 /**
- * What else can hold results, from outside the result. D6a feeds `implausibleRide` (a ride that works out to more
- * than a runner can do) and D7 feeds `partialImport`; until they do, nothing is passed and they hold nothing.
+ * What else can hold results, from outside the result. `rideHoldInputs` (rideLeftOut.ts) builds the ride's two from its
+ * grade: `implausibleRide` when every ride's power is set aside as one no rider holds, which is a hold with a reason and
+ * an action; `rideAtTop` when the ride is at the top of the age tables, which leaves it out of the comparison with no
+ * fault to name, so the pick goes and the hold stays null. `partialImport` is fed by `useLibraryPage` from the import record.
  */
 export interface HoldInputs {
   updating?: UpdatingInputs | null
   partialImport?: { text: string; action: string } | null
   implausibleRide?: { text: string; action: string } | null
+  rideAtTop?: boolean
 }
 
 /**
@@ -114,7 +117,7 @@ export function heldPick(
   inputs: HoldInputs = {},
 ): { hold: Hold | null; pick: HeadlinePick | null } {
   const hold = holdOf(result, inputs)
-  return { hold, pick: hold === null ? headlinePick(result) : null }
+  return { hold, pick: hold === null && inputs.rideAtTop !== true ? headlinePick(result) : null }
 }
 
 /**

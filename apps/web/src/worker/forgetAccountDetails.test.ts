@@ -5,6 +5,14 @@ import { clearWorkbenchScope } from './workbenchStore'
 
 vi.mock('./workbenchStore', () => ({ clearWorkbenchScope: vi.fn() }))
 
+const outboxes = vi.hoisted(() => new Map<string, { forget: ReturnType<typeof vi.fn> }>())
+vi.mock('./outbox', () => ({
+  openOutbox: (userId: string) => {
+    const outbox = outboxes.get(userId) ?? { forget: vi.fn(async () => undefined) }
+    outboxes.set(userId, outbox)
+    return outbox
+  },
+}))
 vi.mock('../ui/importManifestStore', () => {
   const forget = vi.fn(async () => undefined)
   return { openManifestStore: () => ({ forget }) }
@@ -13,6 +21,7 @@ vi.mock('../ui/importManifestStore', () => {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.clearAllMocks()
+  outboxes.clear()
 })
 
 describe('account recording cleanup after sign-out', () => {
@@ -46,6 +55,28 @@ describe('account recording cleanup after sign-out', () => {
       )
     },
   )
+})
+
+describe('the activities still waiting to be saved', () => {
+  it('are forgotten with the recordings when the visitor signs out, for that account only', async () => {
+    vi.stubGlobal('indexedDB', {})
+    vi.mocked(clearWorkbenchScope).mockResolvedValue(true)
+
+    await forgetAccountDetails('alice')
+
+    expect(outboxes.get('alice')?.forget).toHaveBeenCalledOnce()
+    expect(outboxes.has('bob')).toBe(false)
+  })
+
+  it('are kept when the server ended the session, for the account’s next sign-in', async () => {
+    vi.stubGlobal('indexedDB', {})
+    vi.mocked(clearWorkbenchScope).mockResolvedValue(true)
+    outboxes.clear()
+
+    await forgetAccountDetails('alice', true)
+
+    expect(outboxes.has('alice')).toBe(false)
+  })
 })
 
 describe('the record of the account’s imports', () => {

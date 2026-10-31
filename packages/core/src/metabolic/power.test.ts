@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { FLAT_RUN_COST, RUN_COST_CORRECTION } from '../constants'
-import { minettiCost, runCost, runMetabolicPower } from './power'
+import { RESTING_W_PER_KG } from '../constants'
+import {
+  DESCENT_COST_FLOOR_GRADE,
+  descentCost,
+  minettiCost,
+  runCost,
+  runMetabolicPower,
+  STEEP_DESCENT_CREDIT,
+  STEEP_DESCENT_GRADE,
+} from './power'
 
 describe('runCost', () => {
   it('is Minetti plus the same level correction at every gradient', () => {
@@ -67,5 +76,73 @@ describe('runMetabolicPower', () => {
 
   it('returns an empty array for empty input', () => {
     expect(runMetabolicPower(new Float64Array(0), new Float64Array(0)).length).toBe(0)
+  })
+})
+
+describe('descentCost', () => {
+  const grades = Array.from({ length: 901 }, (_, i) => -0.45 + i / 1000)
+
+  it('is runCost at and above -4%', () => {
+    for (const g of grades.filter((g) => g >= STEEP_DESCENT_GRADE)) {
+      expect(descentCost(g)).toBe(runCost(g))
+    }
+  })
+
+  it('is continuous at -4%', () => {
+    expect(descentCost(STEEP_DESCENT_GRADE - 1e-9)).toBeCloseTo(runCost(STEEP_DESCENT_GRADE), 6)
+  })
+
+  it('takes the credited share of the further saving below -4%', () => {
+    const edge = runCost(STEEP_DESCENT_GRADE)
+    for (const g of [-0.06, -0.1, -0.15, DESCENT_COST_FLOOR_GRADE]) {
+      expect(descentCost(g)).toBeCloseTo(edge - STEEP_DESCENT_CREDIT * (edge - runCost(g)), 12)
+      // Less saving than the polynomial, more than none.
+      expect(descentCost(g)).toBeGreaterThan(runCost(g))
+      expect(descentCost(g)).toBeLessThan(edge)
+    }
+  })
+
+  it('never rises as the descent steepens, from -4% to -45%', () => {
+    let previous = descentCost(STEEP_DESCENT_GRADE)
+    for (const g of grades.filter((g) => g < STEEP_DESCENT_GRADE).reverse()) {
+      const cost = descentCost(g)
+      expect(cost, `${g}`).toBeLessThanOrEqual(previous + 1e-12)
+      previous = cost
+    }
+  })
+
+  it('holds the value of -18% for every steeper grade: the polynomial turns back up there', () => {
+    const floor = descentCost(DESCENT_COST_FLOOR_GRADE)
+    expect(runCost(-0.3)).toBeGreaterThan(runCost(DESCENT_COST_FLOOR_GRADE))
+    for (const g of grades.filter((g) => g < DESCENT_COST_FLOOR_GRADE)) {
+      expect(descentCost(g)).toBe(floor)
+    }
+  })
+
+  it('leaves an unknown grade unknown', () => {
+    expect(descentCost(NaN)).toBeNaN()
+  })
+})
+
+describe('runMetabolicPower with the steep-descent saving', () => {
+  const speed = new Float64Array([3, 3, 3, 3]).fill(3)
+  const grade = Float64Array.from([0.05, -0.02, -0.1, -0.3])
+
+  it('is the plain model when the option is absent or false', () => {
+    const plain = runMetabolicPower(speed, grade)
+    expect(Array.from(runMetabolicPower(speed, grade, 1, {}))).toEqual(Array.from(plain))
+    expect(Array.from(runMetabolicPower(speed, grade, 1, { steepDescent: false }))).toEqual(
+      Array.from(plain),
+    )
+  })
+
+  it('changes only the samples below -4%', () => {
+    const plain = runMetabolicPower(speed, grade, 1.1)
+    const steep = runMetabolicPower(speed, grade, 1.1, { steepDescent: true })
+    expect(steep[0]).toBe(plain[0])
+    expect(steep[1]).toBe(plain[1])
+    expect(steep[2]).toBeCloseTo(RESTING_W_PER_KG + 1.1 * descentCost(-0.1) * 3, 12)
+    expect(steep[2]!).toBeGreaterThan(plain[2]!)
+    expect(steep[3]).toBeCloseTo(RESTING_W_PER_KG + 1.1 * descentCost(-0.18) * 3, 12)
   })
 })

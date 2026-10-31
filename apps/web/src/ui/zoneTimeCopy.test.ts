@@ -145,7 +145,7 @@ describe('leftOutNotes', () => {
     })
     expect(leftOutNotes('run', [row])).toEqual([
       '2 of 12 runs had no heart rate to count.',
-      '1 of 12 runs had no heart rate zones for their date.',
+      '1 of 12 runs had no heart rate zones for their date. None of your efforts reached near your maximum, so there is no max to cut zones from. Enter your max heart rate on Profile to get them.',
     ])
   })
 

@@ -1,7 +1,7 @@
 import { strToU8, zipSync } from 'fflate'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
-import { digestActivity } from '@rca/core/digest'
+import { digestActivity, serializeDigest } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
 import { parseActivityFile } from '@rca/core/import'
@@ -73,6 +73,56 @@ vi.mock('../api/client', async (importOriginal) => {
 /** The device library the worker opens. It outlives a fresh worker import, as IndexedDB does. */
 const kept = vi.hoisted(() => ({ library: null as DeviceLibrary | null }))
 
+/** The outbox in memory, shared by every account the test opens: rows by account and workout. */
+const outboxRows = vi.hoisted(() => new Map<string, Map<string, unknown>>())
+vi.mock('./outbox', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./outbox')>()
+  const { serializeDigest } = await import('@rca/core/digest')
+  return {
+    ...actual,
+    clearOutbox: async () => {
+      for (const rows of outboxRows.values()) rows.clear()
+      return true
+    },
+    openOutbox: (userId: string) => {
+      const mine = outboxRows.get(userId) ?? new Map<string, unknown>()
+      outboxRows.set(userId, mine)
+      let seq = 0
+      return {
+        add: async ({
+          digest,
+          fileName,
+          fileHash,
+        }: {
+          digest: Parameters<typeof serializeDigest>[0]
+          fileName: string
+          fileHash: string
+        }) => {
+          const key = `${digest.sport}-${Math.round(digest.startMs / 1000)}`
+          mine.set(key, {
+            id: `${userId}|${key}`,
+            userId,
+            key,
+            digestId: digest.id,
+            seq: seq++,
+            digestJson: serializeDigest(digest),
+            fileName,
+            fileHash,
+            attempts: 0,
+          })
+        },
+        done: async (key: string, digestId?: string) => {
+          const row = mine.get(key) as { digestId: string } | undefined
+          if (digestId === undefined || row?.digestId === digestId) mine.delete(key)
+        },
+        failed: async () => false,
+        pending: async () => [...mine.values()],
+        forget: async () => mine.clear(),
+      }
+    },
+  }
+})
+
 vi.mock('./deviceLibrary', async () => {
   const { memoryDeviceLibrary } = await import('../test/deviceLibrary.fake')
   return {
@@ -91,6 +141,17 @@ if (secondSampleActivity === undefined) throw new Error('The sample has fewer th
 if (thirdSampleActivity === undefined) throw new Error('The sample has fewer than three activities')
 const RUN_FILE_BYTES = new Uint8Array(encodeFit(sampleActivity, { gps: true }))
 const SAMPLE_DIGEST = digestActivity(sampleActivity)
+/**
+ * The sample as a saved copy of a file: a rebuild reads the file back under the record's name, so the
+ * digest it makes carries the id that name gives, and an update checks it does before it sends.
+ */
+function savedAs(bytes: Uint8Array, fileName: string): ActivityDigest {
+  const parsed = parseActivityFile(bytes, fileName, undefined, { activityType: 'Run', race: false })
+  const read = parsed.ok ? parsed.activities[0] : undefined
+  if (read === undefined) throw new Error('The sample file did not read')
+  return { ...SAMPLE_DIGEST, id: digestActivity(read).id }
+}
+const SAVED_DIGEST = savedAs(RUN_FILE_BYTES, 'run.fit')
 
 function recordFor(digest: ActivityDigest, hasFile = false): ActivityRecord {
   return {
@@ -121,22 +182,12 @@ async function startWorker() {
   async function send(request: WorkerRequest): Promise<WorkerResponse[]> {
     const start = posted.length
     fakeSelf.onmessage?.({ data: request } as MessageEvent<WorkerRequest>)
+    // The reply ends the request. What the worker says apart from it, such as an outbox resume, may follow.
+    const replyAt = () => posted.findIndex((m, i) => i >= start && REPLY_TYPES.has(m.type))
     await vi.waitFor(() => {
-      const last = posted.at(-1)
-      if (
-        posted.length === start ||
-        (last?.type !== 'state' &&
-          last?.type !== 'error' &&
-          last?.type !== 'rebuildComplete' &&
-          last?.type !== 'exportReady' &&
-          last?.type !== 'splits' &&
-          last?.type !== 'activityTrace' &&
-          last?.type !== 'routeShape')
-      ) {
-        throw new Error('still working')
-      }
+      if (replyAt() < 0) throw new Error('still working')
     }, WAIT_FOR_MS)
-    return posted.slice(start)
+    return posted.slice(start, replyAt() + 1)
   }
   return { send, posted }
 }
@@ -159,6 +210,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   limits.maxFileBytes = 50 * 1024 * 1024
   kept.library = null
+  outboxRows.clear()
   vi.unstubAllGlobals()
   mocked.createActivity.mockImplementation(async (digest) => ({
     record: recordFor(digest),
@@ -698,7 +750,7 @@ describe('analysis worker', () => {
   })
 
   it('rebuilds stale digests from their stored originals and refreshes the active analysis', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(stale, true)])
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
@@ -733,7 +785,13 @@ describe('analysis worker', () => {
     mocked.downloadActivityFile.mockResolvedValue(
       new TextEncoder().encode(gpx.replace(/<type>[^<]*<\/type>/, '')),
     )
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = {
+      ...savedAs(
+        new TextEncoder().encode(gpx.replace(/<type>[^<]*<\/type>/, '')),
+        'activities/1.gpx',
+      ),
+      modelRevision: 1,
+    }
     mocked.listActivities
       .mockResolvedValueOnce([{ ...recordFor(stale, true), fileName: 'activities/1.gpx' }])
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
@@ -750,7 +808,7 @@ describe('analysis worker', () => {
 
   it('keeps the saved name when it rebuilds from a file that carries no title', async () => {
     // A Strava export names the activity in activities.csv, so the FIT file alone would give a generated name.
-    const named = { ...SAMPLE_DIGEST, name: 'Lunch with Sam', modelRevision: 1 }
+    const named = { ...SAVED_DIGEST, name: 'Lunch with Sam', modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(named, true)])
       .mockResolvedValueOnce([recordFor({ ...SAMPLE_DIGEST, name: 'Lunch with Sam' }, true)])
@@ -767,7 +825,7 @@ describe('analysis worker', () => {
   })
 
   it('counts a rebuild whose activity was deleted in another tab as missing, and does not re-create it', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities.mockResolvedValueOnce([recordFor(stale, true)]).mockResolvedValueOnce([])
     mocked.createActivity.mockRejectedValueOnce(
       new ApiRequestError(404, 'not_found', 'Activity not found'),
@@ -792,7 +850,7 @@ describe('analysis worker', () => {
   })
 
   it('keeps stale activities excluded and reports originals that must be re-imported', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(stale, false)])
       .mockResolvedValueOnce([recordFor(stale, false)])
@@ -817,7 +875,7 @@ describe('analysis worker', () => {
   })
 
   it('reports a re-added stale file as updated, with counts only and nothing new', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(stale, false)])
       .mockResolvedValueOnce([recordFor(stale, false)])
@@ -848,7 +906,7 @@ describe('analysis worker', () => {
   it('stops downloading after a daily limit and counts the remaining stored originals as limited', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-10-22T15:30:00Z'))
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([
         recordFor(stale, true),
@@ -857,13 +915,14 @@ describe('analysis worker', () => {
         recordFor({ ...stale, id: 'third' }, true),
       ])
       .mockResolvedValueOnce([recordFor(stale, true)])
-    mocked.downloadActivityFile.mockRejectedValueOnce(
+    mocked.downloadActivityFile.mockRejectedValue(
       new ApiRequestError(429, 'daily_limit', 'Daily download limit reached'),
     )
     const { send } = await startWorker()
     const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
 
-    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    // Two activities are rebuilt at a time, so two downloads met the limit; the third is never asked for.
+    expect(mocked.downloadActivityFile).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'rebuildComplete',
       rebuilt: 0,
@@ -875,8 +934,8 @@ describe('analysis worker', () => {
     })
   })
 
-  it('stops downloading at a rate limit, retries after a minute, and counts the rest as limited', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+  it('waits out a rate limit once, then stops downloading and counts the rest as limited', async () => {
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([
         recordFor(stale, true),
@@ -884,15 +943,17 @@ describe('analysis worker', () => {
         recordFor({ ...stale, id: 'other' }, true),
       ])
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
-    mocked.downloadActivityFile.mockRejectedValueOnce(
-      new ApiRequestError(429, 'rate_limited', 'Slow down'),
+    // The wait the server asked for is a few milliseconds here; the page is told a minute either way.
+    mocked.downloadActivityFile.mockRejectedValue(
+      new ApiRequestError(429, 'rate_limited', 'Slow down', 5),
     )
     const { send } = await startWorker()
     const before = Date.now()
     const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
     const after = Date.now()
 
-    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    // Each of the two activities tried at once is tried again after the wait, and no more.
+    expect(mocked.downloadActivityFile).toHaveBeenCalledTimes(4)
     const done = messages.at(-1)
     if (done?.type !== 'rebuildComplete') throw new Error('The rebuild did not complete')
     expect(done).toMatchObject({ rebuilt: 0, missing: 1, failed: 0, limited: 2, limitKind: 'rate' })
@@ -912,7 +973,7 @@ describe('analysis worker', () => {
   })
 
   it('reports the unreadable count of the library a rebuild leaves, and clears it when none remain', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockImplementationOnce(async (_since, _userId, onUnreadable) => {
         onUnreadable?.(2)
@@ -927,7 +988,7 @@ describe('analysis worker', () => {
   })
 
   it('counts a rebuild that conflicts with another saved activity as missing, not failed', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities
       .mockResolvedValueOnce([recordFor(stale, true)])
       .mockResolvedValueOnce([recordFor(stale, true)])
@@ -947,7 +1008,8 @@ describe('analysis worker', () => {
 
   it('lists the library newest first, with ties ordered by id', async () => {
     const older = { ...SAMPLE_DIGEST, id: 'older', startMs: SAMPLE_DIGEST.startMs - 86_400_000 }
-    const tieB = { ...SAMPLE_DIGEST, id: 'tie-b' }
+    // Two activities that start together are one workout unless they are of different sports.
+    const tieB = { ...SAMPLE_DIGEST, id: 'tie-b', sport: 'ride' as const }
     const tieA = { ...SAMPLE_DIGEST, id: 'tie-a' }
     mocked.listActivities.mockResolvedValue([recordFor(older), recordFor(tieB), recordFor(tieA)])
     const { send } = await startWorker()
@@ -1278,7 +1340,7 @@ describe('analysis worker', () => {
   })
 
   describe('outdated saved activities that still have their original file', () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     const DAY_MS = 86_400_000
     const other = (id: string, days: number, modelRevision = 1) => ({
       ...stale,
@@ -1464,10 +1526,11 @@ describe('analysis worker', () => {
   })
 
   it('stops a rebuild at the first sign-out instead of failing every activity', async () => {
-    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
     mocked.listActivities.mockResolvedValueOnce([
       recordFor(stale, true),
       recordFor({ ...stale, id: 'other' }, true),
+      recordFor({ ...stale, id: 'third' }, true),
     ])
     mocked.downloadActivityFile.mockRejectedValue(
       new ApiRequestError(401, 'unauthenticated', 'Sign in required'),
@@ -1476,7 +1539,103 @@ describe('analysis worker', () => {
     expect(await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })).toEqual([
       { type: 'error', message: 'Sign in required', issue: 'signed-out' },
     ])
-    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    // Two are in flight at once; the third is never asked for.
+    expect(mocked.downloadActivityFile).toHaveBeenCalledTimes(2)
+  })
+
+  describe('the update behind Update now', () => {
+    const stale = { ...SAVED_DIGEST, modelRevision: 1 }
+
+    it('does nothing in a tab when another tab of the account holds the writer lock', async () => {
+      vi.stubGlobal('navigator', {
+        locks: {
+          request: async (_name: string, _options: object, run: (lock: null) => unknown) =>
+            run(null),
+        },
+      })
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor(stale, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+      expect(mocked.createActivity).not.toHaveBeenCalled()
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 0, failed: 0, stopped: 'elsewhere' })
+    })
+
+    it('sends nothing for an activity that starts at another time than the saved one', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor({ ...stale, startMs: stale.startMs + 60_000 }, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(mocked.createActivity).not.toHaveBeenCalled()
+      // The file holds no activity at that time, so it is unmatched, not rebuilt.
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 0, missing: 1, failed: 0 })
+    })
+
+    it('keeps the saved id when the file gives another for the same workout', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor({ ...stale, id: 'the-id-it-was-saved-with' }, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(mocked.createActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'the-id-it-was-saved-with' }),
+        'run.fit',
+        expect.any(String),
+        USER_ID,
+        'rec-the-id-it-was-saved-with',
+      )
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 1, failed: 0 })
+    })
+
+    it('stops at once when the server says the app is out of date', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor(stale, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      mocked.createActivity.mockRejectedValue(new ApiRequestError(409, 'app_outdated', 'Reload'))
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      expect(messages.at(-1)).toMatchObject({ rebuilt: 0, failed: 0, stopped: 'outdated' })
+      expect(mocked.createActivity).toHaveBeenCalledOnce()
+    })
+
+    it('stops after five failures in a row and leaves the rest as they are', async () => {
+      const library = Array.from({ length: 12 }, (_, i) =>
+        recordFor({ ...stale, id: `a${i}`, startMs: stale.startMs + i * 1000 }, true),
+      )
+      mocked.listActivities.mockResolvedValueOnce(library).mockResolvedValueOnce(library)
+      mocked.downloadActivityFile.mockRejectedValue(
+        new ApiRequestError(500, 'server_error', 'down'),
+      )
+      const { send } = await startWorker()
+      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+      const done = messages.at(-1)
+      expect(done).toMatchObject({ rebuilt: 0, stopped: 'breaker' })
+      expect(mocked.downloadActivityFile.mock.calls.length).toBeLessThanOrEqual(6)
+    })
+
+    it('stands aside for an import that arrives while it runs, and says so', async () => {
+      mocked.listActivities
+        .mockResolvedValueOnce([recordFor(stale, true)])
+        .mockResolvedValueOnce([recordFor(stale, true)])
+      const { send, posted } = await startWorker()
+      const update = send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const change = send({ type: 'clear' })
+      await Promise.all([update, change])
+
+      expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+      expect(posted.find((message) => message.type === 'rebuildComplete')).toMatchObject({
+        rebuilt: 0,
+        stopped: 'paused',
+      })
+    })
   })
 
   it('handles requests strictly in order, even when they arrive together', async () => {
@@ -2677,14 +2836,14 @@ describe('rebuilding a multisport leg keeps its session key', () => {
 
     mocked.downloadActivityFile.mockResolvedValueOnce(MULTISPORT)
     mocked.listActivities
-      .mockResolvedValueOnce([recordFor(stale, true)])
+      .mockResolvedValueOnce([{ ...recordFor(stale, true), fileName: 'ACTIVITY.FIT' }])
       .mockResolvedValueOnce([recordFor({ ...stale, modelRevision: MODEL_REVISION }, true)])
     const { send } = await startWorker()
     await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
 
     expect(mocked.createActivity).toHaveBeenCalledWith(
       expect.objectContaining({ sessionKey: leg.sessionKey }),
-      'run.fit',
+      'ACTIVITY.FIT',
       expect.stringMatching(/^[0-9a-f]{64}$/),
       USER_ID,
       `rec-${stale.id}`,
@@ -2803,6 +2962,311 @@ describe('a reply carries its request number, and nothing follows it', () => {
   })
 })
 
+describe('rule R: near-copies of one workout in the worker', () => {
+  /** The same workout as the first sample activity, a few seconds later: another second, so another stored row. */
+  const COPY_ACTIVITY: Activity = { ...sampleActivity, startMs: sampleActivity.startMs + 4_000 }
+  const copyFile = () => new File([new Uint8Array(encodeGpx(COPY_ACTIVITY))], 'copy.gpx')
+  const FIT_DIGEST = digestActivity({ ...sampleActivity, id: 'a.fit' })
+  const GPX_DIGEST = digestActivity({ ...COPY_ACTIVITY, id: 'copy.gpx' })
+  const records = [recordFor(FIT_DIGEST), recordFor(GPX_DIGEST)]
+
+  async function loadedAccount() {
+    mocked.listActivities.mockResolvedValue(records)
+    const started = await startWorker()
+    const loaded = await started.send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    return { ...started, loaded }
+  }
+
+  it('lists, counts and reports the shown copy only, though both are stored', async () => {
+    const { loaded } = await loadedAccount()
+
+    const list = loaded.find((message) => message.type === 'libraryActivities')
+    expect(list).toMatchObject({ activities: [{ id: records[0]!.id }] })
+    // Neither has an original, and only the shown one is missed.
+    expect(loaded).toContainEqual({ type: 'missingOriginals', count: 1 })
+    expect(loaded.at(-1)).toMatchObject({
+      type: 'state',
+      state: { totalActivities: 1, hiddenDuplicates: 1 },
+    })
+  })
+
+  it('stores both copies of a signed-in import, and lists one', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      saved: 2,
+      state: { totalActivities: 1, hiddenDuplicates: 1 },
+    })
+  })
+
+  it('deletes the whole group of copies when the one shown is deleted', async () => {
+    const { send } = await loadedAccount()
+    mocked.deleteActivity.mockResolvedValue(undefined)
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: records[0]!.id,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(mocked.deleteActivity.mock.calls.map(([id]) => id).sort()).toEqual(
+      records.map((record) => record.id).sort(),
+    )
+    expect(messages).toContainEqual({ type: 'libraryActivities', activities: [] })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+  })
+
+  it('deletes nothing of the group, and keeps it, when the server refuses the first delete', async () => {
+    const { send } = await loadedAccount()
+    mocked.deleteActivity.mockRejectedValue(new ApiRequestError(503, 'unavailable', 'Try later'))
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: records[0]!.id,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(mocked.deleteActivity).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+  })
+
+  it('leaves the hidden copy out of the export', async () => {
+    const { send } = await loadedAccount()
+    mocked.listActivities.mockImplementation(async (_since, _userId, _onUnreadable, onPage) => {
+      onPage?.(records)
+      return []
+    })
+
+    const messages = await send({
+      type: 'exportData',
+      userId: USER_ID,
+      account: { name: 'Ada', email: 'ada@example.com' },
+      profile: {
+        massKg: 75,
+        bikeMassKg: 9,
+        units: 'metric',
+        keepFiles: false,
+        birthYear: null,
+        sex: null,
+        updatedAt: 1,
+      },
+    })
+
+    const reply = messages.at(-1)
+    if (reply?.type !== 'exportReady') throw new Error('expected an export')
+    const text = await reply.file.text()
+    expect(text).toContain(records[0]!.id)
+    expect(text).not.toContain(records[1]!.id)
+  })
+
+  it('counts a copy only among the digests the analysis reads: a stale FIT hides nothing', async () => {
+    const stale = digestActivity({ ...sampleActivity, id: 'old.fit' })
+    const staleRecord = recordFor({ ...stale, modelRevision: 1 })
+    const current = recordFor(GPX_DIGEST)
+    mocked.listActivities.mockResolvedValue([staleRecord, current])
+    const { send } = await startWorker()
+    const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const list = loaded.find((message) => message.type === 'libraryActivities')
+    // The stale one is held out of the analysis, so the current GPX is not a copy of it: both are listed.
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    expect(list.activities.map((activity) => activity.id).sort()).toEqual(
+      [current.id, staleRecord.id].sort(),
+    )
+    mocked.listActivities.mockImplementation(async (_since, _userId, _onUnreadable, onPage) => {
+      onPage?.([staleRecord, current])
+      return []
+    })
+    const exported = await send({
+      type: 'exportData',
+      userId: USER_ID,
+      account: { name: 'Ada', email: 'ada@example.com' },
+      profile: {
+        massKg: 75,
+        bikeMassKg: 9,
+        units: 'metric',
+        keepFiles: false,
+        birthYear: null,
+        sex: null,
+        updatedAt: 1,
+      },
+    })
+    const reply = exported.at(-1)
+    if (reply?.type !== 'exportReady') throw new Error('expected an export')
+    const text = await reply.file.text()
+    expect(text).toContain(staleRecord.id)
+    expect(text).toContain(current.id)
+  })
+
+  it('takes the members already deleted out of the list and the session when a later delete fails', async () => {
+    const third = recordFor(
+      digestActivity({ ...sampleActivity, id: 'c.tcx', startMs: sampleActivity.startMs + 8_000 }),
+    )
+    mocked.listActivities.mockResolvedValue([...records, third])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    mocked.deleteActivity
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new ApiRequestError(503, 'unavailable', 'Try later'))
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: records[0]!.id,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+    // The first was deleted at the server, so it is gone from what the page lists; the others are still there.
+    const list = messages.findLast((message) => message.type === 'libraryActivities')
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    const listed = list.activities.map((activity) => activity.id)
+    expect(listed).not.toContain(records[0]!.id)
+    expect(mocked.deleteActivity).toHaveBeenCalledTimes(2)
+    // And the session no longer holds it: the two left are copies of each other, one shown.
+    const next = await send({ type: 'setSettings', settings: SETTINGS })
+    expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
+  })
+
+  it('lists a stale FIT kept in this browser beside a current GPX: neither is a copy of the other', async () => {
+    const { send } = await startWorker()
+    const stale = { ...digestActivity({ ...sampleActivity, id: 'old.fit' }), modelRevision: 1 }
+    await kept.library!.put(workoutKeyOf(stale), stale)
+    await kept.library!.put(workoutKeyOf(GPX_DIGEST), GPX_DIGEST)
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const list = messages.find((message) => message.type === 'libraryActivities')
+    if (list?.type !== 'libraryActivities') throw new Error('no list')
+    expect(list.activities).toHaveLength(2)
+  })
+
+  it('takes the copies already removed from this browser out of the session when a later removal fails', async () => {
+    const { send } = await startWorker()
+    const added = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+    const listed = added.filter((message) => message.type === 'libraryActivities').at(-1)
+    if (listed?.type !== 'libraryActivities') throw new Error('no list')
+    const library = kept.library!
+    const removing = library.remove.bind(library)
+    let removals = 0
+    library.remove = async (key) => {
+      if (++removals === 2) throw new Error('storage refused')
+      return removing(key)
+    }
+
+    const messages = await send({
+      type: 'deleteDeviceActivity',
+      id: listed.activities[0]!.id,
+      settings: SETTINGS,
+    })
+
+    expect(messages.at(-1)).toMatchObject({ type: 'error' })
+    expect((await library.all()).length).toBe(1)
+    const next = await send({ type: 'setSettings', settings: SETTINGS })
+    // The one removed is out of the session; the one left is the only one it holds, shown.
+    expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 0 } })
+  })
+
+  it('lists one copy kept in this browser, and deletes the whole group with it', async () => {
+    const { send } = await startWorker()
+
+    const added = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'a.fit'), copyFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+    expect(added.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
+    expect((await kept.library?.all())?.length).toBe(2)
+    const listed = added.filter((message) => message.type === 'libraryActivities').at(-1)
+    if (listed?.type !== 'libraryActivities') throw new Error('no list')
+    expect(listed.activities).toHaveLength(1)
+
+    const removed = await send({
+      type: 'deleteDeviceActivity',
+      id: listed.activities[0]!.id,
+      settings: SETTINGS,
+    })
+
+    expect(await kept.library?.all()).toEqual([])
+    expect(removed.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+  })
+})
+
+describe('an import that skips files in a format the app does not read', () => {
+  it('names the formats in its outcome, with the count it always gave', async () => {
+    const { send } = await startWorker()
+    const zip = zipSync({
+      'run.fit': new Uint8Array(RUN_FILE_BYTES),
+      'a.pwx': strToU8('x'),
+      'b.pwx': strToU8('x'),
+      'c.kml': strToU8('x'),
+    })
+
+    const messages = await send({
+      ...signedOutImport(new File([new Uint8Array(zip)], 'export.zip')),
+    })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 3, skippedTypes: { pwx: 2, kml: 1 } },
+      state: { unsupportedFiles: 3 },
+    })
+  })
+})
+
+describe('files given with the export’s activities.csv', () => {
+  it('are read with the sport and name the list gives, and the list is neither refused nor read as an activity', async () => {
+    const { send } = await startWorker()
+    const untyped = new TextDecoder()
+      .decode(encodeGpx(sampleActivity))
+      .replace(/<type>[^<]*<\/type>/, '')
+    const list = new File(
+      [
+        'Activity ID,Activity Name,Activity Type,Filename\n1,Morning Run,Run,activities/run.gpx\n2,Gone,Ride,activities/gone.gpx\n',
+      ],
+      'activities.csv',
+    )
+
+    const messages = await send(signedOutImport(new File([untyped], 'run.gpx')))
+    const withList = await send({
+      ...signedOutImport(new File([untyped], 'run.gpx')),
+      files: [list, new File([untyped], 'run.gpx')],
+    } as WorkerRequest)
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 1, needsList: true },
+    })
+    const reply = withList.at(-1)
+    expect(reply).toMatchObject({
+      type: 'state',
+      outcome: { rejected: 0, listed: { named: 2, received: 1 } },
+    })
+    expect(reply).not.toMatchObject({ outcome: { needsList: true } })
+  })
+})
+
 describe('a signed-in import saves its activities side by side', () => {
   /** A zip of short runs, a day apart, so none is a copy of another. */
   const base: Activity = sampleActivity!
@@ -2871,6 +3335,176 @@ describe('a signed-in import saves its activities side by side', () => {
       saved: 7,
       state: { totalActivities: 8, syncIssues: [{ code: 'server', count: 1 }] },
     })
+  })
+})
+
+describe('the saves an earlier visit left in the outbox', () => {
+  /** A row as an import cut off before its save finished leaves it. */
+  function seedRow(digest: ActivityDigest, userId = USER_ID) {
+    const key = workoutKeyOf(digest)
+    const mine = outboxRows.get(userId) ?? new Map<string, unknown>()
+    outboxRows.set(userId, mine)
+    mine.set(key, {
+      id: `${userId}|${key}`,
+      userId,
+      key,
+      digestId: digest.id,
+      seq: mine.size,
+      digestJson: serializeDigest(digest),
+      fileName: 'run.fit',
+      fileHash: 'a'.repeat(64),
+      attempts: 0,
+    })
+  }
+
+  it('finishes them after the library loads, apart from the request, and tells the page how it ended', async () => {
+    seedRow(SAMPLE_DIGEST)
+    seedRow(digestActivity(secondSampleActivity))
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
+    )
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(posted.filter((m) => m.type === 'outbox').at(-1)).toEqual({
+      type: 'outbox',
+      pending: 0,
+      saved: 2,
+      failed: 0,
+      finished: true,
+    })
+    expect(outboxRows.get(USER_ID)?.size).toBe(0)
+    // Said apart from the request: stamped with it, the page would drop it as late.
+    expect(posted.filter((m) => m.type === 'outbox').every((m) => !('during' in m))).toBe(true)
+  })
+
+  it('does not send what the account already holds', async () => {
+    seedRow(SAMPLE_DIGEST)
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
+    )
+
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect(outboxRows.get(USER_ID)?.size).toBe(0)
+  })
+
+  it('sends nothing from a tab whose account another tab is already writing for', async () => {
+    seedRow(SAMPLE_DIGEST)
+    mocked.listActivities.mockResolvedValue([])
+    // Another tab holds the account's writer lock.
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (_name: string, _options: object, callback: (l: null) => unknown) =>
+          callback(null),
+      },
+    })
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect(posted.some((m) => m.type === 'outbox')).toBe(false)
+    expect(outboxRows.get(USER_ID)?.size).toBe(1)
+  })
+
+  it('leaves another account’s rows alone', async () => {
+    seedRow(SAMPLE_DIGEST, 'someone-else')
+    mocked.listActivities.mockResolvedValue([])
+    const { send, posted } = await startWorker()
+
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(posted.some((m) => m.type === 'outbox')).toBe(false)
+    expect(outboxRows.get('someone-else')?.size).toBe(1)
+  })
+
+  it('writes a row before an import saves an activity and removes it once the account has it', async () => {
+    let during = -1
+    mocked.createActivity.mockImplementation(async (digest) => {
+      during = outboxRows.get(USER_ID)?.size ?? 0
+      return { record: recordFor(digest), created: true }
+    })
+    const { send } = await startWorker()
+    mocked.listActivities.mockResolvedValue([])
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(during).toBe(1)
+    expect(outboxRows.get(USER_ID)?.size).toBe(0)
+  })
+
+  it('is dropped by Remove all, every account’s rows, so a failed row is not sent on the next load', async () => {
+    seedRow(SAMPLE_DIGEST)
+    seedRow(digestActivity(secondSampleActivity), 'someone-else')
+    const { send } = await startWorker()
+
+    await send({ type: 'clear', forgetDevice: true })
+
+    expect([...outboxRows.values()].every((rows) => rows.size === 0)).toBe(true)
+    mocked.listActivities.mockResolvedValue([])
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+  })
+
+  it('sends nothing more once Remove all comes while a save waits out a Retry-After', async () => {
+    seedRow(SAMPLE_DIGEST)
+    seedRow(digestActivity(secondSampleActivity))
+    mocked.createActivity.mockRejectedValue(
+      new ApiRequestError(429, 'rate_limited', 'Slow down', 150),
+    )
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await vi.waitFor(() => expect(mocked.createActivity).toHaveBeenCalled())
+    const sent = mocked.createActivity.mock.calls.length
+
+    await send({ type: 'clear', forgetDevice: true })
+    // Longer than the wait the server asked for: a send that was not cancelled would have been made by now.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(sent)
+    expect([...outboxRows.values()].every((rows) => rows.size === 0)).toBe(true)
+  })
+
+  it('keeps the waiting saves when the page only clears the session', async () => {
+    seedRow(SAMPLE_DIGEST)
+    const { send } = await startWorker()
+
+    await send({ type: 'clear', forgetDevice: false })
+
+    expect(outboxRows.get(USER_ID)?.size).toBe(1)
+  })
+
+  it('keeps the row of an activity the account could not take, for a reload to finish', async () => {
+    mocked.createActivity.mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(outboxRows.get(USER_ID)?.size).toBe(1)
   })
 })
 
