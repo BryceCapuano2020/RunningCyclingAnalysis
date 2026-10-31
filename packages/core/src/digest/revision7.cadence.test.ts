@@ -183,11 +183,10 @@ describe('the cadence-lock flag in a digest, at revision 7', () => {
     expect(at7(unresolved).flagCounts['hr-cadence-lock']).toBeUndefined()
   })
 
-  it('survives every view of the reader that stores or lists it, and is refused on create', () => {
+  it('survives every view of the reader, a create included', () => {
     const wire = JSON.parse(serializeDigest(at7(lockedRun(60)))) as Record<string, unknown>
-    for (const view of ['stored', 'device'] as const) {
+    for (const view of ['create', 'stored', 'device'] as const) {
       expect(readDigest(wire, view).flagCounts['hr-cadence-lock'], view).toBe(1)
     }
-    expect(() => readDigest(wire, 'create')).toThrow()
   })
 })

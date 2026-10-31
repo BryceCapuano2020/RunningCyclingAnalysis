@@ -43,9 +43,9 @@ export interface DigestRules {
    */
   readonly bestsNeedDistance: boolean
   /**
-   * Whether a flag of the cadence-lock kind (revision 7) is taken. A create refuses it until the release
-   * that writes revision 7 and moves the rollback floor past the Worker that cannot list a row with one
-   * (PR F flips it); a stored row and the device library read it, so a library keeps its activities.
+   * Whether a flag of the cadence-lock kind (revision 7) is taken. A create took it only from release R2, which
+   * moved the rollback floor to W1, the first Worker that can list a row with one; every view takes it now. The
+   * option stays so the frozen readers of earlier releases (test/frozen) keep the rule they had.
    */
   readonly acceptsCadenceLock: boolean
 }
@@ -56,7 +56,7 @@ export const CREATE_RULES: DigestRules = {
   tolerant: false,
   arrayFactor: 1,
   bestsNeedDistance: true,
-  acceptsCadenceLock: false,
+  acceptsCadenceLock: true,
 }
 
 /** A digest in a row the server stores, read by the server and by the signed-in app. */
