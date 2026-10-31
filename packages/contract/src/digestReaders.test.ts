@@ -57,7 +57,18 @@ function bases(): Array<[string, DigestWire]> {
       pick((w) => w.indoor === true && w.powerSource === 'measured'),
     ],
     ['a race at walking pace', { ...run, race: true, walkingPace: true }],
+    ['a run with every revision-7 field', { ...run, ...REVISION_7_FIELDS }],
   ]
+}
+
+/**
+ * The optional fields revision 7 first writes, to values that are valid for them. The quality kind it
+ * adds is not here: the rollback floor refuses a flag of it, so frozenRev6.test.ts covers that apart.
+ */
+const REVISION_7_FIELDS = {
+  temperature: { c: 14.5, coverage: 0.9 },
+  athleteType: 'hike',
+  localDayShift: 1,
 }
 
 const NO_DISTANCE = 'the run does not cover this distance'
@@ -76,6 +87,13 @@ const IDENTITY_PATHS = new Set([
   'powerSource',
   'modelRevision',
 ])
+
+/**
+ * Fields the rollback floor does not know: it strips them, so it reads a row whatever they hold. A
+ * stored row with damage in one of them is refused by the readers that know them, as for any other
+ * optional field; no activity's identity is in them.
+ */
+const FIELDS_THE_FLOOR_STRIPS = new Set(Object.keys(REVISION_7_FIELDS))
 
 /** The digest a create makes of a wire, which the others are compared with. */
 function createOf(wire: unknown): Verdict {
@@ -162,8 +180,9 @@ describe('every reader of a digest gives the same verdict', () => {
       const stored = ofCore('stored', mutant.wire)
       if (stored.ok) continue
       refused++
+      const field = stored.path.split('.')[0]!
       expect(
-        IDENTITY_PATHS.has(stored.path.split('.')[0]!),
+        IDENTITY_PATHS.has(field) || FIELDS_THE_FLOOR_STRIPS.has(field),
         `${label}: ${mutant.name}: ${stored.path}`,
       ).toBe(true)
     }

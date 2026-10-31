@@ -51,6 +51,7 @@ const QUALITY_KIND_SET: Record<QualityKind, true> = {
   'implausible-climb': true,
   'stream-disagreement': true,
   'missing-altitude': true,
+  'hr-cadence-lock': true,
 }
 const QUALITY_KINDS = Object.keys(QUALITY_KIND_SET) as QualityKind[]
 

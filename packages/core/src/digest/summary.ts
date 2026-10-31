@@ -1,5 +1,7 @@
 import type {
   ActivityDigest,
+  AthleteType,
+  LocalDayShift,
   PowerSource,
   DigestDistanceBest,
   QualityFlag,
@@ -36,6 +38,10 @@ export interface ActivitySummary {
   walkingPace?: true
   /** The export the activity came from tags it as a race. See ActivityDigest.race. */
   race?: true
+  /** Revision 7: the athlete's own label when it differs from the file's sport. See ActivityDigest.athleteType. */
+  athleteType?: AthleteType
+  /** Revision 7: the local calendar date minus the UTC date at the start. See ActivityDigest.localDayShift. */
+  localDayShift?: LocalDayShift
   /** The body mass in effect on its date, kg. Present only when the athlete has dated body masses. */
   massKg?: number
 }
@@ -77,6 +83,8 @@ function summaryFrom(digest: ActivityDigest, massKg: number | undefined): Activi
     ...(digest.sessionKey === undefined ? {} : { sessionKey: digest.sessionKey }),
     ...(digest.walkingPace === undefined ? {} : { walkingPace: digest.walkingPace }),
     ...(digest.race === undefined ? {} : { race: digest.race }),
+    ...(digest.athleteType === undefined ? {} : { athleteType: digest.athleteType }),
+    ...(digest.localDayShift === undefined ? {} : { localDayShift: digest.localDayShift }),
     ...(massKg === undefined ? {} : { massKg }),
   }
 }
