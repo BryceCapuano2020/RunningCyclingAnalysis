@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test'
 import type { Page, Route } from '@playwright/test'
-import { apiActivities, signInAs, uniqueEmail, uploadFixtures } from './helpers.js'
+import {
+  apiActivities,
+  enableFileRetention,
+  signInAs,
+  uniqueEmail,
+  uploadFixtures,
+} from './helpers.js'
 
 const NAME = 'Ada Lovelace'
 const WAITING = 'Too many requests at once'
@@ -76,4 +82,54 @@ test('a rate limit that holds says so, keeps the activity waiting, and a later v
   await page.unroute('**/api/activities')
   await page.reload()
   await expect.poll(async () => (await apiActivities(page.request)).length, SAVED).toBe(1)
+})
+
+test('a sign-in the edge limiter refuses sends the visitor back with the reason, and the address is cleared', async ({
+  page,
+}) => {
+  // The API answers a browser that is limited on /api/auth/google with a redirect to the app carrying the code alone. A
+  // browser may not be handed a fulfilled redirect (WebKit refuses), so a page that makes the same hop stands in for it.
+  await page.route('**/api/auth/google', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<script>location.replace("/#/?signin=rate_limited")</script>',
+    }),
+  )
+  await page.goto('/')
+  await page.getByRole('banner').getByRole('button', { name: 'Sign in with Google' }).click()
+
+  await expect(page.getByText(/^Too many sign-in attempts from this network/)).toBeVisible()
+  await expect(page).toHaveURL(/#\/$/)
+  expect(await apiActivities(page.request).catch(() => [])).toHaveLength(0)
+})
+
+test('an original the limiter refuses is told, the activity is kept without it, and adding the file again keeps it', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await signInAs(page.request, uniqueEmail(), NAME)
+  await enableFileRetention(page.request)
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Ada', exact: true })).toBeVisible()
+  await page.route('**/api/activities/*/file', (route) =>
+    route.request().method() === 'PUT' ? refused(route) : route.continue(),
+  )
+
+  await uploadFixtures(page, ['one-run.fit'])
+
+  // The summary is saved; only the original is missing, and the page says why.
+  await expect(page.getByText(WAITING)).toBeVisible(SAVED)
+  const [saved] = await apiActivities(page.request)
+  expect(saved?.hasFile).toBe(false)
+
+  // The limit lifts; the file added again is kept. The list is read sparingly: it counts against a daily read budget.
+  await page.unroute('**/api/activities/*/file')
+  await uploadFixtures(page, ['one-run.fit'])
+  await expect
+    .poll(async () => (await apiActivities(page.request))[0]?.hasFile, {
+      timeout: 60_000,
+      intervals: [3_000],
+    })
+    .toBe(true)
 })
