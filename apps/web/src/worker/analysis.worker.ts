@@ -156,6 +156,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     }
     case 'loadSample':
       provisionalItems.clear()
+      checkIns.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
       view.showingSample = true
@@ -166,6 +167,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return session.loadSample(request.settings, view.sampleClock)
     case 'loadServer':
       provisionalItems.clear()
+      checkIns.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
       view.checkinScope = accountScope(request.userId)
@@ -196,6 +198,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         return session.setSettings(request.settings)
       }
       provisionalItems.clear()
+      checkIns.dropProvisional()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
       view.checkinScope = 'device'
