@@ -11,7 +11,7 @@ import { accountDeleting, apiError, HttpError } from '../../errors.ts'
 import { ensureProfile } from '../../auth/accounts.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
 import { declaredLength, readExactBody } from '../../http.ts'
-import { encodingOf, gunzipCapped, type BodyEncoding } from '../../gunzip.ts'
+import { encodingOf, gunzipDigest, type BodyEncoding } from '../../gunzip.ts'
 import {
   chargeDaily,
   acquireUploadSlot,
@@ -190,17 +190,29 @@ async function readAndHash(c: Context<AppEnv>, upload: Upload): Promise<Uint8Arr
     await releaseReservation(db, upload)
     throw error
   }
-  let file = body
+  let hash: string
   if (upload.encoding === 'gzip') {
     try {
-      file = await gunzipCapped(body, MAX_FILE_BYTES)
+      const unzipped = await gunzipDigest(body, MAX_FILE_BYTES)
+      hash = unzipped.hash
+      // Unzipping is work the allowance is for: what the file unzipped to beyond what was sent is charged too.
+      if (unzipped.size > body.byteLength) {
+        await chargeUploadBytes(
+          c.env.DB,
+          upload.userId,
+          unzipped.size - body.byteLength,
+          c.var.deps.now(),
+        )
+      }
     } catch (error) {
       await releaseReservation(db, upload)
       throw error
     }
+  } else {
+    hash = await sha256Hex(body)
   }
   // The hash is of the file itself, so a gzipped body is checked as it unzips.
-  if ((await sha256Hex(file)) !== upload.row.fileHash) {
+  if (hash !== upload.row.fileHash) {
     await releaseReservation(db, upload)
     throw new HttpError(422, 'hash_mismatch', 'File does not match the digest it was uploaded for')
   }

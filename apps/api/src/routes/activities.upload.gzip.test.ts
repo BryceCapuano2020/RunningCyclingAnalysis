@@ -4,7 +4,15 @@ import { createHarness, digestFixture, START, type Harness } from '../test/harne
 import { activityFileKey } from '../storage.ts'
 import { sha256Hex } from '../util.ts'
 
-const FILE = new TextEncoder().encode('FIT-like bytes, '.repeat(400))
+/** Bytes that gzip to about half, as a FIT file does to a third: far inside the inflate ratio. */
+function noisy(length: number): Uint8Array {
+  let state = 12345
+  return Uint8Array.from({ length }, () => {
+    state = (state * 1103515245 + 12345) & 0x7fffffff
+    return (state >> 16) % 16
+  })
+}
+const FILE = noisy(20_000)
 const FILE_HASH = await sha256Hex(FILE)
 const DAY = new Date(START).toISOString().slice(0, 10)
 
@@ -18,7 +26,7 @@ async function gzipped(bytes: Uint8Array): Promise<Uint8Array> {
 const as = (token: string) => ({ cookies: { rca_session: token } })
 
 /** An activity of the user whose original is `FILE`, with files kept. */
-async function activityFor(h: Harness, token: string): Promise<string> {
+async function activityFor(h: Harness, token: string, hash = FILE_HASH): Promise<string> {
   const kept = await h.send({
     method: 'PUT',
     path: '/api/profile',
@@ -29,7 +37,7 @@ async function activityFor(h: Harness, token: string): Promise<string> {
   const created = await h.send({
     method: 'POST',
     path: '/api/activities',
-    json: { digest: digestFixture(), fileName: 'ride.fit', fileHash: FILE_HASH },
+    json: { digest: digestFixture(), fileName: 'ride.fit', fileHash: hash },
     ...as(token),
   })
   return ((await created.json()) as { id: string }).id
@@ -78,7 +86,7 @@ describe('a gzipped upload', () => {
     const object = await h.env.FILES!.get(key)
     expect(object?.httpMetadata?.contentEncoding).toBe('gzip')
     expect(new Uint8Array(await object!.arrayBuffer())).toEqual(zipped)
-    // The budgets count the bytes stored, not the file's own size (the ledger charges at least one minimum PUT).
+    // The object, the quota and the ledger count the bytes stored (the ledger charges at least one minimum PUT).
     const ledger = await h.env.DB.prepare(
       'SELECT lifetime_put_bytes FROM r2_storage_budget WHERE id = 1',
     ).first<{ lifetime_put_bytes: number }>()
@@ -90,7 +98,8 @@ describe('a gzipped upload', () => {
     )
       .bind(me.user.id, DAY)
       .first<{ used: number }>()
-    expect(daily?.used).toBe(zipped.byteLength)
+    // The unzipping is charged too, so the day's bytes are what the file unzipped to.
+    expect(daily?.used).toBe(FILE.byteLength)
   })
 
   it('is sent back gzipped with its encoding named, and unzips to the file', async () => {
@@ -155,6 +164,19 @@ describe('a gzipped upload', () => {
 
     expect(res.status).toBe(400)
     expect(await res.json()).toMatchObject({ error: { code: 'unsupported_encoding' } })
+    expect(await stored(h, id)).toEqual({ file_key: null, file_size: null })
+  })
+
+  it('is refused when it inflates past the ratio, and the reservation is given back', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const zeros = new Uint8Array(2_000_000)
+    const id = await activityFor(h, token, await sha256Hex(zeros))
+
+    const res = await put(h, token, id, await gzipped(zeros), 'gzip')
+
+    expect(res.status).toBe(413)
+    expect(await res.json()).toMatchObject({ error: { code: 'payload_too_large' } })
     expect(await stored(h, id)).toEqual({ file_key: null, file_size: null })
   })
 

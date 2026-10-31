@@ -11,41 +11,72 @@ export function encodingOf(request: Request): BodyEncoding {
   throw new HttpError(400, 'unsupported_encoding', 'Send the file as it is or gzipped')
 }
 
+/** The most a gzip body may inflate to, as a multiple of its own size. A FIT file gzips to about a third. */
+export const MAX_INFLATE_RATIO = 50
+
+/** Workerd's streaming digest, which the runtime provides and Node does not. */
+interface DigestStreamLike extends WritableStream<Uint8Array> {
+  readonly digest: Promise<ArrayBuffer>
+}
+type DigestStreamConstructor = new (algorithm: string) => DigestStreamLike
+
+const toHex = (bytes: Uint8Array) =>
+  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+
 /**
- * The bytes a gzip body holds, read in pieces and refused past `maxBytes`, so a small body that inflates
- * to a great one cannot fill the Worker's memory. A body that is not valid gzip is a client error.
+ * What a gzip body holds, as the SHA-256 and the size of the file it unzips to, read in pieces so the file itself is
+ * not kept: each piece goes to the hash as it comes (where the runtime has a streaming digest; elsewhere the pieces are
+ * kept and hashed at the end). A body is refused when it unzips past `maxBytes` or past `maxRatio` times its own size, so
+ * a small body that inflates to a great one cannot spend the Worker's memory or time. A body that is not valid gzip is a
+ * client error.
  */
-export async function gunzipCapped(compressed: Uint8Array, maxBytes: number): Promise<Uint8Array> {
-  const stream = new Blob([compressed as Uint8Array<ArrayBuffer>])
+export async function gunzipDigest(
+  compressed: Uint8Array,
+  maxBytes: number,
+  maxRatio = MAX_INFLATE_RATIO,
+): Promise<{ hash: string; size: number }> {
+  const limit = Math.min(maxBytes, compressed.byteLength * maxRatio)
+  const Digest = (crypto as unknown as { DigestStream?: DigestStreamConstructor }).DigestStream
+  const digest = Digest === undefined ? null : new Digest('SHA-256')
+  const writer = digest?.getWriter()
+  const kept: Uint8Array[] = []
+  const reader = new Blob([compressed as Uint8Array<ArrayBuffer>])
     .stream()
     .pipeThrough(new DecompressionStream('gzip'))
-  const reader = stream.getReader()
-  const chunks: Uint8Array[] = []
+    .getReader()
   let size = 0
   try {
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
-      if (size > maxBytes) {
+      if (size > limit) {
         throw new HttpError(
           413,
           'payload_too_large',
-          `The file is larger than ${maxBytes} bytes once unzipped`,
+          size > maxBytes
+            ? `The file is larger than ${maxBytes} bytes once unzipped`
+            : 'The file unzips to far more than it was sent as',
         )
       }
-      chunks.push(value)
+      if (writer === undefined) kept.push(value)
+      else await writer.write(value)
     }
   } catch (error) {
     void reader.cancel().catch(() => undefined)
+    void writer?.abort().catch(() => undefined)
     if (error instanceof HttpError) throw error
     throw new HttpError(400, 'bad_encoding', 'The body is not valid gzip')
   }
-  const bytes = new Uint8Array(size)
+  if (digest !== null && writer !== undefined) {
+    await writer.close()
+    return { hash: toHex(new Uint8Array(await digest.digest)), size }
+  }
+  const whole = new Uint8Array(size)
   let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
+  for (const chunk of kept) {
+    whole.set(chunk, offset)
     offset += chunk.byteLength
   }
-  return bytes
+  return { hash: toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', whole))), size }
 }

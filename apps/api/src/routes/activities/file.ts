@@ -26,6 +26,8 @@ fileRoutes.get('/:id/file', sameOriginReadGuard, requireUser, async (c) => {
   }
   if (!object) throw new HttpError(404, 'no_file', 'The stored file is missing')
 
+  // A gzipped original is sent as stored, and said to be: `encodeBody: 'manual'` keeps the runtime from compressing it
+  // again (it would otherwise read the header as a promise to encode a plain body).
   return new Response(object.body, {
     headers: {
       'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
