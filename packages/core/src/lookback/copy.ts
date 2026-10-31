@@ -162,7 +162,11 @@ export function effortName(effort: EffortMilestones['effort']): string {
 }
 
 /** A best as the page writes it: a pace or a power for a length of time, a time for a distance. */
-export function bestValue(m: EffortMilestones, value: number, system: UnitSystem): string {
+export function bestValue(
+  m: Pick<EffortMilestones, 'unit'>,
+  value: number,
+  system: UnitSystem,
+): string {
   if (m.unit === 'm/s') return formatPace(value, system)
   if (m.unit === 'W') return formatPower(value)
   if (m.unit === 'W/kg') return `${value.toFixed(2)} W/kg`
