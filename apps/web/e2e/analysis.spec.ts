@@ -130,6 +130,31 @@ test('the ride on foot tile names the ride behind its effort and opens to every 
   await expect(rideEffort).toBeVisible()
 })
 
+test('Balance says the lean once: no lean tile, three tiles at most, and the level target under the lede', async ({
+  page,
+}) => {
+  await openSample(page)
+
+  await expect(page.getByRole('article', { name: 'Lean' })).toHaveCount(0)
+  const tiles = page.locator('.balance-tiles')
+  await expect(tiles.getByRole('article')).toHaveCount(3)
+  await expect(tiles).not.toContainText(/\bpts\b/)
+  // The gap in points is the meter's figure, once; the target is a line of the hero, not of a tile.
+  await expect(page.locator('.balance-meter__number')).toHaveCount(1)
+  const target = page.locator('.balance-hero').getByText(/^To grade level with your/)
+  await expect(target).toHaveCount(1)
+  await expect(tiles.getByText(/^To grade level with your/)).toHaveCount(0)
+  // No tile figure is as large as the headline.
+  const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
+    return parseFloat(getComputedStyle(el).fontSize)
+  })
+  for (const figure of await tiles.locator('.stat-tile__number').all()) {
+    const size = await figure.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+    expect(size).toBeLessThanOrEqual(48)
+    expect(size).toBeLessThanOrEqual(headline)
+  }
+})
+
 test('uploading the Strava export zip shows the results, including its GPX run', async ({
   page,
 }) => {
