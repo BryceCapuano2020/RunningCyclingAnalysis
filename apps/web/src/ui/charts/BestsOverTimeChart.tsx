@@ -19,7 +19,7 @@ import { idleFrom } from './idleReadout'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { axisTitle, formatNative, nativeLabel } from './sportAxis'
 import { axisFontSize } from './ticks'
-import { shortDateWithYear } from './trendTicks'
+import { activityDate } from './trendTicks'
 import './ChartHeadings.css'
 import './ChartSeries.css'
 import './BestsOverTimeChart.css'
@@ -60,7 +60,7 @@ function tooltipFor(
   return {
     x,
     y,
-    title: shortDateWithYear(dot.atMs),
+    title: activityDate(dot.atMs),
     rows: [
       {
         kind: sport,
@@ -111,10 +111,7 @@ export function BestsOverTimeChart({
       }
       table={{
         columns: ['Day', nativeLabel(sport)],
-        rows: dots.map((dot) => [
-          shortDateWithYear(dot.atMs),
-          formatNative(sport, dot.value, units),
-        ]),
+        rows: dots.map((dot) => [activityDate(dot.atMs), formatNative(sport, dot.value, units)]),
         caption: `The efforts of ${effort} or longer that were the best of their stretch, oldest first.`,
       }}
       empty={

@@ -1,3 +1,4 @@
+import type { Dated } from '@rca/core/calendar'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import {
   FIRST_GRADED_AGE,
@@ -105,8 +106,8 @@ export const SEX_NOUN: Record<Sex, string> = { female: 'woman', male: 'man' }
  * The athlete's age on atMs, from the year of birth. Null outside the ages the standards cover,
  * so an age the standards cannot grade is never used.
  */
-export function ageAndSexAt(profile: AgeProfile, atMs: number): AgeAndSex | null {
-  const age = ageAt(profile.birthYear, atMs)
+export function ageAndSexAt(profile: AgeProfile, at: number | Dated): AgeAndSex | null {
+  const age = ageAt(profile.birthYear, at)
   if (age === null || age < FIRST_GRADED_AGE || age > LAST_GRADED_AGE) return null
   return { age, sex: profile.sex }
 }
@@ -121,10 +122,10 @@ function gap(reason: string): GradeOutcome {
   return { kind: 'gap', reason }
 }
 
-/** The start of the activity with this id, or null when it is not among the result's activities. */
-function startOf(result: AnalysisResult, activityId: string | null): number | null {
+/** The start (with its day shift) of the activity with this id, or null when it is not among the result's activities. */
+function startOf(result: AnalysisResult, activityId: string | null): Dated | null {
   if (activityId === null) return null
-  return result.activities.find((activity) => activity.id === activityId)?.startMs ?? null
+  return result.activities.find((activity) => activity.id === activityId) ?? null
 }
 
 /**
@@ -208,9 +209,9 @@ export function sportGrade(
   const curve = curveOf(result, sport)
   const point = curve.find((candidate) => candidate.durationS === durationS)
   if (point === undefined || !Number.isFinite(point.value)) return gap(NEEDS_EFFORT_TEXT)
-  const startMs = startOf(result, point.activityId)
-  if (startMs === null) return gap(NO_DATE_TEXT)
-  const ageAndSex = ageAndSexAt(profile, startMs)
+  const started = startOf(result, point.activityId)
+  if (started === null) return gap(NO_DATE_TEXT)
+  const ageAndSex = ageAndSexAt(profile, started)
   if (ageAndSex === null) return gap(AGE_RANGE_TEXT)
   if (sport === 'run') {
     const grade = runGradeAt(metabolicToFlatSpeed(point.value), durationS, ageAndSex)
@@ -335,10 +336,10 @@ export function gradeParts(
 export function distanceGrade(
   distanceM: number,
   seconds: number,
-  startMs: number,
+  started: number | Dated,
   profile: AgeProfile,
 ): GradeOutcome {
-  const ageAndSex = ageAndSexAt(profile, startMs)
+  const ageAndSex = ageAndSexAt(profile, started)
   if (ageAndSex === null) return gap(AGE_RANGE_TEXT)
   const centre = gradeAtSpeed(distanceM / seconds, seconds, ageAndSex)
   if (centre === null) return gap(NO_STANDARD_TEXT)

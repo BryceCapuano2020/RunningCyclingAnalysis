@@ -24,16 +24,16 @@ export interface MethodTime {
 export interface RacePrediction {
   distanceM: number
   /**
-   * The predicted time, s: the geometric mean of the methods that could judge the race, and never slower than the
-   * runner's own best at this distance among the bests it was worked out from (a run already done is a floor).
+   * The predicted time, s: the geometric mean of the methods that could judge the race, each held at the runner's own
+   * best at this distance among the bests it was worked out from (a run already done is a floor).
    */
   seconds: number
   /** The 10th to 90th percentile of likely times, s, from published errors and the methods' disagreement. */
   low: number
   high: number
-  /** Whether the time was moved onto the athlete's own best at this distance, which it would otherwise be slower than. */
+  /** Whether the middle of the methods was slower than the athlete's own best at this distance, so the times were held at it. */
   floored: boolean
-  /** Each method's own time, performances first. */
+  /** Each method's own time, performances first, as held at the athlete's own best. */
   methods: MethodTime[]
 }
 
@@ -75,28 +75,47 @@ function heartRateAnchors(vo2max: Vo2maxEstimate): Performance[] {
 /**
  * The prediction from the methods' times: their geometric mean, and a range whose spread combines the
  * race's published error with half the methods' log disagreement, since both are uncertainty. Where the runner
- * has already run the race's distance faster (`demonstrated`, s), a mean slower than that is moved onto it, the
- * range with it: a time already run is not one to predict beyond.
+ * has already run the race's distance faster (`demonstrated`, s), a method slower than that is held at it before
+ * anything is combined: a time already run is not one to predict beyond, so no estimate shown, and nothing made
+ * of them, is slower than the athlete's own best. `floored` says the middle of the methods, as they stood, was
+ * slower than that time.
  */
 function predictionOf(
   distanceM: RaceM,
   methods: MethodTime[],
   demonstrated: number | null,
 ): RacePrediction {
-  const logs = methods.map((m) => Math.log(m.seconds))
+  const held = methods.map((m) =>
+    demonstrated !== null && demonstrated < m.seconds ? { ...m, seconds: demonstrated } : m,
+  )
+  const logs = held.map((m) => Math.log(m.seconds))
   const mean = logs.reduce((sum, value) => sum + value, 0) / logs.length
   const disagreement = (Math.max(...logs) - Math.min(...logs)) / 2
   const sd = Math.hypot(RACE_LOG_SD[distanceM], disagreement)
-  const seconds = methods.length === 1 ? methods[0]!.seconds : Math.exp(mean)
-  const move = demonstrated !== null && demonstrated < seconds ? demonstrated / seconds : 1
+  // Equal times average back to themselves only to rounding, so the mean is held at the best too.
+  const middle = held.length === 1 ? held[0]!.seconds : Math.exp(mean)
   return {
     distanceM,
-    seconds: seconds * move,
-    low: Math.exp(mean - RACE_RANGE_Z * sd) * move,
-    high: Math.exp(mean + RACE_RANGE_Z * sd) * move,
-    methods,
-    floored: move !== 1,
+    seconds: demonstrated === null ? middle : Math.min(middle, demonstrated),
+    low: Math.exp(mean - RACE_RANGE_Z * sd),
+    high: Math.exp(mean + RACE_RANGE_Z * sd),
+    methods: held,
+    floored: demonstrated !== null && demonstrated < geometricMean(methods),
   }
+}
+
+/** The geometric mean of the methods' times, s. */
+function geometricMean(methods: readonly MethodTime[]): number {
+  return Math.exp(methods.reduce((sum, m) => sum + Math.log(m.seconds), 0) / methods.length)
+}
+
+/** The fastest of the bests at each distance, s: the best time at a distance, whichever run set it. */
+function fastestPerDistance(bests: readonly Performance[]): Performance[] {
+  const fastest = new Map<number, number>()
+  for (const { distanceM, seconds } of bests) {
+    fastest.set(distanceM, Math.min(seconds, fastest.get(distanceM) ?? Number.POSITIVE_INFINITY))
+  }
+  return [...fastest].map(([distanceM, seconds]) => ({ distanceM, seconds }))
 }
 
 /** The fastest of the bests at exactly this distance, s, or null when none was run there. */
@@ -111,7 +130,7 @@ function demonstratedAt(bests: readonly Performance[], distanceM: number): numbe
  * pass through the same training-volume correction for the marathon. A race neither can judge is left out.
  */
 export function predictRunRaces(input: RunPredictionInput): RunPredictions {
-  const bests = input.bests.filter((b) => b.distanceM > 0 && b.seconds > 0)
+  const bests = fastestPerDistance(input.bests.filter((b) => b.distanceM > 0 && b.seconds > 0))
   const sources: [PredictionMethod, Performance[]][] = [['performances', bests]]
   if (input.vo2max !== null) sources.push(['heartRate', heartRateAnchors(input.vo2max)])
   const races = RUN_RACE_DISTANCES_M.flatMap((distanceM) => {

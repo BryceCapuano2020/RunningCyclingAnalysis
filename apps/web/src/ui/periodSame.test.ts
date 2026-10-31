@@ -18,15 +18,23 @@ describe('sameAsShorterText', () => {
   const library = ago(0, 3, 10, 30)
 
   it('names the shortest period that holds the same activities, with their count', () => {
-    expect(sameAsShorterText(library, period('default', 84))).toBe('Same 4 activities as 6 weeks')
-    expect(sameAsShorterText(library, period(365, 365))).toBe('Same 4 activities as 6 weeks')
-    expect(sameAsShorterText(library, period('all', null))).toBe('Same 4 activities as 6 weeks')
+    expect(sameAsShorterText(library, period('default', 84))).toBe(
+      'Same 4 activities as the 6 weeks to your latest activity',
+    )
+    expect(sameAsShorterText(library, period(365, 365))).toBe(
+      'Same 4 activities as the 6 weeks to your latest activity',
+    )
+    expect(sameAsShorterText(library, period('all', null))).toBe(
+      'Same 4 activities as the 6 weeks to your latest activity',
+    )
   })
 
   it('names the nearest shorter period that holds as many, not a shorter one that holds fewer', () => {
     const more = ago(0, 3, 10, 60)
     expect(sameAsShorterText(more, period('default', 84))).toBeNull()
-    expect(sameAsShorterText(more, period(365, 365))).toBe('Same 4 activities as 12 weeks')
+    expect(sameAsShorterText(more, period(365, 365))).toBe(
+      'Same 4 activities as the 12 weeks to your latest activity',
+    )
   })
 
   it('says nothing for the shortest period, a custom range, or a period with nothing in it', () => {
@@ -42,6 +50,8 @@ describe('sameAsShorterText', () => {
   })
 
   it('writes one activity in the singular', () => {
-    expect(sameAsShorterText(ago(0), period('default', 84))).toBe('Same 1 activity as 6 weeks')
+    expect(sameAsShorterText(ago(0), period('default', 84))).toBe(
+      'Same 1 activity as the 6 weeks to your latest activity',
+    )
   })
 })

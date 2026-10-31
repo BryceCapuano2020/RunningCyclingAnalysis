@@ -4,7 +4,8 @@ import { gapReading } from '../components/balanceScale'
 import { balanceTitle } from '../components/headlineText'
 import type { GradeOutcome } from '../grades'
 import { LANDING_EXAMPLE } from '../landingExample'
-import { SAMPLE_AGE, SAMPLE_DESCRIPTION } from '../sampleAthlete'
+import type { UnitSystem } from '@rca/core/units'
+import { SAMPLE_AGE, sampleDescription } from '../sampleAthlete'
 import { FITNESS_STATE, trackModel } from '../fitnessModel'
 import { SPORT_ORDER } from '../sports'
 import { balanceLevels } from './levelsModel'
@@ -30,7 +31,7 @@ const SLIP_TRACK = trackModel('run', fitness.change, null, { before: '', now: ''
  * illustrative, and names the sample. The fitness finding is the second panel (LandingFitnessExample), set
  * below the actions so the first screen keeps Add files.
  */
-export function LandingExample() {
+export function LandingExample({ units = 'metric' }: { units?: UnitSystem }) {
   const reading = gapReading(LANDING_EXAMPLE.gap)
   const levels = balanceLevels({
     grades: GRADES,
@@ -40,7 +41,7 @@ export function LandingExample() {
   })
   return (
     <figure className="landing-example">
-      <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`}</figcaption>
+      <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${sampleDescription(units)}`}</figcaption>
       <p className="landing-example__title">{balanceTitle(reading)}</p>
       <BalanceMeter reading={reading} />
       <BalanceLevels model={levels} />
