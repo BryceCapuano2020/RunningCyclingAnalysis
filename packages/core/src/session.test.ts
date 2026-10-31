@@ -1077,6 +1077,7 @@ describe('AnalysisSession', () => {
   it.each<SyncIssueCode>([
     'digest-quota',
     'database-full',
+    'read-only',
     'daily-limit',
     'activity-quota',
     'rate-limited',

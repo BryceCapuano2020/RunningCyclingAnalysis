@@ -115,12 +115,12 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
       <p className="cross-sport__pair" aria-hidden="true">
         <span className="cross-sport__chip" data-sport="ride">
           <SportIcon sport="ride" />
-          {formatPower(featured.ridePowerW)}
+          {`Ride ${formatPower(featured.ridePowerW)}`}
         </span>
         <ArrowRightIcon />
         <span className="cross-sport__chip" data-sport="run">
           <SportIcon sport="run" />
-          on foot
+          Run on the flat
         </span>
       </p>
       <p className="stat-tile__line">

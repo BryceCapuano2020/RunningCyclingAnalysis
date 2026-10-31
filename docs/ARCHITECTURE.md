@@ -443,7 +443,7 @@ the server stores only that. A digest holds:
 - **Mass-free power terms and calibration sums**: the per-sample terms of the virtual-power model
   with mass and bike constants left out.
 - **Run distance bests**: for runs only, the fastest wall-clock time over each distance in
-  `RUN_RECORD_DISTANCES_M` (1 km, 1 mi, 5 km, 10 km and the half marathon). A window may not include a
+  `RUN_RECORD_DISTANCES_M` (1 km, 1 mi, 5 km, 10 km, the half marathon and, from revision 7, the marathon). A window may not include a
   second the device did not record (a gap of over 10 s that no timer pause covers, where distance is
   held and time is unknown), an invalid motion sample (which includes a stretch flagged
   `implausible-speed`), or a distance step above the top run speed. A timer pause is real time and

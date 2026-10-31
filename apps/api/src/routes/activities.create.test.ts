@@ -16,6 +16,7 @@ import {
   type Harness,
 } from '../test/harness.ts'
 import { seedActivityRow } from '../test/seed.ts'
+import { bulk } from '../test/sized.ts'
 import { sha256Hex } from '../util.ts'
 
 const CONTENT = new TextEncoder().encode('0123 fake FIT bytes')
@@ -271,7 +272,7 @@ describe('per-user digest byte quota', () => {
       h,
       token,
       {},
-      { modelRevision: MODEL_REVISION, name: 'x'.repeat(MAX_DIGEST_BYTES / 2) },
+      { modelRevision: MODEL_REVISION, ...bulk(MAX_DIGEST_BYTES / 2) },
     )
     expect(refused.status).toBe(403)
     expect(await refused.json()).toMatchObject({ error: { code: 'digest_quota' } })
