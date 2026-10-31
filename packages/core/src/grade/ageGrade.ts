@@ -1,3 +1,4 @@
+import { runCeilingSpeed } from '../curves/runCeiling'
 import { ROAD_DISTANCES_M, ROAD_STANDARDS_FEMALE, ROAD_STANDARDS_MALE } from './roadStandards'
 
 export type Sex = 'female' | 'male'
@@ -77,6 +78,19 @@ export function ageGradeForEffort(
 ): number | null {
   if (!Number.isFinite(speedMs) || !Number.isFinite(durationS)) return null
   return ageGrade(speedMs * durationS, durationS, age, sex)
+}
+
+/**
+ * The highest age grade a running equivalent can reach for durationS, for an athlete of this age and sex.
+ * A grade of 1 is the age standard, the level of the best performances for the age and sex, and the
+ * open world record's speed (RUN_WORLD_RECORD_SPEEDS) bounds it too, so the ceiling is whichever of the
+ * two is lower. A ride whose equivalent reaches it is not graded: no runner of this age and sex
+ * has run that fast, so the power is not a believable input. Null when the record's distance
+ * at that length is under the shortest standard (a mile), where any graded effort is already beyond it.
+ */
+export function gradeCeiling(durationS: number, age: number, sex: Sex): number | null {
+  const atRecord = ageGradeForEffort(runCeilingSpeed(durationS), durationS, age, sex)
+  return atRecord === null ? null : Math.min(1, atRecord)
 }
 
 /**

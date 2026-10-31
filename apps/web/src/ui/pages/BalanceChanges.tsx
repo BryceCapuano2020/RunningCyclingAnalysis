@@ -51,7 +51,7 @@ function Tag({ tag }: { tag: ChangeTag }) {
  */
 export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) {
   if (changes === null || previousLabel === null) return null
-  const { items, notes, compared } = changes
+  const { items, notes, unchecked, compared } = changes
   return (
     <section className="balance-changes" aria-labelledby="balance-changes-title">
       <h2 id="balance-changes-title" className="balance-changes__title">
@@ -84,6 +84,11 @@ export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) 
           ))}
         </>
       )}
+      {unchecked.map((line) => (
+        <p key={line} className="balance-changes__empty">
+          {line}
+        </p>
+      ))}
     </section>
   )
 }

@@ -6,6 +6,10 @@ import type { HoldInputs } from '../resultHold'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
 import { HARDER_EFFORTS_TITLE, levelsTitle } from '../components/headlineText'
 import { plural } from '../components/plural'
+import { POWER_IMPLAUSIBLE_TEXT, POWER_IMPLAUSIBLE_TITLE } from '../analysis/powerCheckCopy'
+import { TOP_OF_SCALE_TEXT } from '../grades'
+import { rideOutOf } from '../rideLeftOut'
+import type { RideLeftOut } from '../rideLeftOut'
 import { leftOutNote } from '../analysis/walkingPaceCopy'
 import { betweenClause } from '../periodCopy'
 import { countEfforts, countSport } from '../records'
@@ -58,6 +62,15 @@ function noneOnScreen(
     detail: 'Your files have no running or cycling activities yet.',
     canShowAll: false,
   }
+}
+
+/** What a ride left out of the comparison says, and the title it takes when there is no run level to lead with. */
+const LEFT_OUT: Record<RideLeftOut, { title: string; detail: string }> = {
+  'top-of-scale': {
+    title: 'Your cycling is at the top of the age tables',
+    detail: TOP_OF_SCALE_TEXT,
+  },
+  'implausible-power': { title: POWER_IMPLAUSIBLE_TITLE, detail: POWER_IMPLAUSIBLE_TEXT },
 }
 
 /**
@@ -118,6 +131,16 @@ export function missingText(
     }
   }
   if (runs === 0 && rides === 0) return noneOnScreen(libraryRuns, libraryRides, when, leftOut)
+  // Both sports are here, and the ride is out of the comparison: say why rather than ask for harder efforts.
+  const out = rideOutOf(holdInputs)
+  if (out !== null) {
+    const said = LEFT_OUT[out]
+    return {
+      title: levelsTitle({ run: levels.run }) ?? said.title,
+      detail: said.detail,
+      canShowAll: false,
+    }
+  }
   return heldMissing(result, library, period, levels, holdInputs)
 }
 
