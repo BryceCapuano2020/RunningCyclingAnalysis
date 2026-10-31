@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { simulate } from '../fitness/test/runSim'
+import { replaySim, simulate } from '../fitness/test/runSim'
 import type { SimSpec } from '../fitness/test/runSim'
 import { WEEK_ORIGIN_MS } from '../fitness/machine'
 import { DAY_MS } from '../constants'
@@ -112,7 +112,7 @@ describe('episodes', () => {
   it('lists a step beside a break of eight weeks or more with no run as after-break, and the break itself', () => {
     const result = told(
       years(
-        { weeks: 200, planted: [{ type: 'step', week: 90, size: -0.1 }] },
+        { weeks: 200, planted: [{ type: 'step', week: 90, size: -0.12 }] },
         1,
         (r) => r.t >= 82 * 7 && r.t < 92 * 7,
       ),
@@ -179,5 +179,48 @@ describe('the back test', () => {
     const se = Math.sqrt(0.002 ** 2 + 0.002 ** 2 + 0.015 ** 2)
     expect(isBack(pre, post, 0.015)).toBe(isBackLevel(-0.009, se))
     expect(isBack(pre, level(-0.011, 0.002), 0)).toBe(false)
+  })
+})
+
+describe('a recovery the card said back for', () => {
+  const dip = [
+    { type: 'step' as const, week: 90, size: -0.08 },
+    { type: 'step' as const, week: 140, size: 0.08 },
+  ]
+  const library = (planted: typeof dip) =>
+    simulate({ weeks: 200, perWeek: 3, planted, ...QUIET }, 8)
+  const kinds = (runs: RunPoint[], records?: ReturnType<typeof replaySim>) => {
+    const result = hindsightOf({ runs, activeDays: runs.map((r) => r.t), asOfDay: 1400, records })
+    return result.kind === 'ok' ? result.episodes.map((e) => e.kind) : []
+  }
+  const runs = library(dip)
+  const records = replaySim(runs, 200)
+
+  it('is back when the card reached back for it, and only partly back on the floor test alone', () => {
+    expect(kinds(runs)).toEqual(['slip-partly-back'])
+    expect(kinds(runs, records)).toEqual(['slip-back'])
+  })
+
+  it('stays partly back when the card reopened the slip after back', () => {
+    const at = records.findIndex((r) => r.state === 'back' && r.fresh)
+    expect(at).toBeGreaterThan(0)
+    const reopened = records.map((r, i) =>
+      i === at + 1 ? { ...r, state: 'slipping' as const, fresh: true } : r,
+    )
+    expect(kinds(runs, reopened)).toEqual(['slip-partly-back'])
+  })
+
+  it('stays partly back when the level after the return is clearly lower, whatever the card said', () => {
+    // A fall of 12% and a return of 6.5% leaves about 6% missing; the card's back belongs to the other library.
+    const residual = library([
+      { type: 'step', week: 90, size: -0.12 },
+      { type: 'step', week: 140, size: 0.065 },
+    ])
+    expect(kinds(residual, records)).toEqual(['slip-partly-back'])
+  })
+
+  it('ignores a back that belongs to another slip', () => {
+    const elsewhere = records.map((r) => Object.assign({}, r, { w: r.w + 60 }))
+    expect(kinds(runs, elsewhere)).toEqual(['slip-partly-back'])
   })
 })
