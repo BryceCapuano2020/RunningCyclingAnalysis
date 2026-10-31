@@ -279,8 +279,6 @@ export const RUN_RACE_DISTANCES_M = [5_000, 10_000, HALF_MARATHON_M, MARATHON_M]
  * 2,303 recreational runners, so it is used as is, not fitted to bests that may not have been all-out.
  */
 export const RIEGEL_EXPONENT = 1.07
-/** A best predicts a race at most this many times its own distance, since the error grows with the ratio. */
-export const RIEGEL_MAX_RATIO = 10
 
 /**
  * The heart-rate estimate of VO2max uses windows of at least this long, s, at or above this share of the

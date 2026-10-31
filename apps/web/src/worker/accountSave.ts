@@ -1,12 +1,20 @@
 import { MAX_FILE_BYTES } from '@rca/contract'
 import type { ActivityRecord } from '@rca/contract'
-import { stopsSaving, SyncFailure } from '@rca/core/session'
+import { SyncFailure } from '@rca/core/session'
 import type { SyncItem, SyncSink } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import { ApiRequestError, createActivity, uploadFile } from '../api/client'
 import { workoutKeyOf } from './device'
+import {
+  Gate,
+  MAX_BYTES_IN_FLIGHT,
+  MAX_SAVES_IN_FLIGHT,
+  Room,
+  SAVE_CONCURRENCY,
+  UPLOAD_CONCURRENCY,
+} from './saveLimits'
 import type { SyncOptions } from './protocol'
-import { retryAfterRateLimit } from './rateLimitRetry'
+import { retryAfterUploadSlot, SaveStop } from './rateLimitRetry'
 import type { RouteMemory } from './routes'
 import { syncFailureOf } from './syncIssue'
 
@@ -27,12 +35,17 @@ export interface AccountSaveContext {
 
 /**
  * Saves each activity of an import to the account, and uploads its original when files are kept.
- * A rate limit is waited out and the activity tried once more. A failure is thrown as a SyncFailure,
- * and the first one that stops saving is reported to `onStopped`.
+ * A rate limit is waited out, by one save for all, and the activity tried once more. A failure is thrown as a
+ * SyncFailure. The first one that stops saving is reported to `onStopped`, and the saves still waiting fail with
+ * the same cause without being sent.
  */
 export function accountSaver(ctx: AccountSaveContext): SyncSink {
   const { sync, savedRecords, missingOriginals } = ctx
   let storageBudgetExhausted = false
+  const creates = new Gate(SAVE_CONCURRENCY)
+  const uploads = new Gate(UPLOAD_CONCURRENCY)
+  const room = new Room(MAX_SAVES_IN_FLIGHT, MAX_BYTES_IN_FLIGHT)
+  const stop = new SaveStop(ctx.onStopped)
 
   const upload = async (record: ActivityRecord, item: SyncItem): Promise<void> => {
     // The limit is inclusive: a file of exactly MAX_FILE_BYTES is kept.
@@ -46,7 +59,14 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
       throw new SyncFailure('storage-budget', 'Original-file storage allowance is exhausted')
     }
     try {
-      savedRecords.set(record.id, await uploadFile(record.id, item.bytes, sync.userId))
+      const saved = await retryAfterUploadSlot(() =>
+        uploads.run(() => {
+          // Saves stopped while this one waited for an upload slot send nothing more.
+          stop.check()
+          return uploadFile(record.id, item.bytes, sync.userId)
+        }),
+      )
+      savedRecords.set(record.id, saved)
     } catch (error) {
       if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
         storageBudgetExhausted = true
@@ -55,9 +75,18 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     }
   }
 
-  const saveOnce = async (item: SyncItem): Promise<void> => {
+  const saveOnce = async (item: SyncItem, leading: boolean): Promise<void> => {
     const key = workoutKeyOf(item.digest)
-    const { record } = await createActivity(item.digest, item.fileName, item.fileHash, sync.userId)
+    const send = () => createActivity(item.digest, item.fileName, item.fileHash, sync.userId)
+    // The try that follows a rate limit goes round the gate, which the saves waiting out the same limit may hold
+    // full; it is one request beyond the gate's limit.
+    const { record } = await (leading
+      ? send()
+      : creates.run(async () => {
+          // A save that waited for its turn sends nothing if the saves stopped, or waits out a limit first.
+          await stop.ready()
+          return send()
+        }))
     savedRecords.set(record.id, record)
     ctx.routes.remember(record.id, item.route ?? null)
     if (record.hasFile) missingOriginals.delete(key)
@@ -75,13 +104,25 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     ctx.onSaved()
   }
 
-  return async (item) => {
+  const save = async (item: SyncItem): Promise<void> => {
     try {
-      await retryAfterRateLimit(() => saveOnce(item), ctx.onPaused)
+      await stop.run((leading) => saveOnce(item, leading), ctx.onPaused)
     } catch (error) {
       const failure = syncFailureOf(error)
-      if (stopsSaving(failure.code)) ctx.onStopped(failure.code)
+      stop.noteFailure(failure.code)
       throw failure
     }
+  }
+
+  return async (item) => {
+    // A replacement or a retry is saved before the next file is looked at, as it always was.
+    if (item.queueable !== true) return await save(item)
+    // A new activity is saved beside the others, up to what the server and the browser can hold at once. The
+    // import goes on reading while its saves run, and waits for them all before it ends.
+    await room.enter(item.bytes.byteLength)
+    const done = save(item).finally(() => room.leave(item.bytes.byteLength))
+    // Whatever a save throws is the import's to read, from `done`; an unread rejection would be a second report.
+    done.catch(() => undefined)
+    return { done }
   }
 }

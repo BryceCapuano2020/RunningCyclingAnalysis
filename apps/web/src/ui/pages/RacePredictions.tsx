@@ -7,7 +7,13 @@ import { Definition } from '../components/Definition'
 import { DEFINITIONS } from './balanceDefinitions'
 import { useScrollRegion } from '../useScrollRegion'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
-import { methodNote, originText, predictionsLede, spreadText } from './racePredictionCopy'
+import {
+  FLOORED_TEXT,
+  methodNote,
+  originText,
+  predictionsLede,
+  spreadText,
+} from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
 import { ranText } from './raceRan'
@@ -37,7 +43,7 @@ function barLabel(prediction: RacePrediction, ran: RanBest | undefined): string 
   const estimates = prediction.methods
     .map((m) => `${METHOD_NAME[m.method].toLowerCase()} ${formatRecordTime(m.seconds)}`)
     .join(', ')
-  return `${raceName(prediction.distanceM)} predicted ${formatRecordTime(prediction.seconds)}, assumed spread ${spreadText(prediction)}${estimates ? `. ${estimates}` : ''}.${ran ? ` ${ranText(ran)}.` : ''}`
+  return `${raceName(prediction.distanceM)} predicted ${formatRecordTime(prediction.seconds)}, assumed spread ${spreadText(prediction)}${estimates ? `. ${estimates}` : ''}.${ran ? ` ${ranText(ran)}.` : ''}${prediction.floored && !ran ? ` ${FLOORED_TEXT}.` : ''}`
 }
 
 /**
@@ -55,7 +61,7 @@ function RaceBar({
   ran: RanBest | undefined
   scale: RaceScale
 }) {
-  const bar = raceBar(prediction, scale, ran?.seconds ?? null)
+  const bar = raceBar(prediction, scale, ran?.side === 'faster' ? ran.seconds : null)
   return (
     <div className="race-bar" role="img" aria-label={barLabel(prediction, ran)}>
       <span className="race-bar__end race-bar__end--low" style={{ left: `${bar.low * 100}%` }}>
@@ -107,6 +113,7 @@ function RaceRow({
           {formatPace(prediction.distanceM / prediction.seconds, units)}
         </span>
         {ran && <span className="race-row__ran">{ranText(ran)}</span>}
+        {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
       </p>
       <RaceBar prediction={prediction} ran={ran} scale={scale} />
       <p className="race-row__time">{formatRecordTime(prediction.seconds)}</p>
@@ -179,7 +186,7 @@ function RaceTable({
             ))}
             {ran.length > 0 && (
               <th scope="col" className="num">
-                Recorded run, faster
+                Recorded best, off the prediction
               </th>
             )}
           </tr>
@@ -240,14 +247,18 @@ export function RacePredictions({
 }) {
   const headingId = `${sport}-races`
   // One scale for every bar: a bar's width is its race's own uncertainty, as a share of its time.
-  const scale = raceScale(found.races, new Map(ran.map((best) => [best.distanceM, best.seconds])))
+  const faster = ran.filter((best) => best.side === 'faster')
+  const scale = raceScale(
+    found.races,
+    new Map(faster.map((best) => [best.distanceM, best.seconds])),
+  )
   return (
     <section className="section race-predictions" aria-labelledby={headingId}>
       <div className="section-head">
         <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
         <p className="secondary">{predictionsLede(found, allTime)}</p>
       </div>
-      <RaceKey found={found} anyRan={ran.length > 0} />
+      <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />
       <ul className="race-rows">
         {found.races.map((prediction) => (
           <RaceRow

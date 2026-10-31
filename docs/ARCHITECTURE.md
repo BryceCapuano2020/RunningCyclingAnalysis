@@ -91,6 +91,17 @@ script that asks for the same routes still gets the JSON error.
    per-account quota and the deployment-wide R2 budget, streams the bytes to R2 under a per-user key
    prefix, and records the key and size on the row.
 
+A signed-in import saves a new activity in the background while it goes on reading: up to three creates and two
+original-file uploads (the server's two upload slots) are open at once, and the import waits for all of them
+before it ends. At most six saves, and 48 MiB of file bytes, are in flight; the reader waits when the saves are
+full, so a large library stays flat in memory. A replacement of a held copy, or a retry of an activity whose
+save failed, is saved before the next file is looked at, so two saves of one workout never overlap. A failure
+belongs to the activity that had it. One that ends the saves (a full library, a spent day, a rate limit that
+holds) is shared: the saves still waiting fail with the same cause without being sent. A rate limit is waited out
+by one save, and the others wait for how its second try ends. A second copy of a workout whose first save is
+in flight waits for that save, so it is the retry if the first fails, as when saves run one at a time. After
+repeated network failures one save is the probe and the others wait for its answer.
+
 **View** (combine in the browser)
 
 1. The web app calls `GET /api/activities` with optional `since`, `limit` and `cursor` query
@@ -115,6 +126,9 @@ script that asks for the same routes still gets the JSON error.
 - `DELETE /api/me` deletes the account (see Security).
 - `GET /api/activities/:id/file` downloads an original, and `DELETE /api/activities/:id` removes an
   activity and its stored original.
+- `PATCH /api/activities/labels` sets or clears the athlete's label on up to 200 saved activities in place.
+  Each change names the revision and label the client read and applies only to a row that still holds
+  both; the digest counter moves in the same batch, and no digest travels up. No client calls it yet.
 
 **Activity workbench**
 

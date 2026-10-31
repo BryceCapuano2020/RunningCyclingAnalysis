@@ -1,4 +1,4 @@
-/* The headline tiles: all in a row on a wide screen, two across on a tablet, one on a phone. */
+/* The headline tiles, three at most: all in a row on a wide screen, two across on a tablet, one on a phone. */
 .balance-tiles {
   display: grid;
   gap: var(--space-4);
@@ -15,9 +15,5 @@
 @media (min-width: 64rem) {
   .balance-tiles[data-tiles='3'] {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .balance-tiles[data-tiles='4'] {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

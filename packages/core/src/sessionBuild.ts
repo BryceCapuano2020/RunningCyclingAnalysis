@@ -1,5 +1,6 @@
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { activitySummaries } from './digest'
+import { hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
@@ -81,7 +82,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
       : null
   // The references that zones are cut from are the library's, not the period's: one activity has the same zones
   // under every period, and Profile, the activity page and the time in zones all read them.
-  const zoneEstimates = athlete !== null && analysis !== null ? zoneEstimatesOf(judgement) : null
+  const zoneEstimates =
+    athlete !== null && analysis !== null
+      ? zoneEstimatesOf(judgement, Math.floor(inputs.nowMs / DAY_MS) * DAY_MS)
+      : null
   // The selected period's bike model prices the trend and the previous period alike.
   const bikeModel = analysis?.bikeModel
   // All time is not clipped at a start, so its trend begins at the first activity.
@@ -123,7 +127,15 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         : null,
     change:
       athlete !== null && bikeModel !== undefined && previous.length > 0
-        ? periods.change(selected, previous, athlete, bikeModel, judgement.rideGate)
+        ? // The test reads the efforts the effort gate does not show easy, so a swing in how many hard efforts a period holds is no change.
+          periods.change(
+            selected,
+            previous,
+            athlete,
+            bikeModel,
+            judgement.rideGate,
+            hardEffortRule(judgement.effortReference, setAside),
+          )
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,
