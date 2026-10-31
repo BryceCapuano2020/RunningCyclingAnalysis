@@ -763,6 +763,17 @@ describe('createActivity', () => {
     })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
+
+  it('does not try a create again when the service is read-only', async () => {
+    const fetchMock = stubFetch(
+      respond(503, { error: { code: 'read_only', message: 'The service is read-only' } }),
+    )
+    await expect(createActivity(DIGEST, 'run.fit', 'd'.repeat(64))).rejects.toMatchObject({
+      status: 503,
+      code: 'read_only',
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
 })
 
 describe('uploadFile', () => {

@@ -62,7 +62,7 @@ const TRANSFER_TIMEOUT_MS = 120_000
  */
 const CREATE_RETRY_BACKOFF_MS = 1_000
 /** Refusals that will not clear in a moment, so they are never retried. */
-const NOT_TRANSIENT = new Set(['database_full'])
+const NOT_TRANSIENT = new Set(['database_full', 'read_only'])
 const CLIENT_PAGE_SIZE = MAX_PAGE_SIZE
 const PAGE_BODY_LIMIT = MAX_PAGE_BODY_BYTES
 /** One fetch with its deadline. Resolves to null when the server could not be reached. */
