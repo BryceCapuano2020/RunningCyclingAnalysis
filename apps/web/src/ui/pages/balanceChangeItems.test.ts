@@ -225,7 +225,7 @@ describe('balanceChanges', () => {
   it('compares nothing where the test could not judge the 20 minutes in either sport', () => {
     const { input, scaled } = measured()
     const out = balanceChanges(input(scaled(0.9, 0.9), { change: changeOf('untested') }))
-    expect(out).toEqual({ items: [], notes: [], compared: false })
+    expect(out).toEqual({ items: [], notes: [], unchecked: [], compared: false })
   })
 
   it('judges each sport by its own call', () => {
@@ -295,6 +295,7 @@ describe('balanceChanges', () => {
     expect(balanceChanges(input(scaled(1, 1), { change: changeOf('none') }))).toEqual({
       items: [],
       notes: [],
+      unchecked: [],
       compared: true,
     })
     expect(noChangeText('Previous 12 weeks')).toBe('No clear change from the previous 12 weeks.')
@@ -303,7 +304,7 @@ describe('balanceChanges', () => {
   it('says there is not enough to compare, apart from nothing changing, when the previous period lacks the efforts', () => {
     const { input } = sample()
     const nothing = balanceChanges(input({ runCurve: [], rideCurve: [] }))
-    expect(nothing).toEqual({ items: [], notes: [], compared: false })
+    expect(nothing).toEqual({ items: [], notes: [], unchecked: [], compared: false })
     expect(notComparedText('Previous 12 weeks')).toBe(
       'Not enough in the previous 12 weeks to compare.',
     )
@@ -429,6 +430,32 @@ describe('balanceChanges and an effort the gate could not judge', () => {
   })
 })
 
+describe('balanceChanges and a call made from every effort', () => {
+  it('says the effort was not checked, beside the item, where the call read every effort', () => {
+    const { input, scaled } = measured()
+    const change = changeOf('higher')
+    change.run = change.run.map((call) => ({ ...call, gated: false }))
+    const out = balanceChanges(input(scaled(0.95, 1), { change }))
+    expect(out?.items.some((item) => item.key === 'run-best')).toBe(true)
+    expect(out?.unchecked).toEqual([
+      'Effort not checked on the running comparison: too few efforts with heart rate in both periods, so every effort counts.',
+    ])
+  })
+
+  it('says it where the call is none too, and says nothing when the call was gated or not made', () => {
+    const { input, scaled } = measured()
+    const none = changeOf('none')
+    none.run = none.run.map((call) => ({ ...call, gated: false }))
+    expect(balanceChanges(input(scaled(0.95, 1), { change: none }))?.unchecked).toHaveLength(1)
+    expect(balanceChanges(input(scaled(0.95, 1), { change: changeOf('none') }))?.unchecked).toEqual(
+      [],
+    )
+    const untested = changeOf('untested')
+    untested.run = untested.run.map((call) => ({ ...call, gated: false }))
+    expect(balanceChanges(input(scaled(0.95, 1), { change: untested }))?.unchecked).toEqual([])
+  })
+})
+
 describe('previousGap', () => {
   it('is the page’s own gap when the previous curves are this period’s: centre, low and high', () => {
     const { result, scaled, grading } = sample()
@@ -507,7 +534,7 @@ describe('balanceChanges: direction, level and the lean', () => {
     const { input, scaled } = measured()
     const weak = changeOf('higher', {}, { weak: true })
     const out = balanceChanges(input(scaled(0.95, 0.95), { change: weak }))
-    expect(out).toEqual({ items: [], notes: [], compared: true })
+    expect(out).toEqual({ items: [], notes: [], unchecked: [], compared: true })
   })
 
   it('counts a sport whose best was withheld as not hard as untested for the lean', () => {

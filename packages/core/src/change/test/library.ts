@@ -56,7 +56,7 @@ export interface Spec {
   effortSd?: number
   /**
    * The peak heart rate (30 s) a hard and an easy effort carry, bpm, with no seconds-by-heart-rate distribution so the peak
-   * alone is judged. Absent, an activity has no heart rate (the template's is kept).
+   * alone is judged, and an average of 85% of it. Absent, an activity has no heart rate (the template's is kept).
    */
   peakHeartRate?: { hard: number; easy: number }
 }
@@ -122,6 +122,7 @@ export function effortLibrary(spec: Spec): ActivityDigest[] {
           ? {}
           : {
               maxHeartRate: hard ? spec.peakHeartRate.hard : spec.peakHeartRate.easy,
+              avgHeartRate: (hard ? spec.peakHeartRate.hard : spec.peakHeartRate.easy) * 0.85,
               distributions: undefined,
             }),
         curve: template.curve.map((point, k) =>

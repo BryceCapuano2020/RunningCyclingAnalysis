@@ -1,7 +1,6 @@
 import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { AnalysisSession } from '../session'
-import { CHANGE } from './constants'
 import { detectableAt, MAX_STATED_RESOLUTION, statedResolutionAt } from './types'
 import type { ChangeCall } from './types'
 
@@ -18,6 +17,7 @@ const call = (strong: number, record: number): ChangeCall => ({
   strongLow: -strong,
   strongHigh: strong,
   verdict: 'none',
+  gated: true,
 })
 
 describe('the smallest change a sentence may state', () => {
@@ -44,16 +44,14 @@ describe('the sample athlete’s run page', () => {
     }
   })
 
-  it('tests the sample’s run and ride at 20 minutes: both periods hold hard efforts, which are the readings', () => {
-    // The landing demo must not read "not enough to compare". Most of the last 12 weeks' runs and rides are easy and not readings;
-    // the hard ones (tempo, intervals, tests, the race) are. The weeks before hold hard sessions recorded without a strap, which
-    // the gate cannot judge and so counts. Each side has the 4 and the pooled 12 the test needs.
-    for (const sport of ['run', 'ride'] as const) {
-      const twenty = state.change![sport].find((one) => one.durationS === 1200)!
-      expect(twenty.now).toBeGreaterThanOrEqual(CHANGE.minPerSide)
-      expect(twenty.before).toBeGreaterThanOrEqual(CHANGE.minPerSide)
-      expect(twenty.now + twenty.before).toBeGreaterThanOrEqual(CHANGE.minPooled)
-      expect(twenty.verdict).not.toBe('untested')
-    }
+  it('has efforts at 20 minutes that vary so much (easy runs among hard) that its headline band is not stated', () => {
+    const twenty = calls.find((one) => one.durationS === 1200)!
+    expect(twenty.verdict).toBe('none')
+    // Its earlier weeks hold too few hard runs with a heart rate for the hard ones to be compared, so every run of both periods
+    // is read, and the call says the effort was not checked (the strip's line).
+    expect(twenty.gated).toBe(false)
+    // The band is real: the sample's 20 minute readings run from half the best to the best.
+    expect(detectableAt(twenty, 'headline')!).toBeGreaterThan(MAX_STATED_RESOLUTION)
+    expect(statedResolutionAt(twenty, 'headline')).toBeNull()
   })
 })

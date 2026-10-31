@@ -38,7 +38,7 @@ describe('BalanceChanges', () => {
   it('is named by what it compares with', () => {
     render(
       <BalanceChanges
-        changes={{ items: [LEAN], notes: [], compared: true }}
+        changes={{ items: [LEAN], notes: [], unchecked: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -50,7 +50,7 @@ describe('BalanceChanges', () => {
   it('lists each change with its title, its line and its tag, in order', () => {
     render(
       <BalanceChanges
-        changes={{ items: [LEAN, RIDE, RUN], notes: [], compared: true }}
+        changes={{ items: [LEAN, RIDE, RUN], notes: [], unchecked: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -65,7 +65,7 @@ describe('BalanceChanges', () => {
   it('words each tag as what the change rests on, and has no tag about ranges', () => {
     render(
       <BalanceChanges
-        changes={{ items: [GUESS], notes: [], compared: true }}
+        changes={{ items: [GUESS], notes: [], unchecked: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -77,7 +77,7 @@ describe('BalanceChanges', () => {
   it('draws an arrow for each change, hidden from assistive technology, up or down by its direction', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [LEAN, RIDE], notes: [], compared: true }}
+        changes={{ items: [LEAN, RIDE], notes: [], unchecked: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -91,7 +91,7 @@ describe('BalanceChanges', () => {
   it('says in one line that nothing moved, naming the period, when there is nothing to list', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [], notes: [], compared: true }}
+        changes={{ items: [], notes: [], unchecked: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -102,7 +102,7 @@ describe('BalanceChanges', () => {
   it('marks a recorded best with a check, so the tag is more than a word', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [RIDE], notes: [], compared: true }}
+        changes={{ items: [RIDE], notes: [], unchecked: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -112,7 +112,7 @@ describe('BalanceChanges', () => {
   it('says there is not enough to compare, not that nothing changed, when the previous period lacks the efforts', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [], notes: [], compared: false }}
+        changes={{ items: [], notes: [], unchecked: [], compared: false }}
         previousLabel="Previous 12 weeks"
       />,
     )
@@ -121,12 +121,29 @@ describe('BalanceChanges', () => {
     expect(container.querySelector('ul')).toBeNull()
   })
 
+  it('keeps the no-clear-change line and adds the unchecked one under it', () => {
+    render(
+      <BalanceChanges
+        changes={{
+          items: [],
+          notes: [],
+          unchecked: ['Effort not checked on the running comparison: too few efforts.'],
+          compared: true,
+        }}
+        previousLabel="Previous 12 weeks"
+      />,
+    )
+    expect(screen.getByText(/No clear change/)).toBeInTheDocument()
+    expect(screen.getByText(/Effort not checked on the running comparison/)).toBeInTheDocument()
+  })
+
   it('says in a line, in place of an item, that a best was not compared', () => {
     const { container } = render(
       <BalanceChanges
         changes={{
           items: [RIDE],
           notes: ['No comparable hard 20 min of running in the previous 12 weeks.'],
+          unchecked: [],
           compared: true,
         }}
         previousLabel="Previous 12 weeks"
@@ -141,7 +158,7 @@ describe('BalanceChanges', () => {
   it('never says a change is not a real change', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [LEAN, RIDE, RUN, GUESS], notes: [], compared: true }}
+        changes={{ items: [LEAN, RIDE, RUN, GUESS], notes: [], unchecked: [], compared: true }}
         previousLabel="Previous 12 weeks"
       />,
     )

@@ -81,11 +81,11 @@ no-near-maximal state on zones) is D6.
   the sport named and what lifts it, per sport. A sport that was only not checked is not held: the headline is shown with the note. A hold, not a rule change: `leanOfLead` stays. A level read from a best that was not shown
   hard is not asserted: "Your best 20 min run grades Local", and the level rows say "best 20 min, not a hard effort". The precedence is
   'implausible-ride' (a seam for D6a) over 'effort'; 'updating' and 'partial-import' will go above both.
-- **Change test** (`digest/hardEffortRule.ts`, D5): the test's readings leave out an activity whose own heart rate shows it was not a hard
-  effort (the late-best session test), so a swing in how many hard efforts a period holds is not read as a change. Activities the gate
-  cannot judge count. The minimum sizes count the readings that remain, so a sport with too few hard efforts in either period is
-  untested. The curves' bests are not filtered. The strip withholds a comparison whose shown best was not hard, and compares one that was
-  only not checked (no heart rate, too few days).
+- **Change test** (`digest/hardEffortRule.ts`, D5): a point of the test's readings counts when heart rate shows it hard (up to 20 min by the
+  session's peak, beyond it by the session's average, a sprint of a minute or less always), so a swing in how many hard efforts a period
+  holds is not read as a change. Both periods are read alike: the call is made from the hard readings when both hold enough, else from every
+  effort in both, and the strip then says the effort was not checked. The curves' bests are not filtered. The strip withholds a comparison
+  whose shown best was not hard, and compares one that was only not checked (no heart rate, too few days).
 - **Late in long sessions** (RCA-043): a late best counts only sessions that reached a hard heart rate (a session with no heart rate counts); under
   3 such sessions the headline is hidden, and with a reference that cannot be trusted the need is the reference. The note gives the ruler.
   Each steady effort of the drift carries its average share of the reference, and the note gives its range. Drift is not filtered: it

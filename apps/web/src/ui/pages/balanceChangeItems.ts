@@ -49,7 +49,7 @@ export const MAX_CHANGES = 4
  * What one comparison gave: null where it could not be made, else its item, or none when the figures are the same.
  * A comparison that was made but not held, because a best was not a hard effort, carries the line that says so.
  */
-type Compared = { item: ChangeItem | null; note?: string } | null
+type Compared = { item: ChangeItem | null; note?: string; unchecked?: string } | null
 
 /** The sports in the order a positive lead favours them: running first, as every scale in the app does. */
 const [FIRST, SECOND] = SPORT_ORDER
@@ -147,6 +147,11 @@ function notHardNote(
   return null
 }
 
+/** The line that says a comparison read every effort, because heart rate could not pick the hard ones of both periods. */
+function uncheckedLine(sport: Sport): string {
+  return `Effort not checked on the ${SPORT_NOUN[sport]} comparison: too few efforts with heart rate in both periods, so every effort counts.`
+}
+
 /**
  * A sport's best 20 minutes against the previous period's, in the figures the page shows. Listed only where the
  * change test calls the move a change; null where the periods hold too few efforts of that length for the test to
@@ -171,12 +176,14 @@ function bestItem(
   const call = callAt(change, sport, HEADLINE_DURATION_S)
   const verdict = verdictOfCall(call, 'headline')
   if (verdict === 'untested') return null
+  // Where the periods did not both hold enough efforts with a heart rate, every effort was read in both: say so.
+  const unchecked = call?.gated === false ? uncheckedLine(sport) : undefined
   // A move the test does not call is no clear change, so the strip lists nothing, as the curve says nothing.
-  if (verdict === 'none') return { item: null }
+  if (verdict === 'none') return { item: null, unchecked }
   // Which way it moved is the call's, in the compared unit; the shown figures write the amount.
   const better = directionOf(call, 'headline') > 0
   const words = recordChange(sport, now, before, units, label, call) ?? ''
-  if (words === '' || words.startsWith(NO_CLEAR_CHANGE)) return { item: null }
+  if (words === '' || words.startsWith(NO_CLEAR_CHANGE)) return { item: null, unchecked }
   const source = setBy(CURVE[sport](result), result.activities)
   const earlier = setBy(CURVE[sport](previous), library)
   return {
@@ -190,6 +197,7 @@ function bestItem(
           ? 'estimated'
           : 'recorded',
     },
+    unchecked,
   }
 }
 
@@ -314,6 +322,8 @@ export interface BalanceChangesResult {
   items: ChangeItem[]
   /** Lines for the comparisons that were not made because a best was not a hard effort. */
   notes: string[]
+  /** Lines for the comparisons made from every effort, because the periods did not both hold enough efforts with a heart rate. */
+  unchecked: string[]
   /** False when the previous period lacks the efforts to compare, which is not the same as nothing moving. */
   compared: boolean
 }
@@ -350,7 +360,10 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
   const compared = outcomes.some((outcome) => outcome !== null)
   const items = outcomes.flatMap((outcome) => (outcome?.item ? [outcome.item] : []))
   const notes = outcomes.flatMap((outcome) => (outcome?.note === undefined ? [] : [outcome.note]))
-  return { items: items.slice(0, MAX_CHANGES), notes, compared }
+  const unchecked = outcomes.flatMap((outcome) =>
+    outcome?.unchecked === undefined ? [] : [outcome.unchecked],
+  )
+  return { items: items.slice(0, MAX_CHANGES), notes, unchecked, compared }
 }
 
 /** The strip's line when the change test called nothing: the periods were compared, and no best left what chance puts between them. */

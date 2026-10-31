@@ -99,10 +99,7 @@ describe('samplePlan', () => {
       expect(seeded.filter((entry) => entry.spec.hrGlitch === true)).toHaveLength(1)
       expect(seeded.filter((entry) => entry.spec.withPower === false)).toHaveLength(3)
       expect(seeded.filter((entry) => entry.noise.behaviour.treadmillShare === 1)).toHaveLength(2)
-      // One easy run with no heart rate; the older weeks' hard sessions are recorded without a strap too.
-      const noStrap = seeded.filter((entry) => entry.spec.withHeartRate === false)
-      expect(noStrap.filter((entry) => entry.spec.effort === 'easy')).toHaveLength(1)
-      expect(noStrap.filter((entry) => entry.spec.effort !== 'easy').length).toBeGreaterThan(10)
+      expect(seeded.filter((entry) => entry.spec.withHeartRate === false)).toHaveLength(1)
       expect(seeded.filter((entry) => entry.gap !== undefined)).toHaveLength(1)
     }
   })
