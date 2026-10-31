@@ -1,17 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { bandOpacity, clippedColumns, edgeTicks, hasClips } from './timeSeriesEdge'
+import { bandOpacity, clippedColumns, edgeReadings, edgeTicks, hasClips } from './timeSeriesEdge'
 import type { StackChannel } from './timeSeriesTypes'
 
 /** A channel on an axis of 0 to 100 with these columns, one per 2 px from x = 0. */
-function channel(hi: number[], lo: number[] = hi.map(() => 50)): StackChannel {
+function channel(
+  hi: number[],
+  lo: number[] = hi.map(() => 50),
+  raw: { peak?: number[]; trough?: number[] } = {},
+): StackChannel {
   return {
     low: 0,
     high: 100,
+    short: 'Heart rate',
+    write: (value: number) => ({ value: String(Math.round(value)), unit: 'bpm' }),
     columns: {
       x: hi.map((_, i) => i),
       mean: hi.map(() => 50),
       lo,
       hi,
+      peak: raw.peak ?? hi,
+      trough: raw.trough ?? lo,
       windowS: 3,
     },
   } as unknown as StackChannel
@@ -33,6 +41,33 @@ describe('clippedColumns', () => {
     expect(hasClips(channel([100, 112, 99]))).toBe(false)
     expect(hasClips(channel([100, 130, 99]))).toBe(true)
     expect(hasClips(channel([50, 50], [-20, 50]))).toBe(true)
+  })
+})
+
+describe('a spike the band leaves out', () => {
+  it('is marked by the raw maximum, though the band’s 90th percentile sits inside the axis', () => {
+    // A lone 300 in a column whose band tops out at 90: the band says nothing past the edge, the raw reading does.
+    const spiked = channel([90, 90, 90], [10, 10, 10], { peak: [90, 300, 90] })
+    expect(clippedColumns(spiked).top).toEqual([false, true, false])
+    expect(hasClips(spiked)).toBe(true)
+    expect(edgeTicks(spiked, row, x)).not.toBe('')
+    const dipped = channel([90, 90], [10, 10], { trough: [10, -200] })
+    expect(clippedColumns(dipped).bottom).toEqual([false, true])
+  })
+})
+
+describe('edgeReadings', () => {
+  it('states the furthest raw reading past each edge as the channel writes it', () => {
+    const both = channel([90, 90, 90], [10, 10, 10], {
+      peak: [90, 231, 180],
+      trough: [10, 10, -60],
+    })
+    expect(edgeReadings(both)).toEqual({ above: '231 bpm', below: '-60 bpm' })
+  })
+
+  it('says nothing for an edge nothing passes', () => {
+    expect(edgeReadings(channel([100, 112, 99]))).toEqual({ above: null, below: null })
+    expect(edgeReadings(channel([50], [-300]))).toEqual({ above: null, below: '-300 bpm' })
   })
 })
 

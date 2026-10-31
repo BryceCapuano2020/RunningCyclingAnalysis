@@ -61,6 +61,9 @@ export interface SeriesColumns {
    */
   lo: number[]
   hi: number[]
+  /** The highest and lowest raw reading in the column, zeros included, or NaN where it holds none. The edge ticks test these, not the band. */
+  peak: number[]
+  trough: number[]
   /** The rolling mean's width, in seconds. */
   windowS: number
 }
@@ -139,7 +142,7 @@ export function reduceSeries(
   const span = Math.max(1, to - from)
   const count = Math.max(1, Math.min(Math.floor(columns), span))
   const windowS = smoothingWindowS(span)
-  const out: SeriesColumns = { x: [], mean: [], lo: [], hi: [], windowS }
+  const out: SeriesColumns = { x: [], mean: [], lo: [], hi: [], peak: [], trough: [], windowS }
   const scratch = new Float64Array(Math.ceil(span / count) + 2)
   for (let k = 0; k < count; k += 1) {
     const first = from + Math.floor((k * span) / count)
@@ -155,6 +158,9 @@ export function reduceSeries(
     }
     let readings = scratch.subarray(0, seen)
     readings.sort()
+    // The raw extremes are read before coasting is left out of the band: a spike is a spike whatever the band says.
+    out.peak.push(seen === 0 ? Number.NaN : readings[seen - 1]!)
+    out.trough.push(seen === 0 ? Number.NaN : readings[0]!)
     // Coasting is not the spread of the effort: leave its zeros out of the band, where the column has other readings.
     if (ignoreZero && positive > 0 && positive < seen) readings = readings.subarray(seen - positive)
     const centre = (first + last) / 2

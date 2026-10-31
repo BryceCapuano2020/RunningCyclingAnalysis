@@ -61,6 +61,19 @@ describe('reduceSeries', () => {
     expect(columns.hi).toEqual([117])
   })
 
+  it('keeps the raw highest and lowest of a column beside the band, zeros included', () => {
+    const values = Float32Array.from({ length: 20 }, (_, i) => 100 + i)
+    values[0] = 0
+    values[19] = 901
+    const columns = reduceSeries(smoothedStream(values), 0, 20, 1)
+    expect([columns.peak[0], columns.trough[0]]).toEqual([901, 0])
+    // The band leaves the strays out; the extremes do not, and coasting is not left out of them either.
+    expect(columns.hi[0]).toBeLessThan(901)
+    const power = reduceSeries(smoothedStream(Float32Array.from([0, 0, 250, 300])), 0, 4, 1, true)
+    expect([power.peak[0], power.trough[0]]).toEqual([300, 0])
+    expect(reduceSeries(smoothedStream(new Float32Array([NaN, NaN])), 0, 2, 1).peak[0]).toBeNaN()
+  })
+
   it('is the lowest and highest where a column holds fewer than ten readings', () => {
     const stream = smoothedStream(Float32Array.from([5, 9, 1, 7, 3]))
     const columns = reduceSeries(stream, 0, 5, 1)
@@ -179,6 +192,8 @@ describe('paths', () => {
       mean: [NAN, 5, NAN],
       lo: [NAN, 5, NAN],
       hi: [NAN, 5, NAN],
+      peak: [NAN, 5, NAN],
+      trough: [NAN, 5, NAN],
       windowS: 3,
     }
     expect(linePath(columns, identity)).toBe('M 2 5 L 2 5')
@@ -190,6 +205,8 @@ describe('paths', () => {
       mean: [3, 3, NAN, 3, 3],
       lo: [2, 2, NAN, 1, 1],
       hi: [4, 4, NAN, 5, 5],
+      peak: [4, 4, NAN, 5, 5],
+      trough: [2, 2, NAN, 1, 1],
       windowS: 3,
     }
     const band = bandPath(columns, identity)
@@ -198,7 +215,15 @@ describe('paths', () => {
   })
 
   it('closes an area down to the baseline under each stretch', () => {
-    const columns = { x: [1, 2], mean: [3, 4], lo: [3, 4], hi: [3, 4], windowS: 3 }
+    const columns = {
+      x: [1, 2],
+      mean: [3, 4],
+      lo: [3, 4],
+      hi: [3, 4],
+      peak: [3, 4],
+      trough: [3, 4],
+      windowS: 3,
+    }
     expect(areaPath(columns, identity, 9)).toBe('M 1 9 L 1 3 L 2 4 L 2 9 Z')
   })
 })

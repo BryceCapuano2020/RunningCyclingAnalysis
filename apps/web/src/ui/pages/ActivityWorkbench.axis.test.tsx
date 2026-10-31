@@ -82,7 +82,10 @@ describe('ActivityWorkbench: a pace row and its artifacts', () => {
     // is read there, on round paces, with neither the standing start (27:47) nor the burst (2:02) on it.
     expect(ticks).toEqual(['4:40', '4:50', '5:00'])
     // The clipped readings are bars on the row's top and bottom edges, keyed under the plot, and the line never leaves the row.
-    expect(figure).toHaveTextContent('Reading beyond the chart edge')
+    // The key states the furthest raw readings past each edge, the burst and the standing start, as the pace is written.
+    expect(figure).toHaveTextContent(
+      'Reading beyond the chart edge: pace reached 2:02 /km and fell to 27:47 /km',
+    )
     const edge = row(figure, 'speed').querySelector('.ts-stack__edge')?.getAttribute('d') ?? ''
     expect(edge).toMatch(/M [\d.-]+ 6 L/)
     expect(edge).toMatch(/M [\d.-]+ 102 L/)

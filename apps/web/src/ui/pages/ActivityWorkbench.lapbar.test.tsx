@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { ActivityWorkbench } from './ActivityWorkbench'
-import { steadyTrace } from './workbenchFixtures'
+import { repsTrace, steadyTrace } from './workbenchFixtures'
 
 /** A run of `count` laps, each `lap` seconds, the last one longer so the widths differ. */
 function lapped(count: number, lap = 60): ActivityTrace {
@@ -104,5 +104,42 @@ describe('many laps', () => {
     const line = document.getElementById(buttons[4]!.getAttribute('aria-describedby')!)
     expect(line).toHaveTextContent(/^Lap 5 · from 4:00/)
     expect(buttons.filter((button) => button.hasAttribute('aria-describedby'))).toHaveLength(1)
+  })
+})
+
+describe('laps and suggested intervals', () => {
+  /** Four 5 min reps with a 1 min jog between them, and the device's laps cutting across them every 8 min. */
+  function lappedReps(): ActivityTrace {
+    const reps = [3.7, 3.65, 3.6, 3.5].flatMap((speed) => [
+      { seconds: 300, speed, heartRate: 150 },
+      { seconds: 60, speed: 2 },
+    ])
+    return repsTrace('run', reps, [
+      [0, 480],
+      [480, 960],
+      [960, 1440],
+    ])
+  }
+
+  it('shows both, the device’s laps first and the suggested intervals beside them', async () => {
+    show(lappedReps())
+    await screen.findByRole('heading', { name: 'Laps' })
+    const titles = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(titles.indexOf('Laps')).toBeGreaterThanOrEqual(0)
+    expect(titles.indexOf('Suggested intervals')).toBeGreaterThan(titles.indexOf('Laps'))
+    expect(screen.getByRole('button', { name: /^Lap 1 · from 0:00/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Interval 1 · from / })).toBeInTheDocument()
+  })
+
+  it('shows the suggestions alone when the device recorded none, and the laps alone when nothing is suggested', async () => {
+    const trace = lappedReps()
+    trace.laps = []
+    const { unmount } = show(trace)
+    await screen.findByRole('heading', { name: 'Suggested intervals' })
+    expect(screen.queryByRole('heading', { name: 'Laps' })).toBeNull()
+    unmount()
+    show(lapped(4))
+    await screen.findByRole('heading', { name: 'Laps' })
+    expect(screen.queryByRole('heading', { name: 'Suggested intervals' })).toBeNull()
   })
 })
