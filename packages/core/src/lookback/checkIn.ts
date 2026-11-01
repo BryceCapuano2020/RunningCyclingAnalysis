@@ -1,6 +1,7 @@
 import { DAY_MS } from '../constants'
 import type { FitnessState } from '../fitness/types'
 import type { Sport } from '../types'
+import { SPORTS } from '../types'
 import { decodeSeconds } from './snapshot'
 import type { CheckInSnapshot, SnapshotBest } from './snapshot'
 import type { EpisodeKind, MilestoneEffort, MilestoneUnit } from './types'
@@ -10,8 +11,6 @@ import type { EpisodeKind, MilestoneEffort, MilestoneUnit } from './types'
  * fact about what the import added or what the fitness card's own rules changed; the check-in makes no level
  * contrast of its own, so it can never say a different thing from the card.
  */
-
-const SPORTS: readonly Sport[] = ['run', 'ride']
 
 /** A workout is "found in older files" when it starts this long before the newest workout the baseline held. */
 export const OLDER_DAYS = 28
