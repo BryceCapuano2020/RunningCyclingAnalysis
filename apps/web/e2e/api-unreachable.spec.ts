@@ -157,6 +157,9 @@ test('Try again looks the account up once the API is back, with no reload', asyn
   const retry = page.getByRole('button', { name: 'Try again' })
   await retry.click()
   await expect(page.getByText('Sign-in is unavailable right now')).toBeVisible()
+  // A press restarts the lookup's own retries (an immediate second try, then 1, 3 and 10 s), and any of
+  // them would find the API back. Let them all fail first, so the second press is the only way back.
+  await page.waitForTimeout(PAST_THE_RETRIES_MS)
 
   down = false
   await retry.click()
