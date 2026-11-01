@@ -167,7 +167,13 @@ export function resample(
     heartRate,
     power,
     ...(hasCadence ? { cadence: Float32Array.from(cadenceKnown) } : {}),
-    ...(hasTemperature ? { temperature: Float32Array.from(temperatureKnown) } : {}),
+    ...(hasTemperature
+      ? {
+          temperature: Float32Array.from(
+            holdForward(temperatureKnown, paused, MAX_INTERPOLATED_GAP_S),
+          ),
+        }
+      : {}),
     paused,
     unrecorded,
     hasPower,
@@ -350,6 +356,28 @@ function fillStream(
       } else {
         out[i] = gap
       }
+    }
+  }
+  return out
+}
+
+/**
+ * Each known sample held for the seconds after it, up to `maxS` or the next sample, not through a pause. A temperature
+ * is logged every few seconds (on a recording interval of 3 s to 6 s, or only when it changes), and a reading is the
+ * best account of the seconds until the next; leaving them unknown would put a file's coverage at a third.
+ */
+function holdForward(known: Float64Array, paused: Uint8Array, maxS: number): Float64Array {
+  const out = Float64Array.from(known)
+  let last = Number.NaN
+  let since = Number.POSITIVE_INFINITY
+  for (let i = 0; i < known.length; i++) {
+    if (Number.isFinite(known[i]!)) {
+      last = known[i]!
+      since = 0
+    } else if (paused[i] === 1) {
+      since = Number.POSITIVE_INFINITY
+    } else if (++since <= maxS) {
+      out[i] = last
     }
   }
   return out
