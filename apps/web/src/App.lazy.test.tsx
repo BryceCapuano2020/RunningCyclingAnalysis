@@ -59,6 +59,22 @@ describe('pages that load when first shown', () => {
     await waitFor(() => expect(heading).toHaveFocus())
   })
 
+  it('loads the History charts when the tab is first opened, apart from the result pages', async () => {
+    showResult()
+    render(<App />)
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: /Your balance leans toward running/ },
+      LOAD,
+    )
+    fireEvent.click(screen.getByRole('link', { name: 'History' }))
+    // The History page is not in the result pages' chunk: it loads on its own, under a loading status, and focus
+    // arrives with it.
+    expect(await screen.findByText('Loading', undefined, LOAD)).toHaveAttribute('role', 'status')
+    const heading = await screen.findByRole('heading', { level: 1, name: 'History' }, LOAD)
+    await waitFor(() => expect(heading).toHaveFocus())
+  })
+
   it('shows the method page for a visitor with no results once it has loaded', async () => {
     window.location.hash = '#/method'
     render(<App />)
