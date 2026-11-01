@@ -26,7 +26,7 @@ describe('windowLine', () => {
     }
     expect(windowLine(window)).toBe('Your last 12 months. Your last 12 weeks had no hard runs.')
     expect(windowLine({ ...window, choice: 182, passed: [window.passed[0]!] })).toBe(
-      'Your last 26 weeks. Your last 12 weeks had no hard runs.',
+      'Your last 6 months. Your last 12 weeks had no hard runs.',
     )
   })
 
@@ -34,17 +34,17 @@ describe('windowLine', () => {
     const line = (...lacks: PassedWindow['lacks']) =>
       windowLine({ choice: 182, reason: 'qualified', passed: [passed(84, ...lacks)] })
     expect(line({ sport: 'ride', lack: 'few' })).toBe(
-      'Your last 26 weeks. Your last 12 weeks had too few rides.',
+      'Your last 6 months. Your last 12 weeks had too few rides.',
     )
     expect(line({ sport: 'run', lack: 'none' })).toBe(
-      'Your last 26 weeks. Your last 12 weeks had no 20 min runs.',
+      'Your last 6 months. Your last 12 weeks had no 20 min runs.',
     )
     expect(line({ sport: 'run', lack: 'easy' }, { sport: 'ride', lack: 'few' })).toBe(
-      'Your last 26 weeks. Your last 12 weeks had no hard runs and too few rides.',
+      'Your last 6 months. Your last 12 weeks had no hard runs and too few rides.',
     )
     // Sports that lacked the same thing share a clause.
     expect(line({ sport: 'run', lack: 'easy' }, { sport: 'ride', lack: 'easy' })).toBe(
-      'Your last 26 weeks. Your last 12 weeks had no hard runs or rides.',
+      'Your last 6 months. Your last 12 weeks had no hard runs or rides.',
     )
   })
 

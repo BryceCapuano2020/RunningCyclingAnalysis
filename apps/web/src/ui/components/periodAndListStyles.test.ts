@@ -40,7 +40,6 @@ function mediaOf(css: string, query: string): string {
   return ''
 }
 
-const SMALL_PHONE = '(max-width: 360px)'
 const PHONE_480 = '(max-width: 479px)'
 const NARROW_PHONE = '(max-width: 560px)'
 const PHONE_760 = '(max-width: 760px)'
@@ -55,8 +54,8 @@ describe('the period control', () => {
     expect(rulesWith(rangePicker, '.range-picker')).toMatch(/justify-items:\s*start/)
   })
 
-  it('shows short labels at 360 px and below, keeping the full name in the page', () => {
-    const small = mediaOf(rangePicker, SMALL_PHONE)
+  it('shows short labels at 479 px and below, keeping the full name in the page', () => {
+    const small = mediaOf(rangePicker, PHONE_480)
     expect(rulesWith(small, '.range-picker .segmented-control__short')).toMatch(/display:\s*inline/)
     expect(rulesWith(small, '.range-picker .segmented-control__full')).toMatch(
       /clip-path:\s*inset\(50%\)/,

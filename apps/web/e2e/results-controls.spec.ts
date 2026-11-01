@@ -129,7 +129,7 @@ test('the weekly hours card shows for sample data, and its table toggles', async
   await expect(details).not.toHaveAttribute('open')
 })
 
-test('the period control offers 6 weeks, 12 weeks, 12 months, All time and Custom, within 390 px', async ({
+test('the period control offers 6 weeks, 12 weeks, 6 months, 12 months, All time and Custom, within 390 px', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -140,8 +140,9 @@ test('the period control offers 6 weeks, 12 weeks, 12 months, All time and Custo
     await options.evaluateAll((elements) =>
       elements.map((el) => (el.querySelector('.segmented-control__full') ?? el).textContent),
     ),
-  ).toEqual(['6 weeks', '12 weeks', '12 months', 'All time', 'Custom'])
-  // Five segments wrap onto a second row at 390 px rather than overflow the page.
+  ).toEqual(['6 weeks', '12 weeks', '6 months', '12 months', 'All time', 'Custom'])
+  // Six segments with short labels fit one row at 390 px, and never overflow the page.
+  await expect(options).toHaveCount(6)
   const edges = await options.evaluateAll((elements) =>
     elements.map((element) => {
       const box = element.getBoundingClientRect()
@@ -154,7 +155,7 @@ test('the period control offers 6 weeks, 12 weeks, 12 months, All time and Custo
   }
 })
 
-test('at 320 px the five periods are short labels on one row, still named in full, with no sideways scroll', async ({
+test('at 320 px the six periods are short labels on one row, still named in full, with no sideways scroll', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 })
@@ -164,11 +165,12 @@ test('at 320 px the five periods are short labels on one row, still named in ful
   await expect(options.locator('[aria-hidden="true"]:visible')).toHaveText([
     '6 wk',
     '12 wk',
+    '6 mo',
     '12 mo',
     'All',
   ])
   await expect(options.last()).toHaveText('Custom')
-  for (const name of ['6 weeks', '12 weeks', '12 months', 'All time', 'Custom']) {
+  for (const name of ['6 weeks', '12 weeks', '6 months', '12 months', 'All time', 'Custom']) {
     await expect(period.getByRole('radio', { name, exact: true })).toHaveCount(1)
   }
   const boxes = await options.evaluateAll((elements) =>

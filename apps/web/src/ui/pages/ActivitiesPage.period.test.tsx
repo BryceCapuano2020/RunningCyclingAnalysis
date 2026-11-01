@@ -94,9 +94,9 @@ describe('ActivitiesPage beside the period on Balance', () => {
     await userEvent.click(screen.getByRole('radio', { name: '12 months' }))
     expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
     cleanup()
-    // No segment is 26 weeks, so the list is always apart from it.
+    // The list has no 6 months, so it is always apart from it.
     renderPage({ ...WINDOW, choice: 'default', days: 182 })
-    expect(screen.getByText(/^Balance, Run and Ride show the last 26 weeks\./)).toBeInTheDocument()
+    expect(screen.getByText(/^Balance, Run and Ride show the last 6 months\./)).toBeInTheDocument()
   })
 
   it('goes once the list is set to the same length, since the two then agree', async () => {

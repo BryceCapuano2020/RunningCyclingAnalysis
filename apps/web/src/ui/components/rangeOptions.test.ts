@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { WINDOW_DAYS } from '@rca/core/answer'
 import type { Period } from '@rca/core/period'
 import {
   CUSTOM_OPTION,
@@ -19,13 +20,27 @@ function period(overrides: Partial<Period>): Period {
 }
 
 describe('RANGE_OPTIONS', () => {
-  it('offers 6 weeks, 12 weeks, 12 months and all time, in that order', () => {
+  it('offers 6 weeks, 12 weeks, 6 months, 12 months and all time, in that order', () => {
     expect(RANGE_OPTIONS.map((option) => option.label)).toEqual([
       '6 weeks',
       '12 weeks',
+      '6 months',
       '12 months',
       'All time',
     ])
+  })
+
+  it('has a segment for every window the default can settle on, so each lights one', () => {
+    for (const days of WINDOW_DAYS) {
+      expect(RANGE_OPTIONS.some((option) => option.choice === days)).toBe(true)
+    }
+    expect(RANGE_OPTIONS.some((option) => option.choice === 'all')).toBe(true)
+    expect(RANGE_OPTIONS.find((option) => option.choice === 182)).toEqual({
+      value: '182',
+      label: '6 months',
+      short: '6 mo',
+      choice: 182,
+    })
   })
 
   it('offers 12 weeks as exactly that many days, and the default as no segment of its own', () => {
@@ -39,7 +54,7 @@ describe('RANGE_OPTIONS', () => {
     expect(choiceOfValue('default')).toBeUndefined()
   })
 
-  it('leaves 12 weeks out of the library, which has no window of that length of its own', () => {
+  it('leaves 12 weeks and 6 months out of the library, which has no windows of its own', () => {
     expect(LIBRARY_RANGE_OPTIONS.map((option) => option.label)).toEqual([
       '6 weeks',
       '12 months',
@@ -74,7 +89,7 @@ describe('periodName', () => {
   it('names the period the figures are for, in the words the control uses', () => {
     expect(periodName(42)).toBe('6 weeks')
     expect(periodName(84)).toBe('12 weeks')
-    expect(periodName(182)).toBe('26 weeks')
+    expect(periodName(182)).toBe('6 months')
     expect(periodName(365)).toBe('12 months')
     expect(periodName(null)).toBe('All time')
   })

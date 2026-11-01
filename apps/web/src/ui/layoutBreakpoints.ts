@@ -47,10 +47,10 @@ export const PROFILE_PAIR_MIN_WIDTH_PX = 900
 export const PERIOD_FULL_WIDTH_MAX_WIDTH_PX = 479
 
 /**
- * At or below this width the period control shows short labels ("6 wk", "All"), so all of its segments fit one row
- * on a 320 px phone. The full names stay as the segments' accessible names.
+ * At or below this width the period control shows short labels ("6 wk", "All"), so all six of its segments fit one row
+ * on a phone: the full names need about 440 px. The full names stay as the segments' accessible names.
  */
-export const PERIOD_SHORT_LABEL_MAX_WIDTH_PX = 360
+export const PERIOD_SHORT_LABEL_MAX_WIDTH_PX = 479
 
 /**
  * At or below this width the equivalence list sets its values a step smaller, with narrower columns,

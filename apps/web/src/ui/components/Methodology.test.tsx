@@ -123,7 +123,7 @@ describe('Methodology', () => {
       `a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days`,
     )
     expect(detail).toHaveTextContent(
-      '6 weeks uses 14 days, 12 weeks uses 28 days and 12 months uses 42 days.',
+      '6 weeks uses 14 days, 12 weeks uses 28 days, 6 months uses 42 days and 12 months uses 42 days.',
     )
     expect(detail).toHaveTextContent('period’s one bike model')
     expect(detail).not.toHaveTextContent('running economy')

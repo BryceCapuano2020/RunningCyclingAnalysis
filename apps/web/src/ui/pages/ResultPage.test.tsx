@@ -540,6 +540,42 @@ describe('ResultPage period', () => {
     expect(setRange).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the window the default settled on when its checked segment is clicked', () => {
+    const setRange = vi.fn()
+    const window: AnswerWindow = {
+      choice: 365,
+      reason: 'qualified',
+      passed: [{ days: 84, lacks: [{ sport: 'run', lack: 'easy' }] }],
+    }
+    render(
+      <ResultPage
+        countedRuns={countedRunsStub()}
+        signedIn={false}
+        route={{ page: 'balance' }}
+        analysis={analysisStub({
+          state: {
+            result: makeResult(),
+            period: { choice: 'default', startMs: null, endMs: null, days: 365, fellBack: false },
+            answerWindow: window,
+          },
+          setRange,
+        })}
+        result={makeResult()}
+        settings={SETTINGS}
+        weightKnown
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />,
+    )
+    expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: '12 months' }))
+    expect(setRange).toHaveBeenCalledTimes(1)
+    expect(setRange.mock.calls[0]![0]).toBe(365)
+    // The pick is kept on this device, so the next visit opens on it and not on a new search.
+    expect(localStorage.getItem(PERIOD_KEY)).toBe(JSON.stringify(365))
+  })
+
   it('sends the stored period again when a load brings the period back to the default', () => {
     localStorage.setItem(PERIOD_KEY, JSON.stringify(365))
     const setRange = vi.fn()
@@ -644,7 +680,7 @@ describe('ResultPage period', () => {
         passed,
       })
       expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-        'All time. Your last 12 weeks had too few rides · Same 2 activities as the 12 months to your latest activity · Latest activity 17 months ago',
+        'All time. Your last 12 weeks had too few rides · Same 2 activities as the 6 months to your latest activity · Latest activity 17 months ago',
       )
       // The segment in force is All time, the window the default resolved to, and not the 12 weeks.
       expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()

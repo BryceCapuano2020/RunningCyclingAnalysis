@@ -20,6 +20,27 @@ describe('SegmentedControl', () => {
     expect(screen.getByText('Period')).toHaveClass('segmented-control__legend')
   })
 
+  it('reports a click on the checked option as a reselect, and one on another option as a select', async () => {
+    const onSelect = vi.fn()
+    const onReselect = vi.fn()
+    render(
+      <SegmentedControl
+        legend="Period"
+        options={OPTIONS}
+        selected="a"
+        onSelect={onSelect}
+        onReselect={onReselect}
+      />,
+    )
+    await userEvent.click(screen.getByRole('radio', { name: 'Alpha' }))
+    expect(onReselect).toHaveBeenCalledTimes(1)
+    expect(onReselect).toHaveBeenCalledWith('a')
+    expect(onSelect).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('radio', { name: 'Beta' }))
+    expect(onSelect).toHaveBeenCalledWith('b')
+    expect(onReselect).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps a hidden legend for assistive technology only', () => {
     render(
       <SegmentedControl

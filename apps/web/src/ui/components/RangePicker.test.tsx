@@ -28,21 +28,27 @@ function fullName(radio: HTMLElement): string | null | undefined {
 }
 
 describe('RangePicker', () => {
-  it('offers 6 weeks, 12 weeks, 12 months and all time, in a group named Period, in that order', () => {
+  it('offers 6 weeks, 12 weeks, 6 months, 12 months and all time, in a group named Period, in that order', () => {
     render(picker())
     const group = screen.getByRole('group', { name: 'Period' })
     expect(
       within(group)
         .getAllByRole('radio')
         .map((radio) => fullName(radio)),
-    ).toEqual(['6 weeks', '12 weeks', '12 months', 'All time'])
+    ).toEqual(['6 weeks', '12 weeks', '6 months', '12 months', 'All time'])
   })
 
   it('carries a short label for a narrow phone beside each full name, hidden from assistive technology', () => {
     render(picker())
     const group = screen.getByRole('group', { name: 'Period' })
     const shorts = Array.from(group.querySelectorAll('.segmented-control__short'))
-    expect(shorts.map((short) => short.textContent)).toEqual(['6 wk', '12 wk', '12 mo', 'All'])
+    expect(shorts.map((short) => short.textContent)).toEqual([
+      '6 wk',
+      '12 wk',
+      '6 mo',
+      '12 mo',
+      'All',
+    ])
     for (const short of shorts) expect(short).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getByRole('radio', { name: 'All time' })).toBeInTheDocument()
   })
@@ -58,6 +64,7 @@ describe('RangePicker', () => {
 
   it.each([
     [84, '12 weeks'],
+    [182, '6 months'],
     [365, '12 months'],
     ['all', 'All time'],
   ] as const)(
@@ -70,12 +77,36 @@ describe('RangePicker', () => {
     },
   )
 
-  it('checks no segment for a resolved window it has none for, and none before the default is resolved', () => {
-    const { unmount } = render(picker({ choice: 'default', resolved: 182 }))
-    expect(checkedSegments()).toHaveLength(0)
-    unmount()
+  it('checks no segment before the default is resolved', () => {
     render(picker({ choice: 'default' }))
     expect(checkedSegments()).toHaveLength(0)
+  })
+
+  it('makes the pick when the checked segment of a resolved default is clicked, so that window can be kept', async () => {
+    const onChange = vi.fn<(choice: PeriodChoice) => void>()
+    render(picker({ choice: 'default', resolved: 365, onChange }))
+    expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
+    await userEvent.click(screen.getByRole('radio', { name: '12 months' }))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenLastCalledWith(365, expect.any(Function))
+    expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
+  })
+
+  it.each([
+    [182, '6 months'],
+    ['all', 'All time'],
+  ] as const)('makes the pick for a resolved %s the same way', async (resolved, name) => {
+    const onChange = vi.fn<(choice: PeriodChoice) => void>()
+    render(picker({ choice: 'default', resolved, onChange }))
+    await userEvent.click(screen.getByRole('radio', { name }))
+    expect(onChange).toHaveBeenLastCalledWith(resolved, expect.any(Function))
+  })
+
+  it('does not make a pick again when the segment of a pick already made is clicked', async () => {
+    const onChange = vi.fn<(choice: PeriodChoice) => void>()
+    render(picker({ choice: 365, onChange }))
+    await userEvent.click(screen.getByRole('radio', { name: '12 months' }))
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('ignores the resolved window for a pick the athlete made', () => {
@@ -341,7 +372,7 @@ describe('RangePicker custom range', () => {
       within(screen.getByRole('group', { name: 'Period' }))
         .getAllByRole('radio')
         .map((radio) => fullName(radio)),
-    ).toEqual(['6 weeks', '12 weeks', '12 months', 'All time', 'Custom'])
+    ).toEqual(['6 weeks', '12 weeks', '6 months', '12 months', 'All time', 'Custom'])
     unmount()
     render(picker())
     expect(screen.queryByRole('radio', { name: 'Custom' })).toBeNull()

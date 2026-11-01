@@ -27,13 +27,13 @@ export const ONE_YEAR_DAYS = 365
 /** The words for the lengths, named once: the control's labels and the "Previous ..." labels share them. */
 const SIX_WEEKS_LABEL = '6 weeks'
 const TWELVE_WEEKS_LABEL = `${DEFAULT_PERIOD_WEEKS} weeks`
-const HALF_YEAR_LABEL = '26 weeks'
+const HALF_YEAR_LABEL = '6 months'
 const ONE_YEAR_LABEL = '12 months'
 
 /**
  * The periods the control offers, shortest first. Every period counts back from the newest activity. Each is the length it
- * names: 12 weeks is exactly 12 weeks, picked by the athlete. The default is not one of them: it is the window the search
- * settles on (`resolveWindow`), shown by the segment of the same length, or by none where there is no such segment (26 weeks).
+ * names: 12 weeks is exactly 12 weeks, 6 months is 26 weeks, picked by the athlete. The default is not one of them: it is
+ * the window the search settles on (`resolveWindow`), and every window it can settle on has a segment, which shows as selected.
  */
 export const RANGE_OPTIONS: RangeOption[] = [
   { value: String(SIX_WEEKS_DAYS), label: SIX_WEEKS_LABEL, short: '6 wk', choice: SIX_WEEKS_DAYS },
@@ -43,13 +43,14 @@ export const RANGE_OPTIONS: RangeOption[] = [
     short: '12 wk',
     choice: DEFAULT_PERIOD_DAYS,
   },
+  { value: String(HALF_YEAR_DAYS), label: HALF_YEAR_LABEL, short: '6 mo', choice: HALF_YEAR_DAYS },
   { value: String(ONE_YEAR_DAYS), label: ONE_YEAR_LABEL, short: '12 mo', choice: ONE_YEAR_DAYS },
   { value: 'all', label: 'All time', short: 'All', choice: 'all' },
 ]
 
-/** The periods the activity list offers. It shows the whole library until one is picked, and has no 12 weeks of its own. */
+/** The periods the activity list offers. It shows the whole library until one is picked, and has no 12 weeks or 6 months of its own. */
 export const LIBRARY_RANGE_OPTIONS = RANGE_OPTIONS.filter(
-  (option) => option.choice !== DEFAULT_PERIOD_DAYS,
+  (option) => option.choice !== DEFAULT_PERIOD_DAYS && option.choice !== HALF_YEAR_DAYS,
 )
 
 /**

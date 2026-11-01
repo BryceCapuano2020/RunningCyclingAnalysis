@@ -30,7 +30,7 @@ export interface RangePickerProps {
   choice: PeriodChoice
   /**
    * The window the default stands for, once the default has been resolved. On the default the control selects the segment
-   * of that window, the period in force, and none where it has no segment (26 weeks). Ignored for any other choice.
+   * of that window, the period in force, and none before it is resolved. Ignored for any other choice.
    */
   resolved?: PeriodChoice
   /** The periods offered. The Balance and sport pages offer all of them, the activity list fewer. */
@@ -155,6 +155,11 @@ export function RangePicker({
         legendHidden={compact}
         options={offered.map(({ value, label, short }) => ({ value, label, short }))}
         selected={customOpen ? CUSTOM_OPTION.value : optionValue(checked)}
+        onReselect={(value) => {
+          // The segment of a resolved default is checked without being a pick, so clicking it makes the pick.
+          const next = picked === 'default' ? choiceOfValue(value) : undefined
+          if (next !== undefined) pick(next)
+        }}
         onSelect={(value) => {
           if (value === CUSTOM_OPTION.value) {
             setCustomOpen(true)
