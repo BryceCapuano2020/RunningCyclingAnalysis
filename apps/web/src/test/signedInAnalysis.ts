@@ -1,3 +1,4 @@
+import { NO_WINDOW } from '@rca/core/answer'
 import { act, renderHook } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
@@ -44,6 +45,7 @@ export function stateWith(totalActivities: number): SessionState {
     outdatedActivities: 0,
     incompatibleActivities: 0,
     hiddenDuplicates: 0,
+    answerWindow: NO_WINDOW,
     walkingPaceRuns: 0,
     countedWalkingRuns: [],
     trend: [],

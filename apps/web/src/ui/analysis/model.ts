@@ -1,3 +1,4 @@
+import { NO_WINDOW } from '@rca/core/answer'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
@@ -139,6 +140,7 @@ export const EMPTY_SESSION: SessionState = {
   libraryActivities: 0,
   heldOut: [],
   hiddenDuplicates: 0,
+  answerWindow: NO_WINDOW,
   walkingPaceRuns: 0,
   countedWalkingRuns: [],
   trend: [],

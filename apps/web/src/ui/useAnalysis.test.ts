@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { NO_WINDOW } from '@rca/core/answer'
 import type { Copy } from '@rca/core/session'
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
@@ -150,6 +151,7 @@ const STATE = {
   libraryActivities: 0,
   heldOut: [],
   hiddenDuplicates: 0,
+  answerWindow: NO_WINDOW,
   walkingPaceRuns: 0,
   countedWalkingRuns: [],
   trend: [],

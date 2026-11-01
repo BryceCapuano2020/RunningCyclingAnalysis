@@ -1,7 +1,7 @@
+import { HEADLINE_MIN_ACTIVITIES, SPORTS, hasEvidence, headlineShortfall } from '@rca/core/answer'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { effortsCount } from '@rca/core/digest'
-import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
-import type { Comparison, ComparisonPoint, Curve, Sport } from '@rca/core/types'
+import type { AnalysisResult } from '@rca/core/pipeline'
+import type { Comparison, ComparisonPoint } from '@rca/core/types'
 
 export interface HeadlinePick {
   point: ComparisonPoint
@@ -28,51 +28,13 @@ export function pickHeadline(comparison: Comparison): HeadlinePick | null {
   return best === null ? null : { point: best, calibrated }
 }
 
-/** Whether a best curve holds an effort of at least the headline duration. */
-function reachesHeadline(curve: Curve): boolean {
-  return curve.some(
-    (point) => point.durationS >= HEADLINE_DURATION_S && Number.isFinite(point.value),
-  )
-}
-
-/**
- * Whether a sport has the evidence the headline needs: an effort as long as the headline's, or a fitted
- * threshold. A sport known only from shorter efforts, such as one estimated 5 minute ride, says too little
- * about its level to be set against the other. Whether that effort was hard is not asked here: that is a hold on
- * the headline (`holdOf`), which the pick is read under, so a pick is the same function of its result as ever.
- */
-export function hasEvidence(result: AnalysisResult, sport: Sport): boolean {
-  const { curve, threshold } = EVIDENCE_OF[sport](result)
-  return threshold !== null || reachesHeadline(curve)
-}
-
 /** Whether both sports have the evidence the headline needs: an effort of its length, or a fitted threshold. */
 export function hasHeadlineEvidence(result: AnalysisResult): boolean {
-  return hasEvidence(result, 'run') && hasEvidence(result, 'ride')
+  return SPORTS.every((sport) => hasEvidence(result, sport))
 }
 
-/** Each sport's best curve and fitted threshold in a result. */
-const EVIDENCE_OF: Record<Sport, (result: AnalysisResult) => { curve: Curve; threshold: unknown }> =
-  {
-    run: (result) => ({ curve: result.runCurve, threshold: result.runCp }),
-    ride: (result) => ({ curve: result.rideCurve, threshold: result.rideCp }),
-  }
-
-/** The analysed activities each sport needs in the period before the headline sets one against the other. */
-export const HEADLINE_MIN_ACTIVITIES = 3
-
-/**
- * How many more analysed activities each sport needs in the period before the headline can compare them,
- * 0 for a sport that has enough. One run set against three rides is a comparison of a day against a month.
- * A treadmill run is in the period's volume but is not counted here, since its pace holds no best.
- */
-export function headlineShortfall(activities: ActivitySummary[]): Record<Sport, number> {
-  const missing = (sport: Sport) => {
-    const have = activities.filter((a) => a.sport === sport && effortsCount(a)).length
-    return Math.max(0, HEADLINE_MIN_ACTIVITIES - have)
-  }
-  return { run: missing('run'), ride: missing('ride') }
-}
+// The rule is core's (answer/evidence.ts), which the search for the default window reads too.
+export { HEADLINE_MIN_ACTIVITIES, hasEvidence, headlineShortfall }
 
 /**
  * The headline's comparison point, or null when either sport lacks the evidence for it: a hard enough
@@ -82,6 +44,6 @@ export function headlineShortfall(activities: ActivitySummary[]): Record<Sport, 
 export function headlinePick(result: AnalysisResult): HeadlinePick | null {
   if (!hasHeadlineEvidence(result)) return null
   const short = headlineShortfall(result.activities)
-  if (short.run > 0 || short.ride > 0) return null
+  if (SPORTS.some((sport) => short[sport] > 0)) return null
   return pickHeadline(result.comparison)
 }

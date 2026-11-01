@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { NO_WINDOW } from '@rca/core/answer'
 import { act, renderHook } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
@@ -40,6 +41,7 @@ function stateWith(totalActivities: number): SessionState {
     libraryActivities: 0,
     heldOut: [],
     hiddenDuplicates: 0,
+    answerWindow: NO_WINDOW,
     walkingPaceRuns: 0,
     countedWalkingRuns: [],
     trend: [],

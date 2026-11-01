@@ -1,3 +1,4 @@
+import { resolveWindow } from './answer'
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { isAnalysed, leftOutCounts } from './digest/analysed'
 import { activitySummaries } from './digest'
@@ -74,7 +75,6 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   judge.release(all)
   const { hidden, visible, analysed } = analysedOf(all)
   const leftOut = leftOutCounts(visible)
-  const { period, selected, previous } = splitPeriods(analysed, inputs.choice)
   // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
   const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : judge.of(analysed, athlete)
   const setAside = judgement.setAside
@@ -88,18 +88,29 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     observedMaxHr: judgement.observedMaxHr,
     effortReference: judgement.effortReference,
   }
-  const analysis =
+  const judged = judgedWorkOf(judgement)
+  const analyse =
     athlete !== null && visible.length > 0
-      ? periods.analysis(
-          selected,
-          athlete,
-          setAside,
-          judgement.calibration,
-          references,
-          judgement.rideGate,
-          judgedWorkOf(judgement),
-        )
+      ? (digests: ActivityDigest[]) =>
+          periods.analysis(
+            digests,
+            athlete,
+            setAside,
+            judgement.calibration,
+            references,
+            judgement.rideGate,
+            judged,
+          )
       : null
+  // The default period is a search over windows, each analysed through the cache, so the window it settles on is
+  // already analysed when the state asks for it below.
+  const answerWindow = resolveWindow(analysed, inputs.choice, analyse)
+  const { period, selected, previous } = splitPeriods(
+    analysed,
+    inputs.choice,
+    answerWindow.reason === 'asked' ? undefined : answerWindow.choice,
+  )
+  const analysis = analyse === null ? null : analyse(selected)
   // The references that zones are cut from are the library's, not the period's: one activity has the same zones
   // under every period, and Profile, the activity page and the time in zones all read them.
   const zoneEstimates =
@@ -199,6 +210,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     ...(leftOut.labelled === 0 ? {} : { labelledRuns: leftOut.labelled }),
     countedWalkingRuns: inputs.countedWalkingRuns,
     period,
+    answerWindow,
     library:
       athlete === null
         ? []

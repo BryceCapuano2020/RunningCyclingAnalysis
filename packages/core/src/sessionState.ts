@@ -1,5 +1,6 @@
 import type { HeldOutActivity } from './sessionLibrary'
 import type { ActivitySummary, AnalysisResult } from './digest'
+import type { AnswerWindow } from './answer'
 import type { Period } from './period'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
@@ -61,6 +62,12 @@ export interface SessionState {
   countedWalkingRuns: string[]
   /** The period analysed: its choice and its dates. The library lists every activity regardless. */
   period: Period
+  /**
+   * The window the period stands on, and why. The default choice is searched for the shortest of 12 weeks, 26 weeks and
+   * 12 months where every sport the athlete does has a best 20 min not shown easy, else all time (`resolveWindow`); its
+   * `passed` windows say what the shorter ones lacked. Any other choice is its own window, `asked`.
+   */
+  answerWindow: AnswerWindow
   /** Every visible activity, newest first, whatever the period: the activity list and its pages. */
   library: ActivitySummary[]
   /** Activities the sink could not save, by cause, until they are saved or the library is cleared. */
