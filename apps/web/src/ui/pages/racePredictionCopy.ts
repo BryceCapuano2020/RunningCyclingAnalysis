@@ -1,8 +1,8 @@
 import type { MethodTime, RacePrediction, RunPredictions } from '@rca/core/predict'
 import { formatRecordTime } from '@rca/core/units'
 import { plural } from '../components/plural'
-import { formatDayMonth } from '../format/date'
-import type { RaceAnswer, RaceWindow } from '../raceAnswer'
+import { formatDayMonth, formatMonth } from '../format/date'
+import type { PastRun, RaceForecast, RaceWindow } from '../raceAnswer'
 import { METHOD_NAME, raceName } from '../racePredictions'
 
 /** VO2max figures differ by more than this share before the note says the two estimates disagree. */
@@ -76,8 +76,16 @@ function fromRuns({ races }: RunPredictions): boolean {
   return races.some((race) => race.methods.some((m) => m.method === 'performances'))
 }
 
+/** The line under the title when every run is older than the year: there is nothing to forecast from. */
+export const PAST_LINE = 'No run of a mile or more in 12 months.'
+
+/** What a row says of a run older than the year, as it was run: "You ran 19:58 in Oct 2024". */
+export function pastText({ seconds, startMs }: PastRun): string {
+  return `You ran ${formatRecordTime(seconds)} in ${formatMonth(startMs, true)}`
+}
+
 /** The one line under the title: the run the times were carried from, or the heart rate they came from. */
-export function basisLine(answer: Pick<RaceAnswer, 'basis'>, openedAt: number): string {
+export function basisLine(answer: Pick<RaceForecast, 'basis'>, openedAt: number): string {
   const { basis } = answer
   if (basis === null) return 'From your heart rate.'
   return `From your ${raceName(basis.distanceM).toLowerCase()} on ${formatDayMonth(basis.startMs, openedAt)}.`
@@ -89,7 +97,7 @@ export function methodNote(found: RunPredictions, window: RaceWindow, bound = fa
   const when = window === 'all' ? ALL_TIME_NOTE : ''
   const times = TIMES[window]
   if (bound) {
-    return `No run in ${RUNS_IN[window]} reached a hard heart rate. Each time is carried from your best, ${FLAT}, and is one you can run or beat.${when}${anyFloored(found) ? FLOOR_NOTE : ''}`
+    return `No run in ${RUNS_IN[window]} reached a hard heart rate. Each time is carried from your best run, ${FLAT}.${when}${anyFloored(found) ? FLOOR_NOTE : ''}`
   }
   if (!fromRuns(found) || vo2max === null) {
     return `From ${fromRuns(found) ? times : 'your heart rate against pace'} alone, ${FLAT}.${when}${anyFloored(found) ? FLOOR_NOTE : ''}`

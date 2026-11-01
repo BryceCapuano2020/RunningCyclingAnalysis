@@ -14,8 +14,7 @@ import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { gatedThreshold } from './effortGating'
 import { effortsCount } from './effortTrust'
-import { thresholdFloorOf } from './thresholdFloor'
-import type { ThresholdFloors } from './thresholdTimelineTypes'
+import { floorEffortsOf } from './thresholdFloor'
 import { thresholdTimeline } from './thresholdTimeline'
 import { effortGatesOf } from './twentyMinute'
 
@@ -36,17 +35,6 @@ function reportedFits(
   }
 }
 
-/** Each sport's floor on its threshold from the library's best curves: the best 30 minutes, else the best 20. */
-function floorsOf(
-  { runBest, rideMetabolic }: BestCurves,
-  digests: readonly ActivityDigest[],
-): ThresholdFloors {
-  return {
-    run: thresholdFloorOf(plainCurve(runBest), digests),
-    ride: thresholdFloorOf(rideMetabolic, digests),
-  }
-}
-
 /**
  * The thresholds of a library with no heart rate to judge: nothing is set aside and nothing calibrated, but the
  * zones still take their threshold references from the library, as the whole-library fits and over time. With no
@@ -64,7 +52,7 @@ export function libraryThresholds(
   const curves = bestCurves(ordered, masses, bikeModel, settings.massKg, null)
   return {
     fit: reportedFits(curves, settings.massKg),
-    floor: floorsOf(curves, ordered),
+    floor: floorEffortsOf(ordered, masses, bikeModel, null),
     thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, null),
   }
 }
@@ -128,7 +116,7 @@ export function judgeHeartRate(
         setAside,
       ),
     ),
-    floor: floorsOf(curves, ordered),
+    floor: floorEffortsOf(ordered, masses, bikeModel, gate),
     sessions: {
       run: sessionsOfSport('run'),
       ride: sessionsOfSport('ride'),

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { raceAnswerOf } from '../raceAnswer'
+import { forecastOf } from '../test/raceForecast'
 import type { RaceWindow } from '../raceAnswer'
 import { racePredictionsOf } from '../racePredictions'
 import { distanceRecords } from '../records'
@@ -27,8 +28,7 @@ function renderPredictions(
   window: RaceWindow = 'period',
   records: readonly Pick<DistanceRecord, 'distanceM' | 'seconds' | 'activity'>[] = [],
 ) {
-  const answer = raceAnswerOf('run', result, window === 'all' ? null : 84)
-  if (answer === null) throw new Error('the result gives no predictions')
+  const answer = forecastOf(raceAnswerOf('run', result, window === 'all' ? null : 84))
   const { found, basis } = answer
   // The page hands the section the recorded bests that sit off its predictions; `records` come first, as a
   // best the predictions were not worked out from (a run the effort gate left out).

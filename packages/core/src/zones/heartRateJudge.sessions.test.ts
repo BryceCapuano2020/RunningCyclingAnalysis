@@ -11,7 +11,7 @@ describe('the judgement of a library that reaches hard heart rates', () => {
     for (const sport of ['run', 'ride'] as const) {
       expect(sessions[sport].hard.length).toBeGreaterThan(0)
       expect(sessions[sport]).toEqual(state.result!.effortGate[sport].sessions)
-      expect(floor[sport]?.durationS).toBe(state.result!.effortGate[sport].floor?.durationS)
+      expect(floor[sport].length).toBeGreaterThan(0)
     }
   })
 })

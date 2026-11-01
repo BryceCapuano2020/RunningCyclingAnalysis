@@ -189,7 +189,7 @@ describe('TimeInZonesSection', () => {
       screen.getByText('Heart rate zones are cut from your highest heart rate on file.'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Pace zones are cut from your best 30 min pace, 3 Oct 2025.'),
+      screen.getByText('Pace zones are cut from your best 30 min pace, up to 3 Oct 2025.'),
     ).toBeInTheDocument()
   })
 })

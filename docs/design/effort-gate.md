@@ -68,16 +68,18 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   (the activities, the maximum entered, the age). `result.effort` has an entry for every curve duration, so a one-sport library
   has its chip. The ride on foot card says the ride behind its pace was not hard or not checked, and nothing of one that was.
 - **Zones from threshold** (`thresholdTimeline`, `HeartRateJudgement.fit`): a window whose judged 20 minutes was not hard has no fit. The
-  activity page then reads an older fit within 12 months, else the library's floor (its best 30 minutes, else its best 20, dated):
-  for an athlete who is persistently not hard the pace and power zones are cut from the floor. Heart-rate zones are cut from the
+  activity page then reads an older fit within 12 months, else a floor (the best 30 minutes, else the best 20, of the 12 months up
+  to the activity's week, dated; for today's zones alone, the newest effort older than that): for an athlete who is persistently
+  not hard the pace and power zones are cut from the floor. Heart-rate zones are cut from the
   highest heart rate on file where no effort reached near a maximum, and say so.
 - **Race predictions**: a run's bests are carried to a race when it reached a hard heart rate (its peak at the hard line, and held there
   for two minutes where the digest has its seconds by heart rate, so a lone 30 s spike does not count; digests from before the
   distributions were kept are judged by the peak alone), or, for a best at a half marathon or longer, when its average
   heart rate was 80% of the reference or more, since a long effort's average sits well under its peak. Runs without a heart rate count, and
   so does every run where the gate could not judge. The heart-rate VO2max uses the same reference and reading. Where no run is
-  shown hard, the card is a bound ("No slower than"), from the period, then the 12 months ending with it, then all time (`raceAnswerOf`);
-  a hard run in a wider window answers before an easy one in the period. Nothing left only where the library has no run of a mile.
+  shown hard, the card is a bound ("No slower than"), from the period, then the 12 months ending with it (`raceAnswerOf`);
+  a hard run in the year answers before an easy one in the period. Runs older than that year are told as they were run ("You ran
+  19:58 in Oct 2024"), with no forecast. Nothing left only where the library has no run of a mile.
 - **Balance headline**: held, by one place (`holdOf`, `ui/resultHold.ts`): a sport whose best 20 minutes was not hard, with
   the sport named and what lifts it, per sport. A sport that was only not checked is not held: the headline is shown with the note. A hold, not a rule change: `leanOfLead` stays. A level read from a best that was not shown
   hard is not asserted: "Your best 20 min run grades Local", and the level rows say "best 20 min, not a hard effort". The precedence is

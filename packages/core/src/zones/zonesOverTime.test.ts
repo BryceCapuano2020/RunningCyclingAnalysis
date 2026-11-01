@@ -24,8 +24,8 @@ function fallen(): ActivityDigest[] {
   return weeklyRuns(0, 130, (week) => (week < 60 ? 1 : 0.85))
 }
 
-function estimatesFor(library: ActivityDigest[]) {
-  return zoneEstimatesOf(new HeartRateJudge().of(library, SETTINGS), Number.MAX_SAFE_INTEGER)
+function estimatesFor(library: ActivityDigest[], nowMs = Number.MAX_SAFE_INTEGER) {
+  return zoneEstimatesOf(new HeartRateJudge().of(library, SETTINGS), nowMs)
 }
 
 describe('zones from current fitness', () => {
@@ -106,19 +106,27 @@ describe('when the half year cannot support a threshold', () => {
     expect(missingThresholdZones(at(60), SETTINGS, estimates)).toEqual([])
   })
 
-  it('cuts pace zones from the floor after a year, dated by the effort that set it', () => {
-    const floor = estimates.floor!.run!
-    const set = pace(zonesAt(at(19 + 56), SETTINGS, estimates))!
-    expect(set).toMatchObject({
-      source: 'estimated',
-      floorS: floor.durationS,
-      asOfMs: floor.asOfMs,
-    })
-    expect(missingThresholdZones(at(19 + 56), SETTINGS, estimates)).toEqual([])
+  it('cuts the zones of today from the newest effort when none is within a year, and dates it', () => {
+    // The last hard run was in week 19; today is week 75. Its year up to week 75 holds none, so the newest effort stands in.
+    const today = estimatesFor([...hard, ...easy], at(19 + 56))
+    const set = pace(zonesAt(at(19 + 56), SETTINGS, today))!
+    const lastHard = FIRST_MONDAY_MS + (19 * 7 + 2) * DAY_MS
+    expect(set).toMatchObject({ source: 'estimated', floorS: 1800 })
+    expect(set.asOfMs).toBeLessThanOrEqual(lastHard)
+    expect(set.asOfMs).toBeGreaterThan(FIRST_MONDAY_MS - 1)
+    expect(missingThresholdZones(at(19 + 56), SETTINGS, today)).toEqual([])
   })
 
-  it('has none after a year where the library holds no 20 minute effort, and says which are missing', () => {
-    const bare = { ...estimates, floor: { run: null, ride: null } }
+  it('has no zones for a date in the past after a year without an effort, and says which are missing', () => {
+    expect(estimates.floor!.run.length).toBeGreaterThan(0)
+    expect(pace(zonesAt(at(19 + 56), SETTINGS, estimates))).toBeUndefined()
+    expect(missingThresholdZones(at(19 + 56), SETTINGS, estimates)).toEqual([
+      { sport: 'run', measure: 'pace', outgrown: false },
+    ])
+  })
+
+  it('has none where the library holds no 20 minute effort, even for today', () => {
+    const bare = { ...estimatesFor([...hard, ...easy], at(19 + 56)), floor: { run: [], ride: [] } }
     expect(pace(zonesAt(at(19 + 56), SETTINGS, bare))).toBeUndefined()
     expect(missingThresholdZones(at(19 + 56), SETTINGS, bare)).toEqual([
       { sport: 'run', measure: 'pace', outgrown: false },

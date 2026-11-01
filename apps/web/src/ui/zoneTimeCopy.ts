@@ -143,7 +143,7 @@ export function zoneSourceNote(rows: readonly MeasureTime[]): string {
 
 /**
  * A line for each measure whose zones were cut from the highest heart rate on file (no effort reached near a maximum) or
- * from the best 30 min or 20 min on file (no fit stands), with the day that effort was set.
+ * from the best 30 min or 20 min of the 12 months before (no fit stands), up to the day the newest of those efforts was set.
  */
 export function zoneBasisNotes(rows: readonly MeasureTime[]): string[] {
   return rows.flatMap((row) => {
@@ -158,7 +158,7 @@ export function zoneBasisNotes(rows: readonly MeasureTime[]): string[] {
         ? `${upperFirst(name)} zones`
         : `${upperFirst(name)} zones for ${activities} of ${row.counted} activities`
     return [
-      `${whose} are cut from your best ${formatDuration(durationS)} ${name}, ${formatDayMonth(asOfMs)}.`,
+      `${whose} are cut from your best ${formatDuration(durationS)} ${name}, up to ${formatDayMonth(asOfMs)}.`,
     ]
   })
 }

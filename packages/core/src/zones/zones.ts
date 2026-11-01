@@ -6,8 +6,10 @@ import { DISTRIBUTION_BINS, PRIORS } from '../constants'
 import { EDGE_EPSILON } from '../math'
 import type { ReferenceMax } from '../digest/referenceMax'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
+import { floorAt } from '../digest/thresholdFloor'
 import { thresholdAt } from '../digest/thresholdTimelineTypes'
 import type { ThresholdFloors, ThresholdTimeline } from '../digest/thresholdTimelineTypes'
+import { weekEndFor } from '../calendar'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
 import { SPORTS } from '../types'
 import type { Sport } from '../types'
@@ -65,8 +67,8 @@ export interface ZoneSet {
   asOfMs: number | null
   /**
    * For an estimated pace or power reference that no fit stands for (none in the half year before the date, and none
-   * within a year), the length, s, of the best it is a floor from: the library's best 30 minutes, else its best 20.
-   * `asOfMs` is then the day that best was set. Null otherwise.
+   * within a year), the length, s, of the best it is a floor from: the best 30 minutes in the 12 months up to the date's
+   * week, else the best 20 (`floorAt`). `asOfMs` is then the day that best was set. Null otherwise.
    */
   floorS: number | null
   /**
@@ -122,10 +124,12 @@ export interface ZoneEstimates {
   /** The thresholds the pace and power zones are cut from, by week: see `ThresholdTimeline`. */
   thresholds: ThresholdTimeline
   /**
-   * Each sport's floor on its threshold, which the pace and power zones are cut from on a date no fit stands for.
-   * Absent: none, and those dates have no zones.
+   * Each sport's efforts a floor on its threshold is taken from, which the pace and power zones are cut from on a date no
+   * fit stands for (`floorAt`). Absent: none, and those dates have no zones.
    */
   floor?: ThresholdFloors
+  /** The day the estimates are as of, ms. Zones for this week or later are current: they may stand on a floor older than a year. */
+  nowMs?: number
   /**
    * The sports whose estimated maximum heart rate is not one a maximum can be: `low` (under what a maximum is at the
    * athlete's age) and `habitual` (the typical day already sits at it) mean no effort reached near the athlete's
@@ -177,6 +181,7 @@ export function zoneEstimatesOf(judgement: HeartRateJudgement, nowMs: number): Z
     observedMaxSource: judgement.observedMaxSource,
     thresholds: settledThresholds(judgement.thresholdTimeline, judgement.fit, nowMs),
     floor: judgement.floor,
+    nowMs,
     ...untrustedMaxOf(judgement),
   }
   estimatesOfJudgement.set(judgement, { nowMs, found })
@@ -218,8 +223,10 @@ function heartRate(
 /**
  * A threshold reference from the sport's fit over the half year that ends with the date, or, when that window
  * holds no fit, the newest earlier one within a year (marked with when its efforts end). Where no fit stands, and also where
- * the window's efforts have outgrown the older one, the sport's floor stands in: its best 30 minutes, else its best 20
- * (marked with the length and the day it was set). `convert` takes the fit's gross metabolic W/kg to the measure's unit.
+ * the window's efforts have outgrown the older one, the sport's floor stands in: its best 30 minutes in the 12 months up to
+ * the end of the date's week, else its best 20 (marked with the length and the day it was set). With none in those months,
+ * only zones for this week or later take the newest effort before them, as `floorAt` has it. `convert` takes the fit's gross
+ * metabolic W/kg to the measure's unit.
  */
 function threshold(
   sport: Sport,
@@ -229,8 +236,13 @@ function threshold(
 ): Estimated | null {
   const found = thresholdAt(estimates.thresholds[sport], when)
   if (found === null) {
-    const floor = estimates.floor?.[sport]
-    return floor == null
+    const weekEnd = weekEndFor(when)
+    const floor = floorAt(
+      estimates.floor?.[sport] ?? [],
+      weekEnd,
+      estimates.nowMs !== undefined && weekEnd >= estimates.nowMs,
+    )
+    return floor === null
       ? null
       : {
           reference: convert(floor.value),

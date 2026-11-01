@@ -45,16 +45,39 @@ describe('where a period’s zones were cut from', () => {
   })
 
   it('counts pace cut from the floor, with the best it is from and the day it was set', () => {
-    const asOfMs = noon(2025, 9, 20)
+    const asOfMs = noon(2026, 3, 1)
     const bare = estimatesOf(FIGURES)
     const without = row(bare, 'pace')
     expect([without.counted, without.noZones, 'floor' in without]).toEqual([0, 2, false])
-    const floored = row(
-      { ...bare, floor: { run: { durationS: 1800, value: 15, asOfMs }, ride: null } },
-      'pace',
-    )
+    const floored = row({ ...bare, floor: { run: [[asOfMs, 15, 0]], ride: [] } }, 'pace')
     expect([floored.counted, floored.noZones]).toEqual([2, 0])
     expect(floored.floor).toEqual({ durationS: 1800, asOfMs, activities: 2 })
     expect(floored.totalSeconds).toBe(3600)
+  })
+
+  it('cuts each activity by the best of the year before it, and names the newest of those', () => {
+    const first = noon(2025, 1, 10)
+    const second = noon(2026, 5, 1)
+    const estimates: ZoneEstimates = {
+      ...estimatesOf(FIGURES),
+      floor: {
+        run: [
+          [first, 15, 0],
+          [second, 14, 0],
+        ],
+        ride: [],
+      },
+    }
+    const spread = [
+      zoneDigest({ id: 'x', sport: 'run', startMs: noon(2025, 2, 3), speed: [60, 1800] }),
+      zoneDigest({ id: 'y', sport: 'run', startMs: noon(2026, 6, 1), speed: [60, 1800] }),
+      // Two years after the first effort and before the second: no effort in its year, so no zones.
+      zoneDigest({ id: 'z', sport: 'run', startMs: noon(2026, 2, 1), speed: [60, 1800] }),
+    ]
+    const pace = periodTimeInZones(spread, SETTINGS, estimates).run.find(
+      (each) => each.measure === 'pace',
+    )!
+    expect([pace.counted, pace.noZones]).toEqual([2, 1])
+    expect(pace.floor).toEqual({ durationS: 1800, asOfMs: second, activities: 2 })
   })
 })

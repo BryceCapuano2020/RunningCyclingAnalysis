@@ -6,6 +6,7 @@ import type { EffortGate } from '@rca/core/effort'
 import { makeActivity, makeResult } from './components/fixtures'
 import { gate, UNKNOWN } from './effortGateFixtures'
 import { raceAnswerOf } from './raceAnswer'
+import { forecastOf } from './test/raceForecast'
 import { racePredictionNeed, racePredictionsOf } from './racePredictions'
 
 afterEach(cleanup)
@@ -50,8 +51,8 @@ describe('race predictions and the effort gate', () => {
   })
 
   it('answers from an easy run with a bound: every race is no slower than a time carried from it', () => {
-    const answer = raceAnswerOf('run', result([run('easy', 140)]), null)!
-    expect(answer.bound).toBe(true)
+    const answer = forecastOf(raceAnswerOf('run', result([run('easy', 140)]), null))
+    expect(answer.kind).toBe('bound')
     expect(answer.window).toBe('period')
     expect(answer.found.races.map((race) => race.distanceM)).toEqual([
       5000, 10000, 21_097.5, 42_195,
@@ -68,12 +69,12 @@ describe('race predictions and the effort gate', () => {
       sessions: { hard: [], endurance: [] },
     })
     expect(racePredictionsOf('run', habitual)).toBeNull()
-    expect(raceAnswerOf('run', habitual, null)?.bound).toBe(true)
+    expect(raceAnswerOf('run', habitual, null)?.kind).toBe('bound')
   })
 
   it('does not call a run hard because it is the only one: a hard run among easy ones sets the answer', () => {
-    const answer = raceAnswerOf('run', result([run('easy', 140), run('hard', 180)]), null)!
-    expect(answer.bound).toBe(false)
+    const answer = raceAnswerOf('run', result([run('easy', 140), run('hard', 180)]), null)
+    expect(answer?.kind).toBe('predicted')
   })
 
   it('keeps the hard run’s bests among easy ones, and a run with no heart rate', () => {
@@ -102,7 +103,7 @@ describe('race predictions and the effort gate', () => {
   it('carries every run’s bests where the gate could not judge, as a prediction and not a bound', () => {
     const unchecked = result([run('easy', 140)], { verdict: 'unknown', unchecked: 'noHeartRate' })
     expect(racePredictionsOf('run', unchecked)).not.toBeNull()
-    expect(raceAnswerOf('run', unchecked, null)?.bound).toBe(false)
+    expect(raceAnswerOf('run', unchecked, null)?.kind).toBe('predicted')
   })
 
   it('asks only for a run of a mile or more, and only where the library holds none', () => {

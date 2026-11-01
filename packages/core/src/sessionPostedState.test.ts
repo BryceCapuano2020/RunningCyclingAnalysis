@@ -8,11 +8,12 @@ import { copiedLibrary } from './test/libraryFixture'
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const ACTIVITIES = 300
 /**
- * An all-time state of 300 activities is about 1.1 KB of JSON for each when an object held twice
- * is counted once, as a structured clone sends it. It was about 1.45 KB while the period's activities
- * and the library list held separate copies of every summary.
+ * An all-time state of 300 activities is about 1.24 KB of JSON for each when an object held twice
+ * is counted once, as a structured clone sends it. It was about 1.1 KB before the judgement kept each activity's
+ * floor efforts (a start and two bests, about 0.03 KB) for the zones, and about 1.45 KB while the period's
+ * activities and the library list held separate copies of every summary. The limit leaves 15% over what it is.
  */
-const MAX_KB_EACH = 1.25
+const MAX_KB_EACH = 1.43
 
 /** The length of the value as JSON, an object met again written as a reference, as a clone sends it. */
 function clonedLength(value: unknown): number {

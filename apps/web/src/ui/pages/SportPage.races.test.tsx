@@ -29,11 +29,11 @@ const END = Date.now()
 const SHORT = makeActivity({ id: 'short', sport: 'run', startMs: END - DAY_MS, distanceM: 3000 })
 
 /** A run from earlier in the year with a 10 km best, whose heart rate peaked at an easy or a hard level. */
-const earlier = (hard: boolean): ActivitySummary =>
+const earlier = (hard: boolean, daysAgo = 200): ActivitySummary =>
   makeActivity({
     id: 'earlier',
     sport: 'run',
-    startMs: END - 200 * DAY_MS,
+    startMs: END - daysAgo * DAY_MS,
     distanceM: 10_000,
     distanceBests: [{ distanceM: 10_000, seconds: 50 * 60 }],
     maxHeartRate: hard ? 182 : 140,
@@ -105,6 +105,22 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     expect(section.querySelectorAll('.race-bar')).toHaveLength(4)
     expect(section.querySelector('.race-row__bound')).toBeNull()
     expect(within(section).getByRole('list', { name: 'Key' })).toBeInTheDocument()
+  })
+
+  it('tells a run older than 12 months as it was run, with no range, no forecast and no claim of now', () => {
+    const run = earlier(true, 600)
+    renderPage([SHORT, run], [run.id])
+    const section = screen.getByRole('region', { name: 'Race predictions' })
+    const year = new Date(run.startMs).getFullYear()
+    expect(
+      within(section).getByText(new RegExp(`^You ran 50:00 in [A-Z][a-z]{2} ${year}$`)),
+    ).toBeInTheDocument()
+    expect(within(section).getByText('No run of a mile or more in 12 months.')).toBeInTheDocument()
+    expect(section.querySelectorAll('.race-row')).toHaveLength(1)
+    expect(section.querySelector('.race-bar, .race-row__time, .race-row__bound')).toBeNull()
+    expect(within(section).queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
+    expect(within(section).queryByText('About these predictions')).not.toBeInTheDocument()
+    expect(section.textContent).not.toMatch(/No slower than|predicted|can run/i)
   })
 
   it('says only what to add where the library holds no run of a mile or more', () => {

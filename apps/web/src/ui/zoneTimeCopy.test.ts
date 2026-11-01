@@ -74,14 +74,14 @@ describe('zoneBasisNotes', () => {
       floor: { durationS: 1800, asOfMs, activities: 8 },
     })
     expect(zoneBasisNotes([all])).toEqual([
-      'Pace zones are cut from your best 30 min pace, 3 Oct 2025.',
+      'Pace zones are cut from your best 30 min pace, up to 3 Oct 2025.',
     ])
     const some = measureTime('ride', 'power', [1, 1, 1, 1, 1], {
       counted: 8,
       floor: { durationS: 1200, asOfMs, activities: 3 },
     })
     expect(zoneBasisNotes([some])).toEqual([
-      'Power zones for 3 of 8 activities are cut from your best 20 min power, 3 Oct 2025.',
+      'Power zones for 3 of 8 activities are cut from your best 20 min power, up to 3 Oct 2025.',
     ])
   })
 

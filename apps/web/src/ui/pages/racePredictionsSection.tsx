@@ -3,6 +3,7 @@ import { raceAnswerOf } from '../raceAnswer'
 import { RACE_PREDICTIONS_NAME, racePredictionNeed } from '../racePredictions'
 import { distanceRecords } from '../records'
 import { lackLine } from './lackLine'
+import { RacePast } from './RacePast'
 import { RacePredictions } from './RacePredictions'
 import { ranBests } from './raceRan'
 import type { SectionContext } from './sportPageProps'
@@ -36,7 +37,11 @@ export function racePredictionsOutcome({
       lacks: need === undefined ? [] : [lackLine(RACE_PREDICTIONS_NAME, need)],
     }
   }
-  const { found, window, bound, basis, activities } = answer
+  if (answer.kind === 'past') {
+    return { content: <RacePast sport={sport} ran={answer.ran} units={units} />, lacks: [] }
+  }
+  const { found, window, basis, activities } = answer
+  const bound = answer.kind === 'bound'
   return {
     content: (
       <RacePredictions
