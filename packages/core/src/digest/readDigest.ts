@@ -1,4 +1,5 @@
 import type { ActivityDigest, PowerSource, Sport } from '../types'
+import { SPORTS } from '../types'
 import { DIGEST_VERSION } from './modelRevision'
 import { asDistributions, asDrift, asDurability } from './serializeEvidence'
 import {
@@ -39,7 +40,6 @@ import { readAthleteType, readLocalDayShift, readTemperature } from './readRevis
 import { RULES_OF_VIEW } from './readRules'
 import type { DigestRules, DigestView } from './readRules'
 
-const SPORTS: readonly Sport[] = ['run', 'ride']
 const POWER_SOURCES: readonly PowerSource[] = ['measured', 'virtual', 'none']
 
 /** Whether a sport's digests can be at walking pace: a ride is not judged against one. */

@@ -3,13 +3,12 @@ import type { EstimatedRideGate } from '../digest/estimatedRide'
 import { EVERY_EFFORT } from '../digest/readingRule'
 import type { ReadingRule } from '../digest/readingRule'
 import type { ActivityDigest, AthleteSettings, BikeModel, Sport } from '../types'
+import { SPORTS } from '../types'
 import { CHANGE } from './constants'
 import { nullBand } from './null'
 import { readingsOf } from './readings'
 import type { DurationReadings, Readings } from './readings'
 import type { ChangeBasis, ChangeCall, ChangeEvidence } from './types'
-
-const SPORTS: readonly Sport[] = ['run', 'ride']
 
 /** Whether a sport's readings have a power source to tell apart: a ride's do. */
 const HAS_SOURCE: Record<Sport, boolean> = { run: false, ride: true }

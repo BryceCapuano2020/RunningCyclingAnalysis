@@ -4,7 +4,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { curvePoint } from '../charts/fixtures'
+import {
+  FIVE_K_IN_20_MIN_WKG,
+  MAN_BORN_1986,
+  makeActivity,
+  makeEquivalence,
+  makeResult,
+} from '../components/fixtures'
 import { RECOVERING, SLIPPING } from '../fitnessFixtures'
 import { BalancePage } from './BalancePage'
 
@@ -12,18 +19,28 @@ afterEach(cleanup)
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
+/** A run and a ride at three durations, graded for a man born in 1986, so the grade by duration is drawn. */
+const GRADED = makeResult({
+  runCurve: [600, 1200, 3600].map((d) => curvePoint(d, FIVE_K_IN_20_MIN_WKG, 'run-1')),
+  rideCurve: [600, 1200, 3600].map((d) => curvePoint(d, 400, 'ride-1')),
+  equivalents: [600, 1200, 3600].map((d) => makeEquivalence({ durationS: d })),
+})
+
 function renderHome(
   fitness = { run: SLIPPING, ride: NO_FITNESS.ride },
   library = [] as ReturnType<typeof makeActivity>[],
+  graded = false,
 ) {
   return render(
     <BalancePage
       analysis={analysisStub({ state: { fitness, ...(library.length > 0 ? { library } : {}) } })}
-      result={library.length > 0 ? makeResult({ activities: library }) : makeResult()}
+      result={
+        graded ? GRADED : library.length > 0 ? makeResult({ activities: library }) : makeResult()
+      }
       settings={SETTINGS}
       units="metric"
-      profile={null}
-      missingAge="year of birth and sex"
+      profile={graded ? MAN_BORN_1986 : null}
+      missingAge={graded ? null : 'year of birth and sex'}
       controls={<span>Period picker</span>}
       weightKnown
       onShowAll={vi.fn()}
@@ -36,12 +53,18 @@ const follows = (a: Node, b: Node) =>
   (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
 
 describe('the home page’s fitness', () => {
-  it('leads the page: "Your fitness" comes before the balance’s own heading', () => {
-    renderHome()
+  it('sits under the balance: after its heading, the period control and the tiles, before the grades', () => {
+    renderHome(undefined, undefined, true)
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
     const title = screen.getByRole('heading', { level: 1 })
-    expect(follows(fitness, title)).toBe(true)
-    expect(fitness.parentElement?.firstElementChild).toBe(fitness)
+    const picker = screen.getByText('Period picker')
+    const tiles = screen.getByRole('region', { name: 'Headline numbers' })
+    const grades = screen.getByRole('region', { name: 'Grade by duration' })
+    expect(follows(title, fitness)).toBe(true)
+    expect(follows(picker, fitness)).toBe(true)
+    expect(follows(tiles, fitness)).toBe(true)
+    expect(follows(fitness, grades)).toBe(true)
+    expect(fitness.parentElement?.firstElementChild).not.toBe(fitness)
   })
 
   it('says the run’s state with its figures, and the card is named by the state', () => {
@@ -49,14 +72,12 @@ describe('the home page’s fitness', () => {
     expect(screen.getByRole('article', { name: 'Recovering' })).toBeInTheDocument()
   })
 
-  it('draws nothing above the balance for a library with no status, so the balance leads as before', () => {
+  it('draws no fitness section for a library with no status, and the balance still opens the page', () => {
     renderHome(NO_FITNESS)
     expect(screen.queryByRole('region', { name: 'Your fitness' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('fitness-section')).not.toBeInTheDocument()
     const title = screen.getByRole('heading', { level: 1 })
-    expect(title.closest('.page-stack')?.firstElementChild).not.toHaveAttribute(
-      'data-testid',
-      'fitness-section',
-    )
+    expect(title.closest('.page-stack')?.firstElementChild).toContainElement(title)
   })
 
   it('says what would give a one-sport library a status when it has none, in one line and no card', () => {

@@ -10,9 +10,10 @@ import {
 } from './helpers.js'
 
 /**
- * "Since your last import" under the fitness card (D9e). The first-screen contracts of analysis.spec.ts run on the sample,
- * which shows no row; this runs them with one: a library kept in this browser whose baseline was taken before it had
- * any workout, so the import that made it is what the row tells.
+ * "Since your last import" under the fitness card, which sits under the balance (D9e). The first-screen
+ * contracts of analysis.spec.ts run on the sample, which shows no row; this runs them with one: a library
+ * kept in this browser whose baseline was taken before it had any workout, so the import that made it is
+ * what the row tells.
  */
 
 const ROW = '[data-testid="checkin-row"]'
@@ -41,7 +42,7 @@ const SIZES = [
 ] as const
 
 for (const size of SIZES) {
-  test(`at ${size.width} by ${size.height} the row is 48 px or less, the headline is under it and above the tabs, and nothing overflows`, async ({
+  test(`at ${size.width} by ${size.height} the row is 48 px or less, the headline is above it and above the tabs, and nothing overflows`, async ({
     page,
   }) => {
     const errors = trackErrors(page)
@@ -52,7 +53,7 @@ for (const size of SIZES) {
     expect(box.height).toBeLessThanOrEqual(48)
     const rowEdges = await edgesOf(row)
     const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
-    expect(headline.top).toBeGreaterThanOrEqual(rowEdges.bottom)
+    expect(rowEdges.top).toBeGreaterThanOrEqual(headline.bottom)
     if (size.width < 768) expect(headline.top).toBeLessThan(await tabBarTop(page))
     else expect(headline.top).toBeLessThan(size.height)
     const overflow = await horizontalOverflow(page)

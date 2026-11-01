@@ -17,6 +17,9 @@ Decisions section. Status is one of designed, in progress or built.
   designed (research only, no code); stage E checks where files land first.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
+- [strength.md](strength.md): where lifting lives: its own sets storage and revision, the set record, the
+  logger and CSV import, `LiftState`, and the Strength card beside the Balance meter. Status: designed
+  (stage F).
 - [heldout-log.md](heldout-log.md): the synthetic generator's tuning and held-out configurations, and the log
   that a held-out re-pin must add a row to. Status: built (stage D, D10).
 - [system.md](system.md): the visual system as built: colour roles and table, type and display scales, shell width, gaps,

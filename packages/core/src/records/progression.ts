@@ -8,6 +8,7 @@ import { estimatedStanding, ownRideGate, pointAt } from '../digest/estimatedRide
 import type { EstimatedRideGate, EstimatedStanding } from '../digest/estimatedRide'
 import { fitBikeModelOver, pointWkg, runCentralWkg } from '../digest/rideCurves'
 import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
+import { SPORTS } from '../types'
 
 /** What a reading's value is: a run's gross metabolic W/kg at its pace, a ride's watts, or with dated body masses its W/kg. */
 export type ProgressionUnit = 'run W/kg' | 'W' | 'W/kg'
@@ -140,7 +141,7 @@ export function effortProgression(
   gate?: EstimatedRideGate | null,
   only?: readonly number[],
   /** The sports to read; the other is left empty. A reader whose answer for one sport does not depend on the other's work (the mass) names it. */
-  sports: readonly Sport[] = ['run', 'ride'],
+  sports: readonly Sport[] = SPORTS,
   /** The bike model fitted over these digests, for a reader that has it already. */
   fitted?: BikeModel,
 ): Record<Sport, Progression> {

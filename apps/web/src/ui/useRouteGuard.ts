@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react'
+import { PAGE_RULES } from './pageRules'
 import { canonicalHash, hrefFor } from './route'
 import type { Route } from './route'
 
 /** What a deep link to a page without a result says: the page needs the visitor's files. */
 export const COLD_NOTICE = 'Add your files to see this page.'
 
-/** Balance, Profile and How sure is this? show without a result; every other page needs one to show. */
+/** Whether the page shows only from a result. PAGE_RULES says which pages show without one. */
 export function needsResult(route: Route): boolean {
-  return route.page !== 'balance' && route.page !== 'profile' && route.page !== 'method'
+  return PAGE_RULES[route.page].needsResult
 }
 
 export interface RouteGuardInput {

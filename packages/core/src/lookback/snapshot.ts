@@ -2,6 +2,7 @@ import { orderedFor } from '../digest/consumers'
 import { workoutKey } from '../duplicates'
 import type { FitnessBySport, FitnessState } from '../fitness/types'
 import type { ActivityDigest, Sport } from '../types'
+import { SPORTS } from '../types'
 import type { LookBack } from './compute'
 import type { EpisodeKind, MilestoneEffort, MilestoneUnit } from './types'
 
@@ -10,8 +11,6 @@ import type { EpisodeKind, MilestoneEffort, MilestoneUnit } from './types'
  * whatever the library's size: the workouts are kept as one delta-encoded string a sport, the rest as a handful of
  * words and figures. No route, name, heart rate or file is in it.
  */
-
-const SPORTS: readonly Sport[] = ['run', 'ride']
 
 /** A best effort as the snapshot kept it: what it was, how good, when, and the workout that set it. */
 export interface SnapshotBest {
