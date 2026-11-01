@@ -70,6 +70,7 @@ describe('AnalysisSession records', () => {
     const cached = session.setRange('all', SETTINGS)
     expect(Object.keys(cached).sort()).toEqual(
       [
+        'answerWindow',
         'countedWalkingRuns',
         'effortTrends',
         'dotsWithheld',

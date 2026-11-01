@@ -415,20 +415,22 @@ and the tests named at the foot of that page keep the two in step. A display siz
   sport, how its weekly hours moved between the halves when they changed by a quarter from at least half an hour a week, else what they
   averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week or month, hours of each
   sport, total). It is not shown when fewer than three of the weeks have training.
-- **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest
-  activity's day, when they hold every sport the library has. A library of one sport always does, so a
-  run-only or ride-only library gets its 12 weeks and a previous period like any other. A day is counted in the device's local zone and
-  runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same
-  day give the same window, and an older window never hides recent activities. A library
-  shorter than 12 weeks has no previous period, so its default is All time, dated from its first
-  activity, with no note. When those 12
-  weeks lack a sport the library has, as with a 2015 run and a 2019 ride, the default is All time, the
-  control selects All time (the period in force, not the 12 weeks the stored choice names), and it
-  says why, naming the missing sport: "Your last 12 weeks hold no rides, so this shows all time." The
-  period is computed in
-  `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the
-  newest activity's day. A custom range is the first to the last day the athlete picks, both counted,
-  with `periodOf` in `packages/core/src/period.ts` dating it from the first millisecond of its first
+- **The default period is resolved, not fixed.** The athlete's own pick is always honoured; the default is a search, so a page has one
+  window and one set of numbers. Run, Ride and Balance share it; Activities keeps its own period. The windows tried, shortest first, are
+  12 weeks (84 calendar days), 26 weeks (182) and 12 months (365), each ending on the newest activity's day. A sport qualifies in a
+  window with 3 or more counted activities and a best 20 min that the effort gate did not show easy (hard, or not checked: no heart
+  rate on it, too few days with one). The default is the first window where every sport the library has qualifies. Where none does,
+  it is the shortest of the three with evidence for every sport and the most sports qualifying; where none of the three has evidence
+  for every sport, All time. A hard effort in the last 12 weeks keeps the 12 weeks and costs one analysis: the search stops at the
+  first window that qualifies, and every window it tries goes through the period cache, so the one it settles on is not analysed
+  again. A day is counted in the device's local zone and runs from its first millisecond to its last, so an activity at 06:00 and one
+  at 12:00 on the same day give the same window, and an older window never hides recent activities. A window longer than the library
+  has no previous period, so it is All time, dated from the first activity. The state carries the window and why
+  (`SessionState.answerWindow`: `asked` for a pick, `qualified`, `most`, or `all-time`, with the shorter windows passed over and what
+  each sport lacked there: too few activities, no 20 min best, a best shown easy). The search is
+  `packages/core/src/answer/window.ts`; `packages/core/src/period.ts` dates the window it names, and each fixed period is
+  the same number of calendar days ending on the newest activity's day. A custom range is the first to the last day the athlete
+  picks, both counted, with `periodOf` in `packages/core/src/period.ts` dating it from the first millisecond of its first
   day to the last of its last. It may hold no activities, and the page then shows its empty state.
 - A period's comparison is the same length before it, drawn as a solid mid-grey line (2 px) and named
   "Previous 6 weeks", "Previous 12 weeks", "Previous 12 months" or, for a custom range, "Previous N

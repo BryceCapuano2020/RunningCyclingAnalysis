@@ -12,7 +12,7 @@ import type { CustomRange } from './customRange'
  */
 export const MAX_PERIOD_DAYS = 36_500
 
-/** The default period is the latest window of this many weeks that holds every sport the library has. */
+/** The shortest window the default tries, and the one a library falls back to when it has no better: 12 weeks. */
 export const DEFAULT_PERIOD_WEEKS = 12
 export const DEFAULT_PERIOD_DAYS = DEFAULT_PERIOD_WEEKS * 7
 
@@ -24,9 +24,15 @@ export const DEFAULT_PERIOD_DAYS = DEFAULT_PERIOD_WEEKS * 7
 export type PeriodChoice = 'default' | 'all' | number | CustomRange
 
 /**
+ * The window the default stands for once it is resolved (`resolveWindow`): a number of days back from the newest activity,
+ * or all time. The choice stays 'default'; this is what its dates are cut from.
+ */
+export type WindowChoice = 'all' | number
+
+/**
  * The period on screen. Its dates are inclusive, and both are null for an empty library. `days` is
- * the length, null for all time, which has no period before it. `fellBack` says that the default window
- * lacks a sport the library has, so the default shows all time.
+ * the length, null for all time, which has no period before it. `fellBack` says that the default resolved to all
+ * time, because no shorter window held every sport the library has.
  */
 export interface Period {
   choice: PeriodChoice
@@ -163,8 +169,16 @@ function defaultWindow(
   return { startMs: reach.startMs, endMs: reach.endMs }
 }
 
-/** The period a choice names, dated from the visible digests. */
-export function periodOf(visible: readonly ActivityDigest[], choice: PeriodChoice): Period {
+/**
+ * The period a choice names, dated from the visible digests. `resolved` is the window the default stands for, found
+ * by `resolveWindow`; it dates the 'default' choice and is ignored for any other. Without it the default is the
+ * fixed 12 weeks, or all time where they lack a sport the library has.
+ */
+export function periodOf(
+  visible: readonly ActivityDigest[],
+  choice: PeriodChoice,
+  resolved?: WindowChoice,
+): Period {
   const ordered = typeof choice === 'object' ? orderedRange(choice) : choice
   if (visible.length === 0)
     return { choice: ordered, startMs: null, endMs: null, days: null, fellBack: false }
@@ -173,6 +187,10 @@ export function periodOf(visible: readonly ActivityDigest[], choice: PeriodChoic
   const endMs = endOfLocalDay(newest)
   const allTime = { choice, startMs: first, endMs, days: null, fellBack: false }
   if (choice === 'all') return allTime
+  if (choice === 'default' && resolved !== undefined) {
+    if (resolved === 'all') return { ...allTime, fellBack: true }
+    return { choice, ...windowEnding(newest, resolved), days: resolved, fellBack: false }
+  }
   if (choice === 'default') {
     const window = defaultWindow(visible)
     if (window === null) return { ...allTime, fellBack: true }
@@ -202,8 +220,12 @@ function customPeriod(choice: CustomRange): Period {
  * days. A period that counts back from a number of days ends at the newest activity's day, not today,
  * so an old export still shows its last weeks.
  */
-export function splitPeriods(visible: ActivityDigest[], choice: PeriodChoice): Periods {
-  const period = periodOf(visible, choice)
+export function splitPeriods(
+  visible: ActivityDigest[],
+  choice: PeriodChoice,
+  resolved?: WindowChoice,
+): Periods {
+  const period = periodOf(visible, choice, resolved)
   const { startMs, endMs, days } = period
   if (startMs === null || endMs === null) return { period, selected: [], previous: [] }
   const selected = visible.filter((d) => d.startMs >= startMs && d.startMs <= endMs)
