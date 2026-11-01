@@ -252,10 +252,11 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
     return 'lack' in answer
       ? emptyOf(context, 'standOut', answer.lack)
       : {
-          content: (
-            <StandOutSection sport={sport} profile={answer.profile} allTime={answer.allTime} />
-          ),
-          closed: { title: NAV_LABEL.standOut, finding: standOutFinding(answer.profile) },
+          content: <StandOutSection sport={sport} profile={answer.profile} />,
+          closed: {
+            title: NAV_LABEL.standOut,
+            finding: standOutFinding(answer.profile, answer.allTime),
+          },
         }
   },
   evidence: ({ list }) => ({

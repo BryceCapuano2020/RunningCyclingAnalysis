@@ -77,7 +77,7 @@ describe('durability on a sport page', () => {
   it('says "at least" where no session behind the late bests was shown hard', () => {
     renderPage('run', { ...lateEvidenceFor('run'), ruler: null })
     expect(closedRow('Durability')).toMatch(/Best 20 min held at least \d+% after 90 min\./)
-    const section = openSection('Durability')
+    const section = screen.getByRole('region', { name: 'Durability' })
     expect(within(section).getAllByRole('figure')[0]).toHaveAccessibleDescription(
       /^Best 20 min held at least \d+% after 90 min$/,
     )

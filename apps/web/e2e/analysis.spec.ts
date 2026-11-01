@@ -34,7 +34,7 @@ const OPEN_SEASON_SECTION = 'Best efforts over time'
 const SEASON_SECTIONS = ['Same heart rate, week by week', 'Durability']
 /** The section of the finding that compares each best with the athlete's other bests. */
 const STAND_OUT_SECTION = 'Best durations'
-const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|.*stand out)/
+const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|Nothing stands out|.*stand out)/
 const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/

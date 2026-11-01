@@ -39,7 +39,10 @@ export function standOutFor(
   }
 }
 
-/** The closed row's finding: where a best stands out from the rest of the athlete's own curve. */
-export function standOutFinding(profile: ReadyProfile): string {
-  return profileSentence(profile, effortLabel)
+/**
+ * The row's finding: where a best stands out from the rest of the athlete's own curve, or that nothing does. When the bests
+ * are the whole library's the sentence says "all-time", so the line itself names its window.
+ */
+export function standOutFinding(profile: ReadyProfile, allTime = false): string {
+  return profileSentence(profile, effortLabel, { allTime })
 }

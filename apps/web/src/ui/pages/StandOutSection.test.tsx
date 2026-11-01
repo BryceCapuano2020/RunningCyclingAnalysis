@@ -31,10 +31,10 @@ function standOutOf(result: Result, sport: 'run' | 'ride'): ReadyProfile | null 
 }
 
 /** The section as the page draws it once it is open: the note and the strip, from what the bests say. */
-function renderSection(sport: 'run' | 'ride', result: Result, allTime = false) {
+function renderSection(sport: 'run' | 'ride', result: Result) {
   const profile = standOutOf(result, sport)
   if (profile === null) throw new Error('the bests cannot be compared')
-  return render(<StandOutSection sport={sport} profile={profile} allTime={allTime} />)
+  return render(<StandOutSection sport={sport} profile={profile} />)
 }
 
 describe('the stand-out finding', () => {
@@ -233,11 +233,12 @@ describe('the best durations of a period short of activities', () => {
     })
   })
 
-  it('says in a few words that the bests are the whole library’s', () => {
-    renderSection('ride', standing, true)
-    expect(screen.getByText('Based on all your rides.')).toBeInTheDocument()
-    cleanup()
-    renderSection('ride', standing)
-    expect(screen.queryByText(/Based on all your/)).toBeNull()
+  it('names the window in the sentence itself, as all-time bests', () => {
+    const answer = standOutFor(few, 'ride', standingCurve, library, 40)
+    if (!('profile' in answer)) throw new Error('no answer')
+    expect(standOutFinding(answer.profile, true)).toMatch(
+      /^Your all-time 1 min best is \d+% above what your other bests suggest\.$/,
+    )
+    expect(standOutFinding(answer.profile)).toMatch(/^Your 1 min best is/)
   })
 })

@@ -125,8 +125,8 @@ describe('the best durations on a sport page', () => {
       library: profileActivities('run', 'none', 60),
     })
     const region = screen.getByRole('region', { name: 'Best durations' })
-    expect(within(region).getByText('Based on all your runs.')).toBeInTheDocument()
-    expect(closedRow('Best durations')).toMatch(/Your 20 min best is \d+% above/)
+    // The row's own sentence names the window.
+    expect(closedRow('Best durations')).toMatch(/Your all-time 20 min best is \d+% above/)
     expect(within(region).getByRole('figure')).toBeInTheDocument()
   })
 
@@ -136,7 +136,21 @@ describe('the best durations on a sport page', () => {
       inLibrary: 80,
       library: profileActivities('run', 'none', 80),
     })
-    expect(screen.queryByText(/Based on all your/)).toBeNull()
+    expect(closedRow('Best durations')).not.toMatch(/all-time/)
+  })
+
+  it('says nothing stands out, and not that the bests are in line, for a small library read as all time', () => {
+    const few = makeResult({
+      activities: profileActivities('run', 'none', 12),
+      runCurve: profileCurve(),
+    })
+    renderPage('run', few, {
+      libraryBests: profileCurve(),
+      inLibrary: 20,
+      library: profileActivities('run', 'none', 20),
+    })
+    expect(closedRow('Best durations')).toMatch(/Nothing stands out in your all-time bests/)
+    expect(closedRow('Best durations')).not.toMatch(/in line/)
   })
 
   it('is left out while a ride waits for the body weight, and for a sport with no activities', () => {
