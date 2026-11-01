@@ -5,6 +5,7 @@ import { plantedLibrary } from '../findings/test/plantedLibrary'
 import type { PlantedSpec } from '../findings/test/plantedLibrary'
 import { AnalysisSession } from '../session'
 import type { ActivityDigest } from '../types'
+import { datedByLookBack } from '../lookback/cardDates'
 import { fitnessHistories, fitnessStatuses } from './compute'
 import { NO_FITNESS } from './types'
 
@@ -286,7 +287,15 @@ describe('the session', () => {
     const direct = fitnessStatuses(planted.digests, new Set(state.heartRateJudgement.setAside), {
       nowMs: Math.floor(last / DAY_MS) * DAY_MS,
     })
-    expect(state.fitness).toEqual(direct)
+    // The card names its episode by the look-back's dates (lookback/cardDates.ts); nothing else of the status moves.
+    expect(state.fitness).toEqual(datedByLookBack(direct, state.lookBack))
+    for (const sport of ['run', 'ride'] as const) {
+      const { onsetMs, lowMs, ...rest } = state.fitness[sport]
+      const { onsetMs: _onset, lowMs: _low, ...before } = direct[sport]
+      expect(rest).toEqual(before)
+      expect(Math.abs((onsetMs ?? 0) - (direct[sport].onsetMs ?? 0))).toBeLessThan(15 * WEEK)
+      expect(lowMs === null).toBe(direct[sport].lowMs === null)
+    }
   })
 
   it('is empty before anything is loaded and after a clear', () => {

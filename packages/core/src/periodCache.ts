@@ -1,5 +1,6 @@
 import { sameAnalysisSettings } from './athlete/references'
 import { sameDigests } from './sameDigests'
+import { SameHeartRateCache } from './sameHeartRateCache'
 import { TrendMemo } from './trendMemo'
 import { calendarWatch } from './calendar'
 import { changeEvidence } from './change/evidence'
@@ -16,7 +17,6 @@ import type { EffortReference } from './effort'
 import { lateEvidence } from './digest/lateEvidence'
 import type { LateReference } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
-import { sameHeartRate } from './digest/sameHeartRate'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import type { TrendPoint } from './digest/trend'
 import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
@@ -25,6 +25,7 @@ import type {
   AthleteSettings,
   BikeModel,
   HrCalibration,
+  Sport,
   SportCurves,
 } from './types'
 
@@ -73,7 +74,8 @@ const ANALYSES_KEPT = 4
  * its own; whether the equivalents are wanted does, and it is in the key.
  */
 export class PeriodCache {
-  private moved = { trend: calendarWatch(), same: calendarWatch() }
+  private moved = { trend: calendarWatch() }
+  private same = new SameHeartRateCache()
   private trendMemo = new TrendMemo()
   // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
   private changeEntries: (Inputs & {
@@ -85,15 +87,6 @@ export class PeriodCache {
   private previousEntry:
     | (Inputs & { previous: ActivityDigest[]; gate: string; hardness: string; curves: SportCurves })
     | null = null
-  // Output at the same heart rate reads no mass, so its key is the digests, the period's start and the set-aside.
-  // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
-  private sameEntries: {
-    selected: ActivityDigest[]
-    library: ActivityDigest[]
-    fromMs: number | null
-    setAside: string
-    result: SameHeartRateBySport
-  }[] = []
   // Late-effort evidence reads no mass either: its key is the digests and the set-aside, newest use first.
   private lateEntries: {
     selected: ActivityDigest[]
@@ -177,10 +170,7 @@ export class PeriodCache {
     this.analysisEntries = this.analysisEntries.filter((entry) =>
       entry.selected.every((digest) => held.has(digest)),
     )
-    // The library holds the selection, so one test covers both.
-    this.sameEntries = this.sameEntries.filter((entry) =>
-      entry.library.every((digest) => held.has(digest)),
-    )
+    this.same.release(held)
     // The previous period's curves and the change test hold both periods' digests.
     const heldBoth = (entry: { selected: ActivityDigest[]; previous: ActivityDigest[] }) =>
       entry.selected.every((digest) => held.has(digest)) &&
@@ -227,38 +217,15 @@ export class PeriodCache {
     )
   }
 
-  /**
-   * Each sport's output at the same heart rate over the selected period, reused while the digests, the
-   * library (which sets the reference heart rate), the period's start and the activities set aside are the same. Masses do not enter, so a change of
-   * weight does not redo it.
-   */
+  /** Each sport's output at the same heart rate over the selected period (see `SameHeartRateCache`). */
   sameHeartRate(
     selected: ActivityDigest[],
     library: ActivityDigest[],
     fromMs: number | null,
     setAside: readonly string[],
+    referenceHr: Readonly<Record<Sport, number | null>>,
   ): SameHeartRateBySport {
-    if (this.moved.same()) this.sameEntries = []
-    const key = setAside.join(',')
-    const hit = this.sameEntries.findIndex(
-      (entry) =>
-        entry.fromMs === fromMs &&
-        entry.setAside === key &&
-        sameDigests(entry.selected, selected) &&
-        sameDigests(entry.library, library),
-    )
-    if (hit >= 0) {
-      const [entry] = this.sameEntries.splice(hit, 1)
-      this.sameEntries.unshift(entry!)
-      return entry!.result
-    }
-    const result = sameHeartRate(selected, new Set(setAside), {
-      fromMs: fromMs ?? undefined,
-      library,
-    })
-    this.sameEntries.unshift({ selected, library, fromMs, setAside: key, result })
-    this.sameEntries.length = Math.min(this.sameEntries.length, ANALYSES_KEPT)
-    return result
+    return this.same.of(selected, library, fromMs, setAside, referenceHr)
   }
 
   /**

@@ -178,9 +178,9 @@ function weekEnds(blocks: readonly Block[], fromMs: number | undefined): number[
 }
 
 /**
- * The reference heart rate: the median heart rate of the library's blocks in its newest referenceWeeks
- * weeks, rounded to the reference step. It is the library's, not the period's, so choosing another
- * period does not move it. Null without a block.
+ * The reference heart rate when the caller has none to give: the median heart rate of the library's blocks in its
+ * newest referenceWeeks weeks, rounded to the reference step. It is the library's, not the period's, so choosing
+ * another period does not move it. Null without a block. The session always gives the fitness card's instead.
  */
 function referenceOf(library: readonly Block[]): number | null {
   const last = library.at(-1)
@@ -206,9 +206,10 @@ function forSport(
   sport: Sport,
   setAside: ReadonlySet<string>,
   fromMs: number | undefined,
+  given: number | null | undefined,
 ): SameHeartRate {
   const all = blocksOf(ordered, sport, setAside)
-  const referenceHeartRate = referenceOf(blocksOf(library, sport, setAside))
+  const referenceHeartRate = given ?? referenceOf(blocksOf(library, sport, setAside))
   if (all.length === 0 || referenceHeartRate === null) return NO_SAME_HEART_RATE[sport]
   // The period's last week is that of its newest activity, of either sport.
   const latestWeekEndMs = weekEndsSpan(ordered)!.last
@@ -223,24 +224,34 @@ function forSport(
   return { referenceHeartRate, weeks, reportedWeeks, lacks, latestWeekEndMs }
 }
 
+/** What `sameHeartRate` is given besides the digests and the set-aside list. */
+export interface SameHeartRateOptions {
+  fromMs?: number
+  library?: ActivityDigest[]
+  /**
+   * The heart rate each sport is read at: the fitness card's, so that the card, the look-back and these weeks name one
+   * heart rate. A sport with none (null, or left out) is read at the median of its own blocks.
+   */
+  referenceHr?: Partial<Record<Sport, number | null>>
+}
+
 /**
  * Each sport's output at the same heart rate, week by week. For a week, the blocks of steady effort
  * in the 28 days to its Sunday are fitted by Theil-Sen, output on heart rate, and read at one
- * reference heart rate for every period: the median heart rate of the library's newest year of blocks.
- * Measured rides and outdoor runs only, and not the activities whose heart rate is set aside. fromMs is
- * the period's start, so that no window reaches before it; `library` is every digest, whatever the
- * period, and is the digests when not given. The result depends on these and the set-aside ids alone,
- * not on body mass. See docs/research/same-heart-rate.md.
+ * reference heart rate for every period: the fitness card's (`referenceHr`), else the median heart rate of the
+ * library's newest year of blocks. Measured rides and outdoor runs only, and not the activities whose heart rate is
+ * set aside. fromMs is the period's start, so that no window reaches before it; `library` is every digest, whatever
+ * the period, and is the digests when not given. The result depends on these and the set-aside ids alone, not on body
+ * mass. See docs/research/same-heart-rate.md.
  */
 export function sameHeartRate(
   digests: ActivityDigest[],
   setAside: ReadonlySet<string>,
-  opts: { fromMs?: number; library?: ActivityDigest[] },
+  opts: SameHeartRateOptions,
 ): SameHeartRateBySport {
   const ordered = orderedFor('sameHeartRate', digests)
   const library = opts.library === undefined ? ordered : orderedFor('sameHeartRate', opts.library)
-  return {
-    run: forSport(ordered, library, 'run', setAside, opts.fromMs),
-    ride: forSport(ordered, library, 'ride', setAside, opts.fromMs),
-  }
+  const forThe = (sport: Sport) =>
+    forSport(ordered, library, sport, setAside, opts.fromMs, opts.referenceHr?.[sport])
+  return { run: forThe('run'), ride: forThe('ride') }
 }

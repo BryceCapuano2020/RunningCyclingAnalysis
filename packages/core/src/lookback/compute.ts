@@ -98,6 +98,20 @@ const rememberedYears = memoByDigests<YearsInput, Years | null>(
   (a, b) => sameSet(a.setAside, b.setAside) && a.nowMs === b.nowMs && a.zone === b.zone,
 )
 
+/**
+ * Each sport's fitness in hindsight alone, from the memory the look-back reads it from (no bests, so no body mass):
+ * what a reader of the years' spans needs. Null without a library.
+ */
+export function hindsightsOf(
+  digests: ActivityDigest[],
+  setAside: ReadonlySet<string>,
+  nowMs: number,
+): Record<Sport, SportYears> | null {
+  const years = rememberedYears(digests, { setAside, nowMs, zone: localZoneKey() })
+  if (years === null) return null
+  return { run: years.sports.run.fitness, ride: years.sports.ride.fitness }
+}
+
 type MilestonesInput = Pick<LookBackInput, 'settings' | 'gate' | 'zone'>
 
 /** The settings a read of runs alone is given: a run's efforts never read the mass, so any would do. */

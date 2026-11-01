@@ -164,6 +164,24 @@ describe('the reference heart rate and the weeks', () => {
     )
   })
 
+  it('reads at the heart rate it is given, the fitness card’s, and at its own only when it is given none', () => {
+    const steady = weeksOf('ride', 12, () => 1)
+    const own = sameHeartRate(steady, NONE, FROM_START).ride
+    expect(own.referenceHeartRate).toBe(145)
+    const given = sameHeartRate(steady, NONE, { ...FROM_START, referenceHr: { ride: 140 } }).ride
+    expect(given.referenceHeartRate).toBe(140)
+    // Every reported week is the output at 140 bpm, not at the library's own heart rate.
+    const reported = given.weeks.filter((week) => week.fit !== null)
+    expect(reported.length).toBeGreaterThan(4)
+    for (const week of reported) {
+      expect(week.fit!.output / BASE.ride(140)).toBeGreaterThan(0.98)
+      expect(week.fit!.output / BASE.ride(140)).toBeLessThan(1.02)
+    }
+    // A sport the card has no heart rate for is read at its own.
+    const none = sameHeartRate(steady, NONE, { ...FROM_START, referenceHr: { ride: null } }).ride
+    expect(none.referenceHeartRate).toBe(145)
+  })
+
   it('starts all time at the first full 28-day window, not before it', () => {
     const { weeks } = sameHeartRate(
       weeksOf('ride', 12, () => 1),

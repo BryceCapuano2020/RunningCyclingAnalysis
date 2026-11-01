@@ -13,6 +13,7 @@ import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
 import { historyOf, NO_HISTORY } from './history/compute'
+import { datedByLookBack } from './lookback/cardDates'
 import { lookBackOf, NO_LOOKBACK } from './lookback/compute'
 import { splitPeriods } from './period'
 import type { PeriodCache, PeriodChoice } from './period'
@@ -141,8 +142,22 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
           judgement.rideGate,
           dots,
         )
+  // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
+  const dayMs = Math.floor(inputs.nowMs / DAY_MS) * DAY_MS
+  const statuses = fitnessStatuses(analysed, new Set(held), { nowMs: dayMs })
+  // The weeks are read at the heart rate the fitness card names, so the card, the look-back and the weeks agree.
   const sameHeartRate =
-    analysis === null ? NO_SAME_HEART_RATE : periods.sameHeartRate(selected, analysed, fromMs, held)
+    analysis === null
+      ? NO_SAME_HEART_RATE
+      : periods.sameHeartRate(selected, analysed, fromMs, held, {
+          run: statuses.run.referenceHr,
+          ride: statuses.ride.referenceHr,
+        })
+  // The runs and rides the card is read from: heart rate set aside, and power set aside.
+  const lookBack =
+    athlete === null
+      ? NO_LOOKBACK
+      : lookBackOf(analysed, athlete, new Set(held), dayMs, judgement.rideGate)
   const late =
     analysis === null
       ? NO_LATE_EVIDENCE
@@ -159,21 +174,9 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     sameHeartRate,
     lateEvidence: late,
     heartRateJudgement: judgement,
-    // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
-    fitness: fitnessStatuses(analysed, new Set(held), {
-      nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
-    }),
-    lookBack:
-      athlete === null
-        ? NO_LOOKBACK
-        : lookBackOf(
-            analysed,
-            athlete,
-            // The runs and rides the card is read from: heart rate set aside, and power set aside.
-            new Set(held),
-            Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
-            judgement.rideGate,
-          ),
+    // The card names its episode by the dates of the look-back's, so the two tell one episode.
+    fitness: datedByLookBack(statuses, lookBack),
+    lookBack,
     // Library-wide too: the History page ignores the period, and these digests make the same answer each time.
     history:
       athlete === null
@@ -181,7 +184,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         : historyOf(analysed, {
             settings: athlete,
             setAside: new Set(held),
-            nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
+            nowMs: dayMs,
             gate: judgement.rideGate,
           }),
     zoneEstimates,
