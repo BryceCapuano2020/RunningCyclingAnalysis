@@ -1,8 +1,7 @@
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Comparison, ComparisonPoint, Sport } from '@rca/core/types'
-import { formatDuration, formatPercent } from '@rca/core/units'
+import { formatPercent } from '@rca/core/units'
 import { wholeCentre, type Lean } from '../../domain/lean'
 import { plural } from './plural'
 import { effortLabel } from '../records'
@@ -128,31 +127,11 @@ export function isPoint(reading: BalanceReading): boolean {
 }
 
 /**
- * A grade gap on the headline duration: the best estimate first, then the range it sits within, from
- * the leading sport's side so the signs agree with the sentence. "Running’s age grade is 9 points
- * higher than cycling’s at 20 min, within −4 to +18 points." A range that rounds to one value leaves
- * the range out, since the estimate already says it. Only an estimate within LEVEL_BAND of zero says
- * the two are level.
+ * The energy balance in a sentence, for an athlete whose age or sex is not on file, so there are no grades to
+ * state: how far one sport is higher, in percent, within the range, over the duration given.
  */
-function gradeSummary(reading: BalanceReading): string {
-  const centre = wholeCentre(reading.lead)
-  const at = `at ${formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)}`
-  const level = reading.lean === 'even' ? ', so the two are level' : ''
-  const within = isPoint(reading) ? '' : `, within ${rangeText(reading)}`
-  if (centre === 0) {
-    // A range that is not symmetric about zero has a side, so it names the one it is read from.
-    const lopsided = Math.round(reading.lead.low) !== -Math.round(reading.lead.high)
-    const side = within !== '' && lopsided ? ' (running minus cycling)' : ''
-    return `Running and cycling have the same age grade ${at}${within}${side}${level}.`
-  }
-  const leading = readFrom(reading)
-  const { other } = leaderOf(leading)
-  const lead = `${SPORT_TITLE[leading]}’s age grade is ${points(Math.abs(centre))} higher than ${other}’s ${at}`
-  return `${lead}${within}${level}.`
-}
-
-/** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */
-function energySummary(reading: BalanceReading, duration: string): string {
+export function energySummary(reading: BalanceReading, durationS: number): string {
+  const duration = effortLabel(durationS)
   const { lean, lead } = reading
   if (lean === 'even') {
     return `Over ${duration}, your running and your cycling are level as energy per kilogram, within ${rangeText(reading)}.`
@@ -162,12 +141,6 @@ function energySummary(reading: BalanceReading, duration: string): string {
   const amount = percentEdge(Math.abs(lead.centre), false)
   const within = isPoint(reading) ? '' : `, within ${rangeText(reading)}`
   return `Over ${duration}, your ${leader} is ${amount} higher than your ${other}${within}, as energy per kilogram.`
-}
-
-/** The summary under the headline. A grade gap is on the headline duration; the energy ratio on the duration given. */
-export function balanceSummary(reading: BalanceReading, durationS: number): string {
-  if (reading.unit === 'percent') return energySummary(reading, effortLabel(durationS))
-  return gradeSummary(reading)
 }
 
 /**
@@ -195,12 +168,12 @@ export function headlineBasis(comparison: Comparison, calibrated: boolean): stri
 }
 
 /**
- * The reference heart rate in one sentence, as the heart-rate check derives it: running's is the higher
- * of the two sports' maxima, and cycling's is the higher of its own and the running reference less
- * RIDE_MAX_OFFSET_BPM, so cycling is never judged against an artificially low maximum.
+ * The max heart rate in plain words, as the heart-rate check derives it: running's is the higher of the two
+ * sports' maxima, and cycling's is the higher of its own and the running max less RIDE_MAX_OFFSET_BPM, so
+ * cycling is never judged against an artificially low maximum.
  */
 export function referenceDefinition(): string {
-  return `Your reference heart rate is set from the highest sustained heart rate that several separate days reached in the last three years: running’s is the higher of your running and cycling maxima, and cycling’s is the higher of its own and ${RIDE_MAX_OFFSET_BPM} bpm below running’s.`
+  return `Your max heart rate is the highest sustained heart rate that several separate days reached in the last three years. Running uses the higher of your running and cycling maxima. Cycling uses the higher of its own and ${RIDE_MAX_OFFSET_BPM} bpm below running’s.`
 }
 
 /**
@@ -249,18 +222,18 @@ function leadingSentence({
 }
 
 /**
- * The lead in one line with the range it sits within, short enough for one line of the share card, or null for
- * an even balance, which the headline already says: "Running grades 9 points higher, within −4 to +18". A range
- * that rounds to one value is left out.
+ * The lead in one line with its range, short enough for one line of the share card, or null for an even
+ * balance, which the headline already says: "Running grades 9 points higher (−4 to +18)". A range that rounds
+ * to one value is left out.
  */
 export function leadSentence(reading: BalanceReading): string | null {
   const { lean, lead, unit } = reading
   if (lean === 'even') return null
-  const within = isPoint(reading) ? '' : `, within ${rangeEdges(reading)}`
+  const range = isPoint(reading) ? '' : ` (${rangeEdges(reading)})`
   if (unit === 'points') {
-    return `${SPORT_TITLE[lean]} grades ${points(Math.abs(wholeCentre(lead)))} higher${within}`
+    return `${SPORT_TITLE[lean]} grades ${points(Math.abs(wholeCentre(lead)))} higher${range}`
   }
-  return `${SPORT_TITLE[lean]} ${percentEdge(Math.abs(lead.centre), false)} higher in energy${within}`
+  return `${SPORT_TITLE[lean]} ${percentEdge(Math.abs(lead.centre), false)} higher in energy${range}`
 }
 
 /**

@@ -93,7 +93,7 @@ describe('CrossSportCard', () => {
     },
   )
 
-  it('says the ride behind the pace was not a hard effort, or was not checked, and says nothing of one that was', () => {
+  it('leaves how hard the 20 min ride was to the ride’s own tile beside it, whatever the check says', () => {
     const base = { equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }
     const check = (share: number, reference: 'trusted' | 'low' = 'trusted') => ({
       effort: [
@@ -106,16 +106,12 @@ describe('CrossSportCard', () => {
         },
       ],
     })
-    // A hard ride is said on the ride's own tile, beside this card.
-    renderCard(makeResult({ ...base, ...check(0.95) }))
-    expect(screen.queryByRole('button', { name: /effort/ })).toBeNull()
-    cleanup()
-    renderCard(makeResult({ ...base, ...check(0.7) }))
-    expect(screen.getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
-    cleanup()
-    renderCard(makeResult({ ...base, ...check(0.99, 'low') }))
-    expect(screen.getByRole('button', { name: 'Effort not confirmed' })).toBeInTheDocument()
-    cleanup()
+    for (const found of [check(0.95), check(0.7), check(0.99, 'low')]) {
+      const { container } = renderCard(makeResult({ ...base, ...found }))
+      expect(screen.queryByRole('button', { name: /effort/ })).toBeNull()
+      expect(container.textContent).toContain('250 W for 20 min')
+      cleanup()
+    }
     const unchecked = {
       verdict: 'unknown' as const,
       unchecked: 'noHeartRate' as const,
@@ -131,9 +127,7 @@ describe('CrossSportCard', () => {
     const { container } = renderCard(
       makeResult({ ...base, effortGate: { run: unchecked, ride: unchecked } }),
     )
-    expect(container.textContent).toContain(
-      'Effort not checked: no heart rate on your best 20 min ride.',
-    )
+    expect(container.textContent).not.toMatch(/not checked/)
   })
 
   it('says a soft ride behind a shorter featured effort too, at the duration the pace is of', () => {
@@ -156,30 +150,23 @@ describe('CrossSportCard', () => {
     expect(container.textContent).toContain('Your best 10 min on the bike reached 70%')
   })
 
-  it('states the bike fitness as a flat running pace, with the cycling effort it comes from', () => {
+  it('states the ride as a running pace, with the cycling effort it comes from', () => {
     const { container } = renderCard(
       makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
     )
 
-    expect(screen.getByRole('heading', { level: 3, name: 'Ride on foot' })).toBeInTheDocument()
-    expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('4:10/km')
-    expect(screen.getByText('As running')).toBeInTheDocument()
-    // The ride that set the effort is not in this result, so its watts count as estimated.
     expect(
-      screen.getByText(
-        'Your best 20 min on the bike, 250 W (estimated), takes the same effort as running this pace on the flat.',
-      ),
+      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
     ).toBeInTheDocument()
+    expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('4:10/km')
+    // The ride that set the effort is not in this result, so its watts count as estimated.
+    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
   })
 
-  it('names an hour effort in minutes in the headline line, as the records list does', () => {
+  it('names an hour effort in minutes in the line under the pace, as the records list does', () => {
     renderCard(makeResult({ equivalents: [makeEquivalence({ durationS: 3600, ridePowerW: 200 })] }))
 
-    expect(
-      screen.getByText(
-        'Your best 60 min on the bike, 200 W (estimated), takes the same effort as running this pace on the flat.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('200 W for 60 min (estimated).')).toBeInTheDocument()
   })
 
   describe('a short estimated ride', () => {
@@ -195,7 +182,6 @@ describe('CrossSportCard', () => {
       )
       expect(screen.getByText('Needs a ride of 10 min or more.')).toBeInTheDocument()
       expect(container.querySelector('.stat-tile__figure')).toBeNull()
-      expect(screen.queryByText('As running')).toBeNull()
     })
 
     it('still gives the pace of a short ride a power meter measured', () => {
@@ -230,7 +216,7 @@ describe('CrossSportCard', () => {
         equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
       }),
     )
-    expect(screen.getByText(/250 W \(estimated\), takes the same effort/)).toBeInTheDocument()
+    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
   })
 
   it('leaves the estimate tag off the watts when the ride had a power meter', () => {
@@ -241,11 +227,7 @@ describe('CrossSportCard', () => {
         equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
       }),
     )
-    expect(
-      screen.getByText(
-        'Your best 20 min on the bike, 250 W, takes the same effort as running this pace on the flat.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
   })
 
   it('holds the ride figures without a weight, with the same prompt as the cards', () => {
@@ -259,7 +241,9 @@ describe('CrossSportCard', () => {
       false,
     )
 
-    expect(screen.getByRole('heading', { level: 3, name: 'Ride on foot' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/4:10/)).not.toBeInTheDocument()
     expect(screen.queryByText(/250 W/)).not.toBeInTheDocument()
     expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
@@ -267,24 +251,13 @@ describe('CrossSportCard', () => {
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
   })
 
-  it('is a tile whose chip says the figure is an equivalent, not a measurement', () => {
+  it('is a tile with no chip of its own: its heading says the figure is the ride as a run', () => {
     const { container } = renderCard(
       makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
     )
     expect(container.querySelector('article')).toHaveClass('stat-tile')
-    expect(container.querySelector('.stat-tile__basis')).toHaveClass('stat-tile__basis--equivalent')
-  })
-
-  it('shows the ride as watts becoming a run, in a pair that screen readers skip', () => {
-    const { container } = renderCard(
-      makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
-    )
-    const pair = container.querySelector('.cross-sport__pair')
-    expect(pair).toHaveAttribute('aria-hidden', 'true')
-    // Each chip names its sport, so the watts are the ride's wherever the text is read from.
-    expect(
-      Array.from(pair!.querySelectorAll('.cross-sport__chip'), (chip) => chip.textContent),
-    ).toEqual(['Ride 250 W', 'Run on the flat'])
+    expect(container.querySelector('.stat-tile__basis')).toBeNull()
+    expect(container.querySelector('.cross-sport__pair')).toBeNull()
   })
 
   it('gives the pace per mile for imperial', () => {
@@ -294,9 +267,7 @@ describe('CrossSportCard', () => {
     )
 
     expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('6:42/mi')
-    expect(
-      screen.getByText(/takes the same effort as running this pace on the flat\.$/),
-    ).toBeInTheDocument()
+    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
     expect(screen.queryByText(/6:42/, { selector: 'p' })).not.toBeInTheDocument()
   })
 
@@ -311,9 +282,7 @@ describe('CrossSportCard', () => {
       }),
     )
 
-    expect(
-      screen.getByText(/on the bike, 250 W \(estimated\), takes the same effort/),
-    ).toBeInTheDocument()
+    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
   })
 
   it('names the ride that set the effort, linked to its activity page with the day', () => {
@@ -370,7 +339,9 @@ describe('CrossSportCard', () => {
   it('asks for a ride of 3 min when no ride is that long', () => {
     renderCard(makeResult({ activities: [shortRide], equivalents: [] }))
 
-    expect(screen.getByRole('heading', { level: 3, name: 'Ride on foot' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Needs a ride of 3 min or more.')).toBeInTheDocument()
     expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
   })
@@ -378,7 +349,9 @@ describe('CrossSportCard', () => {
   it('names the power as the missing reason when a ride is long enough but has no power curve', () => {
     renderCard(makeResult({ activities: [hillRide], equivalents: [] }))
 
-    expect(screen.getByRole('heading', { level: 3, name: 'Ride on foot' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Needs a ride of 3 min or more with power.')).toBeInTheDocument()
     expect(screen.queryByText('Needs a ride of 3 min or more.')).not.toBeInTheDocument()
   })
@@ -398,7 +371,9 @@ describe('CrossSportCard', () => {
       }),
     )
 
-    expect(screen.getByRole('heading', { level: 3, name: 'Ride on foot' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Needs a ride of 3 min or more.')).toBeInTheDocument()
     expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
   })

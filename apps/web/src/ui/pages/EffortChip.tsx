@@ -10,9 +10,9 @@ export interface EffortChipProps {
 }
 
 /**
- * How hard the best 20 minutes behind a grade were, by heart rate, as one chip: "Not all-out", or "Hard effort ·
- * 95%" with the share beside it. The whole reading, the reference it is a share of and what would change it,
- * opens from the chip as a definition. Balance's tiles and the sport pages' threshold panels share it.
+ * How hard the best 20 minutes behind a grade were, by heart rate, as one chip: "Not all-out" or "Hard effort". The
+ * whole reading, the share of the max heart rate and what would change it, opens from the chip as a definition.
+ * Balance's tiles and the sport pages' threshold panels share it.
  */
 export function EffortChip({ chip, className }: EffortChipProps) {
   return (

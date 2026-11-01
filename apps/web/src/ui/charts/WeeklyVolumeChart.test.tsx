@@ -20,11 +20,8 @@ function weeksOf(...hours: [number, number][]): VolumeWeek[] {
 /** A run-heavy block, a rest week, then a cycling block. */
 const WEEKS = weeksOf([4, 0], [3.5, 1], [0, 0], [1, 5], [0.5, 6])
 
-const LEDE =
-  'Cycling rose from 10% of your running and riding hours in the first half to 80% in the second.'
-
 function renderChart(weeks = WEEKS) {
-  return render(<WeeklyVolumeChart weeks={weeks} lede={LEDE} />)
+  return render(<WeeklyVolumeChart weeks={weeks} />)
 }
 
 /** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */
@@ -58,11 +55,12 @@ afterEach(() => {
 })
 
 describe('WeeklyVolumeChart', () => {
-  it('is titled by its finding, and names what it measures under it', () => {
+  it('is titled by what it measures, and says nothing about what moved', () => {
     renderChart()
-    const figure = screen.getByRole('figure', { name: LEDE })
-    expect(within(figure).getByText('Training hours per week')).toBeInTheDocument()
-    expect(screen.getAllByText(LEDE)).toHaveLength(1)
+    const figure = screen.getByRole('figure', { name: 'Training hours' })
+    expect(figure.querySelector('figcaption')).toHaveTextContent(/^Training hours$/)
+    expect(figure.querySelector('.chart-frame__lede')).toBeNull()
+    expect(figure).not.toHaveTextContent(/rose from|fell from|of your running and riding hours/)
   })
 
   it('labels the tallest bar with its hours', () => {
@@ -81,7 +79,7 @@ describe('WeeklyVolumeChart', () => {
     const { container } = renderChart(long)
     expect(container.querySelectorAll('[data-testid="volume-bar"]').length).toBeLessThan(50)
     expect(container.querySelector('.chart-frame__note')).toHaveTextContent(
-      'Each bar is a month: its average hours a week.',
+      'Average hours a week, by month.',
     )
     const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
     expect(headers[0]).toBe('Month to')
@@ -163,7 +161,7 @@ describe('WeeklyVolumeChart', () => {
       endMs: weeks[9]!.endMs,
       gaps: [{ fromMs: weeks[3]!.endMs, toMs: weeks[7]!.endMs }],
     }
-    const { container } = render(<WeeklyVolumeChart weeks={weeks} lede={LEDE} axis={axis} />)
+    const { container } = render(<WeeklyVolumeChart weeks={weeks} axis={axis} />)
     expect(container.querySelectorAll('[data-testid="axis-break"]')).toHaveLength(1)
     // The three weeks inside the gap are not rows.
     expect(mainRows(container)).toHaveLength(7)

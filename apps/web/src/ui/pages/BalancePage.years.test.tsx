@@ -75,7 +75,7 @@ describe('the Balance over the years on the home page', () => {
     const follows = (earlier: HTMLElement) =>
       earlier.compareDocumentPosition(years) & Node.DOCUMENT_POSITION_FOLLOWING
     expect(follows(screen.getByRole('heading', { level: 1 }))).toBeTruthy()
-    expect(follows(screen.getByRole('heading', { name: 'Ride on foot' }))).toBeTruthy()
+    expect(follows(screen.getByRole('heading', { name: 'Your ride as a run' }))).toBeTruthy()
     // Nothing else drawn on the page comes between the tiles and the chart.
     const tiles = container.querySelector('.balance-tiles')
     expect(tiles?.nextElementSibling?.contains(years)).toBe(true)

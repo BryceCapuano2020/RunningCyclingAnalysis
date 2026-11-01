@@ -88,13 +88,10 @@ export function tooltipFor(
       const none = `No ${SPORT_LABEL[sport].toLowerCase()} grade at ${effortLabel(row.durationS)}`
       return { kind: sport, label, value: '—', note: none }
     }
-    const level = gradeLevelText(grade)
-    return {
-      kind: sport,
-      label,
-      value: formatGrade(grade.centre.grade),
-      note: grade.range === null ? level : `${level}, range ${gradeRangeText(grade.range)}`,
-    }
+    const range = grade.range === null ? null : `range ${gradeRangeText(grade.range)}`
+    // The level, when the whole range sits in one band, then a ride's range.
+    const note = [gradeLevelText(grade), range].filter((part) => part !== null).join(', ')
+    return { kind: sport, label, value: formatGrade(grade.centre.grade), note }
   })
   return { x, y, title: effortLabel(row.durationS), rows }
 }

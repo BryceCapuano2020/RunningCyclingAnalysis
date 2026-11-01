@@ -20,7 +20,7 @@ const check = (run: number | null, ride: number | null): EffortCheck => ({
 })
 
 describe('EffortChip', () => {
-  it('says a best that did not reach a hard heart rate in two words, with no share, as a warning', () => {
+  it('says a best that did not reach a hard heart rate in two words as a warning', () => {
     const { container } = render(<Chip sport="run" effort={check(0.7, 0.95)} />)
     expect(screen.getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
     expect(container.querySelector('.chip')).toHaveClass('chip--warning')
@@ -34,19 +34,23 @@ describe('EffortChip', () => {
     const button = screen.getByRole('button', { name: 'Not all-out' })
     fireEvent.click(button)
     expect(document.getElementById(button.getAttribute('aria-controls') ?? '')).toHaveTextContent(
-      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min on the bike reached 80% of your cycling max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
   })
 
-  it('says a hard effort, as good news, with its share', () => {
+  it('says a hard effort, as good news, and keeps its share in the detail', () => {
     const { container } = render(<Chip sport="run" effort={check(0.95, 0.7)} />)
-    expect(screen.getByRole('button', { name: 'Hard effort · 95%' })).toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Hard effort' })
     expect(container.querySelector('.chip')).toHaveClass('chip--good')
+    fireEvent.click(button)
+    expect(document.getElementById(button.getAttribute('aria-controls') ?? '')).toHaveTextContent(
+      'reached 95% of your running max heart rate',
+    )
   })
 
   it('judges the sport it is on, from that sport’s own heart rate', () => {
     render(<Chip sport="ride" effort={check(0.7, 0.95)} />)
-    expect(screen.getByRole('button', { name: 'Hard effort · 95%' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hard effort' })).toBeInTheDocument()
   })
 
   it('says nothing where heart rate does not say, or there is no check', () => {

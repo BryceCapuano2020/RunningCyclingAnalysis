@@ -5,8 +5,8 @@ import { comparisonPoint, interval, makeResult } from './fixtures'
 import { energyReading, gapReading } from './balanceScale'
 import {
   balanceSentence,
-  balanceSummary,
   balanceTitle,
+  energySummary,
   headlineBasis,
   headlineText,
   leadSentence,
@@ -29,19 +29,19 @@ const FORBIDDEN = /ahead of|limiter|weak|strength|holding you back/i
 describe('leadSentence', () => {
   it('names the leading sport and its lead in points of grade, as the card and the page both state it', () => {
     expect(leadSentence(gapReading(gap({ centre: 6, low: 4, high: 8, lean: 'run' })))).toBe(
-      'Running grades 6 points higher, within 4 to 8',
+      'Running grades 6 points higher (4 to 8)',
     )
     expect(leadSentence(gapReading(gap({ centre: -6, low: -8, high: -4, lean: 'ride' })))).toBe(
-      'Cycling grades 6 points higher, within 4 to 8',
+      'Cycling grades 6 points higher (4 to 8)',
     )
     expect(leadSentence(gapReading(gap({ centre: 9, low: -4, high: 18, lean: 'run' })))).toBe(
-      'Running grades 9 points higher, within −4 to +18',
+      'Running grades 9 points higher (−4 to +18)',
     )
   })
 
   it('names the lead in percent of energy when there is no grade gap', () => {
     expect(leadSentence(energyReading(interval(1.05, 1.12, 1.2)))).toBe(
-      'Running 12% higher in energy, within 5% to 20%',
+      'Running 12% higher in energy (5% to 20%)',
     )
   })
 
@@ -52,7 +52,7 @@ describe('leadSentence', () => {
 
   it('is the balance sentence with its range in the lede’s wording, so the card and the page agree', () => {
     const reading = gapReading(gap({ centre: 6, low: 4, high: 8, lean: 'run' }))
-    expect(leadSentence(reading)).toContain('within 4 to 8')
+    expect(leadSentence(reading)).toContain('(4 to 8)')
     expect(balanceSentence(reading)).toContain(`(range ${rangeText(reading)})`)
   })
 })
@@ -200,97 +200,27 @@ describe('balanceTitle', () => {
   })
 })
 
-describe('balanceSummary', () => {
-  it('leads with the grade gap’s best estimate and states its range, on the headline duration', () => {
-    expect(balanceSummary(gapReading(gap({ centre: 6, lean: 'run' })), 1200)).toBe(
-      'Running’s age grade is 6 points higher than cycling’s at 20\u00a0min, within 2 to 10\u00a0points.',
-    )
-  })
-
-  it('names cycling as the leader when cycling grades higher, with its range from its own side', () => {
-    expect(
-      balanceSummary(gapReading(gap({ centre: -6, low: -10, high: -2, lean: 'ride' })), 1200),
-    ).toBe(
-      'Cycling’s age grade is 6 points higher than running’s at 20\u00a0min, within 2 to 10\u00a0points.',
-    )
-  })
-
-  it('still says a lead of 9 points when its range reaches below zero, and gives the range signed', () => {
-    expect(
-      balanceSummary(gapReading(gap({ centre: 9, low: -4, high: 18, lean: 'run' })), 1200),
-    ).toBe(
-      'Running’s age grade is 9 points higher than cycling’s at 20\u00a0min, within −4 to +18\u00a0points.',
-    )
-    expect(
-      balanceSummary(gapReading(gap({ centre: -9, low: -18, high: 4, lean: 'ride' })), 1200),
-    ).toBe(
-      'Cycling’s age grade is 9 points higher than running’s at 20\u00a0min, within −4 to +18\u00a0points.',
-    )
-  })
-
-  it('uses the singular for a gap of one point, and leaves out a range that is one value', () => {
-    expect(balanceSummary(gapReading(gap({ centre: 3, low: 3, high: 3 })), 1200)).toBe(
-      'Running’s age grade is 3 points higher than cycling’s at 20\u00a0min.',
-    )
-    expect(
-      balanceSummary(gapReading(gap({ centre: 1, low: 1, high: 3, lean: 'even' })), 1200),
-    ).toMatch(
-      /is 1 point higher than cycling’s at 20\u00a0min, within 1 to 3\u00a0points, so the two are level\.$/,
-    )
-  })
-
-  it('says the two are level only for an estimate within two points, and gives the range signed', () => {
-    expect(
-      balanceSummary(gapReading(gap({ centre: 2, low: -2, high: 6, lean: 'even' })), 1200),
-    ).toBe(
-      'Running’s age grade is 2 points higher than cycling’s at 20\u00a0min, within −2 to +6\u00a0points, so the two are level.',
-    )
-  })
-
-  it('says the two grade the same when the best estimate is zero', () => {
-    expect(
-      balanceSummary(gapReading(gap({ centre: 0, low: -2, high: 2, lean: 'even' })), 1200),
-    ).toBe(
-      'Running and cycling have the same age grade at 20\u00a0min, within −2 to +2\u00a0points, so the two are level.',
-    )
-  })
-
-  it('names the side of a level estimate whose range is lopsided, and not one that is symmetric', () => {
-    expect(
-      balanceSummary(gapReading(gap({ centre: 0.2, low: -1, high: 3, lean: 'even' })), 1200),
-    ).toBe(
-      'Running and cycling have the same age grade at 20\u00a0min, within −1 to +3\u00a0points (running minus cycling), so the two are level.',
-    )
-  })
-
-  it('names cycling when its best estimate leads a level balance, with its range from its own side', () => {
-    expect(
-      balanceSummary(gapReading(gap({ centre: -2, low: -6, high: 2, lean: 'even' })), 1200),
-    ).toBe(
-      'Cycling’s age grade is 2 points higher than running’s at 20\u00a0min, within −2 to +6\u00a0points, so the two are level.',
-    )
-  })
-
+describe('energySummary', () => {
   it('states the energy ratio, with the duration, and its range, when the balance is only an energy reading', () => {
-    expect(balanceSummary(energyReading(interval(1.05, 1.12, 1.2)), 300)).toBe(
+    expect(energySummary(energyReading(interval(1.05, 1.12, 1.2)), 300)).toBe(
       'Over 5 min, your running is 12% higher than your cycling, within 5% to 20%, as energy per kilogram.',
     )
   })
 
   it('names an hour in the energy ratio in minutes, as the records list does', () => {
-    expect(balanceSummary(energyReading(interval(1.05, 1.12, 1.2)), 3600)).toBe(
+    expect(energySummary(energyReading(interval(1.05, 1.12, 1.2)), 3600)).toBe(
       'Over 60 min, your running is 12% higher than your cycling, within 5% to 20%, as energy per kilogram.',
     )
   })
 
   it('signs an energy range that reaches the other sport’s side', () => {
-    expect(balanceSummary(energyReading(interval(0.98, 1.12, 1.3)), 1200)).toBe(
+    expect(energySummary(energyReading(interval(0.98, 1.12, 1.3)), 1200)).toBe(
       'Over 20 min, your running is 12% higher than your cycling, within -2% to +30%, as energy per kilogram.',
     )
   })
 
   it('says a level energy ratio with its signed range', () => {
-    expect(balanceSummary(energyReading(interval(0.97, 1, 1.04)), 1200)).toMatch(
+    expect(energySummary(energyReading(interval(0.97, 1, 1.04)), 1200)).toMatch(
       /^Over 20 min, your running and your cycling are level as energy per kilogram, within /,
     )
   })
@@ -302,7 +232,13 @@ describe('balanceSummary', () => {
     ['a cycling energy lead', energyReading(interval(0.75, 0.8, 0.9))],
     ['an even energy ratio', energyReading(interval(0.95, 1, 1.05))],
   ])('never says ahead of, limiter, weak or strength for %s', (_name, reading) => {
-    expect(`${balanceTitle(reading)} ${balanceSummary(reading, 1200)}`).not.toMatch(FORBIDDEN)
+    const words = [
+      balanceTitle(reading),
+      balanceSentence(reading),
+      leadSentence(reading),
+      energySummary(reading, 1200),
+    ]
+    expect(words.join(' ')).not.toMatch(FORBIDDEN)
   })
 })
 

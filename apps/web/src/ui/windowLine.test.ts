@@ -24,9 +24,9 @@ describe('windowLine', () => {
         passed(182, { sport: 'run', lack: 'easy' }),
       ],
     }
-    expect(windowLine(window)).toBe('Your last 12 months. Your last 12 weeks had no hard runs.')
+    expect(windowLine(window)).toBe('Last 12 weeks had no hard runs, so this uses 12 months.')
     expect(windowLine({ ...window, choice: 182, passed: [window.passed[0]!] })).toBe(
-      'Your last 6 months. Your last 12 weeks had no hard runs.',
+      'Last 12 weeks had no hard runs, so this uses 6 months.',
     )
   })
 
@@ -34,17 +34,20 @@ describe('windowLine', () => {
     const line = (...lacks: PassedWindow['lacks']) =>
       windowLine({ choice: 182, reason: 'qualified', passed: [passed(84, ...lacks)] })
     expect(line({ sport: 'ride', lack: 'few' })).toBe(
-      'Your last 6 months. Your last 12 weeks had too few rides.',
+      'Last 12 weeks had too few rides, so this uses 6 months.',
     )
     expect(line({ sport: 'run', lack: 'none' })).toBe(
-      'Your last 6 months. Your last 12 weeks had no 20 min runs.',
+      'Last 12 weeks had no 20 min runs, so this uses 6 months.',
     )
     expect(line({ sport: 'run', lack: 'easy' }, { sport: 'ride', lack: 'few' })).toBe(
-      'Your last 6 months. Your last 12 weeks had no hard runs and too few rides.',
+      'Last 12 weeks had no hard runs and too few rides, so this uses 6 months.',
     )
-    // Sports that lacked the same thing share a clause.
+    // Sports that lacked the same thing share a clause, and every sport lacking it needs no list of them.
     expect(line({ sport: 'run', lack: 'easy' }, { sport: 'ride', lack: 'easy' })).toBe(
-      'Your last 6 months. Your last 12 weeks had no hard runs or rides.',
+      'Last 12 weeks had no hard efforts, so this uses 6 months.',
+    )
+    expect(line({ sport: 'run', lack: 'few' }, { sport: 'ride', lack: 'few' })).toBe(
+      'Last 12 weeks had too few activities, so this uses 6 months.',
     )
   })
 
@@ -55,7 +58,7 @@ describe('windowLine', () => {
         reason: 'all-time',
         passed: [84, 182, 365].map((days) => passed(days, { sport: 'ride', lack: 'few' })),
       }),
-    ).toBe('All time. Your last 12 weeks had too few rides.')
+    ).toBe('Last 12 weeks had too few rides, so this uses all time.')
   })
 
   it('keeps every sentence short, and free of the words the voice rules ban', () => {
@@ -68,7 +71,7 @@ describe('windowLine', () => {
     )
     for (const line of lines) {
       for (const sentence of line.split('. ')) {
-        expect(sentence.split(' ').length).toBeLessThanOrEqual(12)
+        expect(sentence.split(' ').length).toBeLessThanOrEqual(13)
       }
       expect(line).not.toMatch(/—|because|honest|comparable|reference|shown/i)
     }

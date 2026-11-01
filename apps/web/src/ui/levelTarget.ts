@@ -13,7 +13,7 @@ import { wholeGrade } from './gradeFormat'
 import { nativeRangeAtGrade } from './levelSolver'
 import type { NativeRange, TargetAthlete } from './levelSolver'
 import { curveOf, valueAt } from './records'
-import { SPORT_FORMAT, SPORT_NOUN } from './sports'
+import { SPORT_FORMAT } from './sports'
 
 export { nativeAtGrade, nativeRangeAtGrade } from './levelSolver'
 export type { NativeRange, TargetAthlete } from './levelSolver'
@@ -67,7 +67,7 @@ export interface Reach {
 const MAX_PACE_STEPS = 3
 
 /**
- * A pace, m/s, named to the nearest whole second, as the Ride on foot tile names the same pace, and the
+ * A pace, m/s, named to the nearest whole second, as the Your ride as a run tile names the same pace, and the
  * faster second where the nearer one would grade a whole percent short.
  */
 function namedPace(speedMs: number, units: UnitSystem, reach: Reach): number {
@@ -124,16 +124,23 @@ export function levelledNative(
 }
 
 /**
- * The levelled target as the words a sentence uses, with the figure the page shows for the lower
- * sport's best effort: a flat pace, or watts with the range the ride's estimate carries.
+ * The levelled target as the words a sentence uses: a pace, or watts with the range the ride's estimate carries,
+ * then the length of the effort: "285 W for 20 min (240 to 330)".
  */
-const SHOWN_TEXT: Record<Sport, (levelled: NativeRange, now: string, units: UnitSystem) => string> =
-  {
-    run: (levelled, now, units) =>
-      `a flat pace of ${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]}. Now ${now}`,
-    ride: (levelled, now) =>
-      `about ${formatWatts(levelled.centre)} W (${formatWatts(levelled.low)} to ${formatWatts(levelled.high)} W). Now ${now}`,
-  }
+const SHOWN_TEXT: Record<Sport, (levelled: NativeRange, units: UnitSystem) => string> = {
+  run: (levelled, units) =>
+    `${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]} for ${HEADLINE_LABEL}`,
+  ride: (levelled) => {
+    const range =
+      levelled.low === levelled.high
+        ? ''
+        : ` (${formatWatts(levelled.low)} to ${formatWatts(levelled.high)})`
+    return `${formatWatts(levelled.centre)} W for ${HEADLINE_LABEL}${range}`
+  },
+}
+
+/** Where the lower sport would have to match the higher: "on the run", "on the bike". */
+const MATCH_ON: Record<Sport, string> = { run: 'on the run', ride: 'on the bike' }
 
 /**
  * Whether the levelled centre is strictly beyond the figure the page shows for the lower sport's best
@@ -160,7 +167,7 @@ const RANGE_TEXT: Record<Sport, (levelled: NativeRange) => string> = {
 
 /**
  * The grade the inverse is worked out at, for the lower sport: a run's is the higher grade exactly, so the pace is the one the
- * Ride on foot tile names for the same effort (that tile's pace is what the ride's grade is read from); a ride's is the whole
+ * Your ride as a run tile names for the same effort (that tile's pace is what the ride's grade is read from); a ride's is the whole
  * percent, since its watts are named up to the next 5 W and a whole percent is all the page says of the run.
  */
 const INVERSE_GRADE: Record<Sport, (exact: number, whole: number) => number> = {
@@ -257,13 +264,12 @@ export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   }
   const levelled = levelledRange(lower, needed, units, reach)
   if (!BEYOND_SHOWN[lower](levelled.centre, now, units)) return null
-  const level = `To match your ${SPORT_NOUN[higher]} at ${HEADLINE_LABEL}`
   // The figure the page shows for the ride stays the one named, with today's weight beside it when it differs.
   const shownText = SPORT_FORMAT[lower].formatted(shown, units)
   const nowText = reweighted
     ? `${shownText}, ${SPORT_FORMAT[lower].formatted(now, units)} at today’s weight`
     : shownText
-  const sentence = `${level}: ${SHOWN_TEXT[lower](levelled, nowText, units)}.`
+  const sentence = `To match it ${MATCH_ON[lower]}: ${SHOWN_TEXT[lower](levelled, units)}. You’re at ${nowText}.`
   return {
     higher,
     lower,

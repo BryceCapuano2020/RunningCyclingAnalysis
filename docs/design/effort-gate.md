@@ -62,8 +62,8 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
 
 - **Threshold** (`combine`): the fit is null with refusal `effort`; the uneven fit goes with it. Panel and tile keep their title, show
   that best as "At least" with no spread, and name it in one line, "From your best 30 min." (see above). The share card and anything that needs both
-  fits waits for them. An unchecked threshold is shown with "Effort not checked: no heart rate on your best 20 min run."
-- **Chip**: "Hard effort · N%" with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
+  fits waits for them. An unchecked threshold is shown with "No heart rate on your best 20 min run, so the effort was not checked." (on the sport page; Balance says it once, under the lede)
+- **Chip**: "Hard effort", its detail giving the share, with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
   "within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one"), "Not all-out" with no share,
   "Effort not confirmed" with no share for an untrusted reference, "Effort not checked". The reference is named by its source
   (the activities, the maximum entered, the age). `result.effort` has an entry for every curve duration, so a one-sport library
@@ -85,9 +85,9 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   the level target and the changes are all stated, and the lean is the same centre rule (`leanOfLead`). A best not shown hard is a floor:
   real ability is at least this. One line under the balance says so (`basisLine`, `ui/components/basisLine.ts`): "Your ride best
   wasn't all-out, so cycling could be higher.", or "Neither best was all-out."; nothing when both were hard. A best that was only not
-  checked is shown with its own note, "Effort not checked: ...". The page is titled by the balance whatever the bests were
+  checked is shown with its own note, "No heart rate on your best 20 min run, so the effort was not checked." The page is titled by the balance whatever the bests were
   (`balanceTitle`); `levelsTitle` titles only a page that states none, one sport on file or the sports not yet comparable. The level
-  rows say "best 20 min, not a hard effort". What still holds the headline is in `holdOf` (`ui/resultHold.ts`), in this order:
+  rows say nothing of it; the line under the lede does. What still holds the headline is in `holdOf` (`ui/resultHold.ts`), in this order:
   'updating', 'partial-import', 'implausible-ride'; a ride at the top of the age tables leaves the pick out with no fault to name.
   The share card still waits for both thresholds, which the gate withholds, so a library whose bests were not hard shows the balance
   and offers no card.

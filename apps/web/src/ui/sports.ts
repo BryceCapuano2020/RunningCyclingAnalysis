@@ -1,4 +1,4 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S, THRESHOLD_HOLD_S } from '@rca/core/constants'
+import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
@@ -130,13 +130,4 @@ export const THRESHOLD_NEEDS_TEXT = `Needs an effort of ${EFFORT_MAX_TEXT} or lo
 export const THRESHOLD_MEANING: Record<Sport, string> = {
   run: `About the pace you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
   ride: `About the power you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
-}
-
-/**
- * What a threshold is, in one line under its tile's name: the figure it gives, and for how long it can be held: the
- * time the fit supports (`THRESHOLD_HOLD_S`), not an hour.
- */
-export const THRESHOLD_GLOSS: Record<Sport, string> = {
-  run: `Pace you could hold for about ${formatDuration(THRESHOLD_HOLD_S)}`,
-  ride: `Power you could hold for about ${formatDuration(THRESHOLD_HOLD_S)}`,
 }

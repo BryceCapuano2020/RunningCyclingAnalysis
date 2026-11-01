@@ -112,9 +112,7 @@ test('the weekly hours card shows for sample data, and its table toggles', async
     has: page.getByRole('heading', { level: 2, name: 'Training hours' }),
   })
   await expect(card).toBeVisible()
-  await expect(
-    card.getByRole('figure', { name: /of your running and riding hours/ }),
-  ).toBeAttached()
+  await expect(card.getByRole('figure', { name: 'Training hours', exact: true })).toBeAttached()
 
   // The hours have their own table view, which is checked here.
   const details = card.locator('details').first()
@@ -206,9 +204,9 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
 
 test('How sure is this? says that both best efforts were hard efforts', async ({ page }) => {
   await openSample(page)
-  // The sample's best 20 minute efforts both reach 90% of their reference heart rate, so the
-  // tiles say so in a chip with the share, one line each, and the method page says they reached the hard line.
-  await expect(page.getByRole('button', { name: /^Hard effort · \d+%$/ })).toHaveCount(2)
+  // The sample's best 20 minute efforts both reach 90% of their max heart rate, so the
+  // tiles say so in a chip, one line each, and the method page says they reached the hard line.
+  await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(2)
 
   await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()

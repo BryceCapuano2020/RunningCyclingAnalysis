@@ -13,18 +13,18 @@ import type { HoldInputs } from '../ui/resultHold'
 import { rideHoldInputs } from '../ui/rideLeftOut'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
-import { heroGradeLine, LEVEL_NOT_RANKING, type GradeOutcome } from '../ui/grades'
+import { heroGradeLine, type GradeOutcome } from '../ui/grades'
 import { countSport, threshold } from '../ui/records'
 import { BALANCE_PAIR, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
 import { cardNameShown } from './cardName'
 import { hasShareableContent } from './hasShareableContent'
 
 /**
- * A threshold's name on the share card. A run says "flat pace" here, since the card has no page Flat
- * note to say so; the app's own cards and pages keep THRESHOLD_LABEL.
+ * A threshold's name on the share card. A run says "GAP" here, since the card has no page note to say what the
+ * pace allows for; the app's own cards and pages keep THRESHOLD_LABEL.
  */
 const CARD_THRESHOLD_LABEL: Record<Sport, string> = {
-  run: 'Threshold flat pace, estimated',
+  run: 'Threshold GAP, estimated',
   ride: THRESHOLD_LABEL.ride,
 }
 
@@ -37,7 +37,7 @@ export interface ShareFigure {
 /** One sport's threshold on the card. A card is offered only when every sport has one. */
 export interface ShareHero {
   sport: Sport
-  /** The estimate's name and the efforts it rests on, such as "Threshold flat pace, estimated from your best 3 to 20 min". */
+  /** The estimate's name and the efforts it rests on, such as "Threshold GAP, estimated from your best 3 to 20 min". */
   label: string
   figure: ShareFigure
   /** A second reading of the estimate, such as W/kg. */
@@ -75,10 +75,10 @@ export interface ShareCardModel {
   name: string | null
 }
 
-/** A graded card names the standard its levels come from, and says what a level is. */
-const GRADED_FOOTNOTE = `Graded on the ${ROAD_STANDARDS_SOURCE.shortName}. ${LEVEL_NOT_RANKING}`
-/** Without a grade, the card says the figures are estimates and not a ranking. */
-const ESTIMATE_FOOTNOTE = 'Estimated from your files. Not a ranking.'
+/** A graded card names the standard its grades come from. */
+const GRADED_FOOTNOTE = `Age-graded on ${ROAD_STANDARDS_SOURCE.shortName}.`
+/** Without a grade, the card says the figures are estimates. */
+const ESTIMATE_FOOTNOTE = 'Estimated from your files.'
 
 const PRIVATE_IPV4 = [
   /^0\.0\.0\.0$/,

@@ -72,13 +72,13 @@ describe('RangeTrack', () => {
 })
 
 describe('BalanceTiles', () => {
-  it('shows three tiles with both sports, each threshold and the ride on foot, and none for the lean', () => {
+  it('shows three tiles with both sports, each threshold and the ride as a run, and none for the lean', () => {
     const { container } = renderTiles()
     expect(container.querySelector('.balance-tiles')).toHaveAttribute('data-tiles', '3')
     expect(screen.getAllByRole('article').map((tile) => tile.getAttribute('aria-label'))).toEqual([
       'Run threshold',
       'Ride threshold',
-      'Ride on foot',
+      'Your ride as a run',
     ])
   })
 
@@ -117,10 +117,10 @@ describe('BalanceTiles', () => {
     renderTiles()
     // The run's best 20 min is faster than its threshold, so its figure has its own line, said once.
     const run = screen.getByRole('article', { name: 'Run threshold' })
-    expect(run).toHaveTextContent(/Your best 20 min was faster: \d+:\d{2} \/km/)
+    expect(run).toHaveTextContent(/Best 20 min: \d+:\d{2} \/km/)
     expect(run).toHaveTextContent(/\w+ · \d+% on your best 20 min\./)
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
-      /Your best 20 min was higher: \d+ W.*\d+% \(\d+–\d+%\) on your best 20 min\./,
+      /Best 20 min: \d+ W.*\d+% \(\d+ to \d+\) on your best 20 min\./,
     )
   })
 
@@ -129,14 +129,14 @@ describe('BalanceTiles', () => {
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
       /Add your weight on/,
     )
-    expect(screen.getByRole('article', { name: 'Ride on foot' })).toHaveTextContent(
+    expect(screen.getByRole('article', { name: 'Your ride as a run' })).toHaveTextContent(
       /Add your weight on/,
     )
     // Only the run's threshold has a figure, so it alone says what kind of evidence it is.
     expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(1)
   })
 
-  it('puts a prompt in the empty sport’s place, and leaves the ride on foot out', () => {
+  it('puts a prompt in the empty sport’s place, and leaves the ride as a run out', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const { container } = render(
       <BalanceTiles
@@ -153,7 +153,7 @@ describe('BalanceTiles', () => {
     expect(container.querySelector('.balance-tiles')).toHaveAttribute('data-tiles', '2')
     expect(screen.getByRole('region', { name: 'Ride' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add rides' })).toBeInTheDocument()
-    expect(screen.queryByRole('article', { name: 'Ride on foot' })).toBeNull()
+    expect(screen.queryByRole('article', { name: 'Your ride as a run' })).toBeNull()
   })
 
   it('draws no tile, and no empty section, for a lone sport whose headline already says what it needs', () => {
@@ -198,9 +198,11 @@ describe('BalanceTiles', () => {
     expect(container.querySelectorAll('.stat-tile__number')).toHaveLength(0)
   })
 
-  it('names each tile’s evidence with a chip: a ring for an estimate, an equivalent for the ride on foot', () => {
+  it('names each threshold’s evidence with a chip, a ring for an estimate, and the ride as a run needs none', () => {
     const { container } = renderTiles()
     expect(container.querySelectorAll('.stat-tile__basis--estimated')).toHaveLength(2)
-    expect(container.querySelectorAll('.stat-tile__basis--equivalent')).toHaveLength(1)
+    expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(2)
+    const asRun = screen.getByRole('article', { name: 'Your ride as a run' })
+    expect(asRun.querySelector('.stat-tile__basis')).toBeNull()
   })
 })

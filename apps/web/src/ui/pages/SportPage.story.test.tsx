@@ -240,7 +240,7 @@ describe('race predictions where the effort could not be checked', () => {
     openSection('Race predictions')
     expect(
       screen.getAllByText(
-        'Effort not checked: no heart rate on your best 20 min run. Add a run with heart rate to check it.',
+        'No heart rate on your best 20 min run, so the effort was not checked. Add a run with heart rate to check it.',
       ),
     ).toHaveLength(1)
     expect(screen.queryByText('No slower than')).toBeNull()

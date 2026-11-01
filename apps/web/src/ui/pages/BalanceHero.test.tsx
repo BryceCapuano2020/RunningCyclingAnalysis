@@ -288,7 +288,7 @@ describe('BalanceHero answer', () => {
     expect(container.querySelector('.balance-hero__sport')).toBeNull()
   })
 
-  it('names the period in the eyebrow: its length and its dates', () => {
+  it('names the period in the eyebrow as a length, and leaves its dates to the period line', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -298,10 +298,10 @@ describe('BalanceHero answer', () => {
         gap={gradedGap()}
       />,
     )
-    expect(container.querySelector('.eyebrow')?.textContent).toMatch(/^Balance · 6 weeks · 12 May/)
+    expect(container.querySelector('.eyebrow')?.textContent).toBe('Last 6 weeks')
   })
 
-  it('defines age grade and the range in place, each as a button with its note', () => {
+  it('defines the range in place, as a button with its note', () => {
     render(
       <Hero
         {...ALL_TIME}
@@ -310,15 +310,15 @@ describe('BalanceHero answer', () => {
         gap={gradedGap()}
       />,
     )
-    for (const term of ['age grade', 'range']) {
-      const button = screen.getByRole('button', { name: term })
-      expect(button).toHaveAttribute('aria-expanded', 'false')
-      fireEvent.click(button)
-      expect(button).toHaveAttribute('aria-expanded', 'true')
-      const note = document.getElementById(button.getAttribute('aria-controls') ?? '')
-      expect(note).toHaveAttribute('role', 'note')
-      expect(note?.textContent?.length).toBeGreaterThan(40)
-    }
+    const button = screen.getByRole('button', { name: 'range' })
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(button)
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    const note = document.getElementById(button.getAttribute('aria-controls') ?? '')
+    expect(note).toHaveAttribute('role', 'note')
+    expect(note?.textContent?.length).toBeGreaterThan(40)
+    // Age grade is defined once, at the foot of the page, not in the lede.
+    expect(screen.queryByRole('button', { name: 'age grade' })).toBeNull()
   })
 })
 
@@ -335,20 +335,18 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe(
-      'Running’s age grade is 6 points higher than cycling’s at 20 min.',
-    )
+    expect(ledeOf(container)).toBe('Running grades 6 points higher over 20 min.')
   })
 
   it('shows the level target under the lede when there is one, and no line when there is none', () => {
-    const target = 'To match your running at 20 min: about 270 W. Now 230 W.'
+    const target = 'To match it on the bike: 270 W for 20 min (245 to 295). You’re at 230 W.'
     const props = { ...ALL_TIME, result: makeResult(), pick: pickFor(interval(1.05, 1.12, 1.2)) }
     const { container, rerender } = render(<Hero {...props} gap={gradedGap()} target={target} />)
     const line = screen.getByText(target)
     expect(line).toHaveClass('secondary')
     expect(line.previousElementSibling).toHaveClass('balance-hero__lede')
     rerender(<Hero {...props} gap={gradedGap()} target={null} />)
-    expect(screen.queryByText(/^To match your/)).toBeNull()
+    expect(screen.queryByText(/^To match it/)).toBeNull()
     expect(container.querySelector('.balance-hero__lede')).not.toBeNull()
   })
 
@@ -401,9 +399,7 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe(
-      'Running’s age grade is 9 points higher than cycling’s at 20 min.',
-    )
+    expect(ledeOf(container)).toBe('Running grades 9 points higher over 20 min.')
     expect(screen.queryByText(/in balance/)).toBeNull()
     expect(screen.getByRole('img', { name: /Running grades 9 points/ })).toHaveAccessibleName(
       /range −4 to \+18\u00a0points/,
@@ -422,9 +418,7 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your running and cycling are in balance' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe(
-      'Running’s age grade is 2 points higher than cycling’s at 20 min.',
-    )
+    expect(ledeOf(container)).toBe('Running grades 2 points higher over 20 min.')
   })
 
   it('never says ahead of, limiter, weak or strength', () => {
@@ -766,7 +760,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(ledeOf(container)).toMatch(/^Running’s age grade is 6 points higher/)
+    expect(ledeOf(container)).toMatch(/^Running grades 6 points higher/)
     expect(ledeOf(container)).not.toMatch(/12 May/)
   })
 
@@ -779,7 +773,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(ledeOf(container)).toMatch(/^Running’s age grade is 6 points higher/)
+    expect(ledeOf(container)).toMatch(/^Running grades 6 points higher/)
     expect(ledeOf(container)).not.toMatch(/Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Jan|Feb|Mar/)
   })
 
@@ -957,7 +951,7 @@ describe('BalanceHero sentence on a phone', () => {
     gap: gradedGap(),
   }
 
-  it('says the one whole sentence at every width, with age grade defined and the range left to the meter', () => {
+  it('says the one whole sentence at every width, with the range left to the meter', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query === '(max-width: 479px)',
       addEventListener: () => undefined,
@@ -965,10 +959,8 @@ describe('BalanceHero sentence on a phone', () => {
     }))
     try {
       const { container } = render(<Hero {...GAPPED} />)
-      expect(ledeOf(container)).toBe(
-        'Running’s age grade is 6 points higher than cycling’s at 20 min.',
-      )
-      expect(screen.getByRole('button', { name: 'age grade' })).toBeInTheDocument()
+      expect(ledeOf(container)).toBe('Running grades 6 points higher over 20 min.')
+      expect(screen.queryByRole('button', { name: 'age grade' })).toBeNull()
       expect(container.querySelector('.balance-meter__edges')).toHaveTextContent('2 to 10')
     } finally {
       vi.unstubAllGlobals()

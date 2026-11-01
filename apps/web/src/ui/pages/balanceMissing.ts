@@ -16,7 +16,7 @@ import { betweenClause } from '../periodCopy'
 import { countEfforts, countSport, hasThreshold } from '../records'
 import { otherSport } from '../soleSport'
 import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL } from '../sports'
-import { basisOf, notHardWords, uncheckedWords } from '../effortWords'
+import { isUnconfirmed, notHardWords, uncheckedWords } from '../effortWords'
 import { floorOf } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 
@@ -86,7 +86,7 @@ const LEFT_OUT: Record<RideLeftOut, { title: string; detail: string }> = {
  */
 function gateAsk(result: AnalysisResult, sport: Sport): string {
   const gate = result.effortGate[sport]
-  if (basisOf(gate) === null) return ''
+  if (!isUnconfirmed(gate)) return ''
   return gate.verdict === 'notHard'
     ? notHardWords(sport, gate, 'confirm the level').action
     : (uncheckedWords(sport, gate)?.action ?? '')

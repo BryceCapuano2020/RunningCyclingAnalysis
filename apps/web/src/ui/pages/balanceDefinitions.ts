@@ -18,5 +18,5 @@ export const DEFINITIONS = {
     'The span the true value is expected to fall in, nine times out of ten. A wide range means the figure is less certain; a narrow one means it is firm.',
   predictionRange:
     'From the 10th to the 90th percentile of the typical error at this distance. The marathon’s error is a published validation figure. The shorter races’ errors are a judgement.',
-  level: `A band of the age grade: ${LEVELS_TEXT}. A level, not a ranking.`,
+  level: `A band of the age grade: ${LEVELS_TEXT}.`,
 } as const

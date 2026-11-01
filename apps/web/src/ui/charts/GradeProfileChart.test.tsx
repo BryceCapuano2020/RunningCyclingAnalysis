@@ -168,7 +168,7 @@ describe('GradeProfileChart', () => {
     const ride = container.querySelector('[data-annotation="end-ride"]')
     // The line ends at a length other than 20 min, so each label says which.
     expect(run?.textContent).toMatch(/^Run 66% at \d+ min$/)
-    expect(ride?.textContent).toMatch(/^Ride 53% at \d+ minrange \d+–\d+%$/)
+    expect(ride?.textContent).toMatch(/^Ride 53% at \d+ minrange \d+ to \d+$/)
     // The gutter is right of the plot: the label starts past the last mark.
     const last = Array.from(
       container.querySelectorAll('[data-testid="profile-ring"][data-sport="ride"]'),
@@ -218,7 +218,7 @@ describe('GradeProfileChart', () => {
     expect(tooltip).toHaveTextContent('50%')
     expect(within(tooltip).getByText('Ride, estimated')).toBeInTheDocument()
     expect(tooltip).toHaveTextContent('60%')
-    expect(tooltip).toHaveTextContent('57–63%')
+    expect(tooltip).toHaveTextContent('57 to 63')
     expect(tooltip.querySelector('.chart-tooltip__key--ride')).not.toBeNull()
     expect(tooltip.querySelector('[class*="dashed"]')).toBeNull()
   })
@@ -254,7 +254,7 @@ describe('GradeProfileChart', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent)
     expect(within(first as HTMLElement).getByRole('rowheader')).toHaveTextContent('3 min')
-    expect(cells).toEqual(['50%', '60% (57–63%)'])
+    expect(cells).toEqual(['50%', '60% (57 to 63)'])
     expect(screen.getByText('View as table')).toBeInTheDocument()
   })
 
