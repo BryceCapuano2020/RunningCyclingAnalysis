@@ -85,8 +85,9 @@ describe('the privacy page and the fields of the analysis summary', () => {
     expect(missing, 'privacy.html does not say this: update the page, or the mapping').toEqual([])
   })
 
-  it('names the three fields revision 7 added as that revision’s', () => {
-    expect(page).toContain('from model revision 7 it also holds')
+  it('says the three fields added last are held by summaries the newest app made or updated, in plain words', () => {
+    expect(page).toContain('made or updated by the newest version of the app also holds')
+    expect(page).not.toContain('model revision 7')
     for (const field of ['temperature', 'athleteType', 'localDayShift']) {
       expect(DISCLOSED[field], field).toBeDefined()
     }
