@@ -7,6 +7,7 @@ import { NONE_WITHHELD, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_LOOKBACK } from '@rca/core/lookback'
+import { NO_HISTORY } from '@rca/core/history'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
 import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
@@ -69,6 +70,7 @@ function stateWith(totalActivities: number): SessionState {
     heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
     fitness: NO_FITNESS,
     lookBack: NO_LOOKBACK,
+    history: NO_HISTORY,
     zoneEstimates: null,
     timeInZones: NO_ZONE_TIMES,
     records: new Map(),

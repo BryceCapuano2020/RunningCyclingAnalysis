@@ -24,12 +24,13 @@ export const BALANCE_TITLE =
 /** The axe tags checked: WCAG 2.0, 2.1 and 2.2 A and AA, and axe's best practices. */
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
 
-export type Destination = 'Balance' | 'Run' | 'Ride' | 'Activities' | 'Profile'
+export type Destination = 'Balance' | 'Run' | 'Ride' | 'History' | 'Activities' | 'Profile'
 
 const HEADINGS: Record<Destination, string | RegExp> = {
   Balance: BALANCE_TITLE,
   Run: 'Run',
   Ride: 'Ride',
+  History: 'History',
   Activities: 'Activities',
   Profile: 'Profile',
 }

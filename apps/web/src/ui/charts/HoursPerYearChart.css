@@ -1,0 +1,21 @@
+/* Bars stand on their years, so the years carry no gridline through them. */
+.year-chart__x .chart-x-axis__grid {
+  display: none;
+}
+
+/* A sport's part of a bar, in the sport's colour (tokens.css sets it for each data-sport). */
+.year-bar {
+  fill: var(--sport-colour);
+}
+
+/* Forced colours: running is the text colour and the other sports the highlight, with an edge between parts. */
+@media (forced-colors: active) {
+  .year-bar {
+    fill: Highlight;
+    stroke: Canvas;
+  }
+
+  .year-bar[data-sport='run'] {
+    fill: CanvasText;
+  }
+}

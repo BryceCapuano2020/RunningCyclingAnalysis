@@ -8,6 +8,7 @@ const PAGE_NAMES: Record<Exclude<Route['page'], 'activity'>, string> = {
   balance: 'Balance',
   run: SPORT_LABEL.run,
   ride: SPORT_LABEL.ride,
+  history: 'History',
   activities: 'Activities',
   method: 'How sure is this?',
   profile: 'Profile',

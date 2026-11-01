@@ -5,10 +5,10 @@ import { useSyncExternalStore } from 'react'
  * unknown hash shows Balance rather than an error.
  */
 export type Route =
-  | { page: 'balance' | 'run' | 'ride' | 'activities' | 'method' | 'profile' }
+  | { page: 'balance' | 'run' | 'ride' | 'history' | 'activities' | 'method' | 'profile' }
   | { page: 'activity'; id: string }
 
-const SIMPLE_PAGES = ['run', 'ride', 'activities', 'method', 'profile'] as const
+const SIMPLE_PAGES = ['run', 'ride', 'history', 'activities', 'method', 'profile'] as const
 
 export function parseRoute(hash: string): Route {
   // A query is not part of the page. One trailing slash is ignored, so '#/run/' and '#/run' are the same page.
