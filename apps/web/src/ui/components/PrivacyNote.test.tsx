@@ -10,72 +10,76 @@ afterEach(() => {
   cleanup()
 })
 
+/** The note's words, which stay near a dozen for each state. */
+function noteWords(): number {
+  return (screen.getByText(/\w/).textContent ?? '').trim().split(/\s+/).length
+}
+
 describe('PrivacyNote', () => {
   it('keeps the note to a 36rem measure beside the footer links', () => {
     expect(ruleBody(noteCss, '.privacy-note')).toMatch(/max-width:\s*36rem;/)
   })
 
-  it('says nothing is uploaded when signed out', () => {
-    render(<PrivacyNote signedIn={false} keepFiles={false} removable />)
+  it('says activities stay in the browser, and who can see them, when signed out', () => {
+    render(<PrivacyNote signedIn={false} keepFiles={false} />)
     expect(
-      screen.getByText(
-        'Nothing is uploaded; analysis runs in your browser. Summaries and detailed recordings are kept in this browser where it allows, so anyone using it can see them. Recordings fit in about 64 MiB, and those of the oldest activities are dropped first. Remove all my activities, on Profile, removes them.',
-      ),
+      screen.getByText('Your activities stay in this browser, where anyone using it can see them.'),
     ).toBeInTheDocument()
   })
 
   it('ignores keepFiles when signed out', () => {
-    render(<PrivacyNote signedIn={false} keepFiles removable />)
+    render(<PrivacyNote signedIn={false} keepFiles />)
     expect(
-      screen.getByText(
-        'Nothing is uploaded; analysis runs in your browser. Summaries and detailed recordings are kept in this browser where it allows, so anyone using it can see them. Recordings fit in about 64 MiB, and those of the oldest activities are dropped first. Remove all my activities, on Profile, removes them.',
-      ),
+      screen.getByText('Your activities stay in this browser, where anyone using it can see them.'),
     ).toBeInTheDocument()
-  })
-
-  it('names no control that is not there: with nothing kept to remove, the note stops at the recordings', () => {
-    render(<PrivacyNote signedIn={false} keepFiles={false} removable={false} />)
-    expect(
-      screen.getByText(
-        'Nothing is uploaded; analysis runs in your browser. Summaries and detailed recordings are kept in this browser where it allows, so anyone using it can see them. Recordings fit in about 64 MiB, and those of the oldest activities are dropped first.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/Remove all my activities/)).toBeNull()
+    expect(screen.queryByText(/private library/)).toBeNull()
   })
 
   it('says summaries and original files are stored when signed in and keeping files', () => {
-    render(<PrivacyNote signedIn keepFiles removable={false} />)
+    render(<PrivacyNote signedIn keepFiles />)
     expect(
-      screen.getByText(
-        'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.',
-      ),
+      screen.getByText('Summaries and original files are stored in your private library.'),
     ).toBeInTheDocument()
   })
 
   it('says original files are not kept when signed in without keeping files', () => {
-    render(<PrivacyNote signedIn keepFiles={false} removable={false} />)
+    render(<PrivacyNote signedIn keepFiles={false} />)
     expect(
       screen.getByText(
-        'Your activity summaries are stored in your private library; original files are not kept. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.',
+        'Summaries are stored in your private library, and original files are not kept.',
       ),
     ).toBeInTheDocument()
   })
 
-  it('explains unavailable retention without implying existing originals were deleted', () => {
-    render(<PrivacyNote signedIn keepFiles fileRetentionAvailable={false} removable={false} />)
-    expect(
-      screen.getByText(
-        'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.',
-      ),
-    ).toBeInTheDocument()
+  it('says file storage is unavailable, without saying anything saved was deleted', () => {
+    render(<PrivacyNote signedIn keepFiles fileRetentionAvailable={false} />)
+    const note = screen.getByText(
+      'Summaries are stored in your private library, and original file storage is unavailable here.',
+    )
+    expect(note).toBeInTheDocument()
+    expect(note.textContent).not.toMatch(/delet|remov/)
   })
 
   it('treats an omitted capability as available for older APIs', () => {
-    render(<PrivacyNote signedIn keepFiles removable={false} />)
-    expect(
-      screen.getByText(
-        'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.',
-      ),
-    ).toBeInTheDocument()
+    render(<PrivacyNote signedIn keepFiles />)
+    expect(screen.getByText(/original files are stored/)).toBeInTheDocument()
+  })
+
+  it('is one sentence of about a dozen words in each state', () => {
+    const states = [
+      { signedIn: false, keepFiles: false },
+      { signedIn: true, keepFiles: true },
+      { signedIn: true, keepFiles: false },
+      { signedIn: true, keepFiles: true, fileRetentionAvailable: false },
+    ]
+    for (const state of states) {
+      const { unmount } = render(<PrivacyNote {...state} />)
+      const text = screen.getByText(/\w/).textContent ?? ''
+      expect(text.match(/[.!?]/g)).toHaveLength(1)
+      expect(text).not.toContain(';')
+      expect(noteWords()).toBeGreaterThanOrEqual(9)
+      expect(noteWords()).toBeLessThanOrEqual(16)
+      unmount()
+    }
   })
 })

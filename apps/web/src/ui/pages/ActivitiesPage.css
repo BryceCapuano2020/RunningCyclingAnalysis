@@ -12,6 +12,19 @@
   min-width: 0;
 }
 
+/* The filter for the activities not counted has a row of its own and takes only the width its two segments need. */
+.activities__controls > .segmented-control {
+  justify-self: start;
+}
+
+.activities__controls > .segmented-control .segmented-control__option {
+  flex: 1 1 auto;
+}
+
+.activities__controls > .segmented-control .segmented-control__option span {
+  white-space: nowrap;
+}
+
 .activities__period-note {
   margin: 0;
   font-size: var(--text-sm);

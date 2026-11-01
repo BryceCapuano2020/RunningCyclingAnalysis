@@ -7,7 +7,7 @@ import { SIX_WEEKS_DAYS, lengthOf, periodDates } from './components/rangeOptions
 import type { Span } from './components/rangeOptions'
 import { leftOutNote } from './analysis/walkingPaceCopy'
 import { agoText } from './format/ago'
-import { SPORT_NOUN, SPORT_PLURAL } from './sports'
+import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_PLURAL } from './sports'
 
 /**
  * The clause that names a span's dates, "between 12 May and 3 Aug 2025", or "on 20 Oct 2026" for a span
@@ -28,6 +28,13 @@ export function listEmptyText(sport: Sport | 'all', window: Span | null): string
   const noun = sport === 'all' ? 'activities' : SPORT_PLURAL[sport]
   if (window === null) return `No ${noun} in your files.`
   return `No ${noun} ${betweenClause(window)}.`
+}
+
+/** What the list of activities not counted says when the period and sport hold some, and the analysis counts every one. */
+export function allCountedText(sport: Sport | 'all'): string {
+  return sport === 'all'
+    ? 'Every activity here is counted.'
+    : `Every ${SPORT_ACTIVITY[sport]} here is counted.`
 }
 
 /**

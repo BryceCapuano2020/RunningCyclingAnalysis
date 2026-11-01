@@ -523,28 +523,73 @@ describe('RangePicker compact, as Balance sets it under its levels', () => {
     )
   })
 
-  it('links the count to where the activities are, and says how many runs at walking pace it leaves out', () => {
+  it('links the count to where the activities are, and says how many on file are not counted', () => {
     render(
       picker({
         compact: true,
         shown: 42,
         total: 1200,
+        notCounted: 9,
+        whole: 1191,
         countHref: '#/activities',
-        leftOut: '(9 walking-pace runs left out)',
+        notCountedHref: '#/activities?show=not-counted',
       }),
     )
     const link = screen.getByRole('link', { name: '42 of 1,200 activities' })
     expect(link).toHaveAttribute('href', '#/activities')
+    expect(screen.getByRole('link', { name: '9 not counted' })).toHaveAttribute(
+      'href',
+      '#/activities?show=not-counted',
+    )
     expect(link.closest('.range-picker__count')?.textContent).toBe(
-      '42 of 1,200 activities (9 walking-pace runs left out)',
+      '42 of 1,200 activities, 9 not counted',
     )
   })
 
-  it('says how many there are, with what is left out, even when the period holds them all', () => {
-    render(picker({ shown: 1200, total: 1200, leftOut: '(9 walking-pace runs left out)' }))
-    expect(
-      screen.getByText(/1,200 activities \(9 walking-pace runs left out\)/),
-    ).toBeInTheDocument()
+  it('says how many there are on file, with how many are not counted, when the period holds every one that is', () => {
+    const { container } = render(picker({ shown: 1191, total: 1200, notCounted: 9, whole: 1191 }))
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '1,200 activities, 9 not counted',
+    )
+  })
+
+  it('says how many there are on file even when the period holds them all', () => {
+    const { container } = render(picker({ shown: 1200, total: 1200, notCounted: 9 }))
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '1,200 activities, 9 not counted',
+    )
+  })
+
+  it('says "of" only when the period holds fewer than the page could count', () => {
+    const { container } = render(picker({ shown: 1100, total: 1200, notCounted: 9, whole: 1191 }))
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '1,100 of 1,200 activities, 9 not counted',
+    )
+  })
+
+  it('counts a sport in its own words', () => {
+    const { container } = render(
+      picker({ noun: 'run', shown: 3, total: 40, notCounted: 1, whole: 39 }),
+    )
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '3 of 40 runs, 1 not counted',
+    )
+  })
+
+  it('announces the same count the caption gives, with what is not counted', () => {
+    render(
+      picker({
+        choice: 42,
+        dates: '22 Jun – 3 Aug 2025',
+        shown: 3,
+        total: 12,
+        notCounted: 2,
+        whole: 10,
+      }),
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing 3 of 12 activities, 2 not counted, 6 weeks, 22 Jun – 3 Aug 2025',
+    )
   })
 
   it('leaves a period that holds them all with no count and no link', () => {

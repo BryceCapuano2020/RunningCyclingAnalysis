@@ -9,12 +9,13 @@ import { RangePicker } from '../components'
 import { periodDates, previousPeriodLabel } from '../components/rangeOptions'
 import { judgedDetail } from '../analysis/detailCoverage'
 import { leftOutRuns, withoutWalking, workoutKeyOf } from '../analysis/walkingPaceCopy'
-import { plural } from '../components/plural'
 import { usePeriodChoice } from '../periodPreference'
 import { sameAsShorterText } from '../periodSame'
 import { windowLine } from '../windowLine'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
+import { countsOf, countsOfState, notCountedHref } from '../activityCounts'
+import type { LibraryCounts } from '../activityCounts'
 import { latestActivityText, sportEmptyText } from '../periodCopy'
 import { HistoryPage } from '../lazyPages'
 import { hrefFor } from '../route'
@@ -69,7 +70,7 @@ export function ResultPage({
   signedIn,
   countedRuns,
 }: ResultPageProps) {
-  const { period, library, totalActivities, isSample } = analysis.state
+  const { period, library, isSample } = analysis.state
   // What the analysis rests on: the library less the runs at walking pace, which only the lists and pages show.
   const analysed = useMemo(() => withoutWalking(library), [library])
   // The runs at walking pace are left out; when they are all a sport has, its pages say so and offer to count them.
@@ -152,11 +153,11 @@ export function ResultPage({
   const windowNote = windowLine(analysis.state.answerWindow)
   // The note under the dates says why the default is the window it is, then how old the newest activity is.
   // Balance sets its period control compact under the levels: it says when a longer period repeats a shorter one,
-  // links its count to the activities, and says how many runs at walking pace the count leaves out.
-  const walking = analysis.state.walkingPaceRuns
+  // and links its count to the activities. Every page counts the activities on file and says once how many of them
+  // the analysis does not count, so the number does not change from page to page.
   const control = (
     shown: number,
-    total: number,
+    counts: LibraryCounts,
     noun?: Sport,
     dated: string | null = null,
     balance = false,
@@ -172,13 +173,13 @@ export function ResultPage({
         balance,
       )}
       shown={shown}
-      total={total}
+      total={counts.onFile}
+      whole={counts.counted}
+      notCounted={counts.notCounted}
       noun={noun}
       compact={balance}
       countHref={balance ? hrefFor({ page: 'activities' }) : undefined}
-      leftOut={
-        balance && walking > 0 ? `(${plural(walking, 'walking-pace run')} left out)` : undefined
-      }
+      notCountedHref={notCountedHref(noun)}
       busy={analysis.busy}
       onChange={pickPeriod}
     />
@@ -210,7 +211,7 @@ export function ResultPage({
           rangeDays={period.days}
           controls={control(
             countSport(result.activities, route.page),
-            countSport(analysed, route.page),
+            countsOf(library, route.page),
             route.page,
           )}
           emptyText={sportEmptyText(
@@ -321,7 +322,13 @@ export function ResultPage({
           units={units}
           profile={profile}
           missingAge={missingAge}
-          controls={control(result.activities.length, totalActivities, undefined, latest, true)}
+          controls={control(
+            result.activities.length,
+            countsOfState(analysis.state),
+            undefined,
+            latest,
+            true,
+          )}
           leftOut={leftOut ?? undefined}
           onShowAll={() => pickPeriod('all')}
           footnote={balanceFootnote}

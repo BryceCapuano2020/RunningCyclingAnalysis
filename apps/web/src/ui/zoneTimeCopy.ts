@@ -13,6 +13,7 @@ import type { MeasureTime, ZoneMeasure } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
 import { formatTotalTime } from '@rca/core/units'
 import { plural } from './components/plural'
+import { formatCount } from './format/count'
 import { lowerFirst, upperFirst } from './format/firstLetter'
 import { lackLine } from './pages/lackLine'
 import { SPORT_PLURAL } from './sports'
@@ -157,7 +158,7 @@ export function leftOutNotes(sport: Sport, rows: readonly MeasureTime[]): string
   return rows.flatMap((row) => {
     const total = row.counted + row.noData + row.setAside + row.noZones
     const notes: string[] = []
-    const of = (n: number) => `${n} of ${total} ${SPORT_PLURAL[sport]}`
+    const of = (n: number) => `${formatCount(n)} of ${formatCount(total)} ${SPORT_PLURAL[sport]}`
     if (row.setAside > 0) notes.push(`${of(row.setAside)} had heart rate set aside.`)
     if (row.noData > 0) notes.push(`${of(row.noData)} had no ${READING[row.measure]} to count.`)
     if (row.noZones > 0) {

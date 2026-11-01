@@ -14,8 +14,14 @@ describe('viewFromQuery', () => {
       sort: 'distance',
       period: 42,
       bucket: null,
+      show: 'all',
       page: 2,
     })
+  })
+
+  it('reads the filter for the activities the analysis leaves out', () => {
+    expect(viewFromQuery(query('show=not-counted')).show).toBe('not-counted')
+    expect(viewFromQuery(query('show=everything')).show).toBe('all')
   })
 
   it('falls back to the default for any value it does not know', () => {
@@ -64,9 +70,14 @@ describe('queryFromView', () => {
       sort: 'oldest' as const,
       period: 84,
       bucket: 'w:2025-5-2',
+      show: 'not-counted' as const,
       page: 4,
     }
     expect(viewFromQuery(query(queryFromView(view)))).toEqual(view)
+  })
+
+  it('writes the filter for the activities left out, and nothing for all of them', () => {
+    expect(queryFromView({ ...DEFAULT_VIEW, show: 'not-counted' })).toBe('show=not-counted')
   })
 
   it('writes a quarter, and reads it back', () => {
