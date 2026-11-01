@@ -1,10 +1,5 @@
-import {
-  CP_FIT_MAX_S,
-  CP_FIT_MIN_S,
-  CP_FIT_REACH_TOLERANCE,
-  THRESHOLD_HOLD_S,
-} from '@rca/core/constants'
-import type { CriticalPowerRefusal, Sport } from '@rca/core/types'
+import { CP_FIT_MAX_S, CP_FIT_MIN_S, THRESHOLD_HOLD_S } from '@rca/core/constants'
+import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
 import { PER } from './format/units'
@@ -115,34 +110,12 @@ const EFFORT_MIN_TEXT = `${CP_FIT_MIN_S / 60}`
 const EFFORT_MAX_TEXT = formatDuration(CP_FIT_MAX_S)
 /** The efforts a threshold is estimated from, as copy: "3 to 20 min", the fit's own window. */
 export const THRESHOLD_EFFORT_TEXT = `${EFFORT_MIN_TEXT} to ${EFFORT_MAX_TEXT}`
-/** The longest effort a fit has to reach, s: its window's end less the tolerance. */
-const THRESHOLD_REACH_S = CP_FIT_MAX_S * (1 - CP_FIT_REACH_TOLERANCE)
-const EFFORT_BETWEEN = `between ${EFFORT_MIN_TEXT} and ${EFFORT_MAX_TEXT}`
 
 /**
- * What a threshold's place says when there is none: the efforts are missing, or they are there but
- * show no threshold, so a harder one is asked for.
+ * What a threshold's place says when the sport holds no best at all: the one thing to add. Any other sport has a
+ * number there (a floor), so this is the only line that asks for anything.
  */
-export const THRESHOLD_NEEDS_TEXT: Record<Exclude<CriticalPowerRefusal, 'effort'>, string> = {
-  missing: `Needs efforts ${EFFORT_BETWEEN}`,
-  shape: `Needs a harder effort ${EFFORT_BETWEEN}`,
-}
-
-/**
- * The line for a missing threshold, by why its fit is refused. No reason means missing efforts. The fit has to
- * reach its longest effort, so when the sport has efforts in the window and none that long, the line asks for
- * the long one and names the longest held, rather than asking for efforts the card lists.
- */
-export function thresholdNeedsText(
-  refusal: Exclude<CriticalPowerRefusal, 'effort'> | null,
-  longestHeldS: number | null = null,
-): string {
-  const reason = refusal ?? 'missing'
-  if (reason === 'missing' && longestHeldS !== null && longestHeldS < THRESHOLD_REACH_S) {
-    return `Needs an effort of about ${EFFORT_MAX_TEXT}. Your longest so far is ${formatDuration(longestHeldS)}.`
-  }
-  return THRESHOLD_NEEDS_TEXT[reason]
-}
+export const THRESHOLD_NEEDS_TEXT = `Needs an effort of ${EFFORT_MAX_TEXT} or longer`
 
 /**
  * A threshold in plain words, shown under its number: what the number is, as an estimate ("About")

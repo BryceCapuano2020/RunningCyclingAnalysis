@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { NO_WINDOW } from '@rca/core/answer'
 import { act, renderHook } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
@@ -6,6 +7,7 @@ import { NONE_WITHHELD, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_LOOKBACK } from '@rca/core/lookback'
+import { NO_HISTORY } from '@rca/core/history'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
 import type { Me } from '@rca/contract'
 import type { SessionState } from '@rca/core/session'
@@ -64,6 +66,7 @@ function stateWith(totalActivities: number): SessionState {
     libraryActivities: 0,
     heldOut: [],
     hiddenDuplicates: 0,
+    answerWindow: NO_WINDOW,
     walkingPaceRuns: 0,
     countedWalkingRuns: [],
     trend: [],
@@ -76,6 +79,7 @@ function stateWith(totalActivities: number): SessionState {
     heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
     fitness: NO_FITNESS,
     lookBack: NO_LOOKBACK,
+    history: NO_HISTORY,
     zoneEstimates: null,
     timeInZones: NO_ZONE_TIMES,
     records: new Map(),

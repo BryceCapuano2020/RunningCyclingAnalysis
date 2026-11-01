@@ -1,4 +1,5 @@
 import type { Sex } from '../grade/ageGrade'
+import { SPORTS } from '../types'
 import type { Sport } from '../types'
 import { sameMasses } from './mass'
 import { entriesOf, entryAt } from './measurements'
@@ -42,7 +43,7 @@ export function referenceSettingsOf(
 export function sameReferenceSettings(a: AthleteSettings, b: AthleteSettings): boolean {
   if ((a.birthYear ?? null) !== (b.birthYear ?? null)) return false
   if ((a.sex ?? null) !== (b.sex ?? null)) return false
-  return (['run', 'ride'] as const).every((sport) => {
+  return SPORTS.every((sport) => {
     const [left, right] = [
       entriesOf(a.measurements ?? [], 'maxHeartRate', sport),
       entriesOf(b.measurements ?? [], 'maxHeartRate', sport),

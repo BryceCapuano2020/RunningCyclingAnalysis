@@ -10,6 +10,7 @@ describe('documentTitleFor', () => {
     [{ page: 'balance' }, 'Balance'],
     [{ page: 'run' }, 'Run'],
     [{ page: 'ride' }, 'Ride'],
+    [{ page: 'history' }, 'History'],
     [{ page: 'activities' }, 'Activities'],
     [{ page: 'method' }, 'How sure is this?'],
   ] as const)('names the %o page in the tab title', (route, name) => {

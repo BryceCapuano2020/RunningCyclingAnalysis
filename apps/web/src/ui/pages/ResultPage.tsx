@@ -23,6 +23,7 @@ import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthle
 import { ActivitiesPage } from './ActivitiesPage'
 import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
+import { HistoryPage } from './HistoryPage'
 import { ProfileFootnote } from '../components/ProfileFootnote'
 import { MethodPage } from './MethodPage'
 import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
@@ -231,6 +232,8 @@ export function ResultPage({
           }
         />
       )
+    case 'history':
+      return <HistoryPage history={analysis.state.history} units={units} />
     case 'activities':
       return (
         <ActivitiesPage

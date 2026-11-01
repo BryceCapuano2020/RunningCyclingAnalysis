@@ -18,8 +18,9 @@ heart rate to set a reference (`thin`), or no 20 minute best. An unknown verdict
 meter and no strap would otherwise never have one). Only a best that was not shown hard holds the headline. The line is the existing one: 90% of the reference heart rate, judged on the percent shown (`isHardShare`).
 
 A failed gate withholds the estimate and shows the demonstrated best in its place: the best 30 minutes where the curve has one
-(what a threshold is said to be held for), else the best 20, named "Best 30 min pace" and drawn as a recorded best, not as
-"Threshold, at least". What it asks for depends on why it failed (`EffortGate.neededS`):
+(what a threshold is said to be held for), else the best 20, under the card's own title with the chip "At least" and one line,
+"From your best 30 min." The threshold card says no more and asks for nothing; the surfaces that hold a comparison or a
+prediction say what it asks for, and that depends on why it failed (`EffortGate.neededS`):
 
 - the reference can be trusted and the best was under the line: the words say what is true, that it reached (say) 82% of the reference, under the 90% that marks a hard
   effort, and that a 20 min effort at 90% or more would give the threshold. They do not promise such an effort is possible: an athlete whose heart rate at an
@@ -59,11 +60,11 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
 
 ## Where it applies, and what each shows when it fails
 
-- **Threshold** (`combine`): the fit is null with refusal `effort`; the uneven fit goes with it. Panel and tile name the figure
-  "Best 30 min pace" (a recorded best), give no spread, and say why in one line (see above). The share card and anything that needs both
+- **Threshold** (`combine`): the fit is null with refusal `effort`; the uneven fit goes with it. Panel and tile keep their title, show
+  that best as "At least" with no spread, and name it in one line, "From your best 30 min." (see above). The share card and anything that needs both
   fits waits for them. An unchecked threshold is shown with "Effort not checked: no heart rate on your best 20 min run."
 - **Chip**: "Hard effort · N%" with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
-  "within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one"), "Not a hard effort · N%",
+  "within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one"), "Not all-out" with no share,
   "Effort not confirmed" with no share for an untrusted reference, "Effort not checked". The reference is named by its source
   (the activities, the maximum entered, the age). `result.effort` has an entry for every curve duration, so a one-sport library
   has its chip. The ride on foot card says the ride behind its pace was not hard or not checked, and nothing of one that was.

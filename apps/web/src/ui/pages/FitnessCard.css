@@ -1,4 +1,4 @@
-/* Your fitness: one card for each sport that has a status, above the balance it sits beside. */
+/* Your fitness: one card for each sport that has a status, under the balance it sits beside. */
 .fitness-section {
   display: grid;
   gap: var(--space-3);
@@ -83,20 +83,10 @@
 /*
  * A short phone (the same test as the page's own tighter gaps) has a header, a notice and a tab bar to share its
  * height with, so the card gives up what its evidence panel repeats: the support line and the sport's tag go, the New
- * marker rides the corner without its week (read aloud still), the sentence is a size smaller, and the balance under
- * the card sits closer. What stays is the state, the sentence with its range and the track.
+ * marker rides the corner without its week (read aloud still), and the sentence is a size smaller. What stays is the
+ * state, the sentence with its range and the track.
  */
 @media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
-  .fitness-section {
-    margin-bottom: calc(var(--space-3) - var(--space-7));
-  }
-
-  /* The band's room above its rule goes too: the state and its sentence stay above the tabs. */
-  .band.fitness-section {
-    margin-top: 0;
-    padding-top: var(--space-3);
-  }
-
   .fitness-card {
     gap: var(--space-3);
     padding-bottom: var(--space-2);
@@ -133,11 +123,6 @@
 
 /* A landscape phone has little height: the track sits beside the words, as on a wide screen, and the card is tighter. */
 @media (max-height: 520px) and (min-width: 560px) {
-  .band.fitness-section {
-    margin-top: 0;
-    padding-top: var(--space-2);
-  }
-
   .fitness-card {
     gap: var(--space-2);
     padding-bottom: var(--space-3);

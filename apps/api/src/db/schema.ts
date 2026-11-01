@@ -11,6 +11,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 import { MEASUREMENT_KINDS } from '@rca/core/athlete'
+import { SPORTS } from '@rca/core/types'
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -126,7 +127,7 @@ export const activities = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     dedupeKey: text('dedupe_key').notNull(),
-    sport: text('sport', { enum: ['run', 'ride'] }).notNull(),
+    sport: text('sport', { enum: SPORTS }).notNull(),
     startMs: integer('start_ms').notNull(),
     name: text('name').notNull(),
     digestVersion: integer('digest_version').notNull(),

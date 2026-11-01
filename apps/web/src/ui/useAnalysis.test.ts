@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { NO_WINDOW } from '@rca/core/answer'
 import type { Copy } from '@rca/core/session'
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
@@ -7,6 +8,7 @@ import { NONE_WITHHELD, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_LOOKBACK } from '@rca/core/lookback'
+import { NO_HISTORY } from '@rca/core/history'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
 import { createElement, StrictMode, useEffect } from 'react'
 import type { ReactNode } from 'react'
@@ -150,6 +152,7 @@ const STATE = {
   libraryActivities: 0,
   heldOut: [],
   hiddenDuplicates: 0,
+  answerWindow: NO_WINDOW,
   walkingPaceRuns: 0,
   countedWalkingRuns: [],
   trend: [],
@@ -162,6 +165,7 @@ const STATE = {
   heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
   fitness: NO_FITNESS,
   lookBack: NO_LOOKBACK,
+  history: NO_HISTORY,
   zoneEstimates: null,
   timeInZones: NO_ZONE_TIMES,
   records: new Map(),

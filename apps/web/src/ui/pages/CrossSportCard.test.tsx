@@ -111,7 +111,7 @@ describe('CrossSportCard', () => {
     expect(screen.queryByRole('button', { name: /effort/ })).toBeNull()
     cleanup()
     renderCard(makeResult({ ...base, ...check(0.7) }))
-    expect(screen.getByRole('button', { name: 'Not a hard effort · 70%' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
     cleanup()
     renderCard(makeResult({ ...base, ...check(0.99, 'low') }))
     expect(screen.getByRole('button', { name: 'Effort not confirmed' })).toBeInTheDocument()
@@ -151,7 +151,7 @@ describe('CrossSportCard', () => {
         ],
       }),
     )
-    const chip = screen.getByRole('button', { name: 'Not a hard effort · 70%' })
+    const chip = screen.getByRole('button', { name: 'Not all-out' })
     expect(chip).toBeInTheDocument()
     expect(container.textContent).toContain('Your best 10 min on the bike reached 70%')
   })
