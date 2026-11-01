@@ -333,7 +333,8 @@ describe('the words', () => {
       sport,
       fit,
     )
-    expect(partly).toMatch(/was still about .* slower than before\.$/)
+    // The baseline is named, so it reads as its own comparison beside the fitness card's "than before <day>".
+    expect(partly).toMatch(/was still about .* slower than before [A-Z][a-z]+ \d{4}\.$/)
   })
 
   it('names a break and then the step after it', () => {

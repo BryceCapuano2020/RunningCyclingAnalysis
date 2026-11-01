@@ -129,7 +129,7 @@ export function episodeSentence(
     case 'slip-back':
       return `From ${from} ${you} was about ${amount(s, episode.change)}. By ${to} it was back.`
     case 'slip-partly-back':
-      return `From ${from} ${you} was about ${amount(s, episode.change)}. By ${to} it had come back about ${sized(s, episode.regained!)} and was still about ${amount(s, episode.remaining!)} than before.`
+      return `From ${from} ${you} was about ${amount(s, episode.change)}. By ${to} it had come back about ${sized(s, episode.regained!)} and was still about ${amount(s, episode.remaining!)} than before ${from}.`
     case 'slip-open':
       // One that ended before the horizon was followed by a further fall, and the level had not come back when it began.
       return to === null

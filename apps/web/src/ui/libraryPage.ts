@@ -10,7 +10,9 @@ import type { Route } from './route'
  * - `method`: How sure is this? with no result, which is its own page.
  * - `restoring`: a library is being restored or loaded.
  * - `unavailable`: the library could not be loaded or read.
- * - `held`: a library is present and its results are not shown (updating, or nothing readable yet).
+ * - `held`: a library is present and its results are not shown (updating, or nothing readable yet). Its
+ *   counts are known by then: until the library read answers, the list of saved runs is there but the counts
+ *   are not, so the restoring page stays.
  * - `landing`: nothing is there.
  */
 export type LibraryPage =
@@ -24,6 +26,8 @@ export interface LibraryPageInputs {
   restoring: boolean
   /** The library was asked for and could not be loaded or read. */
   failed: boolean
+  /** A signed-in library read is still owed, so the counts the held page reads are not in yet. */
+  loading?: boolean
 }
 
 export function libraryPageOf({
@@ -32,12 +36,14 @@ export function libraryPageOf({
   knowledge,
   restoring,
   failed,
+  loading = false,
 }: LibraryPageInputs): LibraryPage {
   if (route.page === 'profile') return 'profile'
   if (hasResult) return 'result'
   if (route.page === 'method') return 'method'
   if (knowledge === 'unknown') return failed && !restoring ? 'unavailable' : 'restoring'
-  return knowledge === 'present' ? 'held' : 'landing'
+  if (knowledge !== 'present') return 'landing'
+  return restoring || loading ? 'restoring' : 'held'
 }
 
 /** A string that changes whenever a different page is on screen, so focus moves to its heading. */
