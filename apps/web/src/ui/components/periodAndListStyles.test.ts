@@ -25,6 +25,17 @@ function rulesWith(css: string, selector: string): string {
   return bodies.join('\n')
 }
 
+/** Every @media block with this query, joined, for a width the stylesheet writes more than one rule set for. */
+function everyMediaOf(css: string, query: string): string {
+  const blocks: string[] = []
+  for (let from = 0; ;) {
+    const rest = mediaOf(css.slice(from), query)
+    if (rest === '') return blocks.join('\n')
+    blocks.push(rest)
+    from = css.indexOf(rest, from) + rest.length
+  }
+}
+
 /** The text of the first @media block with this query, braces included, or '' when there is none. */
 function mediaOf(css: string, query: string): string {
   const open = css.indexOf(`@media ${query} {`)
@@ -40,8 +51,8 @@ function mediaOf(css: string, query: string): string {
   return ''
 }
 
-const SMALL_PHONE = '(max-width: 360px)'
 const PHONE_480 = '(max-width: 479px)'
+const SMALL_PHONE = '(max-width: 360px)'
 const NARROW_PHONE = '(max-width: 560px)'
 const PHONE_760 = '(max-width: 760px)'
 const ABOVE_PHONE = '(min-width: 761px)'
@@ -55,14 +66,21 @@ describe('the period control', () => {
     expect(rulesWith(rangePicker, '.range-picker')).toMatch(/justify-items:\s*start/)
   })
 
-  it('shows short labels at 360 px and below, keeping the full name in the page', () => {
-    const small = mediaOf(rangePicker, SMALL_PHONE)
+  it('shows short labels at 479 px and below, keeping the full name in the page', () => {
+    const small = everyMediaOf(rangePicker, PHONE_480)
     expect(rulesWith(small, '.range-picker .segmented-control__short')).toMatch(/display:\s*inline/)
     expect(rulesWith(small, '.range-picker .segmented-control__full')).toMatch(
       /clip-path:\s*inset\(50%\)/,
     )
     expect(rulesWith(rangePicker, '.range-picker .segmented-control__short')).toMatch(
       /display:\s*none/,
+    )
+  })
+
+  it('tightens the segments at 360 px and below, so all six fit one row at 320 px', () => {
+    const small = mediaOf(rangePicker, SMALL_PHONE)
+    expect(rulesWith(small, '.range-picker--compact .segmented-control__option')).toMatch(
+      /padding-inline:\s*4px/,
     )
   })
 

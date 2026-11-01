@@ -93,8 +93,12 @@ visitor's own files are not held back by the restore. An unknown hash becomes Ba
 address names the page shown.
 
 **Period.** Balance and the sport pages show one period, picked with the control under the answer: 6
-weeks, 12 weeks (the default), 12 months, All time or Custom, in that order. Each segment takes its
-natural width, so the five wrap onto a second row at 390 px rather than overflow, and a segment alone on
+weeks, 12 weeks, 6 months (26 weeks), 12 months, All time or Custom, in that order. Each is exactly the length it names. Until
+the athlete picks one, the page is on the window the default settled on (see The default period), and
+the segment of that window shows as selected: every window the default can settle on has a segment. Clicking
+the segment that is already selected picks that window, so it is kept. Each segment takes its
+natural width and, with full names, wraps onto a second row rather than overflow; up to 479 px the segments read "6 wk", "12 wk",
+"6 mo", "12 mo", "All" and "Custom", which fit one row at 320 px, and a segment alone on
 that row is not stretched. Custom shows From and To date fields, prefilled with the period on screen,
 and an Apply button on a row of its own. The fields are a control tall (`--control-height`, 44 px on a
 finger) with 16 px text, side by side when two fit and stacked below that. The range applies on Apply,
@@ -417,7 +421,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   sport, total). It is not shown when fewer than three of the weeks have training.
 - **The default period is resolved, not fixed.** The athlete's own pick is always honoured; the default is a search, so a page has one
   window and one set of numbers. Run, Ride and Balance share it; Activities keeps its own period. The windows tried, shortest first, are
-  12 weeks (84 calendar days), 26 weeks (182) and 12 months (365), each ending on the newest activity's day. A sport qualifies in a
+  12 weeks (84 calendar days), 26 weeks (182, named 6 months) and 12 months (365), each ending on the newest activity's day. A sport qualifies in a
   window with 3 or more counted activities and a best 20 min that the effort gate did not show easy (hard, or not checked: no heart
   rate on it, too few days with one). The default is the first window where every sport the library has qualifies. Where none does,
   it is the shortest of the three with evidence for every sport and the most sports qualifying; where none of the three has evidence
@@ -433,7 +437,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   picks, both counted, with `periodOf` in `packages/core/src/period.ts` dating it from the first millisecond of its first
   day to the last of its last. It may hold no activities, and the page then shows its empty state.
 - A period's comparison is the same length before it, drawn as a solid mid-grey line (2 px) and named
-  "Previous 6 weeks", "Previous 12 weeks", "Previous 12 months" or, for a custom range, "Previous N
+  "Previous 6 weeks", "Previous 12 weeks", "Previous 6 months", "Previous 12 months" or, for a custom range, "Previous N
   days" (or the word for its length when it is one of the named lengths). All time has none.
 - The dated bests of the chosen length (5, 20 or 60 minutes) come from a trailing window that ends each week: a third of the
   period, at most six weeks, so a six-week period uses two-week windows, every window inside the period (`fitnessTrend`, which
@@ -517,9 +521,9 @@ and the tests named at the foot of that page keep the two in step. A display siz
   "No clear change from the previous 12 weeks." when something could be compared and the test called nothing, and "Not enough in the previous 12 weeks to compare." when the previous period lacks the efforts or holds too few of that length to test; where only some could be compared it lists those. A best is compared only where neither period's best 20 min is known, by the heart-rate effort check's 90% line, to have been an
   easy effort; otherwise a line says "No comparable hard 20 min of running in the previous 12 weeks." (or, where this period's was the easy one, that it was not a hard effort so it is not compared). Where heart rate
   does not say, the best stands. The previous period's check is `SportCurves.headlineEffort`, judged against the library's reference heart rates and set-aside list.
-- **The import summary compares like with like.** It lists what an import moved only when the period was in the same regime before and after (the same length, all time both times, or the same custom days: `sameRegime`). The default period is 12 weeks until an import brings a sport the library lacked and then all time; a threshold or grade across that switch is a different stretch of the library, not a change, so the summary lists nothing then.
+- **The import summary compares like with like.** It lists what an import moved only when the period was in the same regime before and after (the same length, all time both times, or the same custom days: `sameRegime`). The default period is the window the search settles on, so an import that brings a sport the library lacked, or a hard effort, can move it from 12 weeks to a longer window or all time; a threshold or grade across that switch is a different stretch of the library, not a change, so the summary lists nothing then.
 - **The period control sits under the levels,** as one compact row of chips with the real dates, the count (linked to Activities, with "(38 walking-pace runs left out)" where
-  runs at walking pace are), and, where a longer period holds the same activities as a shorter one, "Same 14 activities as 12 weeks". At 360 px and below the chips read "6 wk", "12 wk", "12 mo", "All" and "Custom", with the full names kept as their accessible names, so all five fit one row.
+  runs at walking pace are), and, where a longer period holds the same activities as a shorter one, "Same 14 activities as 12 weeks". Where the default settled on a longer window than 12 weeks, one line in the caption says which and why the shorter was passed over: "Your last 12 months. Your last 12 weeks had no hard runs." (`windowLine`; "All time. Your last 12 weeks had too few rides." for all time), and no line when the first window was taken or the athlete picked. At 479 px and below the chips read "6 wk", "12 wk", "6 mo", "12 mo", "All" and "Custom", with the full names kept as their accessible names, so all six fit one row, with tighter padding and smaller text at 360 px and below.
 - **Three tiles at most** give the headline numbers (the lean has no tile: the headline, the lede and the meter's dot say it once, and a tile figure never exceeds `--display-2`): each sport's threshold ("threshold" is a defined term, with the plain-words meaning the sport page gives; the figure at display size, the fit's spread as a slim track labelled "range", lighter than a 90% range and left out where its ends print the same, a chip saying Estimated or At least, a line under the name that says what a threshold is, "Pace you could hold for about 30 min", where the best 20 min was faster than it a line "Your best 20 min was faster: 6:37 /mi" (higher, for watts), the grade line, and a one-line chip with the share that says how hard the best 20 min was by heart rate, "Not all-out" or "Hard effort · 95%", whose full reading opens as a definition and which is never a card). When the threshold is refused, for any reason, the tile keeps its title and shows the sport's floor under the chip "At least", without a spread, with one line that names the best it rests on, "From your best 30 min."; a sport with no best of 20 min shows its longest best of 5 to 19 min as "Best 12 min", with no "at least"; the tile asks for no harder effort and states no share of heart rate; a reference heart rate that cannot be a maximum reads "Effort not confirmed" with no share (docs/design/effort-gate.md), and the ride on foot
   (the pace, the watts and the pace as a pair of chips, the activity that set it, and the equivalence table folded under it; an estimated ride under 10 min is not priced as a pace, and the tile asks for a ride of 10 min or more). A tile with no
   figure to give, one held for a weight or waiting for an effort, has no chip and no track.
@@ -973,8 +977,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   indoors; their power counts like any other." Race predictions name the heart-rate route as it is: 2 outdoor runs with a heart
   rate that can be trusted (indoor pace is left out of the VO2max estimate).
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
-  compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
-  ride would let them be compared." beneath it. When a sport has fewer than three analysed activities in the
+  compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. Add one run or ride of
+  20 min or more to compare them." beneath it. When a sport has fewer than three analysed activities in the
   period, it says what is missing instead: "From 1 run and 3 rides. Needs 2 more runs in this period."
   (without "in this period" for All time), with **Show all time** when All time holds enough. The counts are
   the ones the rule counts: where a treadmill run is on file the run count reads "outdoor runs" ("From 1
@@ -986,8 +990,9 @@ and the tests named at the foot of that page keep the two in step. A display siz
   (`HEADLINE_MIN_ACTIVITIES`): the answer reads "Not enough to compare yet" (`headlinePick`, which
   `balanceOfPick` follows, so the grade gap is held with it), on the page, the share card
   and the import summary alike. How sure is this? holds its energy view the same way and names the same reason (`heldReason`): "The
-  comparison is held. Needs 2 more runs in this period." or "The comparison is held. A hard 20 min run or ride
-  would let them be compared.", with no ratio chart and no energy-ratio copy.
+  comparison is held. Needs 2 more runs in this period." or "The comparison is held. Add one run or ride of 20 min
+  or more to compare them.", with no ratio chart and no energy-ratio copy. A best 20 min that was not shown hard is no reason to hold: the
+  balance is stated with one line under it (`basisLine`, see docs/design/effort-gate.md).
 - **A run at walking pace is not a run.** A run whose moving pace is slower than 15:00 a mile for 10 min or more
   is a hike recorded as a run, unless its cadence is a runner's (130 steps a minute or more) or, without
   cadence, a tenth of its moving time was at a jog (`WALKING_PACE`, `digest/walkingPace.ts`). Either signal

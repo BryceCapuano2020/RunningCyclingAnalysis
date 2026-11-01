@@ -1,15 +1,11 @@
-import { DEFAULT_PERIOD_DAYS as DEFAULT_DAYS, windowEnding } from '@rca/core/period'
+import { windowEnding } from '@rca/core/period'
 import type { Period } from '@rca/core/period'
 import { formatCount } from './format/count'
 import { RANGE_OPTIONS, lengthOf } from './components/rangeOptions'
 
 /** The fixed periods, shortest first, as the days they count back; all time (null) last. */
 const FIXED_DAYS = RANGE_OPTIONS.map((option) =>
-  typeof option.choice === 'number'
-    ? option.choice
-    : option.choice === 'default'
-      ? DEFAULT_DAYS
-      : null,
+  typeof option.choice === 'number' ? option.choice : null,
 )
 
 function startedWithinDays(

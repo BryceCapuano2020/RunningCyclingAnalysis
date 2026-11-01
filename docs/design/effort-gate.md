@@ -77,10 +77,16 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   heart rate was 80% of the reference or more, since a long effort's average sits well under its peak. Runs without a heart rate count, and
   so does every run where the gate could not judge. The heart-rate VO2max uses the same reference and reading. Nothing left: "Needs a
   hard run of a mile or more", or the reference action.
-- **Balance headline**: held, by one place (`holdOf`, `ui/resultHold.ts`): a sport whose best 20 minutes was not hard, with
-  the sport named and what lifts it, per sport. A sport that was only not checked is not held: the headline is shown with the note. A hold, not a rule change: `leanOfLead` stays. A level read from a best that was not shown
-  hard is not asserted: "Your best 20 min run grades Local", and the level rows say "best 20 min, not a hard effort". The precedence is
-  'implausible-ride' (a seam for D6a) over 'effort'; 'updating' and 'partial-import' will go above both.
+- **Balance headline**: never held for the gate. A best 20 minutes that was not shown hard still gives a pick, so the lean, the tiles,
+  the level target and the changes are all stated, and the lean is the same centre rule (`leanOfLead`). A best not shown hard is a floor:
+  real ability is at least this. One line under the balance says so (`basisLine`, `ui/components/basisLine.ts`): "Your ride best
+  wasn't all-out, so cycling could be higher.", or "Neither best was all-out."; nothing when both were hard. A best that was only not
+  checked is shown with its own note, "Effort not checked: ...". The page is titled by the balance whatever the bests were
+  (`balanceTitle`); `levelsTitle` titles only a page that states none, one sport on file or the sports not yet comparable. The level
+  rows say "best 20 min, not a hard effort". What still holds the headline is in `holdOf` (`ui/resultHold.ts`), in this order:
+  'updating', 'partial-import', 'implausible-ride'; a ride at the top of the age tables leaves the pick out with no fault to name.
+  The share card still waits for both thresholds, which the gate withholds, so a library whose bests were not hard shows the balance
+  and offers no card.
 - **Change test** (`digest/hardEffortRule.ts`, D5): a point of the test's readings counts when heart rate shows it hard (up to 20 min by the
   session's peak, beyond it by the session's average, a sprint of a minute or less always), so a swing in how many hard efforts a period
   holds is not read as a change. Both periods are read alike: the call is made from the hard readings when both hold enough, else from every

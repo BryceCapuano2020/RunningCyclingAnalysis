@@ -55,7 +55,7 @@ export function mixed({ six, seven }: Pairs, side: Side, k: number): ActivityDig
   })
 }
 
-/** The state a session gives for these digests under the open table, over the default 12 weeks. */
+/** The state a session gives for these digests under the open table, over the default period. */
 export function stateOf(digests: readonly ActivityDigest[]): SessionState {
   return withRevisionTable(OPEN_TABLE, () => {
     const session = new AnalysisSession()
