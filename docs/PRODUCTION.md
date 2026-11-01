@@ -470,7 +470,9 @@ activities at a time with accessible paging.
   `hr-cadence-lock` takes out heart rate that repeats the cadence, a GPX run's cadence unit is resolved before the
   walking-pace rule reads it, a steep descent saves only half of Minetti's saving (`descentCost`) and a split ratio
   is checked, a lone power spike and a dropped second no longer set or lose a best (a best window may have 1%
-  unusable seconds). Weeks are cut at local Mondays, from the shift. It is `exclusive`: a library holds its
+  unusable seconds), a run keeps its best over the marathon, and the warm-day term of fitness reads the
+  temperature. A new activity's id and file name hold a hash of the file's name, and its title is generated unless the
+  account sends titles. Weeks are cut at local Mondays, from the shift. It is `exclusive`: a library holds its
   results back and shows the update panel while any digest is revision 6 (`HOLD_ON_ANY_STALE`). New imports are
   revision 7; "Update now" rebuilds from retained originals, and dropping the original export again rebuilds
   without them. The automatic updater stays off (`AUTO_UPDATE_ENABLED`) until the owner's checklist is done.
