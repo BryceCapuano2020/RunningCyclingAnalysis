@@ -34,10 +34,23 @@ function revision7(sport: 'run' | 'ride', withLock: boolean): DigestWire {
   return { ...base, modelRevision: 7, ...FIELDS, ...lock }
 }
 
-const DIGESTS = (['run', 'ride'] as const).flatMap((sport) => [
-  revision7(sport, false),
-  revision7(sport, true),
-])
+/** A run with a best over the marathon (42,195 m), which W1 reads as one of its six record distances. */
+const MARATHON_M = 42_195
+function marathonRun(): DigestWire {
+  const bests = (w: DigestWire) => (w.distanceBests ?? []) as { distanceM: number }[]
+  const base = pick(
+    (w) => w.sport === 'run' && bests(w).some((best) => best.distanceM === MARATHON_M),
+  )
+  return { ...base, modelRevision: 7, ...FIELDS }
+}
+
+const DIGESTS = [
+  ...(['run', 'ride'] as const).flatMap((sport) => [
+    revision7(sport, false),
+    revision7(sport, true),
+  ]),
+  marathonRun(),
+]
 
 const wireOf = (digest: unknown): unknown =>
   JSON.parse(serializeDigest(digest as ActivityDigest)) as unknown
@@ -50,6 +63,13 @@ describe('the rollback floor W1 reading what revision 7 writes', () => {
       expect(wireOf(R1StoredDigestSchema.parse(w)), where).toEqual(expected)
       expect(wireOf(r1.parseDigest(JSON.stringify(w))), where).toEqual(expected)
     }
+  })
+
+  it('keeps a best over the marathon, which main reads and revision 6 did not', () => {
+    const run = marathonRun()
+    const stored = R1StoredDigestSchema.parse(run) as { distanceBests?: { distanceM: number }[] }
+    expect(stored.distanceBests?.some((best) => best.distanceM === MARATHON_M)).toBe(true)
+    expect(r1.parseDigest(JSON.stringify(run))).not.toBeNull()
   })
 
   it('keeps the revision on a stored row, which W1 (current revision 6) takes for a newer app’s', () => {

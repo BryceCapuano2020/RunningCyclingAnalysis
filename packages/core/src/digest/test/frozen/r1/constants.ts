@@ -10,8 +10,8 @@ export const DURATIONS_S = [
   10800,
 ] as const
 
-/** 1 km, 1 mile, 5 km, 10 km and a half marathon, m. */
-export const RUN_RECORD_DISTANCES_M = [1000, 1609.344, 5000, 10_000, 21_097.5] as const
+/** 1 km, 1 mile, 5 km, 10 km, a half marathon and the marathon, m (main's list when W1 was taken). */
+export const RUN_RECORD_DISTANCES_M = [1000, 1609.344, 5000, 10_000, 21_097.5, 42_195] as const
 
 export const DISTANCE_BEST_TOLERANCE = 0.01
 export const MAX_KM_SPLITS = 500
