@@ -2,6 +2,7 @@ import { fitnessFindingHeadline, oneSided, shownChange } from '../../fitness/cop
 import { fitnessStatuses } from '../../fitness/compute'
 import { localWeekOf } from '../../fitness/machine'
 import { FITNESS } from '../../fitness/params'
+import { datedAt } from '../../lookback/cardDates'
 import type { FitnessStatus } from '../../fitness/types'
 import type { Sport } from '../../types'
 import { FINDING_SPORTS, FINDINGS } from '../constants'
@@ -114,6 +115,10 @@ export const fitnessStatusDetector: Detector = {
   run(input: FindingInput, sport: Sport): Candidate[] {
     const status = fitnessStatuses(input.digests, input.setAside, { asOfMs: input.asOfMs })[sport]
     const candidate = candidateOf(status, sport, input.asOfMs)
-    return candidate === null ? [] : [candidate]
+    if (candidate === null) return []
+    // It speaks: the headline names the episode by the look-back's dates, as the card does, so the two name one month.
+    // Only a status that speaks reads the look-back, which a replay at every weekly mark could not afford.
+    const dated = datedAt(input.digests, input.setAside, status)
+    return [{ ...candidate, headline: fitnessFindingHeadline(dated) }]
   },
 }

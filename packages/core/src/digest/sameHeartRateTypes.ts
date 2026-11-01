@@ -18,6 +18,11 @@ export interface SameHeartRateWeek {
   /** Blocks in the window, and the activities they come from. */
   blocks: number
   activities: number
+  /**
+   * The days the window reaches back when it is longer than the 28 of every other week: the reference heart rate lay outside
+   * what the last 28 days held, so the week is read over the first longer window that holds it. Absent for a 28-day week.
+   */
+  widenedToDays?: number
 }
 
 export interface SameHeartRate {

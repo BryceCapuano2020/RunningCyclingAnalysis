@@ -288,11 +288,20 @@ describe('the session', () => {
       nowMs: Math.floor(last / DAY_MS) * DAY_MS,
     })
     // The card names its episode by the look-back's dates (lookback/cardDates.ts); nothing else of the status moves.
-    expect(state.fitness).toEqual(datedByLookBack(direct, state.lookBack))
+    const histories = fitnessHistories(
+      planted.digests,
+      new Set(state.heartRateJudgement.setAside),
+      {
+        nowMs: Math.floor(last / DAY_MS) * DAY_MS,
+      },
+    )
+    expect(state.fitness).toEqual(datedByLookBack(direct, state.lookBack, histories))
     for (const sport of ['run', 'ride'] as const) {
-      const { onsetMs, lowMs, ...rest } = state.fitness[sport]
-      const { onsetMs: _onset, lowMs: _low, ...before } = direct[sport]
-      expect(rest).toEqual(before)
+      const { onsetMs, lowMs, evidence, ...rest } = state.fitness[sport]
+      const { onsetMs: _onset, lowMs: _low, evidence: before, ...same } = direct[sport]
+      expect(rest).toEqual(same)
+      // The runs the level before is counted over move with the onset; the recent runs do not.
+      expect(evidence?.recent).toEqual(before?.recent)
       expect(Math.abs((onsetMs ?? 0) - (direct[sport].onsetMs ?? 0))).toBeLessThan(15 * WEEK)
       expect(lowMs === null).toBe(direct[sport].lowMs === null)
     }

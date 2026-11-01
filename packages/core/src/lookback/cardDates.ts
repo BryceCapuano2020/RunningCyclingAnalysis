@@ -1,6 +1,11 @@
+import { WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
+import { fitnessHistories } from '../fitness/compute'
+import { baselineBefore } from '../fitness/status'
 import type { FitnessBySport, FitnessState, FitnessStatus } from '../fitness/types'
-import { LOOKBACK_SPORTS } from './compute'
+import type { RunPoint } from '../fitness/windows'
+import type { ActivityDigest, Sport } from '../types'
+import { hindsightsOf, LOOKBACK_SPORTS } from './compute'
 import type { LookBack } from './compute'
 import { LOOKBACK } from './params'
 import type { EpisodeKind, HindsightEpisode, HindsightFitness, SportYears } from './types'
@@ -59,14 +64,42 @@ function datesOf(status: FitnessStatus, years: HindsightFitness): Dates | null {
   return { onsetMs: from, lowMs: inside ? status.lowMs : (deepest.fromMs + end) / 2 }
 }
 
-/** A status with the dates of the look-back's episode, or itself when there are none to take. */
-function dated(status: FitnessStatus, years: SportYears): FitnessStatus {
+/** The runs of each sport the card reads, which the level before a change is counted over. */
+export type CardRuns = Record<Sport, { readonly runs: readonly RunPoint[] }>
+
+/**
+ * A status with the dates of the look-back's episode, or itself when there are none to take. The count of runs the level
+ * before is read from is taken again over the weeks before the new onset, so "N in the 8 weeks before March" counts the
+ * weeks it names.
+ */
+function dated(status: FitnessStatus, years: SportYears, runs: readonly RunPoint[]): FitnessStatus {
   if (years.kind !== 'ok') return status
   const dates = datesOf(status, years)
   if (dates === null || (dates.onsetMs === status.onsetMs && dates.lowMs === status.lowMs)) {
     return status
   }
-  return { ...status, onsetMs: dates.onsetMs, lowMs: dates.lowMs }
+  const { evidence } = status
+  const onsetDay = Math.round((dates.onsetMs - WEEK_ORIGIN_MS) / DAY_MS)
+  const recounted =
+    dates.onsetMs !== status.onsetMs && evidence !== null && evidence.baseline !== null
+      ? { evidence: { ...evidence, baseline: baselineBefore(runs, onsetDay) } }
+      : {}
+  return { ...status, onsetMs: dates.onsetMs, lowMs: dates.lowMs, ...recounted }
+}
+
+/**
+ * One sport's status dated by the look-back of the same library at its date, for a reader that holds a status and not the
+ * session's look-back (a finding made at a mark). The same dates the card names, so a finding and the card name one month.
+ */
+export function datedAt(
+  digests: ActivityDigest[],
+  setAside: ReadonlySet<string>,
+  status: FitnessStatus,
+): FitnessStatus {
+  const years = hindsightsOf(digests, setAside, status.asOfMs)?.[status.sport]
+  if (years === undefined) return status
+  const { runs } = fitnessHistories(digests, setAside, { nowMs: status.asOfMs })[status.sport]
+  return dated(status, years, runs)
 }
 
 const remembered = new WeakMap<FitnessBySport, WeakMap<LookBack, FitnessBySport>>()
@@ -76,11 +109,18 @@ const remembered = new WeakMap<FitnessBySport, WeakMap<LookBack, FitnessBySport>
  * findings of a look at the years and the History chart name one episode. The same statuses and look-back give the same
  * object back, and a library whose dates agree already gets the statuses it was given.
  */
-export function datedByLookBack(statuses: FitnessBySport, lookBack: LookBack): FitnessBySport {
+export function datedByLookBack(
+  statuses: FitnessBySport,
+  lookBack: LookBack,
+  histories: CardRuns,
+): FitnessBySport {
   const known = remembered.get(statuses)?.get(lookBack)
   if (known !== undefined) return known
   const next = Object.fromEntries(
-    LOOKBACK_SPORTS.map((s) => [s, dated(statuses[s], lookBack.sports[s].fitness)]),
+    LOOKBACK_SPORTS.map((s) => [
+      s,
+      dated(statuses[s], lookBack.sports[s].fitness, histories[s].runs),
+    ]),
   ) as FitnessBySport
   const answer = LOOKBACK_SPORTS.every((s) => next[s] === statuses[s]) ? statuses : next
   const inner = remembered.get(statuses) ?? new WeakMap<LookBack, FitnessBySport>()

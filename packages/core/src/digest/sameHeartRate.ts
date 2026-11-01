@@ -136,11 +136,17 @@ function fitBlocksOf(kept: readonly Block[]): FitBlocks {
   }
 }
 
-function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
+/** One week read over the `days` to its end, at the reference heart rate. */
+function readWeek(
+  endMs: number,
+  blocks: readonly Block[],
+  referenceHr: number,
+  days: number,
+): SameHeartRateWeek {
   // A block is in the window exactly when its week end is after the window's and not after the week's.
   const at = (block: Block) => block.weekMs
   const window = blocks.slice(
-    firstStartingAfter(blocks, endMs - WINDOW_MS, at),
+    firstStartingAfter(blocks, endMs - days * DAY_MS, at),
     firstStartingAfter(blocks, endMs, at),
   )
   const activities = new Set(window.map((b) => b.activity)).size
@@ -153,6 +159,22 @@ function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): S
   const random = mulberry32(SAME_HEART_RATE.seed + Math.round(endMs / WEEK_MS))
   const fit = outputAtHeartRate(fitBlocksOf(kept), referenceHr, random)
   return { ...base, fit, lacks: fit === null ? 'spread' : null }
+}
+
+/**
+ * A week: its 28 days read at the reference heart rate. The card's heart rate can lie outside what 28 days held (all the
+ * blocks above it, or below), and a fit is never read past its blocks, so such a week is read over the first of the longer
+ * windows whose blocks reach both sides of it: the series keeps its one heart rate and the week says how far it reached
+ * back. It has no reading only when none of them does.
+ */
+function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
+  const week = readWeek(endMs, blocks, referenceHr, SAME_HEART_RATE.windowDays)
+  if (week.lacks !== 'range') return week
+  for (const days of SAME_HEART_RATE.widerDays) {
+    const wider = readWeek(endMs, blocks, referenceHr, days)
+    if (wider.lacks === null) return { ...wider, widenedToDays: days }
+  }
+  return week
 }
 
 /**

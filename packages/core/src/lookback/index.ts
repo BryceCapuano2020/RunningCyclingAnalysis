@@ -17,7 +17,8 @@ export type {
   TooShort,
 } from './types'
 export { hindsightsOf, lookBackOf, NO_LOOKBACK } from './compute'
-export { datedByLookBack } from './cardDates'
+export { datedAt, datedByLookBack } from './cardDates'
+export type { CardRuns } from './cardDates'
 export type { LookBack, SportLookBack } from './compute'
 export { leadOf, mayStateHeld } from './lead'
 export type { Lead, LiveState } from './lead'
