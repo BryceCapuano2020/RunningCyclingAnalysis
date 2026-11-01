@@ -16,6 +16,7 @@ describe('PAGE_RULES', () => {
       balance: open,
       run: needs,
       ride: needs,
+      history: needs,
       activities: needs,
       activity: needs,
       method: { needsResult: false, ownPage: 'method', ownOverResult: false },

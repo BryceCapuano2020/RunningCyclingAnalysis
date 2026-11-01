@@ -75,6 +75,7 @@ describe('AnalysisSession records', () => {
         'dotsWithheld',
         'fitness',
         'lookBack',
+        'history',
         'heartRateJudgement',
         'zoneEstimates',
         'hiddenDuplicates',
