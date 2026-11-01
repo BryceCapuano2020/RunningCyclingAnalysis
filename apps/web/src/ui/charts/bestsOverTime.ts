@@ -6,7 +6,7 @@ import { SPORT_FORMAT } from '../sports'
 import { markerRadii } from './chartInteraction'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
 import { timeScale } from './timeScale'
-import { trendDateTicks } from './trendTicks'
+import { ACTIVITY_NAMES, trendDateTicks } from './trendTicks'
 import { fitTicks } from './ticks'
 import { fittedYAxis, plottedValue, usable } from './sportAxis'
 
@@ -97,7 +97,7 @@ export function dotsLayout(
     xs: points.map((p) => p.x),
     ys: points.map((p) => p.y),
     opacities: opacityOf(dots),
-    xTicks: trendDateTicks([first.atMs, last.atMs], x),
+    xTicks: trendDateTicks([first.atMs, last.atMs], x, [], ACTIVITY_NAMES),
     yTicks: fitTicks(ticks, { axis: 'y', width }),
     points,
   }

@@ -1,3 +1,4 @@
+import type { NewBest } from '@rca/core/lookback'
 import { workoutKey } from '@rca/core/session'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
@@ -19,6 +20,8 @@ import { balanceMoveItem } from './balanceMove'
 import { addedSentence } from './copy'
 import type { ImportChange } from './importState'
 import { addedSportOf, headlineGradeItem } from './singleImport'
+import { bestsAgreeing, distanceKey, durationKey } from './trackedBests'
+import type { KeyedBest } from './trackedBests'
 
 /**
  * One line of what an import did to the athlete's numbers. `spoken` replaces the arrow and the figures
@@ -199,9 +202,9 @@ function bestItems(
   massKg: number,
   units: UnitSystem,
   sports: readonly Sport[],
-): MovedItem[] {
+): KeyedBest[] {
   const onFile = workoutsOn(before)
-  const items: MovedItem[] = []
+  const items: KeyedBest[] = []
   for (const sport of sports) {
     const earlierRecords = sportRecords(before, sport, massKg, units)
     for (const record of sportRecords(after, sport, massKg, units)) {
@@ -216,8 +219,11 @@ function bestItems(
         continue
       }
       items.push({
-        text: `New best ${effortLabel(record.durationS)} ${sport}: ${record.value}`,
-        spoken: `New best ${spokenDuration(record.durationS)} ${sport}: ${spokenFigure(record, sport, units)}`,
+        key: durationKey(sport, record.durationS),
+        item: {
+          text: `New best ${effortLabel(record.durationS)} ${sport}: ${record.value}`,
+          spoken: `New best ${spokenDuration(record.durationS)} ${sport}: ${spokenFigure(record, sport, units)}`,
+        },
       })
     }
   }
@@ -232,21 +238,24 @@ function distanceItems(
   before: AnalysisResult,
   after: AnalysisResult,
   units: UnitSystem,
-): MovedItem[] {
+): KeyedBest[] {
   // A run on file that predates distance bests has none, so an earlier best may be missing: no
   // distance best is called new against a partial record.
   if (before.activities.some((a) => a.sport === 'run' && a.distanceBests === undefined)) return []
   const onFile = workoutsOn(before)
   const earlier = distanceRecords(before.activities, units).records
-  const items: MovedItem[] = []
+  const items: KeyedBest[] = []
   for (const record of distanceRecords(after.activities, units).records) {
     if (onFile.has(workoutKey(record.activity.sport, record.activity.startMs))) continue
     const earlierBest = earlier.find((candidate) => candidate.distanceM === record.distanceM)
     // No earlier time at the distance is a first reading, not a beaten one.
     if (earlierBest === undefined || earlierBest.seconds <= record.seconds) continue
     items.push({
-      text: `New best ${record.label}: ${record.time}`,
-      spoken: `New best ${record.label}: ${spokenSeconds(record.seconds)}`,
+      key: distanceKey(record.distanceM),
+      item: {
+        text: `New best ${record.label}: ${record.time}`,
+        spoken: `New best ${record.label}: ${spokenSeconds(record.seconds)}`,
+      },
     })
   }
   return items
@@ -266,6 +275,8 @@ function present(items: (MovedItem | null)[]): MovedItem[] {
  * When the import added exactly one activity (`added`, its sport), the list leads with the balance,
  * listed when both results have one and a weight is entered, then the sport's headline grade, then
  * the rest.
+ *
+ * New bests are the check-in's (`tracked`) where it has one: see `bestsAgreeing`.
  */
 export function whatMoved(
   before: AnalysisResult | null,
@@ -276,6 +287,7 @@ export function whatMoved(
   weighted = true,
   added: Sport | null = null,
   hold: HoldInputs = {},
+  tracked: readonly NewBest[] | null = null,
 ): MovedItem[] {
   if (before === null) return []
   // Without a weight the ride's figures are worked out from the placeholder, so they wait for it.
@@ -285,10 +297,15 @@ export function whatMoved(
   ])
   const balance = balanceItem(before, after, profile, weighted, added, hold)
   const sports: readonly Sport[] = weighted ? SPORT_ORDER : ['run']
-  const bests = [
-    ...bestItems(before, after, settings.massKg, units, sports),
-    ...distanceItems(before, after, units),
-  ]
+  const bests = bestsAgreeing(
+    [
+      ...bestItems(before, after, settings.massKg, units, sports),
+      ...distanceItems(before, after, units),
+    ],
+    tracked,
+    sports,
+    units,
+  )
   if (added === null) return [...thresholds, ...present([balance]), ...bests].slice(0, MAX_ITEMS)
   const lead = present([balance, headlineGradeItem(before, after, added, profile, weighted)])
   return [...lead, ...thresholds, ...bests].slice(0, MAX_ITEMS)
@@ -310,5 +327,16 @@ export function listedMoves(
     return []
   }
   const added = addedSportOf(change.outcome)
-  return whatMoved(change.before, change.after, settings, units, profile, weighted, added, hold)
+  const { bests = null } = change
+  return whatMoved(
+    change.before,
+    change.after,
+    settings,
+    units,
+    profile,
+    weighted,
+    added,
+    hold,
+    bests,
+  )
 }

@@ -136,6 +136,25 @@ describe('saves a reload found waiting', () => {
     expect(screen.getAllByRole('button', { name: 'Try again now' })).toHaveLength(1)
   })
 
+  it('says once that a save waits when a retry fails, not in the import’s sentence and again in the outbox’s', async () => {
+    // The import's sentence is up, and the retry that failed left the outbox finished with the save still pending.
+    const outbox = { pending: 1, saved: 0, failed: 0, finished: true }
+    await act(async () => {
+      render(
+        <AppNotices
+          {...props({
+            libraryStatus: 'loaded',
+            outbox,
+            state: { syncIssues: [{ code: 'network', count: 1 }] },
+          })}
+        />,
+      )
+    })
+    expect(screen.getAllByText(/saves when the connection returns/)).toHaveLength(1)
+    expect(screen.queryByText(/still waiting to be saved/)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Try again now' })).toHaveLength(1)
+  })
+
   it("forgets the last account's rows when another signs in", async () => {
     vi.mocked(waitingCount).mockResolvedValue(3)
     const view = render(<AppNotices {...props({ libraryStatus: 'loaded' })} />)
