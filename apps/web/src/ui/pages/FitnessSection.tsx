@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import type { FitnessBySport } from '@rca/core/fitness'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { SPORTS } from '@rca/core/types'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { useHoldInputs } from '../holdContext'
@@ -9,7 +10,6 @@ import { FITNESS_LACK_INDOOR_LINE, FITNESS_LACK_LINE } from '../fitnessWords'
 import { indoorCount } from '../indoorCopy'
 import type { FitnessView } from '../fitnessModel'
 import { hrefFor } from '../route'
-import { SPORT_ORDER } from '../sports'
 import { FitnessCard } from './FitnessCard'
 import './FitnessCard.css'
 import './FitnessSection.css'
@@ -21,7 +21,7 @@ const isWaiting = (view: FitnessView) => view.state === 'not-enough-evidence'
  * (the ride) that cannot call a trend yet on the home page, which tells its level there and holds its full card on its own page.
  */
 const isLine = (view: FitnessView, home: boolean) =>
-  isWaiting(view) && (view.status.level === undefined || (home && view.sport !== SPORT_ORDER[0]))
+  isWaiting(view) && (view.status.level === undefined || (home && SPORTS.indexOf(view.sport) > 0))
 
 export interface FitnessSectionProps {
   fitness: FitnessBySport
