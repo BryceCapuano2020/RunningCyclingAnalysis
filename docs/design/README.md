@@ -11,6 +11,10 @@ Decisions section. Status is one of designed, in progress or built.
   built (release 96043823); stage D adds episode closing, a seasonal term and ride fitness.
 - [effort-gate.md](effort-gate.md): a best becomes a capability only when it was a hard effort, with the reference checked
   against itself. Status: built.
+- [change-test.md](change-test.md): the one rule that decides whether the app says a best effort changed, from the
+  two periods' efforts against what one pool would give. Status: built (stage D).
+- [watched-folder.md](watched-folder.md): whether a folder of new watch files can be imported as it fills. Status:
+  designed (research only, no code); stage E checks where files land first.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
 - [heldout-log.md](heldout-log.md): the synthetic generator's tuning and held-out configurations, and the log

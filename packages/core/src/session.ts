@@ -1,15 +1,12 @@
 import { applyCountedRuns } from './countedRuns'
-import type { RangedSource } from './fit'
-import { DEFAULT_EXTRACT_LIMITS } from './fit'
-import type { ExtractLimits } from './fit'
+import { DEFAULT_EXTRACT_LIMITS, type ExtractLimits, type RangedSource } from './fit'
 import { ZIP } from './fit/zipDirectory'
 import { countImportFiles } from './import/activitiesCsv'
 import { isCompanion, takeCompanion } from './import/looseList'
 import type { ImportProgress, ReadFile, Refused } from './sessionSource'
 import { importSource, sortRead } from './sessionSource'
-import { DEFAULT_ATHLETE, SAMPLE_CLOCK } from './synthetic'
+import { DEFAULT_ATHLETE, SAMPLE_CLOCK, type SampleClock } from './synthetic'
 import { seasonDigests } from './sessionSample'
-import type { SampleClock } from './synthetic'
 import { setViewerZone } from './calendar'
 import type { Zone } from './calendar'
 import { requirePositiveFinite } from './math'
@@ -18,10 +15,8 @@ import { revisionStatus } from './digest/revisions'
 import { fileNameOf, workoutKey, hiddenDigests } from './duplicates'
 import type { HeldFiles } from './importHeld'
 import { SessionLibrary, readRank } from './sessionLibrary'
-import { PeriodCache } from './period'
-import type { PeriodChoice } from './period'
-import { countIssues } from './saveFailure'
-import type { SyncIssueCode } from './saveFailure'
+import { PeriodCache, type PeriodChoice } from './period'
+import { countIssues, type SyncIssueCode } from './saveFailure'
 import type { SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
 import { checkInSnapshotOf } from './sessionCheckIn'
@@ -255,6 +250,11 @@ export class AnalysisSession {
     this.library.drop(key)
     clearUnsynced(this.keeping, key)
     return this.state(settings)
+  }
+
+  /** A save ended after the import that left it waiting: the workout is no longer on the unsaved list. */
+  markSaved(key: string): void {
+    clearUnsynced(this.keeping, key)
   }
 
   /** Whether a saved workout is held out of the analysis for being made by an older model. */

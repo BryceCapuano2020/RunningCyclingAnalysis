@@ -7,21 +7,15 @@ import type { Activity } from '@rca/core/types'
 import { ApiRequestError } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deviceActions } from './device'
-import { followUpAdopted } from './adoption'
-import {
-  adoptDeviceRequest,
-  forgetDeviceLibraryRequest,
-  keptTraceDropper,
-  offerDevice,
-} from './adoptionRequests'
+import { adoptDeviceRequest, forgetDeviceLibraryRequest, offerDevice } from './adoptionRequests'
 import type { AdoptionRequestContext } from './adoptionRequests'
 import { newSession } from './newSession'
 import { deviceKeeper } from './deviceKeeper'
-import { clearOutbox, openOutbox } from './outbox'
+import { clearOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
-import { resumeOutbox } from './outboxResume'
-import { resumeAsWriter } from './writerResume'
-import type { Writing } from './writerResume'
+import { startResume } from './startResume'
+import type { ResumeParts } from './startResume'
+import { ResumeHolder } from './resumeHolder'
 import { exportAccount } from './exportAccount'
 import { deleteSavedGroup } from './deleteGroup'
 import type { DeleteGroupContext } from './deleteGroup'
@@ -102,6 +96,8 @@ const libraryContext: LibraryContext = {
     return () => view.libraryEpoch === libraryEpoch && view.activeScope === activeScope
   },
   waitingToChange: waitingToChangeLibrary,
+  endResume: () => resume.end(),
+  restartResume: (userId) => resume.restart(() => startResume(resumeParts, userId)),
 }
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
@@ -130,7 +126,8 @@ const reportDetail = detailReporter(workbench, post, () =>
 )
 
 /** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
-let resume: Writing | null = null
+const resume = new ResumeHolder()
+const resumeParts: ResumeParts = { session, deviceLibrary, savedRecords, sending, workbench }
 const adoptionContext: AdoptionRequestContext = {
   session,
   deviceLibrary,
@@ -140,30 +137,11 @@ const adoptionContext: AdoptionRequestContext = {
   view,
   libraryContext,
   post,
-  resume: () => resume,
-  resumeEnded: () => {
-    resume = null
-  },
+  resume: () => resume.get(),
+  resumeEnded: () => resume.clear(),
 }
 function finishLoad(state: SessionState, userId: string): SessionState {
-  // In the tab that holds the account's writer lock only: with two tabs open, one sends.
-  resume = resumeAsWriter(userId, () =>
-    resumeOutbox({
-      userId,
-      outbox: openOutbox(userId),
-      savedRecords,
-      sending,
-      // Apart from any request: stamped with one, the page would drop it as late.
-      post: (message) => self.postMessage(message),
-      // Saves of kept activities that an Add began and a stop or a reload cut short finish here: the kept copy goes too.
-      settled: (row, outcome) =>
-        followUpAdopted(
-          { library: deviceLibrary, savedRecords, adopted: keptTraceDropper(workbench) },
-          row,
-          outcome,
-        ),
-    }),
-  )
+  resume.start(() => startResume(resumeParts, userId))
   void offerDevice(adoptionContext, userId)
   return state
 }
@@ -227,8 +205,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
       // A resume belongs to the library it began under.
-      resume?.cancel()
-      resume = null
+      resume.cancel()
       return finishLoad(
         await loadServer(
           libraryContext,
@@ -238,6 +215,13 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         ),
         request.userId,
       )
+    case 'resumeSaves':
+      // The connection is back, or the athlete asked: what the outbox holds goes now, without reading the library again.
+      if (view.activeScope?.kind === 'account' && view.activeScope.userId === request.userId) {
+        await resume.end()
+        await resume.start(() => startResume(resumeParts, request.userId)).finished
+      }
+      return session.setSettings(request.settings)
     case 'undoLabels':
       // Answered with the state and how many labels are left, from onmessage.
       throw new Error('An undo is not a session request')
@@ -270,8 +254,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'clear':
       view.libraryEpoch++
       labels.labelUndo.clear()
-      resume?.cancel()
-      resume = null
+      resume.cancel()
       provisionalItems.clear()
       view.showingSample = false
       workbench.clearMemory()

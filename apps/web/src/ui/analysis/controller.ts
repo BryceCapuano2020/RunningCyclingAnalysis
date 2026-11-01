@@ -46,6 +46,8 @@ export interface AnalysisController {
   restoring: boolean
   /** Reads the signed-in library again. Imports are not held for a failed load; they must be added again. */
   retryLibrary: () => void
+  /** Sends the saves the outbox holds now, without reading the library again; the notice follows their end. */
+  resumeSaves: () => void
   /** Which activities this browser holds detailed readings for; null until storage has said, and for a sample. */
   detail: DetailCoverage | null
   /** Saved activities whose original file is not in the library. */

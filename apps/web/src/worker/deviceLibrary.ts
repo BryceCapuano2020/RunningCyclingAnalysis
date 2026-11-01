@@ -4,6 +4,7 @@ import type { ActivityDigest, AthleteType } from '@rca/core/types'
 import { LibraryReplaced } from './deviceFile'
 import type { DeviceFile } from './deviceFile'
 import { fromNewerVersion, readRow } from './deviceRows'
+import { OPEN_TIMEOUT_MS } from './openIndexedDb'
 
 export type { DeviceFile }
 export { LibraryReplaced }
@@ -115,8 +116,7 @@ export interface DeviceEntry {
 const DB_NAME = 'rca-device-library'
 const STORE = 'digests'
 
-/** How long an open may take before it is given up as failed, so a hung one does not hold the queue. */
-export const OPEN_TIMEOUT_MS = 10_000
+export { OPEN_TIMEOUT_MS }
 
 /** Errors that mean this browser offers no storage here (a private window, a sandbox), not that it failed. */
 const NO_STORAGE_ERRORS = new Set(['InvalidStateError', 'SecurityError', 'NotSupportedError'])

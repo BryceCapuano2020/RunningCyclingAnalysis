@@ -1,5 +1,7 @@
 # The change test
 
+Status: built (`packages/core/src/change`). It is the one rule behind every change sentence in the app.
+
 One rule, in core (`packages/core/src/change`), decides whether the app says a best effort changed. Every change sentence
 reads its call (`SessionState.change`): the sport curve title, the best-effort list's change column, Balance's
 "What changed" strip, the dated-bests title. A sentence the test cannot support is not written.

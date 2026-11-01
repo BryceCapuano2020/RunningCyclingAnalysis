@@ -83,7 +83,9 @@ export function ridePriced(
   standing: EstimatedStanding,
 ): { watts: number; alone: boolean } {
   if (powerCheckOf(digest, masses) === 'set-aside') return { watts: Number.NaN, alone: false }
-  const watts = rideWattsAt(point, masses.totalKg(digest), model)
+  // A power meter's reading is its value: the mass is asked for only where the power is estimated.
+  const watts =
+    point.terms === null ? point.value : powerAt(point.terms, masses.totalKg(digest), model)
   const how = standing(point, watts)
   return { watts: how === 'drops' ? Number.NaN : watts, alone: how === 'stands' }
 }
