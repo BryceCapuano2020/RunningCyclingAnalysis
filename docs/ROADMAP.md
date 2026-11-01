@@ -214,3 +214,10 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
    apps depend on.
 4. **Shared chart scaffolding.** Finish consolidating the axis, hover and frame code the charts still
    repeat.
+5. **Move the grading and ride-cap rules to core (before the stage E connector).** The age-grade
+   levels, the ride ceiling and the level-target solver live in the web app (`ui/grades.ts`,
+   `ui/levelTarget.ts`, `ui/levelSolver.ts`). Stage E's connector needs the same rules, so they belong in
+   `packages/core`, not in a second copy. Move them with their tests.
+6. **Split the two largest test files.** `worker/analysis.worker.test.ts` and
+   `ui/useAnalysis.test.ts` are each over 3,700 lines. Split them by behaviour into files under 400
+   lines. Not started.

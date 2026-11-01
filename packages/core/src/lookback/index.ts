@@ -1,6 +1,6 @@
 /**
  * The look-back: a sport's years of fitness at the same effort told in hindsight, through a horizon 12 weeks before the
- * newest activity. See docs/design/lookback.md.
+ * newest activity. See docs/ARCHITECTURE.md.
  */
 export { hindsightOf, horizonDay, shortOf } from './hindsight'
 export type { HindsightInput } from './hindsight'
