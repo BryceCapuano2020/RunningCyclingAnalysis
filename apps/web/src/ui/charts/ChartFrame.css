@@ -161,6 +161,19 @@
   margin-top: var(--space-4);
 }
 
+/*
+ * The columns of a table half a desktop page wide would run past it and scroll: the heads wrap and the cells keep
+ * to a tight gutter, so every column is on screen at 1440 px.
+ */
+.chart-frame__details thead th {
+  white-space: normal;
+}
+
+.chart-frame__details th,
+.chart-frame__details td {
+  padding-inline: var(--space-2);
+}
+
 .chart-frame__details caption {
   caption-side: top;
   padding: 0 0 var(--space-2);

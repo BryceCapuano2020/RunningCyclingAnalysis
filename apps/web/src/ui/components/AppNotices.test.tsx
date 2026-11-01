@@ -397,14 +397,15 @@ describe('AppNotices: the sample athlete across pages', () => {
     expect(pill).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('does not bring the banner back when the visitor returns to the first page', () => {
+  it('keeps the banner on the first page for as long as the sample is loaded, whatever page was visited between', () => {
     const props = sampleProps()
     const view = render(<AppNotices {...props} />)
     view.rerender(<AppNotices {...props} page="run" />)
+    expect(screen.queryByText(/Not kept: add files to replace it/)).not.toBeInTheDocument()
     view.rerender(<AppNotices {...props} page="balance" />)
 
-    expect(screen.queryByText(/Not kept: add files to replace it/)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sample athlete' })).toBeInTheDocument()
+    expect(screen.getByText(/Not kept: add files to replace it/)).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Sample athlete' })).not.toBeInTheDocument()
   })
 
   it('shows the banner again for a new sample, after the sample has gone', () => {

@@ -1,4 +1,9 @@
-import { localYearOf, noonOnLabelDate } from '@rca/core/calendar'
+import {
+  civilOfDay,
+  localDayOfInstant,
+  noonOnLabelDate,
+  startOfDayNumber,
+} from '@rca/core/calendar'
 import { DAY_MS } from '@rca/core/constants'
 import { MONTHLY_AFTER_DAYS, inGap } from '@rca/core/digest/trendSeries'
 import type { QuietGap } from '@rca/core/digest/trendSeries'
@@ -31,10 +36,13 @@ export function shortDateWithYear(ms: number): string {
 /**
  * The viewer's own day, month and year of an activity's moment, such as "12 Jan 2025". An activity is dated by
  * the viewer's day everywhere else (its list, its badges), so a chart naming the day an effort was done uses this;
- * shortDate names the UTC day of a trend's week end.
+ * shortDate names the UTC day of a trend's week end. The day is the one calendar.ts cuts, and it is named from
+ * that day's noon, so the name is the same whichever zone the device is in.
  */
 export function activityDate(ms: number): string {
-  return `${formatDayMonth(ms, ms)} ${localYearOf(ms)}`
+  const day = localDayOfInstant(ms)
+  const noon = startOfDayNumber(day) + 12 * 3_600_000
+  return `${formatDayMonth(noon, noon)} ${civilOfDay(day).year}`
 }
 
 /** The most month starts one axis lists: 500 years, far past any trend, so a bad bound cannot run the loop away. */

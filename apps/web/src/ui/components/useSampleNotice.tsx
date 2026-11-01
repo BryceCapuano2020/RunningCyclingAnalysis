@@ -18,25 +18,21 @@ export interface SampleNoticeProps {
 }
 
 /**
- * The sample athlete's notice: the full banner on the first page the sample appears on, then a small
- * pill on the pages after it, so the sentence does not take a line of every page. The pill opens the
+ * The sample athlete's notice: the full banner on the first page the sample appears on, and a small
+ * pill on the other pages, so the sentence does not take a line of every page. The pill opens the
  * sentence again. The banner is part of the notice region, which announces it; the pill is not.
  */
 export function useSampleNotice({ page, shown, units }: SampleNoticeProps) {
   const [firstPage, setFirstPage] = useState<Route['page'] | null>(null)
   const [open, setOpen] = useState(false)
-  // The banner is said once: after the visitor has been on another page it never comes back, so a return
-  // to the first page does not announce it again.
-  const [left, setLeft] = useState(false)
   // Noted during render, as the notices note their changes, so the first frame already has the banner.
   if (shown && firstPage === null) setFirstPage(page)
-  if (shown && firstPage !== null && firstPage !== page && !left) setLeft(true)
   if (!shown && firstPage !== null) {
     setFirstPage(null)
-    setLeft(false)
     setOpen(false)
   }
-  const banner = shown && !left
+  // The sentence is on the first page for as long as the sample is loaded; the pages after it carry the pill.
+  const banner = shown && (firstPage === null || firstPage === page)
   return {
     banner: banner ? <p className="sample-banner">{bannerText(units)}</p> : null,
     pill:

@@ -241,7 +241,7 @@ describe('ActivityZoneTime, efforts above the threshold on file', () => {
     )
     await screen.findByRole('heading', { name: 'Time in zones' })
     expect(
-      screen.getByText('No pace zones: this run is harder than the threshold on file.'),
+      screen.getByText('No pace zones: your threshold around this date is not settled.'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/set your pace zones/)).toBeNull()
   })
@@ -259,7 +259,7 @@ describe('ActivityZoneTime, efforts above the threshold on file', () => {
     )
     await screen.findByRole('heading', { name: 'Time in zones' })
     expect(
-      screen.getByText('No power zones: this ride is harder than the threshold on file.'),
+      screen.getByText('No power zones: your threshold around this date is not settled.'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/set your power zones/)).toBeNull()
   })

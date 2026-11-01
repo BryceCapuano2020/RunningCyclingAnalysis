@@ -356,6 +356,7 @@ export function App() {
             signedIn={signedIn}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
+            removable={!signedIn && analysis.savedActivities.length > 0}
           />
           <p>
             <a href={hrefFor({ page: 'method' })}>How sure is this?</a>
