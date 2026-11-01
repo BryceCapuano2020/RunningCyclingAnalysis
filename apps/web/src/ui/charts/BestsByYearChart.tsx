@@ -141,7 +141,7 @@ export function BestsByYearChart({ sport, efforts, units, controls }: BestsByYea
                 <g key={panel.length} data-testid="bests-panel" data-length={panel.length}>
                   <ChartYAxis
                     ticks={layout.yTicks}
-                    plot={layout.box}
+                    plot={layout.axisBox}
                     title={panel.label}
                     fontSize={fontSize}
                   />
