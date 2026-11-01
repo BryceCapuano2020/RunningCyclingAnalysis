@@ -1,7 +1,7 @@
 import type { Sport } from '@rca/core/types'
 import { DAY_MS } from '@rca/core/constants'
 import { plural } from './components/plural'
-import { DEFAULT_PERIOD_DAYS, windowEnding } from '@rca/core/period'
+import { windowEnding } from '@rca/core/period'
 import type { Period } from '@rca/core/period'
 import { SIX_WEEKS_DAYS, lengthOf, periodDates } from './components/rangeOptions'
 import type { Span } from './components/rangeOptions'
@@ -82,7 +82,7 @@ export function periodBestText(period: Period): string | null {
   if (typeof choice === 'object') {
     return period.days === 1 ? `Best on ${periodDates(period)}` : `Best ${betweenClause(period)}`
   }
-  return `Best in the last ${lengthOf(choice === 'default' ? DEFAULT_PERIOD_DAYS : choice)}`
+  return `Best in the last ${lengthOf(period.days)}`
 }
 
 /**

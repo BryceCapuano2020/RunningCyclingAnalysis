@@ -13,7 +13,6 @@ import {
   sameChoice,
   sameRegime,
   splitPeriods,
-  sportsMissingFromDefault,
   startedWithin,
   windowEnding,
 } from './period'
@@ -73,17 +72,24 @@ describe('the default period', () => {
     expect(DEFAULT_PERIOD_DAYS).toBe(84)
   })
 
-  it('is the 84 calendar days up to the newest activity’s day, when they hold a run and a ride', () => {
+  it('dates the window it resolved to: the calendar days up to the newest activity’s day', () => {
     // The library spans more than 12 weeks, so the window is not clipped to its first activity.
-    const period = periodOf(
-      [at(NEWEST - 90 * DAY_MS, 'ride'), at(NEWEST - 5 * DAY_MS, 'run'), at(NEWEST, 'ride')],
-      'default',
-    )
-    expect(period).toEqual({
+    const library = [
+      at(NEWEST - 90 * DAY_MS, 'ride'),
+      at(NEWEST - 5 * DAY_MS, 'run'),
+      at(NEWEST, 'ride'),
+    ]
+    expect(periodOf(library, 'default', DEFAULT_PERIOD_DAYS)).toEqual({
       choice: 'default',
       startMs: daysBefore(startOfDay(NEWEST), 83),
       endMs: endOfDay(NEWEST),
       days: DEFAULT_PERIOD_DAYS,
+      fellBack: false,
+    })
+    expect(periodOf(library, 'default', 365)).toMatchObject({
+      choice: 'default',
+      startMs: daysBefore(startOfDay(NEWEST), 364),
+      days: 365,
       fellBack: false,
     })
   })
@@ -92,119 +98,32 @@ describe('the default period', () => {
     // A run 83 calendar days before the newest day, then the newest ride on that day at 06:00 or 12:00.
     const newestDay = new Date(2025, 5, 30).getTime()
     const run = at(daysBefore(newestDay, 83) + 9 * 3_600_000, 'run')
-    const early = periodOf([run, at(newestDay + 6 * 3_600_000, 'ride')], 'default')
-    const late = periodOf([run, at(newestDay + 12 * 3_600_000, 'ride')], 'default')
+    const early = periodOf([run, at(newestDay + 6 * 3_600_000, 'ride')], 'default', 84)
+    const late = periodOf([run, at(newestDay + 12 * 3_600_000, 'ride')], 'default', 84)
     expect(early.startMs).toBe(daysBefore(startOfDay(newestDay), 83))
     expect(late.startMs).toBe(early.startMs)
     expect(early.days).toBe(DEFAULT_PERIOD_DAYS)
     expect(late.days).toBe(DEFAULT_PERIOD_DAYS)
   })
 
-  it('falls back to all time when the 84 days up to the newest activity lack a sport, and never picks an older window', () => {
-    // An older window holds a run and a ride, but the newest 12 weeks hold only a ride. The period
-    // must still reach the newest activity, so it is All time, not that older window.
-    const period = periodOf(
-      [
-        at(NEWEST - 100 * DAY_MS, 'run'),
-        at(NEWEST - 90 * DAY_MS, 'ride'),
-        at(NEWEST - DAY_MS, 'ride'),
-      ],
-      'default',
-    )
-    expect(period).toMatchObject({
-      startMs: NEWEST - 100 * DAY_MS,
-      endMs: endOfDay(NEWEST - DAY_MS),
-      days: null,
-      fellBack: true,
-    })
-  })
-
-  it('is all time, with no sport missing, when the library is shorter than 12 weeks', () => {
-    // No previous period can exist, so the default does not dress a short span up as 12 weeks.
-    const first = NEWEST - 20 * DAY_MS
-    const library = [at(first, 'run'), at(NEWEST, 'ride')]
-    expect(periodOf(library, 'default')).toEqual({
+  it('is all time, dated from the first activity, where it resolved to all time or to nothing', () => {
+    const first = NEWEST - 4000 * DAY_MS
+    const library = [at(first, 'run'), at(NEWEST - 2400 * DAY_MS, 'ride'), at(NEWEST, 'ride')]
+    const allTime = {
       choice: 'default',
       startMs: first,
       endMs: endOfDay(NEWEST),
       days: null,
       fellBack: true,
-    })
-    expect(sportsMissingFromDefault(library)).toEqual([])
-  })
-
-  it('is 12 weeks for a library exactly 12 weeks long', () => {
-    const first = daysBefore(startOfDay(NEWEST), 83) + 3_600_000
-    expect(periodOf([at(first, 'run'), at(NEWEST, 'ride')], 'default')).toMatchObject({
-      days: DEFAULT_PERIOD_DAYS,
-      fellBack: false,
-    })
-  })
-
-  it('falls back to all time, with its dates, when no 12 weeks holds both sports', () => {
-    // A 2015 run and a 2019 ride, as in a multi-year export: they are not in one window.
-    const run = NEWEST - 4000 * DAY_MS
-    const ride = NEWEST - 2400 * DAY_MS
-    expect(periodOf([at(run, 'run'), at(ride, 'ride')], 'default')).toEqual({
-      choice: 'default',
-      startMs: run,
-      endMs: endOfDay(ride),
-      days: null,
-      fellBack: true,
-    })
-  })
-
-  it('holds a library of one sport in its 12 weeks, and never falls back', () => {
-    const first = NEWEST - 200 * DAY_MS
-    for (const sport of ['run', 'ride'] as const) {
-      const period = periodOf(
-        [at(first, sport), at(NEWEST - 30 * DAY_MS, sport), at(NEWEST, sport)],
-        'default',
-      )
-      expect(period).toEqual({
-        choice: 'default',
-        startMs: daysBefore(startOfDay(NEWEST), 83),
-        endMs: endOfDay(NEWEST),
-        days: DEFAULT_PERIOD_DAYS,
-        fellBack: false,
-      })
     }
+    expect(periodOf(library, 'default', 'all')).toEqual(allTime)
+    expect(periodOf(library, 'default')).toEqual(allTime)
   })
 
-  it('gives a one-sport library the previous 12 weeks, like any other', () => {
-    const { selected, previous } = splitPeriods(
-      [at(NEWEST - 100 * DAY_MS, 'run'), at(NEWEST - 5 * DAY_MS, 'run'), at(NEWEST, 'run')],
-      'default',
-    )
-    expect(selected).toHaveLength(2)
-    expect(previous).toHaveLength(1)
-  })
-
-  it('is all time for a one-sport library shorter than 12 weeks, one run included', () => {
-    for (const library of [
-      [at(NEWEST - 20 * DAY_MS, 'ride'), at(NEWEST, 'ride')],
-      [at(NEWEST, 'run')],
-    ]) {
-      expect(periodOf(library, 'default')).toMatchObject({ days: null, fellBack: true })
-    }
-  })
-
-  it('names the sport the 12 weeks lack, in a library of two', () => {
-    const lacksRides = [at(NEWEST - 200 * DAY_MS, 'ride'), at(NEWEST, 'run')]
-    const lacksRuns = [at(NEWEST - 200 * DAY_MS, 'run'), at(NEWEST, 'ride')]
-    expect(periodOf(lacksRides, 'default').fellBack).toBe(true)
-    expect(sportsMissingFromDefault(lacksRides)).toEqual(['ride'])
-    expect(periodOf(lacksRuns, 'default').fellBack).toBe(true)
-    expect(sportsMissingFromDefault(lacksRuns)).toEqual(['run'])
-  })
-
-  it('names no sport when the 12 weeks hold every sport, or the library is one sport or empty', () => {
-    const both = [at(NEWEST - 10 * DAY_MS, 'run'), at(NEWEST, 'ride')]
-    expect(sportsMissingFromDefault(both)).toEqual([])
-    expect(sportsMissingFromDefault([at(NEWEST - 500 * DAY_MS, 'run'), at(NEWEST, 'run')])).toEqual(
-      [],
-    )
-    expect(sportsMissingFromDefault([])).toEqual([])
+  it('ignores the resolved window for any choice but the default', () => {
+    const library = [at(NEWEST - 90 * DAY_MS, 'ride'), at(NEWEST, 'run')]
+    expect(periodOf(library, 42, 365)).toEqual(periodOf(library, 42))
+    expect(periodOf(library, 'all', 365)).toEqual(periodOf(library, 'all'))
   })
 })
 
@@ -269,17 +188,29 @@ describe('splitPeriods', () => {
     expect(period.days).toBeNull()
   })
 
-  it('selects the default window, and the same number of days before its start', () => {
+  it('selects the window the default resolved to, and the same number of days before its start', () => {
     const inside = at(NEWEST - 50 * DAY_MS, 'run')
     const before = at(NEWEST - 120 * DAY_MS, 'ride')
     const outside = at(NEWEST - 200 * DAY_MS, 'run')
-    const { selected, previous, period } = splitPeriods(
-      [inside, before, outside, at(NEWEST, 'ride')],
-      'default',
-    )
+    const library = [inside, before, outside, at(NEWEST, 'ride')]
+    const { selected, previous, period } = splitPeriods(library, 'default', DEFAULT_PERIOD_DAYS)
     expect(period.days).toBe(DEFAULT_PERIOD_DAYS)
     expect(selected.map((d) => d.startMs)).toEqual([inside.startMs, NEWEST])
     expect(previous.map((d) => d.startMs)).toEqual([before.startMs])
+    // A year back takes in all of them and has no digest before it.
+    const year = splitPeriods(library, 'default', 365)
+    expect(year.selected).toHaveLength(4)
+    expect(year.previous).toEqual([])
+  })
+
+  it('gives a one-sport library the previous 12 weeks, like any other', () => {
+    const { selected, previous } = splitPeriods(
+      [at(NEWEST - 100 * DAY_MS, 'run'), at(NEWEST - 5 * DAY_MS, 'run'), at(NEWEST, 'run')],
+      'default',
+      84,
+    )
+    expect(selected).toHaveLength(2)
+    expect(previous).toHaveLength(1)
   })
 
   it('gives nothing for an empty library', () => {

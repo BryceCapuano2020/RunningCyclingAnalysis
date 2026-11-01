@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { Sex } from '@rca/core/grade'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { periodDays, sameChoice, sportsMissingFromDefault } from '@rca/core/period'
+import { periodDays, sameChoice } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
-import { fallbackNote, periodDates, previousPeriodLabel } from '../components/rangeOptions'
+import { periodDates, previousPeriodLabel } from '../components/rangeOptions'
 import { judgedDetail } from '../analysis/detailCoverage'
 import { leftOutRuns, withoutWalking, workoutKeyOf } from '../analysis/walkingPaceCopy'
 import { plural } from '../components/plural'
 import { usePeriodChoice } from '../periodPreference'
 import { sameAsShorterText } from '../periodSame'
+import { windowLine } from '../windowLine'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
 import { latestActivityText, sportEmptyText } from '../periodCopy'
@@ -71,7 +72,6 @@ export function ResultPage({
   const { period, library, totalActivities, isSample } = analysis.state
   // What the analysis rests on: the library less the runs at walking pace, which only the lists and pages show.
   const analysed = useMemo(() => withoutWalking(library), [library])
-  const missingFromDefault = useMemo(() => sportsMissingFromDefault(analysed), [analysed])
   // The runs at walking pace are left out; when they are all a sport has, its pages say so and offer to count them.
   const left = useMemo(() => leftOutRuns(library), [library])
   const leftOut = left.allLeftOut
@@ -148,9 +148,9 @@ export function ResultPage({
     null,
   )
   const latest = latestActivityText(newestMs)
-  // The default shows all time only when its 12 weeks lack a sport the library has; the note names that sport.
-  const fallback = period.fellBack ? fallbackNote(missingFromDefault) : null
-  // The note under the dates says why the default is all time, then how old the newest activity is.
+  // Where the default is not the 12 weeks it starts from, one line says which window the page is on and why the shorter was passed over.
+  const windowNote = windowLine(analysis.state.answerWindow)
+  // The note under the dates says why the default is the window it is, then how old the newest activity is.
   // Balance sets its period control compact under the levels: it says when a longer period repeats a shorter one,
   // links its count to the activities, and says how many runs at walking pace the count leaves out.
   const walking = analysis.state.walkingPaceRuns
@@ -163,12 +163,12 @@ export function ResultPage({
   ): ReactNode => (
     <RangePicker
       choice={period.choice}
-      fellBack={period.fellBack}
+      resolved={analysis.state.answerWindow.choice}
       custom
       range={periodDays(period)}
       dates={periodDates(period)}
       note={noteOf(
-        [fallback, balance ? sameAsShorterText(analysed, period) : null, dated],
+        [windowNote, balance ? sameAsShorterText(analysed, period) : null, dated],
         balance,
       )}
       shown={shown}

@@ -67,15 +67,16 @@ function periodFromChoice(choice: PeriodChoice): ActivitiesView['period'] {
 
 /**
  * Whether the list is on a different period from the one Balance and the sport pages show. The same period is the
- * same named length, counted back from the newest activity, or all time on both. A custom range or the default
- * window is never the list's own, whatever its length in days.
+ * same length in days, counted back from the newest activity, or all time on both, whichever pick or search named it
+ * on the analysis side. A custom range is never the list's own, whatever its length in days.
  */
 function apartFromAnalysis(
   analysis: Period | undefined,
   listPeriod: ActivitiesView['period'],
 ): analysis is Period {
   if (analysis === undefined) return false
-  return analysis.days === null ? listPeriod !== 'all' : analysis.choice !== listPeriod
+  if (typeof analysis.choice === 'object') return true
+  return analysis.days === null ? listPeriod !== 'all' : analysis.days !== listPeriod
 }
 
 /**

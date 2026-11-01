@@ -2,8 +2,7 @@ import type { Period } from '@rca/core/period'
 import type { Sport } from '@rca/core/types'
 import type { BalanceReading } from '../components/balanceScale'
 import { balanceTitle } from '../components/headlineText'
-import { RANGE_OPTIONS, lengthOf, periodDates } from '../components/rangeOptions'
-import { sameChoice } from '@rca/core/period'
+import { periodDates, periodName } from '../components/rangeOptions'
 import { SPORT_NOUN } from '../sports'
 
 /** The headline split at the sport it names, so that sport can be marked: the words before it, then the sport. */
@@ -26,19 +25,16 @@ export function titleParts(reading: BalanceReading): TitleParts {
 }
 
 /**
- * The period's name as the period control names it: its own label for a choice it offers, "Custom" for a
- * range entered, so the line over the headline and the control agree. The default period spans a few days
- * more or less than its 12 weeks when the library is short, and is still called 12 weeks.
+ * The period's name as the period control names it: its own label for a length it offers, "Custom" for a
+ * range entered, so the line over the headline and the control agree. The default is named for the window it resolved to.
  */
-function periodName(period: Period): string {
-  const offered = RANGE_OPTIONS.find((option) => sameChoice(option.choice, period.choice))
-  if (offered !== undefined) return offered.label
-  return period.days === null ? 'Custom' : lengthOf(period.days)
+function nameOf(period: Period): string {
+  return typeof period.choice === 'object' ? 'Custom' : periodName(period.days)
 }
 
 /** The line over the headline: the page, the period's name, and its dates, such as "Balance · 12 weeks · 21 Apr – 3 Jun 2025". */
 export function eyebrowText(period: Period): string {
-  const length = periodName(period)
+  const length = nameOf(period)
   const dates = periodDates(period)
   return ['Balance', length, dates].filter((part) => part !== '').join(' · ')
 }
