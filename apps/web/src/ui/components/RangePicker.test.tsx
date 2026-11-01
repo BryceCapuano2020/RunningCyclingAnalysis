@@ -461,13 +461,13 @@ describe('RangePicker compact, as Balance sets it under its levels', () => {
         compact: true,
         dates: '3 Aug – 25 Oct 2026',
         shown: 42,
-        total: 1909,
+        total: 1200,
         note: 'Same 42 activities as 6 weeks',
       }),
     )
     expect(container.querySelector('.range-picker__note')).toBeNull()
     expect(container.querySelector('.range-picker__caption')?.textContent).toBe(
-      '3 Aug – 25 Oct 2026 · 42 of 1,909 activities · Same 42 activities as 6 weeks',
+      '3 Aug – 25 Oct 2026 · 42 of 1,200 activities · Same 42 activities as 6 weeks',
     )
   })
 
@@ -476,22 +476,22 @@ describe('RangePicker compact, as Balance sets it under its levels', () => {
       picker({
         compact: true,
         shown: 42,
-        total: 1909,
+        total: 1200,
         countHref: '#/activities',
-        leftOut: '(38 walking-pace runs left out)',
+        leftOut: '(9 walking-pace runs left out)',
       }),
     )
-    const link = screen.getByRole('link', { name: '42 of 1,909 activities' })
+    const link = screen.getByRole('link', { name: '42 of 1,200 activities' })
     expect(link).toHaveAttribute('href', '#/activities')
     expect(link.closest('.range-picker__count')?.textContent).toBe(
-      '42 of 1,909 activities (38 walking-pace runs left out)',
+      '42 of 1,200 activities (9 walking-pace runs left out)',
     )
   })
 
   it('says how many there are, with what is left out, even when the period holds them all', () => {
-    render(picker({ shown: 1909, total: 1909, leftOut: '(38 walking-pace runs left out)' }))
+    render(picker({ shown: 1200, total: 1200, leftOut: '(9 walking-pace runs left out)' }))
     expect(
-      screen.getByText(/1,909 activities \(38 walking-pace runs left out\)/),
+      screen.getByText(/1,200 activities \(9 walking-pace runs left out\)/),
     ).toBeInTheDocument()
   })
 

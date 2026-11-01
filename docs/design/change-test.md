@@ -98,7 +98,7 @@ called in 7% (4% for the run alone). A budget test holds the headline to under 1
 
 ### On a real library (aggregates only; the script lives outside the repository)
 
-The owner's export: 1,909 analysed activities, 1,763 runs, 146 rides of which 20 have a power meter.
+The owner's export: a multi-year library of about 2,000 activities, mostly runs, with some rides and a few power meters.
 
 - Random halves of a window (no true change), window 56 / 84 / 168 / 364 days, 45-55 windows with 6 splits each: a run's
   5 min is called in 5-7% of splits at the record level (headline 3-4%); its 20 min in 4-8% (2-4%); its 60 min 3-7% where the

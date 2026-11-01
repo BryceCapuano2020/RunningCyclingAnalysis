@@ -11,6 +11,7 @@ import { SPORT_ORDER } from '../sports'
 import { CrossSportCard } from './CrossSportCard'
 import { EmptySportCard } from './EmptySportCard'
 import { ThresholdTile } from './ThresholdTile'
+import { thresholdTileIsBare } from './thresholdTileBare'
 import './BalanceTiles.css'
 
 export interface BalanceTilesProps {
@@ -55,22 +56,24 @@ export function BalanceTiles({
   const effortCheck = result.effort.find((check) => check.durationS === HEADLINE_DURATION_S) ?? null
   // A word defined in place is defined once on the screen: the first threshold tile carries it.
   const firstThreshold = SPORT_ORDER.find((sport) => countSport(result.activities, sport) > 0)
+  const thresholdProps = (sport: Sport) => ({
+    sport,
+    result,
+    units,
+    massKg,
+    grade: grades[sport],
+    weighted,
+    effort: effortCheck,
+    needInHeadline: soleSport !== null,
+    levelShown,
+    defineTerm: sport === firstThreshold,
+  })
   const tiles = [
     ...SPORT_ORDER.map((sport) =>
       countSport(result.activities, sport) > 0 ? (
-        <ThresholdTile
-          key={sport}
-          sport={sport}
-          result={result}
-          units={units}
-          massKg={massKg}
-          grade={grades[sport]}
-          weighted={weighted}
-          effort={effortCheck}
-          needInHeadline={soleSport !== null}
-          levelShown={levelShown}
-          defineTerm={sport === firstThreshold}
-        />
+        thresholdTileIsBare(thresholdProps(sport)) ? null : (
+          <ThresholdTile key={sport} {...thresholdProps(sport)} />
+        )
       ) : soleSport !== null ? null : (
         <EmptySportCard
           key={sport}
@@ -94,6 +97,8 @@ export function BalanceTiles({
         ]
       : []),
   ].filter((tile) => tile !== null)
+  // A sport's tile that would hold only its name is left out, and with nothing else there is no section either.
+  if (tiles.length === 0) return null
   return (
     <section
       className="balance-tiles"

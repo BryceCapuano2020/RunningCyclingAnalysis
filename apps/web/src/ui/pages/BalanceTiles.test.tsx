@@ -156,6 +156,25 @@ describe('BalanceTiles', () => {
     expect(screen.queryByRole('article', { name: 'Ride on foot' })).toBeNull()
   })
 
+  it('draws no tile, and no empty section, for a lone sport whose headline already says what it needs', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    const { container } = render(
+      <BalanceTiles
+        result={makeResult({ activities: [run], runCp: null })}
+        library={[run]}
+        units="metric"
+        massKg={75}
+        grades={{ run: null, ride: null }}
+        weighted
+        period={PERIOD}
+        onAddFiles={vi.fn()}
+        soleSport="run"
+      />,
+    )
+    expect(screen.queryByRole('article', { name: 'Run threshold' })).toBeNull()
+    expect(container.querySelector('.balance-tiles')).toBeNull()
+  })
+
   it('says what a missing threshold needs, in the tile, with no range shape', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })

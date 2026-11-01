@@ -27,3 +27,18 @@ for (const width of [undefined, 320]) {
     await expect(note).toHaveCount(0)
   })
 }
+
+test('Activities says the other pages show all time when its own list is on 6 weeks', async ({
+  page,
+}) => {
+  await openSample(page)
+  await page.getByRole('radio', { name: 'All time' }).check({ force: true })
+  await goTo(page, 'Activities')
+  const note = page.getByText('Balance, Run and Ride show all time. This list has its own period.')
+  // Both on all time: nothing to say.
+  await expect(page.getByRole('radio', { name: 'All time' })).toBeChecked()
+  await expect(note).toHaveCount(0)
+
+  await page.getByRole('radio', { name: /^6 (weeks|wk)$/ }).check({ force: true })
+  await expect(note).toBeVisible()
+})

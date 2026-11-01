@@ -1045,11 +1045,11 @@ describe('ProfilePage zones and dated settings', () => {
   })
 
   it('opens the dated max heart rate form to the figure when Set it is pressed beside an estimate', () => {
-    const result = makeResult({ runMaxHeartRate: 201, rideMaxHeartRate: 195 })
+    const result = makeResult({ runMaxHeartRate: 186, rideMaxHeartRate: 180 })
     const estimates = {
       ...estimatesFrom(result),
-      runObservedMaxHeartRate: 201,
-      observedMaxSource: { run: { bpm: 201, days: 3, sinceMs: Date.UTC(2023, 2, 15) }, ride: null },
+      runObservedMaxHeartRate: 186,
+      observedMaxSource: { run: { bpm: 186, days: 4, sinceMs: Date.UTC(2021, 8, 15) }, ride: null },
     }
     renderProfile({}, { state: { result, zoneEstimates: estimates } })
     const setting = screen.getByLabelText('Setting') as HTMLSelectElement
@@ -1058,18 +1058,18 @@ describe('ProfilePage zones and dated settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
     expect(setting.value).toBe('maxHeartRate.run')
     const value = screen.getByLabelText('Value (bpm)') as HTMLInputElement
-    expect(value.value).toBe('201')
+    expect(value.value).toBe('186')
     expect(value).toHaveFocus()
 
     // Asking again for the other sport moves the form to it.
     fireEvent.click(screen.getByRole('button', { name: 'Set it for your ride max heart rate' }))
     expect(setting.value).toBe('maxHeartRate.ride')
-    expect(value.value).toBe('195')
+    expect(value.value).toBe('180')
   })
 
   it('shows the form with the figure while the dated settings load, and focuses it once they are ready', () => {
-    const result = makeResult({ runMaxHeartRate: 201, rideMaxHeartRate: 195 })
-    const estimates = { ...estimatesFrom(result), runObservedMaxHeartRate: 201 }
+    const result = makeResult({ runMaxHeartRate: 186, rideMaxHeartRate: 180 })
+    const estimates = { ...estimatesFrom(result), runObservedMaxHeartRate: 186 }
     const loading = { entries: [], state: 'loading' as const, elsewhere: 0, retry: vi.fn() }
     const { rerenderWith } = renderProfile(
       { dated: loading },
@@ -1078,12 +1078,12 @@ describe('ProfilePage zones and dated settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
     // The form says why it cannot be used yet, and holds the figure.
     expect(screen.getByText('Loading your settings…')).toBeInTheDocument()
-    expect((screen.getByLabelText('Value (bpm)') as HTMLInputElement).value).toBe('201')
+    expect((screen.getByLabelText('Value (bpm)') as HTMLInputElement).value).toBe('186')
     expect(screen.getByLabelText('Value (bpm)')).not.toHaveFocus()
 
     rerenderWith({ dated: { ...loading, state: 'ready' } })
     expect(screen.getByLabelText('Value (bpm)')).toHaveFocus()
-    expect((screen.getByLabelText('Value (bpm)') as HTMLInputElement).value).toBe('201')
+    expect((screen.getByLabelText('Value (bpm)') as HTMLInputElement).value).toBe('186')
   })
 
   it('cuts estimated zones from the library’s references, not from the period’s result', () => {

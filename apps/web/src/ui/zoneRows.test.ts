@@ -126,7 +126,7 @@ describe('zoneTable', () => {
 })
 
 describe('the source and basis of an estimated zone set', () => {
-  const MARCH_2023 = new Date(2023, 2, 15, 12).getTime()
+  const SEPTEMBER_2021 = new Date(2021, 8, 15, 12).getTime()
   const MARCH_2025 = new Date(2025, 2, 15, 12).getTime()
 
   it('dates a pace or power that comes from an older fit', () => {
@@ -139,20 +139,20 @@ describe('the source and basis of an estimated zone set', () => {
     const own = setOf({
       sport: 'run',
       measure: 'heartRate',
-      reference: 200.6,
+      reference: 185.6,
       estimatedFrom: ['run'],
-      maxHeartRateFrom: { bpm: 200.6, days: 3, sinceMs: MARCH_2023 },
+      maxHeartRateFrom: { bpm: 185.6, days: 4, sinceMs: SEPTEMBER_2021 },
     })
     expect(maxHeartRateBasis(own)).toBe(
-      '201 bpm, the highest you reached on 3 separate days since Mar 2023',
+      '186 bpm, the highest you reached on 4 separate days since Sep 2021',
     )
     expect(zoneTable(own, 'metric')).toMatchObject({
-      detail: 'Max heart rate: 201 bpm, the highest you reached on 3 separate days since Mar 2023',
+      detail: 'Max heart rate: 186 bpm, the highest you reached on 4 separate days since Sep 2021',
       askable: true,
     })
-    const thin = { ...own, maxHeartRateFrom: { bpm: 200.6, days: 1, sinceMs: MARCH_2023 } }
+    const thin = { ...own, maxHeartRateFrom: { bpm: 185.6, days: 1, sinceMs: SEPTEMBER_2021 } }
     expect(maxHeartRateBasis(thin)).toBe(
-      '201 bpm, the highest you reached, on a single day since Mar 2023',
+      '186 bpm, the highest you reached, on a single day since Sep 2021',
     )
   })
 
@@ -160,10 +160,10 @@ describe('the source and basis of an estimated zone set', () => {
     const ride = setOf({
       sport: 'ride',
       measure: 'heartRate',
-      reference: 195,
+      reference: 180,
       estimatedFrom: ['run'],
     })
-    expect(maxHeartRateBasis(ride)).toBe('195 bpm, 6 bpm below your running maximum')
+    expect(maxHeartRateBasis(ride)).toBe('180 bpm, 6 bpm below your running maximum')
     const run = setOf({
       sport: 'run',
       measure: 'heartRate',

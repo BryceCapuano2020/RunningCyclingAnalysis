@@ -1,3 +1,8 @@
+/* The offer names the account's email, which has no space to break at: on a narrow screen at large text it wraps. */
+.device-offer p {
+  overflow-wrap: anywhere;
+}
+
 .device-offer__actions {
   display: flex;
   flex-wrap: wrap;

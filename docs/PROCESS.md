@@ -65,6 +65,10 @@ subagent reports were most of it.
   purpose. CI now reads the draft state when it runs, so re-running all jobs fixes such a run.
 - Keep one pull request that changes pinned results (the identity tests) in flight at a time, and
   merge it before the next one starts. Two at once re-pin against each other until one is held.
+- Builders open drafts and never mark one ready or set auto-merge. The coordinator does both once
+  review has no blockers.
+- A stacked pull request waits for its base to merge, then retargets to `main` and gets auto-merge.
+  One merged into its base branch (#285 into #286's) reaches `main` only with that base.
 - Push ordinary commits and never squash locally: GitHub squashes on merge. Two local squashes
   reverted merged work (#41 undid #39, and #158 undid #155).
 - Never rebase a green pull request. `main` does not require branches to be up to date. Rebase
@@ -100,10 +104,16 @@ timeout at random.
 - A flaky Playwright test fails CI by design (`failOnFlakyTests`). Fix it the same day, or move it
   out of the required run with an issue that names it. Rerun a failed job at most once.
 - A failed performance budget is a regression until shown otherwise.
+- While `main` is red, no pull request is marked ready until a fix is open, and the fix merges first.
+- A file over 360 lines, or a performance budget with under 15% headroom, is split or loosened
+  before the next change to it. Two ready pull requests never both grow one: each passes alone and
+  the merge breaks `main`.
 
 ## Review
 
 - Every change gets an independent review. Fix and re-review until there are no blockers.
+- Review reads the public text too: the PR body, commit messages and every added doc line. None may
+  carry personal data, dates or figures from the owner's exports.
 - For changes to account, sync or worker-lifecycle state, write the transition table first (states
   by events, including worker restarts and stale replies) and get it reviewed before coding.
 - If a third round still finds a blocker, stop and re-scope or split the pull request.
@@ -111,7 +121,7 @@ timeout at random.
 ## Retro at each gate
 
 At each stage gate the coordinator writes recurring problems into this file or into
-`.claude/agents/`, so the next wave starts with them.
+`.claude/agents/`, so the next wave starts with them. The latest is [RETRO_STAGE_D.md](RETRO_STAGE_D.md).
 
 ## Repository settings this process assumes
 
@@ -120,4 +130,5 @@ These are owner settings in GitHub, not files in the repository.
 - Allow auto-merge (Settings, General).
 - Branch protection on `main` without "require branches to be up to date".
 - Required checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)`,
-  `Dependency audit`, `Performance budgets` and `Statistical simulations`.
+  `Dependency audit`, `Performance budgets`, `Statistical simulations` and
+  `Unit tests in shuffled order`.

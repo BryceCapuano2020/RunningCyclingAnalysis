@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { activitiesRows, goTo, openSample } from './helpers'
+import {
+  activitiesRows,
+  goTo,
+  libraryLoaded,
+  openSample,
+  signInAs,
+  uniqueEmail,
+  uploadFixtures,
+} from './helpers'
 import type { Destination } from './helpers'
 import { clippedContent, zoomText } from './zoomProbes'
 
@@ -64,6 +72,41 @@ for (const size of SIZES) {
         if (destination === 'Balance') await expectTabsApart(page)
       })
     }
+
+    test('the offer of what this browser kept wraps the account’s email, and the avatar holds its initials', async ({
+      page,
+    }) => {
+      const email = uniqueEmail()
+      await page.goto('/')
+      await uploadFixtures(page, ['one-run.fit'])
+      // The headline moves from the Balance title to the level title as the analysis settles, so wait on the kept file.
+      await libraryLoaded(page, 1)
+      await signInAs(page.request, email, 'Ada Lovelace')
+      await page.goto('/')
+      const offer = page.getByRole('region', { name: 'Activities kept in this browser' })
+      await expect(offer).toContainText(email)
+      await expectFits(page)
+      const box = await offer.boundingBox()
+      expect(box!.x + box!.width).toBeLessThanOrEqual(size.width)
+      const avatar = page.locator('.account-menu__avatar')
+      await expect(avatar).toBeVisible()
+      expect(await avatar.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+    })
+
+    test('the Settings over time form on Profile wraps, signed in', async ({ page }) => {
+      await page.goto('/')
+      await uploadFixtures(page, ['one-run.fit'])
+      await libraryLoaded(page, 1)
+      await signInAs(page.request, uniqueEmail(), 'Ada Lovelace')
+      await page.goto('/')
+      await goTo(page, 'Profile')
+      const form = page.getByRole('region', { name: 'Settings over time' })
+      await expect(form).toBeVisible()
+      await expect(form.getByRole('button', { name: 'Add' })).toBeEnabled()
+      await expectFits(page)
+      const box = await form.boundingBox()
+      expect(box!.x + box!.width).toBeLessThanOrEqual(size.width)
+    })
 
     test('an activity does not scroll sideways', async ({ page }) => {
       await openSample(page)

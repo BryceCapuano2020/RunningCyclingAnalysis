@@ -179,10 +179,10 @@ describe('GET /api/activities page size', () => {
     }
   })
 
-  it('lists 1,915 activities in 22 pages', async () => {
+  it('lists 2,000 activities in 23 pages', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    await seedRows(h, await userId(h, token), 1915, FIXTURE_TEXT)
+    await seedRows(h, await userId(h, token), 2000, FIXTURE_TEXT)
 
     const ids: string[] = []
     let cursor: string | null = null
@@ -194,8 +194,8 @@ describe('GET /api/activities page size', () => {
       cursor = page.nextCursor
       pages += 1
     } while (cursor !== null)
-    expect(pages).toBe(22)
-    expect(new Set(ids).size).toBe(1915)
+    expect(pages).toBe(23)
+    expect(new Set(ids).size).toBe(2000)
   })
 
   it('fits the page body limit with 90 records whose ids and file names are worst-case', async () => {

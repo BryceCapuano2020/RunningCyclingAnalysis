@@ -34,8 +34,8 @@ from published errors, not from the two estimates' spread alone.
 
 **The hill cap.** A window of 10 min or more cannot be faster on the flat than the runner's fastest mile
 as run. When a window's flat-equivalent pace is, the grade model has inflated it on hills, so that run is left
-out of the heart-rate side, and the note says how many were. On one real library this took the heart-rate
-VO2max from 60 to 55 over 12 weeks, the same as its 12-month figure.
+out of the heart-rate side, and the note says how many were. On one multi-year library the cap lowered the heart-rate
+VO2max over 12 weeks to match its 12-month figure.
 
 ## Carrying anchors to races
 

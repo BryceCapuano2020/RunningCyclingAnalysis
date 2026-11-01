@@ -66,6 +66,19 @@ function periodFromChoice(choice: PeriodChoice): ActivitiesView['period'] {
 }
 
 /**
+ * Whether the list is on a different period from the one Balance and the sport pages show. The same period is the
+ * same named length, counted back from the newest activity, or all time on both. A custom range or the default
+ * window is never the list's own, whatever its length in days.
+ */
+function apartFromAnalysis(
+  analysis: Period | undefined,
+  listPeriod: ActivitiesView['period'],
+): analysis is Period {
+  if (analysis === undefined) return false
+  return analysis.days === null ? listPeriod !== 'all' : analysis.choice !== listPeriod
+}
+
+/**
  * Every activity in the library, counted by sport. The page has its own period and sport filters,
  * which start with the whole library and only narrow what is listed, and a sort. Its view is kept in
  * the address, so Back returns to the same page of it.
@@ -191,19 +204,17 @@ export function ActivitiesPage({
               answered(null)
             }}
           />
-          {analysisPeriod !== undefined &&
-            analysisPeriod.days !== null &&
-            // The same period is the same named length, counted back from the newest activity. A custom range or the
-            // default window is never the list's own, whatever its length in days.
-            analysisPeriod.choice !== period && (
-              <p className="secondary activities__period-note">
-                {`Balance, Run and Ride show ${
-                  typeof analysisPeriod.choice === 'object'
+          {apartFromAnalysis(analysisPeriod, period) && (
+            <p className="secondary activities__period-note">
+              {`Balance, Run and Ride show ${
+                analysisPeriod.days === null
+                  ? 'all time'
+                  : typeof analysisPeriod.choice === 'object'
                     ? 'your custom range'
                     : `the last ${periodName(analysisPeriod.days)}`
-                }. This list has its own period.`}
-              </p>
-            )}
+              }. This list has its own period.`}
+            </p>
+          )}
           <div className="activities__filters">
             <SegmentedControl
               legend="Sport"

@@ -632,6 +632,14 @@ describe('what the browser kept before sign-in', () => {
     ).toHaveClass('sr-only')
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument()
   })
+
+  it('gives a screen reader one copy of how adding them ended: the visible line is hidden from it', () => {
+    const adoption = { saved: 2, conflicts: 0, failed: 0, again: 0, held: 0 }
+    render(<AppNotices {...noticesProps({ adoption }, { signedIn: true, accountUser: ACCOUNT })} />)
+    const copies = screen.getAllByText('Added 2 activities to your account.')
+    expect(copies).toHaveLength(2)
+    expect(copies.filter((copy) => copy.closest('[aria-hidden="true"]') === null)).toHaveLength(1)
+  })
 })
 
 describe('the notice that the library is only part of what was added', () => {

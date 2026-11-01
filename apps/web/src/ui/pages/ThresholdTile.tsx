@@ -3,7 +3,6 @@ import type { EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
-import { HEADLINE_LABEL, gradeParts, notGradedText } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
 import { SPORT_LABEL, THRESHOLD_GLOSS, THRESHOLD_MEANING } from '../sports'
@@ -16,6 +15,7 @@ import {
   thresholdUncheckedLine,
   thresholdWithheldLine,
 } from '../thresholdWithheld'
+import { gradeLine, needsWeight } from './thresholdTileBare'
 import { EffortChip } from './EffortChip'
 import { effortChipText } from '../effortCaveat'
 import { RangeTrack } from './RangeTrack'
@@ -53,24 +53,6 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
 }
 
 /**
- * The grade line under the figure: the level and grade, and the best effort it rests on. Where the levels row
- * already says the level and grade, it keeps only the effort, so a level is said once on the screen.
- */
-function gradeLine(
-  sport: Sport,
-  grade: GradeOutcome | null,
-  effort: string | null,
-  levelShown: boolean,
-): string | null {
-  if (grade === null) return null
-  if (grade.kind !== 'graded') return notGradedText(grade)
-  if (levelShown) return effort === null ? null : `Best ${HEADLINE_LABEL}: ${effort}.`
-  const { level, value, range } = gradeParts(sport, grade.grade, 'row')
-  const grades = `${level} · ${value}${range === null ? '' : ` (${range})`}`
-  return `${grades} on your best ${HEADLINE_LABEL}${effort === null ? '' : `, ${effort}`}.`
-}
-
-/**
  * A sport's threshold as a tile: the estimated figure at display size, its error range as a shape, and the
  * level its best 20 minutes grades at. A threshold the fit refused shows the floor of the efforts it left out
  * under the chip "At least"; one that cannot be drawn yet says what it needs. A ride's figures wait for the
@@ -90,7 +72,7 @@ export function ThresholdTile({
 }: ThresholdTileProps) {
   // A fitted threshold has its gloss under the name, which says what it is, so the word is defined only where it has none.
   const defined = defineTerm ? DEFINED[sport] : undefined
-  if (sport === 'ride' && !weighted) {
+  if (needsWeight(sport, weighted)) {
     return (
       <StatTile sport={sport} heading={NAME[sport]} definition={defined}>
         {/* What needs no weight: how many rides, how long, when the latest was, and a best a meter measured. Then the one ask. */}
@@ -119,6 +101,7 @@ export function ThresholdTile({
   const bestLine = fitted === null ? null : bestBeyondThresholdLine(result, sport, effort)
   const line = gradeLine(sport, grade, bestLine === null ? effort : null, levelShown)
   if (hero === null) {
+    if (needInHeadline && line === null) return null
     return (
       <StatTile sport={sport} heading={NAME[sport]} definition={definition}>
         {needInHeadline ? null : (

@@ -50,12 +50,12 @@ describe('ZoneTables', () => {
 })
 
 describe('ZoneTables, the max heart rate and its source', () => {
-  const sinceMs = new Date(2023, 2, 15, 12).getTime()
+  const sinceMs = new Date(2021, 8, 15, 12).getTime()
   const withSource = (): ZoneEstimates => ({
-    ...estimatesFrom(makeResult({ runMaxHeartRate: 201, rideMaxHeartRate: 195 })),
-    runObservedMaxHeartRate: 201,
-    rideObservedMaxHeartRate: 183,
-    observedMaxSource: { run: { bpm: 201, days: 3, sinceMs }, ride: null },
+    ...estimatesFrom(makeResult({ runMaxHeartRate: 186, rideMaxHeartRate: 180 })),
+    runObservedMaxHeartRate: 186,
+    rideObservedMaxHeartRate: 172,
+    observedMaxSource: { run: { bpm: 186, days: 4, sinceMs }, ride: null },
   })
   const zones = (onSet?: (sport: string, bpm: number) => void) =>
     render(
@@ -73,18 +73,18 @@ describe('ZoneTables, the max heart rate and its source', () => {
     zones(onSet)
     expect(
       screen.getByText(
-        'Max heart rate: 201 bpm, the highest you reached on 3 separate days since Mar 2023.',
+        'Max heart rate: 186 bpm, the highest you reached on 4 separate days since Sep 2021.',
       ),
     ).toBeInTheDocument()
     expect(screen.getAllByText(/^Is that right\?/)).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
-    expect(onSet).toHaveBeenCalledWith('run', 201)
+    expect(onSet).toHaveBeenCalledWith('run', 186)
     // The ride's is worked out from the run's, and can be corrected too.
     expect(
-      screen.getByText('Max heart rate: 195 bpm, 6 bpm below your running maximum.'),
+      screen.getByText('Max heart rate: 180 bpm, 6 bpm below your running maximum.'),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Set it for your ride max heart rate' }))
-    expect(onSet).toHaveBeenLastCalledWith('ride', 195)
+    expect(onSet).toHaveBeenLastCalledWith('ride', 180)
   })
 
   it('names each Set control by words that include its visible text, for speech input', () => {
@@ -99,7 +99,7 @@ describe('ZoneTables, the max heart rate and its source', () => {
   it('states the source without the question when it cannot be set from here', () => {
     zones()
     expect(
-      screen.getByText(/201 bpm, the highest you reached on 3 separate days/),
+      screen.getByText(/186 bpm, the highest you reached on 4 separate days/),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Set your/ })).toBeNull()
     expect(screen.queryByText(/Is that right/)).toBeNull()

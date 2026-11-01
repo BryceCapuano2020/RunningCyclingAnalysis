@@ -16,9 +16,10 @@
 
 .settings-over-time__field {
   display: grid;
+  /* A select is as wide as its longest option, which at 200% text is wider than a phone: the column and the control give way to the row, so the form wraps and the page does not. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
   min-width: 0;
-  /* A select is as wide as its longest option, which at 200% text is wider than a phone. */
   max-width: 100%;
   font-size: var(--text-sm);
   color: var(--text-secondary);
@@ -33,6 +34,8 @@
 .settings-over-time__field select,
 .settings-over-time__field input {
   box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   min-height: var(--control-height);
   padding: 0 var(--space-2);
