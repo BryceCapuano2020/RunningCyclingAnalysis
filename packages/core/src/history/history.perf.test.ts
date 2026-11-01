@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
+import { combine } from '../digest/combine'
 import { copiedLibrary } from '../test/libraryFixture'
 import { fastestMs } from '../test/timing'
 import { historyOf } from './compute'
@@ -10,7 +11,15 @@ const INPUT: HistoryInput = {
   settings: { massKg: 70, bikeMassKg: 9 },
   setAside: new Set(),
   nowMs: Date.UTC(2034, 0, 1),
-  gate: undefined,
+  // As a session passes them: the library's judged ride gate (none), its calibration and its heart-rate references.
+  gate: null,
+  calibration: { kappa: 1.1, lnKappaSe: 0.1 },
+  effortReference: {
+    referenceHr: { run: 185, ride: 180 },
+    reading: { run: 'trusted', ride: 'trusted' },
+    source: { run: 'data', ride: 'data' },
+    from: { run: null, ride: null },
+  },
 }
 
 describe('the history of a long library', () => {
@@ -19,6 +28,9 @@ describe('the history of a long library', () => {
     const digests = copiedLibrary(2000).map((digest, i) =>
       Object.assign({}, digest, { startMs: start + Math.round(i * 2.4 * DAY_MS) }),
     )
+    // In the app the analysis of the chosen period has run in this worker before the history is built, so the code both
+    // read (best curves, gates, running equivalents) is warm. A short period of the library stands for it.
+    combine(digests.slice(0, 150), INPUT.settings)
     const t0 = performance.now()
     const history = historyOf(digests, INPUT)
     const first = performance.now() - t0
