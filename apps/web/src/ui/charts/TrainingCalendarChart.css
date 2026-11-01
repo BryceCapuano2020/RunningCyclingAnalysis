@@ -1,0 +1,165 @@
+/*
+ * The ramp is one hue in five tints of the surface: the ink mixed into the card, so the same rules hold in light and
+ * dark. All sports use the neutral ink; one sport takes its own colour from data-sport (tokens.css). No training is the
+ * plain --surface-2 cell, which no tint reaches, so a week of rest reads as a gap next to a week of any training.
+ */
+.calendar {
+  --calendar-ink: var(--neutral-mark);
+  --calendar-step-0: var(--surface-2);
+  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 36%, var(--surface-1));
+  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 52%, var(--surface-1));
+  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 68%, var(--surface-1));
+  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 84%, var(--surface-1));
+  --calendar-step-5: var(--calendar-ink);
+  min-width: 0;
+}
+
+.calendar[data-sport] {
+  --calendar-ink: var(--sport-colour);
+}
+
+.calendar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+}
+
+.calendar__label {
+  fill: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-cell {
+  fill: var(--calendar-step-0);
+}
+
+.calendar-cell[data-step='1'] {
+  fill: var(--calendar-step-1);
+}
+
+.calendar-cell[data-step='2'] {
+  fill: var(--calendar-step-2);
+}
+
+.calendar-cell[data-step='3'] {
+  fill: var(--calendar-step-3);
+}
+
+.calendar-cell[data-step='4'] {
+  fill: var(--calendar-step-4);
+}
+
+.calendar-cell[data-step='5'] {
+  fill: var(--calendar-step-5);
+}
+
+/* The cell under the pointer or the keys: a ring in the text colour, over the cell and its gap. */
+.calendar-cell-active {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+/* The key: none, the five tints, and the hours a week the darkest begins at. */
+.calendar-ramp {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.calendar-ramp__steps {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.calendar-ramp__swatch {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: calc(var(--radius-sm) / 3);
+  background: var(--calendar-step-0);
+}
+
+.calendar-ramp__swatch[data-step='1'] {
+  background: var(--calendar-step-1);
+}
+
+.calendar-ramp__swatch[data-step='2'] {
+  background: var(--calendar-step-2);
+}
+
+.calendar-ramp__swatch[data-step='3'] {
+  background: var(--calendar-step-3);
+}
+
+.calendar-ramp__swatch[data-step='4'] {
+  background: var(--calendar-step-4);
+}
+
+.calendar-ramp__swatch[data-step='5'] {
+  background: var(--calendar-step-5);
+}
+
+/*
+ * Forced colours drop the tints: no training is an outlined cell, and training is the highlight colour, its
+ * opacity rising with the step (opacity is not replaced), so the ramp still reads from light to dark.
+ */
+@media (forced-colors: active) {
+  .calendar-cell {
+    fill: Canvas;
+    stroke: GrayText;
+    stroke-width: 1px;
+  }
+
+  .calendar-cell[data-step]:not([data-step='0']) {
+    fill: Highlight;
+    stroke: none;
+  }
+
+  .calendar-cell[data-step='1'] {
+    fill-opacity: 0.3;
+  }
+
+  .calendar-cell[data-step='2'] {
+    fill-opacity: 0.5;
+  }
+
+  .calendar-cell[data-step='3'] {
+    fill-opacity: 0.7;
+  }
+
+  .calendar-cell[data-step='4'] {
+    fill-opacity: 0.85;
+  }
+
+  .calendar-ramp__swatch {
+    border: 1px solid GrayText;
+    background: Canvas;
+  }
+
+  .calendar-ramp__swatch:not([data-step='0']) {
+    border-color: Highlight;
+    background: Highlight;
+  }
+
+  .calendar-ramp__swatch[data-step='1'] {
+    opacity: 0.3;
+  }
+
+  .calendar-ramp__swatch[data-step='2'] {
+    opacity: 0.5;
+  }
+
+  .calendar-ramp__swatch[data-step='3'] {
+    opacity: 0.7;
+  }
+
+  .calendar-ramp__swatch[data-step='4'] {
+    opacity: 0.85;
+  }
+}

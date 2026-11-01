@@ -3,6 +3,7 @@ import { DAY_MS } from '../constants'
 import { combine } from '../digest/combine'
 import { copiedLibrary } from '../test/libraryFixture'
 import { fastestMs } from '../test/timing'
+import { trainingWeeks } from './calendar'
 import { historyOf } from './compute'
 import type { HistoryInput } from './types'
 
@@ -36,10 +37,14 @@ describe('the history of a long library', () => {
     const first = performance.now() - t0
     const again = fastestMs(() => void historyOf(digests, INPUT))
     const bytes = JSON.stringify(history).length
+    const calendarBytes = JSON.stringify(history.calendar).length
     console.info(
-      `2000 activities: ${first.toFixed(1)} ms, again ${again.toFixed(2)} ms, ${bytes} bytes`,
+      `2000 activities: ${first.toFixed(1)} ms, again ${again.toFixed(2)} ms, ${bytes} bytes (${calendarBytes} the calendar)`,
     )
     expect(history.years.length).toBeGreaterThanOrEqual(13)
+    expect(trainingWeeks(history.calendar).length).toBeGreaterThanOrEqual(13 * 52)
+    // Thirteen years of weeks of two sports, every week trained: a quarter of the page's whole budget at most.
+    expect(calendarBytes).toBeLessThan(6000)
     expect(first).toBeLessThan(100)
     expect(again).toBeLessThan(2)
     expect(bytes).toBeLessThan(24_000)
