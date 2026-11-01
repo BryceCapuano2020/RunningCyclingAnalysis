@@ -4,15 +4,14 @@ import { durationProfile, profileSentence } from './index'
 import { modelCurve, scaled } from './test/curves'
 
 describe('what a small library can say', () => {
-  it('does not say the bests are in line with each other with fewer than 40 activities behind them', () => {
-    const few = durationProfile(modelCurve(), 5, 25)
-    if (few.status !== 'ready') throw new Error('not ready')
-    const text = profileSentence(few, formatDuration)
-    expect(text).not.toContain('in line with')
-    expect(text).toContain('takes 40 activities to say they agree; this period has 25')
-    const enough = durationProfile(modelCurve(), 5, 40)
-    if (enough.status !== 'ready') throw new Error('not ready')
-    expect(profileSentence(enough, formatDuration)).toContain('in line with each other')
+  it('says the bests are in line with each other at any size, since the level already scales with the activities', () => {
+    for (const activities of [3, 12, 25, 40, 400]) {
+      const profile = durationProfile(modelCurve(), 5, activities)
+      if (profile.status !== 'ready') throw new Error('not ready')
+      const text = profileSentence(profile, formatDuration)
+      expect(text).toBe('Your bests are in line with each other, compared from 5 s to 1 h.')
+      expect(text).not.toMatch(/takes \d+ activities/)
+    }
   })
 
   it('judges a duration at a stricter level in a small library, and shrinks what stands out', () => {

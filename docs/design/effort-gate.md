@@ -90,10 +90,11 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   library, a reference that cannot certify a maximum). The dots withhold only what heart rate shows was not hard (`shownNotHard`), so those points
   stay; a sprint stays in both. They differ in nothing else. The set-aside list is the heart-rate one, as the change test takes it. A length the
   gate leaves with fewer than two dots while the period has two without it is flagged (`dotsWithheld` in the state), and the empty state names the gate.
-- **Late in long sessions** (RCA-043): a late best counts only sessions that reached a hard heart rate (a session with no heart rate counts); under
-  3 such sessions the headline is hidden, and with a reference that cannot be trusted the need is the reference. The note gives the ruler.
-  Each steady effort of the drift carries its average share of the reference, and the note gives its range. Drift is not filtered: it
-  is defined on submaximal steady efforts.
+- **Durability** (RCA-043, answered in A4a): a late best counts every session. A session that was not hard, or whose reference cannot be
+  trusted, no longer keeps its late best out, since that left a library of easy long runs with no answer; the figure is a floor, and the
+  note says a lower figure late on can mean the run never asked for more. The note labels the ruler in a short line. A period with under
+  3 long sessions reads the library and says so. Each steady effort of the drift carries its average share of the maximum, and the note
+  gives its range. Drift is not filtered: it is defined on submaximal steady efforts.
 
 ## The fit spread
 

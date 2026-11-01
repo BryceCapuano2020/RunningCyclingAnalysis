@@ -127,11 +127,11 @@ describe('a sport page with everything to show', () => {
     ])
   })
 
-  it('follows with the same heart rate, late in long sessions, stand-out and the full list, each closed', () => {
+  it('follows with the same heart rate, durability, stand-out and the full list, each closed', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const closed = [
       'Same heart rate, week by week',
-      'Late in long sessions',
+      'Durability',
       'Where your bests stand out',
       'All best efforts',
     ]
@@ -150,8 +150,8 @@ describe('a sport page with everything to show', () => {
     expect(closedRow('Same heart rate, week by week')).toBe(
       'Same heart rate, week by weekYour pace each week at 145 bpm.',
     )
-    expect(closedRow('Late in long sessions')).toMatch(
-      /Best 20 min held \d+% after 90 min; output per heartbeat fell 3%/,
+    expect(closedRow('Durability')).toMatch(
+      /Best 20 min held \d+% after 90 min\. Efficiency fell 3%/,
     )
     expect(closedRow('Where your bests stand out')).toMatch(/Your 5 min best is [23]\d% above/)
     expect(closedRow('All best efforts')).toMatch(
@@ -267,7 +267,7 @@ describe('a sport page with sections that have nothing to show', () => {
       'Not enough yet',
     ])
     // Only the sections with something to show have a row.
-    expect(regions()).not.toContain('Late in long sessions')
+    expect(regions()).not.toContain('Durability')
     expect(regions()).not.toContain('Same heart rate, week by week')
     const section = screen.getByRole('region', { name: 'Not enough yet' })
     const items = within(section)
@@ -279,8 +279,8 @@ describe('a sport page with sections that have nothing to show', () => {
       expect.stringMatching(
         /^Same heart rate, week by week: needs at least \d+ steady 5-minute stretches/,
       ),
-      'Best efforts late in long sessions: add 3 runs, each longer than an hour and reaching a hard heart rate.',
-      'Output per heartbeat over an hour: needs 3 steady runs with heart rate.',
+      'Durability needs 3 runs longer than an hour.',
+      'Heart rate drift needs 3 steady runs over an hour with heart rate.',
       expect.stringMatching(/^Where your bests stand out: needs bests at 5 or more durations/),
     ])
     expect(section.querySelector('ul')).toHaveClass('muted')

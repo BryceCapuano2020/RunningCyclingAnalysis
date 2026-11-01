@@ -112,10 +112,10 @@ describe('a sport’s late bests', () => {
 describe('the drift lede', () => {
   it('says the median fall from the first half to the second', () => {
     expect(driftLede('run', 3.2, 12)).toBe(
-      'On steady runs over an hour, your output per heartbeat fell 3% from the first half to the second (median of 12 runs).',
+      'On steady runs over an hour, efficiency fell 3% from the first half to the second (median of 12 runs).',
     )
     expect(driftLede('ride', 6.4, 3)).toBe(
-      'On steady rides over an hour, your output per heartbeat fell 6% from the first half to the second (median of 3 rides).',
+      'On steady rides over an hour, efficiency fell 6% from the first half to the second (median of 3 rides).',
     )
   })
 
@@ -154,52 +154,37 @@ describe('what the section needs', () => {
     expect(lateInEffort('run', lateEvidenceFor('run')).needs).toEqual([])
   })
 
-  it('names each missing half by its own name, so a line never says the whole section lacks what one half does', () => {
+  it('names each missing half in a sentence of its own, so a line never says the whole section lacks what one half does', () => {
     expect(lateInEffort('run', NONE).needs).toEqual([
-      {
-        name: 'Best efforts late in long sessions',
-        need: 'Add 3 runs, each longer than an hour and reaching a hard heart rate.',
-      },
-      { name: 'Output per heartbeat over an hour', need: 'Needs 3 steady runs with heart rate.' },
+      'Durability needs 3 runs longer than an hour.',
+      'Heart rate drift needs 3 steady runs over an hour with heart rate.',
     ])
     expect(lateInEffort('ride', NONE).needs).toEqual([
-      {
-        name: 'Best efforts late in long sessions',
-        need: 'Add 3 rides with a power meter, each longer than an hour and reaching a hard heart rate.',
-      },
-      {
-        name: 'Output per heartbeat over an hour',
-        need: 'Needs 3 steady rides with a power meter and heart rate.',
-      },
+      'Durability needs 3 rides longer than an hour with a power meter.',
+      'Heart rate drift needs 3 steady rides over an hour with a power meter and heart rate.',
     ])
   })
 
-  it('names the late bests’ need alone when only drift shows', () => {
+  it('names the durability need alone when only drift shows', () => {
     expect(lateInEffort('run', { ...NONE, drift: driftPoints([2, 3, 4]) }).needs).toEqual([
-      {
-        name: 'Best efforts late in long sessions',
-        need: 'Add 3 runs, each longer than an hour and reaching a hard heart rate.',
-      },
+      'Durability needs 3 runs longer than an hour.',
     ])
   })
 
-  it('counts the efforts a ride already has, and asks for a power meter', () => {
+  it('asks for a power meter on a ride, and never for a hard heart rate', () => {
     const two = {
       durability: [durabilityRow(300, 300, [{ value: 280, supporters: 2 }])],
       drift: driftPoints([2, 3, 4]),
     }
-    expect(lateInEffort('ride', two).needs).toEqual([
-      {
-        name: 'Best efforts late in long sessions',
-        need: 'Add 1 ride with a power meter, each longer than an hour and reaching a hard heart rate.',
-      },
-    ])
+    const [need] = lateInEffort('ride', two).needs
+    expect(need).toBe('Durability needs 3 rides longer than an hour with a power meter.')
+    expect(need).not.toMatch(/hard|reference/)
   })
 
   it('asks for steady efforts with heart rate when only drift is missing', () => {
     const { durability } = lateEvidenceFor('run')
     expect(lateInEffort('run', { durability, drift: [] }).needs).toEqual([
-      { name: 'Output per heartbeat over an hour', need: 'Needs 3 steady runs with heart rate.' },
+      'Heart rate drift needs 3 steady runs over an hour with heart rate.',
     ])
   })
 
@@ -209,9 +194,7 @@ describe('what the section needs', () => {
       lateInEffort('ride', lateEvidenceFor('ride')),
       lateInEffort('run', NONE),
     ].flatMap((r) =>
-      [r.durability?.lede, r.durability?.note, r.drift?.lede, r.drift?.note].concat(
-        r.needs.map((n) => n.need),
-      ),
+      [r.durability?.lede, r.durability?.note, r.drift?.lede, r.drift?.note].concat(r.needs),
     )
     for (const text of texts.filter((t): t is string => t !== undefined && t !== null)) {
       expect(text).not.toMatch(/limiter|weak|strength|holding you back|ahead of/i)
@@ -255,17 +238,15 @@ describe('the finding a closed row says', () => {
   it('joins the stat and what drift did', () => {
     const reading = lateInEffort('ride', lateEvidenceFor('ride'))
     expect(lateFinding(reading)).toBe(
-      'Best 20 min held 94% after 90 min; output per heartbeat fell 3% from the first half to the second',
+      'Best 20 min held 94% after 90 min. Efficiency fell 3% from the first half to the second.',
     )
   })
 
   it('says one half alone when the other has too little behind it', () => {
     const drift = lateInEffort('run', { ...lateEvidenceFor('run'), drift: [] })
-    expect(lateFinding(drift)).toMatch(/^Best 20 min held \d+% after 90 min$/)
+    expect(lateFinding(drift)).toMatch(/^Best 20 min held \d+% after 90 min\.$/)
     const durability = lateInEffort('run', { ...lateEvidenceFor('run'), durability: [] })
-    expect(lateFinding(durability)).toBe(
-      'Output per heartbeat fell 3% from the first half to the second',
-    )
+    expect(lateFinding(durability)).toBe('Efficiency fell 3% from the first half to the second.')
   })
 
   it('says a rise as a rise and a level change as level', () => {
@@ -273,9 +254,7 @@ describe('the finding a closed row says', () => {
       durability: [],
       drift: driftPoints([-2, -3, -4]),
     })
-    expect(lateFinding(rising)).toBe(
-      'Output per heartbeat rose 3% from the first half to the second',
-    )
+    expect(lateFinding(rising)).toBe('Efficiency rose 3% from the first half to the second.')
   })
 
   it('is none with neither half', () => {
@@ -284,13 +263,13 @@ describe('the finding a closed row says', () => {
 })
 
 describe('the ruler under the late bests and the drift', () => {
-  it('says how near the reference heart rate the sessions behind the late bests peaked', () => {
+  it('labels how near the maximum the sessions behind the late bests peaked', () => {
     const evidence = {
       ...lateEvidenceFor('run'),
       ruler: { sessions: 4, lowShare: 0.924, highShare: 0.991 },
     }
     expect(lateInEffort('run', evidence).durability!.note).toContain(
-      '4 runs reached 92% to 99% of your reference heart rate.',
+      '4 runs peaked at 92% to 99% of max heart rate.',
     )
   })
 
@@ -299,21 +278,62 @@ describe('the ruler under the late bests and the drift', () => {
       ...lateEvidenceFor('run'),
       ruler: { sessions: 3, lowShare: 0.93, highShare: 0.931 },
     }
-    expect(lateInEffort('run', one).durability!.note).toContain('3 runs reached 93% of your')
-    expect(lateInEffort('run', lateEvidenceFor('run')).durability!.note).not.toContain(
-      'reference heart rate',
-    )
+    expect(lateInEffort('run', one).durability!.note).toContain('3 runs peaked at 93% of max')
+    expect(lateInEffort('run', lateEvidenceFor('run')).durability!.note).not.toContain('peaked')
   })
 
-  it('says how hard the steady efforts were, from their average heart rate over the reference', () => {
+  it('says how hard the steady efforts were, from their average heart rate over the maximum', () => {
     const evidence = lateEvidenceFor('run')
     const shared = {
       ...evidence,
       drift: evidence.drift.map((point, i) => ({ ...point, share: 0.7 + 0.01 * (i % 5) })),
     }
     expect(lateInEffort('run', shared).drift!.note).toContain(
-      'Their average heart rate was 70% to 74% of your reference heart rate.',
+      'Their average heart rate was 70% to 74% of max heart rate.',
     )
     expect(lateInEffort('run', evidence).drift!.note).not.toContain('Their average heart rate')
+  })
+
+  it('never calls the maximum a reference', () => {
+    const evidence = {
+      ...lateEvidenceFor('run'),
+      ruler: { sessions: 4, lowShare: 0.924, highShare: 0.991 },
+      drift: driftPoints([1, 2, 3]).map((point) => Object.assign(point, { share: 0.7 })),
+    }
+    const reading = lateInEffort('run', evidence)
+    expect(reading.durability!.note).not.toMatch(/reference heart rate/)
+    expect(reading.drift!.note).not.toMatch(/reference heart rate/)
+  })
+})
+
+describe('when the period held too little and the reading is the whole library’s', () => {
+  it('says which window each half read, in the sport’s own words', () => {
+    const pooled = {
+      ...lateEvidenceFor('ride'),
+      durabilityPooled: true as const,
+      driftPooled: true as const,
+    }
+    const { durability, drift } = lateInEffort('ride', pooled)
+    expect(durability!.note).toContain(
+      'This period has too few long rides, so this uses all of yours.',
+    )
+    expect(drift!.note).toContain(
+      'This period has too few steady rides, so this uses all of yours.',
+    )
+  })
+
+  it('says nothing of a window when the period had enough', () => {
+    const { durability, drift } = lateInEffort('run', lateEvidenceFor('run'))
+    expect(durability!.note).not.toContain('too few')
+    expect(drift!.note).not.toContain('too few')
+  })
+
+  it('says it for the half that was pooled alone', () => {
+    const { durability, drift } = lateInEffort('run', {
+      ...lateEvidenceFor('run'),
+      driftPooled: true,
+    })
+    expect(durability!.note).not.toContain('too few')
+    expect(drift!.note).toContain('too few steady runs')
   })
 })

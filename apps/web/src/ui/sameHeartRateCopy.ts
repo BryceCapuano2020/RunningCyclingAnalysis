@@ -22,8 +22,7 @@ export const LACK_TEXT: Record<Lack, (sport: Sport, referenceHr?: number | null)
     `Needs steady efforts at different heart rates, spread by about ${minSpreadBpm} bpm or more.`,
   range: (_, referenceHr) =>
     `Needs steady efforts around ${referenceHr ?? 'the same'} bpm in the latest weeks.`,
-  period: () =>
-    `Needs ${WINDOW} of steady efforts with heart rate. Pick a longer period to see it.`,
+  period: () => `Needs ${WINDOW} of steady efforts with heart rate.`,
 }
 
 /** The chart's title: the heart rate it reads at, and the sport's own unit. It names no change: the fitness status is the sport's voice on that. */

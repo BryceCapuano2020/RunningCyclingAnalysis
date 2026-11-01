@@ -62,7 +62,7 @@ const NAV_LABEL: Record<SectionId, string> = {
   timeInZones: 'Time in zones',
   bestsOverTime: 'Best efforts over time',
   sameHeartRate: 'Same heart rate, week by week',
-  lateInEffort: 'Late in long sessions',
+  lateInEffort: LATE_IN_EFFORT_NAME,
   standOut: 'Stand-out',
   evidence: 'All best efforts',
 }
@@ -232,7 +232,7 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
             units={units}
           />
         ),
-      lacks: needs.map(({ name, need }) => lackLine(name, need)),
+      lacks: needs,
       closed: finding === null ? undefined : { title: LATE_IN_EFFORT_NAME, finding },
     }
   },

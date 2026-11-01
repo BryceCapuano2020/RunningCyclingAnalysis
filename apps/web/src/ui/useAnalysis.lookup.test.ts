@@ -72,6 +72,7 @@ function stateWith(totalActivities: number): SessionState {
     effortTrends: NO_TRENDS,
     dotsWithheld: NONE_WITHHELD,
     sameHeartRate: NO_SAME_HEART_RATE,
+    libraryBests: null,
     lateEvidence: NO_LATE_EVIDENCE,
     heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
     fitness: NO_FITNESS,

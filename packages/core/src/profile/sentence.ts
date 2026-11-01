@@ -2,7 +2,6 @@ import { formatDuration } from '../units'
 import {
   PROFILE_ANCHOR_S,
   PROFILE_FLOOR_S,
-  PROFILE_IN_LINE_MIN_ACTIVITIES,
   PROFILE_LONG_S,
   PROFILE_MAX_NAMED,
   PROFILE_NAMED_MARGIN,
@@ -36,21 +35,17 @@ function namedRows(rows: readonly ProfileRow[]): ProfileRow[] {
 /**
  * One sentence on what stands out, or that nothing does. It names only the durations whose interval
  * clears zero by a margin, and says a low best may be relatively low or untested, since a best is a lower
- * bound. A duration that stands out by less is left to the chart, and the sentence says so. That the bests
- * are in line with each other is said only with PROFILE_IN_LINE_MIN_ACTIVITIES activities behind them. Durations are
- * named by `name`.
+ * bound. A duration that stands out by less is left to the chart, and the sentence says so. That the bests are in
+ * line with each other is always said when none stands out: a small library is judged at a level cut to its size
+ * (`durationProfile`), so little stands out in it and the sentence claims no more. Durations are named by `name`.
  */
-export function profileSentence({ rows, activities }: ReadyProfile, name: DurationName): string {
+export function profileSentence({ rows }: ReadyProfile, name: DurationName): string {
   const named = namedRows(rows)
   if (named.length === 0) {
     const first = rows[0]!.durationS
     const last = rows.at(-1)!.durationS
     // The rows' own first and last, so a chart that starts later never makes the sentence claim a span it lacks.
     const span = `compared from ${name(first)} to ${name(last)}`
-    // A few efforts can match a curve by chance, so agreement is said only of a library big enough to test it.
-    if (activities < PROFILE_IN_LINE_MIN_ACTIVITIES) {
-      return `Nothing stands out in your bests, ${span}. It takes ${PROFILE_IN_LINE_MIN_ACTIVITIES} activities to say they agree; this period has ${activities}.`
-    }
     return rows.some((row) => row.standsOut !== null)
       ? `Your bests are in line with each other, ${span}, apart from small differences on the chart.`
       : `Your bests are in line with each other, ${span}.`

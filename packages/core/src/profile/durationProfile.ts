@@ -8,7 +8,7 @@ import {
   PROFILE_MIN_SESSIONS,
   shortEndOf,
   PROFILE_ALPHA,
-  PROFILE_IN_LINE_MIN_ACTIVITIES,
+  PROFILE_FULL_LEVEL_ACTIVITIES,
 } from './constants'
 import { fitCurve } from './morton'
 import { studentTQuantile } from './studentT'
@@ -46,7 +46,7 @@ export interface ReadyProfile {
   anchored: boolean
   /** The shortest duration the profile reads, s: 5 s for a ride, 3 min for a run. */
   startS: number
-  /** The athlete's activities of the sport behind the bests, which the sentence needs PROFILE_IN_LINE_MIN_ACTIVITIES of to say they agree. */
+  /** The athlete's activities of the sport behind the bests: the level a stand-out is judged at scales with them up to PROFILE_FULL_LEVEL_ACTIVITIES. */
   activities: number
 }
 
@@ -121,12 +121,13 @@ function leaveOneOut(points: readonly ProfilePoint[], pmax: boolean): Held[] {
 
 /**
  * The level a profile is judged at, spread over its rows. PROFILE_ALPHA is for a library of
- * PROFILE_IN_LINE_MIN_ACTIVITIES activities or more; a smaller one has fewer efforts behind each best, whose spread
+ * PROFILE_FULL_LEVEL_ACTIVITIES activities or more; a smaller one has fewer efforts behind each best, whose spread
  * the fit's few points and the meter's floor understate, so its level is cut in proportion and a stand-out in a
- * small library is rarer and surer.
+ * small library is rarer and surer. That is what lets a small library say its bests are in line: with few efforts
+ * little stands out, and nothing is claimed beyond what the level allows.
  */
 function levelFor(activities: number): number {
-  return PROFILE_ALPHA * Math.min(1, Math.max(activities, 1) / PROFILE_IN_LINE_MIN_ACTIVITIES)
+  return PROFILE_ALPHA * Math.min(1, Math.max(activities, 1) / PROFILE_FULL_LEVEL_ACTIVITIES)
 }
 
 /** The least a stand-out's drawn half-width may be, as a share of its interval's half-width. */
@@ -198,7 +199,7 @@ function rowOf(
 export function durationProfile(
   curve: readonly ProfilePoint[],
   startS: number = PROFILE_MIN_S,
-  activities: number = PROFILE_IN_LINE_MIN_ACTIVITIES,
+  activities: number = PROFILE_FULL_LEVEL_ACTIVITIES,
 ): DurationProfile {
   const points = curve.filter(inRange(startS)).sort((a, b) => a.durationS - b.durationS)
   const anchored = points.some((point) => point.durationS <= PROFILE_ANCHOR_S)

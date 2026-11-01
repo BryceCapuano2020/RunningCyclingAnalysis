@@ -5,7 +5,7 @@ import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import type { TrendPoint } from './digest/trend'
 import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
-import type { SportCurves } from './types'
+import type { Curve, SportCurves } from './types'
 import type { SyncIssue } from './saveFailure'
 import type { EarnedRecord } from './records'
 import type { Rejection } from './import/result'
@@ -19,6 +19,14 @@ import type { ChangeEvidence } from './change/types'
 /** An activity file this import could not use, with why. */
 export interface RejectedFile extends Rejection {
   fileName: string
+}
+
+/** The bests of the whole library that a sport page reads when its period holds too few activities of a sport to judge them. */
+export interface LibraryBests {
+  /** A run's best curve, in metabolic W/kg. */
+  run: Curve
+  /** A ride's best curve in measured watts. */
+  ride: Curve
 }
 
 export interface SessionState {
@@ -70,6 +78,12 @@ export interface SessionState {
    * Each value is the best in a trailing window that ends that week and lies inside the period.
    */
   trend: readonly TrendPoint[]
+  /**
+   * The best curves of the whole library, whatever the period, for a period that holds fewer than
+   * PROFILE_FULL_LEVEL_ACTIVITIES activities of some sport. Null for all time, whose `result` holds them, when no sport is short,
+   * and without an analysis.
+   */
+  libraryBests: LibraryBests | null
   /** The same weekly trend for each effort length, of which `trend` is the 20-minute one. */
   effortTrends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
   /** The effort lengths whose dots the effort gate left too few to draw, that the period has without it: their empty state names the gate. */

@@ -30,7 +30,7 @@ export function durabilityRow(
   }
 }
 
-/** Steady efforts a week apart, each losing the given share of its output per heartbeat. */
+/** Steady efforts a week apart, each losing the given share of its efficiency. */
 export function driftPoints(decoupling: readonly number[]): DriftPoint[] {
   return decoupling.map((pct, i) => ({
     activityId: `steady-${i}`,
