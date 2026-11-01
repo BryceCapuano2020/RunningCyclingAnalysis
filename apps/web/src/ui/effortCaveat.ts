@@ -214,15 +214,6 @@ export function hardEffortsOnFile(effort: EffortCheck | null | undefined): boole
   return effortShare('run', effort)?.hard === true && effortShare('ride', effort)?.hard === true
 }
 
-/**
- * Whether a sport's best effort at the headline duration was hard by heart rate, by the same 90% line the
- * caveats use: true or false, or null where heart rate does not say, as without a heart-rate stream. A share of a
- * reference that cannot certify a maximum is false: the effort is not shown hard.
- */
-export function hardEffort(sport: Sport, effort: EffortCheck | null | undefined): boolean | null {
-  return effortShare(sport, effort)?.hard ?? null
-}
-
 /** What a sport's best effort says of its effort as a chip: how hard, by heart rate, with the share and the full reading. */
 export interface EffortChipText {
   hard: boolean

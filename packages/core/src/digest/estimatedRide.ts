@@ -2,7 +2,7 @@ import { DURATIONS_S, ESTIMATED_RIDE_MIN_RIDES, ESTIMATED_RIDE_MIN_SHARE } from 
 import { fitLine, lowForPowerSetAside } from '../hr'
 import type { Level, Line } from '../hr'
 import type { ActivityDigest, DigestCurvePoint, Sport } from '../types'
-import { memoByDigests } from '../digestMemo'
+import { memoByDigests, sameSet } from '../digestMemo'
 import { effortsCount } from './effortTrust'
 
 /**
@@ -101,10 +101,6 @@ function measuredDurationsOf(measured: ActivityDigest[]): Set<number> {
     }
   }
   return new Set(DURATIONS_S.filter((durationS) => durationS <= longest))
-}
-
-function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
-  return a === b || (a.size === b.size && [...a].every((id) => b.has(id)))
 }
 
 /**

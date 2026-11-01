@@ -5,7 +5,6 @@ import {
   ALL_OUT_FRACTION,
   RIDE_MAX_OFFSET_BPM,
   checkEfforts,
-  isSubmaximal,
   maxHeartRate,
   referenceMaxHeartRates,
   windowHeartRate,
@@ -338,17 +337,8 @@ describe('referenceMaxHeartRates', () => {
   })
 })
 
-describe('isSubmaximal', () => {
-  it('uses a 0.9 threshold', () => {
+describe('ALL_OUT_FRACTION', () => {
+  it('is 0.9', () => {
     expect(ALL_OUT_FRACTION).toBe(0.9)
-    expect(isSubmaximal(0.9)).toBe(false)
-    expect(isSubmaximal(0.899)).toBe(true)
-    expect(isSubmaximal(0.5)).toBe(true)
-    expect(isSubmaximal(1)).toBe(false)
-  })
-
-  it('is false for unknown or NaN fractions', () => {
-    expect(isSubmaximal(null)).toBe(false)
-    expect(isSubmaximal(NaN)).toBe(false)
   })
 })

@@ -3,6 +3,7 @@
  * rolling mean for the line and the lowest and highest reading for the band, the paths drawn from those
  * columns, and the cursor's steps. It knows nothing of activities, so it is tested on plain arrays.
  */
+import { clamp } from '@rca/core/math'
 import { usualSpread } from './usualSpread'
 
 /** The plot's left and right margins in px. The lap strip and the brush take the same, so they line up. */
@@ -77,8 +78,6 @@ export interface SeriesColumns {
 export function smoothingWindowS(spanS: number): number {
   return Math.max(1, Math.min(spanS, Math.max(MIN_WINDOW_S, Math.round(spanS * WINDOW_SPAN_SHARE))))
 }
-
-const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value))
 
 /**
  * The mean of the `windowS` seconds centred on `centre`, cut short at the ends of the stream and of the view

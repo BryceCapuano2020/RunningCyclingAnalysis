@@ -1,10 +1,3 @@
-/**
- * Whether the updater starts by itself after a library load. Off: a rebuild replaces a digest and keeps no
- * copy of the old one, so it cannot be undone, and it runs only when the athlete presses Update now. The
- * switch is turned on in its own change, after the owner has rebuilt a library by hand and checked it.
- */
-export const AUTO_UPDATE_ENABLED = false
-
 /** Consecutive failures (not limits) after which the updater stops, so a bad rewrite damages few rows. */
 export const BREAKER_FAILURES = 5
 

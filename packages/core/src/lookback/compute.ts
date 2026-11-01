@@ -3,7 +3,7 @@ import { DAY_MS } from '../constants'
 import { orderedFor } from '../digest/consumers'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import { localZoneKey } from '../digest/localDay'
-import { memoByDigests } from '../digestMemo'
+import { memoByDigests, sameSet } from '../digestMemo'
 import { fitnessHistories, fitnessStatuses } from '../fitness/compute'
 import { dayOfMs } from '../fitness/machine'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
@@ -93,9 +93,6 @@ function yearsOf(digests: ActivityDigest[], input: YearsInput): Years | null {
     sports: { run: sport('run'), ride: sport('ride') },
   }
 }
-
-const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
-  a === b || (a.size === b.size && [...a].every((id) => b.has(id)))
 
 const rememberedYears = memoByDigests<YearsInput, Years | null>(
   yearsOf,
