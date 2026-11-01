@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { IntensityRow } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
-import { SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
@@ -11,7 +10,12 @@ import type { ChartSize } from './chartTypes'
 import { useChartHeight } from './chartHeight'
 import { idleFrom } from './idleReadout'
 import { keyOf, intensityLayout } from './intensityByYearLayout'
-import { intensityTable, intensityTitle, intensityTooltip } from './intensityByYearText'
+import {
+  emptyTextOf,
+  intensityTable,
+  intensityTitle,
+  intensityTooltip,
+} from './intensityByYearText'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { axisFontSize } from './ticks'
 import './IntensityByYearChart.css'
@@ -44,11 +48,7 @@ export function IntensityByYearChart({ years, sport }: IntensityByYearChartProps
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       note={NOTE}
-      empty={
-        timed
-          ? undefined
-          : `Add ${SPORT_PLURAL[sport]} with a heart rate to see each year's intensity.`
-      }
+      empty={timed ? undefined : emptyTextOf(years, sport)}
       idleReadout={idleFrom(tooltipFor(years.length - 1, 0, 0))}
       table={intensityTable(years, sport)}
       surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}

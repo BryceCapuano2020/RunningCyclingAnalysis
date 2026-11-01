@@ -11,12 +11,15 @@ export interface IntensityByYearSectionProps {
 
 /**
  * The intensity chart with a sport toggle when both sports have heart-rate time. It opens on the first sport in
- * SPORT_ORDER that has some, so a library with one sport has no toggle.
+ * SPORT_ORDER that has heart-rate time, else the first with any activity, so a rides-only library opens on riding.
  */
 export function IntensityByYearSection({ years }: IntensityByYearSectionProps) {
   const withTime = SPORT_ORDER.filter((sport) => years.some((row) => row.sports[sport].seconds > 0))
+  const withActivities = SPORT_ORDER.filter((sport) =>
+    years.some((row) => row.sports[sport].activities > 0),
+  )
   const [picked, setPicked] = useState<Sport | null>(null)
-  const sport: Sport = picked ?? withTime[0] ?? SPORT_ORDER[0]
+  const sport: Sport = picked ?? withTime[0] ?? withActivities[0] ?? SPORT_ORDER[0]
   return (
     <>
       {withTime.length > 1 ? (

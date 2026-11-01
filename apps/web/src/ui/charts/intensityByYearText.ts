@@ -1,5 +1,4 @@
 import type { IntensityRow, IntensityShares } from '@rca/core/history'
-import { MIN_ZONE_ACTIVITIES, MIN_ZONE_SECONDS } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
 import { formatCount } from '../format/count'
 import { SPORT_ACTIVITY, SPORT_LABEL, SPORT_PLURAL } from '../sports'
@@ -21,13 +20,36 @@ const BAND_COLUMN: Record<Band, string> = {
 
 /** The hard share a year must lead the next year by, as a share of its time, before it is called the hardest. */
 export const MIN_HARD_LEAD = 0.05
+/** The heart-rate time of a sport a year must hold, 20 hours, before its hard share can be the finding. */
+export const MIN_FINDING_SECONDS = 20 * 3600
 
 const DASH = '—'
 const FOR_SPORT: Record<Sport, string> = { run: 'for running', ride: 'for riding' }
 
-/** Whether a year has enough heart-rate time to be compared: the floor the time in zones describes a measure from. */
+/** What an empty chart says, per sport: its heart rate is missing, or its zones have no maximum to be cut from. */
+const EMPTY_TEXT: Record<Sport, { noHeartRate: string; noZones: string }> = {
+  run: {
+    noHeartRate: "Add runs with a heart rate to see each year's intensity.",
+    noZones: "Enter your max heart rate for running on Profile to see each year's intensity.",
+  },
+  ride: {
+    noHeartRate: "Add rides with a heart rate to see each year's intensity.",
+    noZones: "Enter your max heart rate for riding on Profile to see each year's intensity.",
+  },
+}
+
+/** Whether a year holds enough of the sport's heart-rate time for its hard share to be the finding. */
 function hasEnoughTime(shares: IntensityShares): boolean {
-  return shares.counted >= MIN_ZONE_ACTIVITIES && shares.seconds >= MIN_ZONE_SECONDS
+  return shares.seconds >= MIN_FINDING_SECONDS
+}
+
+/**
+ * What the chart says where a sport has no heart-rate time: that it has none to count, or that its heart rate has no
+ * maximum to cut zones from. Each sport names itself, so a rides-only library never asks for runs.
+ */
+export function emptyTextOf(years: readonly IntensityRow[], sport: Sport): string {
+  const noZones = years.some((row) => row.sports[sport].noZones > 0)
+  return noZones ? EMPTY_TEXT[sport].noZones : EMPTY_TEXT[sport].noHeartRate
 }
 
 /**
