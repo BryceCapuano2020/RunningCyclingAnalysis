@@ -91,7 +91,7 @@
 
 .balance-changes__body {
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   line-height: 1.35;
 }
 

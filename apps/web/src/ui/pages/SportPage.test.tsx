@@ -291,11 +291,11 @@ describe('SportPage', () => {
     expect(within(section).queryByText(/Based on/)).not.toBeInTheDocument()
   })
 
-  it('shows the running threshold’s fit spread, up by the allowance for an unchecked effort, under its figure', () => {
+  it('shows the running threshold’s range, up by the allowance for an unchecked effort, under its figure', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(rangeTrack(section)).toEqual({ ends: ['20:54', '23:49'], label: 'fit spread, /km' })
+    expect(rangeTrack(section)).toEqual({ ends: ['20:54', '23:49'], label: 'range, /km' })
   })
 
   it('shows the cycling threshold’s range in watts under its figure', () => {
@@ -303,7 +303,7 @@ describe('SportPage', () => {
     renderPage('ride', makeResult({ activities: [ride] }))
 
     const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    expect(rangeTrack(section)).toEqual({ ends: ['48', '52'], label: 'fit spread, W' })
+    expect(rangeTrack(section)).toEqual({ ends: ['48', '52'], label: 'range, W' })
   })
 
   it('says under the range that the best 15 and 20 min were uneven, when the threshold has an uneven fit', () => {
@@ -762,9 +762,9 @@ describe('SportPage age grades', () => {
       MAN_BORN_1986,
     )
 
-    const caption = screen.getByText(/graded at age 40, on the/)
+    const caption = screen.getByText(/graded at age 40 on the/)
     expect(caption).toHaveTextContent(
-      '4:00 /km on your best 20 min, graded at age 40, on the USATF road standards. A level, not a ranking.',
+      '4:00 /km, graded at age 40 on the USATF road standards. A level, not a ranking.',
     )
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
@@ -784,7 +784,7 @@ describe('SportPage age grades', () => {
     )
 
     expect(screen.getByText(/A level, not a ranking\./)).toBeInTheDocument()
-    expect(screen.getByText(/graded at age 40, on the/)).toHaveTextContent(
+    expect(screen.getByText(/graded at age 40 on the/)).toHaveTextContent(
       /on the USATF road standards\. A level, not a ranking\.$/,
     )
   })
@@ -824,9 +824,9 @@ describe('SportPage age grades', () => {
       'metric',
       MAN_BORN_1986,
     )
-    const caption = screen.getByText(/graded through its running equivalent, at age 40, on the/)
+    const caption = screen.getByText(/graded as its run equivalent at age 40 on the/)
     expect(caption).toHaveTextContent(
-      '400 W (estimated) on your best 20 min, graded through its running equivalent, at age 40, on the USATF road standards. A level, not a ranking.',
+      '400 W (estimated), graded as its run equivalent at age 40 on the USATF road standards. A level, not a ranking.',
     )
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
@@ -1163,7 +1163,7 @@ describe('SportPage depth', () => {
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
     expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(
-      /^4:00 \/km on your best 20 min, graded at age 40/,
+      /^4:00 \/km, graded at age 40/,
     )
   })
 
@@ -1198,9 +1198,9 @@ describe('SportPage depth', () => {
       MAN_BORN_1986,
     )
 
-    const caption = screen.getByText(/graded at age \d+, on the/)
+    const caption = screen.getByText(/graded at age \d+ on the/)
     expect(caption).toHaveTextContent(
-      /graded at age \d+, on the USATF road standards\. A level, not a ranking\.$/,
+      /graded at age \d+ on the USATF road standards\. A level, not a ranking\.$/,
     )
   })
 

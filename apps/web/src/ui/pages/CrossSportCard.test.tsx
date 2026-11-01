@@ -163,7 +163,7 @@ describe('CrossSportCard', () => {
 
     expect(screen.getByRole('heading', { level: 3, name: 'Ride on foot' })).toBeInTheDocument()
     expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('4:10/km')
-    expect(screen.getByText('Equivalent')).toBeInTheDocument()
+    expect(screen.getByText('As running')).toBeInTheDocument()
     // The ride that set the effort is not in this result, so its watts count as estimated.
     expect(
       screen.getByText(
@@ -195,7 +195,7 @@ describe('CrossSportCard', () => {
       )
       expect(screen.getByText('Needs a ride of 10 min or more.')).toBeInTheDocument()
       expect(container.querySelector('.stat-tile__figure')).toBeNull()
-      expect(screen.queryByText('Equivalent')).toBeNull()
+      expect(screen.queryByText('As running')).toBeNull()
     })
 
     it('still gives the pace of a short ride a power meter measured', () => {

@@ -54,16 +54,16 @@ const RIDE_GRADED: GradeOutcome = {
 }
 
 describe('ThresholdTile', () => {
-  it('draws a fit’s standard-error range as a fit spread, lighter than a 90% range, and says so', () => {
+  it('draws a fit’s standard-error range as a range, lighter than a 90% range', () => {
     const { container } = renderTile('run', makeResult({ runCp: { ...FIT, cpSe: 0.05 } }))
     const track = container.querySelector('.range-track')
     expect(track).toHaveClass('range-track--spread')
-    expect(container.querySelector('.range-track__label')).toHaveTextContent('fit spread')
+    expect(container.querySelector('.range-track__label')).toHaveTextContent('range')
     expect(container.textContent).not.toMatch(/90% range/)
   })
 
   it('draws no track, and no NaN, when the range’s two ends print the same', () => {
-    // The fit spread always has a model error floor, so only a range between two fits can collapse to one number.
+    // The fit’s range always has a model error floor, so only a range between two fits can collapse to one number.
     const same = {
       fit: { ...FIT, cpSe: 0.05, cp: FIT.cp + 1e-9 },
       leftOutS: [900],
@@ -96,9 +96,13 @@ describe('ThresholdTile', () => {
     expect(screen.queryByText('Estimated')).toBeNull()
   })
 
-  it('defines the threshold in place, with its meaning in plain words, for each sport', () => {
+  it('defines the threshold in place, with its meaning in plain words, for each sport, where there is no fit to gloss', () => {
+    const unfitted = {
+      run: makeResult({ runCp: null, runCpRefusal: 'missing' }),
+      ride: makeResult({ rideCp: null, rideCpRefusal: 'missing' }),
+    }
     for (const sport of ['run', 'ride'] as const) {
-      const { container, unmount } = renderTile(sport, makeResult())
+      const { container, unmount } = renderTile(sport, unfitted[sport])
       const button = screen.getByRole('button', { name: 'threshold' })
       fireEvent.click(button)
       expect(document.getElementById(button.getAttribute('aria-controls') ?? '')).toHaveTextContent(
@@ -110,6 +114,12 @@ describe('ThresholdTile', () => {
       )
       unmount()
     }
+  })
+
+  it('leaves the word undefined where a fit has its gloss under the name, so the screen defines it less', () => {
+    const { container } = renderTile('run', makeResult())
+    expect(container.querySelector('.stat-tile__gloss')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'threshold' })).toBeNull()
   })
 
   it('carries the effort chip of its own sport, beside the figure it qualifies', () => {
