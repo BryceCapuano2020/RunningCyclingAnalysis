@@ -1,4 +1,4 @@
-import { HALF_MARATHON_M, RUN_RECORD_DISTANCES_M } from '@rca/core/constants'
+import { HALF_MARATHON_M, MARATHON_M, RUN_RECORD_DISTANCES_M } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { RecordRow } from '../recordRow'
 import { RECORD_DURATIONS_S } from '../records'
@@ -11,8 +11,10 @@ const distanceKey = (metres: number): string => `distance-${metres}`
  * distances it is raced at, a ride's the durations its power is read at. The rest stay in the full list.
  */
 export const RECORD_TILE_KEYS: Record<Sport, readonly string[]> = {
-  // The half marathon is a race prediction's distance as well; the tiles stop at the 10 km.
-  run: RUN_RECORD_DISTANCES_M.filter((metres) => metres !== HALF_MARATHON_M).map(distanceKey),
+  // The half marathon and the marathon are race predictions' distances as well; the tiles stop at the 10 km.
+  run: RUN_RECORD_DISTANCES_M.filter(
+    (metres) => metres !== HALF_MARATHON_M && metres !== MARATHON_M,
+  ).map(distanceKey),
   ride: RECORD_DURATIONS_S.ride.map(String),
 }
 

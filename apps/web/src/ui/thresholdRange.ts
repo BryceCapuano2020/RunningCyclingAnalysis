@@ -28,17 +28,16 @@ export function fitRestsOnEstimate(result: AnalysisResult): boolean {
 }
 
 /**
- * What the line calls its two ends. One fit's standard error is that fit's own spread: it says how loosely the
- * fit was pinned down, not where the athlete's capability lies, so it is not called a range. The uneven case
- * differs in kind: its ends are two thresholds, the main one (or, with that refused, the floor the held bests
- * set) and a second fitted without the uneven bests, and the threshold is taken to lie between them.
+ * What the line calls its two ends: a range, whether it is one fit's standard error (how loosely the fit was
+ * pinned down) or the uneven case, where the ends are two thresholds, the main one (or, with that refused, the
+ * floor the held bests set) and a second fitted without the uneven bests. The page tells them apart by how the
+ * range is drawn (the fit's is the lighter track), not by a second word.
  */
-const FIT_SPREAD = 'Fit spread'
-const BETWEEN_FITS = 'Range'
+const RANGE = 'Range'
 
 /**
  * The span between two critical powers as a line, in the sport's own unit, read from its faster end for a run.
- * When both ends print the same, "Fit spread A to A" would say nothing, so it is "About A".
+ * When both ends print the same, "Range A to A" would say nothing, so it is "About A".
  */
 function rangeOf(
   sport: Sport,
@@ -97,9 +96,9 @@ function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
 }
 
 /**
- * The threshold's range as a line, in the sport's own unit, such as "Fit spread 22:58 to 23:49 /km" or
- * "Fit spread 48 to 49 W", or "About 48 W" when both ends print the same. The fit's own spread is called a fit
- * spread; an uneven pair of thresholds is a "Range". What the range is, and when it is left out, is `rangeCps`.
+ * The threshold's range as a line, in the sport's own unit, such as "Range 22:58 to 23:49 /km" or
+ * "Range 48 to 49 W", or "About 48 W" when both ends print the same. What the range is, and when it is left
+ * out, is `rangeCps`.
  */
 export function thresholdRange(
   result: AnalysisResult,
@@ -108,9 +107,7 @@ export function thresholdRange(
   units: UnitSystem,
 ): string | null {
   const cps = rangeCps(result, sport)
-  return cps === null
-    ? null
-    : rangeOf(sport, cps.low, cps.high, massKg, units, cps.spread ? FIT_SPREAD : BETWEEN_FITS)
+  return cps === null ? null : rangeOf(sport, cps.low, cps.high, massKg, units, RANGE)
 }
 
 /**
@@ -124,7 +121,7 @@ export interface ThresholdSpan {
   centreCp: number
   /**
    * Whether the range is the fit's standard-error spread, a rough spread of the fit and not a confidence
-   * interval, so a drawing labels it "fit spread" and keeps it lighter than a 90% range.
+   * interval, so a drawing keeps it lighter than a 90% range.
    */
   spread: boolean
 }

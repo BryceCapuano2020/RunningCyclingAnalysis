@@ -38,6 +38,8 @@ export interface StackChannel {
   scale?: AxisScale
   ticks: ValueTick[]
   columns: SeriesColumns
+  /** A raw reading in the channel's own unit as the channel writes it ("5:03" "/km", "152" "bpm"), for the key to a reading past the edge. */
+  write: (raw: number) => { value: string; unit: string }
   /** The reading at the whole second, or null where the channel has none. */
   at: (second: number) => ChannelReading | null
   /** The average over the selection, for the readout while there is no cursor. */

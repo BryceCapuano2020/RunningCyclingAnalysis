@@ -254,6 +254,11 @@ describe('SyncStatus', () => {
       'Saving is paused because the service is near its storage capacity. Your analysis still works on this device.',
     ],
     [
+      'read-only',
+      2,
+      'Saving is paused while the service is looked after. Your analysis still works on this device, and what is waiting is kept here and sent on a later visit.',
+    ],
+    [
       'activity-conflict',
       1,
       'This workout is already saved from a different file. Delete the saved copy first to replace it.',

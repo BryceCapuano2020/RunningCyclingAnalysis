@@ -37,7 +37,7 @@ function explaining(now: BalanceGap, before: BalanceGap): Record<Sport, ChangeVe
 const lean = (now: BalanceGap, before: BalanceGap) => leanItem(now, before, explaining(now, before))
 
 describe('leanItem', () => {
-  it('says the lean eased, tagged as an estimate, with this period’s range and no claim about the earlier one', () => {
+  it('says the lean eased, tagged as an estimate, with where it was and no range', () => {
     const item = lean(gap(6, 1, 12), gap(20, 14, 26))
     expect(item).toMatchObject({
       key: 'lean',
@@ -45,9 +45,7 @@ describe('leanItem', () => {
       direction: 'down',
       tag: 'estimated',
     })
-    expect(item?.body).toBe(
-      'From 20 pts toward running to 6 pts toward running. 90% range now 1 to 12\u00a0points.',
-    )
+    expect(item?.body).toBe('Down from 20 pts toward running.')
     expect(Object.values(TAG_TEXT).join(' ')).not.toMatch(/range|real change/i)
   })
 
@@ -81,16 +79,10 @@ describe('leanItem', () => {
   })
 
   describe('for a lean toward cycling', () => {
-    it('writes the range from cycling’s side, as the headline does', () => {
+    it('says where it was, toward cycling, and leaves the range to the meter', () => {
       const item = lean(gap(-6, -12, -1), gap(-9, -14, -3))
-      expect(item?.body).toContain('90% range now 1 to 12 points')
-      expect(item?.body).not.toContain('−')
-      expect(item?.body).toMatch(/^From 9 pts toward cycling to 6 pts toward cycling\./)
-    })
-
-    it('signs a range that reaches zero, from cycling’s side', () => {
-      const item = lean(gap(-4, -9, 2), gap(-9, -14, -3))
-      expect(item?.body).toContain('90% range now −2 to +9 points')
+      expect(item?.body).toBe('Down from 9 pts toward cycling.')
+      expect(item?.body).not.toMatch(/range|−/)
     })
 
     it('points the arrow down when the lean eased and up when it grew, whichever sport it favours', () => {
@@ -110,12 +102,13 @@ describe('leanItem', () => {
   it('names the new side when the lean crossed over, with the arrow for how far it moved', () => {
     const item = lean(gap(-6, -12, -1), gap(8, 2, 14))
     expect(item?.title).toBe('Lean moved toward cycling')
+    expect(item?.body).toBe('Was 8 pts toward running.')
     expect(item?.direction).toBe('down')
   })
 
-  it('writes no range where the range now rounds to one value, and says nothing of a range that is not there', () => {
+  it('says where the lean was, with no range, whether or not the range is one value', () => {
     const item = lean(gap(3, 3, 3), gap(9, 9, 9))
-    expect(item?.body).toBe('From 9 pts toward running to 3 pts toward running.')
+    expect(item?.body).toBe('Down from 9 pts toward running.')
     expect(item?.body).not.toMatch(/range|0 to 0|9 to 9/)
     expect(item?.tag).toBe('estimated')
     expect(lean(gap(-6, -6, -6), gap(1, 1, 1))?.body).not.toMatch(/range/)

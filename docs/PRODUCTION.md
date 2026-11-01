@@ -58,6 +58,9 @@ intended order:
    If no version is configured, no rollback is attempted and the run still fails. Database
    migrations are not reversed by a rollback. A rollback to a Worker from before the sign-up list
    makes sign-up public again; see [Sign-up list](#sign-up-list-worker-secret-allowed_emails).
+   A rollback to a Worker from before gzipped originals (the floor `3e17b541` is one) hashes a gzipped upload as it
+   comes and answers **422 `hash_mismatch`** to it, so while it serves, originals are not kept (the digests are
+   saved). Roll forward to restore them.
 
 `npm run deploy` runs locally and must start from a clean checkout of `main` identical to
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
@@ -104,7 +107,7 @@ The status-check names are the job names shown on pull requests and must match e
   `Performance budgets`, `Statistical simulations` and `Dependency audit`. `Performance budgets`
   (the wall-clock timing job) and `Statistical simulations` (the seeded detector simulations) are
   split out of the first check so a loaded runner cannot fail the unit tests. The unit tests run in
-  two shards and the end-to-end tests in three. The two shard-backed checks are small jobs that pass
+  two shards, the simulations in two and the end-to-end tests in three. The three shard-backed checks are small jobs that pass
   only when every shard passed; the first also merges the unit shards and applies the coverage
   thresholds to the whole run. A documentation-only pull request (every changed file is Markdown,
   under `docs/` or `LICENSE`) skips the end-to-end, unit-test, budget and simulation jobs and the
@@ -266,6 +269,80 @@ repository and not in `wrangler.toml`.
   dev-login, the rate-limit bypass, plain cookies and the missing HSTS header. The smoke test posts an empty
   object to `/api/auth/dev-login` and requires 404, so a Worker deployed with the gate open fails the
   release.
+
+## What is sent of an activity
+
+An activity's digest, file name and hash are sent to the account when it is saved (the privacy page lists them).
+From model revision 7 (D12 E7, RCA-032):
+
+- **The file name is a hash.** The id an activity is given at import is made from `rca-` and sixteen hex digits of the
+  SHA-256 of the file's name, with the FIT, TCX or GPX extension kept (`import/minimise.ts`), so the id on the device, in
+  the recording cache and in the account are one, and a reload finds a recording by it. The name of a Strava export's
+  file is the activity's number on Strava. The hash has no key: a number has few values, so it keeps the number out of
+  plain sight and out of a join with Strava, it is not secrecy.
+- **The title is sent only on opt-in** (Profile, kept per account on the device). Otherwise the account keeps a
+  generated name such as "Morning Run".
+- **Nothing is minimised after the fact.** A replace, an upgrade and a rebuild send the id, file name and title the
+  activity already has, and a recording is read back under them; an existing row's `file_name` column is not changed.
+  Cleaning the rows saved before is a server-side maintenance step.
+- **The start time is not rounded.** The start is exact to the second, and that is deliberate. `workoutKey(sport,
+startMs)` is the key every workout is matched by, at the second: the `dedupe_key` of a row (unique per account), the keys
+  of the device library and the outbox, the counted-runs list, rule R's and adoption's matching. A digest with a start
+  rounded to the minute would find no row to upgrade (the server would insert a copy, or refuse the replace as a
+  conflict), and a rounded and an exact digest of one workout would never match, so a stale and a rebuilt copy would both
+  show. Rounding safely needs a minute-resolution key introduced everywhere first, the server to find a legacy
+  second-key within the minute (a range lookup, no migration) and the updater to rewrite `dedupe_key` on an upgrade.
+  That is a stage of its own.
+
+## Read-only switch and abuse response
+
+**The switch.** The plain Worker variable `READ_ONLY` ("true", "1" or "on", any case) makes the API refuse every request that
+would change data with **503 `read_only`** and a message the app shows: saves and uploads, profile and measurement changes,
+deletes, labels, and new sign-ins (`POST /api/auth/dev-login` and the Google callback). People who are signed in keep reading
+their library, the health checks answer, and **ending a session still works** (`POST /api/auth/logout`). The web app stops
+its saves without retrying and keeps what is waiting in the browser's outbox for the next visit. Unset, blank or anything
+else is off.
+
+- Turn it on fast: in the Cloudflare dashboard, the API Worker, Settings, Variables, add the plain text variable
+  `READ_ONLY` = `true` and deploy the setting. Or put `READ_ONLY = "true"` under `[vars]` in `apps/api/wrangler.toml` and
+  release through the normal procedure.
+- A release from `wrangler.toml` sets the plain variables to the file's values. After any release, check the switch
+  (`curl -s -X POST -H 'X-RCA-Client: web' https://<host>/api/activities -i` answers 503 `read_only` while it is on).
+- **Rollback to an older Worker ignores it.** Every Worker released before this one, the rollback floor `3e17b541`
+  included, has no switch, so a rollback during an abuse response writes again.
+- The switch does not stop everything that writes. Reads still count against the daily read budgets, sessions refresh
+  their expiry, and the scheduled job (cleanup of deleted accounts, orphan files, the R2 ledger) keeps running; to stop the
+  job as well, remove the cron trigger from the Worker in the dashboard.
+- Turn it off by deleting the variable (or setting it to `false`) and deploying the setting. Saves that waited in people's
+  outboxes then go through on their next visit.
+
+**When to use it:** the database is near its guard and something is still filling it; an account is writing in a loop; you
+are about to restore the database or run operator SQL that must not race with writes; an incident needs the data frozen
+while you look.
+
+**Abuse runbook.** Work from the cheapest step; each one is reversible except the last.
+
+1. _See what is happening_ (read-only SQL, `npx wrangler d1 execute rca --remote --command "..."`):
+   - Size and the heaviest accounts: `SELECT id, email, activity_count, digest_bytes, file_bytes, created_at FROM users ORDER BY digest_bytes + file_bytes DESC LIMIT 10`.
+   - Recent sign-ups: `SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 20`. Sign-up is closed to
+     anyone not on `ALLOWED_EMAILS` (see Sign-up list), so a new row that is not a friend means the list is wrong or the
+     Worker rolled back to one that ignores it.
+   - The R2 ledger and the day's counts: `SELECT * FROM r2_storage_budget`, and `SELECT action, SUM(used) FROM daily_budget WHERE day = date('now') GROUP BY action`.
+   - Refusals in Workers Logs: `storage_budget_refused` (R2 ledger), `rate_limited` and `database_full`.
+2. _Freeze writes_: turn the switch on (above). Nothing else is needed to stop the growth.
+3. _Close the door_: take the address off `ALLOWED_EMAILS` (`wrangler secret put ALLOWED_EMAILS` with the list that remains)
+   so it cannot create another account, and end the account's sessions: `DELETE FROM sessions WHERE user_id = '<id>'`.
+   **The list does not stop an account that exists**: it signs in whatever the secret holds, so once the switch is off it
+   is back. Only deleting the account (step 5) keeps it out. Nothing of theirs is lost yet.
+4. _Cap the damage_: one account's digests are bounded (64 MiB, 5,000 activities), its originals (1 GiB), and a digest's free
+   text by the byte caps in `apps/api/LIMITS.md`. A single account cannot fill the guard; several can, which is why step 3
+   comes before step 5.
+5. _Remove_: `DELETE FROM users WHERE id = '<id>'` in D1 (the rows cascade; see Sign-up list for what a SQL delete skips).
+   **`DELETE /api/me` is a write, so the switch refuses it with 503 `read_only`**: use the SQL, or turn the switch off first
+   and delete from the account's session. Do this last: it is not reversible.
+6. _Recover room_: the database guard lifts by itself as rows go. The lifetime R2 ledger is never refunded; see "Operator
+   reset" in `apps/api/LIMITS.md` before touching it.
+7. _Turn the switch off_ once the cause is gone, and write down what happened.
 
 ## Limits
 

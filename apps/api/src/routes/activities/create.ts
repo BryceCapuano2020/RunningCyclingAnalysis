@@ -26,6 +26,7 @@ import {
   type ActivityRow,
 } from './shared.ts'
 import { databaseSoftLimitBytes } from '../../databaseGuard.ts'
+import { checkDigestText } from './digestText.ts'
 import { requireCurrentRevision } from './revisionCheck.ts'
 import { keepStoredLabel } from './storedLabel.ts'
 import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
@@ -60,6 +61,7 @@ function createInput(data: z.infer<typeof ActivityCreateSchema>): CreateInput {
   if (digestBytes > MAX_DIGEST_BYTES) {
     throw new HttpError(413, 'digest_too_large', 'Activity digest is larger than 256 KB')
   }
+  checkDigestText(data.digest)
   return {
     ...data,
     digestJson,

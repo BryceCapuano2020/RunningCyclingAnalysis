@@ -39,9 +39,9 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: `Each sport’s best ${HEADLINE_LABEL} is graded for your age and sex on published standards, and the two grades give the balance. Rides are graded through a running equivalent.`,
   },
   {
-    name: 'Thresholds and their fit spread',
+    name: 'Thresholds and their range',
     state: 'calculated',
-    line: `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts, with the spread of the fit, which is not a range your threshold lies in.`,
+    line: `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts. Its range is the fit’s own, not the balance’s 90% range.`,
   },
   {
     name: 'Best efforts and curves',
@@ -69,9 +69,14 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'Your pace or power at one heart rate, week by week, from blocks of steady effort. The weekly dots claim no change.',
   },
   {
+    name: 'Your years',
+    state: 'calculated',
+    line: 'Your pace or power at one heart rate across the years, cut into plateaus, with each slip, return and rise listed when the runs show it.',
+  },
+  {
     name: 'Level target',
     state: 'calculated',
-    line: 'What the lower sport’s best effort would need to be to grade level with the other, in that sport’s own unit.',
+    line: 'What the lower sport’s best effort would need to be to match the other, in that sport’s own unit.',
   },
   {
     name: 'Grade by duration',

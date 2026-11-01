@@ -101,6 +101,8 @@ export interface ImportOutcome {
 export interface SyncOptions {
   userId: string
   keepFiles: boolean
+  /** The athlete's choice to send the titles of their activities to the account; see api/uploadPolicy.ts. */
+  uploadTitles?: boolean
 }
 
 /**
@@ -133,8 +135,15 @@ export type WorkerRequest =
   /** `reload` reads the library again even when this tab holds it, because another tab changed it. */
   | ({ type: 'loadDevice'; settings: AthleteSettings; reload?: boolean } & LoadPeriod)
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
-  | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
-  | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
+  | ({
+      type: 'loadServer'
+      settings: AthleteSettings
+      userId: string
+      uploadTitles?: boolean
+    } & LoadPeriod)
+  | { type: 'rebuildStale'; settings: AthleteSettings; userId: string; uploadTitles?: boolean }
+  /** Takes off the labels the last import applied from its export's list (its summary's Undo). */
+  | { type: 'undoLabels'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
   | { type: 'setRange'; choice: PeriodChoice; settings: AthleteSettings }
   /** `forgetDevice` also empties the library kept in this browser. */
@@ -169,7 +178,7 @@ export type WorkerRequest =
    * Adds the activities kept in this browser from before sign-in to the account, then reads the library again.
    * Sends `adoption` before its state.
    */
-  | { type: 'adoptDevice'; userId: string; settings: AthleteSettings }
+  | { type: 'adoptDevice'; userId: string; settings: AthleteSettings; uploadTitles?: boolean }
   /** Empties the library kept in this browser while the account is on screen, which stays as it is. */
   | { type: 'forgetDeviceLibrary'; settings: AthleteSettings }
   /** A detail trace for an exact core activity id. Originals are read only on explicit request. */
@@ -294,6 +303,8 @@ export type WorkerResponse =
       outcome?: ImportOutcome
       saved?: number
       outdatedWithOriginal?: number
+      /** After an Undo: how many of the import's labels could not be taken off and are still applied. Absent when none. */
+      labelsLeft?: number
       checkIn?: CheckInView
     }
   | {

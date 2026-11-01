@@ -27,6 +27,12 @@ const sampleDigests = () => [...SAMPLE_DIGESTS]
 const fitnessTrend = vi.mocked(trend.fitnessTrend)
 /** The trend is computed once for each effort length, so each recomputation calls fitnessTrend this often. */
 const EFFORTS = EFFORT_LENGTHS_S.length
+/**
+ * How often the trends the session shows were computed: the calls that carry the dots' rule. The same period read
+ * without it, to tell whether the rule is why a length has too few dots, is a separate, rarer call.
+ */
+const shownCalls = () =>
+  fitnessTrend.mock.calls.filter(([, , options]) => options?.rule !== undefined).length
 
 describe('AnalysisSession trend', () => {
   beforeEach(() => {
@@ -54,15 +60,15 @@ describe('AnalysisSession trend', () => {
   it('recomputes the trend when the period changes, and reuses it for the same period', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
-    const computed = fitnessTrend.mock.calls.length
+    const computed = shownCalls()
     expect(computed).toBeGreaterThan(0)
 
     session.setRange(42, SETTINGS)
-    expect(fitnessTrend.mock.calls.length).toBe(computed + 1 * EFFORTS)
+    expect(shownCalls()).toBe(computed + 1 * EFFORTS)
     session.setRange(42, SETTINGS)
-    expect(fitnessTrend.mock.calls.length).toBe(computed + 1 * EFFORTS)
+    expect(shownCalls()).toBe(computed + 1 * EFFORTS)
     session.setRange('all', SETTINGS)
-    expect(fitnessTrend.mock.calls.length).toBe(computed + 2 * EFFORTS)
+    expect(shownCalls()).toBe(computed + 2 * EFFORTS)
   })
 
   it('computes the trend of a period from windows that stay inside it', () => {
@@ -130,10 +136,10 @@ describe('AnalysisSession trend', () => {
   it('recomputes when the library changes', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
-    const computed = fitnessTrend.mock.calls.length
+    const computed = shownCalls()
 
     session.loadDigests(sampleDigests().slice(0, 3), SETTINGS)
-    expect(fitnessTrend.mock.calls.length).toBe(computed + 1 * EFFORTS)
+    expect(shownCalls()).toBe(computed + 1 * EFFORTS)
   })
 })
 

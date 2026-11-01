@@ -1,8 +1,8 @@
-import { noonOnLabelDate } from '@rca/core/calendar'
+import { localYearOf, noonOnLabelDate } from '@rca/core/calendar'
 import { DAY_MS } from '@rca/core/constants'
 import { MONTHLY_AFTER_DAYS, inGap } from '@rca/core/digest/trendSeries'
 import type { QuietGap } from '@rca/core/digest/trendSeries'
-import { formatMonth } from '../format/date'
+import { formatDayMonth, formatMonth } from '../format/date'
 import type { AxisTick, PlotBox } from './chartTypes'
 import type { Scale } from './scale'
 import { axisFontSize, fitTicks, labelWidth, rootScale } from './ticks'
@@ -26,6 +26,15 @@ export function shortDate(ms: number): string {
 /** The UTC day, month and year of an instant, such as "12 Jan 2025". */
 export function shortDateWithYear(ms: number): string {
   return `${shortDate(ms)} ${new Date(ms).getUTCFullYear()}`
+}
+
+/**
+ * The viewer's own day, month and year of an activity's moment, such as "12 Jan 2025". An activity is dated by
+ * the viewer's day everywhere else (its list, its badges), so a chart naming the day an effort was done uses this;
+ * shortDate names the UTC day of a trend's week end.
+ */
+export function activityDate(ms: number): string {
+  return `${formatDayMonth(ms, ms)} ${localYearOf(ms)}`
 }
 
 /** The most month starts one axis lists: 500 years, far past any trend, so a bad bound cannot run the loop away. */

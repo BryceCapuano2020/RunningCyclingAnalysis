@@ -1,3 +1,4 @@
+import { noteUploadTitles } from './uploadPolicy'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import {
   CLIENT_HEADER,
@@ -642,7 +643,13 @@ describe('createActivity', () => {
   it('posts the digest, name and hash as JSON and reports a new record as created', async () => {
     const fetchMock = stubFetch(respond(201, RECORD_WIRE))
     const hash = 'a'.repeat(64)
-    const { record, created } = await createActivity(DIGEST, 'run.fit', hash, 'u1')
+    // A digest of revision 6, so the test holds the same with the minimisation of new activities (revision 7) on or off.
+    const { record, created } = await createActivity(
+      { ...DIGEST, modelRevision: 6 },
+      'run.fit',
+      hash,
+      'u1',
+    )
 
     const { path, init, headers } = callOf(fetchMock)
     expect(path).toBe('/api/activities')
@@ -662,6 +669,46 @@ describe('createActivity', () => {
 
     expect(created).toBe(true)
     expect(record.digest.durationS).toBe(3600)
+  })
+
+  it('sends a generated title and a hashed file name from revision 7, and the title when chosen', async () => {
+    const digest = {
+      ...DIGEST,
+      modelRevision: 7,
+      name: 'Run past my house',
+      id: '1000-run/9988.fit',
+    }
+    const sentBody = async (): Promise<{ digest: ActivityDigest; fileName: string }> => {
+      const fetchMock = stubFetch(respond(201, RECORD_WIRE))
+      await createActivity(digest, 'run/9988.fit', 'c'.repeat(64), 'u1')
+      return JSON.parse(callOf(fetchMock).init.body as string) as {
+        digest: ActivityDigest
+        fileName: string
+      }
+    }
+    noteUploadTitles({ uploadTitles: false })
+    const hidden = await sentBody()
+    expect(hidden.digest.name).not.toContain('house')
+    expect(hidden.fileName).toMatch(/^rca-[0-9a-f]{16}\.fit$/)
+    expect(hidden.digest.id).toBe(`1000-${hidden.fileName}`)
+    noteUploadTitles({ uploadTitles: true })
+    const shown = await sentBody()
+    expect(shown.digest.name).toBe('Run past my house')
+    expect(shown.fileName).toBe(hidden.fileName)
+    noteUploadTitles({ uploadTitles: false })
+  })
+
+  it('sends a replace as it is: an activity already saved keeps its id, file name and title', async () => {
+    const digest = { ...DIGEST, modelRevision: 7, name: 'My own title', id: '1000-run/9988.fit' }
+    const fetchMock = stubFetch(respond(200, RECORD_WIRE))
+    noteUploadTitles({ uploadTitles: false })
+    await createActivity(digest, 'run/9988.fit', 'c'.repeat(64), 'u1', 'rec-1')
+    const { path, init } = callOf(fetchMock)
+    expect(path).toBe('/api/activities?replace=rec-1')
+    const body = JSON.parse(init.body as string) as { digest: ActivityDigest; fileName: string }
+    expect(body.fileName).toBe('run/9988.fit')
+    expect(body.digest.id).toBe('1000-run/9988.fit')
+    expect(body.digest.name).toBe('My own title')
   })
 
   it('reports an activity that already existed as not created', async () => {
@@ -716,6 +763,17 @@ describe('createActivity', () => {
     })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
+
+  it('does not try a create again when the service is read-only', async () => {
+    const fetchMock = stubFetch(
+      respond(503, { error: { code: 'read_only', message: 'The service is read-only' } }),
+    )
+    await expect(createActivity(DIGEST, 'run.fit', 'd'.repeat(64))).rejects.toMatchObject({
+      status: 503,
+      code: 'read_only',
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
 })
 
 describe('uploadFile', () => {
@@ -732,6 +790,30 @@ describe('uploadFile', () => {
     expect(new Uint8Array(init.body as ArrayBuffer)).toEqual(bytes)
     expect(record.hasFile).toBe(true)
     expect(record.fileSize).toBe(3)
+  })
+
+  it('sends a file that gzips smaller gzipped, and says so', async () => {
+    const fetchMock = stubFetch(respond(200, { ...RECORD_WIRE, hasFile: true, fileSize: 10 }))
+    const bytes = new Uint8Array(4000).map((_, i) => i % 7)
+    await uploadFile('rec-1', bytes)
+
+    const { headers, init } = callOf(fetchMock)
+    expect(headers.get('Content-Encoding')).toBe('gzip')
+    const sent = init.body as Uint8Array
+    expect(sent.byteLength).toBeLessThan(bytes.byteLength)
+    const back = await new Response(
+      new Blob([sent as Uint8Array<ArrayBuffer>])
+        .stream()
+        .pipeThrough(new DecompressionStream('gzip')),
+    ).arrayBuffer()
+    expect(new Uint8Array(back)).toEqual(bytes)
+  })
+
+  it('sends a file that gzip does not shrink as it is', async () => {
+    const fetchMock = stubFetch(respond(200, { ...RECORD_WIRE, hasFile: true, fileSize: 1 }))
+    await uploadFile('rec-1', new Uint8Array([9]))
+
+    expect(callOf(fetchMock).headers.get('Content-Encoding')).toBeNull()
   })
 
   it('throws the hash mismatch from the server', async () => {

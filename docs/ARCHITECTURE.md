@@ -146,7 +146,9 @@ that import. The resume runs only in the tab that holds the account's writer loc
 A stop (a limit, a signed-out account), a lost connection or a row a newer version wrote leaves the
 row untouched; a row from a stale analysis is let go unsent, while one the current model reads beside its own
 (compatible) is sent. A session that ends on its own (expiry,
-seen by a save or by a refresh) keeps the rows. An explicit sign-out (after a warning when rows wait)
+seen by a save or by a refresh) keeps the rows, until another account signs in: that sweep (`sweepOutbox`,
+with the recordings' and the file index's) removes every other account's rows, so a shared browser never hands one
+person's summaries and file names to the next. An explicit sign-out (after a warning when rows wait)
 and account deletion forget the account's rows, and Remove all (signed out) forgets every account's.
 The outbox never rejects: if the browser refuses IndexedDB, saves go ahead without a backup and the
 import still reports its own failures.
@@ -443,7 +445,7 @@ the server stores only that. A digest holds:
 - **Mass-free power terms and calibration sums**: the per-sample terms of the virtual-power model
   with mass and bike constants left out.
 - **Run distance bests**: for runs only, the fastest wall-clock time over each distance in
-  `RUN_RECORD_DISTANCES_M` (1 km, 1 mi, 5 km, 10 km and the half marathon). A window may not include a
+  `RUN_RECORD_DISTANCES_M` (1 km, 1 mi, 5 km, 10 km, the half marathon and, from revision 7, the marathon). A window may not include a
   second the device did not record (a gap of over 10 s that no timer pause covers, where distance is
   held and time is unknown), an invalid motion sample (which includes a stretch flagged
   `implausible-speed`), or a distance step above the top run speed. A timer pause is real time and

@@ -10,7 +10,7 @@ const LEAN: ChangeItem = {
   key: 'lean',
   direction: 'down',
   title: 'Lean eased 3 pts',
-  body: 'From 9 pts toward running to 6 pts toward running. 90% range now 1 to 12 points.',
+  body: 'Down from 9 pts toward running.',
   tag: 'estimated',
 }
 const RIDE: ChangeItem = {

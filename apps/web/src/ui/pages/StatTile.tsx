@@ -9,7 +9,7 @@ export type TileBasis = 'estimated' | 'recorded' | 'equivalent' | 'floor'
 const BASIS_TEXT: Record<TileBasis, string> = {
   estimated: 'Estimated',
   recorded: 'Recorded',
-  equivalent: 'Equivalent',
+  equivalent: 'As running',
   floor: 'At least',
 }
 

@@ -1,11 +1,20 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { curvePoint } from './fixtures'
 import { SportCurveChart } from './SportCurveChart'
 import { BestsOverTimeChart } from './BestsOverTimeChart'
+
+beforeAll(() => {
+  // A dot is dated on the viewer's own day, so the zone is pinned: the day named does not depend on the machine's.
+  vi.stubEnv('TZ', 'UTC')
+})
+
+afterAll(() => {
+  vi.unstubAllEnvs()
+})
 
 afterEach(() => {
   cleanup()

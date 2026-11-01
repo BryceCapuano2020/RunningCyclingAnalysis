@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { Route } from '../route'
-import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
+import type { UnitSystem } from '@rca/core/units'
+import { sampleDescription } from '../sampleAthlete'
 
 /** Said once at full width while the sample is loaded. It says the sample is not kept. */
-export const SAMPLE_BANNER = `Sample athlete, ${SAMPLE_DESCRIPTION}. Not kept: add files to replace it.`
+const bannerText = (units: UnitSystem) =>
+  `Sample athlete, ${sampleDescription(units)}. Not kept: add files to replace it.`
 const PILL_LABEL = 'Sample athlete'
 
 export interface SampleNoticeProps {
@@ -11,6 +13,8 @@ export interface SampleNoticeProps {
   page: Route['page']
   /** Whether the sample is loaded with a result on screen. */
   shown: boolean
+  /** The units the visitor reads figures in, which the sample's weight is told in. */
+  units: UnitSystem
 }
 
 /**
@@ -18,7 +22,7 @@ export interface SampleNoticeProps {
  * pill on the pages after it, so the sentence does not take a line of every page. The pill opens the
  * sentence again. The banner is part of the notice region, which announces it; the pill is not.
  */
-export function useSampleNotice({ page, shown }: SampleNoticeProps) {
+export function useSampleNotice({ page, shown, units }: SampleNoticeProps) {
   const [firstPage, setFirstPage] = useState<Route['page'] | null>(null)
   const [open, setOpen] = useState(false)
   // The banner is said once: after the visitor has been on another page it never comes back, so a return
@@ -34,7 +38,7 @@ export function useSampleNotice({ page, shown }: SampleNoticeProps) {
   }
   const banner = shown && !left
   return {
-    banner: banner ? <p className="sample-banner">{SAMPLE_BANNER}</p> : null,
+    banner: banner ? <p className="sample-banner">{bannerText(units)}</p> : null,
     pill:
       shown && !banner ? (
         <div className="sample-pill">
@@ -46,7 +50,7 @@ export function useSampleNotice({ page, shown }: SampleNoticeProps) {
           >
             {PILL_LABEL}
           </button>
-          {open && <p className="sample-pill__text">{SAMPLE_BANNER}</p>}
+          {open && <p className="sample-pill__text">{bannerText(units)}</p>}
         </div>
       ) : null,
   }

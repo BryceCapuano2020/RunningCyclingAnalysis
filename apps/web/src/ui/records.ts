@@ -1,6 +1,7 @@
 import {
   HALF_MARATHON_M,
   HEADLINE_DURATION_S,
+  MARATHON_M,
   PRIORS,
   RUN_RECORD_DISTANCES_M,
 } from '@rca/core/constants'
@@ -47,8 +48,9 @@ export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.ride.filte
   (durationS) => durationS >= 5 * 60,
 )
 
-/** A run record distance's name: the half marathon, the mile, else whole kilometres. */
+/** A run record distance's name: the marathon or the half marathon, the mile, else whole kilometres. */
 function distanceName(distanceM: RunRecordDistanceM): string {
+  if (distanceM === MARATHON_M) return 'marathon'
   if (distanceM === HALF_MARATHON_M) return 'half marathon'
   return distanceM === METRES_PER_MILE
     ? `${distanceM / METRES_PER_MILE} mi`

@@ -121,7 +121,9 @@ describe('FitnessChart', () => {
     render(
       <FitnessChart status={fitnessStatus('slipping', () => 0, { series: [] })} units="metric" />,
     )
-    expect(screen.getByText('Not enough steps to draw')).toBeInTheDocument()
+    expect(
+      screen.getByText('A line needs 2 steps four weeks apart; there are none yet'),
+    ).toBeInTheDocument()
     expect(FITNESS_BEFORE).toBeGreaterThan(0)
   })
 })

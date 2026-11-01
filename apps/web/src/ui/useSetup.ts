@@ -51,6 +51,8 @@ export interface SetupController {
   open: boolean
   /** How many files are waiting for the answers. */
   held: number
+  /** The files waiting, so a zip's own profile can offer the weight. */
+  files: readonly File[]
   /** Whether the answers are being stored. */
   saving: boolean
   /** Why the answers could not be stored. The files stay held until they are. */
@@ -221,5 +223,15 @@ export function useSetup({
     [store],
   )
 
-  return { open, held: held.length, saving, saveError, requestImport, finish, skip, submitted }
+  return {
+    open,
+    held: held.length,
+    files: held,
+    saving,
+    saveError,
+    requestImport,
+    finish,
+    skip,
+    submitted,
+  }
 }

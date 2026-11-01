@@ -4,6 +4,7 @@ import { formatDistance, formatRecordTime, formatTotalTime } from '@rca/core/uni
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChartTable } from '../charts/ChartTable'
+import { SPREAD_WORDS } from '../charts/usualSpread'
 import { useMinWidth } from './useMinWidth'
 import { movingAverageSpeed, selectionOf, typicalBand } from './workbenchData'
 import {
@@ -18,14 +19,11 @@ import { readingOf } from './workbenchScale'
 
 const NONE = 'None in this interval'
 
-const MOVING_CAPTION =
-  'While moving in the selected interval. Typical range is the 5th to 95th percentile. Time is how long each measure had a reading.'
+const MOVING_CAPTION = `While moving in the selected interval. Typical range is the ${SPREAD_WORDS}. Time is how long each measure had a reading.`
 /** A speed's average is the figure the header gives, the distance over the moving time, and the table says so. */
-const SPEED_CAPTION =
-  'Speed in the selected interval. Average is the distance over the moving time. Typical range is the 5th to 95th percentile. Time is how long it had a reading.'
+const SPEED_CAPTION = `Speed in the selected interval. Average is the distance over the moving time. Typical range is the ${SPREAD_WORDS}. Time is how long it had a reading.`
 /** A pace's typical range leaves out the stops, which are not paces, so it says so. */
-const PACE_CAPTION =
-  'Pace in the selected interval. Average is the distance over the moving time. Typical range leaves out stops and is the 5th to 95th percentile. Time is how long it had a reading.'
+const PACE_CAPTION = `Pace in the selected interval. Average is the distance over the moving time. Typical range leaves out stops and is the ${SPREAD_WORDS}. Time is how long it had a reading.`
 
 /** One table of the summary: the measures that share a caption. */
 interface StatGroup {

@@ -26,3 +26,25 @@ export const DISTANCE_TIMES_NOTE =
 
 /** The note under a sport's grades: running's pace is flat, so it says so, and cycling has none. */
 export const SPORT_NOTE: Partial<Record<Sport, string>> = { run: FLAT_PACE_NOTE }
+
+/** The labels of the records that have no standard, as a phrase: "5 min", "3 min and 5 min". */
+function labelList(labels: readonly string[]): string {
+  return labels.length < 2
+    ? (labels[0] ?? '')
+    : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+}
+
+/**
+ * A record's missing standard in a few words, naming the records it is for so it can sit apart from their rows:
+ * a run has none under a mile, a ride none at some durations. Without a label it speaks of the one it is under.
+ */
+export const NO_STANDARD_RECORD_TEXT: Record<Sport, (labels: readonly string[]) => string> = {
+  run: (labels) =>
+    labels.length === 0
+      ? 'No age standard under 1 mile'
+      : `No age standard under 1 mile, for the ${labelList(labels)}`,
+  ride: (labels) =>
+    labels.length === 0
+      ? 'No age standard for this duration'
+      : `No age standard for the ${labelList(labels)}`,
+}

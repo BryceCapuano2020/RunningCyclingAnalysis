@@ -38,6 +38,22 @@ const settledRun = (points: [number, number | null][], nowMs = LATER) =>
 const cps = (steps: ThresholdStep[]) => steps.map((step) => step.fit?.cp ?? null)
 
 describe('settledThresholds', () => {
+  it('leaves no older fit for a step whose efforts outgrew it', () => {
+    // A step with no fit and no earlier one to stand in (`lastFit` -1), after steps that had one.
+    const steps = stepsOf([
+      [0, 15],
+      [4, 15],
+      [8, null],
+      [12, null],
+    ])
+    steps[2] = { ...steps[2]!, lastFit: -1 }
+    steps[3] = { ...steps[3]!, lastFit: -1 }
+    const settled = settledThresholds({ run: steps, ride: [] }, BOTH, LATER).run
+    expect(settled.map((step) => step.lastFit)).toEqual([0, 1, -1, -1])
+    expect(thresholdAt(settled, START + 9 * WEEK_MS)).toBeNull()
+    expect(thresholdAt(settled, START + 1 * WEEK_MS)).not.toBeNull()
+  })
+
   it('holds the threshold through a move smaller than its own standard error', () => {
     const run = settledRun([
       [0, 15],

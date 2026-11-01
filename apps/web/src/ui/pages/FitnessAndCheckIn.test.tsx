@@ -2,9 +2,11 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
+import { NO_LOOKBACK } from '@rca/core/lookback'
 import { analysisStub } from '../../test/analysisStub'
 import { QUIET_CHECK_IN } from '../checkInFixtures'
 import { FITNESS_LIBRARY, SLIPPING } from '../fitnessFixtures'
+import { YEARS_LOOKBACK } from '../yearsFixtures'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
 
 afterEach(cleanup)
@@ -65,5 +67,54 @@ describe('the fitness cards and the check-in row', () => {
   it('does not bring back a row that was seen before the page loaded', () => {
     render(slot({ checkIn: SEEN }))
     expect(screen.queryByTestId('checkin-row')).toBeNull()
+  })
+})
+
+describe('the fitness cards and "Your years"', () => {
+  const withYears = (over: Parameters<typeof analysisStub>[0] = {}) =>
+    slot({ ...over, state: { lookBack: YEARS_LOOKBACK, ...over.state } })
+
+  it('puts the years under the card when the check-in has nothing new', () => {
+    render(withYears())
+    expect(before(screen.getByTestId('fitness-section'), screen.getByTestId('years-row'))).toBe(
+      true,
+    )
+    expect(screen.queryByTestId('checkin-row')).toBeNull()
+  })
+
+  it('gives the place to the check-in while that is unseen, and to the years once it is', () => {
+    const first = render(withYears({ checkIn: UNSEEN }))
+    expect(screen.getByTestId('checkin-row')).toBeInTheDocument()
+    expect(screen.queryByTestId('years-row')).toBeNull()
+    first.unmount()
+    render(withYears({ checkIn: SEEN }))
+    expect(screen.getByTestId('years-row')).toBeInTheDocument()
+    expect(screen.queryByTestId('checkin-row')).toBeNull()
+  })
+
+  it('shows nothing for years that have been seen, the sample, an import that stopped short, or no years', () => {
+    for (const over of [
+      { checkIn: { checkIn: null, seen: false, lookBackSeen: true } },
+      { state: { isSample: true } },
+      { incompleteImport: { id: 'x' } as never },
+      { state: { lookBack: NO_LOOKBACK } },
+    ]) {
+      const { unmount } = render(withYears(over as never) ?? <></>)
+      expect(screen.queryByTestId('years-row'), JSON.stringify(Object.keys(over))).toBeNull()
+      unmount()
+    }
+  })
+
+  it('keeps the row it has shown when it becomes seen, until it is hidden', () => {
+    const { rerender } = render(withYears())
+    expect(screen.getByTestId('years-row')).toBeInTheDocument()
+    rerender(withYears({ checkIn: { checkIn: null, seen: false, lookBackSeen: true } }))
+    expect(screen.getByTestId('years-row')).toBeInTheDocument()
+  })
+
+  it('leads when there is no card to lead', () => {
+    render(slot({ state: { lookBack: YEARS_LOOKBACK } }, false))
+    expect(screen.getByTestId('years-row')).toBeInTheDocument()
+    expect(screen.queryByTestId('fitness-section')).toBeNull()
   })
 })

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ImportOutcome } from '../../worker/protocol'
 import type { MovedItem } from '../analysis/whatMoved'
 import { openDisclosures } from '../test/openDisclosures'
+import { PAGE_HEADING_ID } from '../pages/pageHeading'
 import { ImportNotice } from './ImportNotice'
 import type { ImportNoticeProps } from './ImportNotice'
 
@@ -201,6 +202,44 @@ describe('ImportNotice: runs that were added but left out', () => {
   it('adds nothing when no line is given', () => {
     const { container } = render(<ImportNotice {...noticeProps()} />)
     expect(container.querySelectorAll('.import-notice__body > p')).toHaveLength(1)
+  })
+})
+
+describe('ImportNotice: the labels an import applied', () => {
+  const LABELLED: ImportOutcome = { activities: 3, rejected: 0, duplicates: [], labelled: 3 }
+
+  it('says how many activities the export’s list labelled, with a button that takes the labels off', () => {
+    const onUndoLabels = vi.fn()
+    render(<ImportNotice {...noticeProps({ outcome: LABELLED, onUndoLabels })} />)
+    expect(
+      screen.getByText(
+        /3 activities you labelled Hike, Walk or another type in your export are now left out/,
+      ),
+    ).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo the labels' }))
+    expect(onUndoLabels).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves focus to the page heading when Undo is pressed, as Dismiss does', () => {
+    render(
+      <>
+        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
+          Page
+        </h1>
+        <ImportNotice {...noticeProps({ outcome: LABELLED, onUndoLabels: vi.fn() })} />
+      </>,
+    )
+    const undo = screen.getByRole('button', { name: 'Undo the labels' })
+    undo.focus()
+    fireEvent.click(undo)
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Page' }))
+  })
+
+  it('offers no Undo for an import that applied no labels, or where nothing can undo them', () => {
+    const { rerender } = render(<ImportNotice {...noticeProps({ onUndoLabels: vi.fn() })} />)
+    expect(screen.queryByRole('button', { name: 'Undo the labels' })).toBeNull()
+    rerender(<ImportNotice {...noticeProps({ outcome: LABELLED })} />)
+    expect(screen.queryByRole('button', { name: 'Undo the labels' })).toBeNull()
   })
 })
 

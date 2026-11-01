@@ -155,6 +155,29 @@ describe('a caveat or footnote longer than two lines', () => {
   )
 })
 
+describe('a ride whose range crosses a level', () => {
+  const CROSSING = 'Recreational to Regional · 61% on best 20 min'
+  const crossing = (): ShareCardModel => {
+    const base = cardModel()
+    const [run, ride] = base.heroes
+    if (run === undefined || ride === undefined) throw new Error('The card has no heroes')
+    return { ...base, heroes: [run, { ...ride, grade: CROSSING }] }
+  }
+
+  it.each(FORMATS)('keeps both levels whole and inside the margins on the %s card', (format) => {
+    const { width, marginX } = CARD_FORMATS[format]
+    const { ok, ctx } = render(crossing(), format)
+    expect(ok).toBe(true)
+    const lines = ctx.texts.filter((text) => CROSSING.includes(text.text) && text.text !== '')
+    expect(lines.map((line) => line.text).join(' ')).toContain('Recreational to Regional')
+    expect(ctx.texts.some((text) => text.text.endsWith('…'))).toBe(false)
+    for (const text of ctx.texts) {
+      expect(text.x).toBeGreaterThanOrEqual(marginX)
+      expect(text.x + text.width).toBeLessThanOrEqual(width - marginX)
+    }
+  })
+})
+
 describe('a card that is too tall for its sizes', () => {
   const isMagnitude = (text: RecordedText) => text.text.startsWith('Running grades')
 
