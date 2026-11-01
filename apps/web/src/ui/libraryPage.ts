@@ -1,5 +1,7 @@
 import type { LibraryKnowledge } from './analysis/libraryKnowledge'
 import { APP_NAME } from '../appName'
+import { PAGE_RULES } from './pageRules'
+import type { OwnPage } from './pageRules'
 import type { Route } from './route'
 
 /**
@@ -7,7 +9,8 @@ import type { Route } from './route'
  * page (`held`), and a library that has not answered has the restoring page, or an error.
  * - `profile`: Profile, whatever else is true.
  * - `result`: the page the route names, from a result.
- * - `method`: How sure is this? with no result, which is its own page.
+ * - `method`: How sure is this? with no result, which is its own page. Which pages stand like this is
+ *   PAGE_RULES' ownPage.
  * - `restoring`: a library is being restored or loaded.
  * - `unavailable`: the library could not be loaded or read.
  * - `held`: a library is present and its results are not shown (updating, or nothing readable yet). Its
@@ -15,8 +18,7 @@ import type { Route } from './route'
  *   are not, so the restoring page stays.
  * - `landing`: nothing is there.
  */
-export type LibraryPage =
-  'profile' | 'result' | 'method' | 'restoring' | 'unavailable' | 'held' | 'landing'
+export type LibraryPage = OwnPage | 'result' | 'restoring' | 'unavailable' | 'held' | 'landing'
 
 export interface LibraryPageInputs {
   route: Route
@@ -38,9 +40,10 @@ export function libraryPageOf({
   failed,
   loading = false,
 }: LibraryPageInputs): LibraryPage {
-  if (route.page === 'profile') return 'profile'
+  const { ownPage, ownOverResult } = PAGE_RULES[route.page]
+  if (ownPage !== null && ownOverResult) return ownPage
   if (hasResult) return 'result'
-  if (route.page === 'method') return 'method'
+  if (ownPage !== null) return ownPage
   if (knowledge === 'unknown') return failed && !restoring ? 'unavailable' : 'restoring'
   if (knowledge !== 'present') return 'landing'
   return restoring || loading ? 'restoring' : 'held'

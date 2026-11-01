@@ -1,16 +1,14 @@
 import { useEffect, useRef } from 'react'
 import type { ImportOutcome } from '../worker/protocol'
+import { PAGE_RULES } from './pageRules'
 import type { Route } from './route'
 import { hrefFor } from './route'
 
-/** Pages that show no import result, so an import made there is shown on Balance. */
-const PAGES_WITHOUT_RESULTS: ReadonlySet<Route['page']> = new Set(['profile', 'method'])
-
 /**
- * After an import submitted on Profile or Method, replaces the page with Balance, where its result is,
- * once the import has its outcome. The page is taken at each submission, so an earlier import that is
- * still running does not decide where a later one started. A visitor who has gone to another page by
- * then stays where they are.
+ * After an import submitted on a page with content of its own (Profile or Method), which shows no import
+ * result, replaces the page with Balance, where its result is, once the import has its outcome. The page
+ * is taken at each submission, so an earlier import that is still running does not decide where a later
+ * one started. A visitor who has gone to another page by then stays where they are.
  */
 export function useBalanceAfterImport(
   outcome: ImportOutcome | null,
@@ -38,7 +36,7 @@ export function useBalanceAfterImport(
     if (outcome === null) return
     const from = origin.current
     origin.current = null
-    if (from !== null && from === pageRef.current && PAGES_WITHOUT_RESULTS.has(from)) {
+    if (from !== null && from === pageRef.current && PAGE_RULES[from].ownPage !== null) {
       window.location.replace(hrefFor({ page: 'balance' }))
     }
   }, [outcome])
