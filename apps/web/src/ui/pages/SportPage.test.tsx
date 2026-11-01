@@ -589,7 +589,8 @@ describe('SportPage', () => {
     expect(heroFigure(section).number).toMatch(/^\d+:\d{2}$/)
     expect(within(section).getByText('At least', { selector: '.stat-tile__basis' })).toBeVisible()
     expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
-    expect(screen.queryByText(/Needs/)).not.toBeInTheDocument()
+    // The answer asks for nothing; the sections below say their own needs, each in its own place.
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
     expect(screen.queryByText(/About the pace/)).not.toBeInTheDocument()
   })
 
@@ -610,7 +611,7 @@ describe('SportPage', () => {
       within(section).getByText('Best 12 min', { selector: '.stat-tile__basis' }),
     ).toBeVisible()
     expect(within(section).queryByText(/At least|From your best/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Needs/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
   })
 
   it('asks for an effort of 20 min or longer, with no number, when the longest best is under 5 min', () => {
