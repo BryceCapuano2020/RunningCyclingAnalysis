@@ -5,10 +5,16 @@ import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from 
 import { PER } from './format/units'
 
 /**
- * The sports in the order they sit everywhere: the card row, the balance meter and the share card.
- * The first is on the left, so running is on the left and cycling on the right.
+ * The sports in the order they sit in lists and charts, running first. A list that totals or draws
+ * every sport reads this one; the balance reads BALANCE_PAIR.
  */
 export const SPORT_ORDER = ['run', 'ride'] as const
+
+/**
+ * The two sports the balance compares, in the order a positive lead favours them: the first is on the
+ * left of the meter and the share card, so running is on the left and cycling on the right.
+ */
+export const BALANCE_PAIR = ['run', 'ride'] as const
 
 /**
  * What differs between the sports, in one place. A sport's own number is its flat pace for running,

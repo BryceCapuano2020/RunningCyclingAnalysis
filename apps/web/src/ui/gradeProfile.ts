@@ -8,7 +8,7 @@ import { balanceGap } from './balanceGap'
 import { sportGrade } from './grades'
 import type { AgeProfile, SportGrade } from './grades'
 import { effortLabel } from './records'
-import { SPORT_NOUN, SPORT_ORDER, SPORT_TITLE } from './sports'
+import { BALANCE_PAIR, SPORT_NOUN, SPORT_ORDER, SPORT_TITLE } from './sports'
 
 /** A sport's age grade at one duration: a run is a point, and a ride carries its range. */
 export interface ProfilePoint {
@@ -90,7 +90,7 @@ export interface Lean {
  * lean here is by the range alone (`leanOfRange`): a sport leads where its grade is outside the other's range.
  */
 export function profileLeans(profile: GradeProfile): Lean[] {
-  const [first, second] = SPORT_ORDER
+  const [first, second] = BALANCE_PAIR
   return profile[first].flatMap((point) => {
     const other = profile[second].find((candidate) => candidate.durationS === point.durationS)
     if (other === undefined) return []
@@ -194,7 +194,7 @@ export function profileFinding(profile: GradeProfile): string | null {
   const [first, ...rest] = named
   if (first === undefined) {
     const anyLead = pairings.some((pairing) => pairing.lean !== 'even')
-    const [one, other] = SPORT_ORDER
+    const [one, other] = BALANCE_PAIR
     return `${SPORT_TITLE[one]} and ${SPORT_NOUN[other]} grade alike${anyLead ? ' at most lengths' : ''}`
   }
   const later = rest.map(

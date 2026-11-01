@@ -1,14 +1,15 @@
-import type { Interval } from '@rca/core/types'
+import type { Interval, PairReading } from '@rca/core/types'
 import { leanOfLead, type Lead, type Lean } from '../../domain/lean'
 import type { BalanceGap } from '../balanceGap'
-import { SPORT_ORDER } from '../sports'
+import { BALANCE_PAIR } from '../sports'
 import type { HeadlinePick } from './pickHeadline'
 
 /**
  * The balance the headline, the meter and the share card all show. Its lead is in points of age
  * grade when both sports are graded, and in percent of energy when they are not.
  */
-export interface BalanceReading {
+export interface BalanceReading extends PairReading {
+  pair: typeof BALANCE_PAIR
   unit: 'points' | 'percent'
   lean: Lean
   lead: Lead
@@ -23,20 +24,20 @@ export const SCALE_SPAN = 30
  * never leave the track. The formula below spans half the track less this inset on each side.
  */
 const INSET = 0.025
-/** Running leads point left while running is the first sport in SPORT_ORDER, so the sign follows it. */
-const RUN_SIGN = SPORT_ORDER[0] === 'run' ? -1 : 1
+/** A positive lead favours the first sport of BALANCE_PAIR, which is on the left, so it points left. */
+const LEFT_SIGN = -1
 
-/** A lead as a fraction of the half track: -1 at the cycling end, 1 at the running end, clamped. */
+/** A lead as a fraction of the half track: -1 at the second sport's end, 1 at the first's, clamped. */
 function clampedOffset(lead: number): number {
   return Math.max(-1, Math.min(1, lead / SCALE_SPAN))
 }
 
 /**
  * Where a lead sits along the track, as a fraction of its width: 0 at the left end, 0.5 at even and
- * 1 at the right end. Running is on the side SPORT_ORDER gives it.
+ * 1 at the right end. The first sport of BALANCE_PAIR is on the left.
  */
 export function meterFraction(lead: number): number {
-  return 0.5 + RUN_SIGN * clampedOffset(lead) * (0.5 - INSET)
+  return 0.5 + LEFT_SIGN * clampedOffset(lead) * (0.5 - INSET)
 }
 
 /** An energy ratio of running over cycling as a lead in percent. Cycling over running is its inverse. */
@@ -51,12 +52,13 @@ export function energyReading(ratio: Interval): BalanceReading {
     low: percentLead(ratio.p05),
     high: percentLead(ratio.p95),
   }
-  return { unit: 'percent', lean: leanOfLead(lead), lead }
+  return { pair: BALANCE_PAIR, unit: 'percent', lean: leanOfLead(lead), lead }
 }
 
 /** The balance from the age-grade gap, in points. */
 export function gapReading(gap: BalanceGap): BalanceReading {
   return {
+    pair: BALANCE_PAIR,
     unit: 'points',
     lean: gap.lean,
     lead: { centre: gap.centre, low: gap.low, high: gap.high },
@@ -86,9 +88,9 @@ export function balanceOfPick(
   return pick === null ? null : balanceReading(gap, pick.point.ratio)
 }
 
-/** Which ends of the scale a lead runs past, so that end is marked as capped. */
-export function cappedEnds(lead: Lead): { running: boolean; cycling: boolean } {
-  return { running: lead.high > SCALE_SPAN, cycling: lead.low < -SCALE_SPAN }
+/** Which ends of the scale a lead runs past, so that end is marked as capped. The left end is the pair's first sport. */
+export function cappedEnds(lead: Lead): { left: boolean; right: boolean } {
+  return { left: lead.high > SCALE_SPAN, right: lead.low < -SCALE_SPAN }
 }
 
 /** The mark at a capped end: "30+" for points, "30%+" for percent of energy. */

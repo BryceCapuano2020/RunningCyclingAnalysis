@@ -5,7 +5,7 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { HEADLINE_LABEL } from '../grades'
 import { basisOf, uncheckedWords } from '../effortWords'
-import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL } from '../sports'
+import { BALANCE_PAIR, SPORT_ACTIVITY, SPORT_NOUN, SPORT_PLURAL } from '../sports'
 import { hasEvidence, headlineShortfall } from './pickHeadline'
 
 /** The word that says an activity of this sport counts for the headline: the ones that hold a best are outdoor. */
@@ -31,7 +31,7 @@ function shortfallOf(
   period: Period | undefined,
   activities: ActivitySummary[],
 ): { parts: string[]; inPeriod: string } {
-  const parts = SPORT_ORDER.filter((sport) => short[sport] > 0).map(
+  const parts = BALANCE_PAIR.filter((sport) => short[sport] > 0).map(
     (sport) => `${short[sport]} more ${nounOf(activities, sport, short[sport])}`,
   )
   // All time names no period; a dated one is the period on screen.
@@ -51,7 +51,7 @@ export function needLine(
 /** The sports with the activities for it that have no effort as long as the headline's, in the order the sports sit. */
 function lackingSports(result: AnalysisResult): Sport[] {
   const short = headlineShortfall(result.activities)
-  return SPORT_ORDER.filter((sport) => short[sport] === 0 && !hasEvidence(result, sport))
+  return BALANCE_PAIR.filter((sport) => short[sport] === 0 && !hasEvidence(result, sport))
 }
 
 /**
@@ -60,7 +60,7 @@ function lackingSports(result: AnalysisResult): Sport[] {
  * would otherwise never have one. Null when every sport it rests on was checked.
  */
 export function uncheckedNote(result: AnalysisResult): string | null {
-  const notes = SPORT_ORDER.flatMap((sport) => {
+  const notes = BALANCE_PAIR.flatMap((sport) => {
     const gate = result.effortGate[sport]
     const words = gate.verdict === 'unknown' ? uncheckedWords(sport, gate) : null
     return words === null || !hasEvidence(result, sport) ? [] : [`${words.why} ${words.action}`]
@@ -73,7 +73,7 @@ export function uncheckedNote(result: AnalysisResult): string | null {
  * checked (no heart rate on it, too few days with heart rate). A level read from such a best is a floor, not the sport's level.
  */
 export function unconfirmedSports(result: AnalysisResult): Sport[] {
-  return SPORT_ORDER.filter((sport) => basisOf(result.effortGate[sport]) !== null)
+  return BALANCE_PAIR.filter((sport) => basisOf(result.effortGate[sport]) !== null)
 }
 
 /** What each unconfirmed sport's level rests on, for the line under the meter. */

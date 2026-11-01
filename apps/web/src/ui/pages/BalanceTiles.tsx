@@ -7,7 +7,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { countSport } from '../records'
 import type { GradeOutcome } from '../grades'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
-import { SPORT_ORDER } from '../sports'
+import { BALANCE_PAIR } from '../sports'
 import { CrossSportCard } from './CrossSportCard'
 import { EmptySportCard } from './EmptySportCard'
 import { ThresholdTile } from './ThresholdTile'
@@ -51,11 +51,11 @@ export function BalanceTiles({
   leftOut,
   levelShown = false,
 }: BalanceTilesProps) {
-  const both = SPORT_ORDER.every((sport) => countSport(result.activities, sport) > 0)
+  const both = BALANCE_PAIR.every((sport) => countSport(result.activities, sport) > 0)
   // The heart-rate check of the headline effort, which each threshold tile says for its own sport.
   const effortCheck = result.effort.find((check) => check.durationS === HEADLINE_DURATION_S) ?? null
   // A word defined in place is defined once on the screen: the first threshold tile carries it.
-  const firstThreshold = SPORT_ORDER.find((sport) => countSport(result.activities, sport) > 0)
+  const firstThreshold = BALANCE_PAIR.find((sport) => countSport(result.activities, sport) > 0)
   const thresholdProps = (sport: Sport) => ({
     sport,
     result,
@@ -69,7 +69,7 @@ export function BalanceTiles({
     defineTerm: sport === firstThreshold,
   })
   const tiles = [
-    ...SPORT_ORDER.map((sport) =>
+    ...BALANCE_PAIR.map((sport) =>
       countSport(result.activities, sport) > 0 ? (
         thresholdTileIsBare(thresholdProps(sport)) ? null : (
           <ThresholdTile key={sport} {...thresholdProps(sport)} />
