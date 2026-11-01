@@ -165,6 +165,62 @@ another tab replaced is not lost. A conflict (same second, another file), a fail
 and are counted. Routes are not copied. Remove from this browser empties the kept library without touching the
 account. Not now is remembered per account and count in local storage.
 
+**Updating a library**
+
+When the model changes, saved digests go stale. Update now rebuilds them in the browser from the original files
+the account keeps; nothing starts it but the athlete's press (`rebuildStale` in `worker/rebuild.ts`). The
+engine, `runUpdate` in `worker/updater.ts`, takes the candidates newest first (stale digests, and current ones
+that lack fields the model now records, with a stored original and no earlier "unmatched" finding) and works them
+two at a time. Each step downloads the original, builds the digest with the current model, accepts it only if it
+is the same workout (same sport and start second) at the current revision, and replaces that exact saved
+activity on the server, so a copy deleted in another tab is not written back. The step then calls
+`AnalysisSession.replaceDigest`, which moves the digest to its place in the library without building state:
+the page hears of it with the next state, so a rebuild of thousands does not analyse thousands of times. A
+workout the library already holds at the same or a higher rank is left alone. The athlete's own label is kept.
+
+The run stops, keeping what it did, at the first of a daily or rate limit, five failures in a row, an answer
+that this app is too old or the server's copy newer, a refusal of the digest as from a newer model, a request
+waiting to change the library (`paused`), or a library that was replaced or cleared meanwhile (`discarded`: nothing
+is put back over the new one). Every await re-checks that stamp. Each attempt has a 20 s limit. Only the tab
+holding the account's writer lock (`rca-flush-<userId>`, `asWriter` in `worker/updaterLock.ts`) updates, the lock the
+outbox flush takes too, so two tabs never rebuild or send at once. The settings are in `worker/updaterConfig.ts`.
+Nothing runs the update in the background yet (see [ROADMAP.md](ROADMAP.md)): a rebuild keeps no copy of the old digest,
+so it is not undone.
+
+**The check-in store**
+
+`rca-checkin` is a browser IndexedDB database with three stores, all created at version 1 so no later change needs
+a version bump (`worker/checkinStore.ts`). `held` is an index of files already read, keyed `<scope>|<sha-256>`, so a
+re-import can leave a known file unparsed; `marks` holds the baseline snapshot of the last import for a scope, and
+`seen` what the athlete has seen of the look-back and check-in rows. A scope is `device` or `account:<userId>`. Every
+write carries the scope's epoch, and clearing a scope raises it in the same transaction, so a tab that was mid-import
+during Remove all cannot bring a baseline back. It holds no route, name, heart rate or file, and nothing in it leaves
+the browser. Storage that cannot be opened behaves as a first visit. The sample keeps nothing.
+
+**The look-back and the check-in**
+
+Both are computed in `packages/core/src/lookback` from the digests already in the session. The look-back, "Your years",
+tells a sport's fitness at the same effort in hindsight, through a horizon 12 weeks before the newest activity (the
+weeks after belong to the fitness card). It needs 52 weeks and 40 steady runs before the horizon, cuts the steady-run
+series into plateaus, lists the steps between them as episodes, and adds the card's own declared changes where the runs
+do not contradict them, so it never says a different thing from the card. Its best efforts over the years are in
+`milestonesOf`. Every number is in `lookback/params.ts` and was set on the synthetic harness. The check-in, "Since your
+last import", compares the library with the snapshot the last import left in `marks` (`lookback/snapshot.ts`, small
+whatever the library's size) and lists only facts: workouts added, new best efforts, and episodes the card's rules
+changed. It makes no level contrast of its own. A baseline from another model revision, or from before the library was last rebuilt, is dropped, so the check-in never sets one model beside another. The
+worker's `CheckInKeeper` holds the baselines and the seen flags and tells the page only the check-in and whether it
+has been seen; `ui/checkInRow.ts` shows one of the two rows, never both, and neither during a partial import.
+
+**The effort gate**
+
+A best effort is a capability (a threshold, a zone, a race time, a level) only when heart rate shows it was hard.
+`packages/core/src/effort` judges the best 20 minutes per sport and period against a reference heart rate
+(`reference.ts` reads and checks the reference, `gate.ts` gives the verdict `hard`, `notHard` or `unknown`, with why),
+and `combine` puts the answer on the result (`effortGate` per sport). A failed gate withholds the estimate and shows the demonstrated best in its
+place; an unknown one withholds nothing and the screens say the effort was not checked. The UI reads it in one place
+for the Balance hold (`ui/resultHold.ts`) and in the chips and notes of `ui/effortCaveat.ts`. The calibration and every
+place it applies are in [design/effort-gate.md](design/effort-gate.md).
+
 **Activity workbench**
 
 The import callback extracts a versioned `ActivityTrace` before releasing the raw activity. The
@@ -576,8 +632,8 @@ shows no loading line. Focus and scroll move to a page's heading once the page i
 
 The analysis runs in the Web Worker. A browser that kept results starts it with the page, so the
 restoring page ends as soon as the library replies. Any other visit starts it when the browser is idle,
-or sooner when files, the sample or a sign-in need it, so the worker's 350 KB stays off the critical
-path and a library whose hint is missing still restores. A page that fails to load (offline, or a
+or sooner when files, the sample or a sign-in need it, so the worker (465 KB raw, 152 KB gzip against a
+160 KB budget) stays off the critical path and a library whose hint is missing still restores. A page that fails to load (offline, or a
 build that replaced its file) shows "Couldn’t load this page." with a Retry button, and the header and
 tabs stay. The worker is its own bundle, so the app entry and the worker each carry their own copy of zod; the entry
 holds it for the API client.

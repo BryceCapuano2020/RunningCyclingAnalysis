@@ -2,7 +2,7 @@ import type { ActivityRecord } from '@rca/contract'
 import { revisionStatus } from '@rca/core/digest/revisions'
 import { stopsSaving } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
-import { createActivity } from '../api/client'
+import { ApiRequestError, createActivity } from '../api/client'
 import { workoutKeyOf } from './device'
 import { digestOf } from './outbox'
 import type { Outbox, OutboxRow } from './outbox'
@@ -71,8 +71,8 @@ export interface Resume {
  * while it does, and it tells the page how it is going and how it ended.
  *
  * Only a refusal counts against a row: after a few the athlete is told it could not be saved, to add its file
- * again. A stop (a limit, a signed-out account), a lost connection, a row an import is sending or one a newer
- * version wrote leaves the row as it is for another day. A row from an older analysis is not sent, since the
+ * again. A stop (a limit, a signed-out account), a lost connection, a server error (5xx), a row an import is sending or
+ * one a newer version wrote leaves the row as it is for another day. A row from an older analysis is not sent, since the
  * server would refuse it, and not dropped: it stays, and counts among those that need their file added again.
  */
 export function resumeOutbox(ctx: ResumeContext): Resume {
@@ -152,6 +152,8 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
         }
         // Not the server's refusal of this activity: a limit, an ended session or no connection says nothing about it.
         if (stopsSaving(failure.code) || failure.code === 'network') return 'kept'
+        // A 5xx is the server being down or broken, not a verdict on this activity: an outage must not use up the tries.
+        if (error instanceof ApiRequestError && error.status >= 500) return 'kept'
         return (await ctx.outbox.failed(row.key, row.digestId)) ? 'let-go' : 'kept'
       }
     }
