@@ -67,6 +67,35 @@ describe('weightedQuantile', () => {
     expect(weightedIntervalAlong(values, other, order)).toEqual(weightedInterval(values, other))
   })
 
+  it('gives what one pass for each q gives, for any weights and any order of the qs', () => {
+    // The first value in the order at which the cumulative weight reaches q times the total.
+    const reference = (values: number[], weights: number[], order: number[], q: number) => {
+      const total = order.reduce((sum, i) => sum + weights[i]!, 0)
+      let cumulative = 0
+      for (const i of order) {
+        cumulative += weights[i]!
+        if (cumulative >= q * total) return values[i]!
+      }
+      return values[order.at(-1)!]!
+    }
+    const random = mulberry32(5)
+    const qSets = [[0.05, 0.5, 0.95], [0.95, 0.5, 0.05], [0.5, 0.5, 0.9], [0, 0.4, 1], [0.3]]
+    for (let round = 0; round < 60; round++) {
+      const n = 1 + Math.floor(random() * 40)
+      const values = Array.from({ length: n }, () => Math.floor(random() * 12))
+      // Whole weights (so sums are exact), some of them zero; every fifth round has a negative one.
+      const weights = Array.from({ length: n }, () => Math.floor(random() * 4))
+      if (round % 5 === 0) weights[Math.floor(random() * n)] = -1
+      if (weights.reduce((a, b) => a + b, 0) === 0) continue
+      const order = sortedOrder(values)
+      for (const qs of qSets) {
+        expect(weightedQuantilesAlong(values, weights, order, qs), `round ${round}`).toEqual(
+          qs.map((q) => reference(values, weights, order, q)),
+        )
+      }
+    }
+  })
+
   it('returns NaN along an empty order or with no weight', () => {
     expect(weightedQuantilesAlong([], [], [], [0.5])).toEqual([Number.NaN])
     expect(weightedQuantilesAlong([1, 2], [0, 0], [0, 1], [0.5])).toEqual([Number.NaN])

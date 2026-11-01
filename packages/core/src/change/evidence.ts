@@ -71,9 +71,10 @@ function callFor(
   const observed = Math.log(best(from.now) / best(from.before))
   const based = { ...call, basis: from.basis, observed }
   if (!enough(from.now.length, from.before.length)) return based
-  const pooled = Float64Array.from([...from.now, ...from.before])
-    .sort()
-    .reverse()
+  const pooled = new Float64Array(from.now.length + from.before.length)
+  pooled.set(from.now)
+  pooled.set(from.before, from.now.length)
+  pooled.sort().reverse()
   const band = nullBand(pooled, from.now.length, seed)
   if (band === null) return based
   return {

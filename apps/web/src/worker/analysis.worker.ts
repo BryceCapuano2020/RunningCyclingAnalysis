@@ -24,7 +24,7 @@ import { reportLibraryActivities } from './libraryReport'
 import { openDeviceLibrary } from './deviceLibrary'
 import { outdatedWithOriginal } from './outdatedOriginals'
 import { noteUploadTitles } from '../api/uploadPolicy'
-import { undoLabelsHandler } from './undoLabelsRequest'
+import { labelWorker } from './labelWorker'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
@@ -103,17 +103,13 @@ const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
 const sending = new SendingKeys()
-const undo = undoLabelsHandler({
-  session,
-  savedRecords,
-  epoch: () => view.libraryEpoch,
-  reportLibrary,
-})
+const labels = labelWorker({ session, deviceLibrary, device, savedRecords, view, reportLibrary })
 const importContext: ImportRunContext = {
   checkIns: checkIns.keeper,
   lastImport: null,
   sending,
-  labelUndo: undo.labelUndo,
+  labelUndo: labels.labelUndo,
+  deviceLabels: labels.deviceLabels,
   session,
   post,
   missingOriginals,
@@ -202,7 +198,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return session.loadSample(request.settings, view.sampleClock)
     case 'loadServer':
       view.libraryEpoch++
-      undo.labelUndo.clear()
+      labels.labelUndo.clear()
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
@@ -257,7 +253,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return device.load(request.settings)
     case 'clear':
       view.libraryEpoch++
-      undo.labelUndo.clear()
+      labels.labelUndo.clear()
       resume.cancel()
       provisionalItems.clear()
       view.showingSample = false
@@ -332,7 +328,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           ),
         )
       } else if (event.data.type === 'undoLabels') {
-        post(await undo.reply(event.data, rebuildable()))
+        post(await labels.reply(event.data, rebuildable()))
       } else if (checkIns.answers(event.data)) {
         post(await checkIns.answer(event.data, importContext.lastImport))
       } else if (event.data.type === 'exportData') {

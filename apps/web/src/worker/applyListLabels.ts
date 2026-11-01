@@ -70,6 +70,16 @@ async function write(
   }
 }
 
+/**
+ * A workout imported from revision 7 holds a hash of its file's name (import/minimise.ts), so the list's names are
+ * offered in both forms: as they are, for the workouts saved before, and hashed, for those saved since.
+ */
+export function namesInBothForms(listedTypes: ReadonlyMap<string, string>): Map<string, string> {
+  const names = new Map(listedTypes)
+  for (const [file, type] of listedTypes) names.set(hashedFileName(file), type)
+  return names
+}
+
 /** Labels the workouts the account holds from the types the import's list gave their files. */
 export async function applyListLabels(
   records: ReadonlyMap<string, ActivityRecord>,
@@ -77,13 +87,9 @@ export async function applyListLabels(
   userId: string,
   reload: (records: ActivityRecord[]) => void,
 ): Promise<LabelProposal[]> {
-  // A workout imported from revision 7 holds a hash of its file's name (import/minimise.ts), so the list's names are
-  // offered in both forms: as they are, for the workouts saved before, and hashed, for those saved since.
-  const names = new Map(listedTypes)
-  for (const [file, type] of listedTypes) names.set(hashedFileName(file), type)
   const proposals = applyLabels(
     [...records.values()].map(({ id, digest }) => ({ id, digest })),
-    names,
+    namesInBothForms(listedTypes),
   )
   return proposals.length === 0 ? [] : write(proposals, userId, reload)
 }

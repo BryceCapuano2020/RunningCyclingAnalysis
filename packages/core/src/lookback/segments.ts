@@ -91,8 +91,56 @@ export const stepZ = (
 ): number => (b.m - a.m) / Math.sqrt(a.se ** 2 + b.se ** 2 + floor ** 2)
 
 /**
+ * How firmly the step from level `i` to the next stands: under 1 it is merged. A change the card declared stands when the
+ * runs agree with its direction by the card's lower bar, and goes when they do not; any other step stands on `bar`.
+ */
+function strengthOf(
+  levels: readonly Level[],
+  i: number,
+  floor: number,
+  bar: { delta: number; z: number },
+): number {
+  const [before, after] = [coreOf(levels[i]!), coreOf(levels[i + 1]!)]
+  const step = after.m - before.m
+  const forced = levels[i + 1]!.forced
+  if (forced === undefined) {
+    return Math.min(
+      Math.abs(step) / bar.delta,
+      Math.abs(stepZ(levels[i]!, levels[i + 1]!, floor)) / bar.z,
+    )
+  }
+  return (forced === 'fall') !== step > 0
+    ? Math.min(
+        Math.abs(step) / LOOKBACK.card.delta,
+        Math.abs(stepZ(before, after, floor)) / LOOKBACK.card.z,
+      )
+    : 0
+}
+
+/**
+ * Whether merging level `i` into the one after it (`next` is the levels once merged) undoes a change the card declared at
+ * the start of level `i`: it stood before, and averaged with its neighbour it no longer does. A weak step back out of a slip
+ * must not wash the slip out.
+ */
+function undoesCard(
+  before: readonly Level[],
+  next: readonly Level[],
+  i: number,
+  floor: number,
+  bar: { delta: number; z: number },
+): boolean {
+  return (
+    i > 0 &&
+    next[i]!.forced !== undefined &&
+    strengthOf(before, i - 1, floor, bar) >= 1 &&
+    strengthOf(next, i - 1, floor, bar) < 1
+  )
+}
+
+/**
  * Merges neighbours, weakest first, while a step is under `delta` or under `z` standard errors, or (with `maxLevels`) while
- * there are more levels than that. A level is re-read from the runs of both.
+ * there are more levels than that. A level is re-read from the runs of both. A merge that would undo a change the card
+ * declared and the runs back is passed over for the next weakest: only the card's own cut, being weak itself, is given up.
  */
 export function mergeLevels(
   levels: Level[],
@@ -103,45 +151,39 @@ export function mergeLevels(
   maxLevels = Number.POSITIVE_INFINITY,
 ): Level[] {
   let out = [...levels]
-  for (;;) {
-    let weakest = -1
-    let weakness = Number.POSITIVE_INFINITY
-    for (let i = 0; i + 1 < out.length; i++) {
-      const [before, after] = [coreOf(out[i]!), coreOf(out[i + 1]!)]
-      const step = after.m - before.m
-      const forced = out[i + 1]!.forced
-      // A change the card declared stands when the runs agree with its direction by the card's lower bar.
-      const strength =
-        forced !== undefined && (forced === 'fall') !== step > 0
-          ? Math.min(
-              Math.abs(step) / LOOKBACK.card.delta,
-              Math.abs(stepZ(before, after, floor)) / LOOKBACK.card.z,
-            )
-          : forced !== undefined
-            ? 0
-            : Math.min(
-                Math.abs(step) / bar.delta,
-                Math.abs(stepZ(out[i]!, out[i + 1]!, floor)) / bar.z,
-              )
-      if ((strength < 1 || out.length > maxLevels) && strength < weakness) {
-        weakness = strength
-        weakest = i
-      }
-    }
-    if (weakest < 0) return out
-    const a = out[weakest]!
-    const b = out[weakest + 1]!
+  /** The levels with the pair at `i` merged, the cores read again (the merge moved the cuts the later steps are judged beside). */
+  const mergedAt = (i: number): Level[] | null => {
+    const [a, b] = [out[i]!, out[i + 1]!]
     const merged = levelBetween(runs, a.fromWeek, b.toWeek, sigma)
-    if (merged === null) return out
-    out.splice(weakest, 2, a.forced === undefined ? merged : { ...merged, forced: a.forced })
-    // The merge moved the cuts the later steps are judged beside: read the cores again from the levels as they stand.
-    out = withCores(
+    if (merged === null) return null
+    const next = [...out]
+    next.splice(i, 2, a.forced === undefined ? merged : { ...merged, forced: a.forced })
+    return withCores(
       runs,
       sigma,
-      out.map((level) =>
+      next.map((level) =>
         level.core === undefined ? level : Object.assign({}, level, { core: undefined }),
       ),
     )
+  }
+  for (;;) {
+    const weak = out
+      .slice(1)
+      .map((_, i) => ({ i, strength: strengthOf(out, i, floor, bar) }))
+      .filter((c) => c.strength < 1 || out.length > maxLevels)
+      .sort((x, y) => x.strength - y.strength || x.i - y.i)
+    let next: Level[] | null = null
+    for (const { i } of weak) {
+      const merged = mergedAt(i)
+      if (merged === null) return out
+      if (out[i + 1]!.forced === undefined && undoesCard(out, merged, i, floor, bar)) continue
+      next = merged
+      break
+    }
+    // Every weak step guards a card change: over the cap the weakest goes anyway.
+    if (next === null && weak.length > 0 && out.length > maxLevels) next = mergedAt(weak[0]!.i)
+    if (next === null) return out
+    out = next
   }
 }
 
@@ -254,13 +296,14 @@ export function segmentLevels(
     squares[i]! += squares[i - 1]!
     present[i]! += present[i - 1]!
   }
-  const cost = (a: number, b: number): number => {
-    const k = count[b]! - count[a]!
-    if (k === 0) return 0
-    const total = sum[b]! - sum[a]!
-    return (squares[b]! - squares[a]! - (total * total) / k) / (sigma * sigma)
-  }
-  const { best, from } = partition(weeks, count, present, cost, squares[weeks]! / (sigma * sigma))
+  const sigma2 = sigma * sigma
+  const { best, from } = partition(
+    weeks,
+    count,
+    present,
+    { sum, squares, sigma2 },
+    squares[weeks]! / sigma2,
+  )
   if (best[weeks] === Number.POSITIVE_INFINITY) return null
   const edges = [weeks]
   for (let b = weeks; from[b]! > 0; b = from[b]!) edges.unshift(from[b]!)

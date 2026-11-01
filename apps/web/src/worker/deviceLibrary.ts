@@ -1,6 +1,6 @@
 import { serializeDigest } from '@rca/core/digest'
 import type { RouteShape } from '@rca/core/route/routeShape'
-import type { ActivityDigest } from '@rca/core/types'
+import type { ActivityDigest, AthleteType } from '@rca/core/types'
 import { LibraryReplaced } from './deviceFile'
 import type { DeviceFile } from './deviceFile'
 import { fromNewerVersion, readRow } from './deviceRows'
@@ -65,6 +65,19 @@ export interface DeviceLibrary {
    * already has a hash, and a workout kept nowhere, are left alone.
    */
   backfillFile(workoutKey: string, digestId: string, file: DeviceFile): Promise<void>
+  /**
+   * Sets or takes off the athlete's label on the digest kept under a workout (D12 section 2.4), keeping the route and
+   * the file as they are. Only the row whose digest is `digestId` and that holds the label `from` now is changed,
+   * checked in the same transaction that writes it, so a row replaced since (rebuilt, or by another copy), or
+   * labelled otherwise by the athlete, is left alone, as the account's labels are. With an `epoch` the write is refused (`LibraryReplaced`) unless the library is still in it. True
+   * when it wrote.
+   */
+  setLabel(
+    workoutKey: string,
+    digestId: string,
+    change: { from: AthleteType | null; athleteType: AthleteType | null },
+    epoch?: number,
+  ): Promise<boolean>
   remove(workoutKey: string): Promise<void>
   /**
    * Removes the row only if it still holds the digest `digestId`, checked in the same transaction that deletes it,
@@ -325,6 +338,30 @@ export function openDeviceLibrary(): DeviceLibrary {
           )
         },
         undefined,
+      ),
+    setLabel: (workoutKey, digestId, { from, athleteType }, epoch) =>
+      withStore(
+        'readwrite',
+        async (store) => {
+          if (epoch !== undefined && epochOf(await done(store.get(SCOPE_KEY))) !== epoch) {
+            throw new LibraryReplaced()
+          }
+          const stored: unknown = await done(store.get(workoutKey))
+          const row = readRow(stored)
+          if (row === null || row.digest.id !== digestId) return false
+          if ((row.digest.athleteType ?? null) !== from) return false
+          const { athleteType: _was, ...rest } = row.digest
+          const next = athleteType === null ? rest : { ...rest, athleteType }
+          const json = serializeDigest(next)
+          store.put(
+            typeof stored === 'string'
+              ? { digest: json, route: null }
+              : { ...(stored as object), digest: json },
+            workoutKey,
+          )
+          return true
+        },
+        false,
       ),
     remove: (workoutKey) => write((store) => store.delete(workoutKey)),
     removeIfDigest: (workoutKey, digestId) =>

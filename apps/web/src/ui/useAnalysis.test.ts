@@ -2435,11 +2435,18 @@ describe('useAnalysis state', () => {
     expect(result.current.libraryNotice).toBeNull()
   })
 
-  it('sends no Undo when nobody is signed in', () => {
-    const { result } = setup()
-    const before = worker().posted.length
+  it('takes the labels off the library kept in this browser when nobody is signed in', () => {
+    const outcome = { activities: 1, rejected: 0, duplicates: [], labelled: 1 }
+    const { result } = setup(SIGNED_OUT)
+    // The library kept in this browser is read first.
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
     act(() => result.current.undoLabels())
-    expect(worker().posted).toHaveLength(before)
+    expect(worker().posted.at(-1)).toEqual({ type: 'undoLabels', settings: SETTINGS, userId: null })
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.importOutcome).toMatchObject({ activities: 1 })
+    expect(result.current.importOutcome).not.toHaveProperty('labelled')
   })
 
   it('requests a saved-activity rebuild and exposes its partial recovery notice', () => {

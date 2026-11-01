@@ -62,6 +62,7 @@ describe('session performance on a large library', () => {
       kept = session.setSettings({ massKg, bikeMassKg: SETTINGS.bikeMassKg }).library.length
     }, 5)
     expect(kept).toBe(ACTIVITIES)
+    console.info(`${ACTIVITIES} activities: body mass change ${ms.toFixed(0)} ms`)
     expect(ms).toBeLessThan(MASS_CHANGE_BUDGET_MS)
   })
 

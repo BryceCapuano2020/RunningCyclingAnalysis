@@ -119,8 +119,9 @@ function changedLibrary(pending: Pending): 'device' | 'account' | null {
       return pending.forgetDevice === true ? 'device' : null
     case 'deleteActivity':
     case 'rebuildStale':
-    case 'undoLabels':
       return 'account'
+    case 'undoLabels':
+      return pending.saveToDevice === true ? 'device' : 'account'
     case 'addFiles':
       return pending.saveToDevice === true ? 'device' : 'account'
     default:

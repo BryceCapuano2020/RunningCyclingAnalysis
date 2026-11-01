@@ -184,11 +184,13 @@ export function useWorkerTransport({
               provisional: request.provisional === true,
               saveToDevice: request.saveToDevice === true,
             }
-          : request.type === 'clear'
-            ? { forgetDevice: request.forgetDevice === true }
-            : request.type === 'routeShape' || request.type === 'activityTrace'
-              ? { fromOriginal: request.fromOriginal === true }
-              : {}
+          : request.type === 'undoLabels'
+            ? { saveToDevice: request.userId === null }
+            : request.type === 'clear'
+              ? { forgetDevice: request.forgetDevice === true }
+              : request.type === 'routeShape' || request.type === 'activityTrace'
+                ? { fromOriginal: request.fromOriginal === true }
+                : {}
       // The number is taken here, when the request goes to a worker, so one that waited for a restart
       // is numbered for the worker that runs it.
       const pending: Pending = {
