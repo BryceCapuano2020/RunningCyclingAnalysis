@@ -3,16 +3,16 @@ import type { YearToDate } from '@rca/core/history'
 import { yearToDateTable, yearToDateTitle, yearToDateTooltip } from './yearToDateText'
 import { SAMPLE_DAYS, TODAY, THIS_YEAR_ONLY, YEAR_TO_DATE } from '../yearToDateFixtures'
 
-/** The library with this year's run distance to today set to `total` metres, against the best past year's 90 km. */
-const withThisYear = (total: number): YearToDate => ({
+/** The library with this year's run distance to today set to `hectometres`, against the best past year's 90 km. */
+const withThisYear = (hectometres: number): YearToDate => ({
   today: TODAY,
   days: SAMPLE_DAYS,
   years: [
     YEAR_TO_DATE.years[1]!,
     {
       year: 2027,
-      metres: { run: [], ride: [] },
-      toDate: { run: total, ride: 0 },
+      hectometres: { run: [], ride: [] },
+      toDate: { run: hectometres, ride: 0 },
     },
   ],
 })
@@ -28,8 +28,8 @@ describe('the year-to-date title', () => {
   })
 
   it('says above when this year is ahead, and level when the gap rounds to nothing', () => {
-    expect(yearToDateTitle(withThisYear(120_000), 'run', 'metric')).toBe('2027 is 30 km above 2025')
-    expect(yearToDateTitle(withThisYear(90_000), 'run', 'metric')).toBe('2027 is level with 2025')
+    expect(yearToDateTitle(withThisYear(1200), 'run', 'metric')).toBe('2027 is 30 km above 2025')
+    expect(yearToDateTitle(withThisYear(900), 'run', 'metric')).toBe('2027 is level with 2025')
   })
 
   it('states the total so far when no past year has any distance by today', () => {
@@ -70,7 +70,7 @@ describe('the year-to-date tooltip', () => {
       ['2027', '72 km', 'run'],
       ['2026', '60 km', 'neutral'],
       ['2025', '90 km', 'neutral'],
-      ['2024', '60 km', 'neutral'],
+      ['2024', '61 km', 'neutral'],
     ])
   })
 

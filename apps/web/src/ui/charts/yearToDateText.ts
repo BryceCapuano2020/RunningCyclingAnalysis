@@ -4,19 +4,19 @@ import { distanceUnit, formatWholeDistance } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { SPORT_LABEL, SPORT_PLURAL } from '../sports'
 import type { ChartTableData, TooltipRow } from './chartTypes'
-import { bestPastYear, currentRow, dayLabel, lastOf } from './yearToDateModel'
+import { bestPastYear, currentRow, dayLabel, lastOf, metresOf } from './yearToDateModel'
 
 /** The chart's title: the finding about this year against the best past year by today's date, in whole units. */
 export function yearToDateTitle(data: YearToDate, sport: Sport, units: UnitSystem): string {
   const { year } = data.today
-  const now = currentRow(data)?.toDate[sport] ?? 0
+  const now = metresOf(currentRow(data)?.toDate[sport] ?? 0)
   const best = bestPastYear(data, sport)
   if (best === undefined) {
     return now === 0
       ? `No ${SPORT_PLURAL[sport]} in ${year} yet`
       : `${year} has ${formatWholeDistance(now, units)} so far`
   }
-  const gap = now - best.toDate[sport]
+  const gap = now - metresOf(best.toDate[sport])
   if (Math.round(Math.abs(gap) / distanceUnit(units).metres) === 0) {
     return `${year} is level with ${best.year}`
   }
@@ -31,8 +31,10 @@ export function yearToDateTable(data: YearToDate, sport: Sport, units: UnitSyste
     columns: ['Year', `To ${dayLabel(data, data.today.day)}`, 'Whole year'],
     rows: data.years.map((row) => [
       String(row.year),
-      formatWholeDistance(row.toDate[sport], units),
-      row.year === data.today.year ? 'In progress' : formatWholeDistance(lastOf(row, sport), units),
+      formatWholeDistance(metresOf(row.toDate[sport]), units),
+      row.year === data.today.year
+        ? 'In progress'
+        : formatWholeDistance(metresOf(lastOf(row, sport)), units),
     ]),
   }
 }
@@ -50,13 +52,13 @@ export function yearToDateTooltip(
   const day = data.days[index] ?? data.today.day
   const rows: TooltipRow[] = []
   for (const row of [...data.years].reverse()) {
-    const metres = row.metres[sport][index]
-    if (metres === undefined) continue
+    const hectometres = row.hectometres[sport][index]
+    if (hectometres === undefined) continue
     const current = row.year === data.today.year
     rows.push({
       kind: current ? sport : 'neutral',
       label: String(row.year),
-      value: formatWholeDistance(metres, units),
+      value: formatWholeDistance(metresOf(hectometres), units),
     })
   }
   return { title: `To ${dayLabel(data, day)}`, rows }

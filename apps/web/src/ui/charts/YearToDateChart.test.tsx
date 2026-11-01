@@ -93,7 +93,7 @@ describe('YearToDateChart', () => {
     fireEvent.keyDown(surface, { key: 'End' })
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent('To 1 Mar')
-    for (const text of ['72 km 2027', '60 km 2026', '90 km 2025', '60 km 2024']) {
+    for (const text of ['72 km 2027', '60 km 2026', '90 km 2025', '61 km 2024']) {
       expect(status).toHaveTextContent(text)
     }
   })
