@@ -1,6 +1,6 @@
 import { dayShiftFor } from '../calendar'
 import { orderedFor } from '../digest/consumers'
-import { memoByDigests } from '../digestMemo'
+import { memoByDigests, sameSet } from '../digestMemo'
 import type { ActivityDigest, Sport } from '../types'
 import { fitHeat, withoutHeat } from './heat'
 import { dayOfMs, localWeekOf, replay } from './machine'
@@ -143,9 +143,6 @@ function compute(digests: ActivityDigest[], input: Input): Computed {
     histories: { run: run.history, ride: ride.history },
   }
 }
-
-const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
-  a === b || (a.size === b.size && [...a].every((id) => b.has(id)))
 
 const remembered = memoByDigests<Input, Computed>(
   compute,

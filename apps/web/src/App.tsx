@@ -33,10 +33,12 @@ import { datedWeightActions } from './ui/datedWeight'
 import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
 import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
+import { forgetPreferences } from './ui/preferencesStorage'
 import { useExportWeight } from './ui/useExportWeight'
 import { useSetup } from './ui/useSetup'
-import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
-import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
+import { athleteValuesOf } from './ui/profilePatch'
+import type { AthleteValues } from './ui/profilePatch'
+import { saveAnswersFor } from './ui/saveAnswers'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
 import { clearKeptPower, useKeptPower } from './ui/keptPowerStore'
@@ -87,21 +89,13 @@ export function App() {
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false
 
-  // Keeps the saved preferences showing the athlete's values, so a later sign-out shows them.
-  const keepInPreferences = (values: AthleteValues, setupDone?: boolean) =>
-    setPreferences({ ...values, setupDone: setupDone ?? preferences.setupDone })
-
-  // Saves a change to the athlete. Signed in, the account stores it first, and the preferences then
-  // take the values it stored; signed out, the preferences are the only copy. A refused change
-  // rejects and is not kept anywhere on this device.
-  const saveAnswers = async (next: ProfilePatch) => {
-    const fields = profileFields(next)
-    if (profile === null || Object.keys(fields).length === 0) {
-      keepInPreferences(applyPatch(athleteValues, next), next.setupDone)
-      return
-    }
-    keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
-  }
+  const saveAnswers = saveAnswersFor(
+    signedIn,
+    athleteValues,
+    preferences,
+    setPreferences,
+    account.updateProfile,
+  )
 
   const { saveProfile, addSetting, removeSetting } = datedWeightActions({
     measurements,
@@ -205,6 +199,7 @@ export function App() {
   const deleteAccount = async () => {
     await account.deleteAccount()
     clearKeptPower()
+    forgetPreferences() // the profile values mirrored here (see saveAnswersFor) go with the account
     countedRuns.clear()
     setAccountDeleted(true)
     window.location.replace(hrefFor({ page: 'balance' }))

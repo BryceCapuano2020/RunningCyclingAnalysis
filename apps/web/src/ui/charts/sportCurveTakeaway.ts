@@ -4,6 +4,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { callAt, directionOf, verdictAt, verdictOfCall } from '@rca/core/change/types'
 import type { ChangeEvidence } from '@rca/core/change/types'
 import { perKilogramWords, resolutionClause, shownDirection } from '../changeWords'
+import { lowerFirst } from '../format/firstLetter'
 import { NO_CLEAR_CHANGE } from '../recordChange'
 import { effortLabel } from '../records'
 import { splitValue } from './annotationTypes'
@@ -56,8 +57,6 @@ export interface TakeawayInput {
    */
   held?: string | null
 }
-
-const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
 
 /** A row whose value, in either period, is its own effort's: a carried value is a longer effort's, not a finding at this length. */
 const measuredIn = (row: CurveRow, key: 'value' | 'previous') =>

@@ -1,3 +1,5 @@
+import { clamp } from '@rca/core/math'
+
 export interface BrushRange {
   startS: number
   endS: number
@@ -13,9 +15,6 @@ export interface Drag {
   x: number
   moved: boolean
 }
-
-export const clamp = (value: number, low: number, high: number) =>
-  Math.max(low, Math.min(high, value))
 
 /**
  * The range under a drag. An end never passes the other, a pan keeps its length, and a new brush runs from

@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  areaPath,
-  bandPath,
-  gappedBandPath,
-  linePath,
-  stepAreaPath,
-  stepBandPath,
-  stepPath,
-} from './paths'
+import { areaPath, bandPath, gappedBandPath, linePath, stepPath } from './paths'
 
 describe('linePath', () => {
   it('is empty for no points', () => {
@@ -122,40 +114,6 @@ describe('stepPath', () => {
     expect(stepPath([{ x: 1.234, y: 5.678 }, null, { x: 10, y: 3 }, { x: 15, y: 9 }])).toBe(
       'M1.2 5.7M10 3H15V9',
     )
-  })
-})
-
-describe('stepAreaPath', () => {
-  it('closes each unbroken run down to the baseline, and fills nothing under a lone point', () => {
-    expect(stepAreaPath([{ x: 0, y: 10 }, { x: 10, y: 20 }, null, { x: 30, y: 5 }], 50)).toBe(
-      'M0 10H10V20V50H0Z',
-    )
-  })
-})
-
-describe('stepBandPath', () => {
-  it('closes the band between two stepped edges, walking the lower edge back, with exact coordinates', () => {
-    expect(
-      stepBandPath(
-        [
-          { x: 0, y: 10 },
-          { x: 10, y: 20 },
-        ],
-        [
-          { x: 0, y: 30 },
-          { x: 10, y: 40 },
-        ],
-      ),
-    ).toBe('M0 10L10 10L10 20L10 40L10 30L0 30Z')
-  })
-
-  it('draws nothing where one edge has no value, so a gap breaks the band', () => {
-    expect(
-      stepBandPath(
-        [{ x: 0, y: 10 }, null, { x: 20, y: 10 }, { x: 30, y: 20 }],
-        [{ x: 0, y: 30 }, null, { x: 20, y: 30 }, { x: 30, y: 40 }],
-      ),
-    ).toBe('M20 10L30 10L30 20L30 40L30 30L20 30Z')
   })
 })
 

@@ -342,18 +342,10 @@ wander is. The sims call for (1) or (2); nothing here argues for (3).
 
 ### The owner's labels: the first real back-test
 
-The detector as shipped (before D2) declared four slips on the owner's library. The owner's verdicts, month and verdict only:
-
-| month    | verdict              |
-| -------- | -------------------- |
-| Jun 2020 | real (weight gain)   |
-| Aug 2022 | real                 |
-| Mar 2023 | real (a deeper slip) |
-| Jul 2025 | unknown (a setback)  |
-
-3 real, 1 unknown, 0 false. A change of watch in Feb 2024 had no declared change lining up with it, and no slip was declared
-there. This is four labels from one athlete: it says the detector was not crying wolf on him, not what its false-alarm rate is.
-Whether the Stage D changes alter his declarations is for a replay on his own machine to say; its figures stay out of the repo.
+The detector as shipped (before D2) declared four slips on the owner's library. He judged three real and one unknown, none
+false. A change of watch had no declared change lining up with it. This is four labels from one athlete: it says the detector
+was not crying wolf on him, not what its false-alarm rate is. Whether later changes alter his declarations is for a replay on
+his own machine to say; its figures, dates included, stay out of the repo.
 
 ## Rises: improving and improved (D9b)
 

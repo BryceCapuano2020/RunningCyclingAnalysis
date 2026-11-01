@@ -1,4 +1,4 @@
-import { NARROW_CHART_MAX_WIDTH_PX, PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
+import { PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { useNarrowScreen } from '../useNarrowScreen'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, geometryScale } from './plotBox'
 
@@ -6,14 +6,6 @@ import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, geometryScale } from './plotB
 const PHONE_PLOT_PX = 190
 /** The plot's height on a wide screen, px. */
 const WIDE_PLOT_PX = 280
-
-/**
- * Whether the window is narrow enough that a trend's end labels are values alone, led by their line's mark, so a
- * key is wanted to name the lines. Wider, the labels name their lines and the key is left out.
- */
-export function useNarrowChart(): boolean {
-  return useNarrowScreen(NARROW_CHART_MAX_WIDTH_PX)
-}
 
 /**
  * The height of a chart whose x axis has no title, so that its plot is PHONE_PLOT_PX tall on a phone and
