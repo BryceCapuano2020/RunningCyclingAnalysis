@@ -4,6 +4,7 @@ import type { EffortRuler } from '@rca/core/digest/lateEvidenceTypes'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Sport } from '@rca/core/types'
 import { plural } from './components/plural'
+import { monthYear } from '@rca/core/lookback'
 import {
   afterLabel,
   durabilityLede,
@@ -76,6 +77,8 @@ export interface DurabilityReading {
 
 export interface DriftReading {
   lede: string
+  /** The dates of the steady efforts when the whole library is read, such as "May 2021 to October 2026"; null for the period. */
+  window: string | null
   /** The middle steady effort's decoupling in percent: a fall is positive. */
   medianPct: number
   points: DriftPoint[]
@@ -164,9 +167,15 @@ function durabilityReading(sport: Sport, evidence: LateEvidence): DurabilityRead
   const activity = SPORT_ACTIVITY[sport]
   const support = `Your best ${effortLabel(group.durationS)} after ${afterLabel(cell.afterS)} rests on ${plural(cell.supporters, activity, SPORT_PLURAL[sport])}.`
   const limit = `A lower figure late on can also mean the ${activity} never asked for more.`
+  // With no session behind it that a heart rate shows was hard, the share is a floor.
+  const floor =
+    evidence.ruler === null || evidence.ruler === undefined || evidence.ruler.sessions < 1
   return {
     lede: durabilityLede(cell.afterS, group.durationS, cell.retention),
-    stat: durabilityStat(group.durationS, cell.afterS, cell.retention),
+    stat: durabilityStat(group.durationS, cell.afterS, cell.retention, {
+      floor,
+      allTime: evidence.durabilityPooled === true,
+    }),
     groups,
     note: [
       evidence.durabilityPooled ? pooledLine(sport, 'long') : '',
@@ -194,13 +203,22 @@ function driftRuler(points: readonly DriftPoint[]): string {
   return `Their average heart rate was ${shareRange(Math.min(...shares), Math.max(...shares))} of max heart rate.`
 }
 
+/** The dates the steady efforts span, "May 2021 to October 2026", or one month when they share it. */
+function windowOf(points: readonly DriftPoint[]): string {
+  const first = monthYear(Math.min(...points.map((p) => p.startMs)))
+  const last = monthYear(Math.max(...points.map((p) => p.startMs)))
+  return first === last ? first : `${first} to ${last}`
+}
+
 function driftReading(sport: Sport, evidence: LateEvidence): DriftReading | null {
   const points = evidence.drift
   if (points.length < minActivities) return null
   const median = medianOf(points.map((p) => p.decouplingPct))
   const warmup = DRIFT.warmupS / 60
+  const window = evidence.driftPooled === true ? windowOf(points) : null
   return {
-    lede: driftLede(sport, median, points.length),
+    lede: driftLede(sport, median, points.length, window),
+    window,
     medianPct: median,
     points: [...points],
     note: [
@@ -266,7 +284,7 @@ export function lateFinding(reading: LateInEffort): string | null {
     reading.durability?.stat ?? null,
     reading.drift === null
       ? null
-      : `Efficiency ${driftChange(reading.drift.medianPct)} from the first half to the second`,
+      : `Efficiency ${driftChange(reading.drift.medianPct)} from the first half to the second${reading.drift.window === null ? '' : `, ${reading.drift.window}`}`,
   ].filter((part) => part !== null)
   return parts.length === 0 ? null : parts.map((part) => `${part}.`).join(' ')
 }

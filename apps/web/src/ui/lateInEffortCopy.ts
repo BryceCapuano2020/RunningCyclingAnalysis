@@ -41,12 +41,25 @@ export function afterWords(afterS: number): string {
   return hours === 1 ? 'an hour' : `${hours} hours`
 }
 
+/** How a stat is qualified: a floor where no session shown hard stands behind it, and the whole library as all time. */
+export interface StatBasis {
+  floor?: boolean
+  allTime?: boolean
+}
+
 /**
  * The late best as a share of the best overall, in whole percent, as the stat says it, with the duration it is the
- * best at: "Best 20 min held 99% after an hour".
+ * best at: "Best 20 min held 99% after an hour". With no hard session behind it the share is a floor, "held at least 99%",
+ * and when the whole library is read the stat says "all time".
  */
-export function durabilityStat(durationS: number, afterS: number, retention: number): string {
-  return `Best ${effortLabel(durationS)} held ${Math.round(retention * 100)}% after ${afterWords(afterS)}`
+export function durabilityStat(
+  durationS: number,
+  afterS: number,
+  retention: number,
+  { floor = false, allTime = false }: StatBasis = {},
+): string {
+  const share = `${floor ? 'at least ' : ''}${Math.round(retention * 100)}%`
+  return `Best ${effortLabel(durationS)} held ${share} after ${afterWords(afterS)}${allTime ? ', all time' : ''}`
 }
 
 /** What a steady effort's efficiency did, from its decoupling in percent: a change under 1% reads as level. */
@@ -57,10 +70,18 @@ export function driftChange(decouplingPct: number): string {
   return 'held level'
 }
 
-/** The lede: what the middle steady effort's efficiency did from its first half to its second. */
-export function driftLede(sport: Sport, medianPct: number, count: number): string {
+/**
+ * The lede: what the middle steady effort's efficiency did from its first half to its second. When the whole library
+ * is read, `window` dates the efforts, such as "May 2021 to October 2026".
+ */
+export function driftLede(
+  sport: Sport,
+  medianPct: number,
+  count: number,
+  window: string | null = null,
+): string {
   const efforts = plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])
-  return `On steady ${SPORT_PLURAL[sport]} over an hour, efficiency ${driftChange(medianPct)} from the first half to the second (median of ${efforts}).`
+  return `On steady ${SPORT_PLURAL[sport]} over an hour${window === null ? '' : ` from ${window}`}, efficiency ${driftChange(medianPct)} from the first half to the second (median of ${efforts}).`
 }
 
 /** The line a drift chart draws at the common reference, in words. */
