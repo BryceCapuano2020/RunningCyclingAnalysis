@@ -162,12 +162,7 @@ test('a tap on the lower third of a term opens it and not the term on the line b
   await page.getByText('See the evidence').click()
   await expect(page.locator('.fitness-evidence .definition__term').first()).toBeVisible()
   let pairs = 0
-  for (const scope of [
-    '.fitness-card__headline',
-    '.fitness-card__support',
-    '.fitness-evidence',
-    '.balance-hero__lede',
-  ]) {
+  for (const scope of ['.fitness-card__headline', '.fitness-card__support', '.fitness-evidence']) {
     const region = page.locator(scope)
     const boxes = await termBoxes(region)
     for (const upper of boxes) {

@@ -20,7 +20,7 @@ describe('GradeSentence', () => {
   it('reads as the sentence the records and the grade line are written as', () => {
     const { container } = render(<GradeSentence sport="ride" grade={RIDE} where="record" />)
     expect(container.textContent).toBe(
-      'Estimated through its running equivalent ·\u00A0Local · 66% (63–69%)',
+      'Estimated through its running equivalent ·\u00A0Local · 66% (63 to 69)',
     )
   })
 
@@ -35,7 +35,7 @@ describe('GradeSentence', () => {
     const unbroken = Array.from(container.querySelectorAll('.grade-sentence__unbroken'), (part) =>
       part.textContent?.trim(),
     )
-    expect(unbroken).toEqual(['· 66%', '(63–69%)'])
-    expect(container.textContent).toBe('Estimated ·\u00A0Local · 66% (63–69%)')
+    expect(unbroken).toEqual(['· 66%', '(63 to 69)'])
+    expect(container.textContent).toBe('Estimated ·\u00A0Local · 66% (63 to 69)')
   })
 })

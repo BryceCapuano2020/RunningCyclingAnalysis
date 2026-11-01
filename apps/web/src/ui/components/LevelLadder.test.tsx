@@ -28,11 +28,11 @@ describe('LevelLadder', () => {
     ).toBeInTheDocument()
   })
 
-  it('names a ride as an estimate with its range, and names both levels when the range crosses one', () => {
+  it('names a ride as an estimate with its range, and no level when the range crosses one', () => {
     render(<LevelLadder sport="ride" grade={RIDE} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 67%, Local to Regional, on your best 20 min, range 63% to 71%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, on your best 20 min, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })

@@ -18,9 +18,10 @@ export function gradeLine(
 ): string | null {
   if (grade === null) return null
   if (grade.kind !== 'graded') return notGradedText(grade)
-  if (levelShown) return effort === null ? null : `Best ${HEADLINE_LABEL}: ${effort}.`
+  if (levelShown) return effort === null ? null : `Best ${HEADLINE_LABEL}: ${effort}`
   const { level, value, range } = gradeParts(sport, grade.grade, 'row')
-  const grades = `${level} · ${value}${range === null ? '' : ` (${range})`}`
+  const figure = `${value}${range === null ? '' : ` (${range})`}`
+  const grades = level === null ? figure : `${level} · ${figure}`
   return `${grades} on your best ${HEADLINE_LABEL}${effort === null ? '' : `, ${effort}`}.`
 }
 

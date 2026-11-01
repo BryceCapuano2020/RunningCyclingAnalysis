@@ -4,7 +4,7 @@ import type { Period } from '@rca/core/period'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { HEADLINE_LABEL } from '../grades'
-import { basisOf, uncheckedWords } from '../effortWords'
+import { uncheckedWords } from '../effortWords'
 import { BALANCE_PAIR, SPORT_ACTIVITY, SPORT_NOUN, SPORT_PLURAL } from '../sports'
 import { hasEvidence, headlineShortfall } from './pickHeadline'
 
@@ -65,22 +65,8 @@ export function uncheckedNote(result: AnalysisResult): string | null {
     const words = gate.verdict === 'unknown' ? uncheckedWords(sport, gate) : null
     return words === null || !hasEvidence(result, sport) ? [] : [`${words.why} ${words.action}`]
   })
-  return notes.length === 0 ? null : notes.join(' ')
-}
-
-/**
- * The sports whose best 20 minutes was not shown to be a hard effort: heart rate says it was not, or it was not
- * checked (no heart rate on it, too few days with heart rate). A level read from such a best is a floor, not the sport's level.
- */
-export function unconfirmedSports(result: AnalysisResult): Sport[] {
-  return BALANCE_PAIR.filter((sport) => basisOf(result.effortGate[sport]) !== null)
-}
-
-/** What each unconfirmed sport's level rests on, for the line under the meter. */
-export function levelBasis(result: AnalysisResult): Partial<Record<Sport, string>> {
-  return Object.fromEntries(
-    unconfirmedSports(result).map((sport) => [sport, basisOf(result.effortGate[sport])]),
-  )
+  // Sports that lack the same thing share a line, so a library with too few days with heart rate says it once.
+  return notes.length === 0 ? null : [...new Set(notes)].join(' ')
 }
 
 /** "one run and one ride of 20 min or more": the activities to add, said once for all the sports. */

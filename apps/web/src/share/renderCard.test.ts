@@ -24,7 +24,7 @@ import {
 import { renderShareCard } from './renderCard'
 
 const FORMATS: CardFormat[] = ['square', 'story']
-const GRADED_FOOTNOTE = 'Graded on the USATF road standards. A level, not a ranking.'
+const GRADED_FOOTNOTE = 'Age-graded on USATF road standards.'
 
 /** The drawn text, in order, as one string. */
 function words(texts: RecordedText[]): string {
@@ -64,7 +64,7 @@ describe('renderShareCard', () => {
       SPORT_LABEL[BALANCE_PAIR[0]],
       'Even',
       SPORT_LABEL[BALANCE_PAIR[1]],
-      'THRESHOLD FLAT PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
+      'THRESHOLD GAP, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
       '21:35',
       '/km',
       'THRESHOLD POWER, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
@@ -126,7 +126,7 @@ describe('renderShareCard', () => {
             arc.x >= label.x - 40 && arc.x < label.x && arc.y >= label.y && arc.y < label.y + 34,
         )
       }
-      expect(glyphBeside('THRESHOLD FLAT PACE,')).toBe(true)
+      expect(glyphBeside('THRESHOLD GAP,')).toBe(true)
       expect(glyphBeside('THRESHOLD POWER')).toBe(true)
       expect(
         ctx.paths.some((path) => path.color === CARD_COLORS.text && path.segments.includes('arc')),
@@ -313,7 +313,7 @@ describe('the card figures, levels and copy', () => {
     'keeps the origin and the whole lead line, range and all, on the %s card',
     (format) => {
       // The longest lead and range the card writes: a ride's lead of 30 points with a wide range across zero.
-      const magnitude = 'Cycling grades 30 points higher, within −10 to +46'
+      const magnitude = 'Cycling grades 30 points higher (−10 to +46)'
       const texts = draw(cardModel({ magnitude }), format).texts
       expect(texts.find((text) => text.text === magnitude)).toBeDefined()
       expect(texts.find((text) => text.text === 'example.test')?.size).toBeGreaterThanOrEqual(30)
@@ -322,7 +322,9 @@ describe('the card figures, levels and copy', () => {
 
   it.each(FORMATS)('sets the footnote and origin at 30 px or more on the %s card', (format) => {
     const texts = draw(cardModel(), format).texts
-    expect(texts.find((text) => text.text.startsWith('Graded on'))?.size).toBeGreaterThanOrEqual(30)
+    expect(
+      texts.find((text) => text.text.startsWith('Age-graded on'))?.size,
+    ).toBeGreaterThanOrEqual(30)
     expect(texts.find((text) => text.text === 'example.test')?.size).toBeGreaterThanOrEqual(30)
   })
 
@@ -349,13 +351,11 @@ describe('the card figures, levels and copy', () => {
   })
 
   it.each(FORMATS)(
-    'draws the run’s threshold label whole, flat pace included, on the %s card',
+    'draws the run’s threshold label whole, GAP included, on the %s card',
     (format) => {
       const { ok, ctx } = render(cardModel(), format)
       expect(ok).toBe(true)
-      expect(words(ctx.texts)).toContain(
-        'THRESHOLD FLAT PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
-      )
+      expect(words(ctx.texts)).toContain('THRESHOLD GAP, ESTIMATED FROM YOUR BEST 3 TO 20 MIN')
     },
   )
 

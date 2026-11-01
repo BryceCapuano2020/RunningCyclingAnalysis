@@ -6,7 +6,7 @@ describe('effortCaveat', () => {
     const caveat = effortCaveat({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
     expect(caveat?.title).toBe('Your best ride did not reach a hard heart rate')
     expect(caveat?.text).toBe(
-      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min on the bike reached 80% of your cycling max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
     expect(caveat?.short).toBe('Best cycling effort over 20 min did not reach a hard heart rate.')
   })
@@ -15,7 +15,7 @@ describe('effortCaveat', () => {
     const caveat = effortCaveat({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 })
     expect(caveat?.title).toBe('Your best run did not reach a hard heart rate')
     expect(caveat?.text).toBe(
-      'Your best 20 min running reached 70% of your running reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min running reached 70% of your running max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
     expect(caveat?.short).toBe('Best running effort over 20 min did not reach a hard heart rate.')
   })
@@ -24,7 +24,7 @@ describe('effortCaveat', () => {
     const caveat = effortCaveat({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
     expect(caveat?.title).toBe('Neither best effort reached a hard heart rate')
     expect(caveat?.text).toBe(
-      'Your best 20 min reached 70% of your running reference heart rate and 80% of your cycling one (both set from your highest heart rates on file). Both are under the 90% that marks a hard effort.',
+      'Your best 20 min reached 70% of your running max heart rate and 80% of your cycling one (both set from your highest heart rates on file). Both are under the 90% that marks a hard effort.',
     )
     expect(caveat?.short).toBe('Best efforts over 20 min did not reach a hard heart rate.')
   })
@@ -82,7 +82,7 @@ describe('effortShare line', () => {
     expect(
       effortShareLine('run', { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }),
     ).toBe(
-      'Your best 20 min running reached 70% of your running reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min running reached 70% of your running max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
   })
 
@@ -90,7 +90,7 @@ describe('effortShare line', () => {
     expect(
       effortShareLine('ride', { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 }),
     ).toBe(
-      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min on the bike reached 80% of your cycling max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
   })
 
@@ -98,7 +98,7 @@ describe('effortShare line', () => {
     expect(
       effortShareLine('run', { durationS: 1200, runHrFraction: 0.95, rideHrFraction: null }),
     ).toBe(
-      'Your best 20 min running reached 95% of your running reference heart rate (set from your highest heart rates on file): close to your highest heart rate.',
+      'Your best 20 min running reached 95% of your running max heart rate (set from your highest heart rates on file): close to your highest heart rate.',
     )
   })
 
@@ -116,12 +116,12 @@ describe('the 90% boundary is judged on the percent shown', () => {
     expect(
       effortShareLine('run', { durationS: 1200, runHrFraction: 0.8949, rideHrFraction: null }),
     ).toBe(
-      'Your best 20 min running reached 89% of your running reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min running reached 89% of your running max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
     expect(
       effortCaveat({ durationS: 1200, runHrFraction: null, rideHrFraction: 0.8949 })?.text,
     ).toBe(
-      'Your best 20 min on the bike reached 89% of your cycling reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min on the bike reached 89% of your cycling max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
   })
 
@@ -129,7 +129,7 @@ describe('the 90% boundary is judged on the percent shown', () => {
     expect(
       effortShareLine('run', { durationS: 1200, runHrFraction: 0.895, rideHrFraction: null }),
     ).toBe(
-      'Your best 20 min running reached 90% of your running reference heart rate (set from your highest heart rates on file): within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one.',
+      'Your best 20 min running reached 90% of your running max heart rate (set from your highest heart rates on file): within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one.',
     )
     expect(effortCaveat({ durationS: 1200, runHrFraction: null, rideHrFraction: 0.895 })).toBeNull()
     expect(hardEffortsOnFile({ durationS: 1200, runHrFraction: 0.895, rideHrFraction: 0.9 })).toBe(
@@ -141,7 +141,7 @@ describe('the 90% boundary is judged on the percent shown', () => {
     expect(
       effortShareLine('ride', { durationS: 1200, runHrFraction: null, rideHrFraction: 0.9 }),
     ).toBe(
-      'Your best 20 min on the bike reached 90% of your cycling reference heart rate (set from your highest heart rates on file): within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one.',
+      'Your best 20 min on the bike reached 90% of your cycling max heart rate (set from your highest heart rates on file): within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one.',
     )
     expect(effortCaveat({ durationS: 1200, runHrFraction: null, rideHrFraction: 0.9 })).toBeNull()
   })
@@ -154,25 +154,23 @@ describe('the 90% boundary is judged on the percent shown', () => {
 })
 
 describe('effortShare', () => {
-  it('gives the line, whether the effort was hard, and the share as the whole percent the line shows', () => {
+  it('gives the line, and whether the effort was hard, with the share as the whole percent the line shows', () => {
     const hard = effortShare('run', { durationS: 1200, runHrFraction: 0.974, rideHrFraction: null })
-    expect(hard).toMatchObject({ hard: true, percent: 97 })
-    expect(hard?.line).toContain('reached 97% of your running reference heart rate')
-    expect(
-      effortShare('ride', { durationS: 1200, runHrFraction: null, rideHrFraction: 0.8 }),
-    ).toMatchObject({
-      hard: false,
-      percent: 80,
-    })
+    expect(hard?.hard).toBe(true)
+    expect(hard?.line).toContain('reached 97% of your running max heart rate')
+    const easy = effortShare('ride', { durationS: 1200, runHrFraction: null, rideHrFraction: 0.8 })
+    expect(easy?.hard).toBe(false)
+    expect(easy?.line).toContain('reached 80% of your cycling max heart rate')
   })
 
   it('judges a share that rounds to 90% as hard, on the percent it shows', () => {
-    expect(
-      effortShare('run', { durationS: 1200, runHrFraction: 0.896, rideHrFraction: null }),
-    ).toMatchObject({
-      hard: true,
-      percent: 90,
+    const share = effortShare('run', {
+      durationS: 1200,
+      runHrFraction: 0.896,
+      rideHrFraction: null,
     })
+    expect(share?.hard).toBe(true)
+    expect(share?.line).toContain('reached 90% of your running max heart rate')
   })
 
   it('is none when heart rate does not say, or there is no check', () => {
@@ -193,10 +191,10 @@ describe('a reference the other sport set', () => {
 
   it('says the cycling reference is the running max less 6 bpm, on the card and in the sport line', () => {
     expect(effortCaveat(ride)?.text).toBe(
-      'Your best 20 min on the bike reached 82% of your cycling reference heart rate (your running max less 6 bpm). That is under the 90% that marks a hard effort.',
+      'Your best 20 min on the bike reached 82% of your cycling max heart rate (your running max less 6 bpm). That is under the 90% that marks a hard effort.',
     )
     expect(effortShare('ride', ride)?.line).toBe(
-      'Your best 20 min on the bike reached 82% of your cycling reference heart rate (your running max less 6 bpm). That is under the 90% that marks a hard effort.',
+      'Your best 20 min on the bike reached 82% of your cycling max heart rate (your running max less 6 bpm). That is under the 90% that marks a hard effort.',
     )
   })
 
@@ -208,14 +206,14 @@ describe('a reference the other sport set', () => {
       runReferenceFrom: 'ride' as const,
     }
     expect(effortCaveat(run)?.text).toBe(
-      'Your best 20 min running reached 80% of your running reference heart rate (your cycling max). That is under the 90% that marks a hard effort.',
+      'Your best 20 min running reached 80% of your running max heart rate (your cycling max). That is under the 90% that marks a hard effort.',
     )
   })
 
   it('names each source when the two references differ, and one when they match', () => {
     const both = effortCaveat({ ...ride, runHrFraction: 0.7 })
     expect(both?.text).toBe(
-      "Your best 20 min reached 70% of your running reference heart rate and 82% of your cycling one (running's set from your highest heart rates on file; cycling's your running max less 6 bpm). Both are under the 90% that marks a hard effort.",
+      "Your best 20 min reached 70% of your running max heart rate and 82% of your cycling one (running's set from your highest heart rates on file and cycling's your running max less 6 bpm). Both are under the 90% that marks a hard effort.",
     )
     expect(
       effortCaveat({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })?.text,

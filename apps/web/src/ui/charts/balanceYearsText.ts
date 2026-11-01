@@ -90,12 +90,15 @@ export function tooltipFor(
     const each = view.grades[sport]
     const label = nameOf(sport, rangedIn(views, sport))
     if (each === undefined) return [{ kind: sport, label, value: NONE }]
-    const level = gradeLevelText(each.grade)
+    // A ride whose range crosses a band names no level, so a year may have no note at all.
+    const note = [gradeLevelText(each.grade), isHollow(each) ? NOT_ALL_OUT : null]
+      .filter((part) => part !== null)
+      .join(', ')
     const row: TooltipRow = {
       kind: sport,
       label,
       value: formatGrade(each.grade.centre.grade),
-      note: isHollow(each) ? `${level}, ${NOT_ALL_OUT}` : level,
+      ...(note === '' ? {} : { note }),
     }
     return each.grade.range === null
       ? [row]

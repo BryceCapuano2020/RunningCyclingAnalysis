@@ -31,7 +31,7 @@ afterEach(() => {
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 /** Sunday 4 January 2026, 23:59:59.999 UTC: the end of the first week, as the trend dates its weeks. */
 const FIRST_END = Date.UTC(2026, 0, 4, 23, 59, 59, 999)
-const VOLUME = 'Training hours per week'
+const VOLUME = 'Training hours'
 
 /** Weeks of running with a trend value each, ending on consecutive UTC Sundays. */
 function trendOf(weeks: number): TrendPoint[] {
@@ -89,7 +89,7 @@ function figureNamed(measure: string | RegExp): HTMLElement {
 }
 
 describe('the weekly volume on Balance', () => {
-  it('shows the hours of each sport, with a line that says what moved', () => {
+  it('shows the hours of each sport under its title, with no line about what moved', () => {
     const activities = [
       inWeek(0, 'run', 3600 * 5),
       inWeek(0, 'ride', 3600),
@@ -103,11 +103,8 @@ describe('the weekly volume on Balance', () => {
     // The strip stands alone: nothing over it draws a trend of best efforts.
     expect(screen.queryByRole('figure', { name: /Age grade of your best/ })).toBeNull()
     expect(screen.getByRole('heading', { name: 'Training hours' })).toHaveClass('sr-only')
-    expect(
-      within(volume).getByText(
-        'Cycling rose from 17% of your running and riding hours in the first half to 100% in the second.',
-      ),
-    ).toBeInTheDocument()
+    expect(volume.querySelector('figcaption')).toHaveTextContent(/^Training hours$/)
+    expect(volume).not.toHaveTextContent(/rose from|fell from|of your running and riding hours/)
     expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(6)
   })
 

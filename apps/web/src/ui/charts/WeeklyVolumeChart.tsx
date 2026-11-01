@@ -27,15 +27,13 @@ import './WeeklyVolumeChart.css'
 export interface WeeklyVolumeChartProps {
   /** One entry per week of the trend above it, in order, so the two share their time axis. */
   weeks: readonly VolumeWeek[]
-  /** What the hours show, which is the chart's title: the split between the sports and how it shifted. */
-  lede: string
   /** The plot's right margin, so the strip lines up with a trend above it that keeps a gutter for its labels. */
   plotRightMargin?: (width: number) => number
   /** The time axis of the trend above, so the two skip the same years; the weeks' own when not given. */
   axis?: TimeAxis | null
 }
 
-const TITLE = 'Training hours per week'
+const TITLE = 'Training hours'
 const DESCRIPTION = 'Stacked bars of the hours trained each week, one colour for each sport.'
 const MONTHLY_DESCRIPTION =
   'Stacked bars of the hours a week trained, averaged over each month, one colour for each sport.'
@@ -74,12 +72,7 @@ function tooltipFor(data: VolumeRows, index: number, x: number, y: number): Tool
  * stands under that week's point, and a week with no training is a gap. It shows when the trend moved
  * because training moved.
  */
-export function WeeklyVolumeChart({
-  weeks: given,
-  lede,
-  plotRightMargin,
-  axis,
-}: WeeklyVolumeChartProps) {
+export function WeeklyVolumeChart({ weeks: given, plotRightMargin, axis }: WeeklyVolumeChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const data = useMemo(() => volumeRowsOf(given, axis), [given, axis])
   const { rows: weeks, monthly } = data
@@ -98,10 +91,9 @@ export function WeeklyVolumeChart({
   return (
     <div className="takeaway-chart">
       <ChartFrame
-        title={lede}
+        title={TITLE}
         description={`${monthly ? MONTHLY_DESCRIPTION : DESCRIPTION}${axisGapDescription(gaps)}`}
         summary={axisGapTable(gaps)}
-        lede={TITLE}
         note={monthly ? MONTHLY_VOLUME_NOTE : undefined}
         height={height}
         plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}

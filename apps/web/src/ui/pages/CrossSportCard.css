@@ -1,31 +1,3 @@
-/* The ride on foot tile: the watts becoming the pace, as two chips and an arrow; a long activity name wraps. */
-.cross-sport__pair {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.cross-sport__pair > .icon {
-  color: var(--text-muted);
-}
-
-.cross-sport__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px 5px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  font-family: var(--font-display);
-  font-size: var(--text-lead);
-  font-weight: 700;
-}
-
-.cross-sport__chip .icon {
-  color: var(--sport-colour);
-}
-
 /* The link to the activity stands on a line of its own, so it is a control's height tall (40 px, 44 on a finger). */
 .cross-sport__link {
   display: inline-flex;

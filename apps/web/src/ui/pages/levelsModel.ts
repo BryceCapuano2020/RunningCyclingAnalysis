@@ -7,7 +7,7 @@ import {
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
 } from '../grades'
-import { gradeLevelText } from '../grades'
+import { gradeLevelText, gradeRangeText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
 import { wholeGrade } from '../gradeFormat'
 import { BALANCE_PAIR, SPORT_PLURAL } from '../sports'
@@ -17,12 +17,12 @@ export interface LevelRow {
   sport: Sport
   /** The age grade as the tiles print it, such as "67%"; null while the sport has no grade to show. */
   grade: string | null
-  /** The level the grade names, or the two a ride's range crosses; null with the grade. */
+  /** The level the grade names; null with the grade, and where a ride's range crosses a band, which shows `range` instead. */
   level: string | null
+  /** A ride's range as the number then (low to high), such as "50 to 71", where no level is named; otherwise null. */
+  range: string | null
   /** What is missing, in a few words; null when the sport is graded. */
   missing: string | null
-  /** What the grade rests on when it is not a hard effort: "best 20 min, not a hard effort"; null when it is, or unknown. */
-  basis?: string | null
 }
 
 /** The levels under the meter: a line for each sport, or one line when both wait for the same thing. */
@@ -60,8 +60,9 @@ function missingFor(
 
 /**
  * The levels under the meter, from the grades the page already holds: each sport's age grade in whole percent
- * and its level, as the tiles print them. A sport with no grade says what it is missing; when both are missing
- * the same thing, it is said once.
+ * and its level, as the tiles print them. A level is named only when the grade's whole range sits in one band; a ride
+ * that could be in either shows its range instead. A sport with no grade says what it is missing; when both are
+ * missing the same thing, it is said once.
  */
 export function balanceLevels(input: {
   grades: Record<Sport, GradeOutcome | null>
@@ -69,25 +70,26 @@ export function balanceLevels(input: {
   sports?: readonly Sport[]
   inPeriod: Record<Sport, number>
   missingAge: AgeGap | null
-  /** What a sport's grade rests on where its best 20 minutes was not shown to be a hard effort (see `basisOf`). */
-  basis?: Partial<Record<Sport, string>>
 }): BalanceLevelsModel {
-  const { grades, sports = BALANCE_PAIR, inPeriod, missingAge, basis = {} } = input
+  const { grades, sports = BALANCE_PAIR, inPeriod, missingAge } = input
   const rows = sports.map((sport): LevelRow => {
     const outcome = grades[sport]
     if (outcome?.kind === 'graded') {
+      const { range } = outcome.grade
+      const level = gradeLevelText(outcome.grade)
       return {
         sport,
         grade: `${wholeGrade(outcome.grade.centre.grade)}%`,
-        level: gradeLevelText(outcome.grade),
+        level,
+        range: level === null && range !== null ? gradeRangeText(range) : null,
         missing: null,
-        basis: basis[sport] ?? null,
       }
     }
     return {
       sport,
       grade: null,
       level: null,
+      range: null,
       missing: missingFor(sport, outcome, { inPeriod, missingAge }),
     }
   })
