@@ -52,8 +52,8 @@ describe('tallyOf: where each file of an import went', () => {
 
   it("counts the files an export's list does not name apart, and none when the outcome has no count", () => {
     expect(
-      tallyOf({ filesAdded: 1, rejected: 0, duplicates: [], notActivities: 320 }, []).unlisted,
-    ).toBe(320)
+      tallyOf({ filesAdded: 1, rejected: 0, duplicates: [], notActivities: 7 }, []).unlisted,
+    ).toBe(7)
     expect(tallyOf({ filesAdded: 1, rejected: 0, duplicates: [] }, []).unlisted).toBe(0)
   })
 
@@ -82,42 +82,42 @@ describe('skippedTotal: the files an import did not add', () => {
 })
 
 describe('tallySentence: a headline that adds up to the files read', () => {
-  it("adds up the owner's Strava export: 3,018 files, 320 of them not in its list", () => {
-    // 1,769 runs and 146 rides added; 748 other sports, 1 empty, 2 too short and 32 with no sport; 320 saved routes.
+  it('adds up a Strava export: 118 files, 7 of them not in its list', () => {
+    // 90 activities added; 12 other sports, 1 empty, 2 too short and 6 with no sport; 7 saved routes.
     const rejected = [
-      ...otherSports(748),
-      file('19682145057.gpx', 'empty'),
-      file('486884001.gpx', 'too-short'),
-      file('2187381745.tcx', 'too-short'),
-      ...Array.from({ length: 32 }, (_, i) => file(`n${i}.gpx`, 'no-sport')),
+      ...otherSports(12),
+      file('empty-1.gpx', 'empty'),
+      file('short-1.gpx', 'too-short'),
+      file('short-2.tcx', 'too-short'),
+      ...Array.from({ length: 6 }, (_, i) => file(`n${i}.gpx`, 'no-sport')),
     ]
     const outcome = {
-      filesAdded: 1915,
+      filesAdded: 90,
       rejected: rejected.length,
       duplicates: [],
-      notActivities: 320,
+      notActivities: 7,
     }
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      '3,018 files, 2,698 of them activity files: 1,915 added, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities.',
+      '118 files, 111 of them activity files: 90 added, 9 need a look, 12 other sports left out on purpose, 7 not listed as activities.',
     )
   })
 
   it("reads the same export's untyped files as runs and rides once the list types them", () => {
-    // The list types the 32 files, and names the empty GPX a Weight Training session: 1,947 added, 751 refused.
+    // The list types the 6 files, and names the empty GPX a Weight Training session: 96 added, 15 refused.
     const rejected = [
-      ...otherSports(748),
-      file('19682145057.gpx', 'unsupported-sport', 'Weight Training'),
-      file('486884001.gpx', 'too-short'),
-      file('2187381745.tcx', 'too-short'),
+      ...otherSports(12),
+      file('empty-1.gpx', 'unsupported-sport', 'Weight Training'),
+      file('short-1.gpx', 'too-short'),
+      file('short-2.tcx', 'too-short'),
     ]
     const outcome = {
-      filesAdded: 1947,
+      filesAdded: 96,
       rejected: rejected.length,
       duplicates: [],
-      notActivities: 320,
+      notActivities: 7,
     }
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      '3,018 files, 2,698 of them activity files: 1,947 added, 2 need a look, 749 other sports left out on purpose, 320 not listed as activities.',
+      '118 files, 111 of them activity files: 96 added, 2 need a look, 13 other sports left out on purpose, 7 not listed as activities.',
     )
   })
 

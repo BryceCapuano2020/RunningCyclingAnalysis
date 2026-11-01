@@ -76,30 +76,30 @@ describe('RejectedFiles: the headline adds up', () => {
     expect(headline.closest('details')).not.toBeNull()
   })
 
-  it("adds up the owner's export, 3,018 files with 320 files its list does not name among them", () => {
+  it('adds up an export of 118 files with 7 files its list does not name among them', () => {
     render(
       <Skipped
-        added={1915}
+        added={90}
         rejected={[
-          ...sportFiles(748, 'training'),
-          skipped('activities/19682145057.gpx', 'empty'),
-          skipped('activities/486884001.gpx', 'too-short'),
-          skipped('activities/2187381745.tcx', 'too-short'),
-          ...Array.from({ length: 32 }, (_, i) => skipped(`activities/${i}.gpx`, 'no-sport')),
+          ...sportFiles(12, 'training'),
+          skipped('activities/empty-1.gpx', 'empty'),
+          skipped('activities/short-1.gpx', 'too-short'),
+          skipped('activities/short-2.tcx', 'too-short'),
+          ...Array.from({ length: 6 }, (_, i) => skipped(`activities/${i}.gpx`, 'no-sport')),
         ]}
-        unlisted={320}
+        unlisted={7}
       />,
     )
 
     expect(
       screen.getByText(
-        '3,018 files, 2,698 of them activity files: 1,915 added, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities.',
+        '118 files, 111 of them activity files: 90 added, 9 need a look, 12 other sports left out on purpose, 7 not listed as activities.',
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Need a look: 35 files')).toBeInTheDocument()
-    expect(screen.getByText('Other sports, left out on purpose: 748 files')).toBeInTheDocument()
+    expect(screen.getByText('Need a look: 9 files')).toBeInTheDocument()
+    expect(screen.getByText('Other sports, left out on purpose: 12 files')).toBeInTheDocument()
     expect(
-      screen.getByText('Not listed as activities, such as saved routes: 320 files'),
+      screen.getByText('Not listed as activities, such as saved routes: 7 files'),
     ).toBeInTheDocument()
   })
 
@@ -381,11 +381,11 @@ describe('RejectedFiles: files the export does not list, and copies already adde
       <Skipped
         added={1}
         rejected={[skipped('empty.gpx', 'empty'), skipped('short.gpx', 'too-short')]}
-        unlisted={320}
+        unlisted={7}
       />,
     )
 
-    const title = screen.getByText('Not listed as activities, such as saved routes: 320 files')
+    const title = screen.getByText('Not listed as activities, such as saved routes: 7 files')
     const group = title.closest('.rejected-files__group')!
     expect(group.children).toHaveLength(1)
     expect(container.querySelector('.rejected-files__action')).toBeNull()
@@ -450,11 +450,11 @@ describe('RejectedFiles: files the export does not list, and copies already adde
   })
 
   it('is plain text with nothing to open when files the export does not list are all that was left out', () => {
-    const { container } = render(<Skipped added={1915} unlisted={320} />)
+    const { container } = render(<Skipped added={90} unlisted={7} />)
 
     expect(
       screen.getByText(
-        '2,235 files, 1,915 of them activity files: 1,915 added, 320 not listed as activities.',
+        '97 files, 90 of them activity files: 90 added, 7 not listed as activities.',
       ),
     ).toBeVisible()
     expect(container.querySelector('details')).toBeNull()
@@ -537,11 +537,11 @@ describe('RejectedFiles: the group titles are headings', () => {
       <Skipped
         added={1}
         rejected={[skipped('a.gpx', 'empty'), skipped('b.gpx', 'empty')]}
-        unlisted={320}
+        unlisted={7}
       />,
     )
 
-    const line = screen.getByText('Not listed as activities, such as saved routes: 320 files')
+    const line = screen.getByText('Not listed as activities, such as saved routes: 7 files')
     expect(line.tagName).toBe('P')
     expect(screen.queryByRole('heading', { name: /Not listed/ })).not.toBeInTheDocument()
   })

@@ -46,8 +46,8 @@ export function skippedTotal(tally: SkipTally): number {
 }
 
 /**
- * The headline over the groups, which adds up to every file: "3,018 files, 2,698 of them activity files:
- * 1,915 added, 35 need a look, ...". The activity files are the count the import's progress shows, so the
+ * The headline over the groups, which adds up to every file: "118 files, 111 of them activity files:
+ * 90 added, 9 need a look, ...". The activity files are the count the import's progress shows, so the
  * two agree; without files the export does not list, every file is one. A part with no files is left out.
  */
 export function tallySentence(tally: SkipTally): string {

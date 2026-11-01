@@ -5,7 +5,7 @@ import { plural } from './plural'
 
 type Saved = AnalysisController['savedActivities']
 
-/** The activities by sport, each workout once, and the months they span: "1,947 runs and 146 rides, from Mar 2011 to Oct 2026". */
+/** The activities by sport, each workout once, and the months they span: "412 runs and 38 rides, from Jun 2015 to Oct 2026". */
 export function savedSummary(saved: Saved): string {
   // Copies of one workout are saved apart, and the Activities list counts the workout once, so this does too.
   const activities = [...new Map(saved.map((a) => [`${a.sport}|${a.startMs}`, a])).values()]
