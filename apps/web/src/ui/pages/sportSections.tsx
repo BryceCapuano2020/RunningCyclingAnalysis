@@ -3,7 +3,7 @@ import type { Sport } from '@rca/core/types'
 import { yearsFinding } from '@rca/core/lookback'
 import { LATE_IN_EFFORT_NAME, lateFinding, lateInEffort } from '../lateInEffort'
 import { thresholdUncheckedLine } from '../thresholdWithheld'
-import { RACE_PREDICTIONS_NAME, racePredictionNeed, racePredictionsOf } from '../racePredictions'
+import { racePredictionNeed, racePredictionsOf } from '../racePredictions'
 import { distanceRecords } from '../records'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { buildRows } from '../charts/sportCurveModel'
@@ -16,17 +16,18 @@ import { LateInEffortSection } from './LateInEffortSection'
 import { RacePredictions } from './RacePredictions'
 import { ranBests } from './raceRan'
 import { SameHeartRateSection } from './SameHeartRateSection'
-import { SAME_HEART_RATE_NAME, sameHeartRateLack, weeklyFinding } from './sameHeartRateLack'
+import { sameHeartRateLackText } from '../sameHeartRateCopy'
+import { SAME_HEART_RATE_NAME, weeklyFinding } from './sameHeartRateLack'
 import { SectionCell } from './SectionCell'
+import { SectionLine } from './SectionLine'
 import { anchorOf } from './sectionAnchor'
 import type { SectionNavItem } from './SectionNav'
 import { StandOutSection } from './StandOutSection'
-import { standOutFinding, standOutOf } from './standOut'
-import { standOutLack } from './standOutLack'
+import { standOutFinding, standOutFor } from './standOut'
 import { TimeInZonesSection } from './TimeInZonesSection'
 import { YearsSection } from './YearsSection'
 import { BestsOverTimeSection } from './BestsOverTimeSection'
-import { lackLine } from './lackLine'
+import { SPORT_PLURAL } from '../sports'
 import type { SectionContext } from './sportPageProps'
 
 /** The sections that can follow a sport page's answer. */
@@ -42,16 +43,16 @@ export type SectionId =
   | 'evidence'
 
 /**
- * What a section gives the page: its content, why part of it or all of it is missing in plain words, and for a
- * section that sits behind a disclosure, the name and the finding its closed row says. A section with nothing to
- * show has no content and so no heading, and the page gathers its lack with the others' in one "Not enough yet"
- * list at the end.
+ * What a section gives the page: its content, or when the library cannot fill it yet, the one line in its place that
+ * says what to add (`empty`), and for a section that sits behind a disclosure, the name and the finding its row says.
+ * A disclosure starts open; `restated` marks one whose body says its finding already, so the row does not say it twice
+ * while open. No section leaves the page in silence. A null content leaves a section out that the sport does not have.
  */
 export interface SectionOutcome {
   content: ReactNode | null
-  /** Why part of the section or all of it is missing, a line for each part, in plain words. */
-  lacks: readonly string[]
-  closed?: { title: string; finding: string }
+  /** Set when `content` is the one line in a section's place: "On this page" does not list it. */
+  empty?: true
+  closed?: { title: string; finding: string; restated?: true }
 }
 
 /** What the page's "On this page" row calls each section. */
@@ -63,7 +64,7 @@ const NAV_LABEL: Record<SectionId, string> = {
   bestsOverTime: 'Best efforts over time',
   sameHeartRate: 'Same heart rate, week by week',
   lateInEffort: LATE_IN_EFFORT_NAME,
-  standOut: 'Stand-out',
+  standOut: 'Best durations',
   evidence: 'All best efforts',
 }
 
@@ -105,24 +106,36 @@ export const SPORT_SECTIONS: Record<Sport, readonly SectionId[]> = {
 
 type Context = SectionContext & { list: ReturnType<typeof bestEffortRows> }
 
+/** A section the library cannot fill yet, as its name and the one line that says what to add. */
+function emptyOf({ sport }: Context, id: SectionId, line: string): SectionOutcome {
+  return {
+    content: <SectionLine sport={sport} id={id} title={NAV_LABEL[id]} line={line} />,
+    empty: true,
+  }
+}
+
+/** What a sport's years need when its look-back has nothing to tell: a year of its activities. */
+const nothingToTell = (sport: Sport) => `Needs a year of ${SPORT_PLURAL[sport]}.`
+
 /** How each section makes its outcome from what the page worked out. */
 const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
-  // Closed, named by its own finding; a sport with no years to tell, or no look-back to read, has no section.
-  years: ({ sport, lookBack, units, fitness }) => {
+  // Named by its own finding; a sport with no years to tell, or no look-back to read, says what it needs.
+  years: (context) => {
+    const { sport, lookBack, units, fitness } = context
     const finding =
       lookBack === undefined
         ? null
         : yearsFinding(lookBack.sports[sport], fitness?.[sport].state ?? null)
     return lookBack === undefined || finding === null
-      ? { content: null, lacks: [] }
+      ? emptyOf(context, 'years', nothingToTell(sport))
       : {
           content: <YearsSection sport={sport} lookBack={lookBack} units={units} />,
-          lacks: [],
           closed: { title: 'Your years', finding },
         }
   },
-  bestEfforts: (context) => ({ content: <BestEffortsSection {...context} />, lacks: [] }),
-  racePredictions: ({ sport, result, units, rangeDays, openedAt }) => {
+  bestEfforts: (context) => ({ content: <BestEffortsSection {...context} /> }),
+  racePredictions: (context) => {
+    const { sport, result, units, rangeDays, openedAt } = context
     const found = racePredictionsOf(sport, result)
     const need = racePredictionNeed(sport, result)
     const unchecked = thresholdUncheckedLine(result, sport)
@@ -141,15 +154,12 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
             {unchecked === null ? null : <p className="muted">{unchecked}</p>}
           </>
         ),
-        lacks: [],
       }
     }
-    return {
-      content: null,
-      lacks: need === undefined ? [] : [lackLine(RACE_PREDICTIONS_NAME, need)],
-    }
+    return need === undefined ? { content: null } : emptyOf(context, 'racePredictions', need)
   },
-  timeInZones: ({ sport, zoneTimes = [], previousZoneTimes = null, previousLabel }) => {
+  timeInZones: (context) => {
+    const { sport, zoneTimes = [], previousZoneTimes = null, previousLabel } = context
     const lack = timeInZonesLack(sport, zoneTimes)
     return lack === null
       ? {
@@ -161,9 +171,8 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
               previousLabel={previousLabel}
             />
           ),
-          lacks: [],
         }
-      : { content: null, lacks: [lack] }
+      : emptyOf(context, 'timeInZones', lack)
   },
   bestsOverTime: ({
     sport,
@@ -199,57 +208,58 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
           }
         />
       ),
-      lacks: [],
     }
   },
-  sameHeartRate: ({ sport, sameHeartRate, units, fitness }) => {
-    const lack = sameHeartRateLack(sport, sameHeartRate)
-    if (lack !== null) return { content: null, lacks: [lack] }
+  sameHeartRate: (context) => {
+    const { sport, sameHeartRate, units, fitness } = context
+    const lack = sameHeartRateLackText(sport, sameHeartRate)
+    if (lack !== null) return emptyOf(context, 'sameHeartRate', lack)
     // No change is claimed from the weekly dots. With a fitness status on the page it is the sport's voice, and the
-    // closed row says so.
+    // row says so.
     const statusSpeaks = fitness !== undefined && fitness[sport].state !== 'not-enough-evidence'
     return {
       content: <SameHeartRateSection sport={sport} data={sameHeartRate} units={units} />,
-      lacks: [],
       closed: {
         title: SAME_HEART_RATE_NAME,
         finding: weeklyFinding(sport, sameHeartRate.referenceHeartRate, statusSpeaks),
+        restated: true,
       },
     }
   },
-  // The section holds two readings, each with its own need: the page lists what is missing even beside content.
-  lateInEffort: ({ sport, result, lateEvidence, units }) => {
+  // The section holds two readings, each with its own need. A half the library cannot give says its need under the
+  // other; with neither, the section is the one line that says what to add.
+  lateInEffort: (context) => {
+    const { sport, result, lateEvidence, units } = context
     const reading = lateInEffort(sport, lateEvidence)
-    const { needs } = reading
     const finding = lateFinding(reading)
-    return {
-      content:
-        finding === null ? null : (
-          <LateInEffortSection
-            sport={sport}
-            reading={reading}
-            activities={result.activities}
-            units={units}
-          />
-        ),
-      lacks: needs,
-      closed: finding === null ? undefined : { title: LATE_IN_EFFORT_NAME, finding },
-    }
-  },
-  standOut: ({ sport, result }) => {
-    const profile = standOutOf(result, sport)
-    const lack = standOutLack(sport, result)
-    return profile === null
-      ? { content: null, lacks: lack === null ? [] : [lack] }
+    return finding === null
+      ? emptyOf(context, 'lateInEffort', reading.needs.join(' '))
       : {
-          content: <StandOutSection sport={sport} profile={profile} />,
-          lacks: [],
-          closed: { title: 'Where your bests stand out', finding: standOutFinding(profile) },
+          content: (
+            <LateInEffortSection
+              sport={sport}
+              reading={reading}
+              activities={result.activities}
+              units={units}
+            />
+          ),
+          closed: { title: LATE_IN_EFFORT_NAME, finding, restated: true },
+        }
+  },
+  standOut: (context) => {
+    const { sport, result, libraryBests, library, inLibrary } = context
+    const answer = standOutFor(result, sport, libraryBests ?? null, library, inLibrary)
+    return 'lack' in answer
+      ? emptyOf(context, 'standOut', answer.lack)
+      : {
+          content: (
+            <StandOutSection sport={sport} profile={answer.profile} allTime={answer.allTime} />
+          ),
+          closed: { title: NAV_LABEL.standOut, finding: standOutFinding(answer.profile) },
         }
   },
   evidence: ({ list }) => ({
     content: <BestEffortsEvidence list={list} />,
-    lacks: [],
     closed: { title: 'All best efforts', finding: bestEffortsFinding(list) },
   }),
 }
@@ -261,13 +271,13 @@ export interface PlacedRow {
 }
 
 /**
- * A sport's page below its answer: the rows that have something to show, the "On this page" items for them, and
- * the lacks of the sections that have none, which the page lists once at its end.
+ * A sport's page below its answer: the rows that have something to show, in a section's own place whether it holds its
+ * answer or the one line that says what to add, and the "On this page" items for the sections that hold an answer.
  */
 export function layoutOf(
   sport: Sport,
   context: SectionContext,
-): { rows: PlacedRow[]; nav: SectionNavItem[]; lacks: string[] } {
+): { rows: PlacedRow[]; nav: SectionNavItem[] } {
   const full: Context = { ...context, list: bestEffortRows(context) }
   const outcomes = new Map(SPORT_SECTIONS[sport].map((id) => [id, SECTIONS[id](full)] as const))
   const rows = SPORT_ROWS[sport].flatMap((ids) => {
@@ -282,8 +292,9 @@ export function layoutOf(
   return {
     rows,
     nav: rows.flatMap((row) =>
-      row.cells.map(({ id }) => ({ id: anchorOf(sport, id), label: NAV_LABEL[id] })),
+      row.cells
+        .filter(({ id }) => outcomes.get(id)?.empty !== true)
+        .map(({ id }) => ({ id: anchorOf(sport, id), label: NAV_LABEL[id] })),
     ),
-    lacks: [...outcomes.values()].flatMap(({ lacks }) => lacks),
   }
 }

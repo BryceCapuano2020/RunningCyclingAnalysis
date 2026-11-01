@@ -1,4 +1,4 @@
-/* A section behind a disclosure: a panel whose closed row names the section and says what it found. */
+/* A section with content, open to start with: a panel whose row names the section and says what it found. */
 .sport-disclosure {
   min-width: 0;
 }
@@ -37,6 +37,11 @@
   color: var(--text-secondary);
   font-size: var(--text-md);
   text-wrap: pretty;
+}
+
+/* While open, a body that says the finding already (a chart titled by it) does not have the row say it twice. */
+.sport-disclosure[data-restated] .sport-disclosure__details[open] .sport-disclosure__finding {
+  display: none;
 }
 
 .sport-disclosure__body {

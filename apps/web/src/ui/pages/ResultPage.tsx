@@ -199,6 +199,7 @@ export function ResultPage({
           fitness={analysis.state.fitness}
           lookBack={analysis.state.lookBack}
           lateEvidence={analysis.state.lateEvidence[route.page]}
+          libraryBests={analysis.state.libraryBests?.[route.page] ?? null}
           zoneTimes={analysis.state.timeInZones.current[route.page]}
           previousZoneTimes={analysis.state.timeInZones.previous?.[route.page] ?? null}
           units={units}

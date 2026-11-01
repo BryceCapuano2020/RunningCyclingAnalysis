@@ -84,7 +84,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'Your age grade at each effort length, so you see which lengths each sport grades higher.',
   },
   {
-    name: 'Where your bests stand out',
+    name: 'Best durations',
     state: 'calculated',
     line: 'Each best set against your own curve, so a length that stands out from the rest is named.',
   },

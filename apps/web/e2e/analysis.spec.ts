@@ -27,16 +27,14 @@ const BALANCE_METER =
 const BALANCE_HOURS = /Training hours per week/
 const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
-/** The section that compares each best with the athlete's other bests. */
-const NOT_ENOUGH_YET = 'Not enough yet'
-/** The sport page's section that is open and needs a season of activities; the others sit behind closed rows. */
+/** The sport page's section of dated bests, which needs a season of activities. */
 const OPEN_SEASON_SECTION = 'Best efforts over time'
-/** The closed sections that need a season: each row says its finding, and opens to a chart. */
+/** The sections that need a season: each row says its finding, and the section is open to its chart. */
 /** The same-heart-rate row is the weekly view: it says what is drawn and claims no change. */
-const CLOSED_SEASON_SECTIONS = ['Same heart rate, week by week', 'Durability']
-/** The closed row of the finding that compares each best with the athlete's other bests. */
-const STAND_OUT_SECTION = 'Where your bests stand out'
-const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|Nothing stands out|.*stand out)/
+const SEASON_SECTIONS = ['Same heart rate, week by week', 'Durability']
+/** The section of the finding that compares each best with the athlete's other bests. */
+const STAND_OUT_SECTION = 'Best durations'
+const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|.*stand out)/
 const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
@@ -73,21 +71,24 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
     })
     await expect(dated.getByRole('figure', { name: /20 min/ })).toBeVisible()
     expect(await dated.locator('[data-testid^="bests-"]').count()).toBeGreaterThanOrEqual(2)
-    // A closed row says what it found, so closed still tells the athlete something; it opens to its chart.
+    // A section with content is open to start with, and its row says what it found.
     const standOut = page.getByRole('region', { name: STAND_OUT_SECTION })
     await expect(standOut.locator('.sport-disclosure__finding')).toHaveText(STANDS_OUT_LINE)
-    for (const section of CLOSED_SEASON_SECTIONS) {
+    for (const section of SEASON_SECTIONS) {
       const region = page.getByRole('region', { name: section })
-      await expect(region.locator('.sport-disclosure__finding')).toBeVisible()
-      await expect(region.locator('.sport-disclosure__finding')).not.toBeEmpty()
-      await region.locator('summary').click()
+      await expect(region.locator('details')).toHaveAttribute('open', '')
       await expect(region.getByRole('figure').first()).toBeVisible()
     }
-    // Both of durability's readings are drawn, and no section is left for the list of what is missing.
+    // The finding on a row that the section's charts already say is left off while it is open, and a fold brings it back.
+    const durability = page.getByRole('region', { name: 'Durability' })
+    await expect(durability.locator('.sport-disclosure__finding')).toBeHidden()
+    await durability.locator('summary').click()
+    await expect(durability.locator('.sport-disclosure__finding')).toBeVisible()
+    await durability.locator('summary').click()
+    // Both of durability's readings are drawn.
     await expect(page.getByRole('region', { name: 'Durability' }).getByRole('figure')).toHaveCount(
       2,
     )
-    await expect(page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })).toHaveCount(0)
   }
 
   await goTo(page, 'Balance')

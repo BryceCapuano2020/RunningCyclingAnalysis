@@ -226,13 +226,13 @@ describe('timeInZonesLack', () => {
   it('says what the sport needs when there is too little', () => {
     const thin = measureTime('run', 'heartRate', [60, 0, 0, 0, 0], { counted: 1 })
     expect(timeInZonesLack('run', [thin])).toBe(
-      'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
+      'Needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
     )
     expect(timeInZonesLack('ride', [])).toMatch(/with heart rate or a power meter/)
   })
 
   it('asks for a reference when the activities have data but no zones', () => {
     const noZones = measureTime('run', 'heartRate', [0, 0, 0, 0, 0], { counted: 0, noZones: 6 })
-    expect(timeInZonesLack('run', [noZones])).toMatch(/needs a max heart rate or a threshold/)
+    expect(timeInZonesLack('run', [noZones])).toMatch(/^Needs a max heart rate or a threshold/)
   })
 })

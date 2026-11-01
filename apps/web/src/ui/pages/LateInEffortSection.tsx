@@ -8,9 +8,9 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 /**
  * How a sport's output holds up late in long sessions, as two charts each titled by what it found: the best
  * efforts that start after an hour or more of moving time against the best overall, as a stat and a dumbbell,
- * and how output per heartbeat changed across steady efforts, as a dot for each with the median drawn across.
- * A half with too little behind it is left out and named in the page's "Not enough yet" list; with neither,
- * the section has no content.
+ * and how efficiency changed across steady efforts, as a dot for each with the median drawn across.
+ * A half with too little behind it is left out and says what it needs in a line under the other; the page
+ * gives the section as one line when neither half has anything to show.
  */
 export function LateInEffortSection({
   sport,
@@ -23,7 +23,7 @@ export function LateInEffortSection({
   activities: ActivitySummary[]
   units: UnitSystem
 }) {
-  const { durability, drift } = reading
+  const { durability, drift, needs } = reading
   return (
     <>
       {durability !== null && (
@@ -45,6 +45,11 @@ export function LateInEffortSection({
           note={drift.note}
         />
       )}
+      {needs.map((need) => (
+        <p key={need} className="muted">
+          {need}
+        </p>
+      ))}
     </>
   )
 }
