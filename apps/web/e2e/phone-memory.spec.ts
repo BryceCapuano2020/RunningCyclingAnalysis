@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Browser, Page } from '@playwright/test'
@@ -41,20 +41,22 @@ test.use({ channel: 'chromium', launchOptions: { args: ['--js-flags=--max-old-sp
 
 const ACTIVITIES = 560
 /**
- * What the import may leave reachable for each activity, in MiB. Seven runs read 0.019 to 0.024 (the spread is the idle
+ * What the import may leave reachable for each activity, in MiB. Sixteen runs read 0.019 to 0.024 (the spread is the idle
  * page's own, 5 or 8 MiB, over 560); the budget is 1.5 times the worst. A build that kept every parsed activity read
- * 0.219 to 0.224 in five runs, and one that kept only the speed stream of each read 0.054 in three (the peak below
- * passed all three).
+ * 0.219 to 0.224 in eight runs (the same figure to three places each time), and one that kept only the speed stream of
+ * each read 0.054 in three. The peak below cannot tell them apart: with every activity kept it read 191 to 389 MiB of growth.
  */
 const RETAINED_BUDGET_MIB = 0.035
 /**
  * The most the renderer may hold above its idle size at the peak of the import, in MiB. Thirteen runs read 198 to 260;
- * the build that kept every parsed activity read 341 to 389 in five. The margin is thin, which is why this is the
- * blunt check and the one above is the gate.
+ * the build that kept every parsed activity read 341 to 389 in five. The margin is thin and a leak can sit inside the clean
+ * range, which is why this is the blunt check and the one above is the gate.
  */
 const PEAK_GROWTH_BUDGET_MIB = 320
 /** Below this a renderer is not a page that has loaded the app: the wrong process was read. */
 const SANE_RENDERER_MIB = 50
+/** The import takes tens of seconds and is sampled every 250 ms: far fewer readings means the sampler never ran. */
+const MIN_SAMPLES = 8
 
 /**
  * Synthetic runs and rides as FIT files in a temporary directory: the sample season repeated back in time, each a
@@ -86,20 +88,31 @@ async function rendererPids(browser: Browser): Promise<number[]> {
   }
 }
 
-/** The resident set of the largest renderer, in MiB. A process that cannot be read is an error, never a zero. */
-async function renderersMiB(browser: Browser): Promise<number> {
-  const sizes: number[] = []
-  for (const pid of await rendererPids(browser)) {
-    const kib = Number(
+/**
+ * The resident set of one process, in MiB. Linux (CI's container has no promise of `ps`) reads `VmRSS` from /proc;
+ * macOS uses `ps`. Anything unreadable or implausible throws: a failed read is never a zero.
+ */
+function residentMiB(pid: number): number {
+  let kib: number
+  if (process.platform === 'linux') {
+    const status = readFileSync(`/proc/${pid}/status`, 'utf8')
+    kib = Number(/^VmRSS:\s+(\d+) kB$/m.exec(status)?.[1])
+  } else {
+    kib = Number(
       execFileSync('ps', ['-o', 'rss=', '-p', String(pid)])
         .toString()
         .trim(),
     )
-    if (!Number.isFinite(kib)) throw new Error(`ps gave no resident set for renderer ${pid}`)
-    sizes.push(kib / 1024)
   }
-  if (sizes.length === 0) throw new Error('the browser reported no renderer process')
-  return Math.max(...sizes)
+  if (!Number.isFinite(kib) || kib <= 0) throw new Error(`no resident set for process ${pid}`)
+  return kib / 1024
+}
+
+/** The resident set of the largest renderer, in MiB. */
+async function renderersMiB(browser: Browser): Promise<number> {
+  const pids = await rendererPids(browser)
+  if (pids.length === 0) throw new Error('the browser reported no renderer process')
+  return Math.max(...pids.map(residentMiB))
 }
 
 /** Serves this test's pages cross-origin isolated, which `measureUserAgentSpecificMemory` requires. */
@@ -129,7 +142,7 @@ async function reachableMiB(page: Page): Promise<number> {
 
 test.describe('a large import on a phone-sized browser', () => {
   test.setTimeout(240_000)
-  test.skip(process.platform === 'win32', 'The resident set is read with ps.')
+  test.skip(process.platform === 'win32', 'The resident set is read from /proc or with ps.')
 
   test(`keeps at most ${RETAINED_BUDGET_MIB} MiB an activity and peaks at most ${PEAK_GROWTH_BUDGET_MIB} MiB above idle, for ${ACTIVITIES} activities`, async ({
     page,
@@ -146,11 +159,13 @@ test.describe('a large import on a phone-sized browser', () => {
     expect(idle, 'the idle renderer, in MiB').toBeGreaterThan(SANE_RENDERER_MIB)
 
     let peak = idle
+    let samples = 0
     // A sample that fails mid-import (a process exiting) is dropped; the reads before and after are strict.
     const sampler = setInterval(() => {
       void renderersMiB(browser)
         .then((size) => {
           peak = Math.max(peak, size)
+          samples += 1
         })
         .catch(() => undefined)
     }, 250)
@@ -173,6 +188,9 @@ test.describe('a large import on a phone-sized browser', () => {
     console.log(`phone memory: ${line}`)
     testInfo.annotations.push({ type: 'memory', description: line })
 
+    expect(samples, 'resident-set readings taken during the import').toBeGreaterThanOrEqual(
+      MIN_SAMPLES,
+    )
     expect(
       reachable,
       'the import left nothing reachable: the page was not measured',
@@ -180,9 +198,13 @@ test.describe('a large import on a phone-sized browser', () => {
     expect(retained, `MiB an activity left reachable; ${line}`).toBeLessThanOrEqual(
       RETAINED_BUDGET_MIB,
     )
-    expect(growth, `MiB of resident growth at the peak; ${line}`).toBeLessThanOrEqual(
-      PEAK_GROWTH_BUDGET_MIB,
-    )
+    // The budget was measured on macOS; CI's Linux container reports in its log (and the report's annotation) until
+    // its own spread is known, and the gate above does not depend on it.
+    if (!process.env.CI) {
+      expect(growth, `MiB of resident growth at the peak; ${line}`).toBeLessThanOrEqual(
+        PEAK_GROWTH_BUDGET_MIB,
+      )
+    }
     await expectPageAlive(page)
   })
 })
