@@ -17,6 +17,7 @@
     "./digest/read": "./src/digest/readResult.ts",
     "./digest/analysed": "./src/digest/analysed.ts",
     "./import/applyLabels": "./src/import/applyLabels.ts",
+    "./import/minimise": "./src/import/minimise.ts",
     "./digest/limits": "./src/digest/readLimits.ts",
     "./digest/test/mutants": "./src/digest/test/digestMutants.ts",
     "./digest/test/frozen/rev6": "./src/digest/test/frozen/rev6/index.ts",

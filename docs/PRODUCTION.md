@@ -58,6 +58,9 @@ intended order:
    If no version is configured, no rollback is attempted and the run still fails. Database
    migrations are not reversed by a rollback. A rollback to a Worker from before the sign-up list
    makes sign-up public again; see [Sign-up list](#sign-up-list-worker-secret-allowed_emails).
+   A rollback to a Worker from before gzipped originals (the floor `3e17b541` is one) hashes a gzipped upload as it
+   comes and answers **422 `hash_mismatch`** to it, so while it serves, originals are not kept (the digests are
+   saved). Roll forward to restore them.
 
 `npm run deploy` runs locally and must start from a clean checkout of `main` identical to
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
@@ -104,7 +107,7 @@ The status-check names are the job names shown on pull requests and must match e
   `Performance budgets`, `Statistical simulations` and `Dependency audit`. `Performance budgets`
   (the wall-clock timing job) and `Statistical simulations` (the seeded detector simulations) are
   split out of the first check so a loaded runner cannot fail the unit tests. The unit tests run in
-  two shards and the end-to-end tests in three. The two shard-backed checks are small jobs that pass
+  two shards, the simulations in two and the end-to-end tests in three. The three shard-backed checks are small jobs that pass
   only when every shard passed; the first also merges the unit shards and applies the coverage
   thresholds to the whole run. A documentation-only pull request (every changed file is Markdown,
   under `docs/` or `LICENSE`) skips the end-to-end, unit-test, budget and simulation jobs and the
@@ -266,6 +269,30 @@ repository and not in `wrangler.toml`.
   dev-login, the rate-limit bypass, plain cookies and the missing HSTS header. The smoke test posts an empty
   object to `/api/auth/dev-login` and requires 404, so a Worker deployed with the gate open fails the
   release.
+
+## What is sent of an activity
+
+An activity's digest, file name and hash are sent to the account when it is saved (the privacy page lists them).
+From model revision 7 (D12 E7, RCA-032):
+
+- **The file name is a hash.** The id an activity is given at import is made from `rca-` and sixteen hex digits of the
+  SHA-256 of the file's name, with the FIT, TCX or GPX extension kept (`import/minimise.ts`), so the id on the device, in
+  the recording cache and in the account are one, and a reload finds a recording by it. The name of a Strava export's
+  file is the activity's number on Strava. The hash has no key: a number has few values, so it keeps the number out of
+  plain sight and out of a join with Strava, it is not secrecy.
+- **The title is sent only on opt-in** (Profile, kept per account on the device). Otherwise the account keeps a
+  generated name such as "Morning Run".
+- **Nothing is minimised after the fact.** A replace, an upgrade and a rebuild send the id, file name and title the
+  activity already has, and a recording is read back under them; an existing row's `file_name` column is not changed.
+  Cleaning the rows saved before is a server-side maintenance step.
+- **The start time is not rounded.** The start is exact to the second, and that is deliberate. `workoutKey(sport,
+startMs)` is the key every workout is matched by, at the second: the `dedupe_key` of a row (unique per account), the keys
+  of the device library and the outbox, the counted-runs list, rule R's and adoption's matching. A digest with a start
+  rounded to the minute would find no row to upgrade (the server would insert a copy, or refuse the replace as a
+  conflict), and a rounded and an exact digest of one workout would never match, so a stale and a rebuilt copy would both
+  show. Rounding safely needs a minute-resolution key introduced everywhere first, the server to find a legacy
+  second-key within the minute (a range lookup, no migration) and the updater to rewrite `dedupe_key` on an upgrade.
+  That is a stage of its own.
 
 ## Read-only switch and abuse response
 

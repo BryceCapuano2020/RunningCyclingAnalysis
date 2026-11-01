@@ -168,8 +168,7 @@ export function App() {
     settled,
   })
 
-  // Pages that load on first use: they preload while results are on their way, and focus and scroll wait
-  // for the new page to report it is on screen.
+  // Pages that load on first use preload while results are on their way; focus and scroll wait for them to show.
   const onShown = useLoadedPages(key, analysis.busy || analysis.restoring || signedIn)
 
   // Removing all activities clears the analysis in the worker. The landing page shows once the old
@@ -321,6 +320,7 @@ export function App() {
                 email={account.me?.user.email ?? null}
                 keepFiles={keepFiles}
                 fileRetentionAvailable={fileRetentionAvailable}
+                userId={account.me?.user.id ?? null}
                 onSaveProfile={saveProfile}
                 dated={measurements}
                 onAddSetting={addSetting}

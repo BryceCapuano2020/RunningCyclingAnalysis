@@ -20,6 +20,27 @@ test.describe('forced colours', () => {
     })
   }
 
+  // In every project: WebKit paints the band through its own forced-colours rules.
+  test('Balance: the 90% range band is drawn in a system colour, not the page colour', async ({
+    page,
+  }) => {
+    await openSample(page)
+    const band = page.getByTestId('profile-band').first()
+    await band.scrollIntoViewIfNeeded()
+    const paint = await band.evaluate((el) => {
+      const probe = document.createElement('div')
+      probe.style.backgroundColor = 'Canvas'
+      document.body.appendChild(probe)
+      const canvas = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      const style = getComputedStyle(el)
+      return { canvas, fill: style.fill, opacity: Number(style.fillOpacity), stroke: style.stroke }
+    })
+    // Seen before the fix: the page's own colour as the fill and no outline paints nothing at all.
+    const filled = paint.fill !== paint.canvas && paint.opacity > 0
+    expect(filled || paint.stroke !== 'none').toBe(true)
+  })
+
   test('an activity: no text sits over other text at the top', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', ONLY_DESKTOP)
     await openSample(page)

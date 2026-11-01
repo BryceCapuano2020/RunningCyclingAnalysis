@@ -48,6 +48,16 @@
   background: var(--surface-1);
 }
 
+/* The guide's help link is a line of its own: a finger needs a control's height to tap it. */
+@media (pointer: coarse) {
+  .export-guide > a {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--control-height);
+  }
+}
+
 .export-guide h3 {
   margin: 0;
   font-family: var(--font-display);

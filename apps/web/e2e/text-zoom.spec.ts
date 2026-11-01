@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { activitiesRows, goTo, openSample } from './helpers'
-import { TEXT_SPACING_CSS, clippedContent, svgTextOverlaps } from './zoomProbes'
+import { TEXT_SPACING_CSS, clippedContent, svgTextOverlaps, zoomText } from './zoomProbes'
 
 /**
  * WCAG 1.4.4 (text at 200%) and 1.4.12 (text spacing): chart labels stay apart, the page does not scroll
@@ -12,34 +12,6 @@ const SIZES = [
   { name: 'phone', width: 390, height: 844 },
   { name: 'desktop', width: 1440, height: 900 },
 ] as const
-
-/** Before the app starts: the charts measure their labels at the larger root size, with age grades on. */
-async function zoomText(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    // A style rule, not an inline style: the parser can replace the root before the page's own scripts run.
-    const add = (): boolean => {
-      if (document.documentElement === null) return false
-      const rule = document.createElement('style')
-      rule.textContent = 'html { font-size: 200% !important; }'
-      document.documentElement.appendChild(rule)
-      return true
-    }
-    if (!add())
-      new MutationObserver((_, watcher) => add() && watcher.disconnect()).observe(document, {
-        childList: true,
-      })
-    localStorage.setItem(
-      'rca.preferences.v1',
-      JSON.stringify({
-        settings: { massKg: 75, bikeMassKg: 9 },
-        units: 'metric',
-        birthYear: 1986,
-        sex: 'male',
-        setupDone: true,
-      }),
-    )
-  })
-}
 
 /** Opens every closed section of a sport page, each followed by its content, so the charts behind them are checked. */
 async function openSections(page: Page): Promise<void> {
