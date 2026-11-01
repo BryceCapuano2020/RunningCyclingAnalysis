@@ -123,3 +123,46 @@ describe('sweeping a browser that never stored a recording', () => {
     expect(await workbenchExists()).toBe(true)
   })
 })
+
+describe('sweeping the saves other accounts left waiting', () => {
+  async function withRows() {
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    vi.resetModules()
+    const { openOutbox } = await import('./outbox')
+    const { digestActivity } = await import('@rca/core/digest')
+    const { sweepAccountDetails } = await import('./sweepAccountDetails')
+    const digest = digestActivity(activity)
+    const item = { digest, fileName: 'run.fit', fileHash: 'a'.repeat(64) }
+    await openOutbox('alice').add(item)
+    await openOutbox('bob').add(item)
+    return { openOutbox, sweepAccountDetails }
+  }
+
+  it('removes the rows of a session that expired once somebody else signs in', async () => {
+    const { openOutbox, sweepAccountDetails } = await withRows()
+
+    // Alice's session ended on its own; her rows wait. Bob signs in on the same browser.
+    await sweepAccountDetails('bob')
+
+    expect(await openOutbox('alice').pending()).toEqual([])
+    expect((await openOutbox('bob').pending()).length).toBe(1)
+  })
+
+  it('keeps them while nobody is signed in: the account’s next sign-in finishes them', async () => {
+    const { openOutbox, sweepAccountDetails } = await withRows()
+
+    await sweepAccountDetails(null)
+
+    expect((await openOutbox('alice').pending()).length).toBe(1)
+    expect((await openOutbox('bob').pending()).length).toBe(1)
+  })
+
+  it('keeps the signed-in account’s own rows', async () => {
+    const { openOutbox, sweepAccountDetails } = await withRows()
+
+    await sweepAccountDetails('alice')
+
+    expect((await openOutbox('alice').pending()).length).toBe(1)
+    expect(await openOutbox('bob').pending()).toEqual([])
+  })
+})

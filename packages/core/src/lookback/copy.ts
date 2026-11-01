@@ -1,3 +1,4 @@
+import { HALF_MARATHON_M, MARATHON_M } from '../constants'
 import { civilOfDay, localDayOfInstant } from '../calendar'
 import { formatDuration } from '../units/format'
 import { formatPace, formatPower } from '../units'
@@ -65,12 +66,29 @@ export function monthsBetween(fromMs: number, toMs: number): string {
 }
 
 /** What each sport's level is called, and how a change in it is worded. */
-const SAY: Record<Sport, { subject: string; down: string; up: string }> = {
-  run: { subject: 'pace', down: 'slower', up: 'faster' },
-  ride: { subject: 'power', down: 'lower', up: 'higher' },
+export const SAY: Record<
+  Sport,
+  { subject: string; down: string; up: string; steady: string; doing: string; all: string }
+> = {
+  run: {
+    subject: 'pace',
+    down: 'slower',
+    up: 'faster',
+    steady: 'steady runs',
+    doing: 'steady running',
+    all: 'runs',
+  },
+  ride: {
+    subject: 'power',
+    down: 'lower',
+    up: 'higher',
+    steady: 'steady rides',
+    doing: 'steady riding',
+    all: 'rides',
+  },
 }
 
-const level = (sport: SportLookBack): string =>
+export const level = (sport: SportLookBack): string =>
   `your ${SAY[sport.sport].subject} at ${sport.referenceHr === null ? 'the same heart rate' : `${sport.referenceHr} bpm`}`
 
 /** The size of a change and its range, as the page writes it, and which way it went. */
@@ -113,7 +131,10 @@ export function episodeSentence(
     case 'slip-partly-back':
       return `From ${from} ${you} was about ${amount(s, episode.change)}. By ${to} it had come back about ${sized(s, episode.regained!)} and was still about ${amount(s, episode.remaining!)} than before.`
     case 'slip-open':
-      return `From ${from} ${you} was about ${amount(s, episode.change)}, and in ${monthYear(years.toMs)} it was still lower. The last 12 weeks are on your fitness card.`
+      // One that ended before the horizon was followed by a further fall, and the level had not come back when it began.
+      return to === null
+        ? `From ${from} ${you} was about ${amount(s, episode.change)}, and in ${monthYear(years.toMs)} it was still lower. The last 12 weeks are on your fitness card.`
+        : `From ${from} ${you} was about ${amount(s, episode.change)}, and stayed lower until it fell again in ${to}.`
     case 'improvement': {
       const span = monthsBetween(episode.fromMs, episode.toMs ?? years.toMs)
       return `${you[0]!.toUpperCase()}${you.slice(1)} got about ${amount(s, episode.change)} between ${span.replace(' to ', ' and ')}${held ? `, and held there through ${monthYear(years.toMs)}` : ''}.`
@@ -123,7 +144,7 @@ export function episodeSentence(
       const lead =
         gap === undefined
           ? `After a break from running,`
-          : `No steady runs from ${monthsBetween(gap.fromMs, gap.toMs)}. When they resumed,`
+          : `No ${SAY[s].steady} from ${monthsBetween(gap.fromMs, gap.toMs)}. When they resumed,`
       return `${lead} ${you} was about ${amount(s, episode.change)}.`
     }
   }
@@ -138,14 +159,16 @@ export function episodeRow(
   const s = sport.sport
   const span =
     episode.toMs === null ? monthYear(episode.fromMs) : monthsBetween(episode.fromMs, episode.toMs)
-  const runs = `${episode.runs} steady runs.`
+  const runs = `${episode.runs} ${SAY[s].steady}.`
   switch (episode.kind) {
     case 'slip-back':
       return `${span}. Slipped about ${sized(s, episode.change)}, then back. ${runs}`
     case 'slip-partly-back':
       return `${span}. Slipped about ${sized(s, episode.change)}, then came back about ${sized(s, episode.regained!)}. ${runs}`
     case 'slip-open':
-      return `From ${span}. Slipped about ${sized(s, episode.change)}, and was still lower in ${monthYear(years.toMs)}. ${runs}`
+      return episode.toMs === null
+        ? `From ${span}. Slipped about ${sized(s, episode.change)}, and was still lower in ${monthYear(years.toMs)}. ${runs}`
+        : `${span}. Slipped about ${sized(s, episode.change)}, and stayed lower until it fell again. ${runs}`
     case 'improvement':
       return `${span}. Got about ${amount(s, episode.change)}. ${runs}`
     case 'after-break':
@@ -154,17 +177,19 @@ export function episodeRow(
 }
 
 export function quietRow(q: QuietStretch, sport: Sport): string {
-  return `${monthsBetween(q.fromMs, q.toMs)}. Stayed within ${withinText(sport, q.within)}. ${q.runs} steady runs.`
+  return `${monthsBetween(q.fromMs, q.toMs)}. Stayed within ${withinText(sport, q.within)}. ${q.runs} ${SAY[sport].steady}.`
 }
 
-export const thinRow = (s: Span): string =>
-  `No steady runs from ${monthsBetween(s.fromMs, s.toMs)}.`
-export const breakRow = (s: Span): string => `No runs from ${monthsBetween(s.fromMs, s.toMs)}.`
+export const thinRow = (s: Span, sport: Sport = 'run'): string =>
+  `No ${SAY[sport].steady} from ${monthsBetween(s.fromMs, s.toMs)}.`
+export const breakRow = (s: Span, sport: Sport = 'run'): string =>
+  `No ${SAY[sport].all} from ${monthsBetween(s.fromMs, s.toMs)}.`
 
 /** What an effort is called: "5 min", "20 min", "60 min", "5 km", "10 km", "half marathon". */
 export function effortName(effort: EffortMilestones['effort']): string {
   if (effort.kind === 'duration') return `${effort.durationS / 60} min`
-  if (effort.distanceM === 21097.5) return 'half marathon'
+  if (effort.distanceM === MARATHON_M) return 'marathon'
+  if (effort.distanceM === HALF_MARATHON_M) return 'half marathon'
   return `${effort.distanceM / 1000} km`
 }
 
@@ -202,8 +227,9 @@ export function bestRows(m: EffortMilestones, asOfMs: number, system: UnitSystem
 }
 
 /** What a sport needs before its years can be told, and how far it is. */
-export function tooShortText(t: TooShort): string {
-  return `Your years start to read once you have a year of steady running behind the latest 12 weeks: ${t.needSteady} steady runs over ${t.needWeeks} weeks. So far there are ${t.steady} steady runs over ${t.weeks} weeks.`
+export function tooShortText(t: TooShort, sport: Sport = 'run'): string {
+  const say = SAY[sport]
+  return `Your years start to read once you have a year of ${say.doing} behind the latest 12 weeks: ${t.needSteady} ${say.steady} over ${t.needWeeks} weeks. So far there are ${t.steady} ${say.steady} over ${t.weeks} weeks.`
 }
 
 /** The lead of the look-back as one sentence, in the reader's units. */
@@ -214,7 +240,7 @@ export function leadSentence(lead: Lead, lookBack: LookBack, system: UnitSystem)
   }
   if (lead.kind === 'quiet') {
     const q = lead.stretch
-    return `From ${monthYear(q.fromMs)} to ${monthYear(q.toMs)} ${level(sport)} stayed within ${withinText(lead.sport, q.within)}: ${q.runs} steady runs.`
+    return `From ${monthYear(q.fromMs)} to ${monthYear(q.toMs)} ${level(sport)} stayed within ${withinText(lead.sport, q.within)}: ${q.runs} ${SAY[lead.sport].steady}.`
   }
   const m = lead.best
   return `Your best ${effortName(m.effort)} is ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}. As of ${dayMonthYear(lookBack.asOfMs)} it has stood for ${standing(m.best.atMs, lookBack.asOfMs)}.`

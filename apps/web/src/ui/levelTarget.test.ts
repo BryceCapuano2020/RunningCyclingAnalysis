@@ -6,6 +6,7 @@ import { ageGradeForEffort } from '@rca/core/grade'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { HrCalibration } from '@rca/core/types'
 import { AnalysisSession } from '@rca/core/session'
+import { PACE_UNIT, formatPaceValue } from '@rca/core/units'
 import { gapOfHeadline } from './balanceGap'
 import { curvePoint } from './charts/fixtures'
 import { flatWkg, makeActivity, makeEquivalence, makeResult } from './components/fixtures'
@@ -22,14 +23,22 @@ import {
   levelledNative,
   nativeAtGrade,
   nativeRangeAtGrade,
+  type Reach,
 } from './levelTarget'
 import { wholeGrade } from './gradeFormat'
+import { featuredEquivalence } from './records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 
 /** A 37-year-old man at 75 kg, with the heart-rate cross-check of the fixture result. */
 const MASS_KG = 75
 const PROFILE: AgeProfile = { birthYear: 1988, sex: 'male' }
 const ATHLETE = { age: 37, sex: 'male', massKg: MASS_KG, calibration: makeResult().hr } as const
+/** What a rounded target has to reach: this whole percent at the headline duration, for this athlete. */
+const reachOf = (wholePercent: number, athlete: Reach['athlete']): Reach => ({
+  wholePercent,
+  durationS: HEADLINE_DURATION_S,
+  athlete,
+})
 /** A heart-rate calibration that says riding costs this athlete more than the priors assume. */
 const CALIBRATION = { kappa: 1.25, lnKappaSe: 0.05 }
 /** An activity dated in 2025, when this athlete is 37. */
@@ -153,12 +162,12 @@ describe('levelTargetText', () => {
     calibration: result.hr,
   }
 
-  it('says what a ride would need to grade level with the run, in watts rounded to 5, with the ride now', () => {
+  it('says what a ride would need to match the run, in watts rounded to 5, with the ride now', () => {
     const line = levelTargetText({ ...base, lean: 'run' })
     expect(line).toMatch(
-      /^To grade level with your running at 20 min, your best ride would need about \d+ W \(roughly \d+ to \d+ W; now 230 W\)\.$/,
+      /^To match your running at 20 min: about \d+ W \(\d+ to \d+ W\)\. Now 230 W\.$/,
     )
-    const [, centre, low, high] = /about (\d+) W \(roughly (\d+) to (\d+) W/.exec(line ?? '') ?? []
+    const [, centre, low, high] = /about (\d+) W \((\d+) to (\d+) W/.exec(line ?? '') ?? []
     expect(Number(centre) % 5).toBe(0)
     expect(Number(low) % 5).toBe(0)
     expect(Number(high) % 5).toBe(0)
@@ -167,17 +176,15 @@ describe('levelTargetText', () => {
     expect(Number(centre)).toBeGreaterThan(230)
   })
 
-  it('says what a run would need to grade level with the ride, as a flat pace rounded to 5 s', () => {
+  it('says what a run would need to match the ride, as a flat pace to the second', () => {
     const line = levelTargetText({
       ...base,
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
     expect(line).toMatch(
-      /^To grade level with your cycling at 20 min, your best run would need a flat pace of about \d+:\d\d \/km \(now \d+:\d\d \/km\)\.$/,
+      /^To match your cycling at 20 min: a flat pace of \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/,
     )
-    const seconds = Number(/about \d+:(\d\d) \/km/.exec(line ?? '')?.[1])
-    expect(seconds % 5).toBe(0)
   })
 
   it("compares a ride held at an earlier weight with the target at today's weight", () => {
@@ -191,7 +198,7 @@ describe('levelTargetText', () => {
       rideCurve: [curvePoint(HEADLINE_DURATION_S, 300, 'ride-1')],
     })
     const line = levelTargetText({ ...base, result: heavier, massKg: 80, lean: 'run' })
-    expect(line).toMatch(/now 300 W, 240 W at today’s weight\)\.$/)
+    expect(line).toMatch(/Now 300 W, 240 W at today’s weight\.$/)
   })
 
   it('says nothing of weight when the lower sport is a run, whose pace has no mass, even with dated masses', () => {
@@ -210,9 +217,7 @@ describe('levelTargetText', () => {
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
-    expect(line).toMatch(
-      /your best run would need a flat pace of about \d+:\d\d \/km \(now \d+:\d\d \/km\)\.$/,
-    )
+    expect(line).toMatch(/a flat pace of \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/)
     expect(line).not.toContain('today’s weight')
   })
 
@@ -246,7 +251,7 @@ describe('levelTargetText', () => {
 })
 
 describe('levelTargetText on the sample athlete', () => {
-  it('names the run pace that would grade level with the sample ride, as the sample shows it', () => {
+  it('names the run pace that would match the sample ride, as the sample shows it', () => {
     const { result, calibration } = loadedSample()
     const grades = headlineGrades(result, SAMPLE_PROFILE)
     const gap = gapOfHeadline(grades)
@@ -261,9 +266,27 @@ describe('levelTargetText on the sample athlete', () => {
         units: 'metric',
         calibration,
       }),
-    ).toBe(
-      'To grade level with your cycling at 20 min, your best run would need a flat pace of about 3:15 /km (now 4:01 /km).',
-    )
+    ).toBe('To match your cycling at 20 min: a flat pace of 3:18 /km. Now 4:01 /km.')
+  })
+
+  it('names the same pace the Ride on foot tile gives for that ride, in metric and imperial', () => {
+    const { result, calibration } = loadedSample()
+    const grades = headlineGrades(result, SAMPLE_PROFILE)
+    const featured = featuredEquivalence(result.equivalents)!
+    for (const units of ['metric', 'imperial'] as const) {
+      const line = levelTargetText({
+        lean: 'ride',
+        grades,
+        result,
+        sex: SAMPLE_PROFILE.sex,
+        massKg: SAMPLE_SETTINGS.massKg,
+        units,
+        calibration,
+      })
+      expect(line, units).toContain(
+        `a flat pace of ${formatPaceValue(featured.runSpeed.p50, units)} ${PACE_UNIT[units]}. Now `,
+      )
+    }
   })
 
   it('has watts that the page grades back to the target through the sample heart-rate weights', () => {
@@ -292,7 +315,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
       const watts = nativeAtGrade('ride', grade, HEADLINE_DURATION_S, athlete)
       if (watts === null) throw new Error(`No ride reaches ${whole}%`)
       const rideGrade = pageRideGrade(
-        levelledNative('ride', watts, 'metric'),
+        levelledNative('ride', watts, 'metric', reachOf(whole, athlete)),
         result,
         SAMPLE_PROFILE,
         calibration,
@@ -301,7 +324,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
 
       const speed = nativeAtGrade('run', grade, HEADLINE_DURATION_S, athlete)
       if (speed === null) throw new Error(`No run reaches ${whole}%`)
-      const levelled = levelledNative('run', speed, 'metric')
+      const levelled = levelledNative('run', speed, 'metric', reachOf(whole, athlete))
       const runGrade = ageGradeForEffort(levelled, HEADLINE_DURATION_S, athlete.age, athlete.sex)
       expect(wholeGrade(runGrade ?? 0), `run at ${whole}%`).toBeGreaterThanOrEqual(whole)
     }
@@ -323,6 +346,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
       'ride',
       nativeAtGrade('ride', wholeGrade(runGrade) / 100, HEADLINE_DURATION_S, athlete)!,
       'metric',
+      reachOf(wholeGrade(runGrade), athlete),
     )
     const rideId = result.activities.find((activity) => activity.sport === 'ride')!.id
     const withRideAt = (watts: number) => ({
@@ -340,7 +364,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
         calibration,
       })
     expect(at(levelled)).toBeNull()
-    expect(at(levelled - 1)).toContain(`; now ${levelled - 1} W).`)
+    expect(at(levelled - 1)).toContain(`. Now ${levelled - 1} W.`)
   })
 })
 
@@ -370,7 +394,7 @@ describe('levelTarget', () => {
     expect(target?.now).toBe('230 W')
     expect(target?.sentence).toBe(levelTargetText({ ...base, lean: 'run' }))
     expect(target?.sentence).toContain(
-      `about ${target?.centre} (roughly ${target?.range?.replace(' to ', ' to ')}; now ${target?.now})`,
+      `about ${target?.centre} (${target?.range}). Now ${target?.now}`,
     )
   })
 

@@ -1,4 +1,5 @@
-import { hasClips } from './timeSeriesEdge'
+import { SPREAD_WORDS } from './usualSpread'
+import { edgeReadings, hasClips } from './timeSeriesEdge'
 import { windowText } from './timeSeriesModel'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
 
@@ -30,13 +31,13 @@ export function TimeSeriesNote({
       {windowS !== undefined && (
         <>
           Lines show {windowText(windowS)} averages
-          {bands ? '; bands show the usual spread (10th to 90th percentile).' : '.'}
+          {bands ? `; bands show the usual spread (${SPREAD_WORDS}).` : '.'}
         </>
       )}
       {clipped && (
         <span className="ts-key">
           <span className="ts-key__swatch ts-key__swatch--edge" aria-hidden="true" />
-          Reading beyond the chart edge
+          {edgeKeyText(channels)}
         </span>
       )}
       {skipped && (
@@ -59,4 +60,21 @@ export function TimeSeriesNote({
       )}
     </p>
   )
+}
+
+/**
+ * What the edge tick is, with the value: "Reading beyond the chart edge: heart rate reached 231 bpm". A channel with readings past
+ * both edges says both ("reached 2:02 /km and fell to 27:47 /km"), and several channels are joined, so the tick is never an unexplained mark.
+ */
+function edgeKeyText(channels: readonly StackChannel[]): string {
+  const parts = channels.flatMap((channel) => {
+    if (!hasClips(channel)) return []
+    const { above, below } = edgeReadings(channel)
+    const said = [
+      ...(above === null ? [] : [`reached ${above}`]),
+      ...(below === null ? [] : [`fell to ${below}`]),
+    ]
+    return [`${channel.short.toLowerCase()} ${said.join(' and ')}`]
+  })
+  return `Reading beyond the chart edge: ${parts.join('; ')}`
 }

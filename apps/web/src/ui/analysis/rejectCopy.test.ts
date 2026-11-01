@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { hashedFileName } from '@rca/core/import/minimise'
 import type { RejectCode, RejectedFile } from '@rca/core/session'
 import {
   ADVICE,
@@ -43,6 +44,17 @@ describe('rejectionCopy: one plain sentence per reason code', () => {
     expect(rejectionCopy(again)).toBe('Already in your library, so it was not counted twice.')
     const copy = file('run.gpx', { code: 'duplicate', detail: 'run.fit' })
     expect(rejectionCopy(copy)).toBe('Same workout as run.fit, so it was not counted twice.')
+  })
+
+  it('does not show a hash: a file held under one is the same file added again, or a file in the library', () => {
+    const held = hashedFileName('activities/12345678.fit')
+    const again = file('activities/12345678.fit', { code: 'duplicate', detail: held })
+    expect(rejectionCopy(again)).toBe('Already in your library, so it was not counted twice.')
+    const other = file('copy.gpx', { code: 'duplicate', detail: held })
+    expect(rejectionCopy(other)).toBe(
+      'Same workout as a file already in your library, so it was not counted twice.',
+    )
+    expect(rejectionCopy(other)).not.toContain('rca-')
   })
 
   it('never calls an empty file damaged, or tells its owner to export it again', () => {

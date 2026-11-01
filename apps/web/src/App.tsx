@@ -24,7 +24,7 @@ import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { hrefFor, useRoute } from './ui/route'
 import { useRouteHistory } from './ui/routeHistory'
 import { useLoadedPages } from './ui/useLoadedPages'
-import { focusPageHeading } from './ui/pages/pageHeading'
+import { useRunThenFocus } from './ui/useRunThenFocus'
 import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
@@ -33,6 +33,7 @@ import { datedWeightActions } from './ui/datedWeight'
 import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
 import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
+import { useExportWeight } from './ui/useExportWeight'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
@@ -126,6 +127,7 @@ export function App() {
     addFiles: analysis.addFiles,
     save: saveProfile,
   })
+  const exportWeightKg = useExportWeight(setup.files)
   const hasResult = analysis.state.result !== null
   // A library is more than a result: one whose digests are all held out has none, and is still a library.
   const { knowledge, holdInputs, page } = useLibraryPage(analysis, route, signedIn)
@@ -165,8 +167,7 @@ export function App() {
     settled,
   })
 
-  // Pages that load on first use: they preload while results are on their way, and focus and scroll wait
-  // for the new page to report it is on screen.
+  // Pages that load on first use preload while results are on their way; focus and scroll wait for them to show.
   const onShown = useLoadedPages(key, analysis.busy || analysis.restoring || signedIn)
 
   // Removing all activities clears the analysis in the worker. The landing page shows once the old
@@ -209,28 +210,7 @@ export function App() {
     window.location.replace(hrefFor({ page: 'balance' }))
   }
 
-  // Stop, restart and retry unmount their own button when they finish. Once that button has gone
-  // and focus went with it, focus moves to the page's heading. Focus the user has moved elsewhere
-  // is left where it is.
-  const focusAfter = useRef<{ control: Element | null } | null>(null)
-  const [, setFocusTick] = useState(0)
-  // The control is passed by the caller because Safari and Firefox do not focus a clicked button.
-  function runThenFocus(action: () => void, control?: Element) {
-    const active = document.activeElement
-    action()
-    focusAfter.current = { control: control ?? (active === document.body ? null : active) }
-    setFocusTick((tick) => tick + 1)
-  }
-  useEffect(() => {
-    const pending = focusAfter.current
-    if (pending === null) return
-    const active = document.activeElement
-    // The button that ran the action is still there: wait for it to go.
-    if (pending.control?.isConnected) return
-    focusAfter.current = null
-    if (active !== null && active !== document.body && active.isConnected) return
-    focusPageHeading()
-  })
+  const runThenFocus = useRunThenFocus()
 
   const accountsAvailable = account.status !== 'unavailable'
   // The landing page's drop zone has its own Add files, so the header leaves its button out there.
@@ -301,6 +281,7 @@ export function App() {
             walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
             countedRuns={countedRuns}
             libraryPanel={page === 'held'}
+            units={units}
           />
           <PageFrame pageKey={key} onShown={onShown}>
             {route.page === 'profile' ? (
@@ -317,6 +298,7 @@ export function App() {
                 email={account.me?.user.email ?? null}
                 keepFiles={keepFiles}
                 fileRetentionAvailable={fileRetentionAvailable}
+                userId={account.me?.user.id ?? null}
                 onSaveProfile={saveProfile}
                 dated={measurements}
                 onAddSetting={addSetting}
@@ -360,7 +342,12 @@ export function App() {
                 restoring={analysis.restoring}
               />
             ) : (
-              <LandingPage analysis={analysis} signedIn={signedIn} onFiles={setup.requestImport} />
+              <LandingPage
+                analysis={analysis}
+                signedIn={signedIn}
+                units={units}
+                onFiles={setup.requestImport}
+              />
             )}
           </PageFrame>
         </main>
@@ -380,6 +367,7 @@ export function App() {
         {setup.open && (
           <SetupDialog
             initial={athleteValues}
+            exportWeightKg={exportWeightKg}
             saving={setup.saving}
             error={setup.saveError}
             onConfirm={(patch) => void setup.finish(patch)}

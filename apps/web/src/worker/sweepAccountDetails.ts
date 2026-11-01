@@ -1,4 +1,5 @@
 import { sweepCheckin } from './checkinStore'
+import { sweepOutbox } from './outbox'
 import { workbenchExists } from './workbenchExists'
 import { accountsWithRecordings, clearWorkbenchScope } from './workbenchStore'
 
@@ -6,7 +7,8 @@ import { accountsWithRecordings, clearWorkbenchScope } from './workbenchStore'
  * Clears the detail recordings of every account in this browser except the signed-in one (`keepUserId`,
  * or none when nobody is). An account whose session ended while the tab was closed, or that was deleted
  * on another device, is never signed in here again, so nothing else would clear it. Only account scopes
- * are touched: the recordings kept for a signed-out visitor stay. Call it only on a definite answer from
+ * are touched: the recordings kept for a signed-out visitor stay. The saves an account had waiting are swept for
+ * another account's sign-in only (see sweepOutbox). Call it only on a definite answer from
  * the server, never on a network error. Best effort: what storage refuses is tried again at the next load.
  */
 export async function sweepAccountDetails(keepUserId: string | null): Promise<void> {
@@ -16,6 +18,8 @@ export async function sweepAccountDetails(keepUserId: string | null): Promise<vo
     if (typeof indexedDB === 'undefined') return
     // The check-in database is swept whether or not any recording was stored: the index of files read is kept without one.
     await sweepCheckin(keepUserId).catch(() => undefined)
+    // The waiting saves (summaries and file names) of other accounts go the same way, once somebody else is signed in.
+    await sweepOutbox(keepUserId).catch(() => undefined)
     // A visitor who never stored a recording has no database, and looking must not make one.
     if (!(await workbenchExists())) return
     for (const userId of await accountsWithRecordings()) {

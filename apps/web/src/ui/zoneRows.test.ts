@@ -97,6 +97,15 @@ describe('zoneTable', () => {
     expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 140 W'])
   })
 
+  it('says an estimated threshold is the held one, with the newest fit, only where the two read differently', () => {
+    const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
+    expect(zoneTable(set, 'metric', 3.51).detail).toBe(
+      'From your runs: threshold pace 4:46 /km. Zones keep this threshold until the fit moves by more than its error; the Run page shows the newest fit, 4:45 /km',
+    )
+    expect(zoneTable(set, 'metric', 3.5).detail).toBe('From your runs: threshold pace 4:46 /km')
+    expect(zoneTable(set, 'metric').detail).toBe('From your runs: threshold pace 4:46 /km')
+  })
+
   it('says an entered reference was entered', () => {
     const set = setOf({ sport: 'run', measure: 'heartRate', reference: 188, source: 'entered' })
     expect(sourceText(set)).toBe('You entered')

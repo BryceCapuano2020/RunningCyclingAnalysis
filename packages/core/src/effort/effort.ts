@@ -1,5 +1,5 @@
 import { rollingMean } from '../math'
-import type { Activity, CurvePoint, EffortCheck } from '../types'
+import type { Activity, CurvePoint, EffortCheck, Sport } from '../types'
 import type { EffortReference } from './reference'
 
 export interface HeartRateSource {
@@ -135,9 +135,14 @@ export function checkEfforts(
   rideCurve: EffortPoint[],
   maxHr: MaxHeartRates,
   durations: readonly number[],
-  reference: Pick<EffortReference, 'reading' | 'source'>,
+  reference: Pick<EffortReference, 'reading' | 'source' | 'from'>,
 ): EffortCheck[] {
-  const { reading, source } = reference
+  const { reading, source, from } = reference
+  // Only a reference the other sport set is named, so a check of a sport's own reference is as it was.
+  const supplier = (sport: Sport): { [K in 'runReferenceFrom' | 'rideReferenceFrom']?: Sport } => {
+    const found = from[sport]
+    return found === null || found === sport ? {} : { [`${sport}ReferenceFrom`]: found }
+  }
   return durations.map((durationS) => ({
     durationS,
     runHrFraction: heartRateFraction(findPoint(runCurve, durationS), maxHr.run),
@@ -146,6 +151,8 @@ export function checkEfforts(
     rideReference: reading.ride,
     runReferenceSource: source.run,
     rideReferenceSource: source.ride,
+    ...supplier('run'),
+    ...supplier('ride'),
   }))
 }
 

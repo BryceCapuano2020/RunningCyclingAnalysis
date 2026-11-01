@@ -40,7 +40,7 @@
     </header>
 
     <main class="wrap policy">
-      <p class="updated">Last updated 30 October 2026</p>
+      <p class="updated">Last updated 31 October 2026</p>
       <h1>Privacy policy</h1>
 
       <p class="lede">
@@ -60,21 +60,39 @@
       <h2>Without an account</h2>
       <ul>
         <li>
+          A Strava export's profile.csv is read for one thing: the weight, offered as the starting
+          value of the weight question before your files are analysed. Its name, email address and
+          place are not kept or sent, and the weight is kept only if you confirm it.
+        </li>
+        <li>
           Each activity's summary is kept in this browser's IndexedDB where the browser allows, so
-          results survive a reload, and anyone using this browser can see them. It holds the figures
-          shown: times, distances, elevation gain, the power source (measured, estimated or none),
-          splits per km and mile (flat-pace times, climb and heart rate), moving time, heart-rate
-          and power, average power, best efforts, climbs, power-meter calibration sums, the indoor
-          flag and data-quality flags, a mark on a run at walking pace, a race mark when a Strava
-          export tags the activity as a race, and the file name. Its name comes from the activity
-          list in a Strava export or the activity summaries in a Garmin export, else the title in
-          the file, else the start time and sport. A name from an export is kept as the export
-          writes it, and can name a place. For an outdoor activity with GPS it also holds an outline
-          of the route with no coordinates or scale. The outline is kept only in this browser and is
-          never uploaded. The summary has no per-second data or original file, and it does not
-          expire. When one file yields several summaries, including a split activity, each keeps a
-          SHA-256 hash of that file, so they are shown together. Summaries kept from now on also
-          keep the file name and a SHA-256 hash of the file, for adding them to an account later.
+          results survive a reload, and anyone using this browser can see them. The summary:
+          <ul>
+            <li>
+              It holds the figures shown: times, distances, elevation gain, the power source
+              (measured, estimated or none), splits per km and mile (flat-pace times, climb and
+              heart rate), moving time, heart-rate and power, average power, best efforts, climbs,
+              power-meter calibration sums, the indoor flag and data-quality flags, a mark on a run
+              at walking pace, a race mark when a Strava export tags the activity as a race, and the
+              file name.
+            </li>
+            <li>
+              Its name comes from the activity list in a Strava export or the activity summaries in
+              a Garmin export, else the title in the file, else the start time and sport. A name
+              from an export is kept as the export writes it, and can name a place.
+            </li>
+            <li>
+              For an outdoor activity with GPS it also holds an outline of the route with no
+              coordinates or scale. The outline is kept only in this browser and is never uploaded.
+            </li>
+            <li>The summary has no per-second data or original file, and it does not expire.</li>
+            <li>
+              When one file yields several summaries, including a split activity, each keeps a
+              SHA-256 hash of that file, so they are shown together. Summaries kept from now on also
+              keep the file name and a SHA-256 hash of the file, for adding them to an account
+              later.
+            </li>
+          </ul>
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,
@@ -103,17 +121,27 @@
         </li>
         <li>
           A database in this browser, named rca-checkin, remembers which files of yours the app has
-          already read, so adding the same export again does not read each file again. For each file
-          it keeps a SHA-256 hash of the file, its size, the sport and start second of the workouts
-          in it, a short signature of what the export's list says about it, and the model revision
-          it was read with. The same database keeps a short summary of the library as it stood
-          before your last import, so the page can say what that import changed: the sport and start
-          second of each workout, counts, the values and dates of your best efforts, the state words
-          of your fitness card and the dates of the changes your years list, and whether you have
-          seen what was said. It holds no names, routes or heart rates, and it is never uploaded.
-          Remove all my activities, signing out and deleting your account clear it, and signing in
-          as someone else clears the other account's rows. Nothing is written for a session that
-          keeps nothing in this browser.
+          already read, so adding the same export again does not read each file again.
+          <ul>
+            <li>
+              For each file it keeps a SHA-256 hash of the file, its size, the sport and start
+              second of the workouts in it, a short signature of what the export's list says about
+              it, and the model revision it was read with.
+            </li>
+            <li>
+              The same database keeps a short summary of the library as it stood before your last
+              import, so the page can say what that import changed: the sport and start second of
+              each workout, counts, the values and dates of your best efforts, the state words of
+              your fitness card and the dates of the changes your years list, and whether you have
+              seen what was said.
+            </li>
+            <li>It holds no names, routes or heart rates, and it is never uploaded.</li>
+            <li>
+              Remove all my activities, signing out and deleting your account clear it, and signing
+              in as someone else clears the other account's rows. Nothing is written for a session
+              that keeps nothing in this browser.
+            </li>
+          </ul>
         </li>
         <li>
           A second flag, named rca.deviceKept.v1, says whether the summaries kept in this browser
@@ -166,11 +194,13 @@
         stay, and the app reads them only for their account. Deleting an activity removes its cached
         recording, and Remove all my activities removes signed-out recordings. Account deletion also
         attempts to remove that account’s recordings and reports a local cleanup failure separately.
-        Clearing this site’s browser data removes all recording caches. The cache also keeps one
-        small record for each account that signed out or was deleted in this browser, holding an
-        account identifier and a time, so that a late write for that account is refused. The record
-        for a deleted account stays until you clear this site’s data. The record for a sign-out ends
-        the next time that account signs in here.
+        Clearing this site’s browser data removes all recording caches.
+      </p>
+      <p>
+        The cache also keeps one small record for each account that signed out or was deleted in
+        this browser, holding an account identifier and a time, so that a late write for that
+        account is refused. The record for a deleted account stays until you clear this site’s data.
+        The record for a sign-out ends the next time that account signs in here.
       </p>
 
       <h2>Saves waiting on this device</h2>
@@ -183,7 +213,9 @@
         first, the saves resume the next time you sign in on this device. Signing out asks first
         when saves are still waiting, then removes the list, and so does deleting your account.
         Remove all my activities removes every waiting save from this browser too. When a session
-        ends on its own, the list stays so those saves can finish when you sign in again.
+        ends on its own, the list stays so those saves can finish when you sign in again, unless
+        somebody else signs in to this browser first: their sign-in removes the list of any other
+        account.
       </p>
 
       <p>
@@ -228,6 +260,19 @@
           and the analysis summary, the same figures as the summary kept in this browser. No
           per-second recording or route data. A name can name a place, and in a Strava export the
           file name is the number of the activity on Strava.
+        </li>
+        <li>
+          <strong>Titles and file names of new activities:</strong> an activity saved from now on
+          keeps its title in your library only if you choose
+          <strong>Send my activity titles to my library</strong> on Profile. Otherwise the library
+          keeps a generated name such as Morning Run, and your title stays in the file you imported.
+          The name of the file is saved as a hash of the name, <code>rca-</code> and sixteen
+          characters, with the file's extension, so the number of an activity on Strava is not
+          stored as it is. A number has few values, so this keeps it out of plain sight; it is not
+          secrecy. The choice is kept in this browser's local storage under
+          <code>rca.uploadTitles.v1</code> and your account id, and is never uploaded. Activities
+          saved before keep the title and file name they were saved with, also when they are
+          rebuilt.
         </li>
         <li>
           <strong>Original files:</strong> only while
@@ -277,12 +322,14 @@
       </p>
       <p>
         Error logs hold a request ID, the error type and, for a saved activity that cannot be read,
-        its ID. They never hold request bodies, files, tokens or query strings. Cloudflare's request
-        logs may include each request's network address, approximate location, browser user agent
-        and the address of the request (URL), which can carry the one-time Google sign-in code and
-        state, and the code cannot be reused. The network address is used only as a rate-limit key.
-        Request and error logs are kept three days on Cloudflare's Free plan; retention depends on
-        the plan.
+        its ID. They never hold request bodies, files, tokens or query strings.
+      </p>
+      <p>
+        Cloudflare's request logs may include each request's network address, approximate location,
+        browser user agent and the address of the request (URL), which can carry the one-time Google
+        sign-in code and state, and the code cannot be reused. The network address is used only as a
+        rate-limit key. Request and error logs are kept three days on Cloudflare's Free plan;
+        retention depends on the plan.
       </p>
       <p>
         Cookies are strictly necessary only: the sign-in cookie, and two cookies that last ten
@@ -291,10 +338,13 @@
       <p>
         If backups are run, each is an encrypted archive of the database: account identifiers, email
         addresses, session hashes and activity summaries, plus a list of original-file keys and
-        sizes, but not the files. It is a downloadable artifact of the public GitHub repository, so
-        anyone who can read the repository can download it. Age encryption is its only protection,
-        and the private key is kept outside GitHub. Each archive is kept up to 90 days, then
-        deleted, and deleted data can remain in backups until then.
+        sizes, but not the files.
+      </p>
+      <p>
+        It is a downloadable artifact of the public GitHub repository, so anyone who can read the
+        repository can download it. Age encryption is its only protection, and the private key is
+        kept outside GitHub. Each archive is kept up to 90 days, then deleted, and deleted data can
+        remain in backups until then.
       </p>
 
       <h2>How to delete your data</h2>

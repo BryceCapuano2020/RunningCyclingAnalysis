@@ -8,9 +8,9 @@ import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { missingThresholdZones, zonesAt } from '@rca/core/zones'
-import type { ZoneMeasure } from '@rca/core/zones'
 import type { ZoneEstimates } from '@rca/core/zones'
 import type { ZoneSet } from '@rca/core/zones'
+import type { MissingMeasure } from './ActivityZoneTime'
 import { ActivityDelete } from '../components/ActivityDelete'
 import { PowerCheck } from '../components/PowerCheck'
 import { RouteOffer } from '../components/RouteOffer'
@@ -122,11 +122,11 @@ function missingZonesOf(
   settings: AthleteSettings,
   estimates: ZoneEstimates | null,
   weightKnown: boolean,
-): ZoneMeasure[] {
+): MissingMeasure[] {
   if (activity === null) return []
   return missingThresholdZones(activity.startMs, settings, estimates)
     .filter((gap) => gap.sport === activity.sport && !(!weightKnown && NEEDS_WEIGHT[gap.measure]))
-    .map((gap) => gap.measure)
+    .map(({ measure, outgrown }) => ({ measure, outgrown }))
 }
 
 /**

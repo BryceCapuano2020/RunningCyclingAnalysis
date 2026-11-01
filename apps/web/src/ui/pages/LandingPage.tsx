@@ -1,7 +1,7 @@
+import type { UnitSystem } from '@rca/core/units'
 import { useRef } from 'react'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
-import { CLIMB_NEEDED } from '../components/headlineNeed'
 import { HEADLINE_LABEL } from '../grades'
 import { useTouchFirst } from '../useMediaQuery'
 import type { AnalysisController } from '../useAnalysis'
@@ -21,12 +21,14 @@ function privacyLine(signedIn: boolean): string {
 export interface LandingPageProps {
   analysis: AnalysisController
   signedIn: boolean
+  /** The units the example's weight is told in. Metric without one. */
+  units?: UnitSystem
   /** Receives dropped or chosen files. The app asks the setup questions first, when they are due. */
   onFiles: (files: File[]) => void
 }
 
 /** Shown while there is no result: the promise, the drop target, an example and how it works. */
-export function LandingPage({ analysis, signedIn, onFiles }: LandingPageProps) {
+export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageProps) {
   const guidesHeading = useRef<HTMLHeadingElement>(null)
   // On a touch screen the actions come straight after the pitch, ahead of the example, so they are on the first screen.
   const touch = useTouchFirst()
@@ -58,7 +60,7 @@ export function LandingPage({ analysis, signedIn, onFiles }: LandingPageProps) {
         {/* A pointer sees the example first, with the drop zone beside it; a touch screen sees the actions first. */}
         <div className={touch ? 'landing__start landing__start--touch' : 'landing__start'}>
           {touch && dropzone}
-          <LandingExample />
+          <LandingExample units={units} />
           {!touch && dropzone}
         </div>
         {/* The second panel follows the actions, so Add files stays on the first screen. */}
@@ -68,15 +70,13 @@ export function LandingPage({ analysis, signedIn, onFiles }: LandingPageProps) {
         <li>
           <h2>1. Add your files</h2>
           <p className="secondary">
-            Download your account export from Strava or Garmin and drop the zip as it is, or export
-            from Wahoo, COROS or Zwift.
+            Drop the zip from Strava or Garmin as it is, or export from Wahoo, COROS or Zwift.
           </p>
         </li>
         <li>
           <h2>2. Both sports on one scale</h2>
           <p className="secondary">
-            The app asks for your age, sex and weight. Your age and sex set the standard for each
-            sport, and a ride needs your weight to show its level.
+            Your age and sex set each sport’s standard. A ride also needs your weight.
           </p>
         </li>
         <li>
@@ -94,7 +94,7 @@ export function LandingPage({ analysis, signedIn, onFiles }: LandingPageProps) {
       <section className="landing__method" aria-labelledby={METHOD_HEADING_ID}>
         <h2 id={METHOD_HEADING_ID}>How the result is worked out</h2>
         <p className="secondary">
-          {`Each sport is judged on your best ${HEADLINE_LABEL}: running by its pace, allowing for hills, and cycling by its power. Without a power meter, power is estimated from speed, gradient and weight, and only on ${CLIMB_NEEDED}.`}
+          {`Each sport is judged on your best ${HEADLINE_LABEL}: running by its pace, allowing for hills, and cycling by its power (estimated without a power meter).`}
         </p>
         <p className="secondary">
           Each result is compared with the standard for your age and sex on the day of that effort.

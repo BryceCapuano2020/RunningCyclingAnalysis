@@ -3,7 +3,7 @@ import type { Copy } from '@rca/core/session'
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
-import { NO_TRENDS } from '@rca/core/digest/trendPoints'
+import { NONE_WITHHELD, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_LOOKBACK } from '@rca/core/lookback'
@@ -156,6 +156,7 @@ const STATE = {
   previous: null,
   change: null,
   effortTrends: NO_TRENDS,
+  dotsWithheld: NONE_WITHHELD,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
   heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
@@ -2394,6 +2395,51 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.importOutcome).toBeNull()
+  })
+
+  it('sends Undo for the labels an import applied, and drops them from the summary when the reply comes', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], labelled: 2 }
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(result.current.importOutcome).toEqual(outcome)
+
+    act(() => result.current.undoLabels())
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'undoLabels',
+      settings: SETTINGS,
+      userId: USER_ID,
+    })
+    // The summary stays while the labels are taken off.
+    expect(result.current.importOutcome).toEqual(outcome)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.importOutcome).toEqual({ activities: 2, rejected: 0, duplicates: [] })
+  })
+
+  it('keeps the count and Undo when some labels could not be taken off, and says how many', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], labelled: 2 }
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+
+    act(() => result.current.undoLabels())
+    act(() => worker().reply({ type: 'state', state: STATE, labelsLeft: 1 }))
+    expect(result.current.importOutcome).toEqual({ ...outcome, labelled: 1 })
+    expect(result.current.libraryNotice).toMatch(/1 label could not be taken off/)
+
+    act(() => result.current.undoLabels())
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.importOutcome).toEqual({ activities: 2, rejected: 0, duplicates: [] })
+    expect(result.current.libraryNotice).toBeNull()
+  })
+
+  it('sends no Undo when nobody is signed in', () => {
+    const { result } = setup()
+    const before = worker().posted.length
+    act(() => result.current.undoLabels())
+    expect(worker().posted).toHaveLength(before)
   })
 
   it('requests a saved-activity rebuild and exposes its partial recovery notice', () => {

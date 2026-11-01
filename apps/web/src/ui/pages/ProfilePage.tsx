@@ -8,6 +8,7 @@ import { AccountSection } from '../components/AccountSection'
 import { AthleteFields } from '../components/AthleteFields'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { FileRetention } from '../components/FileRetention'
+import { TitleUpload } from '../components/TitleUpload'
 import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { SampleSettings } from '../components/SampleSettings'
@@ -15,6 +16,8 @@ import { SavedLibraryCard } from '../components/SavedLibraryCard'
 import { SettingsOverTime } from '../components/SettingsOverTime'
 import type { SettingPrefill } from '../components/SettingsOverTime'
 import { ZoneTables } from '../components/ZoneTables'
+import { SPORT_ORDER } from '../sports'
+import { thresholdLine } from '../thresholdLine'
 import { UNIT_OPTIONS, displayBirthYear, readBirthYear, weightKnown } from '../athlete'
 import type { WeightSettings } from '../athlete'
 import { WAITING_FOR_ACCOUNT } from '../analysis/copy'
@@ -47,6 +50,8 @@ export interface ProfilePageProps {
   email: string | null
   keepFiles: boolean
   fileRetentionAvailable: boolean
+  /** The signed-in account's id, for the choice to send titles; absent or null when signed out. */
+  userId?: string | null
   /** Resolves when the change is saved. Rejects when it is refused, and the account shows why. */
   onSaveProfile: (next: ProfilePatch) => Promise<void>
   /** The dated settings, and how they load. */
@@ -77,6 +82,7 @@ export function ProfilePage({
   email,
   keepFiles,
   fileRetentionAvailable,
+  userId = null,
   onSaveProfile,
   dated,
   onAddSetting,
@@ -128,6 +134,18 @@ export function ProfilePage({
       : null
   const shownSex = sexDraft ? sexDraft.value : sex
   const shownUnits = unitsDraft ? unitsDraft.value : units
+  // The sport pages' newest threshold fits, which an estimated threshold in the zones says when it reads differently.
+  const zoneAthlete = sample ? SAMPLE_ZONE_ATHLETE : athlete
+  const result = analysis.state.result
+  const newestFits =
+    result === null
+      ? undefined
+      : Object.fromEntries(
+          SPORT_ORDER.flatMap((sport) => {
+            const line = thresholdLine(result, sport, zoneAthlete.massKg, shownUnits)
+            return line === null ? [] : [[sport, line.value]]
+          }),
+        )
 
   async function changeSex(next: Sex | null) {
     setSexDraft({ value: next })
@@ -267,6 +285,7 @@ export function ProfilePage({
         estimates={analysis.state.zoneEstimates}
         weightKnown={sample || weightKnown(settings)}
         units={shownUnits}
+        newestFits={newestFits}
         onSetMaxHeartRate={
           sample
             ? undefined
@@ -326,6 +345,13 @@ export function ProfilePage({
             onAskingChange={setRetentionAsking}
             onChange={(next) => onSaveProfile({ keepFiles: next })}
           />
+        </section>
+      )}
+
+      {signedIn && userId !== null && (
+        <section className="section" aria-labelledby="profile-titles">
+          <h2 id="profile-titles">Activity titles</h2>
+          <TitleUpload key={userId} userId={userId} />
         </section>
       )}
 

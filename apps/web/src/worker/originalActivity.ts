@@ -1,5 +1,6 @@
 import type { ActivityRecord } from '@rca/contract'
 import { parseActivityFile } from '@rca/core/import'
+import { hashedDigestId } from '@rca/core/import/minimise'
 import { sha256Hex } from '@rca/core/sha256'
 import type { Activity, ActivityDigest } from '@rca/core/types'
 import { downloadActivityFile } from '../api/client'
@@ -19,9 +20,12 @@ export function matchOriginalActivity(
   digest: ActivityDigest,
   expectedActivityId?: string,
 ): Activity | undefined {
+  // The id is compared by its hashed form: a stored activity's id may be made from the file's name or from its hash
+  // (import/minimise.ts), and the file is read again under the name the record holds.
+  const expected = expectedActivityId === undefined ? undefined : hashedDigestId(expectedActivityId)
   return activities.find(
     (candidate) =>
-      (expectedActivityId === undefined || candidate.id === expectedActivityId) &&
+      (expected === undefined || hashedDigestId(candidate.id) === expected) &&
       candidate.sport === digest.sport &&
       Math.round(candidate.startMs / 1000) === Math.round(digest.startMs / 1000),
   )
@@ -52,5 +56,9 @@ export async function originalActivity(
   })
   if (!parsed.ok) return { fileHash, activity: undefined }
   const activity = matchOriginalActivity(parsed.activities, record.digest, expectedActivityId)
-  return { fileHash, activity: activity && { ...activity, name: record.digest.name } }
+  // Under the id and name the record already has, so a rebuild or a recording read back is of the activity it was saved as.
+  return {
+    fileHash,
+    activity: activity && { ...activity, id: record.digest.id, name: record.digest.name },
+  }
 }

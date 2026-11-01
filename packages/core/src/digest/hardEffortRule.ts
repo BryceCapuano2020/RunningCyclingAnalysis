@@ -41,6 +41,58 @@ export function pointVerdict(
 }
 
 /**
+ * Whether heart rate shows a point was not a hard effort, against a reference that can say so: a reference that is trusted
+ * and a point held under the hard line. A point heart rate cannot judge (none, set aside, a thin library) or a reference that
+ * cannot certify a maximum shows nothing, so it is not shown to be easy: the gate withholds only what it can see was not hard.
+ */
+export function shownNotHard(
+  digest: ActivityDigest,
+  point: DigestCurvePoint,
+  reference: EffortReference,
+  setAside: ReadonlySet<string>,
+): boolean {
+  return (
+    reference.reading[digest.sport] === 'trusted' &&
+    pointVerdict(digest, point, reference, setAside) === 'notHard'
+  )
+}
+
+/**
+ * What a reading rule does with a point heart rate cannot judge. The change test needs evidence that an effort was hard, so it
+ * leaves such a point out (`hard`); the bests-over-time dots withhold only what heart rate shows was not hard, so such a
+ * point stays (`unlessShownEasy`). One function builds both, so the two cannot differ in anything else.
+ */
+export type GateMode = 'hard' | 'unlessShownEasy'
+
+/**
+ * The reading rule behind the effort gate. In `hard` mode a point counts when heart rate shows it was a hard effort, or
+ * cannot judge it because it is a sprint; a point that was not hard, or whose heart rate is missing, does not. In
+ * `unlessShownEasy` mode a point counts unless heart rate shows it was not hard (`shownNotHard`): a point with no heart
+ * rate, one set aside, one in a thin library, or against a reference that cannot certify a maximum is not shown easy, so
+ * it stays.
+ */
+function gatedRule(
+  reference: EffortReference,
+  setAside: readonly string[],
+  mode: GateMode,
+): KeyedReadingRule {
+  const aside = new Set(setAside)
+  const point =
+    mode === 'hard'
+      ? (digest: ActivityDigest, each: DigestCurvePoint) => {
+          const verdict = pointVerdict(digest, each, reference, aside)
+          return verdict === 'hard' || verdict === 'free'
+        }
+      : (digest: ActivityDigest, each: DigestCurvePoint) =>
+          !shownNotHard(digest, each, reference, aside)
+  const name = mode === 'hard' ? 'hard2' : 'dots1'
+  return {
+    rule: { activity: effortsCount, point },
+    key: `${name}|${JSON.stringify([reference.referenceHr, reference.reading])}|${setAside.join(',')}`,
+  }
+}
+
+/**
  * The reading rule the change test's gated reading takes: a point counts when heart rate shows it was a hard effort, or
  * cannot judge it because it is a sprint. A point that was not hard, or whose heart rate is missing, does not count. The
  * test makes a call from this reading only when both periods hold enough of it, and otherwise from every effort in both
@@ -54,15 +106,18 @@ export function hardEffortRule(
   reference: EffortReference,
   setAside: readonly string[],
 ): KeyedReadingRule {
-  const aside = new Set(setAside)
-  return {
-    rule: {
-      activity: effortsCount,
-      point: (digest, point) => {
-        const verdict = pointVerdict(digest, point, reference, aside)
-        return verdict === 'hard' || verdict === 'free'
-      },
-    },
-    key: `hard2|${JSON.stringify([reference.referenceHr, reference.reading])}|${setAside.join(',')}`,
-  }
+  return gatedRule(reference, setAside, 'hard')
+}
+
+/**
+ * The reading rule of the bests-over-time dots: every effort counts but one heart rate shows was not hard, so a dot is an
+ * effort that led its window and was hard, or could not be judged. An effort with no heart rate stays (D5 counts it): the
+ * gate withholds only what it can see was not hard. A week whose window holds only efforts shown easy has no dot. The
+ * curves' bests keep every effort, as the change test's ungated reading does; only the dots are gated.
+ */
+export function dotsRule(
+  reference: EffortReference,
+  setAside: readonly string[],
+): KeyedReadingRule {
+  return gatedRule(reference, setAside, 'unlessShownEasy')
 }

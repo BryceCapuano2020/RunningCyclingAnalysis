@@ -37,15 +37,8 @@ export interface ThresholdAt {
   asOfMs: number | null
 }
 
-/**
- * The threshold in effect at an instant: the fit over the window that ends with the instant's week, or, when
- * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`.
- * Null when neither exists.
- */
-export function thresholdAt(
-  steps: readonly ThresholdStep[],
-  at: number | Dated,
-): ThresholdAt | null {
+/** The index of the step in effect at an instant: the last whose week has ended by the instant's week's end, -1 for none. */
+function stepIndexAt(steps: readonly ThresholdStep[], at: number | Dated): number {
   const end = weekEndFor(typeof at === 'number' ? { startMs: at } : at)
   let low = 0
   let high = steps.length - 1
@@ -57,7 +50,19 @@ export function thresholdAt(
       low = mid + 1
     } else high = mid - 1
   }
-  const step = steps[found]
+  return found
+}
+
+/**
+ * The threshold in effect at an instant: the fit over the window that ends with the instant's week, or, when
+ * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`, unless the
+ * window's efforts have outgrown that fit. Null when none exists.
+ */
+export function thresholdAt(
+  steps: readonly ThresholdStep[],
+  at: number | Dated,
+): ThresholdAt | null {
+  const step = steps[stepIndexAt(steps, at)]
   if (step === undefined) return null
   if (step.fit !== null) return { fit: step.fit, asOfMs: null }
   const older = steps[step.lastFit]
@@ -66,4 +71,19 @@ export function thresholdAt(
   return startMs - older.asOfMs <= STALE_THRESHOLD_DAYS * DAY_MS
     ? { fit: older.fit, asOfMs: older.asOfMs }
     : null
+}
+
+/**
+ * Whether the window at an instant has no fit and has outgrown the fits before it: its best 20 minutes is far above what
+ * the newest of them predicts, so none stands in (`lastFit` -1, though an earlier step had a fit).
+ */
+export function outgrownAt(steps: readonly ThresholdStep[], at: number | Dated): boolean {
+  const i = stepIndexAt(steps, at)
+  const step = steps[i]
+  return (
+    step !== undefined &&
+    step.fit === null &&
+    step.lastFit < 0 &&
+    steps.slice(0, i).some((each) => each.fit !== null)
+  )
 }

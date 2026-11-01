@@ -19,9 +19,6 @@ import { EffortChip } from './EffortChip'
 import { RangeTrack } from './RangeTrack'
 import { BasisChip } from './StatTile'
 
-/** What the track's range is called under it: the fit's own spread, or the range between two fits. */
-const SPAN_LABEL = { spread: 'fit spread', between: 'range' } as const
-
 /**
  * The threshold, as the page's answer: its name with a chip that says whether it is an estimate, the figure at
  * display size, its range drawn as a track with the two ends printed under it, what it means, and whether the
@@ -107,7 +104,7 @@ export function ThresholdPanel({
           <RangeTrack
             ends={[span.ends[0].text, span.ends[1].text]}
             at={Math.min(Math.max(at, 0), 1)}
-            label={`${span.spread ? SPAN_LABEL.spread : SPAN_LABEL.between}, ${hero.unit}`}
+            label={`range, ${hero.unit}`}
             spread={span.spread}
           />
         </div>

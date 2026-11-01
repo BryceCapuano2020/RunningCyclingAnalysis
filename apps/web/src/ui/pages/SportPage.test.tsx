@@ -7,6 +7,7 @@ import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { EFFORT_LENGTHS_S, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
+import type { LookBack } from '@rca/core/lookback'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { FLAT_RUN_COST, HEADLINE_DURATION_S, RESTING_W_PER_KG } from '@rca/core/constants'
 import { formatPace } from '@rca/core/units'
@@ -26,6 +27,7 @@ import { RangePicker } from '../components/RangePicker'
 import { closedRow, openSection } from '../test/openSection'
 import { SportPage } from './SportPage'
 import { changeOf } from '../charts/changeFixtures'
+import { YEARS_LOOKBACK } from '../yearsFixtures'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
 const NOW = new Date(2026, 5, 10, 12).getTime()
@@ -62,6 +64,7 @@ function renderPage(
   emptyText = 'Nothing in this period.',
   missingAge: AgeGap | null = profile === null ? 'year of birth and sex' : null,
   sameHeartRate: SameHeartRate = NO_SAME_HEART_RATE[sport],
+  lookBack?: LookBack,
 ) {
   return render(
     <SportPage
@@ -71,6 +74,7 @@ function renderPage(
       previousLabel={previousLabel}
       trends={trends}
       sameHeartRate={sameHeartRate}
+      lookBack={lookBack}
       lateEvidence={NO_LATE_EVIDENCE[sport]}
       change={previous === null ? null : changeOf('higher')}
       units={units}
@@ -111,6 +115,49 @@ function recordNamed(records: HTMLElement, eyebrow: string): HTMLElement {
   if (item === null) throw new Error(`No record named ${eyebrow}`)
   return item
 }
+
+describe('SportPage: your years', () => {
+  const result = makeResult({ activities: [morningRun] })
+  const page = (lookBack?: LookBack) =>
+    renderPage(
+      'run',
+      result,
+      'metric',
+      null,
+      null,
+      null,
+      NO_TRENDS,
+      true,
+      null,
+      42,
+      'Nothing.',
+      null,
+      NO_SAME_HEART_RATE.run,
+      lookBack,
+    )
+
+  it('is the first section, closed, named by its own finding', () => {
+    page(YEARS_LOOKBACK)
+    expect(closedRow('Your years')).toBe(
+      'Your yearsYour pace at 148 bpm slipped in 2021 and came back',
+    )
+    expect(document.querySelector('[data-section="years"], #years, details')).not.toBeNull()
+  })
+
+  it('draws the chart and lists the episodes once opened', () => {
+    page(YEARS_LOOKBACK)
+    const years = openSection('Your years')
+    expect(
+      within(years).getByRole('figure', { name: 'Pace at 148 bpm over the years' }),
+    ).toBeInTheDocument()
+    expect(within(years).getByRole('region', { name: 'Episodes' })).toBeInTheDocument()
+  })
+
+  it('is not on the page when there are no years to tell', () => {
+    page(undefined)
+    expect(screen.queryByRole('region', { name: 'Your years' })).toBeNull()
+  })
+})
 
 describe('SportPage', () => {
   it('is the sport’s own page heading, with the period control under the answer, not in the heading row', () => {
@@ -244,11 +291,11 @@ describe('SportPage', () => {
     expect(within(section).queryByText(/Based on/)).not.toBeInTheDocument()
   })
 
-  it('shows the running threshold’s fit spread, up by the allowance for an unchecked effort, under its figure', () => {
+  it('shows the running threshold’s range, up by the allowance for an unchecked effort, under its figure', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(rangeTrack(section)).toEqual({ ends: ['20:54', '23:49'], label: 'fit spread, /km' })
+    expect(rangeTrack(section)).toEqual({ ends: ['20:54', '23:49'], label: 'range, /km' })
   })
 
   it('shows the cycling threshold’s range in watts under its figure', () => {
@@ -256,7 +303,7 @@ describe('SportPage', () => {
     renderPage('ride', makeResult({ activities: [ride] }))
 
     const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    expect(rangeTrack(section)).toEqual({ ends: ['48', '52'], label: 'fit spread, W' })
+    expect(rangeTrack(section)).toEqual({ ends: ['48', '52'], label: 'range, W' })
   })
 
   it('says under the range that the best 15 and 20 min were uneven, when the threshold has an uneven fit', () => {
@@ -715,9 +762,9 @@ describe('SportPage age grades', () => {
       MAN_BORN_1986,
     )
 
-    const caption = screen.getByText(/graded at age 40, on the/)
+    const caption = screen.getByText(/graded at age 40 on the/)
     expect(caption).toHaveTextContent(
-      '4:00 /km on your best 20 min, graded at age 40, on the USATF road standards. A level, not a ranking.',
+      '4:00 /km, graded at age 40 on the USATF road standards. A level, not a ranking.',
     )
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
@@ -737,7 +784,7 @@ describe('SportPage age grades', () => {
     )
 
     expect(screen.getByText(/A level, not a ranking\./)).toBeInTheDocument()
-    expect(screen.getByText(/graded at age 40, on the/)).toHaveTextContent(
+    expect(screen.getByText(/graded at age 40 on the/)).toHaveTextContent(
       /on the USATF road standards\. A level, not a ranking\.$/,
     )
   })
@@ -777,9 +824,9 @@ describe('SportPage age grades', () => {
       'metric',
       MAN_BORN_1986,
     )
-    const caption = screen.getByText(/graded through its running equivalent, at age 40, on the/)
+    const caption = screen.getByText(/graded as its run equivalent at age 40 on the/)
     expect(caption).toHaveTextContent(
-      '400 W (estimated) on your best 20 min, graded through its running equivalent, at age 40, on the USATF road standards. A level, not a ranking.',
+      '400 W (estimated), graded as its run equivalent at age 40 on the USATF road standards. A level, not a ranking.',
     )
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
@@ -959,7 +1006,9 @@ describe('SportPage distance records', () => {
     )
     // The 1 km row has no grade of its own: the list says once that no standard covers under a mile.
     expect(recordNamed(records, '1 km').querySelector('.records__grade')).toBeNull()
-    expect(within(records).getAllByText('No age standard under 1 mile')).toHaveLength(1)
+    expect(within(records).getAllByText('No age standard under 1 mile, for the 1 km')).toHaveLength(
+      1,
+    )
   })
 
   it('says the distance records may not be the fastest when some runs predate distance bests', () => {
@@ -1114,7 +1163,7 @@ describe('SportPage depth', () => {
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
     expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(
-      /^4:00 \/km on your best 20 min, graded at age 40/,
+      /^4:00 \/km, graded at age 40/,
     )
   })
 
@@ -1149,9 +1198,9 @@ describe('SportPage depth', () => {
       MAN_BORN_1986,
     )
 
-    const caption = screen.getByText(/graded at age \d+, on the/)
+    const caption = screen.getByText(/graded at age \d+ on the/)
     expect(caption).toHaveTextContent(
-      /graded at age \d+, on the USATF road standards\. A level, not a ranking\.$/,
+      /graded at age \d+ on the USATF road standards\. A level, not a ranking\.$/,
     )
   })
 
@@ -1180,7 +1229,9 @@ describe('SportPage depth', () => {
 
     const records = openSection('All best efforts')
     expect(recordNamed(records, '5 min').querySelector('.records__grade')).toBeNull()
-    expect(within(records).getByText('No age standard under 1 mile')).toBeInTheDocument()
+    expect(
+      within(records).getByText('No age standard under 1 mile, for the 5 min'),
+    ).toBeInTheDocument()
   })
 
   it('puts the flat pace note under the record tiles, not above them', () => {

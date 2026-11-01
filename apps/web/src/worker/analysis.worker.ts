@@ -19,9 +19,12 @@ import type { Writing } from './writerResume'
 import { exportAccount } from './exportAccount'
 import { deleteSavedGroup } from './deleteGroup'
 import type { DeleteGroupContext } from './deleteGroup'
-import { hiddenRecordIds, visibleRecords } from './hiddenCopies'
+import { hiddenRecordIds } from './hiddenCopies'
+import { reportLibraryActivities } from './libraryReport'
 import { openDeviceLibrary } from './deviceLibrary'
 import { outdatedWithOriginal } from './outdatedOriginals'
+import { noteUploadTitles } from '../api/uploadPolicy'
+import { undoLabelsHandler } from './undoLabelsRequest'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
@@ -43,7 +46,6 @@ import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCover
 import { deviceClock } from './sampleClock'
 import { activityTraceReply } from './traceReply'
 import { checkInWorker } from './checkinWorker'
-import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
 
@@ -64,16 +66,7 @@ const rebuildable = (): { outdatedWithOriginal?: number } => {
   return count > 0 ? { outdatedWithOriginal: count } : {}
 }
 
-/** Newest first; records that start together are ordered by id so the list is stable. */
-function reportLibrary() {
-  const records = visibleRecords(savedRecords.values()).sort(
-    (a, b) => b.digest.startMs - a.digest.startMs || a.id.localeCompare(b.id),
-  )
-  post({
-    type: 'libraryActivities',
-    activities: records.map(({ id, digest }) => savedActivityOf(id, digest)),
-  })
-}
+const reportLibrary = () => reportLibraryActivities(savedRecords, post)
 
 const deviceLibrary = openDeviceLibrary()
 const device = deviceActions(
@@ -108,10 +101,17 @@ const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
 const sending = new SendingKeys()
+const undo = undoLabelsHandler({
+  session,
+  savedRecords,
+  epoch: () => view.libraryEpoch,
+  reportLibrary,
+})
 const importContext: ImportRunContext = {
   checkIns: checkIns.keeper,
   lastImport: null,
   sending,
+  labelUndo: undo.labelUndo,
   session,
   post,
   missingOriginals,
@@ -202,6 +202,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return session.loadSample(request.settings, view.sampleClock)
     case 'loadServer':
       view.libraryEpoch++
+      undo.labelUndo.clear()
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
@@ -228,6 +229,9 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await resume.finished
       }
       return session.setSettings(request.settings)
+    case 'undoLabels':
+      // Answered with the state and how many labels are left, from onmessage.
+      throw new Error('An undo is not a session request')
     case 'adoptDevice':
       return adoptDeviceRequest(adoptionContext, request)
     case 'forgetDeviceLibrary':
@@ -256,6 +260,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return device.load(request.settings)
     case 'clear':
       view.libraryEpoch++
+      undo.labelUndo.clear()
       resume?.cancel()
       resume = null
       provisionalItems.clear()
@@ -313,6 +318,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   noteArrival(event.data.type)
   queue = queue.then(async () => {
     noteStart(event.data.type)
+    noteUploadTitles(event.data as Parameters<typeof noteUploadTitles>[0])
     const endRequest = beginRequest(requestId, (message) => self.postMessage(message))
     try {
       if (event.data.type === 'addFiles') {
@@ -329,6 +335,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
             'rebuildStale',
           ),
         )
+      } else if (event.data.type === 'undoLabels') {
+        post(await undo.reply(event.data, rebuildable()))
       } else if (checkIns.answers(event.data)) {
         post(await checkIns.answer(event.data, importContext.lastImport))
       } else if (event.data.type === 'exportData') {

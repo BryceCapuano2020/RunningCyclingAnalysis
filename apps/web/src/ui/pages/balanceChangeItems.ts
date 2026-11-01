@@ -10,13 +10,12 @@ import { formatPace, formatPower } from '@rca/core/units'
 import { activityMasses } from '../activityMasses'
 import { gapOfHeadline } from '../balanceGap'
 import type { BalanceGap } from '../balanceGap'
-import { gapReading } from '../components/balanceScale'
-import { isPoint, rangeText } from '../components/headlineText'
 import { plural } from '../components/plural'
 import { formatDayMonth } from '../format/date'
-import { HEADLINE_LABEL, headlineGrades } from '../grades'
+import { headlineGrades } from '../grades'
 import type { AgeProfile } from '../grades'
 import { effortShare } from '../effortCaveat'
+import { notHardNote } from '../changeHeld'
 import { NO_CLEAR_CHANGE, recordChange } from '../recordChange'
 import { uncheckedLine } from './balanceUnchecked'
 import { effortLabel, isEstimatedRecord, valueAt } from '../records'
@@ -114,38 +113,6 @@ function setOn(words: string, source: ActivitySummary | null): string {
   return source === null
     ? `${words}.`
     : `${words}. Set on ${source.name}, ${formatDayMonth(source.startMs)}.`
-}
-
-/**
- * The line that says a best was not compared, or null when it can be: neither period's best 20 minutes is known to
- * have been easy. The 90% heart-rate line is the effort gate's own; a best the gate could not judge (no heart rate on it,
- * too few days with one to set a reference) is not held, as the headline is not: nothing shows it was easy, and the
- * headline's note says the effort was not checked.
- */
-function notHardNote(
-  sport: Sport,
-  result: Pick<AnalysisResult, 'effort'>,
-  previous: SportCurves,
-  label: string,
-): string | null {
-  const now = effortShare(
-    sport,
-    result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
-  )
-  const before = effortShare(sport, previous.headlineEffort)
-  const noun = SPORT_NOUN[sport]
-  // Where the reference cannot show an effort hard, a harder effort is not what is missing: say it cannot be called hard.
-  if (before !== null && before.checked && !before.hard) {
-    return before.confirmed
-      ? `No comparable hard ${HEADLINE_LABEL} of ${noun} in the ${label.toLowerCase()}.`
-      : `No best ${HEADLINE_LABEL} of ${noun} in the ${label.toLowerCase()} can be called hard, so it is not compared.`
-  }
-  if (now !== null && now.checked && !now.hard) {
-    return now.confirmed
-      ? `Your best ${HEADLINE_LABEL} of ${noun} in this period was not a hard effort, so it is not compared.`
-      : `Your best ${HEADLINE_LABEL} of ${noun} in this period cannot be called a hard effort, so it is not compared.`
-  }
-  return null
 }
 
 /**
@@ -273,8 +240,8 @@ function leanSupported(moved: number, verdicts: Record<Sport, ChangeVerdict>): b
 
 /**
  * The balance's lean against the previous period's. The arrow says whether the lean grew or eased, whichever
- * sport it favours. It is listed only when a best the change test called explains the move (leanSupported); the
- * range it states is this period's own 90% range, written from the side the balance leans to, as the headline writes it.
+ * sport it favours. It is listed only when a best the change test called explains the move (leanSupported). Its body
+ * gives only where the lean was: the range is the meter's to state, once, and the tag says it is an estimate.
  */
 export function leanItem(
   now: BalanceGap,
@@ -293,14 +260,12 @@ export function leanItem(
     : crossed
       ? `Lean moved toward ${SPORT_NOUN[favoured(to)]}`
       : `Lean ${grew ? 'grew' : 'eased'} ${plural(Math.abs(Math.abs(to) - Math.abs(from)), 'pt')}`
-  // A range that rounds to one value says nothing the figure does not, so no range is written.
-  const reading = gapReading(now)
-  const range = isPoint(reading) ? '' : ` 90% range now ${rangeText(reading)}.`
+  const was = crossed || stillLevel ? 'Was' : grew ? 'Up from' : 'Down from'
   return {
     key: 'lean',
     direction: grew ? 'up' : 'down',
     title,
-    body: `From ${leanWords(before)} to ${leanWords(now)}.${range}`,
+    body: `${was} ${leanWords(before)}.`,
     tag: 'estimated',
   }
 }

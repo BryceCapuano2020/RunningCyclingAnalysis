@@ -28,6 +28,8 @@ export interface BalanceTilesProps {
   soleSport?: Sport | null
   /** A sport whose runs are all at walking pace and left out: its prompt says so and offers to count them. */
   leftOut?: LeftOutRuns
+  /** True where the levels row already gives each sport's level and grade, so a tile does not say them again. */
+  levelShown?: boolean
 }
 
 /**
@@ -46,10 +48,13 @@ export function BalanceTiles({
   onAddFiles,
   soleSport = null,
   leftOut,
+  levelShown = false,
 }: BalanceTilesProps) {
   const both = SPORT_ORDER.every((sport) => countSport(result.activities, sport) > 0)
   // The heart-rate check of the headline effort, which each threshold tile says for its own sport.
   const effortCheck = result.effort.find((check) => check.durationS === HEADLINE_DURATION_S) ?? null
+  // A word defined in place is defined once on the screen: the first threshold tile carries it.
+  const firstThreshold = SPORT_ORDER.find((sport) => countSport(result.activities, sport) > 0)
   const tiles = [
     ...SPORT_ORDER.map((sport) =>
       countSport(result.activities, sport) > 0 ? (
@@ -63,6 +68,8 @@ export function BalanceTiles({
           weighted={weighted}
           effort={effortCheck}
           needInHeadline={soleSport !== null}
+          levelShown={levelShown}
+          defineTerm={sport === firstThreshold}
         />
       ) : soleSport !== null ? null : (
         <EmptySportCard

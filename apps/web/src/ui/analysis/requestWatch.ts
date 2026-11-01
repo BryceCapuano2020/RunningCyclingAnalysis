@@ -38,6 +38,7 @@ const RULES: Record<WorkerRequest['type'], StallRule> = {
   addFiles: LONG,
   rebuildStale: LONG,
   resumeSaves: LONG,
+  undoLabels: LONG,
   loadServer: LONG,
   loadDevice: LONG,
   exportData: LONG,

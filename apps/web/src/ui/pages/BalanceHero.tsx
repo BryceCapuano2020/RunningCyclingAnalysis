@@ -30,7 +30,7 @@ export interface BalanceHeroProps {
    * missing. The page works it out once, so the headline, the tiles and the changes cannot disagree.
    */
   reading: BalanceReading | null
-  /** What the lower sport would need to grade level with the higher, as a sentence, under the lede; null when nothing would. */
+  /** What the lower sport would need to match the higher, as a sentence, under the lede; null when nothing would. */
   target?: string | null
   /** The period on screen, named in the eyebrow and when it holds nothing to compare. */
   period: Period
