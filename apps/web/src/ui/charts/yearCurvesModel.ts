@@ -6,6 +6,7 @@ import { PACE_UNIT } from '@rca/core/units'
 import { effortLabel } from '../records'
 import { SPORT_LABEL } from '../sports'
 import { formatNative } from './sportAxis'
+import { drawnCount } from './walkingCut'
 
 /** One calendar year's best curve, drawn as a line. */
 export interface YearLine {
@@ -85,20 +86,26 @@ function bestYearAt(lines: readonly YearLine[], index: number): number | null {
 }
 
 /**
- * A sport's best curve in each calendar year, trimmed to the durations any year has and ready to draw. Null with no year.
+ * A sport's best curve in each calendar year, trimmed to the durations any year has and ready to draw. A run's curve stops at
+ * its longest duration that is not at walking pace, and a year with none left has no line. Null with no year.
  */
 export function yearCurvesModel(sport: Sport, curves: SportYearCurves): YearCurvesModel | null {
+  const drawn = curves.years
+    .map((year) => ({ year, count: drawnCount(sport, year.values) }))
+    .filter(({ count }) => count > 0)
   const kept = curves.durations
     .map((durationS, i) => ({ durationS, i }))
     .filter(({ i }) =>
-      curves.years.some((year) => year.values[i] !== null && year.values[i] !== undefined),
+      drawn.some(
+        ({ year, count }) => i < count && year.values[i] !== null && year.values[i] !== undefined,
+      ),
     )
   if (kept.length === 0) return null
   const durations = kept.map(({ durationS }) => durationS)
-  const last = curves.years.length - 1
-  const lines = curves.years.map((year, n): YearLine => ({
+  const last = drawn.length - 1
+  const lines = drawn.map(({ year, count }, n): YearLine => ({
     year: year.year,
-    values: kept.map(({ i }) => year.values[i] ?? null),
+    values: kept.map(({ i }) => (i < count ? (year.values[i] ?? null) : null)),
     hard: year.hard,
     estimated: kept.map(({ i }) => year.estimated.includes(i)),
     recency: last === 0 ? 1 : n / last,

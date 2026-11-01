@@ -1,19 +1,21 @@
 import type { BestsModel } from './bestsByYearModel'
+import { panelAxis } from './bestsPanelAxis'
 import type { AxisTick, ChartSize, PlotBox, Point } from './chartTypes'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, geometryScale } from './plotBox'
-import { fittedYAxis } from './sportAxis'
 import { axisFontSize, fitTicks, labelWidth, rootScale } from './ticks'
 
 /** The height of one panel's plot, px, at the default text size: room for four or so rows of 13 px labels. */
-const PANEL_PX = 84
+const PANEL_PX = 60
 /** The space between two panels, px: the next panel's name sits in it. */
-const GAP_PX = 30
+const GAP_PX = 34
 /** The room kept at a panel's top for the all-time best's label, px: the label lies inside the panel. */
-const LABEL_ROOM_PX = 18
+const LABEL_ROOM_PX = 16
+/** How far the panel's name sits below the top its y axis would give it, px: close over its own panel, not under the one above. */
+const NAME_DROP_PX = 10
 /** How far above its mark the all-time best's label sits, px. */
 const LABEL_LIFT_PX = 9
-/** Steps a panel's pace or power axis is cut into at most: three labels in a small panel. */
-const PANEL_INTERVALS = 2
+/** The most tick labels a panel's axis keeps: three in a small panel. */
+const PANEL_TICKS = 3
 
 /** The height of a chart of this many panels: the plot's margins, the panels and the gaps between them. */
 export function bestsChartHeight(panels: number): number {
@@ -35,6 +37,8 @@ export interface BestLabel {
 export interface PanelLayout {
   /** The panel's plotting area, whose top is where its name sits above it. */
   box: PlotBox
+  /** The box the y axis is drawn for: the plotting area with its top lowered, so the name sits near its own panel. */
+  axisBox: PlotBox
   yTicks: AxisTick[]
   /** One point for each year of the axis, null where the year has no best. */
   points: (Point | null)[]
@@ -75,7 +79,7 @@ export function bestsLayout(model: BestsModel, size: ChartSize): BestsLayout | n
     // The axis stops short of the panel's top, which keeps the label of the best.
     const inner: PlotBox = { ...box, top: top + LABEL_ROOM_PX * scale }
     const plotted = panel.marks.flatMap((mark) => (mark === null ? [] : [mark.plotted]))
-    const { y, ticks } = fittedYAxis(model.sport, plotted, inner, PANEL_INTERVALS)
+    const { y, ticks } = panelAxis(model.sport, plotted, inner)
     const points = panel.marks.map((mark, i) =>
       mark === null ? null : { x: xs[i]!, y: y(mark.plotted) },
     )
@@ -90,7 +94,13 @@ export function bestsLayout(model: BestsModel, size: ChartSize): BestsLayout | n
             y: best.y - LABEL_LIFT_PX,
             anchor: anchorWithin(best.x, labelWidth(text, fontSize, textScale), plot),
           }
-    return { box, yTicks: fitTicks(ticks, { axis: 'y', width }), points, label }
+    return {
+      box,
+      axisBox: { ...box, top: box.top + NAME_DROP_PX * scale },
+      yTicks: fitTicks(ticks, { axis: 'y', width, maxCount: PANEL_TICKS }),
+      points,
+      label,
+    }
   })
   return {
     xs,

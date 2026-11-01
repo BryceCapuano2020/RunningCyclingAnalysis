@@ -78,6 +78,31 @@ export function spreadApart(ys: readonly number[], gap: number): number[] {
 }
 
 /**
+ * Spreads values as spreadApart does, then keeps them between min and max: a crowd at the bottom is moved up, so the last stays
+ * inside. Where there is not room for them all at the gap, the top ones rise above min.
+ */
+export function spreadWithin(
+  ys: readonly number[],
+  gap: number,
+  min: number,
+  max: number,
+): number[] {
+  const order = ys.map((y, index) => ({ y, index })).sort((a, b) => a.y - b.y)
+  const placed = new Array<number>(ys.length).fill(0)
+  let last = min - gap
+  for (const { y, index } of order) {
+    last = Math.max(y, last + gap, min)
+    placed[index] = last
+  }
+  let next = max + gap
+  for (const { index } of order.toReversed()) {
+    next = Math.min(placed[index]!, next - gap)
+    placed[index] = next
+  }
+  return placed
+}
+
+/**
  * The tooltip of the active point, anchored beside it: at its pixel x, and at its pixel y when
  * ys gives one, else the middle of the plot. Null when there is no active point, or when the chart
  * has no positions to anchor it to.
