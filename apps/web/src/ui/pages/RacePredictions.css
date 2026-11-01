@@ -233,6 +233,11 @@
   vertical-align: top;
 }
 
+/* The heads wrap, so the table in half a 1440 px page shows its last column instead of scrolling to it. */
+.race-table thead th {
+  white-space: normal;
+}
+
 .race-origins {
   list-style: none;
   margin: 0;

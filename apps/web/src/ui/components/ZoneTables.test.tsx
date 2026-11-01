@@ -140,6 +140,40 @@ describe('ZoneTables, a pace or power the fitness cannot give today', () => {
   })
 })
 
+describe('ZoneTables, a window whose best effort is above the older fit', () => {
+  it('says the threshold is not settled, which holds for easy efforts too', () => {
+    const base = estimatesFrom(makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 }))
+    const outgrown = (fit: NonNullable<ZoneEstimates['thresholds']['run'][0]>['fit']) => [
+      { fromMs: 0, fit, asOfMs: 1000, lastFit: 0 },
+      { fromMs: 1, fit: null, asOfMs: null, lastFit: -1 },
+    ]
+    const estimates: ZoneEstimates = {
+      ...base,
+      thresholds: {
+        run: outgrown(base.thresholds.run[0]!.fit),
+        ride: outgrown(base.thresholds.ride[0]!.fit),
+      },
+    }
+    render(
+      <ZoneTables
+        athlete={{ massKg: 70, bikeMassKg: 9 }}
+        estimates={estimates}
+        weightKnown
+        units="metric"
+      />,
+    )
+    expect(
+      screen.getByText('No run pace zones today: your threshold around this date is not settled.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'No ride power zones today: your threshold around this date is not settled.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/harder than/)).toBeNull()
+  })
+})
+
 describe('ZoneTables, a max heart rate that cannot be one', () => {
   const base = (): ZoneEstimates =>
     estimatesFrom(makeResult({ runMaxHeartRate: 205, rideMaxHeartRate: null }))
