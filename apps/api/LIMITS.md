@@ -152,11 +152,11 @@ approach the shared allowance; this is a bound on one account, not on the whole 
 - A page holds at most 90 activities (`MAX_PAGE_SIZE`) and at most 512 KiB of digest JSON
   (`MAX_PAGE_DIGEST_BYTES`). The page read binds the user id plus one id per row, so 90 rows is 91 of the 100
   bound parameters D1 allows a statement; a test pins `MAX_PAGE_SIZE + 1 <= 100`.
-- **Pages for a library.** A library of 1,915 activities lists in 22 pages (it was 77 at 25 a page). That holds
+- **Pages for a library.** A library of about 2,000 activities lists in 23 pages (it was 80 at 25 a page). That holds
   while every page of 90 digests fits the 512 KiB budget, which needs an average under about 5.7 KiB (5,825
   bytes). A page whose digests are larger reaches the byte budget first, holds fewer than 90 rows, and so the
-  library takes more pages. The owner's 1,915 digests average about 5.0 KiB (9.85 MB listed in total), so the
-  pages are about 430 KB at 90 rows and only outlier pages are cut short.
+  library takes more pages. A real multi-year library's digests average about 5 KiB, so the
+  pages are about 450 KB at 90 rows and only outlier pages are cut short.
 - **Why the digest budget is 512 KiB.** The server's work on a page is one `JSON.parse` per digest, and the
   budget is the only bound on it. Workers Free allows 10 ms of CPU a request, so the budget is kept small.
   A single digest is at most 256 KiB (`MAX_DIGEST_BYTES`), so a page always holds at least one.

@@ -101,10 +101,10 @@ describe('SyncStatus', () => {
 
   it('groups the running count and the finished count from a thousand on', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
-    rerender(<SyncStatus {...props({ uploading: 1915 })} />)
-    expect(screen.getByText('1,915 saved')).toBeInTheDocument()
+    rerender(<SyncStatus {...props({ uploading: 1240 })} />)
+    expect(screen.getByText('1,240 saved')).toBeInTheDocument()
     rerender(<SyncStatus {...props({ uploading: null })} />)
-    expect(message()).toHaveTextContent('Saved 1,915 activities to your library.')
+    expect(message()).toHaveTextContent('Saved 1,240 activities to your library.')
   })
 
   it('groups the count in an issue sentence from a thousand on', () => {
@@ -294,20 +294,20 @@ describe('SyncStatus', () => {
   it.each<[SyncIssue['code'], RegExp]>([
     [
       'daily-limit',
-      /^You have reached today's limit on saves\. 1,915 saved, 1,103 waiting\. It resets at .+, your time\. Add the rest again after that\.$/,
+      /^You have reached today's limit on saves\. 1,240 saved, 310 waiting\. It resets at .+, your time\. Add the rest again after that\.$/,
     ],
     [
       'activity-quota',
-      /^Your library is full \(5,000 activities\)\. 1,915 saved, 1,103 waiting\. Delete older activities to make room, then add the rest again\.$/,
+      /^Your library is full \(5,000 activities\)\. 1,240 saved, 310 waiting\. Delete older activities to make room, then add the rest again\.$/,
     ],
     [
       'rate-limited',
-      /^Too many requests at once\. 1,915 saved, 1,103 waiting\. Wait a minute, then add the rest again\.$/,
+      /^Too many requests at once\. 1,240 saved, 310 waiting\. Wait a minute, then add the rest again\.$/,
     ],
   ])('says how many saved and how many are waiting when an import stops at %s', (code, text) => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
-    rerender(<SyncStatus {...props({ uploading: 1915 })} />)
-    rerender(<SyncStatus {...props({ uploading: null, issues: [issue(code, 1103)] })} />)
+    rerender(<SyncStatus {...props({ uploading: 1240 })} />)
+    rerender(<SyncStatus {...props({ uploading: null, issues: [issue(code, 310)] })} />)
     const status = message()
     expect(status.textContent).toMatch(text)
     expect(status).toHaveClass('sync-status__message--failed')
@@ -320,7 +320,7 @@ describe('SyncStatus', () => {
       <SyncStatus
         {...props({
           uploading: null,
-          issues: [{ code: 'daily-limit', count: 1_103, latest: 10 }],
+          issues: [{ code: 'daily-limit', count: 310, latest: 10 }],
         })}
       />,
     )
@@ -336,12 +336,12 @@ describe('SyncStatus', () => {
       <SyncStatus
         {...props({
           uploading: null,
-          issues: [{ code: 'activity-quota', count: 1_103, latest: 0 }],
+          issues: [{ code: 'activity-quota', count: 310, latest: 0 }],
         })}
       />,
     )
     expect(message()).toHaveTextContent(
-      'Your library is full (5,000 activities). 1,103 waiting. Delete older activities to make room, then add the rest again.',
+      'Your library is full (5,000 activities). 310 waiting. Delete older activities to make room, then add the rest again.',
     )
   })
 

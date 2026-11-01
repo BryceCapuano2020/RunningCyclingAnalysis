@@ -54,7 +54,7 @@ runner took 46 ms. It catches a gross regression on any runner; the benchmark tr
 Measured on 28 October 2026 at main aaf79118 and at this change, interleaved, taking the fastest of four
 processes of the fastest of several runs each; the machine was shared, so the figures carry about
 10% of noise. The library is 2,000 synthetic activities (ten a week for about four years, the benchmark's
-mix) and, beside it, the 1,915 activities of a real export of 2,698 files and 215 MB. Both give the
+mix) and, beside it, a real multi-year export of about 2,000 activities. Both give the
 same shapes. Everything below runs in the worker; nothing in it is on the main thread.
 
 | Work, 2,000 synthetic activities            |          Before |           After |
@@ -70,14 +70,12 @@ same shapes. Everything below runs in the worker; nothing in it is on the main t
 | `recordHolders`                             |          3.5 ms |          1.4 ms |
 | State posted for all time, structured clone | 2.3 MB, 14.7 ms | 1.8 MB, 11.8 ms |
 
-The real export gives the same picture: a change of body mass 61 to 26 ms, all time 135 to 84 ms,
-`combine` 44 to 20 ms, `sameHeartRate` 47 to 36 ms.
+The real export gives the same picture, with each of these about as large as the synthetic figure or smaller.
 
 What did not change, and what it costs. Digesting is 2.8 ms an activity (measured at aaf79118, before the later digest changes). Reading 2,000 digests back from
-storage with `parseDigest` is 54 ms (76 ms for the real ones), and the schema check each stored digest passes
+storage with `parseDigest` is 54 ms (a little more for the real ones), and the schema check each stored digest passes
 when the account's library is listed adds 130 ms, both while the page waits for the network. Importing is linear, 5.7 ms an activity
-from FIT files at 400 and at 2,000, and a real export of 2,698 files took 15 to 24 s of wall time and about
-19 s of CPU, with no step that grows faster than the library. Its largest costs are FIT decoding (the
+from FIT files at 400 and at 2,000, and a real export of about 2,000 activities took under 30 s of wall time, with no step that grows faster than the library. Its largest costs are FIT decoding (the
 per-message `Map`) and inflate, in that order; reusing the `Map` was tried and gave nothing measurable. The
 trace of a 48-hour file builds in 1 ms and takes 10 ms to check when stored or read. The weekly volume strip,
 late-effort evidence and distribution merge each take under 1 ms for 2,000 activities.

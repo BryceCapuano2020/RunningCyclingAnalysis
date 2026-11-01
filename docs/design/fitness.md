@@ -340,12 +340,12 @@ marked season in their first two years, about a quarter after); (2) a warm-up fl
 about 20 points of early detection in those years, in runs too; (3) turn rides off until a ride library can say what the
 wander is. The sims call for (1) or (2); nothing here argues for (3).
 
-### The owner's labels: the first real back-test
+### One athlete's labels: the first real back-test
 
-The detector as shipped (before D2) declared four slips on the owner's library. He judged three real and one unknown, none
-false. A change of watch had no declared change lining up with it. This is four labels from one athlete: it says the detector
-was not crying wolf on him, not what its false-alarm rate is. Whether later changes alter his declarations is for a replay on
-his own machine to say; its figures, dates included, stay out of the repo.
+The detector as shipped (before D2) was checked against one athlete's own labels of its declared slips and raised no false
+alarm. This is a single athlete: it says the detector was not crying wolf on him, not what its false-alarm rate is. Whether
+later changes alter his declarations is for a replay on his own machine to say; its figures, dates included, stay out of
+the repo.
 
 ## Rises: improving and improved (D9b)
 
