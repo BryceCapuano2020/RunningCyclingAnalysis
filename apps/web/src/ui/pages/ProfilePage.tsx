@@ -16,8 +16,6 @@ import { SavedLibraryCard } from '../components/SavedLibraryCard'
 import { SettingsOverTime } from '../components/SettingsOverTime'
 import type { SettingPrefill } from '../components/SettingsOverTime'
 import { ZoneTables } from '../components/ZoneTables'
-import { SPORT_ORDER } from '../sports'
-import { thresholdLine } from '../thresholdLine'
 import { UNIT_OPTIONS, displayBirthYear, readBirthYear, weightKnown } from '../athlete'
 import type { WeightSettings } from '../athlete'
 import { WAITING_FOR_ACCOUNT } from '../analysis/copy'
@@ -134,18 +132,6 @@ export function ProfilePage({
       : null
   const shownSex = sexDraft ? sexDraft.value : sex
   const shownUnits = unitsDraft ? unitsDraft.value : units
-  // The sport pages' newest threshold fits, which an estimated threshold in the zones says when it reads differently.
-  const zoneAthlete = sample ? SAMPLE_ZONE_ATHLETE : athlete
-  const result = analysis.state.result
-  const newestFits =
-    result === null
-      ? undefined
-      : Object.fromEntries(
-          SPORT_ORDER.flatMap((sport) => {
-            const line = thresholdLine(result, sport, zoneAthlete.massKg, shownUnits)
-            return line === null ? [] : [[sport, line.value]]
-          }),
-        )
 
   async function changeSex(next: Sex | null) {
     setSexDraft({ value: next })
@@ -285,7 +271,6 @@ export function ProfilePage({
         estimates={analysis.state.zoneEstimates}
         weightKnown={sample || weightKnown(settings)}
         units={shownUnits}
-        newestFits={newestFits}
         onSetMaxHeartRate={
           sample
             ? undefined
@@ -313,8 +298,7 @@ export function ProfilePage({
             <h2 id="profile-account">Account</h2>
             <p className="secondary">
               Sign in to keep your library on any device. Activity summaries are saved to your
-              private account, original files too if you choose, and you can delete everything at
-              any time.
+              private account, and original files too if you choose. Delete everything at any time.
             </p>
             <div>
               <GoogleSignInButton onClick={onSignIn} />
@@ -326,8 +310,7 @@ export function ProfilePage({
       <section className="section" aria-labelledby="profile-get-files">
         <h2 id="profile-get-files">Get your files</h2>
         <p className="secondary">
-          The files come from the app or device that recorded your activities. Each guide says how
-          to export them.
+          Each guide shows how to export from the app or device that recorded your activities.
         </p>
         <div>
           <HowToGetFilesButton />

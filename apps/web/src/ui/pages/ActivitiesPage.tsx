@@ -9,16 +9,16 @@ import type { UnitSystem } from '@rca/core/units'
 import { ACTIVITY_SORTS, SORT_LABELS, sortActivities } from '../activitySort'
 import { bucketInPhrase, bucketSpan, inBucket } from '../activitiesVolume'
 import { DEFAULT_VIEW, hasRemovedMark, queryFromView, viewFromQuery } from '../activitiesView'
-import type { ActivitiesView, SportFilter } from '../activitiesView'
+import type { ActivitiesView, ShowFilter, SportFilter } from '../activitiesView'
+import { countsOf, isNotCounted } from '../activityCounts'
 import { ActivityList } from '../components/ActivityList'
 import { LIBRARY_RANGE_OPTIONS, periodName } from '../components/rangeOptions'
-import { listEmptyText, periodClause } from '../periodCopy'
+import { allCountedText, listEmptyText, periodClause } from '../periodCopy'
 import { SPORT_PLURAL } from '../sports'
 import { RangePicker } from '../components/RangePicker'
 import { VolumeStrip } from '../components/VolumeStrip'
 import { SegmentedControl } from '../components/SegmentedControl'
 import type { SegmentedControlOption } from '../components/SegmentedControl'
-import { countSport } from '../records'
 import { useDeleteOutcome } from '../useDeleteOutcome'
 import { hashQuery, hrefFor } from '../route'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -58,6 +58,11 @@ const SPORT_OPTIONS: SegmentedControlOption<SportFilter>[] = [
   { value: 'all', label: 'All' },
   { value: 'run', label: 'Runs' },
   { value: 'ride', label: 'Rides' },
+]
+
+const SHOW_OPTIONS: SegmentedControlOption<ShowFilter>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'not-counted', label: 'Not counted' },
 ]
 
 /** The period a picker choice names: a number of days, or the whole library. */
@@ -117,7 +122,7 @@ export function ActivitiesPage({
   const [view, setView] = useState<ActivitiesView>(() =>
     viewFromQuery(hashQuery(window.location.hash)),
   )
-  const { sport, sort, period, bucket, page } = view
+  const { sport, show, sort, period, bucket, page } = view
 
   // The view follows the address, so a link to the list, which changes only the hash, resets it.
   useEffect(() => {
@@ -129,13 +134,18 @@ export function ActivitiesPage({
     return () => window.removeEventListener('hashchange', follow)
   }, [])
   const days = typeof period === 'number' ? period : null
-  // What the period and sport leave, before a week or month is picked: the volume strip draws this set.
-  const inPeriod = useMemo(
+  // What the period and sport leave, before a week or month is picked.
+  const inPeriodAndSport = useMemo(
     () =>
       startedWithin(activities, days).filter(
         (activity) => sport === 'all' || activity.sport === sport,
       ),
     [activities, days, sport],
+  )
+  // Narrowed to the activities the analysis leaves out, when asked: the volume strip draws this set.
+  const inPeriod = useMemo(
+    () => (show === 'all' ? inPeriodAndSport : inPeriodAndSport.filter(isNotCounted)),
+    [inPeriodAndSport, show],
   )
   // Memoised, so a re-render with the same activities keeps the pager on the page it is on.
   const shown = useMemo(
@@ -153,8 +163,10 @@ export function ActivitiesPage({
     (high, activity) => Math.max(high, activity.startMs),
     -Infinity,
   )
-  // The period counts the library, or the one sport the list is narrowed to, in that sport's own words.
-  const counted = sport === 'all' ? activities.length : countSport(activities, sport)
+  // The count is the activities on file, or the one sport the list is narrowed to in its own words, with how many
+  // of them the analysis does not count. The filter for those is offered while there are any.
+  const counts = countsOf(activities, sport === 'all' ? undefined : sport)
+  const anyNotCounted = countsOf(activities).notCounted > 0
   // A new filter or sort is a new list, so it starts on its first page.
   const narrow = (patch: Partial<ActivitiesView>) => {
     removedRef.current = false
@@ -175,7 +187,12 @@ export function ActivitiesPage({
   // A week or month with nothing in it, beside a period that has something: the bucket is why the list is empty.
   const emptiedByBucket = span !== null && inPeriod.length > 0
   const showAll = () =>
-    narrow({ period: DEFAULT_VIEW.period, sport: DEFAULT_VIEW.sport, bucket: DEFAULT_VIEW.bucket })
+    narrow({
+      period: DEFAULT_VIEW.period,
+      sport: DEFAULT_VIEW.sport,
+      show: DEFAULT_VIEW.show,
+      bucket: DEFAULT_VIEW.bucket,
+    })
   return (
     <div className="page-stack activities">
       <div className="page-title">
@@ -198,7 +215,8 @@ export function ActivitiesPage({
             choice={period}
             options={LIBRARY_RANGE_OPTIONS}
             shown={shown.length}
-            total={counted}
+            total={counts.onFile}
+            notCounted={counts.notCounted}
             noun={sport === 'all' ? 'activity' : sport}
             onChange={(next, answered) => {
               narrow({ period: periodFromChoice(next), bucket: null })
@@ -240,6 +258,14 @@ export function ActivitiesPage({
               </select>
             </label>
           </div>
+          {(anyNotCounted || show !== 'all') && (
+            <SegmentedControl
+              legend="Show"
+              options={SHOW_OPTIONS}
+              selected={show}
+              onSelect={(next) => narrow({ show: next, bucket: null })}
+            />
+          )}
         </div>
       )}
       {removal.outcome !== null &&
@@ -288,7 +314,9 @@ export function ActivitiesPage({
             ) : (
               <>
                 <p className="secondary">
-                  {listEmptyText(sport, days === null ? null : windowEnding(newestMs, days))}
+                  {show === 'not-counted' && inPeriodAndSport.length > 0
+                    ? allCountedText(sport)
+                    : listEmptyText(sport, days === null ? null : windowEnding(newestMs, days))}
                 </p>
                 <p>
                   <button type="button" className="btn" onClick={showAll}>

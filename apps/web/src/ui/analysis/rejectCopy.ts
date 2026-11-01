@@ -112,9 +112,9 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: Rejecte
   {
     'not-activity': () => 'Not a FIT, GPX or TCX file, so it cannot be read.',
     corrupt: (detail) => corruptCopy(detail),
-    empty: () => 'It holds no recorded points, so there is nothing to read.',
-    'too-short': () => 'Too short: it records less than a minute.',
-    'too-sparse': () => 'Recorded too sparsely: its points are more than 10 seconds apart.',
+    empty: () => 'It holds no recorded points.',
+    'too-short': () => 'Too short. It records less than a minute.',
+    'too-sparse': () => 'Recorded too sparsely. Its points are more than 10 seconds apart.',
     'too-long': () => 'Longer than 48 hours, so it is left out.',
     'too-much-data': (detail) => tooMuchCopy(detail),
     'no-date': () => 'Its times are device time only, so it cannot be placed in your history.',
@@ -122,7 +122,7 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: Rejecte
     // The group says these were left out on purpose, so a line says only what the file is.
     'unsupported-sport': (_detail, file) => `${sportName(file).subject} is not a run or a ride.`,
     'no-sport': () => 'It does not say whether it is a run or a ride, so it is not guessed.',
-    'e-bike': () => 'E-bike rides are left out, because motor help hides your own power.',
+    'e-bike': () => 'E-bike rides are left out. Motor help hides your own power.',
     // A file kept from revision 7 is held under a hash of its name, which means nothing to read: the file's own name is
     // on the line above, so a copy held under a hash is called by what it is.
     duplicate: (detail, file) =>
@@ -141,7 +141,7 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: Rejecte
  */
 function tooMuchCopy(detail: string | undefined): string {
   return detail === 'split'
-    ? 'Too many tracks, activities or laps for one file: split it into one file for each activity.'
+    ? 'Too many tracks, activities or laps for one file. Split it into one file for each activity.'
     : 'Too much data for one file.'
 }
 
@@ -151,7 +151,7 @@ function corruptCopy(detail: string | undefined): string {
   if (detail === undefined || !Number.isInteger(count) || count < 1) {
     return 'Damaged, so it could not be read.'
   }
-  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged.`
+  return `${plural(count, 'entry', 'entries')} could not be read. The archive is damaged.`
 }
 
 /** The size limit, as the core gives it in bytes, in whole megabytes. */
@@ -186,7 +186,7 @@ export function unreadFormatsCopy(
   // The types name the files when they account for all of them; otherwise the count stands alone.
   const accounted = named.length > 0 && Object.values(types).reduce((a, b) => a + b, 0) === count
   const sentence = accounted
-    ? `${plural(count, 'file')} in a format this app does not read: ${named.join(', ')}.`
+    ? `${plural(count, 'file')} in a format this app does not read (${named.join(', ')}).`
     : `${plural(count, 'file')} in a format this app does not read.`
   return carriesAdvice ? `${sentence} ${ADVICE['not-activity']}` : sentence
 }

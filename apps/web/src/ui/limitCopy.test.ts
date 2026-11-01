@@ -49,7 +49,7 @@ describe('listingLimitReached', () => {
 
   it('names the rows allowance when the server refused a page of rows', () => {
     expect(listingLimitReached(LIST_ROWS_LIMIT_MESSAGE, resetsAt)).toBe(
-      `You have reached today's limit on rows read from your library (200,000 per day). It resets at ${localTime(resetsAt)}, your time.`,
+      `You have reached today's limit on rows listed from your library (200,000 per day). It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 

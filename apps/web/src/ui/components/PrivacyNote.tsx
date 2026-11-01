@@ -1,3 +1,4 @@
+import type { SyncIssue, SyncIssueCode } from '@rca/core/session'
 import './PrivacyNote.css'
 
 export interface PrivacyNoteProps {
@@ -6,39 +7,67 @@ export interface PrivacyNoteProps {
   keepFiles: boolean
   /** Absent means the API predates capability reporting and file retention is available. */
   fileRetentionAvailable?: boolean
-  /** Whether Profile offers "Remove all my activities" now: signed out, with activities kept in this browser. */
-  removable: boolean
+  /** The saves that failed this session. A cause that stops summaries or originals from being stored changes what the note says. */
+  issues?: readonly Pick<SyncIssue, 'code'>[]
 }
 
+/** The causes that leave a new summary unsaved because the library is full. */
+const LIBRARY_FULL: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
+  'activity-quota',
+  'digest-quota',
+])
+/** The causes that pause saving, so a new summary is not stored for now. */
+const SAVING_PAUSED: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
+  'database-full',
+  'read-only',
+])
+/** The causes that leave a new original file unkept while summaries are stored. */
+const ORIGINALS_HALTED: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
+  'storage-quota',
+  'storage-budget',
+])
+
+/** No failed saves: the default, kept as one array so a render that names none does not make a new one. */
+const NO_ISSUES: readonly Pick<SyncIssue, 'code'>[] = []
+
+const has = (issues: readonly Pick<SyncIssue, 'code'>[], codes: ReadonlySet<SyncIssueCode>) =>
+  issues.some((issue) => codes.has(issue.code))
+
+/*
+ * One sentence for each state. How long recordings are kept, how many fit, and where to remove everything are on the
+ * Privacy page, which the footer links to. A state where new summaries are not being stored says so, since "stored"
+ * would be false of them.
+ */
 function privacyText(
   signedIn: boolean,
   keepFiles: boolean,
   fileRetentionAvailable: boolean,
-  removable: boolean,
+  issues: readonly Pick<SyncIssue, 'code'>[],
 ): string {
-  if (!signedIn) {
-    const removal = removable ? ' Remove all my activities, on Profile, removes them.' : ''
-    return `Nothing is uploaded; analysis runs in your browser. Summaries and detailed recordings are kept in this browser where it allows, so anyone using it can see them. Recordings fit in about 64 MiB, and those of the oldest activities are dropped first.${removal}`
-  }
+  if (!signedIn) return 'Your activities stay in this browser, where anyone using it can see them.'
+  if (has(issues, LIBRARY_FULL)) return 'Your library is full, so new summaries are not stored.'
+  if (has(issues, SAVING_PAUSED)) return 'Saving is paused, so new summaries are not stored yet.'
   if (!fileRetentionAvailable) {
-    return 'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.'
+    return 'Summaries are stored in your private library, and original file storage is unavailable here.'
   }
-  if (keepFiles) {
-    return 'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.'
+  if (has(issues, ORIGINALS_HALTED)) {
+    return 'Summaries are stored in your private library, and new original files are not kept.'
   }
-  return 'Your activity summaries are stored in your private library; original files are not kept. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.'
+  return keepFiles
+    ? 'Summaries and original files are stored in your private library.'
+    : 'Summaries are stored in your private library, and original files are not kept.'
 }
 
-/** The one-line privacy statement that says exactly what is stored for this visitor. */
+/** The one-line privacy statement that says what is stored for this visitor. */
 export function PrivacyNote({
   signedIn,
   keepFiles,
   fileRetentionAvailable = true,
-  removable,
+  issues = NO_ISSUES,
 }: PrivacyNoteProps) {
   return (
     <p className="privacy-note">
-      {privacyText(signedIn, keepFiles, fileRetentionAvailable, removable)}
+      {privacyText(signedIn, keepFiles, fileRetentionAvailable, issues)}
     </p>
   )
 }

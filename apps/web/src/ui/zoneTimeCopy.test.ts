@@ -142,6 +142,11 @@ describe('leftOutNotes', () => {
     ])
   })
 
+  it('groups the thousands of a long history, as the count above it does', () => {
+    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { counted: 1200, noData: 34 })
+    expect(leftOutNotes('run', [row])).toEqual(['34 of 1,234 runs had no heart rate to count.'])
+  })
+
   it('says what gives a pace or a power zones when a date has none', () => {
     const pace = measureTime('run', 'pace', [1, 1, 1, 1, 1], { counted: 5, noZones: 2 })
     expect(leftOutNotes('run', [pace])).toEqual([

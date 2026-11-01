@@ -39,8 +39,8 @@ export const WALKING_PACE_NOTE =
 export function walkingPaceText(count: number, offer = true): string {
   const one = count === 1
   const said =
-    `${plural(count, 'saved run is', 'saved runs are')} at walking pace, so ` +
-    `${one ? 'it stays' : 'they stay'} in your activities and ` +
+    `${plural(count, 'saved run is', 'saved runs are')} at walking pace. ` +
+    `${one ? 'It stays' : 'They stay'} in your activities and ` +
     `${one ? 'is' : 'are'} left out of your run analysis.`
   return offer ? `${said} Open ${one ? 'it' : 'one'} to count it as a run.` : said
 }
@@ -117,7 +117,7 @@ export const ATHLETE_LABEL_CHIP: Record<AthleteType, string> = {
 
 /** The line on an activity page the athlete labelled in the export, in the place of its best efforts. */
 export function labelledNote(label: AthleteType): string {
-  return `You labelled this activity ${ATHLETE_LABEL_CHIP[label]} in your export, so it is left out of your run and ride analysis.`
+  return `You labelled this activity ${ATHLETE_LABEL_CHIP[label]} in your export. It is left out of your run and ride analysis.`
 }
 
 /**
@@ -128,8 +128,8 @@ export function labelledNote(label: AthleteType): string {
 export function labelledText(count: number): string {
   const one = count === 1
   return (
-    `${plural(count, 'saved activity is', 'saved activities are')} labelled Hike, Walk or another type in your export, so ` +
-    `${one ? 'it stays' : 'they stay'} in your activities and ${one ? 'is' : 'are'} left out of your analysis. ` +
+    `${plural(count, 'saved activity is', 'saved activities are')} labelled Hike, Walk or another type in your export. ` +
+    `${one ? 'It stays' : 'They stay'} in your activities and ${one ? 'is' : 'are'} left out of your analysis. ` +
     `Open ${one ? 'it' : 'one'} to count it as a run or ride.`
   )
 }

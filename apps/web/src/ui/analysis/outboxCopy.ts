@@ -26,7 +26,7 @@ export function outboxText(
   }
   if (pending > 0 && !importSaidWaiting) {
     parts.push(
-      `${plural(pending, ...ACTIVITIES)} ${pending === 1 ? 'is' : 'are'} still waiting to be saved. ${pending === 1 ? 'It saves' : 'They save'} when the connection returns, or the next time the page loads.`,
+      `${plural(pending, ...ACTIVITIES)} ${pending === 1 ? 'is' : 'are'} waiting to be saved. ${pending === 1 ? 'It saves' : 'They save'} when the connection returns or the page next loads.`,
     )
   }
   return parts.length === 0 ? null : parts.join(' ')

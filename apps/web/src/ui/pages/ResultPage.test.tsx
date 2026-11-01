@@ -217,10 +217,8 @@ describe('ResultPage footnote', () => {
     ['ride', { page: 'ride' }],
   ] as const)('says what the %s page is based on, with a link to Profile', (_name, route) => {
     renderFooter(route, false)
-    expect(
-      screen.getByText(/Based on 75 kg, man and your age at each effort\./),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Change on Profile' })).toHaveAttribute(
+    expect(screen.getByText(/Based on your age, sex and 75 kg\./)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Edit your details on Profile' })).toHaveAttribute(
       'href',
       '#/profile',
     )
@@ -287,8 +285,10 @@ describe('ResultPage footnote', () => {
 
   it('leaves the line off the sample, which has its own persona', () => {
     renderFooter({ page: 'run' }, true)
-    expect(screen.queryByRole('link', { name: 'Change on Profile' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Based on 75 kg/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Edit your details on Profile' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Based on your age/)).not.toBeInTheDocument()
   })
 })
 

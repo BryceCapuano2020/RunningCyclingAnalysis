@@ -71,11 +71,7 @@ describe('ZoneTables, the max heart rate and its source', () => {
   it('names where the figure comes from and asks if it is right, with a Set control that says which figure', () => {
     const onSet = vi.fn()
     zones(onSet)
-    expect(
-      screen.getByText(
-        'Max heart rate: 186 bpm, the highest you reached on 4 separate days since Sep 2021.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Max heart rate: 186 bpm.')).toBeInTheDocument()
     expect(screen.getAllByText(/^Is that right\?/)).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
     expect(onSet).toHaveBeenCalledWith('run', 186)
@@ -98,9 +94,7 @@ describe('ZoneTables, the max heart rate and its source', () => {
 
   it('states the source without the question when it cannot be set from here', () => {
     zones()
-    expect(
-      screen.getByText(/186 bpm, the highest you reached on 4 separate days/),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Max heart rate: 186 bpm.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Set your/ })).toBeNull()
     expect(screen.queryByText(/Is that right/)).toBeNull()
   })

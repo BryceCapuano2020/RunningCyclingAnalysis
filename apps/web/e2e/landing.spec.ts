@@ -20,7 +20,7 @@ test('landing page shows the heading, drop zone and privacy statement without co
   ).toBeVisible()
   // The one privacy statement is in the footer.
   await expect(
-    page.getByText(/^Nothing is uploaded; analysis runs in your browser\./),
+    page.getByText(/^Your activities stay in this browser, where anyone using it can see them\.$/),
   ).toBeVisible()
   expect(errors).toEqual([])
 })
