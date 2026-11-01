@@ -58,7 +58,7 @@ describe('the revision table', () => {
     const seven = REVISIONS.at(-1)!
     expect(seven.revision).toBe(7)
     expect(seven.adds).toEqual(['temperature', 'athleteType', 'localDayShift'])
-    expect(seven.affects).toEqual(['combine', 'trend', 'change', 'records'])
+    expect(seven.affects).toEqual(['combine', 'trend', 'change', 'records', 'fitness'])
     expect(seven.holdsBack).toBeUndefined()
   })
 })

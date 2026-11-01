@@ -49,10 +49,11 @@ export const REVISIONS: readonly RevisionDeclaration[] = [
   ...[1, 2, 3, 4, 5, 6].map(exclusive),
   {
     revision: 7,
-    // The mixing study (digest/test/mixingStudy.node.test.ts, D12 section 1.8) decides this: with revision 7 and 6 mixed,
+    // The mixing study (digest/test/mixingStudy.node.test.ts, D12 section 1.8) decides this: with revisions 7 and 6 mixed,
     // long best efforts, the weekly bests, the change test's verdicts and the records move by more than a third of the
-    // least change the app states (a steep descent now costs more), so a library holds one revision at a time.
-    // Zones, thresholds, the lean and the fitness value do not move, which the study also records.
+    // least change the app states (a steep descent now costs more), and a library with some digests that carry a
+    // temperature and some that do not reads a different fitness (the warm-day term), so a library holds one revision
+    // at a time. Zones, thresholds and the lean do not move, which the study also records.
     kind: 'exclusive',
     adds: ['temperature', 'athleteType', 'localDayShift'],
     changes: [
@@ -71,7 +72,7 @@ export const REVISIONS: readonly RevisionDeclaration[] = [
       'drift',
       'walkingPace',
     ],
-    affects: ['combine', 'trend', 'change', 'records'],
+    affects: ['combine', 'trend', 'change', 'records', 'fitness'],
   },
 ]
 

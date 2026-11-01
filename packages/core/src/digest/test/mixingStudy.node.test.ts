@@ -133,6 +133,7 @@ describe('the mixing study', () => {
       trend: ['trend'],
       change: ['change'],
       records: ['records'],
+      fitness: ['fitness'],
     }
     for (const [consumer, ok] of Object.entries(study.findings.within)) {
       if (ok) continue
