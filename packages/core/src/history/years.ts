@@ -1,11 +1,11 @@
 import { civilOfDay, localDayOf } from '../calendar'
 import { SPORTS } from '../types'
 import type { ActivityDigest, Sport } from '../types'
+import { activityHours, finite } from './hours'
 import { perSport } from './sports'
 import { readsDigestsOnly } from './types'
 import type { HistoryPart } from './types'
 
-const SECONDS_PER_HOUR = 3600
 const HOUR_STEP = 100
 
 /** What one sport did in one calendar year. */
@@ -22,9 +22,6 @@ export interface YearRow {
   sports: Record<Sport, YearTotals>
 }
 
-/** A figure that is not a number (a digest keeps NaN for a distance or climb it could not read) adds nothing. */
-const finite = (value: number): number => (Number.isFinite(value) ? value : 0)
-
 const emptyYear = (year: number): YearRow => ({
   year,
   sports: perSport(() => ({ hours: 0, distanceM: 0, climbM: 0, activities: 0 })),
@@ -39,8 +36,7 @@ function build(digests: ActivityDigest[]): YearRow[] {
     const row = byYear.get(year) ?? emptyYear(year)
     byYear.set(year, row)
     const totals = row.sports[digest.sport]
-    // Moving time when the digest keeps it, else elapsed time, as the activity list counts it.
-    totals.hours += finite(digest.movingS ?? digest.durationS) / SECONDS_PER_HOUR
+    totals.hours += activityHours(digest)
     totals.distanceM += finite(digest.distanceM)
     totals.climbM += finite(digest.elevationGainM)
     totals.activities += 1
