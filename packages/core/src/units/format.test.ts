@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   ENERGY_RATE_UNIT,
   PACE_UNIT,
+  distanceUnit,
   formatClock,
   formatEnergyRate,
   formatEnergyRateValue,
   formatTimeOfDay,
   formatDistance,
+  formatWholeDistance,
   formatDuration,
   formatPartialDistance,
   formatElevation,
@@ -146,6 +148,28 @@ describe('formatSpeed', () => {
   it('returns a dash for NaN or infinite speed', () => {
     expect(formatSpeed(NaN, 'imperial')).toBe(DASH)
     expect(formatSpeed(Infinity, 'metric')).toBe(DASH)
+  })
+})
+
+describe('formatWholeDistance', () => {
+  it('rounds to the whole unit, grouping thousands, with the unit word of the setting', () => {
+    expect(formatWholeDistance(120_400, 'metric')).toBe('120 km')
+    expect(formatWholeDistance(120_600, 'metric')).toBe('121 km')
+    expect(formatWholeDistance(193_000, 'imperial')).toBe('120 mi')
+    expect(formatWholeDistance(1_234_000, 'metric')).toBe('1,234 km')
+  })
+
+  it('writes a distance under half a unit as zero, and no distance as a dash', () => {
+    expect(formatWholeDistance(0, 'imperial')).toBe('0 mi')
+    expect(formatWholeDistance(-0.2, 'metric')).toBe('0 km')
+    expect(formatWholeDistance(NaN, 'metric')).toBe(DASH)
+  })
+})
+
+describe('distanceUnit', () => {
+  it('gives the unit word and the metres in one of it, for each system', () => {
+    expect(distanceUnit('metric')).toEqual({ unit: 'km', metres: 1000 })
+    expect(distanceUnit('imperial')).toEqual({ unit: 'mi', metres: 1609.344 })
   })
 })
 

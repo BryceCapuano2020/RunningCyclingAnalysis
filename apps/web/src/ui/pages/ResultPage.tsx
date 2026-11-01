@@ -16,6 +16,7 @@ import { windowLine } from '../windowLine'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
 import { latestActivityText, sportEmptyText } from '../periodCopy'
+import { HistoryPage } from '../lazyPages'
 import { hrefFor } from '../route'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
@@ -24,7 +25,6 @@ import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthle
 import { ActivitiesPage } from './ActivitiesPage'
 import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
-import { HistoryPage } from './HistoryPage'
 import { ProfileFootnote } from '../components/ProfileFootnote'
 import { MethodPage } from './MethodPage'
 import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
@@ -233,7 +233,13 @@ export function ResultPage({
         />
       )
     case 'history':
-      return <HistoryPage history={analysis.state.history} units={units} />
+      return (
+        <HistoryPage
+          history={analysis.state.history}
+          units={units}
+          grading={{ profile, missingAge, weightKnown }}
+        />
+      )
     case 'activities':
       return (
         <ActivitiesPage

@@ -81,6 +81,17 @@
   font-size: var(--text-md);
 }
 
+/* The controls row can shrink to the page, so a wide filter wraps rather than widening it. */
+.chart-frame__controls {
+  min-width: 0;
+}
+
+/* A sport toggle takes the width of its segments, as the calendar's does, and shrinks to a narrow phone. */
+.chart-frame__controls > .segmented-control {
+  width: fit-content;
+  max-width: 100%;
+}
+
 /* One line of key, reserved in every period, so the plot keeps its place when a key appears. */
 .chart-frame__legend {
   min-height: 1.5rem;

@@ -1,5 +1,6 @@
 import { createElement, lazy } from 'react'
 import type { ComponentProps, ComponentType } from 'react'
+import type { HistoryPage as HistoryPageComponent } from './pages/HistoryPage'
 import type { MethodPage as MethodPageComponent } from './pages/MethodPage'
 import type { ProfilePage as ProfilePageComponent } from './pages/ProfilePage'
 import type { ResultPage as ResultPageComponent } from './pages/ResultPage'
@@ -40,6 +41,11 @@ export function lazyPage<Props extends object>(load: () => Promise<ComponentType
 const result = lazyPage<ComponentProps<typeof ResultPageComponent>>(() =>
   import('./pages/ResultPage').then((module) => module.ResultPage),
 )
+// The History tab's charts are the heaviest part of the result pages and nobody needs them on Balance, so they are
+// their own chunk, loaded when the tab is first opened (inside the result page, under its loading status).
+const history = lazyPage<ComponentProps<typeof HistoryPageComponent>>(() =>
+  import('./pages/HistoryPage').then((module) => module.HistoryPage),
+)
 const profile = lazyPage<ComponentProps<typeof ProfilePageComponent>>(() =>
   import('./pages/ProfilePage').then((module) => module.ProfilePage),
 )
@@ -48,6 +54,7 @@ const method = lazyPage<ComponentProps<typeof MethodPageComponent>>(() =>
 )
 
 export const ResultPage = result.Page
+export const HistoryPage = history.Page
 export const ProfilePage = profile.Page
 export const MethodPage = method.Page
 
@@ -61,5 +68,5 @@ export function preloadResultPages(): void {
 
 /** Loads every page now, for tests that render a page the moment its route is chosen. */
 export async function preloadAllPages(): Promise<void> {
-  await Promise.all([result.preload(), profile.preload(), method.preload()])
+  await Promise.all([result.preload(), history.preload(), profile.preload(), method.preload()])
 }

@@ -31,3 +31,40 @@ test('the History tab opens on the sample with its totals, hours chart, keyboard
   await expect(chart.getByRole('table').getByRole('row').nth(1)).toBeVisible()
   expect(errors).toEqual([])
 })
+
+/** The seven charts of the History tab, in page order, each opening on the sample. */
+const SECTIONS = [
+  'balance-over-years',
+  'training-calendar',
+  'hours-per-year',
+  'year-to-date',
+  'bests-by-year',
+  'best-curve-by-year',
+  'intensity-by-year',
+]
+
+test('the History tab draws all seven charts in page order, and a sport toggle redraws its chart in place', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await openSample(page)
+  await goTo(page, 'History')
+  await expect(page.getByText('Years on file')).toBeVisible()
+  const sections = page.locator('[data-section]')
+  await expect(sections).toHaveCount(SECTIONS.length)
+  expect(
+    await sections.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-section'))),
+  ).toEqual(SECTIONS)
+  // Each section draws a chart of the sample, not the message that it has nothing to draw.
+  await expect(page.locator('[data-section] .chart-frame__empty')).toHaveCount(0)
+
+  // The toggle sits in the chart's control row, and choosing the ride redraws the chart around it.
+  const bests = page.locator('[data-section="bests-by-year"]')
+  await expect(bests.getByRole('figure', { name: 'Run bests by year' })).toBeVisible()
+  await bests.locator('.chart-frame__controls').getByText('Ride', { exact: true }).click()
+  await expect(bests.getByRole('figure', { name: 'Ride bests by year' })).toBeVisible()
+  await expect(
+    bests.locator('.chart-frame__controls').getByRole('radio', { name: 'Ride' }),
+  ).toBeChecked()
+  expect(errors).toEqual([])
+})

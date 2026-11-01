@@ -1,0 +1,15 @@
+/* A past year is a thin neutral line, so this year's sport line stands out in front of it. */
+.year-to-date__line {
+  fill: none;
+  stroke: var(--previous-mark);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* In forced colours the past years take the system's text colour, and this year keeps its sport line. */
+@media (forced-colors: active) {
+  .year-to-date__line {
+    stroke: CanvasText;
+  }
+}

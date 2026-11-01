@@ -4,12 +4,11 @@ import {
   FIRST_GRADED_AGE,
   GRADE_LEVELS,
   LAST_GRADED_AGE,
-  ageAt,
-  ageGradeForEffort,
-  gradeCeiling,
-  levelOf,
+  ageAndSexAt,
+  gradeAtSpeed,
+  gradeEffort,
 } from '@rca/core/grade'
-import type { Sex } from '@rca/core/grade'
+import type { AgeProfile, EffortGrade, GapKind, Grade, Sex, SportGrade } from '@rca/core/grade'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Interval, Sport } from '@rca/core/types'
@@ -17,11 +16,9 @@ import { formatDuration } from '@rca/core/units'
 import { formatGrade, wholeGrade } from './gradeFormat'
 import { curveOf } from './records'
 
-/** The year of birth and sex that every grade needs. Null on the page when either is missing. */
-export interface AgeProfile {
-  birthYear: number
-  sex: Sex
-}
+// The grade path itself is in core, where the history grades its years by it too.
+export { ageAndSexAt, gradeAtSpeed, rideGradeFromSpeeds } from '@rca/core/grade'
+export type { AgeAndSex, AgeProfile, Grade, RideGradeRead, SportGrade } from '@rca/core/grade'
 
 /** The profile the grades need, or null while the year of birth or the sex is missing. */
 export function ageProfileOf(birthYear: number | null, sex: Sex | null): AgeProfile | null {
@@ -37,36 +34,8 @@ export function missingAgeOf(birthYear: number | null, sex: Sex | null): AgeGap 
   return sex === null ? 'sex' : null
 }
 
-/** The age on the date of an effort, with the sex it is graded for. */
-export interface AgeAndSex {
-  age: number
-  sex: Sex
-}
-
-/** An age grade: the fraction and its level. Its whole percent is `wholeGrade`, and its text `formatGrade`. */
-export interface Grade {
-  grade: number
-  level: string
-}
-
-/**
- * A sport's age grade at the headline duration. A run is one activity's estimate and has no range.
- * A ride is estimated through its running equivalent, so it carries the model's range.
- */
-export interface SportGrade {
-  centre: Grade
-  range: { low: Grade; high: Grade } | null
-}
-
 /** Either a grade, with the age it was taken at, or the reason there is none to show. */
-export type GradeOutcome =
-  | { kind: 'graded'; age: number; grade: SportGrade }
-  /**
-   * A ride whose running equivalent is at or above what the age tables cover (see gradeCeiling): capped at 100%,
-   * with no grade of its own, and left out of the comparison with the run. Not a fault in the input.
-   */
-  | { kind: 'top-of-scale'; age: number }
-  | { kind: 'gap'; reason: string }
+export type GradeOutcome = Exclude<EffortGrade, { kind: 'gap' }> | { kind: 'gap'; reason: string }
 
 export interface HeadlineGrades {
   run: GradeOutcome
@@ -102,24 +71,15 @@ export const LEVEL_BANDS: readonly { name: string; min: number }[] = [...GRADE_L
 
 export const SEX_NOUN: Record<Sex, string> = { female: 'woman', male: 'man' }
 
-/**
- * The athlete's age on atMs, from the year of birth. Null outside the ages the standards cover,
- * so an age the standards cannot grade is never used.
- */
-export function ageAndSexAt(profile: AgeProfile, at: number | Dated): AgeAndSex | null {
-  const age = ageAt(profile.birthYear, at)
-  if (age === null || age < FIRST_GRADED_AGE || age > LAST_GRADED_AGE) return null
-  return { age, sex: profile.sex }
-}
-
-function gradeOf(grade: number | null): Grade | null {
-  if (grade === null) return null
-  const level = levelOf(grade)
-  return level === null ? null : { grade, level }
-}
-
 function gap(reason: string): GradeOutcome {
   return { kind: 'gap', reason }
+}
+
+/** The words for why an effort has no grade. */
+const GAP_TEXT: Record<GapKind, string> = {
+  'no-date': NO_DATE_TEXT,
+  'age-range': AGE_RANGE_TEXT,
+  'no-standard': NO_STANDARD_TEXT,
 }
 
 /** The start (with its day shift) of the activity with this id, or null when it is not among the result's activities. */
@@ -129,76 +89,26 @@ function startOf(result: AnalysisResult, activityId: string | null): Dated | nul
 }
 
 /**
- * The grade of holding a flat running speed for durationS, for an athlete of a given age and sex.
- * Every grade the app shows, the cards and the trend alike, comes through here. Null when the
- * distance has no standard.
+ * The flat running speed that costs the same as a sport's best effort at durationS: a run's pace as recorded, and a
+ * ride's running equivalent from the result, null when it has none at that length.
  */
-export function gradeAtSpeed(
-  speedMs: number,
-  durationS: number,
-  ageAndSex: AgeAndSex,
-): Grade | null {
-  return gradeOf(ageGradeForEffort(speedMs, durationS, ageAndSex.age, ageAndSex.sex))
-}
-
-/**
- * A run's grade from its flat speed. It is one activity's estimate, drawn as a dot. Null when the
- * distance covered has no standard (under 1 mile or over 200 km).
- */
-function runGradeAt(speedMs: number, durationS: number, ageAndSex: AgeAndSex): SportGrade | null {
-  const centre = gradeAtSpeed(speedMs, durationS, ageAndSex)
-  return centre === null ? null : { centre, range: null }
-}
-
-/** A ride's grade read from its running-equivalent speeds, and whether it reaches the top of the age tables. */
-export interface RideGradeRead {
-  /** The grade with every end held at the ceiling, so none is above 100%. */
-  grade: SportGrade
-  /** The centre is at or above the ceiling: the ride is at the top of the scale. */
-  top: boolean
-}
-
-/**
- * The one reading of a ride's running equivalent as a grade, for the cards and the trend alike. A ride has no
- * ceiling of its own, so the running record bounds it (gradeCeiling): an end above the ceiling is held at it, and
- * a centre at or above it is at the top of the scale. With no ceiling (the record's distance at this length is
- * under the shortest standard) any graded equivalent is past it, and the ends above 100% are held at 100%. Null
- * when an end has no grade.
- */
-export function rideGradeFromSpeeds(
-  runSpeed: Interval,
-  durationS: number,
-  ageAndSex: AgeAndSex,
-): RideGradeRead | null {
-  const at = (speedMs: number) => gradeAtSpeed(speedMs, durationS, ageAndSex)
-  const low = at(runSpeed.p05)
-  const centre = at(runSpeed.p50)
-  const high = at(runSpeed.p95)
-  if (!(low && centre && high)) return null
-  const ceiling = gradeCeiling(durationS, ageAndSex.age, ageAndSex.sex) ?? 1
-  const held = (grade: Grade): Grade =>
-    grade.grade > ceiling ? (gradeOf(ceiling) ?? grade) : grade
-  return {
-    grade: { centre: held(centre), range: { low: held(low), high: held(high) } },
-    top: centre.grade >= ceiling,
-  }
-}
-
-/** A ride's grade from its running equivalent at durationS; null without an equivalent there. */
-function rideGradeAt(
-  result: AnalysisResult,
-  durationS: number,
-  ageAndSex: AgeAndSex,
-): RideGradeRead | null {
-  const equivalent = result.equivalents.find((candidate) => candidate.durationS === durationS)
-  return equivalent ? rideGradeFromSpeeds(equivalent.runSpeed, durationS, ageAndSex) : null
+const SPEED_OF: Record<
+  Sport,
+  (result: AnalysisResult, durationS: number, value: number) => Interval | null
+> = {
+  run: (_result, _durationS, value) => {
+    const speed = metabolicToFlatSpeed(value)
+    return { p05: speed, p50: speed, p95: speed }
+  },
+  ride: (result, durationS) =>
+    result.equivalents.find((candidate) => candidate.durationS === durationS)?.runSpeed ?? null,
 }
 
 /**
  * A sport's age grade at durationS, taken at the age on the date of the activity that set the best
  * effort there. A ride's equivalent comes from its own best ride at that duration, so a ride is
  * dated by that ride. A ride at the top of the age tables is its own outcome, and any other lack of a grade
- * comes back as the reason.
+ * comes back as the reason. The grading itself is core's `gradeEffort`, which the history grades its years by.
  */
 export function sportGrade(
   result: AnalysisResult,
@@ -206,22 +116,14 @@ export function sportGrade(
   durationS: number,
   profile: AgeProfile,
 ): GradeOutcome {
-  const curve = curveOf(result, sport)
-  const point = curve.find((candidate) => candidate.durationS === durationS)
+  const point = curveOf(result, sport).find((candidate) => candidate.durationS === durationS)
   if (point === undefined || !Number.isFinite(point.value)) return gap(NEEDS_EFFORT_TEXT)
-  const started = startOf(result, point.activityId)
-  if (started === null) return gap(NO_DATE_TEXT)
-  const ageAndSex = ageAndSexAt(profile, started)
-  if (ageAndSex === null) return gap(AGE_RANGE_TEXT)
-  if (sport === 'run') {
-    const grade = runGradeAt(metabolicToFlatSpeed(point.value), durationS, ageAndSex)
-    return grade === null ? gap(NO_STANDARD_TEXT) : { kind: 'graded', age: ageAndSex.age, grade }
+  const effort = {
+    speed: SPEED_OF[sport](result, durationS, point.value),
+    started: startOf(result, point.activityId),
   }
-  const ride = rideGradeAt(result, durationS, ageAndSex)
-  if (ride === null) return gap(NO_STANDARD_TEXT)
-  return ride.top
-    ? { kind: 'top-of-scale', age: ageAndSex.age }
-    : { kind: 'graded', age: ageAndSex.age, grade: ride.grade }
+  const graded = gradeEffort(sport, effort, durationS, profile)
+  return graded.kind === 'gap' ? gap(GAP_TEXT[graded.why]) : graded
 }
 
 /** Whether a ride's outcome is the top of the scale, which the balance leaves out. */
