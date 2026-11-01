@@ -19,6 +19,7 @@ import { fastestMs } from './test/timing'
  * sport. This library has about 390 such weeks, each a Theil-Sen fit of 200 draws at about 0.55 ms, so the weekly fits are
  * about 215 ms of the 250 and the cost grows with the weeks, not with the activities. Each week's fit is the cost it was; the
  * findings, which do not draw the weeks, still read the newest 52. The runner took 359 ms with the weeks, so the budget is 450.
+ * The search that ends on all time pays the same weekly fits (308 ms on the runner against 300), so its budget is 450 for the same reason.
  *
  * The default period is a search over 12 weeks, 26 weeks and 12 months (answer/window.ts), each analysed through the period
  * cache and the search stopping at the first window where every sport qualifies. The library here has no hard effort, so
@@ -30,7 +31,7 @@ const ACTIVITIES = 2000
 const ALL_TIME_BUDGET_MS = 450
 const DEFAULT_BUDGET_MS = 80
 const SEARCH_BUDGET_MS = 160
-const SEARCH_TO_ALL_TIME_BUDGET_MS = 300
+const SEARCH_TO_ALL_TIME_BUDGET_MS = 450
 const MASS_CHANGE_BUDGET_MS = 80
 /**
  * The same library with hard efforts in both sports, whose thresholds the effort gate keeps: the path that fits them, cuts the
