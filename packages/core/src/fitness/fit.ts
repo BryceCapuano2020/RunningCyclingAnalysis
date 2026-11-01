@@ -1,4 +1,5 @@
 import { DAY_MS } from '../constants'
+import { clamp } from '../math'
 import { FITNESS } from './params'
 
 const F = FITNESS.fit
@@ -26,8 +27,6 @@ export interface GradeFit {
   /** Whether it can be trusted; when not, the strict unit is read instead. */
   stable: boolean
 }
-
-const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
 
 /** Rows grouped into blocks of `blockDays` days, as slopes are fitted within blocks so that a season's drift does not tilt them. Blocks with fewer than `min` rows tell nothing. */
 function blocksOf<T extends { startMs: number }>(rows: readonly T[], min: number): T[][] {

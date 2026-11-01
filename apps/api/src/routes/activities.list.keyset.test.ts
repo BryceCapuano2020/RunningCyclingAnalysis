@@ -22,7 +22,7 @@ import {
   setup,
 } from '../test/keyset.ts'
 
-/** The stateless keyset cursor and the list meter (design: .claude/stage-d/D3_DESIGN.md, section 2). */
+/** The stateless keyset cursor and the list meter (docs/ARCHITECTURE.md, the library list). */
 
 describe('the keyset cursor', () => {
   it('does not move when rows newer than the cursor are inserted mid-walk', async () => {

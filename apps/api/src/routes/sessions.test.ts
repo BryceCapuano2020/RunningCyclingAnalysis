@@ -2,7 +2,7 @@ import { MAX_SESSIONS_PER_USER, SessionListSchema, SessionRevokeSchema } from '@
 import { describe, expect, it } from 'vitest'
 import { createHarness, type Harness } from '../test/harness.ts'
 
-/** Rows T1-T8 of the session table in .claude/stage-d/D3_DESIGN.md. */
+/** Rows T1-T8 of the session table: listing, revoking and the ten-session cap (docs/ARCHITECTURE.md). */
 
 async function signInAgain(h: Harness, email = 'rider@example.test'): Promise<string> {
   h.clock.now += 1000

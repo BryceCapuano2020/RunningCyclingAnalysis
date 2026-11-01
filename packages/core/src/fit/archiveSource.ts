@@ -67,18 +67,3 @@ export async function readSource(
   if (callbackError !== undefined) throw callbackError
   return failure
 }
-
-/** A source over bytes already in memory, such as a zip nested in another zip. */
-export function bytesSource(name: string, bytes: Uint8Array<ArrayBuffer>): FitSource {
-  return {
-    name,
-    stream: () =>
-      new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(bytes)
-          controller.close()
-        },
-      }),
-    arrayBuffer: async () => bytes.slice().buffer,
-  }
-}

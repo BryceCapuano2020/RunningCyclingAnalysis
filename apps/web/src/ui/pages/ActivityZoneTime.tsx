@@ -6,6 +6,7 @@ import { traceTimeInZones } from '@rca/core/zones'
 import type { TraceZoneTime } from '@rca/core/zones'
 import type { UnitSystem } from '@rca/core/units'
 import { ZoneTimeChart } from '../charts/ZoneTimeChart'
+import { lowerFirst } from '../format/firstLetter'
 import { hrefFor } from '../route'
 import { sourceText, zoneRange } from '../zoneRows'
 import {
@@ -52,8 +53,6 @@ export interface MissingMeasure {
 
 /** No pace or power is missing: one array, so the default does not change between renders. */
 const NO_MISSING: readonly MissingMeasure[] = []
-
-const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
 
 /** Why heart rate is not read into zones: the reason in a line, and the activity's issues give it in full. */
 function SetAsideNote() {

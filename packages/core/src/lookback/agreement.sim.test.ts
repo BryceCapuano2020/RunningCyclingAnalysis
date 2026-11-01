@@ -78,8 +78,8 @@ describe('the call about the last plateau against the card, as of the newest run
   //   the card shows a recovery: recovering / steady 0.003, recovering / lower 0.048 (with 4% back 0.150, a dip of 8% 0.089).
   it('records the corrections: the card holding or showing a slip while hindsight says otherwise', () => {
     const nothing = libraries['nothing changes']
-    // Where nothing changed the card's false alarms show as these cells. Hindsight lists the ones the runs do not contradict
-    // (observed 0.22 of the libraries, 0.07 episodes a year against the card's 0.23) and calls the rest steady.
+    // Where nothing changed the card's false alarms show as these cells. Hindsight lists the ones the runs do not clearly
+    // refute (0.07 episodes a year against the card's 0.24) and calls the rest steady (observed 0.74).
     expect(callShare(nothing, 'steady')).toBeGreaterThan(0.7)
     expect(
       cell(nothing, 'slipping', 'steady') + cell(nothing, 'holding-below', 'steady'),
@@ -159,15 +159,17 @@ describe('false findings where nothing changed', () => {
     return { hindsight: listed / years, card: declared / years }
   }
 
-  // Observed per athlete-year, 5 years (hindsight / card): nothing 0.003 / 0.24, season 1.5% 0.009 / 0.32, season 3% 0.009 / 0.45,
-  // strap 0.014 / 0.33, heat 0.009 / 0.25, bad runs 0.005 / 0.23, wander stress 0.075 / 0.48; 10 years the same to within 0.01.
+  // Observed per athlete-year, 5 years (hindsight / card): nothing 0.069 / 0.24, season 1.5% 0.129 / 0.32, season 3% 0.138 / 0.45,
+  // strap 0.131 / 0.33, heat 0.082 / 0.25, bad runs 0.061 / 0.23, wander stress 0.274 / 0.48; 10 years the same to within 0.04.
+  // A slip the card declared is merged away only when the runs refute it, so these are the card's false alarms the runs do not.
+  // Recorded ceiling 0.3 (observed at most 0.28, wander stress); the design bound is 0.4.
   it.each(NULLS)(
-    '%s: hindsight lists fewer false episodes a year than the card raises, and under 0.4',
+    '%s: hindsight lists fewer false episodes a year than the card raises, and under 0.3',
     (_n, spec) => {
       for (const weeks of [260, 520]) {
         const r = rates(spec, weeks)
         expect(r.hindsight).toBeLessThanOrEqual(r.card)
-        expect(r.hindsight).toBeLessThanOrEqual(0.4)
+        expect(r.hindsight).toBeLessThanOrEqual(0.3)
       }
     },
   )

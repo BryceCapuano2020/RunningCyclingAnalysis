@@ -1,6 +1,6 @@
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { PACE_UNIT, formatClock, formatPower, groupThousands } from '@rca/core/units'
+import { formatClock, groupThousands } from '@rca/core/units'
 import { PER } from '../format/units'
 import { SPORT_FORMAT } from '../sports'
 import type { AxisTick, PlotBox } from './chartTypes'
@@ -29,19 +29,6 @@ export function plottedValue(sport: Sport, value: number, units: UnitSystem): nu
 /** A sport's own number as text: the pace with its unit, or the power in watts. */
 export function formatNative(sport: Sport, value: number, units: UnitSystem): string {
   return SPORT_FORMAT[sport].formatted(value, units)
-}
-
-/**
- * A value read off the axis, as text: a pace's seconds per unit as a clock and its unit, or a power in watts.
- * For a fitted line, whose value is on the axis's scale and has no speed to format.
- */
-export function formatPlotted(sport: Sport, value: number, units: UnitSystem): string {
-  return PLOTTED_TEXT[sport](value, units)
-}
-
-const PLOTTED_TEXT: Record<Sport, (value: number, units: UnitSystem) => string> = {
-  run: (seconds, units) => `${formatClock(seconds)} ${PACE_UNIT[units]}`,
-  ride: (watts) => formatPower(watts),
 }
 
 /** What a sport's own number is called, in table headings, tooltips and legends. */

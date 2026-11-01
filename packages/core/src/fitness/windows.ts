@@ -250,19 +250,6 @@ export function lowLastYear(
   return up ? delta >= M.yoyShare * M.delta : delta <= -M.yoyShare * M.delta
 }
 
-/**
- * The rise test of one week, the mirror of `slipAt` on the same contrasts: the scale with the highest z is the one
- * judged, and it fires when z is at least 3.3 and the gain at least 4%. `delta` and `z` are positive for a rise.
- */
-export function riseAt(
-  runs: readonly RunPoint[],
-  day: number,
-  sigma: number,
-  dips: readonly Dip[] = [],
-): Slip | null {
-  return slipAndRiseAt(runs, day, sigma, dips).rise
-}
-
 export interface Onset {
   /** The day the change is dated to. */
   day: number

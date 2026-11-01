@@ -1,6 +1,11 @@
 import { calendarKey } from './calendar'
 import type { ActivityDigest } from './types'
 
+/** Whether two sets of ids hold the same members. */
+export function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  return a === b || (a.size === b.size && [...a].every((id) => b.has(id)))
+}
+
 /**
  * A function of a list of digests and one more input, remembered for the last few calls. A call finds its answer
  * when the digests are the same objects in the same order and the other input is the same by `sameInput`, however

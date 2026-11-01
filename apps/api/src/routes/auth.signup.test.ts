@@ -5,7 +5,8 @@ import { createGoogleHarness } from '../test/googleSignIn.ts'
 import { sessionCookie, START } from '../test/harness.ts'
 
 /**
- * One test per row of the sign-in and deletion tables in .claude/stage-d/D3_DESIGN.md (S1-S12, D1-D6).
+ * One test per row of the sign-in and deletion tables (S1-S12, D1-D6): who may sign in or create an account,
+ * and what a pending deletion refuses.
  * Addresses are synthetic, on example.test.
  */
 const LISTED = 'listed@example.test'

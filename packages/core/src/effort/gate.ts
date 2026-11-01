@@ -5,8 +5,8 @@ import type { Sport } from '../types'
 
 /*
  * The effort gate: whether a sport's best efforts were hard, before a best is read as capability. One rule,
- * used wherever a best becomes a threshold, a zone, a race time, a level or a durability: see D1 in
- * .claude/stage-d and docs/design/effort-gate.md for the calibration. The references it reads are judged in reference.ts.
+ * used wherever a best becomes a threshold, a zone, a race time, a level or a durability: see
+ * docs/design/effort-gate.md for the calibration. The references it reads are judged in reference.ts.
  */
 
 /** Whether a share of the reference, as the percent the screen shows it, reaches the hard line. */

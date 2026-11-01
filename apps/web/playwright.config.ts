@@ -17,9 +17,18 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: `http://localhost:${e2eWebPort}`, trace: 'retain-on-first-failure' },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    // The memory of a big import is measured once, on the Pixel 7 Chromium project (phone-memory.spec.ts).
+    {
+      name: 'desktop',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /phone-memory\.spec\.ts$/,
+    },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
-    { name: 'mobile-webkit', use: { ...devices['iPhone 13'] } },
+    {
+      name: 'mobile-webkit',
+      use: { ...devices['iPhone 13'] },
+      testIgnore: /phone-memory\.spec\.ts$/,
+    },
     // The narrowest phone the layout must work at, checked by the accessibility suite and the failure notices.
     {
       name: 'narrow-320',

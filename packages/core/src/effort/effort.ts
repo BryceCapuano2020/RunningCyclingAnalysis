@@ -155,7 +155,3 @@ export function checkEfforts(
     ...supplier('ride'),
   }))
 }
-
-export function isSubmaximal(fraction: number | null): boolean {
-  return fraction !== null && fraction < ALL_OUT_FRACTION
-}

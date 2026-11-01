@@ -4,6 +4,7 @@ import type { Sex } from '@rca/contract'
 import type { UnitSystem } from '@rca/core/units'
 import { PLACEHOLDER_BODY_KG, isPlausibleBirthYear, weightWithinLimits } from './athlete'
 import type { WeightSettings } from './athlete'
+import { PREFERENCES_KEY } from './preferencesStorage'
 
 export interface Preferences {
   settings: WeightSettings
@@ -32,7 +33,7 @@ function browserLanguage(): string | undefined {
   return typeof navigator === 'undefined' ? undefined : navigator.language
 }
 
-const KEY = 'rca.preferences.v1'
+const KEY = PREFERENCES_KEY
 
 /**
  * Stored preferences from before a field existed read as that field's default. An out-of-range
