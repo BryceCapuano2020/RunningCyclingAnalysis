@@ -42,8 +42,9 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  /* In rem, so the initials keep their room when the reader's text is larger (at 200% two capitals are wider than 32 px). */
+  width: 2rem;
+  height: 2rem;
   overflow: hidden;
   border-radius: 50%;
   background: var(--surface-2);

@@ -72,6 +72,7 @@ describe('a signed-in library with every digest held out', () => {
     render(<App />)
     const buttons = screen.getAllByRole('button', { name: 'Update now' })
     expect(buttons).toHaveLength(1)
+    expect(buttons[0]).toHaveClass('btn-primary')
     expect(screen.queryByLabelText('Saved activity updates')).not.toBeInTheDocument()
     fireEvent.click(buttons[0]!)
     expect(app.analysis.rebuildSavedActivities).toHaveBeenCalledOnce()

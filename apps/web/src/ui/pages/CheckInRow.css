@@ -7,6 +7,7 @@
 }
 
 .checkin-row__summary {
+  position: relative;
   list-style: none;
   display: flex;
   align-items: center;
@@ -35,9 +36,20 @@
   line-clamp: 2;
 }
 
+/* Open, the panel gives the sentence whole, so the summary keeps it for a screen reader's name and not for the eye. */
+.checkin-row__details[open] .checkin-row__line {
+  position: absolute;
+  flex: none;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* A chevron, so the line keeps the width: the summary is the disclosure and says so to a screen reader. */
 .checkin-row__toggle {
   flex: none;
+  margin-left: auto;
   width: 0.5rem;
   height: 0.5rem;
   margin-right: var(--space-1);

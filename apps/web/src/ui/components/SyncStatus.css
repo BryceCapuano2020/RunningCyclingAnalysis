@@ -11,6 +11,11 @@
   color: var(--status-critical);
 }
 
+/* Status colour comes with an icon (docs/design/system.md), which sits before the words. */
+.sync-status__message--failed .icon {
+  margin-right: var(--space-1);
+}
+
 .sync-status__count {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
