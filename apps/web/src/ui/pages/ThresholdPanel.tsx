@@ -6,7 +6,7 @@ import { periodName } from '../components/rangeOptions'
 import { effortChipText } from '../effortCaveat'
 import { threshold } from '../records'
 import { THRESHOLD_HEADING, THRESHOLD_MEANING } from '../sports'
-import { floorBasisLine, floorThreshold } from '../thresholdFloor'
+import { bestLabel, floorBasisLine, floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { thresholdSpan } from '../thresholdRange'
 import { thresholdUncheckedLine } from '../thresholdUnchecked'
@@ -19,7 +19,8 @@ import { BasisChip } from './StatTile'
  * The threshold, as the page's answer: its name with a chip that says whether it is an estimate, the figure at
  * display size, its range drawn as a track with the two ends printed under it, what it means, and whether the
  * best 20 minutes was a hard effort. With the fit refused, the sport's floor is shown in its place as "at least"
- * with the best it rests on, and the refusal is not said; with no best at all, the line says what to add.
+ * with the best it rests on, and the refusal is not said; with no best of 20 min, the longest as "Best 12 min"; with
+ * no best of 5 min, the line says what to add.
  */
 export function ThresholdPanel({
   sport,
@@ -48,6 +49,8 @@ export function ThresholdPanel({
   const floor = fitted === null && hero !== null
   // An uneven fit's note names the bests the floor rests on, so the basis line is not said beside it.
   const basis = floor && floorNote === null ? floorBasisLine(result, sport) : null
+  // A best too short to be a floor is named by what it is, and is not called "at least".
+  const best = floor ? bestLabel(result, sport) : null
   const at =
     span === null
       ? 0.5
@@ -63,7 +66,7 @@ export function ThresholdPanel({
         <h2
           id={`${sport}-threshold`}
           className="eyebrow sport-hero__eyebrow"
-          aria-label={`${THRESHOLD_HEADING[sport]}${floor ? ', at least' : ', estimated'}`}
+          aria-label={`${THRESHOLD_HEADING[sport]}, ${best?.toLowerCase() ?? (floor ? 'at least' : 'estimated')}`}
         >
           {THRESHOLD_HEADING[sport]}
         </h2>
@@ -71,7 +74,10 @@ export function ThresholdPanel({
         <span className="tag sport-hero__period">{`· ${periodName(rangeDays)}`}</span>
         {hero && (
           <span aria-hidden="true">
-            <BasisChip basis={floor ? 'floor' : 'estimated'} />
+            <BasisChip
+              basis={best !== null ? 'recorded' : floor ? 'floor' : 'estimated'}
+              label={best ?? undefined}
+            />
           </span>
         )}
         {effortChip && <EffortChip chip={effortChip} className="sport-hero__check" />}

@@ -6,7 +6,7 @@ import { WeightNote } from '../components/WeightNote'
 import type { GradeOutcome } from '../grades'
 import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
 import { SPORT_LABEL, THRESHOLD_GLOSS, THRESHOLD_MEANING } from '../sports'
-import { floorBasisLine, floorThreshold } from '../thresholdFloor'
+import { bestLabel, floorBasisLine, floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { bestBeyondThresholdLine } from '../thresholdBest'
 import { thresholdSpan } from '../thresholdRange'
@@ -51,7 +51,8 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
 /**
  * A sport's threshold as a tile: the estimated figure at display size, its error range as a shape, and the
  * level its best 20 minutes grades at. A threshold the fit refused shows the sport's floor under the chip "At least",
- * with the one best it rests on; only a sport that holds no best says what it needs. A ride's figures wait for the
+ * with the one best it rests on, or, with no best of 20 min, its longest as "Best 12 min"; only a sport that holds no
+ * best of 5 min says what it needs. A ride's figures wait for the
  * weight, which the tile says in its place.
  */
 export function ThresholdTile({
@@ -89,6 +90,7 @@ export function ThresholdTile({
   )
   const effort = headlineEffort(sport, records)
   const basis = fitted === null ? floorBasisLine(result, sport) : null
+  const best = fitted === null ? bestLabel(result, sport) : null
   const unchecked = fitted === null ? null : thresholdUncheckedLine(result, sport)
   const chip = effortChipText(sport, effortCheck)
   // Where the best 20 minutes has its own line, the grade line leaves its figure out rather than say it twice.
@@ -122,7 +124,8 @@ export function ThresholdTile({
       heading={NAME[sport]}
       definition={definition}
       gloss={fitted === null ? undefined : THRESHOLD_GLOSS[sport]}
-      basis={fitted === null ? 'floor' : 'estimated'}
+      basis={fitted === null ? (best === null ? 'floor' : 'recorded') : 'estimated'}
+      basisLabel={best ?? undefined}
       figure={{
         number: hero.number,
         unit: hero.unit,

@@ -598,14 +598,25 @@ describe('SportPage', () => {
     expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
-  it('names the longest best held as the floor when none is as long as 20 min', () => {
-    const short = [{ durationS: 300, value: 6, activityId: morningRun.id, startIndex: 0 }]
+  it('names the longest best held, with no at least, when none is as long as 20 min', () => {
+    const short = [{ durationS: 720, value: 6, activityId: morningRun.id, startIndex: 0 }]
     renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCurve: short }))
 
-    const section = screen.getByRole('region', { name: THRESHOLD_FLOOR_LABEL.run })
+    const section = screen.getByRole('region', { name: 'Threshold pace, best 12 min' })
     expect(heroFigure(section).number).toMatch(/^\d+:\d{2}$/)
-    expect(within(section).getByText('From your best 5 min.')).toBeInTheDocument()
+    expect(
+      within(section).getByText('Best 12 min', { selector: '.stat-tile__basis' }),
+    ).toBeVisible()
+    expect(within(section).queryByText(/At least|From your best/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Needs/)).not.toBeInTheDocument()
+  })
+
+  it('asks for an effort of 20 min or longer, with no number, when the longest best is under 5 min', () => {
+    const short = [{ durationS: 240, value: 6, activityId: morningRun.id, startIndex: 0 }]
+    renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCurve: short }))
+
+    expect(screen.getByText('Needs an effort of 20 min or longer')).toBeInTheDocument()
+    expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
   it('explains that run paces are flat paces', () => {

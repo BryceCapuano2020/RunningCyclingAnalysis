@@ -1,4 +1,4 @@
-import { PRIORS } from '@rca/core/constants'
+import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
 import { metabolicToRidePower } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
@@ -22,43 +22,55 @@ const FIT_CURVE: Record<Sport, (result: AnalysisResult) => Curve> = {
   ride: (result) => result.rideMetabolicCurve,
 }
 
-/** The best a refused threshold stands on: how long it was held, s, and its value in the fit's unit. */
+/**
+ * The best a refused threshold stands on: how long it was held, s, and its value in the fit's unit. `atLeast` is
+ * whether it was held for 20 min or longer, which a threshold sits at or above; a shorter best is faster than a
+ * threshold, so it is a best and not a floor.
+ */
 export interface ThresholdFloor {
   durationS: number
   value: number
+  atLeast: boolean
 }
 
-/** The longest best a curve holds, or null for a curve with none. A longer best is never the faster, so it is the lowest. */
+/** The shortest best shown as a number in a threshold's place, s: under 5 min it says too little of a threshold. */
+const BEST_MIN_S = 300
+
+/**
+ * The longest best a curve holds, which is its lowest since a longer best is never the faster. A best of 20 min or
+ * longer is a floor; one of 5 to 19 min is a plain best; null for a curve with none, or none of 5 min.
+ */
 function longestBest(curve: Curve): ThresholdFloor | null {
-  let longest: ThresholdFloor | null = null
+  let longest: { durationS: number; value: number } | null = null
   for (const { durationS, value } of curve) {
     if (Number.isFinite(value) && (longest === null || durationS > longest.durationS)) {
       longest = { durationS, value }
     }
   }
-  return longest
+  if (longest === null || longest.durationS < BEST_MIN_S) return null
+  return { ...longest, atLeast: longest.durationS >= HEADLINE_DURATION_S }
 }
 
 /**
- * What a sport's threshold stands on when it has none: a demonstrated best, so real ability is at least this. Every
- * refusal has one (the gate protects a number by changing its label, never by blanking it). With an uneven fit, the lowest
- * of the bests it left out. Otherwise the effort gate's floor, the best 30 min where the curve has one, else the best 20.
- * A sport with no best of 20 min or longer gives its longest best. Null when the threshold is there, or the sport holds
- * no best at all.
+ * What a sport's threshold stands on when it has none, so a refusal changes the label and never blanks the number. With
+ * an uneven fit, the lowest of the bests it left out. Otherwise the effort gate's floor, the best 30 min where the curve
+ * has one, else the best 20: real ability is at least this. A sport with no best of 20 min or longer gives its longest
+ * best of 5 min or more, as a best. Null when the threshold is there, or the sport holds no best of 5 min.
  */
 export function floorOf(result: AnalysisResult, sport: Sport): ThresholdFloor | null {
   if (hasThreshold(result, sport)) return null
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   // A floor at or above the fit would leave no range above it, so it is not shown as the threshold.
   if (uneven && uneven.fit.cp > uneven.floor) {
-    return { durationS: Math.max(...uneven.leftOutS), value: uneven.floor }
+    return { durationS: Math.max(...uneven.leftOutS), value: uneven.floor, atLeast: true }
   }
-  return result.effortGate[sport].floor ?? longestBest(FIT_CURVE[sport](result))
+  const held = result.effortGate[sport].floor
+  return held === null ? longestBest(FIT_CURVE[sport](result)) : { ...held, atLeast: true }
 }
 
 /**
- * The figure a sport shows in place of a refused threshold, as a floor: a demonstrated effort the threshold is not
- * shown below. Null when the threshold is there, or when the sport holds no best.
+ * The figure a sport shows in place of a refused threshold: a floor, or a best too short to be one. Null when the
+ * threshold is there, or when the sport holds no best to show.
  */
 export function floorThreshold(
   result: AnalysisResult,
@@ -70,8 +82,19 @@ export function floorThreshold(
   return floor === null ? null : FIGURE_AT[sport](floor.value, massKg, units)
 }
 
-/** The one line under a floor that says what it rests on: "From your best 30 min." Null without a floor. */
+/** The one line under a floor that says what it rests on: "From your best 30 min." Null for a best, and without a figure. */
 export function floorBasisLine(result: AnalysisResult, sport: Sport): string | null {
   const floor = floorOf(result, sport)
-  return floor === null ? null : `From your best ${formatDuration(floor.durationS)}.`
+  return floor === null || !floor.atLeast
+    ? null
+    : `From your best ${formatDuration(floor.durationS)}.`
+}
+
+/**
+ * The label over a best too short to be a floor, "Best 12 min", in place of "At least": it is plainly the best, not
+ * a bound on the threshold. Null for a floor, and without a figure.
+ */
+export function bestLabel(result: AnalysisResult, sport: Sport): string | null {
+  const floor = floorOf(result, sport)
+  return floor === null || floor.atLeast ? null : `Best ${formatDuration(floor.durationS)}`
 }

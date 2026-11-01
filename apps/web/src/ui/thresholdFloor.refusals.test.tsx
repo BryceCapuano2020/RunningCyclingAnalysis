@@ -11,7 +11,7 @@ import { gate, HARD, UNKNOWN } from './effortGateFixtures'
 import { ThresholdPanel } from './pages/ThresholdPanel'
 import { ThresholdTile } from './pages/ThresholdTile'
 import { hasThreshold, paceFigure, powerFigure, threshold } from './records'
-import { floorBasisLine, floorThreshold } from './thresholdFloor'
+import { bestLabel, floorBasisLine, floorThreshold } from './thresholdFloor'
 import { thresholdNeedsLine } from './thresholdNeeds'
 
 afterEach(cleanup)
@@ -119,18 +119,45 @@ describe.each(SPORTS)('a %s threshold the analysis refuses', (sport) => {
     )
   })
 
-  it('names the longest best on file when nothing reaches 20 min', () => {
+  it('shows the longest best of 5 to 19 min as that best, with no at least, when nothing reaches 20 min', () => {
     const curve = [curvePoint(180, 4.6, 'a'), curvePoint(480, 4.1, 'a'), curvePoint(720, 3.9, 'a')]
-    const result = refused(sport, 'missing', {
-      runCurve: curve,
-      rideMetabolicCurve: curve,
-    })
+    const result = refused(sport, 'missing', { runCurve: curve, rideMetabolicCurve: curve })
     result.effortGate[sport] = UNKNOWN
-    expect(floorBasisLine(result, sport)).toBe('From your best 12 min.')
     expect(floorThreshold(result, sport, MASS_KG, 'metric')?.number).toBe(numberOf(sport, 3.9))
+    expect(bestLabel(result, sport)).toBe('Best 12 min')
+    expect(floorBasisLine(result, sport)).toBeNull()
     const { container } = tile(sport, result)
-    expect(container.querySelector('.stat-tile__basis--floor')).toHaveTextContent('At least')
-    expect(screen.getByText('From your best 12 min.')).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: title })).toBeInTheDocument()
+    expect(container.querySelector('.stat-tile__basis')).toHaveTextContent('Best 12 min')
+    expect(container.querySelector('.stat-tile__basis--floor')).toBeNull()
+    expect(container.querySelector('.stat-tile__number')).toHaveTextContent(numberOf(sport, 3.9))
+    expect(container.textContent).not.toMatch(/At least|From your best|Needs/)
+    cleanup()
+    const page = panel(sport, result)
+    expect(screen.getByRole('heading', { name: `${pageTitle}, best 12 min` })).toBeInTheDocument()
+    expect(page.container.querySelector('.stat-tile__basis')).toHaveTextContent('Best 12 min')
+    expect(page.container.textContent).not.toMatch(/At least|From your best|Needs/)
+  })
+
+  it.each([
+    [300, 'Best 5 min'],
+    [1140, 'Best 19 min'],
+  ])('shows a best of %s s as "%s", the edges of what is shown', (durationS, label) => {
+    const curve = [curvePoint(durationS, 3.9, 'a')]
+    const result = refused(sport, 'missing', { runCurve: curve, rideMetabolicCurve: curve })
+    result.effortGate[sport] = UNKNOWN
+    expect(bestLabel(result, sport)).toBe(label)
+  })
+
+  it('asks for an effort, with no number, when the longest best is under 5 min', () => {
+    const curve = [curvePoint(60, 5.2, 'a'), curvePoint(240, 4.4, 'a')]
+    const result = refused(sport, 'missing', { runCurve: curve, rideMetabolicCurve: curve })
+    result.effortGate[sport] = UNKNOWN
+    expect(floorThreshold(result, sport, MASS_KG, 'metric')).toBeNull()
+    expect(bestLabel(result, sport)).toBeNull()
+    const { container } = tile(sport, result)
+    expect(container.querySelector('.stat-tile__number')).toBeNull()
+    expect(screen.getByText('Needs an effort of 20 min or longer')).toBeInTheDocument()
   })
 
   it('shows no number, and one line of what to add, only for a sport that holds no best', () => {

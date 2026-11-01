@@ -63,7 +63,7 @@ const EXPECTED = {
   rideNoPower: {
     sole: 'ride',
     title: 'Your cycling so far',
-    detail: '',
+    detail: 'Needs an effort of 20 min or longer',
     split: null,
     cards: 0,
   },
