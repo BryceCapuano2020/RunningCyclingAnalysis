@@ -1,3 +1,4 @@
+import { openIndexedDb } from '../worker/openIndexedDb'
 import type { ImportManifest, ManifestScope } from './importManifest'
 
 export interface ManifestStore {
@@ -37,24 +38,17 @@ function prune(store: IDBObjectStore, scope: ManifestScope): void {
 export function openManifestStore(): ManifestStore {
   let opened: Promise<IDBDatabase | null> | null = null
   const database = (): Promise<IDBDatabase | null> => {
-    opened ??= new Promise<IDBDatabase | null>((resolve) => {
-      try {
-        const request = indexedDB.open(DB_NAME, 1)
-        request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: 'id' })
-        request.onsuccess = () => {
-          const db = request.result
-          // Never stand in the way of another tab deleting or upgrading the database.
-          db.onversionchange = () => {
-            db.close()
-            opened = null
-          }
-          resolve(db)
+    opened ??= openIndexedDb(DB_NAME, (db) => {
+      db.createObjectStore(STORE, { keyPath: 'id' })
+    }).then((db) => {
+      // Never stand in the way of another tab deleting or upgrading the database.
+      if (db !== null) {
+        db.onversionchange = () => {
+          db.close()
+          opened = null
         }
-        request.onerror = () => resolve(null)
-        request.onblocked = () => resolve(null)
-      } catch {
-        resolve(null)
       }
+      return db
     })
     return opened
   }

@@ -44,6 +44,14 @@ they state the uncertainty and the evidence still missing. The plan is in
   running fitness at the same heart rate is slipping, holding, recovering or back, with the change,
   its range and the runs behind it. It reads steady runs only, and states the size of change it can
   see.
+- **Your years.** With a year or more of steady runs, a look-back tells how your fitness at the same
+  effort moved over the years: the plateaus, the drops and the returns, dated, with the size of each
+  and the best efforts you set along the way. It stops 12 weeks before your newest run; the
+  fitness card above it covers those weeks.
+- **Since your last import.** After you add files, a short check-in lists what the import added: new
+  workouts, new best efforts, and changes the fitness card now sees. It states facts and makes no
+  new claim of its own. The app keeps a small summary of your last import in your browser, and
+  nothing in it leaves your device.
 - **Age-graded levels and balance.** With your age, sex and weight, each sport's best 20 minute
   effort is graded against the USATF road standards for your age and sex, and shown as a level such
   as Local or Regional. The balance is the gap between the two grades, in points, drawn with the
@@ -73,8 +81,12 @@ they state the uncertainty and the evidence still missing. The plan is in
 - **Virtual power meter.** For rides without a power meter, power on climbs is estimated from
   speed, gradient and mass. The bike model is calibrated on rides that do have a power meter and
   scored leave-one-ride-out, so the accuracy figure is out-of-sample.
-- **Effort context.** Heart rate below the highest sustained value on file can suggest missing
-  harder efforts. Being near that recorded value does not establish that an effort was all-out.
+- **Hard efforts only.** A best counts as what you can do only when your heart rate shows the effort
+  was hard: 90% or more of your reference heart rate, which is a maximum you enter or one the app
+  reads from your files. Otherwise the app shows the best you recorded, says what was missing, and
+  holds back the threshold and the headline comparison. Without heart rate it says
+  the effort was not checked and holds nothing back. Being near your highest recorded heart rate
+  does not establish that an effort was all-out.
 - **Period filter.** Fitness changes, so the comparison covers the last 12 weeks by default. The
   period control also offers the last 6 weeks, the last 12 months or all time, each counted back from
   your newest activity.
@@ -90,6 +102,10 @@ they state the uncertainty and the evidence still missing. The plan is in
   recording kept on your device. Runs at walking pace are marked and left out of run analysis.
 - **Durability and drift.** Your best 5 and 20 minute output late in long sessions, and how output
   per heart rate drifts across a steady effort of an hour or more.
+- **Update now.** When the model improves, saved activities are rebuilt from their original files,
+  in your browser, and only when you press Update now. It needs the originals kept on your account.
+  It stops at a limit, after repeated failures, or when you change something else, and keeps what it
+  rebuilt. A rebuild replaces the old digest and cannot be undone. It does not run on its own yet.
 - **Accounts and sync.** Sign in with Google to keep your profile and activity library on
   Cloudflare. Per-activity digests are stored in D1; original files are not kept by default.
   Users can opt in to R2 retention subject to per-user and application-wide limits. Direct bucket

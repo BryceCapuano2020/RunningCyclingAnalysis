@@ -1,6 +1,7 @@
 import { parseDigest, serializeDigest } from '@rca/core/digest'
 import type { ActivityDigest } from '@rca/core/types'
 import { workoutKeyOf } from './device'
+import { openIndexedDb } from './openIndexedDb'
 
 /**
  * What a signed-in import has begun to save to the account and not yet been told is saved, kept in this
@@ -72,6 +73,9 @@ export function digestOf(row: OutboxRow): ActivityDigest | null {
   }
 }
 
+/** How long an open that failed is left alone before the next call tries it again. */
+export const RETRY_OPEN_AFTER_MS = 30_000
+
 const DB_NAME = 'rca-outbox'
 const STORE = 'rows'
 
@@ -81,19 +85,8 @@ export async function waitingCount(userId: string): Promise<number> {
 }
 
 function openDatabase(): Promise<IDBDatabase | null> {
-  return new Promise<IDBDatabase | null>((resolve) => {
-    try {
-      const request = indexedDB.open(DB_NAME, 1)
-      request.onupgradeneeded = () => {
-        const store = request.result.createObjectStore(STORE, { keyPath: 'id' })
-        store.createIndex('userId', 'userId')
-      }
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => resolve(null)
-      request.onblocked = () => resolve(null)
-    } catch {
-      resolve(null)
-    }
+  return openIndexedDb(DB_NAME, (db) => {
+    db.createObjectStore(STORE, { keyPath: 'id' }).createIndex('userId', 'userId')
   })
 }
 
@@ -157,8 +150,18 @@ export async function sweepOutbox(keepUserId: string | null): Promise<void> {
 export function openOutbox(userId: string): Outbox {
   let opened: Promise<IDBDatabase | null> | null = null
   let counter = Date.now()
+  // When an open came to nothing (it hung, or storage refused), so that a slow start is tried again later but a save
+  // is not made to wait out the timeout every time.
+  let failedAt: number | null = null
   const database = (): Promise<IDBDatabase | null> => {
-    opened ??= openDatabase()
+    if (failedAt !== null && Date.now() - failedAt >= RETRY_OPEN_AFTER_MS) {
+      opened = null
+      failedAt = null
+    }
+    opened ??= openDatabase().then((db) => {
+      if (db === null) failedAt = Date.now()
+      return db
+    })
     return opened
   }
   const run = async <T, F>(
