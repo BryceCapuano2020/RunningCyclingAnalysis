@@ -1,3 +1,4 @@
 # Registries that grow one line per chart: two branches that each add a line keep both.
 packages/core/src/history/parts.ts merge=union
 apps/web/src/ui/pages/history/sections.ts merge=union
+packages/core/src/history/index.ts merge=union

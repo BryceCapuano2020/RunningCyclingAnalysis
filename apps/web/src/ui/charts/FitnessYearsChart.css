@@ -1,0 +1,74 @@
+/* Years stand side by side in one time axis, so they carry no gridline through the dots. */
+.fitness-years__x .chart-x-axis__grid {
+  display: none;
+}
+
+/* One drawing for all the dots, in the sport's colour. */
+.fitness-years__dots {
+  stroke: var(--sport-colour);
+}
+
+/* A point of zero length with a round cap, so the stroke width is the dot's width. */
+.fitness-years__dots--dot {
+  fill: none;
+  stroke-width: 6px;
+  stroke-linecap: round;
+  stroke-opacity: 0.6;
+}
+
+/* A ride's dots are diamonds, filled: the sports differ in shape as well as colour. */
+.fitness-years__dots--diamond {
+  fill: var(--sport-colour);
+  fill-opacity: 0.6;
+  stroke: none;
+}
+
+.fitness-years__median {
+  stroke-width: 2.5px;
+}
+
+/* The year the arrow keys or the pointer are on. */
+.fitness-years__year {
+  fill: var(--text-muted);
+  fill-opacity: 0.1;
+}
+
+/* The slips and rises: a wash across the plot, told apart by shape and word (a slip has a dashed edge). */
+.fitness-years__span {
+  fill: var(--text-muted);
+  fill-opacity: 0.1;
+  stroke: var(--text-muted);
+  stroke-opacity: 0.45;
+  stroke-width: 1px;
+}
+
+.fitness-years__span--slip {
+  stroke-dasharray: 4 3;
+}
+
+.fitness-years__span--rise {
+  stroke-dasharray: none;
+  fill-opacity: 0.16;
+}
+
+@media (forced-colors: active) {
+  .fitness-years__dots--dot {
+    stroke: CanvasText;
+    stroke-opacity: 1;
+  }
+
+  .fitness-years__dots--diamond {
+    fill: CanvasText;
+    fill-opacity: 1;
+  }
+
+  .fitness-years__median {
+    stroke: Highlight;
+  }
+
+  .fitness-years__year,
+  .fitness-years__span {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+}

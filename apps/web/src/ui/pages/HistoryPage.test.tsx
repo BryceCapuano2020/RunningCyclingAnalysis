@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import '../../test/deviceZone'
+import { dotsFixture, slipAndRise } from '../fitnessYearsFixtures'
 import { historyOfYears, THREE_YEARS, yearRow } from '../historyFixtures'
 import { HistoryPage } from './HistoryPage'
 
@@ -19,6 +20,25 @@ describe('HistoryPage', () => {
     expect(screen.getByText('1,850.0 km')).toBeInTheDocument()
     rerender(<HistoryPage history={history} units="imperial" />)
     expect(screen.getByText('1,149.5 mi')).toBeInTheDocument()
+  })
+
+  it('adds the fitness dots after the hours, with a toggle for the sport when both have some', () => {
+    const history = {
+      ...historyOfYears(THREE_YEARS),
+      fitness: {
+        run: dotsFixture({ years: [2021, 2022, 2023], spans: slipAndRise(2021) }),
+        ride: dotsFixture({ sport: 'ride', years: [2022, 2023] }),
+      },
+    }
+    render(<HistoryPage history={history} units="metric" />)
+    const figures = screen.getAllByRole('figure')
+    expect(
+      figures.map(
+        (f) => f.getAttribute('aria-labelledby') && f.querySelector('figcaption')?.textContent,
+      ),
+    ).toEqual(['Hours per year', 'Fitness over the years'])
+    expect(screen.getByRole('radio', { name: 'Run' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Ride' })).toBeInTheDocument()
   })
 
   it('works for one year of one sport', () => {

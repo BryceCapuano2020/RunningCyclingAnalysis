@@ -26,3 +26,10 @@
   margin: 0;
   font-size: var(--display-3);
 }
+
+/* The sport toggle of the fitness dots sits a step above the chart's title. */
+.fitness-years {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}

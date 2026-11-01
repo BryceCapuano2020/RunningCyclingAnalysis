@@ -31,3 +31,26 @@ test('the History tab opens on the sample with its totals, hours chart, keyboard
   await expect(chart.getByRole('table').getByRole('row').nth(1)).toBeVisible()
   expect(errors).toEqual([])
 })
+
+/** The fitness dots: one drawing for every steady activity, a toggle for the sport, a reading for each year and its table. */
+test('the History tab draws the fitness dots in one node, toggles the sport, and reads a year by keyboard', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await openSample(page)
+  await goTo(page, 'History')
+  const chart = page.getByRole('figure', { name: 'Fitness over the years' })
+  await expect(chart.getByTestId('fitness-dots')).toHaveCount(1)
+  const dots = async () =>
+    ((await chart.getByTestId('fitness-dots').getAttribute('d')) ?? '').split(/[Mm]/).length - 1
+  expect(await dots()).toBeGreaterThan(10)
+  await expect(chart).toContainText('on steady runs')
+  await page.getByRole('radio', { name: 'Ride' }).check({ force: true })
+  await expect(chart).toContainText('on steady rides')
+  await chart.getByTestId('plot-surface').focus()
+  await page.keyboard.press('End')
+  await expect(chart.getByRole('status')).toContainText('Steady rides')
+  await chart.getByText('View as table').click()
+  await expect(chart.getByRole('table').first().getByRole('row').nth(1)).toBeVisible()
+  expect(errors).toEqual([])
+})

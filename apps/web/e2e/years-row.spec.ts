@@ -90,7 +90,7 @@ for (const size of SIZES) {
     expect(errors).toEqual([])
   })
 
-  test(`at ${size.width} by ${size.height} the Run page's years section opens to a chart, its table and the episodes, within the window`, async ({
+  test(`at ${size.width} by ${size.height} the Run page's years section opens to the episodes, within the window`, async ({
     page,
   }) => {
     test.setTimeout(120_000)
@@ -103,10 +103,14 @@ for (const size of SIZES) {
     // Closed, it says what it found.
     await expect(section.locator('summary')).toContainText(/slipped in 2023 and came back/)
     await section.locator('summary').click()
-    await expect(section.getByRole('figure', { name: /over the years$/ })).toBeVisible()
     await expect(section.getByRole('region', { name: 'Episodes' })).toContainText(/Slipped about/)
-    // The table twin holds a row for each plateau.
-    await expect(section.locator('tbody tr').first()).toBeAttached()
+    // The picture of the years is the History tab's: the section holds words, and the episode it names is shaded there.
+    await expect(section.getByRole('figure')).toHaveCount(0)
+    await goTo(page, 'History')
+    const chart = page.getByRole('figure', { name: 'Fitness over the years' })
+    await expect(chart.getByTestId('fitness-dots')).toBeAttached()
+    await expect(chart.getByTestId('fitness-span').first()).toBeAttached()
+    await goTo(page, 'Run')
     const overflow = await horizontalOverflow(page)
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth)
     expect(errors).toEqual([])

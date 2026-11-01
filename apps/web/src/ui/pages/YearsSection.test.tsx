@@ -8,11 +8,9 @@ import { YearsSection } from './YearsSection'
 afterEach(cleanup)
 
 describe('the "Your years" section', () => {
-  it('has the chart, the episodes, the quiet stretches and nothing said of now', () => {
+  it('has the episodes, the quiet stretches and nothing said of now, and leaves the picture to the History tab', () => {
     render(<YearsSection sport="run" lookBack={YEARS_LOOKBACK} units="metric" />)
-    expect(
-      screen.getByRole('figure', { name: 'Pace at 148 bpm over the years' }),
-    ).toBeInTheDocument()
+    expect(screen.queryByRole('figure')).toBeNull()
     const episodes = screen.getByRole('region', { name: 'Episodes' })
     expect(
       within(episodes)
