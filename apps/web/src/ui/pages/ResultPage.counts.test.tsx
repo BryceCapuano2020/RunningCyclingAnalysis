@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { analysisStub, countedRunsStub } from '../../test/analysisStub'
+import { windowLibrary, windowPeriod } from '../../test/windowLibrary'
 import { makeActivity, makeResult } from '../components/fixtures'
 import type { Route } from '../route'
 import { ResultPage } from './ResultPage'
@@ -55,10 +56,71 @@ function renderPage(route: Route, inPeriod: typeof LIBRARY) {
   )
 }
 
+/** A page over the dated library, on a period, which the session holds as it would. */
+function renderWindow(route: Route, choice: number | 'all') {
+  const library = windowLibrary()
+  const counted = library.filter((activity) => activity.walkingPace !== true)
+  const period = windowPeriod(choice)
+  const inPeriod = counted.filter(
+    (activity) =>
+      period.startMs === null ||
+      (activity.startMs >= period.startMs && activity.startMs <= (period.endMs ?? 0)),
+  )
+  const result = makeResult({ activities: inPeriod })
+  return render(
+    <ResultPage
+      countedRuns={countedRunsStub()}
+      signedIn={false}
+      route={route}
+      analysis={analysisStub({
+        state: {
+          library,
+          result,
+          period,
+          totalActivities: counted.length,
+          walkingPaceRuns: 1,
+        },
+      })}
+      result={result}
+      settings={{ massKg: 75, bikeMassKg: 9 }}
+      weightKnown
+      units="metric"
+      birthYear={1986}
+      sex="male"
+    />,
+  )
+}
+
+describe('the count of a period, out of what is on file', () => {
+  it('counts what started in the period on file, the activity at walking pace with the rest', () => {
+    const { container } = renderWindow({ page: 'balance' }, 42)
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '3 of 8 activities, 1 not counted',
+    )
+  })
+
+  it('says the same on a sport page, for its own runs', () => {
+    const { container } = renderWindow({ page: 'run' }, 42)
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '3 of 5 runs, 1 not counted',
+    )
+  })
+
+  it('says every activity on file, and how many are not counted, for all time', () => {
+    const { container } = renderWindow({ page: 'balance' }, 'all')
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '8 activities, 1 not counted',
+    )
+  })
+})
+
 describe('the count every page gives of the library', () => {
-  it('gives Balance the activities on file, not the ones the analysis reads', () => {
-    renderPage({ page: 'balance' }, [COUNTED_RUNS[0]!, COUNTED_RIDE])
-    expect(screen.getByRole('link', { name: '2 of 7 activities' })).toHaveAttribute(
+  it('gives Balance the activities on file, with the two numbers linked to where they are', () => {
+    const { container } = renderPage({ page: 'balance' }, [COUNTED_RUNS[0]!, COUNTED_RIDE])
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '7 activities, 3 not counted',
+    )
+    expect(screen.getByRole('link', { name: '7 activities' })).toHaveAttribute(
       'href',
       '#/activities',
     )
@@ -66,19 +128,13 @@ describe('the count every page gives of the library', () => {
       'href',
       '#/activities?show=not-counted',
     )
-    expect(screen.queryByText(/of 4 activities/)).not.toBeInTheDocument()
   })
 
-  it('says the same two numbers on Balance when the period holds every activity that counts', () => {
-    const { container } = renderPage({ page: 'balance' }, [...COUNTED_RUNS, COUNTED_RIDE])
+  it('gives a sport page the runs on file, with the runs not counted, linked to the list of them', () => {
+    const { container } = renderPage({ page: 'run' }, [COUNTED_RUNS[0]!])
     expect(container.querySelector('.range-picker__count')?.textContent).toBe(
-      '7 activities, 3 not counted',
+      '5 runs, 2 not counted',
     )
-  })
-
-  it('gives a sport page the runs on file, with the runs not counted, in the Activities list’s own words', () => {
-    renderPage({ page: 'run' }, [COUNTED_RUNS[0]!])
-    expect(screen.getByText(/^1 of 5 runs/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '2 not counted' })).toHaveAttribute(
       'href',
       '#/activities?sport=run&show=not-counted',

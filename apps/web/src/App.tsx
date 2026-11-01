@@ -356,6 +356,7 @@ export function App() {
             signedIn={signedIn}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
+            issues={analysis.state.syncIssues}
           />
           <p>
             <a href={hrefFor({ page: 'method' })}>How sure is this?</a>

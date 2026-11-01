@@ -530,7 +530,6 @@ describe('RangePicker compact, as Balance sets it under its levels', () => {
         shown: 42,
         total: 1200,
         notCounted: 9,
-        whole: 1191,
         countHref: '#/activities',
         notCountedHref: '#/activities?show=not-counted',
       }),
@@ -546,13 +545,6 @@ describe('RangePicker compact, as Balance sets it under its levels', () => {
     )
   })
 
-  it('says how many there are on file, with how many are not counted, when the period holds every one that is', () => {
-    const { container } = render(picker({ shown: 1191, total: 1200, notCounted: 9, whole: 1191 }))
-    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
-      '1,200 activities, 9 not counted',
-    )
-  })
-
   it('says how many there are on file even when the period holds them all', () => {
     const { container } = render(picker({ shown: 1200, total: 1200, notCounted: 9 }))
     expect(container.querySelector('.range-picker__count')?.textContent).toBe(
@@ -560,17 +552,15 @@ describe('RangePicker compact, as Balance sets it under its levels', () => {
     )
   })
 
-  it('says "of" only when the period holds fewer than the page could count', () => {
-    const { container } = render(picker({ shown: 1100, total: 1200, notCounted: 9, whole: 1191 }))
+  it('says "of" when the period holds fewer than are on file, whatever it leaves out of the count', () => {
+    const { container } = render(picker({ shown: 1100, total: 1200, notCounted: 9 }))
     expect(container.querySelector('.range-picker__count')?.textContent).toBe(
       '1,100 of 1,200 activities, 9 not counted',
     )
   })
 
   it('counts a sport in its own words', () => {
-    const { container } = render(
-      picker({ noun: 'run', shown: 3, total: 40, notCounted: 1, whole: 39 }),
-    )
+    const { container } = render(picker({ noun: 'run', shown: 3, total: 40, notCounted: 1 }))
     expect(container.querySelector('.range-picker__count')?.textContent).toBe(
       '3 of 40 runs, 1 not counted',
     )
@@ -584,7 +574,6 @@ describe('RangePicker compact, as Balance sets it under its levels', () => {
         shown: 3,
         total: 12,
         notCounted: 2,
-        whole: 10,
       }),
     )
     expect(screen.getByRole('status')).toHaveTextContent(

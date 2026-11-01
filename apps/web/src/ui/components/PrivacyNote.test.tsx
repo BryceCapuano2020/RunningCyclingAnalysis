@@ -60,6 +60,67 @@ describe('PrivacyNote', () => {
     expect(note.textContent).not.toMatch(/delet|remov/)
   })
 
+  it('does not say summaries are stored when the library is full', () => {
+    for (const code of ['activity-quota', 'digest-quota'] as const) {
+      const { unmount } = render(<PrivacyNote signedIn keepFiles issues={[{ code }]} />)
+      expect(
+        screen.getByText('Your library is full, so new summaries are not stored.'),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/stored in your private library/)).toBeNull()
+      unmount()
+    }
+  })
+
+  it('does not say summaries are stored while saving is paused', () => {
+    for (const code of ['database-full', 'read-only'] as const) {
+      const { unmount } = render(<PrivacyNote signedIn keepFiles issues={[{ code }]} />)
+      expect(
+        screen.getByText('Saving is paused, so new summaries are not stored yet.'),
+      ).toBeInTheDocument()
+      unmount()
+    }
+  })
+
+  it('does not say original files are stored when their storage is full or paused', () => {
+    for (const code of ['storage-quota', 'storage-budget'] as const) {
+      const { unmount } = render(<PrivacyNote signedIn keepFiles issues={[{ code }]} />)
+      expect(
+        screen.getByText(
+          'Summaries are stored in your private library, and new original files are not kept.',
+        ),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/and original files are stored/)).toBeNull()
+      unmount()
+    }
+  })
+
+  it('puts a full library before a full file store when both are the case', () => {
+    render(
+      <PrivacyNote
+        signedIn
+        keepFiles
+        issues={[{ code: 'storage-quota' }, { code: 'activity-quota' }]}
+      />,
+    )
+    expect(
+      screen.getByText('Your library is full, so new summaries are not stored.'),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the usual sentence for a failure that only waits on the connection', () => {
+    render(<PrivacyNote signedIn keepFiles issues={[{ code: 'network' }, { code: 'server' }]} />)
+    expect(
+      screen.getByText('Summaries and original files are stored in your private library.'),
+    ).toBeInTheDocument()
+  })
+
+  it('says nothing of the library to a visitor who is signed out, whatever failed', () => {
+    render(<PrivacyNote signedIn={false} keepFiles issues={[{ code: 'activity-quota' }]} />)
+    expect(
+      screen.getByText('Your activities stay in this browser, where anyone using it can see them.'),
+    ).toBeInTheDocument()
+  })
+
   it('treats an omitted capability as available for older APIs', () => {
     render(<PrivacyNote signedIn keepFiles />)
     expect(screen.getByText(/original files are stored/)).toBeInTheDocument()
@@ -71,6 +132,9 @@ describe('PrivacyNote', () => {
       { signedIn: true, keepFiles: true },
       { signedIn: true, keepFiles: false },
       { signedIn: true, keepFiles: true, fileRetentionAvailable: false },
+      { signedIn: true, keepFiles: true, issues: [{ code: 'activity-quota' as const }] },
+      { signedIn: true, keepFiles: true, issues: [{ code: 'read-only' as const }] },
+      { signedIn: true, keepFiles: true, issues: [{ code: 'storage-quota' as const }] },
     ]
     for (const state of states) {
       const { unmount } = render(<PrivacyNote {...state} />)

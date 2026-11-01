@@ -131,10 +131,11 @@ that row is not stretched. Custom shows From and To date fields, prefilled with 
 and an Apply button on a row of its own. The fields are a control tall (`--control-height`, 44 px on a
 finger) with 16 px text, side by side when two fit and stacked below that. The range applies on Apply,
 not on each change. A reversed range is swapped, and the caption then says "Swapped so From comes
-first." The control's dates sit beneath it, with the count of activities in the period when it holds fewer than the page counts, and a note under them when there is one.
-Every page gives one number for the library: the activities on file, which are the ones the Activities list holds. Where the analysis reads fewer
+first." The control's dates sit beneath it, with the count of activities in the period when it holds fewer than are on file, and a note under them when there is one.
+Every page gives one number for the library: the activities on file, which are the ones the Activities list holds, and one form for a period of it. The period's count
+is of every activity on file that started in it, counted or not, so it is the same kind of number as the total it is said out of. Where the analysis reads fewer
 (a run at walking pace, or an activity labelled Hike, Walk or another type), the line says so once, in a few words: "42 of 1,200 activities, 9 not counted", or
-"1,200 activities, 9 not counted" when the period holds every one it counts. A sport page gives its own runs or rides on the same rule. "Not counted"
+"1,200 activities, 9 not counted" when the period holds every one on file. A sport page gives its own runs or rides on the same rule. "Not counted"
 links to the Activities list set to Show: Not counted, where each row carries its reason as a chip. The status line that announces a change of period is
 hidden from sight and says the same count, so the caption is never repeated beside it. The Activities page has its own period, sport and sort, which start with the whole library. When Balance and the sport pages are on a shorter period, a line under its control says so ("Balance, Run and Ride show the last 12 weeks. This list has its own period.") and goes once the list is set to the same length. Its view is kept in the address (for
 example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A
@@ -179,7 +180,7 @@ notices (not kept, missing originals, updates, newer app) are one line with a De
 notes that need no action (the runs left out at walking pace, copies not counted twice) sit under one
 **About your data** disclosure, and a note a visitor has seen on an earlier visit is not shown again until its
 text changes. The sample banner shows in full on the first page the sample is seen on, then is a small
-Sample athlete pill that opens the sentence again. Where the library is kept is the footer's to say once, in one sentence of about a dozen words for each state ("Your activities stay in this browser, where anyone using it can see them."); how recordings are kept and removed is the Privacy page's. After an import, a dismissible summary says what it added, or "Nothing new"
+Sample athlete pill that opens the sentence again. Where the library is kept is the footer's to say once, in one sentence of about a dozen words for each state ("Your activities stay in this browser, where anyone using it can see them."); how recordings are kept and removed is the Privacy page's. A signed-in visitor whose library is full, or whose saving is paused, is told new summaries are not stored, and one whose file storage is full is told new original files are not kept: the sentence never says "stored" of what is not. After an import, a dismissible summary says what it added, or "Nothing new"
 when every activity was already in the library, and links to Balance, except on Balance itself. An
 import made on Profile or Method moves to Balance, where its result is. Under that sentence it lists
 what the import moved in the athlete's numbers: at most four items, thresholds first, then the balance,

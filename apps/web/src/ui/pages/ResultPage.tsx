@@ -14,7 +14,7 @@ import { sameAsShorterText } from '../periodSame'
 import { windowLine } from '../windowLine'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
-import { countsOf, countsOfState, notCountedHref } from '../activityCounts'
+import { countsOf, countsOfState, notCountedHref, startedInPeriod } from '../activityCounts'
 import type { LibraryCounts } from '../activityCounts'
 import { latestActivityText, sportEmptyText } from '../periodCopy'
 import { HistoryPage } from '../lazyPages'
@@ -73,6 +73,9 @@ export function ResultPage({
   const { period, library, isSample } = analysis.state
   // What the analysis rests on: the library less the runs at walking pace, which only the lists and pages show.
   const analysed = useMemo(() => withoutWalking(library), [library])
+  // The period's count is of every activity on file that started in it, counted or not: the same kind of number as
+  // the total it is said out of, and as the Activities list gives.
+  const inPeriod = useMemo(() => startedInPeriod(library, period), [library, period])
   // The runs at walking pace are left out; when they are all a sport has, its pages say so and offer to count them.
   const left = useMemo(() => leftOutRuns(library), [library])
   const leftOut = left.allLeftOut
@@ -174,7 +177,6 @@ export function ResultPage({
       )}
       shown={shown}
       total={counts.onFile}
-      whole={counts.counted}
       notCounted={counts.notCounted}
       noun={noun}
       compact={balance}
@@ -210,7 +212,7 @@ export function ResultPage({
           missingAge={missingAge}
           rangeDays={period.days}
           controls={control(
-            countSport(result.activities, route.page),
+            countsOf(inPeriod, route.page).onFile,
             countsOf(library, route.page),
             route.page,
           )}
@@ -323,7 +325,7 @@ export function ResultPage({
           profile={profile}
           missingAge={missingAge}
           controls={control(
-            result.activities.length,
+            inPeriod.length,
             countsOfState(analysis.state),
             undefined,
             latest,

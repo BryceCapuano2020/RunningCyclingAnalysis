@@ -43,17 +43,12 @@ export interface RangePickerProps {
   dates?: string
   /** A sentence under the dates, such as why the default shows all time. */
   note?: string
-  /** How many are in the period. */
+  /** How many of the total are in the period, whether or not the analysis counts them. */
   shown: number
   /** How many are on file: every activity of the kind counted, whether or not the analysis reads it. */
   total: number
   /** Of the total, how many the analysis does not count. Said once, after the count, with a link to them. */
   notCounted?: number
-  /**
-   * How many `shown` is out of. A page whose count leaves out what is not counted (Balance and the sport pages)
-   * passes the total less those, so a period that holds every one it reads is not "of" anything. Absent, it is the total.
-   */
-  whole?: number
   /** What is counted; the activities unless a sport page says otherwise. */
   noun?: keyof typeof NOUNS
   /**
@@ -90,7 +85,6 @@ export function RangePicker({
   shown,
   total,
   notCounted = 0,
-  whole = total,
   noun = 'activity',
   compact = false,
   countHref,
@@ -126,16 +120,16 @@ export function RangePicker({
   const [singular, pluralForm] = NOUNS[noun]
   const totalPhrase = plural(total, singular, pluralForm)
   const notCountedText = notCounted > 0 ? `${formatCount(notCounted)} not counted` : ''
-  // The period holds fewer than the page could count: "42 of 1,200". Otherwise the total is said only to give what is not counted.
+  // A period that holds fewer than the total says "42 of 1,200". One that holds them all says the total only to give what is not counted.
   const count =
-    shown < whole ? `${formatCount(shown)} of ${totalPhrase}` : notCounted > 0 ? totalPhrase : ''
+    shown < total ? `${formatCount(shown)} of ${totalPhrase}` : notCounted > 0 ? totalPhrase : ''
   // Changing the period changes every number on the page, so the choice, the count and the dates are
   // announced. The region stays mounted, so the announcement is made when its text changes. It is hidden from sight:
   // the caption gives the same count.
   const counted =
     total === 0
       ? `No ${pluralForm} to show`
-      : shown < whole
+      : shown < total
         ? `Showing ${formatCount(shown)} of ${totalPhrase}`
         : `Showing all ${totalPhrase}`
   const choiceLabel = offered.find((option) => option.value === optionValue(checked))?.label

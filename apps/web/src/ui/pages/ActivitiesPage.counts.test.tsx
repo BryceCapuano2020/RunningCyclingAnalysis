@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { DAY_MS } from '@rca/core/constants'
+import { windowLibrary } from '../../test/windowLibrary'
 import { makeActivity } from '../components/fixtures'
 import { ActivitiesPage } from './ActivitiesPage'
 
@@ -80,6 +81,17 @@ describe('the Activities count', () => {
     renderList()
     const status = screen.getAllByRole('status').find((node) => node.classList.contains('sr-only'))
     expect(status).toHaveTextContent('Showing all 8 activities, 3 not counted, All time')
+  })
+})
+
+describe('the Activities count over a period', () => {
+  it('says the same words as the other pages for the same six weeks of the same library', async () => {
+    const user = userEvent.setup()
+    const { container } = renderList(windowLibrary())
+    await user.click(screen.getByRole('radio', { name: '6 weeks' }))
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '3 of 8 activities, 1 not counted',
+    )
   })
 })
 
