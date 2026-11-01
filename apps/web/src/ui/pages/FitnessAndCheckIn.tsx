@@ -5,7 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import type { AnalysisController } from '../analysis/controller'
 import { checkInWords, firstRowOf } from '../checkInRow'
 import { yearsWords } from '../yearsRow'
-import { fitnessViews } from '../fitnessModel'
+import { hasFitnessView } from '../fitnessModel'
 import { CheckInRow } from './CheckInRow'
 import { YearsRow } from './YearsRow'
 import { FitnessSection } from './FitnessSection'
@@ -35,10 +35,7 @@ export function FitnessAndCheckIn({
 }: FitnessAndCheckInProps) {
   const { fitness, isSample, lookBack } = analysis.state
   // What the section draws: a card, or for a library of one sport the quiet line that says what would give one.
-  const hasCard = useMemo(
-    () => fitnessViews(fitness, units).length > 0 || soleSport !== null,
-    [fitness, units, soleSport],
-  )
+  const hasCard = useMemo(() => hasFitnessView(fitness) || soleSport !== null, [fitness, soleSport])
   const years = useMemo(() => yearsWords(lookBack, fitness, units), [lookBack, fitness, units])
   const first = firstRowOf({
     checkIn: analysis.checkIn,

@@ -5,35 +5,13 @@ import { SportIcon } from '../components/icons'
 import { useHoldInputs } from '../holdContext'
 import { SPORT_LABEL } from '../sports'
 import { adjustedForWarmDays, seasonSwing } from '../fitnessModel'
-import type { FitnessProgress, FitnessView } from '../fitnessModel'
+import type { FitnessView } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
 import { withDefinitions } from '../fitnessText'
 import { FitnessEvidence } from './FitnessEvidence'
 import { FitnessGlyph } from './FitnessGlyph'
 import { FitnessTrack } from './FitnessTrack'
 import './FitnessCard.css'
-
-/** A waiting status's count as a row of pills, one for each steady run it needs, filled for each it has. */
-function Progress({ progress }: { progress: FitnessProgress }) {
-  const cells = Math.min(progress.need, 24)
-  const filled = Math.min(progress.have, progress.need)
-  return (
-    <div className="fitness-progress">
-      <div className="fitness-progress__cells" aria-hidden="true">
-        {Array.from({ length: cells }, (_, i) => (
-          <span
-            key={i}
-            className={i < filled ? 'fitness-progress__cell is-on' : 'fitness-progress__cell'}
-          />
-        ))}
-      </div>
-      <p className="fitness-progress__count">
-        <strong>{`${progress.have} of ${progress.need}`}</strong>
-        {` ${progress.of}`}
-      </p>
-    </div>
-  )
-}
 
 export interface FitnessCardProps {
   view: FitnessView
@@ -45,7 +23,8 @@ export interface FitnessCardProps {
 
 /**
  * One sport's fitness at the same effort: the state as a word and a shape, the sentence that gives its size and
- * range, the change as a track (or the count it is waiting on), and the evidence behind a disclosure. A state
+ * range, the change as a track, and the evidence behind a disclosure. A status that cannot call a trend gives its
+ * level and what a trend needs in place of the sentence and the track. A state
  * that began to be shown in the last few weeks wears a "New" marker with the week it began.
  */
 export function FitnessCard({ view, units, library, showSport = true }: FitnessCardProps) {
@@ -119,6 +98,16 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
           {view.support === '' ? null : (
             <p className="fitness-card__support">{withDefinitions(view.support, status, units)}</p>
           )}
+          {view.age === null ? null : (
+            <p className="fitness-card__support" data-testid="fitness-age">
+              {view.age}
+            </p>
+          )}
+          {view.needs === '' ? null : (
+            <p className="fitness-card__support" data-testid="fitness-needs">
+              {view.needs}
+            </p>
+          )}
           {warm ? (
             <p className="fitness-card__support" data-testid="fitness-heat">
               Adjusted for warm days.
@@ -130,10 +119,11 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
             </p>
           )}
         </div>
-        <div className="fitness-card__shape">
-          {view.track !== null ? <FitnessTrack track={view.track} /> : null}
-          {view.progress !== null ? <Progress progress={view.progress} /> : null}
-        </div>
+        {view.track === null ? null : (
+          <div className="fitness-card__shape">
+            <FitnessTrack track={view.track} />
+          </div>
+        )}
       </div>
       {waiting || !evidenceOf ? null : (
         <details

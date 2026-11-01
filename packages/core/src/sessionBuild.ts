@@ -160,9 +160,8 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     lateEvidence: late,
     heartRateJudgement: judgement,
     // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
-    fitness: fitnessStatuses(analysed, new Set(held), {
-      nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
-    }),
+    // As of the newest activity, not the clock: an export that ended months ago is not a long break.
+    fitness: fitnessStatuses(analysed, new Set(held)),
     lookBack:
       athlete === null
         ? NO_LOOKBACK
@@ -171,7 +170,6 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             athlete,
             // The runs and rides the card is read from: heart rate set aside, and power set aside.
             new Set(held),
-            Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
             judgement.rideGate,
           ),
     // Library-wide too: the History page ignores the period, and these digests make the same answer each time.

@@ -257,6 +257,12 @@ export const FITNESS = {
     rangeZ: 1.645,
     /** A state is a fresh finding for this many weeks after it is first shown (the engine's stale limit is 8). */
     freshWeeks: 6,
+    /**
+     * The level a status that cannot call a trend still tells: from `levelMinRuns` steady activities, over the shortest of
+     * these stretches (weeks, back from the newest steady activity) that holds that many, else all of them. It changes no test.
+     */
+    levelMinRuns: 3,
+    levelWeeks: [8, 12, 16, 26, 52],
   },
   /** The finding made of a fresh state. */
   finding: {

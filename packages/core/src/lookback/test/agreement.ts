@@ -110,13 +110,11 @@ const NONE: ReadonlySet<string> = new Set()
 /** The same, for rides with a power meter, through the real unit, the look-back and the card. */
 export function rideAgreement(spec: RideSpec): Agreement {
   const digests = rideLibrary(spec)
-  const lastMs = Math.max(...digests.map((d) => d.startMs))
-  const options = { nowMs: Math.floor(lastMs / DAY_MS) * DAY_MS }
-  const { runs, records } = fitnessHistories(digests, NONE, options).ride
+  const { runs, records } = fitnessHistories(digests, NONE).ride
   const asOfDay = Math.max(...runs.map((r) => r.t)) + 1
   const result = hindsightOf({ runs, activeDays: runs.map((r) => r.t), asOfDay, records })
   const years = result.kind === 'ok' ? result : null
-  const status = fitnessStatuses(digests, NONE, options).ride.state
+  const status = fitnessStatuses(digests, NONE).ride.state
   return {
     call: callOf(years),
     live: status === 'not-enough-evidence' ? 'none' : status,
