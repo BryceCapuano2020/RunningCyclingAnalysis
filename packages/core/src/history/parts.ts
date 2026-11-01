@@ -2,3 +2,4 @@
 export { years } from './years'
 export { balance } from './balance'
 export { calendar } from './calendar'
+export { yearToDate } from './yearToDate'

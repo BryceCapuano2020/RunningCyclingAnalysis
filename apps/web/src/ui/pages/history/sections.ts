@@ -6,3 +6,4 @@
 export { hoursPerYear } from './hoursPerYear'
 export { balanceOverYears } from './balanceOverYears'
 export { calendar } from './calendar'
+export { yearToDate } from './yearToDate'
