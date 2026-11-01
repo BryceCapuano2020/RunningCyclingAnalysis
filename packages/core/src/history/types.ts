@@ -1,12 +1,17 @@
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import type { EffortReference } from '../effort'
 import type { ActivityDigest, AthleteSettings, HrCalibration } from '../types'
+import type { ZoneEstimates } from '../zones'
 
 /** What a part may read besides the digests, which are the look-back's inputs. */
 export interface HistoryInput {
   settings: AthleteSettings
   /** Whose heart rate or power is set aside. */
   setAside: ReadonlySet<string>
+  /** Whose heart rate is set aside, and only that: the list the time in zones leaves out. Power set aside is not in it. */
+  heartRateSetAside: ReadonlySet<string>
+  /** The library's zone references (`zoneEstimatesOf`), which zones not entered are cut from. Null without an analysis. */
+  estimates: ZoneEstimates | null
   /** The wall clock, cut to the day by the caller so the memory still hits. */
   nowMs: number
   gate: EstimatedRideGate | null | undefined

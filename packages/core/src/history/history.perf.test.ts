@@ -8,9 +8,19 @@ import { historyOf } from './compute'
 import type { HistoryInput } from './types'
 
 /** The History page's budget, for every part in parts.ts together: 100 ms to build, 2 ms again, 24 KB posted. */
+// A maximum heart rate for each sport, so the intensity part cuts every activity into zones, as a real library does.
 const INPUT: HistoryInput = {
-  settings: { massKg: 70, bikeMassKg: 9 },
+  settings: {
+    massKg: 70,
+    bikeMassKg: 9,
+    measurements: [
+      { kind: 'maxHeartRate', sport: 'run', value: 190, from: '2020-01-01' },
+      { kind: 'maxHeartRate', sport: 'ride', value: 185, from: '2020-01-01' },
+    ],
+  },
   setAside: new Set(),
+  heartRateSetAside: new Set(),
+  estimates: null,
   nowMs: Date.UTC(2034, 0, 1),
   // As a session passes them: the library's judged ride gate (none), its calibration and its heart-rate references.
   gate: null,

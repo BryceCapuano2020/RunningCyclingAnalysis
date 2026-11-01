@@ -1,6 +1,7 @@
 export { historyOf, NO_HISTORY } from './compute'
 export type { History } from './compute'
 export type { HistoryInput, HistoryPart } from './types'
+export type { IntensityRow, IntensityShares } from './intensity'
 export type { YearRow, YearTotals } from './years'
 export { speedOfBest } from './balance'
 export type { BalanceYear, YearBest } from './balance'
