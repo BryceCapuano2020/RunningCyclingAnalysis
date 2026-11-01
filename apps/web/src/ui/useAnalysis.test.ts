@@ -2965,7 +2965,7 @@ describe('useAnalysis library messages', () => {
     expect(result.current.libraryStatus).toBe('failed')
     expect(result.current.errorIssue).toBe('daily-limit')
     expect(result.current.error).toMatch(
-      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
+      /^You have reached today's limit on rows listed from your library \(200,000 per day\)\. /,
     )
     expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
@@ -2980,7 +2980,7 @@ describe('useAnalysis library messages', () => {
 
     expect(result.current.errorIssue).toBe('daily-limit')
     expect(result.current.error).toMatch(
-      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
+      /^You have reached today's limit on rows listed from your library \(200,000 per day\)\. /,
     )
     expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
@@ -3076,7 +3076,7 @@ describe('useAnalysis account export', () => {
 
     await waitFor(() => expect(failure).toBeInstanceOf(Error))
     expect((failure as Error).message).toMatch(
-      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. /,
+      /^You have reached today's limit on rows listed from your library \(200,000 per day\)\. /,
     )
     expect((failure as Error).message).toMatch(RESET_AT_UTC_MIDNIGHT)
   })

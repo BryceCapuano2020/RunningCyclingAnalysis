@@ -20,13 +20,13 @@ function manifest(over: Partial<ImportManifest>): ImportManifest {
 describe('incompleteText', () => {
   it('says how far a cut-off import got, and how to finish', () => {
     expect(incompleteText(manifest({ read: 1_204, expected: 3_639 }))).toBe(
-      'The last import stopped after 1,204 of 3,639 files. What it added is here. Add the same files again to finish: files already added are skipped.',
+      'The last import stopped after 1,204 of 3,639 files. What it added is here. Add the same files again to finish. Files already added are skipped.',
     )
   })
 
   it('says only that it stopped when it never counted its files, or had read them all', () => {
     const plain =
-      'The last import stopped before it finished. What it added is here. Add the same files again to finish: files already added are skipped.'
+      'The last import stopped before it finished. What it added is here. Add the same files again to finish. Files already added are skipped.'
     expect(incompleteText(manifest({ expected: null }))).toBe(plain)
     expect(incompleteText(manifest({ read: 100, expected: 100 }))).toBe(plain)
   })
@@ -46,7 +46,7 @@ describe('incompleteText', () => {
         manifest({ state: 'partial-source', damaged: [{ name: 'export.zip', lost: 1 }] }),
       ),
     ).toBe(
-      'export.zip is damaged: 1 file in it could not be read. Download the export again and add it.',
+      'export.zip is damaged, and 1 file in it could not be read. Download the export again and add it.',
     )
   })
 

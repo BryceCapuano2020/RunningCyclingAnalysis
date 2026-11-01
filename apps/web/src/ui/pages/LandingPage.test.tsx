@@ -92,21 +92,21 @@ describe('LandingPage', () => {
     expect(heading).toHaveAttribute('tabindex', '-1')
   })
 
-  it('says what to bring and what comes back in one sentence, ending on the privacy promise', () => {
+  it('says what to add and what it shows, ending on the privacy promise', () => {
     render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
     expect(
       screen.getByText(
-        'Drop in your Strava or Garmin export or watch files to see your level in each sport for your age, with honest ranges. Nothing leaves your device.',
+        'Add your Strava or Garmin export. See your level in each sport for your age. Your files stay on your device.',
       ),
     ).toBeInTheDocument()
   })
 
   it('does not promise that nothing leaves the device to a signed-in visitor, whose summaries are stored', () => {
     render(<LandingPage analysis={analysisStub()} signedIn onFiles={vi.fn()} />)
-    expect(screen.queryByText(/Nothing leaves your device/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/stay on your device/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
-        'Drop in your Strava or Garmin export or watch files to see your level in each sport for your age, with honest ranges. Your files are analysed on your device.',
+        'Add your Strava or Garmin export. See your level in each sport for your age. Your files are analysed on your device.',
       ),
     ).toBeInTheDocument()
   })
@@ -257,13 +257,13 @@ describe('LandingPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('explains the result in three plain sentences, with a link to the full method', () => {
+  it('explains the result in one line, with a link to the full method', () => {
     const { container } = render(
       <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
     const section = container.querySelector('.landing__method')
     if (!section) throw new Error('No method section')
-    expect(section.querySelectorAll('p')).toHaveLength(3)
+    expect(section.querySelectorAll('p')).toHaveLength(1)
     expect(
       within(section as HTMLElement).getByRole('link', { name: 'Full method' }),
     ).toHaveAttribute('href', '#/method')
@@ -275,8 +275,9 @@ describe('LandingPage', () => {
     )
     const section = container.querySelector('.landing__method')
     if (!section) throw new Error('No method section')
-    expect(section.textContent).toContain('If the two could be level, it says they are in balance')
-    expect(section.textContent).toContain('judged on your best 20 min: running')
+    expect(section.querySelector('p')?.textContent).toBe(
+      'Each sport is judged on your best 20 min against the standard for your age and sex.',
+    )
     expect(section.textContent).not.toMatch(/grade|graded|grade-adjusted/i)
   })
 
