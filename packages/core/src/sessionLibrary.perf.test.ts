@@ -26,13 +26,20 @@ import { fastestMs } from './test/timing'
  * none qualifies and the default analyses all three before it takes the shortest: about 60 ms against about 45 for 12 weeks
  * picked by hand. Where a sport has too few activities in all three the search ends on all time, which costs three small
  * windows more than the all-time load itself (about 90 ms against 90): the same library with its rides older than a year.
+ *
+ * A change of body mass took about 42 ms here (budget 80) until pace and power zones were cut from a floor
+ * where no fit stands (zones.ts, `floorAt`). This library has no hard effort, so no fit ever stood and its 2,000 activities had no
+ * pace or power zones to count; now each is cut and counted, as a library with fits always paid. That is about 7 ms more here (the
+ * zones' own time roughly doubles, 2 to 4.5 ms, and the rest was not traced to one step), and the runner took 81 ms, so the budget is 100.
+ * The floors cost nothing in the judgement (each activity's two bests, 0.4 ms), and the work is not shared between masses: a
+ * ride's power zones read the mass, and the zone times are kept by it.
  */
 const ACTIVITIES = 2000
 const ALL_TIME_BUDGET_MS = 450
 const DEFAULT_BUDGET_MS = 80
 const SEARCH_BUDGET_MS = 160
 const SEARCH_TO_ALL_TIME_BUDGET_MS = 450
-const MASS_CHANGE_BUDGET_MS = 80
+const MASS_CHANGE_BUDGET_MS = 100
 /**
  * The same library with hard efforts in both sports, whose thresholds the effort gate keeps: the path that fits them, cuts the
  * zones' thresholds by week and reads the sessions that reached a hard heart rate. The default library has none, so its figures
