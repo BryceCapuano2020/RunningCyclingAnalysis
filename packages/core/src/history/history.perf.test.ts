@@ -43,6 +43,7 @@ describe('the history of a long library', () => {
     )
     expect(history.years.length).toBeGreaterThanOrEqual(13)
     expect(trainingWeeks(history.calendar).length).toBeGreaterThanOrEqual(13 * 52)
+    expect(history.yearCurves.ride.years.length).toBeGreaterThanOrEqual(13)
     // Thirteen years of weeks of two sports, every week trained: a quarter of the page's whole budget at most.
     expect(calendarBytes).toBeLessThan(6000)
     expect(first).toBeLessThan(100)
