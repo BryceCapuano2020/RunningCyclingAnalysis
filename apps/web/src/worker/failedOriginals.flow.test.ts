@@ -1,5 +1,6 @@
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
+import { hashedDigestId } from '@rca/core/import/minimise'
 import { sampleDataset } from '@rca/core/synthetic'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiRequestError, createActivity, deleteActivity, uploadFile } from '../api/client'
@@ -183,5 +184,37 @@ describe('an original whose upload failed, and Try again now', () => {
 
     expect(uploadFile).not.toHaveBeenCalled()
     expect(failedOriginals.size).toBe(0)
+  })
+
+  it('attaches a retried original to the hashed row, and knows its copy is hidden by the id the session holds', async () => {
+    const { ctx, parts, failedOriginals } = setup()
+    // The account holds the row under the hashed id; the session's library (and its hidden set) holds the plain one.
+    const stored = { ...record, digest: { ...digest, id: hashedDigestId(digest.id) } }
+    expect(stored.digest.id).not.toBe(digest.id)
+    vi.mocked(createActivity).mockResolvedValue({ record: stored, created: true })
+    vi.mocked(uploadFile).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Broke'))
+    const save = accountSaver(ctx)
+    await save(item)
+    await save.finish?.(new Set())
+    expect(failedOriginals.size).toBe(1)
+
+    vi.mocked(uploadFile).mockClear()
+    vi.mocked(uploadFile).mockResolvedValue({ ...stored, hasFile: true })
+    await startResume(parts, 'u1', true).finished
+    expect(vi.mocked(uploadFile).mock.calls.map((call) => call[0])).toEqual(['rec-1'])
+
+    // The same original, its copy now hidden by a better one: nothing is sent.
+    vi.mocked(uploadFile).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Broke'))
+    const again = setup()
+    again.ctx.savedRecords.clear()
+    vi.mocked(uploadFile).mockClear()
+    const saveAgain = accountSaver(again.ctx)
+    await saveAgain(item)
+    await saveAgain.finish?.(new Set())
+    vi.mocked(uploadFile).mockClear()
+    again.parts.session.hiddenIds = () => new Set([digest.id])
+    await startResume(again.parts, 'u1', true).finished
+    expect(uploadFile).not.toHaveBeenCalled()
+    expect(again.failedOriginals.size).toBe(0)
   })
 })

@@ -39,14 +39,21 @@ export class FailedOriginals {
 
   /**
    * Holds the original to send again. False when the failure does not pass by itself, or the budget is spent: the
-   * athlete is then told to add the file again.
+   * athlete is then told to add the file again. `digestId` is the id the session holds for the copy, which the
+   * analysis hides by: the stored row's id may be the hashed one (or an older row's), so it is not the record's.
    */
-  keep(userId: string, record: ActivityRecord, bytes: Uint8Array, code: SyncIssueCode): boolean {
+  keep(
+    userId: string,
+    record: ActivityRecord,
+    bytes: Uint8Array,
+    code: SyncIssueCode,
+    digestId = record.digest.id,
+  ): boolean {
     if (!isTransient(code)) return false
     const key = workoutKeyOf(record.digest)
     this.drop(key)
     if (this.heldBytes + bytes.byteLength > this.budget) return false
-    this.waiting.set(key, { userId, digestId: record.digest.id, record, bytes })
+    this.waiting.set(key, { userId, digestId, record, bytes })
     this.heldBytes += bytes.byteLength
     return true
   }
