@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
 import {
   CUSTOM_OPTION,
-  fallbackNote,
   LIBRARY_RANGE_OPTIONS,
   RANGE_OPTIONS,
   choiceOfValue,
@@ -20,7 +19,7 @@ function period(overrides: Partial<Period>): Period {
 }
 
 describe('RANGE_OPTIONS', () => {
-  it('offers 6 weeks, then the 12 weeks default, 12 months and all time, in that order', () => {
+  it('offers 6 weeks, 12 weeks, 12 months and all time, in that order', () => {
     expect(RANGE_OPTIONS.map((option) => option.label)).toEqual([
       '6 weeks',
       '12 weeks',
@@ -29,16 +28,18 @@ describe('RANGE_OPTIONS', () => {
     ])
   })
 
-  it('labels the default as its 12 weeks, and keeps its stored value', () => {
-    expect(RANGE_OPTIONS.find((option) => option.choice === 'default')).toEqual({
-      value: 'default',
+  it('offers 12 weeks as exactly that many days, and the default as no segment of its own', () => {
+    expect(RANGE_OPTIONS.find((option) => option.label === '12 weeks')).toEqual({
+      value: '84',
       label: '12 weeks',
       short: '12 wk',
-      choice: 'default',
+      choice: 84,
     })
+    expect(RANGE_OPTIONS.some((option) => option.choice === 'default')).toBe(false)
+    expect(choiceOfValue('default')).toBeUndefined()
   })
 
-  it('leaves the default out of the library, which has no default window', () => {
+  it('leaves 12 weeks out of the library, which has no window of that length of its own', () => {
     expect(LIBRARY_RANGE_OPTIONS.map((option) => option.label)).toEqual([
       '6 weeks',
       '12 months',
@@ -73,6 +74,7 @@ describe('periodName', () => {
   it('names the period the figures are for, in the words the control uses', () => {
     expect(periodName(42)).toBe('6 weeks')
     expect(periodName(84)).toBe('12 weeks')
+    expect(periodName(182)).toBe('26 weeks')
     expect(periodName(365)).toBe('12 months')
     expect(periodName(null)).toBe('All time')
   })
@@ -103,23 +105,6 @@ describe('previousPeriodLabel', () => {
 
   it('groups the days from a thousand on', () => {
     expect(previousPeriodLabel(1500)).toBe('Previous 1,500 days')
-  })
-})
-
-describe('fallbackNote', () => {
-  it('names the sport the last 12 weeks lack, and says the period shows all time', () => {
-    expect(fallbackNote(['ride'])).toBe('Your last 12 weeks hold no rides, so this shows all time.')
-    expect(fallbackNote(['run'])).toBe('Your last 12 weeks hold no runs, so this shows all time.')
-  })
-
-  it('names two sports in the order the sports sit, whatever order they are given in', () => {
-    expect(fallbackNote(['ride', 'run'])).toBe(
-      'Your last 12 weeks hold no runs or rides, so this shows all time.',
-    )
-  })
-
-  it('has nothing to say when no sport is missing', () => {
-    expect(fallbackNote([])).toBeNull()
   })
 })
 

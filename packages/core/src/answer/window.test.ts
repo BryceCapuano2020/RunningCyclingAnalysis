@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import '../test/deviceZone'
 import { DAY_MS } from '../constants'
 import type { AnalysisResult } from '../digest/combine'
 import { NO_EFFORT_GATE } from '../effort'
@@ -161,6 +162,21 @@ describe('resolveWindow', () => {
       ],
     })
     expect(asked).toEqual([18, 38, library(200).length])
+  })
+
+  it('takes 12 weeks for a library exactly 12 weeks long, and all time for one a day shorter', () => {
+    // Dated by local calendar days, so a change of clock inside the span moves nothing.
+    const daysAgo = (days: number) => {
+      const date = new Date(2026, 5, 1, 12)
+      date.setDate(date.getDate() - days)
+      return date.getTime()
+    }
+    const span = (days: number) =>
+      [daysAgo(days), daysAgo(0)].map(
+        (startMs, i) => ({ sport: SPORTS[i]!, startMs }) as ActivityDigest,
+      )
+    expect(resolveWindow(span(83), 'default', () => analysis({}))).toMatchObject({ choice: 84 })
+    expect(resolveWindow(span(82), 'default', () => analysis({}))).toMatchObject({ choice: 'all' })
   })
 
   it('is all time for a library shorter than 12 weeks, whatever the search finds', () => {

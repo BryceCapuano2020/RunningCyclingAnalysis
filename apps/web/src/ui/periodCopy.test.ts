@@ -135,8 +135,16 @@ describe('periodBestText', () => {
       'Best in the last 12 months',
     )
     expect(periodBestText(SIX_WEEKS)).toBe('Best in the last 6 weeks')
-    expect(periodBestText({ ...SIX_WEEKS, choice: 'default', days: 80 })).toBe(
+    expect(periodBestText({ ...SIX_WEEKS, choice: 84, days: 84 })).toBe('Best in the last 12 weeks')
+    // The default is named for the window it resolved to.
+    expect(periodBestText({ ...SIX_WEEKS, choice: 'default', days: 84 })).toBe(
       'Best in the last 12 weeks',
+    )
+    expect(periodBestText({ ...SIX_WEEKS, choice: 'default', days: 182 })).toBe(
+      'Best in the last 26 weeks',
+    )
+    expect(periodBestText({ ...SIX_WEEKS, choice: 'default', days: 365 })).toBe(
+      'Best in the last 12 months',
     )
   })
 

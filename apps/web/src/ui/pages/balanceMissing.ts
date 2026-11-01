@@ -1,7 +1,7 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { Sport } from '@rca/core/types'
-import { countedPhrase, needLine, unconfirmedSports } from '../components/headlineNeed'
+import { countedPhrase, needLine } from '../components/headlineNeed'
 import { heldTexts } from '../resultHold'
 import type { HoldInputs } from '../resultHold'
 import { HEADLINE_MIN_ACTIVITIES, headlineShortfall } from '../components/pickHeadline'
@@ -114,7 +114,7 @@ function soleSportMissing(
       canShowAll: true,
     }
   }
-  const level = levelsTitle({ [sport]: levels[sport] }, unconfirmedSports(result))
+  const level = levelsTitle({ [sport]: levels[sport] })
   // Runs that are all at walking pace are the missing sport's: say how many, and that they can be counted.
   if (leftOut > 0) {
     return {
@@ -201,7 +201,7 @@ function heldMissing(
   const rides = countedPhrase(result.activities, 'ride')
   return {
     // The levels the files do show are the title; "not enough" is the title only when there is none to show.
-    title: levelsTitle(levels, unconfirmedSports(result)) ?? HARDER_EFFORTS_TITLE,
+    title: levelsTitle(levels) ?? HARDER_EFFORTS_TITLE,
     detail: `From ${runs} and ${rides}. ${why}${action}`,
     canShowAll: allTimeEnough,
   }

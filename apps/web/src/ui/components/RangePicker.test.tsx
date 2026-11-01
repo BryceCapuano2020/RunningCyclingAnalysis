@@ -11,7 +11,14 @@ afterEach(() => {
 })
 
 function picker(props: Partial<RangePickerProps> = {}) {
-  return <RangePicker choice="default" onChange={vi.fn()} shown={5} total={5} {...props} />
+  return <RangePicker choice={84} onChange={vi.fn()} shown={5} total={5} {...props} />
+}
+
+/** The segments that are checked. */
+function checkedSegments(): HTMLElement[] {
+  return screen
+    .getAllByRole('radio')
+    .filter((radio) => radio instanceof HTMLInputElement && radio.checked)
 }
 
 /** A segment's full name: its text without the short label a narrow phone shows in its place. */
@@ -41,7 +48,7 @@ describe('RangePicker', () => {
   })
 
   it('checks the segment for the choice on screen', () => {
-    const { unmount } = render(picker({ choice: 'default' }))
+    const { unmount } = render(picker({ choice: 84 }))
     expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
     unmount()
     render(picker({ choice: 365 }))
@@ -49,23 +56,39 @@ describe('RangePicker', () => {
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
   })
 
-  it('checks All time, the period in force, when the default fell back to it', () => {
-    render(picker({ choice: 'default', fellBack: true }))
-    expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
-    expect(screen.getByRole('status')).toHaveTextContent('All time')
+  it.each([
+    [84, '12 weeks'],
+    [365, '12 months'],
+    ['all', 'All time'],
+  ] as const)(
+    'checks the segment of the window the default resolved to, %s, and announces it',
+    (resolved, name) => {
+      render(picker({ choice: 'default', resolved }))
+      expect(screen.getByRole('radio', { name })).toBeChecked()
+      expect(checkedSegments()).toHaveLength(1)
+      expect(screen.getByRole('status')).toHaveTextContent(name)
+    },
+  )
+
+  it('checks no segment for a resolved window it has none for, and none before the default is resolved', () => {
+    const { unmount } = render(picker({ choice: 'default', resolved: 182 }))
+    expect(checkedSegments()).toHaveLength(0)
+    unmount()
+    render(picker({ choice: 'default' }))
+    expect(checkedSegments()).toHaveLength(0)
   })
 
-  it('checks 12 weeks for the default when it did not fall back', () => {
-    render(picker({ choice: 'default', fellBack: false }))
-    expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'All time' })).not.toBeChecked()
+  it('ignores the resolved window for a pick the athlete made', () => {
+    render(picker({ choice: 42, resolved: 365 }))
+    expect(screen.getByRole('radio', { name: '6 weeks' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 months' })).not.toBeChecked()
   })
 
-  it('keeps All time checked for a fallen-back default while a pick for 12 weeks waits', async () => {
-    render(picker({ choice: 'default', fellBack: true, onChange: vi.fn() }))
+  it('shows the pick for exactly 12 weeks over a resolved 12 months while the pick waits', async () => {
+    render(picker({ choice: 'default', resolved: 365, onChange: vi.fn() }))
     await userEvent.click(screen.getByRole('radio', { name: '12 weeks' }))
-    expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 months' })).not.toBeChecked()
   })
 
   it('reports the choice of the segment picked', async () => {
@@ -77,7 +100,7 @@ describe('RangePicker', () => {
     await user.click(screen.getByRole('radio', { name: 'All time' }))
     expect(onChange).toHaveBeenLastCalledWith('all', expect.any(Function))
     await user.click(screen.getByRole('radio', { name: '12 weeks' }))
-    expect(onChange).toHaveBeenLastCalledWith('default', expect.any(Function))
+    expect(onChange).toHaveBeenLastCalledWith(84, expect.any(Function))
   })
 
   it('keeps the segment picked checked until its answer comes back, then follows the page', async () => {
@@ -86,7 +109,7 @@ describe('RangePicker', () => {
     const onChange = vi.fn((_choice: PeriodChoice, answered: (reply: unknown) => void) => {
       answers.push(answered)
     })
-    const { rerender } = render(picker({ choice: 'default', onChange }))
+    const { rerender } = render(picker({ choice: 84, onChange }))
     await user.click(screen.getByRole('radio', { name: '6 weeks' }))
     expect(screen.getByRole('radio', { name: '6 weeks' })).toBeChecked()
 
@@ -134,12 +157,10 @@ describe('RangePicker', () => {
     render(
       picker({
         dates: '15 Aug 2015 – 16 Feb 2019',
-        note: 'No 12 weeks holds both a run and a ride, so this is all time.',
+        note: 'All time. Your last 12 months had too few rides.',
       }),
     )
-    expect(
-      screen.getByText('No 12 weeks holds both a run and a ride, so this is all time.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('All time. Your last 12 months had too few rides.')).toBeInTheDocument()
   })
 
   it('announces a count of a thousand or more with its grouping', () => {
@@ -163,7 +184,7 @@ describe('RangePicker', () => {
   })
 
   it('keeps the pick the athlete made last, so a reply to an earlier pick cannot re-check a segment they left', () => {
-    const { rerender } = render(picker({ choice: 'default' }))
+    const { rerender } = render(picker({ choice: 84 }))
     fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
     fireEvent.click(screen.getByRole('radio', { name: '12 weeks' }))
 
@@ -172,7 +193,7 @@ describe('RangePicker', () => {
     expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
 
     // The answer to the 12-week pick settles it, and the page's choice is shown again.
-    rerender(picker({ choice: 'default' }))
+    rerender(picker({ choice: 84 }))
     expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '6 weeks' })).not.toBeChecked()
   })
@@ -182,7 +203,7 @@ describe('RangePicker', () => {
     const onChange = vi.fn((_choice: PeriodChoice, answered: (reply: unknown) => void) => {
       answers.push(answered)
     })
-    const { rerender } = render(picker({ choice: 'default', busy: true, onChange }))
+    const { rerender } = render(picker({ choice: 84, busy: true, onChange }))
     fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
     expect(screen.getByText('Applies when the current import finishes')).toBeInTheDocument()
 
@@ -219,7 +240,7 @@ describe('RangePicker', () => {
     const onChange = vi.fn((_choice: PeriodChoice, answered: (reply: unknown) => void) => {
       answers.push(answered)
     })
-    const { rerender } = render(picker({ choice: 'default', onChange }))
+    const { rerender } = render(picker({ choice: 84, onChange }))
     fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
     fireEvent.click(screen.getByRole('radio', { name: '12 weeks' }))
     fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
@@ -230,7 +251,7 @@ describe('RangePicker', () => {
     expect(screen.getByRole('radio', { name: '6 weeks' })).toBeChecked()
 
     // The answer to the 12-week pick: the latest pick is still 6 weeks, so 12 weeks must not be shown.
-    rerender(picker({ choice: 'default', onChange }))
+    rerender(picker({ choice: 84, onChange }))
     act(() => answers[1]?.(null))
     expect(screen.getByRole('radio', { name: '6 weeks' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
@@ -279,7 +300,7 @@ describe('RangePicker keeps the pressed control on screen', () => {
       answers.push(answered)
     })
     const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
-    const { rerender } = render(picker({ choice: 'default', dates: 'before', onChange }))
+    const { rerender } = render(picker({ choice: 84, dates: 'before', onChange }))
     top = startTop
     fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
     // The answer changes the dates, and so the height of the text above the control.

@@ -2,7 +2,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { Period } from '@rca/core/period'
 import type { LibraryKnowledge } from './analysis/libraryKnowledge'
-import { effortHold, heldAction, heldReason } from './components/headlineNeed'
+import { heldAction, heldReason } from './components/headlineNeed'
 import { headlineShortfall } from './components/pickHeadline'
 import { headlinePick } from './components/pickHeadline'
 import type { HeadlinePick } from './components/pickHeadline'
@@ -14,11 +14,13 @@ import type { HeadlinePick } from './components/pickHeadline'
  * - `updating` (scope `results`): the library is there and its digests are held out for another model. It needs no
  *   result, and while it is on the results are replaced by the library page.
  * - `partial-import` (scope `headline`): an import is known partial (`useLibraryPage` feeds it from the import record).
- * - `implausible-ride` and `effort` (scope `headline`): the evidence behind the headline comparison.
+ * - `implausible-ride` (scope `headline`): the evidence behind the headline comparison.
+ * A best 20 minutes that was not shown hard holds nothing: the balance is stated, with the line under it that says what its
+ * bests rest on (`basisLine`), since a gate that protects a number changes its label and never blanks it.
  */
 
 /** Why the results are held, most important first. */
-export type HoldReason = 'updating' | 'partial-import' | 'implausible-ride' | 'effort'
+export type HoldReason = 'updating' | 'partial-import' | 'implausible-ride'
 
 /** How much is held: every result page, or only the headline comparisons and what is made from them. */
 export type HoldScope = 'results' | 'headline'
@@ -94,16 +96,10 @@ const implausibleRide: Reason = (_, { implausibleRide: ride }) =>
     ? null
     : { reason: 'implausible-ride', scope: 'headline', sports: ['ride'], ...ride }
 
-const effort: Reason = (result) => {
-  if (result === null) return null
-  const held = effortHold(result)
-  return held === null ? null : { reason: 'effort', scope: 'headline', ...held }
-}
-
 /** Every reason, in the order they take precedence. */
-const REASONS: readonly Reason[] = [updating, partialImport, implausibleRide, effort]
+const REASONS: readonly Reason[] = [updating, partialImport, implausibleRide]
 
-/** The hold on the results, or null when there is none. `updating` needs no result; the others read it. */
+/** The hold on the results, or null when there is none. `updating` needs no result. */
 export function holdOf(result: AnalysisResult | null, inputs: HoldInputs = {}): Hold | null {
   for (const reason of REASONS) {
     const hold = reason(result, inputs)

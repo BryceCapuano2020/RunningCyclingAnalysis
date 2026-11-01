@@ -6,7 +6,8 @@ import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BalanceMeter } from '../components/BalanceMeter'
-import { uncheckedNote, unconfirmedSports } from '../components/headlineNeed'
+import { basisLine } from '../components/basisLine'
+import { uncheckedNote } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
@@ -94,10 +95,7 @@ export function BalanceHero({
   ) {
     return (
       <section className="balance-hero">
-        {head(
-          levelsTitle({ run: runLevel }, unconfirmedSports(result)) ??
-            'Your balance waits for your weight',
-        )}
+        {head(levelsTitle({ run: runLevel }) ?? 'Your balance waits for your weight')}
         <p className="lede secondary">
           <WeightPrompt />
         </p>
@@ -142,7 +140,9 @@ export function BalanceHero({
   }
   const { lead, sport, noun } = titleParts(reading)
   const few = fewEffortsText(result)
-  // A comparison that rests on a best nothing could check (no heart rate on it) is shown, with that said beside it.
+  // A best that was not all-out is a floor, said under the balance. One nothing could check (no heart rate on it) is shown,
+  // with that said beside it.
+  const basis = basisLine(result)
   const unchecked = uncheckedNote(result)
   return (
     <div className="balance-hero__pair">
@@ -168,6 +168,7 @@ export function BalanceHero({
           </p>
           {target !== null && <p className="secondary">{target}</p>}
           {few !== null && <p className="secondary">{few}</p>}
+          {basis !== null && <p className="secondary">{basis}</p>}
           {unchecked !== null && <p className="secondary">{unchecked}</p>}
         </div>
       </section>

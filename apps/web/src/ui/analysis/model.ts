@@ -109,7 +109,7 @@ export function drainBatches(queue: Box<File[][]>): File[][] {
 
 /**
  * The analysis an import is compared with, and the period it was made under. A period is a regime: the default period
- * is 12 weeks, or all time where the last 12 weeks lack a sport the library has, so one added activity can switch it, and figures from
+ * is the window the search settles on (12 weeks, 26 weeks, 12 months or all time), so one added activity can switch it, and figures from
  * two regimes are not figures of one athlete changing.
  */
 export interface Baseline {

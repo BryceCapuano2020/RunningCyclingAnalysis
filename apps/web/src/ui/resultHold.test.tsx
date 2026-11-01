@@ -49,13 +49,14 @@ describe('holdOf: the one order of reasons', () => {
     expect(holdOf(result(), updating(0, 2))).toBeNull()
   })
 
-  it('takes headline reasons in order: partial-import, then implausible-ride, then effort', () => {
-    const effortOnly = result(gate(), HARD)
-    expect(holdOf(effortOnly)).toMatchObject({ reason: 'effort', scope: 'headline' })
+  it('takes headline reasons in order: partial-import, then implausible-ride', () => {
+    // A best that was not hard is no reason: the balance is stated, with a line under it.
+    const easy = result(gate(), gate())
+    expect(holdOf(easy)).toBeNull()
     const ride: HoldInputs = { implausibleRide: note }
-    expect(holdOf(effortOnly, ride)).toMatchObject({ reason: 'implausible-ride', sports: ['ride'] })
+    expect(holdOf(easy, ride)).toMatchObject({ reason: 'implausible-ride', sports: ['ride'] })
     const both: HoldInputs = { ...ride, partialImport: { text: 'partial', action: 'finish it' } }
-    expect(holdOf(effortOnly, both)).toMatchObject({ reason: 'partial-import', scope: 'headline' })
+    expect(holdOf(easy, both)).toMatchObject({ reason: 'partial-import', scope: 'headline' })
   })
 
   it('puts updating above every other reason, whatever else is on', () => {
