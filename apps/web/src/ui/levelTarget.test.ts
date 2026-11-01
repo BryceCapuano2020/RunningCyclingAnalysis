@@ -162,12 +162,12 @@ describe('levelTargetText', () => {
     calibration: result.hr,
   }
 
-  it('says what a ride would need to grade level with the run, in watts rounded to 5, with the ride now', () => {
+  it('says what a ride would need to match the run, in watts rounded to 5, with the ride now', () => {
     const line = levelTargetText({ ...base, lean: 'run' })
     expect(line).toMatch(
-      /^To grade level with your running at 20 min, your best ride would need about \d+ W \(roughly \d+ to \d+ W; now 230 W\)\.$/,
+      /^To match your running at 20 min: about \d+ W \(\d+ to \d+ W\)\. Now 230 W\.$/,
     )
-    const [, centre, low, high] = /about (\d+) W \(roughly (\d+) to (\d+) W/.exec(line ?? '') ?? []
+    const [, centre, low, high] = /about (\d+) W \((\d+) to (\d+) W/.exec(line ?? '') ?? []
     expect(Number(centre) % 5).toBe(0)
     expect(Number(low) % 5).toBe(0)
     expect(Number(high) % 5).toBe(0)
@@ -176,14 +176,14 @@ describe('levelTargetText', () => {
     expect(Number(centre)).toBeGreaterThan(230)
   })
 
-  it('says what a run would need to grade level with the ride, as a flat pace to the second', () => {
+  it('says what a run would need to match the ride, as a flat pace to the second', () => {
     const line = levelTargetText({
       ...base,
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
     expect(line).toMatch(
-      /^To grade level with your cycling at 20 min, your best run would need a flat pace of \d+:\d\d \/km \(now \d+:\d\d \/km\)\.$/,
+      /^To match your cycling at 20 min: a flat pace of \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/,
     )
   })
 
@@ -198,7 +198,7 @@ describe('levelTargetText', () => {
       rideCurve: [curvePoint(HEADLINE_DURATION_S, 300, 'ride-1')],
     })
     const line = levelTargetText({ ...base, result: heavier, massKg: 80, lean: 'run' })
-    expect(line).toMatch(/now 300 W, 240 W at today’s weight\)\.$/)
+    expect(line).toMatch(/Now 300 W, 240 W at today’s weight\.$/)
   })
 
   it('says nothing of weight when the lower sport is a run, whose pace has no mass, even with dated masses', () => {
@@ -217,9 +217,7 @@ describe('levelTargetText', () => {
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
-    expect(line).toMatch(
-      /your best run would need a flat pace of \d+:\d\d \/km \(now \d+:\d\d \/km\)\.$/,
-    )
+    expect(line).toMatch(/a flat pace of \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/)
     expect(line).not.toContain('today’s weight')
   })
 
@@ -253,7 +251,7 @@ describe('levelTargetText', () => {
 })
 
 describe('levelTargetText on the sample athlete', () => {
-  it('names the run pace that would grade level with the sample ride, as the sample shows it', () => {
+  it('names the run pace that would match the sample ride, as the sample shows it', () => {
     const { result, calibration } = loadedSample()
     const grades = headlineGrades(result, SAMPLE_PROFILE)
     const gap = gapOfHeadline(grades)
@@ -268,9 +266,7 @@ describe('levelTargetText on the sample athlete', () => {
         units: 'metric',
         calibration,
       }),
-    ).toBe(
-      'To grade level with your cycling at 20 min, your best run would need a flat pace of 3:18 /km (now 4:01 /km).',
-    )
+    ).toBe('To match your cycling at 20 min: a flat pace of 3:18 /km. Now 4:01 /km.')
   })
 
   it('names the same pace the Ride on foot tile gives for that ride, in metric and imperial', () => {
@@ -288,7 +284,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       })
       expect(line, units).toContain(
-        `a flat pace of ${formatPaceValue(featured.runSpeed.p50, units)} ${PACE_UNIT[units]} (now `,
+        `a flat pace of ${formatPaceValue(featured.runSpeed.p50, units)} ${PACE_UNIT[units]}. Now `,
       )
     }
   })
@@ -368,7 +364,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
         calibration,
       })
     expect(at(levelled)).toBeNull()
-    expect(at(levelled - 1)).toContain(`; now ${levelled - 1} W).`)
+    expect(at(levelled - 1)).toContain(`. Now ${levelled - 1} W.`)
   })
 })
 
@@ -398,7 +394,7 @@ describe('levelTarget', () => {
     expect(target?.now).toBe('230 W')
     expect(target?.sentence).toBe(levelTargetText({ ...base, lean: 'run' }))
     expect(target?.sentence).toContain(
-      `about ${target?.centre} (roughly ${target?.range?.replace(' to ', ' to ')}; now ${target?.now})`,
+      `about ${target?.centre} (${target?.range}). Now ${target?.now}`,
     )
   })
 

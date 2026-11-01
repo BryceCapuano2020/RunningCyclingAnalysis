@@ -2,7 +2,6 @@ import type { UnitSystem } from '@rca/core/units'
 import { useRef } from 'react'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
-import { CLIMB_NEEDED } from '../components/headlineNeed'
 import { HEADLINE_LABEL } from '../grades'
 import { useTouchFirst } from '../useMediaQuery'
 import type { AnalysisController } from '../useAnalysis'
@@ -71,15 +70,13 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
         <li>
           <h2>1. Add your files</h2>
           <p className="secondary">
-            Download your account export from Strava or Garmin and drop the zip as it is, or export
-            from Wahoo, COROS or Zwift.
+            Drop the zip from Strava or Garmin as it is, or export from Wahoo, COROS or Zwift.
           </p>
         </li>
         <li>
           <h2>2. Both sports on one scale</h2>
           <p className="secondary">
-            The app asks for your age, sex and weight. Your age and sex set the standard for each
-            sport, and a ride needs your weight to show its level.
+            Your age and sex set each sport’s standard. A ride also needs your weight.
           </p>
         </li>
         <li>
@@ -97,7 +94,7 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
       <section className="landing__method" aria-labelledby={METHOD_HEADING_ID}>
         <h2 id={METHOD_HEADING_ID}>How the result is worked out</h2>
         <p className="secondary">
-          {`Each sport is judged on your best ${HEADLINE_LABEL}: running by its pace, allowing for hills, and cycling by its power. Without a power meter, power is estimated from speed, gradient and weight, and only on ${CLIMB_NEEDED}.`}
+          {`Each sport is judged on your best ${HEADLINE_LABEL}: running by its pace, allowing for hills, and cycling by its power (estimated without a power meter).`}
         </p>
         <p className="secondary">
           Each result is compared with the standard for your age and sex on the day of that effort.

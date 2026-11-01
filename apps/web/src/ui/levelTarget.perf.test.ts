@@ -48,7 +48,7 @@ describe('levelTargetText performance', () => {
       })
     })
     // Keeping the line means none of the timed work can be skipped.
-    expect(line).toContain('would need about')
+    expect(line).toContain('To match your')
     expect(ms).toBeLessThan(BUDGET_MS)
   })
 })

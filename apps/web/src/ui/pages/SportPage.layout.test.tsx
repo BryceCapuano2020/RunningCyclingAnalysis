@@ -91,13 +91,13 @@ describe('the answer: threshold and level in one card', () => {
     expect(chip.closest('[aria-hidden="true"]')).not.toBeNull()
   })
 
-  it('draws the threshold’s fit as a spread, and says so: "fit spread", not a range or a confidence interval', () => {
+  it('draws the threshold’s fit as a range, lighter than a 90% range', () => {
     renderPage('run', makeResult({ activities: [run()] }))
     const track = screen
       .getByRole('region', { name: 'Threshold pace, estimated' })
       .querySelector('.range-track')!
     expect(track).toHaveClass('range-track--spread')
-    expect(track.textContent).toContain('fit spread')
+    expect(track.textContent).toContain('range')
     expect(track.textContent).not.toMatch(/confidence|90%/i)
   })
 

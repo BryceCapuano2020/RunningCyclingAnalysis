@@ -7,10 +7,13 @@ import type { AgeGap, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { BasisChip } from './StatTile'
 
-/** How a sport's grade was reached, as it opens the line under the level: a ride's goes through its running equivalent. */
+/**
+ * How a sport's grade was reached, as the line under the level says it: a ride's is its run equivalent. The panel's
+ * heading already names the best 20 minutes, so the line gives the figure, then the age and the standard.
+ */
 const GRADED: Record<Sport, (age: number) => string> = {
-  run: (age) => `graded at age ${age}, on the `,
-  ride: (age) => `graded through its running equivalent, at age ${age}, on the `,
+  run: (age) => `graded at age ${age} on the `,
+  ride: (age) => `graded as its run equivalent at age ${age} on the `,
 }
 
 /** A level longer than this, a ride's range across two bands, is set a step smaller so it holds two lines. */
@@ -20,6 +23,10 @@ const LONG_LEVEL = 12
 function effortPhrase(effort: string): string {
   const suffix = ', estimated'
   return effort.endsWith(suffix) ? `${effort.slice(0, -suffix.length)} (estimated)` : effort
+}
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 export interface LevelPanelProps {
@@ -91,8 +98,8 @@ export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelPro
         <>
           <LevelFigure sport={sport} outcome={outcome} />
           <p className="sport-hero__grades">
-            {`${effort ? `${effortPhrase(effort)} on` : 'On'} your best ${HEADLINE_LABEL}, `}
-            {GRADED[sport](outcome.age)}
+            {effort ? `${effortPhrase(effort)}, ` : ''}
+            {effort ? GRADED[sport](outcome.age) : capitalised(GRADED[sport](outcome.age))}
             <GradesLink className="age-grade__standards">
               {ROAD_STANDARDS_SOURCE.shortName}
             </GradesLink>

@@ -110,9 +110,7 @@ describe('What is calculated', () => {
   it('takes the figures it quotes from the code: the headline length and the threshold fit', () => {
     const balance = CALCULATION_ITEMS.find((item) => item.name === 'Balance and levels')
     expect(balance?.line).toContain('best 20 min')
-    const threshold = CALCULATION_ITEMS.find(
-      (item) => item.name === 'Thresholds and their fit spread',
-    )
+    const threshold = CALCULATION_ITEMS.find((item) => item.name === 'Thresholds and their range')
     expect(threshold?.line).toContain('best 3 to 20 min efforts')
   })
 })

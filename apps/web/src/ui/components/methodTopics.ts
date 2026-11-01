@@ -76,7 +76,7 @@ const TOPIC_LIST = [
       `Efficiency varies between people by about ${spreadPercent(PRIORS.grossEfficiency)}%, and ` +
       `running economy by about ${spreadPercent(PRIORS.runEconomyScale)}%. Those spreads are the ` +
       'model’s assumptions behind the range. Two other spreads are not that range. A threshold’s ' +
-      '“fit spread” runs down by one standard error of the fit and up by an allowance for how hard the ' +
+      'own range, drawn lighter, runs down by one standard error of the fit and up by an allowance for how hard the ' +
       'effort behind it was: a best that was not quite all-out puts the fit under the truth, so the spread ' +
       'reaches further above the threshold than below it, and further the less clearly hard the effort was. ' +
       'The allowance is calibrated on simulated athletes, not measured on people. The spread shows how ' +
@@ -137,7 +137,7 @@ const TOPIC_LIST = [
     id: 'settings',
     title: 'Dated settings and zones',
     plain: [
-      'On Profile you can date a body weight, a max heart rate or a threshold. Each activity uses the setting in effect on its own day: the latest entry that starts on or before it. Before your first entry your earliest one applies. With none, ride figures use your current weight, and thresholds and heart rates are estimated from your activities.',
+      'On Profile, date a weight, max heart rate or threshold. Each activity uses the latest entry on or before its day (the earliest, if none is older). With none, rides use your current weight, and thresholds and heart rates are estimated from your activities.',
       'Training zones are cut from those settings by published schemes: Coggan’s seven power levels, five heart-rate zones of your max, and Friel’s pace zones from threshold pace. A zone set made from your own activities says so.',
     ],
     detail:

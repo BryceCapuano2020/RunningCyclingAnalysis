@@ -71,9 +71,11 @@
   text-align: start;
 }
 
+.balance-levels__level,
 .balance-levels__level .definition__term {
   text-align: start;
-  /* The level column is the row's squeezed track: at a large text size a long level word breaks rather than widen the page. */
+  /* The level column is the row's squeezed track: at a large text size a long level word breaks rather than widen the page.
+     Only the first row's level is a defined term, so the others need the same rule on the column itself. */
   overflow-wrap: anywhere;
 }
 
@@ -85,7 +87,7 @@
 .balance-levels__missing {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
 }
 
 @media (max-width: 479px) {

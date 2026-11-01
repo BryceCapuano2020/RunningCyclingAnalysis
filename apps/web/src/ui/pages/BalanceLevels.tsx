@@ -11,11 +11,12 @@ import './BalanceLevels.css'
  */
 export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
   if (model.rows.length === 0 && model.note === null) return null
+  const firstGraded = model.rows.findIndex((row) => row.grade !== null)
   return (
     <section className="balance-levels" aria-label="Level in each sport">
       {model.note === null ? (
         <ul className="balance-levels__list">
-          {model.rows.map((row) => (
+          {model.rows.map((row, index) => (
             <li key={row.sport} className="balance-levels__row" data-sport={row.sport}>
               <span className="tag tag--ink balance-levels__name">
                 <SportIcon sport={row.sport} className="balance-levels__glyph" />
@@ -27,7 +28,12 @@ export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
                 <>
                   <span className="balance-levels__grade">{row.grade}</span>{' '}
                   <span className="balance-levels__level">
-                    <Definition meaning={DEFINITIONS.level}>{row.level}</Definition>
+                    {/* The level is defined once, on the first row that has one. */}
+                    {index === firstGraded ? (
+                      <Definition meaning={DEFINITIONS.level}>{row.level}</Definition>
+                    ) : (
+                      row.level
+                    )}
                   </span>
                   {row.basis ? <span className="balance-levels__basis">{row.basis}</span> : null}
                 </>
