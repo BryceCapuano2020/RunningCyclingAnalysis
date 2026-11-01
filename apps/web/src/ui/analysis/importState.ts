@@ -10,8 +10,9 @@ import type { Baseline, ImportProgress } from './model'
 /**
  * The analysis an import was added to, and the one it made, with the outcome it was reported with.
  * `before` is null for a first import or when the sample was on screen, or when the two were made under different
- * period regimes (`sameRegime`): the default period is 12 weeks until an import brings a sport it lacked, and then
- * all time, and a figure of one against a figure of the other is a different stretch of the library, not a change.
+ * period regimes (`sameRegime`): the default period is the window the search settles on, which an import that brings a
+ * sport it lacked, or a hard effort, can move to a longer window or all time, and a figure of one against a figure of
+ * the other is a different stretch of the library, not a change.
  */
 export interface ImportChange {
   outcome: ImportOutcome

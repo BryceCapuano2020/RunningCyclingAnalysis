@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { lintCopy } from '../findings/copy'
 import { fitnessFindingHeadline, fitnessLines, sized } from './copy'
 import { noFitness } from './types'
-import type { FitnessSpan, FitnessState, FitnessStatus, Ranged, Shortfall } from './types'
+import type { FitnessSpan, FitnessState, FitnessStatus, Ranged } from './types'
 import type { Sport } from '../types'
 
 const FEB = Date.UTC(2025, 1, 28)
@@ -185,30 +185,6 @@ describe('the lines of a status', () => {
     // exp(0.1) - 1: a pace 10.5% slower is as far as a speed 9.5% faster, and the larger is said.
     expect(run).toContain('within 11%')
     expect(ride).toContain('within 11%')
-  })
-
-  it('says what is missing, with both counts and the window', () => {
-    const lacking = (shortfall: Shortfall, sport: Sport = 'run') =>
-      fitnessLines({ ...noFitness(sport), shortfall }, 'metric').headline
-    expect(lacking({ kind: 'history', have: 14, need: 12, weeks: 5, needWeeks: 8 })).toBe(
-      'Not enough evidence yet. Pace at the same heart rate is read from 12 steady runs over 8 different weeks, from 8 to 44 weeks ago; there are 14 steady runs in 5 different weeks.',
-    )
-    expect(lacking({ kind: 'recent', have: 2, need: 4, weeks: 8 })).toBe(
-      'Not enough recent evidence yet. There are 2 steady runs in the last 8 weeks; 4 are needed.',
-    )
-    expect(lacking({ kind: 'recent', have: 1, need: 4, weeks: 8 })).toContain(
-      'There is 1 steady run',
-    )
-    expect(lacking({ kind: 'break', weeksSince: 5 })).toBe(
-      'Not enough recent evidence yet. The last steady run was 5 weeks ago.',
-    )
-    expect(lacking({ kind: 'imprecise', within: 0.09 })).toBe(
-      'Not enough evidence yet. The steady runs so far leave pace at the same heart rate uncertain by about 9.4%, too wide to call it level.',
-    )
-    expect(
-      lacking({ kind: 'history', have: 5, need: 12, weeks: 3, needWeeks: 8 }, 'ride'),
-    ).toContain('Power at the same heart rate is read from 12 steady rides')
-    expect(lacking({ kind: 'unavailable' }, 'ride')).toContain('Rides are not compared')
   })
 
   it('passes the copy lint in every state, sport and unit', () => {

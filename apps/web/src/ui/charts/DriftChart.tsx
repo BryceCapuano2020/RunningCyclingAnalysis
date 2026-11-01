@@ -49,7 +49,7 @@ interface Layout {
   yTicks: AxisTick[]
 }
 
-/** A steady effort's change in output per heartbeat, in percent: negative when it fell, so a fall is down. */
+/** A steady effort's change in efficiency, in percent: negative when it fell, so a fall is down. */
 function changeOf(point: DriftPoint): number {
   return -point.decouplingPct
 }
@@ -99,7 +99,7 @@ function changeCell(point: DriftPoint): string {
 }
 
 /**
- * A dot for each steady effort: how much its output per heartbeat changed from the first half to the
+ * A dot for each steady effort: how much its efficiency changed from the first half to the
  * second, by date, a fall below zero, with a line at the median across them and the finding as the title. A dashed line at the common 5% fall reference is named in the key. No line joins the
  * dots, since a line would claim the efforts between them.
  */
@@ -110,7 +110,7 @@ export function DriftChart({ sport, points, names, takeaway, medianPct, note }: 
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-      title={`Change in output per heartbeat on steady ${SPORT_PLURAL[sport]}, first half to second`}
+      title={`Change in efficiency on steady ${SPORT_PLURAL[sport]}, first half to second`}
       takeaway={takeaway}
       description={driftDescription(sport)}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}
@@ -124,7 +124,8 @@ export function DriftChart({ sport, points, names, takeaway, medianPct, note }: 
           changeCell(point),
           formatDuration(point.durationS),
         ]),
-        caption: 'Output per heartbeat, first half of each steady effort against the second.',
+        caption:
+          'Efficiency, output per heartbeat in the first half of each steady effort against the second.',
         textColumns: [1],
         phoneHidden: [1, 3],
       }}
@@ -148,7 +149,7 @@ export function DriftChart({ sport, points, names, takeaway, medianPct, note }: 
                       {
                         kind: sport,
                         label: nameOf(point),
-                        value: `Output per heartbeat ${driftChange(point.decouplingPct)}`,
+                        value: `Efficiency ${driftChange(point.decouplingPct)}`,
                         note: `${formatDuration(point.durationS)} of moving time`,
                       },
                     ],
@@ -173,7 +174,7 @@ export function DriftChart({ sport, points, names, takeaway, medianPct, note }: 
             <ChartYAxis
               ticks={m.yTicks}
               plot={plot}
-              title="Change in output per heartbeat (%)"
+              title="Change in efficiency (%)"
               fontSize={fontSize}
             />
             <line

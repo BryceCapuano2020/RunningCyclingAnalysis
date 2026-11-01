@@ -3,7 +3,7 @@ import { DAY_MS } from '../constants'
 import { plantedLibrary } from '../findings/test/plantedLibrary'
 import { AnalysisSession } from '../session'
 import type { AthleteSettings } from '../types'
-import { leadOf, meetsLeadBar } from './lead'
+import { leadKey, leadOf, meetsLeadBar } from './lead'
 import type { LiveState } from './lead'
 import { bestRows, episodeRow, episodeSentence, leadSentence, tooShortText } from './copy'
 import { lookBackOf, NO_LOOKBACK } from './compute'
@@ -34,7 +34,7 @@ const library = () =>
 
 describe('a library through lookBackOf', () => {
   const planted = library()
-  const look = lookBackOf(planted.digests, SETTINGS, NONE, planted.lastMs)
+  const look = lookBackOf(planted.digests, SETTINGS, NONE)
 
   it('tells the run years, told through twelve weeks before the newest activity', () => {
     expect(look.horizonMs).toBeLessThan(look.asOfMs - 11 * 7 * DAY_MS)
@@ -63,8 +63,8 @@ describe('a library through lookBackOf', () => {
   })
 
   it('is remembered for the same digests, and empty for no library', () => {
-    expect(lookBackOf(planted.digests, SETTINGS, NONE, planted.lastMs)).toBe(look)
-    expect(lookBackOf([], SETTINGS, NONE, 0)).toBe(NO_LOOKBACK)
+    expect(lookBackOf(planted.digests, SETTINGS, NONE)).toBe(look)
+    expect(lookBackOf([], SETTINGS, NONE)).toBe(NO_LOOKBACK)
   })
 
   it('is small however long the library: no list past its cap, nothing per week', () => {
@@ -90,9 +90,9 @@ describe('a library through lookBackOf', () => {
       ],
     })
     const asOfMs = dip.lastMs
-    const history = fitnessHistories(dip.digests, NONE, { nowMs: asOfMs }).run
+    const history = fitnessHistories(dip.digests, NONE).run
     expect(history.records.length).toBeGreaterThan(200)
-    const told = lookBackOf(dip.digests, SETTINGS, NONE, asOfMs).sports.run.fitness
+    const told = lookBackOf(dip.digests, SETTINGS, NONE).sports.run.fitness
     const direct = hindsightOf({
       runs: history.runs,
       activeDays: dip.digests.map((d) => dayOfMs(d.startMs)),
@@ -190,19 +190,84 @@ function look(run: HindsightFitness, over: Partial<SportLookBack> = {}): LookBac
 const live = (run: LiveState): Record<'run' | 'ride', LiveState> => ({ run, ride: null })
 
 describe('what leads', () => {
-  it('is the most recent episode that meets the lead bar: 7% and z 5.5, within five years, never under two years', () => {
+  it('meets the lead bar at 7% and z 5.5, whenever it happened, and never in a library under two years', () => {
     const strong = years()
     expect(meetsLeadBar(strong.episodes[0]!, strong)).toBe(true)
     const small = episode({ change: { value: 0.06, low: 0.03, high: 0.09 } })
     expect(meetsLeadBar(small, strong)).toBe(false)
     expect(meetsLeadBar(episode({ z: 5 }), strong)).toBe(false)
-    expect(meetsLeadBar(episode({ fromMs: T0 - 8 * YEAR, toMs: T0 - 7 * YEAR }), strong)).toBe(
-      false,
-    )
+    // Its age is no part of the bar: an episode eight years before the horizon is as strong as one of last year.
+    expect(meetsLeadBar(episode({ fromMs: T0 - 8 * YEAR, toMs: T0 - 7 * YEAR }), strong)).toBe(true)
     const short = years({ toMs: T0 + 1.5 * YEAR })
     expect(meetsLeadBar(strong.episodes[0]!, short)).toBe(false)
     const lead = leadOf(look(strong), live('holding'))
     expect(lead).toMatchObject({ kind: 'episode', sport: 'run' })
+  })
+
+  it('leads with the largest episode of any age, and the more recent only on a tie', () => {
+    const big = episode({
+      fromMs: T0 - 8 * YEAR,
+      toMs: T0 - 7.5 * YEAR,
+      change: { value: 0.15, low: 0.12, high: 0.18 },
+    })
+    const smaller = episode({ change: { value: 0.09, low: 0.06, high: 0.12 } })
+    const lead = (episodes: HindsightEpisode[]) =>
+      leadOf(look(years({ episodes })), live('holding'))
+    expect(lead([smaller, big])).toMatchObject({ kind: 'episode', episode: big })
+    expect(lead([big, smaller])).toMatchObject({ kind: 'episode', episode: big })
+    // A fall counts by its size, not its sign.
+    const fall = episode({
+      kind: 'slip-back',
+      change: { value: -0.2, low: -0.24, high: -0.16 },
+      z: -8,
+      fromMs: T0 + YEAR,
+      toMs: T0 + 1.5 * YEAR,
+    })
+    expect(lead([big, fall])).toMatchObject({ episode: fall })
+    // The same size: the later one.
+    const same = episode({ fromMs: T0 + 3 * YEAR, toMs: T0 + 3.5 * YEAR })
+    expect(lead([smaller, same])).toMatchObject({ episode: same })
+  })
+
+  it('dates an old lead with its month and year', () => {
+    const old = episode({ fromMs: Date.UTC(2015, 2, 1), toMs: Date.UTC(2015, 7, 1) })
+    const some = years({
+      fromMs: Date.UTC(2014, 0, 1),
+      toMs: Date.UTC(2025, 0, 1),
+      episodes: [old],
+    })
+    const lead = leadOf(look(some), live('holding'))!
+    expect(leadSentence(lead, look(some), 'metric')).toMatch(/between March and August 2015\./)
+    // A break with no gap on record is dated too.
+    const broke = episode({ kind: 'after-break', fromMs: Date.UTC(2016, 4, 1) })
+    expect(episodeSentence(broke, look(some).sports.run, some)).toMatch(
+      /^After a break from running in May 2016, /,
+    )
+    // A ride's break is from riding, in the table keyed by sport.
+    const rides = { ...look(some).sports.ride, fitness: some, referenceHr: 150 }
+    expect(episodeSentence(broke, rides, some)).toMatch(/^After a break from riding in May 2016, /)
+  })
+
+  it('names a lead by its sport, kind and the months it is dated by, so a nudged boundary is not a new lead', () => {
+    const lead = (over: Partial<HindsightEpisode>) =>
+      leadOf(look(years({ episodes: [episode(over)] })), live('holding'))!
+    const base = episode()
+    expect(leadKey(lead({}))).toBe(
+      `run:improvement:${new Date(base.fromMs).toISOString().slice(0, 7)}:${new Date(base.toMs!).toISOString().slice(0, 7)}`,
+    )
+    // A boundary that moved by a few days inside the same months is the same lead.
+    expect(leadKey(lead({ fromMs: base.fromMs + 3 * DAY_MS }))).toBe(leadKey(lead({})))
+    // Another stretch, or another kind, is another lead.
+    expect(leadKey(lead({ fromMs: base.fromMs - 90 * DAY_MS }))).not.toBe(leadKey(lead({})))
+    expect(leadKey(lead({ kind: 'slip-back' }))).not.toBe(leadKey(lead({})))
+    // A quiet stretch is named too.
+    const quiet = years({
+      episodes: [],
+      quiet: [{ fromMs: T0 + YEAR, toMs: T0 + 4 * YEAR - DAY_MS, within: 0.04, runs: 300 }],
+    })
+    expect(leadKey(leadOf(look(quiet), live('holding'))!)).toMatch(
+      /^run:quiet:\d{4}-\d{2}:\d{4}-\d{2}$/,
+    )
   })
 
   it('says a rise held only when the live status allows it', () => {
@@ -431,8 +496,6 @@ describe('the words', () => {
   it('says what a short library lacks, once', () => {
     expect(
       tooShortText({ kind: 'too-short', steady: 23, weeks: 19, needSteady: 40, needWeeks: 52 }),
-    ).toBe(
-      'Your years start to read once you have a year of steady running behind the latest 12 weeks: 40 steady runs over 52 weeks. So far there are 23 steady runs over 19 weeks.',
-    )
+    ).toBe('Needs 40 steady runs over 52 weeks. You have 23 over 19.')
   })
 })

@@ -147,7 +147,7 @@ describe('ThresholdTile', () => {
   it('carries the effort chip of its own sport, beside the figure it qualifies', () => {
     const check = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 }
     renderTile('run', makeResult(), null, true, check)
-    expect(screen.getByRole('button', { name: 'Not a hard effort · 70%' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
     cleanup()
     renderTile('ride', makeResult(), null, true, check)
     expect(screen.getByRole('button', { name: 'Hard effort · 95%' })).toBeInTheDocument()

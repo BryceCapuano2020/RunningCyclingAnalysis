@@ -1,18 +1,18 @@
 import type { ReactNode } from 'react'
 import { raceAnswerOf } from '../raceAnswer'
-import { RACE_PREDICTIONS_NAME, racePredictionNeed } from '../racePredictions'
+import { racePredictionNeed } from '../racePredictions'
 import { distanceRecords } from '../records'
-import { lackLine } from './lackLine'
 import { RacePast } from './RacePast'
 import { RacePredictions } from './RacePredictions'
 import { ranBests } from './raceRan'
 import type { SectionContext } from './sportPageProps'
 
 /**
- * The race predictions section of a sport page: the card when the library can give one, from the period, else the last 12
- * months, else all time; and when it holds no run of a mile or more, the one line that says what to add.
+ * The race predictions section of a sport page: the card when the library can give one, from the period, else the 12
+ * months ending with it, else the older runs as they were run; and when it holds no run of a mile or more, no content and
+ * the need, which the page says in one line in the section's place.
  */
-export function racePredictionsOutcome({
+export function racePredictionsContent({
   sport,
   result,
   library,
@@ -21,7 +21,7 @@ export function racePredictionsOutcome({
   openedAt,
   heartRateJudgement,
   periodEndMs,
-}: SectionContext): { content: ReactNode | null; lacks: readonly string[] } {
+}: SectionContext): { content: ReactNode | null; need?: string } {
   const answer = raceAnswerOf(
     sport,
     result,
@@ -30,15 +30,9 @@ export function racePredictionsOutcome({
       ? undefined
       : { judgement: heartRateJudgement, library, endMs: periodEndMs ?? null },
   )
-  if (answer === null) {
-    const need = racePredictionNeed(sport)
-    return {
-      content: null,
-      lacks: need === undefined ? [] : [lackLine(RACE_PREDICTIONS_NAME, need)],
-    }
-  }
+  if (answer === null) return { content: null, need: racePredictionNeed(sport) }
   if (answer.kind === 'past') {
-    return { content: <RacePast sport={sport} ran={answer.ran} units={units} />, lacks: [] }
+    return { content: <RacePast sport={sport} ran={answer.ran} units={units} /> }
   }
   const { found, window, basis, activities } = answer
   const bound = answer.kind === 'bound'
@@ -56,6 +50,5 @@ export function racePredictionsOutcome({
         ran={bound ? [] : ranBests(found, distanceRecords(activities, units).records, openedAt)}
       />
     ),
-    lacks: [],
   }
 }

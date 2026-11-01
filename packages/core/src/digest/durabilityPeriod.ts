@@ -1,4 +1,4 @@
-import { DURABILITY_AFTER_S, DURABILITY_DURATIONS_S } from '../constants'
+import { DURABILITY_AFTER_S, DURABILITY_DURATIONS_S, LATE_IN_EFFORT } from '../constants'
 import { possibleRunWkg } from '../curves'
 import type { ActivityDigest, Sport } from '../types'
 import { effortsCount } from './effortTrust'
@@ -98,4 +98,18 @@ export function periodDurability(
       }),
     }
   })
+}
+
+/**
+ * Whether some late best has enough activities behind it to state (`LATE_IN_EFFORT.minActivities`) against a fresh best
+ * to compare it with: what a page needs before it draws a late best, and what a period lacking it is pooled with the library for.
+ */
+export function hasSupport(rows: readonly PeriodDurabilityRow[]): boolean {
+  return rows.some(
+    (row) =>
+      row.fresh !== null &&
+      row.after.some(
+        (after) => after.best !== null && after.best.supporters >= LATE_IN_EFFORT.minActivities,
+      ),
+  )
 }

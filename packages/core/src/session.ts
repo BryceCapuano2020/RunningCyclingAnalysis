@@ -71,7 +71,7 @@ export class AnalysisSession {
   private rejected: Refused[] = []
   private unsupported = { files: 0 }
   private isSample = false
-  // The period the athlete picked. The default is the most recent window that holds both sports.
+  // The period the athlete picked. The default is searched for: the shortest window in which every sport qualifies (answer/window.ts).
   private choice: PeriodChoice = 'default'
   private periods = new PeriodCache()
   private zoneTimes = new ZoneTimeCache()

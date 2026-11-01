@@ -121,7 +121,7 @@ export function raceName(distanceM: number): string {
   return RACE_NAME[distanceM as keyof typeof RACE_NAME] ?? `${Math.round(distanceM / 1000)} km`
 }
 
-/** The section's name, in its heading and in the page's "Not enough yet" list. */
+/** The section's name, in its heading. */
 export const RACE_PREDICTIONS_NAME = 'Race predictions'
 
 /**

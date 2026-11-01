@@ -9,6 +9,7 @@ import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
+import { formatMonths } from '../format/date'
 import { gapOfHeadline } from '../balanceGap'
 import { levelTarget } from '../levelTarget'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
@@ -20,8 +21,7 @@ import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { soleSportOf } from '../soleSport'
-import { withheldFloorLine } from '../thresholdFloor'
-import { SPORT_ORDER } from '../sports'
+import { BALANCE_PAIR } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
 import { balanceChanges } from './balanceChangeItems'
@@ -29,6 +29,7 @@ import { balanceLevels } from './levelsModel'
 import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
 import { BalanceLevels } from './BalanceLevels'
+import { BalanceOverYears } from './BalanceOverYears'
 import { BalanceTiles } from './BalanceTiles'
 import { EvidenceLine } from './EvidenceLine'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
@@ -86,8 +87,9 @@ export function BalancePage({
     period,
     library: allActivities,
     trend,
-    previous,
-    change,
+    previous: periodBefore,
+    change: changeBefore,
+    earlier,
     heartRateJudgement,
   } = analysis.state
   // What the analysis rests on: the runs at walking pace are in the lists, not in what this page counts and dates.
@@ -156,13 +158,19 @@ export function BalancePage({
   // when it has one; with two but no balance, the headline already names the levels.
   const hasReading = reading !== null
   const levels = useMemo(() => {
-    const sports = SPORT_ORDER.filter((sport) => hasReading || inPeriod[sport] > 0)
+    const sports = BALANCE_PAIR.filter((sport) => hasReading || inPeriod[sport] > 0)
     if (!hasReading && sports.length !== 1) return null
     const model = balanceLevels({ grades, sports, inPeriod, missingAge, basis })
     return !hasReading && model.rows.every((row) => row.grade === null) ? null : model
   }, [hasReading, grades, inPeriod, missingAge, basis])
-  // What moved since the previous period, graded as this period is; the previous gap is priced once here.
-  const previousLabel = previousPeriodLabel(period.days)
+  // What moved since the previous period, or since the latest earlier window when the previous one holds too little to
+  // test; graded as this period is, and the previous gap is priced once here.
+  const previous = earlier?.previous ?? periodBefore
+  const change = earlier?.change ?? changeBefore
+  const previousLabel =
+    earlier === null
+      ? previousPeriodLabel(period.days)
+      : formatMonths(earlier.startMs, earlier.endMs, period.endMs ?? earlier.endMs)
   const changes = useMemo(
     () =>
       balanceChanges({
@@ -243,9 +251,6 @@ export function BalancePage({
         levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
         leftOut={leftOut}
-        soleFloor={
-          soleSport === null ? null : withheldFloorLine(result, soleSport, settings.massKg, units)
-        }
         action={
           <ShareImageButton
             result={result}
@@ -279,6 +284,14 @@ export function BalancePage({
       />
 
       {sourceLine}
+
+      <BalanceOverYears
+        years={analysis.state.history.balance}
+        profile={profile}
+        missingAge={missingAge}
+        weightKnown={weightKnown}
+        placement="home"
+      />
 
       {soleSport === null ? null : (
         <SoleSportRecords

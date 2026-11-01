@@ -4,8 +4,8 @@ import type { Period } from '@rca/core/period'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { HEADLINE_LABEL } from '../grades'
-import { basisOf, notHardWords, uncheckedWords } from '../effortWords'
-import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL } from '../sports'
+import { basisOf, uncheckedWords } from '../effortWords'
+import { BALANCE_PAIR, SPORT_ACTIVITY, SPORT_NOUN, SPORT_PLURAL } from '../sports'
 import { hasEvidence, headlineShortfall } from './pickHeadline'
 
 /** The word that says an activity of this sport counts for the headline: the ones that hold a best are outdoor. */
@@ -31,7 +31,7 @@ function shortfallOf(
   period: Period | undefined,
   activities: ActivitySummary[],
 ): { parts: string[]; inPeriod: string } {
-  const parts = SPORT_ORDER.filter((sport) => short[sport] > 0).map(
+  const parts = BALANCE_PAIR.filter((sport) => short[sport] > 0).map(
     (sport) => `${short[sport]} more ${nounOf(activities, sport, short[sport])}`,
   )
   // All time names no period; a dated one is the period on screen.
@@ -48,30 +48,10 @@ export function needLine(
   return parts.length === 0 ? null : `Needs ${parts.join(' and ')}${inPeriod}.`
 }
 
-/** What one sport lacks before the headline can set it against the other, and what to do about it. */
-type Need =
-  | { kind: 'missing'; sport: Sport }
-  | { kind: 'effort'; sport: Sport; reason: string; action: string; reference: boolean }
-
-/** A sport's need, or null: it has the evidence, and its best 20 minutes was not shown to be easy. */
-function needOf(result: AnalysisResult, sport: Sport): Need | null {
-  if (!hasEvidence(result, sport)) return { kind: 'missing', sport }
-  const gate = result.effortGate[sport]
-  const activity = SPORT_ACTIVITY[sport]
-  if (gate.verdict === 'notHard') {
-    const words = notHardWords(sport, gate, 'let them be compared')
-    return {
-      kind: 'effort',
-      sport,
-      reference: words.reference,
-      reason: words.reference
-        ? `Your best ${HEADLINE_LABEL} ${activity} cannot be called hard: ${words.why}.`
-        : `Your best ${HEADLINE_LABEL} ${activity} was not a hard effort: ${words.why}.`,
-      action: words.reference ? words.action : `a ${HEADLINE_LABEL} ${activity}`,
-    }
-  }
-  // A best that was not checked (no heart rate, too few days) holds nothing: it is shown with a note (`uncheckedNote`).
-  return null
+/** The sports with the activities for it that have no effort as long as the headline's, in the order the sports sit. */
+function lackingSports(result: AnalysisResult): Sport[] {
+  const short = headlineShortfall(result.activities)
+  return BALANCE_PAIR.filter((sport) => short[sport] === 0 && !hasEvidence(result, sport))
 }
 
 /**
@@ -80,7 +60,7 @@ function needOf(result: AnalysisResult, sport: Sport): Need | null {
  * would otherwise never have one. Null when every sport it rests on was checked.
  */
 export function uncheckedNote(result: AnalysisResult): string | null {
-  const notes = SPORT_ORDER.flatMap((sport) => {
+  const notes = BALANCE_PAIR.flatMap((sport) => {
     const gate = result.effortGate[sport]
     const words = gate.verdict === 'unknown' ? uncheckedWords(sport, gate) : null
     return words === null || !hasEvidence(result, sport) ? [] : [`${words.why} ${words.action}`]
@@ -93,7 +73,7 @@ export function uncheckedNote(result: AnalysisResult): string | null {
  * checked (no heart rate on it, too few days with heart rate). A level read from such a best is a floor, not the sport's level.
  */
 export function unconfirmedSports(result: AnalysisResult): Sport[] {
-  return SPORT_ORDER.filter((sport) => basisOf(result.effortGate[sport]) !== null)
+  return BALANCE_PAIR.filter((sport) => basisOf(result.effortGate[sport]) !== null)
 }
 
 /** What each unconfirmed sport's level rests on, for the line under the meter. */
@@ -103,21 +83,12 @@ export function levelBasis(result: AnalysisResult): Partial<Record<Sport, string
   )
 }
 
-/** The needs of the sports that have enough activities to be asked for more, in the order the sports sit. */
-function needsOf(result: AnalysisResult): Need[] {
-  const short = headlineShortfall(result.activities)
-  return SPORT_ORDER.filter((sport) => short[sport] === 0).flatMap(
-    (sport) => needOf(result, sport) ?? [],
-  )
-}
-
-/** "a 20 min run reaching 90% of your reference heart rate and one ride of 20 min or more": the activities to add, said once for all the sports. */
-function addPhrase(needs: readonly Need[], activities: ActivitySummary[]): string {
+/** "one run and one ride of 20 min or more": the activities to add, said once for all the sports. */
+function addPhrase(missing: readonly Sport[], activities: ActivitySummary[]): string {
   // Sports that only lack a 20 minute effort share the sentence: "one run and one ride of 20 min or more".
-  const missing = needs.flatMap((need) => (need.kind === 'missing' ? [need.sport] : []))
   const plain = missing.filter((sport) => meterFacts(activities, sport) === null)
   const climbs = missing.filter((sport) => meterFacts(activities, sport) !== null)
-  const lacking = [
+  return [
     ...(plain.length === 0
       ? []
       : [
@@ -128,62 +99,18 @@ function addPhrase(needs: readonly Need[], activities: ActivitySummary[]): strin
       (sport) =>
         `one ${SPORT_ACTIVITY[sport]} of ${HEADLINE_LABEL} or more with a power meter, or with ${CLIMB_NEEDED}`,
     ),
-  ]
-  // Sports whose best was under the line are asked for an effort that reaches it, said once for all of them.
-  const efforts = needs.flatMap((need) =>
-    need.kind === 'effort' && !need.reference ? [need.action] : [],
-  )
-  const reaching =
-    efforts.length === 0
-      ? []
-      : [
-          `${efforts.join(' and ')}${efforts.length > 1 ? ', each' : ''} reaching 90% of your reference heart rate`,
-        ]
-  return [...reaching, ...lacking].join(' and ')
+  ].join(' and ')
 }
 
-/** The sentence that says what to add, then the sentences that say how to set a reference that cannot be trusted. */
-function actionOf(needs: readonly Need[], activities: ActivitySummary[]): string {
-  const add = addPhrase(needs, activities)
+/** The sentence that says what to add to compare the sports. */
+function actionOf(missing: readonly Sport[], activities: ActivitySummary[]): string {
   // Where a ride has no altitude to find a climb from, that is said first.
-  const flat = needs.find(
-    (need) => need.kind === 'missing' && meterFacts(activities, need.sport)?.noAltitude === true,
-  )
+  const flat = missing.find((sport) => meterFacts(activities, sport)?.noAltitude === true)
   const lead =
     flat === undefined
       ? ''
-      : `None of your ${SPORT_PLURAL[flat.sport]} without a power meter records altitude, so no climb can be found. `
-  const references = needs.flatMap((need) =>
-    need.kind !== 'missing' && need.reference ? [need.action] : [],
-  )
-  const body = [add === '' ? '' : `Add ${add} to compare them.`, ...references]
-    .filter((x) => x !== '')
-    .join(' ')
-  return `${lead}${body}`
-}
-
-/** What the hold for effort says: the sports it is for, why, and what lifts it. */
-export interface EffortHold {
-  sports: Sport[]
-  text: string
-  action: string
-}
-
-/**
- * The hold on the headline for effort, or null when there is none: a sport with the activities for it whose best
- * 20 minutes was not shown to be a hard effort, or was not checked at all (no heart rate on it, or too few days with
- * heart rate to set a reference). A hold, not a change to the rule that reads the gap once both sports are there.
- */
-export function effortHold(result: AnalysisResult): EffortHold | null {
-  const needs = needsOf(result).filter(
-    (need): need is Exclude<Need, { kind: 'missing' }> => need.kind !== 'missing',
-  )
-  if (needs.length === 0) return null
-  return {
-    sports: needs.map((need) => need.sport),
-    text: needs.map((need) => need.reason).join(' '),
-    action: actionOf(needs, result.activities),
-  }
+      : `None of your ${SPORT_PLURAL[flat]} without a power meter records altitude, so no climb can be found. `
+  return `${lead}Add ${addPhrase(missing, activities)} to compare them.`
 }
 
 /**
@@ -233,8 +160,7 @@ function climbReason(sport: Sport, fact: MeterFacts): string {
 
 /**
  * What to do to lift the hold, as one action: add the activities a sport is short of ("Add 2 more rides in
- * this period to compare them."), or what each sport lacks: a run or ride of the headline's length, a hard effort of
- * it where heart rate shows the best 20 minutes was not one, or a heart rate where none was checked. The same facts as
+ * this period to compare them."), or the run or ride of the headline's length a sport lacks. The same facts as
  * heldReason, said as an instruction.
  */
 export function heldAction(result: AnalysisResult, period: Period | undefined): string {
@@ -244,24 +170,21 @@ export function heldAction(result: AnalysisResult, period: Period | undefined): 
     result.activities,
   )
   if (parts.length > 0) return `Add ${parts.join(' and ')}${inPeriod} to compare them.`
-  const needs = needsOf(result)
-  return needs.length === 0
-    ? `Add one run or ride of ${HEADLINE_LABEL} or more to compare them.`
-    : actionOf(needs, result.activities)
+  const missing = lackingSports(result)
+  return missing.length === 0 ? NEEDS_LENGTH : actionOf(missing, result.activities)
 }
 
 /**
- * Why the headline is held, as the sentence that says what is missing: too few activities in the period, no
- * effort of the headline's length in a sport, a best 20 minutes that was not hard, or one that was not checked.
- * The activities come first, since an effort cannot be asked of a sport with too little on file.
+ * Why the headline is held, as the sentence that says what is missing: too few activities in the period, or no
+ * effort of the headline's length in a sport. The activities come first, since an effort cannot be asked of a
+ * sport with too little on file.
  */
 export function heldReason(result: AnalysisResult, period: Period | undefined): string {
   const short = needLine(headlineShortfall(result.activities), period, result.activities)
   if (short !== null) return short
-  const needs = needsOf(result)
-  if (needs.length === 0) return NEEDS_EFFORT
+  const missing = lackingSports(result)
+  if (missing.length === 0) return NEEDS_LENGTH
   const meter = (sport: Sport) => meterFacts(result.activities, sport)
-  const missing = needs.flatMap((need) => (need.kind === 'missing' ? [need.sport] : []))
   // A ride known by the model's watts is short of a climb as well as of length, which a longer ride alone does not mend.
   const plain = missing.filter((sport) => meter(sport) === null).map((sport) => SPORT_NOUN[sport])
   const lacking =
@@ -274,12 +197,8 @@ export function heldReason(result: AnalysisResult, period: Period | undefined): 
     const fact = meter(sport)
     return fact === null ? [] : [climbReason(sport, fact)]
   })
-  return [
-    ...lacking,
-    ...climbs,
-    ...needs.flatMap((need) => (need.kind === 'missing' ? [] : [need.reason])),
-  ].join(' ')
+  return [...lacking, ...climbs].join(' ')
 }
 
-/** The reason when nothing in particular is known to be missing: a hard effort of the headline's length would help. */
-const NEEDS_EFFORT = `A hard ${HEADLINE_LABEL} run or ride would let them be compared.`
+/** The line when nothing in particular is known to be missing: a run or ride of the headline's length would help. */
+const NEEDS_LENGTH = `Add one run or ride of ${HEADLINE_LABEL} or more to compare them.`

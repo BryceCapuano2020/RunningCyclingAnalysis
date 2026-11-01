@@ -60,9 +60,11 @@ html {
   text-decoration-thickness: 2px;
 }
 
+/* Tabs that do not fit one row (five at 200% text on a tablet) wrap to the next, so the page never scrolls sideways. */
 .header__tabs {
   grid-area: tabs;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   min-width: 0;
 }
@@ -170,13 +172,14 @@ html {
     bottom: 0;
     left: 0;
     z-index: 20;
+    flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--border);
     background: var(--surface-0);
   }
 
-  /* Four equal tabs share the bar. A tab is never narrower than its label, so at 200% text the labels do not run
+  /* Five equal tabs share the bar. A tab is never narrower than its label, so at 200% text the labels do not run
      together: the bar scrolls instead, which its overflow rules below handle. */
   .header__tab {
     flex: 1 1 0;

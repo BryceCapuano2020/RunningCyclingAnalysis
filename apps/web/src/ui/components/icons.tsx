@@ -191,6 +191,15 @@ export function BalanceIcon({ className }: IconProps) {
   )
 }
 
+/** Bars of different heights on a baseline, for the History tab. */
+export function HistoryIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M4 20h16M7 20v-6M12 20V5M17 20v-9" />
+    </Icon>
+  )
+}
+
 /** A list with a mark at each line, for the Activities tab. */
 export function ActivitiesIcon({ className }: IconProps) {
   return (

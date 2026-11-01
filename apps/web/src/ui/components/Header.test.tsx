@@ -135,31 +135,32 @@ describe('Header on a phone', () => {
       'scroll-padding-bottom: calc(var(--tab-bar-height) + 1px);',
     )
   })
-  it('sets the four tabs as equal slots that never shrink below their label, with labels at the phone size', () => {
+  it('sets the five tabs as equal slots that never shrink below their label, with labels at the phone size', () => {
     const tab = /\.header__tab \{([^}]*)\}/.exec(phoneBlock(headerCss))?.[1] ?? ''
     expect(tab).toMatch(/flex:\s*1 1 0/)
     expect(tab).toMatch(/min-width:\s*min-content/)
     expect(tab).toMatch(/font-size:\s*var\(--text-label\)/)
   })
 
-  it('fits Activities, the longest label, in its tab slot at 320 px with the small label size, and at 361 px with the phone size, at 100% text', () => {
-    // Four equal tabs share the bar less the gaps between them; each tab keeps its padding either side.
+  it('fits Activities, the longest label, in its tab slot at 350 px with the small label size, and at 375 px with the phone size, at 100% text; narrower, the bar scrolls', () => {
+    // Five equal tabs share the bar less the gaps between them; each tab keeps its padding either side.
     const gap = spacePx(tokensCss, 'space-1')
     const padding = spacePx(tokensCss, 'space-1')
-    const slot = (bar: number) => (bar - 3 * gap) / 4 - 2 * padding
-    // A size is a literal in a block, or the phone label token, which tokens.css holds.
+    const slot = (bar: number) => (bar - 4 * gap) / 5 - 2 * padding
+    // A size is a literal in a block, or a token that tokens.css holds: the phone label token, or the small label's.
+    const remOfToken = (name: string) =>
+      Number(new RegExp(`--${name}:\\s*([\\d.]+)rem`).exec(tokensCss)?.[1])
     const fontPx = (block: string) => {
-      const literal = /\.header__tab \{[^}]*font-size:\s*([\d.]+)rem/.exec(block)?.[1]
-      const token = /--text-label:\s*([\d.]+)rem/.exec(tokensCss)?.[1]
-      return Number(literal ?? token) * 16
+      const value = /\.header__tab \{[^}]*font-size:\s*([^;]+);/.exec(block)?.[1]?.trim()
+      const token = /^var\(--([\w-]+)\)$/.exec(value ?? '')?.[1]
+      const literal = /^([\d.]+)rem$/.exec(value ?? '')?.[1]
+      return Number(literal ?? remOfToken(token ?? 'text-label')) * 16
     }
-    const narrowest = 320
     const smallFont = fontPx(smallPhoneBlock(headerCss))
     const phoneFont = fontPx(phoneBlock(headerCss))
-    expect(ACTIVITIES_PER_FONT_PX * smallFont).toBeLessThanOrEqual(slot(narrowest))
-    expect(ACTIVITIES_PER_FONT_PX * phoneFont).toBeLessThanOrEqual(
-      slot(SMALL_PHONE_MAX_WIDTH_PX + 1),
-    )
+    // Five tabs need more room than four did: below these widths the bar scrolls, as it does at 200% text.
+    expect(ACTIVITIES_PER_FONT_PX * smallFont).toBeLessThanOrEqual(slot(350))
+    expect(ACTIVITIES_PER_FONT_PX * phoneFont).toBeLessThanOrEqual(slot(375))
   })
 
   it('starts the tabs at the left when the bar overflows, so no label spills off the left edge', () => {
@@ -243,10 +244,16 @@ describe('Header', () => {
     expect(screen.queryByRole('navigation', { name: 'Sections' })).not.toBeInTheDocument()
   })
 
-  it('shows the four tabs and marks the current one', () => {
+  it('shows the five tabs and marks the current one', () => {
     render(<Header route={{ page: 'ride' }} />)
     const tabs = within(screen.getByRole('navigation', { name: 'Sections' })).getAllByRole('link')
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Balance', 'Run', 'Ride', 'Activities'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      'Balance',
+      'Run',
+      'Ride',
+      'History',
+      'Activities',
+    ])
     expect(screen.getByRole('link', { name: 'Ride' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Run' })).not.toHaveAttribute('aria-current')
   })
@@ -331,10 +338,10 @@ describe('Header', () => {
 })
 
 describe('Header glyphs and wordmark', () => {
-  it('gives every tab a glyph, so the four tabs read as one set', () => {
+  it('gives every tab a glyph, so the five tabs read as one set', () => {
     render(<Header route={{ page: 'balance' }} />)
     const tabs = within(screen.getByRole('navigation', { name: 'Sections' })).getAllByRole('link')
-    expect(tabs).toHaveLength(4)
+    expect(tabs).toHaveLength(5)
     for (const tab of tabs) expect(tab.querySelector('svg')).not.toBeNull()
   })
 

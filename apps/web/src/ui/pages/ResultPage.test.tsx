@@ -2,6 +2,8 @@
 import '../../test/warmSample'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { NO_WINDOW } from '@rca/core/answer'
+import type { AnswerWindow } from '@rca/core/answer'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sex } from '@rca/core/grade'
 import type { PeriodChoice } from '@rca/core/period'
@@ -538,6 +540,42 @@ describe('ResultPage period', () => {
     expect(setRange).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the window the default settled on when its checked segment is clicked', () => {
+    const setRange = vi.fn()
+    const window: AnswerWindow = {
+      choice: 365,
+      reason: 'qualified',
+      passed: [{ days: 84, lacks: [{ sport: 'run', lack: 'easy' }] }],
+    }
+    render(
+      <ResultPage
+        countedRuns={countedRunsStub()}
+        signedIn={false}
+        route={{ page: 'balance' }}
+        analysis={analysisStub({
+          state: {
+            result: makeResult(),
+            period: { choice: 'default', startMs: null, endMs: null, days: 365, fellBack: false },
+            answerWindow: window,
+          },
+          setRange,
+        })}
+        result={makeResult()}
+        settings={SETTINGS}
+        weightKnown
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />,
+    )
+    expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: '12 months' }))
+    expect(setRange).toHaveBeenCalledTimes(1)
+    expect(setRange.mock.calls[0]![0]).toBe(365)
+    // The pick is kept on this device, so the next visit opens on it and not on a new search.
+    expect(localStorage.getItem(PERIOD_KEY)).toBe(JSON.stringify(365))
+  })
+
   it('sends the stored period again when a load brings the period back to the default', () => {
     localStorage.setItem(PERIOD_KEY, JSON.stringify(365))
     const setRange = vi.fn()
@@ -572,7 +610,11 @@ describe('ResultPage period', () => {
   })
 
   /** A balance page over one run from 3 June 2025, with the clock at 25 October 2026. */
-  function renderOldLibrary(fellBack: boolean, withRide = false) {
+  function renderOldLibrary(
+    fellBack: boolean,
+    withRide = false,
+    answerWindow: AnswerWindow = NO_WINDOW,
+  ) {
     const old = makeActivity({
       id: 'old-run',
       sport: 'run',
@@ -597,7 +639,7 @@ describe('ResultPage period', () => {
         signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub({
-          state: { result: makeResult({ activities }), library: activities, period },
+          state: { result: makeResult({ activities }), library: activities, period, answerWindow },
         })}
         result={makeResult({ activities })}
         settings={SETTINGS}
@@ -624,20 +666,45 @@ describe('ResultPage period', () => {
     }
   })
 
-  it('says why the default is all time, naming the missing sport, and the latest activity, in the same note', () => {
+  it('says which window the default settled on and why, and the latest activity, in the same note', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
-      const { container } = renderOldLibrary(true, true)
+      const passed = [84, 182, 365].map((days) => ({
+        days,
+        lacks: [{ sport: 'ride' as const, lack: 'few' as const }],
+      }))
+      const { container } = renderOldLibrary(true, true, {
+        choice: 'all',
+        reason: 'all-time',
+        passed,
+      })
       expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-        'Your last 12 weeks hold no rides, so this shows all time · Same 2 activities as the 12 months to your latest activity · Latest activity 17 months ago',
+        'All time. Your last 12 weeks had too few rides · Same 2 activities as the 6 months to your latest activity · Latest activity 17 months ago',
       )
-      // The segment in force is All time, not the 12 weeks the stored choice names.
+      // The segment in force is All time, the window the default resolved to, and not the 12 weeks.
       expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
       expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('checks the segment of the window the default settled on, and puts the reason in the note', () => {
+    const window: AnswerWindow = {
+      choice: 365,
+      reason: 'qualified',
+      passed: [
+        { days: 84, lacks: [{ sport: 'run', lack: 'easy' }] },
+        { days: 182, lacks: [{ sport: 'run', lack: 'easy' }] },
+      ],
+    }
+    const { container } = renderOldLibrary(false, true, window)
+    expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
+    expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
+      'Your last 12 months. Your last 12 weeks had no hard runs',
+    )
   })
 
   it('has no fallback note for a library shorter than 12 weeks, and keeps the latest activity', () => {

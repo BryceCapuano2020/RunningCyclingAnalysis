@@ -25,8 +25,7 @@ function homeOf(name: PersonaName) {
   const result = combine(digests, { massKg: 75, bikeMassKg: 9 })
   const sole = soleSportOf(result.activities)!
   const held = missingText(result, result.activities, ALL_TIME, { run: null, ride: null })
-  const nowMs = Date.UTC(2025, 5, 16)
-  const fitness = fitnessStatuses(digests, new Set(), { nowMs })
+  const fitness = fitnessStatuses(digests, new Set())
   return {
     sole,
     title: held.title,
@@ -34,20 +33,18 @@ function homeOf(name: PersonaName) {
     threshold: hasThreshold(result, sole),
     needs: hasThreshold(result, sole) ? null : thresholdNeedsLine(result, sole),
     split: indoorSplitLine(result.activities, sole),
-    fitnessCards: fitnessViews(fitness, 'metric').length,
+    fitnessCards: fitnessViews(fitness, 'metric', Date.UTC(2025, 5, 16)).length,
   }
 }
 
-const HARDER = 'Needs a harder effort between 3 and 20 min'
-
 /** What each persona's home says, recorded from the generator at seed 1 (a change of wording or of a rule moves a row). */
 const EXPECTED = {
-  watchRunner: { sole: 'run', title: 'Your running so far', detail: HARDER, split: null, cards: 1 },
+  watchRunner: { sole: 'run', title: 'Your running so far', detail: '', split: null, cards: 1 },
   phoneSlowRunner: { sole: 'run', title: 'Your running so far', detail: '', split: null, cards: 1 },
   treadmillHeavy: {
     sole: 'run',
     title: 'Your running so far',
-    detail: HARDER,
+    detail: '',
     split:
       '20 of your 33 runs were on a treadmill; their pace is not used for bests or thresholds.',
     cards: 1,
@@ -61,11 +58,11 @@ const EXPECTED = {
     split: null,
     cards: 0,
   },
-  ridePower: { sole: 'ride', title: 'Your cycling so far', detail: HARDER, split: null, cards: 1 },
+  ridePower: { sole: 'ride', title: 'Your cycling so far', detail: '', split: null, cards: 1 },
   rideNoPower: {
     sole: 'ride',
     title: 'Your cycling so far',
-    detail: 'Needs efforts between 3 and 20 min',
+    detail: 'Needs an effort of 20 min or longer',
     split: null,
     cards: 0,
   },
@@ -91,6 +88,6 @@ describe('a one-sport Balance, by persona', () => {
   it('a treadmill-only runner is told how many runs were on a treadmill, never to add efforts', () => {
     const { needs } = homeOf('treadmillOnly')
     expect(needs).toMatch(/^All \d+ of your runs were on a treadmill\./)
-    expect(needs).not.toMatch(/Needs efforts/)
+    expect(needs).not.toMatch(/Needs an effort/)
   })
 })

@@ -7,7 +7,7 @@ import type { Period } from '@rca/core/period'
 import type { TrendPoint } from '@rca/core/digest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
-import { SPORT_LABEL, SPORT_ORDER } from '../sports'
+import { BALANCE_PAIR, SPORT_LABEL } from '../sports'
 import { flatSpeedToMetabolic } from '@rca/core/metabolic'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
@@ -252,12 +252,12 @@ describe('BalancePage', () => {
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toBeInTheDocument()
   })
 
-  it('lays the tiles out in the sport order, then the ride on foot, with no tile for the lean', () => {
+  it('lays the tiles out in the order of the balance pair, then the ride on foot, with no tile for the lean', () => {
     renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
     const names = screen.getAllByRole('article').map((tile) => tile.getAttribute('aria-label'))
     expect(names).toEqual([
-      `${SPORT_LABEL[SPORT_ORDER[0]]} threshold`,
-      `${SPORT_LABEL[SPORT_ORDER[1]]} threshold`,
+      `${SPORT_LABEL[BALANCE_PAIR[0]]} threshold`,
+      `${SPORT_LABEL[BALANCE_PAIR[1]]} threshold`,
       'Ride on foot',
     ])
   })
@@ -268,9 +268,7 @@ describe('BalancePage', () => {
     )
     // The check sits on the tile it qualifies, as a one-line chip: no card of its own.
     const tile = screen.getByRole('article', { name: 'Ride threshold' })
-    expect(
-      within(tile).getByRole('button', { name: 'Not a hard effort · 80%' }),
-    ).toBeInTheDocument()
+    expect(within(tile).getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
     expect(
       within(screen.getByRole('article', { name: 'Run threshold' })).getByRole('button', {
         name: 'Hard effort · 95%',

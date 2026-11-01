@@ -13,15 +13,11 @@ const SIZES = [
   { name: 'desktop', width: 1440, height: 900 },
 ] as const
 
-/** Opens every closed section of a sport page, each followed by its content, so the charts behind them are checked. */
+/** Waits for the sections of a sport page, which are open to start with, so the charts in them are checked. */
 async function openSections(page: Page): Promise<void> {
-  const closed = page.locator('.sport-disclosure__summary')
-  const count = await closed.count()
+  const count = await page.locator('.sport-disclosure__summary').count()
   expect(count).toBeGreaterThan(0)
-  for (let i = 0; i < count; i += 1) {
-    await closed.nth(i).click()
-    await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(i + 1)
-  }
+  await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(count)
 }
 
 async function spaceText(page: Page): Promise<void> {

@@ -219,11 +219,9 @@ describe('timeInZonesLack', () => {
   it('says what the sport needs when there is too little', () => {
     const thin = measureTime('run', 'heartRate', [60, 0, 0, 0, 0], { counted: 1 })
     expect(timeInZonesLack('run', [thin])).toBe(
-      'Time in zones: needs an activity with heart rate, or a threshold pace entered on Profile.',
+      'Needs an activity with heart rate, or a threshold pace entered on Profile.',
     )
-    expect(timeInZonesLack('ride', [])).toBe(
-      'Time in zones: needs an activity with heart rate or a power meter.',
-    )
+    expect(timeInZonesLack('ride', [])).toBe('Needs an activity with heart rate or a power meter.')
     // Over all time, the widest window there is, whatever the library holds is described.
     expect(timeInZonesLack('run', [thin], true)).toBeNull()
   })
@@ -231,7 +229,7 @@ describe('timeInZonesLack', () => {
   it('asks for a reference when the activities have data but no zones', () => {
     const noZones = measureTime('run', 'heartRate', [0, 0, 0, 0, 0], { counted: 0, noZones: 6 })
     expect(timeInZonesLack('run', [noZones])).toBe(
-      'Time in zones: needs a max heart rate or a threshold, entered on Profile.',
+      'Needs a max heart rate or a threshold, entered on Profile.',
     )
   })
 })

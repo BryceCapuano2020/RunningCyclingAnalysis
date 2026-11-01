@@ -1,5 +1,5 @@
 import { calendarDays, daysBefore, endOfLocalDay, startOfLocalDay } from './calendar'
-import type { ActivityDigest, Sport } from './types'
+import type { ActivityDigest } from './types'
 import { dayOf, dayStartMs, isCustomChoice, orderedRange } from './customRange'
 
 // The days a period is cut in are the calendar's (calendar.ts); callers keep these names here.
@@ -12,7 +12,7 @@ import type { CustomRange } from './customRange'
  */
 export const MAX_PERIOD_DAYS = 36_500
 
-/** The default period is the latest window of this many weeks that holds every sport the library has. */
+/** The shortest window the default tries, and the one a library falls back to when it has no better: 12 weeks. */
 export const DEFAULT_PERIOD_WEEKS = 12
 export const DEFAULT_PERIOD_DAYS = DEFAULT_PERIOD_WEEKS * 7
 
@@ -24,9 +24,15 @@ export const DEFAULT_PERIOD_DAYS = DEFAULT_PERIOD_WEEKS * 7
 export type PeriodChoice = 'default' | 'all' | number | CustomRange
 
 /**
+ * The window the default stands for once it is resolved (`resolveWindow`): a number of days back from the newest activity,
+ * or all time. The choice stays 'default'; this is what its dates are cut from.
+ */
+export type WindowChoice = 'all' | number
+
+/**
  * The period on screen. Its dates are inclusive, and both are null for an empty library. `days` is
- * the length, null for all time, which has no period before it. `fellBack` says that the default window
- * lacks a sport the library has, so the default shows all time.
+ * the length, null for all time, which has no period before it. `fellBack` says that the default resolved to all
+ * time, because no shorter window held every sport the library has.
  */
 export interface Period {
   choice: PeriodChoice
@@ -42,18 +48,6 @@ export interface Periods {
   selected: ActivityDigest[]
   /** The digests in the period before it, of the same length. Empty for all time. */
   previous: ActivityDigest[]
-}
-
-/** Whether a sorted list holds a value between from and to, both inclusive. */
-function holds(sorted: readonly number[], from: number, to: number): boolean {
-  let low = 0
-  let high = sorted.length
-  while (low < high) {
-    const middle = (low + high) >> 1
-    if (sorted[middle]! < from) low = middle + 1
-    else high = middle
-  }
-  return low < sorted.length && sorted[low]! <= to
 }
 
 /** The choice a value names: a period the control offers or a custom range, and undefined for anything else. */
@@ -108,63 +102,16 @@ export function windowEnding(newestMs: number, days: number): { startMs: number;
   }
 }
 
-/** The default window and the sports of the library that have no activity in it. */
-function defaultReach(visible: readonly { sport: Sport; startMs: number }[]): {
-  startMs: number
-  endMs: number
-  earliest: number
-  missing: Sport[]
-} {
-  let earliest = Infinity
-  let newest = -Infinity
-  const bySport = new Map<Sport, number[]>()
-  for (const { sport, startMs } of visible) {
-    earliest = Math.min(earliest, startMs)
-    newest = Math.max(newest, startMs)
-    const starts = bySport.get(sport)
-    if (starts === undefined) bySport.set(sport, [startMs])
-    else starts.push(startMs)
-  }
-  const window = windowEnding(newest, DEFAULT_PERIOD_DAYS)
-  const missing = [...bySport]
-    .filter(
-      ([, starts]) =>
-        !holds(
-          starts.sort((a, b) => a - b),
-          window.startMs,
-          window.endMs,
-        ),
-    )
-    .map(([sport]) => sport)
-  return { ...window, earliest, missing }
-}
-
 /**
- * The sports the library holds that the default window has no activity of. Empty for a library of one
- * sport, whose newest activity is always in the window, and for any library the window covers.
+ * The period a choice names, dated from the visible digests. `resolved` is the window the default stands for, found
+ * by `resolveWindow`; it dates the 'default' choice and is ignored for any other. A default with no window resolved is
+ * all time.
  */
-export function sportsMissingFromDefault(
-  visible: readonly { sport: Sport; startMs: number }[],
-): Sport[] {
-  return visible.length === 0 ? [] : defaultReach(visible).missing
-}
-
-/**
- * The default window: the 12 weeks up to the newest activity's day, when they hold every sport the
- * library has. It always ends on the newest day, so it never hides recent activities behind an older
- * window. A library shorter than the window has no previous period to compare with, so it has no default
- * window: the default is all time, which dates it from its first activity.
- */
-function defaultWindow(
+export function periodOf(
   visible: readonly ActivityDigest[],
-): { startMs: number; endMs: number } | null {
-  const reach = defaultReach(visible)
-  if (reach.missing.length > 0 || startOfLocalDay(reach.earliest) > reach.startMs) return null
-  return { startMs: reach.startMs, endMs: reach.endMs }
-}
-
-/** The period a choice names, dated from the visible digests. */
-export function periodOf(visible: readonly ActivityDigest[], choice: PeriodChoice): Period {
+  choice: PeriodChoice,
+  resolved: WindowChoice = 'all',
+): Period {
   const ordered = typeof choice === 'object' ? orderedRange(choice) : choice
   if (visible.length === 0)
     return { choice: ordered, startMs: null, endMs: null, days: null, fellBack: false }
@@ -174,9 +121,8 @@ export function periodOf(visible: readonly ActivityDigest[], choice: PeriodChoic
   const allTime = { choice, startMs: first, endMs, days: null, fellBack: false }
   if (choice === 'all') return allTime
   if (choice === 'default') {
-    const window = defaultWindow(visible)
-    if (window === null) return { ...allTime, fellBack: true }
-    return { choice, ...window, days: calendarDays(window.startMs, window.endMs), fellBack: false }
+    if (resolved === 'all') return { ...allTime, fellBack: true }
+    return { choice, ...windowEnding(newest, resolved), days: resolved, fellBack: false }
   }
   if (typeof choice === 'object') return customPeriod(choice)
   return { choice, ...windowEnding(newest, choice), days: choice, fellBack: false }
@@ -197,18 +143,27 @@ function customPeriod(choice: CustomRange): Period {
   return { choice: range, startMs, endMs, days: calendarDays(startMs, endMs), fellBack: false }
 }
 
+/** The first millisecond of a window `back` periods before one that starts at `startMs` and counts `days`; the window ends where the one after it starts. */
+export function windowStart(startMs: number, days: number, back: number): number {
+  return back === 0 ? startMs : daysBefore(startOfLocalDay(startMs), days * back)
+}
+
 /**
  * Splits the visible digests into the period and the one before it, of the same length in calendar
  * days. A period that counts back from a number of days ends at the newest activity's day, not today,
  * so an old export still shows its last weeks.
  */
-export function splitPeriods(visible: ActivityDigest[], choice: PeriodChoice): Periods {
-  const period = periodOf(visible, choice)
+export function splitPeriods(
+  visible: ActivityDigest[],
+  choice: PeriodChoice,
+  resolved?: WindowChoice,
+): Periods {
+  const period = periodOf(visible, choice, resolved)
   const { startMs, endMs, days } = period
   if (startMs === null || endMs === null) return { period, selected: [], previous: [] }
   const selected = visible.filter((d) => d.startMs >= startMs && d.startMs <= endMs)
   if (days === null) return { period, selected, previous: [] }
-  const previousStartMs = daysBefore(startOfLocalDay(startMs), days)
+  const previousStartMs = windowStart(startMs, days, 1)
   const previous = visible.filter((d) => d.startMs >= previousStartMs && d.startMs < startMs)
   return { period, selected, previous }
 }

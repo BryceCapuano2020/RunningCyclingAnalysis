@@ -55,13 +55,10 @@ function openEverySection(sport: 'Run' | 'Ride') {
   return async (page: Page): Promise<void> => {
     await openGradedSample(page)
     await goTo(page, sport)
-    const closed = page.locator('.sport-disclosure__summary')
-    const count = await closed.count()
+    // The sections are open to start with, each with its content drawn.
+    const count = await page.locator('.sport-disclosure__summary').count()
     expect(count).toBeGreaterThan(0)
-    for (let i = 0; i < count; i += 1) {
-      await closed.nth(i).click()
-      await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(i + 1)
-    }
+    await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(count)
     const about = page.getByText('About these predictions')
     if ((await about.count()) > 0) {
       await about.click()

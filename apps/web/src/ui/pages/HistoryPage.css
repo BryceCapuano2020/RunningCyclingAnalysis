@@ -1,0 +1,35 @@
+/* The totals in one row that wraps: two to a line on a phone. */
+.history-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--column-stat), 1fr));
+  gap: var(--space-4) var(--space-5);
+  margin: 0;
+}
+
+.history-summary__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.history-summary__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sport-colour);
+}
+
+.history-summary__value {
+  margin: 0;
+  font-size: var(--display-3);
+}
+
+/* What a chart needs from the athlete before it can draw: one line, and the button that adds it. */
+.history__prompt {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}

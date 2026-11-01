@@ -1,3 +1,4 @@
+import { NO_WINDOW } from '@rca/core/answer'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
@@ -8,6 +9,7 @@ import { NONE_WITHHELD, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_LOOKBACK } from '@rca/core/lookback'
+import { NO_HISTORY } from '@rca/core/history'
 import { NO_ZONE_TIMES } from '@rca/core/zones'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
 import type { AccountController } from '../useAccount'
@@ -108,7 +110,7 @@ export function drainBatches(queue: Box<File[][]>): File[][] {
 
 /**
  * The analysis an import is compared with, and the period it was made under. A period is a regime: the default period
- * is 12 weeks, or all time where the last 12 weeks lack a sport the library has, so one added activity can switch it, and figures from
+ * is the window the search settles on (12 weeks, 26 weeks, 12 months or all time), so one added activity can switch it, and figures from
  * two regimes are not figures of one athlete changing.
  */
 export interface Baseline {
@@ -139,18 +141,22 @@ export const EMPTY_SESSION: SessionState = {
   libraryActivities: 0,
   heldOut: [],
   hiddenDuplicates: 0,
+  answerWindow: NO_WINDOW,
   walkingPaceRuns: 0,
   countedWalkingRuns: [],
   trend: [],
   previous: null,
   change: null,
+  earlier: null,
   effortTrends: NO_TRENDS,
   dotsWithheld: NONE_WITHHELD,
   sameHeartRate: NO_SAME_HEART_RATE,
+  libraryBests: null,
   lateEvidence: NO_LATE_EVIDENCE,
   heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
   fitness: NO_FITNESS,
   lookBack: NO_LOOKBACK,
+  history: NO_HISTORY,
   zoneEstimates: null,
   timeInZones: NO_ZONE_TIMES,
   records: new Map(),

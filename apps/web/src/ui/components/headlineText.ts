@@ -6,31 +6,19 @@ import { formatDuration, formatPercent } from '@rca/core/units'
 import { wholeCentre, type Lean } from '../../domain/lean'
 import { plural } from './plural'
 import { effortLabel } from '../records'
-import { HEADLINE_LABEL } from '../grades'
-import { SPORT_ACTIVITY, SPORT_LABEL, SPORT_NOUN, SPORT_ORDER, SPORT_TITLE } from '../sports'
+import { SPORT_LABEL, SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { energyReading, type BalanceReading } from './balanceScale'
 
 /** The title when both sports are on file but no efforts of the same length can be compared yet. */
 export const HARDER_EFFORTS_TITLE = 'Not enough to compare yet'
 
 /**
- * The title when a level is known but the sports cannot be compared yet: it names what the files do show, so
- * a held comparison is never the headline over a page of grades. Null when no sport has a level. A level read from
- * a best 20 minutes that was not shown to be a hard effort (`unconfirmed`) is not asserted as the sport's level: the title
- * says what the best grades, "Your best 20 min run grades Local".
+ * The title of a page that cannot state a balance, one sport on file or the sports not yet comparable: it names what the
+ * files do show, so a held comparison is never the headline over a page of grades. Null when no sport has a level. A page
+ * that states a balance is titled by `balanceTitle`, whatever its bests were.
  */
-export function levelsTitle(
-  levels: Partial<Record<Sport, string | null>>,
-  unconfirmed: readonly Sport[] = [],
-): string | null {
+export function levelsTitle(levels: Partial<Record<Sport, string | null>>): string | null {
   const { run, ride } = levels
-  const shown = SPORT_ORDER.filter((sport) => levels[sport])
-  if (shown.some((sport) => unconfirmed.includes(sport))) {
-    const parts = shown.map(
-      (sport) => `best ${HEADLINE_LABEL} ${SPORT_ACTIVITY[sport]} grades ${levels[sport]}`,
-    )
-    return `Your ${parts.join(' and your ')}`
-  }
   if (run && ride) return `${SPORT_TITLE.run} is at ${run} level, ${SPORT_NOUN.ride} at ${ride}`
   if (run) return `Your ${SPORT_NOUN.run} is at ${run} level`
   if (ride) return `Your ${SPORT_NOUN.ride} is at ${ride} level`
@@ -87,15 +75,16 @@ function leaderOf(lean: Exclude<Lean, 'even'>): { leader: string; other: string 
     : { leader: SPORT_NOUN.ride, other: SPORT_NOUN.run }
 }
 
-/** The sport a balance reads from: the one its best estimate favours, running when the estimate rounds to zero. */
+/** The sport a balance reads from: the one its best estimate favours, the pair's first when the estimate rounds to zero. */
 export function readFrom(reading: BalanceReading): Sport {
-  return wholeCentre(reading.lead) < 0 ? 'ride' : 'run'
+  const [first, second] = reading.pair
+  return wholeCentre(reading.lead) < 0 ? second : first
 }
 
 /** A lead's range from the side it is read from: both ends positive when the range stays on that sport's side. */
 export function sideRange(reading: BalanceReading): [number, number] {
   const { low, high } = reading.lead
-  return readFrom(reading) === 'ride' ? [-high, -low] : [low, high]
+  return readFrom(reading) === reading.pair[1] ? [-high, -low] : [low, high]
 }
 
 /**
@@ -163,14 +152,15 @@ function gradeSummary(reading: BalanceReading): string {
 }
 
 /** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */
-function energySummary({ unit, lean, lead }: BalanceReading, duration: string): string {
+function energySummary(reading: BalanceReading, duration: string): string {
+  const { lean, lead } = reading
   if (lean === 'even') {
-    return `Over ${duration}, your running and your cycling are level as energy per kilogram, within ${rangeText({ unit, lean, lead })}.`
+    return `Over ${duration}, your running and your cycling are level as energy per kilogram, within ${rangeText(reading)}.`
   }
   const { leader, other } = leaderOf(lean)
   // The edge's rule, so a lead under half a percent reads as its value, never as 0%.
   const amount = percentEdge(Math.abs(lead.centre), false)
-  const within = isPoint({ unit, lean, lead }) ? '' : `, within ${rangeText({ unit, lean, lead })}`
+  const within = isPoint(reading) ? '' : `, within ${rangeText(reading)}`
   return `Over ${duration}, your ${leader} is ${amount} higher than your ${other}${within}, as energy per kilogram.`
 }
 

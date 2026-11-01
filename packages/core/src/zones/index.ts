@@ -10,7 +10,7 @@ export { TRACE_METRIC_OF, traceTimeInZones } from './traceZones'
 export type { TraceZoneTime } from './traceZones'
 export { noTimeInZones, periodTimeInZones } from './periodTime'
 export type { MeasureTime, TimeInZones } from './periodTime'
-export { NO_ZONE_TIMES, ZoneTimeCache } from './timeCache'
+export { NO_ZONE_TIMES, ZoneTimeCache, settingsKey } from './timeCache'
 export type { PeriodZoneTimes } from './timeCache'
 export {
   EASY_THROUGH,

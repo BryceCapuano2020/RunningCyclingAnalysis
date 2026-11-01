@@ -86,6 +86,31 @@ describe('ChartFrame', () => {
     expect(container.querySelector('.chart-frame__lede')).toBeNull()
   })
 
+  it('puts its controls under the lede and above the key, takes a toggle at the width of its segments, and has no row without them', () => {
+    const { container } = renderFrame({
+      lede: 'Your running grades higher.',
+      legend: [],
+      controls: <button type="button">Ride</button>,
+    })
+    const order = Array.from(container.querySelector('figure')?.children ?? []).map(
+      (child) => child.className,
+    )
+    expect(order.slice(0, 4)).toEqual([
+      'chart-frame__title',
+      'chart-frame__lede',
+      'chart-frame__controls',
+      'chart-frame__legend',
+    ])
+    expect(screen.getByRole('button', { name: 'Ride' }).parentElement).toHaveClass(
+      'chart-frame__controls',
+    )
+    expect(ruleBody(frameCss, '.chart-frame__controls > .segmented-control')).toMatch(
+      /width:\s*fit-content/,
+    )
+    cleanup()
+    expect(renderFrame().container.querySelector('.chart-frame__controls')).toBeNull()
+  })
+
   it('lets a finger scroll the page and pinch to zoom over the drawing, not only the plot', () => {
     expect(ruleBody(frameCss, '.chart-frame__svg')).toMatch(/touch-action:\s*pan-y pinch-zoom/)
   })

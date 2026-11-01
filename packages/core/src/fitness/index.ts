@@ -12,6 +12,7 @@ export type {
   FitnessBySport,
   FitnessEntry,
   FitnessEvidence,
+  FitnessLevel,
   FitnessMethod,
   FitnessPoint,
   FitnessSpan,

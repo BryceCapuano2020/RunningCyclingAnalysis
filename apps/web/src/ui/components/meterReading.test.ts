@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { leanOfLead } from '../../domain/lean'
+import { BALANCE_PAIR } from '../sports'
 import { energyReading, gapReading } from './balanceScale'
 import { interval } from './fixtures'
 import { meterRange, meterValue, rangeVerdictText, readingChars } from './meterReading'
@@ -47,7 +48,12 @@ describe('meterRange', () => {
 
 describe('meterValue for an energy balance', () => {
   const energy = (centre: number) =>
-    ({ unit: 'percent', lean: 'run', lead: { centre, low: centre - 1, high: centre + 1 } }) as const
+    ({
+      pair: BALANCE_PAIR,
+      unit: 'percent',
+      lean: 'run',
+      lead: { centre, low: centre - 1, high: centre + 1 },
+    }) as const
 
   it('writes exactly zero as 0, unsigned', () => {
     expect(meterValue(energy(0))).toEqual({ number: '0', unit: '%' })
@@ -76,6 +82,7 @@ describe('readingChars', () => {
 
   it('counts a percent range that reaches the other side, with its signs', () => {
     const long = {
+      pair: BALANCE_PAIR,
       unit: 'percent',
       lean: 'run',
       lead: { centre: 12.4, low: -12.4, high: 30.5 },

@@ -15,29 +15,39 @@ export const SPRINT_S = 60
 export type PointVerdict = 'hard' | 'notHard' | 'unknown' | 'free'
 
 /**
- * Whether one point of an activity's curve was a hard effort, by the heart rate it was held at. Up to 20 minutes it is the
- * session's peak (the late-best session test); beyond it the session's average, since a steady effort of an hour or more
- * sits at 80% to 90% of the maximum, not at the hard line (the endurance test of a race prediction). `unknown` without a
- * heart rate, with it set aside, or against a reference too thin to judge; `notHard` against a reference that cannot
- * certify a maximum.
+ * Whether an effort of `lengthS` seconds in an activity was a hard effort, by the heart rate it was held at. Up to 20
+ * minutes it is the session's peak (the late-best session test); beyond it the session's average, since a steady effort
+ * of an hour or more sits at 80% to 90% of the maximum, not at the hard line (the endurance test of a race prediction).
+ * `unknown` without a heart rate, with it set aside, or against a reference too thin to judge; `notHard` against a
+ * reference that cannot certify a maximum. A best that is not a curve point (a run's time over a distance) is judged here.
  */
-export function pointVerdict(
+export function effortVerdict(
   digest: ActivityDigest,
-  point: DigestCurvePoint,
+  lengthS: number,
   reference: EffortReference,
   setAside: ReadonlySet<string>,
 ): PointVerdict {
-  if (point.durationS <= SPRINT_S) return 'free'
+  if (lengthS <= SPRINT_S) return 'free'
   if (setAside.has(digest.id)) return 'unknown'
   const bpm = reference.referenceHr[digest.sport]
   const reading = reference.reading[digest.sport]
-  if (point.durationS <= HEADLINE_DURATION_S) return sessionVerdict(digest, bpm, reading)
+  if (lengthS <= HEADLINE_DURATION_S) return sessionVerdict(digest, bpm, reading)
   const average = digest.avgHeartRate
   if (typeof average !== 'number' || bpm === null || !(bpm > 0) || reading === null) {
     return 'unknown'
   }
   if (reading === 'thin') return 'unknown'
   return reading === 'trusted' && average / bpm >= ENDURANCE_AVERAGE_SHARE ? 'hard' : 'notHard'
+}
+
+/** Whether one point of an activity's curve was a hard effort (see `effortVerdict`), at its duration. */
+export function pointVerdict(
+  digest: ActivityDigest,
+  point: DigestCurvePoint,
+  reference: EffortReference,
+  setAside: ReadonlySet<string>,
+): PointVerdict {
+  return effortVerdict(digest, point.durationS, reference, setAside)
 }
 
 /**

@@ -121,8 +121,8 @@ describe("the finding a sport's years are named by", () => {
     expect(yearsFinding(block('ride', short))).toBe(
       'Your years start after a year of steady riding',
     )
-    expect(tooShortText(short, 'ride')).toMatch(
-      /40 steady rides over 52 weeks\. So far there are 20 steady rides over 30 weeks\.$/,
+    expect(tooShortText(short, 'ride')).toBe(
+      'Needs 40 steady rides over 52 weeks. You have 20 over 30.',
     )
     expect(thinRow({ fromMs: T(2021, 1), toMs: T(2021, 5) }, 'ride')).toBe(
       'No steady rides from January to May 2021.',

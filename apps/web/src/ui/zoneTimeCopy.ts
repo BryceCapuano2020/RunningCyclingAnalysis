@@ -4,10 +4,9 @@ import type { Sport } from '@rca/core/types'
 import { formatDuration, formatTotalTime } from '@rca/core/units'
 import { formatDayMonth } from './format/date'
 import { upperFirst } from './format/firstLetter'
-import { lackLine } from './pages/lackLine'
 import { SPORT_PLURAL } from './sports'
 
-/** The section's name, in its heading and in the page's "Not enough yet" list. */
+/** The section's name, in its heading. */
 export const TIME_IN_ZONES_NAME = 'Time in zones'
 
 /** A measure as a sentence names it: "heart rate zone 2", "power zone 3". */
@@ -163,13 +162,13 @@ export function zoneBasisNotes(rows: readonly MeasureTime[]): string[] {
   })
 }
 
-/** What each sport needs to show its time in zones, for the "Not enough yet" list. */
+/** What each sport needs to show its time in zones. */
 const NEED: Record<Sport, string> = {
   run: 'heart rate, or a threshold pace entered on Profile',
   ride: 'heart rate or a power meter',
 }
 
-/** Why there is no time in zones to show, as a "Not enough yet" line, or null when there is some. */
+/** What the section needs when there is no time in zones to show, or null when there is some. */
 export function timeInZonesLack(
   sport: Sport,
   rows: readonly MeasureTime[],
@@ -177,11 +176,6 @@ export function timeInZonesLack(
 ): string | null {
   if (describable(rows, relaxed).length > 0) return null
   const withoutZones = rows.some((row) => row.noZones > 0 && row.counted === 0)
-  if (withoutZones) {
-    return lackLine(
-      TIME_IN_ZONES_NAME,
-      'needs a max heart rate or a threshold, entered on Profile.',
-    )
-  }
-  return lackLine(TIME_IN_ZONES_NAME, `needs an activity with ${NEED[sport]}.`)
+  if (withoutZones) return 'Needs a max heart rate or a threshold, entered on Profile.'
+  return `Needs an activity with ${NEED[sport]}.`
 }

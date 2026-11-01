@@ -155,7 +155,7 @@ are in line with each other, compared from 5 s to 60 min.", and the page shows n
 
 - Changes made for the false-finding audit (D5). The drop rule's trimmed spread is the case above: the refit's residual spread is
   now never below the first fit's, so dropping points cannot tighten the interval the rest are judged by. The level
-  (`PROFILE_ALPHA`, 5% over the rows) is for a library of `PROFILE_IN_LINE_MIN_ACTIVITIES` (40) activities or more and is scaled by
+  (`PROFILE_ALPHA`, 5% over the rows) is for a library of `PROFILE_FULL_LEVEL_ACTIVITIES` (40) activities or more and is scaled by
   activities over 40 below that. A duration that stands out is stated at a size corrected for having been picked as the largest of
   several (a conditional estimate from the truncated normal above the flag cut, `profile/winnersCurse.ts`), and the drawn bar is centred on
   that stated size. "In line with each other"

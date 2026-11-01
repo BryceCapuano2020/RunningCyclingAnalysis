@@ -42,6 +42,28 @@ export type Sport = (typeof SPORTS)[number]
 /** Lifting is a third discipline that stays out of ActivityDigest and AnalysisResult. */
 export type Discipline = Sport | 'lift'
 
+/** A lead on a scale: its centre and the low and high ends of its range. */
+export interface PairLead {
+  centre: number
+  low: number
+  high: number
+}
+
+/**
+ * A balance reading is pairwise (docs/design/strength.md): two disciplines, a lead in a unit, and the
+ * side it leans to. A positive lead favours the first discipline of `pair`. Run and ride is the one
+ * pair that exists today.
+ */
+export interface PairReading {
+  /** The two disciplines compared, in the order a positive lead favours them. */
+  pair: readonly [Discipline, Discipline]
+  /** What the lead is measured in; each pair names its own. */
+  unit: string
+  lead: PairLead
+  /** The discipline the lead favours, or even when the two are level. */
+  lean: Discipline | 'even'
+}
+
 /**
  * One activity on a 1 Hz elapsed-time grid. Every stream has length `n`.
  * A missing sample is NaN. Index i is i seconds after `startMs`.

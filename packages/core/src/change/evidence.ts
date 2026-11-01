@@ -44,6 +44,15 @@ function chosen(
   return null
 }
 
+/**
+ * Whether the periods hold enough efforts of one length for the test to be made (the call is not `untested`): the
+ * readings the basis picks reach `minPerSide` on each side and `minPooled` together.
+ */
+export function canTest(sport: Sport, now: DurationReadings, before: DurationReadings): boolean {
+  const from = chosen(sport, now, before)
+  return from !== null && enough(from.now.length, from.before.length)
+}
+
 /** The call for one length: the observed ln ratio of the two periods' bests, and whether it leaves the null's band. */
 function callFor(
   sport: Sport,

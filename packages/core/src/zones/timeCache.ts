@@ -28,7 +28,7 @@ export const NO_ZONE_TIMES: PeriodZoneTimes = {
  * What the zones depend on in the settings: the body mass and every dated setting. Two settings with
  * the same key cut every activity the same way. The bike mass does not enter.
  */
-function settingsKey(settings: AthleteSettings): string {
+export function settingsKey(settings: AthleteSettings): string {
   return JSON.stringify([settings.massKg, settings.measurements ?? []])
 }
 

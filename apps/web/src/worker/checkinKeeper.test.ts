@@ -311,29 +311,51 @@ describe('clearing', () => {
 })
 
 describe('the row "Your years"', () => {
+  const LEAD = 'run:slip-back:2021-05:2022-01'
+  const NEXT = 'run:improvement:2009-03:2009-09'
+
   it('is seen once opened, once hidden, or after two page loads, and is not the check-in row', async () => {
     const m = await fresh()
     const keeper = m.keeper()
-    expect(await keeper.markSeen('device', 'lookBack', 'impression')).toBe(false)
-    expect(await keeper.markSeen('device', 'lookBack', 'impression')).toBe(true)
+    expect(await keeper.markSeen('device', 'lookBack', 'impression', LEAD)).toBe(false)
+    expect(await keeper.markSeen('device', 'lookBack', 'impression', LEAD)).toBe(true)
     const hidden = m.keeper()
-    expect(await hidden.markSeen('account:u1', 'lookBack', 'hide')).toBe(true)
+    expect(await hidden.markSeen('account:u1', 'lookBack', 'hide', LEAD)).toBe(true)
     // The check-in row is a separate record: it needs a baseline, and the years' flags do not make it seen.
     expect(await hidden.markSeen('account:u1', 'checkIn', 'open')).toBe(false)
   })
 
-  it('is told with the view even when there is no baseline, and kept across a reload', async () => {
+  it('is told with the view even when there is no baseline, for the lead it was seen for, and kept across a reload', async () => {
     const m = await fresh()
-    await m.keeper().markSeen('device', 'lookBack', 'open')
+    await m.keeper().markSeen('device', 'lookBack', 'open', LEAD)
     expect(await m.keeper().view('device', () => snap([5], T0))).toEqual({
       checkIn: null,
       seen: false,
-      lookBackSeen: true,
+      lookBackSeenFor: LEAD,
     })
     expect(await m.keeper().view('account:other', () => snap([5], T0))).toEqual({
       checkIn: null,
       seen: false,
     })
+  })
+
+  it('is seen for one lead only: a new lead starts the count again and is shown once', async () => {
+    const m = await fresh()
+    const keeper = m.keeper()
+    await keeper.markSeen('device', 'lookBack', 'hide', LEAD)
+    expect((await m.keeper().view('device', () => null)).lookBackSeenFor).toBe(LEAD)
+    // The next lead has none of the old one's sightings: one showing is not two.
+    expect(await keeper.markSeen('device', 'lookBack', 'impression', NEXT)).toBe(false)
+    expect((await m.keeper().view('device', () => null)).lookBackSeenFor).toBeUndefined()
+    expect(await keeper.markSeen('device', 'lookBack', 'impression', NEXT)).toBe(true)
+    expect((await m.keeper().view('device', () => null)).lookBackSeenFor).toBe(NEXT)
+  })
+
+  it('shows the lead once more for a record kept before leads were named', async () => {
+    const m = await fresh()
+    // Counts of no lead: opened, with nothing saying for which.
+    await m.keeper().markSeen('device', 'lookBack', 'open')
+    expect((await m.keeper().view('device', () => null)).lookBackSeenFor).toBeUndefined()
   })
 })
 
@@ -346,12 +368,14 @@ describe('storage that cannot be used', () => {
     await keeper.begin('device', null)
     await keeper.settle('device', COMPLETE)
     expect(await keeper.view('device', () => snap([5], T0))).toEqual({ checkIn: null, seen: false })
-    // The flags are kept for the tab: "Your years" opened is seen, and the view says so with no check-in.
-    expect(await keeper.markSeen('device', 'lookBack', 'open')).toBe(true)
+    // The flags are kept for the tab: "Your years" hidden is seen, and the view says so with no check-in.
+    expect(
+      await keeper.markSeen('device', 'lookBack', 'hide', 'run:slip-back:2021-05:2022-01'),
+    ).toBe(true)
     expect(await keeper.view('device', () => snap([5], T0))).toEqual({
       checkIn: null,
       seen: false,
-      lookBackSeen: true,
+      lookBackSeenFor: 'run:slip-back:2021-05:2022-01',
     })
   })
 })

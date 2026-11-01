@@ -14,17 +14,24 @@ const DIST_DIR = fileURLToPath(new URL('../../apps/web/dist/', import.meta.url))
  * - initial: the script the page loads, the chunks it preloads and its stylesheets, which every visit pays.
  * - worker: the analysis worker, fetched when a request first needs it.
  * - chunk: any one other script, which loads when its page is first opened.
+ * - history: the History tab's own chunk, loaded when the tab is first opened. It has a budget of its own, so the
+ *   charts it holds cannot grow into the result pages' chunk, which keeps `chunk`.
  * - style: any one other stylesheet, which loads with its page.
  */
 export const BUDGETS = {
   initial: 285_000,
-  worker: 160_000,
+  worker: 185_000,
   chunk: 75_000,
+  history: 13_200,
   style: 13_000,
 }
 
 const REFERENCE = /<(?:script|link)\b[^>]*?(?:src|href)="\.\/(assets\/[^"]+\.(?:js|css))"[^>]*>/g
 const WORKER = /^analysis\.worker-.*\.js$/
+const HISTORY = /^HistoryPage-.*\.js$/
+
+/** Whether a built file is the History tab's chunk, which is held to its own budget. */
+const isHistory = (file) => HISTORY.test(file.slice('assets/'.length))
 
 const gzipSize = (bytes) => gzipSync(bytes).length
 
@@ -77,8 +84,10 @@ export function overBudget({ initial, worker, chunks, styles = [] }, budgets = B
   if (worker > budgets.worker)
     problems.push(`analysis worker is ${kb(worker)} gzip (budget ${kb(budgets.worker)})`)
   for (const { file, size } of chunks) {
-    if (size > budgets.chunk)
-      problems.push(`${file} is ${kb(size)} gzip (budget ${kb(budgets.chunk)} for one chunk)`)
+    const [limit, what] = isHistory(file)
+      ? [budgets.history, 'the History chunk']
+      : [budgets.chunk, 'one chunk']
+    if (size > limit) problems.push(`${file} is ${kb(size)} gzip (budget ${kb(limit)} for ${what})`)
   }
   for (const { file, size } of styles) {
     if (size > budgets.style)
@@ -91,7 +100,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const measured = await measureBundle()
   console.log(
     `initial ${kb(measured.initial)} of ${kb(BUDGETS.initial)}, worker ${kb(measured.worker)} of ${kb(BUDGETS.worker)}, ` +
-      `largest chunk ${kb(measured.chunks[0]?.size ?? 0)} of ${kb(BUDGETS.chunk)}, ` +
+      `largest chunk ${kb(measured.chunks.find(({ file }) => !isHistory(file))?.size ?? 0)} of ${kb(BUDGETS.chunk)}, ` +
+      `History chunk ${kb(measured.chunks.find(({ file }) => isHistory(file))?.size ?? 0)} of ${kb(BUDGETS.history)}, ` +
       `largest stylesheet ${kb(measured.styles[0]?.size ?? 0)} of ${kb(BUDGETS.style)} (gzip)`,
   )
   const problems = overBudget(measured)

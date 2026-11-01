@@ -112,7 +112,16 @@ function anyIn(instants: readonly number[], from: number, to: number): boolean {
  * of one day in one week share one lookup. With no dated setting nothing changes during the week, so a week shares one,
  * unless a threshold goes stale inside it, when each activity has its own lookup.
  */
-function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) {
+function zonesByDay(
+  settings: AthleteSettings,
+  estimates: ZoneEstimates | null,
+  at: number | null,
+): (digest: ActivityDigest) => ZoneSet[] {
+  if (at !== null) {
+    // One set of zones for every activity: the ones in effect at that instant, whatever each activity's date.
+    const sets = zonesAt(at, settings, estimates)
+    return () => sets
+  }
   const days = new Map<number | string, ZoneSet[]>()
   const dated = (settings.measurements ?? []).length > 0
   const stale = staleInstants(estimates)
@@ -143,15 +152,18 @@ function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) 
  * library's maximum, so an activity has the same zones under every period, and the period before this one is
  * cut by the athlete's fitness then, not by this period's.
  * `heartRateSetAside` names the activities whose heart rate the analysis does not trust.
+ * `at`, when given, cuts every activity by the zones in effect at that instant rather than on its own date, so a
+ * reading of the whole library does not move when a setting entered for an earlier date changes.
  */
 export function periodTimeInZones(
   digests: readonly ActivityDigest[],
   settings: AthleteSettings,
   estimates: ZoneEstimates | null,
   heartRateSetAside: ReadonlySet<string> = new Set(),
+  at: number | null = null,
 ): TimeInZones {
   const out = noTimeInZones()
-  const setsOn = zonesByDay(settings, estimates)
+  const setsOn = zonesByDay(settings, estimates, at)
   const bySportMeasure = new Map<string, MeasureTime>()
   const entered = new Map<MeasureTime, Set<number>>()
   for (const sport of Object.keys(out) as Sport[]) {

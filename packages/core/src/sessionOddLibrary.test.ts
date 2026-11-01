@@ -15,7 +15,8 @@ import type { AthleteSettings } from './types'
  */
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
-const CURVE_GAP = /(^|\.)(run|ride|rideMetabolic|rideMeasured)Curve\[\d+\]\.value$/
+const CURVE_GAP =
+  /((^|\.)(run|ride|rideMetabolic|rideMeasured)Curve|\.libraryBests\.(run|ride))\[\d+\]\.value$/
 
 /** The paths of every number in a value that is NaN or infinite. */
 function nonFinite(value: unknown, path = 'state', found: string[] = []): string[] {

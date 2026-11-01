@@ -21,6 +21,8 @@ export interface ChartFrameProps {
   description: string
   /** One sentence under the title that says what the chart shows, such as its finding. */
   lede?: string
+  /** A row of controls under the title and its sentence, such as a sport filter, kept above the key and the plot. */
+  controls?: ReactNode
   /**
    * The finding as a sentence, set large under the title: the chart's headline. The title stays the chart's
    * name (and its accessible name), set small above it; the takeaway describes the figure.
@@ -105,6 +107,7 @@ export function ChartFrame({
   title,
   description,
   lede,
+  controls,
   takeaway,
   focal,
   height: givenHeight,
@@ -172,6 +175,7 @@ export function ChartFrame({
         </div>
       ) : null}
       {lede ? <p className="chart-frame__lede">{lede}</p> : null}
+      {controls ? <div className="chart-frame__controls">{controls}</div> : null}
       {/* The row is kept whenever the chart may have a key, so a key appearing does not move the plot. */}
       {legend === undefined ? null : (
         <div className="chart-frame__legend">

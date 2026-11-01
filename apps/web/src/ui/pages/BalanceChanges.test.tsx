@@ -36,12 +36,7 @@ describe('BalanceChanges', () => {
   })
 
   it('is named by what it compares with', () => {
-    render(
-      <BalanceChanges
-        changes={{ items: [LEAN], notes: [], unchecked: [], compared: true }}
-        previousLabel="Previous 12 weeks"
-      />,
-    )
+    render(<BalanceChanges changes={{ items: [LEAN] }} previousLabel="Previous 12 weeks" />)
     expect(
       screen.getByRole('region', { name: 'What changed · vs the previous 12 weeks' }),
     ).toBeInTheDocument()
@@ -49,10 +44,7 @@ describe('BalanceChanges', () => {
 
   it('lists each change with its title, its line and its tag, in order', () => {
     render(
-      <BalanceChanges
-        changes={{ items: [LEAN, RIDE, RUN], notes: [], unchecked: [], compared: true }}
-        previousLabel="Previous 12 weeks"
-      />,
+      <BalanceChanges changes={{ items: [LEAN, RIDE, RUN] }} previousLabel="Previous 12 weeks" />,
     )
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(3)
@@ -63,12 +55,7 @@ describe('BalanceChanges', () => {
   })
 
   it('words each tag as what the change rests on, and has no tag about ranges', () => {
-    render(
-      <BalanceChanges
-        changes={{ items: [GUESS], notes: [], unchecked: [], compared: true }}
-        previousLabel="Previous 12 weeks"
-      />,
-    )
+    render(<BalanceChanges changes={{ items: [GUESS] }} previousLabel="Previous 12 weeks" />)
     expect(screen.getByText('Estimated')).toBeInTheDocument()
     expect(screen.queryByText('Beyond its range')).toBeNull()
     expect(screen.queryByText('Within its range')).toBeNull()
@@ -76,10 +63,7 @@ describe('BalanceChanges', () => {
 
   it('draws an arrow for each change, hidden from assistive technology, up or down by its direction', () => {
     const { container } = render(
-      <BalanceChanges
-        changes={{ items: [LEAN, RIDE], notes: [], unchecked: [], compared: true }}
-        previousLabel="Previous 12 weeks"
-      />,
+      <BalanceChanges changes={{ items: [LEAN, RIDE] }} previousLabel="Previous 12 weeks" />,
     )
     const icons = container.querySelectorAll('.balance-changes__icon')
     expect(icons).toHaveLength(2)
@@ -90,10 +74,7 @@ describe('BalanceChanges', () => {
 
   it('says in one line that nothing moved, naming the period, when there is nothing to list', () => {
     const { container } = render(
-      <BalanceChanges
-        changes={{ items: [], notes: [], unchecked: [], compared: true }}
-        previousLabel="Previous 12 weeks"
-      />,
+      <BalanceChanges changes={{ items: [] }} previousLabel="Previous 12 weeks" />,
     )
     expect(screen.getByText('No clear change from the previous 12 weeks.')).toBeInTheDocument()
     expect(container.querySelector('ul')).toBeNull()
@@ -101,66 +82,57 @@ describe('BalanceChanges', () => {
 
   it('marks a recorded best with a check, so the tag is more than a word', () => {
     const { container } = render(
-      <BalanceChanges
-        changes={{ items: [RIDE], notes: [], unchecked: [], compared: true }}
-        previousLabel="Previous 12 weeks"
-      />,
+      <BalanceChanges changes={{ items: [RIDE] }} previousLabel="Previous 12 weeks" />,
     )
     expect(container.querySelector('.balance-changes__tag--recorded svg')).not.toBeNull()
   })
 
-  it('says there is not enough to compare, not that nothing changed, when the previous period lacks the efforts', () => {
+  it('shows the label beside the tag, and a level bar in place of an arrow for a change with no direction', () => {
+    const labelled: ChangeItem = {
+      ...LEAN,
+      direction: null,
+      title: 'Lean moved 3 pts',
+      label: 'Not all-out',
+    }
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [], notes: [], unchecked: [], compared: false }}
+        changes={{ items: [labelled, { ...RUN, label: 'Not all-out' }, RIDE] }}
         previousLabel="Previous 12 weeks"
       />,
     )
-    expect(screen.getByText('Not enough in the previous 12 weeks to compare.')).toBeInTheDocument()
-    expect(screen.queryByText(/No clear change/)).toBeNull()
+    const items = screen.getAllByRole('listitem')
+    expect(within(items[0]!).getByText('Not all-out')).toBeInTheDocument()
+    expect(within(items[0]!).getByText('Estimated')).toBeInTheDocument()
+    expect(within(items[1]!).getByText('Not all-out')).toBeInTheDocument()
+    expect(within(items[2]!).queryByText('Not all-out')).toBeNull()
+    const paths = [...container.querySelectorAll('.balance-changes__icon path')].map((p) =>
+      p.getAttribute('d'),
+    )
+    expect(paths[0]).toBe('M5 12h14')
+    expect(paths[1]).toMatch(/^M12 18V6/)
+  })
+
+  it('names a window further back by its months, in the title and the no-change line', () => {
+    const { container } = render(
+      <BalanceChanges changes={{ items: [] }} previousLabel="Jan to Mar" />,
+    )
+    expect(screen.getByRole('region', { name: 'What changed · vs Jan to Mar' })).toBeInTheDocument()
+    expect(screen.getByText('No clear change from Jan to Mar.')).toBeInTheDocument()
     expect(container.querySelector('ul')).toBeNull()
   })
 
-  it('keeps the no-clear-change line and adds the unchecked one under it', () => {
-    render(
-      <BalanceChanges
-        changes={{
-          items: [],
-          notes: [],
-          unchecked: [
-            'Effort not checked: too few running efforts shown hard by heart rate in both periods, so every effort counts.',
-          ],
-          compared: true,
-        }}
-        previousLabel="Previous 12 weeks"
-      />,
-    )
-    expect(screen.getByText(/No clear change/)).toBeInTheDocument()
-    expect(screen.getByText(/Effort not checked: too few running efforts/)).toBeInTheDocument()
-  })
-
-  it('says in a line, in place of an item, that a best was not compared', () => {
+  it('has no line about efforts that were not hard or not checked', () => {
     const { container } = render(
-      <BalanceChanges
-        changes={{
-          items: [RIDE],
-          notes: ['No comparable hard 20 min of running in the previous 12 weeks.'],
-          unchecked: [],
-          compared: true,
-        }}
-        previousLabel="Previous 12 weeks"
-      />,
+      <BalanceChanges changes={{ items: [RIDE] }} previousLabel="Previous 12 weeks" />,
     )
     expect(container.querySelectorAll('li')).toHaveLength(1)
-    expect(
-      screen.getByText('No comparable hard 20 min of running in the previous 12 weeks.'),
-    ).toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/hard effort|comparable|not checked|every effort/i)
   })
 
   it('never says a change is not a real change', () => {
     const { container } = render(
       <BalanceChanges
-        changes={{ items: [LEAN, RIDE, RUN, GUESS], notes: [], unchecked: [], compared: true }}
+        changes={{ items: [LEAN, RIDE, RUN, GUESS] }}
         previousLabel="Previous 12 weeks"
       />,
     )

@@ -24,12 +24,12 @@ export const STACK_GAP_PX = 2
 /** The corner radius of a bar's top, in px, kept under half its width and its height. */
 const TOP_RADIUS_PX = 4
 /** How far the peak's label sits above its bar, in px. */
-const PEAK_GAP_PX = 6
+export const PEAK_GAP_PX = 6
 /**
  * The room kept under the plot's top for the peak's label, in root font sizes: the tallest bar stops short of the top
  * by the label's line and its gap, so the label lies inside the plot and never meets the axis title above it.
  */
-const PEAK_ROOM_EM = 1
+export const PEAK_ROOM_EM = 1
 
 /** One sport's piece of a bar, in px: the sport it is, where it starts, how tall it is, and its outline. */
 export interface BarSegment {
@@ -95,7 +95,7 @@ function median(values: readonly number[]): number {
  * rounded. Each part above the first stops STACK_GAP_PX short of the one beneath it, so the parts are
  * apart without the bar growing, where the part is tall enough to give the gap up.
  */
-function barOf(
+export function barOf(
   week: VolumeWeek,
   x: number,
   width: number,
@@ -120,7 +120,7 @@ function barOf(
 }
 
 /** The label of the tallest row: its hours above its bar, kept inside the chart's two sides. */
-function peakOf(
+export function peakOf(
   weeks: readonly VolumeWeek[],
   bars: readonly VolumeBar[],
   xs: readonly number[],

@@ -94,7 +94,7 @@ describe('the race predictions on a sport page whose period holds no run of a mi
       expect(row.querySelector('.race-bar')).toBeNull()
     }
     expect(within(section).queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/^Race predictions: needs/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Needs a run of a mile or more.')).not.toBeInTheDocument()
     expect(view.container.textContent).not.toMatch(/Needs a hard run|reference heart rate/)
   })
 
@@ -125,7 +125,8 @@ describe('the race predictions on a sport page whose period holds no run of a mi
 
   it('says only what to add where the library holds no run of a mile or more', () => {
     renderPage([SHORT], [])
-    expect(screen.queryByRole('region', { name: 'Race predictions' })).not.toBeInTheDocument()
-    expect(screen.getByText('Race predictions: needs a run of a mile or more.')).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Race predictions' })
+    expect(within(section).getByText('Needs a run of a mile or more.')).toBeInTheDocument()
+    expect(section.querySelector('.race-row')).toBeNull()
   })
 })

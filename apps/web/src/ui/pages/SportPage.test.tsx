@@ -12,6 +12,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import { FLAT_RUN_COST, HEADLINE_DURATION_S, RESTING_W_PER_KG } from '@rca/core/constants'
 import { formatPace } from '@rca/core/units'
 import { curvePoint } from '../charts/fixtures'
+import { HARD, UNKNOWN } from '../effortGateFixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
@@ -136,7 +137,7 @@ describe('SportPage: your years', () => {
       lookBack,
     )
 
-  it('is the first section, closed, named by its own finding', () => {
+  it('is the first section, open, named by its own finding', () => {
     page(YEARS_LOOKBACK)
     expect(closedRow('Your years')).toBe(
       'Your yearsYour pace at 148 bpm slipped in 2021 and came back',
@@ -153,9 +154,11 @@ describe('SportPage: your years', () => {
     expect(within(years).getByRole('region', { name: 'Episodes' })).toBeInTheDocument()
   })
 
-  it('is not on the page when there are no years to tell', () => {
+  it('says what it needs, in its own place, when there are no years to tell', () => {
     page(undefined)
-    expect(screen.queryByRole('region', { name: 'Your years' })).toBeNull()
+    const years = screen.getByRole('region', { name: 'Your years' })
+    expect(years).toHaveTextContent('Needs a year of runs.')
+    expect(years.closest('details')).toBeNull()
   })
 })
 
@@ -345,7 +348,7 @@ describe('SportPage', () => {
     const section = screen.getByRole('region', { name: THRESHOLD_FLOOR_LABEL.ride })
     expect(heroFigure(section)).toEqual({ number: '52', unit: 'W' })
     expect(rangeTrack(section)).toEqual({ ends: ['52', '58'], label: 'range, W' })
-    expect(within(section).queryByText(/Needs a harder effort/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
     expect(within(section).getByText(/were uneven: each held a hard burst/)).toBeInTheDocument()
     // A floor is a held best, not an estimate, so the estimate's meaning is not said under it.
     expect(within(section).queryByText(THRESHOLD_MEANING.ride)).not.toBeInTheDocument()
@@ -571,28 +574,52 @@ describe('SportPage', () => {
     )
   })
 
-  it('asks for a harder effort between 3 and 20 min when the efforts show no threshold', () => {
-    renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCpRefusal: 'shape' }))
+  it('shows the best 30 min as a floor, and asks for nothing, when the efforts show no threshold', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCp: null,
+        runCpRefusal: 'shape',
+        effortGate: { run: HARD, ride: UNKNOWN },
+      }),
+    )
 
-    expect(screen.getByText('Needs a harder effort between 3 and 20 min')).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: THRESHOLD_FLOOR_LABEL.run })
+    expect(heroFigure(section).number).toMatch(/^\d+:\d{2}$/)
+    expect(within(section).getByText('At least', { selector: '.stat-tile__basis' })).toBeVisible()
+    expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
+    // The answer asks for nothing; the sections below say their own needs, each in its own place.
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
     expect(screen.queryByText(/About the pace/)).not.toBeInTheDocument()
   })
 
-  it('asks for efforts between 3 and 20 min instead of a number when no threshold can be estimated', () => {
+  it('asks for one effort of 20 min or longer, with no number, when the sport holds no best', () => {
     renderPage('run', makeResult({ activities: [morningRun], runCp: null }))
 
-    expect(screen.getByText('Needs efforts between 3 and 20 min')).toBeInTheDocument()
+    expect(screen.getByText('Needs an effort of 20 min or longer')).toBeInTheDocument()
     expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
-  it('names the longest effort held when none is as long as the threshold needs', () => {
-    const short = [{ durationS: 300, value: 6, activityId: morningRun.id, startIndex: 0 }]
+  it('names the longest best held, with no at least, when none is as long as 20 min', () => {
+    const short = [{ durationS: 720, value: 6, activityId: morningRun.id, startIndex: 0 }]
     renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCurve: short }))
 
+    const section = screen.getByRole('region', { name: 'Threshold pace, best 12 min' })
+    expect(heroFigure(section).number).toMatch(/^\d+:\d{2}$/)
     expect(
-      screen.getByText('Needs an effort of about 20 min. Your longest so far is 5 min.'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/Needs efforts between/)).not.toBeInTheDocument()
+      within(section).getByText('Best 12 min', { selector: '.stat-tile__basis' }),
+    ).toBeVisible()
+    expect(within(section).queryByText(/At least|From your best/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
+  })
+
+  it('asks for an effort of 20 min or longer, with no number, when the longest best is under 5 min', () => {
+    const short = [{ durationS: 240, value: 6, activityId: morningRun.id, startIndex: 0 }]
+    renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCurve: short }))
+
+    expect(screen.getByText('Needs an effort of 20 min or longer')).toBeInTheDocument()
+    expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
   it('explains that run paces are flat paces', () => {
@@ -1390,7 +1417,7 @@ describe('SportPage depth', () => {
     const threshold = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
     // 80% is not a hard effort: a warning chip with the share, and the sentence one press away in its definition.
     const chip = within(threshold).getByRole('button', {
-      name: 'Not a hard effort · 80%',
+      name: 'Not all-out',
     })
     expect(chip.closest('.chip')).toHaveClass('chip--warning')
     expect(chip.closest('.chip')?.querySelector('svg')).not.toBeNull()
@@ -1418,7 +1445,7 @@ describe('SportPage depth', () => {
     // One chip beside the threshold, in the heading's row, and no card or line after the meaning.
     const threshold = screen.getByRole('region', { name: 'Threshold pace, estimated' })
     const chip = within(threshold).getByRole('button', {
-      name: 'Not a hard effort · 70%',
+      name: 'Not all-out',
     })
     expect(chip.closest('.sport-hero__head')).not.toBeNull()
     expect(threshold.querySelector('.sport-hero__meaning')?.nextElementSibling).toBeNull()
@@ -1569,7 +1596,7 @@ describe('SportPage depth', () => {
       },
     )
 
-    it('leaves the section out, and says what is missing in the list at the end, with too little data', () => {
+    it('is one line in its own place that says what is missing, with too little data', () => {
       const none: SameHeartRate = { ...NO_SAME_HEART_RATE.ride, lacks: 'activities' }
       renderPage(
         'ride',
@@ -1586,13 +1613,13 @@ describe('SportPage depth', () => {
         null,
         none,
       )
-      expect(screen.queryByRole('region', { name: 'Same heart rate, week by week' })).toBeNull()
-      const list = screen.getByRole('region', { name: 'Not enough yet' })
+      const line = screen.getByRole('region', { name: 'Same heart rate, week by week' })
+      expect(line.querySelector('figure')).toBeNull()
+      expect(line.closest('details')).toBeNull()
       expect(
-        within(list).getByText(
-          'Same heart rate, week by week: needs steady stretches from at least 6 rides in 4 weeks.',
-        ),
+        within(line).getByText('Needs steady stretches from at least 6 rides in 8 weeks.'),
       ).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
     })
 
     it('is not on a sport page with nothing in the period', () => {
@@ -1765,6 +1792,6 @@ describe('SportPage with activities held indoors', () => {
     )
     renderPage('run', makeResult({ activities: treadmill, runCp: null, runCurve: [] }))
     expect(screen.getByText(/^All 4 of your runs were on a treadmill\./)).toBeInTheDocument()
-    expect(screen.queryByText(/Needs efforts between/)).toBeNull()
+    expect(screen.queryByText(/Needs an effort/)).toBeNull()
   })
 })

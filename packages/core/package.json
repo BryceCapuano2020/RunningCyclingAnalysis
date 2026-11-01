@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Analysis library: FIT decoding, metabolic model, duration curves and the run-versus-ride comparison. Pure TypeScript, no DOM.",
   "exports": {
+    "./answer": "./src/answer/index.ts",
     "./workbench": "./src/workbench/index.ts",
     "./athlete": "./src/athlete/index.ts",
     "./change": "./src/change/index.ts",
@@ -44,6 +45,8 @@
     "./findings": "./src/findings/index.ts",
     "./fitness": "./src/fitness/index.ts",
     "./lookback": "./src/lookback/index.ts",
+    "./history": "./src/history/index.ts",
+    "./history/test/balanceLibrary": "./src/history/test/balanceLibrary.ts",
     "./fitness/types": "./src/fitness/types.ts",
     "./fit": "./src/fit/index.ts",
     "./gpx": "./src/gpx/index.ts",

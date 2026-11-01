@@ -10,7 +10,7 @@ import {
 import { gradeLevelText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
 import { wholeGrade } from '../gradeFormat'
-import { SPORT_ORDER, SPORT_PLURAL } from '../sports'
+import { BALANCE_PAIR, SPORT_PLURAL } from '../sports'
 
 /** One sport's line under the meter: its grade and level, or in a few words what the grade is waiting for. */
 export interface LevelRow {
@@ -72,7 +72,7 @@ export function balanceLevels(input: {
   /** What a sport's grade rests on where its best 20 minutes was not shown to be a hard effort (see `basisOf`). */
   basis?: Partial<Record<Sport, string>>
 }): BalanceLevelsModel {
-  const { grades, sports = SPORT_ORDER, inPeriod, missingAge, basis = {} } = input
+  const { grades, sports = BALANCE_PAIR, inPeriod, missingAge, basis = {} } = input
   const rows = sports.map((sport): LevelRow => {
     const outcome = grades[sport]
     if (outcome?.kind === 'graded') {

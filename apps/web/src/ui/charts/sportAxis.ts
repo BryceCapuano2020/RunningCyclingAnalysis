@@ -67,6 +67,7 @@ const MIN_TIGHT_PACE_SPAN_S = 60
 function paceDomain(
   seconds: number[],
   minSpan: number,
+  intervals: number,
 ): { domain: [number, number]; ticks: number[] } {
   let lo = Math.min(...seconds)
   let hi = Math.max(...seconds)
@@ -77,7 +78,7 @@ function paceDomain(
   }
   const span = hi - lo
   const step =
-    PACE_STEPS_S.find((candidate) => span / candidate <= INTERVALS + SPAN_TOLERANCE) ?? 300
+    PACE_STEPS_S.find((candidate) => span / candidate <= intervals + SPAN_TOLERANCE) ?? 300
   const first = Math.floor(lo / step)
   const last = Math.ceil(hi / step)
   const ticks: number[] = []
@@ -90,7 +91,8 @@ function paceDomain(
  * domain runs down the page; cycling starts at zero so that its area fill has a true baseline.
  * `values` are plotted values, from plottedValue. They must not be empty. A chart of a small change,
  * which has no area to fill, passes `tight`: watts do not start at zero, and a pace axis may span as
- * little as a minute, so that a few per cent can be seen.
+ * little as a minute, so that a few per cent can be seen. `intervals` is how many steps the axis is cut into at most:
+ * a small panel asks for fewer.
  */
 export function sportYAxis(
   sport: Sport,
@@ -98,9 +100,14 @@ export function sportYAxis(
   plot: PlotBox,
   tight = false,
   minTightPaceSpanS = MIN_TIGHT_PACE_SPAN_S,
+  intervals = INTERVALS,
 ): { y: Scale; ticks: AxisTick[] } {
   if (sport === 'run') {
-    const { domain, ticks } = paceDomain(values, tight ? minTightPaceSpanS : MIN_PACE_SPAN_S)
+    const { domain, ticks } = paceDomain(
+      values,
+      tight ? minTightPaceSpanS : MIN_PACE_SPAN_S,
+      intervals,
+    )
     const y = linearScale(domain, [plot.top, plot.bottom])
     return {
       y,
@@ -109,7 +116,7 @@ export function sportYAxis(
   }
   const { domain, ticks } = niceDomain(
     tight ? values : [0, ...values],
-    INTERVALS,
+    intervals,
     tight ? undefined : 0,
   )
   const y = linearScale(domain, [plot.bottom, plot.top])

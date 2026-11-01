@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { energyReading, gapReading, meterFraction } from '../ui/components/balanceScale'
 import { interval } from '../ui/components/fixtures'
-import { SPORT_LABEL, SPORT_ORDER } from '../ui/sports'
+import { BALANCE_PAIR, SPORT_LABEL } from '../ui/sports'
 import { CARD_COLORS } from './cardColors'
 import { CARD_FORMATS, type CardFormat } from './cardLayout'
 import { BAND_OPACITY, DOT_RADIUS } from './cardMeter'
@@ -61,9 +61,9 @@ describe('renderShareCard', () => {
       'RunningCyclingAnalysis',
       'Sample data',
       'YOUR BALANCE LEANS TOWARD RUNNING',
-      SPORT_LABEL[SPORT_ORDER[0]],
+      SPORT_LABEL[BALANCE_PAIR[0]],
       'Even',
-      SPORT_LABEL[SPORT_ORDER[1]],
+      SPORT_LABEL[BALANCE_PAIR[1]],
       'THRESHOLD FLAT PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
       '21:35',
       '/km',
@@ -252,9 +252,9 @@ describe('the balance meter on the card', () => {
 
   it('places the first sport on the left, then Even, then the other sport', () => {
     const texts = draw(cardModel()).texts
-    const left = texts.find((text) => text.text === SPORT_LABEL[SPORT_ORDER[0]])
+    const left = texts.find((text) => text.text === SPORT_LABEL[BALANCE_PAIR[0]])
     const even = texts.find((text) => text.text === 'Even')
-    const right = texts.find((text) => text.text === SPORT_LABEL[SPORT_ORDER[1]])
+    const right = texts.find((text) => text.text === SPORT_LABEL[BALANCE_PAIR[1]])
     expect(left?.x).toBeLessThan(even?.x ?? Number.NaN)
     expect(even?.x).toBeLessThan(right?.x ?? Number.NaN)
   })
@@ -269,7 +269,7 @@ describe('the balance meter on the card', () => {
 
   it.each(FORMATS)('sets the meter labels at 34 px or more on the %s card', (format) => {
     const texts = draw(cardModel(), format).texts
-    for (const label of [SPORT_LABEL[SPORT_ORDER[0]], 'Even', SPORT_LABEL[SPORT_ORDER[1]]]) {
+    for (const label of [SPORT_LABEL[BALANCE_PAIR[0]], 'Even', SPORT_LABEL[BALANCE_PAIR[1]]]) {
       expect(texts.find((text) => text.text === label)?.size).toBeGreaterThanOrEqual(34)
     }
   })

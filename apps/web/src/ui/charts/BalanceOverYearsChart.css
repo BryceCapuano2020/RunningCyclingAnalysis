@@ -1,0 +1,40 @@
+/* Years stand in equal rooms, so no gridline runs through them. */
+.balance-years__x .chart-x-axis__grid {
+  display: none;
+}
+
+/* A solid dot is its sport's colour (tokens.css sets it for each data-sport), ringed in the card colour by the shared marker. */
+.balance-years__dot {
+  fill: var(--sport-colour);
+}
+
+/* A ride's range in a year with no neighbour to join a band to: its ends, as a line in the sport's colour. */
+.balance-years__whisker {
+  stroke: var(--sport-colour);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-opacity: 0.5;
+}
+
+/*
+ * Forced colours: the sports take the system's text and highlight colours, and a solid dot is filled where a hollow one
+ * is Canvas, so the effort reads by shape in both sports (the shared rule makes every ride dot hollow).
+ */
+@media (forced-colors: active) {
+  .balance-years__dot {
+    fill: Highlight;
+    stroke: Canvas;
+  }
+
+  .balance-years__dot[data-sport='run'] {
+    fill: CanvasText;
+  }
+
+  .balance-years__whisker {
+    stroke: Highlight;
+  }
+
+  .balance-years__whisker[data-sport='run'] {
+    stroke: CanvasText;
+  }
+}

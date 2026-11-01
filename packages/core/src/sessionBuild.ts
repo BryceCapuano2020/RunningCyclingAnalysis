@@ -1,3 +1,5 @@
+import { resolveWindow } from './answer'
+import { earlierComparison } from './change/earlier'
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { isAnalysed, leftOutCounts } from './digest/analysed'
 import { activitySummaries } from './digest'
@@ -5,12 +7,14 @@ import { dotsRule, hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
+import { libraryBestsOf } from './libraryBests'
 import { NONE_WITHHELD, NO_TRENDS } from './digest/trendPoints'
 import { powerSetAsideIds } from './digest/powerCheck'
 import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
+import { historyOf, NO_HISTORY } from './history/compute'
 import { lookBackOf, NO_LOOKBACK } from './lookback/compute'
 import { splitPeriods } from './period'
 import type { PeriodCache, PeriodChoice } from './period'
@@ -74,7 +78,6 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   judge.release(all)
   const { hidden, visible, analysed } = analysedOf(all)
   const leftOut = leftOutCounts(visible)
-  const { period, selected, previous } = splitPeriods(analysed, inputs.choice)
   // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
   const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : judge.of(analysed, athlete)
   const setAside = judgement.setAside
@@ -88,18 +91,29 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     observedMaxHr: judgement.observedMaxHr,
     effortReference: judgement.effortReference,
   }
-  const analysis =
+  const judged = judgedWorkOf(judgement)
+  const analyse =
     athlete !== null && visible.length > 0
-      ? periods.analysis(
-          selected,
-          athlete,
-          setAside,
-          judgement.calibration,
-          references,
-          judgement.rideGate,
-          judgedWorkOf(judgement),
-        )
+      ? (digests: ActivityDigest[]) =>
+          periods.analysis(
+            digests,
+            athlete,
+            setAside,
+            judgement.calibration,
+            references,
+            judgement.rideGate,
+            judged,
+          )
       : null
+  // The default period is a search over windows, each analysed through the cache, so the window it settles on is
+  // already analysed when the state asks for it below.
+  const answerWindow = resolveWindow(analysed, inputs.choice, analyse)
+  const { period, selected, previous } = splitPeriods(
+    analysed,
+    inputs.choice,
+    answerWindow.reason === 'asked' ? undefined : answerWindow.choice,
+  )
+  const analysis = analyse === null ? null : analyse(selected)
   // The references that zones are cut from are the library's, not the period's: one activity has the same zones
   // under every period, and Profile, the activity page and the time in zones all read them.
   const zoneEstimates =
@@ -131,26 +145,39 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         )
   const sameHeartRate =
     analysis === null ? NO_SAME_HEART_RATE : periods.sameHeartRate(selected, analysed, fromMs, held)
+  // The stand-out reads the library's bests while the period holds too few activities of a sport to judge them.
+  const libraryBests =
+    athlete === null || analysis === null || period.days === null
+      ? null
+      : libraryBestsOf(selected, analysed, athlete)
   const late =
     analysis === null
       ? NO_LATE_EVIDENCE
       : periods.late(
           selected.filter((digest) => !powerAside.has(digest.id)),
+          // A period with too little to say a late best or drift reads the whole library's, set aside alike.
+          analysed.filter((digest) => !powerAside.has(digest.id)),
           held,
           { effortReference: judgement.effortReference },
         )
+  // The test reads the efforts the effort gate does not show easy, so a swing in how many hard efforts a period holds is no change.
+  const effortRule = hardEffortRule(judgement.effortReference, setAside)
+  const change =
+    athlete !== null && bikeModel !== undefined && previous.length > 0
+      ? periods.change(selected, previous, athlete, bikeModel, judgement.rideGate, effortRule)
+      : null
   return {
     result: analysis,
     trend: efforts[HEADLINE_DURATION_S],
     effortTrends: efforts,
     dotsWithheld,
     sameHeartRate,
+    libraryBests,
     lateEvidence: late,
     heartRateJudgement: judgement,
     // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
-    fitness: fitnessStatuses(analysed, new Set(held), {
-      nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
-    }),
+    // As of the newest activity, not the clock: an export that ended months ago is not a long break.
+    fitness: fitnessStatuses(analysed, new Set(held)),
     lookBack:
       athlete === null
         ? NO_LOOKBACK
@@ -159,9 +186,24 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             athlete,
             // The runs and rides the card is read from: heart rate set aside, and power set aside.
             new Set(held),
-            Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
             judgement.rideGate,
           ),
+    // Library-wide too: the History page ignores the period, and these digests make the same answer each time.
+    history:
+      athlete === null
+        ? NO_HISTORY
+        : historyOf(analysed, {
+            settings: athlete,
+            setAside: new Set(held),
+            // Heart rate alone, as the time in zones reads it: a ride whose power is set aside keeps its heart rate.
+            heartRateSetAside: new Set(setAside),
+            // The same zone references the time in zones is cut from, so the two agree on every year.
+            estimates: zoneEstimates,
+            nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
+            gate: judgement.rideGate,
+            calibration: judgement.calibration,
+            effortReference: judgement.effortReference,
+          }),
     zoneEstimates,
     timeInZones:
       athlete === null || analysis === null
@@ -177,17 +219,22 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             setAside,
           })
         : null,
-    change:
-      athlete !== null && bikeModel !== undefined && previous.length > 0
-        ? // The test reads the efforts the effort gate does not show easy, so a swing in how many hard efforts a period holds is no change.
-          periods.change(
-            selected,
-            previous,
-            athlete,
+    change,
+    // The window to compare with when the period before holds too little: the latest earlier one that holds enough.
+    earlier:
+      athlete !== null &&
+      bikeModel !== undefined &&
+      period.startMs !== null &&
+      period.endMs !== null &&
+      period.days !== null
+        ? earlierComparison(analysed, {
+            period: { startMs: period.startMs, endMs: period.endMs, days: period.days },
+            settings: athlete,
             bikeModel,
-            judgement.rideGate,
-            hardEffortRule(judgement.effortReference, setAside),
-          )
+            gate: judgement.rideGate,
+            rule: effortRule,
+            immediate: change,
+          })
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,
@@ -202,6 +249,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     ...(leftOut.labelled === 0 ? {} : { labelledRuns: leftOut.labelled }),
     countedWalkingRuns: inputs.countedWalkingRuns,
     period,
+    answerWindow,
     library:
       athlete === null
         ? []

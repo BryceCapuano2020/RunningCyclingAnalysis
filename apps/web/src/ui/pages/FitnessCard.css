@@ -193,41 +193,6 @@
   min-width: 0;
 }
 
-/* A count the status is waiting on: one pill for each steady run it needs. */
-.fitness-progress {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.fitness-progress__cells {
-  display: flex;
-  gap: 4px;
-}
-
-.fitness-progress__cell {
-  flex: 1 1 0;
-  max-width: 28px;
-  height: 14px;
-  border-radius: var(--radius-sm);
-  background: var(--level-4);
-}
-
-.fitness-progress__cell.is-on {
-  background: var(--sport-colour);
-}
-
-.fitness-progress__count {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--text-md);
-}
-
-.fitness-progress__count strong {
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: var(--text-lead);
-}
-
 .fitness-card__evidence {
   min-width: 0;
   border-top: 1px solid var(--border);
@@ -244,15 +209,6 @@
 @media (forced-colors: active) {
   .fitness-card__state {
     border-left-color: CanvasText;
-  }
-
-  .fitness-progress__cell {
-    border: 1px solid CanvasText;
-    background: Canvas;
-  }
-
-  .fitness-progress__cell.is-on {
-    background: Highlight;
   }
 
   .fitness-card__new strong {

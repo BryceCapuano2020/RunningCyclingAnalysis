@@ -81,15 +81,22 @@ describe('ActivitiesPage beside the period on Balance', () => {
     expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
   })
 
-  it('keeps the line for a custom range or the default window that is as many days as the list’s length', async () => {
-    // 84 days is the default window; no list length is that, but a 365-day custom range would equal 12 months by days.
+  it('keeps the line for a custom range that is as many days as the list’s length', async () => {
+    // A 365-day custom range would equal 12 months by days, but it is dated, not named.
     renderPage({ ...WINDOW, choice: { from: '2025-01-01', to: '2025-12-31' }, days: 365 })
     await userEvent.click(screen.getByRole('radio', { name: '12 months' }))
     expect(screen.getByText(/show your custom range/)).toBeInTheDocument()
-    cleanup()
+  })
+
+  it('goes for a default that resolved to the list’s length, and names the length it resolved to', async () => {
     renderPage({ ...WINDOW, choice: 'default', days: 365 })
+    expect(screen.getByText(/^Balance, Run and Ride show the last 12 months\./)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('radio', { name: '12 months' }))
-    expect(screen.getByText(NOTE)).toBeInTheDocument()
+    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
+    cleanup()
+    // The list has no 6 months, so it is always apart from it.
+    renderPage({ ...WINDOW, choice: 'default', days: 182 })
+    expect(screen.getByText(/^Balance, Run and Ride show the last 6 months\./)).toBeInTheDocument()
   })
 
   it('goes once the list is set to the same length, since the two then agree', async () => {

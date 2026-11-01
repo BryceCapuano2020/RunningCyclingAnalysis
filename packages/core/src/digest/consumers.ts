@@ -30,6 +30,7 @@ export const CONSUMERS = {
   fitness: 'readable', // the run and ride monitors
   splits: 'readable', // the activity page's splits
   listing: 'readable', // the library summaries
+  history: 'readable', // the History page's parts
 } as const satisfies Record<string, 'readable' | 'current'>
 
 export type Consumer = keyof typeof CONSUMERS
@@ -47,7 +48,8 @@ const RULES: Readonly<Record<Consumer, 'readable' | 'current'>> = CONSUMERS
 export const INDIRECT = {
   previousPeriods: 'the previous period of the analysed digests',
   referenceHr: 'the analysed digests through the heart-rate judgement',
-  lateEvidence: 'the selected period of the analysed digests',
+  lateEvidence:
+    'the selected period of the analysed digests, and the analysed digests where the period holds too little',
   thresholdTimeline: 'the selected period of the analysed digests',
   zones: 'the analysed digests through the heart-rate judgement',
   splits: 'the one digest of the activity page',

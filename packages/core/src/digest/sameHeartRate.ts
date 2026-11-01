@@ -20,6 +20,7 @@ import type { Dated } from '../calendar'
 
 const WEEK_MS = 7 * DAY_MS
 const WINDOW_MS = SAME_HEART_RATE.windowDays * DAY_MS
+const WIDE_WINDOW_MS = SAME_HEART_RATE.wideWindowDays * DAY_MS
 
 /** What a sport's steady blocks are read as, and which activities give blocks that can be trusted. */
 interface Reading {
@@ -136,15 +137,30 @@ function fitBlocksOf(kept: readonly Block[]): FitBlocks {
   }
 }
 
-function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
-  // A block is in the window exactly when its week end is after the window's and not after the week's.
+/** The blocks whose week ends after the window's start and not after `endMs`. */
+function windowOf(endMs: number, blocks: readonly Block[], windowMs: number): Block[] {
   const at = (block: Block) => block.weekMs
-  const window = blocks.slice(
-    firstStartingAfter(blocks, endMs - WINDOW_MS, at),
+  return blocks.slice(
+    firstStartingAfter(blocks, endMs - windowMs, at),
     firstStartingAfter(blocks, endMs, at),
   )
+}
+
+function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
+  const narrow = windowOf(endMs, blocks, WINDOW_MS)
+  // A window short of activities reaches back further, so a quiet month still reads. It stays the narrow one
+  // when reaching back finds nothing more.
+  const short = new Set(narrow.map((b) => b.activity)).size < SAME_HEART_RATE.minActivities
+  const reaching = short ? windowOf(endMs, blocks, WIDE_WINDOW_MS) : narrow
+  const wide = reaching.length > narrow.length
+  const window = wide ? reaching : narrow
   const activities = new Set(window.map((b) => b.activity)).size
-  const base = { endMs, blocks: window.length, activities }
+  const base = {
+    endMs,
+    blocks: window.length,
+    activities,
+    ...(wide ? { wide: true as const } : {}),
+  }
   const kept = fittedBlocks(window)
   const lacks = lackOf(kept, referenceHr)
   if (lacks !== null) return { ...base, fit: null, lacks }
@@ -156,21 +172,22 @@ function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): S
 }
 
 /**
- * The week ends to report: from the first whose 28-day window lies in the period to the last, newest
- * maxWeeks. For all time, which has no start, the period starts at the sport's first block, so no week
- * is read from a window shorter than the others.
+ * The week ends to report: from the first whose 28-day window lies in the period to the last. A period
+ * reports its newest maxWeeks at most; all time, which has no start, reports every week from the sport's
+ * first block, so no week is read from a window shorter than the others.
  */
-function weekEnds(blocks: readonly Block[], fromMs: number | undefined): number[] {
+function weekEnds(
+  blocks: readonly Block[],
+  fromMs: number | undefined,
+  newestWeeks: number | null,
+): number[] {
   const span = weekEndsSpan(blocks)!
   const fromEnd =
     fromMs === undefined
       ? weekEndMs(blocks[0]!.weekMs + WINDOW_MS)
       : weekEndFor({ startMs: fromMs + WINDOW_MS })
-  const firstEnd = Math.max(
-    span.first,
-    fromEnd,
-    span.last - (SAME_HEART_RATE.maxWeeks - 1) * WEEK_MS,
-  )
+  const newest = newestWeeks === null ? -Infinity : span.last - (newestWeeks - 1) * WEEK_MS
+  const firstEnd = Math.max(span.first, fromEnd, newest)
   const lastEnd = span.last
   const ends: number[] = []
   for (let end = firstEnd; end <= lastEnd; end += WEEK_MS) ends.push(end)
@@ -200,47 +217,76 @@ function nearestLack(weeks: readonly SameHeartRateWeek[]): Lack {
   return best?.lacks ?? 'weeks'
 }
 
+/** The weeks of some blocks and what they came to: how many report, and what is missing when fewer than two do. */
+type Weeks = Pick<SameHeartRate, 'weeks' | 'reportedWeeks' | 'lacks'>
+
+function weeksOf(
+  blocks: readonly Block[],
+  referenceHeartRate: number,
+  fromMs: number | undefined,
+  newestWeeks: number | null,
+): Weeks {
+  if (blocks.length === 0) return { weeks: [], reportedWeeks: 0, lacks: 'blocks' }
+  const ends = weekEnds(blocks, fromMs, newestWeeks)
+  // Stretches that do not reach a window's length into the period leave no week whose window lies in it.
+  if (ends.length === 0) return { weeks: [], reportedWeeks: 0, lacks: 'period' }
+  const weeks = ends.map((end) => weekOf(end, blocks, referenceHeartRate))
+  const reportedWeeks = weeks.filter((week) => week.fit !== null).length
+  return { weeks, reportedWeeks, lacks: reportedWeeks < 2 ? nearestLack(weeks) : null }
+}
+
 function forSport(
   ordered: ActivityDigest[],
   library: ActivityDigest[],
   sport: Sport,
   setAside: ReadonlySet<string>,
   fromMs: number | undefined,
+  newestWeeks?: number,
 ): SameHeartRate {
-  const all = blocksOf(ordered, sport, setAside)
-  const referenceHeartRate = referenceOf(blocksOf(library, sport, setAside))
-  if (all.length === 0 || referenceHeartRate === null) return NO_SAME_HEART_RATE[sport]
+  const libraryBlocks = blocksOf(library, sport, setAside)
+  const referenceHeartRate = referenceOf(libraryBlocks)
+  if (referenceHeartRate === null) return NO_SAME_HEART_RATE[sport]
+  const all = library === ordered ? libraryBlocks : blocksOf(ordered, sport, setAside)
+  const libraryLast = weekEndsSpan(library)!.last
   // The period's last week is that of its newest activity, of either sport.
-  const latestWeekEndMs = weekEndsSpan(ordered)!.last
-  const ends = weekEnds(all, fromMs)
-  // Stretches that do not reach a window's length into the period leave no week whose window lies in it.
-  if (ends.length === 0) {
-    return { referenceHeartRate, weeks: [], reportedWeeks: 0, lacks: 'period', latestWeekEndMs }
+  const latestWeekEndMs = weekEndsSpan(ordered)?.last ?? libraryLast
+  // A period reports its newest year of weeks at most, and all time every week unless the caller caps it.
+  const cap = fromMs === undefined ? (newestWeeks ?? null) : SAME_HEART_RATE.maxWeeks
+  const own = weeksOf(all, referenceHeartRate, fromMs, cap)
+  // A period with no week to draw is not left empty while the library has weeks: its newest ones are read, as
+  // the reference heart rate is, and the result says so. All time already is the library.
+  if (own.reportedWeeks < 2 && fromMs !== undefined) {
+    const newest = weeksOf(libraryBlocks, referenceHeartRate, undefined, SAME_HEART_RATE.maxWeeks)
+    if (newest.reportedWeeks > own.reportedWeeks) {
+      return { referenceHeartRate, ...newest, latestWeekEndMs: libraryLast, scope: 'library' }
+    }
   }
-  const weeks = ends.map((end) => weekOf(end, all, referenceHeartRate))
-  const reportedWeeks = weeks.filter((week) => week.fit !== null).length
-  const lacks = reportedWeeks < 2 ? nearestLack(weeks) : null
-  return { referenceHeartRate, weeks, reportedWeeks, lacks, latestWeekEndMs }
+  // A period with none of the sport's steady stretches that the library cannot help has nothing to report.
+  return all.length === 0
+    ? NO_SAME_HEART_RATE[sport]
+    : { referenceHeartRate, ...own, latestWeekEndMs }
 }
 
 /**
  * Each sport's output at the same heart rate, week by week. For a week, the blocks of steady effort
- * in the 28 days to its Sunday are fitted by Theil-Sen, output on heart rate, and read at one
- * reference heart rate for every period: the median heart rate of the library's newest year of blocks.
+ * in the 28 days to its Sunday (56 when those hold under six activities) are fitted by Theil-Sen, output on
+ * heart rate, and read at one reference heart rate for every period: the median heart rate of the library's
+ * newest year of blocks. A period with no week to draw takes the library's newest weeks instead.
  * Measured rides and outdoor runs only, and not the activities whose heart rate is set aside. fromMs is
  * the period's start, so that no window reaches before it; `library` is every digest, whatever the
- * period, and is the digests when not given. The result depends on these and the set-aside ids alone,
+ * period, and is the digests when not given. All time reports every week; `newestWeeks` caps it to the newest
+ * ones, which a reader that does not draw the weeks (the findings) asks for. The result depends on these and the set-aside ids alone,
  * not on body mass. See docs/research/same-heart-rate.md.
  */
 export function sameHeartRate(
   digests: ActivityDigest[],
   setAside: ReadonlySet<string>,
-  opts: { fromMs?: number; library?: ActivityDigest[] },
+  opts: { fromMs?: number; library?: ActivityDigest[]; newestWeeks?: number },
 ): SameHeartRateBySport {
   const ordered = orderedFor('sameHeartRate', digests)
   const library = opts.library === undefined ? ordered : orderedFor('sameHeartRate', opts.library)
   return {
-    run: forSport(ordered, library, 'run', setAside, opts.fromMs),
-    ride: forSport(ordered, library, 'ride', setAside, opts.fromMs),
+    run: forSport(ordered, library, 'run', setAside, opts.fromMs, opts.newestWeeks),
+    ride: forSport(ordered, library, 'ride', setAside, opts.fromMs, opts.newestWeeks),
   }
 }
