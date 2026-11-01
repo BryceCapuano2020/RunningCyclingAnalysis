@@ -10,6 +10,7 @@ import type { CheckinScope } from './checkinStore'
 import { deviceKeeper } from './deviceKeeper'
 import { shownCount } from './hiddenCopies'
 import { openOutbox } from './outbox'
+import type { FailedOriginals } from './failedOriginals'
 import type { SendingKeys } from './sendingKeys'
 import { openHeldIndex } from './heldIndex'
 import type { HeldIndexHandle } from './heldIndex'
@@ -32,6 +33,8 @@ import { noteWork } from './workerWire'
 export interface ImportRunContext {
   /** The workouts being sent to the account, shared with the outbox resume. */
   sending: SendingKeys
+  /** The originals whose upload failed, held for Try again now. */
+  failedOriginals: FailedOriginals
   /** The labels this import applied, which its summary can take off. */
   labelUndo: LabelUndo
   /** Labels the library kept in this browser from an export's list. */
@@ -142,6 +145,7 @@ export async function runImport(
           onPaused: () => reporter.savesPaused(),
           outbox: openOutbox(sync.userId),
           sending: ctx.sending,
+          failedOriginals: ctx.failedOriginals,
           hiddenIds: () => session.hiddenIds(),
           onStopped: (code) => {
             stoppedBy ??= code

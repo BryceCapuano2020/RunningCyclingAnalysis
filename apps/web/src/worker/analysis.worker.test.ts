@@ -594,7 +594,7 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).not.toHaveBeenCalled()
   })
 
-  it('counts a failed upload as a failed save', async () => {
+  it('counts a failed upload as a failed save, held to be sent again', async () => {
     mocked.uploadFile.mockRejectedValue(new Error('too large'))
     const { send } = await startWorker()
     const messages = await send({
@@ -606,7 +606,7 @@ describe('analysis worker', () => {
 
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'server', count: 1 }] },
+      state: { syncIssues: [{ code: 'original-held', count: 1 }] },
     })
   })
 

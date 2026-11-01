@@ -45,7 +45,7 @@ function rowsOf(
   })
 }
 
-/** A pace or power with no zones on the activity's date, and whether that is because its efforts are above the threshold on file. */
+/** A pace or power with no zones on the activity's date, and whether the window's efforts are above the older fit. */
 export interface MissingMeasure {
   measure: ZoneMeasure
   outgrown: boolean
@@ -77,7 +77,7 @@ function MissingNote({ sport, measures }: { sport: Sport; measures: readonly Mis
       {measures.map(({ measure, outgrown }) => (
         <p key={measure} className="muted">
           {outgrown
-            ? `No ${measure} zones: this ${sport} is harder than the threshold on file.`
+            ? `No ${measure} zones: your threshold around this date is not settled.`
             : `No ${measure === 'heartRate' ? 'heart rate' : measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
         </p>
       ))}

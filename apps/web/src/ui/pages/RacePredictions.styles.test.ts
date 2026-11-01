@@ -17,4 +17,8 @@ describe('race bars', () => {
   it('lets the table in the disclosure scroll rather than widen the page', () => {
     expect(ruleBody(css, '.race-table th,\n.race-table td')).toMatch(/vertical-align:\s*top/)
   })
+
+  it('wraps the column heads, so the last column fits a 1440 px page where the table sits in half the width', () => {
+    expect(ruleBody(css, '.race-table thead th')).toMatch(/white-space:\s*normal/)
+  })
 })

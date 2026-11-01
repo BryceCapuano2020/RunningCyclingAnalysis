@@ -40,6 +40,15 @@ function sizeFromChildren(): ChartSize {
   return size
 }
 
+describe('ChartFrame, the table in the disclosure', () => {
+  it('wraps its column heads and keeps tight cell padding, so six columns fit half a 1440 px page', () => {
+    expect(ruleBody(frameCss, '.chart-frame__details thead th')).toMatch(/white-space:\s*normal/)
+    expect(ruleBody(frameCss, '.chart-frame__details th,\n.chart-frame__details td')).toMatch(
+      /padding-inline:\s*var\(--space-2\)/,
+    )
+  })
+})
+
 describe('ChartFrame', () => {
   it('titles the figure with a visible caption, and names the drawing by its description', () => {
     const { container } = renderFrame()

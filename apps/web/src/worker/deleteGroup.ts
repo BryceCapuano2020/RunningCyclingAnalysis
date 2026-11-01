@@ -17,6 +17,8 @@ export interface DeleteGroupContext {
   savedRecords: Map<string, ActivityRecord>
   unmatchedOriginals: Set<string>
   missingOriginals: Set<string>
+  /** An original waiting to be sent again goes with its activity. */
+  failedOriginals: { drop(key: string): void }
   routes: Pick<RouteMemory, 'forget'>
   workbench: Pick<Workbench, 'remove'>
   device: Pick<DeviceActions, 'dropKept'>
@@ -39,6 +41,7 @@ async function forgetRecord(
   ctx.unmatchedOriginals.delete(record.id)
   ctx.routes.forget(record.id)
   ctx.missingOriginals.delete(key)
+  ctx.failedOriginals.drop(key)
   // The file this activity came from is read again if it is added again.
   await forgetHeldKeys(accountScope(userId), [key])
   await forgetHeldKeys('device', [key])

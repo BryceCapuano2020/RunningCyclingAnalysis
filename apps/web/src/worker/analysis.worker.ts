@@ -10,8 +10,9 @@ import { deviceActions } from './device'
 import { adoptDeviceRequest, forgetDeviceLibraryRequest, offerDevice } from './adoptionRequests'
 import type { AdoptionRequestContext } from './adoptionRequests'
 import { newSession } from './newSession'
-import { deviceKeeper } from './deviceKeeper'
+import { keepProvisional } from './keepProvisional'
 import { clearOutbox } from './outbox'
+import { FailedOriginals } from './failedOriginals'
 import { SendingKeys } from './sendingKeys'
 import { startResume } from './startResume'
 import type { ResumeParts } from './startResume'
@@ -103,11 +104,13 @@ const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
 observeRequests(noteWork)
 const sending = new SendingKeys()
+const failedOriginals = new FailedOriginals()
 const labels = labelWorker({ session, deviceLibrary, device, savedRecords, view, reportLibrary })
 const importContext: ImportRunContext = {
   checkIns: checkIns.keeper,
   lastImport: null,
   sending,
+  failedOriginals,
   labelUndo: labels.labelUndo,
   deviceLabels: labels.deviceLabels,
   session,
@@ -127,7 +130,15 @@ const reportDetail = detailReporter(workbench, post, () =>
 
 /** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
 const resume = new ResumeHolder()
-const resumeParts: ResumeParts = { session, deviceLibrary, savedRecords, sending, workbench }
+const resumeParts: ResumeParts = {
+  session,
+  deviceLibrary,
+  savedRecords,
+  missingOriginals,
+  failedOriginals,
+  sending,
+  workbench,
+}
 const adoptionContext: AdoptionRequestContext = {
   session,
   deviceLibrary,
@@ -146,19 +157,12 @@ function finishLoad(state: SessionState, userId: string): SessionState {
   return state
 }
 
-/** The kept library was emptied under an import: the page is told, and starts from what is kept now. */
-function stopEmptied(): SessionState {
-  post({ type: 'deviceIssue', issue: 'replaced' })
-  device.replaced()
-  workbench.clearMemory()
-  return session.clear()
-}
-
 const deleteContext: DeleteGroupContext = {
   session,
   savedRecords,
   unmatchedOriginals,
   missingOriginals,
+  failedOriginals,
   routes,
   workbench,
   device,
@@ -171,21 +175,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
   switch (request.type) {
     case 'addFiles':
       return (await runImport(importContext, request)).state
-    case 'keepProvisional': {
-      const keeper = deviceKeeper(device, post)
-      const held = [...provisionalItems.values()]
-      provisionalItems.clear()
-      for (const item of held) await keeper.keep(item)
-      await checkIns.keepProvisional('device')
-      // Not when the kept library was emptied meanwhile: the recordings would outlive their activities.
-      const emptied = keeper.replaced || workbench.libraryReplaced || !(await device.current())
-      if (emptied) workbench.dropDeferred()
-      await workbench.storeDeferred()
-      if (emptied || workbench.libraryReplaced) return stopEmptied()
-      await device.report()
-      keeper.report()
-      return session.setSettings(request.settings)
-    }
+    case 'keepProvisional':
+      return keepProvisional(
+        { session, device, workbench, checkIns, post, provisionalItems },
+        request.settings,
+      )
     case 'loadSample':
       view.libraryEpoch++
       provisionalItems.clear()
@@ -219,7 +213,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       // The connection is back, or the athlete asked: what the outbox holds goes now, without reading the library again.
       if (view.activeScope?.kind === 'account' && view.activeScope.userId === request.userId) {
         await resume.end()
-        await resume.start(() => startResume(resumeParts, request.userId)).finished
+        await resume.start(() => startResume(resumeParts, request.userId, true)).finished
       }
       return session.setSettings(request.settings)
     case 'undoLabels':
@@ -255,6 +249,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       view.libraryEpoch++
       labels.labelUndo.clear()
       resume.cancel()
+      failedOriginals.forget()
       provisionalItems.clear()
       view.showingSample = false
       workbench.clearMemory()

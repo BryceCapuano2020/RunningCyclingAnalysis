@@ -39,4 +39,11 @@ describe('outboxText', () => {
   it('has nothing to say when nothing was waiting', () => {
     expect(outboxText(status({}))).toBeNull()
   })
+
+  it('leaves out the saved count when the import line already says it', () => {
+    expect(outboxText(status({ saved: 3 }), true)).toBeNull()
+    expect(outboxText(status({ saved: 3, pending: 1 }), true)).toBe(
+      '1 activity is still waiting to be saved. It saves when the connection returns, or the next time the page loads.',
+    )
+  })
 })

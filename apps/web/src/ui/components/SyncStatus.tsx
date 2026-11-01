@@ -18,6 +18,8 @@ export interface SyncStatusProps {
    * last count drawn, which can lag, so the finished sentence prefers this one.
    */
   savedCount?: number | null
+  /** Activities that the saves left waiting after that import were sent again and stored, since it ended. */
+  savedLater?: number
   /** Activities in this library session that were not saved, or not kept, and why. */
   issues: SyncIssue[]
   signedIn: boolean
@@ -106,6 +108,10 @@ function issueSentence(
         : `${formatCount(count)} workouts are already saved from different files. Delete the saved copies first to replace them.`
     case 'originals-off':
       return `Original files are turned off in your profile, so ${originals} ${wereOrWas} not kept. ${summaries} Turn on Keep original files in my library on Profile to keep them.`
+    case 'original-held':
+      return `${originals} could not be sent. ${summaries} ${count === 1 ? 'It sends' : 'They send'} when the connection returns${canRetry ? ', or when you press Try again now' : ''}. Keep this page open: if you reload first, add ${count === 1 ? 'its file' : 'their files'} again.`
+    case 'original-unsent':
+      return `${originals} could not be kept. ${summaries} Add ${count === 1 ? 'its file' : 'their files'} again to keep ${them}.`
     case 'network':
       return `${activities} ${wereOrWas} not fully saved because the connection dropped. ${count === 1 ? 'It saves' : 'They save'} when the connection returns${canRetry ? ', or when you press Try again now' : ''}.`
     case 'server':
@@ -123,6 +129,7 @@ function issueSentence(
 export function SyncStatus({
   uploading,
   savedCount = null,
+  savedLater = 0,
   issues,
   signedIn,
   moved = false,
@@ -150,10 +157,11 @@ export function SyncStatus({
         issueSentence(issue, finished?.saved ?? null, hiddenCopies, onRetry !== undefined),
       )
       .join(' ')
-  } else if (finished?.saved === 0) {
+  } else if (finished !== null && finished.saved + savedLater === 0) {
     text = NOTHING_SAVED
   } else if (finished !== null) {
-    const saved = `Saved ${plural(finished.saved, 'activity', 'activities')} to your library.`
+    // What a retry stored counts with what the import saved: the sentence says what is in the library now.
+    const saved = `Saved ${plural(finished.saved + savedLater, 'activity', 'activities')} to your library.`
     text = finished.moved ? `${saved} ${MOVED_NOTE}` : saved
   } else {
     text = ''
