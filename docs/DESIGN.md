@@ -290,7 +290,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   - **Every section shows its best answer, or one line in its own place.** Open as cards: **Best efforts** (the curve with its
     findings written on it, and a strip of four record tiles under it), **Race predictions** beside **Time in zones** (60 and 40 on
     a desktop; a ride's zones take the whole row), and **Best efforts over time**. Then sections with a row that names the
-    section and says what it found, each **open by default** with its content shown, which the reader can fold: **Same heart
+    section and says what it found, each **open by default** with its content shown, which the reader can fold (open, a section is a band like the others; folded, it is a card of one row, so the box ratchet counts a fold and not an open section): **Same heart
     rate, week by week** ("Your pace each week at 145 bpm.", the row naming the heart rate so "the same" is a number, and
     saying where the fitness status is when there is one), **Durability** ("Best 20 min held 99% after an hour. Efficiency fell 3%
     from the first half to the second."), **Best durations**, and **All best
@@ -372,7 +372,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   range clears zero by 2% at its near end; one that stands out by less is on the chart only. A best below
   the rest is always said to be possibly untested, since a best is a lower bound. With none standing out and 40 or more activities of the sport it
   says "Your bests are in line with each other, compared from 5 s to 60 min." and offers no strip; with fewer it says "Nothing stands out in your bests, compared from 5 s to 60 min." and never "in line" (a few efforts can match a curve by chance, and the level is already cut to the library's size, so the sentence still answers). When the bests are the whole library's the sentence says all-time: "Your all-time 5 min best is 14% above what your other bests suggest." A period with fewer than 40 activities of the sport reads the
-  bests of the whole library instead, when it holds more, and the body says so in a few words ("Based on all your runs."); the state carries those
+  bests of the whole library instead, when it holds more, and the sentence on the row names the window (the "all-time" wording above); the state carries those
   bests (`libraryBests`) and the profile is judged at the library's size. A stand-out is judged at a stricter level in a library under 40 activities (the 5% level scaled by activities over 40), the size it states is shrunk toward the athlete's own curve (positive-part James-Stein, so the duration that noise helped most is not stated at full size), and the curve's spread is never tightened by the points the lower-bound refit drops (`profile/standOut.sim.test.ts` records the false-stand-out rates). With some
   standing out by less than 2% it adds ", apart from small differences on the chart". The span names the first and last durations the profile compares (from 2 min when the short end is not anchored), which can start earlier than the curve above it, whose table begins at 1 min. Durations are named as every effort length is,
   in whole minutes ("60 min", never "1 h"). The words "limiter", "weak", "strength", "holding you back"

@@ -43,6 +43,21 @@ describe('SectionDisclosure', () => {
     expect(screen.getByText('The chart')).toBeInTheDocument()
   })
 
+  it('is a band while open and the card of one row when folded', () => {
+    renderDisclosure()
+    const region = screen.getByRole('region')
+    const details = region.querySelector('details')!
+    expect(region).toHaveClass('band')
+    expect(region).not.toHaveClass('panel')
+    details.open = false
+    fireEvent(details, new Event('toggle'))
+    expect(region).toHaveClass('panel')
+    expect(region).not.toHaveClass('band')
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(region).toHaveClass('band')
+  })
+
   it('marks a section whose body says its finding already, so the row says it only when folded', () => {
     const { container } = render(
       <SectionDisclosure

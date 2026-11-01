@@ -16,9 +16,9 @@ export interface SectionDisclosureProps {
 
 /**
  * A section with content, open to start with: nothing the library can say is behind a press. Its summary is the
- * section's name and its finding in one line, so a section the reader folds still says what it found. The body
- * mounts when the section is open, so a chart is never measured while it is hidden. The wrapper is a named region,
- * so the page's outline has the section whether it is open or not.
+ * section's name and its finding in one line, so a section the reader folds still says what it found. Open, it is a
+ * band like every other section; folded, it is the card of one row. The body stays mounted when folded. The wrapper
+ * is a named region, so the page's outline has the section whether it is open or not.
  */
 export function SectionDisclosure({
   id,
@@ -27,10 +27,10 @@ export function SectionDisclosure({
   restated = false,
   children,
 }: SectionDisclosureProps) {
-  const [mounted, setMounted] = useState(true)
+  const [open, setOpen] = useState(true)
   return (
     <section
-      className="panel sport-disclosure"
+      className={`${open ? 'band' : 'panel'} sport-disclosure`}
       aria-label={title}
       data-restated={restated ? '' : undefined}
     >
@@ -38,15 +38,13 @@ export function SectionDisclosure({
         id={id}
         open
         className="sport-disclosure__details"
-        onToggle={(event) => {
-          if (event.currentTarget.open) setMounted(true)
-        }}
+        onToggle={(event) => setOpen(event.currentTarget.open)}
       >
         <summary className="sport-disclosure__summary">
           <span className="sport-disclosure__title">{title}</span>
           <span className="sport-disclosure__finding">{finding}</span>
         </summary>
-        <div className="sport-disclosure__body">{mounted ? children : null}</div>
+        <div className="sport-disclosure__body">{children}</div>
       </details>
     </section>
   )
