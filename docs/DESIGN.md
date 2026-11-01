@@ -8,6 +8,34 @@ The direction comes from the October 2026 UX review: the app is for **multi-spor
 home screen is **Balance** (where you stand in each sport and which way your balance leans), and it
 should feel **athletic and energetic** without hiding the honesty of the engine.
 
+## Voice
+
+These rules bind every line of text the athlete reads. `apps/web/src/ui/voice.test.ts` counts the
+retired phrasings in the UI source and the core's copy modules, and its budgets only go down.
+
+- **One fact per line.** A sentence under a number stays under about 12 words.
+- **No "X, not Y".** No "label: explanation" chains. No two clauses joined by a semicolon.
+- **No method text on main pages.** How a number is made belongs on How sure is this?.
+- **Never restate a chart.** A chart's title is its finding or its metric name.
+- **Use the athlete's terms:** threshold, threshold power, grade-adjusted pace (GAP), heart rate
+  drift, efficiency, durability, max heart rate, age grade, hard effort, steady run.
+- **Banned words:** honest, "read from", comparable, "reference" for heart rate, "to say", "shown",
+  limiter, weak, strength as praise, "holding you back", "ahead of".
+- **Ranges stay,** written as the number then (low to high): 9 points (4 to 18). No em dashes.
+- **Test wording against two libraries:** the sample, and one that fails the hard-effort check.
+
+| Retired               | Use                       |
+| --------------------- | ------------------------- |
+| flat pace             | grade-adjusted pace (GAP) |
+| Output per heartbeat  | heart rate drift          |
+| reference heart rate  | max heart rate            |
+| Late in long sessions | durability                |
+| Ride on foot          | Ride as run pace          |
+| Your years            | Fitness history           |
+| Stand-out             | Bests against your curve  |
+| reading (a number)    | number                    |
+| comparable            | matching                  |
+
 ## Information architecture
 
 Hash routes, so the static host needs no fallback rules.
@@ -349,7 +377,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   - **A section with nothing to show has no heading.** Its reason is one line of a muted list at the end of the
     page, headed "Not enough yet", before the footnote: "Race predictions: needs a best of a mile or more, or
     2 outdoor runs with a heart rate that can be trusted." Each section names its need in the plain words it would have used under its own
-    heading, lower-cased after the section's name, so a new athlete sees no dead headings and no jargon.
+    heading, lower-cased after the section's name and worded by the Voice rules, so a new athlete sees no dead headings.
     The list is left out when every section has content, and on a page with no activities.
   - **A threshold the fit refused, shown as its floor, is "Threshold pace" with the chip At least** (or "power"),
     not Estimated, since the floor is a held best; its heading says ", at least" to a screen reader. A range
