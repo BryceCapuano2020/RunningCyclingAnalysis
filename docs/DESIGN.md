@@ -1459,3 +1459,18 @@ a file `ui/pages/history/<name>.ts` that exports a `HistorySection` (`id`, `orde
 `export { <name> } from './<name>'` line in `ui/pages/history/sections.ts`. Both lists merge as a union
 (`.gitattributes`), so charts added in parallel keep each other's line. Rows come from the sports list, and hours are
 never summed with lifting load.
+
+**Bests by year.** Small charts of a sport's best at each length in each calendar year, one panel for each length on one
+run of years, each panel with its own axis: a run's mile, 5 km, 10 km, half marathon and marathon as pace (faster up, in
+the units setting), a ride's 5, 20 and 60 minutes as power. The all-time best is the large mark and the only label. A Run
+and Ride toggle sits above it when both sports have a best. Runs come from `distanceBests` and rides from the year's best
+curve (`history/yearlyCurves.ts` calls `sportCurves` once for each year, so no second best-effort logic stands beside the
+sport pages'). An indoor run and a ride whose power is set aside hold no best. A best that heart rate does not show was
+hard (`effortVerdict`, the effort gate's own test) is drawn hollow and keyed, never dropped, and its table cell starts
+with "At least".
+
+**Best curve by year.** Every year's best curve on the sport page's own scales (duration on a log axis from a minute, or
+from where the sport's curve starts, to three hours). The newest year and the best year are in the sport colour, named at
+their ends and marked at the 20 minute best; the others are fainter the older they are, on one ramp. The title is the
+finding about the 20 minute best ("Your 20 min power peaked in 2024"), or "is highest in" when the newest year holds it.
+A sport needs two years to be compared. The table twin lists every year at every duration.

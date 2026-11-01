@@ -1,0 +1,27 @@
+/* A year's line: 2 px, round, in the sport's colour (from data-sport) at the opacity its age sets. The named years are solid and heavier. */
+.year-curve {
+  fill: none;
+  stroke: var(--sport-colour);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.year-curve--named {
+  stroke-width: 3px;
+}
+
+/* Forced colours ignore opacity: the older years take the muted text colour and the named ones the sport's system colour. */
+@media (forced-colors: active) {
+  .year-curve {
+    stroke: GrayText;
+  }
+
+  .year-curve--named[data-sport='run'] {
+    stroke: CanvasText;
+  }
+
+  .year-curve--named[data-sport='ride'] {
+    stroke: Highlight;
+  }
+}

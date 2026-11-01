@@ -1,4 +1,5 @@
 import type { EstimatedRideGate } from '../digest/estimatedRide'
+import type { EffortReference } from '../effort'
 import type { ActivityDigest, AthleteSettings } from '../types'
 
 /** What a part may read besides the digests, which are the look-back's inputs. */
@@ -9,6 +10,8 @@ export interface HistoryInput {
   /** The wall clock, cut to the day by the caller so the memory still hits. */
   nowMs: number
   gate: EstimatedRideGate | null | undefined
+  /** The reference heart rates an effort is judged hard against (the effort gate's own). */
+  effortReference: EffortReference
 }
 
 /**

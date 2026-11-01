@@ -1,8 +1,8 @@
-import { civilOfDay, localDayOf } from '../calendar'
 import type { ActivityDigest, Sport } from '../types'
 import { HISTORY_SPORTS, perSport } from './sports'
 import { readsDigestsOnly } from './types'
 import type { HistoryPart } from './types'
+import { yearOfDigest } from './yearOf'
 
 const SECONDS_PER_HOUR = 3600
 const HOUR_STEP = 100
@@ -34,7 +34,7 @@ function build(digests: ActivityDigest[]): YearRow[] {
   const byYear = new Map<number, YearRow>()
   for (const digest of digests) {
     if (!HISTORY_SPORTS.includes(digest.sport)) continue
-    const year = civilOfDay(localDayOf(digest)).year
+    const year = yearOfDigest(digest)
     const row = byYear.get(year) ?? emptyYear(year)
     byYear.set(year, row)
     const totals = row.sports[digest.sport]

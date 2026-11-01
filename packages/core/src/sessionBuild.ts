@@ -172,6 +172,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             setAside: new Set(held),
             nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
             gate: judgement.rideGate,
+            effortReference: judgement.effortReference,
           }),
     zoneEstimates,
     timeInZones:

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { setViewerZone } from '../calendar'
 import { MODEL_REVISION } from '../digest/modelRevision'
+import { NO_EFFORT_REFERENCE } from '../effort'
 import type { ActivityDigest, Sport } from '../types'
 import { historyOf, NO_HISTORY } from './compute'
 
@@ -9,6 +10,7 @@ const INPUT = {
   setAside: new Set<string>(),
   nowMs: Date.UTC(2030, 0, 1),
   gate: undefined,
+  effortReference: NO_EFFORT_REFERENCE,
 }
 
 /** A digest with the fields the history reads and nothing of anyone's activity. */
@@ -22,6 +24,9 @@ function digest(id: string, startMs: number, fields: Partial<ActivityDigest> = {
     durationS: 3600,
     distanceM: 10_000,
     elevationGainM: 100,
+    // The parts that read curves run on every digest, so it holds the empty ones a real digest has.
+    curve: [],
+    calibration: null,
     ...fields,
   } as ActivityDigest
 }

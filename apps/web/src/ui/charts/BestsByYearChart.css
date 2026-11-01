@@ -1,0 +1,20 @@
+/* Marks stand on their years' rooms, and a gridline through the gaps between panels would read as part of one. */
+.bests-chart__x .chart-x-axis__grid {
+  display: none;
+}
+
+/* The line between a sport's years: thin, so the marks carry the values. It takes the sport's colour from data-sport. */
+.chart-series__line.bests-line {
+  stroke: var(--sport-colour);
+  stroke-width: 2px;
+}
+
+@media (forced-colors: active) {
+  .bests-line[data-sport='run'] {
+    stroke: CanvasText;
+  }
+
+  .bests-line[data-sport='ride'] {
+    stroke: Highlight;
+  }
+}

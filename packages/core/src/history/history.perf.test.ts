@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
+import { NO_EFFORT_REFERENCE } from '../effort'
 import { copiedLibrary } from '../test/libraryFixture'
 import { fastestMs } from '../test/timing'
 import { historyOf } from './compute'
@@ -10,7 +11,9 @@ const INPUT: HistoryInput = {
   settings: { massKg: 70, bikeMassKg: 9 },
   setAside: new Set(),
   nowMs: Date.UTC(2034, 0, 1),
-  gate: undefined,
+  // The library's estimated-ride gate, which the judgement has made before any part is built.
+  gate: null,
+  effortReference: NO_EFFORT_REFERENCE,
 }
 
 describe('the history of a long library', () => {
@@ -28,6 +31,7 @@ describe('the history of a long library', () => {
       `2000 activities: ${first.toFixed(1)} ms, again ${again.toFixed(2)} ms, ${bytes} bytes`,
     )
     expect(history.years.length).toBeGreaterThanOrEqual(13)
+    expect(history.yearCurves.ride.years.length).toBeGreaterThanOrEqual(13)
     expect(first).toBeLessThan(100)
     expect(again).toBeLessThan(2)
     expect(bytes).toBeLessThan(24_000)
