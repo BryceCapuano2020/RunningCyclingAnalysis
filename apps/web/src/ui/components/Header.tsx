@@ -5,7 +5,7 @@ import type { Route } from '../route'
 import { hrefFor } from '../route'
 import { previousRoute } from '../routeHistory'
 import { SPORT_LABEL } from '../sports'
-import { ActivitiesIcon, BalanceIcon, BrandMark, PersonIcon, SportIcon } from './icons'
+import { ActivitiesIcon, BalanceIcon, BrandMark, HistoryIcon, PersonIcon, SportIcon } from './icons'
 import { useHeaderHeight } from './useHeaderHeight'
 import './Header.css'
 
@@ -26,11 +26,12 @@ interface Tab {
   glyph: ReactNode
 }
 
-/** Every tab has a glyph, so the four read as one set; on a phone the glyphs are hidden with the names' size. */
+/** Every tab has a glyph, so the five read as one set; on a phone the glyphs are hidden with the names' size. */
 const TABS: Tab[] = [
   { label: 'Balance', route: { page: 'balance' }, glyph: <BalanceIcon /> },
   { label: SPORT_LABEL.run, route: { page: 'run' }, glyph: <SportIcon sport="run" /> },
   { label: SPORT_LABEL.ride, route: { page: 'ride' }, glyph: <SportIcon sport="ride" /> },
+  { label: 'History', route: { page: 'history' }, glyph: <HistoryIcon /> },
   { label: 'Activities', route: { page: 'activities' }, glyph: <ActivitiesIcon /> },
 ]
 

@@ -13,6 +13,7 @@ import { generatedName } from './import/names'
 import { windowEnding } from './period'
 import { NO_FITNESS } from './fitness/types'
 import { NO_LOOKBACK } from './lookback/compute'
+import { NO_HISTORY } from './history/compute'
 import { AnalysisSession, SyncFailure } from './session'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
@@ -433,6 +434,7 @@ describe('AnalysisSession', () => {
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
       lookBack: NO_LOOKBACK,
+      history: NO_HISTORY,
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,
@@ -535,6 +537,7 @@ describe('AnalysisSession', () => {
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
       lookBack: NO_LOOKBACK,
+      history: NO_HISTORY,
       zoneEstimates: null,
       timeInZones: NO_ZONE_TIMES,
       previous: null,

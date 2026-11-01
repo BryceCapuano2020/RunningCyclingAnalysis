@@ -12,6 +12,7 @@ import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
 import { fitnessStatuses } from './fitness/compute'
+import { historyOf, NO_HISTORY } from './history/compute'
 import { lookBackOf, NO_LOOKBACK } from './lookback/compute'
 import { splitPeriods } from './period'
 import type { PeriodCache, PeriodChoice } from './period'
@@ -173,6 +174,16 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
             judgement.rideGate,
           ),
+    // Library-wide too: the History page ignores the period, and these digests make the same answer each time.
+    history:
+      athlete === null
+        ? NO_HISTORY
+        : historyOf(analysed, {
+            settings: athlete,
+            setAside: new Set(held),
+            nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
+            gate: judgement.rideGate,
+          }),
     zoneEstimates,
     timeInZones:
       athlete === null || analysis === null
