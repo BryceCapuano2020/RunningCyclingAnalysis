@@ -44,17 +44,30 @@ describe('eyebrowText', () => {
     fellBack: false,
   })
 
-  it('names the page, the length and the dates', () => {
-    expect(eyebrowText(dated(42))).toBe('Balance · 6 weeks · 21 Apr – 3 Jun 2025')
+  it('names the length the period counts back over, and leaves the dates to the period line', () => {
+    expect(eyebrowText(dated(42))).toBe('Last 6 weeks')
+    expect(eyebrowText(dated(365))).toBe('Last 12 months')
   })
 
   it('says All time for no length', () => {
-    expect(eyebrowText(dated(null))).toMatch(/^Balance · All time · /)
+    expect(eyebrowText(dated(null))).toBe('All time')
   })
 
-  it('leaves out dates there are none of', () => {
+  it('names the window a default resolved to, with or without dates', () => {
     expect(
       eyebrowText({ choice: 'default', startMs: null, endMs: null, days: 84, fellBack: false }),
-    ).toBe('Balance · 12 weeks')
+    ).toBe('Last 12 weeks')
+  })
+
+  it('calls a range entered a custom period', () => {
+    expect(
+      eyebrowText({
+        choice: { from: '2025-04-21', to: '2025-06-03' },
+        startMs: new Date(2025, 3, 21, 12).getTime(),
+        endMs: new Date(2025, 5, 3, 12).getTime(),
+        days: 44,
+        fellBack: false,
+      }),
+    ).toBe('Custom period')
   })
 })

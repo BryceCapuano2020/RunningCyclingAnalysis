@@ -73,7 +73,7 @@ function sourceOf(effort: EffortCheck, sport: Sport): ReferenceSource {
   return source ?? 'data'
 }
 
-/** Where the reference heart rate is named, its one gloss, in words that hold for both sports. */
+/** Where the max heart rate comes from, its one gloss, in words that hold for both sports. */
 const SOURCE_TEXT: Record<ReferenceSource, string> = {
   data: 'set from your highest heart rates on file',
   entered: 'the max heart rate you entered',
@@ -81,7 +81,7 @@ const SOURCE_TEXT: Record<ReferenceSource, string> = {
 }
 
 /**
- * Where a sport's reference heart rate comes from, as the parenthesis names it: the other sport's max when that sport set
+ * Where a sport's max heart rate comes from, as the parenthesis names it: the other sport's max when that sport set
  * it ("your running max less 6 bpm"), else the source of the figure.
  */
 function sourceNote(effort: EffortCheck, sport: Sport): string {
@@ -96,19 +96,19 @@ function sourceNote(effort: EffortCheck, sport: Sport): string {
 function bothSources(effort: EffortCheck): string {
   const run = sourceNote(effort, 'run')
   const ride = sourceNote(effort, 'ride')
-  return run === ride ? `both ${run}` : `running's ${run}; cycling's ${ride}`
+  return run === ride ? `both ${run}` : `running's ${run} and cycling's ${ride}`
 }
 
-/** A best effort's heart rate as a share of its sport's reference, in words, without its ending. */
+/** A best effort's heart rate as a share of its sport's max heart rate, in words, without its ending. */
 function reachedText(sport: Sport, duration: string, fraction: number, source: string): string {
   return REACHED[sport](duration, percentOf(fraction), source)
 }
 
 const REACHED: Record<Sport, (duration: string, share: number, source: string) => string> = {
   run: (duration, share, source) =>
-    `Your best ${duration} running reached ${share}% of your running reference heart rate (${source})`,
+    `Your best ${duration} running reached ${share}% of your running max heart rate (${source})`,
   ride: (duration, share, source) =>
-    `Your best ${duration} on the bike reached ${share}% of your cycling reference heart rate (${source})`,
+    `Your best ${duration} on the bike reached ${share}% of your cycling max heart rate (${source})`,
 }
 
 /** Why the best efforts may not have been the hardest, or null when heart rate does not say so. */
@@ -140,7 +140,7 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
     return {
       title: 'Neither best effort reached a hard heart rate',
       text:
-        `Your best ${duration} reached ${percentOf(run)}% of your running reference heart rate ` +
+        `Your best ${duration} reached ${percentOf(run)}% of your running max heart rate ` +
         `and ${percentOf(ride)}% of your cycling one (${bothSources(effort)}). ` +
         `Both are under the 90% that marks a hard effort.`,
       short: `Best efforts over ${duration} did not reach a hard heart rate.`,
@@ -165,14 +165,14 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
 
 /**
  * One line on a sport's best effort at the headline duration, by heart rate, such as "Your best 20 min
- * running reached 70% of your running reference heart rate (set from your highest heart rates on file).
- * That is under the 90% that marks a hard effort", with whether the effort was hard and the share as the whole percent the line shows, which a sport
- * page's chip says beside its label.
+ * running reached 70% of your running max heart rate (set from your highest heart rates on file).
+ * That is under the 90% that marks a hard effort", with whether the effort was hard, which a sport page's
+ * chip says as its label.
  */
 export function effortShare(
   sport: Sport,
   effort: EffortCheck | null | undefined,
-): { line: string; hard: boolean; percent: number; confirmed: boolean; checked: boolean } | null {
+): { line: string; hard: boolean; confirmed: boolean; checked: boolean } | null {
   if (!effort) return null
   const fraction = { run: effort.runHrFraction, ride: effort.rideHrFraction }[sport]
   if (fraction === null) return null
@@ -182,7 +182,6 @@ export function effortShare(
     return {
       line: `${THIN_WHY} ${THIN_ACTION}`,
       hard: false,
-      percent: percentOf(fraction),
       confirmed: false,
       checked: false,
     }
@@ -193,7 +192,6 @@ export function effortShare(
     return {
       line: `${why.charAt(0).toUpperCase()}${why.slice(1)}, so a share of it cannot show your best ${duration} was hard. ${action}`,
       hard: false,
-      percent: percentOf(fraction),
       confirmed: false,
       checked: true,
     }
@@ -203,21 +201,20 @@ export function effortShare(
   return {
     line: `${reachedText(sport, duration, fraction, sourceNote(effort, sport))}${verdictAfter(fraction, duration, TOP[source])}`,
     hard,
-    percent: percentOf(fraction),
     confirmed: true,
     checked: true,
   }
 }
 
-/** True when heart rate shows both best efforts were hard: 90% of each reference, as the percent shows. */
+/** True when heart rate shows both best efforts were hard: 90% of each max heart rate, as the percent shows. */
 export function hardEffortsOnFile(effort: EffortCheck | null | undefined): boolean {
   return effortShare('run', effort)?.hard === true && effortShare('ride', effort)?.hard === true
 }
 
-/** What a sport's best effort says of its effort as a chip: how hard, by heart rate, with the share and the full reading. */
+/** What a sport's best effort says of its effort as a chip: how hard, by heart rate, with the full reading. */
 export interface EffortChipText {
   hard: boolean
-  /** "Not all-out" or "Hard effort · 95%": the share of the sport's reference heart rate shows only on a hard effort. */
+  /** "Hard effort" or "Not all-out"; the share of the max heart rate is in the detail. */
   label: string
   /** The whole reading, which a definition opens: the share, what it is a share of, and what would change it. */
   detail: string
@@ -237,7 +234,7 @@ export function effortChipText(
   if (!share.confirmed) return { hard: false, label: 'Effort not confirmed', detail: share.line }
   return {
     hard: share.hard,
-    label: share.hard ? `Hard effort · ${share.percent}%` : 'Not all-out',
+    label: share.hard ? 'Hard effort' : 'Not all-out',
     detail: share.line,
   }
 }

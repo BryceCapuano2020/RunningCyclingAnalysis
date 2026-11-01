@@ -21,10 +21,9 @@ import {
 const BALANCE_METER =
   /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
 /**
- * The Balance page's last chart: the hours trained each week. Its title says what it found, so it is found by the
- * name under it.
+ * The Balance page's last chart: the hours trained each week, found by its title.
  */
-const BALANCE_HOURS = /Training hours per week/
+const BALANCE_HOURS = /Training hours/
 const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
 /** The sport page's section of dated bests, which needs a season of activities. */
@@ -111,13 +110,13 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   expect(errors).toEqual([])
 })
 
-test('the ride on foot tile names the ride behind its effort and opens to every duration', async ({
+test('the ride as a run tile names the ride behind its effort and opens to every duration', async ({
   page,
   isMobile,
 }) => {
   await openSample(page)
 
-  const card = page.getByRole('article', { name: 'Ride on foot' })
+  const card = page.getByRole('article', { name: 'Your ride as a run' })
   await expect(card.getByRole('link', { name: /^Set on / })).toBeVisible()
 
   const details = card.locator('details')
@@ -141,9 +140,9 @@ test('Balance says the lean once: no lean tile, three tiles at most, and the lev
   await expect(tiles).not.toContainText(/\bpts\b/)
   // The gap in points is the meter's figure, once; the target is a line of the hero, not of a tile.
   await expect(page.locator('.balance-meter__number')).toHaveCount(1)
-  const target = page.locator('.balance-hero').getByText(/^To match your/)
+  const target = page.locator('.balance-hero').getByText(/^To match it on the /)
   await expect(target).toHaveCount(1)
-  await expect(tiles.getByText(/^To match your/)).toHaveCount(0)
+  await expect(tiles.getByText(/^To match it/)).toHaveCount(0)
   // No tile figure is as large as the headline.
   const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
     return parseFloat(getComputedStyle(el).fontSize)

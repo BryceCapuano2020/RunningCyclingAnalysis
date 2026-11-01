@@ -5,7 +5,8 @@ import { leanOfLead } from '../../domain/lean'
 import { balanceMoveItem } from '../analysis/balanceMove'
 import { BalanceMeter } from './BalanceMeter'
 import { gapReading } from './balanceScale'
-import { balanceSentence, balanceSummary, rangeText } from './headlineText'
+import { balanceSentence, rangeText } from './headlineText'
+import { BalanceLede } from '../pages/BalanceLede'
 
 afterEach(cleanup)
 
@@ -21,11 +22,12 @@ describe('every surface writes a balance from the same side', () => {
   const reading = gapReading(gap(-2, -6, 2))
   const RANGE = '−2 to +6 points'
 
-  it('writes the cycling side of the range in the lede, the range text, the key and the spoken sentence', () => {
+  it('writes the cycling side in the lede, and of the range in the range text, the key and the spoken sentence', () => {
     expect(reading.lean).toBe('even')
     expect(rangeText(reading)).toBe(RANGE)
-    expect(balanceSummary(reading, 1200)).toContain(`Cycling’s age grade is 2 points higher`)
-    expect(balanceSummary(reading, 1200)).toContain(`within ${RANGE}`)
+    const lede = render(<BalanceLede reading={reading} durationS={1200} />)
+    expect(lede.container.textContent).toBe('Cycling grades 2 points higher over 20\u00a0min.')
+    cleanup()
     expect(balanceSentence(reading)).toBe(`In balance: cycling 2 points higher, range ${RANGE}`)
     const { container } = render(<BalanceMeter reading={reading} />)
     expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('−2 to +6')
@@ -39,16 +41,11 @@ describe('every surface writes a balance from the same side', () => {
     expect(item?.text).toContain('1 point toward cycling')
   })
 
-  it('keeps the running side, labelled, only for an estimate of zero with a lopsided range', () => {
-    const zero = gapReading(gap(0, -2, 6))
-    expect(balanceSummary(zero, 1200)).toContain('within −2 to +6 points (running minus cycling)')
-    expect(balanceSummary(gapReading(gap(-2, -6, 2)), 1200)).not.toContain('running minus cycling')
-  })
-
-  it('never prints a range of 0 to 0 for an estimate of zero with no range', () => {
-    expect(balanceSummary(gapReading(gap(0, 0, 0)), 1200)).toBe(
-      'Running and cycling have the same age grade at 20 min, so the two are level.',
+  it('says the two grade the same for an estimate of zero, with no range to print', () => {
+    const { container } = render(
+      <BalanceLede reading={gapReading(gap(0, 0, 0))} durationS={1200} />,
     )
+    expect(container.textContent).toBe('Running and cycling grade the same over 20\u00a0min.')
   })
 
   it('signs a range that touches zero', () => {

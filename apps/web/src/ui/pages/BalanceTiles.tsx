@@ -34,9 +34,9 @@ export interface BalanceTilesProps {
 }
 
 /**
- * The headline numbers, at most three: each sport's threshold, and what the ride is worth on foot. The lean
+ * The headline numbers, at most three: each sport's threshold, and what the ride is worth as a run. The lean
  * between the sports is the headline and the meter's to say, once, so it has no tile. A sport with nothing in
- * the period is a prompt in its place; the ride on foot needs both sports, so it is left out with one.
+ * the period is a prompt in its place; the ride as a run needs both sports, so it is left out with one.
  */
 export function BalanceTiles({
   result,

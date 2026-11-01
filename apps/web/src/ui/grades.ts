@@ -45,9 +45,6 @@ export interface HeadlineGrades {
 /** The headline length as copy, built by the duration formatter: "20 min". */
 export const HEADLINE_LABEL = formatDuration(HEADLINE_DURATION_S)
 
-/** What a grade is, said once under a sport page's caption and at the end of the Balance footer. */
-export const LEVEL_NOT_RANKING = 'A level, not a ranking.'
-
 /** No best effort of the headline length exists yet, so there is nothing to grade. */
 export const NEEDS_EFFORT_TEXT = `Age grade needs a best ${HEADLINE_LABEL} effort.`
 /**
@@ -166,29 +163,32 @@ import { NO_STANDARD_RECORD_TEXT } from './gradeNotes'
 export * from './gradeNotes'
 
 /**
- * The level a grade names: its band, or "Recreational to Local" when a ride's range crosses a band
- * boundary, so the range's two ends are both named.
+ * The level a grade names, or null when its range crosses a band boundary: a level is named only when the
+ * whole range sits in one band, so a ride that could be in either shows its number and range alone.
  */
-export function gradeLevelText(grade: SportGrade): string {
+export function gradeLevelText(grade: SportGrade): string | null {
   const { centre, range } = grade
-  return range && range.low.level !== range.high.level
-    ? `${range.low.level} to ${range.high.level}`
-    : centre.level
+  return range && range.low.level !== range.high.level ? null : centre.level
 }
 
-/** A ride's range as whole percents, such as "63–71%". */
+/** A ride's range as whole percents, low to high, such as "63 to 71". */
 export function gradeRangeText(range: { low: Grade; high: Grade }): string {
-  return `${wholeGrade(range.low.grade)}–${formatGrade(range.high.grade)}`
+  return `${wholeGrade(range.low.grade)} to ${wholeGrade(range.high.grade)}`
 }
 
 /**
- * A grade on the share card's hero: its centre level and whole percent, and the effort it grades,
- * such as "Local · 64% on best 20 min". A ride whose range crosses a level names both ends, as the page
- * does ("Local to World"), so the card and the page never give two levels for one grade. The card's
- * threshold label already says the figure is estimated, so the line does not repeat it.
+ * A grade on the share card's hero: its level and whole percent, and the effort it grades, such as
+ * "Local · 64% on best 20 min". A grade with no level to name shows its number and range alone, as the
+ * page does: "64% (63 to 71) on best 20 min". The card's threshold label already says the figure is
+ * estimated, so the line does not repeat it.
  */
 export function heroGradeLine(grade: SportGrade): string {
-  return `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
+  const { centre, range } = grade
+  const level = gradeLevelText(grade)
+  const figure = formatGrade(centre.grade)
+  if (level !== null) return `${level} · ${figure} on best ${HEADLINE_LABEL}`
+  const spread = range === null ? '' : ` (${gradeRangeText(range)})`
+  return `${figure}${spread} on best ${HEADLINE_LABEL}`
 }
 
 /**
@@ -202,10 +202,11 @@ export type GradeContext = 'card' | 'record' | 'row'
 export interface GradeParts {
   /** "Estimated" for a ride, or "Estimated through its running equivalent" on a record; else null. */
   lead: string | null
-  level: string
+  /** The level the whole range sits in; null where a ride's range crosses a band, so the number and range stand alone. */
+  level: string | null
   /** The centre as a whole percent, such as "64%". */
   value: string
-  /** A ride's range as whole percents, such as "63–71%"; null for a run. */
+  /** A ride's range as whole percents, low to high, such as "63 to 71"; null for a run. */
   range: string | null
 }
 
@@ -218,7 +219,7 @@ function leadOf(sport: Sport, where: GradeContext): string | null {
 
 /**
  * A grade as the cards and records write it, in parts. A run is read as recorded: "Local · 67%". A
- * ride is estimated through its running equivalent: "Estimated · Local · 67% (63–71%)".
+ * ride is estimated through its running equivalent: "Estimated · Local · 67% (63 to 71)".
  */
 export function gradeParts(
   sport: Sport,

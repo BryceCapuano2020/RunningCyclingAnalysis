@@ -29,7 +29,7 @@ describe('directLabels', () => {
   it('names each sport’s grade at 20 min, and the ride’s range under its label', () => {
     const [first, second] = directLabels(ROWS, marks(80, 140), 600)
     expect(first).toMatchObject({ sport: 'run', text: 'Run 64%', range: null })
-    expect(second).toMatchObject({ sport: 'ride', text: 'Ride 58%', range: 'range 52–63%' })
+    expect(second).toMatchObject({ sport: 'ride', text: 'Ride 58%', range: 'range 52 to 63' })
   })
 
   it('puts the higher sport’s label above and right of its point, and the lower one below and left', () => {

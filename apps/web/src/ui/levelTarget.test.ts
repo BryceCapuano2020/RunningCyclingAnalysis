@@ -165,9 +165,9 @@ describe('levelTargetText', () => {
   it('says what a ride would need to match the run, in watts rounded to 5, with the ride now', () => {
     const line = levelTargetText({ ...base, lean: 'run' })
     expect(line).toMatch(
-      /^To match your running at 20 min: about \d+ W \(\d+ to \d+ W\)\. Now 230 W\.$/,
+      /^To match it on the bike: \d+ W for 20 min \(\d+ to \d+\)\. You’re at 230 W\.$/,
     )
-    const [, centre, low, high] = /about (\d+) W \((\d+) to (\d+) W/.exec(line ?? '') ?? []
+    const [, centre, low, high] = /: (\d+) W for 20 min \((\d+) to (\d+)\)/.exec(line ?? '') ?? []
     expect(Number(centre) % 5).toBe(0)
     expect(Number(low) % 5).toBe(0)
     expect(Number(high) % 5).toBe(0)
@@ -176,14 +176,14 @@ describe('levelTargetText', () => {
     expect(Number(centre)).toBeGreaterThan(230)
   })
 
-  it('says what a run would need to match the ride, as a flat pace to the second', () => {
+  it('says what a run would need to match the ride, as a pace to the second', () => {
     const line = levelTargetText({
       ...base,
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
     expect(line).toMatch(
-      /^To match your cycling at 20 min: a flat pace of \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/,
+      /^To match it on the run: \d+:\d\d \/km for 20 min\. You’re at \d+:\d\d \/km\.$/,
     )
   })
 
@@ -198,7 +198,7 @@ describe('levelTargetText', () => {
       rideCurve: [curvePoint(HEADLINE_DURATION_S, 300, 'ride-1')],
     })
     const line = levelTargetText({ ...base, result: heavier, massKg: 80, lean: 'run' })
-    expect(line).toMatch(/Now 300 W, 240 W at today’s weight\.$/)
+    expect(line).toMatch(/You’re at 300 W, 240 W at today’s weight\.$/)
   })
 
   it('says nothing of weight when the lower sport is a run, whose pace has no mass, even with dated masses', () => {
@@ -217,7 +217,7 @@ describe('levelTargetText', () => {
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
-    expect(line).toMatch(/a flat pace of \d+:\d\d \/km\. Now \d+:\d\d \/km\.$/)
+    expect(line).toMatch(/ for 20 min\. You’re at \d+:\d\d \/km\.$/)
     expect(line).not.toContain('today’s weight')
   })
 
@@ -266,10 +266,10 @@ describe('levelTargetText on the sample athlete', () => {
         units: 'metric',
         calibration,
       }),
-    ).toBe('To match your cycling at 20 min: a flat pace of 3:18 /km. Now 4:01 /km.')
+    ).toBe('To match it on the run: 3:18 /km for 20 min. You’re at 4:01 /km.')
   })
 
-  it('names the same pace the Ride on foot tile gives for that ride, in metric and imperial', () => {
+  it('names the same pace the Your ride as a run tile gives for that ride, in metric and imperial', () => {
     const { result, calibration } = loadedSample()
     const grades = headlineGrades(result, SAMPLE_PROFILE)
     const featured = featuredEquivalence(result.equivalents)!
@@ -284,7 +284,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       })
       expect(line, units).toContain(
-        `a flat pace of ${formatPaceValue(featured.runSpeed.p50, units)} ${PACE_UNIT[units]}. Now `,
+        `${formatPaceValue(featured.runSpeed.p50, units)} ${PACE_UNIT[units]} for 20 min. You’re at `,
       )
     }
   })
@@ -364,7 +364,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
         calibration,
       })
     expect(at(levelled)).toBeNull()
-    expect(at(levelled - 1)).toContain(`. Now ${levelled - 1} W.`)
+    expect(at(levelled - 1)).toContain(`You’re at ${levelled - 1} W.`)
   })
 })
 
@@ -393,8 +393,8 @@ describe('levelTarget', () => {
     expect(target?.range).toMatch(/^\d+ to \d+ W$/)
     expect(target?.now).toBe('230 W')
     expect(target?.sentence).toBe(levelTargetText({ ...base, lean: 'run' }))
-    expect(target?.sentence).toContain(
-      `about ${target?.centre} (${target?.range}). Now ${target?.now}`,
+    expect(target?.sentence).toBe(
+      `To match it on the bike: ${target?.centre} for 20 min (${target?.range?.replace(' W', '')}). You’re at ${target?.now}.`,
     )
   })
 

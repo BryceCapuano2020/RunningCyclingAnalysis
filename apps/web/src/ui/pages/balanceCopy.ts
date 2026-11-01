@@ -2,7 +2,7 @@ import type { Period } from '@rca/core/period'
 import type { Sport } from '@rca/core/types'
 import type { BalanceReading } from '../components/balanceScale'
 import { balanceTitle } from '../components/headlineText'
-import { periodDates, periodName } from '../components/rangeOptions'
+import { lengthOf, periodName } from '../components/rangeOptions'
 import { SPORT_NOUN } from '../sports'
 
 /** The headline split at the sport it names, so that sport can be marked: the words before it, then the sport. */
@@ -25,16 +25,11 @@ export function titleParts(reading: BalanceReading): TitleParts {
 }
 
 /**
- * The period's name as the period control names it: its own label for a length it offers, "Custom" for a
- * range entered, so the line over the headline and the control agree. The default is named for the window it resolved to.
+ * The line over the headline: the period as a length, "Last 12 weeks", "All time", or "Custom period" for a range
+ * entered. The dates are on the period line under the headline, so they are not said twice. The default is named for
+ * the window it resolved to.
  */
-function nameOf(period: Period): string {
-  return typeof period.choice === 'object' ? 'Custom' : periodName(period.days)
-}
-
-/** The line over the headline: the page, the period's name, and its dates, such as "Balance · 12 weeks · 21 Apr – 3 Jun 2025". */
 export function eyebrowText(period: Period): string {
-  const length = nameOf(period)
-  const dates = periodDates(period)
-  return ['Balance', length, dates].filter((part) => part !== '').join(' · ')
+  if (typeof period.choice === 'object') return 'Custom period'
+  return period.days === null ? periodName(null) : `Last ${lengthOf(period.days)}`
 }

@@ -771,7 +771,7 @@ describe('SportPage age grades', () => {
     const records = openSection('All best efforts')
     // The lead is said once under the list, so the row reads only its level, range and percent.
     expect(recordNamed(records, '20 min').querySelector('.records__grade')?.textContent).toBe(
-      'Local to Regional · 67% (63–71%)',
+      '67% (63 to 71)',
     )
     expect(
       within(records).getByText('Estimated through its running equivalent'),
@@ -790,16 +790,14 @@ describe('SportPage age grades', () => {
     )
 
     const caption = screen.getByText(/graded at age 40 on the/)
-    expect(caption).toHaveTextContent(
-      '4:00 /km, graded at age 40 on the USATF road standards. A level, not a ranking.',
-    )
+    expect(caption).toHaveTextContent('4:00 /km, graded at age 40 on the USATF road standards.')
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
       '#/method',
     )
   })
 
-  it('says the grades are a level, not a ranking, at the end of the caption', () => {
+  it('ends the caption at the standard, with no line about a ranking', () => {
     renderPage(
       'run',
       makeResult({
@@ -810,9 +808,9 @@ describe('SportPage age grades', () => {
       MAN_BORN_1986,
     )
 
-    expect(screen.getByText(/A level, not a ranking\./)).toBeInTheDocument()
+    expect(screen.queryByText(/not a ranking/)).not.toBeInTheDocument()
     expect(screen.getByText(/graded at age 40 on the/)).toHaveTextContent(
-      /on the USATF road standards\. A level, not a ranking\.$/,
+      /on the USATF road standards\.$/,
     )
   })
 
@@ -853,7 +851,7 @@ describe('SportPage age grades', () => {
     )
     const caption = screen.getByText(/graded as its run equivalent at age 40 on the/)
     expect(caption).toHaveTextContent(
-      '400 W (estimated), graded as its run equivalent at age 40 on the USATF road standards. A level, not a ranking.',
+      '400 W (estimated), graded as its run equivalent at age 40 on the USATF road standards.',
     )
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
@@ -1224,9 +1222,7 @@ describe('SportPage depth', () => {
     )
 
     const caption = screen.getByText(/graded at age \d+ on the/)
-    expect(caption).toHaveTextContent(
-      /graded at age \d+ on the USATF road standards\. A level, not a ranking\.$/,
-    )
+    expect(caption).toHaveTextContent(/graded at age \d+ on the USATF road standards\.$/)
   })
 
   it('asks once for the year of birth and sex, under the best efforts, when they are missing', () => {
@@ -1424,7 +1420,7 @@ describe('SportPage depth', () => {
         name: '',
       }),
     ).toHaveTextContent(
-      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min on the bike reached 80% of your cycling max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
     expect(
       screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
@@ -1447,7 +1443,7 @@ describe('SportPage depth', () => {
     })
     expect(chip.closest('.sport-hero__head')).not.toBeNull()
     expect(threshold.querySelector('.sport-hero__meaning')?.nextElementSibling).toBeNull()
-    expect(screen.getAllByText(/reached 70% of your running reference heart rate/)).toHaveLength(1)
+    expect(screen.getAllByText(/reached 70% of your running max heart rate/)).toHaveLength(1)
   })
 
   it('shows no heart-rate line when heart rate is not on file for the sport', () => {
@@ -1459,7 +1455,7 @@ describe('SportPage depth', () => {
       }),
     )
 
-    expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/reached \d+% of your \w+ max heart rate/)).not.toBeInTheDocument()
   })
 
   it.each(['run', 'ride'] as const)(
@@ -1480,7 +1476,7 @@ describe('SportPage depth', () => {
         }),
       )
 
-      expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/reached \d+% of your \w+ max heart rate/)).not.toBeInTheDocument()
     },
   )
 

@@ -127,7 +127,7 @@ describe('the answer: threshold and level in one card', () => {
       }),
     )
     const chip = screen.getByRole('button', {
-      name: 'Hard effort · 97%',
+      name: 'Hard effort',
     })
     expect(chip.closest('.chip')).toHaveClass('chip--good')
     expect(chip.closest('.chip')?.querySelector('svg')).not.toBeNull()
@@ -178,7 +178,7 @@ describe('the answer: threshold and level in one card', () => {
     expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(level.querySelector('.level-ladder__dot')).toBeNull()
     expect(within(level).getByText('Estimated')).toHaveClass('stat-tile__basis--estimated')
-    expect(within(level).getByText('range 63–71%')).toBeInTheDocument()
+    expect(within(level).getByText('(63 to 71)')).toBeInTheDocument()
   })
 
   it('asks for what the level needs where the profile is missing, and has no ladder', () => {

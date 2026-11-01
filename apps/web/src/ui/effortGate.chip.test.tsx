@@ -18,7 +18,8 @@ describe('the chip when the reference cannot show an effort was hard', () => {
 
   it('says a share of a trusted reference, and no more than the share shows', () => {
     const close = effortChipText('run', check('trusted'))!
-    expect(close).toMatchObject({ hard: true, label: 'Hard effort · 98%' })
+    expect(close).toMatchObject({ hard: true, label: 'Hard effort' })
+    expect(close.detail).toContain('reached 98% of your running max heart rate')
     expect(close.detail).toContain(': close to your highest heart rate.')
     expect(close.detail).not.toContain('so it was hard')
     const within = effortChipText('run', check('trusted', 0.92))!
@@ -77,9 +78,9 @@ describe('the chip when the reference cannot show an effort was hard', () => {
   it('says the effort was not checked where too few days have a heart rate', () => {
     const chip = effortChipText('run', check('thin'))!
     expect(chip).toMatchObject({ hard: false, label: 'Effort not checked' })
-    expect(chip.detail).toContain('too few days with heart rate')
+    expect(chip.detail).toContain('Too few days with heart rate')
     expect(effortCaveat(check('thin'))?.short).toBe(
-      'Effort not checked: too few days with heart rate.',
+      'Too few days with heart rate, so the effort was not checked.',
     )
   })
 
