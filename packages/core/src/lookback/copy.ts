@@ -68,7 +68,16 @@ export function monthsBetween(fromMs: number, toMs: number): string {
 /** What each sport's level is called, and how a change in it is worded. */
 export const SAY: Record<
   Sport,
-  { subject: string; down: string; up: string; steady: string; doing: string; all: string }
+  {
+    subject: string
+    down: string
+    up: string
+    steady: string
+    doing: string
+    all: string
+    /** What a break was from: "After a break from running". */
+    breakFrom: string
+  }
 > = {
   run: {
     subject: 'pace',
@@ -77,6 +86,7 @@ export const SAY: Record<
     steady: 'steady runs',
     doing: 'steady running',
     all: 'runs',
+    breakFrom: 'running',
   },
   ride: {
     subject: 'power',
@@ -85,6 +95,7 @@ export const SAY: Record<
     steady: 'steady rides',
     doing: 'steady riding',
     all: 'rides',
+    breakFrom: 'riding',
   },
 }
 
@@ -143,7 +154,7 @@ export function episodeSentence(
       const gap = breakNear(years, episode)
       const lead =
         gap === undefined
-          ? `After a break from running in ${from},`
+          ? `After a break from ${SAY[s].breakFrom} in ${from},`
           : `No ${SAY[s].steady} from ${monthsBetween(gap.fromMs, gap.toMs)}. When they resumed,`
       return `${lead} ${you} was about ${amount(s, episode.change)}.`
     }

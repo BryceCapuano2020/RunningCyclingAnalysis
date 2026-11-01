@@ -5,16 +5,16 @@ import type { CheckInView } from '../worker/checkinKeeper'
 
 /**
  * Which row is under the fitness card. One of the two: the check-in ("Since your last import") while it has not been seen,
- * else "Your years" while it has a lead to tell and has not been hidden. Neither while an import is known partial, and
- * neither for the sample.
+ * else "Your years" while its lead has not been seen: a lead the athlete has opened, hidden or been shown twice does not
+ * come back, and a new lead is shown once. Neither while an import is known partial, and neither for the sample.
  */
 
 export type FirstRow = 'checkIn' | 'lookBack' | null
 
 export interface RowInputs {
   checkIn: CheckInView
-  /** The look-back has something to open on (see `yearsLead`). */
-  hasYears?: boolean
+  /** What names the look-back's lead (see `yearsLead`, `leadKey`), or null when it has none to open on. */
+  yearsLead?: string | null
   /** An import is known to have left the library short of the whole history: the held-back headline stands alone. */
   importIncomplete: boolean
   /** The page is showing the sample, which keeps no baseline. */
@@ -27,14 +27,14 @@ export interface RowInputs {
  */
 export function firstRowOf({
   checkIn,
-  hasYears = false,
+  yearsLead = null,
   importIncomplete,
   isSample,
 }: RowInputs): FirstRow {
   if (importIncomplete || isSample) return null
   if (checkIn.checkIn !== null && !checkIn.seen) return 'checkIn'
-  // The check-in has nothing new, or has been seen: the years take the place for as long as they have news and are not hidden.
-  return hasYears && checkIn.lookBackSeen !== true ? 'lookBack' : null
+  // The check-in has nothing new, or has been seen: the years take the place until their lead is seen too.
+  return yearsLead !== null && checkIn.lookBackSeenFor !== yearsLead ? 'lookBack' : null
 }
 
 /** The words of the check-in in the athlete's units. */

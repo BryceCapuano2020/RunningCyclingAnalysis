@@ -207,13 +207,16 @@ export function useLibraryActions({
     [library, send, workerRef],
   )
 
-  /** The same for "Your years": the worker keeps it and says whether the row is now seen. */
+  /** The same for "Your years", for the lead it told: the worker keeps it and says whether that lead is now seen. */
   const markLookBackSeen = useCallback(
-    (event: SeenEvent) => {
+    (event: SeenEvent, lead: string) => {
       if (workerRef.current === null) return
-      send({ type: 'markSeen', row: 'lookBack', event }, undefined, (message) => {
+      send({ type: 'markSeen', row: 'lookBack', event, lead }, undefined, (message) => {
         if (message?.type === 'checkInSaved') {
-          library.setCheckIn((previous) => ({ ...previous, lookBackSeen: message.seen }))
+          library.setCheckIn((previous) => ({
+            ...previous,
+            lookBackSeenFor: message.seen ? lead : undefined,
+          }))
         }
       })
     },

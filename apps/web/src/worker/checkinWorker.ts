@@ -85,7 +85,7 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
       const shown = await keeper.view(view.checkinScope, () =>
         session.checkInSnapshot(message.state, Date.now()),
       )
-      return shown.checkIn === null && !shown.seen && shown.lookBackSeen !== true
+      return shown.checkIn === null && !shown.seen && shown.lookBackSeenFor === undefined
         ? message
         : { ...message, checkIn: shown }
     },
@@ -99,7 +99,7 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
       if (request.type === 'markSeen') {
         return {
           type: 'checkInSaved',
-          seen: await keeper.markSeen(view.checkinScope, request.row, request.event),
+          seen: await keeper.markSeen(view.checkinScope, request.row, request.event, request.lead),
         }
       }
       // "Use what I have": taken now, from the snapshot the import began with; the count is the import's, or one after a reload.

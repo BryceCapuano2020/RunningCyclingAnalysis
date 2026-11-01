@@ -3,7 +3,7 @@ import { DAY_MS } from '../constants'
 import { plantedLibrary } from '../findings/test/plantedLibrary'
 import { AnalysisSession } from '../session'
 import type { AthleteSettings } from '../types'
-import { leadOf, meetsLeadBar } from './lead'
+import { leadKey, leadOf, meetsLeadBar } from './lead'
 import type { LiveState } from './lead'
 import { bestRows, episodeRow, episodeSentence, leadSentence, tooShortText } from './copy'
 import { lookBackOf, NO_LOOKBACK } from './compute'
@@ -242,6 +242,31 @@ describe('what leads', () => {
     const broke = episode({ kind: 'after-break', fromMs: Date.UTC(2016, 4, 1) })
     expect(episodeSentence(broke, look(some).sports.run, some)).toMatch(
       /^After a break from running in May 2016, /,
+    )
+    // A ride's break is from riding, in the table keyed by sport.
+    const rides = { ...look(some).sports.ride, fitness: some, referenceHr: 150 }
+    expect(episodeSentence(broke, rides, some)).toMatch(/^After a break from riding in May 2016, /)
+  })
+
+  it('names a lead by its sport, kind and the months it is dated by, so a nudged boundary is not a new lead', () => {
+    const lead = (over: Partial<HindsightEpisode>) =>
+      leadOf(look(years({ episodes: [episode(over)] })), live('holding'))!
+    const base = episode()
+    expect(leadKey(lead({}))).toBe(
+      `run:improvement:${new Date(base.fromMs).toISOString().slice(0, 7)}:${new Date(base.toMs!).toISOString().slice(0, 7)}`,
+    )
+    // A boundary that moved by a few days inside the same months is the same lead.
+    expect(leadKey(lead({ fromMs: base.fromMs + 3 * DAY_MS }))).toBe(leadKey(lead({})))
+    // Another stretch, or another kind, is another lead.
+    expect(leadKey(lead({ fromMs: base.fromMs - 90 * DAY_MS }))).not.toBe(leadKey(lead({})))
+    expect(leadKey(lead({ kind: 'slip-back' }))).not.toBe(leadKey(lead({})))
+    // A quiet stretch is named too.
+    const quiet = years({
+      episodes: [],
+      quiet: [{ fromMs: T0 + YEAR, toMs: T0 + 4 * YEAR - DAY_MS, within: 0.04, runs: 300 }],
+    })
+    expect(leadKey(leadOf(look(quiet), live('holding'))!)).toMatch(
+      /^run:quiet:\d{4}-\d{2}:\d{4}-\d{2}$/,
     )
   })
 

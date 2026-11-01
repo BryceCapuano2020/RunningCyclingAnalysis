@@ -188,8 +188,11 @@ export type WorkerRequest =
   | { type: 'forgetDeviceLibrary'; settings: AthleteSettings }
   /** A detail trace for an exact core activity id. Originals are read only on explicit request. */
   | { type: 'activityTrace'; id: string; userId?: string; fromOriginal?: boolean }
-  /** A row of "your years" or "since your last import" was opened, hidden or shown. Answered with `checkInSaved`. */
-  | { type: 'markSeen'; row: SeenRow; event: SeenEvent }
+  /**
+   * A row of "your years" or "since your last import" was opened, hidden or shown. Answered with `checkInSaved`. For "your
+   * years", `lead` names the lead the row told (`leadKey`), which is what has been seen.
+   */
+  | { type: 'markSeen'; row: SeenRow; event: SeenEvent; lead?: string }
   /** The athlete chose to go on with an import that stopped short: its snapshot becomes the baseline now. */
   | { type: 'acceptPartialImport' }
 

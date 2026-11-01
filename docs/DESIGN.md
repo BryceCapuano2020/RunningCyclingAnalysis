@@ -1463,9 +1463,10 @@ only lead is a best has no row, and its bests are on the Run and Ride pages. It 
 years" for a screen reader), the panel gives it whole, the other episodes that ended, newest first ("And 3 smaller changes"
 past four), and **Hide**. A slip still open at the horizon is the card's to tell and is not listed. It is a region, not a
 heading: the page's title stays first in the outline. It takes the place the check-in ("Since your last import") leaves: the
-check-in first while it is unseen, then the years. It stands first in the fitness section only when there is no card. It stays
-under the card while it has a lead to tell, however often it was opened or shown; **Hide** gives up the place for good, and its
-content stays on the Run and Ride pages. Hide moves focus to the page's heading, and the row stays hidden for the page load even when
+check-in first while it is unseen, then the years. It stands first in the fitness section only when there is no card. It is seen when
+opened, hidden, or shown for 3 s in view on two page loads (once a page load); a seen row gives up the place until the look-back
+has a new lead (named by its sport, kind of episode and the months it is dated by), which is shown once in its turn. Its content
+stays on the Run and Ride pages. Hide moves focus to the page's heading, and the row stays hidden for the page load even when
 nothing is stored to remember it. Never while an import is known partial, and never for the sample (56 weeks, under the 64
 the years need).
 

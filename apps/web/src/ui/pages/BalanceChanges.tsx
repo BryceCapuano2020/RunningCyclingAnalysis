@@ -14,9 +14,11 @@ export interface BalanceChangesProps {
 const ARROWS = {
   up: 'M12 18V6M6 11l6-6 6 6',
   down: 'M12 6v12M6 13l6 6 6-6',
+  /** A change that states no direction: a level bar, not an arrow. */
+  none: 'M5 12h14',
 } as const
 
-/** An arrow for a change's direction, drawn on a 24 unit grid in the text's own colour. */
+/** An arrow for a change's direction, drawn on a 24 unit grid in the text's own colour; a bar where it has none. */
 function Arrow({ direction }: { direction: ChangeItem['direction'] }) {
   return (
     <span className="balance-changes__icon" aria-hidden="true">
@@ -28,7 +30,7 @@ function Arrow({ direction }: { direction: ChangeItem['direction'] }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d={ARROWS[direction]} />
+        <path d={ARROWS[direction ?? 'none']} />
       </svg>
     </span>
   )
@@ -68,7 +70,14 @@ export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) 
               <div>
                 <p className="balance-changes__head">{item.title}</p>
                 <p className="balance-changes__body">{item.body}</p>
-                <Tag tag={item.tag} />
+                <div className="balance-changes__tags">
+                  <Tag tag={item.tag} />
+                  {item.label === undefined ? null : (
+                    <span className="tag tag--ink balance-changes__tag balance-changes__tag--note">
+                      {item.label}
+                    </span>
+                  )}
+                </div>
               </div>
             </li>
           ))}

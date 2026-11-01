@@ -87,6 +87,31 @@ describe('BalanceChanges', () => {
     expect(container.querySelector('.balance-changes__tag--recorded svg')).not.toBeNull()
   })
 
+  it('shows the label beside the tag, and a level bar in place of an arrow for a change with no direction', () => {
+    const labelled: ChangeItem = {
+      ...LEAN,
+      direction: null,
+      title: 'Lean moved 3 pts',
+      label: 'Not all-out',
+    }
+    const { container } = render(
+      <BalanceChanges
+        changes={{ items: [labelled, { ...RUN, label: 'Not all-out' }, RIDE] }}
+        previousLabel="Previous 12 weeks"
+      />,
+    )
+    const items = screen.getAllByRole('listitem')
+    expect(within(items[0]!).getByText('Not all-out')).toBeInTheDocument()
+    expect(within(items[0]!).getByText('Estimated')).toBeInTheDocument()
+    expect(within(items[1]!).getByText('Not all-out')).toBeInTheDocument()
+    expect(within(items[2]!).queryByText('Not all-out')).toBeNull()
+    const paths = [...container.querySelectorAll('.balance-changes__icon path')].map((p) =>
+      p.getAttribute('d'),
+    )
+    expect(paths[0]).toBe('M5 12h14')
+    expect(paths[1]).toMatch(/^M12 18V6/)
+  })
+
   it('names a window further back by its months, in the title and the no-change line', () => {
     const { container } = render(
       <BalanceChanges changes={{ items: [] }} previousLabel="Jan to Mar" />,

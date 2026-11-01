@@ -116,7 +116,14 @@
   color: var(--status-good);
 }
 
-.balance-changes__tag--estimated {
+.balance-changes__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.balance-changes__tag--estimated,
+.balance-changes__tag--note {
   background: transparent;
   box-shadow: inset 0 0 0 1.5px var(--control-border);
 }

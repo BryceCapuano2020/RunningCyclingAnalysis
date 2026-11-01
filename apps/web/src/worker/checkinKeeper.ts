@@ -13,8 +13,11 @@ export interface CheckInView {
   checkIn: CheckIn | null
   /** Seen for this baseline: opened, hidden, or shown on two page loads. The row then gives up its place. */
   seen: boolean
-  /** The athlete has hidden "Your years": it gives up its place for good. Opening it or seeing it again does not. Absent is not. */
-  lookBackSeen?: boolean
+  /**
+   * The lead of "Your years" (`leadKey`) the athlete has opened, hidden or been shown on two page loads: the row gives up its
+   * place while its lead is this one, and a new lead is shown once again. Absent is none.
+   */
+  lookBackSeenFor?: string
 }
 
 export const NO_CHECKIN: CheckInView = { checkIn: null, seen: false }
@@ -163,8 +166,9 @@ export class CheckInKeeper {
   async view(scope: CheckinScope | null, live: () => CheckInSnapshot | null): Promise<CheckInView> {
     if (scope === null) return NO_CHECKIN
     const held = await this.load(scope)
-    const lookBackSeen = seenLookBack(held.seen)
-    const none: CheckInView = lookBackSeen ? { ...NO_CHECKIN, lookBackSeen } : NO_CHECKIN
+    const lookBackSeenFor = seenLookBack(held.seen)
+    const none: CheckInView =
+      lookBackSeenFor === undefined ? NO_CHECKIN : { ...NO_CHECKIN, lookBackSeenFor }
     const baseline = usableBaseline(held.marks, this.check(held.marks))
     if (baseline === null) return none
     const now = live()
@@ -173,7 +177,7 @@ export class CheckInKeeper {
       checkIn: checkInBetween(baseline, now),
       seen: seenFor(held.seen, baseline),
     }
-    return lookBackSeen ? { ...view, lookBackSeen } : view
+    return lookBackSeenFor === undefined ? view : { ...view, lookBackSeenFor }
   }
 
   /**
@@ -181,12 +185,21 @@ export class CheckInKeeper {
    * A check-in's sightings belong to the baseline it was told against: a new baseline starts them again. Returns
    * whether the row asked about is now seen.
    */
-  async markSeen(scope: CheckinScope | null, row: SeenRow, event: SeenEvent): Promise<boolean> {
+  async markSeen(
+    scope: CheckinScope | null,
+    row: SeenRow,
+    event: SeenEvent,
+    lead?: string,
+  ): Promise<boolean> {
     if (scope === null) return false
     const held = await this.load(scope)
     const at = this.now()
     const seen = structuredClone(held.seen)
     if (row === 'lookBack') {
+      // The counts are of one lead: a different one starts them again.
+      if ((seen.lookBack.forLead ?? null) !== (lead ?? null)) {
+        seen.lookBack = { ...NO_SEEN.lookBack, forLead: lead ?? null }
+      }
       const part = seen.lookBack
       if (event === 'open') part.openedAtMs ??= at
       else if (event === 'hide') part.hiddenAtMs ??= at
@@ -211,18 +224,23 @@ export class CheckInKeeper {
     }
     held.seen = seen
     await this.write(scope, held, { seen })
-    if (row === 'lookBack') return seenLookBack(seen)
+    if (row === 'lookBack') return seenLookBack(seen) !== undefined
     const baseline = usableBaseline(held.marks, this.check(held.marks))
     return baseline !== null && seenFor(seen, baseline)
   }
 }
 
 /**
- * Whether "Your years" has been hidden; it belongs to the scope, not to a baseline. Opening it or being shown it does not
- * retire it: it stays while it has a lead to tell.
+ * The lead "Your years" has been opened or hidden for, or shown on enough page loads; it belongs to the scope, not to a
+ * baseline. Undefined when the lead has not been seen, or the record is of no lead.
  */
-function seenLookBack(seen: SeenRecord): boolean {
-  return seen.lookBack.hiddenAtMs !== null
+function seenLookBack(seen: SeenRecord): string | undefined {
+  const part = seen.lookBack
+  const seenIt =
+    part.openedAtMs !== null ||
+    part.hiddenAtMs !== null ||
+    part.impressions >= SEEN_AFTER_IMPRESSIONS
+  return seenIt ? (part.forLead ?? undefined) : undefined
 }
 
 /** Whether the check-in against `baseline` has been opened, hidden or shown on enough page loads. */
