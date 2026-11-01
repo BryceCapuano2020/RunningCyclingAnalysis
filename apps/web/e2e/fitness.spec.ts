@@ -16,7 +16,7 @@ const spoken = (line: Locator) =>
 /** The sample's fitness card, on the page the test is on. */
 const card = (page: Page) => page.locator(CARD)
 
-test('the sample leads Balance with a fitness status that is new, with its range and the runs behind it', async ({
+test('the sample’s Balance shows a fitness status that is new, with its range and the runs behind it', async ({
   page,
 }) => {
   const errors = trackErrors(page)
