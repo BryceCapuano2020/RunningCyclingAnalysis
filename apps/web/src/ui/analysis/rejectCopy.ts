@@ -1,4 +1,5 @@
 import type { RejectCode, RejectedFile } from '@rca/core/session'
+import { hashedFileName, isHashedFileName } from '@rca/core/import/minimise'
 import { plural } from '../components/plural'
 import { formatCount } from '../format/count'
 import { sizeText } from '../format/units'
@@ -122,10 +123,14 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: Rejecte
     'unsupported-sport': (_detail, file) => `${sportName(file).subject} is not a run or a ride.`,
     'no-sport': () => 'It does not say whether it is a run or a ride, so it is not guessed.',
     'e-bike': () => 'E-bike rides are left out, because motor help hides your own power.',
+    // A file kept from revision 7 is held under a hash of its name, which means nothing to read: the file's own name is
+    // on the line above, so a copy held under a hash is called by what it is.
     duplicate: (detail, file) =>
-      detail === file.fileName
+      detail === file.fileName || detail === hashedFileName(file.fileName)
         ? 'Already in your library, so it was not counted twice.'
-        : `Same workout as ${detail ?? 'another file'}, so it was not counted twice.`,
+        : detail !== undefined && isHashedFileName(detail)
+          ? 'Same workout as a file already in your library, so it was not counted twice.'
+          : `Same workout as ${detail ?? 'another file'}, so it was not counted twice.`,
     unreadable: () => 'This file could not be read.',
     'too-large': (detail) => tooLargeCopy(detail),
   }

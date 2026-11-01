@@ -6,8 +6,6 @@
 
 .definition__term {
   position: relative;
-  margin: 0;
-  padding: 0;
   border: 0;
   border-bottom: 1px dotted currentColor;
   background: none;
@@ -18,6 +16,19 @@
   white-space: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+  /* Standing alone, the button is at least 24 px tall (WCAG 2.5.8), though its text may be a line of 20 px. The room is
+     added above the text and handed back by the negative margin, so the underline stays where it was. */
+  padding: 4px 0 0;
+  margin: -4px 0 0;
+}
+
+/*
+ * A term in a sentence is an inline target, which 2.5.8 exempts, and the lines of a sentence touch: room above the
+ * text would put each term's press area over the term on the line above it. In prose the term is as tall as its line.
+ */
+:is(p, li, dd, td) .definition__term {
+  padding: 0;
+  margin: 0;
 }
 
 /*

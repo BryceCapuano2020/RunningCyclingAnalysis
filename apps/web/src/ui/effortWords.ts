@@ -1,4 +1,5 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import type { EffortGate } from '@rca/core/effort'
 import type { Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
@@ -81,6 +82,29 @@ export function referenceWords(
 }
 
 /**
+ * Where a reference borrowed from the other sport comes from, in the athlete's words: cycling's is running's less
+ * RIDE_MAX_OFFSET_BPM (cycling maxima run lower), running's is cycling's when that is the higher.
+ */
+const BORROWED_FROM: Record<Sport, (supplier: string) => string> = {
+  run: (supplier) => `your ${supplier} max`,
+  ride: (supplier) => `your ${supplier} max less ${RIDE_MAX_OFFSET_BPM} bpm`,
+}
+
+/** Where a sport's reference comes from when the other sport set it: "your running max less 6 bpm". */
+export function borrowedText(sport: Sport, supplier: Sport): string {
+  return BORROWED_FROM[sport](SPORT_NOUN[supplier])
+}
+
+/** What a share is a share of: the sport's reference heart rate, and where it comes from when the other sport supplied it. */
+function referenceOfShare(sport: Sport, gate: EffortGate): string {
+  const noun = SPORT_NOUN[sport]
+  if (gate.referenceFrom === null || gate.referenceFrom === sport) {
+    return `your ${noun} reference heart rate`
+  }
+  return `the heart rate your ${noun} reference expects (${borrowedText(sport, gate.referenceFrom)})`
+}
+
+/**
  * Why a best 20 minutes the gate judged `notHard` was not shown hard, and what to do. `settles` is what an effort that
  * reaches the line would do ("give a threshold", "let them be compared"). Where the reference can be trusted the best was
  * simply under the line, and the words say that and no more: a harder effort is not promised to be possible, since the
@@ -97,7 +121,7 @@ export function notHardWords(sport: Sport, gate: EffortGate, settles: string): E
     }
   }
   return {
-    why: `it reached ${Math.round((gate.share ?? 0) * 100)}% of your ${noun} reference heart rate, under the 90% that marks a hard effort`,
+    why: `it reached ${Math.round((gate.share ?? 0) * 100)}% of ${referenceOfShare(sport, gate)}, under the 90% that marks a hard effort`,
     action: `A ${EFFORT_TEXT} effort at 90% or more of it would ${settles}.`,
     reference: false,
   }

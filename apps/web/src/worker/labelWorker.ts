@@ -4,6 +4,7 @@ import type { DeviceActions } from './device'
 import { deviceLabels } from './deviceLabels'
 import type { DeviceLibrary } from './deviceLibrary'
 import { LabelUndo } from './labelUndo'
+import type { WorkerResponse } from './protocol'
 import { undoLabelsRequest } from './undoLabelsRequest'
 import type { WorkerView } from './workerView'
 
@@ -33,6 +34,13 @@ export function labelWorker(deps: {
   return {
     labelUndo,
     deviceLabels: labelling,
-    undo: (request: Parameters<typeof undoLabelsRequest>[1]) => undoLabelsRequest(context, request),
+    /** The reply to an Undo: the state, with how many labels are left when some could not be taken off. */
+    async reply(
+      request: Parameters<typeof undoLabelsRequest>[1],
+      extra: { outdatedWithOriginal?: number },
+    ): Promise<WorkerResponse> {
+      const { state, left } = await undoLabelsRequest(context, request)
+      return { type: 'state', state, ...(left > 0 ? { labelsLeft: left } : {}), ...extra }
+    },
   }
 }

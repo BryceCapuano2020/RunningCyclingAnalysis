@@ -12,6 +12,8 @@
 .number-field__input {
   position: relative;
   width: 11ch;
+  /* A narrow column, or text at 200%, may be less than 11 characters: the input shrinks to it. */
+  max-width: 100%;
 }
 
 /* The unit sits inside the right edge of the input. */

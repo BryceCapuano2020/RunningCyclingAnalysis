@@ -105,6 +105,7 @@ const ALLOWED = [
   'apps/api/src/routes/activities/revisionCheck.ts',
   'apps/api/src/routes/activities/labels.ts',
   'packages/core/src/import/applyLabels.ts',
+  'packages/core/src/import/minimise.ts',
 ]
 
 describe('revision reads', () => {

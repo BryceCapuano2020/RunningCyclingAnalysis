@@ -1,3 +1,4 @@
+import type { UnitSystem } from '@rca/core/units'
 import type { AnalysisController } from '../useAnalysis'
 import { detailCoverageLine, judgedDetail } from '../analysis/detailCoverage'
 import {
@@ -50,6 +51,8 @@ export interface AppNoticesProps {
   walkingNote?: boolean
   /** The runs counted despite walking pace: the way back, what the last change did and whether it was kept. */
   countedRuns?: CountedRunsController
+  /** The units figures are read in, which the sample athlete's weight is told in. */
+  units: UnitSystem
   /** The library page is on screen and says what is out of date itself, so the notices leave it out. */
   libraryPanel?: boolean
 }
@@ -76,6 +79,7 @@ export function AppNotices({
   walkingNote = false,
   countedRuns,
   libraryPanel = false,
+  units,
 }: AppNoticesProps) {
   const { result, isSample } = analysis.state
   const neutralStop = analysis.error !== null && analysis.errorNeutral
@@ -121,7 +125,7 @@ export function AppNotices({
   // The runs counted despite walking pace: the way back, where runs are listed or analysed.
   const countedHere = analysis.state.countedWalkingRuns
   const outboxLine = analysis.outbox === null ? null : outboxText(analysis.outbox)
-  const sample = useSampleNotice({ page, shown: result !== null && isSample })
+  const sample = useSampleNotice({ page, shown: result !== null && isSample, units })
   return (
     <div className="app__notices">
       <ImportNotice

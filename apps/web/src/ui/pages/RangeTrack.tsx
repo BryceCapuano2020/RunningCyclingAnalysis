@@ -9,7 +9,7 @@ export interface RangeTrackProps {
    * sits at the middle of its error range; a floor sits at the end it is the edge of.
    */
   at: number
-  /** The word between the ends: "range", "90% range", "fit spread". */
+  /** The word between the ends: "range" or "90% range". */
   label: string
   /**
    * Drawn lighter and thinner than a 90% range: the fit's spread is a rough spread of the fit, not a

@@ -13,6 +13,8 @@ export interface CheckInView {
   checkIn: CheckIn | null
   /** Seen for this baseline: opened, hidden, or shown on two page loads. The row then gives up its place. */
   seen: boolean
+  /** The athlete has opened or hidden "Your years", or been shown it on two page loads: it gives up its place. Absent is not. */
+  lookBackSeen?: boolean
 }
 
 export const NO_CHECKIN: CheckInView = { checkIn: null, seen: false }
@@ -161,17 +163,23 @@ export class CheckInKeeper {
   async view(scope: CheckinScope | null, live: () => CheckInSnapshot | null): Promise<CheckInView> {
     if (scope === null) return NO_CHECKIN
     const held = await this.load(scope)
+    const lookBackSeen = seenLookBack(held.seen)
+    const none: CheckInView = lookBackSeen ? { ...NO_CHECKIN, lookBackSeen } : NO_CHECKIN
     const baseline = usableBaseline(held.marks, this.check(held.marks))
-    if (baseline === null) return NO_CHECKIN
+    if (baseline === null) return none
     const now = live()
-    if (now === null) return NO_CHECKIN
-    return { checkIn: checkInBetween(baseline, now), seen: seenFor(held.seen, baseline) }
+    if (now === null) return none
+    const view: CheckInView = {
+      checkIn: checkInBetween(baseline, now),
+      seen: seenFor(held.seen, baseline),
+    }
+    return lookBackSeen ? { ...view, lookBackSeen } : view
   }
 
   /**
    * The athlete opened, hid or was shown a row. Idempotent for the first two; an impression counts once a page load.
    * A check-in's sightings belong to the baseline it was told against: a new baseline starts them again. Returns
-   * whether the check-in row is now seen.
+   * whether the row asked about is now seen.
    */
   async markSeen(scope: CheckinScope | null, row: SeenRow, event: SeenEvent): Promise<boolean> {
     if (scope === null) return false
@@ -203,9 +211,20 @@ export class CheckInKeeper {
     }
     held.seen = seen
     await this.write(scope, held, { seen })
+    if (row === 'lookBack') return seenLookBack(seen)
     const baseline = usableBaseline(held.marks, this.check(held.marks))
     return baseline !== null && seenFor(seen, baseline)
   }
+}
+
+/** Whether "Your years" has been opened, hidden or shown on enough page loads; it belongs to the scope, not to a baseline. */
+function seenLookBack(seen: SeenRecord): boolean {
+  const part = seen.lookBack
+  return (
+    part.openedAtMs !== null ||
+    part.hiddenAtMs !== null ||
+    part.impressions >= SEEN_AFTER_IMPRESSIONS
+  )
 }
 
 /** Whether the check-in against `baseline` has been opened, hidden or shown on enough page loads. */

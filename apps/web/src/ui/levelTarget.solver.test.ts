@@ -54,6 +54,7 @@ describe('levelTarget for a run that is already at the levelled pace', () => {
       'run',
       nativeAtGrade('run', 0.67, HEADLINE_DURATION_S, ATHLETE)!,
       'metric',
+      { wholePercent: 67, durationS: HEADLINE_DURATION_S, athlete: ATHLETE },
     )
     const level = makeResult({
       ...result,

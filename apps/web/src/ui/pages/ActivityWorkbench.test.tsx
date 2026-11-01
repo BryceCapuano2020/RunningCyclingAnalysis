@@ -118,6 +118,11 @@ describe('ActivityWorkbench', () => {
     const cadence = within(table).getByRole('row', { name: /^Cadence/ })
     expect(cadence).toHaveTextContent('None in this interval')
     expect(screen.queryByText(/Not recorded/)).not.toBeInTheDocument()
+    // The typical range is the same spread the chart's bands show, said in the same percentiles.
+    expect(
+      screen.getAllByText(/Typical range .*the 10th to 90th percentile/).length,
+    ).toBeGreaterThan(0)
+    expect(screen.queryByText(/5th to 95th/)).not.toBeInTheDocument()
   })
 
   it('lists only the measures shown, with each one’s time as a duration', async () => {

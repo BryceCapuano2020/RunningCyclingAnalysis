@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import { localDateOf } from '@rca/core/athlete'
+import { endOfLocalDay } from '@rca/core/calendar'
 
 /** A moment after local midnight, so the tick lands on the new day whatever the timer's drift. */
 const MIDNIGHT_SLACK_MS = 1000
 
 /** Milliseconds from now to the next local midnight, plus the slack. */
 function untilMidnight(now: number): number {
-  const midnight = new Date(now)
-  midnight.setHours(24, 0, 0, 0)
-  return midnight.getTime() - now + MIDNIGHT_SLACK_MS
+  return endOfLocalDay(now) + 1 - now + MIDNIGHT_SLACK_MS
 }
 
 /**

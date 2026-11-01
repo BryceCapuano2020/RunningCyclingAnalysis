@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { noonOnLabelDate } from '@rca/core/calendar'
 import type { FitnessPoint, FitnessStatus } from '@rca/core/fitness'
 import type { UnitSystem } from '@rca/core/units'
 import { FITNESS_WORDS } from '../fitnessWords'
@@ -60,9 +61,19 @@ function referenceLabel(status: FitnessStatus): string {
 }
 
 /** Local noon on the UTC date of a moment, so a month is named by the UTC calendar the weeks use. */
-const utcNoon = (ms: number) => {
-  const d = new Date(ms)
-  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12).getTime()
+const utcNoon = noonOnLabelDate
+
+/**
+ * What the empty chart says: which of its two needs failed. A line needs two steps four weeks apart, and the
+ * reference line needs an earlier level to stand at.
+ */
+function emptyText(steps: number, before: number | null): string | undefined {
+  if (steps < 2) {
+    return `A line needs 2 steps four weeks apart; ${steps === 0 ? 'there are none yet' : 'there is 1 so far'}`
+  }
+  return before === null
+    ? 'The reference line needs an earlier level to stand at, and there is none yet'
+    : undefined
 }
 
 /**
@@ -122,7 +133,7 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
         caption: `${word} at ${hr} bpm at steps four weeks apart. A step is read from the ${FITNESS_WORDS[sport].steadyPlural} of the 4 to 16 weeks to its date, the fewest that hold enough of them.`,
         phoneHidden: [3],
       }}
-      empty={series.length < 2 || before === null ? 'Not enough steps to draw' : undefined}
+      empty={emptyText(series.length, before)}
       surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
       overlay={(size) =>
         tooltipOverlay(

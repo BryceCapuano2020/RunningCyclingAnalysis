@@ -1,6 +1,7 @@
 import type { ActivityRecord, LabelChange } from '@rca/contract'
 import { MAX_LABELS_PER_REQUEST } from '@rca/contract'
 import { applyLabels, undoLabels } from '@rca/core/import/applyLabels'
+import { hashedFileName } from '@rca/core/import/minimise'
 import type { LabelProposal } from '@rca/core/import/applyLabels'
 import type { AnalysisSession } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
@@ -69,6 +70,16 @@ async function write(
   }
 }
 
+/**
+ * A workout imported from revision 7 holds a hash of its file's name (import/minimise.ts), so the list's names are
+ * offered in both forms: as they are, for the workouts saved before, and hashed, for those saved since.
+ */
+export function namesInBothForms(listedTypes: ReadonlyMap<string, string>): Map<string, string> {
+  const names = new Map(listedTypes)
+  for (const [file, type] of listedTypes) names.set(hashedFileName(file), type)
+  return names
+}
+
 /** Labels the workouts the account holds from the types the import's list gave their files. */
 export async function applyListLabels(
   records: ReadonlyMap<string, ActivityRecord>,
@@ -78,7 +89,7 @@ export async function applyListLabels(
 ): Promise<LabelProposal[]> {
   const proposals = applyLabels(
     [...records.values()].map(({ id, digest }) => ({ id, digest })),
-    listedTypes,
+    namesInBothForms(listedTypes),
   )
   return proposals.length === 0 ? [] : write(proposals, userId, reload)
 }

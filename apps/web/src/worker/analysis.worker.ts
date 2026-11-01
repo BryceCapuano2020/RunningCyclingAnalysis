@@ -25,9 +25,11 @@ import type { Writing } from './writerResume'
 import { exportAccount } from './exportAccount'
 import { deleteSavedGroup } from './deleteGroup'
 import type { DeleteGroupContext } from './deleteGroup'
-import { hiddenRecordIds, visibleRecords } from './hiddenCopies'
+import { hiddenRecordIds } from './hiddenCopies'
+import { reportLibraryActivities } from './libraryReport'
 import { openDeviceLibrary } from './deviceLibrary'
 import { outdatedWithOriginal } from './outdatedOriginals'
+import { noteUploadTitles } from '../api/uploadPolicy'
 import { labelWorker } from './labelWorker'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
@@ -50,7 +52,6 @@ import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCover
 import { deviceClock } from './sampleClock'
 import { activityTraceReply } from './traceReply'
 import { checkInWorker } from './checkinWorker'
-import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
 
@@ -71,16 +72,7 @@ const rebuildable = (): { outdatedWithOriginal?: number } => {
   return count > 0 ? { outdatedWithOriginal: count } : {}
 }
 
-/** Newest first; records that start together are ordered by id so the list is stable. */
-function reportLibrary() {
-  const records = visibleRecords(savedRecords.values()).sort(
-    (a, b) => b.digest.startMs - a.digest.startMs || a.id.localeCompare(b.id),
-  )
-  post({
-    type: 'libraryActivities',
-    activities: records.map(({ id, digest }) => savedActivityOf(id, digest)),
-  })
-}
+const reportLibrary = () => reportLibraryActivities(savedRecords, post)
 
 const deviceLibrary = openDeviceLibrary()
 const device = deviceActions(
@@ -335,6 +327,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   noteArrival(event.data.type)
   queue = queue.then(async () => {
     noteStart(event.data.type)
+    noteUploadTitles(event.data as Parameters<typeof noteUploadTitles>[0])
     const endRequest = beginRequest(requestId, (message) => self.postMessage(message))
     try {
       if (event.data.type === 'addFiles') {
@@ -352,8 +345,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           ),
         )
       } else if (event.data.type === 'undoLabels') {
-        const { state, left } = await labels.undo(event.data)
-        post({ type: 'state', state, ...(left > 0 ? { labelsLeft: left } : {}), ...rebuildable() })
+        post(await labels.reply(event.data, rebuildable()))
       } else if (checkIns.answers(event.data)) {
         post(await checkIns.answer(event.data, importContext.lastImport))
       } else if (event.data.type === 'exportData') {

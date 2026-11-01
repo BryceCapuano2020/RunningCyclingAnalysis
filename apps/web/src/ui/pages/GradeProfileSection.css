@@ -43,6 +43,17 @@
   stroke: none;
 }
 
+/*
+ * In forced colours the band's tint goes, and the chart's own rule (an outline in Highlight) loses to the rule above,
+ * which would leave a Canvas fill on a Canvas page. The band is drawn as the fitted trend's wash is: Highlight, thinned.
+ */
+@media (forced-colors: active) {
+  .grade-profile .chart-series__band--ride {
+    fill: Highlight;
+    fill-opacity: 0.3;
+  }
+}
+
 /* The 20 minute labels: the sport and its grade in the display face, an estimate's range in small type under. */
 .grade-profile__label {
   fill: var(--text-primary);

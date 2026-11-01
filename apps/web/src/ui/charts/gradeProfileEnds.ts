@@ -2,6 +2,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { GradeProfile } from '../gradeProfile'
 import { formatGrade } from '../gradeFormat'
 import { gradeRangeText } from '../grades'
+import { effortLabel } from '../records'
 import { SPORT_LABEL } from '../sports'
 import { lineObstacles, markerObstacle } from './annotations'
 import type { Annotation } from './annotations'
@@ -29,7 +30,7 @@ export const END_LABEL_MIN_WIDTH_PX = 600
 const LINE_PX = 8
 const MARKER_R = 7
 
-/** One sport's end label: its name and last grade, and under it an estimate's range. */
+/** One sport's end label: its name, last grade and the length it is of, and under it an estimate's range. */
 interface EndText {
   sport: 'run' | 'ride'
   text: string
@@ -45,7 +46,8 @@ function endTexts(profile: GradeProfile): EndText[] {
     return [
       {
         sport,
-        text: `${SPORT_LABEL[sport]} ${formatGrade(last.grade.centre.grade)}`,
+        // The line's last point is not at 20 min, so the label names the length it is the best of.
+        text: `${SPORT_LABEL[sport]} ${formatGrade(last.grade.centre.grade)} at ${effortLabel(last.durationS)}`,
         sub: range === null ? undefined : `range ${gradeRangeText(range)}`,
       },
     ]

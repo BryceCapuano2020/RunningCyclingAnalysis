@@ -154,13 +154,19 @@ export function timelineMarks(trace: ActivityTrace): StackMark[] {
   return [...pauses, ...gaps].sort((a, b) => a.startS - b.startS)
 }
 
-/** The laps the device recorded, or the intervals found in the readings when it recorded none; empty when there is nothing to choose. */
-export function lapChoicesOf(trace: ActivityTrace): { recorded: boolean; laps: ActivityLap[] } {
-  const recorded = trace.laps.length > 0
-  const laps: ActivityLap[] = recorded ? trace.laps : suggestedIntervals(trace)
-  // One recorded lap is the whole activity, which the whole-activity selection already is. A lone suggestion is a finding.
-  if (laps.length === 0 || (recorded && laps.length < MIN_LAPS)) return { recorded, laps: [] }
-  return { recorded, laps }
+/**
+ * The laps the device recorded and the intervals found in the readings, both: the suggestions sit beside the device's laps and
+ * do not replace them, since the readings find work the device's own laps cut across (or never marked). One recorded lap is the whole
+ * activity, which the whole-activity selection already is, so it is no choice; a suggestion is held to `suggestedIntervals`' own rule.
+ */
+export function lapGroupsOf(trace: ActivityTrace): {
+  recorded: ActivityLap[]
+  suggested: ActivityLap[]
+} {
+  return {
+    recorded: trace.laps.length >= MIN_LAPS ? trace.laps : [],
+    suggested: suggestedIntervals(trace),
+  }
 }
 
 /** The measures as channels of the stack, over the window, at this many columns. */
@@ -198,6 +204,7 @@ export function channelsFor(
         scale: scaleOf(metric, trace.sport),
         ticks: valueTicks(metric, trace.sport, units, low, high, tickCount),
         columns: series,
+        write: read,
         at: (second) => {
           // A paused or unrecorded second reads nothing, though the average round it has a value.
           if (!hasReadingNear(stream, second)) return null

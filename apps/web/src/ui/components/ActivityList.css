@@ -55,6 +55,8 @@
 /* The name's link covers its whole row (see ::after), so a tap on any part of the row opens it. */
 .activity-list__item {
   position: relative;
+  /* The row's own width, in rem, says whether the wide layout fits (see the container rule below). */
+  container-type: inline-size;
   min-width: 0;
   padding: var(--space-3) var(--space-2);
   border-bottom: 1px solid var(--border);
@@ -245,6 +247,36 @@
 }
 
 /*
+ * The wide row needs about 38 rem. Text at 200% on a tablet leaves a row of 24 rem though the window is wider than
+ * 760 px, so a row narrower than 40 rem puts its figures on a line under the name and lets them wrap, labels kept
+ * (WCAG 1.4.4, 1.4.10). The window-width rules below take over for a phone.
+ */
+@container (max-width: 40rem) {
+  .activity-list__main {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    grid-template-areas:
+      'glyph name'
+      'glyph sub'
+      '. stats';
+  }
+
+  .activity-list__stats {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-figure)), 1fr));
+  }
+
+  .activity-list__stat--time,
+  .activity-list__stat--distance,
+  .activity-list__stat--climb,
+  .activity-list__stat--hero {
+    grid-column: auto;
+  }
+
+  .activity-list__chevron {
+    display: none;
+  }
+}
+
+/*
  * Up to 760 px, which is PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, a row is two lines of blocks that
  * wrap: the glyph and the name, then when it started with the figures, then the chips if it has any. The
  * figures lose their labels, which stay for screen readers, since a unit or a clock reads as what it is.
@@ -350,35 +382,4 @@
   .activity-list__value--hero {
     font-size: var(--text-label);
   }
-}
-
-.activity-list__records {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.activity-list__more {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-/* The legs of one file, one session, with the session's total time above them. */
-.activity-list__session-title {
-  margin: 0;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.activity-list__session-title span {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.activity-list__legs {
-  margin: 0;
-  padding: 0 0 0 var(--space-4);
-  list-style: none;
 }

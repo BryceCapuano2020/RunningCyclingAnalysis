@@ -68,7 +68,7 @@ export function referenceFloorBpm(ageYears: number | null, sex: Sex | null = nul
 /**
  * The typical day's peak heart rate over the maximum, from which the maximum is where the athlete lives. A true maximum
  * is reached on few days, so a typical day sits under it. Between the typical-day ratio of hard libraries and of easy or
- * tempo-only ones in the synthetic harness; see effort/gate.sim.test.ts.
+ * tempo-only ones in the synthetic harness; see effort/gate.*.sim.test.ts.
  */
 export const HABITUAL_PEAK_RATIO = 0.9
 

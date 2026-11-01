@@ -5,6 +5,7 @@ import {
 } from '../constants'
 import { interpolatedCeiling } from '../curves/speedCeiling'
 import { QUALITY_THRESHOLDS } from '../quality'
+import type { RunRecordDistanceM } from '../constants'
 import type { DigestDistanceBest } from '../types'
 
 /**
@@ -161,13 +162,14 @@ export function distanceBests(
   distance: Float64Array,
   valid: Uint8Array,
   recorded: Float64Array = distance,
+  distances: readonly RunRecordDistanceM[] = RUN_RECORD_DISTANCES_M,
 ): DigestDistanceBest[] {
   let total = 0
   for (const d of recorded) if (Number.isFinite(d) && d > total) total = d
   const stretches = validStretches(distance, valid)
   const recordedStretches = recorded === distance ? stretches : validStretches(recorded, valid)
   const bests: DigestDistanceBest[] = []
-  for (const distanceM of RUN_RECORD_DISTANCES_M) {
+  for (const distanceM of distances) {
     if (total < distanceM * (1 - DISTANCE_BEST_TOLERANCE)) continue
     // A run that covers a distance keeps its exact time; the tolerance applies only when none does.
     // A stretch with a window faster than the world record is a recording fault and is not used.

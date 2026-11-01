@@ -241,6 +241,16 @@
   margin: 0;
 }
 
+/* The link to the full page is a line of its own: a finger needs a control's height to tap it. */
+@media (pointer: coarse) {
+  .landing__method > a {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--control-height);
+  }
+}
+
 .landing__method p {
   margin: 0;
 }

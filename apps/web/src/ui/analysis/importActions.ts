@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { uploadTitlesField } from '../uploadTitlesPreference'
 import { bodyMassOn } from '@rca/core/athlete'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings } from '@rca/core/types'
@@ -116,6 +117,7 @@ export function useImportActions({
               sync: {
                 keepFiles: savedMe.profile.keepFiles && savedMe.fileRetentionAvailable !== false,
                 userId: submittedUserId,
+                ...uploadTitlesField(submittedUserId),
               },
             },
             undefined,
@@ -268,7 +270,12 @@ export function useImportActions({
       setRebuildNotice(ORIGINALS_UNAVAILABLE)
       return
     }
-    send({ type: 'rebuildStale', settings: settingsRef.current, userId })
+    send({
+      type: 'rebuildStale',
+      settings: settingsRef.current,
+      userId,
+      ...uploadTitlesField(userId),
+    })
   }, [accountRef, send, setRebuildNotice, settingsRef])
 
   const undoLabels = useCallback(() => {

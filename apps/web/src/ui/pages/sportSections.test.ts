@@ -3,11 +3,11 @@ import { SPORT_ORDER } from '../sports'
 import { SPORT_ROWS, SPORT_SECTIONS } from './sportSections'
 
 describe('SPORT_SECTIONS', () => {
-  it('puts the open sections before the closed ones, and the disclosures last', () => {
+  it('puts the years first, a closed row that says its finding, then the open sections before the other closed ones', () => {
     for (const sport of SPORT_ORDER) {
       const sections = SPORT_SECTIONS[sport]
       expect(sections.slice(-4)).toEqual(['sameHeartRate', 'lateInEffort', 'standOut', 'evidence'])
-      expect(sections.slice(0, 1)).toEqual(['bestEfforts'])
+      expect(sections.slice(0, 2)).toEqual(['years', 'bestEfforts'])
       for (const open of ['timeInZones', 'bestsOverTime'] as const) {
         expect(sections.indexOf(open)).toBeLessThan(sections.indexOf('sameHeartRate'))
       }

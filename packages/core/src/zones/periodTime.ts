@@ -117,7 +117,7 @@ function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) 
         : week
     let sets = days.get(day)
     if (sets === undefined) {
-      sets = zonesAt(digest.startMs, settings, estimates)
+      sets = zonesAt(digest, settings, estimates)
       days.set(day, sets)
     }
     return sets

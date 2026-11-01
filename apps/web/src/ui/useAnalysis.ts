@@ -26,9 +26,8 @@ import type { AccountStatus } from './useAccount'
 import { useActivityTraceRequest } from './analysis/useActivityTraceRequest'
 import { useRouteRequest } from './analysis/useRouteRequest'
 
-export type { LibraryStatus }
 export { DEVICE_GRACE_MS } from './analysis/keptLibraryLoad'
-export type { AnalysisController }
+export type { AnalysisController, LibraryStatus }
 
 /**
  * Runs the analysis in a worker. While signed in, the account's stored activities are loaded when
@@ -362,6 +361,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     outdatedWithOriginal: library.outdatedWithOriginal,
     checkIn: library.checkIn,
     markCheckInSeen: libraryActions.markCheckInSeen,
+    markLookBackSeen: libraryActions.markLookBackSeen,
     libraryUnreadable: library.libraryUnreadable,
     deviceIssue: library.deviceIssue,
     outbox: library.outbox,

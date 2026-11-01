@@ -1,4 +1,7 @@
 import { DAY_MS } from '../constants'
+import { MODEL_REVISION } from '../digest/modelRevision'
+import { hasRevision7 } from '../digest/revision7Gate'
+import { hashedFileName } from './minimise'
 import type { Activity, AthleteType, Sport } from '../types'
 import { routeFromFixes } from '../route/routeShape'
 import { resample, splitAtGaps } from '../fit/resample'
@@ -106,6 +109,7 @@ export function activitiesFromUnits(
   const { fileName, units } = input
   const context: Context = {
     fileName,
+    idName: (opts.hashedIds ?? hasRevision7(MODEL_REVISION)) ? hashedFileName(fileName) : fileName,
     multi: units.length > 1,
     limits,
     nowMs: opts.nowMs ?? Date.now(),
@@ -150,6 +154,8 @@ type Outcome =
 
 interface Context {
   fileName: string
+  /** The file name the activity's id is made from: the name itself, or from revision 7 a hash of it. */
+  idName: string
   multi: boolean
   limits: ParseLimits
   nowMs: number
@@ -286,7 +292,7 @@ function resampleSegment(
 /** Resamples one continuous part of a unit into an Activity, or says why it is not one. */
 function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
   const { unit, index, part, parts, sport, drops, maxSpeed, context } = info
-  const { fileName, multi, nowMs } = context
+  const { multi, nowMs } = context
   const short = tooShort(segment)
   if (short !== null) return short
   const full = reserveSamples(segment, context)
@@ -313,7 +319,7 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
   const derivedDropped = clampSpeed(resampled.speed, maxSpeed)
   const dropped = segment.reduce((sum, r) => sum + (drops.get(r) ?? 0), 0) + derivedDropped
 
-  const idBase = `${resampled.startMs}-${fileName}`
+  const idBase = `${resampled.startMs}-${context.idName}`
   const id = multi ? `${idBase}#${index}` : idBase
   // An export that names activities by their start names each leg of a multisport file on its own, so
   // the name does not carry the sport as one name shared by the legs does.

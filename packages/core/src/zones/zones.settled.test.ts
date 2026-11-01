@@ -29,7 +29,7 @@ describe('the zones of a library whose own threshold is refused', () => {
     expect(refused.thresholdTimeline.run.some((step) => step.fit !== null)).toBe(true)
     expect(paceSets(refused)).toHaveLength(0)
     expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(refused, NOW))).toEqual([
-      { sport: 'run', measure: 'pace' },
+      { sport: 'run', measure: 'pace', outgrown: false },
     ])
   })
 })

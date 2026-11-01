@@ -2,6 +2,7 @@ import { applyLabels, undoLabels } from '@rca/core/import/applyLabels'
 import type { LabelProposal } from '@rca/core/import/applyLabels'
 import type { AnalysisSession, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
+import { namesInBothForms } from './applyListLabels'
 import type { DeviceActions } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
 
@@ -69,7 +70,7 @@ export function deviceLabels(
       const entries = await library.all().catch(() => [])
       const proposals = applyLabels(
         entries.map(({ workoutKey, digest }) => ({ id: workoutKey, digest })),
-        listedTypes,
+        namesInBothForms(listedTypes),
       )
       if (proposals.length === 0) return { labelled: [], state: null }
       const ids = new Map(entries.map(({ workoutKey, digest }) => [workoutKey, digest.id]))

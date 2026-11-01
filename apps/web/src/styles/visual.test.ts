@@ -499,7 +499,7 @@ describe('balance hero, meter and evidence', () => {
 
   it('gives "range" a little room, since it sits against the figures, and prose terms none', () => {
     expect(rulesWith(balanceMeter, '.balance-meter__range .definition__term')).toMatch(
-      /margin:\s*0 2px/,
+      /margin:\s*-4px 2px 0/,
     )
   })
 
@@ -530,8 +530,8 @@ describe('balance hero, meter and evidence', () => {
     expect(mediaOf(weightNote, phone)).toMatch(
       /\.weight-note__link \{[^}]*min-height:\s*var\(--control-height\)/,
     )
-    expect(mediaOf(crossSport, phone)).toMatch(
-      /\.cross-sport__link \{[^}]*min-height:\s*var\(--control-height\)/,
+    expect(rulesWith(crossSport, '.cross-sport__link')).toMatch(
+      /min-height:\s*var\(--control-height\)/,
     )
   })
 
@@ -689,7 +689,9 @@ describe('header details', () => {
 
 describe('sign-in button', () => {
   it('sets the sign-in button to the width of the pending status, so the header does not move', () => {
-    expect(rulesWith(googleSignIn, '.google-sign-in')).toMatch(/min-width:\s*11\.75rem/)
+    expect(rulesWith(googleSignIn, '.google-sign-in')).toMatch(
+      /min-width:\s*min\(11\.75rem, 100%\)/,
+    )
     expect(rulesWith(googleSignIn, '.google-sign-in')).toMatch(/justify-content:\s*center/)
   })
 

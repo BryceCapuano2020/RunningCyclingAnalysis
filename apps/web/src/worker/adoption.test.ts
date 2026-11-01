@@ -1,5 +1,6 @@
 import { digestActivity, serializeDigest } from '@rca/core/digest'
 import { REVISIONS, withRevisionTable } from '@rca/core/digest/revisions'
+import { hashedDigestId, minimisedForUpload } from '@rca/core/import/minimise'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { ActivityRecord } from '@rca/contract'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -355,6 +356,37 @@ describe('following up a save that was cut short', () => {
   it('removes it when the account already holds this very file', async () => {
     const { left } = await run(rowFor(0), 'held', [recordOf(0)])
     expect(left).toEqual([])
+  })
+
+  it('removes it when the file was imported under a hashed name and the account holds it under the same', async () => {
+    // From revision 7 the id is made from a hash of the file name at import, so the kept digest, the row and what the
+    // account holds are one id (import/minimise.ts); a replaced or sent digest is never renamed on the way.
+    const hashed = { ...digests[0]!, id: hashedDigestId(digests[0]!.id) }
+    const library = memoryDeviceLibrary()
+    await library.put(keyOf(0), hashed, null, { fileName: 'run.fit', fileHash: HASH })
+    const row = { ...rowFor(0), digestId: hashed.id, digestJson: serializeDigest(hashed) }
+    const sent = minimisedForUpload(hashed, 'run.fit', { titles: false }).digest
+    expect(sent.id).toBe(hashed.id)
+    await followUpAdopted(
+      {
+        library,
+        savedRecords: new Map([['rec0', { ...recordOf(0), digest: sent }]]),
+      },
+      row,
+      'held',
+    )
+    expect(await library.all()).toEqual([])
+  })
+
+  it('removes it when the account row was saved before under the plain name and the kept one since under its hash', async () => {
+    const plainId = `${digests[0]!.startMs}-run.fit`
+    const hashed = { ...digests[0]!, id: hashedDigestId(plainId) }
+    const library = memoryDeviceLibrary()
+    await library.put(keyOf(0), hashed, null, { fileName: 'run.fit', fileHash: HASH })
+    const row = { ...rowFor(0), digestId: hashed.id, digestJson: serializeDigest(hashed) }
+    const older = { ...recordOf(0), digest: { ...digests[0]!, id: plainId, modelRevision: 5 } }
+    await followUpAdopted({ library, savedRecords: new Map([['rec0', older]]) }, row, 'held')
+    expect(await library.all()).toEqual([])
   })
 
   it('leaves it when the account holds another file for the workout', async () => {

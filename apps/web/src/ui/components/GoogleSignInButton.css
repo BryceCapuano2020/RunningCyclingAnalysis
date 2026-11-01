@@ -16,9 +16,13 @@
   font-family: 'Roboto', system-ui, sans-serif;
   font-size: var(--text-sm);
   font-weight: 500;
-  white-space: nowrap;
+  /* The label stays on one line where there is room; in a column narrower than it, at 200% text, it wraps. The
+     header sets its own (Header.css), where a wrapped label would grow the bar. */
+  white-space: normal;
+  text-align: center;
   /* As wide as the header's pending status, so the header does not move when the answer arrives. */
-  min-width: 11.75rem;
+  min-width: min(11.75rem, 100%);
+  max-width: 100%;
   justify-content: center;
 }
 

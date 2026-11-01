@@ -12,6 +12,8 @@ import {
   ProfileSchema,
 } from '@rca/contract'
 import { ActivityLabelsResultSchema } from '@rca/contract'
+import { minimisedForUpload } from '@rca/core/import/minimise'
+import { uploadTitles } from './uploadPolicy'
 import type {
   ActivityLabelsResult,
   ActivityRecord,
@@ -23,6 +25,7 @@ import type {
 import type { ActivityDigest } from '@rca/core/types'
 import { readableRecords } from './pageRecords'
 import { ApiRequestError } from './apiError'
+import { gzipSmaller } from './gzip'
 import { noteRequestActivity } from './requestActivity'
 import type { RequestOptions } from './requestOptions'
 import {
@@ -46,7 +49,7 @@ export interface CreatedActivity {
 }
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-type Body = { json: unknown } | { bytes: Uint8Array }
+type Body = { json: unknown } | { bytes: Uint8Array; encoding?: 'gzip' }
 
 /** Keep a stalled connection from pinning the worker queue indefinitely. */
 const REQUEST_TIMEOUT_MS = 15_000
@@ -60,7 +63,7 @@ const TRANSFER_TIMEOUT_MS = 120_000
  */
 const CREATE_RETRY_BACKOFF_MS = 1_000
 /** Refusals that will not clear in a moment, so they are never retried. */
-const NOT_TRANSIENT = new Set(['database_full'])
+const NOT_TRANSIENT = new Set(['database_full', 'read_only'])
 const CLIENT_PAGE_SIZE = MAX_PAGE_SIZE
 const PAGE_BODY_LIMIT = MAX_PAGE_BODY_BYTES
 /** One fetch with its deadline. Resolves to null when the server could not be reached. */
@@ -98,6 +101,7 @@ export async function request(
     payload = JSON.stringify(body.json)
   } else if (body !== undefined) {
     headers.set('Content-Type', 'application/octet-stream')
+    if (body.encoding !== undefined) headers.set('Content-Encoding', body.encoding)
     // A FIT file read from disk is always backed by a plain ArrayBuffer.
     payload = body.bytes as Uint8Array<ArrayBuffer>
   }
@@ -224,10 +228,16 @@ export async function createActivity(
   replaceId?: string,
 ): Promise<CreatedActivity> {
   const query = replaceId === undefined ? '' : `?${new URLSearchParams({ replace: replaceId })}`
+  // A new activity goes with a generated title unless the athlete chose to send titles, and a hashed file name (from
+  // revision 7). A replace is of an activity already saved: it keeps the id, file name and title it has.
+  const sent =
+    replaceId === undefined
+      ? minimisedForUpload(digest, fileName, { titles: uploadTitles() })
+      : { digest, fileName }
   const response = await request(
     'POST',
     `/api/activities${query}`,
-    { json: { digest, fileName, fileHash } },
+    { json: { digest: sent.digest, fileName: sent.fileName, fileHash } },
     userId,
     CREATE_RETRY_BACKOFF_MS,
   )
@@ -244,7 +254,10 @@ export async function uploadFile(
   userId?: string,
 ): Promise<ActivityRecord> {
   const path = `/api/activities/${encodeURIComponent(id)}/file`
-  return readJson(await request('PUT', path, { bytes }, userId), ActivityRecordSchema)
+  // Sent gzipped when that is smaller: the server checks the hash of the file itself and stores, and counts, what it gets.
+  const zipped = await gzipSmaller(bytes)
+  const body = zipped === null ? { bytes } : { bytes: zipped, encoding: 'gzip' as const }
+  return readJson(await request('PUT', path, body, userId), ActivityRecordSchema)
 }
 
 /** Downloads one original FIT file without allowing a missing length header to grow unbounded. */
