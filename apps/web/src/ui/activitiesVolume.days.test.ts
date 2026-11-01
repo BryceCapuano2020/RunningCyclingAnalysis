@@ -70,9 +70,12 @@ describe('the sample athlete’s year', () => {
   it('is the year of the newest effort in the zone it is read in', () => {
     // 1 January 2027, 02:00 UTC is still 31 December 2026 in Los Angeles.
     const newestMs = at(2027, 1, 1, 2)
+    // The calendar reads the zone the page handed it, so install the device's after each change of it.
     vi.stubEnv('TZ', 'America/Los_Angeles')
+    installDeviceZone()
     expect(sampleProfileAt(newestMs).birthYear).toBe(2026 - 37)
     vi.stubEnv('TZ', 'UTC')
+    installDeviceZone()
     expect(sampleProfileAt(newestMs).birthYear).toBe(2027 - 37)
   })
 })

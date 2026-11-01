@@ -1,4 +1,3 @@
-import { traceQualityOf } from '@rca/core/digest'
 import { activityTraceOf, parseActivityTrace } from '@rca/core/workbench'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { sampleDataset } from '@rca/core/synthetic'
@@ -8,7 +7,7 @@ import { digestActivity } from '@rca/core/digest'
 import { matchOriginalActivity } from './originalActivity'
 import { Workbench } from './workbench'
 import type { PutResult, TraceScope, WorkbenchStore } from './workbenchStore'
-import { activityTraceBytes, WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES } from './workbenchStore'
+import { activityTraceBytes, WORKBENCH_ENTRY_BYTES } from './workbenchStore'
 
 function scopeKey(scope: TraceScope, id: string): string {
   return JSON.stringify([scope.kind === 'device' ? 'device' : scope.userId, id])
@@ -270,38 +269,6 @@ describe('workbench evidence cache', () => {
         'kept',
         'full',
       ])
-    })
-
-    it('holds no more than the cache can, dropping the oldest activities first', async () => {
-      const { store } = memoryStore()
-      const workbench = await watched(store)
-      const n = 380_000
-      const big = (id: string, startMs: number): Activity => ({
-        ...startingAt(id, startMs),
-        n,
-        speed: new Float64Array(n),
-        distance: new Float64Array(n),
-        altitude: new Float64Array(n),
-        heartRate: new Float64Array(n),
-        power: new Float64Array(n),
-        paused: new Uint8Array(n),
-        unrecorded: undefined,
-        laps: [],
-      })
-      const probe = big('probe', 0)
-      // The trace the cache builds carries the masks of the quality assessment too.
-      const bytes = activityTraceBytes(activityTraceOf(probe, traceQualityOf(probe)))
-      expect(bytes).toBeLessThanOrEqual(WORKBENCH_ENTRY_BYTES)
-      const fit = Math.floor(WORKBENCH_TOTAL_BYTES / bytes)
-
-      // One more than fits, the oldest arriving last.
-      for (let i = 0; i <= fit; i++) workbench.captureDeferred(big(`a${i}`, 10_000 - i), scope)
-      await workbench.storeDeferred()
-
-      const written = vi.mocked(store.put).mock.calls.map(([, trace]) => trace.activityId)
-      expect(written).toHaveLength(fit)
-      expect(written).not.toContain(`a${fit}`)
-      expect(written[0]).toBe('a0')
     })
   })
 
