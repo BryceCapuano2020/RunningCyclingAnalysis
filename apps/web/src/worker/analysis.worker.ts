@@ -96,6 +96,11 @@ const libraryContext: LibraryContext = {
     return () => view.libraryEpoch === libraryEpoch && view.activeScope === activeScope
   },
   waitingToChange: waitingToChangeLibrary,
+  endResume: async () => {
+    resume?.cancel()
+    await resume?.finished.catch(() => undefined)
+    resume = null
+  },
 }
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.

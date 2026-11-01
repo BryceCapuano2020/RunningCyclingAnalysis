@@ -143,7 +143,7 @@ describe('resuming the saves an earlier visit left', () => {
   })
 
   it('counts a refusal against the row and keeps it for the next load', async () => {
-    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
+    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(422, 'invalid_digest', 'Boom'))
     const { resume, posted, left, attempts } = setup([rowFor(0)])
     await resume.finished
     expect(attempts.get(workoutKeyOf(digests[0]!))).toBe(1)
@@ -159,12 +159,27 @@ describe('resuming the saves an earlier visit left', () => {
   })
 
   it('lets a row go once the refusals reach the limit, and says it could not be saved', async () => {
-    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
+    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(422, 'invalid_digest', 'Boom'))
     const { resume, posted, left, attempts } = setup([rowFor(0, { attempts: 0 })])
     attempts.set(workoutKeyOf(digests[0]!), MAX_ATTEMPTS - 1)
     await resume.finished
     expect(left.size).toBe(0)
     expect(last(posted)).toMatchObject({ pending: 0, failed: 1, finished: true })
+  })
+
+  it('does not count a server error against the row, however many loads an outage spans', async () => {
+    for (const status of [500, 502, 503]) {
+      vi.mocked(createActivity).mockRejectedValue(
+        new ApiRequestError(status, 'server_error', 'Down'),
+      )
+      for (let load = 0; load < MAX_ATTEMPTS + 2; load++) {
+        const { resume, posted, left, attempts } = setup([rowFor(0)])
+        await resume.finished
+        expect(attempts.size).toBe(0)
+        expect(left.size).toBe(1)
+        expect(last(posted)).toMatchObject({ pending: 1, failed: 0, finished: true })
+      }
+    }
   })
 
   it('does not count a lost connection against the row, however many loads it spans', async () => {

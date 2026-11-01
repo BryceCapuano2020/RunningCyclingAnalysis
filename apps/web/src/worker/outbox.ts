@@ -1,6 +1,7 @@
 import { parseDigest, serializeDigest } from '@rca/core/digest'
 import type { ActivityDigest } from '@rca/core/types'
 import { workoutKeyOf } from './device'
+import { openIndexedDb } from './openIndexedDb'
 
 /**
  * What a signed-in import has begun to save to the account and not yet been told is saved, kept in this
@@ -81,19 +82,8 @@ export async function waitingCount(userId: string): Promise<number> {
 }
 
 function openDatabase(): Promise<IDBDatabase | null> {
-  return new Promise<IDBDatabase | null>((resolve) => {
-    try {
-      const request = indexedDB.open(DB_NAME, 1)
-      request.onupgradeneeded = () => {
-        const store = request.result.createObjectStore(STORE, { keyPath: 'id' })
-        store.createIndex('userId', 'userId')
-      }
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => resolve(null)
-      request.onblocked = () => resolve(null)
-    } catch {
-      resolve(null)
-    }
+  return openIndexedDb(DB_NAME, (db) => {
+    db.createObjectStore(STORE, { keyPath: 'id' }).createIndex('userId', 'userId')
   })
 }
 

@@ -4,6 +4,7 @@ import { digestActivity } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { workoutKeyOf } from './device'
+import { OPEN_TIMEOUT_MS } from './openIndexedDb'
 import {
   clearOutbox,
   digestOf,
@@ -243,5 +244,46 @@ describe('the outbox', () => {
     await expect(outbox.done('x')).resolves.toBeUndefined()
     await expect(outbox.failed('x')).resolves.toBe(false)
     await expect(outbox.forget()).resolves.toBeUndefined()
+  })
+})
+
+describe('an open that never answers', () => {
+  it('lets a save go without a row after the timeout, and does not stall the next one', async () => {
+    vi.useFakeTimers()
+    try {
+      const open = vi.fn(() => ({}) as IDBOpenDBRequest)
+      vi.stubGlobal('indexedDB', { open })
+      const outbox = openOutbox('u1')
+      let added = false
+      void outbox.add(item(FIRST)).then(() => (added = true))
+      await vi.advanceTimersByTimeAsync(OPEN_TIMEOUT_MS - 1)
+      expect(added).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(1)
+
+      expect(added).toBe(true)
+      await expect(outbox.pending()).resolves.toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('closes a connection that answers after it was given up on', async () => {
+    vi.useFakeTimers()
+    try {
+      const request: { result?: { close: () => void }; onsuccess?: () => void } = {}
+      vi.stubGlobal('indexedDB', { open: () => request })
+      const pending = waitingCount('u1')
+      await vi.advanceTimersByTimeAsync(OPEN_TIMEOUT_MS)
+      await expect(pending).resolves.toBe(0)
+
+      const close = vi.fn()
+      request.result = { close }
+      request.onsuccess?.()
+
+      expect(close).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

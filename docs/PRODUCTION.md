@@ -60,7 +60,8 @@ intended order:
    makes sign-up public again; see [Sign-up list](#sign-up-list-worker-secret-allowed_emails).
    A rollback to a Worker from before gzipped originals (the floor `3e17b541` is one) hashes a gzipped upload as it
    comes and answers **422 `hash_mismatch`** to it, so while it serves, originals are not kept (the digests are
-   saved). Roll forward to restore them.
+   saved). It also serves the gzipped originals already stored without `Content-Encoding: gzip`, so a download
+   of one is the raw gzip file, not the original. Roll forward to restore them.
 
 `npm run deploy` runs locally and must start from a clean checkout of `main` identical to
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
@@ -245,9 +246,11 @@ repository and not in `wrangler.toml`.
 - It gates new accounts only. An existing account signs in whatever the secret holds, and taking an address
   off the list does not sign that person out. To revoke someone, **first** take the address off the list
   (`wrangler secret put ALLOWED_EMAILS` with the new list), **then** delete their account: `DELETE /api/me`
-  from their session, or as the operator `DELETE FROM users WHERE id = ?` in D1 (the rows cascade). In that
-  order the Google account cannot sign up again in the gap between the two steps. A direct SQL delete skips
-  what `DELETE /api/me` does: it does not sweep the account's original files from R2 (the daily orphan sweep
+  from their session, or as the operator in D1 (the rows cascade). Write the tombstone first, then delete:
+  `INSERT OR IGNORE INTO account_tombstones(user_id, deleted_at) VALUES('<id>', <now in ms>)`, then
+  `DELETE FROM users WHERE id = '<id>'`. In that order the Google account cannot sign up again in the gap
+  between the two steps. A direct SQL delete skips what `DELETE /api/me` does: it writes no tombstone, so
+  without the insert above a restore brings the revoked account back. It also does not sweep the account's original files from R2 (the daily orphan sweep
   removes them later, within the grace period) and does not save the day's counts under the identity code, so
   that day's counts do not carry over if the person signs up again.
 - **Rollback reopens sign-up.** Every Worker released before this change, which includes the rollback floor
@@ -337,7 +340,9 @@ while you look.
 4. _Cap the damage_: one account's digests are bounded (64 MiB, 5,000 activities), its originals (1 GiB), and a digest's free
    text by the byte caps in `apps/api/LIMITS.md`. A single account cannot fill the guard; several can, which is why step 3
    comes before step 5.
-5. _Remove_: `DELETE FROM users WHERE id = '<id>'` in D1 (the rows cascade; see Sign-up list for what a SQL delete skips).
+5. _Remove_: first `INSERT OR IGNORE INTO account_tombstones(user_id, deleted_at) VALUES('<id>', <now in ms>)`, so a
+   restore does not bring the account back, then `DELETE FROM users WHERE id = '<id>'` in D1 (the rows cascade; see
+   Sign-up list for what a SQL delete skips).
    **`DELETE /api/me` is a write, so the switch refuses it with 503 `read_only`**: use the SQL, or turn the switch off first
    and delete from the account's session. Do this last: it is not reversible.
 6. _Recover room_: the database guard lifts by itself as rows go. The lifetime R2 ledger is never refunded; see "Operator

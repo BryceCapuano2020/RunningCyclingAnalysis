@@ -16,6 +16,7 @@ import {
 } from './importManifest'
 import type { ImportManifest } from './importManifest'
 import { openManifestStore } from './importManifestStore'
+import { OPEN_TIMEOUT_MS } from '../worker/openIndexedDb'
 
 function manifest(id: string, over: Partial<ImportManifest> = {}): ImportManifest {
   return {
@@ -307,5 +308,25 @@ describe('locks', () => {
     vi.stubGlobal('navigator', {})
     expect(await heldLockNames()).toBeNull()
     expect(() => holdLock('a')()).not.toThrow()
+  })
+})
+
+describe('a manifest store whose database never opens', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('lists nothing and keeps nothing after the timeout, so an import is not stalled behind it', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('indexedDB', { open: () => ({}) })
+    const store = openManifestStore()
+    const all = store.all()
+    const put = store.put(manifest('m1'))
+
+    await vi.advanceTimersByTimeAsync(OPEN_TIMEOUT_MS)
+
+    await expect(all).resolves.toEqual([])
+    await expect(put).resolves.toBeUndefined()
   })
 })

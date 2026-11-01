@@ -44,6 +44,8 @@ export interface LibraryContext {
   stamp: () => () => boolean
   /** Requests that change the library and are waiting behind the one being handled. */
   waitingToChange: () => number
+  /** Stops this tab's own outbox resume and waits for it to let go of the writer lock, so Update is not refused by it. */
+  endResume: () => Promise<void>
 }
 
 /** Fetches the account's digests here, so a large library never crosses the main thread. */
@@ -137,6 +139,8 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
     note: noteWork,
   }
   const candidates = updateCandidates(records, ctx.unmatchedOriginals)
+  // This tab's own resume may hold the writer lock: it stops first, so only another tab's hold refuses the update.
+  await ctx.endResume()
   const ran = await asWriter(userId, () => runUpdate(candidates, steps))
   const update = ran.writer ? ran.value : NOT_THE_WRITER
   // The library this ran for was replaced meanwhile, so nothing it learned is put back over the new one.
