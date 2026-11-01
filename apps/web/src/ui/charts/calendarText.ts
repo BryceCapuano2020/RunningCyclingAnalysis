@@ -1,10 +1,10 @@
 import { dayOfCivil, noonOnLabelDate } from '@rca/core/calendar'
 import { DAY_MS } from '@rca/core/constants'
-import type { TrainingWeek } from '@rca/core/history'
+import type { YearRow } from '@rca/core/history'
 import { formatCount } from '../format/count'
 import { formatMonth } from '../format/date'
 import { SPORT_ACTIVITY, SPORT_LABEL, SPORT_ORDER, SPORT_PLURAL } from '../sports'
-import { totalOfWeek } from './calendarGrid'
+import { keeps } from './calendarGrid'
 import type { CalendarCell, CalendarFilter, CalendarGrid, CalendarMode } from './calendarGrid'
 import type { ChartTableData, TooltipContent, TooltipRow } from './chartTypes'
 import { shortDateWithYear } from './trendTicks'
@@ -79,23 +79,20 @@ export function tableOf(grid: CalendarGrid, mode: CalendarMode): ChartTableData 
   }
 }
 
-/** The totals of each year, whatever the columns are: weeks with training, hours and activities. */
-export function summaryOf(
-  weeks: readonly TrainingWeek[],
-  years: readonly number[],
-  filter: CalendarFilter,
-): ChartTableData {
+/**
+ * The hours and activities of each calendar year, whatever the columns are: the figures of Hours per year, for the sports
+ * the filter keeps. A week that spans New Year is one cell of the grid, but its days are in two calendar years, so this
+ * reads the years the hours chart reads, and the two agree.
+ */
+export function summaryOf(years: readonly YearRow[], filter: CalendarFilter): ChartTableData {
   return {
     caption: 'Training by year',
-    columns: ['Year', 'Weeks trained', 'Hours', 'Activities'],
-    rows: years.map((year) => {
-      const trained = weeks
-        .filter((week) => week.year === year)
-        .map((week) => totalOfWeek(week, filter))
-        .filter((total) => total.activities > 0)
-      const hours = trained.reduce((sum, total) => sum + total.hours, 0)
-      const activities = trained.reduce((sum, total) => sum + total.activities, 0)
-      return [String(year), String(trained.length), hours.toFixed(1), formatCount(activities)]
+    columns: ['Year', 'Hours', 'Activities'],
+    rows: years.map((row) => {
+      const kept = SPORT_ORDER.filter((sport) => keeps(filter, sport)).map((s) => row.sports[s])
+      const hours = kept.reduce((sum, totals) => sum + totals.hours, 0)
+      const activities = kept.reduce((sum, totals) => sum + totals.activities, 0)
+      return [String(row.year), hours > 0 ? hours.toFixed(1) : '0', formatCount(activities)]
     }),
   }
 }

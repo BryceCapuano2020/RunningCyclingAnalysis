@@ -1502,10 +1502,12 @@ a file `ui/pages/history/<name>.ts` that exports a `HistorySection` (`id`, `orde
 never summed with lifting load.
 
 **Training calendar.** A heatmap with a row for each year and a column for each week of the year, tinted by that week's
-hours on one five-step ramp (the sport's colour, neutral for All). A week with no training is a plain cell, so a gap
-reads at a glance. A week belongs to the year and month of its Thursday (ISO 8601), so the week that spans New Year is
+hours on one five-step ramp (the sport's colour, neutral for All; its first tint keeps 2:1 against a week of rest). A
+week with no training is a plain cell, so a gap reads at a glance. The key writes the hours a week where each tint
+ends, and the darkest is "over" the last edge. A week belongs to the year and month of its Thursday (ISO 8601), so the week that spans New Year is
 one cell. A sport filter (All, Run, Ride) and the key for the ramp sit in the chart's control row (`ChartFrame`'s
 `controls`); one line above it gives the longest streak of weeks with training and the biggest week, for the sports the
 filter keeps. Below 560 px the columns are months, each tinted by its average week. The arrow keys step through the
-cells by date, and the table has a row for each year. The core part keeps each week and sport in three characters
+cells by date, and the table has a row for each year; its summary gives each calendar year's hours and activities, as
+Hours per year does. The core part keeps each week and sport in three characters
 (`history/weekCells.ts`), about 4 KB for thirteen years.

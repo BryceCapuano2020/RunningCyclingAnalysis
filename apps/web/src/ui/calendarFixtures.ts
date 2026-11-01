@@ -1,5 +1,5 @@
 import { historyOf } from '@rca/core/history'
-import type { TrainingCalendar } from '@rca/core/history'
+import type { TrainingCalendar, YearRow } from '@rca/core/history'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityDigest, Sport } from '@rca/core/types'
 
@@ -43,13 +43,20 @@ function digestsOf(spec: DaySpec, index: number): ActivityDigest[] {
   )
 }
 
-/** The training calendar of a synthetic library, built by the core from one activity or more on each given day. */
-export function calendarOf(days: readonly DaySpec[]): TrainingCalendar {
-  return historyOf(days.flatMap(digestsOf), INPUT).calendar
+/** The training calendar and the calendar years of a synthetic library, built by the core from the given days. */
+export function libraryOf(days: readonly DaySpec[]): {
+  calendar: TrainingCalendar
+  years: YearRow[]
+} {
+  const { calendar, years } = historyOf(days.flatMap(digestsOf), INPUT)
+  return { calendar, years }
 }
 
+/** The training calendar of a synthetic library, built by the core from one activity or more on each given day. */
+export const calendarOf = (days: readonly DaySpec[]): TrainingCalendar => libraryOf(days).calendar
+
 /** Five years of both sports with a gap in them: a run every week of 2019 to 2023, a ride in one week of four, and eight weeks of nothing in the third year. */
-export function fiveYearCalendar(): TrainingCalendar {
+export function fiveYearLibrary(): { calendar: TrainingCalendar; years: YearRow[] } {
   const days: DaySpec[] = []
   const first = Date.UTC(2019, 0, 7)
   for (let week = 0; week < 5 * 52; week++) {
@@ -63,5 +70,5 @@ export function fiveYearCalendar(): TrainingCalendar {
       ...(week % 4 === 0 ? { ride: [3 + (week % 6), 1] as const } : {}),
     })
   }
-  return calendarOf(days)
+  return libraryOf(days)
 }

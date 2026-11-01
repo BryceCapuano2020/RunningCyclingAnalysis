@@ -1,15 +1,16 @@
 /*
- * The ramp is one hue in five tints of the surface: the ink mixed into the card, so the same rules hold in light and
+ * The ramp is one hue in five tints of the page: the ink mixed into --surface-0, so the same rules hold in light and
  * dark. All sports use the neutral ink; one sport takes its own colour from data-sport (tokens.css). No training is the
- * plain --surface-2 cell, which no tint reaches, so a week of rest reads as a gap next to a week of any training.
+ * plain --surface-2 cell. The first tint keeps 2:1 against it for every ink in both schemes, and each tint is
+ * darker (lighter, in dark) than the one before; TrainingCalendarChart.css.test.ts checks both from these values.
  */
 .calendar {
   --calendar-ink: var(--neutral-mark);
   --calendar-step-0: var(--surface-2);
-  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 36%, var(--surface-1));
-  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 52%, var(--surface-1));
-  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 68%, var(--surface-1));
-  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 84%, var(--surface-1));
+  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 63%, var(--surface-0));
+  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 74%, var(--surface-0));
+  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 84%, var(--surface-0));
+  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 92%, var(--surface-0));
   --calendar-step-5: var(--calendar-ink);
   min-width: 0;
 }
@@ -63,26 +64,66 @@
   pointer-events: none;
 }
 
-/* The key: none, the five tints, and the hours a week the darkest begins at. */
+/*
+ * The key: none, the five tints, and under each join of two tints the hours a week where one ends and the next begins.
+ * Its sizes are in em, so it grows with the reader's text, and an edge sits at the middle of the 2 px join.
+ */
 .calendar-ramp {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-3);
   color: var(--text-secondary);
   font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.calendar-ramp__none {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Room under the tints for the edges. */
+.calendar-ramp__scale {
+  position: relative;
+  padding-bottom: 1.5em;
 }
 
 .calendar-ramp__steps {
-  display: inline-flex;
-  gap: 2px;
+  display: flex;
+  gap: 0.125em;
 }
 
 .calendar-ramp__swatch {
   flex: none;
-  width: 14px;
-  height: 14px;
+  width: 1.5em;
+  height: 1em;
   border-radius: calc(var(--radius-sm) / 3);
   background: var(--calendar-step-0);
+}
+
+.calendar-ramp__edge {
+  position: absolute;
+  top: 1.25em;
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-ramp__edge[data-edge='1'] {
+  left: 1.5625em;
+}
+
+.calendar-ramp__edge[data-edge='2'] {
+  left: 3.1875em;
+}
+
+.calendar-ramp__edge[data-edge='3'] {
+  left: 4.8125em;
+}
+
+.calendar-ramp__edge[data-edge='4'] {
+  left: 6.4375em;
 }
 
 .calendar-ramp__swatch[data-step='1'] {
