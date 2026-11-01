@@ -1,46 +1,53 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { App } from './App'
-import { resetAppMocks, showResult } from './test/appMocks'
-
-vi.mock('./ui/useAccount', async () => ({
-  useAccount: (await import('./test/appMocks')).useAccountMock,
-}))
-vi.mock('./ui/useAnalysis', async () => ({
-  useAnalysis: (await import('./test/appMocks')).useAnalysisMock,
-}))
-vi.mock('./ui/useSettings', async () => ({
-  usePreferences: (await import('./test/appMocks')).usePreferencesMock,
-}))
-vi.mock('./ui/charts', async () => {
-  const { heavyChartStubs } = await import('./test/appMocks')
-  return heavyChartStubs
-})
-
-// No preloading: a preload (App starts one when someone is signed in) would load a page the other test needs
-// to find unloaded, so the tests would depend on their order.
-vi.mock('./ui/lazyPages', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./ui/lazyPages')>()),
-  preloadResultPages: () => undefined,
-}))
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 /*
- * The one App test file that does not load the pages first (see lazyPages.tsx): the profile, result and
+ * The one App test file that does not load the pages first (see lazyPages.ts): the profile, result and
  * method pages load the first time they are shown. Each test reaches a page that has not loaded yet, so each
- * test uses a page of its own: a page that has loaded renders at once for the rest of the file.
+ * test gets a fresh module graph: a page that has loaded renders at once for the rest of the module's life,
+ * and the tests would otherwise depend on their order.
  */
+
+/**
+ * A fresh App over fresh mocks, with none of its pages loaded. Nothing is preloaded: a preload (App starts one
+ * when someone is signed in) would load the result page that a test needs to find unloaded.
+ */
+async function freshApp() {
+  vi.resetModules()
+  const mocks = await import('./test/appMocks')
+  vi.doMock('./ui/useAccount', () => ({ useAccount: mocks.useAccountMock }))
+  vi.doMock('./ui/useAnalysis', () => ({ useAnalysis: mocks.useAnalysisMock }))
+  vi.doMock('./ui/useSettings', () => ({ usePreferences: mocks.usePreferencesMock }))
+  vi.doMock('./ui/charts', () => mocks.heavyChartStubs)
+  vi.doMock('./ui/lazyPages', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./ui/lazyPages')>()),
+    preloadResultPages: () => undefined,
+  }))
+  mocks.resetAppMocks()
+  window.location.hash = '#/'
+  const { App } = await import('./App')
+  return { App, showResult: mocks.showResult }
+}
 
 // A page's first load can be slow on a loaded machine.
 const LOAD = { timeout: 5000 }
 
-beforeEach(() => {
-  resetAppMocks()
-  window.location.hash = '#/'
+// The first import of a module transforms it, which is slow for App and its pages. That is paid once here, so
+// the first test to open a page does not pay for it. The modules are evaluated again for each test.
+beforeAll(async () => {
+  await freshApp()
+  await Promise.all([
+    import('./ui/pages/ResultPage'),
+    import('./ui/pages/HistoryPage'),
+    import('./ui/pages/ProfilePage'),
+    import('./ui/pages/MethodPage'),
+  ])
 })
 
 describe('pages that load when first shown', () => {
   it('shows a loading status for the profile, then the page, and moves focus to its heading', async () => {
+    const { App, showResult } = await freshApp()
     showResult()
     render(<App />)
     // The balance page is still loading, and the profile is not asked for yet.
@@ -60,6 +67,7 @@ describe('pages that load when first shown', () => {
   })
 
   it('loads the History charts when the tab is first opened, apart from the result pages', async () => {
+    const { App, showResult } = await freshApp()
     showResult()
     render(<App />)
     await screen.findByRole(
@@ -76,6 +84,7 @@ describe('pages that load when first shown', () => {
   })
 
   it('shows the method page for a visitor with no results once it has loaded', async () => {
+    const { App } = await freshApp()
     window.location.hash = '#/method'
     render(<App />)
     expect(screen.getByText('Loading')).toHaveAttribute('role', 'status')
