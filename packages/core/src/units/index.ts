@@ -2,7 +2,9 @@ export { METRES_PER_FOOT, METRES_PER_KM, METRES_PER_MILE, kgToLb, lbToKg } from 
 export {
   formatClock,
   formatRecordTime,
+  distanceUnit,
   formatDistance,
+  formatWholeDistance,
   groupThousands,
   formatDuration,
   formatPartialDistance,

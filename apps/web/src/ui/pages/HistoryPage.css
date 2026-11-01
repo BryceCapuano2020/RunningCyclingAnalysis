@@ -26,3 +26,10 @@
   margin: 0;
   font-size: var(--display-3);
 }
+
+/* What a chart needs from the athlete before it can draw: one line, and the button that adds it. */
+.history__prompt {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}

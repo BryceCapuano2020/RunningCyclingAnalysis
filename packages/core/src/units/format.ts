@@ -130,6 +130,20 @@ export function formatDistance(metres: number, system: UnitSystem): string {
   return amount > 0 && amount < 0.1 ? `<0.1 ${unit}` : `${figure} ${unit}`
 }
 
+/** The unit word of a distance and the metres in one of it: "mi" and 1,609.344, or "km" and 1,000. */
+export function distanceUnit(system: UnitSystem): { unit: string; metres: number } {
+  return { ...DISTANCE_UNIT[system] }
+}
+
+/** A distance to the whole unit, such as "120 mi", for a sentence that states a difference or a total. */
+export function formatWholeDistance(metres: number, system: UnitSystem): string {
+  if (!Number.isFinite(metres)) {
+    return DASH
+  }
+  const { unit, metres: metresPerUnit } = DISTANCE_UNIT[system]
+  return `${groupThousands(String(Math.round(metres / metresPerUnit)))} ${unit}`
+}
+
 /**
  * A partial distance, shorter than one unit, to two decimals. It rounds down, so it never reads as a
  * whole unit: "0.97 mi", not "1.0 mi". Under a hundredth it reads "<0.01 mi".

@@ -1,0 +1,51 @@
+/* Bars stand on their years, so the years carry no gridline through them. */
+.intensity-chart__x .chart-x-axis__grid {
+  display: none;
+}
+
+/*
+ * A band's colour is a step of the sport's zone ramp: easy at the lightest step, moderate at the middle one and hard at
+ * the darkest (tokens.css sets --zone-1 to --zone-5 for each data-sport). The key's chips take the same steps.
+ */
+.intensity-band[data-band='easy'],
+.intensity-key__chip[data-band='easy'] {
+  fill: var(--zone-1, var(--zone-run-1));
+}
+
+.intensity-band[data-band='moderate'],
+.intensity-key__chip[data-band='moderate'] {
+  fill: var(--zone-3, var(--zone-run-3));
+}
+
+.intensity-band[data-band='hard'],
+.intensity-key__chip[data-band='hard'] {
+  fill: var(--zone-5, var(--zone-run-5));
+}
+
+.intensity-key__label {
+  fill: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+/* Forced colours: the bands take system colours, with an edge between them so they stay apart. */
+@media (forced-colors: active) {
+  .intensity-band,
+  .intensity-key__chip {
+    stroke: Canvas;
+  }
+
+  .intensity-band[data-band='easy'],
+  .intensity-key__chip[data-band='easy'] {
+    fill: ButtonFace;
+  }
+
+  .intensity-band[data-band='moderate'],
+  .intensity-key__chip[data-band='moderate'] {
+    fill: Highlight;
+  }
+
+  .intensity-band[data-band='hard'],
+  .intensity-key__chip[data-band='hard'] {
+    fill: CanvasText;
+  }
+}

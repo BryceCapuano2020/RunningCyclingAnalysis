@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { YearRow } from '@rca/core/history'
 import { formatCount } from '../format/count'
+import { NO_VALUE } from '../format/noValue'
 import { SPORT_ACTIVITY, SPORT_LABEL, SPORT_ORDER, SPORT_PLURAL } from '../sports'
 import { formatHours, totalSeconds } from '../weeklyVolume'
 import { ChartFrame } from './ChartFrame'
@@ -21,8 +22,7 @@ export interface HoursPerYearChartProps {
   years: readonly YearRow[]
 }
 
-const DASH = '—'
-const hoursText = (hours: number) => (hours > 0 ? hours.toFixed(1) : DASH)
+const hoursText = (hours: number) => (hours > 0 ? hours.toFixed(1) : NO_VALUE)
 
 /** A year's tooltip: the hours and count of each sport that trained in it, and the total when there are two. */
 function tooltipFor(
@@ -45,7 +45,7 @@ function tooltipFor(
       }
     },
   )
-  if (rows.length === 0) rows.push({ label: 'Training', value: DASH, note: 'None' })
+  if (rows.length === 0) rows.push({ label: 'Training', value: NO_VALUE, note: 'None' })
   if (rows.length > 1) {
     const total = `${formatHours(totalSeconds(volumeOfYear(row)))} h`
     rows.push({ kind: 'neutral', label: 'Total', value: total })

@@ -31,6 +31,8 @@ import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
 import { gatedThreshold } from './effortGating'
 import { effortGatesOf } from './twentyMinute'
+import { equivalentsOf } from './equivalents'
+import type { Equivalence } from './equivalents'
 import { activitySummaries } from './activitySummaries'
 import type { ActivitySummary } from './summary'
 import type { BikeModelSource } from '../virtualPower'
@@ -66,16 +68,7 @@ function copyOfCheck(check: HrCrossCheck): HrCrossCheck {
   }
 }
 
-export interface Equivalence {
-  durationS: number
-  /**
-   * Best mechanical power held for durationS, W: the ride's own watts, from the same ride as rideCurve.
-   * With dated body masses that ride is the best power-to-weight one.
-   */
-  ridePowerW: number
-  /** Flat running speed with the same gross metabolic power, m/s. */
-  runSpeed: Interval
-}
+export type { Equivalence }
 
 export type { BikeModelSource }
 
@@ -307,20 +300,13 @@ export function combine(
   })
 
   // The draws and their heart-rate weights are the same for every duration, so they are built once.
-  const equivalence = equivalenceFor(calibration)
-  const equivalents: Equivalence[] = []
-  for (const durationS of EQUIVALENCE_DURATIONS_S) {
-    const point = rideCurve.find((p) => p.durationS === durationS)
-    if (point && Number.isFinite(point.value)) {
-      // The ride's own watts at the body mass it rode at, which is massKg without dated masses.
-      const rideKg = bodyKgById.get(point.activityId ?? '') ?? massKg
-      equivalents.push({
-        durationS,
-        ridePowerW: point.value,
-        runSpeed: equivalence(point.value, rideKg),
-      })
-    }
-  }
+  const equivalents = equivalentsOf(
+    equivalenceFor(calibration),
+    rideCurve,
+    bodyKgById,
+    massKg,
+    EQUIVALENCE_DURATIONS_S,
+  )
 
   const reference = opts.references?.referenceHr ?? heart.reference
   const observedMax = opts.references?.observedMaxHr ?? heart.observedMax
