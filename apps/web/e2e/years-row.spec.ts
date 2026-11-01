@@ -94,7 +94,7 @@ for (const size of SIZES) {
     expect(errors).toEqual([])
   })
 
-  test(`at ${size.width} by ${size.height} the Run page's years section opens to a chart, its table and the episodes, within the window`, async ({
+  test(`at ${size.width} by ${size.height} the Run page's years section shows a chart, its table and the episodes from the start, within the window`, async ({
     page,
   }) => {
     test.setTimeout(120_000)
@@ -104,9 +104,10 @@ for (const size of SIZES) {
     await goTo(page, 'Run')
     const section = page.getByRole('region', { name: 'Your years' })
     await expect(section).toBeVisible()
-    // Closed, it says what it found.
-    await expect(section.locator('summary')).toContainText(/slipped in 2023 and came back/)
-    await section.locator('summary').click()
+    // Its row says what it found, and the section is open to start with: nothing waits on a press.
+    const row = section.locator('.sport-disclosure__summary')
+    await expect(row).toContainText(/slipped in 2023 and came back/)
+    await expect(section.locator('.sport-disclosure__details')).toHaveAttribute('open', '')
     await expect(section.getByRole('figure', { name: /over the years$/ })).toBeVisible()
     await expect(section.getByRole('region', { name: 'Episodes' })).toContainText(/Slipped about/)
     // The table twin holds a row for each plateau.

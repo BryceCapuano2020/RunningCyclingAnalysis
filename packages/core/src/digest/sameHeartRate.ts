@@ -176,13 +176,17 @@ function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): S
  * reports its newest maxWeeks at most; all time, which has no start, reports every week from the sport's
  * first block, so no week is read from a window shorter than the others.
  */
-function weekEnds(blocks: readonly Block[], fromMs: number | undefined, capped: boolean): number[] {
+function weekEnds(
+  blocks: readonly Block[],
+  fromMs: number | undefined,
+  newestWeeks: number | null,
+): number[] {
   const span = weekEndsSpan(blocks)!
   const fromEnd =
     fromMs === undefined
       ? weekEndMs(blocks[0]!.weekMs + WINDOW_MS)
       : weekEndFor({ startMs: fromMs + WINDOW_MS })
-  const newest = capped ? span.last - (SAME_HEART_RATE.maxWeeks - 1) * WEEK_MS : -Infinity
+  const newest = newestWeeks === null ? -Infinity : span.last - (newestWeeks - 1) * WEEK_MS
   const firstEnd = Math.max(span.first, fromEnd, newest)
   const lastEnd = span.last
   const ends: number[] = []
@@ -220,10 +224,10 @@ function weeksOf(
   blocks: readonly Block[],
   referenceHeartRate: number,
   fromMs: number | undefined,
-  capped: boolean,
+  newestWeeks: number | null,
 ): Weeks {
   if (blocks.length === 0) return { weeks: [], reportedWeeks: 0, lacks: 'blocks' }
-  const ends = weekEnds(blocks, fromMs, capped)
+  const ends = weekEnds(blocks, fromMs, newestWeeks)
   // Stretches that do not reach a window's length into the period leave no week whose window lies in it.
   if (ends.length === 0) return { weeks: [], reportedWeeks: 0, lacks: 'period' }
   const weeks = ends.map((end) => weekOf(end, blocks, referenceHeartRate))
@@ -237,6 +241,7 @@ function forSport(
   sport: Sport,
   setAside: ReadonlySet<string>,
   fromMs: number | undefined,
+  newestWeeks?: number,
 ): SameHeartRate {
   const libraryBlocks = blocksOf(library, sport, setAside)
   const referenceHeartRate = referenceOf(libraryBlocks)
@@ -245,11 +250,13 @@ function forSport(
   const libraryLast = weekEndsSpan(library)!.last
   // The period's last week is that of its newest activity, of either sport.
   const latestWeekEndMs = weekEndsSpan(ordered)?.last ?? libraryLast
-  const own = weeksOf(all, referenceHeartRate, fromMs, fromMs !== undefined)
+  // A period reports its newest year of weeks at most, and all time every week unless the caller caps it.
+  const cap = fromMs === undefined ? (newestWeeks ?? null) : SAME_HEART_RATE.maxWeeks
+  const own = weeksOf(all, referenceHeartRate, fromMs, cap)
   // A period with no week to draw is not left empty while the library has weeks: its newest ones are read, as
   // the reference heart rate is, and the result says so. All time already is the library.
   if (own.reportedWeeks < 2 && fromMs !== undefined) {
-    const newest = weeksOf(libraryBlocks, referenceHeartRate, undefined, true)
+    const newest = weeksOf(libraryBlocks, referenceHeartRate, undefined, SAME_HEART_RATE.maxWeeks)
     if (newest.reportedWeeks > own.reportedWeeks) {
       return { referenceHeartRate, ...newest, latestWeekEndMs: libraryLast, scope: 'library' }
     }
@@ -267,18 +274,19 @@ function forSport(
  * newest year of blocks. A period with no week to draw takes the library's newest weeks instead.
  * Measured rides and outdoor runs only, and not the activities whose heart rate is set aside. fromMs is
  * the period's start, so that no window reaches before it; `library` is every digest, whatever the
- * period, and is the digests when not given. The result depends on these and the set-aside ids alone,
+ * period, and is the digests when not given. All time reports every week; `newestWeeks` caps it to the newest
+ * ones, which a reader that does not draw the weeks (the findings) asks for. The result depends on these and the set-aside ids alone,
  * not on body mass. See docs/research/same-heart-rate.md.
  */
 export function sameHeartRate(
   digests: ActivityDigest[],
   setAside: ReadonlySet<string>,
-  opts: { fromMs?: number; library?: ActivityDigest[] },
+  opts: { fromMs?: number; library?: ActivityDigest[]; newestWeeks?: number },
 ): SameHeartRateBySport {
   const ordered = orderedFor('sameHeartRate', digests)
   const library = opts.library === undefined ? ordered : orderedFor('sameHeartRate', opts.library)
   return {
-    run: forSport(ordered, library, 'run', setAside, opts.fromMs),
-    ride: forSport(ordered, library, 'ride', setAside, opts.fromMs),
+    run: forSport(ordered, library, 'run', setAside, opts.fromMs, opts.newestWeeks),
+    ride: forSport(ordered, library, 'ride', setAside, opts.fromMs, opts.newestWeeks),
   }
 }

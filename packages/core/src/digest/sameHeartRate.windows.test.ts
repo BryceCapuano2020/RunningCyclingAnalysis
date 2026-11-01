@@ -121,6 +121,13 @@ describe('all time', () => {
     expect(period.weeks).toEqual(shared)
   })
 
+  it('can be capped to its newest weeks, for a reader that does not draw them all', () => {
+    const capped = sameHeartRate(long, NONE, { newestWeeks: 20 }).ride
+    const all = sameHeartRate(long, NONE, {}).ride
+    expect(capped.weeks).toHaveLength(20)
+    expect(capped.weeks).toEqual(all.weeks.slice(-20))
+  })
+
   it('starts at the sport’s first full window', () => {
     const { weeks } = sameHeartRate(long, NONE, {}).ride
     expect(weeks[0]!.endMs).toBeGreaterThanOrEqual(MONDAY + 28 * DAY_MS)
