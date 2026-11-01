@@ -1,4 +1,5 @@
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
+import { sessionsOf } from '../effort'
 import type { EffortGate } from '../effort'
 import { requirePositiveFinite } from '../math'
 import type { ActivityDigest, AthleteSettings, CriticalPowerFit, Sport } from '../types'
@@ -12,6 +13,9 @@ import { bestCurves, fitBikeModelOver } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { gatedThreshold } from './effortGating'
+import { effortsCount } from './effortTrust'
+import { thresholdFloorOf } from './thresholdFloor'
+import type { ThresholdFloors } from './thresholdTimelineTypes'
 import { thresholdTimeline } from './thresholdTimeline'
 import { effortGatesOf } from './twentyMinute'
 
@@ -32,6 +36,17 @@ function reportedFits(
   }
 }
 
+/** Each sport's floor on its threshold from the library's best curves: the best 30 minutes, else the best 20. */
+function floorsOf(
+  { runBest, rideMetabolic }: BestCurves,
+  digests: readonly ActivityDigest[],
+): ThresholdFloors {
+  return {
+    run: thresholdFloorOf(plainCurve(runBest), digests),
+    ride: thresholdFloorOf(rideMetabolic, digests),
+  }
+}
+
 /**
  * The thresholds of a library with no heart rate to judge: nothing is set aside and nothing calibrated, but the
  * zones still take their threshold references from the library, as the whole-library fits and over time. With no
@@ -40,17 +55,16 @@ function reportedFits(
 export function libraryThresholds(
   digests: ActivityDigest[],
   settings: AthleteSettings,
-): Pick<HeartRateJudgement, 'fit' | 'thresholdTimeline'> {
+): Pick<HeartRateJudgement, 'fit' | 'thresholdTimeline' | 'floor'> {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const ordered = orderedFor('setAside', digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
+  const curves = bestCurves(ordered, masses, bikeModel, settings.massKg, null)
   return {
-    fit: reportedFits(
-      bestCurves(ordered, masses, bikeModel, settings.massKg, null),
-      settings.massKg,
-    ),
+    fit: reportedFits(curves, settings.massKg),
+    floor: floorsOf(curves, ordered),
     thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, null),
   }
 }
@@ -87,6 +101,13 @@ export function judgeHeartRate(
   )
   const { setAside, reference, observedMax, observedSource, effort, trusted } = heart
   const cross = heartRateCrossCheck(trusted, masses, bikeModel, fits)
+  const sessionsOfSport = (sport: Sport) =>
+    sessionsOf(
+      ordered.filter((digest) => digest.sport === sport && effortsCount(digest)),
+      effort.referenceHr[sport],
+      effort.reading[sport],
+      setAside,
+    )
   const { kappa, lnKappaSe } = cross
   const judgement: HeartRateJudgement = {
     setAside: [...setAside].sort(),
@@ -107,6 +128,11 @@ export function judgeHeartRate(
         setAside,
       ),
     ),
+    floor: floorsOf(curves, ordered),
+    sessions: {
+      run: sessionsOfSport('run'),
+      ride: sessionsOfSport('ride'),
+    },
     thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, gate, {
       referenceHr: effort.referenceHr,
       referenceReading: effort.reading,

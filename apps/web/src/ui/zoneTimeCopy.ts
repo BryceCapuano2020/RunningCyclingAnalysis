@@ -1,27 +1,14 @@
-import {
-  EASY_THROUGH,
-  HARD_FROM,
-  MIN_ZONE_ACTIVITIES,
-  MIN_ZONE_SECONDS,
-  biggestShift,
-  effortSplit,
-  hasEnoughZoneTime,
-  mainZone,
-  sameEnteredReferences,
-} from '@rca/core/zones'
-import type { MeasureTime, ZoneMeasure } from '@rca/core/zones'
+import { hasEnoughZoneTime, mainZone, sameEnteredReferences } from '@rca/core/zones'
+import type { MeasureTime, ZoneMeasure, ZoneWindow } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
-import { formatTotalTime } from '@rca/core/units'
-import { plural } from './components/plural'
-import { lowerFirst, upperFirst } from './format/firstLetter'
+import { formatDuration, formatTotalTime } from '@rca/core/units'
+import { formatDayMonth } from './format/date'
+import { upperFirst } from './format/firstLetter'
 import { lackLine } from './pages/lackLine'
 import { SPORT_PLURAL } from './sports'
 
 /** The section's name, in its heading and in the page's "Not enough yet" list. */
 export const TIME_IN_ZONES_NAME = 'Time in zones'
-
-/** A zone has to move this much of the period's time, as a share, for the lede to call it a change. */
-export const MIN_SHIFT = 0.05
 
 /** A measure as a sentence names it: "heart rate zone 2", "power zone 3". */
 const IN_SENTENCE: Record<ZoneMeasure, string> = {
@@ -37,28 +24,15 @@ export const ROW_LABEL: Record<ZoneMeasure, string> = {
   pace: 'Pace',
 }
 
-/** What a sport's time is called in a sentence about its share of it. */
-const TIME_NOUN: Record<Sport, string> = { run: 'running', ride: 'riding' }
-
 /**
- * The time a measure's shares are of, in a sentence. They are shares of the time with a reading, which
- * leaves out the activities and seconds that had none, so the sentence says so.
- */
-const WITH_READING: Record<ZoneMeasure, string> = {
-  heartRate: 'with heart rate',
-  power: 'with measured power',
-  pace: 'with a pace reading',
-}
-
-/**
- * What gives a measure zones when none is entered and the half year before the date holds no fit (and no fit
- * within a year does): the hard, even efforts a threshold is fitted to. Only a pace and a power are found this way.
+ * What gives a measure zones when none is entered. A pace and a power are cut from a fitted threshold and, where none
+ * stands, from the best 30 min or 20 min on file, so they lack zones only without an effort of 20 min. A heart rate is cut
+ * from the highest on file, so it lacks them only without a heart rate.
  */
 export const THRESHOLD_NEEDS: Record<ZoneMeasure, string> = {
-  heartRate:
-    'None of your efforts reached near your maximum, so there is no max to cut zones from. Enter your max heart rate on Profile to get them.',
-  pace: 'A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
-  power: 'A hard, even 3–5 min effort and a hard 20 min effort set your power zones.',
+  heartRate: 'Enter your max heart rate on Profile to get them.',
+  pace: 'A run of 20 min or more sets your pace zones.',
+  power: 'A ride of 20 min or more sets your power zones.',
 }
 
 /** What an activity has to record for a measure to count it. */
@@ -83,53 +57,19 @@ export function zoneTimeText(seconds: number): string {
 }
 
 /**
- * The zones that count as easy, named by their measure, such as "pace zones 1 and 2". Pace, heart rate and power cut
- * their zones from different references, so the same zone number is not the same effort, and the sentence says whose.
+ * The measures of a period that have enough time to describe, most time first. Over all time, the last window there is,
+ * (`relaxed`) whatever the library holds is described.
  */
-function easyZones(measure: ZoneMeasure): string {
-  const last = EASY_THROUGH[measure]
-  const name = IN_SENTENCE[measure]
-  return last === 2 ? `${name} zones 1 and 2` : `${name} zones 1 to ${last}`
+export function describable(rows: readonly MeasureTime[], relaxed = false): MeasureTime[] {
+  const enough = (row: MeasureTime) =>
+    relaxed ? row.counted > 0 && row.totalSeconds > 0 : hasEnoughZoneTime(row)
+  return rows.filter(enough).sort((a, b) => b.totalSeconds - a.totalSeconds)
 }
 
-/** The measures of a period that have enough time to describe, most time first. */
-export function describable(rows: readonly MeasureTime[]): MeasureTime[] {
-  return rows.filter(hasEnoughZoneTime).sort((a, b) => b.totalSeconds - a.totalSeconds)
-}
-
-/**
- * The one sentence a sport's section opens with. When the zone that moved most against the period
- * before moved by at least MIN_SHIFT of the time, it says that; otherwise it says how much of the time
- * was easy and how much hard. It reads the measure with the most time, so the page leads with the
- * best-supported one.
- */
-export function periodLede(
-  sport: Sport,
-  rows: readonly MeasureTime[],
-  previous: readonly MeasureTime[] | null,
-  previousLabel: string | null,
-): string | null {
-  const [lead] = describable(rows)
-  if (lead === undefined) return null
-  const before = previous?.find((row) => row.measure === lead.measure)
-  const shift =
-    before !== undefined &&
-    hasEnoughZoneTime(before) &&
-    sameEnteredReferences(before, lead) &&
-    previousLabel !== null
-      ? biggestShift(before, lead)
-      : null
-  const name = IN_SENTENCE[lead.measure]
-  if (
-    shift !== null &&
-    previousLabel !== null &&
-    Math.abs(shift.after - shift.before) >= MIN_SHIFT
-  ) {
-    const direction = shift.after > shift.before ? 'up' : 'down'
-    return `${upperFirst(name)} zone ${shift.level} took ${percentText(shift.after)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]}, ${direction} from ${percentText(shift.before)} in the ${lowerFirst(previousLabel)}.`
-  }
-  const split = effortSplit(lead)
-  return `${percentText(split.easy)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]} was easy (${easyZones(lead.measure)}), and ${percentText(split.hard)} was hard (${IN_SENTENCE[lead.measure]} zones ${HARD_FROM[lead.measure]} and up).`
+/** The line that says which stretch the bars are of, when it is wider than the period. */
+export const ZONE_WINDOW_LINE: Record<ZoneWindow, string> = {
+  year: 'Last 12 months.',
+  all: 'All time.',
 }
 
 /** The lede of one activity's measure: the zone that held most of the time, or all of it. Null without time. */
@@ -161,7 +101,7 @@ export function leftOutNotes(sport: Sport, rows: readonly MeasureTime[]): string
     if (row.setAside > 0) notes.push(`${of(row.setAside)} had heart rate set aside.`)
     if (row.noData > 0) notes.push(`${of(row.noData)} had no ${READING[row.measure]} to count.`)
     if (row.noZones > 0) {
-      // A heart rate has zones from any maximum that can be one, so it lacks them only where no effort reached near it.
+      // A heart rate has zones from the highest on file, so it lacks them only with no heart rate to cut them from.
       const need = ` ${THRESHOLD_NEEDS[row.measure]}`
       notes.push(
         `${of(row.noZones)} had no ${IN_SENTENCE[row.measure]} zones for their date.${need}`,
@@ -201,6 +141,28 @@ export function zoneSourceNote(rows: readonly MeasureTime[]): string {
   return 'Zones follow your Profile settings where you have them, and are estimated where you do not.'
 }
 
+/**
+ * A line for each measure whose zones were cut from the highest heart rate on file (no effort reached near a maximum) or
+ * from the best 30 min or 20 min on file (no fit stands), with the day that effort was set.
+ */
+export function zoneBasisNotes(rows: readonly MeasureTime[]): string[] {
+  return rows.flatMap((row) => {
+    if (row.fromHighest === true && row.entered === 0) {
+      return ['Heart rate zones are cut from your highest heart rate on file.']
+    }
+    if (row.floor === undefined) return []
+    const { durationS, asOfMs, activities } = row.floor
+    const name = IN_SENTENCE[row.measure]
+    const whose =
+      activities >= row.counted
+        ? `${upperFirst(name)} zones`
+        : `${upperFirst(name)} zones for ${activities} of ${row.counted} activities`
+    return [
+      `${whose} are cut from your best ${formatDuration(durationS)} ${name}, ${formatDayMonth(asOfMs)}.`,
+    ]
+  })
+}
+
 /** What each sport needs to show its time in zones, for the "Not enough yet" list. */
 const NEED: Record<Sport, string> = {
   run: 'heart rate, or a threshold pace entered on Profile',
@@ -208,18 +170,18 @@ const NEED: Record<Sport, string> = {
 }
 
 /** Why there is no time in zones to show, as a "Not enough yet" line, or null when there is some. */
-export function timeInZonesLack(sport: Sport, rows: readonly MeasureTime[]): string | null {
-  if (describable(rows).length > 0) return null
+export function timeInZonesLack(
+  sport: Sport,
+  rows: readonly MeasureTime[],
+  relaxed = false,
+): string | null {
+  if (describable(rows, relaxed).length > 0) return null
   const withoutZones = rows.some((row) => row.noZones > 0 && row.counted === 0)
   if (withoutZones) {
     return lackLine(
       TIME_IN_ZONES_NAME,
-      'needs a max heart rate or a threshold, entered on Profile or, for a threshold, found from your activities.',
+      'needs a max heart rate or a threshold, entered on Profile.',
     )
   }
-  const hours = MIN_ZONE_SECONDS / 3600
-  return lackLine(
-    TIME_IN_ZONES_NAME,
-    `needs ${plural(MIN_ZONE_ACTIVITIES, 'activity', 'activities')} with ${NEED[sport]}, and ${plural(hours, 'hour')} of them.`,
-  )
+  return lackLine(TIME_IN_ZONES_NAME, `needs an activity with ${NEED[sport]}.`)
 }

@@ -11,6 +11,8 @@ function setOf(partial: Partial<ZoneSet> & Pick<ZoneSet, 'measure' | 'reference'
     estimatedFrom: ['ride'],
     maxHeartRateFrom: null,
     asOfMs: null,
+    floorS: null,
+    fromHighest: false,
     zones: zonesFor(partial.measure, partial.reference),
     ...partial,
   }
@@ -133,6 +135,38 @@ describe('the source and basis of an estimated zone set', () => {
     const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
     expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs up to Mar 2025')
     expect(sourceText(set)).toBe('From your runs')
+  })
+
+  it('dates a pace or power cut from the floor by the effort that set it, and names the effort', () => {
+    const asOfMs = new Date(2025, 2, 15, 12).getTime()
+    const set = setOf({
+      sport: 'run',
+      measure: 'pace',
+      reference: 3.5,
+      estimatedFrom: ['run'],
+      asOfMs,
+      floorS: 1800,
+    })
+    expect(sourceText(set)).toBe('From your best 30 min on 15 Mar 2025')
+    expect(zoneTable(set, 'metric').detail).toBe(
+      'From your best 30 min on 15 Mar 2025: threshold pace 4:46 /km',
+    )
+    expect(sourceText({ ...set, floorS: 1200 })).toBe('From your best 20 min on 15 Mar 2025')
+  })
+
+  it('says a max heart rate cut from the highest on file is that, and can still be corrected', () => {
+    const set = setOf({
+      sport: 'run',
+      measure: 'heartRate',
+      reference: 176,
+      estimatedFrom: ['run'],
+      fromHighest: true,
+      maxHeartRateFrom: { bpm: 176, days: 5, sinceMs: 0 },
+    })
+    expect(maxHeartRateBasis(set)).toBe('176 bpm, your highest on file')
+    const table = zoneTable(set, 'metric')
+    expect(table.detail).toBe('Max heart rate: 176 bpm, your highest on file')
+    expect(table.askable).toBe(true)
   })
 
   it('says how many separate days reached an estimated max heart rate, and since when', () => {

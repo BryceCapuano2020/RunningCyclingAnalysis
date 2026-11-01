@@ -30,6 +30,24 @@ export type ThresholdTimeline = Record<Sport, ThresholdStep[]>
 
 export const NO_THRESHOLD_TIMELINE: ThresholdTimeline = { run: [], ride: [] }
 
+/**
+ * A sport's floor on its threshold: the best 30 minutes on file, else the best 20, whichever hard or not. Real ability
+ * is at least this, so the zones are cut from it where no fit stands for a date.
+ */
+export interface ThresholdFloor {
+  /** The length of the effort, s: 30 minutes where the library has one, else 20. */
+  durationS: number
+  /** The best mean value over it, in the unit of the fit (gross metabolic W/kg). */
+  value: number
+  /** The start of the activity that set it, ms. */
+  asOfMs: number
+}
+
+/** Both sports' floors. */
+export type ThresholdFloors = Record<Sport, ThresholdFloor | null>
+
+export const NO_THRESHOLD_FLOORS: ThresholdFloors = { run: null, ride: null }
+
 /** The threshold in effect on a date, and when it is from if it is not the date's own window's. */
 export interface ThresholdAt {
   fit: CriticalPowerFit

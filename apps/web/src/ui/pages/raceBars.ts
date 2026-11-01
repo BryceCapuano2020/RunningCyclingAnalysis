@@ -9,10 +9,10 @@ export interface MethodMark {
 /**
  * Where each part of a race's bar sits, as fractions of the bar from 0 (left, the quickest time) to 1. The
  * bar is drawn on the scale of the whole list, which runs a little past what is on any bar, so nothing sits on an
- * edge and an estimate outside the assumed spread is still drawn where it is and not clamped to an end.
+ * edge and an estimate outside the range is still drawn where it is and not clamped to an end.
  */
 export interface RaceBarGeometry {
-  /** The assumed spread's two ends. */
+  /** The range's two ends. */
   low: number
   high: number
   /** The predicted time. */

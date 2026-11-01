@@ -199,14 +199,24 @@ export function ResultPage({
           fitness={analysis.state.fitness}
           lookBack={analysis.state.lookBack}
           lateEvidence={analysis.state.lateEvidence[route.page]}
-          zoneTimes={analysis.state.timeInZones.current[route.page]}
-          previousZoneTimes={analysis.state.timeInZones.previous?.[route.page] ?? null}
+          zoneTimes={
+            analysis.state.timeInZones.widened?.[route.page]?.rows ??
+            analysis.state.timeInZones.current[route.page]
+          }
+          previousZoneTimes={
+            analysis.state.timeInZones.widened?.[route.page] === undefined
+              ? (analysis.state.timeInZones.previous?.[route.page] ?? null)
+              : null
+          }
+          zoneWindow={analysis.state.timeInZones.widened?.[route.page]?.window}
           units={units}
           massKg={athleteSettings.massKg}
           weighted={weightKnown}
           profile={profile}
           missingAge={missingAge}
           rangeDays={period.days}
+          periodEndMs={period.endMs}
+          heartRateJudgement={analysis.state.heartRateJudgement}
           controls={control(
             countSport(result.activities, route.page),
             countSport(analysed, route.page),

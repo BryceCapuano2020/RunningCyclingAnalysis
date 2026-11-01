@@ -4,14 +4,16 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatRecordTime } from '@rca/core/units'
 import { METHOD_NAME, METHOD_SHORT, RACE_PREDICTIONS_NAME, raceName } from '../racePredictions'
 import { Definition } from '../components/Definition'
+import type { RaceBasis, RaceWindow } from '../raceAnswer'
 import { DEFINITIONS } from './balanceDefinitions'
 import { useScrollRegion } from '../useScrollRegion'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
 import {
+  BOUND_TEXT,
   FLOORED_TEXT,
+  basisLine,
   methodNote,
   originText,
-  predictionsLede,
   spreadText,
 } from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
@@ -38,16 +40,16 @@ const KEY_NAME: Record<PredictionMethod, string> = {
 /** No recorded best faster than its prediction: a stable default for the prop. */
 const NONE_RAN: readonly RanBest[] = []
 
-/** What a bar says to a screen reader: the time, its spread and each estimate. */
+/** What a bar says to a screen reader: the time, its range and each estimate. */
 function barLabel(prediction: RacePrediction, ran: RanBest | undefined): string {
   const estimates = prediction.methods
     .map((m) => `${METHOD_NAME[m.method].toLowerCase()} ${formatRecordTime(m.seconds)}`)
     .join(', ')
-  return `${raceName(prediction.distanceM)} predicted ${formatRecordTime(prediction.seconds)}, assumed spread ${spreadText(prediction)}${estimates ? `. ${estimates}` : ''}.${ran ? ` ${ranText(ran)}.` : ''}${prediction.floored && !ran ? ` ${FLOORED_TEXT}.` : ''}`
+  return `${raceName(prediction.distanceM)} predicted ${formatRecordTime(prediction.seconds)}, range ${spreadText(prediction)}${estimates ? `. ${estimates}` : ''}.${ran ? ` ${ranText(ran)}.` : ''}${prediction.floored && !ran ? ` ${FLOORED_TEXT}.` : ''}`
 }
 
 /**
- * One race as a bar: the assumed spread as a rounded band between two caps with its ends printed, the
+ * One race as a bar: the range as a rounded band between two caps with its ends printed, the
  * prediction as a ring on it, and each estimate as a triangle above or below. A dot and two triangles say
  * what a column of digits would, at a glance, so the time at the right is the answer and the bar is its
  * evidence. A recorded best that beat the prediction is a solid dot labelled "Run", since a run is a fact. The drawing is one image with the words above as its name; the table in the disclosure repeats it.
@@ -93,17 +95,22 @@ function RaceBar({
   )
 }
 
-/** One race: its name and pace on the left, its bar between, its time at display size on the right. */
+/**
+ * One race: its name and pace on the left, its bar between, its time at display size on the right. A race whose run was
+ * not shown hard has no range to draw: its time says what it is, "No slower than", and the bar is left out.
+ */
 function RaceRow({
   prediction,
   units,
   ran,
   scale,
+  bound,
 }: {
   prediction: RacePrediction
   units: UnitSystem
   ran: RanBest | undefined
   scale: RaceScale
+  bound: boolean
 }) {
   return (
     <li className="race-row">
@@ -112,11 +119,16 @@ function RaceRow({
         <span className="race-row__pace">
           {formatPace(prediction.distanceM / prediction.seconds, units)}
         </span>
-        {ran && <span className="race-row__ran">{ranText(ran)}</span>}
-        {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
+        {!bound && ran && <span className="race-row__ran">{ranText(ran)}</span>}
+        {!bound && prediction.floored && !ran && (
+          <span className="race-row__ran">{FLOORED_TEXT}</span>
+        )}
       </p>
-      <RaceBar prediction={prediction} ran={ran} scale={scale} />
-      <p className="race-row__time">{formatRecordTime(prediction.seconds)}</p>
+      {!bound && <RaceBar prediction={prediction} ran={ran} scale={scale} />}
+      <p className="race-row__time">
+        {bound && <span className="race-row__bound">{BOUND_TEXT}</span>}
+        {formatRecordTime(prediction.seconds)}
+      </p>
     </li>
   )
 }
@@ -130,7 +142,7 @@ function RaceKey({ found, anyRan }: { found: RunPredictions; anyRan: boolean }) 
     ...(used.has('performances') ? [{ shape: 'above', text: KEY_NAME.performances }] : []),
     ...(used.has('heartRate') ? [{ shape: 'below', text: heartRate }] : []),
     ...(anyRan ? [{ shape: 'ran', text: 'Run: your recorded best' }] : []),
-    { shape: 'band', text: 'Assumed spread' },
+    { shape: 'band', text: 'Range' },
   ]
   return (
     <ul className="race-key" aria-label="Key">
@@ -138,7 +150,7 @@ function RaceKey({ found, anyRan }: { found: RunPredictions; anyRan: boolean }) 
         <li key={shape} className="race-key__entry">
           <span className={`race-key__shape race-key__shape--${shape}`} aria-hidden="true" />
           {shape === 'band' ? (
-            <Definition meaning={DEFINITIONS.assumedSpread}>{text}</Definition>
+            <Definition meaning={DEFINITIONS.predictionRange}>{text}</Definition>
           ) : (
             text
           )}
@@ -153,10 +165,12 @@ function RaceTable({
   found,
   units,
   ran,
+  bound,
 }: {
   found: RunPredictions
   units: UnitSystem
   ran: readonly RanBest[]
+  bound: boolean
 }) {
   const ranAt = (distanceM: number) => ran.find((r) => r.distanceM === distanceM)
   // At 320 px the table is wider than its box and scrolls there, so a keyboard reader can reach it.
@@ -165,7 +179,9 @@ function RaceTable({
     <div className="table-scroll" {...region}>
       <table className="race-table">
         <caption className="sr-only">
-          Race predictions with their assumed spread and each estimate
+          {bound
+            ? 'Race predictions as times you are no slower than'
+            : 'Race predictions with their range and each estimate'}
         </caption>
         <thead>
           <tr>
@@ -174,17 +190,20 @@ function RaceTable({
               Pace
             </th>
             <th scope="col" className="num">
-              Predicted
+              {bound ? BOUND_TEXT : 'Predicted'}
             </th>
-            <th scope="col" className="num">
-              Assumed spread
-            </th>
-            {(['performances', 'heartRate'] as const).map((method) => (
-              <th key={method} scope="col" className="num">
-                {METHOD_NAME[method]}
+            {!bound && (
+              <th scope="col" className="num">
+                Range
               </th>
-            ))}
-            {ran.length > 0 && (
+            )}
+            {!bound &&
+              (['performances', 'heartRate'] as const).map((method) => (
+                <th key={method} scope="col" className="num">
+                  {METHOD_NAME[method]}
+                </th>
+              ))}
+            {!bound && ran.length > 0 && (
               <th scope="col" className="num">
                 Recorded best, off the prediction
               </th>
@@ -199,17 +218,18 @@ function RaceTable({
                 {formatPace(prediction.distanceM / prediction.seconds, units)}
               </td>
               <td className="num">{formatRecordTime(prediction.seconds)}</td>
-              <td className="num">{spreadText(prediction)}</td>
-              {(['performances', 'heartRate'] as const).map((method) => {
-                const own = prediction.methods.find((m) => m.method === method)
-                return (
-                  <td key={method} className="num">
-                    {own ? formatRecordTime(own.seconds) : '—'}
-                    <span className="sr-only">{` ${METHOD_SHORT[method]}`}</span>
-                  </td>
-                )
-              })}
-              {ran.length > 0 && (
+              {!bound && <td className="num">{spreadText(prediction)}</td>}
+              {!bound &&
+                (['performances', 'heartRate'] as const).map((method) => {
+                  const own = prediction.methods.find((m) => m.method === method)
+                  return (
+                    <td key={method} className="num">
+                      {own ? formatRecordTime(own.seconds) : '—'}
+                      <span className="sr-only">{` ${METHOD_SHORT[method]}`}</span>
+                    </td>
+                  )
+                })}
+              {!bound && ran.length > 0 && (
                 <td className="num">
                   {ranAt(prediction.distanceM)
                     ? `${formatRecordTime(ranAt(prediction.distanceM)!.seconds)} on ${ranAt(prediction.distanceM)!.when}`
@@ -225,23 +245,33 @@ function RaceTable({
 }
 
 /**
- * A sport's race predictions, as racePredictionsOf found them: each race as a bar of its assumed spread with
- * the prediction on it and the two estimates it sits between. How they were reached, where each estimate
- * came from and the figures as a table are in "About these predictions". A race the period holds a faster
+ * A sport's race predictions, as raceAnswerOf found them: one line under the title names the run they were carried
+ * from, and each race is a bar of its range with the prediction on it and the two estimates it sits between. Where no
+ * run was shown hard each race is a time the athlete is no slower than, with no bar. How they were reached, where each
+ * estimate came from and the figures as a table are in "About these predictions". A race the window holds a faster
  * recorded best for says so on its row.
  */
 export function RacePredictions({
   sport,
   found,
   units,
-  allTime,
+  window = 'period',
+  bound = false,
+  basis = null,
+  openedAt,
   ran = NONE_RAN,
 }: {
   sport: Sport
   found: RunPredictions
   units: UnitSystem
-  /** The period on screen is All time, so the note says the predictions are of the best period in it. */
-  allTime: boolean
+  /** Where the runs are from. All time says the predictions are of the best period in it. */
+  window?: RaceWindow
+  /** No run was shown hard: each time is one the athlete is no slower than, and there is no range to draw. */
+  bound?: boolean
+  /** The run the times were carried from, which the line under the title names. Null: heart rate alone. */
+  basis?: RaceBasis | null
+  /** The time the page opened at, so a date shows its year only when it is not this one. */
+  openedAt: number
   /** Recorded bests that beat their predictions, from ranBests. */
   ran?: readonly RanBest[]
 }) {
@@ -256,9 +286,9 @@ export function RacePredictions({
     <section className="section race-predictions" aria-labelledby={headingId}>
       <div className="section-head">
         <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
-        <p className="secondary">{predictionsLede(found, allTime)}</p>
+        <p className="secondary">{basisLine({ basis }, openedAt)}</p>
       </div>
-      <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />
+      {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
       <ul className="race-rows">
         {found.races.map((prediction) => (
           <RaceRow
@@ -267,12 +297,13 @@ export function RacePredictions({
             units={units}
             ran={ran.find((r) => r.distanceM === prediction.distanceM)}
             scale={scale}
+            bound={bound}
           />
         ))}
       </ul>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
-        <p className="muted">{methodNote(found, allTime)}</p>
-        <RaceTable found={found} units={units} ran={ran} />
+        <p className="muted">{methodNote(found, window, bound)}</p>
+        <RaceTable found={found} units={units} ran={ran} bound={bound} />
         <ul className="race-origins">
           {found.races.map((prediction) => (
             <li key={prediction.distanceM}>

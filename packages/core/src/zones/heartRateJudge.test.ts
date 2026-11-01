@@ -25,6 +25,17 @@ describe('HeartRateJudge', () => {
     expect(judgement.threshold.ride).toBeGreaterThan(0)
   })
 
+  it("holds the library's hard sessions and floors, as the all-time analysis reports them", () => {
+    const judgement = new HeartRateJudge().of(digests, settings)
+    for (const sport of ['run', 'ride'] as const) {
+      const gate = library.effortGate[sport]
+      expect(judgement.sessions[sport]).toEqual(gate.sessions)
+      expect(judgement.floor[sport]?.durationS).toBe(gate.floor?.durationS)
+      expect(judgement.floor[sport]?.value).toBe(gate.floor?.value)
+      expect(judgement.floor[sport]?.asOfMs).toBeGreaterThan(0)
+    }
+  })
+
   it('keeps the answer while the digests and the masses are the same', () => {
     const judge = new HeartRateJudge()
     const first = judge.of(digests, settings)
@@ -59,11 +70,18 @@ describe('HeartRateJudge', () => {
     expect(judgement).toEqual({
       ...NO_HEART_RATE_JUDGEMENT,
       fit: judgement.fit,
+      floor: judgement.floor,
       thresholdTimeline: judgement.thresholdTimeline,
     })
     // The thresholds are still the library's, for the zones: as the analysis of the same digests reports them.
     const analysis = combine(bare, settings)
     expect(judgement.fit).toEqual({ run: analysis.runCp, ride: analysis.rideCp })
+    // So are the floors: the best 30 minutes (else 20) the analysis holds as its own floor.
+    for (const sport of ['run', 'ride'] as const) {
+      const held = analysis.effortGate[sport].floor
+      expect(judgement.floor[sport]?.durationS).toBe(held?.durationS)
+      expect(judgement.floor[sport]?.value).toBe(held?.value)
+    }
   })
 
   it.each([

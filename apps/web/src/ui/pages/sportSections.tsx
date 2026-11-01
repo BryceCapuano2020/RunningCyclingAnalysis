@@ -2,9 +2,6 @@ import type { ReactNode } from 'react'
 import type { Sport } from '@rca/core/types'
 import { yearsFinding } from '@rca/core/lookback'
 import { LATE_IN_EFFORT_NAME, lateFinding, lateInEffort } from '../lateInEffort'
-import { thresholdUncheckedLine } from '../thresholdWithheld'
-import { RACE_PREDICTIONS_NAME, racePredictionNeed, racePredictionsOf } from '../racePredictions'
-import { distanceRecords } from '../records'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { buildRows } from '../charts/sportCurveModel'
 import { notHardNote } from '../changeHeld'
@@ -13,8 +10,7 @@ import { BestEffortsEvidence } from './BestEffortsEvidence'
 import { bestEffortsFinding } from './bestEffortsFinding'
 import { BestEffortsSection } from './BestEffortsSection'
 import { LateInEffortSection } from './LateInEffortSection'
-import { RacePredictions } from './RacePredictions'
-import { ranBests } from './raceRan'
+import { racePredictionsOutcome } from './racePredictionsSection'
 import { SameHeartRateSection } from './SameHeartRateSection'
 import { SAME_HEART_RATE_NAME, sameHeartRateLack, weeklyFinding } from './sameHeartRateLack'
 import { SectionCell } from './SectionCell'
@@ -122,35 +118,18 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
         }
   },
   bestEfforts: (context) => ({ content: <BestEffortsSection {...context} />, lacks: [] }),
-  racePredictions: ({ sport, result, units, rangeDays, openedAt }) => {
-    const found = racePredictionsOf(sport, result)
-    const need = racePredictionNeed(sport, result)
-    const unchecked = thresholdUncheckedLine(result, sport)
-    if (found !== null) {
-      return {
-        content: (
-          <>
-            <RacePredictions
-              sport={sport}
-              found={found}
-              units={units}
-              allTime={rangeDays === null}
-              ran={ranBests(found, distanceRecords(result.activities, units).records, openedAt)}
-            />
-            {/* Every run's bests are carried where the gate could not judge; the section says so. */}
-            {unchecked === null ? null : <p className="muted">{unchecked}</p>}
-          </>
-        ),
-        lacks: [],
-      }
-    }
-    return {
-      content: null,
-      lacks: need === undefined ? [] : [lackLine(RACE_PREDICTIONS_NAME, need)],
-    }
-  },
-  timeInZones: ({ sport, zoneTimes = [], previousZoneTimes = null, previousLabel }) => {
-    const lack = timeInZonesLack(sport, zoneTimes)
+  racePredictions: racePredictionsOutcome,
+  timeInZones: ({
+    sport,
+    zoneTimes = [],
+    previousZoneTimes = null,
+    previousLabel,
+    zoneWindow,
+    rangeDays,
+  }) => {
+    // Over all time, the widest window there is, whatever the library holds is described.
+    const relaxed = zoneWindow === 'all' || rangeDays === null
+    const lack = timeInZonesLack(sport, zoneTimes, relaxed)
     return lack === null
       ? {
           content: (
@@ -159,6 +138,8 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
               rows={zoneTimes}
               previous={previousZoneTimes}
               previousLabel={previousLabel}
+              zoneWindow={zoneWindow}
+              relaxed={relaxed}
             />
           ),
           lacks: [],

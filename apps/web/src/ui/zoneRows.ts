@@ -1,9 +1,16 @@
 import type { Sport } from '@rca/core/types'
 import type { Zone, ZoneMeasure, ZoneSet, ZoneSource } from '@rca/core/zones'
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
-import { formatClock, formatPaceValue, formatPower, PACE_UNIT, paceSeconds } from '@rca/core/units'
+import {
+  formatClock,
+  formatDuration,
+  formatPaceValue,
+  formatPower,
+  PACE_UNIT,
+  paceSeconds,
+} from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
-import { formatMonth } from './format/date'
+import { formatDayMonth, formatMonth } from './format/date'
 import { SPORT_LABEL, SPORT_PLURAL } from './sports'
 
 /** What each measure is called in a table's title. */
@@ -17,6 +24,10 @@ const MEASURE_TITLE: Record<ZoneMeasure, string> = {
 const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   entered: () => 'You entered',
   estimated: (set) => {
+    // A pace or power no fit stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
+    if (set.floorS !== null && set.asOfMs !== null) {
+      return `From your best ${formatDuration(set.floorS)} on ${formatDayMonth(set.asOfMs)}`
+    }
     const from = `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
     // A pace or power from an older fit, because the half year before the date holds no hard, even effort to fit.
     return set.asOfMs === null ? from : `${from} up to ${formatMonth(set.asOfMs, true)}`
@@ -37,6 +48,8 @@ const OTHER_MAX: Record<Sport, string> = {
 export function maxHeartRateBasis(set: ZoneSet): string | null {
   if (set.measure !== 'heartRate' || set.source !== 'estimated') return null
   const bpm = `${Math.round(set.reference)} bpm`
+  // No effort reached near a maximum, so the zones are cut from the highest there is.
+  if (set.fromHighest) return `${bpm}, your highest on file`
   const from = set.maxHeartRateFrom
   if (from === null) return `${bpm}, ${OTHER_MAX[set.sport]}`
   const since = formatMonth(from.sinceMs, true)

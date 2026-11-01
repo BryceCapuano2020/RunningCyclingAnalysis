@@ -81,7 +81,7 @@ const TOPIC_LIST = [
       'reaches further above the threshold than below it, and further the less clearly hard the effort was. ' +
       'The allowance is calibrated on simulated athletes, not measured on people. The spread shows how ' +
       'loosely the fit was pinned down, not where your capability lies. A race prediction’s ' +
-      '“assumed spread” is a typical prediction error for that distance: the marathon’s comes from ' +
+      'range is a typical prediction error for that distance: the marathon’s comes from ' +
       'a published validation, and the shorter races’ are a judgement, scaled down with distance.',
   },
   {

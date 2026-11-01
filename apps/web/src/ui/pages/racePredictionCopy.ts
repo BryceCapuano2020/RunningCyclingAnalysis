@@ -1,15 +1,16 @@
 import type { MethodTime, RacePrediction, RunPredictions } from '@rca/core/predict'
 import { formatRecordTime } from '@rca/core/units'
 import { plural } from '../components/plural'
+import { formatDayMonth } from '../format/date'
+import type { RaceAnswer, RaceWindow } from '../raceAnswer'
 import { METHOD_NAME, raceName } from '../racePredictions'
 
 /** VO2max figures differ by more than this share before the note says the two estimates disagree. */
 const DISAGREE_SHARE = 0.1
 
 /**
- * The spread under a prediction, from its 10th to 90th percentile of an assumed error. The marathon's error is a
- * published validation figure and the shorter races' are a judgement, so it is called a spread, not a range the
- * time falls in.
+ * The range under a prediction, from its 10th to 90th percentile of a typical error. The marathon's error is a
+ * published validation figure and the shorter races' are a judgement.
  */
 export function spreadText(prediction: RacePrediction): string {
   return `${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
@@ -32,7 +33,7 @@ function disagreement(runsVdot: number | null, vo2max: number): string {
     vo2max > runsVdot
       ? 'Your heart rate points to more than your best runs show'
       : 'Your best runs show more than your heart rate suggests'
-  return ` ${which} (about ${Math.round(high)} against ${Math.round(low)} in VO2max terms), so the spread is wide. Best runs that were not all-out, and hills, both widen it; an all-out 5 km on the flat would show which is nearer.`
+  return ` ${which} (about ${Math.round(high)} against ${Math.round(low)} in VO2max terms), so the range is wide. Best runs that were not all-out and hills both widen it. An all-out 5 km on the flat would show which is nearer.`
 }
 
 /** What All time's predictions are of: the best period in the files, which a shorter period would not be. */
@@ -42,11 +43,28 @@ const ALL_TIME_NOTE =
 const FLAT = 'for a flat course on a good day'
 
 /** What a row says when its time was held to a time already run at the distance. */
-export const FLOORED_TEXT = 'No slower than a time you have run'
+export const FLOORED_TEXT = 'Your best'
+
+/** What a row says when its run was not shown hard: the time is a bound, and you can run it or faster. */
+export const BOUND_TEXT = 'No slower than'
 
 /** The method note's clause for a list with such a row. */
 const FLOOR_NOTE =
-  ' Where you have already run a race distance, the prediction is no slower than that time.'
+  ' Where you have already run a race distance, the prediction is held at that time.'
+
+/** Where the runs of each window are, as the note says it. */
+const RUNS_IN: Record<RaceWindow, string> = {
+  period: 'this period',
+  year: 'the last 12 months',
+  all: 'your files',
+}
+
+/** What each window's times are called in the method note. */
+const TIMES: Record<RaceWindow, string> = {
+  period: 'your best times in this period',
+  year: 'your best times in the last 12 months',
+  all: 'your best times on file',
+}
 
 /** Whether some race was held to a time already run. */
 function anyFloored({ races }: RunPredictions): boolean {
@@ -58,24 +76,21 @@ function fromRuns({ races }: RunPredictions): boolean {
   return races.some((race) => race.methods.some((m) => m.method === 'performances'))
 }
 
-/** The line under the title: the middle of two estimates, or the one that there is. */
-export function predictionsLede(found: RunPredictions, allTime: boolean): string {
-  if (found.vo2max !== null && fromRuns(found)) {
-    return `The middle of two estimates, ${FLAT}.`
-  }
-  const source = fromRuns(found)
-    ? allTime
-      ? 'your best times on file'
-      : 'your best times in this period'
-    : 'your heart rate against pace'
-  return `From ${source}, ${FLAT}.`
+/** The one line under the title: the run the times were carried from, or the heart rate they came from. */
+export function basisLine(answer: Pick<RaceAnswer, 'basis'>, openedAt: number): string {
+  const { basis } = answer
+  if (basis === null) return 'From your heart rate.'
+  return `From your ${raceName(basis.distanceM).toLowerCase()} on ${formatDayMonth(basis.startMs, openedAt)}.`
 }
 
 /** How the predictions were reached, from the sources the result could use. */
-export function methodNote(found: RunPredictions, allTime: boolean): string {
+export function methodNote(found: RunPredictions, window: RaceWindow, bound = false): string {
   const { runsVdot, vo2max } = found
-  const when = allTime ? ALL_TIME_NOTE : ''
-  const times = allTime ? 'your best times on file' : 'your best times in this period'
+  const when = window === 'all' ? ALL_TIME_NOTE : ''
+  const times = TIMES[window]
+  if (bound) {
+    return `No run in ${RUNS_IN[window]} reached a hard heart rate. Each time is carried from your best, ${FLAT}, and is one you can run or beat.${when}${anyFloored(found) ? FLOOR_NOTE : ''}`
+  }
   if (!fromRuns(found) || vo2max === null) {
     return `From ${fromRuns(found) ? times : 'your heart rate against pace'} alone, ${FLAT}.${when}${anyFloored(found) ? FLOOR_NOTE : ''}`
   }

@@ -61,7 +61,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Race predictions',
     state: 'calculated',
-    line: 'Times for the usual road races, from your best runs, heart-rate VO2max and weekly running distance, with a spread assumed from typical prediction error.',
+    line: 'Times for the usual road races, from your best runs, heart-rate VO2max and weekly running distance, with a range from typical prediction error.',
   },
   {
     name: 'Output at the same heart rate',

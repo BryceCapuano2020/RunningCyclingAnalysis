@@ -342,8 +342,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
     needs 3 steady runs with heart rate." (a ride needs a power meter and heart rate). With neither, the section
     has no row and both lines are in the list. The copy never says limiter, weak, strength, "holding you back" or "ahead of".
   - **A section with nothing to show has no heading.** Its reason is one line of a muted list at the end of the
-    page, headed "Not enough yet", before the footnote: "Race predictions: needs a best of a mile or more, or
-    2 outdoor runs with a heart rate that can be trusted." Each section names its need in the plain words it would have used under its own
+    page, headed "Not enough yet", before the footnote: "Race predictions: needs a run of a mile or more." Each section names its need in the plain words it would have used under its own
     heading, lower-cased after the section's name, so a new athlete sees no dead headings and no jargon.
     The list is left out when every section has content, and on a page with no activities.
   - **A threshold the fit refused, shown as its floor, is "Threshold pace" with the chip At least** (or "power"),
@@ -833,21 +832,32 @@ and the tests named at the foot of that page keep the two in step. A display siz
   called your highest heart rate. A sport page's chip says "Hard efforts on file" at 90% or more,
   judged on the percent it shows, so a share that rounds to 90% is hard.
 - **Race predictions sit beside the zones.** The Run page predicts the 5 km, 10 km, half marathon and
-  marathon in a card of range bars, 60 beside the zones' 40 on a desktop. A row is the race with its pace on
-  the left, the predicted time at display size on the right, and between them a bar: the **assumed spread**
-  (its 10th to 90th percentile; the wording is "assumed spread", a defined term, never a range or a confidence
-  interval) as a rounded band between two caps with its ends printed, the prediction as a ring, and each
+  marathon in a card of range bars, 60 beside the zones' 40 on a desktop. **The card always answers when the
+  library holds a run of a mile or more** (`raceAnswerOf`, `apps/web/src/ui/raceAnswer.ts`): it reads the period, then
+  the 12 months ending with it, then all time, and rests on the first window that holds a run shown hard, so a hard run
+  from last spring answers a period of easy ones. **One basis line** under the title names the run the times were carried
+  from, its best from the mile up with the highest VDOT, and the day it was run: "From your 10 km on 3 Oct."
+  (with the year when it is not the page's year); with heart rate alone, "From your heart rate." Where no
+  window holds a run shown hard (its peak never held a hard heart rate, or the reference cannot certify one), the first
+  window with a run answers with a **bound**: each row prints "No slower than" above its time, carried from the best and held
+  at any time already run at the distance (`predict/races.ts`), with no bar, range or key, since a bound has no spread. A run
+  without a heart rate, a set-aside heart rate and a gate that could not judge still count as a hard run, as before. The
+  heart-rate estimate (VO2max) is the period's own and joins only an answer from the period. A row is the race with its pace on
+  the left, the predicted time at display size on the right, and between them a bar: the **range**
+  (its 10th to 90th percentile of a typical error, a defined term; the label is "Range" and the numbers read low to high)
+  as a rounded band between two caps with its ends printed, the prediction as a ring, and each
   estimate it sits between as a triangle, ▼ from the runner's bests above the bar and ▲ from heart rate below
-  it. The bar is linear in seconds and its scale widens for an estimate outside the spread, so a mark is drawn
-  where it is. Each prediction is the geometric mean of the runner's
+  it. The bar is linear in seconds and its scale widens for an estimate outside the range, so a mark is drawn
+  where it is. A row held at a time already run says "Your best". Each prediction is the geometric mean of the runner's
   bests and the races their heart-rate VO2max would run, both carried by Riegel's law at 1.07 and, for the
   marathon, Vickers & Vertosick's mileage-corrected model. **About these predictions**, a disclosure
   under the bars, holds the note, a table of every figure and where each estimate came from. The note says how many hard runs the heart-rate
   side rests on, how many hilly runs it left out, and, when the two disagree, which points higher and
-  why. In All time the note adds "In All time they reflect your best period. A shorter period shows your recent form." With no best from the mile up
-  and no heart-rate VO2max, the section has no card and says so in the "Not enough yet" list. The method and its sources
+  why. In All time the note adds "In All time they reflect your best period. A shorter period shows your recent form." Only when the library holds
+  no run of a mile or more, and the period has no heart-rate VO2max, is there no card; the "Not enough yet" list says so. The method and its sources
   are in `docs/research/race-prediction.md`. Predictors are keyed by sport in
-  `apps/web/src/ui/racePredictions.ts`, so a sport adds one there and the page shows it.
+  `apps/web/src/ui/racePredictions.ts`, so a sport adds one there and the page shows it. The library's hard sessions
+  (`HeartRateJudgement.sessions`) are judged against the same reference as the period's, so a run is hard or not in every window.
 - **Heart rate that cannot be right is set aside.** When a ride with a power meter, or an outdoor run, holds
   a best effort of 10 min or more at or above the sport's threshold and its heart rate stays under 70% of
   the reference heart rate, or was flagged as too low for the power through it, the sensor was wrong. That
@@ -961,8 +971,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   covered. Add outdoor runs of 3 minutes or more to see them." in the threshold's place, not "Needs efforts". A mixed library says the
   split once, under the sport page's answer: "20 of your 33 runs were on a treadmill; their pace is not used for bests or thresholds."
   A trainer ride's power comes from its meter, so it counts like an outdoor ride's and is only disclosed: "6 of your 40 rides were
-  indoors; their power counts like any other." Race predictions name the heart-rate route as it is: 2 outdoor runs with a heart
-  rate that can be trusted (indoor pace is left out of the VO2max estimate).
+  indoors; their power counts like any other." The heart-rate route to a race prediction keeps its rules: 2 outdoor runs with a heart
+  rate that can be trusted in the period (indoor pace is left out of the VO2max estimate).
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
   ride would let them be compared." beneath it. When a sport has fewer than three analysed activities in the
@@ -1166,7 +1176,7 @@ when weights are dated. The level targets are for today: a ride's watts are comp
 stacked below that: run heart rate and pace, ride heart rate and power. The caption names the zone set and
 where its reference came from, such as "Ride power zones. From your rides: threshold power 250 W." or "You
 entered: max heart rate 188 bpm". Each table is a `ChartTable` of Zone, Name and Range, with the published
-scheme in a muted line under it. Ranges are whole numbers that do not repeat a shared edge ("Under 140 W", "140–189 W", "375 W or more"); a run's range reads as a pace, the fast edge first, and a pace belongs to the zone it is slower than the next one's edge. A heart-rate estimate that rests on both sports says "From your runs and rides". Without a weight, estimated ride power zones are not shown and the section asks for one. While the sample is loaded, only the visitor's entered settings make zones. Without a reference
+scheme in a muted line under it. Ranges are whole numbers that do not repeat a shared edge ("Under 140 W", "140–189 W", "375 W or more"); a run's range reads as a pace, the fast edge first, and a pace belongs to the zone it is slower than the next one's edge. A heart-rate estimate that rests on both sports says "From your runs and rides". A heart rate cut from the highest on file, because no effort reached near a maximum, says "your highest on file" and can still be corrected. A pace or power no fit stands for says "From your best 30 min on 15 Mar 2025" (the best 20 min where there is no 30). Without a weight, estimated ride power zones are not shown and the section asks for one. While the sample is loaded, only the visitor's entered settings make zones. Without a reference
 the section says zones appear once there are files or an entered setting. The schemes are in
 [research/zones.md](research/zones.md). `zonesAt` in `packages/core/src/zones` is the one place they are
 built, and `AnalysisSession.zonesAt(date, settings)` answers from the worker's analysis.
@@ -1247,14 +1257,15 @@ analysis of the whole library set aside is not read, and the block says so ("Hea
 is left out of zones.") instead of asking for zones. With no zones the block says what they need and links to Profile.
 
 **Sport pages.** A **Time in zones** section, last in each sport's list (`SPORT_SECTIONS`): a stacked horizontal bar for
-each measure with enough time (3 activities and an hour, `MIN_ZONE_ACTIVITIES` and `MIN_ZONE_SECONDS`), under one
-lede. The lede reads the measure with the most time. When a zone's share moved by at least 5 points against the
-period before, it says so ("Heart rate zone 2 took 41% of your running time with heart rate, up from 28% in the previous 6 weeks."),
-and otherwise it gives the easy and hard shares ("60% of your running time with heart rate was easy (heart rate zones 1 and 2),
-and 10% was hard (heart rate zones 4 and up)."). The shares are of the time with a reading, so the sentence says "with heart rate",
-"with measured power" or "with a pace reading". Easy is zones 1 and 2 and hard is zone 4 and up for every measure
-(`EASY_THROUGH`, `HARD_FROM`), and the sentence names the measure ("pace zones 1 and 2"), since pace, heart rate and power
-cut their zones from different references and an easy share is not comparable between them. The period before is cut by the same estimated zones as the period on screen, so the two are
+each measure with enough time (3 activities and an hour, `MIN_ZONE_ACTIVITIES` and `MIN_ZONE_SECONDS`). There is no
+sentence over the bars, since they say it: each band prints its easy and hard shares, and the table has every figure.
+Easy is zones 1 and 2 and hard is zone 4 and up for every measure
+(`EASY_THROUGH`, `HARD_FROM`); pace, heart rate and power cut their zones from different references, so an easy share is not comparable between them.
+**It reads the period, and widens when the period holds too little.** A sport with no measure at 3 activities and an hour in the
+period is read over the 12 months ending with it and, if that is still too little, over all time (`widenedTimeInZones`, in
+`PeriodZoneTimes.widened`, built in the worker only for the sports that need it). A line under the title says "Last 12 months." or
+"All time."; the previous-period column and the change between periods are left out then. Over all time, whatever the library holds is drawn.
+The period before is cut by the same estimated zones as the period on screen, so the two are
 compared in the same zones. An entered setting that changed between the periods means the zones differ (an estimate is the same in both, and a
 dated weight moving an estimated ride threshold does not stop the comparison), as would one period using an estimate for
 some activities and the other not (a guard for a future back-fill policy; today the earliest entry applies before its own date, so a
@@ -1263,7 +1274,9 @@ out (it is also left out when the period before has no label), and a line says "
 adds a column with the previous period's share of each zone, headed by its label, where the periods can be compared.
 Under the bars, a muted line for each measure that left activities out ("2 of 12 runs had no heart rate to count.": no
 distribution in an older digest, no heart rate, no power meter; "had heart rate set aside": the analysis of the whole library
-judged the sensor; or "had no heart rate zones for their date": data but no reference), and one line on where the zones came from.
+judged the sensor; or "had no heart rate zones for their date": data but no reference), one line on where the zones came from, and a line where
+heart-rate zones are cut from the highest heart rate on file ("Heart rate zones are cut from your highest heart rate on file.") or pace or power
+zones from the best 30 min or 20 min ("Pace zones are cut from your best 30 min pace, 3 Oct 2025.", or "for 3 of 8 activities" where only some are).
 Whose heart rate is set aside is a judgement of the data, not of a period: the session makes it once over every visible
 activity, with the bike model fitted over all of them (`judgeHeartRate`, cached per library and masses by
 `HeartRateJudge`), exposes it as `SessionState.heartRateJudgement` (the sorted ids, and the reference heart rate and
@@ -1303,8 +1316,8 @@ unchanged. Periods, trends, the previous period and records all take the library
 Changing the period does not judge again. The reference it was judged against is the library's, which can differ from a
 period's own figure, so the notes on a set-aside heart rate cite it ("under 70% of your reference heart rate across all your
 activities (200 bpm running)", on How sure is this? and on the activity), and cannot seem to contradict the period's. With too
-little to describe, the section has no heading and "Time in zones: needs 3 activities with heart rate, or a threshold
-pace entered on Profile, and 1 hour of them." joins the "Not enough yet" list.
+little to describe even over all time, the section has no heading and "Time in zones: needs an activity with heart rate, or a threshold
+pace entered on Profile." joins the "Not enough yet" list.
 
 **Bars.** `ZoneTimeChart` is a `ChartFrame` with one band for each measure: its label in capitals with the easy and hard
 shares at the right ("31% easy · 28% hard"), the bar across the full width with rounded outer ends and a 2 px gap between
@@ -1321,10 +1334,12 @@ figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%")
 **Zones do not depend on the period.** The references that estimated zones are cut from are the library's, whatever
 period is picked: the library's judgement, taken over every visible activity once (`SessionState.zoneEstimates`, from
 `HeartRateJudgement`). A heart rate is the reference heart rate, the highest value that several separate days reached
-over the last three years. A pace or power is the fit over the half year before the activity's week (`thresholdTimeline`),
+over the last three years; where no effort reached near a maximum (`untrustedMax` `low` or `habitual`) the zones are still cut
+from the highest on file, and say so. A pace or power is the fit over the half year before the activity's week (`thresholdTimeline`),
 so an activity is cut by the athlete's fitness then; where that half year holds no fit the newest within a year stands
-in, dated in the table ("up to Mar 2025"), and beyond a year there are no pace or power zones and a line says what would
-give them. A dated setting the athlete entered still wins on the date it is in force, so each activity is cut by the
+in, dated in the table ("up to Mar 2025"), unless the window's efforts have outgrown it by 10%. Where no fit stands, the zones are
+cut from the library's **floor**: its best 30 min, else its best 20 min (`HeartRateJudgement.floor`), dated by the activity that
+set it. Only a library with no effort of 20 min has no pace or power zones, and a line says what would give them. A dated setting the athlete entered still wins on the date it is in force, so each activity is cut by the
 value in force on its own day, and the library's estimate stands where nothing was entered. Profile, the activity page and
 the sport page's time in zones all read it, so one activity has the same zones, and the same shares, under every period.
 Profile names where the max heart rate comes from ("186 bpm, the highest you reached on 4 separate days since Sep 2021.

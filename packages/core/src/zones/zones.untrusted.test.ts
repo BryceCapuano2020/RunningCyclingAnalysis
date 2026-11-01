@@ -4,7 +4,8 @@ import { judgeHeartRate } from '../digest/setAside'
 import { weeklyRuns } from '../digest/test/runLibrary'
 import type { AthleteSettings } from '../types'
 import { estimatesOf } from './test/estimates'
-import { missingThresholdZones, zoneEstimatesOf, zonesAt } from './zones'
+import { missingThresholdZones } from './missingZones'
+import { zoneEstimatesOf, zonesAt } from './zones'
 import type { ZoneEstimates } from './zones'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
@@ -32,15 +33,17 @@ describe('heart-rate zones when no effort reached near the maximum', () => {
     expect(heartRateSets(trusted).map((set) => set.sport)).toEqual(['run'])
   })
 
-  it('cuts none from a maximum under what one is at the age, or where the typical day already sits', () => {
-    expect(heartRateSets(withReading('low'))).toEqual([])
-    expect(heartRateSets(withReading('habitual'))).toEqual([])
+  it('cuts them from the highest heart rate on file where no effort reached near a maximum, and marks it', () => {
+    for (const reading of ['low', 'habitual'] as const) {
+      const sets = heartRateSets(withReading(reading))
+      expect(sets).toHaveLength(1)
+      expect(sets[0]).toMatchObject({ source: 'estimated', reference: 190, fromHighest: true })
+    }
+    expect(heartRateSets(trusted)[0]!.fromHighest).toBe(false)
   })
 
-  it('says which are missing, for the page to explain', () => {
-    expect(missingThresholdZones(AT, SETTINGS, withReading('habitual'))).toEqual([
-      { sport: 'run', measure: 'heartRate', outgrown: false },
-    ])
+  it('has none missing for want of a maximum', () => {
+    expect(missingThresholdZones(AT, SETTINGS, withReading('habitual'))).toEqual([])
     expect(missingThresholdZones(AT, SETTINGS, trusted)).toEqual([])
   })
 
@@ -59,7 +62,7 @@ describe('heart-rate zones when no effort reached near the maximum', () => {
     const settings = { ...SETTINGS, measurements: [entered] }
     const sets = heartRateSets(withReading('habitual'), settings)
     expect(sets).toHaveLength(1)
-    expect(sets[0]).toMatchObject({ source: 'entered', reference: 185 })
+    expect(sets[0]).toMatchObject({ source: 'entered', reference: 185, fromHighest: false })
     expect(missingThresholdZones(AT, settings, withReading('habitual'))).toEqual([])
   })
 

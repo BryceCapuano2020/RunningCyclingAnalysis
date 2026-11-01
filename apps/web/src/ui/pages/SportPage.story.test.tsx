@@ -236,16 +236,16 @@ describe('a sport page with everything to show', () => {
 })
 
 describe('race predictions where the effort could not be checked', () => {
-  it('says so under the predictions, which carry every run’s bests', () => {
+  it('says so once, under the threshold, and carries every run’s bests as a prediction', () => {
     const result = { ...fullRun(), effortGate: { run: NO_HEART_RATE, ride: UNKNOWN } }
     renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     openSection('Race predictions')
-    // Once under the threshold, once under the predictions.
     expect(
       screen.getAllByText(
         'Effort not checked: no heart rate on your best 20 min run. Add a run with heart rate to check it.',
       ),
-    ).toHaveLength(2)
+    ).toHaveLength(1)
+    expect(screen.queryByText('No slower than')).toBeNull()
   })
 
   it('says nothing of it where the effort was checked', () => {
@@ -274,8 +274,8 @@ describe('a sport page with sections that have nothing to show', () => {
       .getAllByRole('listitem')
       .map((item) => item.textContent)
     expect(items).toEqual([
-      'Race predictions: needs a best of a mile or more, or 2 outdoor runs with a heart rate that can be trusted.',
-      'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
+      'Race predictions: needs a run of a mile or more.',
+      'Time in zones: needs an activity with heart rate, or a threshold pace entered on Profile.',
       expect.stringMatching(
         /^Same heart rate, week by week: needs at least \d+ steady 5-minute stretches/,
       ),

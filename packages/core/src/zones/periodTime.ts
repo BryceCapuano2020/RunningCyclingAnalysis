@@ -37,6 +37,13 @@ export interface MeasureTime {
    * estimate follows the athlete's fitness, so two periods are compared in zones relative to it.
    */
   enteredReferences: number[]
+  /** Present when counted activities' heart-rate zones were cut from the highest heart rate on file, for want of a maximum. */
+  fromHighest?: true
+  /**
+   * Present when counted activities' pace or power zones were cut from the library's floor, no fit standing for their
+   * dates: the length of the best it is from, s, the day it was set, ms, and how many counted activities it cut.
+   */
+  floor?: { durationS: number; asOfMs: number; activities: number }
 }
 
 /** Each sport's measures, in the order ZONE_MEASURES gives. A measure with nothing counted is still there. */
@@ -153,7 +160,8 @@ export function periodTimeInZones(
     }
   }
   for (const digest of digests) {
-    const times = activityTimeInZones(digest, setsOn(digest), heartRateSetAside.has(digest.id))
+    const sets = setsOn(digest)
+    const times = activityTimeInZones(digest, sets, heartRateSetAside.has(digest.id))
     for (const measure of ZONE_MEASURES[digest.sport]) {
       const time = times[measure]
       const row = bySportMeasure.get(`${digest.sport}.${measure}`)
@@ -163,6 +171,15 @@ export function periodTimeInZones(
       else if (time.kind === 'noZones') row.noZones++
       else {
         row.counted++
+        const set = sets.find((each) => each.sport === digest.sport && each.measure === measure)
+        if (set?.fromHighest === true) row.fromHighest = true
+        if (set?.floorS != null && set.asOfMs !== null) {
+          row.floor = {
+            durationS: set.floorS,
+            asOfMs: set.asOfMs,
+            activities: (row.floor?.activities ?? 0) + 1,
+          }
+        }
         if (time.source === 'entered') {
           row.entered++
           entered.get(row)!.add(Math.round(time.reference * 1000) / 1000)

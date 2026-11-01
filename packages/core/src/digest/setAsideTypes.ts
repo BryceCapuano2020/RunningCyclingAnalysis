@@ -1,10 +1,10 @@
-import type { EffortReference } from '../effort'
+import type { EffortGate, EffortReference } from '../effort'
 import type { CriticalPowerFit, HrCalibration, Sport } from '../types'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { ReferenceMax } from './referenceMax'
 import { NO_EFFORT_REFERENCE } from '../effort'
-import { NO_THRESHOLD_TIMELINE } from './thresholdTimelineTypes'
-import type { ThresholdTimeline } from './thresholdTimelineTypes'
+import { NO_THRESHOLD_FLOORS, NO_THRESHOLD_TIMELINE } from './thresholdTimelineTypes'
+import type { ThresholdFloors, ThresholdTimeline } from './thresholdTimelineTypes'
 
 /**
  * Whose heart rate is set aside, judged over a whole library, with what it was judged against. A period's
@@ -38,6 +38,17 @@ export interface HeartRateJudgement {
    * estimated pace and power zones of an activity are cut from (see `ThresholdStep`).
    */
   thresholdTimeline: ThresholdTimeline
+  /**
+   * Each sport's floor on its threshold over the whole library: the best 30 minutes on file, else the best 20, and the day
+   * it was set. The zones are cut from it on a date no fit stands for. Null where the library holds neither.
+   */
+  floor: ThresholdFloors
+  /**
+   * The activities of each sport that reached a hard heart rate (`hard`), and the long ones whose average heart rate was
+   * high (`endurance`), judged against the library's reference: what a race prediction may carry a time from, whichever
+   * window the runs are taken from. Empty for a sport whose reference cannot certify one.
+   */
+  sessions: Record<Sport, EffortGate['sessions']>
   /** Each sport's threshold the efforts were judged against, in the unit of its fit (gross metabolic W/kg). Null without one. */
   threshold: Record<Sport, number | null>
   /**
@@ -64,6 +75,8 @@ export const NO_HEART_RATE_JUDGEMENT: HeartRateJudgement = {
   threshold: { run: null, ride: null },
   fit: { run: null, ride: null },
   thresholdTimeline: NO_THRESHOLD_TIMELINE,
+  floor: NO_THRESHOLD_FLOORS,
+  sessions: { run: { hard: [], endurance: [] }, ride: { hard: [], endurance: [] } },
   calibration: null,
   rideGate: null,
 }

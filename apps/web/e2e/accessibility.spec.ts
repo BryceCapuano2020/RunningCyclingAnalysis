@@ -48,7 +48,7 @@ async function openGradedSample(page: Page): Promise<void> {
 
 /**
  * Opens a sport page with a year of birth and sex saved, then every closed section, the race predictions'
- * disclosure and the definition of the assumed spread, so what sits behind them is checked too. Each press
+ * disclosure and the definition of the range, so what sits behind them is checked too. Each press
  * is followed by its content, so nothing is checked before it is drawn.
  */
 function openEverySection(sport: 'Run' | 'Ride') {
