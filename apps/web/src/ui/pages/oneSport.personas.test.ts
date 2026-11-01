@@ -33,7 +33,7 @@ function homeOf(name: PersonaName) {
     threshold: hasThreshold(result, sole),
     needs: hasThreshold(result, sole) ? null : thresholdNeedsLine(result, sole),
     split: indoorSplitLine(result.activities, sole),
-    fitnessCards: fitnessViews(fitness, 'metric').length,
+    fitnessCards: fitnessViews(fitness, 'metric', Date.UTC(2025, 5, 16)).length,
   }
 }
 

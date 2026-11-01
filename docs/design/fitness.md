@@ -87,7 +87,8 @@ shown back, including one after a shallow dip, can be spoken.
 2. The fit and the reference heart rate are read on the whole history to the date, so a past week's reading
    can move a little as the library grows.
 3. The date is the newest activity's, not the wall clock, so an export that ended months ago is told as it stood and
-   is not a long break (the session no longer passes the clock to the status). A sport whose own newest steady run is
+   is not a long break (the session passes the clock to neither the status nor the look-back, which read one replay; the card
+   reads it for display only: how new a state is, and "Latest activity 9 months ago." once the newest is over six weeks old). A sport whose own newest steady run is
    four weeks or more before that date, or fewer than four steady runs in eight weeks, cannot call a trend ("not enough
    recent evidence") without changing the monitor's state; it then tells its level (`FitnessStatus.level`: from three
    steady runs, over the shortest of 8, 12, 16, 26 or 52 weeks that holds three, dated on a break) and what a trend

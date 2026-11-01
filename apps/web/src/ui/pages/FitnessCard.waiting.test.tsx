@@ -2,7 +2,13 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
-import { FITNESS_LIBRARY, FITNESS_RIDE_LIBRARY, SLIPPING, waitingStatus } from '../fitnessFixtures'
+import {
+  FITNESS_AS_OF_MS,
+  FITNESS_LIBRARY,
+  FITNESS_RIDE_LIBRARY,
+  SLIPPING,
+  waitingStatus,
+} from '../fitnessFixtures'
 import { FitnessSection } from './FitnessSection'
 import type { FitnessSectionProps } from './FitnessSection'
 
@@ -21,6 +27,7 @@ function renderSection(over: Partial<FitnessSectionProps> & { run?: typeof SLIPP
   const { run = SLIPPING, ...rest } = over
   return render(
     <FitnessSection
+      nowMs={FITNESS_AS_OF_MS}
       fitness={{ run, ride: NO_FITNESS.ride }}
       units="metric"
       library={FITNESS_LIBRARY}
@@ -39,6 +46,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     )
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: waiting }}
         units="metric"
         library={FITNESS_LIBRARY}
@@ -53,6 +61,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     // The Ride page draws the full card, with the level and what a trend needs.
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: waiting }}
         units="metric"
         library={FITNESS_LIBRARY}
@@ -72,6 +81,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     const recent = waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }, 30, 'ride')
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: NO_FITNESS.run, ride: recent }}
         units="metric"
         library={FITNESS_RIDE_LIBRARY}
@@ -85,6 +95,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     const imprecise = waitingStatus({ kind: 'imprecise', within: 0.07 }, 33, 'ride')
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: imprecise }}
         units="metric"
         library={FITNESS_RIDE_LIBRARY}
@@ -98,6 +109,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
   it('dates the level of a break on the card, and says what a trend needs', () => {
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{
           run: waitingStatus({ kind: 'break', weeksSince: 9 }, 40),
           ride: NO_FITNESS.ride,
@@ -123,6 +135,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     )
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: few }}
         units="metric"
         library={FITNESS_LIBRARY}
@@ -139,6 +152,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     cleanup()
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: few }}
         units="metric"
         library={FITNESS_RIDE_LIBRARY}
@@ -153,6 +167,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     // A run is the same: the first sport is a card with a level, and a line without one.
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{
           run: waitingStatus({ kind: 'history', have: 1, need: 12, weeks: 1, needWeeks: 8 }, 1),
           ride: NO_FITNESS.ride,

@@ -21,15 +21,14 @@ describe('the look-back of a long library', () => {
       effects: [],
     })
     const digests = [...run.digests, ...ride.digests].sort((a, b) => a.startMs - b.startMs)
-    const nowMs = Math.max(run.lastMs, ride.lastMs)
     const t0 = performance.now()
     fitnessStatuses(digests, NONE)
     const fitness = performance.now() - t0
     const t1 = performance.now()
-    lookBackOf(digests, SETTINGS, NONE, nowMs)
+    lookBackOf(digests, SETTINGS, NONE)
     const first = performance.now() - t1
     const t2 = performance.now()
-    lookBackOf(digests, SETTINGS, NONE, nowMs)
+    lookBackOf(digests, SETTINGS, NONE)
     const again = performance.now() - t2
     console.info(
       `${digests.length} activities: fitness ${fitness.toFixed(0)} ms, look-back on top ${first.toFixed(0)} ms, again ${again.toFixed(2)} ms`,
@@ -60,16 +59,17 @@ describe('the look-back of a long library', () => {
       const ride = make(Math.max(1, perWeek / 2), ['ride'], 22)
       // Run distance bests give a run its other three efforts: 5 km, 10 km and the half marathon.
       const digests = [
-        ...run.digests.map((d, i) => ({
-          ...d,
-          distanceBests: [5000, 10_000, 21_097.5].map((distanceM, k) => ({
-            distanceM,
-            seconds: Math.round(distanceM * (0.3 + 0.0001 * ((i * 7 + k * 3) % 50))),
-          })),
-        })),
+        ...run.digests.map((d, i) =>
+          Object.assign(d, {
+            distanceBests: [5000, 10_000, 21_097.5].map((distanceM, k) => ({
+              distanceM,
+              seconds: Math.round(distanceM * (0.3 + 0.0001 * ((i * 7 + k * 3) % 50))),
+            })),
+          }),
+        ),
         ...ride.digests,
       ].sort((a, b) => a.startMs - b.startMs)
-      const look = lookBackOf(digests, SETTINGS, NONE, Math.max(run.lastMs, ride.lastMs))
+      const look = lookBackOf(digests, SETTINGS, NONE)
       return { look, activities: digests.length, bytes: JSON.stringify(look).length }
     }
     const small = posted(2)

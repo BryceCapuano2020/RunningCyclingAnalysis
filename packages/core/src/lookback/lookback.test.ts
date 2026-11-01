@@ -34,7 +34,7 @@ const library = () =>
 
 describe('a library through lookBackOf', () => {
   const planted = library()
-  const look = lookBackOf(planted.digests, SETTINGS, NONE, planted.lastMs)
+  const look = lookBackOf(planted.digests, SETTINGS, NONE)
 
   it('tells the run years, told through twelve weeks before the newest activity', () => {
     expect(look.horizonMs).toBeLessThan(look.asOfMs - 11 * 7 * DAY_MS)
@@ -63,8 +63,8 @@ describe('a library through lookBackOf', () => {
   })
 
   it('is remembered for the same digests, and empty for no library', () => {
-    expect(lookBackOf(planted.digests, SETTINGS, NONE, planted.lastMs)).toBe(look)
-    expect(lookBackOf([], SETTINGS, NONE, 0)).toBe(NO_LOOKBACK)
+    expect(lookBackOf(planted.digests, SETTINGS, NONE)).toBe(look)
+    expect(lookBackOf([], SETTINGS, NONE)).toBe(NO_LOOKBACK)
   })
 
   it('is small however long the library: no list past its cap, nothing per week', () => {
@@ -92,7 +92,7 @@ describe('a library through lookBackOf', () => {
     const asOfMs = dip.lastMs
     const history = fitnessHistories(dip.digests, NONE).run
     expect(history.records.length).toBeGreaterThan(200)
-    const told = lookBackOf(dip.digests, SETTINGS, NONE, asOfMs).sports.run.fitness
+    const told = lookBackOf(dip.digests, SETTINGS, NONE).sports.run.fitness
     const direct = hindsightOf({
       runs: history.runs,
       activeDays: dip.digests.map((d) => dayOfMs(d.startMs)),

@@ -1,14 +1,22 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
 import { makeActivity, makeResult } from '../components/fixtures'
-import { RECOVERING, SLIPPING } from '../fitnessFixtures'
+import { FITNESS_AS_OF_MS, RECOVERING, SLIPPING } from '../fitnessFixtures'
 import { BalancePage } from './BalancePage'
 
-afterEach(cleanup)
+/** The status is as of the fixtures' day; today is read for how new it is, so the tests set it. */
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(FITNESS_AS_OF_MS)
+})
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 

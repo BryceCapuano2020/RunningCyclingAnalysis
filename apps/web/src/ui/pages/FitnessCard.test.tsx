@@ -11,6 +11,7 @@ import {
   IMPROVING,
   RECOVERING,
   SLIPPING,
+  FITNESS_AS_OF_MS,
 } from '../fitnessFixtures'
 import { fitnessViews } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
@@ -35,6 +36,7 @@ function renderSection(over: Partial<FitnessSectionProps> & { run?: typeof SLIPP
   const { run = SLIPPING, ...rest } = over
   return render(
     <FitnessSection
+      nowMs={FITNESS_AS_OF_MS}
       fitness={{ run, ride: NO_FITNESS.ride }}
       units="metric"
       library={FITNESS_LIBRARY}
@@ -60,7 +62,9 @@ describe('FitnessSection', () => {
   })
 
   it('draws nothing for a library with no status to show, and no ride card for a library with no ride status', () => {
-    const empty = render(<FitnessSection fitness={NO_FITNESS} units="metric" library={[]} />)
+    const empty = render(
+      <FitnessSection nowMs={FITNESS_AS_OF_MS} fitness={NO_FITNESS} units="metric" library={[]} />,
+    )
     expect(empty.container).toBeEmptyDOMElement()
     empty.unmount()
     renderSection()
@@ -71,6 +75,7 @@ describe('FitnessSection', () => {
     const library = [...FITNESS_LIBRARY, ...FITNESS_RIDE_LIBRARY]
     const both = render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: RIDE_SLIPPING }}
         units="metric"
         library={library}
@@ -86,6 +91,7 @@ describe('FitnessSection', () => {
     both.unmount()
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: RIDE_SLIPPING }}
         units="metric"
         library={library}
@@ -134,6 +140,17 @@ describe('FitnessSection', () => {
     cleanup()
     renderSection({ run: HOLDING })
     expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
+  })
+
+  it('says how old the status is once its newest activity is long ago by the clock, and drops the New marker', () => {
+    renderSection({ nowMs: FITNESS_AS_OF_MS + 280 * 86_400_000 })
+    expect(screen.getByTestId('fitness-age')).toHaveTextContent('Latest activity 9 months ago.')
+    expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
+    expect(spoken(screen.getByRole('article'))).not.toMatch(BANNED)
+    cleanup()
+    renderSection()
+    expect(screen.queryByTestId('fitness-age')).not.toBeInTheDocument()
+    expect(screen.getByTestId('fitness-new')).toBeInTheDocument()
   })
 
   it('has a label and a track for each state that has a change, and the track stays out of the reading order', () => {
@@ -207,6 +224,7 @@ describe('the evidence panel', () => {
     cleanup()
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: NO_FITNESS.run, ride: RIDE_SLIPPING }}
         units="metric"
         library={FITNESS_RIDE_LIBRARY}
@@ -316,6 +334,7 @@ describe('fitness while the library is only part of what was added', () => {
     render(
       <HoldInputsContext.Provider value={PARTIAL}>
         <FitnessSection
+          nowMs={FITNESS_AS_OF_MS}
           fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
           units="metric"
           library={FITNESS_LIBRARY}
@@ -330,11 +349,16 @@ describe('fitness while the library is only part of what was added', () => {
   })
 
   it('holds a card shown on its own, and a sport’s page, the same way', () => {
-    const [view] = fitnessViews({ run: SLIPPING, ride: NO_FITNESS.ride }, 'metric')
+    const [view] = fitnessViews(
+      { run: SLIPPING, ride: NO_FITNESS.ride },
+      'metric',
+      FITNESS_AS_OF_MS,
+    )
     render(
       <HoldInputsContext.Provider value={PARTIAL}>
         <FitnessCard view={view!} units="metric" library={FITNESS_LIBRARY} />
         <FitnessSection
+          nowMs={FITNESS_AS_OF_MS}
           fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
           units="metric"
           library={FITNESS_LIBRARY}
@@ -351,7 +375,7 @@ describe('fitness while the library is only part of what was added', () => {
   it('draws nothing for a library with no status, held or not', () => {
     const { container } = render(
       <HoldInputsContext.Provider value={PARTIAL}>
-        <FitnessSection fitness={NO_FITNESS} units="metric" library={[]} />
+        <FitnessSection nowMs={FITNESS_AS_OF_MS} fitness={NO_FITNESS} units="metric" library={[]} />
       </HoldInputsContext.Provider>,
     )
     expect(container).toBeEmptyDOMElement()
@@ -361,6 +385,7 @@ describe('fitness while the library is only part of what was added', () => {
     render(
       <HoldInputsContext.Provider value={{}}>
         <FitnessSection
+          nowMs={FITNESS_AS_OF_MS}
           fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
           units="metric"
           library={FITNESS_LIBRARY}

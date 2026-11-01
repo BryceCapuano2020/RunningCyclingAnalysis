@@ -1,4 +1,4 @@
-import { useId, useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { FitnessBySport } from '@rca/core/fitness'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
@@ -31,6 +31,8 @@ export interface FitnessSectionProps {
   sport?: Sport
   /** The one sport a library holds: with no status for it, one quiet line says what would give one. */
   soleSport?: Sport | null
+  /** Today, which the section reads once when it opens: the statuses are as of the newest activity, and this dates how new and how old they read. Given by tests. */
+  nowMs?: number
 }
 
 /**
@@ -45,15 +47,21 @@ export function FitnessSection({
   library,
   sport,
   soleSport = null,
+  nowMs,
 }: FitnessSectionProps) {
   const id = useId()
+  // Read once, so a later render does not move what is new.
+  const [openedAt] = useState(() => Date.now())
+  const today = nowMs ?? openedAt
   // A library known to be only part of what was added says nothing of fitness: the runs that were not read are the ones it would rest on.
   const partial = useHoldInputs().partialImport
   // Made once for a status: the library-wide status does not move with the period, so a period switch repeats nothing.
   const views = useMemo(
     () =>
-      fitnessViews(fitness, units).filter((view) => sport === undefined || view.sport === sport),
-    [fitness, units, sport],
+      fitnessViews(fitness, units, today).filter(
+        (view) => sport === undefined || view.sport === sport,
+      ),
+    [fitness, units, sport, today],
   )
   const home = sport === undefined
   const lines = views.filter((view) => isLine(view, home))

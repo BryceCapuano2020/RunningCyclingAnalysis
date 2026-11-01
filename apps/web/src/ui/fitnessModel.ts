@@ -3,6 +3,7 @@ import { FITNESS, fitnessLines } from '@rca/core/fitness'
 import type { FitnessBySport, FitnessState, FitnessStatus, Ranged } from '@rca/core/fitness'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { latestActivityText } from './periodCopy'
 import { SPORT_FORMAT, SPORT_ORDER } from './sports'
 
 /** The shapes that say a state without colour: each is drawn by FitnessGlyph. */
@@ -64,6 +65,8 @@ export interface FitnessView {
   support: string
   /** What a trend needs, for a status that cannot call one. Empty otherwise. */
   needs: string
+  /** How old the status is, once its newest activity is long ago by the clock: "Latest activity 9 months ago." Null while it is recent. */
+  age: string | null
   /** A change that began to be shown within the last weeks: "the week of 12 Oct". Null otherwise. */
   fresh: string | null
   track: FitnessTrackModel | null
@@ -153,13 +156,18 @@ export function trackOf(status: FitnessStatus, units: UnitSystem): FitnessTrackM
   })
 }
 
-export function viewOf(status: FitnessStatus, units: UnitSystem): FitnessView {
+/**
+ * What a status is drawn as. The status itself is as of the newest activity; `nowMs` is the clock, read here for display
+ * only: a state is new for a few weeks of today, and a library last written to long ago says how old it is.
+ */
+export function viewOf(status: FitnessStatus, units: UnitSystem, nowMs: number): FitnessView {
   const { glyph, label } = FITNESS_STATE[status.state]
   const lines = fitnessLines(status, units)
+  const age = latestActivityText(status.asOfMs, nowMs)
   const fresh =
     status.entered !== null &&
     FRESH_STATES.has(status.state) &&
-    status.asOfMs - status.entered.atMs < FITNESS.display.freshWeeks * WEEK_MS
+    nowMs - status.entered.atMs < FITNESS.display.freshWeeks * WEEK_MS
       ? weekOf(status.entered.atMs)
       : null
   return {
@@ -170,19 +178,28 @@ export function viewOf(status: FitnessStatus, units: UnitSystem): FitnessView {
     headline: tidy(lines.headline),
     support: tidy(lines.support),
     needs: tidy(lines.needs),
+    age: age === null ? null : `${age}.`,
     fresh,
     track: trackOf(status, units),
     status,
   }
 }
 
-/** The headline and its support as one line, for a sport that is a line on the page rather than a card. */
+/** The headline, its support and its age as one line, for a sport that is a line on the page rather than a card. */
 export const lineOf = (view: FitnessView): string =>
-  [view.headline, view.support].filter((part) => part !== '').join(' ')
+  [view.headline, view.support, view.age ?? ''].filter((part) => part !== '').join(' ')
+
+/** Whether any sport has a status worth drawing. */
+export const hasFitnessView = (fitness: FitnessBySport): boolean =>
+  SPORT_ORDER.some((sport) => worthShowing(fitness[sport]))
 
 /** The statuses worth showing, in the order the sports sit everywhere, as what the page draws. */
-export function fitnessViews(fitness: FitnessBySport, units: UnitSystem): FitnessView[] {
+export function fitnessViews(
+  fitness: FitnessBySport,
+  units: UnitSystem,
+  nowMs: number,
+): FitnessView[] {
   return SPORT_ORDER.flatMap((sport) =>
-    worthShowing(fitness[sport]) ? [viewOf(fitness[sport], units)] : [],
+    worthShowing(fitness[sport]) ? [viewOf(fitness[sport], units, nowMs)] : [],
   )
 }

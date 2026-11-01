@@ -98,6 +98,11 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
           {view.support === '' ? null : (
             <p className="fitness-card__support">{withDefinitions(view.support, status, units)}</p>
           )}
+          {view.age === null ? null : (
+            <p className="fitness-card__support" data-testid="fitness-age">
+              {view.age}
+            </p>
+          )}
           {view.needs === '' ? null : (
             <p className="fitness-card__support" data-testid="fitness-needs">
               {view.needs}
