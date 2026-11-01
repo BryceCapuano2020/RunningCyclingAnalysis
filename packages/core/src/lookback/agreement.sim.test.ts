@@ -162,13 +162,14 @@ describe('false findings where nothing changed', () => {
   // Observed per athlete-year, 5 years (hindsight / card): nothing 0.069 / 0.24, season 1.5% 0.129 / 0.32, season 3% 0.138 / 0.45,
   // strap 0.131 / 0.33, heat 0.082 / 0.25, bad runs 0.061 / 0.23, wander stress 0.274 / 0.48; 10 years the same to within 0.04.
   // A slip the card declared is merged away only when the runs refute it, so these are the card's false alarms the runs do not.
+  // Recorded ceiling 0.3 (observed at most 0.28, wander stress); the design bound is 0.4.
   it.each(NULLS)(
-    '%s: hindsight lists fewer false episodes a year than the card raises, and under 0.4',
+    '%s: hindsight lists fewer false episodes a year than the card raises, and under 0.3',
     (_n, spec) => {
       for (const weeks of [260, 520]) {
         const r = rates(spec, weeks)
         expect(r.hindsight).toBeLessThanOrEqual(r.card)
-        expect(r.hindsight).toBeLessThanOrEqual(0.4)
+        expect(r.hindsight).toBeLessThanOrEqual(0.3)
       }
     },
   )
