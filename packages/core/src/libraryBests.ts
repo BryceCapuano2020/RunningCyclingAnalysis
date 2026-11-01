@@ -1,10 +1,8 @@
 import { libraryCurves } from './digest/libraryCurves'
-import { CURVE_START_S, PROFILE_FULL_LEVEL_ACTIVITIES } from './profile/constants'
+import { PROFILE_FULL_LEVEL_ACTIVITIES } from './profile/constants'
 import type { LibraryBests } from './sessionState'
-import type { ActivityDigest, AthleteSettings, Sport } from './types'
-
-/** Every sport a page is made for: the keys of a table that has a row for each. */
-const SPORTS = Object.keys(CURVE_START_S) as Sport[]
+import { SPORTS } from './types'
+import type { ActivityDigest, AthleteSettings } from './types'
 
 /**
  * The best curves of the whole library, or null when the period holds enough activities of every sport it has (or none
