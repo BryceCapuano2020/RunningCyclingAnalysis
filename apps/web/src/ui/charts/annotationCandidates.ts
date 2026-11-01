@@ -1,3 +1,4 @@
+import { clamp } from '@rca/core/math'
 import type { Box } from './chartBoxes'
 import type { PlotBox } from './chartTypes'
 import {
@@ -23,9 +24,6 @@ import type {
   PlacedText,
   ReferenceLine,
 } from './annotationTypes'
-
-export const clamp = (value: number, low: number, high: number) =>
-  Math.min(Math.max(value, low), Math.max(low, high))
 
 export interface Candidate {
   box: Box

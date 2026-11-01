@@ -7,6 +7,11 @@ import type { LinearFit } from './types'
  */
 export const EDGE_EPSILON = 1e-9
 
+/** The value held inside [low, high]. When the bounds are reversed, low wins. */
+export function clamp(value: number, low: number, high: number): number {
+  return Math.min(Math.max(value, low), Math.max(low, high))
+}
+
 /** Deterministic PRNG returning uniform values in [0, 1). */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0

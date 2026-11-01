@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { createHarness, START, type Harness } from './harness.ts'
 
-/** Helpers for the keyset cursor tests (design: .claude/stage-d/D3_DESIGN.md, section 2). */
+/** Helpers for the keyset cursor tests (docs/ARCHITECTURE.md, the library list). */
 
 export interface Seed {
   id: string

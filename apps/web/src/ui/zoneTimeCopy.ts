@@ -13,6 +13,7 @@ import type { MeasureTime, ZoneMeasure } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
 import { formatTotalTime } from '@rca/core/units'
 import { plural } from './components/plural'
+import { lowerFirst, upperFirst } from './format/firstLetter'
 import { lackLine } from './pages/lackLine'
 import { SPORT_PLURAL } from './sports'
 
@@ -80,9 +81,6 @@ export function percentText(share: number): string {
 export function zoneTimeText(seconds: number): string {
   return formatTotalTime(Math.round(seconds))
 }
-
-const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
-const upperFirst = (text: string) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 
 /**
  * The zones that count as easy, named by their measure, such as "pace zones 1 and 2". Pace, heart rate and power cut

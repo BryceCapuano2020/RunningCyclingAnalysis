@@ -332,7 +332,20 @@ describe('ZoneTimeCache', () => {
       analysis,
       setAside,
     )
-    expect(times.previous).not.toBeNull()
+    // The earlier half read as the period on screen, with the same estimate, gives the same rows.
+    const asCurrent = new ZoneTimeCache().get(
+      digests.slice(0, half),
+      [],
+      settings,
+      analysis,
+      setAside,
+    )
+    const counted = [...times.previous!.run, ...times.previous!.ride].reduce(
+      (n, row) => n + row.counted,
+      0,
+    )
+    expect(counted).toBeGreaterThan(0)
+    expect(times.previous).toEqual(asCurrent.current)
   })
 })
 

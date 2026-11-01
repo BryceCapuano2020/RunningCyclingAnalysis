@@ -201,6 +201,10 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
    `/api/health`, a post-deploy smoke test that sends no mutating requests, a sampled structured
    access log and a separate CI job for timing budgets.**
 10. **Done: browser-side rebuild of saved libraries from retained originals.**
+11. **Automatic background update.** Update now runs only when the athlete presses it. Starting the
+    same rebuild by itself after a library loads is not wired: a rebuild replaces a digest and keeps
+    no copy of the old one, so it should wait until the owner has rebuilt a library by hand and
+    checked the result.
 
 ## Engineering
 
@@ -211,7 +215,8 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
 2. **Originals kept by default.** Keeping original files lets a model change rebuild a library with no
    re-import. It is decided (Architecture I) but not yet the account default.
 3. **Remove dead exports.** Trim exports no app uses, so each package's public surface is what the
-   apps depend on.
+   apps depend on. The Stage D gate's list is done, except `analyze` (core/pipeline.ts) and `buildAccountExport`, which
+   tests still use as a reference.
 4. **Shared chart scaffolding.** Finish consolidating the axis, hover and frame code the charts still
    repeat.
 5. **Move the grading and ride-cap rules to core (before the stage E connector).** The age-grade

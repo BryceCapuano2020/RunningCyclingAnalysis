@@ -1,6 +1,6 @@
 import { acceptFixes, EARTH_RADIUS_M } from '../import/gps'
 import type { GpsFix } from '../import/gps'
-import { mean } from '../math'
+import { clamp, mean } from '../math'
 
 /**
  * The outline of an outdoor track with its position removed. The track is projected on a plane
@@ -199,8 +199,4 @@ function toRadians(degrees: number): number {
 
 function round3(value: number): number {
   return Math.round(value * 1000) / 1000
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
 }
