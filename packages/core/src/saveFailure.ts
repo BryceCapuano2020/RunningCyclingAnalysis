@@ -15,6 +15,7 @@ export type SyncIssueCode =
   | 'read-only'
   | 'activity-conflict'
   | 'originals-off'
+  | 'original-unsent'
   | 'network'
   | 'server'
 
@@ -41,6 +42,14 @@ export class SyncFailure extends Error {
     this.code = code
     this.digestSaved = digestSaved
   }
+}
+
+/** The failures that clear by themselves: the connection, or a server that had a bad moment. Sending again can clear them. */
+const TRANSIENT_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>(['network', 'server'])
+
+/** Whether sending again can clear a failure of this cause. */
+export function isTransient(code: SyncIssueCode): boolean {
+  return TRANSIENT_CODES.has(code)
 }
 
 const HALTING_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([

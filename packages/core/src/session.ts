@@ -35,7 +35,7 @@ import { RecordsCache } from './sessionRecords'
 import { zonesAt, HeartRateJudge, ZoneTimeCache } from './zones'
 import type { ZoneSet } from './zones'
 
-export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
+export { haltsImport, isTransient, stopsSaving, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { RejectedFile, SessionState } from './sessionState'
 export type { HeldOutActivity } from './sessionLibrary'

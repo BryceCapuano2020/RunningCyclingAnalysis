@@ -1,7 +1,7 @@
 import { MAX_FILE_BYTES } from '@rca/contract'
 import type { ActivityRecord } from '@rca/contract'
 import { revisionStatus } from '@rca/core/digest/revisions'
-import { SyncFailure } from '@rca/core/session'
+import { isTransient, SyncFailure } from '@rca/core/session'
 import type { SyncItem, SyncSink } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import { ApiRequestError, createActivity, uploadFile } from '../api/client'
@@ -15,6 +15,7 @@ import {
   UPLOAD_CONCURRENCY,
 } from './saveLimits'
 import { DeferredOriginals } from './deferredOriginals'
+import type { FailedOriginals } from './failedOriginals'
 import type { SyncOptions } from './protocol'
 import { retryAfterUploadSlot, SaveStop } from './rateLimitRetry'
 import type { RouteMemory } from './routes'
@@ -47,6 +48,8 @@ export interface AccountSaveContext {
   sending?: SendingKeys
   /** The ids of the digests the analysis hides as the library stands: an original held back for one is decided early only if it is not among them. */
   hiddenIds?: () => ReadonlySet<string>
+  /** Where an original whose upload failed for a passing reason waits to be sent again (see FailedOriginals). */
+  failedOriginals?: FailedOriginals
 }
 
 /**
@@ -105,12 +108,17 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     upload: async (record, item) => {
       await upload(record, item)
       missingOriginals.delete(workoutKeyOf(item.digest))
+      ctx.failedOriginals?.drop(workoutKeyOf(item.digest))
     },
     hiddenNow: () => ctx.hiddenIds?.() ?? new Set(),
-    codeOf: (error) => {
+    codeOf: (error, record, item) => {
       const { code } = syncFailureOf(error)
       stop.noteFailure(code)
-      return code
+      if (ctx.failedOriginals === undefined || !isTransient(code)) return code
+      // Held for Try again now and the automatic resend; past the budget the athlete is told to add the file again.
+      return ctx.failedOriginals.keep(sync.userId, record, item.bytes, code)
+        ? code
+        : 'original-unsent'
     },
   })
 

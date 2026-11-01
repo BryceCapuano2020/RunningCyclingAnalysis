@@ -22,7 +22,8 @@ import { DeviceOffer } from './DeviceOffer'
 import { hiddenCopiesText } from '../analysis/hiddenCopiesCopy'
 import { LibraryNotices } from './LibraryNotices'
 import { SyncStatus } from './SyncStatus'
-import { useSaveRetry } from '../useSaveRetry'
+import { hasRetryableIssue, useSaveRetry } from '../useSaveRetry'
+import { useWaitingSaves } from '../useWaitingSaves'
 import { useSampleNotice } from './useSampleNotice'
 import './AppNotices.css'
 
@@ -125,12 +126,22 @@ export function AppNotices({
     ) : null
   // The runs counted despite walking pace: the way back, where runs are listed or analysed.
   const countedHere = analysis.state.countedWalkingRuns
-  const outboxLine = analysis.outbox === null ? null : outboxText(analysis.outbox)
+  const issues = analysis.state.syncIssues
+  // The rows a reload found waiting are in this browser: the note and the button do not wait for a later load.
+  const outbox = useWaitingSaves({
+    userId: signedIn ? accountUser?.userId : undefined,
+    outbox: analysis.outbox,
+    issues,
+    busy: analysis.busy,
+    libraryStatus: analysis.libraryStatus,
+  })
+  const outboxLine =
+    outbox === null ? null : outboxText(outbox, analysis.savedCount !== null && issues.length === 0)
   // Saves the connection dropped go again when it is back, and when the athlete asks.
   const saves = useSaveRetry({
     signedIn,
-    issues: analysis.state.syncIssues,
-    outbox: analysis.outbox,
+    issues,
+    outbox,
     busy: analysis.busy,
     libraryStatus: analysis.libraryStatus,
     resume: analysis.resumeSaves,
@@ -163,7 +174,8 @@ export function AppNotices({
         <SyncStatus
           uploading={analysis.uploading}
           savedCount={analysis.savedCount}
-          issues={analysis.state.syncIssues}
+          savedLater={analysis.outbox?.finished === true ? analysis.outbox.saved : 0}
+          issues={issues}
           signedIn={signedIn}
           moved={movedAnything(moved)}
           hiddenCopies={analysis.state.hiddenDuplicates}
@@ -177,7 +189,24 @@ export function AppNotices({
           panelShown={libraryPanel}
           onRetry={() => runThenFocus(analysis.retryLibrary)}
         />
-        {outboxLine !== null && <p className="notice">{outboxLine}</p>}
+        {outboxLine !== null && (
+          <p className="notice">
+            {outboxLine}
+            {/* The import's own failure sentence carries this button when it has one. */}
+            {saves.waiting && !hasRetryableIssue(issues) && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={(event) => runThenFocus(saves.retry, event.currentTarget)}
+                >
+                  Try again now
+                </button>
+              </>
+            )}
+          </p>
+        )}
         {/* The visible result has a button to put it away, so it sits outside this region; this says it once. */}
         {analysis.adoption !== null && <p className="sr-only">{adoptionText(analysis.adoption)}</p>}
         {bareLibraryNotice !== null && <p className="notice">{bareLibraryNotice}</p>}

@@ -444,4 +444,12 @@ describe('SyncStatus retry', () => {
     expect(message().textContent).not.toMatch(/again to retry|add (it|them) again/i)
     expect(message().textContent).toMatch(/Try again now/)
   })
+
+  it('says to add the file again for an original a server error stopped, with no retry button', () => {
+    render(<SyncStatus {...props({ issues: [issue('original-unsent', 2)], onRetry: vi.fn() })} />)
+    expect(message()).toHaveTextContent(
+      'A server error stopped 2 originals from being kept. The summaries were saved. Add their files again to keep them.',
+    )
+    expect(screen.queryByRole('button', { name: 'Try again now' })).not.toBeInTheDocument()
+  })
 })

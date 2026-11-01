@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react'
-import type { SyncIssue, SyncIssueCode } from '@rca/core/session'
+import { isTransient } from '@rca/core/session'
+import type { SyncIssue } from '@rca/core/session'
 import type { LibraryStatus, OutboxStatus } from './analysis/model'
-
-/** The save failures that clear by themselves: the connection, or a server that had a bad moment. */
-const RETRYABLE = new Set<SyncIssueCode>(['network', 'server'])
 
 /** Whether any failure in `issues` is one that sending again can clear. */
 export function hasRetryableIssue(issues: readonly SyncIssue[]): boolean {
-  return issues.some(({ code }) => RETRYABLE.has(code))
+  return issues.some(({ code }) => isTransient(code))
 }
 
 /** An `online` this soon after a retry is ignored: browsers send a burst of them as a flaky link comes and goes. */

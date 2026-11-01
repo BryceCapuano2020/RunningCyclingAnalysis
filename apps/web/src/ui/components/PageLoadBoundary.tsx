@@ -16,8 +16,10 @@ interface PageLoadBoundaryState {
 
 /**
  * Catches a page that failed to load (offline, or a build that replaced its file) and says so in the
- * page's place, so the header and the tabs stay. Retry asks for the page again. Any other render error
- * still reaches the boundary above the whole app.
+ * page's place, so the header and the tabs stay. Retry asks for the page again, and so does the connection coming
+ * back: a page's file that was never fetched while offline (the first import of a visit, analysed with no network)
+ * is fetched then, without the athlete pressing anything. Any other render error still reaches the boundary above
+ * the whole app.
  */
 // React only offers error boundaries as class components.
 export class PageLoadBoundary extends Component<PageLoadBoundaryProps, PageLoadBoundaryState> {
@@ -37,6 +39,16 @@ export class PageLoadBoundary extends Component<PageLoadBoundaryProps, PageLoadB
   private retry = () => {
     retryPages()
     this.setState({ error: null })
+  }
+
+  override componentDidUpdate(_props: PageLoadBoundaryProps, last: PageLoadBoundaryState): void {
+    const failed = this.state.error !== null
+    if (failed && last.error === null) window.addEventListener('online', this.retry)
+    else if (!failed && last.error !== null) window.removeEventListener('online', this.retry)
+  }
+
+  override componentWillUnmount(): void {
+    window.removeEventListener('online', this.retry)
   }
 
   override render(): ReactNode {

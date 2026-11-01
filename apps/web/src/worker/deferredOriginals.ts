@@ -20,7 +20,7 @@ export interface DeferredOriginalsOptions {
   /** The ids of the digests the analysis hides as things stand, for a decision made before the import ends. */
   hiddenNow: () => ReadonlySet<string>
   /** Says why an upload failed, as a code the page words. */
-  codeOf: (error: unknown) => SyncIssueCode
+  codeOf: (error: unknown, record: ActivityRecord, item: SyncItem) => SyncIssueCode
   /** Why an original can never be kept (too large), so it is failed at once and its bytes are not held to the end. */
   refuse?: (item: SyncItem) => SyncIssueCode | null
   budgetBytes?: number
@@ -73,7 +73,10 @@ export class DeferredOriginals {
       await this.options.upload(record, item)
     } catch (error) {
       // The digest is saved. Only the original is missing, which says nothing about the network.
-      this.failures.push({ key: workoutKeyOf(item.digest), code: this.options.codeOf(error) })
+      this.failures.push({
+        key: workoutKeyOf(item.digest),
+        code: this.options.codeOf(error, record, item),
+      })
     }
   }
 }
