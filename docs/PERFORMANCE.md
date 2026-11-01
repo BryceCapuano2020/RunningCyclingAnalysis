@@ -147,6 +147,26 @@ reference used by differential tests and is not part of the production bundle. T
 implementation limits; streaming decoded records directly into per-activity processing would
 further reduce retained intermediate data.
 
+## Memory of a large import in a phone-sized browser
+
+`apps/web/e2e/phone-memory.spec.ts` (RCA-054) imports 560 synthetic runs and rides in the Pixel 7 Chromium project
+(full Chromium, not the headless shell) and takes two readings.
+
+The gate is what the import keeps. `measureUserAgentSpecificMemory` collects garbage and counts what the page and its
+worker still reach, typed arrays included; the test serves its own page cross-origin isolated, which the API needs, and
+leaves the app alone. The budget is 0.035 MiB an activity. Sixteen runs read 0.019 to 0.024, the spread being the idle page
+itself. A build that kept every parsed activity read 0.22 in eight runs, and one that kept only the speed stream of each
+read 0.054 in three, so both fail.
+
+The blunt reading is the peak resident set of the renderer, read with `ps`: at most 320 MiB above the idle page. Thirteen
+runs read 198 to 260 MiB, about 0.4 MiB an activity, which puts the audit's 2,000 activities near 1 GiB (the audit
+measured about 1 GiB on a real export). It moves 20 percent between runs and cannot tell the kept-everything build
+(191 to 389 MiB) from a clean one, so it catches only a gross change. It is read from /proc on Linux and with `ps`
+elsewhere, and it is asserted off CI only: the Linux container's spread has not been measured, so CI logs the figure. The renderer runs with a 768 MiB V8 old-space cap, which makes it collect as a small device
+does; without it the same import reads 2.5 MiB an activity, which is the collector being lazy. WebKit has no memory API,
+so it is not measured. The structural caps and the streaming of the CSV fields and skipped zip entries that the finding
+also asks for are not in this test.
+
 This benchmark covers local digest construction and combination, not Cloudflare D1 or R2 request
 costs, latency, or quota behavior. Production per-user retention limits and app-wide R2 byte and
 operation budgets are documented in [PRODUCTION.md](PRODUCTION.md); they do not constrain direct
