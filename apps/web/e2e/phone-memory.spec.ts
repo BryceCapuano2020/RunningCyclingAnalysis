@@ -160,7 +160,7 @@ test.describe('a large import on a phone-sized browser', () => {
 
     let peak = idle
     let samples = 0
-    // A sample that fails mid-import (a process exiting) is dropped; the reads before and after are strict.
+    // A sample that fails while a process is exiting is dropped; the reads before and after are strict.
     const sampler = setInterval(() => {
       void renderersMiB(browser)
         .then((size) => {
