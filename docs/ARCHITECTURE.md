@@ -571,8 +571,7 @@ shows the update panel and holds its results until it is rebuilt, and never fall
 
 A stale digest is replaced in one of two ways. The browser can re-digest a retained original (the updater,
 `apps/web/src/worker/updater.ts`: newest first, two at a time, each upgrade verified before and after it is
-written, a circuit breaker after five failures, started by "Update now"; the automatic start is off,
-`AUTO_UPDATE_ENABLED`). Or the original file can be added again. In both, if its hash matches the stored activity, the API atomically replaces only the
+written, a circuit breaker after five failures, started by "Update now"; no automatic start is wired). Or the original file can be added again. In both, if its hash matches the stored activity, the API atomically replaces only the
 derived digest and preserves the activity id, original-file metadata and quota reservation. Retained
 R2 files can be downloaded by the browser to drive the first; no database migration is needed.
 

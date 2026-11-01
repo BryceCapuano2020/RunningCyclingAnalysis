@@ -480,7 +480,7 @@ activities at a time with accessible paging.
   account sends titles. Weeks are cut at local Mondays, from the shift. It is `exclusive`: a library holds its
   results back and shows the update panel while any digest is revision 6 (`HOLD_ON_ANY_STALE`). New imports are
   revision 7; "Update now" rebuilds from retained originals, and dropping the original export again rebuilds
-  without them. The automatic updater stays off (`AUTO_UPDATE_ENABLED`) until the owner's checklist is done.
+  without them. The updater has no automatic start; it runs from "Update now" only.
   **Rollback floor.** Revision 7 digests, the new fields and the new flag kind are read by the Worker of
   release R1 (W1) and by nothing older: a Worker older than R1 would read every revision-7 row as incompatible
   and, once all rows are upgraded, show the landing page, count a row with the new flag kind as unreadable and
