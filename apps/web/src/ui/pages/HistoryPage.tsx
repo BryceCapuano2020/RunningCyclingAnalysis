@@ -2,6 +2,7 @@ import type { History } from '@rca/core/history'
 import type { UnitSystem } from '@rca/core/units'
 import { summaryOf } from '../historySummary'
 import { listedSections } from './history/sectionList'
+import type { GradingInputs } from './history/types'
 import { PAGE_HEADING_ID } from './pageHeading'
 import './HistoryPage.css'
 
@@ -9,12 +10,14 @@ export interface HistoryPageProps {
   /** The whole library's history, whatever period is picked. */
   history: History
   units: UnitSystem
+  /** The athlete's profile for the charts that grade. */
+  grading: GradingInputs
 }
 
 const EMPTY_TEXT = 'Add runs or rides to see your history.'
 
 /** The athlete's whole library, year by year: a row of totals, then one chart for each section. */
-export function HistoryPage({ history, units }: HistoryPageProps) {
+export function HistoryPage({ history, units, grading }: HistoryPageProps) {
   const stats = summaryOf(history.years, units)
   return (
     <div className="page-stack history">
@@ -41,7 +44,7 @@ export function HistoryPage({ history, units }: HistoryPageProps) {
           </dl>
           {listedSections().map(({ id, render }) => (
             <div key={id} className="section" data-section={id}>
-              {render({ history, units })}
+              {render({ history, units, grading })}
             </div>
           ))}
         </>

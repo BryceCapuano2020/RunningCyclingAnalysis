@@ -4,3 +4,4 @@
  * This file is merged as a union (.gitattributes), so two sections added at once both stay.
  */
 export { hoursPerYear } from './hoursPerYear'
+export { balanceOverYears } from './balanceOverYears'

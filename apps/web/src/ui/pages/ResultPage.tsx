@@ -233,7 +233,13 @@ export function ResultPage({
         />
       )
     case 'history':
-      return <HistoryPage history={analysis.state.history} units={units} />
+      return (
+        <HistoryPage
+          history={analysis.state.history}
+          units={units}
+          grading={{ profile, missingAge, weightKnown }}
+        />
+      )
     case 'activities':
       return (
         <ActivitiesPage

@@ -29,6 +29,7 @@ import { balanceLevels } from './levelsModel'
 import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
 import { BalanceLevels } from './BalanceLevels'
+import { BalanceOverYears } from './BalanceOverYears'
 import { BalanceTiles } from './BalanceTiles'
 import { EvidenceLine } from './EvidenceLine'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
@@ -279,6 +280,14 @@ export function BalancePage({
       />
 
       {sourceLine}
+
+      <BalanceOverYears
+        years={analysis.state.history.balance}
+        profile={profile}
+        missingAge={missingAge}
+        weightKnown={weightKnown}
+        placement="home"
+      />
 
       {soleSport === null ? null : (
         <SoleSportRecords
