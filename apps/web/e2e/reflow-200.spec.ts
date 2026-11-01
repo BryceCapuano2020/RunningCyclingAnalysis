@@ -93,6 +93,21 @@ for (const size of SIZES) {
       expect(await avatar.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
     })
 
+    test('the Settings over time form on Profile wraps, signed in', async ({ page }) => {
+      await page.goto('/')
+      await uploadFixtures(page, ['one-run.fit'])
+      await libraryLoaded(page, 1)
+      await signInAs(page.request, uniqueEmail(), 'Ada Lovelace')
+      await page.goto('/')
+      await goTo(page, 'Profile')
+      const form = page.getByRole('region', { name: 'Settings over time' })
+      await expect(form).toBeVisible()
+      await expect(form.getByRole('button', { name: 'Add' })).toBeEnabled()
+      await expectFits(page)
+      const box = await form.boundingBox()
+      expect(box!.x + box!.width).toBeLessThanOrEqual(size.width)
+    })
+
     test('an activity does not scroll sideways', async ({ page }) => {
       await openSample(page)
       const rows = await activitiesRows(page)

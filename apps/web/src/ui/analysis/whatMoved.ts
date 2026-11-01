@@ -83,7 +83,8 @@ function addedOnScreen(before: AnalysisResult, after: AnalysisResult, sport: Spo
 
 /**
  * Whether the activity an import added set a new best at the headline duration: its workout is not
- * on file, and its best there beats the earlier one, or there was none.
+ * on file, and its best there beats the earlier one. With no earlier best there is nothing to beat, as the
+ * check-in row reads an empty baseline.
  */
 function setHeadlineBest(before: AnalysisResult, after: AnalysisResult, sport: Sport): boolean {
   const point = curveOf(after, sport).find(
@@ -98,7 +99,7 @@ function setHeadlineBest(before: AnalysisResult, after: AnalysisResult, sport: S
     return false
   }
   const earlier = bestAt(before, sport, HEADLINE_DURATION_S)
-  return !Number.isFinite(earlier) || bestAt(after, sport, HEADLINE_DURATION_S) > earlier
+  return Number.isFinite(earlier) && bestAt(after, sport, HEADLINE_DURATION_S) > earlier
 }
 
 /**
@@ -189,7 +190,7 @@ function workoutsOn(result: AnalysisResult): Set<string> {
 
 /**
  * The record durations that an activity the import added set, and that beat the earlier best with
- * a change in the displayed value. An activity counts as on file when its workout matches (sport
+ * a change in the displayed value; a duration with no earlier best is not beaten. An activity counts as on file when its workout matches (sport
  * and start time), whatever its id, so a copy that replaces one is not new.
  */
 function bestItems(
@@ -210,7 +211,8 @@ function bestItems(
       const earlier = earlierRecords.find((r) => r.durationS === record.durationS)
       if (earlier?.value === record.value) continue
       const earlierBest = bestAt(before, sport, record.durationS)
-      if (Number.isFinite(earlierBest) && bestAt(after, sport, record.durationS) <= earlierBest) {
+      // No earlier best at the duration is a first reading, not a beaten one: the check-in row counts none either.
+      if (!Number.isFinite(earlierBest) || bestAt(after, sport, record.durationS) <= earlierBest) {
         continue
       }
       items.push({
@@ -240,7 +242,8 @@ function distanceItems(
   for (const record of distanceRecords(after.activities, units).records) {
     if (onFile.has(workoutKey(record.activity.sport, record.activity.startMs))) continue
     const earlierBest = earlier.find((candidate) => candidate.distanceM === record.distanceM)
-    if (earlierBest !== undefined && earlierBest.seconds <= record.seconds) continue
+    // No earlier time at the distance is a first reading, not a beaten one.
+    if (earlierBest === undefined || earlierBest.seconds <= record.seconds) continue
     items.push({
       text: `New best ${record.label}: ${record.time}`,
       spoken: `New best ${record.label}: ${spokenSeconds(record.seconds)}`,
