@@ -27,6 +27,9 @@ export interface WeekSpan {
   toWeek: number
 }
 
+/** A change under this (half of 0.1%) is written as 0%: formatRelative's one decimal below 10%. */
+const NOTHING = 0.0005
+
 /** The change from one level to another, with its range as the printed ranges have it. */
 const changeBetween = (a: Level, b: Level): Ranged => ranged(b.m - a.m, halfWidth(a.se, b.se))
 
@@ -124,7 +127,8 @@ function movesOf(levels: readonly Level[], breaks: readonly WeekSpan[], delta: n
 
 /**
  * The episodes the levels hold. A fall of `delta` or more with a range below zero opens a slip; the next rise closes it
- * as `slip-back` when the level is back (isBack, or the fitness card said back for this slip and nothing contradicts it), as `slip-partly-back` when it came part of the way, and a fall with
+ * as `slip-back` when the level is back (isBack, or the fitness card said back for this slip and nothing contradicts it,
+ * or what is missing is written as 0%), as `slip-partly-back` when it came part of the way, and a fall with
  * no rise is `slip-open`. A rise with no slip open is an `improvement`; a rise that carries the level clear above where
  * it was before the fall is a return and an improvement of the excess. A step beside a break is `after-break` and
  * ends no slip. Ranges are the printed ones; a change whose range reaches zero is not listed.
@@ -205,14 +209,17 @@ export function episodesOf(
         runs: runsIn(fall.from, move.to),
       }
       const fallWeek = levels[fall.from + 1]!.fromWeek
+      // A shortfall the page writes as 0% is back, however loosely the levels are known: "still 0% lower" is not a claim.
+      // A real partial whose range is wholly below the old level stays partly back (hindsight.sim.test.ts holds the rate).
+      const remaining = changeBetween(pre, post)
       if (
         isBack(pre, post, floor) ||
-        cardSaidBack(live, fallWeek, levels[move.to]!.fromWeek, pre, post, floor)
+        cardSaidBack(live, fallWeek, levels[move.to]!.fromWeek, pre, post, floor) ||
+        Math.abs(remaining.value) < NOTHING
       ) {
         out.push(episode('slip-back', fall.from, fall.to, fall.steps, returned))
         // Back, and clear above where it was: the return, then the excess as a rise of its own.
-        const excess = changeBetween(pre, post)
-        if (rising(excess) && post.m - pre.m >= delta) {
+        if (rising(remaining) && post.m - pre.m >= delta) {
           out.push(
             episode('improvement', fall.from, move.to, move.steps, {
               fromWeek: levels[move.from + 1]!.fromWeek,
@@ -224,7 +231,7 @@ export function episodesOf(
         out.push(
           episode('slip-partly-back', fall.from, fall.to, fall.steps, {
             ...returned,
-            remaining: changeBetween(pre, post),
+            remaining,
           }),
         )
       }

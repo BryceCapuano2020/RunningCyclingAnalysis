@@ -82,11 +82,19 @@ export function shownChange(sport: Sport, r: Ranged): Ranged {
 /** Whether the whole range is on one side of level: only then is there a direction to say. */
 export const oneSided = (r: Ranged): boolean => r.low > 0 || r.high < 0
 
-/** The ends of a range as whole percentages, "3 to 9%"; one figure when they round together. */
+/**
+ * The ends of a range as whole percentages, "3 to 9%"; one figure when they round together. A range on one side of
+ * level is written as sizes, the words beside it giving the direction. One that crosses level keeps its signs
+ * ("-3 to +4%"), since its ends lie on different sides and sizes alone would say the same of both.
+ */
 const rangeText = (r: Ranged): string => {
-  const [a, b] = [Math.abs(r.low), Math.abs(r.high)].sort((x, y) => x - y)
-  const [lo, hi] = [Math.round(a! * 100), Math.round(b! * 100)]
-  return lo === hi ? `${hi}%` : `${lo} to ${hi}%`
+  const [lo, hi] = [Math.round(r.low * 100), Math.round(r.high * 100)]
+  if (oneSided(r)) {
+    const [a, b] = [Math.abs(lo), Math.abs(hi)].sort((x, y) => x - y)
+    return a === b ? `${b}%` : `${a} to ${b}%`
+  }
+  const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
+  return lo === hi ? `${signed(hi)}%` : `${signed(lo)} to ${signed(hi)}%`
 }
 
 /** "6% (3 to 9%)": the size of a change and the range it may lie in. */

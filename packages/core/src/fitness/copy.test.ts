@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { lintCopy } from '../findings/copy'
-import { fitnessFindingHeadline, fitnessLines } from './copy'
+import { fitnessFindingHeadline, fitnessLines, sized } from './copy'
 import { noFitness } from './types'
 import type { FitnessSpan, FitnessState, FitnessStatus, Ranged, Shortfall } from './types'
 import type { Sport } from '../types'
@@ -278,5 +278,17 @@ describe('the year of a date', () => {
     expect(headline).toContain('since your low in July:')
     expect(headline).toMatch(/before 28 Feb\.$/)
     expect(headline).not.toMatch(/2025/)
+  })
+})
+
+describe('sized', () => {
+  it('writes a one-sided range as sizes, the direction left to the words beside it', () => {
+    expect(sized('ride', { value: 0.06, low: 0.03, high: 0.09 })).toBe('6% (3 to 9%)')
+    expect(sized('ride', { value: -0.06, low: -0.09, high: -0.03 })).toBe('6% (3 to 9%)')
+  })
+
+  it('keeps the signs of a range that crosses level', () => {
+    expect(sized('ride', { value: 0.004, low: -0.03, high: 0.04 })).toBe('0.4% (-3 to +4%)')
+    expect(sized('ride', { value: -0.01, low: -0.05, high: 0.02 })).toBe('1% (-5 to +2%)')
   })
 })
