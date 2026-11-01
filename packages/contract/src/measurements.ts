@@ -2,6 +2,7 @@ import './zodConfig.ts'
 import { z } from 'zod'
 import { MEASUREMENT_KINDS, MEASUREMENT_SPORTS, isLocalDate } from '@rca/core/athlete'
 import type { MeasurementKind } from '@rca/core/athlete'
+import { SPORTS } from '@rca/core/types'
 import { WEIGHT_LIMITS_KG } from './athlete.ts'
 
 /**
@@ -34,7 +35,7 @@ export const MeasurementKindSchema = z.enum(MEASUREMENT_KINDS)
 export const MeasurementSchema = z
   .strictObject({
     kind: MeasurementKindSchema,
-    sport: z.enum(['run', 'ride']).optional(),
+    sport: z.enum(SPORTS).optional(),
     value: z.number(),
     from: z
       .string()

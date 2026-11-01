@@ -227,14 +227,6 @@ export function BalancePage({
 
   return (
     <div className="page-stack">
-      {/* Fitness leads the home page: the finding that moves comes before the balance it sits beside. */}
-      <FitnessAndCheckIn
-        analysis={analysis}
-        units={units}
-        library={library}
-        soleSport={soleSport}
-      />
-
       <BalanceHero
         result={result}
         library={library}
@@ -310,6 +302,14 @@ export function BalancePage({
       )}
 
       {bothInPeriod && <EvidenceLine noHeartRate={result.maxHeartRate === null} />}
+
+      {/* The balance leads the home page; fitness sits under it, after the period's tiles and before the grades. */}
+      <FitnessAndCheckIn
+        analysis={analysis}
+        units={units}
+        library={library}
+        soleSport={soleSport}
+      />
 
       <GradeProfileSection
         result={result}

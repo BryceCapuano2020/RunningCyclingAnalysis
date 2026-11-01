@@ -68,7 +68,7 @@ const SIZES = [
 ] as const
 
 for (const size of SIZES) {
-  test(`at ${size.width} by ${size.height} the row is 48 px or less, the headline is under it and above the tabs, and nothing overflows`, async ({
+  test(`at ${size.width} by ${size.height} the row is 48 px or less, the headline is above it and above the tabs, and nothing overflows`, async ({
     page,
   }) => {
     test.setTimeout(120_000)
@@ -80,7 +80,7 @@ for (const size of SIZES) {
     expect(box.height).toBeLessThanOrEqual(48)
     const rowEdges = await edgesOf(row)
     const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
-    expect(headline.top).toBeGreaterThanOrEqual(rowEdges.bottom)
+    expect(rowEdges.top).toBeGreaterThanOrEqual(headline.bottom)
     if (size.width < 768) expect(headline.top).toBeLessThan(await tabBarTop(page))
     else expect(headline.top).toBeLessThan(size.height)
     const overflow = await horizontalOverflow(page)

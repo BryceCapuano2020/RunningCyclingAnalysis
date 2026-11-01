@@ -9,6 +9,7 @@ import type { HeartRateJudgement } from '../digest/setAsideTypes'
 import { outgrownAt, thresholdAt } from '../digest/thresholdTimelineTypes'
 import type { ThresholdTimeline } from '../digest/thresholdTimelineTypes'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
+import { SPORTS } from '../types'
 import type { Sport } from '../types'
 import {
   EDGE_ROUNDING,
@@ -192,7 +193,7 @@ function heartRate(
     return { reference, from: [sport], ...(source === null ? {} : { maxHeartRateFrom: source }) }
   }
   if (observed === null) return { reference, from: [OTHER_SPORT[sport]] }
-  return { reference, from: ['run', 'ride'] }
+  return { reference, from: [...SPORTS] }
 }
 
 /**

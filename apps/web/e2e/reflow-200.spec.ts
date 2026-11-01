@@ -128,6 +128,6 @@ test('the Balance headline is on the first screen of a phone, above the tab bar'
     page.getByRole('main').getByRole('heading', { level: 1 }).boundingBox(),
     page.getByRole('navigation', { name: 'Sections' }).boundingBox(),
   ])
-  // The fitness card leads by design (Stage C), so the headline starts low, but all of it is above the bar.
+  // The balance leads the page, so all of the headline is above the bar.
   expect(headline!.y + headline!.height).toBeLessThanOrEqual(tabs!.y)
 })
